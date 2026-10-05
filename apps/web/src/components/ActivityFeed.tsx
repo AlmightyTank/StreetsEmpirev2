@@ -436,7 +436,14 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'QUEST_CLAIMED':
       return {
         text: `Collected payment for ${str(p.title, 'a quest')}.`,
-        detail: Array.isArray(p.rewards) ? (p.rewards as unknown[]).map(String).join(' · ') : undefined,
+        detail: Array.isArray(p.rewards)
+          ? [...(p.rewards as unknown[]), ...(Array.isArray(p.standingChanges) ? p.standingChanges as unknown[] : [])].map(String).join(' · ')
+          : undefined,
+      };
+    case 'FACTION_TIER_UP':
+      return {
+        text: `${str(p.factionName, 'A faction')} now counts you as ${str(p.tierName, 'known')}.`,
+        detail: formatNumber(num(p.points)) + ' standing · private to you',
       };
 
     case 'STREET_PASS_CLAIMED':
@@ -741,6 +748,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     CAPTAIN_TIP: 'Captain',
     INFORMANT_TIP: 'Informant',
     CASE_FOLLOWED: 'Federal case',
+    FACTION_TIER_UP: 'Faction',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();

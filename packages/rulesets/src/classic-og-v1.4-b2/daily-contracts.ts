@@ -37,7 +37,7 @@ function daily(input: DailyInput): QuestDefinition {
 }
 
 /**
- * 1.4.0-A2: twenty-eight more daily contracts. With the eight from 0.7-N the pool
+ * 1.4.0-B2: twenty-eight more daily contracts. With the eight from 0.7-N the pool
  * holds thirty-six, so a three-slot board runs twelve days before any contract
  * comes back. Six of them cover systems no contract tracked before: businesses,
  * block wars, convoys, boss trips, boss hits and outposts.

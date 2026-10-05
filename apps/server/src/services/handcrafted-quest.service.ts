@@ -1,6 +1,10 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { FACTION_TIERS, factionTier, factionTierName, factionTierRank, jobStanding as jobStandingFor } from '@streets/rules-engine';
 import {
   type ContactKey,
+  jobFaction,
+  type FactionKey,
+  type FactionTier,
   type QuestBranchDefinition,
   type QuestDefinition,
   type QuestObjectiveDefinition,
@@ -30,6 +34,7 @@ import { FavorInventoryService } from './favor-inventory.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { addContactRep, grantRewards, rewardDto } from './reward-grant.service.js';
+import { FactionService } from './faction.service.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
 import {
   DAILY_CONTRACT_SLOTS,
@@ -253,6 +258,36 @@ function objectiveDtos(row: QuestRow, communityEvent?: CommunityEventSnapshot): 
   ];
 }
 
+/**
+ * 1.4.0-B. Standing a one-time Job pays each faction it helps (see `jobStanding` in the rules
+ * engine): never a faction whose contact it merely pays.
+ */
+function jobStanding(
+  ruleset: Ruleset,
+  key: string,
+  rewards: ReadonlyArray<{ kind: string; key?: string | null; amount?: number | null }>,
+  branch?: QuestBranchDefinition | null,
+): Map<FactionKey, number> {
+  const definition = ruleset.questDefinitions?.[key];
+  return definition ? jobStandingFor(ruleset, definition, rewards, branch) : new Map();
+}
+
+/** A faction standing reward is shown and paid as standing, not as an ordinary reward. */
+function visibleRewards<T extends { kind: string }>(rewards: readonly T[]): T[] {
+  return rewards.filter((reward) => reward.kind !== 'FACTION_STANDING');
+}
+
+/** The tier a faction Job needs, or null when it needs none. */
+function factionJobTier(definition: QuestDefinition | undefined): FactionTier | null {
+  const prerequisite = definition?.prerequisites.find((row) => row.kind === 'FACTION_STANDING_AT_LEAST');
+  const tier = prerequisite?.params?.tier;
+  return typeof tier === 'string' && (FACTION_TIERS as readonly string[]).includes(tier) ? tier as FactionTier : null;
+}
+
+function standingLabel(amount: number, factionName: string): string {
+  return `+${amount} ${factionName} standing`;
+}
+
 function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEventSnapshot): PlayerQuestDto {
   const contact = contactFor(ruleset, row.questDefinition.contactKey);
   const cityState = cityContractState(row.rewardState);
@@ -271,7 +306,17 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
     description: cityState?.description ?? row.questDefinition.description,
     contactKey: row.questDefinition.contactKey,
     contactName: contact?.shortName ?? null,
-    factionName: contact?.factionKey ? ruleset.factions?.[contact.factionKey]?.name ?? null : null,
+    ...(() => {
+      const definition = ruleset.questDefinitions?.[row.questDefinition.key];
+      const factionKey = definition ? jobFaction(ruleset, definition) : contact?.factionKey;
+      const faction = factionKey ? ruleset.factions?.[factionKey] : undefined;
+      return { factionKey: faction?.key ?? null, factionName: faction?.name ?? null };
+    })(),
+    factionJob: ruleset.questDefinitions?.[row.questDefinition.key]?.category === 'FACTION',
+    factionStandings: [...jobStanding(ruleset, row.questDefinition.key, rewards(row.questDefinition.rewards))].flatMap(([factionKey, amount]) => {
+      const name = ruleset.factions?.[factionKey]?.name;
+      return name ? [{ factionKey, factionName: name, amount, label: standingLabel(amount, name) }] : [];
+    }),
     type: row.questDefinition.type,
     category: row.questDefinition.category,
     difficulty: row.questDefinition.difficulty,
@@ -281,7 +326,7 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
     branchChoices: branchChoicesDto(row, ruleset),
     ...(story ? { story } : {}),
     objectives: objectiveDtos(row, communityEvent),
-    rewards: resolvedRewards.map((reward) => rewardDto(reward, ruleset)),
+    rewards: visibleRewards(resolvedRewards).map((reward) => rewardDto(reward, ruleset)),
     ...(availability.seasonalEvent ? {
       seasonalEvent: {
         eventKey: availability.seasonalEvent.eventKey,
@@ -329,11 +374,23 @@ async function contactPoints(db: Db | PrismaClient, roundPlayerId: string, rules
   return Object.fromEntries(keys.map((key) => [key, rows.find((row) => row.trader === key)?.points ?? 0]));
 }
 
+/** 1.4.0-B. The player's tier with every faction; empty before standing exists. */
+async function factionTiers(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<Record<string, FactionTier>> {
+  const rules = ruleset.factionStanding;
+  if (!rules || !ruleset.factions) return {};
+  const rows = await db.playerFactionStanding.findMany({ where: { roundPlayerId }, select: { factionKey: true, points: true } });
+  return Object.fromEntries(Object.keys(ruleset.factions).map((key) => [
+    key,
+    factionTier(rows.find((row) => row.factionKey === key)?.points ?? 0, rules),
+  ]));
+}
+
 export function questPrerequisitesMet(
   definition: QuestDefinition,
   completed: ReadonlySet<string>,
   reps: Readonly<Record<string, number>>,
   chosenBranches: Readonly<Record<string, string>>,
+  factionTiers: Readonly<Record<string, FactionTier>> = {},
 ): boolean {
   return definition.prerequisites.every((prerequisite) => {
     if (prerequisite.kind === 'QUEST_COMPLETED') {
@@ -344,6 +401,15 @@ export function questPrerequisitesMet(
       const key = prerequisite.params?.contactKey;
       const points = prerequisite.params?.points;
       return typeof key === 'string' && typeof points === 'number' && (reps[key] ?? 0) >= points;
+    }
+    if (prerequisite.kind === 'FACTION_STANDING_AT_LEAST') {
+      const factionKey = prerequisite.params?.factionKey;
+      const tier = prerequisite.params?.tier;
+      const reached = typeof factionKey === 'string' ? factionTiers[factionKey] : undefined;
+      return reached !== undefined
+        && typeof tier === 'string'
+        && (FACTION_TIERS as readonly string[]).includes(tier)
+        && factionTierRank(reached) >= factionTierRank(tier as FactionTier);
     }
     if (prerequisite.kind === 'BRANCH_CHOSEN') {
       const questKey = prerequisite.params?.questKey;
@@ -431,6 +497,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       .map((row) => [row.questDefinition.key, row.chosenBranch!]),
   );
   const reps = await contactPoints(db, roundPlayerId, ruleset);
+  const tiers = await factionTiers(db, roundPlayerId, ruleset);
   const adminTestMode = await seasonalEventAdminTestModeForPlayer(db, roundPlayerId);
   const newlyAvailable: string[] = [];
 
@@ -450,7 +517,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
     const seasonalAvailable = seasonalEventAvailable(definition, now, adminTestMode);
-    const available = seasonalAvailable && questPrerequisitesMet(definition, completed, reps, chosenBranches);
+    const available = seasonalAvailable && questPrerequisitesMet(definition, completed, reps, chosenBranches, tiers);
     if (!current) {
       await db.playerQuest.create({
         data: {
@@ -555,6 +622,7 @@ export const HandcraftedQuestService = {
           independent: independent ?? null,
         };
       });
+      const standings = await FactionService.standings(tx, roundPlayerId, ruleset);
       const factions = ruleset.factions ? Object.values(ruleset.factions).flatMap((faction) => faction ? [{
         key: faction.key,
         name: faction.name,
@@ -563,8 +631,15 @@ export const HandcraftedQuestService = {
         lane: faction.lane,
         description: faction.description,
         rivals: faction.rivals.map((rival) => ({ key: rival, name: ruleset.factions?.[rival]?.name ?? rival })),
-        faces: Object.values(ruleset.contacts ?? {}).flatMap((contact) => contact?.factionKey === faction.key ? [contact.shortName] : []),
+        faces: Object.values(ruleset.contacts ?? {}).flatMap((contact) => contact?.factionKey === faction.key ? [{ key: contact.key, name: contact.shortName }] : []),
         facesNote: faction.facesNote ?? null,
+        standing: standings.get(faction.key) ?? null,
+        jobs: Object.values(ruleset.questDefinitions ?? {}).flatMap((definition) => {
+          if (definition.category !== 'FACTION' || jobFaction(ruleset, definition) !== faction.key) return [];
+          const tier = factionJobTier(definition);
+          const row = rows.find((candidate) => candidate.questDefinition.key === definition.key);
+          return [{ key: definition.key, title: definition.title, tierName: tier ? factionTierName(tier) : null, status: row?.status ?? 'LOCKED' }];
+        }),
       }] : []) : null;
       const unlockRows = await tx.playerUnlock.findMany({
         where: { roundPlayerId },
@@ -838,6 +913,15 @@ export const HandcraftedQuestService = {
           ...(selectedBranch?.rewards ?? []),
         ];
         await grantRewards({ tx, roundPlayerId, accountId: player.accountId, ruleset, now, sourceKey: key }, next, questRewards);
+        // 1.4.0-B: a one-time Job also pays standing to the factions it helps, and no others.
+        const standingChanges: QuestClaimResult['standingChanges'] = [];
+        for (const [factionKey, amount] of jobStanding(ruleset, key, questRewards, selectedBranch)) {
+          const change = await FactionService.grant(tx, roundPlayerId, ruleset, factionKey, amount, 'JOB', `job:${row.id}:${factionKey}`, now);
+          if (change) {
+            const paid = change.after - change.before;
+            standingChanges.push({ factionKey, factionName: change.factionName, amount: paid, tierName: factionTierName(change.tier), tierUp: change.tierUp, label: standingLabel(paid, change.factionName) });
+          }
+        }
         await StreetPassCredService.creditQuest(
           tx,
           roundPlayerId,
@@ -857,7 +941,7 @@ export const HandcraftedQuestService = {
           },
         });
         const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now);
-        const dtoRewards = questRewards.map((reward) => rewardDto(reward, ruleset));
+        const dtoRewards = visibleRewards(questRewards).map((reward) => rewardDto(reward, ruleset));
 
         return {
           next,
@@ -868,6 +952,7 @@ export const HandcraftedQuestService = {
             rewards: dtoRewards,
             reputationChanges,
             newlyAvailable,
+            standingChanges,
           },
           activity: {
             type: 'QUEST_CLAIMED',
@@ -878,6 +963,7 @@ export const HandcraftedQuestService = {
               chosenBranch: selectedBranch?.key ?? row.chosenBranch,
               rewards: dtoRewards.map((reward) => reward.label),
               reputationChanges: reputationChanges.map((change) => change.label),
+              standingChanges: standingChanges.map((change) => change.label),
               newlyAvailable,
             }),
           },

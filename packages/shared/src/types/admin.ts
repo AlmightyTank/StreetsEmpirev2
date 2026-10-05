@@ -404,7 +404,7 @@ export interface AdminQuestContentDto {
   rotations: {
     daily: { keys: string[]; resetAt: string | null; slots: number };
     weekly: { keys: string[]; resetAt: string | null; slots: number };
-    /** 1.4.0-A2. This round's season board; absent on rulesets without one. */
+    /** 1.4.0-B2. This round's season board; absent on rulesets without one. */
     season?: { keys: string[]; resetAt: string | null; slots: number };
   };
   quests: AdminQuestCatalogRowDto[];

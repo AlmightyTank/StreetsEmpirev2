@@ -37,7 +37,7 @@ function weekly(input: WeeklyInput): QuestDefinition {
 }
 
 /**
- * 1.4.0-A2: fourteen more weekly contracts. With the six from 0.7-O the pool holds
+ * 1.4.0-B2: fourteen more weekly contracts. With the six from 0.7-O the pool holds
  * twenty, so a two-slot board runs ten weeks before any contract comes back. Four of
  * them cover businesses, block wars, convoys and boss trips.
  */

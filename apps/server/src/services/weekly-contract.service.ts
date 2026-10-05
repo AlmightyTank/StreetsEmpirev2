@@ -54,7 +54,7 @@ export function weeklyContractWindow(now: Date, ruleset: Ruleset): { startsAt: D
 /**
  * The weekly board is shared and deterministic. Prefer different categories so
  * the two-slot board cannot become two versions of the same activity loop. From
- * 1.4.0-A2 the order comes from a deck seeded by the round (see the daily board).
+ * 1.4.0-B2 the order comes from a deck seeded by the round (see the daily board).
  */
 export function selectedWeeklyContractKeys(
   ruleset: Ruleset,

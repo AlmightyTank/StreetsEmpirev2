@@ -21,7 +21,7 @@ export const CITY_CONTRACT_WINDOW_HOURS = 12;
 export const CITY_CONTRACT_PAYOUT_MULTIPLIER = 1.35;
 
 const WINDOW_MS = CITY_CONTRACT_WINDOW_HOURS * 60 * 60 * 1000;
-/** 1.4.0-A2 fresh city boards replay at most this many windows (three days). */
+/** 1.4.0-B2 fresh city boards replay at most this many windows (three days). */
 const FRESH_CITY_RUN_WINDOWS = 6;
 
 const SUPPLY_PRESSURE: Readonly<Record<SupplyLevel, number>> = {
@@ -36,17 +36,17 @@ export interface CityContractWindow {
   endsAt: Date;
 }
 
-/** SELL is the 0.7-R market order; TRIP and CASINO are the 1.4.0-A2 city jobs. */
+/** SELL is the 0.7-R market order; TRIP and CASINO are the 1.4.0-B2 city jobs. */
 export type CityContractKind = 'SELL' | 'TRIP' | 'CASINO';
 const CITY_CONTRACT_KINDS: readonly CityContractKind[] = ['SELL', 'TRIP', 'CASINO'];
 
-/** 1.4.0-A2 city job payouts and targets. */
+/** 1.4.0-B2 city job payouts and targets. */
 export const CITY_JOB_TRIP_BONUS_CENTS = 2_000_000;
 export const CITY_JOB_CASINO_BONUS_CENTS = 1_500_000;
 export const CITY_JOB_CASINO_WAGERS = 15;
 
 export interface CityContractState {
-  /** Absent on rows written before 1.4.0-A2, which are all SELL. */
+  /** Absent on rows written before 1.4.0-B2, which are all SELL. */
   kind?: CityContractKind;
   windowStart: string;
   windowEnd: string;
@@ -325,7 +325,7 @@ export function cityContractSlots(ruleset: Ruleset): number {
 }
 
 /**
- * 1.4.0-A2 city job: fly in and back, or play that city's casino. Never the starting
+ * 1.4.0-B2 city job: fly in and back, or play that city's casino. Never the starting
  * city (most crews live there, and a trip has to leave home) and never a city the
  * market orders already posted, so the board points at three different cities.
  */
@@ -408,7 +408,7 @@ function cityMarketOffers(
       .map(({ score: _score, ...offer }) => offer);
   }
 
-  // 1.4.0-A2: each board avoids the cities the board before it actually posted.
+  // 1.4.0-B2: each board avoids the cities the board before it actually posted.
   // Boards are replayed from the start of a fixed run of windows so the chain stays
   // short; the first board of a run avoids the previous window's raw top picks.
   const index = Math.floor(window.startsAt.getTime() / WINDOW_MS);

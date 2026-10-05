@@ -302,6 +302,9 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'OFFICIAL_STUNG':
       return { title: 'Your official was stung', detail, tone: 'bad', href: '/game#case' };
 
+    case 'FACTION_TIER_UP':
+      return { title: `${String(p.factionName ?? 'A faction')}: ${String(p.tierName ?? 'new tier')}`, detail, tone: 'good', href: '/game/quests#factions' };
+
     case 'CASE_FOLLOWED':
       return { title: 'Your federal case followed you', detail, tone: 'bad', href: '/game#case' };
 

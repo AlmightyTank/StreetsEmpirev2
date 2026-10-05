@@ -37,7 +37,7 @@ function season(input: SeasonInput): QuestDefinition {
 }
 
 /**
- * 1.4.0-A2 Season board. Each round deals three of these from its own deck, so a new
+ * 1.4.0-B2 Season board. Each round deals three of these from its own deck, so a new
  * game gets a different set. They run the whole round, sit outside the active-job
  * limit and can be finished once.
  */

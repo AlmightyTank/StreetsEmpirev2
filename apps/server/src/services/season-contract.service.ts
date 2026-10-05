@@ -17,7 +17,7 @@ export function isSeasonContractDefinition(definition: QuestDefinition | undefin
 }
 
 /**
- * 1.4.0-A2 Season board. Each round deals three contracts from its own deck, spread
+ * 1.4.0-B2 Season board. Each round deals three contracts from its own deck, spread
  * across categories, so a new game gets a different set. Every player in the round
  * shares the board.
  */

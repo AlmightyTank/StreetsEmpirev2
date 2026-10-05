@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceQuestObjective, classicOgV14A, classicOgV14A2 } from '@streets/rulesets';
+import { advanceQuestObjective, classicOgV14B, classicOgV14B2 } from '@streets/rulesets';
 import {
   CITY_JOB_CASINO_WAGERS,
   cityContractObjectives,
@@ -24,7 +24,7 @@ const WEEK_MS = 7 * DAY_MS;
 const start = new Date('2026-10-05T15:00:00.000Z');
 
 function poolSize(type: 'DAILY' | 'WEEKLY'): number {
-  return Object.values(classicOgV14A2.questDefinitions).filter((quest) => quest.type === type).length;
+  return Object.values(classicOgV14B2.questDefinitions).filter((quest) => quest.type === type).length;
 }
 
 describe('contract deck rotation', () => {
@@ -40,7 +40,7 @@ describe('contract deck rotation', () => {
     const lastSeen = new Map<string, number>();
     const counts = new Map<string, number>();
     for (let day = 0; day < cycleDays * 10; day += 1) {
-      const board = selectedDailyContractKeys(classicOgV14A2, new Date(start.getTime() + day * DAY_MS), undefined, 'round-one');
+      const board = selectedDailyContractKeys(classicOgV14B2, new Date(start.getTime() + day * DAY_MS), undefined, 'round-one');
       expect(new Set(board).size).toBe(DAILY_CONTRACT_SLOTS);
       for (const key of board) {
         if (lastSeen.has(key)) expect(day - lastSeen.get(key)!, key).toBeGreaterThanOrEqual(6);
@@ -54,23 +54,23 @@ describe('contract deck rotation', () => {
 
   it('gives a new round a different daily and weekly board', () => {
     const rounds = ['round-one', 'round-two', 'round-three'];
-    const dailies = rounds.map((round) => selectedDailyContractKeys(classicOgV14A2, start, undefined, round).join());
-    const weeklies = rounds.map((round) => selectedWeeklyContractKeys(classicOgV14A2, start, undefined, round).join());
+    const dailies = rounds.map((round) => selectedDailyContractKeys(classicOgV14B2, start, undefined, round).join());
+    const weeklies = rounds.map((round) => selectedWeeklyContractKeys(classicOgV14B2, start, undefined, round).join());
     expect(new Set(dailies).size).toBe(3);
     expect(new Set(weeklies).size).toBe(3);
-    expect(selectedDailyContractKeys(classicOgV14A2, start, undefined, 'round-one'))
-      .toEqual(selectedDailyContractKeys(classicOgV14A2, start, undefined, 'round-one'));
+    expect(selectedDailyContractKeys(classicOgV14B2, start, undefined, 'round-one'))
+      .toEqual(selectedDailyContractKeys(classicOgV14B2, start, undefined, 'round-one'));
   });
 
   it('deals every weekly contract once a cycle, never within five weeks, on mixed boards', () => {
     const cycleWeeks = poolSize('WEEKLY') / WEEKLY_CONTRACT_SLOTS;
-    const categoryOf = (key: string) => classicOgV14A2.questDefinitions[key as keyof typeof classicOgV14A2.questDefinitions].category;
+    const categoryOf = (key: string) => classicOgV14B2.questDefinitions[key as keyof typeof classicOgV14B2.questDefinitions].category;
     for (const round of ['round-one', 'round-two', 'round-three']) {
       const lastSeen = new Map<string, number>();
       let mixed = 0;
       const weeks = cycleWeeks * 6;
       for (let week = 0; week < weeks; week += 1) {
-        const board = selectedWeeklyContractKeys(classicOgV14A2, new Date(start.getTime() + week * WEEK_MS), undefined, round);
+        const board = selectedWeeklyContractKeys(classicOgV14B2, new Date(start.getTime() + week * WEEK_MS), undefined, round);
         expect(new Set(board).size).toBe(WEEKLY_CONTRACT_SLOTS);
         if (categoryOf(board[0]!) !== categoryOf(board[1]!)) mixed += 1;
         for (const key of board) {
@@ -84,12 +84,12 @@ describe('contract deck rotation', () => {
   });
 
   it('leaves the shared rotation of older rulesets untouched', () => {
-    expect(selectedDailyContractKeys(classicOgV14A, start, undefined, 'round-one'))
-      .toEqual(selectedDailyContractKeys(classicOgV14A, start));
-    expect(selectedWeeklyContractKeys(classicOgV14A, start, undefined, 'round-one'))
-      .toEqual(selectedWeeklyContractKeys(classicOgV14A, start));
+    expect(selectedDailyContractKeys(classicOgV14B, start, undefined, 'round-one'))
+      .toEqual(selectedDailyContractKeys(classicOgV14B, start));
+    expect(selectedWeeklyContractKeys(classicOgV14B, start, undefined, 'round-one'))
+      .toEqual(selectedWeeklyContractKeys(classicOgV14B, start));
     const window = cityContractWindow(start);
-    expect(cityContractOffers(classicOgV14A, 'round-one', window)).toHaveLength(2);
+    expect(cityContractOffers(classicOgV14B, 'round-one', window)).toHaveLength(2);
   });
 
   it('never posts two city orders in one city and leans away from the last board', () => {
@@ -98,7 +98,7 @@ describe('contract deck rotation', () => {
     for (const round of ['round-one', 'round-two', 'round-three']) {
       let previous: string[] = [];
       for (let window = 0; window < 14; window += 1) {
-        const offers = cityContractOffers(classicOgV14A2, round, cityContractWindow(new Date(start.getTime() + window * DAY_MS / 2)));
+        const offers = cityContractOffers(classicOgV14B2, round, cityContractWindow(new Date(start.getTime() + window * DAY_MS / 2)));
         expect(offers).toHaveLength(3);
         const cities = offers.slice(0, 2).map((offer) => offer.city);
         expect(new Set(cities).size).toBe(2);
@@ -113,15 +113,15 @@ describe('contract deck rotation', () => {
   });
 
   it('adds a third city job slot in a city the market orders did not pick', () => {
-    expect(cityContractSlots(classicOgV14A2)).toBe(3);
-    expect(cityContractSlots(classicOgV14A)).toBe(2);
+    expect(cityContractSlots(classicOgV14B2)).toBe(3);
+    expect(cityContractSlots(classicOgV14B)).toBe(2);
     const kinds = new Set<string>();
     for (let window = 0; window < 40; window += 1) {
-      const offers = cityContractOffers(classicOgV14A2, 'round-one', cityContractWindow(new Date(start.getTime() + window * DAY_MS / 2)));
+      const offers = cityContractOffers(classicOgV14B2, 'round-one', cityContractWindow(new Date(start.getTime() + window * DAY_MS / 2)));
       const job = offers[2]!;
       expect(offers.slice(0, 2).every((offer) => offer.kind === undefined)).toBe(true);
       expect(['TRIP', 'CASINO']).toContain(job.kind);
-      expect(job.city).not.toBe(classicOgV14A2.round.startingCitySlug);
+      expect(job.city).not.toBe(classicOgV14B2.round.startingCitySlug);
       expect(offers.slice(0, 2).map((offer) => offer.city)).not.toContain(job.city);
       kinds.add(job.kind!);
     }
@@ -145,7 +145,7 @@ describe('contract deck rotation', () => {
     expect(advanceQuestObjective(objective, { type: 'CASINO_WAGER', payload: { citySlug: 'detroit', game: 'ROULETTE' } }).amount).toBe(0);
   });
 
-  it('still reads pre-A2 city orders as market sales and rejects unknown kinds', () => {
+  it('still reads pre-B2 city orders as market sales and rejects unknown kinds', () => {
     const legacy = { windowStart: 'w', windowEnd: 'w', city: 'detroit', cityName: 'Detroit', product: 'METH', productName: 'Meth', condition: 'Shortage', title: 't', description: 'd', target: 250, expectedUnitCents: 100, expectedSaleCents: 20_000, bonusCents: 7_000, payoutMultiplier: 1.35 };
     expect(cityContractState({ cityContract: legacy })?.kind).toBeUndefined();
     expect(cityContractObjectives({ cityContract: legacy })![0]!.params?.eventTypes).toEqual(['RUN_TRADE', 'STORE_SELL']);
@@ -153,19 +153,19 @@ describe('contract deck rotation', () => {
   });
 
   it('deals each round its own season board of three different categories', () => {
-    const categoryOf = (key: string) => classicOgV14A2.questDefinitions[key as keyof typeof classicOgV14A2.questDefinitions].category;
-    const boards = Array.from({ length: 12 }, (_, index) => selectedSeasonContractKeys(classicOgV14A2, `round-${index}`));
+    const categoryOf = (key: string) => classicOgV14B2.questDefinitions[key as keyof typeof classicOgV14B2.questDefinitions].category;
+    const boards = Array.from({ length: 12 }, (_, index) => selectedSeasonContractKeys(classicOgV14B2, `round-${index}`));
     for (const board of boards) {
       expect(board).toHaveLength(SEASON_CONTRACT_SLOTS);
       expect(new Set(board.map(categoryOf)).size).toBe(SEASON_CONTRACT_SLOTS);
     }
     expect(new Set(boards.map((board) => [...board].sort().join())).size).toBeGreaterThanOrEqual(8);
     expect(new Set(boards.flat()).size).toBe(9);
-    expect(selectedSeasonContractKeys(classicOgV14A, 'round-1')).toEqual([]);
+    expect(selectedSeasonContractKeys(classicOgV14B, 'round-1')).toEqual([]);
   });
 
   it('offers the season board once and never re-offers a finished contract', async () => {
-    const definitionRows = Object.values(classicOgV14A2.questDefinitions)
+    const definitionRows = Object.values(classicOgV14B2.questDefinitions)
       .filter((quest) => quest.type === 'SEASON')
       .map((quest, index) => ({ id: 'season-' + index, key: quest.key }));
     const quests: Array<{ questDefinitionId: string; status: string }> = [];
@@ -181,11 +181,11 @@ describe('contract deck rotation', () => {
       },
     } as unknown as Db;
 
-    const first = await syncSeasonContractAttempts(db, 'player-1', classicOgV14A2);
-    expect(first).toEqual(selectedSeasonContractKeys(classicOgV14A2, 'round-one', new Set(definitionRows.map((row) => row.key))));
+    const first = await syncSeasonContractAttempts(db, 'player-1', classicOgV14B2);
+    expect(first).toEqual(selectedSeasonContractKeys(classicOgV14B2, 'round-one', new Set(definitionRows.map((row) => row.key))));
     expect(quests.every((row) => row.status === 'AVAILABLE')).toBe(true);
     quests[0]!.status = 'COMPLETED';
-    expect(await syncSeasonContractAttempts(db, 'player-1', classicOgV14A2)).toEqual([]);
+    expect(await syncSeasonContractAttempts(db, 'player-1', classicOgV14B2)).toEqual([]);
     expect(quests).toHaveLength(SEASON_CONTRACT_SLOTS);
   });
 });

@@ -1,7 +1,7 @@
 import type { QuestDefinitionCatalog } from '../types.js';
 
 /**
- * 1.4.0-A2: a third city board slot. Like the two market orders, it is a template;
+ * 1.4.0-B2: a third city board slot. Like the two market orders, it is a template;
  * each PlayerQuest.rewardState carries the generated city job (a fly-in trip or a
  * casino visit) for its 12-hour window.
  */

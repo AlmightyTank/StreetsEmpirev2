@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <radialGradient id="skin" cx=".42" cy=".35" r=".75"><stop offset="0" stop-color="#a0673f"/><stop offset=".7" stop-color="#734326"/><stop offset="1" stop-color="#4d2b16"/></radialGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2a8"/><stop offset=".5" stop-color="#e8b93a"/><stop offset="1" stop-color="#8a6508"/></linearGradient>
+    <linearGradient id="lens" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d3a33"/><stop offset=".5" stop-color="#0b0f0d"/><stop offset="1" stop-color="#1c2a22"/></linearGradient>
+    <radialGradient id="blush"><stop offset="0" stop-color="#e0606a" stop-opacity=".45"/><stop offset="1" stop-color="#e0606a" stop-opacity="0"/></radialGradient>
+<linearGradient id="hoodie" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d3bb0"/><stop offset="1" stop-color="#3e1460"/></linearGradient><linearGradient id="cap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3a44"/><stop offset="1" stop-color="#121218"/></linearGradient>
+  </defs>
+  <g filter="url(#s)" stroke="#07100a" stroke-width="1.6" stroke-linejoin="round">
+    <path d="M8 126 Q10 96 34 88 Q48 92 64 92 Q80 92 94 88 Q118 96 120 126 Z" fill="url(#hoodie)"/>
+    <path d="M34 88 Q40 80 52 80 Q58 94 64 94 Q70 94 76 80 Q88 80 94 88 Q80 98 64 98 Q48 98 34 88 Z" fill="#4b1c6b"/>
+    <path d="M56 70 H72 V90 Q64 95 56 90 Z" fill="url(#skin)"/>
+    <path d="M46 54 Q41 52 42 59 Q43 66 47 66 Z M82 54 Q87 52 86 59 Q85 66 81 66 Z" fill="url(#skin)"/>
+    <path d="M45 52 Q45 32 64 32 Q83 32 83 52 Q83 66 77 73 Q71 79 64 79 Q57 79 51 73 Q45 66 45 52 Z" fill="url(#skin)"/>
+    <path d="M45 60 Q46 74 56 78 Q64 81 72 78 Q82 74 83 60 Q80 70 72 72 Q64 70 56 72 Q48 70 45 60 Z" fill="#1b100a"/>
+    <path d="M44 46 Q42 28 64 27 Q86 28 84 46 Q74 41 64 41 Q54 41 44 46 Z" fill="url(#cap)"/>
+    <path d="M42 44 Q36 46 34 42 Q38 36 46 38 Z" fill="url(#cap)"/>
+  </g>
+  <path d="M8 126 Q10 96 34 88 Q48 92 64 92 Q80 92 94 88 Q118 96 120 126 Z" fill="url(#shade)"/>
+  <path d="M54 31 Q64 27 74 31" stroke="#e7c6ff" stroke-opacity=".5" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <circle cx="64" cy="29" r="1.6" fill="url(#gold)" stroke="#3a2a05" stroke-width=".6"/>
+  <path d="M50 46 Q55 46 61 49 M78 46 Q73 46 67 49" fill="none" stroke="#1b100a" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M51 54 Q56 51.4 61 54 Q56 56.08 51 54 Z" fill="#fbf6ee" stroke="#07100a" stroke-width="1"/>
+  <circle cx="56" cy="54" r="2.1" fill="#2a160b"/>
+  <circle cx="56" cy="54" r="1" fill="#0b0b0b"/>
+  <circle cx="56.8" cy="53.1" r=".6" fill="#fff"/>
+  <path d="M50.5 54.3 Q56 50.8 61.5 54.3" fill="none" stroke="#0b0604" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M67 54 Q72 51.4 77 54 Q72 56.08 67 54 Z" fill="#fbf6ee" stroke="#07100a" stroke-width="1"/>
+  <circle cx="72" cy="54" r="2.1" fill="#2a160b"/>
+  <circle cx="72" cy="54" r="1" fill="#0b0b0b"/>
+  <circle cx="72.8" cy="53.1" r=".6" fill="#fff"/>
+  <path d="M66.5 54.3 Q72 50.8 77.5 54.3" fill="none" stroke="#0b0604" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M62 61 Q64 64 66 61" stroke="#4d2b16" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <path d="M58 68 Q64 70 70 68" fill="none" stroke="#2a140a" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M59 66 Q64 64 69 66" fill="none" stroke="#1b100a" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M68 69 L80 64" stroke="#d9b98a" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M52 92 Q64 106 76 92" fill="none" stroke="#3a2a05" stroke-width="3.6"/><path d="M52 92 Q64 106 76 92" fill="none" stroke="url(#gold)" stroke-width="2.2" stroke-dasharray="2.2 1"/>
+  <g filter="url(#s)"><path d="M58 102 L59 110 H69 L70 102 L66.5 105.5 L64 100 L61.5 105.5 Z" fill="url(#gold)" stroke="#3a2a05" stroke-width="1"/></g>
+  <path d="M58 112 V126 M70 112 V126" stroke="#e7c6ff" stroke-opacity=".6" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="58" cy="113" r="1.2" fill="#e7c6ff"/><circle cx="70" cy="113" r="1.2" fill="#e7c6ff"/>
+</svg>

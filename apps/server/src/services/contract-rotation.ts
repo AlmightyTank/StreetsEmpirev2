@@ -70,7 +70,7 @@ function deck(
 }
 
 /**
- * 1.4.0-A2 deck rotation. Board N deals cards N*slots onward from the round's decks,
+ * 1.4.0-B2 deck rotation. Board N deals cards N*slots onward from the round's decks,
  * so every card is dealt once per cycle and a new round gets a different order. Pass
  * groupOf to keep each board's cards in different groups where the pool allows. The
  * result runs on into the next cycle, so a board straddling two cycles still fills.

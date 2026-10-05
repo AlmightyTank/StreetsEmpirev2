@@ -57,7 +57,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-A faction catalog wi
     const player = await fixture(classicOgV14A);
     const page = await HandcraftedQuestService.page(app.prisma, player.id, classicOgV14A);
 
-    expect(page.factions?.map((faction) => [faction.key, faction.faces, faction.rivals.map((rival) => rival.key)])).toEqual([
+    expect(page.factions?.map((faction) => [faction.key, faction.faces.map((face) => face.name), faction.rivals.map((rival) => rival.key)])).toEqual([
       ['KINGS', ['Mama King', 'Blocks'], ['OUTFIT']],
       ['OUTFIT', ['Tommy'], ['KINGS']],
       ['ROAD_SAINTS', ['Wheels'], ['CIVIC_HANDSHAKE']],

@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV14A } from '../classic-og-v1.4-a/index.js';
-import { moreDailyContracts } from '../classic-og-v1.4-a2/daily-contracts.js';
-import { classicOgV14A2 } from '../classic-og-v1.4-a2/index.js';
-import { seasonContracts } from '../classic-og-v1.4-a2/season-contracts.js';
-import { moreWeeklyContracts } from '../classic-og-v1.4-a2/weekly-contracts.js';
+import { classicOgV14B } from '../classic-og-v1.4-b/index.js';
+import { moreDailyContracts } from '../classic-og-v1.4-b2/daily-contracts.js';
+import { classicOgV14B2 } from '../classic-og-v1.4-b2/index.js';
+import { seasonContracts } from '../classic-og-v1.4-b2/season-contracts.js';
+import { moreWeeklyContracts } from '../classic-og-v1.4-b2/weekly-contracts.js';
 import { factionProblems } from '../faction-definitions.js';
 import { hideoutV2For } from '../hideout-v2.js';
 import type { QuestDefinition, QuestRewardDefinition, Ruleset } from '../types.js';
 
-const all = Object.values(classicOgV14A2.questDefinitions);
+const all = Object.values(classicOgV14B2.questDefinitions);
 const added: QuestDefinition[] = [
   ...Object.values(moreDailyContracts),
   ...Object.values(moreWeeklyContracts),
@@ -16,7 +16,7 @@ const added: QuestDefinition[] = [
 ];
 
 /**
- * Signals no Job tracked before A2, each checked against the server code that logs
+ * Signals no Job tracked before B2, each checked against the server code that logs
  * it: business.service (BUSINESS_COLLECT.collectedCents), block-war-settle
  * (BLOCK_WAR_FIGHT), convoy.service (CONVOY_ATTACK.won), boss-trip-settle
  * (BOSS_HIT_ATTACK.escaped/held, TRIP_RETURNED.city) and boss-presence (OUTPOST_VISIT).
@@ -30,10 +30,10 @@ const NEW_SIGNALS = [
   'UNIQUE_VALUES:TRIP_RETURNED:city',
 ];
 
-/** Every event type and field a Job in 1.4.0-A already tracks, plus the A2 additions. */
+/** Every event type and field a Job in 1.4.0-B already tracks, plus the B2 additions. */
 function knownSignals(): Set<string> {
   const signals = new Set<string>(NEW_SIGNALS);
-  for (const quest of Object.values(classicOgV14A.questDefinitions) as QuestDefinition[]) {
+  for (const quest of Object.values(classicOgV14B.questDefinitions) as QuestDefinition[]) {
     for (const objective of [...quest.objectives, ...quest.bonusObjectives]) {
       const types = (objective.params?.eventTypes ?? []) as string[];
       for (const type of types) signals.add(`${objective.kind}:${type}:${String(objective.params?.field ?? '')}`);
@@ -42,18 +42,18 @@ function knownSignals(): Set<string> {
   return signals;
 }
 
-describe('1.4.0-A2 contract rotation', () => {
-  it('pins a new ruleset on 1.4.0-A that only adds contracts and the rotation flag', () => {
-    expect(classicOgV14A2.meta).toEqual({ id: 'classic-og-v1.4-a2', version: '1.4.0-A2', name: 'Classic OG - Contract Rotation' });
-    expect({ ...classicOgV14A2, meta: null, questDefinitions: null, contractRotation: null })
-      .toEqual({ ...classicOgV14A, meta: null, questDefinitions: null, contractRotation: null });
-    expect(classicOgV14A2.contractRotation).toEqual({ perRoundDeck: true, freshCityBoards: true, cityJobs: true });
-    expect((classicOgV14A as Ruleset).contractRotation).toBeUndefined();
-    for (const [key, quest] of Object.entries(classicOgV14A.questDefinitions)) {
-      expect(classicOgV14A2.questDefinitions[key as keyof typeof classicOgV14A2.questDefinitions]).toBe(quest);
+describe('1.4.0-B2 contract rotation', () => {
+  it('pins a new ruleset on 1.4.0-B that only adds contracts and the rotation flag', () => {
+    expect(classicOgV14B2.meta).toEqual({ id: 'classic-og-v1.4-b2', version: '1.4.0-B2', name: 'Classic OG - Contract Rotation' });
+    expect({ ...classicOgV14B2, meta: null, questDefinitions: null, contractRotation: null })
+      .toEqual({ ...classicOgV14B, meta: null, questDefinitions: null, contractRotation: null });
+    expect(classicOgV14B2.contractRotation).toEqual({ perRoundDeck: true, freshCityBoards: true, cityJobs: true });
+    expect((classicOgV14B as Ruleset).contractRotation).toBeUndefined();
+    for (const [key, quest] of Object.entries(classicOgV14B.questDefinitions)) {
+      expect(classicOgV14B2.questDefinitions[key as keyof typeof classicOgV14B2.questDefinitions]).toBe(quest);
     }
-    expect(hideoutV2For(classicOgV14A2)).toEqual(hideoutV2For(classicOgV14A));
-    expect(factionProblems(classicOgV14A2)).toEqual([]);
+    expect(hideoutV2For(classicOgV14B2)).toEqual(hideoutV2For(classicOgV14B));
+    expect(factionProblems(classicOgV14B2)).toEqual([]);
   });
 
   it('grows the daily pool to 36 and the weekly pool to 20, both a whole number of boards', () => {
@@ -100,8 +100,8 @@ describe('1.4.0-A2 contract rotation', () => {
   });
 
   it('pays known contacts and favors, with modest bounded rewards', () => {
-    const favors = classicOgV14A2.favors;
-    const contacts = classicOgV14A2.contacts;
+    const favors = classicOgV14B2.favors;
+    const contacts = classicOgV14B2.contacts;
     for (const quest of added) {
       expect(contacts[quest.contactKey as keyof typeof contacts], quest.key).toBeDefined();
       const rewards: QuestRewardDefinition[] = [...quest.rewards];

@@ -31,7 +31,7 @@ export function dailyContractWindow(now: Date, ruleset: Ruleset): { startsAt: Da
 /**
  * Daily selection is server-authoritative and deterministic for the ruleset
  * window. Every player in the same ruleset sees the same board that day. From
- * 1.4.0-A2 the board is dealt from a deck seeded by the round instead, so every
+ * 1.4.0-B2 the board is dealt from a deck seeded by the round instead, so every
  * player in the round shares it, each round has its own order, and every contract
  * is dealt once per pass through the pool.
  */
