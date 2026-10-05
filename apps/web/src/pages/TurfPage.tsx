@@ -274,24 +274,6 @@ export function TurfPage() {
                 Travel / roads
               </Link>
             ) : null}
-            <div className="se-cityblocks-hero__readout">
-              <span>
-                <small>Your blocks</small>
-                <strong>{selectedPulse ? formatNumber(selectedPulse.mine) : '—'}</strong>
-              </span>
-              <span>
-                <small>Player-held</small>
-                <strong>{selectedPulse ? `${formatNumber(selectedPulse.held)} / 5` : '—'}</strong>
-              </span>
-              <span>
-                <small>Visible pushes</small>
-                <strong>{selectedPulse ? formatNumber(selectedPulse.visiblePushes) : '—'}</strong>
-              </span>
-              <span>
-                <small>Posted crew</small>
-                <strong>{selectedPulse ? formatNumber(selectedPulse.postedThugs) : '—'}</strong>
-              </span>
-            </div>
           </div>
         </header>
 

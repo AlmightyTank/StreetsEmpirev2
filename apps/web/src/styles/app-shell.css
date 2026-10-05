@@ -436,7 +436,7 @@ a.se-nav__link--active:hover {
     .se-stores-hero, .se-quests-hero, .se-hideout-hero, .se-travel-hero,
     .se-cityblocks-hero, .se-rankings-hero, .se-players-hero, .se-alliance-hero,
     .se-contacts-hero, .se-console-hero, .se-activity-hero, .se-profile-hero,
-    .se-surveys-hero, .se-info-hero
+    .se-surveys-hero, .se-info-hero, .se-pass-hero
   ) {
     gap: 20px;
     padding: 18px 22px;
@@ -447,7 +447,7 @@ a.se-nav__link--active:hover {
     .se-stores-hero, .se-quests-hero, .se-hideout-hero, .se-travel-hero,
     .se-cityblocks-hero, .se-rankings-hero, .se-players-hero, .se-alliance-hero,
     .se-contacts-hero, .se-console-hero, .se-activity-hero, .se-profile-hero,
-    .se-surveys-hero
+    .se-surveys-hero, .se-pass-hero
   ) h1,
   .se-app--sidebar .se-info-hero__title {
     margin: 4px 0 6px;

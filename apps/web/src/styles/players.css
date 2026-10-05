@@ -7,7 +7,7 @@
   position: relative;
   overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.55fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 28px;
   align-items: end;
   padding: 24px;
@@ -30,8 +30,7 @@
   pointer-events: none;
 }
 
-.se-players-hero__copy,
-.se-players-hero__readout {
+.se-players-hero__copy {
   position: relative;
   z-index: 1;
 }
@@ -50,39 +49,6 @@
   color: var(--se-text-dim);
   font-size: 13px;
   line-height: 1.5;
-}
-
-.se-players-hero__readout {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--se-line);
-  background: rgba(11, 12, 14, 0.72);
-}
-
-.se-players-hero__readout > span {
-  min-width: 0;
-  padding: 11px;
-  border-right: 1px solid var(--se-line);
-}
-
-.se-players-hero__readout > span:last-child {
-  border-right: 0;
-}
-
-.se-players-hero__readout small {
-  display: block;
-  color: var(--se-muted);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.se-players-hero__readout strong {
-  display: block;
-  margin-top: 4px;
-  font-family: var(--se-mono);
-  font-size: 15px;
 }
 
 .se-players-directory {
@@ -318,18 +284,6 @@
     font-size: 34px;
   }
 
-  .se-players-hero__readout {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .se-players-hero__readout > span:nth-child(2) {
-    border-right: 0;
-  }
-
-  .se-players-hero__readout > span:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--se-line);
-  }
-
   .se-players-sectionhead {
     display: grid;
     gap: 5px;
@@ -366,27 +320,6 @@
 }
 
 @media (max-width: 480px) {
-  .se-players-hero__readout {
-    grid-template-columns: 1fr;
-  }
-
-  .se-players-hero__readout > span {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    border-right: 0;
-    border-bottom: 1px solid var(--se-line);
-  }
-
-  .se-players-hero__readout > span:last-child {
-    border-bottom: 0;
-  }
-
-  .se-players-hero__readout strong {
-    margin-top: 0;
-  }
-
   .se-players-tabs {
     grid-template-columns: 1fr;
   }

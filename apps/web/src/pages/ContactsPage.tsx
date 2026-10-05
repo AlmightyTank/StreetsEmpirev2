@@ -298,25 +298,6 @@ export function ContactsPage() {
             <h1>Contacts</h1>
             <p>Keep tabs on players you care about this round, attach private notes, and jump straight to their public profiles without mixing recon intel into your rolodex.</p>
           </div>
-
-          <div className="se-contacts-hero__readout">
-            <span>
-              <small>Tracked</small>
-              <strong>{data ? `${formatNumber(contacts.length)} / ${formatNumber(data.max)}` : '—'}</strong>
-            </span>
-            <span>
-              <small>Enemies</small>
-              <strong>{data ? formatNumber(data.counts.ENEMY) : '—'}</strong>
-            </span>
-            <span>
-              <small>Alliance</small>
-              <strong>{data ? formatNumber(data.counts.ALLIANCE) : '—'}</strong>
-            </span>
-            <span>
-              <small>Blocked</small>
-              <strong>{data ? formatNumber(data.counts.BLOCKED) : '—'}</strong>
-            </span>
-          </div>
         </header>
 
         {error ? <Alert>{error}</Alert> : null}

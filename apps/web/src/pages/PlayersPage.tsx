@@ -93,13 +93,6 @@ export function PlayersPage() {
               without turning the directory into free recon.
             </p>
           </div>
-
-          <div className="se-players-hero__readout">
-            <span><small>Round players</small><strong>{data ? formatNumber(data.counts.all) : '—'}</strong></span>
-            <span><small>In your city</small><strong>{data ? formatNumber(data.counts.city) : '—'}</strong></span>
-            <span><small>Alliance</small><strong>{data ? formatNumber(data.counts.alliance) : '—'}</strong></span>
-            <span><small>Active 24h</small><strong>{data ? formatNumber(data.counts.active) : '—'}</strong></span>
-          </div>
         </header>
 
         {error ? <Alert>{error}</Alert> : null}
