@@ -353,3 +353,100 @@
     transition: none !important;
   }
 }
+
+
+/* Discord-inspired profile cosmetics, scoped to the shared in-game hover card. */
+.se-profile-hover-card.se-profile-effect--neon-pulse {
+  border-color: color-mix(in srgb, var(--se-hover-accent) 78%, white);
+  animation:
+    se-profile-hover-in 140ms ease-out both,
+    se-profile-hover-neon 3.2s ease-in-out infinite;
+}
+.se-profile-hover-card.se-profile-effect--neon-pulse .se-profile-hover-card__avatar {
+  box-shadow:
+    0 0 0 3px var(--se-hover-accent),
+    0 0 18px color-mix(in srgb, var(--se-hover-accent) 76%, transparent);
+  animation: se-profile-frame-pulse 3.2s ease-in-out infinite;
+}
+.se-profile-hover-card.se-profile-effect--neon-pulse .se-profile-hover-card__banner {
+  background-image:
+    radial-gradient(ellipse at 72% 115%, color-mix(in srgb, var(--se-hover-accent) 58%, transparent), transparent 46%),
+    linear-gradient(128deg, #161d17, #273426 56%, #141b15);
+}
+.se-profile-hover-card.se-profile-effect--scanlines::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    color-mix(in srgb, var(--se-hover-accent) 12%, transparent) 4px
+  );
+  opacity: .24;
+  pointer-events: none;
+}
+.se-profile-hover-card.se-profile-effect--spotlight::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    112deg,
+    transparent 34%,
+    color-mix(in srgb, var(--se-hover-accent) 10%, transparent) 48%,
+    color-mix(in srgb, white 10%, transparent) 51%,
+    transparent 64%
+  );
+  background-size: 240% 100%;
+  animation: se-profile-hover-spotlight 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+.se-profile-hover-card.se-profile-effect--glitch {
+  border-color: color-mix(in srgb, var(--se-hover-accent) 68%, #cb7289);
+}
+.se-profile-hover-card.se-profile-effect--glitch .se-profile-hover-card__banner > span {
+  animation: se-profile-hover-glitch 4.8s steps(1, end) infinite;
+  text-shadow:
+    1px 0 color-mix(in srgb, var(--se-hover-accent) 70%, #e86a93),
+    -1px 0 color-mix(in srgb, #58d7ec 72%, transparent);
+}
+.se-profile-hover-card.se-profile-effect--glitch .se-profile-hover-card__avatar {
+  box-shadow:
+    2px 0 color-mix(in srgb, var(--se-hover-accent) 72%, #e86a93),
+    -2px 0 color-mix(in srgb, #58d7ec 62%, transparent),
+    0 0 18px color-mix(in srgb, var(--se-hover-accent) 48%, transparent);
+}
+@keyframes se-profile-hover-neon {
+  0%, 100% {
+    box-shadow:
+      0 18px 54px #000b,
+      0 0 18px color-mix(in srgb, var(--se-hover-accent) 20%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 18px 54px #000b,
+      0 0 32px color-mix(in srgb, var(--se-hover-accent) 40%, transparent);
+  }
+}
+@keyframes se-profile-hover-spotlight {
+  0%, 20% { background-position: 130% 0; }
+  75%, 100% { background-position: -30% 0; }
+}
+@keyframes se-profile-hover-glitch {
+  0%, 93%, 100% { transform: translateX(0); filter: none; }
+  94% { transform: translateX(1px); filter: brightness(1.25); }
+  96% { transform: translateX(-1px); filter: saturate(1.35); }
+  98% { transform: translateX(0); filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .se-profile-hover-card.se-profile-effect--neon-pulse,
+  .se-profile-hover-card.se-profile-effect--neon-pulse .se-profile-hover-card__avatar,
+  .se-profile-hover-card.se-profile-effect--spotlight::after,
+  .se-profile-hover-card.se-profile-effect--glitch .se-profile-hover-card__banner > span {
+    animation: none !important;
+  }
+}
