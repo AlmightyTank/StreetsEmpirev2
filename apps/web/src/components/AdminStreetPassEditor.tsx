@@ -75,7 +75,7 @@ export function AdminStreetPassEditor({ roundId, pass, onSaved }: Props) {
                   </label> : null}
                   {reward.kind !== 'COSMETIC_UNLOCK' ? <label className="se-field">
                     <span className="se-label">{reward.kind === 'CASH' ? 'Amount (cents)' : 'Amount'}</span>
-                    <input className="se-input" type="number" min="1" step="1" value={reward.amount ?? 1} onChange={event => changeReward(tierIndex, rewardIndex, { ...reward, amount: Number(event.target.value) })} />
+                    <input className="se-input" type="number" min="1" max="2147483647" step="1" value={reward.amount ?? 1} onChange={event => changeReward(tierIndex, rewardIndex, { ...reward, amount: Number(event.target.value) })} />
                   </label> : null}
                   <div><Button className="se-btn se-btn--danger" type="button" onClick={() => setTiers(current => current.map((item, index) => index !== tierIndex ? item : { ...item, rewards: item.rewards.filter((_, itemIndex) => itemIndex !== rewardIndex) }))}>Remove reward</Button></div>
                 </div>;
