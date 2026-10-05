@@ -170,6 +170,9 @@ function StatusBar() {
           {me.turns.turns}
           <span className="se-muted">/{me.turns.turnCap}</span>
         </span>
+        <span className={`se-statusbar__meter${me.turns.turns >= me.turns.turnCap ? ' se-statusbar__meter--full' : ''}`} aria-hidden="true">
+          <span style={{ width: `${me.turns.turnCap > 0 ? Math.min(100, (me.turns.turns / me.turns.turnCap) * 100) : 0}%` }} />
+        </span>
       </Link>
       {heat ? (
         <Link className="se-statusbar__item" to="/game#heat" title={heatTitle}>
@@ -239,11 +242,13 @@ function Footer() {
   );
 }
 
-export function Shell({ children, narrow, tabbar }: {
+export function Shell({ children, narrow, tabbar, sidebar }: {
   children: ReactNode;
   narrow?: boolean;
   /** Phone game navigation, fixed to the bottom of the screen. */
   tabbar?: ReactNode;
+  /** Desktop game menu. Turns the page into a full-height sidebar and content frame. */
+  sidebar?: ReactNode;
 }) {
   useScrollableRegions();
   const account = useSession((s) => s.account);
@@ -259,25 +264,8 @@ export function Shell({ children, narrow, tabbar }: {
     navigate('/');
   }
 
-  return (
-    <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${settings.activeSiteThemeKey ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}`}>
-      {/* 1.0.0-G: the first Tab stop jumps past the header and navigation. */}
-      <a
-        className="se-skiplink"
-        href="#main-content"
-        onClick={(event) => {
-          event.preventDefault();
-          const main = document.getElementById('main-content');
-          main?.focus();
-          main?.scrollIntoView();
-        }}
-      >
-        Skip to content
-      </a>
-      <EnvironmentRibbon />
-      <InstallBanner />
-      <SiteThemeDecor themeKey={settings.activeSiteThemeKey} />
-
+  const page = (
+    <>
       <header className="se-topbar">
         <Brand />
 
@@ -316,6 +304,37 @@ export function Shell({ children, narrow, tabbar }: {
       <main id="main-content" tabIndex={-1} className={narrow ? 'se-authshell' : 'se-shell'}>{children}</main>
 
       <Footer />
+    </>
+  );
+
+  return (
+    <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${settings.activeSiteThemeKey ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}${sidebar ? ' se-app--sidebar' : ''}`}>
+      {/* 1.0.0-G: the first Tab stop jumps past the header and navigation. */}
+      <a
+        className="se-skiplink"
+        href="#main-content"
+        onClick={(event) => {
+          event.preventDefault();
+          const main = document.getElementById('main-content');
+          main?.focus();
+          main?.scrollIntoView();
+        }}
+      >
+        Skip to content
+      </a>
+      <EnvironmentRibbon />
+      <InstallBanner />
+      <SiteThemeDecor themeKey={settings.activeSiteThemeKey} />
+
+      {sidebar ? (
+        <div className="se-frame">
+          <aside className="se-sidebar" aria-label="Game menu">
+            <div className="se-sidebar__brand"><Brand /></div>
+            {sidebar}
+          </aside>
+          <div className="se-frame__main">{page}</div>
+        </div>
+      ) : page}
       <ConfirmDialog />
       {tabbar}
     </div>

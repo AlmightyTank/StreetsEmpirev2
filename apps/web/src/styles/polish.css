@@ -253,28 +253,6 @@ textarea.se-input {
   background: linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.11), rgba(var(--se-accent-rgb), 0.04));
 }
 
-.se-nav__title {
-  color: #8693a4;
-}
-
-.se-nav__link {
-  min-height: 28px;
-  border: 1px solid transparent;
-  border-radius: var(--se-radius-sm);
-}
-
-a.se-nav__link:hover {
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.035);
-}
-
-.se-nav__link--active {
-  border-color: rgba(var(--se-accent-rgb), 0.22);
-  background:
-    linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.14), rgba(var(--se-accent-rgb), 0.025));
-  box-shadow: inset 2px 0 0 var(--se-accent);
-}
-
 .se-choice,
 .se-checkrow,
 .se-session-row,

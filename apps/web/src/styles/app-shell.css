@@ -1,0 +1,492 @@
+/*
+ * App shell: the full-height desktop sidebar, the HUD top bar, the season card
+ * and the page-hero rhythm every game page shares.
+ *
+ * Desktop (900px and up) is a two-column frame: a sticky sidebar pinned to the
+ * left edge and a fluid content column. Phones keep the top bar, the slim game
+ * bar and the tab bar from navigation.css; the sidebar is not rendered there.
+ * Loaded last so these rules are the single source for the shell.
+ */
+
+:root {
+  --se-sidebar-w: 232px;
+  --se-topbar-h: 58px;
+  --se-content-max: 1320px;
+}
+
+/* --- frame ---------------------------------------------------------------- */
+
+.se-sidebar {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .se-app--sidebar .se-frame {
+    display: grid;
+    grid-template-columns: var(--se-sidebar-w) minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  .se-frame__main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .se-frame__main > .se-shell {
+    flex: 1 0 auto;
+    width: 100%;
+    max-width: var(--se-content-max);
+    padding: 22px 28px 64px;
+  }
+
+  .se-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    height: 100vh;
+    padding: 0 12px 20px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    border-right: 1px solid color-mix(in srgb, var(--se-accent) 12%, var(--se-line));
+    background:
+      linear-gradient(180deg, rgba(var(--se-accent-rgb), 0.045), transparent 220px),
+      color-mix(in srgb, var(--se-panel) 72%, var(--se-bg));
+  }
+
+  .se-sidebar__brand {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    min-height: var(--se-topbar-h);
+    margin: 0 -12px;
+    padding: 0 18px;
+    border-bottom: 1px solid var(--se-line-soft);
+    background: inherit;
+    background-color: color-mix(in srgb, var(--se-panel) 72%, var(--se-bg));
+  }
+
+  .se-sidebar__brand .se-brand {
+    align-items: center;
+    min-width: 0;
+  }
+
+  .se-sidebar__brand .se-brand__mark {
+    font-size: 16px;
+  }
+
+  /* The build line is in the brand's title and the footer; the badge matters more here. */
+  .se-sidebar__brand .se-brand__ver {
+    display: none;
+  }
+
+  /* The sidebar carries the brand and the season card instead. */
+  .se-app--sidebar .se-topbar > .se-brand,
+  .se-app--sidebar .se-gamebar {
+    display: none;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1199px) {
+  :root {
+    --se-sidebar-w: 208px;
+  }
+
+  .se-frame__main > .se-shell {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+}
+
+/* --- top bar (HUD) -------------------------------------------------------- */
+
+@media (min-width: 900px) {
+  .se-app--sidebar .se-topbar {
+    height: var(--se-topbar-h);
+    padding: 0 28px;
+  }
+
+  .se-app--sidebar .se-statusbar {
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .se-app--sidebar a.se-statusbar__item {
+    position: relative;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    min-width: 92px;
+    margin: 0;
+    padding: 5px 12px 6px;
+    overflow: hidden;
+    border: 1px solid var(--se-line-soft);
+    border-radius: var(--se-radius, 6px);
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .se-app--sidebar a.se-statusbar__item:hover {
+    border-color: rgba(var(--se-accent-rgb), 0.35);
+    background: rgba(var(--se-accent-rgb), 0.06);
+  }
+
+  .se-app--sidebar .se-statusbar__k {
+    display: inline;
+    font-size: 9px;
+    line-height: 1.3;
+  }
+
+  .se-app--sidebar .se-statusbar__v {
+    font-size: 14px;
+    line-height: 1.25;
+  }
+
+  .se-app--sidebar .se-statusbar__v--wide {
+    display: inline;
+  }
+
+  .se-app--sidebar .se-statusbar__v--narrow {
+    display: none;
+  }
+
+  .se-app--sidebar .se-statusbar__v.se-warn {
+    color: var(--se-warn);
+  }
+
+  .se-app--sidebar .se-statusbar__v.se-bad {
+    color: var(--se-bad);
+  }
+}
+
+/* Turns left before the cap, as a hairline under the number. */
+.se-statusbar__meter {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .se-app--sidebar .se-statusbar__meter {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    height: 2px;
+    background: var(--se-line-soft);
+  }
+
+  .se-app--sidebar .se-statusbar__meter > span {
+    display: block;
+    height: 100%;
+    background: var(--se-accent);
+  }
+
+  .se-app--sidebar .se-statusbar__meter--full > span {
+    background: var(--se-warn);
+  }
+}
+
+/* Short desktop windows: the net-worth chip goes first, it is also on Rankings. */
+@media (min-width: 900px) and (max-width: 1099px) {
+  .se-app--sidebar .se-statusbar__item--worth {
+    display: none;
+  }
+
+  .se-app--sidebar .se-topbar {
+    padding: 0 20px;
+  }
+}
+
+/* --- season card ---------------------------------------------------------- */
+
+.se-seasoncard {
+  padding: 11px 12px 12px;
+  border: 1px solid rgba(var(--se-accent-rgb), 0.22);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(var(--se-accent-rgb), 0.11), transparent 62%),
+    var(--se-panel);
+}
+
+.se-seasoncard__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.se-seasoncard__label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--se-muted);
+}
+
+.se-seasoncard__time {
+  font-size: 11px;
+  color: var(--se-text-dim);
+  white-space: nowrap;
+}
+
+.se-seasoncard__time--paused {
+  color: var(--se-warn);
+}
+
+.se-seasoncard__name {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+
+.se-seasoncard__xp {
+  display: block;
+  margin-top: 10px;
+  color: var(--se-text);
+  text-decoration: none;
+}
+
+.se-seasoncard__level {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.se-seasoncard__level strong {
+  color: var(--se-accent);
+}
+
+.se-seasoncard__level .se-num {
+  color: var(--se-text-dim);
+  font-size: 10px;
+}
+
+.se-seasoncard__track {
+  display: block;
+  height: 4px;
+  margin-top: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--se-line);
+}
+
+.se-seasoncard__track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--se-accent);
+}
+
+.se-seasoncard__xp:hover .se-seasoncard__level .se-num {
+  color: var(--se-text);
+}
+
+.se-seasoncard__xp:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* --- sidebar nav ---------------------------------------------------------- */
+
+.se-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.se-nav__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin: 0 0 3px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 4px;
+  appearance: none;
+  background: transparent;
+  color: var(--se-muted);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.45;
+  letter-spacing: 0.16em;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.se-nav__title:hover,
+.se-nav__title:focus-visible {
+  color: var(--se-text);
+}
+
+.se-nav__title:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: 1px;
+}
+
+.se-nav__chevron {
+  font-family: var(--se-mono);
+  font-size: 12px;
+  letter-spacing: 0;
+  color: var(--se-muted);
+}
+
+.se-nav__title:hover .se-nav__chevron {
+  color: var(--se-accent);
+}
+
+.se-nav__list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-nav__link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--se-text-dim);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.se-nav__link .se-navicon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  opacity: 0.75;
+}
+
+.se-nav__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+a.se-nav__link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+a.se-nav__link:hover .se-navicon {
+  opacity: 1;
+}
+
+a.se-nav__link:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: -2px;
+}
+
+.se-nav__link--active,
+a.se-nav__link--active:hover {
+  color: #fff;
+  border-color: rgba(var(--se-accent-rgb), 0.24);
+  background: linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.16), rgba(var(--se-accent-rgb), 0.03));
+  box-shadow: inset 3px 0 0 var(--se-accent);
+}
+
+.se-nav__link--active .se-navicon {
+  color: var(--se-accent);
+  opacity: 1;
+}
+
+/* --- page heroes ---------------------------------------------------------- */
+
+/*
+ * Every operation page opens on a hero. On desktop they were tall enough to
+ * push the page's actual controls below the fold, so the shell sets one
+ * tighter rhythm for all of them inside the game frame. Each page still owns
+ * its art and readout; signed-out public pages keep their full-size heroes.
+ */
+@media (min-width: 900px) {
+  .se-app--sidebar :is(
+    .se-dashboard-hero, .se-scout-hero, .se-produce-hero, .se-raids-hero,
+    .se-stores-hero, .se-quests-hero, .se-hideout-hero, .se-travel-hero,
+    .se-cityblocks-hero, .se-rankings-hero, .se-players-hero, .se-alliance-hero,
+    .se-contacts-hero, .se-console-hero, .se-activity-hero, .se-profile-hero,
+    .se-surveys-hero, .se-info-hero
+  ) {
+    gap: 20px;
+    padding: 18px 22px;
+  }
+
+  .se-app--sidebar :is(
+    .se-dashboard-hero, .se-scout-hero, .se-produce-hero, .se-raids-hero,
+    .se-stores-hero, .se-quests-hero, .se-hideout-hero, .se-travel-hero,
+    .se-cityblocks-hero, .se-rankings-hero, .se-players-hero, .se-alliance-hero,
+    .se-contacts-hero, .se-console-hero, .se-activity-hero, .se-profile-hero,
+    .se-surveys-hero
+  ) h1,
+  .se-app--sidebar .se-info-hero__title {
+    margin: 4px 0 6px;
+    font-size: clamp(26px, 2.4vw, 36px);
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+}
+
+/* --- phone game bar ------------------------------------------------------- */
+
+@media (max-width: 899px) {
+  .se-gamebar {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .se-gamebar__name {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .se-gamebar__time {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .se-gamebar__xp {
+    order: 3;
+    flex: 1 0 100%;
+    /* Its own row now: keep it a comfortable thumb target. */
+    min-height: 32px;
+  }
+
+  .se-gamebar__xp-track {
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .se-gamebar {
+    flex-direction: row;
+    align-items: center;
+  }
+}

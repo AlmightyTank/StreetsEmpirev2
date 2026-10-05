@@ -22,6 +22,7 @@ import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js'
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
+import { GameLayout } from '../layouts/GameLayout.js';
 import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
 import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
 import { formatWhen } from '../utils/time.js';
@@ -54,6 +55,9 @@ function initials(name: string): string {
 export function AccountSettingsPage() {
   const account = useSession((s) => s.account)!;
   const me = useSession((s) => s.me);
+  // Players keep the game menu here; an account still verifying or accepting the rules gets the plain shell.
+  const canPlay = useSession((s) => Boolean(s.me && !s.account?.verificationRequired && !s.account?.rulesAcceptanceRequired));
+  const Frame = canPlay ? GameLayout : Shell;
   const round = useSession((s) => s.round);
   const setSessionProfileSettings = useSession((s) => s.setProfileSettings);
   const [searchParams] = useSearchParams();
@@ -313,7 +317,7 @@ export function AccountSettingsPage() {
   const previewRank = me ? `#${me.publicPimpId.toLocaleString()}` : 'Preview';
 
   return (
-    <Shell>
+    <Frame>
       <div className="se-pagehead">
         <div>
           <p className="se-eyebrow">Private account</p>
@@ -861,6 +865,6 @@ export function AccountSettingsPage() {
       <YourDataPanel />
 
       <CloseAccountPanel />
-    </Shell>
+    </Frame>
   );
 }

@@ -92,6 +92,7 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
                   <li key={page.key}>
                     <Link to={page.to} aria-current={current ? 'page' : undefined}
                       className={`se-nav__link${current ? ' se-nav__link--active' : ''}`}>
+                      <NavIcon name={page.icon} />
                       <span className="se-nav__label">{page.label}</span>
                       <Badge badge={badges[page.key]} />
                     </Link>
@@ -106,6 +107,40 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
   );
 }
 
+
+/** Season, clock and level. Top of the desktop sidebar; phones get the slim game bar. */
+function SeasonCard() {
+  const round = useSession((s) => s.round);
+  const experience = useSession((s) => s.me?.experience ?? null);
+  if (!round) return null;
+  return (
+    <div className="se-seasoncard">
+      <div className="se-seasoncard__head">
+        <span className="se-seasoncard__label">Season</span>
+        <span className={`se-seasoncard__time se-num${round.paused ? ' se-seasoncard__time--paused' : ''}`}>
+          {round.paused ? 'Paused' : `${formatDuration(round.msRemaining)} left`}
+        </span>
+      </div>
+      <span className="se-seasoncard__name">{round.name}</span>
+      {experience ? (
+        <Link
+          className="se-seasoncard__xp"
+          to="/game/xp-progress"
+          title={`${experience.totalXp.toLocaleString()} lifetime XP`}
+          aria-label={`Level ${experience.level}, ${experience.xpIntoLevel} of ${experience.xpForLevel} XP to the next level. View your XP progress.`}
+        >
+          <span className="se-seasoncard__level">
+            <strong>Level {experience.level}</strong>
+            <span className="se-num">{experience.xpIntoLevel.toLocaleString()} / {experience.xpForLevel.toLocaleString()} XP</span>
+          </span>
+          <span className="se-seasoncard__track" aria-hidden="true">
+            <span style={{ width: `${experience.progressPercent}%` }} />
+          </span>
+        </Link>
+      ) : null}
+    </div>
+  );
+}
 
 const LONG_PRESS_MS = 500;
 
@@ -377,7 +412,9 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
 
   return (
     <GameLayoutMountedContext.Provider value>
-      <Shell tabbar={
+      <Shell
+        sidebar={<><SeasonCard /><GameNav sections={sections} pathname={pathname} badges={badges} /></>}
+        tabbar={
       <>
         <TabBar slots={tabs.slots} pathname={pathname} badges={badges} moreOpen={sheet !== null} moreButton={moreButton}
           onMore={() => setSheet((open) => (open ? null : { editSlot: null }))}
@@ -431,7 +468,6 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       <IntroDialog />
 
       <div className="se-gamegrid">
-        <GameNav sections={sections} pathname={pathname} badges={badges} />
         <div className="se-gamemain">
           <PageGuide />
           {children}
