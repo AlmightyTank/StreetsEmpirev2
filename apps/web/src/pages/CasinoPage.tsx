@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto, type CasinoTournamentPageDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
+import { ActionDock, deltaChip } from '../components/ActionDock.js';
 import { Alert } from '../components/Alert.js';
 import { BlackjackPanel } from '../components/BlackjackPanel.js';
 import { RoulettePanel } from '../components/RoulettePanel.js';
@@ -439,19 +440,6 @@ export function CasinoPage() {
         setDisplayedCreditsCents(result.spin.bankrollAfterCents);
       }
 
-      setNotice(
-        result.spin.jackpotAwardCents > 0
-          ? 'JACKPOT! ' + formatCents(result.spin.jackpotAwardCents) + ' hit the bankroll.'
-          : result.spin.freeSpinsAwarded > 0
-            ? result.spin.freeSpinsAwarded + ' free spin' + (result.spin.freeSpinsAwarded === 1 ? '' : 's') + ' awarded.'
-            : result.spin.isFreeSpin && result.spin.freeSpinsRemainingAfter > 0
-              ? 'Free spin complete · ' + result.spin.freeSpinsRemainingAfter + ' remaining.'
-              : result.spin.winningLines.length > 0
-                ? result.spin.winningLines.length + ' winning line' + (result.spin.winningLines.length === 1 ? '' : 's') + ' paid ' + formatCents(result.spin.payoutCents) + '.'
-                : result.spin.nearMiss
-                  ? 'So close — ' + result.spin.nearMiss.symbolLabel + ' landed one stop off the line.'
-                  : result.spin.isFreeSpin ? 'Free spin complete.' : 'No winning paylines on that spin.',
-      );
       spinAction.current = newActionId();
       await refreshSnapshot({ background: false });
     } catch (caught) {
@@ -927,92 +915,122 @@ export function CasinoPage() {
                           </div>
                         </div>
 
-                        <div className="se-slots__controls">
-                          <form className={'se-casino__form se-slots__form' + (bonusActive ? ' is-free-spin' : '')} onSubmit={spinSlots}>
-                            <div className="se-slots__bet-control">
-                              <span>Bet per line ($)</span>
-                              <div className="se-slots__bet-stepper">
-                                <button
-                                  type="button"
-                                  className="se-btn se-btn--ghost"
-                                  disabled={busy !== null || bonusActive}
-                                  aria-label="Decrease bet per line"
-                                  onClick={() => setLineBet((lineBetCents ?? machine.minBetPerLineCents) - machine.betStepCents)}
-                                >−</button>
-                                <input
-                                  className="se-input"
-                                  inputMode="decimal"
-                                  value={bonusActive ? String(bonus!.betPerLineCents / 100) : slotBetPerLine}
-                                  disabled={busy !== null || bonusActive}
-                                  onChange={(event) => {
-                                    setSlotBetPerLine(event.target.value);
-                                    setLastSpin(null);
-                                    setDisplayedWinCents(0);
-                                    spinAction.current = newActionId();
-                                  }}
-                                />
-                                <button
-                                  type="button"
-                                  className="se-btn se-btn--ghost"
-                                  disabled={busy !== null || bonusActive}
-                                  aria-label="Increase bet per line"
-                                  onClick={() => setLineBet((lineBetCents ?? machine.minBetPerLineCents) + machine.betStepCents)}
-                                >+</button>
-                                <button
-                                  type="button"
-                                  className="se-btn se-btn--ghost"
-                                  disabled={busy !== null || bonusActive}
-                                  onClick={() => {
-                                    setLineBet(machine.maxBetPerLineCents);
-                                    setPaylines(machine.paylines.map((line) => line.key));
-                                  }}
-                                >Max bet</button>
+                        <ActionDock
+                          label="Spin the slot"
+                          onSubmit={spinSlots}
+                          outcome={result && outcomeVisible ? {
+                            id: result.actionId,
+                            title: result.jackpotAwardCents > 0
+                              ? 'Jackpot ' + formatCents(result.jackpotAwardCents)
+                              : result.payoutCents > 0
+                                ? 'Won ' + formatCents(result.payoutCents)
+                                : result.freeSpinsAwarded > 0
+                                  ? result.freeSpinsAwarded + ' free spin' + (result.freeSpinsAwarded === 1 ? '' : 's')
+                                  : result.nearMiss ? 'So close' : 'No win',
+                            tone: result.payoutCents > 0 || result.freeSpinsAwarded > 0 ? 'good' : 'bad',
+                            chips: [
+                              result.isFreeSpin
+                                ? { key: 'stake', label: 'Free spin', text: result.freeSpinsRemainingAfter + ' left', tone: 'muted' as const }
+                                : deltaChip('Stake', -result.chargedWagerCents, { money: true }),
+                              ...(result.payoutCents > 0 ? [deltaChip('Paid', result.payoutCents, { money: true })] : []),
+                              ...(result.winningLines.length ? [{ key: 'lines', label: 'Lines hit', text: String(result.winningLines.length), tone: 'good' as const }] : []),
+                              ...(result.freeSpinsAwarded > 0 ? [deltaChip('Free spins', result.freeSpinsAwarded)] : []),
+                              ...(result.nearMiss && result.payoutCents === 0 ? [{ key: 'near', label: 'Near miss', text: result.nearMiss.symbolLabel, tone: 'muted' as const }] : []),
+                              { key: 'floor', label: 'Floor', text: formatCents(result.bankrollAfterCents), tone: 'muted' as const },
+                            ],
+                            receipt: (
+                              <div className="se-rows">
+                                <div className="se-row"><span className="se-row__label">Spin</span><span className="se-row__value">{result.activePaylineKeys.length} lines × {formatCents(result.betPerLineCents)}{result.isFreeSpin ? ' · free' : ''}</span></div>
+                                {result.winningLines.map((win) => (
+                                  <div className="se-row" key={win.paylineKey}>
+                                    <span className="se-row__label">{win.paylineName} · {win.matchCount}× {win.symbolLabel}</span>
+                                    <span className="se-row__value se-good">+{formatCents(win.payoutCents)}</span>
+                                  </div>
+                                ))}
+                                {result.jackpotAwardCents > 0 ? <div className="se-row"><span className="se-row__label">Progressive jackpot</span><span className="se-row__value se-good">+{formatCents(result.jackpotAwardCents)}</span></div> : null}
+                                {result.nearMiss ? <div className="se-row"><span className="se-row__label">Near miss</span><span className="se-row__value">{result.nearMiss.symbolLabel} one stop off the line</span></div> : null}
+                                <div className="se-row se-row--strong"><span className="se-row__label">Net</span><span className={'se-row__value ' + (result.netCents >= 0 ? 'se-good' : 'se-bad')}>{result.netCents >= 0 ? '+' : '−'}{formatCents(Math.abs(result.netCents))}</span></div>
+                                <div className="se-row"><span className="se-row__label">Floor bankroll</span><span className="se-row__value">{formatCents(result.bankrollAfterCents)}</span></div>
                               </div>
-                            </div>
-                            <div className="se-slots__line-control">
-                              <span>Active paylines</span>
-                              <div className="se-slots__line-stepper" role="group" aria-label="Adjust active paylines">
-                                <button
-                                  type="button"
-                                  className="se-btn se-btn--ghost"
-                                  disabled={busy !== null || bonusActive || selectedLines.length <= 1}
-                                  aria-label="Decrease active paylines"
-                                  onClick={() => setPaylineCount(selectedLines.length - 1)}
-                                >−</button>
-                                <span><strong>{selectedLines.length}</strong><small>lines</small></span>
-                                <button
-                                  type="button"
-                                  className="se-btn se-btn--ghost"
-                                  disabled={busy !== null || bonusActive || selectedLines.length >= machine.paylines.length}
-                                  aria-label="Increase active paylines"
-                                  onClick={() => setPaylineCount(selectedLines.length + 1)}
-                                >+</button>
-                              </div>
-                            </div>
-                            <p className="se-hint">
+                            ),
+                            onDismiss: () => {
+                              setLastSpin(null);
+                              setDisplayedWinCents(0);
+                            },
+                          } : null}
+                        >
+                          <div>
+                            <span className="se-dock__label">{bonusActive ? 'Free spins · ' + bonus!.remainingSpins + ' left' : machine.name}</span>
+                            <strong>
                               {selectedLines.length} line{selectedLines.length === 1 ? '' : 's'} × {lineBetCents ? formatCents(lineBetCents) : '—'}
-                              {' = '}<strong>{totalWagerCents ? formatCents(totalWagerCents) : '—'} {bonusActive ? 'covered spin' : 'total spin'}</strong>
-                            </p>
-                            <Button className="se-btn se-slots__spin-button" type="submit" disabledReason={disabledReason}>
-                              <span className="se-slots__lever" aria-hidden="true"><i /><b /></span>
-                              <span>
-                                {busy === 'spin'
-                                  ? 'Spinning...'
-                                  : bonusActive
-                                    ? 'FREE SPIN · ' + bonus!.remainingSpins
-                                    : 'PULL TO SPIN'}
-                              </span>
-                            </Button>
-                          </form>
-
-                          <div className="se-slots__meter">
-                            <span><small>Credits</small><strong>{displayedCreditsCents !== null ? formatCents(displayedCreditsCents) : data.openSession ? formatCents(data.openSession.bankrollCents) : '—'}</strong></span>
-                            <span><small>Lines</small><strong>{selectedLines.length}/{machine.paylines.length}</strong></span>
-                            <span><small>Per line</small><strong>{lineBetCents ? formatCents(lineBetCents) : '—'}</strong></span>
-                            <span><small>{bonusActive ? 'Casino covers' : 'Total bet'}</small><strong>{totalWagerCents ? formatCents(totalWagerCents) : '—'}</strong></span>
-                            <span className="se-slots__last-win"><small>Last win</small><strong>{displayedWinCents ? formatCents(displayedWinCents) : '—'}</strong></span>
+                              {' = '}{totalWagerCents ? formatCents(totalWagerCents) : '—'}
+                            </strong>
+                            <span>{bonusActive ? 'The casino covers this spin' : data.openSession ? 'Floor ' + formatCents(displayedCreditsCents ?? data.openSession.bankrollCents) : 'No session open'}</span>
                           </div>
-                        </div>
+                          <div className="se-dock__amount se-slots__dock-bet" role="group" aria-label="Bet per line">
+                            <label htmlFor="slot-line-bet">Bet/line</label>
+                            <button
+                              type="button"
+                              className="se-btn se-btn--sm"
+                              disabled={busy !== null || bonusActive}
+                              aria-label="Decrease bet per line"
+                              onClick={() => setLineBet((lineBetCents ?? machine.minBetPerLineCents) - machine.betStepCents)}
+                            >−</button>
+                            <input
+                              id="slot-line-bet"
+                              className="se-input"
+                              inputMode="decimal"
+                              value={bonusActive ? String(bonus!.betPerLineCents / 100) : slotBetPerLine}
+                              disabled={busy !== null || bonusActive}
+                              onChange={(event) => {
+                                setSlotBetPerLine(event.target.value);
+                                setLastSpin(null);
+                                setDisplayedWinCents(0);
+                                spinAction.current = newActionId();
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="se-btn se-btn--sm"
+                              disabled={busy !== null || bonusActive}
+                              aria-label="Increase bet per line"
+                              onClick={() => setLineBet((lineBetCents ?? machine.minBetPerLineCents) + machine.betStepCents)}
+                            >+</button>
+                            <button
+                              type="button"
+                              className="se-btn se-btn--sm"
+                              disabled={busy !== null || bonusActive}
+                              onClick={() => {
+                                setLineBet(machine.maxBetPerLineCents);
+                                setPaylines(machine.paylines.map((line) => line.key));
+                              }}
+                            >Max</button>
+                          </div>
+                          <div className="se-dock__amount se-slots__dock-lines" role="group" aria-label="Active paylines">
+                            <button
+                              type="button"
+                              className="se-btn se-btn--sm"
+                              disabled={busy !== null || bonusActive || selectedLines.length <= 1}
+                              aria-label="Fewer paylines"
+                              onClick={() => setPaylineCount(selectedLines.length - 1)}
+                            >−</button>
+                            <span className="se-slots__dock-count"><strong>{selectedLines.length}</strong> line{selectedLines.length === 1 ? '' : 's'}</span>
+                            <button
+                              type="button"
+                              className="se-btn se-btn--sm"
+                              disabled={busy !== null || bonusActive || selectedLines.length >= machine.paylines.length}
+                              aria-label="More paylines"
+                              onClick={() => setPaylineCount(selectedLines.length + 1)}
+                            >+</button>
+                          </div>
+                          <Button className="se-btn se-btn--primary" type="submit" disabledReason={disabledReason}>
+                            {busy === 'spin'
+                              ? 'Spinning...'
+                              : bonusActive
+                                ? 'Free spin · ' + bonus!.remainingSpins
+                                : result ? 'Spin again' : 'Pull to spin'}
+                          </Button>
+                        </ActionDock>
 
                         <details className="se-slots__payline-panel">
                           <summary>
