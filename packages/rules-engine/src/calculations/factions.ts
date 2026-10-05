@@ -72,17 +72,18 @@ export function standingFromRep(amount: number, rules: FactionStandingRules): nu
  * 1.4.0-B. The standing a one-time Job pays, per faction. A Job pays only the factions it helps
  * (its own, the ones it openly helps, and the side a chosen branch backs): the reputation it
  * pays their contacts, turned into standing, plus any standing reward. Reputation paid to
- * anyone else's contact, a loss, or a repeatable Job pays no standing.
+ * anyone else's contact, a loss, or a repeatable Job pays no standing. Neither does a 1.4.0-B2
+ * Season contract: it is one-time, but it is board work, and standing from boards is C's call.
  */
 export function jobStanding(
   ruleset: Pick<Ruleset, 'factions' | 'contacts' | 'factionStanding'>,
-  definition: Pick<QuestDefinition, 'contactKey' | 'factionKey' | 'helps' | 'repeatability'>,
+  definition: Pick<QuestDefinition, 'type' | 'contactKey' | 'factionKey' | 'helps' | 'repeatability'>,
   rewards: ReadonlyArray<{ readonly kind: string; readonly key?: string | null; readonly amount?: number | null }>,
   branch?: Pick<QuestBranchDefinition, 'reputationDeltas'> | null,
 ): Map<FactionKey, number> {
   const result = new Map<FactionKey, number>();
   const rules = ruleset.factionStanding;
-  if (!rules || definition.repeatability !== 'ONCE') return result;
+  if (!rules || definition.repeatability !== 'ONCE' || definition.type === 'SEASON') return result;
   const helped = jobHelpedFactions(ruleset, definition, branch);
   const add = (factionKey: FactionKey | undefined, standing: number) => {
     if (factionKey && helped.has(factionKey) && standing > 0) result.set(factionKey, (result.get(factionKey) ?? 0) + standing);
