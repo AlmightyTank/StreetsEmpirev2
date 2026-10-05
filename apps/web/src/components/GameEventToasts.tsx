@@ -23,7 +23,16 @@ type GameEventToastInput = Omit<GameEventToast, 'id'> & { id?: string };
 declare global {
   interface WindowEventMap {
     'streets:test-popup': CustomEvent<GameEventToastInput>;
+    'streets:toast': CustomEvent<GameEventToastInput>;
   }
+}
+
+/**
+ * Pop a toast for something an action response told us about that has no
+ * activity row behind it, such as an achievement a raid just unlocked.
+ */
+export function showGameToast(toast: GameEventToastInput): void {
+  window.dispatchEvent(new CustomEvent('streets:toast', { detail: toast }));
 }
 
 const MAX_VISIBLE_TOASTS = 4;
@@ -493,7 +502,7 @@ export function GameEventToasts() {
   }, [playerId, player, round]);
 
   useEffect(() => {
-    const handleTestPopup = (event: WindowEventMap['streets:test-popup']) => {
+    const handleToast = (event: WindowEventMap['streets:test-popup' | 'streets:toast']) => {
       const detail = event.detail;
       if (!detail?.title || !detail.detail) return;
       manualToastId += 1;
@@ -510,8 +519,12 @@ export function GameEventToasts() {
       ].slice(-MAX_VISIBLE_TOASTS));
     };
 
-    window.addEventListener('streets:test-popup', handleTestPopup);
-    return () => window.removeEventListener('streets:test-popup', handleTestPopup);
+    window.addEventListener('streets:test-popup', handleToast);
+    window.addEventListener('streets:toast', handleToast);
+    return () => {
+      window.removeEventListener('streets:test-popup', handleToast);
+      window.removeEventListener('streets:toast', handleToast);
+    };
   }, []);
 
   useEffect(() => {

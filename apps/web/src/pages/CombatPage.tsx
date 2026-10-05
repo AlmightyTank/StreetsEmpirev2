@@ -6,6 +6,7 @@ import { ApiError } from '../api/client.js';
 import { ActionDock, deltaChip, type ResultChip } from '../components/ActionDock.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
+import { showGameToast } from '../components/GameEventToasts.js';
 import { Button } from '../components/Button.js';
 import { ItemLabel } from '../components/ItemTile.js';
 import { Panel, Row } from '../components/Panel.js';
@@ -197,25 +198,6 @@ function raidFormOutcome(report: BattleReportDto): { text: string; tone: 'good' 
   return null;
 }
 
-function TrophyCallouts({ report }: { report: BattleReportDto }) {
-  if (!report.trophyCallouts?.length) return null;
-  return (
-    <div className="se-trophies" role="status" aria-label="Unlocked achievements">
-      <p className="se-trophies__label">
-        {report.trophyCallouts.length === 1 ? 'Achievement unlocked' : 'Achievements unlocked'}
-      </p>
-      <ul>
-        {report.trophyCallouts.map((trophy) => (
-          <li key={trophy.key}>
-            <span className="se-trophy__title">{trophy.title}</span>
-            <span className="se-trophy__desc">{trophy.description}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 function TargetCard({ target, selectedBlock, driving }: { target: CombatTargetDto; selectedBlock: string | null; driving: boolean }) {
   return (
     <div className={`se-target-card${selectedBlock ? ' se-target-card--blocked' : ''}`}>
@@ -263,7 +245,6 @@ function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?:
   const landed = attacking === report.won;
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They hit you') : (attacking ? 'They shot back' : 'Seen off')} · ${reportLabel(report)}`}>
     <p>{attacking ? 'On' : 'By'} <b><AllianceTag alliance={report.opponent.alliance} link={false} />{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
-    <TrophyCallouts report={report} />
     <div className="se-rows">
       <Row label={attacking ? 'Shooters — yours / out front' : 'Out front — yours / shooters'} value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Firepower — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
@@ -294,7 +275,6 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They got through') : (attacking ? 'They held you off' : 'You held them off')} · ${reportLabel(report)}`}>
     <p>{attacking ? 'Against' : 'By'} <b><AllianceTag alliance={report.opponent.alliance} link={false} />{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
     {outcome ? <p className={outcome.tone === 'good' ? 'se-good' : outcome.tone === 'bad' ? 'se-bad' : 'se-hint'}>{outcome.text}</p> : null}
-    <TrophyCallouts report={report} />
     <div className="se-rows">
       <Row label="Crew — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
@@ -333,7 +313,6 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
   if ((report.kind === 'DRUG_HOES' || report.kind === 'STEAL_RIDE' || report.kind === 'LURE_CREW') && report.raidForm) return <RaidFormReport report={report} onClose={onClose} />;
   return <Panel title={`${report.won ? 'Victory' : 'Defeat'} · ${reportLabel(report)}`}>
     <p>Against <b><AllianceTag alliance={report.opponent.alliance} link={false} />{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
-    <TrophyCallouts report={report} />
     <div className="se-rows">
       <Row label="Squads — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
@@ -522,6 +501,17 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
       // The fresh result lands in the dock under the launch button; the top
       // report slot stays for opening older hits from the history list.
       setLatest(result);
+      // Achievements are news, not part of the fight's ledger: they pop as
+      // alerts once, when earned, instead of living inside the report.
+      for (const trophy of result.trophyCallouts ?? []) {
+        showGameToast({
+          id: `trophy:${result.id}:${trophy.key}`,
+          title: `Achievement unlocked: ${trophy.title}`,
+          detail: trophy.description,
+          tone: 'good',
+          href: '/game/profile',
+        });
+      }
       setSaved(null);
       setTargetId('');
       await refresh(true);
