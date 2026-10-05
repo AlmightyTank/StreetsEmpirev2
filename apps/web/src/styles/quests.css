@@ -135,76 +135,6 @@
   text-align: right;
 }
 
-.se-quests-quick {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--se-line);
-  border-width: 1px 0 0 1px;
-}
-
-.se-quests-metric {
-  min-width: 0;
-  min-height: 82px;
-  padding: 10px 11px;
-  border: 1px solid var(--se-line);
-  border-width: 0 1px 1px 0;
-  background: rgba(255, 255, 255, 0.012);
-  color: inherit;
-  text-align: left;
-}
-
-button.se-quests-metric {
-  font: inherit;
-}
-
-.se-quests-metric--button {
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.se-quests-metric--button:hover {
-  background: rgba(255, 255, 255, 0.035);
-}
-
-.se-quests-metric__label {
-  display: block;
-  color: var(--se-muted);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.se-quests-metric__value {
-  display: block;
-  margin-top: 5px;
-  overflow-wrap: anywhere;
-  color: var(--se-text);
-  font-family: var(--se-mono);
-  font-size: 17px;
-  line-height: 1.1;
-}
-
-.se-quests-metric__detail {
-  display: block;
-  margin-top: 5px;
-  color: var(--se-muted);
-  font-size: 9px;
-  line-height: 1.3;
-}
-
-.se-quests-metric--accent .se-quests-metric__value {
-  color: var(--se-accent);
-}
-
-.se-quests-metric--good .se-quests-metric__value {
-  color: var(--se-good);
-}
-
-.se-quests-metric--warn .se-quests-metric__value {
-  color: var(--se-warn);
-}
-
 .se-quests-tabs {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -780,10 +710,6 @@ button.se-quests-metric {
     border-bottom: 1px solid var(--se-line);
   }
 
-  .se-quests-quick {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .se-quests-sectionhead {
     display: grid;
     gap: 5px;
@@ -821,8 +747,7 @@ button.se-quests-metric {
 }
 
 @media (max-width: 480px) {
-  .se-quests-hero__readout,
-  .se-quests-quick {
+  .se-quests-hero__readout {
     grid-template-columns: 1fr;
   }
 
