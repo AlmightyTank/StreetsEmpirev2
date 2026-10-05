@@ -349,7 +349,7 @@ function QuestCard({
           <Button
             className="se-btn se-btn--primary"
             disabledReason={busy ?? (!isSlotlessQuest(quest) && page.counts.active >= page.activeLimit
-              ? 'You already have ' + page.activeLimit + ' active jobs.'
+              ? 'All ' + page.activeLimit + ' job slots are in use.'
               : null)}
             onClick={() => onAccept(quest.key)}
           >
@@ -782,8 +782,9 @@ export function QuestPage() {
                 <small>Ready</small>
                 <strong>{page ? formatNumber(page.counts.ready) : '—'}</strong>
               </span>
-              <span>
-                <small>Active</small>
+              {/* Slots, not every active job: city, alliance, season and community work runs alongside them. */}
+              <span title="City, alliance, season and community work does not use a job slot.">
+                <small>Job slots</small>
                 <strong>{page ? `${formatNumber(page.counts.active)} / ${formatNumber(page.activeLimit)}` : '—'}</strong>
               </span>
               <span>
@@ -809,7 +810,7 @@ export function QuestPage() {
                   <span className="se-eyebrow">Contract board</span>
                   <h2>Choose your work</h2>
                 </div>
-                <p>Personal jobs take one of your active slots; city, alliance and community boards do not. Board resets are listed beside the jobs.</p>
+                <p>Personal jobs take one of your job slots; city, alliance, season and community work does not. Board resets are listed beside the jobs.</p>
               </div>
 
               <div className="se-quests-tabs" role="tablist" aria-label="Quest view">
