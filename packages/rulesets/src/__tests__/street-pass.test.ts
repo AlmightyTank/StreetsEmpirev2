@@ -190,6 +190,8 @@ describe('streetPassProblems', () => {
       'street-pass-s1 tier 20: COSMETIC_UNLOCK street-pass-s1-made-man is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-kingpin is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-badge is not a cosmetic in this round',
+      'street-pass-s1 tier 15: COSMETIC_UNLOCK street-pass-s1-night-drive-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 25: COSMETIC_UNLOCK street-pass-s1-chrome-halo-frame is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-frame is not a cosmetic in this round',
     ]);
   });
