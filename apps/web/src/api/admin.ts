@@ -37,6 +37,7 @@ import type {
   AdminPlayerSearchDto,
   AdminQuestContentDto,
   AdminRoundHealthDto,
+  AdminStreetPassUpdateInput,
   AdminRoundResultDto,
   AdminRoundsDto,
   AdminRulesetViewDto,
@@ -83,6 +84,7 @@ export const adminApi = {
   resumeRound: (roundId: string, extend: boolean) => api.post<AdminRoundResultDto>(roundPath(roundId, 'resume'), { extend }),
   updateRound: (roundId: string, input: AdminUpdateRoundInput) => api.post<AdminRoundResultDto>(roundPath(roundId, 'update'), input),
   roundHealth: (roundId: string) => api.get<AdminRoundHealthDto>(roundPath(roundId, 'health')),
+  updateStreetPass: (roundId: string, input: AdminStreetPassUpdateInput) => api.post<AdminRoundHealthDto>(roundPath(roundId, 'street-pass'), input),
   closeExpiredRounds: () => api.post<AdminCloseExpiredResultDto>('/admin/rounds/close-expired'),
 
   questContent: (roundId: string) =>

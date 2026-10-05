@@ -260,6 +260,17 @@ export const AdminHealthService = {
     }
     return {
       round: await adminRound(prisma, round),
+      streetPass: ruleset.streetPass ? {
+        name: ruleset.streetPass.name,
+        tiers: ruleset.streetPass.tiers.map((tier) => ({ tier: tier.tier, rewards: tier.rewards.map((reward) => ({ ...reward })) })),
+        catalogs: {
+          items: ['condoms', 'medicine', 'crack', 'beer', 'pistols', 'shotguns', 'tek9s', 'ak47s', 'lowRiders', 'thugs', 'whores'],
+          products: Object.keys(ruleset.products),
+          favors: ruleset.favors ? Object.keys(ruleset.favors) : [],
+          cosmetics: ruleset.cosmetics ? Object.keys(ruleset.cosmetics) : [],
+        },
+        editable: round.status === 'SCHEDULED',
+      } : null,
       players: { total, active24h, active7d, neverActed },
       days: [...days.values()],
       storeEconomy,

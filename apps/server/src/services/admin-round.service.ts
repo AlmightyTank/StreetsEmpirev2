@@ -1,6 +1,6 @@
 import { Prisma, type PrismaClient, type Round } from '@prisma/client';
 import { rulesets } from '@streets/rulesets';
-import type { AdminRoundAction, AdminRoundDto, AdminRoundsDto } from '@streets/shared';
+import type { AdminRoundAction, AdminRoundDto, AdminRoundsDto, AdminStreetPassUpdateInput } from '@streets/shared';
 import { toRoundDto } from '../game/dto.js';
 import { lockRound, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
@@ -10,6 +10,9 @@ import { TurfService } from './turf.service.js';
 
 const DAY_MS = 86_400_000;
 const LIFECYCLE_TRANSACTION = { maxWait: 10_000, timeout: 60_000 };
+const MAX_STREET_PASS_REWARD_AMOUNT = 2_147_483_647;
+const validStreetPassAmount = (amount: number | undefined) => amount !== undefined
+  && Number.isSafeInteger(amount) && amount >= 1 && amount <= MAX_STREET_PASS_REWARD_AMOUNT;
 
 const actionVerb: Record<AdminRoundAction, string> = {
   'open-registration': 'open registration',
@@ -359,6 +362,55 @@ export const AdminRoundService = {
       return updated;
     }, LIFECYCLE_TRANSACTION);
     return adminRound(prisma, round);
+  },
+
+  async updateStreetPass(prisma: PrismaClient, actor: AuditActor, roundId: string, input: AdminStreetPassUpdateInput): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      await lockRound(tx, roundId);
+      const before = await tx.round.findUnique({ where: { id: roundId } });
+      if (!before) throw AppError.notFound('ROUND_NOT_FOUND', 'That round does not exist.');
+      if (before.status !== 'SCHEDULED') {
+        throw AppError.conflict('STREET_PASS_LOCKED', 'Street Pass rewards are locked once registration opens.');
+      }
+      const ruleset = rulesets[before.rulesetId];
+      if (!ruleset || ruleset.meta.version !== before.rulesetVersion) {
+        throw AppError.conflict('RULESET_UNAVAILABLE', 'The round ruleset is unavailable.');
+      }
+      const pass = ruleset.streetPass;
+      if (!pass) throw AppError.conflict('STREET_PASS_DISABLED', 'This round has no Street Pass.');
+      if (input.tiers.length !== pass.tiers.length || input.tiers.some((tier, index) => tier.tier !== index + 1 || !tier.rewards.length)) {
+        throw AppError.badRequest('INVALID_STREET_PASS', 'Keep every existing tier and give each tier at least one reward.');
+      }
+      const itemFields = new Set(['condoms', 'medicine', 'crack', 'beer', 'pistols', 'shotguns', 'tek9s', 'ak47s', 'lowRiders', 'thugs', 'whores']);
+      for (const tier of input.tiers) {
+        for (const reward of tier.rewards) {
+          if (reward.kind === 'CASH' || reward.kind === 'TURNS') {
+            if (!validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Reward amounts must be positive whole numbers.');
+          } else if (reward.kind === 'ITEM') {
+            if (!itemFields.has(reward.key ?? '') || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid item and a positive whole amount.');
+          } else if (reward.kind === 'PRODUCT') {
+            if (!reward.key || !Object.hasOwn(ruleset.products, reward.key) || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid product and a positive whole amount.');
+          } else if (reward.kind === 'FAVOR_ITEM') {
+            if (!reward.key || !ruleset.favors?.[reward.key] || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid favor and a positive whole amount.');
+          } else if (reward.kind === 'COSMETIC_UNLOCK') {
+            if (!reward.key || !ruleset.cosmetics?.[reward.key]) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a cosmetic in this round ruleset.');
+          }
+        }
+      }
+      const afterPass = { ...pass, tiers: input.tiers };
+      const after = await tx.round.update({
+        where: { id: roundId },
+        data: { streetPassOverride: afterPass as Prisma.InputJsonValue },
+      });
+      await AdminAuditService.record(tx, actor, {
+        action: 'round.street-pass.update',
+        targetType: 'round',
+        targetId: roundId,
+        reason: input.reason,
+        before: before.streetPassOverride ?? pass,
+        after: after.streetPassOverride,
+      });
+    }, LIFECYCLE_TRANSACTION);
   },
 
   /** Season checklist action: close every round past its end date now instead of waiting for a visitor. */

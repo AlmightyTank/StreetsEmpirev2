@@ -49,6 +49,7 @@ const isoDate = z.coerce.date();
 const id = z.string().min(1).max(64);
 const reason = z.string().trim().min(5, 'Give a reason of at least 5 characters.').max(500);
 const grantAmount = (cap: number) => z.number().int().min(0).max(cap, `At most ${cap} per grant.`).optional();
+const STREET_PASS_REWARD_AMOUNT_MAX = 2_147_483_647;
 
 const scheduleRoundSchema = z.object({
   name: z.string().trim().min(3).max(80),
@@ -57,6 +58,22 @@ const scheduleRoundSchema = z.object({
   startsAt: isoDate,
   endsAt: isoDate.optional(),
   registrationOpensAt: isoDate.nullable().optional(),
+}).strict();
+
+const streetPassRewardSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('CASH'), amount: z.number().int().min(1).max(STREET_PASS_REWARD_AMOUNT_MAX) }).strict(),
+  z.object({ kind: z.literal('TURNS'), amount: z.number().int().min(1).max(STREET_PASS_REWARD_AMOUNT_MAX) }).strict(),
+  z.object({ kind: z.literal('ITEM'), key: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.:-]+$/), amount: z.number().int().min(1).max(STREET_PASS_REWARD_AMOUNT_MAX) }).strict(),
+  z.object({ kind: z.literal('PRODUCT'), key: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.:-]+$/), amount: z.number().int().min(1).max(STREET_PASS_REWARD_AMOUNT_MAX) }).strict(),
+  z.object({ kind: z.literal('FAVOR_ITEM'), key: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.:-]+$/), amount: z.number().int().min(1).max(STREET_PASS_REWARD_AMOUNT_MAX) }).strict(),
+  z.object({ kind: z.literal('COSMETIC_UNLOCK'), key: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.:-]+$/) }).strict(),
+]);
+const updateStreetPassSchema = z.object({
+  reason,
+  tiers: z.array(z.object({
+    tier: z.number().int().min(1).max(100),
+    rewards: z.array(streetPassRewardSchema).min(1).max(8),
+  }).strict()).min(1).max(100),
 }).strict();
 
 const updateRoundSchema = z.object({
@@ -228,6 +245,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/rounds/:roundId/health', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
+    return AdminHealthService.roundHealth(fastify.prisma, roundId);
+  });
+
+  fastify.post('/rounds/:roundId/street-pass', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    const input = parseBody(updateStreetPassSchema, request.body ?? {});
+    await AdminRoundService.updateStreetPass(fastify.prisma, request.auth!.account, roundId, input);
     return AdminHealthService.roundHealth(fastify.prisma, roundId);
   });
 
