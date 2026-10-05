@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { APP_VERSION, formatCents, formatCentsCompact } from '@streets/shared';
 import { rulesets } from '@streets/rulesets';
@@ -242,6 +242,70 @@ function Footer() {
   );
 }
 
+const RAIL_STORAGE_KEY = 'streets.sidebar.rail.v1';
+
+function readRail(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(RAIL_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+const SidebarRailContext = createContext(false);
+
+/** True while the desktop sidebar is collapsed to icons, so nav links can carry tooltips. */
+export function useSidebarRail(): boolean {
+  return useContext(SidebarRailContext);
+}
+
+/**
+ * Desktop game frame: the sidebar and the content column. The player can fold
+ * the sidebar to an icon rail; that choice is per browser, like the phone tabs.
+ */
+function SidebarFrame({ sidebar, children }: { sidebar: ReactNode; children: ReactNode }) {
+  const [rail, setRail] = useState(readRail);
+
+  function toggle() {
+    const next = !rail;
+    setRail(next);
+    try {
+      window.localStorage.setItem(RAIL_STORAGE_KEY, next ? '1' : '0');
+    } catch {
+      // Private browsing: the rail still folds, it just forgets on reload.
+    }
+  }
+
+  return (
+    <SidebarRailContext.Provider value={rail}>
+      <div className={`se-frame${rail ? ' se-frame--rail' : ''}`}>
+        <aside id="se-sidebar" className="se-sidebar" aria-label="Game menu">
+          <div className="se-sidebar__brand">
+            <Brand />
+            <button
+              type="button"
+              className="se-sidebar__toggle"
+              onClick={toggle}
+              aria-controls="se-sidebar"
+              aria-expanded={!rail}
+              aria-label={rail ? 'Expand menu' : 'Collapse menu to icons'}
+              title={rail ? 'Expand menu' : 'Collapse menu to icons'}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"
+                fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d={rail ? 'M10 7l5 5-5 5M4 4v16' : 'M14 7l-5 5 5 5M20 4v16'} />
+              </svg>
+            </button>
+          </div>
+          {sidebar}
+        </aside>
+        <div className="se-frame__main">{children}</div>
+      </div>
+    </SidebarRailContext.Provider>
+  );
+}
+
 export function Shell({ children, narrow, tabbar, sidebar }: {
   children: ReactNode;
   narrow?: boolean;
@@ -326,15 +390,7 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
       <InstallBanner />
       <SiteThemeDecor themeKey={settings.activeSiteThemeKey} />
 
-      {sidebar ? (
-        <div className="se-frame">
-          <aside className="se-sidebar" aria-label="Game menu">
-            <div className="se-sidebar__brand"><Brand /></div>
-            {sidebar}
-          </aside>
-          <div className="se-frame__main">{page}</div>
-        </div>
-      ) : page}
+      {sidebar ? <SidebarFrame sidebar={sidebar}>{page}</SidebarFrame> : page}
       <ConfirmDialog />
       {tabbar}
     </div>

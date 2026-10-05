@@ -65,8 +65,9 @@
     display: flex;
     align-items: center;
     min-height: var(--se-topbar-h);
+    gap: 6px;
     margin: 0 -12px;
-    padding: 0 18px;
+    padding: 0 10px 0 16px;
     border-bottom: 1px solid var(--se-line-soft);
     background: inherit;
     background-color: color-mix(in srgb, var(--se-panel) 72%, var(--se-bg));
@@ -78,7 +79,7 @@
   }
 
   .se-sidebar__brand .se-brand__mark {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   /* The build line is in the brand's title and the footer; the badge matters more here. */
@@ -96,6 +97,11 @@
 @media (min-width: 900px) and (max-width: 1199px) {
   :root {
     --se-sidebar-w: 208px;
+  }
+
+  /* No room beside the collapse button; the environment ribbon above every page says it already. */
+  .se-sidebar__brand .se-env-badge {
+    display: none;
   }
 
   .se-frame__main > .se-shell {
@@ -488,5 +494,163 @@ a.se-nav__link--active:hover {
   .se-gamebar {
     flex-direction: row;
     align-items: center;
+  }
+}
+
+/* --- sidebar collapse (icon rail) ---------------------------------------- */
+
+.se-seasoncard__lvl {
+  display: none;
+}
+
+.se-sidebar__toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  appearance: none;
+  background: transparent;
+  color: var(--se-muted);
+  cursor: pointer;
+}
+
+.se-sidebar__toggle:hover {
+  color: #fff;
+  border-color: var(--se-line);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.se-sidebar__toggle:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: 1px;
+}
+
+@media (min-width: 900px) {
+  .se-frame--rail {
+    --se-sidebar-w: 68px;
+  }
+
+  .se-frame--rail .se-sidebar {
+    gap: 10px;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .se-frame--rail .se-sidebar__brand {
+    justify-content: center;
+    margin: 0 -8px;
+    padding: 0;
+  }
+
+  .se-frame--rail .se-sidebar__brand .se-brand {
+    display: none;
+  }
+
+  .se-frame--rail .se-sidebar__toggle {
+    width: 40px;
+    height: 40px;
+    margin: 0;
+    border-color: var(--se-line);
+    color: var(--se-text);
+  }
+
+  /* The season card shrinks to the level and its bar; the name and clock are its tooltip. */
+  .se-frame--rail .se-seasoncard {
+    padding: 8px 6px;
+    text-align: center;
+  }
+
+  .se-frame--rail .se-seasoncard__head,
+  .se-frame--rail .se-seasoncard__name,
+  .se-frame--rail .se-seasoncard__level > :not(.se-seasoncard__lvl) {
+    display: none;
+  }
+
+  .se-frame--rail .se-seasoncard__xp {
+    margin-top: 0;
+  }
+
+  .se-frame--rail .se-seasoncard__level {
+    justify-content: center;
+  }
+
+  .se-frame--rail .se-seasoncard__lvl {
+    display: inline;
+  }
+
+  /* Section headings give way to hairlines; every page shows. */
+  .se-frame--rail .se-nav {
+    gap: 0;
+  }
+
+  .se-frame--rail .se-nav__title {
+    display: none;
+  }
+
+  .se-frame--rail .se-nav__section + .se-nav__section {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--se-line-soft);
+  }
+
+  .se-frame--rail .se-nav__link {
+    position: relative;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0;
+  }
+
+  .se-frame--rail .se-nav__link .se-navicon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .se-frame--rail .se-nav__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .se-frame--rail .se-nav__link .se-navbadge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    min-width: 16px;
+    height: 14px;
+    padding: 0 4px;
+    font-size: 9px;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--se-panel) 72%, var(--se-bg));
+  }
+
+  .se-frame--rail .se-nav__link .se-navbadge--dot {
+    top: 7px;
+    right: 9px;
+    min-width: 0;
+    width: 8px;
+    height: 8px;
+    padding: 0;
+  }
+}
+
+/* Folded to a rail, a short desktop window has room for net worth again. */
+@media (min-width: 900px) and (max-width: 1099px) {
+  .se-app--sidebar .se-frame--rail .se-statusbar__item--worth {
+    display: inline-flex;
+  }
+}
+
+/* The rail is a desktop control; phones have the tab bar. */
+@media (max-width: 899px) {
+  .se-sidebar__toggle {
+    display: none;
   }
 }
