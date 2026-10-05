@@ -388,9 +388,9 @@ export const AdminRoundService = {
           } else if (reward.kind === 'PRODUCT') {
             if (!reward.key || !Object.hasOwn(ruleset.products, reward.key) || !Number.isSafeInteger(reward.amount) || (reward.amount ?? 0) < 1) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid product and a positive whole amount.');
           } else if (reward.kind === 'FAVOR_ITEM') {
-            if (!reward.key || !Object.hasOwn(ruleset.favors, reward.key) || !Number.isSafeInteger(reward.amount ?? 1) || (reward.amount ?? 1) < 1) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid favor and a positive whole amount.');
+            if (!reward.key || !ruleset.favors?.[reward.key] || !Number.isSafeInteger(reward.amount ?? 1) || (reward.amount ?? 1) < 1) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid favor and a positive whole amount.');
           } else if (reward.kind === 'COSMETIC_UNLOCK') {
-            if (!reward.key || !Object.hasOwn(ruleset.cosmetics, reward.key)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a cosmetic in this round ruleset.');
+            if (!reward.key || !ruleset.cosmetics?.[reward.key]) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a cosmetic in this round ruleset.');
           }
         }
       }
