@@ -182,7 +182,16 @@ export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
 export type ProfileTitlePlacement = 'prefix' | 'suffix';
-export type ProfileEffect = 'none' | 'neon-pulse' | 'scanlines' | 'spotlight' | 'glitch';
+export type ProfileEffect =
+  | 'none'
+  | 'neon-pulse'
+  | 'scanlines'
+  | 'spotlight'
+  | 'glitch'
+  | 'ember-sparks'
+  | 'cash-shimmer'
+  | 'sirens'
+  | 'smoke';
 
 export interface CosmeticOptionDto {
   key: string;

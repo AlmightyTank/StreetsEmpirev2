@@ -33,6 +33,7 @@ function routeIdentity(pathname: string): string {
   if (path === '/game/produce') return 'produce';
   if (path.startsWith('/game/stores/')) return 'store-detail';
   if (path === '/game/stores') return 'stores';
+  if (path === '/game/casino' || path.startsWith('/game/casino/')) return 'casino';
   if (path === '/game/travel') return 'travel';
   if (path === '/game/turf') return 'turf';
   if (path === '/game/rankings') return 'rankings';

@@ -114,7 +114,17 @@ export const crewNameSchema = z
 export const uiDensitySchema = z.enum(['comfortable', 'compact']);
 export const moneyFormatSchema = z.enum(['full', 'compact']);
 export const defaultLandingSchema = z.enum(['game', 'profile', 'rankings', 'news']);
-export const profileEffectSchema = z.enum(['none', 'neon-pulse', 'scanlines', 'spotlight', 'glitch']);
+export const profileEffectSchema = z.enum([
+  'none',
+  'neon-pulse',
+  'scanlines',
+  'spotlight',
+  'glitch',
+  'ember-sparks',
+  'cash-shimmer',
+  'sirens',
+  'smoke',
+]);
 
 export const profileBioSchema = z
   .string()

@@ -420,6 +420,66 @@
     -2px 0 color-mix(in srgb, #58d7ec 62%, transparent),
     0 0 18px color-mix(in srgb, var(--se-hover-accent) 48%, transparent);
 }
+.se-profile-hover-card.se-profile-effect--ember-sparks {
+  border-color: color-mix(in srgb, #f97316 48%, var(--se-hover-accent));
+  box-shadow:
+    0 18px 54px #000b,
+    inset 0 -20px 42px rgba(249, 115, 22, 0.12);
+}
+.se-profile-hover-card.se-profile-effect--ember-sparks::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 18% 82%, rgba(249, 115, 22, 0.36) 0 1px, transparent 2px),
+    radial-gradient(circle at 66% 24%, rgba(251, 191, 36, 0.26) 0 1px, transparent 2px),
+    radial-gradient(circle at 84% 70%, rgba(239, 68, 68, 0.2) 0 1px, transparent 2px);
+  background-size: 46px 46px, 72px 72px, 58px 58px;
+  animation: se-profile-hover-sparks 8s linear infinite;
+  pointer-events: none;
+}
+.se-profile-hover-card.se-profile-effect--cash-shimmer {
+  border-color: color-mix(in srgb, #f1b622 52%, #22c55e);
+}
+.se-profile-hover-card.se-profile-effect--cash-shimmer::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    112deg,
+    transparent 0 36%,
+    rgba(241, 182, 34, 0.18) 45%,
+    rgba(74, 222, 128, 0.14) 50%,
+    transparent 60% 100%
+  );
+  background-size: 260% 100%;
+  animation: se-profile-hover-shimmer 6.4s ease-in-out infinite;
+  pointer-events: none;
+}
+.se-profile-hover-card.se-profile-effect--sirens {
+  border-color: color-mix(in srgb, #6899f3 54%, #e92048);
+  animation:
+    se-profile-hover-in 140ms ease-out both,
+    se-profile-hover-sirens 3.8s ease-in-out infinite;
+}
+.se-profile-hover-card.se-profile-effect--smoke::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: -24%;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse at 24% 58%, rgba(226, 232, 240, 0.1), transparent 38%),
+    radial-gradient(ellipse at 72% 34%, rgba(148, 163, 184, 0.08), transparent 36%),
+    radial-gradient(ellipse at 48% 88%, rgba(226, 232, 240, 0.06), transparent 42%);
+  filter: blur(10px);
+  animation: se-profile-hover-smoke 12s ease-in-out infinite alternate;
+  pointer-events: none;
+}
 @keyframes se-profile-hover-neon {
   0%, 100% {
     box-shadow:
@@ -442,11 +502,42 @@
   96% { transform: translateX(-1px); filter: saturate(1.35); }
   98% { transform: translateX(0); filter: none; }
 }
+@keyframes se-profile-hover-sparks {
+  from { background-position: 0 0, 0 0, 0 0; opacity: 0.74; }
+  50% { opacity: 0.44; }
+  to { background-position: 0 -92px, 22px -144px, -14px -116px; opacity: 0.74; }
+}
+@keyframes se-profile-hover-shimmer {
+  0%, 18% { background-position: 130% 0; opacity: 0.42; }
+  60%, 100% { background-position: -40% 0; opacity: 0.78; }
+}
+@keyframes se-profile-hover-sirens {
+  0%, 100% {
+    box-shadow:
+      0 18px 54px #000b,
+      inset 5px 0 0 rgba(233, 32, 72, 0.5),
+      inset -5px 0 0 rgba(104, 153, 243, 0.28);
+  }
+  50% {
+    box-shadow:
+      0 18px 54px #000b,
+      inset 5px 0 0 rgba(233, 32, 72, 0.28),
+      inset -5px 0 0 rgba(104, 153, 243, 0.52);
+  }
+}
+@keyframes se-profile-hover-smoke {
+  from { transform: translate3d(-4%, 2%, 0) rotate(0deg); opacity: 0.68; }
+  to { transform: translate3d(5%, -3%, 0) rotate(2deg); opacity: 0.4; }
+}
 @media (prefers-reduced-motion: reduce) {
   .se-profile-hover-card.se-profile-effect--neon-pulse,
   .se-profile-hover-card.se-profile-effect--neon-pulse .se-profile-hover-card__avatar,
   .se-profile-hover-card.se-profile-effect--spotlight::after,
-  .se-profile-hover-card.se-profile-effect--glitch .se-profile-hover-card__banner > span {
+  .se-profile-hover-card.se-profile-effect--glitch .se-profile-hover-card__banner > span,
+  .se-profile-hover-card.se-profile-effect--ember-sparks::after,
+  .se-profile-hover-card.se-profile-effect--cash-shimmer::after,
+  .se-profile-hover-card.se-profile-effect--sirens,
+  .se-profile-hover-card.se-profile-effect--smoke::after {
     animation: none !important;
   }
 }

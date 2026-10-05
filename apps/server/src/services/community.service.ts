@@ -1044,6 +1044,10 @@ export const CommunityService = {
           || profileSettings?.profileEffect === 'scanlines'
           || profileSettings?.profileEffect === 'spotlight'
           || profileSettings?.profileEffect === 'glitch'
+          || profileSettings?.profileEffect === 'ember-sparks'
+          || profileSettings?.profileEffect === 'cash-shimmer'
+          || profileSettings?.profileEffect === 'sirens'
+          || profileSettings?.profileEffect === 'smoke'
           ? profileSettings.profileEffect
           : 'none',
         imageUrl: profileSettings?.profileImageUrl ?? null,

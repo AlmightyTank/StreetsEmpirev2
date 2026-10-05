@@ -65,6 +65,10 @@ export const PROFILE_EFFECTS: CosmeticOptionDto[] = [
   { key: 'scanlines', label: 'Scanlines', description: 'A subtle moving screen-line overlay.' },
   { key: 'spotlight', label: 'Spotlight', description: 'A slow highlight sweep across the card.' },
   { key: 'glitch', label: 'Glitch', description: 'A sharper flicker effect for loud profiles.' },
+  { key: 'ember-sparks', label: 'Ember sparks', description: 'Warm sparks and corner heat for a late-night profile card.' },
+  { key: 'cash-shimmer', label: 'Cash shimmer', description: 'A soft green-gold money glint across the profile.' },
+  { key: 'sirens', label: 'Sirens', description: 'Alternating red and blue pressure lights on the card edge.' },
+  { key: 'smoke', label: 'Smoke', description: 'A slow smoky haze over the profile banner and frame.' },
 ];
 
 function stringArray(value: unknown): string[] {

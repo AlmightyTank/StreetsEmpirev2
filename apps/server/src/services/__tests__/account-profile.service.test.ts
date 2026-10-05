@@ -72,6 +72,9 @@ describe('AccountProfileService admin site theme QA', () => {
       'open-road',
       'blue-heat',
       'back-office',
+      'casino-floor',
+      'federal-case',
+      'midnight-market',
       'winter-lights',
       'halloween-moon',
     ]));

@@ -100,6 +100,10 @@ export function AccountSettingsPage() {
                 { key: 'scanlines', label: 'Scanlines', description: null },
                 { key: 'spotlight', label: 'Spotlight', description: null },
                 { key: 'glitch', label: 'Glitch', description: null },
+                { key: 'ember-sparks', label: 'Ember sparks', description: null },
+                { key: 'cash-shimmer', label: 'Cash shimmer', description: null },
+                { key: 'sirens', label: 'Sirens', description: null },
+                { key: 'smoke', label: 'Smoke', description: null },
               ],
               densities: [
                 { key: 'comfortable', label: 'Comfortable', description: null },
