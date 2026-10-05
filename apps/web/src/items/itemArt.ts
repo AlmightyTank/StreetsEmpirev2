@@ -82,6 +82,8 @@ export const ITEM_ART = {
   'street-pass-s1-kingpin': { name: 'Kingpin · Season 1', shortName: 'Kingpin', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-kingpin.svg', cells: ONE },
   'street-pass-s1-badge': { name: 'Street Pass · Season 1', shortName: 'S1 Badge', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-badge.svg', cells: ONE },
   'street-pass-s1-frame': { name: 'Season 1 Frame', shortName: 'S1 Frame', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-frame.svg', cells: ONE },
+  'street-pass-s1-night-drive-theme': { name: 'Night Drive · Season 1', shortName: 'Night Drive', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-night-drive-theme.svg', cells: ONE },
+  'street-pass-s1-chrome-halo-frame': { name: 'Chrome Halo · Season 1', shortName: 'Chrome Halo', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-chrome-halo-frame.svg', cells: ONE },
 
   // Contact reputation gained or lost on a job
   REP: { name: 'Reputation', shortName: 'RP+', category: 'REPUTATION', rarity: 'RARE', file: 'rep.svg', cells: ONE },
