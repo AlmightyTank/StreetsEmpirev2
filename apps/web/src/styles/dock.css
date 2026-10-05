@@ -56,16 +56,24 @@
   min-width: 170px;
 }
 
-/* The button sits on the dock's right edge, so its "why it is off" note hangs
-   leftward from there instead of centring past the edge of the screen. */
-.se-dock__controls > .se-why .se-why__text {
+/* "Why it is off" notes centre on their button. In the dock the buttons sit
+   at the screen's edges, so the last button in a row hangs its note leftward
+   and the first hangs it rightward, instead of pushing the page sideways. */
+.se-dock .se-why:last-child .se-why__text {
   left: auto;
   right: 0;
   transform: translate(0, 4px);
 }
 
-.se-dock__controls > .se-why:hover .se-why__text,
-.se-dock__controls > .se-why:focus-within .se-why__text {
+.se-dock .se-why:first-child:not(:last-child) .se-why__text {
+  left: 0;
+  transform: translate(0, 4px);
+}
+
+.se-dock .se-why:last-child:hover .se-why__text,
+.se-dock .se-why:last-child:focus-within .se-why__text,
+.se-dock .se-why:first-child:not(:last-child):hover .se-why__text,
+.se-dock .se-why:first-child:not(:last-child):focus-within .se-why__text {
   transform: translate(0, 0);
 }
 
