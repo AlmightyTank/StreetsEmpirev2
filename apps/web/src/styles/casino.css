@@ -53,14 +53,40 @@
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .025);
 }
 
+.se-poker-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(20rem, .78fr); gap: .85rem; align-items: start; }
+.se-poker-box {
+  display: grid;
+  gap: .85rem;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--se-border);
+  border-radius: .85rem;
+  background: color-mix(in srgb, var(--se-surface) 90%, transparent);
+}
+.se-poker-box__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: .8rem;
+  padding-bottom: .65rem;
+  border-bottom: 1px solid var(--se-border);
+}
+.se-poker-box__head h3 { margin: .12rem 0 0; }
+.se-poker-box__head small { color: var(--se-muted); font-size: .76rem; text-align: right; }
 .se-poker-lobby { display: grid; gap: .85rem; max-width: 38rem; }
 .se-poker-lobby p { margin: 0; }
 .se-poker-lobby label, .se-poker-actions label { display: grid; gap: .35rem; font-weight: 700; }
 .se-poker-lobby input, .se-poker-actions input { width: 100%; max-width: 14rem; padding: .7rem; border: 1px solid var(--se-border); border-radius: .55rem; color: var(--se-text); background: var(--se-bg); }
 .se-poker-lobby select { width: 100%; max-width: 14rem; padding: .7rem; border: 1px solid var(--se-border); border-radius: .55rem; color: var(--se-text); background: var(--se-bg); }
 .se-poker-lobby small { color: var(--se-muted); line-height: 1.45; }
-.se-poker-lobby--multiplayer { max-width: none; padding: 1rem; border: 1px solid var(--se-border); border-radius: .85rem; background: color-mix(in srgb, var(--se-surface) 85%, transparent); }
-.se-poker-lobby--multiplayer h3 { margin: 0; }
+.se-poker-lobby--multiplayer { max-width: none; }
+.se-poker-formgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .65rem;
+  align-items: end;
+}
+.se-poker-formgrid .se-btn { min-height: 2.6rem; }
 .se-poker-table-list { display: grid; gap: .6rem; }
 .se-poker-table-list article { display: grid; gap: .4rem; padding: .8rem; border: 1px solid var(--se-border); border-radius: .7rem; background: var(--se-bg); }
 .se-poker-table-list article > span, .se-poker-table-list article > small { color: var(--se-muted); }
@@ -88,6 +114,10 @@
 .se-poker-actions > span { margin-right: auto; color: var(--se-muted); }
 .se-poker-actions > div { display: flex; flex-wrap: wrap; gap: .5rem; }
 @media (max-width: 650px) {
+  .se-poker-split { grid-template-columns: 1fr; }
+  .se-poker-box { padding: .75rem; }
+  .se-poker-box__head { align-items: start; }
+  .se-poker-formgrid { grid-template-columns: 1fr; }
   .se-poker-table__seats { grid-template-columns: 1fr; }
   .se-poker-actions { align-items: stretch; }
   .se-poker-actions > div { width: 100%; }
@@ -1394,15 +1424,23 @@
    the spin's outcome right above them. */
 .se-slots__stage > .se-dock { grid-column: 1 / -1; }
 .se-slots__dock-bet .se-input { width: 4.5rem; text-align: center; }
+.se-street-dice__dock-bet .se-input,
+.se-street-dice__dock-odds .se-input { width: 4.5rem; text-align: center; }
 .se-slots__dock-bet .se-btn,
-.se-slots__dock-lines .se-btn { min-width: 2rem; }
+.se-slots__dock-lines .se-btn,
+.se-street-dice__dock-bet .se-btn,
+.se-street-dice__dock-odds .se-btn { min-width: 2rem; }
 .se-slots__dock-count { min-width: 4.2rem; color: var(--se-text-dim); font-size: .8rem; text-align: center; white-space: nowrap; }
 .se-slots__dock-count strong { color: var(--se-text); font-family: var(--se-mono); font-size: 1rem; }
 @media (max-width: 700px) {
   .se-dock__controls > .se-slots__dock-bet,
-  .se-dock__controls > .se-slots__dock-lines { flex-basis: auto; }
+  .se-dock__controls > .se-slots__dock-lines,
+  .se-dock__controls > .se-street-dice__dock-bet,
+  .se-dock__controls > .se-street-dice__dock-odds { flex-basis: auto; }
   .se-dock__controls > .se-slots__dock-bet { order: -2; }
   .se-dock__controls > .se-slots__dock-lines { order: -1; }
+  .se-dock__controls > .se-street-dice__dock-bet,
+  .se-dock__controls > .se-street-dice__dock-odds { order: -1; }
 }
 
 /* ---------- Blackjack felt (1.4 overhaul) ----------

@@ -7,6 +7,7 @@ import {
 } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
+import { ActionDock, deltaChip } from './ActionDock.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
@@ -98,6 +99,32 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
   const remainingOddsCents = active
     ? Math.max(0, active.maxOddsCents - active.oddsWagerCents)
     : 0;
+  const startBlock = !table
+    ? 'Pick a dice table first.'
+    : !table.availableHere
+      ? table.lockedReason ?? 'This dice table is not available in this casino.'
+      : !casinoPage.openSession
+        ? 'Open a casino bankroll first.'
+        : casinoPage.openSession.citySlug !== casinoPage.currentCitySlug
+          ? 'Your open bankroll belongs to another casino.'
+          : !wagerValid
+            ? 'Use one of this table\'s posted line bets.'
+            : wagerCents && wagerCents > bankrollCents
+              ? 'There are not enough chips in the bankroll.'
+              : busy ? 'Dice are moving.' : null;
+  const oddsBlock = !active
+    ? 'There is no active point to back.'
+    : !active.canAddOdds
+      ? 'Odds can only be added after a point is set.'
+      : !oddsCents
+        ? 'Enter an odds amount.'
+        : oddsCents > remainingOddsCents
+          ? 'That exceeds the remaining odds limit.'
+          : oddsCents > bankrollCents
+            ? 'There are not enough chips in the bankroll.'
+            : table && oddsCents % table.betStepCents !== 0
+              ? 'Use the table chip increment.'
+              : busy ? 'Dice are moving.' : null;
 
   function resetActions() {
     startAction.current = newActionId();
@@ -187,14 +214,15 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
 
       {state?.enabled ? (
         <div className={'se-street-dice' + (active ? ' has-active-point' : '')}>
-          <div className="se-street-dice__tables" role="group" aria-label="Street Dice tables">
+          <div className="se-casino-picker" role="group" aria-label="Street Dice tables">
             {state.tables.map((candidate) => (
               <button
                 key={candidate.key}
                 type="button"
                 disabled={busy !== null || Boolean(active)}
                 aria-pressed={candidate.key === table?.key}
-                className={'se-street-dice__table' + (candidate.key === table?.key ? ' is-selected' : '') + (candidate.room === 'VIP' ? ' is-vip' : '')}
+                title={candidate.availableHere ? undefined : candidate.lockedReason ?? 'Not in this room'}
+                className={'se-casino-picker__opt' + (candidate.key === table?.key ? ' is-selected' : '') + (candidate.availableHere ? '' : ' is-away')}
                 onClick={() => {
                   setSelectedTableKey(candidate.key);
                   setWager(String(candidate.minBetCents / 100));
@@ -203,8 +231,8 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
                   resetActions();
                 }}
               >
-                <span><strong>{candidate.name}{candidate.room === 'VIP' ? <em className="se-casino-vip-badge">VIP</em> : null}</strong><small>Up to {candidate.maxOddsMultiple}× odds{candidate.lockedReason ? ' · VIP door closed' : ''}</small></span>
-                <small>{formatCents(candidate.minBetCents)}–{formatCents(candidate.maxBetCents)} line</small>
+                <strong>{candidate.name}{candidate.room === 'VIP' ? <em className="se-casino-vip-badge">VIP</em> : null}</strong>
+                <small>{formatCents(candidate.minBetCents)}–{formatCents(candidate.maxBetCents)} line · {candidate.maxOddsMultiple}× odds</small>
               </button>
             ))}
           </div>
@@ -239,148 +267,135 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
                 </div>
 
                 {active ? (
-                  <>
-                    {active.canAddOdds ? (
-                      <div className="se-street-dice__odds">
-                        <div>
-                          <span>True odds behind point {active.point}</span>
-                          <small>{formatCents(active.oddsWagerCents)} / {formatCents(active.maxOddsCents)} backed</small>
-                        </div>
-                        <div className="se-street-dice__odds-controls">
-                          <button
-                            type="button"
-                            className="se-btn se-btn--ghost"
-                            disabled={busy !== null}
-                            onClick={() => {
-                              const current = oddsCents ?? table.betStepCents;
-                              setOdds(String(Math.max(table.betStepCents, current - table.betStepCents) / 100));
-                            }}
-                          >−</button>
-                          <input
-                            className="se-input"
-                            inputMode="decimal"
-                            value={odds}
-                            disabled={busy !== null}
-                            onChange={(event) => setOdds(event.target.value)}
-                          />
-                          <button
-                            type="button"
-                            className="se-btn se-btn--ghost"
-                            disabled={busy !== null}
-                            onClick={() => {
-                              const current = oddsCents ?? table.betStepCents;
-                              setOdds(String(Math.min(remainingOddsCents, current + table.betStepCents) / 100));
-                            }}
-                          >+</button>
-                          <button
-                            type="button"
-                            className="se-btn se-btn--ghost"
-                            disabled={busy !== null || remainingOddsCents <= 0}
-                            onClick={() => setOdds(String(remainingOddsCents / 100))}
-                          >Max</button>
-                          <Button
-                            type="button"
-                            className="se-btn"
-                            disabledReason={
-                              !oddsCents
-                                ? 'Enter an odds amount.'
-                                : oddsCents > remainingOddsCents
-                                  ? 'That exceeds the remaining odds limit.'
-                                  : oddsCents > bankrollCents
-                                    ? 'There are not enough chips in the bankroll.'
-                                    : oddsCents % table.betStepCents !== 0
-                                      ? 'Use the table chip increment.'
-                                      : busy ? 'Dice are moving.' : null
-                            }
-                            onClick={() => void addOdds()}
-                          >
-                            {busy === 'odds' ? 'Backing…' : 'Add odds'}
-                          </Button>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <div className="se-street-dice__actions">
-                      <Button
-                        type="button"
-                        className="se-btn se-street-dice__roll"
-                        disabledReason={!active.canRoll ? 'There is no point waiting for a roll.' : busy ? 'Dice are moving.' : null}
-                        onClick={() => void roll()}
-                      >
-                        {busy === 'roll' ? 'ROLLING…' : 'ROLL DICE'}
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <form className="se-street-dice__start" onSubmit={start}>
-                    <label>
-                      <span>Pass line bet ($)</span>
-                      <div>
-                        <button
-                          type="button"
-                          className="se-btn se-btn--ghost"
-                          disabled={busy !== null}
-                          onClick={() => {
-                            const current = wagerCents ?? table.minBetCents;
-                            setWager(String(Math.max(table.minBetCents, current - table.betStepCents) / 100));
-                            startAction.current = newActionId();
-                          }}
-                        >−</button>
-                        <input
-                          className="se-input"
-                          inputMode="decimal"
-                          value={wager}
-                          disabled={busy !== null}
-                          onChange={(event) => {
-                            setWager(event.target.value);
-                            startAction.current = newActionId();
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="se-btn se-btn--ghost"
-                          disabled={busy !== null}
-                          onClick={() => {
-                            const current = wagerCents ?? table.minBetCents;
-                            setWager(String(Math.min(table.maxBetCents, current + table.betStepCents) / 100));
-                            startAction.current = newActionId();
-                          }}
-                        >+</button>
-                        <button
-                          type="button"
-                          className="se-btn se-btn--ghost"
-                          disabled={busy !== null}
-                          onClick={() => {
-                            const max = Math.min(table.maxBetCents, bankrollCents);
-                            const stepped = Math.floor(max / table.betStepCents) * table.betStepCents;
-                            setWager(String(Math.max(table.minBetCents, stepped) / 100));
-                            startAction.current = newActionId();
-                          }}
-                        >Max</button>
-                      </div>
-                    </label>
-                    <Button
-                      type="submit"
-                      className="se-btn se-street-dice__comeout"
-                      disabledReason={
-                        !table.availableHere
-                          ? table.lockedReason ?? 'This dice table is not available in this casino.'
-                          : !casinoPage.openSession
-                            ? 'Open a casino bankroll first.'
-                            : casinoPage.openSession.citySlug !== casinoPage.currentCitySlug
-                              ? 'Your open bankroll belongs to another casino.'
-                              : !wagerValid
-                              ? 'Use one of this table\'s posted line bets.'
-                              : wagerCents && wagerCents > bankrollCents
-                                ? 'There are not enough chips in the bankroll.'
-                                : busy ? 'Dice are moving.' : null
-                      }
-                    >
-                      {busy === 'start' ? 'THROWING…' : 'COME-OUT ROLL'}
-                    </Button>
-                  </form>
-                )}
+                  <p className="se-street-dice__odds">
+                    <span>True odds behind point {active.point}</span>
+                    <small>{formatCents(active.oddsWagerCents)} / {formatCents(active.maxOddsCents)} backed</small>
+                  </p>
+                ) : null}
               </div>
+
+              <ActionDock
+                label={active ? 'Roll street dice' : 'Start street dice'}
+                onSubmit={(event) => {
+                  if (active) {
+                    event.preventDefault();
+                    void roll();
+                    return;
+                  }
+                  void start(event);
+                }}
+                outcome={shownRound?.status === 'SETTLED' ? {
+                  id: shownRound.id,
+                  title: shownRound.netCents > 0
+                    ? 'Won ' + signedMoney(shownRound.netCents)
+                    : shownRound.netCents < 0
+                      ? 'Lost ' + signedMoney(shownRound.netCents)
+                      : 'Push',
+                  tone: shownRound.netCents >= 0 ? 'good' : 'bad',
+                  chips: [
+                    { key: 'roll', label: 'Roll', text: shownRound.total ? String(shownRound.total) : '—', tone: 'muted' as const },
+                    deltaChip('Net', shownRound.netCents, { money: true }),
+                    { key: 'floor', label: 'Floor', text: formatCents(shownRound.bankrollAfterCents), tone: 'muted' as const },
+                  ],
+                  receipt: (
+                    <div className="se-rows">
+                      <div className="se-row"><span className="se-row__label">Table</span><span className="se-row__value">{shownRound.tableName}</span></div>
+                      <div className="se-row"><span className="se-row__label">Line</span><span className="se-row__value">{formatCents(shownRound.lineWagerCents)}</span></div>
+                      <div className="se-row"><span className="se-row__label">Odds</span><span className="se-row__value">{shownRound.oddsWagerCents ? formatCents(shownRound.oddsWagerCents) : '—'}</span></div>
+                      <div className="se-row"><span className="se-row__label">Result</span><span className="se-row__value">{outcomeCopy(shownRound)}</span></div>
+                      <div className="se-row se-row--strong"><span className="se-row__label">Net</span><span className={'se-row__value ' + (shownRound.netCents >= 0 ? 'se-good' : 'se-bad')}>{signedMoney(shownRound.netCents)}</span></div>
+                      <div className="se-row"><span className="se-row__label">Floor bankroll</span><span className="se-row__value">{formatCents(shownRound.bankrollAfterCents)}</span></div>
+                    </div>
+                  ),
+                  onDismiss: () => {
+                    setLastRound(null);
+                    setNotice(null);
+                  },
+                } : null}
+              >
+                <div>
+                  <span className="se-dock__label">{table.name}</span>
+                  <strong>{active ? `Point ${active.point ?? 'off'} · ${formatCents(active.lineWagerCents + active.oddsWagerCents)} at risk` : `Line ${wagerCents ? formatCents(wagerCents) : '—'}`}</strong>
+                  <span>{casinoPage.openSession ? 'Floor ' + formatCents(bankrollCents) : 'No session open'}</span>
+                </div>
+                {active?.canAddOdds ? (
+                  <div className="se-dock__amount se-street-dice__dock-odds" role="group" aria-label="Odds wager">
+                    <label htmlFor="street-dice-odds">Odds</label>
+                    <button
+                      type="button"
+                      className="se-btn se-btn--sm"
+                      disabled={busy !== null}
+                      onClick={() => {
+                        const current = oddsCents ?? table.betStepCents;
+                        setOdds(String(Math.max(table.betStepCents, current - table.betStepCents) / 100));
+                      }}
+                    >−</button>
+                    <input id="street-dice-odds" className="se-input" inputMode="decimal" value={odds} disabled={busy !== null} onChange={(event) => setOdds(event.target.value)} />
+                    <button
+                      type="button"
+                      className="se-btn se-btn--sm"
+                      disabled={busy !== null}
+                      onClick={() => {
+                        const current = oddsCents ?? table.betStepCents;
+                        setOdds(String(Math.min(remainingOddsCents, current + table.betStepCents) / 100));
+                      }}
+                    >+</button>
+                    <button type="button" className="se-btn se-btn--sm" disabled={busy !== null || remainingOddsCents <= 0} onClick={() => setOdds(String(remainingOddsCents / 100))}>Max</button>
+                    <Button type="button" className="se-btn se-btn--sm" disabledReason={oddsBlock} onClick={() => void addOdds()}>
+                      {busy === 'odds' ? 'Backing...' : 'Back'}
+                    </Button>
+                  </div>
+                ) : !active ? (
+                  <div className="se-dock__amount se-street-dice__dock-bet" role="group" aria-label="Pass line bet">
+                    <label htmlFor="street-dice-line">Line</label>
+                    <button
+                      type="button"
+                      className="se-btn se-btn--sm"
+                      disabled={busy !== null}
+                      onClick={() => {
+                        const current = wagerCents ?? table.minBetCents;
+                        setWager(String(Math.max(table.minBetCents, current - table.betStepCents) / 100));
+                        startAction.current = newActionId();
+                      }}
+                    >−</button>
+                    <input
+                      id="street-dice-line"
+                      className="se-input"
+                      inputMode="decimal"
+                      value={wager}
+                      disabled={busy !== null}
+                      onChange={(event) => {
+                        setWager(event.target.value);
+                        startAction.current = newActionId();
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="se-btn se-btn--sm"
+                      disabled={busy !== null}
+                      onClick={() => {
+                        const current = wagerCents ?? table.minBetCents;
+                        setWager(String(Math.min(table.maxBetCents, current + table.betStepCents) / 100));
+                        startAction.current = newActionId();
+                      }}
+                    >+</button>
+                    <button
+                      type="button"
+                      className="se-btn se-btn--sm"
+                      disabled={busy !== null}
+                      onClick={() => {
+                        const max = Math.min(table.maxBetCents, bankrollCents);
+                        const stepped = Math.floor(max / table.betStepCents) * table.betStepCents;
+                        setWager(String(Math.max(table.minBetCents, stepped) / 100));
+                        startAction.current = newActionId();
+                      }}
+                    >Max</button>
+                  </div>
+                ) : null}
+                <Button type="submit" className="se-btn se-btn--primary se-street-dice__roll" disabledReason={active ? (!active.canRoll ? 'There is no point waiting for a roll.' : busy ? 'Dice are moving.' : null) : startBlock}>
+                  {active ? (busy === 'roll' ? 'Rolling...' : 'Roll dice') : (busy === 'start' ? 'Throwing...' : 'Come-out roll')}
+                </Button>
+              </ActionDock>
 
               <details className="se-street-dice__rules">
                 <summary>Street Dice rules &amp; true odds</summary>

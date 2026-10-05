@@ -5,7 +5,7 @@
 
 .se-pass {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   min-width: 0;
 }
 
@@ -18,30 +18,92 @@
   position: relative;
   overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 340px);
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.55fr);
   gap: 28px;
   align-items: end;
   padding: 24px;
   border: 1px solid var(--se-line);
   border-radius: 4px;
   background:
-    linear-gradient(120deg, rgba(255, 196, 64, 0.08), transparent 45%),
+    linear-gradient(120deg, rgba(var(--se-accent-rgb), 0.07), transparent 46%),
     linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
 }
 
+.se-pass-hero::after {
+  content: "";
+  position: absolute;
+  right: -84px;
+  top: -142px;
+  width: 350px;
+  height: 265px;
+  border: 1px solid rgba(var(--se-accent-rgb), 0.09);
+  transform: rotate(15deg);
+  pointer-events: none;
+}
+
+.se-pass-hero__copy,
+.se-pass-hero__side {
+  position: relative;
+  z-index: 1;
+}
+
 .se-pass-hero h1 {
-  margin: 5px 0 7px;
-  font-size: clamp(30px, 5vw, 46px);
+  margin: 5px 0 8px;
+  font-size: 48px;
   line-height: 0.95;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
   font-weight: 900;
 }
 
 .se-pass-hero__copy p {
-  max-width: 620px;
+  max-width: 720px;
   margin: 0;
   color: var(--se-text-dim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.se-pass-hero__side {
+  display: grid;
+  gap: 10px;
+}
+
+.se-pass-hero__readout {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--se-line);
+  background: rgba(11, 12, 14, 0.72);
+}
+
+.se-pass-hero__readout > span {
+  min-width: 0;
+  padding: 11px;
+  border-right: 1px solid var(--se-line);
+}
+
+.se-pass-hero__readout > span:last-child {
+  border-right: 0;
+}
+
+.se-pass-hero__readout small {
+  display: block;
+  color: var(--se-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.se-pass-hero__readout strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  font-family: var(--se-mono);
   font-size: 14px;
+}
+
+.se-pass-hero__good strong {
+  color: var(--se-good);
 }
 
 .se-pass-hero__progress {
@@ -63,13 +125,8 @@
 .se-pass-hero__progress strong {
   color: var(--se-text);
   font-family: var(--se-mono);
-  font-size: 28px;
-  letter-spacing: 0;
-}
-
-.se-pass-hero__progress strong small {
-  color: var(--se-muted);
   font-size: 14px;
+  letter-spacing: 0;
 }
 
 .se-pass-hero__progress > small {
@@ -92,6 +149,66 @@
   transition: width 0.3s ease;
 }
 
+.se-pass-empty {
+  display: grid;
+  gap: 5px;
+  min-height: 130px;
+  place-content: center;
+  border: 1px dashed var(--se-line);
+  background: var(--se-panel);
+  color: var(--se-muted);
+  text-align: center;
+}
+
+.se-pass-empty h2 {
+  margin: 0;
+  color: var(--se-text);
+  font-size: 20px;
+}
+
+.se-pass-empty p {
+  margin: 0;
+}
+
+.se-pass-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(285px, 0.32fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.se-pass-workbench > * {
+  min-width: 0;
+}
+
+.se-pass-trackpanel {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.se-pass-sectionhead {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.se-pass-sectionhead h2 {
+  margin: 3px 0 0;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.se-pass-sectionhead > p {
+  max-width: 520px;
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: right;
+}
+
 /* Tiers waiting to be claimed. */
 .se-pass-ready {
   display: flex;
@@ -101,6 +218,7 @@
   gap: 10px;
   padding: 10px 14px;
   border: 1px solid rgba(var(--se-accent-rgb), 0.45);
+  border-radius: 4px;
   background: rgba(var(--se-accent-rgb), 0.07);
 }
 
@@ -111,7 +229,10 @@
 
 /* The track. */
 .se-pass-trackwrap {
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--se-line);
+  border-radius: 4px;
   background: var(--se-panel);
 }
 
@@ -131,9 +252,10 @@
   grid-template-rows: auto 1fr auto;
   flex: none;
   gap: 8px;
-  min-width: 96px;
+  min-width: 104px;
   padding: 8px;
   border: 1px solid var(--se-line-soft);
+  border-radius: 3px;
   background: rgba(255, 255, 255, 0.015);
 }
 
@@ -221,6 +343,154 @@
   font-size: 8px;
   font-weight: 700;
   line-height: 1.2;
+}
+
+.se-pass-rail {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  align-content: start;
+  position: sticky;
+  top: 62px;
+}
+
+.se-pass-railcard {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+  padding: 13px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: var(--se-panel);
+}
+
+.se-pass-railcard--season {
+  border-color: rgba(var(--se-accent-rgb), 0.22);
+  background:
+    linear-gradient(180deg, rgba(var(--se-accent-rgb), 0.035), transparent 90px),
+    var(--se-panel);
+}
+
+.se-pass-railcard h2 {
+  margin: 2px 0 0;
+  font-size: 19px;
+}
+
+.se-pass-railcard p {
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.se-pass-metricgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--se-line);
+  border-width: 1px 0 0 1px;
+}
+
+.se-pass-metric {
+  min-width: 0;
+  min-height: 75px;
+  padding: 10px;
+  border: 1px solid var(--se-line);
+  border-width: 0 1px 1px 0;
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.se-pass-metric__label {
+  display: block;
+  color: var(--se-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.se-pass-metric__value {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  color: var(--se-text);
+  font-family: var(--se-mono);
+  font-size: 16px;
+  line-height: 1.15;
+}
+
+.se-pass-metric__detail {
+  display: block;
+  margin-top: 4px;
+  color: var(--se-muted);
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.se-pass-metric--good .se-pass-metric__value {
+  color: var(--se-good);
+}
+
+.se-pass-metric--warn .se-pass-metric__value {
+  color: var(--se-warn);
+}
+
+.se-pass-metric--accent .se-pass-metric__value {
+  color: var(--se-accent);
+}
+
+.se-pass-source-list,
+.se-pass-rules {
+  display: grid;
+}
+
+.se-pass-source-list > div,
+.se-pass-rules > div {
+  display: grid;
+  gap: 2px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--se-line);
+}
+
+.se-pass-source-list > div:first-child,
+.se-pass-rules > div:first-child {
+  padding-top: 0;
+}
+
+.se-pass-source-list > div:last-child,
+.se-pass-rules > div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.se-pass-source-list span,
+.se-pass-source-list small {
+  color: var(--se-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.se-pass-source-list strong {
+  overflow-wrap: anywhere;
+  color: var(--se-text);
+  font-family: var(--se-mono);
+  font-size: 11px;
+}
+
+.se-pass-source-list__capped strong {
+  color: var(--se-warn);
+}
+
+.se-pass-rules strong {
+  font-size: 10px;
+}
+
+.se-pass-rules span {
+  color: var(--se-muted);
+  font-size: 9px;
+  line-height: 1.4;
 }
 
 .se-pass-info {
@@ -457,8 +727,25 @@
   margin: 0;
 }
 
+@media (max-width: 1120px) {
+  .se-pass-hero {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+
+@media (max-width: 900px) {
+  .se-pass-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .se-pass-rail {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 760px) {
-  .se-pass-hero,
   .se-pass-info,
   .se-xp-overview,
   .se-xp-claimed {
@@ -469,6 +756,24 @@
     padding: 18px 14px;
   }
 
+  .se-pass-hero h1 {
+    font-size: 34px;
+  }
+
+  .se-pass-sectionhead {
+    display: grid;
+    gap: 5px;
+  }
+
+  .se-pass-sectionhead > p {
+    max-width: none;
+    text-align: left;
+  }
+
+  .se-pass-rail {
+    grid-template-columns: 1fr;
+  }
+
   .se-xp-trackhead {
     display: grid;
   }
@@ -476,6 +781,47 @@
   .se-xp-trackhead > p {
     max-width: none;
     text-align: left;
+  }
+}
+
+@media (max-width: 520px) {
+  .se-pass {
+    gap: 14px;
+  }
+
+  .se-pass-hero {
+    padding: 15px 12px;
+  }
+
+  .se-pass-hero__readout,
+  .se-pass-metricgrid {
+    grid-template-columns: 1fr;
+  }
+
+  .se-pass-hero__readout > span {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--se-line);
+  }
+
+  .se-pass-hero__readout > span:last-child {
+    border-bottom: 0;
+  }
+
+  .se-pass-hero__readout strong {
+    margin-top: 0;
+  }
+
+  .se-pass-ready {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .se-pass-ready .se-btn {
+    width: 100%;
   }
 }
 

@@ -684,14 +684,14 @@ export function CasinoPage() {
             <Panel title="Slots" aside="Casino-style paylines">
               {data.slotMachines.length ? (
                 <div className="se-slots">
-                  <div className="se-slots__machines" role="group" aria-label="Slot machines">
+                  <div className="se-casino-picker" role="group" aria-label="Slot machines">
                     {data.slotMachines.map((machine) => (
                       <button
                         key={machine.key}
                         type="button"
                         disabled={busy !== null || data.freeSpinBonus !== null}
                         aria-pressed={selectedMachineKey === machine.key}
-                        className={'se-slots__machine' + (selectedMachineKey === machine.key ? ' is-selected' : '') + (machine.availableHere ? '' : ' is-away')}
+                        className={'se-casino-picker__opt' + (selectedMachineKey === machine.key ? ' is-selected' : '') + (machine.availableHere ? '' : ' is-away')}
                         title={machine.availableHere ? undefined : 'Not in this room'}
                         onClick={() => {
                           setSelectedMachineKey(machine.key);

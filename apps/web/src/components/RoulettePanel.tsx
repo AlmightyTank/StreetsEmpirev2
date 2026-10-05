@@ -8,6 +8,7 @@ import {
 } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
+import { ActionDock, deltaChip } from './ActionDock.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
@@ -80,6 +81,11 @@ function betLabel(kind: CasinoRouletteBetKindDto, selection: string): string {
   return kind.charAt(0) + kind.slice(1).toLowerCase();
 }
 
+function signedMoney(value: number): string {
+  if (value === 0) return '$0.00';
+  return (value > 0 ? '+' : '−') + formatCents(Math.abs(value));
+}
+
 export function RoulettePanel({ casinoPage, onPageChange }: Props) {
   const [state, setState] = useState<CasinoRouletteStateDto | null>(null);
   const [selectedTableKey, setSelectedTableKey] = useState<string | null>(null);
@@ -91,7 +97,6 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
   const [busy, setBusy] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const actionId = useRef(newActionId());
 
   useEffect(() => {
@@ -149,7 +154,6 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
       return next;
     });
     setLastSpin(null);
-    setNotice(null);
     actionId.current = newActionId();
   }
 
@@ -167,7 +171,6 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
     setBusy(true);
     setSpinning(true);
     setError(null);
-    setNotice(null);
     try {
       const result = await casinoApi.rouletteSpin({
         tableKey: table.key,
@@ -178,13 +181,6 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
       onPageChange(result.page);
       setState(result.roulette);
       setLastSpin(result.spin);
-      setNotice(
-        result.spin.netCents > 0
-          ? result.spin.pocket + ' hit · won ' + formatCents(result.spin.netCents) + '.'
-          : result.spin.netCents < 0
-            ? result.spin.pocket + ' hit · lost ' + formatCents(Math.abs(result.spin.netCents)) + '.'
-            : result.spin.pocket + ' hit · push.',
-      );
       actionId.current = newActionId();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'The roulette dealer could not complete that spin.');
@@ -208,24 +204,39 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
     ['COLUMN', '2'],
     ['COLUMN', '3'],
   ];
+  const spinBlock = !table
+    ? 'Pick a wheel first.'
+    : !table.availableHere
+      ? table.lockedReason ?? 'This wheel is not available in this casino.'
+      : !casinoPage.openSession
+        ? 'Open a casino bankroll first.'
+        : casinoPage.openSession.citySlug !== casinoPage.currentCitySlug
+          ? 'Your open bankroll belongs to another casino.'
+          : !bets.length
+            ? 'Place at least one bet.'
+            : totalBetCents > table.maxTotalBetCents
+              ? 'This layout is over the table maximum.'
+              : totalBetCents > bankrollCents
+                ? 'There are not enough chips in the bankroll.'
+                : busy ? 'Wheel is spinning.' : null;
 
   return (
     <Panel title="Roulette" aside="1.2.0-D">
       {error ? <Alert>{error}</Alert> : null}
-      {notice ? <Alert tone={lastSpin?.netCents && lastSpin.netCents > 0 ? 'success' : 'info'}>{notice}</Alert> : null}
       {!state ? <p className="se-muted">Opening the roulette room...</p> : null}
       {state && !state.enabled ? <p className="se-muted">Roulette is not enabled in this round.</p> : null}
 
       {state?.enabled ? (
         <div className="se-roulette">
-          <div className="se-roulette__tables" role="group" aria-label="Roulette tables">
+          <div className="se-casino-picker" role="group" aria-label="Roulette tables">
             {state.tables.map((candidate) => (
               <button
                 key={candidate.key}
                 type="button"
-                className={'se-roulette__table' + (candidate.key === table?.key ? ' is-selected' : '') + (candidate.room === 'VIP' ? ' is-vip' : '')}
+                className={'se-casino-picker__opt' + (candidate.key === table?.key ? ' is-selected' : '') + (candidate.availableHere ? '' : ' is-away')}
                 aria-pressed={candidate.key === table?.key}
                 disabled={busy}
+                title={candidate.availableHere ? undefined : candidate.lockedReason ?? 'Not in this room'}
                 onClick={() => {
                   setSelectedTableKey(candidate.key);
                   setChipCents(candidate.betStepCents);
@@ -234,8 +245,8 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                   actionId.current = newActionId();
                 }}
               >
-                <span><strong>{candidate.name}{candidate.room === 'VIP' ? <em className="se-casino-vip-badge">VIP</em> : null}</strong><small>{candidate.wheel === 'AMERICAN' ? '0 + 00' : 'Single 0'}{candidate.lockedReason ? ' · VIP door closed' : ''}</small></span>
-                <small>{formatCents(candidate.minBetCents)}–{formatCents(candidate.maxBetCents)} per position</small>
+                <strong>{candidate.name}{candidate.room === 'VIP' ? <em className="se-casino-vip-badge">VIP</em> : null}</strong>
+                <small>{candidate.wheel === 'AMERICAN' ? '0 + 00' : 'Single 0'} · {formatCents(candidate.minBetCents)}–{formatCents(candidate.maxBetCents)}</small>
               </button>
             ))}
           </div>
@@ -390,7 +401,44 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                 </div>
               ) : <p className="se-hint">Pick a chip, then tap numbers or outside bets. Tap a listed position to remove it.</p>}
 
-              <div className="se-roulette__controls">
+              <ActionDock
+                label="Spin the roulette wheel"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void spin();
+                }}
+                outcome={lastSpin ? {
+                  id: lastSpin.actionId,
+                  title: lastSpin.netCents > 0
+                    ? lastSpin.pocket + ' hit · won ' + formatCents(lastSpin.netCents)
+                    : lastSpin.netCents < 0
+                      ? lastSpin.pocket + ' hit · lost ' + formatCents(Math.abs(lastSpin.netCents))
+                      : lastSpin.pocket + ' hit · push',
+                  tone: lastSpin.netCents >= 0 ? 'good' : 'bad',
+                  chips: [
+                    { key: 'pocket', label: 'Pocket', text: lastSpin.pocket, tone: 'muted' as const },
+                    deltaChip('Net', lastSpin.netCents, { money: true }),
+                    { key: 'floor', label: 'Floor', text: formatCents(lastSpin.bankrollAfterCents), tone: 'muted' as const },
+                  ],
+                  receipt: (
+                    <div className="se-rows">
+                      <div className="se-row"><span className="se-row__label">Wheel</span><span className="se-row__value">{lastSpin.tableName}</span></div>
+                      <div className="se-row"><span className="se-row__label">Pocket</span><span className="se-row__value">{lastSpin.pocket} · {lastSpin.color.toLowerCase()}</span></div>
+                      <div className="se-row"><span className="se-row__label">Positions</span><span className="se-row__value">{lastSpin.bets.length}</span></div>
+                      <div className="se-row se-row--strong"><span className="se-row__label">Net</span><span className={'se-row__value ' + (lastSpin.netCents >= 0 ? 'se-good' : 'se-bad')}>{signedMoney(lastSpin.netCents)}</span></div>
+                      <div className="se-row"><span className="se-row__label">Floor bankroll</span><span className="se-row__value">{formatCents(lastSpin.bankrollAfterCents)}</span></div>
+                    </div>
+                  ),
+                  onDismiss: () => {
+                    setLastSpin(null);
+                  },
+                } : null}
+              >
+                <div>
+                  <span className="se-dock__label">{table.name}</span>
+                  <strong>{bets.length} position{bets.length === 1 ? '' : 's'} · {formatCents(totalBetCents)}</strong>
+                  <span>{casinoPage.openSession ? 'Floor ' + formatCents(bankrollCents) : 'No session open'}</span>
+                </div>
                 <button
                   type="button"
                   className="se-btn se-btn--ghost"
@@ -403,29 +451,10 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                 >
                   Clear
                 </button>
-                <Button
-                  type="button"
-                  className="se-btn se-roulette__spin"
-                  disabledReason={
-                    !table.availableHere
-                      ? table.lockedReason ?? 'This wheel is not available in this casino.'
-                      : !casinoPage.openSession
-                        ? 'Open a casino bankroll first.'
-                        : casinoPage.openSession.citySlug !== casinoPage.currentCitySlug
-                          ? 'Your open bankroll belongs to another casino.'
-                          : !bets.length
-                          ? 'Place at least one bet.'
-                          : totalBetCents > table.maxTotalBetCents
-                            ? 'This layout is over the table maximum.'
-                            : totalBetCents > bankrollCents
-                              ? 'There are not enough chips in the bankroll.'
-                              : busy ? 'Wheel is spinning.' : null
-                  }
-                  onClick={() => void spin()}
-                >
-                  {spinning ? 'SPINNING…' : 'SPIN WHEEL · ' + formatCents(totalBetCents)}
+                <Button type="submit" className="se-btn se-btn--primary se-roulette__spin" disabledReason={spinBlock}>
+                  {spinning ? 'Spinning...' : 'Spin wheel'}
                 </Button>
-              </div>
+              </ActionDock>
 
               <details className="se-roulette__paytable">
                 <summary>Roulette payouts</summary>

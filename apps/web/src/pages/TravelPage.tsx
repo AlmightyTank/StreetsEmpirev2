@@ -62,13 +62,13 @@ function StreetWire({ items }: { items: WireItemDto[] }) {
   );
 }
 
-type TravelTab = 'runs' | 'trip' | 'convoys' | 'move' | 'market';
+type TravelTab = 'runs' | 'trip' | 'move';
 
 /**
  * 0.5.0-B, reworked for 1.4: the map is the page. Pick a city on it (its intel
- * sits beside the map), then act on it from one tab at a time: runs, the
- * boss's trip, convoys, moving house, or the market wire. Anything urgent on
- * the road is pinned above the map.
+ * sits beside the map), keep convoys above the tabs and market below them,
+ * then act from one tab at a time: runs, the boss's trip, or moving house.
+ * Anything urgent on the road is pinned above the map.
  */
 export function TravelPage() {
   const me = useSession((s) => s.me);
@@ -97,14 +97,10 @@ export function TravelPage() {
   const tabs: Array<{ key: TravelTab; label: string; badge?: string; alert?: boolean }> = data?.enabled ? [
     ...(data.runsEnabled ? [{ key: 'runs' as const, label: 'Runs', badge: `${formatNumber(runs.length)}/${formatNumber(runLimit)}` }] : []),
     ...(data.trips ? [{ key: 'trip' as const, label: bossAway ? 'Boss away' : 'Boss trip', alert: bossAway }] : []),
-    ...(data.runsEnabled ? [{ key: 'convoys' as const, label: 'Convoys', alert: Boolean(urgent) }] : []),
     ...(data.relocation ? [{ key: 'move' as const, label: 'Move house', alert: Boolean(me.moving) }] : []),
-    { key: 'market' as const, label: 'Market' },
   ] : [];
   const requested = params.get('tab') as TravelTab | null;
-  const fallback: TravelTab | undefined = urgent && tabs.some((tab) => tab.key === 'convoys')
-    ? 'convoys'
-    : runs.length && tabs.some((tab) => tab.key === 'runs')
+  const fallback: TravelTab | undefined = runs.length && tabs.some((tab) => tab.key === 'runs')
       ? 'runs'
       : bossAway ? 'trip' : tabs[0]?.key;
   const tab = tabs.some((candidate) => candidate.key === requested) ? requested! : fallback;
@@ -155,7 +151,7 @@ export function TravelPage() {
             {urgent ? (
               <div className={`se-travel-alert se-travel-alert--${urgent.kind === 'tailed' ? 'bad' : 'warn'}`} role="alert">
                 <strong>{urgent.kind === 'tailed' ? `Your run is being tailed near ${urgent.cityName}` : `An ally needs backup in ${urgent.cityName}`}</strong>
-                <button type="button" className="se-btn se-btn--sm" onClick={() => setParam('tab', 'convoys')}>Respond</button>
+                <a className="se-btn se-btn--sm" href="#travel-convoys">Respond</a>
               </div>
             ) : null}
 
@@ -174,35 +170,7 @@ export function TravelPage() {
                       {SHORT_CITY[city.slug] ?? city.name}
                     </button>
                   ))}
-                    <nav className="se-travel-tabs" role="tablist" aria-label="Travel">
-                      {tabs.map((entry) => (
-                        <button
-                          key={entry.key}
-                          type="button"
-                          role="tab"
-                          aria-selected={tab === entry.key}
-                          className={`se-travel-tabs__tab${tab === entry.key ? ' is-active' : ''}${entry.alert ? ' has-alert' : ''}`}
-                          onClick={() => setParam('tab', entry.key)}
-                        >
-                          {entry.label}
-                          {entry.badge ? <small>{entry.badge}</small> : null}
-                        </button>
-                      ))}
-                    </nav>
-
-                    <nav className="se-citypicker" aria-label="Pick a city">
-                      {data.cities.map((city) => (
-                        <button
-                          key={city.slug}
-                          type="button"
-                          onClick={() => select(city.slug)}
-                          className={`se-citypicker__city${city.slug === selected.slug ? ' se-citypicker__city--on' : ''}`}
-                          aria-pressed={city.slug === selected.slug}
-                        >
-                          {SHORT_CITY[city.slug] ?? city.name}
-                        </button>
-                      ))}
-                    </nav>
+                </nav>
               </div>
               <aside className={`se-travel-deck__city${cityOpen ? ' is-open' : ''}`} id="travel-city-intel">
                 <CityDetail city={selected} products={data.products} home={home.name} />
@@ -225,6 +193,19 @@ export function TravelPage() {
               </button>
             </div>
 
+            {data.runsEnabled ? (
+              <section id="travel-convoys" className="se-travel-section">
+                <div className="se-travel-sectionhead">
+                  <div>
+                    <span className="se-eyebrow">Road security</span>
+                    <h2>Convoys</h2>
+                  </div>
+                  <p>Recon traffic, watch your own runs, and respond to tails from the same road board.</p>
+                </div>
+                <ConvoysPanel products={data.products} refreshKey={data} />
+              </section>
+            ) : null}
+
             <nav className="se-travel-tabs" role="tablist" aria-label="Travel">
               {tabs.map((entry) => (
                 <button
@@ -241,16 +222,32 @@ export function TravelPage() {
               ))}
             </nav>
 
-            {(data.relocation || (data.runsEnabled && data.rules.market) || (runs.length > 0 && data.lastRun)) ? (
-              <section className="se-travel-section">
-                <div className="se-travel-sectionhead">
-                  <div>
-                    <span className="se-eyebrow">Operations</span>
-                    <h2>Home & market desk</h2>
-                  </div>
-                  <p>Long-term relocation, recent market chatter, and the latest completed run stay separate from route planning.</p>
+            <section className="se-travel-section">
+              <div className="se-travel-sectionhead">
+                <div>
+                  <span className="se-eyebrow">Operations</span>
+                  <h2>Market</h2>
                 </div>
+                <p>Recent market chatter, home road assets, and the latest completed run stay visible below the travel tabs.</p>
+              </div>
 
+              <div className="se-travel-market">
+                {data.runsEnabled && data.rules.market ? <StreetWire items={data.wire} /> : null}
+                <Panel title="Home road assets" className="se-travel-panel">
+                  <div className="se-travel-assets">
+                    <TravelMetric label="Cash" value={formatCents(data.home.cashCents)} detail="available at home" />
+                    <TravelMetric label="Fit thugs" value={formatNumber(data.home.fitThugs)} detail="possible escorts" />
+                    <TravelMetric label="Beer" value={formatNumber(data.home.beer)} detail="can ride in cargo" />
+                    <TravelMetric
+                      label="Cargo per car"
+                      value={formatNumber(data.rules.cargoPerLowRider)}
+                      detail={`${formatNumber(data.rules.thugsPerLowRider)} thug seats per car`}
+                    />
+                  </div>
+                </Panel>
+                {runs.length > 0 && data.lastRun ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
+              </div>
+            </section>
 
             <section className="se-travel-tabpanel" role="tabpanel">
               {tab === 'runs' ? (
@@ -283,28 +280,7 @@ export function TravelPage() {
                 </>
               ) : null}
 
-              {tab === 'convoys' ? <ConvoysPanel products={data.products} refreshKey={data} /> : null}
-
               {tab === 'move' && data.relocation ? <MovePanel data={data} selected={selected.slug} onDone={load} /> : null}
-
-              {tab === 'market' ? (
-                <div className="se-travel-market">
-                  {data.runsEnabled && data.rules.market ? <StreetWire items={data.wire} /> : null}
-                  <Panel title="Home road assets" className="se-travel-panel">
-                    <div className="se-travel-assets">
-                      <TravelMetric label="Cash" value={formatCents(data.home.cashCents)} detail="available at home" />
-                      <TravelMetric label="Fit thugs" value={formatNumber(data.home.fitThugs)} detail="possible escorts" />
-                      <TravelMetric label="Beer" value={formatNumber(data.home.beer)} detail="can ride in cargo" />
-                      <TravelMetric
-                        label="Cargo per car"
-                        value={formatNumber(data.rules.cargoPerLowRider)}
-                        detail={`${formatNumber(data.rules.thugsPerLowRider)} thug seats per car`}
-                      />
-                    </div>
-                  </Panel>
-                  {runs.length > 0 && data.lastRun ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
-                </div>
-              ) : null}
             </section>
           </>
         ) : null}
