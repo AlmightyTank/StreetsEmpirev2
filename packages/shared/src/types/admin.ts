@@ -619,7 +619,7 @@ export interface AdminStreetPassUpdateInput {
 
 export interface AdminRoundHealthDto {
   round: AdminRoundDto;
-  streetPass: AdminStreetPassDto | null;
+  streetPass?: AdminStreetPassDto | null;
   players: { total: number; active24h: number; active7d: number; neverActed: number };
   /** Newest first, up to the last 14 days of the round. */
   days: AdminRoundHealthDayDto[];
