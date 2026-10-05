@@ -78,6 +78,22 @@ export const STREET_PASS_S1_COSMETICS = {
     rarity: 'legendary',
     styleKey: 'street-pass-s1-frame',
   },
+  'street-pass-s1-night-drive-theme': {
+    key: 'street-pass-s1-night-drive-theme',
+    name: 'Night Drive · Season 1',
+    description: 'A midnight road theme with violet glass, electric teal and passing headlight streaks.',
+    kind: 'SITE_THEME',
+    rarity: 'epic',
+    styleKey: 'street-pass-s1-night-drive',
+  },
+  'street-pass-s1-chrome-halo-frame': {
+    key: 'street-pass-s1-chrome-halo-frame',
+    name: 'Chrome Halo · Season 1',
+    description: 'A polished chrome ring with cool violet and teal light, earned through the Season 1 Street Pass.',
+    kind: 'PROFILE_FRAME',
+    rarity: 'epic',
+    styleKey: 'street-pass-s1-chrome-halo',
+  },
 } as const satisfies QuestCosmeticCatalog;
 
 /**
@@ -117,7 +133,7 @@ export const STREET_PASS_S1 = {
     { tier: 12, rewards: [favor('STREET_FRENZY')] },
     { tier: 13, rewards: [item('thugs', 10)] },
     { tier: 14, rewards: [product('ECSTASY', 150)] },
-    { tier: 15, rewards: [cash(100_000), favor('TOMMY_VOUCHER')] },
+    { tier: 15, rewards: [cash(100_000), favor('TOMMY_VOUCHER'), cosmetic('street-pass-s1-night-drive-theme')] },
     { tier: 16, rewards: [item('whores', 8)] },
     { tier: 17, rewards: [favor('COOKHOUSE_RUSH')] },
     { tier: 18, rewards: [product('METH', 200)] },
@@ -127,7 +143,7 @@ export const STREET_PASS_S1 = {
     { tier: 22, rewards: [product('COCAINE', 150)] },
     { tier: 23, rewards: [favor('BURNER_PHONE', 2)] },
     { tier: 24, rewards: [item('thugs', 15)] },
-    { tier: 25, rewards: [item('whores', 12), favor('DOCTOR_FAVOR')] },
+    { tier: 25, rewards: [item('whores', 12), favor('DOCTOR_FAVOR'), cosmetic('street-pass-s1-chrome-halo-frame')] },
     { tier: 26, rewards: [turns(100)] },
     { tier: 27, rewards: [product('HEROIN', 200)] },
     { tier: 28, rewards: [cash(200_000)] },
