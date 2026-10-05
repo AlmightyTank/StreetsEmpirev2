@@ -51,11 +51,17 @@ export function loadRuleset(rulesetId: string, rulesetVersion?: string): Ruleset
 export interface RulesetBearer {
   rulesetId: string;
   rulesetVersion: string;
+  streetPassOverride?: unknown;
 }
 
-/** Convenience for the common case: load the ruleset a Round was created with. */
+/** Convenience for the common case: load the pinned ruleset and this round's frozen pass snapshot. */
 export function loadRulesetForRound(round: RulesetBearer): Ruleset {
-  return loadRuleset(round.rulesetId, round.rulesetVersion);
+  const ruleset = loadRuleset(round.rulesetId, round.rulesetVersion);
+  if (round.streetPassOverride == null) return ruleset;
+  if (!ruleset.streetPass || typeof round.streetPassOverride !== 'object') {
+    throw new Error(`Round ${round.rulesetId} has an invalid Street Pass override.`);
+  }
+  return { ...ruleset, streetPass: round.streetPassOverride as NonNullable<Ruleset['streetPass']> };
 }
 
 export { DEFAULT_RULESET_ID };
