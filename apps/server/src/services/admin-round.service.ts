@@ -10,6 +10,9 @@ import { TurfService } from './turf.service.js';
 
 const DAY_MS = 86_400_000;
 const LIFECYCLE_TRANSACTION = { maxWait: 10_000, timeout: 60_000 };
+const MAX_STREET_PASS_REWARD_AMOUNT = 2_147_483_647;
+const validStreetPassAmount = (amount: number | undefined) => amount !== undefined
+  && Number.isSafeInteger(amount) && amount >= 1 && amount <= MAX_STREET_PASS_REWARD_AMOUNT;
 
 const actionVerb: Record<AdminRoundAction, string> = {
   'open-registration': 'open registration',
@@ -382,13 +385,13 @@ export const AdminRoundService = {
       for (const tier of input.tiers) {
         for (const reward of tier.rewards) {
           if (reward.kind === 'CASH' || reward.kind === 'TURNS') {
-            if (!Number.isSafeInteger(reward.amount) || (reward.amount ?? 0) < 1) throw AppError.badRequest('INVALID_STREET_PASS', 'Reward amounts must be positive whole numbers.');
+            if (!validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Reward amounts must be positive whole numbers.');
           } else if (reward.kind === 'ITEM') {
-            if (!itemFields.has(reward.key ?? '') || !Number.isSafeInteger(reward.amount) || (reward.amount ?? 0) < 1) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid item and a positive whole amount.');
+            if (!itemFields.has(reward.key ?? '') || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid item and a positive whole amount.');
           } else if (reward.kind === 'PRODUCT') {
-            if (!reward.key || !Object.hasOwn(ruleset.products, reward.key) || !Number.isSafeInteger(reward.amount) || (reward.amount ?? 0) < 1) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid product and a positive whole amount.');
+            if (!reward.key || !Object.hasOwn(ruleset.products, reward.key) || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid product and a positive whole amount.');
           } else if (reward.kind === 'FAVOR_ITEM') {
-            if (!reward.key || !ruleset.favors?.[reward.key] || !Number.isSafeInteger(reward.amount ?? 1) || (reward.amount ?? 1) < 1) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid favor and a positive whole amount.');
+            if (!reward.key || !ruleset.favors?.[reward.key] || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid favor and a positive whole amount.');
           } else if (reward.kind === 'COSMETIC_UNLOCK') {
             if (!reward.key || !ruleset.cosmetics?.[reward.key]) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a cosmetic in this round ruleset.');
           }
