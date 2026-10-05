@@ -1,4 +1,4 @@
-import type { ContactKey, FactionKey, QuestBranchDefinition, QuestDefinition, Ruleset } from './types.js';
+import type { ContactKey, FactionKey, QuestBranchDefinition, QuestDefinition, Ruleset, SponsoredBoard } from './types.js';
 
 type FactionView = Pick<Ruleset, 'factions' | 'contacts'>;
 
@@ -38,6 +38,35 @@ export function jobHelpedFactions(
   return helped;
 }
 
+const SPONSORED_BOARDS: readonly SponsoredBoard[] = ['DAILY', 'WEEKLY', 'CITY_CONTRACT', 'SEASON', 'ALLIANCE'];
+
+/** 1.4.0-C. The board a contract is dealt on, or null for a Job. */
+export function contractBoard(definition: Pick<QuestDefinition, 'type'>): SponsoredBoard | null {
+  return (SPONSORED_BOARDS as readonly string[]).includes(definition.type) ? definition.type as SponsoredBoard : null;
+}
+
+/** 1.4.0-C. The lane a contract's work is in: its category, or a city contract's kind. */
+export function contractLane(definition: Pick<QuestDefinition, 'category'>, cityKind?: string | null): string {
+  return cityKind ? `CITY_${cityKind}` : definition.category;
+}
+
+/**
+ * 1.4.0-C. Who may sponsor a board contract: its giver's faction, else the factions of its lane.
+ * Empty for a Job, a ruleset without sponsors, or work no faction does (casino, law).
+ */
+export function sponsorCandidates(
+  ruleset: Pick<Ruleset, 'factions' | 'contacts' | 'contractSponsors'>,
+  definition: Pick<QuestDefinition, 'type' | 'category' | 'contactKey'>,
+  cityKind?: string | null,
+): FactionKey[] {
+  const rules = ruleset.contractSponsors;
+  const board = contractBoard(definition);
+  if (!rules || !board || !rules.standing[board]) return [];
+  const giver = contactFaction(ruleset, definition.contactKey);
+  if (giver) return [giver];
+  return [...(rules.lanes[contractLane(definition, cityKind)] ?? [])];
+}
+
 /**
  * 1.4.0-A. What is wrong with a ruleset's factions, as readable lines; empty when sound.
  *
@@ -45,7 +74,7 @@ export function jobHelpedFactions(
  * catalog or says why it is independent (never both), every rivalry is listed on both sides,
  * and no faction is its own rival. Rulesets without factions have nothing to check.
  */
-export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' | 'questDefinitions'>): string[] {
+export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' | 'questDefinitions'> & Partial<Pick<Ruleset, 'contractSponsors'>>): string[] {
   const factions = ruleset.factions;
   if (!factions) return [];
   const problems: string[] = [];
@@ -99,6 +128,21 @@ export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' |
       if (!keys.has(String(prerequisite.params?.factionKey))) problems.push(`${job.key} needs standing with unknown faction ${String(prerequisite.params?.factionKey)}.`);
       if (!TIERS.includes(String(prerequisite.params?.tier))) problems.push(`${job.key} needs an unknown standing tier ${String(prerequisite.params?.tier)}.`);
     }
+  }
+
+  // 1.4.0-C: sponsors name real factions and pay a positive whole standing.
+  const sponsors = ruleset.contractSponsors;
+  if (sponsors) {
+    for (const [board, amount] of Object.entries(sponsors.standing)) {
+      if (!(SPONSORED_BOARDS as readonly string[]).includes(board)) problems.push(`Sponsored standing names unknown board ${board}.`);
+      if (!Number.isSafeInteger(amount) || (amount ?? 0) <= 0) problems.push(`Sponsored ${board} standing must be a positive whole number.`);
+    }
+    for (const [lane, candidates] of Object.entries(sponsors.lanes)) {
+      if (!candidates.length) problems.push(`Sponsor lane ${lane} names no faction; leave it out instead.`);
+      if (new Set(candidates).size !== candidates.length) problems.push(`Sponsor lane ${lane} names a faction twice.`);
+      for (const candidate of candidates) if (!keys.has(candidate)) problems.push(`Sponsor lane ${lane} names unknown faction ${candidate}.`);
+    }
+    if (!(sponsors.knownLean >= 0)) problems.push('The sponsor lean must not be negative.');
   }
 
   for (const faction of Object.values(factions)) {

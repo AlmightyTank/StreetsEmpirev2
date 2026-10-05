@@ -1,6 +1,7 @@
 import type { QuestDefinition, Ruleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { deckOrder, roundDeckSeed } from './contract-rotation.js';
+import { dealSponsors, sponsorState } from './contract-sponsor.js';
 
 export const SEASON_CONTRACT_SLOTS = 3;
 
@@ -71,13 +72,23 @@ export async function syncSeasonContractAttempts(
     select: { questDefinitionId: true },
   });
   const offered = new Set(existing.map((row) => row.questDefinitionId));
+  // 1.4.0-C: each contract's sponsor, chosen for this player's board as a whole.
+  const sponsors = await dealSponsors(db, roundPlayerId, ruleset, keys.map((key) => ({
+    definition: definitions.find((definition) => definition.key === key)!,
+    window: player.roundId,
+  })));
 
   const created: string[] = [];
   for (const key of keys) {
     const definitionRow = definitionRows.find((row) => row.key === key);
     if (!definitionRow || offered.has(definitionRow.id)) continue;
     await db.playerQuest.create({
-      data: { roundPlayerId, questDefinitionId: definitionRow.id, status: 'AVAILABLE' },
+      data: {
+        roundPlayerId,
+        questDefinitionId: definitionRow.id,
+        status: 'AVAILABLE',
+        ...(sponsors[keys.indexOf(key)] ? { rewardState: sponsorState(sponsors[keys.indexOf(key)]!) } : {}),
+      },
     });
     created.push(key);
   }

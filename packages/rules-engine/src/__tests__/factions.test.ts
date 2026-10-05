@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV14B, classicOgV14B2 } from '@streets/rulesets';
-import { addStanding, factionTier, factionTierName, jobStanding, nextFactionTier, standingFromRep } from '../calculations/factions.js';
+import { classicOgV14B, classicOgV14B2, classicOgV14C } from '@streets/rulesets';
+import { addStanding, contractStanding, factionTier, factionTierName, jobStanding, nextFactionTier, pickSponsors, standingFromRep } from '../calculations/factions.js';
 
 const rules = classicOgV14B.factionStanding;
 
@@ -62,6 +62,57 @@ describe('1.4.0-B faction standing', () => {
       const seasonJob = classicOgV14B2.questDefinitions.SEASON_STREET_EMPIRE;
       expect(seasonJob.rewards).toContainEqual({ kind: 'CONTACT_REP', key: 'MAMA_KING', amount: 25 });
       expect(jobStanding(classicOgV14B2, seasonJob, seasonJob.rewards).size).toBe(0);
+    });
+  });
+
+  describe('1.4.0-C sponsors', () => {
+    const offers = (count: number, candidates: Array<'OUTFIT' | 'KINGS'>) =>
+      Array.from({ length: count }, (_, index) => ({ seed: `player:offer-${index}`, candidates }));
+
+    it('keeps a single candidate and leaves unsponsored work unsponsored', () => {
+      expect(pickSponsors([{ seed: 'a', candidates: ['KINGS'] }, { seed: 'b', candidates: [] }], {}, 1)).toEqual(['KINGS', null]);
+    });
+
+    it('is the same for the same player and offer', () => {
+      const board = offers(20, ['OUTFIT', 'KINGS']);
+      expect(pickSponsors(board, {}, 1)).toEqual(pickSponsors(board, {}, 1));
+    });
+
+    it('leans toward a faction the player is Known with, about two to one', () => {
+      const board = offers(2000, ['OUTFIT', 'KINGS']);
+      const share = (picks: Array<string | null>) => picks.filter((pick) => pick === 'KINGS').length / picks.length;
+      const even = share(pickSponsors(board, {}, 1));
+      const leaned = share(pickSponsors(board, { KINGS: 'KNOWN' }, 1));
+      expect(even).toBeGreaterThan(0.45);
+      expect(even).toBeLessThan(0.55);
+      expect(leaned).toBeGreaterThan(0.62);
+      expect(leaned).toBeLessThan(0.72);
+      // Unknown is no lean, and no lean weight is no lean.
+      expect(pickSponsors(board, { KINGS: 'UNKNOWN' }, 1)).toEqual(pickSponsors(board, {}, 1));
+      expect(pickSponsors(board, { KINGS: 'INNER_CIRCLE' }, 0)).toEqual(pickSponsors(board, {}, 1));
+    });
+
+    it('never makes a board one faction’s work when an offer could go another way', () => {
+      const board = [
+        { seed: 'x', candidates: ['KINGS'] as const },
+        { seed: 'y', candidates: ['KINGS'] as const },
+        { seed: 'z', candidates: ['KINGS', 'OUTFIT'] as const },
+      ];
+      expect(pickSponsors(board, { KINGS: 'INNER_CIRCLE' }, 1000)).toEqual(['KINGS', 'KINGS', 'OUTFIT']);
+      // With no other candidate anywhere, there is nothing to switch.
+      expect(pickSponsors(board.slice(0, 2), {}, 1)).toEqual(['KINGS', 'KINGS']);
+    });
+
+    it('pays each board its pinned standing, and nothing before 1.4.0-C', () => {
+      expect(contractStanding(classicOgV14C, 'DAILY')).toBe(2);
+      expect(contractStanding(classicOgV14C, 'SEASON')).toBe(20);
+      expect(contractStanding(classicOgV14C, null)).toBe(0);
+      expect(contractStanding(classicOgV14B2, 'DAILY')).toBe(0);
+    });
+
+    it('never pays a board contract a Job’s standing, even a one-time Season contract', () => {
+      const season = classicOgV14C.questDefinitions.SEASON_STREET_EMPIRE;
+      expect(jobStanding(classicOgV14C, season, season.rewards).size).toBe(0);
     });
   });
 });

@@ -548,6 +548,30 @@ export interface QuestDefinition {
 
 export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;
 
+/** 1.4.0-C. The boards whose contracts a faction can sponsor. */
+export type SponsoredBoard = 'DAILY' | 'WEEKLY' | 'CITY_CONTRACT' | 'SEASON' | 'ALLIANCE';
+
+/**
+ * 1.4.0-C. Sponsored contracts. Every board contract is sponsored by the faction it helps: its
+ * giver's faction, or, when the giver works for no faction (or there is none), the faction whose
+ * lane the work is in. A completed contract pays its sponsor standing; nothing else changes.
+ */
+export interface ContractSponsorRules {
+  /** Standing a completed contract pays its sponsor, by board. A board left out pays none. */
+  readonly standing: Readonly<Partial<Record<SponsoredBoard, number>>>;
+  /**
+   * Who may sponsor work whose giver has no faction, by contract category. City contracts use
+   * CITY_SELL, CITY_TRIP and CITY_CASINO by kind. A category left out has no sponsor (Ace's
+   * casino work, Ledger's law work). With two candidates, the board leans one way per player.
+   */
+  readonly lanes: Readonly<Record<string, readonly FactionKey[]>>;
+  /**
+   * The lean: extra weight for a candidate the player is Known with or above (1 makes it twice
+   * as likely). The board itself never changes; only which candidate sponsors it.
+   */
+  readonly knownLean: number;
+}
+
 /** 1.4.0-B2 contract board rotation. */
 export interface ContractRotationRules {
   /**
@@ -2670,6 +2694,8 @@ export interface Ruleset {
    * the original shared rotation: every round on the ruleset sees the same board.
    */
   readonly contractRotation?: ContractRotationRules;
+  /** 1.4.0-C. Board contracts carry a sponsoring faction and pay it standing. */
+  readonly contractSponsors?: ContractSponsorRules;
   /** Permanent per-round capabilities earned through Jobs. */
   readonly permanentUnlocks?: PermanentUnlockCatalog;
   /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */

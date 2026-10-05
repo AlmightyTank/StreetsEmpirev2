@@ -13,7 +13,7 @@ import type { Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
 
 /** Where a standing change came from. */
-export type FactionStandingSource = 'JOB';
+export type FactionStandingSource = 'JOB' | 'CONTRACT';
 
 export interface FactionStandingChange {
   factionKey: FactionKey;
@@ -72,6 +72,17 @@ export const FactionService = {
       }));
     }
     return { factionKey, factionName: faction.name, before, after, tier, tierUp };
+  },
+
+  /** The player's tier with every faction in the round; empty before standing exists. */
+  async tiers(db: Db, roundPlayerId: string, ruleset: Ruleset): Promise<Partial<Record<FactionKey, FactionTier>>> {
+    const rules = ruleset.factionStanding;
+    if (!rules || !ruleset.factions) return {};
+    const rows = await db.playerFactionStanding.findMany({ where: { roundPlayerId }, select: { factionKey: true, points: true } });
+    return Object.fromEntries(Object.keys(ruleset.factions).map((key) => [
+      key,
+      factionTier(rows.find((row) => row.factionKey === key)?.points ?? 0, rules),
+    ]));
   },
 
   /** The player's standing with every faction in the round, Unknown where there is none yet. */
