@@ -1014,10 +1014,13 @@ export function CasinoPage() {
                           </div>
                         </div>
 
-                        <div className="se-slots__payline-panel">
+                        <details className="se-slots__payline-panel">
+                          <summary>
+                            Paylines · {selectedLines.length} of {machine.paylines.length}
+                            {bonusActive ? <small> · locked for the bonus</small> : null}
+                          </summary>
                           <div className="se-slots__payline-head">
                             <div>
-                              <strong>Active paylines</strong>
                               <small>{bonusActive ? 'Locked to the wager that earned the bonus.' : 'Pick the exact lines you want to cover.'}</small>
                             </div>
                             <div className="se-slots__line-tools">
@@ -1083,7 +1086,7 @@ export function CasinoPage() {
                               );
                             })}
                           </div>
-                        </div>
+                        </details>
 
                         <details className="se-slots__paytable">
                           <summary>Paytable &amp; machine info</summary>

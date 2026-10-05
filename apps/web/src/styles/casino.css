@@ -337,6 +337,9 @@
 .se-slots__form.is-free-spin .se-slots__spin-button { box-shadow: 0 0 14px color-mix(in srgb, var(--se-accent) 32%, transparent); }
 
 .se-slots__payline-panel { grid-column: 1 / -1; display: grid; gap: .65rem; border-top: 1px solid var(--se-border); padding-top: .85rem; }
+.se-slots__payline-panel summary { cursor: pointer; font-weight: 700; }
+.se-slots__payline-panel summary small { color: var(--se-muted); font-weight: 500; }
+.se-slots__payline-panel:not([open]) { gap: 0; }
 .se-slots__payline-head { display: flex; justify-content: space-between; gap: .75rem; align-items: flex-end; }
 .se-slots__payline-head > div:first-child { display: grid; gap: .15rem; }
 .se-slots__payline-head small { color: var(--se-muted); }
