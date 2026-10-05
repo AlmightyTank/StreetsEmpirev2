@@ -4342,3 +4342,12 @@ button.se-notification-empty:hover { color: var(--se-text); }
     animation: none;
   }
 }
+
+
+/* Street Pass Season 1: chrome and neon profile frame. */
+.se-profile-frame--street-pass-s1-chrome-halo {
+  border: 2px solid rgba(222, 233, 241, 0.92);
+  box-shadow:
+    inset 0 0 0 2px rgba(45, 212, 191, 0.48),
+    0 0 20px rgba(167, 139, 250, 0.3);
+}
