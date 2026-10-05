@@ -812,6 +812,24 @@ export function QuestPage() {
                 <p>Take on as many jobs as you can handle. Board resets are listed beside the jobs.</p>
               </div>
 
+              <label className="se-checkrow se-checkrow--toggle se-quests-autoaccept">
+                <input
+                  type="checkbox"
+                  checked={page.autoAccept ?? true}
+                  disabled={busy !== null}
+                  onChange={(event) => {
+                    const enabled = event.target.checked;
+                    void mutate('auto-accept', () => questsApi.setAutoAccept(enabled), enabled
+                      ? 'Auto-accept is on. New daily, weekly and city work starts by itself.'
+                      : 'Auto-accept is off. Accept board work yourself.');
+                  }}
+                />
+                <span>
+                  <strong>Auto-accept board work</strong>
+                  <small>Daily, weekly and city contracts start as soon as they appear. Community events always start on their own. A job you abandon stays off until you take it again.</small>
+                </span>
+              </label>
+
               <div className="se-quests-tabs" role="tablist" aria-label="Quest view">
                 {([
                   ['available', 'Available', standardAvailableCount],

@@ -547,7 +547,77 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   await syncCommunityEventAttempts(db, roundPlayerId, ruleset, now);
   await refreshCommunityEventReadinessForPlayer(db, roundPlayerId, ruleset, now);
   newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
+  await autoAcceptBoardWork(db, roundPlayerId, ruleset, now);
   return newlyAvailable;
+}
+
+/** Move an AVAILABLE job to ACTIVE, the same way whether the player clicked Accept or auto-accept did. */
+async function startQuest(db: Db, roundPlayerId: string, row: QuestRow, ruleset: Ruleset, acceptedAt: Date, track: boolean): Promise<void> {
+  const preserveOffer = preservesGeneratedOffer(row, ruleset);
+  await db.playerQuest.update({
+    where: { id: row.id },
+    data: {
+      status: 'ACTIVE',
+      acceptedAt,
+      completedAt: null,
+      claimedAt: null,
+      failedAt: null,
+      abandonedAt: null,
+      objectiveProgress: {},
+      bonusProgress: {},
+      rewardState: preserveOffer ? inputJson(row.rewardState) : {},
+      expiresAt: preserveOffer
+        ? row.expiresAt
+        : row.questDefinition.expiresAfterMinutes
+          ? new Date(acceptedAt.getTime() + row.questDefinition.expiresAfterMinutes * 60_000)
+          : null,
+      isTracked: track,
+    },
+  });
+  await QuestProgressService.emit(db, roundPlayerId, {
+    sourceKey: `quest-accept:${row.id}:${acceptedAt.getTime()}`,
+    type: 'QUEST_ACCEPTED',
+    payload: { questKey: row.questDefinition.key },
+    at: acceptedAt,
+  });
+}
+
+/** Rotating board work that auto-accept may start: daily and weekly contracts and the city board. */
+function isAutoAcceptBoardWork(definition: QuestDefinition | undefined): boolean {
+  if (!definition) return false;
+  return (definition.type === 'DAILY' && definition.repeatability === 'DAILY')
+    || (definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY')
+    || isDynamicCityContractDefinition(definition);
+}
+
+/**
+ * Start fresh daily, weekly and city work for players who leave auto-accept on
+ * (the default). Community events already start themselves. Auto-started jobs
+ * stay off the tracker so they never push out jobs the player pinned, and an
+ * attempt the player abandoned is left for them to pick up again by hand.
+ */
+async function autoAcceptBoardWork(db: Db, roundPlayerId: string, ruleset: Ruleset, now: Date): Promise<void> {
+  const player = await db.roundPlayer.findUnique({
+    where: { id: roundPlayerId },
+    select: { account: { select: { profile: { select: { autoAcceptBoardWork: true } } } } },
+  });
+  if (player?.account.profile?.autoAcceptBoardWork === false) return;
+
+  const rows = await db.playerQuest.findMany({
+    where: {
+      roundPlayerId,
+      status: 'AVAILABLE',
+      abandonedAt: null,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      questDefinition: { rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version, isEnabled: true },
+    },
+    include: { questDefinition: true },
+    orderBy: [{ createdAt: 'asc' }],
+  });
+  for (const row of rows) {
+    if (!isAutoAcceptBoardWork(ruleset.questDefinitions?.[row.questDefinition.key])) continue;
+    await startQuest(db, roundPlayerId, row, ruleset, now, false);
+  }
 }
 
 async function loadQuest(db: Db, roundPlayerId: string, ruleset: Ruleset, key: string): Promise<QuestRow> {
@@ -679,6 +749,10 @@ export const HandcraftedQuestService = {
       }));
       const activeFavors = await TimedFavorService.listActive(tx, roundPlayerId, ruleset, now);
       const armedFavors = await SingleUseFavorService.listArmed(tx, roundPlayerId, ruleset);
+      const owner = await tx.roundPlayer.findUnique({
+        where: { id: roundPlayerId },
+        select: { account: { select: { profile: { select: { autoAcceptBoardWork: true } } } } },
+      });
       return {
         // Sample immediately before the response object is built so browser clock
         // skew cannot decide when an active favor expires.
@@ -704,6 +778,7 @@ export const HandcraftedQuestService = {
           resetAt: seasonEndsAt?.toISOString() ?? null,
         },
         trackedLimit: TRACKED_LIMIT,
+        autoAccept: owner?.account.profile?.autoAcceptBoardWork ?? true,
         counts: {
           available: rows.filter((row) => row.status === 'AVAILABLE').length,
           active: rows.filter((row) =>
@@ -761,32 +836,19 @@ export const HandcraftedQuestService = {
         await acceptAllianceContract(tx, roundPlayerId, ruleset, key, acceptedAt, tracked < TRACKED_LIMIT);
         return;
       }
-      const preserveOffer = preservesGeneratedOffer(row, ruleset);
-      await tx.playerQuest.update({
-        where: { id: row.id },
-        data: {
-          status: 'ACTIVE',
-          acceptedAt,
-          completedAt: null,
-          claimedAt: null,
-          failedAt: null,
-          objectiveProgress: {},
-          bonusProgress: {},
-          rewardState: preserveOffer ? inputJson(row.rewardState) : {},
-          expiresAt: preserveOffer
-            ? row.expiresAt
-            : row.questDefinition.expiresAfterMinutes
-              ? new Date(acceptedAt.getTime() + row.questDefinition.expiresAfterMinutes * 60_000)
-              : null,
-          isTracked: tracked < TRACKED_LIMIT,
-        },
-      });
-      await QuestProgressService.emit(tx, roundPlayerId, {
-        sourceKey: `quest-accept:${row.id}:${acceptedAt.getTime()}`,
-        type: 'QUEST_ACCEPTED',
-        payload: { questKey: key },
-        at: acceptedAt,
-      });
+      await startQuest(tx, roundPlayerId, row, ruleset, acceptedAt, tracked < TRACKED_LIMIT);
+    });
+    return this.page(prisma, roundPlayerId, ruleset);
+  },
+
+  /** Account-wide, so the choice carries into the next season. Turning it on starts waiting board work right away. */
+  async setAutoAccept(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, enabled: boolean): Promise<QuestPageDto> {
+    const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { accountId: true } });
+    if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'You are not in this round.');
+    await prisma.accountProfile.upsert({
+      where: { accountId: player.accountId },
+      create: { accountId: player.accountId, autoAcceptBoardWork: enabled },
+      update: { autoAcceptBoardWork: enabled },
     });
     return this.page(prisma, roundPlayerId, ruleset);
   },
@@ -818,6 +880,7 @@ export const HandcraftedQuestService = {
           status: 'AVAILABLE',
           isTracked: false,
           acceptedAt: null,
+          abandonedAt: new Date(),
           completedAt: null,
           expiresAt: preserveOffer ? row.expiresAt : null,
           objectiveProgress: {},
