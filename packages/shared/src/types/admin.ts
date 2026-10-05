@@ -599,8 +599,27 @@ export interface AdminRoundHealthDayDto {
   recon: number;
 }
 
+export interface AdminStreetPassRewardDto {
+  kind: 'CASH' | 'TURNS' | 'ITEM' | 'PRODUCT' | 'FAVOR_ITEM' | 'COSMETIC_UNLOCK';
+  amount?: number;
+  key?: string;
+}
+
+export interface AdminStreetPassDto {
+  name: string;
+  tiers: Array<{ tier: number; rewards: AdminStreetPassRewardDto[] }>;
+  catalogs: { items: string[]; products: string[]; favors: string[]; cosmetics: string[] };
+  editable: boolean;
+}
+
+export interface AdminStreetPassUpdateInput {
+  reason: string;
+  tiers: Array<{ tier: number; rewards: AdminStreetPassRewardDto[] }>;
+}
+
 export interface AdminRoundHealthDto {
   round: AdminRoundDto;
+  streetPass: AdminStreetPassDto | null;
   players: { total: number; active24h: number; active7d: number; neverActed: number };
   /** Newest first, up to the last 14 days of the round. */
   days: AdminRoundHealthDayDto[];
