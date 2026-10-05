@@ -266,8 +266,8 @@ export const AdminHealthService = {
         catalogs: {
           items: ['condoms', 'medicine', 'crack', 'beer', 'pistols', 'shotguns', 'tek9s', 'ak47s', 'lowRiders', 'thugs', 'whores'],
           products: Object.keys(ruleset.products),
-          favors: Object.keys(ruleset.favors),
-          cosmetics: Object.keys(ruleset.cosmetics),
+          favors: ruleset.favors ? Object.keys(ruleset.favors) : [],
+          cosmetics: ruleset.cosmetics ? Object.keys(ruleset.cosmetics) : [],
         },
         editable: round.status === 'SCHEDULED',
       } : null,
