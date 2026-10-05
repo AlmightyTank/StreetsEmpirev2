@@ -76,9 +76,9 @@ import {
   type CommunityEventSnapshot,
 } from './community-event.service.js';
 
-const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
-const SLOTLESS_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
+/** Shared-board work: not counted as a personal job and not abandonable. Personal jobs have no cap. */
+const BOARD_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
 const CONTACT_TIERS = [
   { at: 0, name: 'Unknown' },
   { at: 25, name: 'Acquaintance' },
@@ -703,12 +703,11 @@ export const HandcraftedQuestService = {
           slots: seasonEnabled ? SEASON_CONTRACT_SLOTS : 0,
           resetAt: seasonEndsAt?.toISOString() ?? null,
         },
-        activeLimit: ACTIVE_LIMIT,
         trackedLimit: TRACKED_LIMIT,
         counts: {
           available: rows.filter((row) => row.status === 'AVAILABLE').length,
           active: rows.filter((row) =>
-            !SLOTLESS_QUEST_TYPES.includes(row.questDefinition.type as typeof SLOTLESS_QUEST_TYPES[number])
+            !BOARD_QUEST_TYPES.includes(row.questDefinition.type as typeof BOARD_QUEST_TYPES[number])
             && ['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)
           ).length,
           ready: rows.filter((row) => row.status === 'READY_TO_TURN_IN').length,
@@ -748,16 +747,6 @@ export const HandcraftedQuestService = {
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN') return;
       if (row.status !== 'AVAILABLE') throw AppError.conflict('QUEST_NOT_AVAILABLE', 'That job is not available yet.');
-      if (!allianceContract) {
-        const active = await tx.playerQuest.count({
-          where: {
-            roundPlayerId,
-            status: { in: ['ACTIVE', 'READY_TO_TURN_IN'] },
-            questDefinition: { type: { notIn: [...SLOTLESS_QUEST_TYPES] } },
-          },
-        });
-        if (active >= ACTIVE_LIMIT) throw AppError.conflict('QUEST_ACTIVE_LIMIT', `All ${ACTIVE_LIMIT} job slots are in use. City, alliance, season and community work does not need one.`);
-      }
       const tracked = await tx.playerQuest.count({ where: { roundPlayerId, isTracked: true } });
       const acceptedAt = new Date();
       if (row.expiresAt && row.expiresAt.getTime() <= acceptedAt.getTime()) {
