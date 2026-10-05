@@ -680,7 +680,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
               <PayoutControl />
 
               {me.turf ? (
-                <Panel title="City Blocks" aside={<Link to="/game/turf">Manage turf</Link>} flush className="se-dashboard-panel">
+                <Panel title="Turf" aside={<Link to="/game/turf">Manage turf</Link>} flush className="se-dashboard-panel">
                   <div className="se-dashboard-stockgrid">
                     <DashboardMetric label="Blocks held" value={formatNumber(me.turf.blocksHeld)} tone="accent" />
                     <DashboardMetric label="Corner guns" value={formatNumber(me.turf.postedGuns.total)} />

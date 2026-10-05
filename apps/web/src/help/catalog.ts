@@ -159,7 +159,7 @@ export const PAGE_HELP: Record<string, PageHelp> = {
   },
   turf: {
     title: 'Turf',
-    what: 'Claim, hold and fight over city blocks.',
+    what: 'Claim, hold and fight over turf blocks.',
     terms: [['Posted thugs', 'Thugs standing on a block. They are not home to work or defend.'], ['Push', 'A rival attack on a block you hold.'], ['City control', 'An alliance holding enough blocks runs the city.']],
     risks: ['Posted thugs and guns are exposed to pushes.', 'Without Lookouts, you only learn about a push when it lands.'],
     rules: `${RULES}#turf`,

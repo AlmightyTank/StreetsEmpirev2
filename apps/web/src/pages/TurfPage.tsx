@@ -233,7 +233,7 @@ export function TurfPage() {
       setTravel(travelData);
       setError(null);
     }).catch((caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Could not load city blocks.');
+      setError(caught instanceof ApiError ? caught.message : 'Could not load turf.');
     });
   }, []);
 
@@ -264,7 +264,7 @@ export function TurfPage() {
         <header className="se-cityblocks-hero">
           <div className="se-cityblocks-hero__copy">
             <span className="se-eyebrow">Territory command · {selected?.name ?? me.city.name}</span>
-            <h1>City Blocks</h1>
+            <h1>Turf</h1>
             <p>Read who owns the street, where pressure is building, and where your crew can claim, reinforce, defend, or push next.</p>
           </div>
 
@@ -278,11 +278,11 @@ export function TurfPage() {
         </header>
 
         {error ? <Alert>{error}</Alert> : null}
-        {!cities && !error ? <div className="se-cityblocks-loading" role="status">Checking the blocks...</div> : null}
+        {!cities && !error ? <div className="se-cityblocks-loading" role="status">Checking turf...</div> : null}
 
         {cities && !turfCities.length ? (
           <Panel title="No Turf this round" className="se-cityblocks-panel">
-            <p className="se-dim">City Blocks comes alive on Turf rulesets. This round does not have holdable districts.</p>
+            <p className="se-dim">Turf comes alive on Turf rulesets. This round does not have holdable districts.</p>
           </Panel>
         ) : null}
 

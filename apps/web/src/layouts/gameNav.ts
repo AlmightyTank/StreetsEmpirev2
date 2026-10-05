@@ -47,7 +47,7 @@ export const SECTIONS: NavSection[] = [
       { key: 'casino', label: 'Casino', to: '/game/casino', icon: 'casino', prefix: '/game/casino/' },
       { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },
       { key: 'travel', label: 'Travel', to: '/game/travel', icon: 'cities' },
-      { key: 'turf', label: 'City Blocks', short: 'Blocks', to: '/game/turf', icon: 'cities' },
+      { key: 'turf', label: 'Turf', to: '/game/turf', icon: 'cities' },
     ],
   },
   {

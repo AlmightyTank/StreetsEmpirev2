@@ -185,6 +185,19 @@ export function TravelPage() {
               </section>
             ) : null}
 
+            {data.runsEnabled && !urgent ? (
+              <section className="se-travel-section">
+                <div className="se-travel-sectionhead">
+                  <div>
+                    <span className="se-eyebrow">Road security</span>
+                    <h2>Convoys</h2>
+                  </div>
+                  <p>Recon traffic, watch your own runs, and respond to tails from the same road board.</p>
+                </div>
+                <ConvoysPanel products={data.products} refreshKey={data} />
+              </section>
+            ) : null}
+
             <section className="se-travel-section">
               <div className="se-travel-sectionhead">
                 <div>
@@ -263,19 +276,6 @@ export function TravelPage() {
                 </aside>
               </div>
             </section>
-
-            {data.runsEnabled && !urgent ? (
-              <section className="se-travel-section">
-                <div className="se-travel-sectionhead">
-                  <div>
-                    <span className="se-eyebrow">Road security</span>
-                    <h2>Convoys</h2>
-                  </div>
-                  <p>Recon traffic, watch your own runs, and respond to tails from the same road board.</p>
-                </div>
-                <ConvoysPanel products={data.products} refreshKey={data} />
-              </section>
-            ) : null}
 
             {(data.relocation || (data.runsEnabled && data.rules.market) || (runs.length > 0 && data.lastRun)) ? (
               <section className="se-travel-section">

@@ -243,7 +243,7 @@ export function CityDetail({ city, products, home }: { city: CityCharacterDto; p
         <>
           <h3 className="se-city__heading">Turf</h3>
           <p className="se-hint">
-            Corner crews, pushes and outposts are managed on <Link to={`/game/turf?city=${encodeURIComponent(city.slug)}`}>City Blocks</Link>.
+            Corner crews, pushes and outposts are managed on <Link to={`/game/turf?city=${encodeURIComponent(city.slug)}`}>Turf</Link>.
           </p>
         </>
       ) : null}

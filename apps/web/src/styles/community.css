@@ -466,7 +466,7 @@
 .se-convoys__recon { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
 
 
-/* --- 0.6.0-F Turf release phone pass + City Blocks dashboard ---------------- */
+/* --- 0.6.0-F Turf release phone pass + Turf dashboard ----------------------- */
 
 .se-citymap-scroll { min-width: 0; overflow: hidden; }
 
@@ -709,7 +709,7 @@
   .se-turfboard__stats { grid-template-columns: 1fr 1fr; }
 }
 
-/* 1.1.0-D: block wars on City Blocks. */
+/* 1.1.0-D: block wars on Turf. */
 .se-blockwar { display: grid; gap: 6px; padding: 8px 10px; border: 1px solid var(--se-border); border-radius: 8px; background: var(--se-surface-2, transparent); }
 .se-blockwar--siege { border-color: var(--se-bad, #c0392b); }
 .se-blockwar__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; align-items: baseline; }
