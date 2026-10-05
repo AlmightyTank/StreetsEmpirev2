@@ -7,6 +7,7 @@ export const MESSAGE_PAGE_SIZE = 30;
 export const CONSOLE_ACTIVITY_PAGE_SIZE = 50;
 
 export type ConsoleFolder = 'inbox' | 'sent' | 'archived';
+export type ConsoleThreadFolder = 'active' | 'archived';
 export type ConsoleActivityFilter = 'all' | 'combat' | 'turf' | 'travel' | 'market' | 'progress' | 'street' | 'system';
 
 export interface DirectMessagePartyDto {
@@ -57,6 +58,45 @@ export interface PimpConsoleDto {
   totalPages: number;
   messages: DirectMessageDto[];
   /** 0.9.0-H. Present while a moderator has paused the viewer's messaging. */
+  restriction?: CommsRestrictionDto | null;
+}
+
+export interface DirectMessageThreadDto {
+  counterpart: DirectMessagePartyDto;
+  subject: string;
+  preview: string;
+  lastMessageAt: string;
+  lastMessageId: string;
+  lastDirection: 'in' | 'out';
+  unreadCount: number;
+  messageCount: number;
+  archived: boolean;
+  blocked: boolean;
+  muted: boolean;
+  reported: boolean;
+}
+
+export interface PimpConsoleThreadsDto {
+  folder: ConsoleThreadFolder;
+  counts: ConsoleCountsDto;
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  threads: DirectMessageThreadDto[];
+  /** 0.9.0-H. Present while a moderator has paused the viewer's messaging. */
+  restriction?: CommsRestrictionDto | null;
+}
+
+export interface DirectMessageConversationDto {
+  counterpart: DirectMessagePartyDto;
+  messages: DirectMessageDto[];
+  unreadCount: number;
+  messageCount: number;
+  archived: boolean;
+  blocked: boolean;
+  muted: boolean;
+  reported: boolean;
   restriction?: CommsRestrictionDto | null;
 }
 

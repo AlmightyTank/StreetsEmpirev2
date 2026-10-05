@@ -12,8 +12,12 @@ import {
   type ConsoleBlocksDto,
   type ConsoleCountsDto,
   type ConsoleFolder,
+  type ConsoleThreadFolder,
+  type DirectMessageConversationDto,
   type DirectMessageDto,
+  type DirectMessageThreadDto,
   type PimpConsoleDto,
+  type PimpConsoleThreadsDto,
   type ReportDirectMessageInput,
   type SendDirectMessageInput,
   type SendMessageResultDto,
@@ -152,6 +156,32 @@ function folderWhere(folder: ConsoleFolder, playerId: string): Prisma.DirectMess
     };
   }
   return { recipientId: playerId, recipientArchivedAt: null, recipientHiddenAt: null };
+}
+
+function threadFolderWhere(folder: ConsoleThreadFolder, playerId: string): Prisma.DirectMessageWhereInput {
+  if (folder === 'archived') {
+    return {
+      OR: [
+        { senderId: playerId, senderArchivedAt: { not: null }, senderHiddenAt: null },
+        { recipientId: playerId, recipientArchivedAt: { not: null }, recipientHiddenAt: null },
+      ],
+    };
+  }
+  return {
+    OR: [
+      { senderId: playerId, senderArchivedAt: null, senderHiddenAt: null },
+      { recipientId: playerId, recipientArchivedAt: null, recipientHiddenAt: null },
+    ],
+  };
+}
+
+function visibleConversationWhere(ownerId: string, counterpartId: string): Prisma.DirectMessageWhereInput {
+  return {
+    OR: [
+      { senderId: ownerId, recipientId: counterpartId, senderHiddenAt: null },
+      { senderId: counterpartId, recipientId: ownerId, recipientHiddenAt: null },
+    ],
+  };
 }
 
 function messageDto(
@@ -343,6 +373,24 @@ async function oneMessageDto(
   return (await decorateMessages(prisma, owner, [row]))[0]!;
 }
 
+function threadDto(messages: DirectMessageDto[]): DirectMessageThreadDto {
+  const latest = messages[0]!;
+  return {
+    counterpart: latest.counterpart,
+    subject: latest.subject,
+    preview: latest.body,
+    lastMessageAt: latest.createdAt,
+    lastMessageId: latest.id,
+    lastDirection: latest.direction,
+    unreadCount: messages.filter((message) => message.direction === 'in' && !message.readAt).length,
+    messageCount: messages.length,
+    archived: latest.archived,
+    blocked: messages.some((message) => message.blocked),
+    muted: messages.some((message) => message.muted),
+    reported: messages.some((message) => message.reported),
+  };
+}
+
 async function restrictionFor(prisma: PrismaClient, accountId: string, now = new Date()): Promise<CommsRestrictionDto | null> {
   const account = await prisma.account.findUnique({
     where: { id: accountId },
@@ -372,6 +420,89 @@ async function isCommunicationBlocked(
 }
 
 export const PimpConsoleService = {
+  async threads(
+    prisma: PrismaClient,
+    accountId: string,
+    folder: ConsoleThreadFolder,
+    requestedPage = 1,
+  ): Promise<PimpConsoleThreadsDto> {
+    const owner = await currentPlayer(prisma, accountId);
+    const rows = await prisma.directMessage.findMany({
+      where: threadFolderWhere(folder, owner.id),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: messageSelect,
+    });
+    const messages = await decorateMessages(prisma, owner, rows);
+    const grouped = new Map<number, DirectMessageDto[]>();
+    for (const message of messages) {
+      const key = message.counterpart.publicPimpId;
+      const existing = grouped.get(key);
+      if (existing) existing.push(message);
+      else grouped.set(key, [message]);
+    }
+
+    const allThreads = [...grouped.values()].map(threadDto);
+    const total = allThreads.length;
+    const totalPages = Math.max(1, Math.ceil(total / MESSAGE_PAGE_SIZE));
+    const page = Math.min(Math.max(1, requestedPage), totalPages);
+    const start = (page - 1) * MESSAGE_PAGE_SIZE;
+
+    return {
+      folder,
+      counts: await consoleCounts(prisma, owner),
+      page,
+      pageSize: MESSAGE_PAGE_SIZE,
+      total,
+      totalPages,
+      threads: allThreads.slice(start, start + MESSAGE_PAGE_SIZE),
+      restriction: await restrictionFor(prisma, owner.accountId),
+    };
+  },
+
+  async conversation(
+    prisma: PrismaClient,
+    accountId: string,
+    counterpartPublicPimpId: number,
+  ): Promise<DirectMessageConversationDto> {
+    const owner = await currentPlayer(prisma, accountId);
+    const counterpart = await prisma.roundPlayer.findFirst({
+      where: { roundId: owner.roundId, publicPimpId: counterpartPublicPimpId },
+      select: {
+        id: true,
+        publicPimpId: true,
+        displayName: true,
+      },
+    });
+    if (!counterpart || counterpart.id === owner.id) {
+      throw AppError.notFound('CONVERSATION_NOT_FOUND', 'That conversation does not exist.');
+    }
+
+    const rows = await prisma.directMessage.findMany({
+      where: visibleConversationWhere(owner.id, counterpart.id),
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: messageSelect,
+    });
+    const messages = await decorateMessages(prisma, owner, rows);
+    if (!messages.length) {
+      throw AppError.notFound('CONVERSATION_NOT_FOUND', 'That conversation does not exist.');
+    }
+
+    return {
+      counterpart: {
+        publicPimpId: counterpart.publicPimpId,
+        displayName: counterpart.displayName,
+      },
+      messages,
+      unreadCount: messages.filter((message) => message.direction === 'in' && !message.readAt).length,
+      messageCount: messages.length,
+      archived: messages.every((message) => message.archived),
+      blocked: messages.some((message) => message.blocked),
+      muted: messages.some((message) => message.muted),
+      reported: messages.some((message) => message.reported),
+      restriction: await restrictionFor(prisma, owner.accountId),
+    };
+  },
+
   async page(
     prisma: PrismaClient,
     accountId: string,

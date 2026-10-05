@@ -71,7 +71,7 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
   return (
     <nav className="se-nav" aria-label="Game">
       {sections.map((section) => {
-        const sectionOpen = expanded[section.id] ?? true;
+        const sectionOpen = expanded[section.id] ?? section.defaultOpen ?? true;
         const listId = `game-nav-${section.id}`;
         return (
           <div className={`se-nav__section${sectionOpen ? '' : ' se-nav__section--collapsed'}`} key={section.id}>
@@ -80,7 +80,7 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
               className="se-nav__title"
               aria-expanded={sectionOpen}
               aria-controls={listId}
-              onClick={() => setExpanded((current) => ({ ...current, [section.id]: !(current[section.id] ?? true) }))}
+              onClick={() => setExpanded((current) => ({ ...current, [section.id]: !(current[section.id] ?? section.defaultOpen ?? true) }))}
             >
               <span>{section.title}</span>
               <span className="se-nav__chevron" aria-hidden="true">{sectionOpen ? '−' : '+'}</span>

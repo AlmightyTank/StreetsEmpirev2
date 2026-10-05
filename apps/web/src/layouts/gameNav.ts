@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '../stores/session.js';
+import { useOnboarding } from '../stores/onboarding.js';
 import { CONSOLE_UPDATED_EVENT, consoleApi } from '../api/console.js';
 import { SURVEYS_CHANGED_EVENT, surveysApi } from '../api/surveys.js';
 import { formatWhen } from '../utils/time.js';
@@ -23,6 +24,8 @@ export interface NavPage {
 export interface NavSection {
   id: string;
   title: string;
+  /** Initial sidebar state before the player changes it. */
+  defaultOpen?: boolean;
   pages: NavPage[];
 }
 
@@ -109,15 +112,60 @@ export const ADMIN_SECTION: NavSection = {
   ],
 };
 
+function pagesByKey(sections: readonly NavSection[]): Map<string, NavPage> {
+  return new Map(sections.flatMap((section) => section.pages.map((page) => [page.key, page] as const)));
+}
+
+function pickPages(pages: ReadonlyMap<string, NavPage>, keys: readonly string[]): NavPage[] {
+  return keys.map((key) => pages.get(key)).filter((page): page is NavPage => Boolean(page));
+}
+
+export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSection[] {
+  const pages = pagesByKey(sections);
+  return [
+    {
+      id: 'new-player-core',
+      title: 'Start Here',
+      pages: pickPages(pages, ['dashboard', 'scout', 'stores', 'produce', 'raids', 'quests']),
+    },
+    {
+      id: 'new-player-next',
+      title: 'Next Steps',
+      defaultOpen: false,
+      pages: pickPages(pages, ['hideout', 'travel', 'turf', 'casino', 'street-pass']),
+    },
+    {
+      id: 'new-player-people',
+      title: 'People',
+      defaultOpen: false,
+      pages: pickPages(pages, ['console', 'players', 'alliance', 'rankings', 'profile']),
+    },
+    {
+      id: 'new-player-game',
+      title: 'Game',
+      defaultOpen: false,
+      pages: pickPages(pages, ['news', 'status', 'rules', 'account']),
+    },
+  ].filter((section) => section.pages.length > 0);
+}
+
+export function useNewPlayerNavModel(): boolean {
+  const me = useSession((s) => s.me);
+  const guide = useOnboarding((s) => s.state?.guide ?? null);
+  return Boolean(me && guide && !guide.complete);
+}
+
 export function useSections(): NavSection[] {
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
   const hasPass = useSession((s) => Boolean(s.me?.streetPass));
+  const newPlayerNav = useNewPlayerNavModel();
   return useMemo(() => {
     const sections = hasPass
       ? SECTIONS
       : SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => page.key !== 'street-pass') }));
-    return isAdmin ? [...sections, ADMIN_SECTION] : sections;
-  }, [isAdmin, hasPass]);
+    const playerSections = newPlayerNav ? newPlayerSectionsFor(sections) : sections;
+    return isAdmin ? [...playerSections, ADMIN_SECTION] : playerSections;
+  }, [isAdmin, hasPass, newPlayerNav]);
 }
 
 function pathMatches(pathname: string, to: string, aliases: readonly string[] = [], prefix?: string, prefixes: readonly string[] = []): boolean {

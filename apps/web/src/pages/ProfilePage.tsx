@@ -493,11 +493,17 @@ export function ProfilePage() {
       <div className="se-profile">
         <div
           className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player?.cosmetics.frame ? ` se-profile-frame se-profile-frame--${player.cosmetics.frame}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}`}
-          style={player?.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(10, 13, 17, 0.88), rgba(10, 13, 17, 0.66)), url("${player.cosmetics.bannerUrl}")` } : undefined}
         >
+          {player ? (
+            <div
+              className="se-profile-pagehead__banner"
+              aria-hidden="true"
+              style={player.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 12, 0.9), rgba(5, 8, 12, 0.58) 48%, rgba(5, 8, 12, 0.78)), url("${player.cosmetics.bannerUrl}")` } : undefined}
+            />
+          ) : null}
           <div className="se-profile-pagehead__main">
             {player ? (
-              <span className="se-profile-pagehead__avatar" aria-hidden="true">
+              <span className={`se-profile-pagehead__avatar${player.cosmetics.frame ? ` se-profile-pagehead__avatar--framed se-profile-pagehead__avatar--${player.cosmetics.frame}` : ''}`} aria-hidden="true">
                 {player.cosmetics.imageUrl ? <img src={player.cosmetics.imageUrl} alt="" /> : initials(player.displayName)}
               </span>
             ) : null}

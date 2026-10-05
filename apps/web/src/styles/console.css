@@ -230,6 +230,15 @@
   white-space: nowrap;
 }
 
+.se-console-message__preview {
+  overflow: hidden;
+  color: var(--se-muted);
+  font-size: 9px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .se-console-message__meta {
   color: var(--se-muted);
   font-size: 8px;
@@ -433,6 +442,104 @@
   color: var(--se-text-dim);
   font-size: 11px;
   line-height: 1.6;
+}
+
+.se-console-thread {
+  display: grid;
+  gap: 10px;
+  max-height: min(58vh, 620px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.se-console-bubble {
+  display: grid;
+  gap: 5px;
+  width: min(82%, 620px);
+  padding: 10px 11px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .018);
+  color: var(--se-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.se-console-bubble--out {
+  justify-self: end;
+  border-color: rgba(182, 255, 58, .22);
+  background: rgba(182, 255, 58, .045);
+}
+
+.se-console-bubble--selected {
+  border-color: rgba(182, 255, 58, .55);
+  box-shadow: 0 0 0 1px rgba(182, 255, 58, .15);
+}
+
+.se-console-bubble__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 5px 10px;
+  color: var(--se-muted);
+  font-size: 8px;
+}
+
+.se-console-bubble__meta strong {
+  color: var(--se-text);
+  font-size: 10px;
+}
+
+.se-console-bubble__meta time {
+  font-family: var(--se-mono);
+}
+
+.se-console-bubble__subject {
+  color: var(--se-text);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.se-console-bubble__body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--se-text-dim);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.se-console-thread-reply {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--se-line);
+}
+
+.se-console-thread-reply label {
+  display: grid;
+  gap: 5px;
+}
+
+.se-console-thread-reply label > span {
+  color: var(--se-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.se-console-thread-reply label > small {
+  color: var(--se-muted);
+  font-family: var(--se-mono);
+  font-size: 8px;
+  text-align: right;
+}
+
+.se-console-thread-reply textarea {
+  min-height: 96px;
+  resize: vertical;
 }
 
 .se-console-actions {

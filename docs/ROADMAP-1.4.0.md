@@ -412,7 +412,17 @@ block. Board slots, windows, decks, objectives, cash and favor rewards are exact
   370, Cartel Line 285, Road Saints 270, Outfit 265 and Civic Handshake 75, before the lean moves
   the shared work. Inner Circle is reachable for a focused player, not for everyone at once. G's
   `qa:factions` pins the amounts.
-- **Seed.** The local seed's current round now uses `classic-og-v1.4-c`.
+- **Seed.** The local seed's current round moved to `classic-og-v1.4-c`; the current balance
+  seed is C2 below.
+
+#### Balanced in C2
+
+Ruleset `classic-og-v1.4-c2` is a current-state balance pass on C. It keeps every sponsor,
+slot, objective, reward and receipt rule from C, but raises board standing to daily 3, weekly 8,
+city 2, alliance 8 and Season 24; Known sponsor lean is now 2, so a Known faction weighs three
+times an Unknown one in two-faction offers. The middle tiers move to Trusted 70 and Connected
+140 while Inner Circle stays 300, so normal contract play reaches useful faction identity sooner
+without letting one-time Jobs alone finish the ladder. The local seed now uses C2.
 
 C invariants:
 
