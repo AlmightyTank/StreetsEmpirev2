@@ -82,6 +82,17 @@ function statusLabel(quest: PlayerQuestDto): string {
   }
 }
 
+const BOARD_TYPES: ReadonlySet<string> = new Set(['DAILY', 'WEEKLY', 'CITY_CONTRACT', 'SEASON', 'ALLIANCE']);
+
+/** Who the work is for: the contact and their faction, or a board contract's sponsor (1.4.0-C). */
+function questByline(quest: PlayerQuestDto): string {
+  if (BOARD_TYPES.has(quest.type) && quest.factionStandings.length && quest.factionName) {
+    return `${quest.contactName ? `${quest.contactName} · ` : ''}for ${quest.factionName}`;
+  }
+  const who = quest.contactName ?? quest.factionName ?? 'StreetsEmpire';
+  return quest.contactName && quest.factionName ? `${who} · ${quest.factionName}` : who;
+}
+
 function questKindLabel(quest: PlayerQuestDto): string {
   if (quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT') return 'City contract';
   if (quest.type === 'ALLIANCE') return 'Alliance contract';
@@ -244,7 +255,7 @@ function QuestCard({
       aside={(
         <div className="se-quest-card__meta">
           <Portrait who={quest.contactKey ?? quest.factionKey} size="sm" />
-          <span className="se-quest-kind">{quest.contactName ?? quest.factionName ?? 'StreetsEmpire'}{quest.contactName && quest.factionName ? ` · ${quest.factionName}` : ''} · {questKindLabel(quest)}</span>
+          <span className="se-quest-kind">{questByline(quest)} · {questKindLabel(quest)}</span>
           {quest.isTracked ? <span className="se-quest-status se-quest-status--tracked">Tracked</span> : null}
           <span className={'se-quest-status se-quest-status--' + statusTone(quest.status)}>{statusLabel(quest)}</span>
         </div>
@@ -1072,7 +1083,7 @@ export function QuestPage() {
                 {page.factions?.length ? (
                   <div id="factions">
                     <Panel title="Factions" className="se-quests-panel">
-                      <p className="se-hint">The organizations behind your contacts: who works for whom, and who they are up against.{page.factions.some((faction) => faction.standing) ? ' A one-time Job earns standing with the faction it works for, and only the factions it helps; only you can see it. Each faction also has Jobs of its own that open as your standing grows.' : ''}</p>
+                      <p className="se-hint">The organizations behind your contacts: who works for whom, and who they are up against.{page.factions.some((faction) => faction.standing) ? ' A one-time Job earns standing with the faction it works for, and only the factions it helps; only you can see it. Each faction also has Jobs of its own that open as your standing grows.' : ''}{page.quests.some((quest) => BOARD_TYPES.has(quest.type) && quest.factionStandings.length) ? ' Board contracts are sponsored too: a finished contract pays its sponsor standing, and when work could go to two factions it leans toward one you are Known with.' : ''}</p>
                       <div className="se-quests-contacts">
                         {page.factions.map((faction) => (
                           <div key={faction.key}>

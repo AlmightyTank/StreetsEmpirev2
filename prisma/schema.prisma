@@ -3573,7 +3573,7 @@ model PlayerFactionReceipt {
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
   factionKey  String
-  /// JOB (a contact's one-time Job), later ADMIN and others.
+  /// JOB (a one-time Job), CONTRACT (a sponsored board contract, 1.4.0-C), later ADMIN and others.
   source      String
   sourceKey   String
   delta       Int

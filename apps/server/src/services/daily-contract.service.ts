@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import type { QuestDefinition, Ruleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { deckOrder, hash32, roundDeckSeed, usesRoundDeck } from './contract-rotation.js';
+import { dealSponsors, sponsorState } from './contract-sponsor.js';
 import { dailyBoundary } from './ranking.service.js';
 
 export const DAILY_CONTRACT_SLOTS = 3;
@@ -94,6 +95,11 @@ export async function syncDailyContractAttempts(
     : undefined;
   const keys = selectedDailyContractKeys(ruleset, now, enabledKeys, roundId);
   const definitionIds = definitionRows.map((row) => row.id);
+  // 1.4.0-C: each contract's sponsor, chosen for this player's board as a whole.
+  const sponsors = await dealSponsors(db, roundPlayerId, ruleset, keys.map((key) => ({
+    definition: definitions.find((definition) => definition.key === key)!,
+    window: startsAt.toISOString(),
+  })));
 
   await db.playerQuest.updateMany({
     where: {
@@ -141,6 +147,7 @@ export async function syncDailyContractAttempts(
         rewardState: inputJson({
           dailyWindowStart: startsAt.toISOString(),
           dailyWindowEnd: endsAt.toISOString(),
+          ...sponsorState(sponsors[keys.indexOf(key)] ?? null),
         }),
       },
       select: {

@@ -1,7 +1,8 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { FACTION_TIERS, factionTier, factionTierName, factionTierRank, jobStanding as jobStandingFor } from '@streets/rules-engine';
+import { FACTION_TIERS, contractStanding, factionTierName, factionTierRank, jobStanding as jobStandingFor } from '@streets/rules-engine';
 import {
   type ContactKey,
+  contractBoard,
   jobFaction,
   type FactionKey,
   type FactionTier,
@@ -35,6 +36,7 @@ import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { addContactRep, grantRewards, rewardDto } from './reward-grant.service.js';
 import { FactionService } from './faction.service.js';
+import { contractSponsor } from './contract-sponsor.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
 import {
   DAILY_CONTRACT_SLOTS,
@@ -272,6 +274,13 @@ function jobStanding(
   return definition ? jobStandingFor(ruleset, definition, rewards, branch) : new Map();
 }
 
+/** 1.4.0-C. The standing a board contract pays its sponsor, as a one-entry map, or empty. */
+function boardStanding(ruleset: Ruleset, definition: QuestDefinition | undefined, rewardState: unknown): Map<FactionKey, number> {
+  const sponsor = contractSponsor(ruleset, definition, rewardState);
+  const amount = definition ? contractStanding(ruleset, contractBoard(definition)) : 0;
+  return sponsor && amount > 0 ? new Map([[sponsor, amount]]) : new Map();
+}
+
 /** A faction standing reward is shown and paid as standing, not as an ordinary reward. */
 function visibleRewards<T extends { kind: string }>(rewards: readonly T[]): T[] {
   return rewards.filter((reward) => reward.kind !== 'FACTION_STANDING');
@@ -308,12 +317,18 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
     contactName: contact?.shortName ?? null,
     ...(() => {
       const definition = ruleset.questDefinitions?.[row.questDefinition.key];
-      const factionKey = definition ? jobFaction(ruleset, definition) : contact?.factionKey;
+      // A board contract names its sponsor (1.4.0-C); a Job, the faction it works for.
+      const factionKey = definition && contractBoard(definition) && ruleset.contractSponsors
+        ? contractSponsor(ruleset, definition, row.rewardState)
+        : definition ? jobFaction(ruleset, definition) : contact?.factionKey;
       const faction = factionKey ? ruleset.factions?.[factionKey] : undefined;
       return { factionKey: faction?.key ?? null, factionName: faction?.name ?? null };
     })(),
     factionJob: ruleset.questDefinitions?.[row.questDefinition.key]?.category === 'FACTION',
-    factionStandings: [...jobStanding(ruleset, row.questDefinition.key, rewards(row.questDefinition.rewards))].flatMap(([factionKey, amount]) => {
+    factionStandings: [
+      ...jobStanding(ruleset, row.questDefinition.key, rewards(row.questDefinition.rewards)),
+      ...boardStanding(ruleset, ruleset.questDefinitions?.[row.questDefinition.key], row.rewardState),
+    ].flatMap(([factionKey, amount]) => {
       const name = ruleset.factions?.[factionKey]?.name;
       return name ? [{ factionKey, factionName: name, amount, label: standingLabel(amount, name) }] : [];
     }),
@@ -374,23 +389,12 @@ async function contactPoints(db: Db | PrismaClient, roundPlayerId: string, rules
   return Object.fromEntries(keys.map((key) => [key, rows.find((row) => row.trader === key)?.points ?? 0]));
 }
 
-/** 1.4.0-B. The player's tier with every faction; empty before standing exists. */
-async function factionTiers(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<Record<string, FactionTier>> {
-  const rules = ruleset.factionStanding;
-  if (!rules || !ruleset.factions) return {};
-  const rows = await db.playerFactionStanding.findMany({ where: { roundPlayerId }, select: { factionKey: true, points: true } });
-  return Object.fromEntries(Object.keys(ruleset.factions).map((key) => [
-    key,
-    factionTier(rows.find((row) => row.factionKey === key)?.points ?? 0, rules),
-  ]));
-}
-
 export function questPrerequisitesMet(
   definition: QuestDefinition,
   completed: ReadonlySet<string>,
   reps: Readonly<Record<string, number>>,
   chosenBranches: Readonly<Record<string, string>>,
-  factionTiers: Readonly<Record<string, FactionTier>> = {},
+  factionTiers: Readonly<Partial<Record<string, FactionTier>>> = {},
 ): boolean {
   return definition.prerequisites.every((prerequisite) => {
     if (prerequisite.kind === 'QUEST_COMPLETED') {
@@ -497,7 +501,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       .map((row) => [row.questDefinition.key, row.chosenBranch!]),
   );
   const reps = await contactPoints(db, roundPlayerId, ruleset);
-  const tiers = await factionTiers(db, roundPlayerId, ruleset);
+  const tiers = await FactionService.tiers(db, roundPlayerId, ruleset);
   const adminTestMode = await seasonalEventAdminTestModeForPlayer(db, roundPlayerId);
   const newlyAvailable: string[] = [];
 
@@ -915,8 +919,9 @@ export const HandcraftedQuestService = {
         await grantRewards({ tx, roundPlayerId, accountId: player.accountId, ruleset, now, sourceKey: key }, next, questRewards);
         // 1.4.0-B: a one-time Job also pays standing to the factions it helps, and no others.
         const standingChanges: QuestClaimResult['standingChanges'] = [];
-        for (const [factionKey, amount] of jobStanding(ruleset, key, questRewards, selectedBranch)) {
-          const change = await FactionService.grant(tx, roundPlayerId, ruleset, factionKey, amount, 'JOB', `job:${row.id}:${factionKey}`, now);
+        // 1.4.0-C: a board contract pays its sponsor instead.
+        for (const [factionKey, amount] of [...jobStanding(ruleset, key, questRewards, selectedBranch), ...boardStanding(ruleset, rulesetDefinition, row.rewardState)]) {
+          const change = await FactionService.grant(tx, roundPlayerId, ruleset, factionKey, amount, contractBoard(rulesetDefinition) ? 'CONTRACT' : 'JOB', `job:${row.id}:${factionKey}`, now);
           if (change) {
             const paid = change.after - change.before;
             standingChanges.push({ factionKey, factionName: change.factionName, amount: paid, tierName: factionTierName(change.tier), tierUp: change.tierUp, label: standingLabel(paid, change.factionName) });

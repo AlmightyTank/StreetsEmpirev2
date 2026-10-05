@@ -416,7 +416,9 @@ export function RulesPage() {
               <li>Your contacts&rsquo; one-time Jobs earn their faction&rsquo;s standing, on top of the contact&rsquo;s own reputation. Standing climbs through Unknown, Known, Trusted, Connected and Inner Circle, starts at zero each season, and only you can see it.</li>
               <li>A Job earns standing only with the faction it works for and any faction it openly helps. Paying one contact never earns their rivals or friends anything, and siding with one contact in a branch earns only that side.</li>
               <li>Each faction has two Jobs of its own: the first opens at Known, the second at Trusted. Civic Handshake has no contact, so its first Job is open to anyone who puts an official on their payroll.</li>
-              <li>Standing comes only from your own Jobs: it can&rsquo;t be bought, traded or taken. Beyond opening faction Jobs, a tier is recognition for now; prices and odds work as before.</li>
+              <li>Every daily, weekly, city, Season and alliance contract has a sponsor: the faction of the contact who gives it, or the faction whose lane the work is in. A finished contract pays its sponsor a little standing, shown before you accept it; an expired one pays nothing. Ace&rsquo;s casino work and Ledger&rsquo;s law work have no sponsor.</li>
+              <li>Everyone in a round sees the same boards. When work could go to two factions (Vic&rsquo;s business and airport work, city sales and city trips), it is twice as likely to go to one you are Known with, and a board is never one faction&rsquo;s work alone when it could be otherwise.</li>
+              <li>Standing comes only from your own Jobs and contracts: it can&rsquo;t be bought, traded or taken. Beyond opening faction Jobs, a tier is recognition for now; prices and odds work as before.</li>
             </ul>
           </Panel></section>
           <section id="rank" className="se-rules__panel se-rules__panel--wide"><Panel title="Money and rank">

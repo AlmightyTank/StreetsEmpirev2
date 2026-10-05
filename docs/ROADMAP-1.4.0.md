@@ -2,8 +2,8 @@
 
 ## Brainstorm
 
-**Status:** 1.4.0-A, 1.4.0-B and B2 are built; the newest ruleset is `classic-og-v1.4-b2`. C to G are
-design only. See the [Roadmap](#roadmap) table.
+**Status:** 1.4.0-A, 1.4.0-B, B2 and C are built; the newest ruleset is `classic-og-v1.4-c`. D to G
+are design only. See the [Roadmap](#roadmap) table.
 
 **Target base:** StreetsEmpire v1.3.0 (`classic-og-v1.3-g`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** make each city's underworld feel populated
@@ -48,7 +48,7 @@ contact reputation exactly as they were.
 | **1.4.0-A — Faction Catalog** | Built | `classic-og-v1.4-a` | Factions in the ruleset, each contact's faction, faction identity on Jobs and contacts. No balance change. |
 | **1.4.0-B — Standing** | Built | `classic-og-v1.4-b` | Seasonal standing per faction with receipts, tiers, tier-up alerts and a standing panel. Jobs pay standing only to the factions they help; two faction Jobs each; contact portraits. |
 | **1.4.0-B2 — Contract Rotation** | Built | `classic-og-v1.4-b2` | 28 more daily contracts (36 in all) and 14 more weekly contracts (20 in all), including the first contracts for businesses, block wars, convoys, boss trips and outposts. Each round deals its boards from its own deck: every daily is dealt once every 12 days and never twice within 6, every weekly once every 10 weeks and never twice within 5, with boards mixing categories. City boards never post two orders in one city, avoid the last board's cities, and add a third slot for a city job (fly in and back, or play that city's casino). A new Season board deals each round 3 of 9 round-long goals that sit outside the active-job limit. |
-| **1.4.0-C — Sponsored Contracts** | Planned | `classic-og-v1.4-c` | Existing board contracts carry a sponsoring faction and pay its standing. Boards lean toward factions you work with. |
+| **1.4.0-C — Sponsored Contracts** | Built | `classic-og-v1.4-c` | Every daily, weekly, city, Season and alliance contract carries a sponsoring faction and pays it standing. Where work could go to two factions, the sponsor leans toward ones you're Known with. |
 | **1.4.0-D — Faction Perks** | Planned | `classic-og-v1.4-d` | Information and warnings at Known and Trusted, then a small capped nudge per faction at Connected. |
 | **1.4.0-E — Rivalries & Inner Circle** | Planned | `classic-og-v1.4-e` | The Inner Circle rival lock, previewed before it lands; Vic's introductions; one short Job arc and a capstone per faction. |
 | **1.4.0-F — Rewards & Public Flavor** | Planned | `classic-og-v1.4-f` | Faction titles and frames, alignment on profiles from Connected, feed entries, feats and a Rules page section. |
@@ -374,6 +374,53 @@ shown before acceptance; the board lean toward known factions.
 
 **Gate:** board slots, windows and existing rewards unchanged; expired contracts pay nothing;
 alliance standing splits like existing rewards.
+
+#### Built in C
+
+**Status: implemented.** Ruleset `classic-og-v1.4-c` (1.4.0-C) is 1.4.0-B2 plus a `contractSponsors`
+block. Board slots, windows, decks, objectives, cash and favor rewards are exactly B2's.
+
+- **Who sponsors.** A board contract is sponsored by the faction it helps: its giver's faction
+  (Mama King and Blocks for the Kings, Tommy for the Outfit, Wheels for Road Saints, Pip for the
+  Cartel Line). Vic works for no faction but brokers board work for whoever's lane it is, and the
+  city boards have no giver, so those take the faction of their lane:
+
+  | Lane | Sponsor(s) |
+  | --- | --- |
+  | Heat (Vic) | Civic Handshake |
+  | Business (Vic) | The Outfit or The Kings |
+  | Boss trips (Vic) | Road Saints or Civic Handshake (the airport's customs) |
+  | City sale | The Cartel Line or Road Saints |
+  | City trip | Road Saints or Civic Handshake |
+
+  Ace's casino work, Ledger's law work and city casino jobs have no sponsor. The ruleset validator
+  checks every lane names real factions.
+- **What it pays.** A collected contract pays its sponsor standing once, with a `CONTRACT` receipt
+  keyed on the attempt: daily 2, weekly 6, city 1, alliance 6, Season 20. Each alliance contributor
+  who meets their share and collects is paid, the way alliance rewards already split. An expired
+  contract can't be collected and pays nothing. Board contracts never pay a Job's standing on top,
+  including B2's one-time Season contracts.
+- **Shown before acceptance.** Each contract card names its sponsor ("Pip · for The Cartel Line")
+  and shows the standing chip next to its other rewards.
+- **The lean.** B2's boards are shared by everyone in the round, so the lean never changes which
+  contracts are dealt. Where a contract has two candidate sponsors, it picks one when the board is
+  dealt to the player: a faction they're Known with or above weighs twice as much
+  (`knownLean: 1`). The pick is seeded by the player and the deal, is stored on the attempt and
+  never changes afterwards. If a board would otherwise be one faction's work and an offer could go
+  another way, it does.
+- **How much there is.** Doing every contract and Job in a 28-day season comes to roughly Kings
+  370, Cartel Line 285, Road Saints 270, Outfit 265 and Civic Handshake 75, before the lean moves
+  the shared work. Inner Circle is reachable for a focused player, not for everyone at once. G's
+  `qa:factions` pins the amounts.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-c`.
+
+C invariants:
+
+1. Every B and B2 invariant still holds.
+2. A contract pays standing only to its sponsor, once, and only when collected.
+3. The sponsor is shown before acceptance and never changes after the deal.
+4. The lean never changes which contracts a board deals.
+5. `classic-og-v1.4-b2` and older rounds pay no standing for board work.
 
 ### 1.4.0-D — Faction Perks
 

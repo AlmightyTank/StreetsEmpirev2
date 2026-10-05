@@ -7,6 +7,7 @@ import type {
 import type { Db } from '../utils/db.js';
 import { deckOrder, hash32, roundDeckSeed, usesRoundDeck } from './contract-rotation.js';
 import { createPlayerActivity } from './in-app-notification.service.js';
+import { dealSponsors, sponsorState } from './contract-sponsor.js';
 
 export const WEEKLY_CONTRACT_SLOTS = 2;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -270,6 +271,11 @@ export async function syncWeeklyContractAttempts(
     : undefined;
   const keys = selectedWeeklyContractKeys(ruleset, now, enabledKeys, roundId);
   const definitionIds = definitionRows.map((row) => row.id);
+  // 1.4.0-C: each contract's sponsor, chosen for this player's board as a whole.
+  const sponsors = await dealSponsors(db, roundPlayerId, ruleset, keys.map((key) => ({
+    definition: definitions.find((definition) => definition.key === key)!,
+    window: startsAt.toISOString(),
+  })));
 
   await db.playerQuest.updateMany({
     where: {
@@ -317,6 +323,7 @@ export async function syncWeeklyContractAttempts(
         rewardState: inputJson({
           weeklyWindowStart: startsAt.toISOString(),
           weeklyWindowEnd: endsAt.toISOString(),
+          ...sponsorState(sponsors[keys.indexOf(key)] ?? null),
         }),
       },
       select: {

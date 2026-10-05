@@ -15,6 +15,7 @@ import type {
   SupplyLevel,
 } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
+import { dealSponsors, sponsorState } from './contract-sponsor.js';
 
 export const CITY_CONTRACT_SLOTS = 2;
 export const CITY_CONTRACT_WINDOW_HOURS = 12;
@@ -477,8 +478,16 @@ export async function syncCityContractAttempts(
     orderBy: { attempt: 'desc' },
   });
 
+  // 1.4.0-C: each order's sponsor, by its kind's lane, chosen for this player's board as a whole.
+  const dealt = Math.min(templates.length, offers.length);
+  const sponsors = await dealSponsors(db, roundPlayerId, ruleset, offers.slice(0, dealt).map((offer, index) => ({
+    definition: templates[index]!,
+    cityKind: offer.kind ?? 'SELL',
+    window: offer.windowStart,
+  })));
+
   const created: string[] = [];
-  for (let index = 0; index < Math.min(templates.length, offers.length); index += 1) {
+  for (let index = 0; index < dealt; index += 1) {
     const template = templates[index]!;
     const offer = offers[index]!;
     const definitionRow = definitionRows.find((row) => row.key === template.key);
@@ -504,7 +513,7 @@ export async function syncCityContractAttempts(
         attempt,
         status: 'AVAILABLE',
         expiresAt: window.endsAt,
-        rewardState: inputJson({ cityContract: offer }),
+        rewardState: inputJson({ cityContract: offer, ...sponsorState(sponsors[index] ?? null) }),
       },
     });
     created.push(template.key);
