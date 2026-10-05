@@ -577,12 +577,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
           >
             Refresh street
           </Button>
-          <div className="se-raids-hero__readout">
-            <span><small>Turns</small><strong>{formatNumber(me.turns.turns)}</strong></span>
-            <span><small>Fit thugs</small><strong>{formatNumber(recovery?.fitThugs ?? me.resources.fitThugs)}</strong></span>
-            <span><small>Armed</small><strong>{formatNumber(me.resources.armedThugs)}</strong></span>
-            <span><small>Wounded</small><strong>{formatNumber(recovery?.woundedThugs ?? me.resources.woundedThugs)}</strong></span>
-          </div>
         </div>
       </header>
 
