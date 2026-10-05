@@ -333,21 +333,6 @@ const STORE_DETAILS: Record<string, { label: string; lane: string; note: string 
   },
 };
 
-function StoreMetric({ label, value, detail, tone }: {
-  label: string;
-  value: string;
-  detail?: string;
-  tone?: 'good' | 'warn' | 'accent';
-}) {
-  return (
-    <div className={`se-stores-metric${tone ? ` se-stores-metric--${tone}` : ''}`}>
-      <span className="se-stores-metric__label">{label}</span>
-      <strong className="se-stores-metric__value">{value}</strong>
-      {detail ? <span className="se-stores-metric__detail">{detail}</span> : null}
-    </div>
-  );
-}
-
 const LAST_STORE_KEY = 'streets.lastStore.v1';
 
 /**
@@ -515,22 +500,19 @@ function StoreView({
           </div>
 
           <div className="se-stores-hero__side">
+            {/* Cash is in the top bar and standing and restock are on the clerk card; the hero counts the shelves. */}
             <div className="se-stores-hero__readout">
-              <span>
-                <small>Cash</small>
-                <strong>{formatCents(me.resources.cashCents)}</strong>
-              </span>
-              <span>
-                <small>Standing</small>
-                <strong>{store?.standing ?? '—'}</strong>
-              </span>
               <span>
                 <small>Shelves</small>
                 <strong>{store ? formatNumber(totalShelves) : '—'}</strong>
               </span>
-              <span>
-                <small>Restock boost</small>
-                <strong>{store ? `${formatNumber(store.restockSpeedup)}%` : '—'}</strong>
+              <span className={soldOutShelves > 0 ? 'se-stores-hero__warn' : undefined}>
+                <small>Sold out</small>
+                <strong>{store ? formatNumber(soldOutShelves) : '—'}</strong>
+              </span>
+              <span className={lockedShelves > 0 ? 'se-stores-hero__warn' : undefined}>
+                <small>Locked</small>
+                <strong>{store ? formatNumber(lockedShelves) : '—'}</strong>
               </span>
             </div>
           </div>
@@ -643,41 +625,14 @@ function StoreView({
 
         {store && catalog ? (
           <>
-            <section className="se-stores-overview">
-              <div className="se-stores-sectionhead">
-                <div>
-                  <span className="se-eyebrow">{details?.lane}</span>
-                  <h2>Today&rsquo;s counter</h2>
-                </div>
-                <p>{details?.note}</p>
-              </div>
-
-              <div className="se-stores-summary">
-                <StoreMetric label="Wallet" value={formatCents(me.resources.cashCents)} detail="available cash" tone="accent" />
-                <StoreMetric label="Net worth" value={formatCents(me.netWorthCents)} detail="whole operation" />
-                <StoreMetric
-                  label="Sold out"
-                  value={formatNumber(soldOutShelves)}
-                  detail={soldOutShelves === 1 ? 'shelf waiting' : 'shelves waiting'}
-                  tone={soldOutShelves > 0 ? 'warn' : 'good'}
-                />
-                <StoreMetric
-                  label="Locked"
-                  value={formatNumber(lockedShelves)}
-                  detail={lockedShelves === 1 ? 'purchase gate' : 'purchase gates'}
-                  tone={lockedShelves > 0 ? 'warn' : 'good'}
-                />
-              </div>
-            </section>
-
             <section className="se-stores-market">
               <div className="se-stores-market__main">
                 <div className="se-stores-sectionhead">
                   <div>
-                    <span className="se-eyebrow">Inventory</span>
+                    <span className="se-eyebrow">{details?.lane ?? 'Inventory'}</span>
                     <h2>Shop the shelves</h2>
                   </div>
-                  <span className="se-stores-sectionhead__meta">{formatNumber(totalShelves)} listings</span>
+                  <p>{details?.note}</p>
                 </div>
 
                 <div className={`se-store-items se-stores-shelves${store.key === 'PIP' && catalog.productCounter ? ' se-store-items--pair' : ''}`}>

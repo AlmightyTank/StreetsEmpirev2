@@ -292,6 +292,15 @@ body {
   color: #0b0c0e;
 }
 
+/* A faded accent fill still read as a live button; an off primary drops the fill instead. */
+.se-btn--primary:disabled {
+  background: rgba(255, 255, 255, 0.03);
+  border-style: dashed;
+  border-color: var(--se-line);
+  color: var(--se-text-dim);
+  opacity: 1;
+}
+
 .se-btn--block { width: 100%; }
 
 /*
