@@ -71,7 +71,7 @@ const streetPassRewardSchema = z.discriminatedUnion('kind', [
 const updateStreetPassSchema = z.object({
   reason,
   tiers: z.array(z.object({
-    tier: z.number().int().min(1).max(STREET_PASS_REWARD_AMOUNT_MAX).max(100),
+    tier: z.number().int().min(1).max(100),
     rewards: z.array(streetPassRewardSchema).min(1).max(8),
   }).strict()).min(1).max(100),
 }).strict();
