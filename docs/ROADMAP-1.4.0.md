@@ -460,7 +460,11 @@ player reaches a perk's tier.
   and its city, a Case's next stage while it stays open), and a `PlayerFactionWarning` row with
   that key is written in the same transaction as the activity, so a warning alerts once however
   often the sweep runs. "The crackdown is coming, but not to anywhere you hold" stays on the card.
-  Warnings reach the bell only, not push or Discord.
+- **Their own alert category.** Faction warnings are the `factions` notification category: a
+  player can mute them in the bell like any other category, and switch them on for push and
+  Discord under Account → Alerts ("Faction warnings", off by default like the other optional
+  categories). The alert collector sends each `PlayerFactionWarning` once (`alertsCollectedAt`),
+  titled "Word from *faction*" with the same text and link as the bell.
 - **Pinned perks.**
 
   | Faction | Known: information | Trusted: early warning | Connected: nudge |

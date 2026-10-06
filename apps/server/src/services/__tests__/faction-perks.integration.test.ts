@@ -3,8 +3,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV14C2, classicOgV14D, type FactionKey, type Ruleset } from '@streets/rulesets';
 import { cornerUpkeep, startingStock } from '@streets/rules-engine';
+import { BELL_CATEGORIES, bellMutedActivityTypes } from '@streets/shared';
 import { FactionService } from '../faction.service.js';
 import { FactionWarningService } from '../faction-warning.service.js';
+import { factionWarnings } from '../game-alerts.service.js';
 import { HandcraftedQuestService } from '../handcrafted-quest.service.js';
 import { LawOfficialService } from '../law-official.service.js';
 import { LawService } from '../law.service.js';
@@ -185,6 +187,33 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-D faction perks with
     expect(await app.prisma.playerFactionWarning.count({ where: { roundPlayerId: trusted.player.id } })).toBe(1);
 
     expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: known.player.id, type: 'FACTION_WARNING' } })).toBe(0);
+  });
+
+  it('can be muted in the bell, and reaches push once for players who switch factions on', async () => {
+    expect(BELL_CATEGORIES).toContain('factions');
+    expect(bellMutedActivityTypes(['factions'])).toEqual(['FACTION_WARNING']);
+
+    await app.prisma.pushSubscription.create({ data: { accountId, endpoint: `https://fcm.googleapis.com/fcm/send/${randomUUID()}`, p256dh: 'p', auth: 'a' } });
+    await app.prisma.notificationSettings.upsert({
+      where: { accountId },
+      create: { accountId, pushEnabled: true, factionsEnabled: true },
+      update: { pushEnabled: true, factionsEnabled: true },
+    });
+    const { player, city } = await fixture();
+    await app.prisma.playerCase.create({ data: { roundPlayerId: player.id, cityId: city.id, caseHundredths: 1_700, lastEvidenceAt: new Date() } });
+    await standWith(player.id, 'CIVIC_HANDSHAKE', ruleset.factionStanding.tiers.trusted);
+    await FactionWarningService.sweep(app.prisma);
+    // The collector's faction source alone: the full pass would also close other suites' rounds.
+    const pushOnly = { discord: false, push: true };
+    const rows = [
+      ...await app.prisma.$transaction((tx) => factionWarnings(tx, new Date(), pushOnly)),
+      ...await app.prisma.$transaction((tx) => factionWarnings(tx, new Date(), pushOnly)),
+    ].filter((row) => row.accountId === accountId);
+    const warning = await app.prisma.playerFactionWarning.findFirstOrThrow({ where: { roundPlayerId: player.id } });
+    const mine = rows.filter((row) => row.dedupeKey.startsWith(`faction-warning:${warning.id}:`));
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ channel: 'PUSH', category: 'factions', payload: { category: 'factions', notice: { title: 'Word from Civic Handshake', body: 'Your Case in New York City is 3 points from Noticed.', url: expect.stringContaining('/game#case') } } });
+    expect(await app.prisma.playerFactionWarning.count({ where: { roundPlayerId: player.id, alertsCollectedAt: null } })).toBe(0);
   });
 
   it('gives 1.4.0-C2 rounds no perks and no nudges', async () => {

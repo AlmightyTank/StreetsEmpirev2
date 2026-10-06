@@ -290,6 +290,8 @@ model NotificationSettings {
   messagesEnabled       Boolean   @default(false)
   /// 1.3.0-B. A Case rising to a new Wanted stage. On by default: the ladder promises a warning.
   lawEnabled            Boolean   @default(true)
+  /// 1.4.0-D. Early warnings from a faction the player is Trusted with. The bell always has them.
+  factionsEnabled       Boolean   @default(false)
   /// 0.9.0-G master switch: pauses every outside alert without losing category choices.
   alertsPaused          Boolean   @default(false)
   /// 0.9.0-G quiet hours, minutes after local midnight in `timeZone`. Both set or neither;
@@ -3629,8 +3631,14 @@ model PlayerFactionWarning {
 
   factionKey String
   warningKey String
+  /// What the warning said and where it pointed, for the push and Discord alert.
+  text       String    @default("")
+  href       String    @default("/game/quests#factions")
+  /// When the alert collector turned it into push and Discord alerts.
+  alertsCollectedAt DateTime?
 
   createdAt DateTime @default(now())
 
   @@unique([roundPlayerId, warningKey])
+  @@index([alertsCollectedAt, createdAt])
 }

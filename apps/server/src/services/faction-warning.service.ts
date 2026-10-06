@@ -13,7 +13,8 @@ const TRUSTED_OR_ABOVE = ['TRUSTED', 'CONNECTED', 'INNER_CIRCLE'];
  * FACTION_WARNING activity (the bell and a toast) for each one not sent before. The
  * PlayerFactionWarning row is the marker: written in the same transaction as the activity and
  * unique on the warning's key, so a warning reaches the bell once however often a pass runs, on
- * however many servers. Warnings without a key stay on the card only.
+ * however many servers. Warnings without a key stay on the card only. The alert collector then
+ * sends the same rows to push and Discord for players who switched on the factions category.
  */
 export const FactionWarningService = {
   async sweep(prisma: PrismaClient, now: Date = new Date(), limit = BATCH): Promise<number> {
@@ -36,7 +37,7 @@ export const FactionWarningService = {
           if (!warning.key) continue;
           const created = await prisma.$transaction(async (tx) => {
             const { count } = await tx.playerFactionWarning.createMany({
-              data: [{ roundPlayerId: player.id, factionKey: warning.factionKey, warningKey: warning.key!, createdAt: now }],
+              data: [{ roundPlayerId: player.id, factionKey: warning.factionKey, warningKey: warning.key!, text: warning.text, href: warning.href, createdAt: now }],
               skipDuplicates: true,
             });
             if (!count) return false;
