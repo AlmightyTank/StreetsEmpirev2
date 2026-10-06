@@ -25,23 +25,21 @@
   margin: 0;
 }
 
-/* The map dots already pick a city; the chips are a quick backup, one row. */
+/* The map dots already pick a city; the chips are a quick backup that must not clip. */
 .se-travel .se-citypicker {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 8px 10px 10px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: visible;
 }
-.se-travel .se-citypicker::-webkit-scrollbar { display: none; }
 
 .se-travel .se-citypicker__city {
-  flex: 0 0 auto;
+  flex: 1 1 72px;
   min-height: 30px;
-  padding: 5px 12px;
+  padding: 5px 10px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.03em;
   white-space: nowrap;
@@ -189,7 +187,7 @@
 .se-travel-head {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: end;
   gap: 8px 18px;
 }
@@ -230,35 +228,44 @@
 .se-travel-deck__map .se-citymap { min-height: 300px; max-height: 420px; }
 .se-travel-deck__city {
   min-width: 0;
-  /* Beside the map, the intel scrolls inside the map's height so the tabs stay close. */
   max-height: 470px;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
+  overflow: hidden;
 }
 .se-travel-deck__city .se-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  max-height: 470px;
   margin: 0;
   overflow: hidden;
   border-radius: 6px;
 }
 .se-travel-deck__city .se-panel__head {
-  position: sticky;
-  top: 0;
-  z-index: 2;
+  position: relative;
+  z-index: 1;
+  flex-wrap: nowrap;
+  min-height: 38px;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
 }
 .se-travel-deck__city .se-panel__title {
   color: var(--se-text);
   font-size: 12px;
+  line-height: 1.1;
 }
 .se-travel-deck__city .se-panel__head > .se-eyebrow {
+  flex: none;
   font-size: 9px;
+  line-height: 1.1;
 }
 .se-travel-deck__city .se-panel__body {
   display: grid;
+  min-height: 0;
   gap: 8px;
-  padding: 10px;
+  padding: 12px 10px 10px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 .se-travel-deck__city .se-panel__body > p {
   margin: 0;
@@ -436,11 +443,12 @@
   /* On narrow screens the city intel folds away behind the "City intel" toggle. */
   .se-travel-deck__city:not(.is-open) { display: none; }
   .se-travel-deck__city { max-height: none; overflow: visible; }
+  .se-travel-deck__city .se-panel { max-height: none; }
+  .se-travel-deck__city .se-panel__body { overflow: visible; }
   .se-travel-cityline__toggle { display: inline-block; }
 }
 @media (max-width: 620px) {
   .se-travel-head h1 { font-size: 24px; }
-  .se-travel-head__stats { gap: 12px; }
   .se-travel-deck__map .se-citymap { min-height: 220px; }
   .se-travel-sectionhead { display: grid; gap: 4px; }
   .se-travel-sectionhead > p { text-align: left; }

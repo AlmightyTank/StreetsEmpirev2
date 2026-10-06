@@ -66,7 +66,7 @@ type TravelTab = 'runs' | 'trip' | 'move';
 
 /**
  * 0.5.0-B, reworked for 1.4: the map is the page. Pick a city on it (its intel
- * sits beside the map), keep convoys above the tabs and market below them,
+ * sits beside the map), keep convoys above the tabs and market below the active tab,
  * then act from one tab at a time: runs, the boss's trip, or moving house.
  * Anything urgent on the road is pinned above the map.
  */
@@ -128,13 +128,6 @@ export function TravelPage() {
             <span className="se-eyebrow">Road operations · home in {home?.name ?? me.city.name}</span>
             <h1>Travel</h1>
           </div>
-          {data?.enabled ? (
-            <dl className="se-travel-head__stats">
-              <div><dt>Turns home</dt><dd>{formatNumber(data.home.turns)}</dd></div>
-              <div><dt>Low-Riders</dt><dd>{formatNumber(data.home.lowRiders)}</dd></div>
-              <div><dt>Cash home</dt><dd>{formatCents(data.home.cashCents)}</dd></div>
-            </dl>
-          ) : null}
         </header>
 
         {error ? <Alert>{error}</Alert> : null}
@@ -222,33 +215,6 @@ export function TravelPage() {
               ))}
             </nav>
 
-            <section className="se-travel-section">
-              <div className="se-travel-sectionhead">
-                <div>
-                  <span className="se-eyebrow">Operations</span>
-                  <h2>Market</h2>
-                </div>
-                <p>Recent market chatter, home road assets, and the latest completed run stay visible below the travel tabs.</p>
-              </div>
-
-              <div className="se-travel-market">
-                {data.runsEnabled && data.rules.market ? <StreetWire items={data.wire} /> : null}
-                <Panel title="Home road assets" className="se-travel-panel">
-                  <div className="se-travel-assets">
-                    <TravelMetric label="Cash" value={formatCents(data.home.cashCents)} detail="available at home" />
-                    <TravelMetric label="Fit thugs" value={formatNumber(data.home.fitThugs)} detail="possible escorts" />
-                    <TravelMetric label="Beer" value={formatNumber(data.home.beer)} detail="can ride in cargo" />
-                    <TravelMetric
-                      label="Cargo per car"
-                      value={formatNumber(data.rules.cargoPerLowRider)}
-                      detail={`${formatNumber(data.rules.thugsPerLowRider)} thug seats per car`}
-                    />
-                  </div>
-                </Panel>
-                {runs.length > 0 && data.lastRun ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
-              </div>
-            </section>
-
             <section className="se-travel-tabpanel" role="tabpanel">
               {tab === 'runs' ? (
                 <>
@@ -281,6 +247,33 @@ export function TravelPage() {
               ) : null}
 
               {tab === 'move' && data.relocation ? <MovePanel data={data} selected={selected.slug} onDone={load} /> : null}
+            </section>
+
+            <section className="se-travel-section">
+              <div className="se-travel-sectionhead">
+                <div>
+                  <span className="se-eyebrow">Operations</span>
+                  <h2>Market</h2>
+                </div>
+                <p>Recent market chatter, home road assets, and the latest completed run stay below the active travel tool.</p>
+              </div>
+
+              <div className="se-travel-market">
+                {data.runsEnabled && data.rules.market ? <StreetWire items={data.wire} /> : null}
+                <Panel title="Home road assets" className="se-travel-panel">
+                  <div className="se-travel-assets">
+                    <TravelMetric label="Cash" value={formatCents(data.home.cashCents)} detail="available at home" />
+                    <TravelMetric label="Fit thugs" value={formatNumber(data.home.fitThugs)} detail="possible escorts" />
+                    <TravelMetric label="Beer" value={formatNumber(data.home.beer)} detail="can ride in cargo" />
+                    <TravelMetric
+                      label="Cargo per car"
+                      value={formatNumber(data.rules.cargoPerLowRider)}
+                      detail={`${formatNumber(data.rules.thugsPerLowRider)} thug seats per car`}
+                    />
+                  </div>
+                </Panel>
+                {runs.length > 0 && data.lastRun ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
+              </div>
             </section>
           </>
         ) : null}

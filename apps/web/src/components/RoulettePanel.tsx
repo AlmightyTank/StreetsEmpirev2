@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   formatCents,
   type CasinoPageDto,
@@ -26,10 +26,20 @@ type PendingBet = {
 };
 
 const RED = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+const EUROPEAN_WHEEL = ['0', '32', '15', '19', '4', '21', '2', '25', '17', '34', '6', '27', '13', '36', '11', '30', '8', '23', '10', '5', '24', '16', '33', '1', '20', '14', '31', '9', '22', '18', '29', '7', '28', '12', '35', '3', '26'];
+const AMERICAN_WHEEL = ['0', '28', '9', '26', '30', '11', '7', '20', '32', '17', '5', '22', '34', '15', '3', '24', '36', '13', '1', '00', '27', '10', '25', '29', '12', '8', '19', '31', '18', '6', '21', '33', '16', '4', '23', '35', '14', '2'];
+const DEFAULT_BALL_ANGLE = -90;
+const SPIN_ANIMATION_MS = 4200;
 
 function pocketTone(pocket: string): 'red' | 'black' | 'green' {
   if (pocket === '0' || pocket === '00') return 'green';
   return RED.has(Number(pocket)) ? 'red' : 'black';
+}
+
+function ballAngleForPocket(wheelPockets: string[], pocket?: string | null): number {
+  const index = pocket ? wheelPockets.indexOf(pocket) : -1;
+  if (index < 0) return DEFAULT_BALL_ANGLE;
+  return index * (360 / wheelPockets.length) + DEFAULT_BALL_ANGLE;
 }
 
 function wait(ms: number): Promise<void> {
@@ -94,8 +104,11 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
   const [insideKind, setInsideKind] = useState<'SPLIT' | 'STREET' | 'CORNER' | 'SIX_LINE'>('SPLIT');
   const [insideSelection, setInsideSelection] = useState('');
   const [lastSpin, setLastSpin] = useState<CasinoRouletteSpinDto | null>(null);
+  const [wheelSpin, setWheelSpin] = useState<CasinoRouletteSpinDto | null>(null);
   const [busy, setBusy] = useState(false);
   const [spinning, setSpinning] = useState(false);
+  const [spinStartAngle, setSpinStartAngle] = useState(DEFAULT_BALL_ANGLE);
+  const [spinEndAngle, setSpinEndAngle] = useState(DEFAULT_BALL_ANGLE + 2520);
   const [error, setError] = useState<string | null>(null);
   const actionId = useRef(newActionId());
 
@@ -128,6 +141,14 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
   const totalBetCents = bets.reduce((sum, bet) => sum + bet.amountCents, 0);
   const bankrollCents = casinoPage.openSession?.bankrollCents ?? 0;
   const comboOptions = useMemo(() => insideOptions(insideKind), [insideKind]);
+  const wheelPockets = table?.wheel === 'AMERICAN' ? AMERICAN_WHEEL : EUROPEAN_WHEEL;
+  const visibleWheelSpin = wheelSpin ?? lastSpin;
+  const ballAngle = ballAngleForPocket(wheelPockets, visibleWheelSpin?.pocket);
+  const wheelStyle = {
+    '--se-ball-angle': `${ballAngle}deg`,
+    '--se-ball-start-angle': `${spinStartAngle}deg`,
+    '--se-ball-end-angle': `${spinEndAngle}deg`,
+  } as CSSProperties;
 
   useEffect(() => {
     setInsideSelection(comboOptions[0] ?? '');
@@ -154,6 +175,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
       return next;
     });
     setLastSpin(null);
+    setWheelSpin(null);
     actionId.current = newActionId();
   }
 
@@ -169,18 +191,24 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
   async function spin() {
     if (!table || !bets.length) return;
     setBusy(true);
-    setSpinning(true);
     setError(null);
     try {
+      const startAngle = ballAngleForPocket(wheelPockets, lastSpin?.pocket);
       const result = await casinoApi.rouletteSpin({
         tableKey: table.key,
         bets,
         actionId: actionId.current,
       });
-      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await wait(850);
+      const landingAngle = ballAngleForPocket(wheelPockets, result.spin.pocket);
+      setSpinStartAngle(startAngle);
+      setSpinEndAngle(landingAngle + 2520);
+      setWheelSpin(result.spin);
+      setSpinning(true);
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await wait(SPIN_ANIMATION_MS);
       onPageChange(result.page);
       setState(result.roulette);
       setLastSpin(result.spin);
+      setWheelSpin(null);
       actionId.current = newActionId();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'The roulette dealer could not complete that spin.');
@@ -190,19 +218,15 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
     }
   }
 
-  const outside: Array<[CasinoRouletteBetKindDto, string]> = [
+  const columns: Array<[CasinoRouletteBetKindDto, string]> = [['COLUMN', '1'], ['COLUMN', '2'], ['COLUMN', '3']];
+  const dozens: Array<[CasinoRouletteBetKindDto, string]> = [['DOZEN', '1-12'], ['DOZEN', '13-24'], ['DOZEN', '25-36']];
+  const evenMoney: Array<[CasinoRouletteBetKindDto, string]> = [
     ['LOW', 'LOW'],
     ['EVEN', 'EVEN'],
     ['RED', 'RED'],
     ['BLACK', 'BLACK'],
     ['ODD', 'ODD'],
     ['HIGH', 'HIGH'],
-    ['DOZEN', '1-12'],
-    ['DOZEN', '13-24'],
-    ['DOZEN', '25-36'],
-    ['COLUMN', '1'],
-    ['COLUMN', '2'],
-    ['COLUMN', '3'],
   ];
   const spinBlock = !table
     ? 'Pick a wheel first.'
@@ -242,6 +266,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                   setChipCents(candidate.betStepCents);
                   setBets([]);
                   setLastSpin(null);
+                  setWheelSpin(null);
                   actionId.current = newActionId();
                 }}
               >
@@ -254,11 +279,37 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
           {table ? (
             <>
               <div className="se-roulette__stage">
-                <div className={'se-roulette__wheel' + (spinning ? ' is-spinning' : '')} aria-label="Roulette wheel">
+                <div
+                  className={'se-roulette__wheel' + (spinning ? ' is-spinning' : '')}
+                  style={wheelStyle}
+                  aria-label={spinning ? 'Roulette wheel spinning' : visibleWheelSpin ? `Roulette wheel, last pocket ${visibleWheelSpin.pocket}` : 'Roulette wheel'}
+                >
+                  <span className="se-sr">
+                    {spinning ? 'Spinning' : visibleWheelSpin ? `Last pocket ${visibleWheelSpin.pocket}, ${visibleWheelSpin.color.toLowerCase()}` : table.wheel === 'AMERICAN' ? 'American wheel' : 'European wheel'}
+                  </span>
+                  <div className="se-roulette__wheel-bowl" aria-hidden="true" />
+                  <div className="se-roulette__pockets" aria-hidden="true">
+                    {wheelPockets.map((pocket, index) => (
+                      <span
+                        key={pocket}
+                        className={'se-roulette__pocket is-' + pocketTone(pocket)}
+                        style={{
+                          transform: `translate(-50%, -50%) rotate(${index * (360 / wheelPockets.length)}deg) translateY(calc(var(--se-wheel-pocket-radius) * -1))`,
+                        }}
+                      >
+                        {pocket}
+                      </span>
+                    ))}
+                  </div>
                   <div className="se-roulette__wheel-ring" aria-hidden="true" />
-                  <div className={'se-roulette__wheel-result is-' + (lastSpin ? lastSpin.color.toLowerCase() : 'idle')}>
-                    <small>{spinning ? 'Spinning' : lastSpin ? 'Last' : table.wheel === 'AMERICAN' ? 'American' : 'European'}</small>
-                    <strong>{spinning ? '•' : lastSpin?.pocket ?? '◉'}</strong>
+                  <div className="se-roulette__ball-track" aria-hidden="true">
+                    <span className="se-roulette__ball" />
+                  </div>
+                  <div className="se-roulette__wheel-hub" aria-hidden="true">
+                    <span className="se-roulette__spoke" />
+                    <span className="se-roulette__spoke" />
+                    <span className="se-roulette__spoke" />
+                    <span className="se-roulette__spoke" />
                   </div>
                 </div>
 
@@ -296,7 +347,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                 </div>
               </div>
 
-              <div className="se-roulette__board">
+              <div className="se-roulette__felt" aria-label="Roulette betting layout">
                 <div className="se-roulette__zeroes">
                   <button type="button" className="is-green" onClick={() => addBet('STRAIGHT', '0')}>
                     <strong>0</strong>{betAt('STRAIGHT', '0') ? <small>{formatCents(betAt('STRAIGHT', '0'))}</small> : null}
@@ -307,26 +358,63 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                     </button>
                   ) : null}
                 </div>
-                <div className="se-roulette__numbers">
-                  {Array.from({ length: 36 }, (_, index) => String(index + 1)).map((pocket) => {
-                    const amount = betAt('STRAIGHT', pocket);
+
+                <div className="se-roulette__number-table">
+                  <div className="se-roulette__numbers">
+                    {Array.from({ length: 36 }, (_, index) => String(index + 1)).map((pocket) => {
+                      const amount = betAt('STRAIGHT', pocket);
+                      return (
+                        <button
+                          key={pocket}
+                          type="button"
+                          className={'is-' + pocketTone(pocket)}
+                          disabled={busy}
+                          onClick={() => addBet('STRAIGHT', pocket)}
+                        >
+                          <strong>{pocket}</strong>
+                          {amount ? <small>{formatCents(amount)}</small> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="se-roulette__columns" aria-label="Column bets">
+                    {columns.map(([kind, selection]) => {
+                      const amount = betAt(kind, selection);
+                      return (
+                        <button
+                          key={kind + selection}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => addBet(kind, selection)}
+                        >
+                          <strong>2 to 1</strong>
+                          {amount ? <small>{formatCents(amount)}</small> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="se-roulette__dozens" aria-label="Dozen bets">
+                  {dozens.map(([kind, selection]) => {
+                    const amount = betAt(kind, selection);
                     return (
                       <button
-                        key={pocket}
+                        key={kind + selection}
                         type="button"
-                        className={'is-' + pocketTone(pocket)}
                         disabled={busy}
-                        onClick={() => addBet('STRAIGHT', pocket)}
+                        onClick={() => addBet(kind, selection)}
                       >
-                        <strong>{pocket}</strong>
+                        <strong>{selection}</strong>
                         {amount ? <small>{formatCents(amount)}</small> : null}
                       </button>
                     );
                   })}
                 </div>
 
-                <div className="se-roulette__outside">
-                  {outside.map(([kind, selection]) => {
+                <div className="se-roulette__even-money" aria-label="Even money bets">
+                  {evenMoney.map(([kind, selection]) => {
                     const amount = betAt(kind, selection);
                     return (
                       <button
@@ -446,6 +534,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                   onClick={() => {
                     setBets([]);
                     setLastSpin(null);
+                    setWheelSpin(null);
                     actionId.current = newActionId();
                   }}
                 >

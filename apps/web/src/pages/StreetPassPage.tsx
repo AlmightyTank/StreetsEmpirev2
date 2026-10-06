@@ -8,7 +8,7 @@ import { Button } from '../components/Button.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { rewardText } from '../components/RewardChip.js';
 import { useGameAction } from '../hooks/useGameAction.js';
-import { rewardArtKey } from '../items/itemArt.js';
+import { ITEM_ART, rewardArtKey } from '../items/itemArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 
 /** "$10K", "$2.5K", "$100K": cash counts on a tile. */
@@ -67,6 +67,163 @@ function PassMetric({
       <strong className="se-pass-metric__value">{value}</strong>
       {detail ? <span className="se-pass-metric__detail">{detail}</span> : null}
     </div>
+  );
+}
+
+type CosmeticPreviewKind = 'theme' | 'frame' | 'badge' | 'title';
+
+type CosmeticPreview = {
+  key: string;
+  label: string;
+  tier: number;
+  art: keyof typeof ITEM_ART | null;
+  kind: CosmeticPreviewKind;
+};
+
+function cosmeticPreviewLabel(reward: QuestRewardDto): string {
+  const art = rewardArtKey(reward);
+  if (art) return ITEM_ART[art].shortName;
+  return reward.label.replace(/^Permanent cosmetic · /, '').replace(/ · Season \d+$/, '');
+}
+
+function cosmeticPreviewKind(key: string): CosmeticPreviewKind {
+  if (key.endsWith('-theme')) return 'theme';
+  if (key.includes('frame') || key.includes('chrome-halo')) return 'frame';
+  if (key.includes('badge')) return 'badge';
+  return 'title';
+}
+
+function streetPassCosmeticPreviews(pass: StreetPassDto): CosmeticPreview[] {
+  return pass.tiers.flatMap((tier) => (
+    tier.rewards
+      .filter((reward) => reward.kind === 'COSMETIC_UNLOCK' && reward.key)
+      .map((reward) => ({
+        key: reward.key!,
+        label: cosmeticPreviewLabel(reward),
+        tier: tier.tier,
+        art: rewardArtKey(reward),
+        kind: cosmeticPreviewKind(reward.key!),
+      }))
+  ));
+}
+
+function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview[] }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const active = previews[Math.min(activeIndex, Math.max(0, previews.length - 1))];
+
+  useEffect(() => {
+    if (activeIndex < previews.length) return;
+    setActiveIndex(0);
+  }, [activeIndex, previews.length]);
+
+  useEffect(() => {
+    if (previews.length <= 1) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % previews.length);
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [previews.length]);
+
+  if (!active) return null;
+
+  const eyebrow = active.kind === 'theme' ? 'Theme preview' : active.kind === 'title' ? 'Name preview' : 'Cosmetic preview';
+  const description = active.kind === 'theme'
+    ? `Unlocks at tier ${formatNumber(active.tier)} and can be selected from account settings after you claim it.`
+    : active.kind === 'title'
+      ? `Unlocks at tier ${formatNumber(active.tier)} and gives your profile name a season title.`
+      : `Unlocks at tier ${formatNumber(active.tier)} and stays on your account after the season.`;
+
+  return (
+    <section className="se-pass-theme-previews" aria-label="Street Pass cosmetic previews">
+      <article className={`se-pass-theme-preview se-pass-theme-preview--${active.kind} se-pass-theme-preview--${active.key}`}>
+        <div className="se-pass-theme-preview__copy">
+          <span className="se-eyebrow">{eyebrow}</span>
+          <h3>{active.label}</h3>
+          <p>{description}</p>
+          {previews.length > 1 ? (
+            <div className="se-pass-theme-preview__dots" role="tablist" aria-label="Cosmetic previews">
+              {previews.map((preview, index) => (
+                <button
+                  key={preview.key}
+                  type="button"
+                  className={index === activeIndex ? 'is-active' : undefined}
+                  aria-label={`Show ${preview.label}`}
+                  aria-selected={index === activeIndex}
+                  role="tab"
+                  onClick={() => setActiveIndex(index)}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+        {active.kind === 'theme' ? (
+          <div className="se-pass-theme-preview__mock" aria-hidden="true">
+            <span className="se-pass-theme-preview__topbar" />
+            <span className="se-pass-theme-preview__rail">
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
+            <span className="se-pass-theme-preview__stats">
+              <i />
+              <i />
+              <i />
+            </span>
+            <span className="se-pass-theme-preview__panel">
+              <i />
+              <i />
+              <i />
+            </span>
+            <span className="se-pass-theme-preview__profile">
+              <i />
+              <strong>AMIGHTYTANK</strong>
+              <small>Night Drive shell</small>
+            </span>
+            <span className="se-pass-theme-preview__badges">
+              <i />
+              <i />
+              <i />
+            </span>
+            <span className="se-pass-theme-preview__road" />
+            <span className="se-pass-theme-preview__glow" />
+          </div>
+        ) : (
+          <div className="se-pass-theme-preview__cosmetic-stage" aria-hidden="true">
+            <span className="se-pass-theme-preview__cosmetic-glow" />
+            {active.art ? (
+              <div className="se-pass-theme-preview__big-art">
+                <ItemTile item={active.art} size="lg" label title={`${active.label} cosmetic`} />
+              </div>
+            ) : null}
+            {active.kind === 'title' ? (
+              <div className="se-pass-theme-preview__nameplates">
+                <span>
+                  <small>Prefix</small>
+                  <strong>{active.label} AMIGHTYTANK</strong>
+                </span>
+                <span>
+                  <small>Profile</small>
+                  <strong>AMIGHTYTANK</strong>
+                  <em>{active.label} · Season 1</em>
+                </span>
+                <span>
+                  <small>Compact</small>
+                  <strong>AMIGHTYTANK · {active.label}</strong>
+                </span>
+              </div>
+            ) : (
+              <div className="se-pass-theme-preview__cosmetic-profile">
+                <i />
+                <strong>AMIGHTYTANK</strong>
+                <small>{active.kind === 'frame' ? 'Profile frame preview' : 'Featured badge preview'}</small>
+              </div>
+            )}
+          </div>
+        )}
+      </article>
+    </section>
   );
 }
 
@@ -139,6 +296,7 @@ export function StreetPassPage() {
     : 100;
   const claimedCount = pass ? pass.tiers.filter((tier) => tier.claimed).length : 0;
   const nextTier = pass ? pass.tiers.find((tier) => tier.tier === pass.tier + 1) ?? null : null;
+  const cosmeticPreviews = pass ? streetPassCosmeticPreviews(pass) : [];
 
   return (
     <GameLayout>
@@ -250,6 +408,8 @@ export function StreetPassPage() {
                   ))}
                 </ol>
               </section>
+
+              {cosmeticPreviews.length ? <CosmeticRewardPreviewCarousel previews={cosmeticPreviews} /> : null}
             </section>
 
             <aside className="se-pass-rail">

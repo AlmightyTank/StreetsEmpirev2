@@ -551,10 +551,10 @@
 
 .se-roulette__stage {
   display: grid;
-  grid-template-columns: minmax(9rem, .34fr) minmax(0, 1fr);
-  gap: .8rem 1rem;
+  grid-template-columns: minmax(16rem, .42fr) minmax(0, 1fr);
+  gap: 1rem 1.2rem;
   align-items: center;
-  padding: .8rem;
+  padding: 1rem;
   border: 1px solid var(--se-border);
   border-radius: .9rem;
   background:
@@ -562,89 +562,158 @@
     color-mix(in srgb, var(--se-surface) 94%, var(--se-bg));
 }
 .se-roulette__wheel {
+  --se-wheel-pocket-radius: 6.85rem;
+  --se-ball-rail-right: -.08rem;
+  --se-ball-mid-right: .22rem;
+  --se-ball-near-right: .52rem;
+  --se-ball-settle-right: .7rem;
+  --se-ball-pocket-right: .78rem;
   position: relative;
-  width: min(12rem, 100%);
+  width: min(17.5rem, 100%);
   aspect-ratio: 1;
   justify-self: center;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: .45rem solid color-mix(in srgb, var(--se-border) 70%, #a7863f);
+  border: .65rem solid #292f34;
   background:
-    conic-gradient(
-      #181a1d 0deg 9.47deg,
-      #792929 9.47deg 18.94deg,
-      #181a1d 18.94deg 28.41deg,
-      #792929 28.41deg 37.88deg,
-      #181a1d 37.88deg 47.35deg,
-      #792929 47.35deg 56.82deg,
-      #181a1d 56.82deg 66.29deg,
-      #792929 66.29deg 75.76deg,
-      #181a1d 75.76deg 85.23deg,
-      #792929 85.23deg 94.7deg,
-      #181a1d 94.7deg 104.17deg,
-      #792929 104.17deg 113.64deg,
-      #181a1d 113.64deg 123.11deg,
-      #792929 123.11deg 132.58deg,
-      #181a1d 132.58deg 142.05deg,
-      #792929 142.05deg 151.52deg,
-      #181a1d 151.52deg 160.99deg,
-      #792929 160.99deg 170.46deg,
-      #181a1d 170.46deg 179.93deg,
-      #792929 179.93deg 189.4deg,
-      #181a1d 189.4deg 198.87deg,
-      #792929 198.87deg 208.34deg,
-      #181a1d 208.34deg 217.81deg,
-      #792929 217.81deg 227.28deg,
-      #181a1d 227.28deg 236.75deg,
-      #792929 236.75deg 246.22deg,
-      #181a1d 246.22deg 255.69deg,
-      #792929 255.69deg 265.16deg,
-      #181a1d 265.16deg 274.63deg,
-      #792929 274.63deg 284.1deg,
-      #181a1d 284.1deg 293.57deg,
-      #792929 293.57deg 303.04deg,
-      #181a1d 303.04deg 312.51deg,
-      #792929 312.51deg 321.98deg,
-      #181a1d 321.98deg 331.45deg,
-      #792929 331.45deg 340.92deg,
-      #181a1d 340.92deg 350.39deg,
-      #1d6b47 350.39deg 360deg
-    );
-  box-shadow: inset 0 0 0 .45rem #070809, 0 .45rem 1.2rem rgb(0 0 0 / .34);
+    radial-gradient(circle at 50% 50%, transparent 0 63%, rgba(255,255,255,.72) 64% 65%, transparent 66%),
+    radial-gradient(circle at 50% 50%, #32383d 0 100%);
+  box-shadow:
+    inset 0 0 0 .16rem rgba(255,255,255,.16),
+    inset 0 0 0 .52rem #15191d,
+    0 .55rem 1.35rem rgb(0 0 0 / .38);
+}
+.se-roulette__wheel-bowl {
+  position: absolute;
+  inset: 18.5%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, #272d32 0 70%, #f0f2f0 71% 73%, #242a2f 74% 100%);
+  box-shadow:
+    inset 0 0 .85rem rgb(0 0 0 / .42),
+    inset 0 0 0 .08rem rgb(255 255 255 / .1);
+}
+.se-roulette__pockets {
+  position: absolute;
+  inset: 7.5%;
+  z-index: 2;
+  border-radius: 50%;
+  transform: rotate(0deg);
+  will-change: transform;
+}
+.se-roulette__pocket {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 1.42rem;
+  height: 1.9rem;
+  border: 1px solid rgba(255,255,255,.8);
+  border-radius: .05rem;
+  color: #fff;
+  font-family: var(--se-mono);
+  font-size: .56rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgb(0 0 0 / .45);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 .04rem .1rem rgb(0 0 0 / .35);
+}
+.se-roulette__pocket.is-red { background: #f15b3d; }
+.se-roulette__pocket.is-black { background: #283036; }
+.se-roulette__pocket.is-green { background: #4c9e54; }
+.se-roulette__pocket::after {
+  content: "";
+  position: absolute;
+  inset: -.08rem -.05rem;
+  border-right: 1px solid rgba(255,255,255,.45);
+  border-left: 1px solid rgba(255,255,255,.45);
+  pointer-events: none;
 }
 .se-roulette__wheel-ring {
   position: absolute;
-  inset: 14%;
-  border: 2px solid rgba(255,255,255,.18);
+  inset: 28%;
+  border: 2px solid rgba(255,255,255,.72);
   border-radius: 50%;
-  box-shadow: inset 0 0 0 .35rem rgb(0 0 0 / .18);
+  box-shadow: 0 0 0 .13rem rgba(0,0,0,.28);
 }
-.se-roulette__wheel-result {
+.se-roulette__ball-track {
+  position: absolute;
+  inset: 3.8%;
+  z-index: 3;
+  border-radius: 50%;
+  transform: rotate(var(--se-ball-angle, -90deg));
+  will-change: transform;
+}
+.se-roulette__ball {
+  position: absolute;
+  top: 50%;
+  right: var(--se-ball-pocket-right);
+  width: .9rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, #fff, #f3f5f8 42%, #aeb6c1 100%);
+  box-shadow: 0 0 .38rem rgb(255 255 255 / .45), 0 .08rem .2rem rgb(0 0 0 / .55);
+  transform: translateY(-50%);
+}
+.se-roulette__wheel-hub {
   position: relative;
-  z-index: 2;
-  width: 46%;
+  z-index: 4;
+  width: 43%;
   aspect-ratio: 1;
   display: grid;
-  place-content: center;
-  justify-items: center;
-  border: 2px solid rgba(255,255,255,.22);
+  place-items: center;
+  border: 2px solid rgba(255,255,255,.1);
   border-radius: 50%;
-  background: #111418;
-  box-shadow: 0 0 0 .3rem rgb(0 0 0 / .3);
+  background: #2b3034;
+  box-shadow: inset 0 0 .8rem rgb(0 0 0 / .32), 0 0 0 .18rem rgba(0,0,0,.18);
 }
-.se-roulette__wheel-result small {
-  color: rgba(255,255,255,.72);
-  font-size: .62rem;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+.se-roulette__wheel-hub::before {
+  content: "";
+  position: absolute;
+  width: .72rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #d59a45;
+  box-shadow: 0 0 0 .1rem rgba(0,0,0,.18);
 }
-.se-roulette__wheel-result strong { font-size: clamp(1.5rem, 5vw, 2.35rem); color: #fff; }
-.se-roulette__wheel-result.is-red { background: #792929; }
-.se-roulette__wheel-result.is-black { background: #111418; }
-.se-roulette__wheel-result.is-green { background: #1d6b47; }
-.se-roulette__wheel.is-spinning { animation: se-roulette-wheel .85s cubic-bezier(.3,.8,.35,1); }
+.se-roulette__spoke {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 35%;
+  height: .14rem;
+  border-radius: 999px;
+  background: #c88b3a;
+  transform-origin: left center;
+}
+.se-roulette__spoke::after {
+  content: "";
+  position: absolute;
+  right: -.2rem;
+  top: 50%;
+  width: .62rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #d59a45;
+  box-shadow: 0 0 0 .08rem rgba(0,0,0,.18);
+  transform: translateY(-50%);
+}
+.se-roulette__spoke:nth-child(1) { transform: rotate(45deg); }
+.se-roulette__spoke:nth-child(2) { transform: rotate(135deg); }
+.se-roulette__spoke:nth-child(3) { transform: rotate(225deg); }
+.se-roulette__spoke:nth-child(4) { transform: rotate(315deg); }
+.se-roulette__wheel.is-spinning .se-roulette__pockets {
+  animation: se-roulette-wheel-settle 4.2s cubic-bezier(.1,.54,.22,1) both;
+}
+.se-roulette__wheel.is-spinning .se-roulette__ball-track {
+  animation: se-roulette-ball-settle 4.2s linear both;
+}
+.se-roulette__wheel.is-spinning .se-roulette__ball {
+  animation: se-roulette-ball-drop 4.2s linear both;
+}
 
 .se-roulette__readout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
 .se-roulette__readout span {
@@ -710,45 +779,89 @@
   box-shadow: 0 0 10px color-mix(in srgb, var(--se-accent) 18%, transparent);
 }
 
-.se-roulette__board {
+.se-roulette__felt {
   display: grid;
-  grid-template-columns: minmax(3.3rem, auto) minmax(0, 1fr);
-  gap: .4rem;
-  padding: .6rem;
+  grid-template-columns: minmax(3.8rem, .12fr) minmax(0, 1fr);
+  grid-template-areas:
+    "zeroes numbers"
+    "zeroes dozens"
+    "zeroes outside";
+  gap: .34rem;
+  padding: .65rem;
   border: 1px solid color-mix(in srgb, var(--se-accent) 25%, var(--se-border));
-  border-radius: .8rem;
-  background: #103a2a;
+  border-radius: .95rem;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255,255,255,.08), transparent 38%),
+    linear-gradient(135deg, #0d3225, #082219);
   overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04), inset 0 1.5rem 3rem rgb(0 0 0 / .12);
 }
-.se-roulette__zeroes { display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: .3rem; }
-.se-roulette__numbers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .25rem; }
-.se-roulette__outside {
-  grid-column: 1 / -1;
+.se-roulette__zeroes {
+  grid-area: zeroes;
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: .28rem;
+}
+.se-roulette__number-table {
+  grid-area: numbers;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(3.4rem, .13fr);
+  gap: .28rem;
+}
+.se-roulette__numbers {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(2.35rem, 1fr));
+  grid-auto-flow: column;
+  grid-template-rows: repeat(3, minmax(2.6rem, 1fr));
+  gap: .22rem;
+}
+.se-roulette__columns {
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: .22rem;
+}
+.se-roulette__dozens {
+  grid-area: dozens;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .28rem;
+}
+.se-roulette__even-money {
+  grid-area: outside;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: .25rem;
+  gap: .28rem;
 }
-.se-roulette__board button {
+.se-roulette__felt button {
   min-width: 0;
-  min-height: 3rem;
+  min-height: 2.8rem;
   display: grid;
   place-content: center;
   justify-items: center;
   gap: .06rem;
-  padding: .3rem .2rem;
+  padding: .28rem .18rem;
   border: 1px solid rgba(255,255,255,.2);
-  border-radius: .35rem;
+  border-radius: .28rem;
   color: #fff;
+  text-transform: uppercase;
   cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 1px 0 rgb(0 0 0 / .18);
 }
-.se-roulette__board button strong { font-size: .92rem; }
-.se-roulette__board button small { font-size: .62rem; font-weight: 800; color: rgba(255,255,255,.86); }
-.se-roulette__board button.is-red { background: #792929; }
-.se-roulette__board button.is-black { background: #111418; }
-.se-roulette__board button.is-green { background: #1d6b47; }
-.se-roulette__outside button:not(.is-red):not(.is-black) { background: #185139; }
-.se-roulette__board button:hover { box-shadow: inset 0 0 0 2px rgba(255,255,255,.3); }
-.se-roulette__board button:disabled { opacity: .62; cursor: not-allowed; }
+.se-roulette__zeroes button { min-height: 100%; border-radius: .45rem; }
+.se-roulette__felt button strong { font-size: .8rem; letter-spacing: .02em; }
+.se-roulette__numbers button strong { font-size: .92rem; }
+.se-roulette__felt button small { font-size: .58rem; font-weight: 800; color: rgba(255,255,255,.86); text-transform: none; }
+.se-roulette__felt button.is-red { background: linear-gradient(180deg, #8b3030, #612020); }
+.se-roulette__felt button.is-black { background: linear-gradient(180deg, #171b20, #090b0e); }
+.se-roulette__felt button.is-green,
+.se-roulette__dozens button,
+.se-roulette__columns button,
+.se-roulette__even-money button:not(.is-red):not(.is-black) { background: linear-gradient(180deg, #1b6548, #103b2b); }
+.se-roulette__columns button strong,
+.se-roulette__dozens button strong,
+.se-roulette__even-money button strong { font-size: .72rem; }
+.se-roulette__felt button:hover { box-shadow: inset 0 0 0 2px rgba(255,255,255,.3), 0 1px 0 rgb(0 0 0 / .18); }
+.se-roulette__felt button:disabled { opacity: .62; cursor: not-allowed; }
 
 .se-roulette__inside-builder,
 .se-roulette__paytable { border-top: 1px solid var(--se-border); padding-top: .65rem; }
@@ -786,13 +899,48 @@
 .se-roulette__spin { min-height: 3rem; font-weight: 900; letter-spacing: .055em; }
 .se-roulette__paytable p { margin-bottom: 0; color: var(--se-muted); line-height: 1.45; }
 
-@keyframes se-roulette-wheel {
+@keyframes se-roulette-wheel-settle {
   from { transform: rotate(0deg); }
-  to { transform: rotate(1080deg); }
+  to { transform: rotate(-1080deg); }
+}
+@keyframes se-roulette-ball-settle {
+  0% { transform: rotate(var(--se-ball-start-angle, -90deg)); }
+  28% { transform: rotate(calc(var(--se-ball-end-angle, 2430deg) - 1260deg)); }
+  52% { transform: rotate(calc(var(--se-ball-end-angle, 2430deg) - 600deg)); }
+  72% { transform: rotate(calc(var(--se-ball-end-angle, 2430deg) - 240deg)); }
+  86% { transform: rotate(calc(var(--se-ball-end-angle, 2430deg) - 80deg)); }
+  95% { transform: rotate(calc(var(--se-ball-end-angle, 2430deg) - 18deg)); }
+  100% { transform: rotate(var(--se-ball-end-angle, 2430deg)); }
+}
+@keyframes se-roulette-ball-drop {
+  0%, 58% {
+    right: var(--se-ball-rail-right);
+    transform: translateY(-50%) scale(.95);
+    box-shadow: 0 0 .48rem rgb(255 255 255 / .48), 0 .08rem .2rem rgb(0 0 0 / .55);
+  }
+  72% {
+    right: var(--se-ball-mid-right);
+    transform: translateY(-56%) scale(.96);
+  }
+  84% {
+    right: var(--se-ball-near-right);
+    transform: translateY(-45%) scale(1.03);
+  }
+  92% {
+    right: var(--se-ball-settle-right);
+    transform: translateY(-53%) scale(1);
+  }
+  100% {
+    right: var(--se-ball-pocket-right);
+    transform: translateY(-50%) scale(1);
+    box-shadow: 0 0 .32rem rgb(255 255 255 / .4), 0 .08rem .2rem rgb(0 0 0 / .55);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .se-roulette__wheel.is-spinning { animation: none; }
+  .se-roulette__wheel.is-spinning .se-roulette__pockets,
+  .se-roulette__wheel.is-spinning .se-roulette__ball-track,
+  .se-roulette__wheel.is-spinning .se-roulette__ball { animation: none; }
 }
 
 @media (max-width: 900px) {
@@ -814,9 +962,20 @@
     gap: .55rem;
     padding: .55rem;
   }
-  .se-roulette__wheel { width: 6.75rem; border-width: .3rem; }
-  .se-roulette__wheel-result small { font-size: .5rem; }
-  .se-roulette__wheel-result strong { font-size: 1.45rem; }
+  .se-roulette__wheel {
+    --se-wheel-pocket-radius: 2.58rem;
+    --se-ball-rail-right: -.04rem;
+    --se-ball-mid-right: .08rem;
+    --se-ball-near-right: .19rem;
+    --se-ball-settle-right: .24rem;
+    --se-ball-pocket-right: .28rem;
+    width: 6.75rem;
+    border-width: .28rem;
+  }
+  .se-roulette__pocket { width: .72rem; height: .66rem; border-radius: .1rem; font-size: .32rem; }
+  .se-roulette__pocket::after { inset: -.14rem -.03rem; }
+  .se-roulette__ball { right: .28rem; width: .52rem; }
+  .se-roulette__wheel-hub { border-width: 2px; }
   .se-roulette__readout { gap: .3rem; }
   .se-roulette__readout span { padding: .38rem .42rem; }
   .se-roulette__readout small { font-size: .62rem; }
@@ -838,16 +997,26 @@
   .se-roulette__chips > div::-webkit-scrollbar { display: none; }
   .se-roulette__chip { min-width: 3.2rem; min-height: 2.25rem; padding: .28rem .4rem; font-size: .7rem; }
 
-  .se-roulette__board { grid-template-columns: 2.75rem minmax(0, 1fr); gap: .25rem; padding: .38rem; }
+  .se-roulette__felt {
+    grid-template-columns: 2.75rem minmax(28rem, 1fr);
+    gap: .25rem;
+    padding: .38rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
   .se-roulette__zeroes,
   .se-roulette__numbers,
-  .se-roulette__outside { gap: .18rem; }
-  .se-roulette__board button { min-height: 2.45rem; padding: .2rem .08rem; border-radius: .26rem; }
-  .se-roulette__board button strong { font-size: .76rem; }
-  .se-roulette__board button small { font-size: .5rem; max-width: 100%; overflow: hidden; }
-  .se-roulette__outside { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .se-roulette__outside button { min-height: 2.35rem; }
-  .se-roulette__outside button strong { font-size: .66rem; }
+  .se-roulette__columns,
+  .se-roulette__dozens,
+  .se-roulette__even-money { gap: .18rem; }
+  .se-roulette__number-table { grid-template-columns: minmax(0, 1fr) 2.9rem; gap: .18rem; }
+  .se-roulette__numbers { grid-template-columns: repeat(12, minmax(2.1rem, 1fr)); grid-template-rows: repeat(3, minmax(2.35rem, 1fr)); }
+  .se-roulette__felt button { min-height: 2.35rem; padding: .2rem .08rem; border-radius: .24rem; }
+  .se-roulette__felt button strong { font-size: .66rem; }
+  .se-roulette__numbers button strong { font-size: .76rem; }
+  .se-roulette__felt button small { font-size: .5rem; max-width: 100%; overflow: hidden; }
+  .se-roulette__dozens button,
+  .se-roulette__even-money button { min-height: 2.25rem; }
 
   .se-roulette__inside-builder > div { grid-template-columns: 1fr 1fr; }
   .se-roulette__inside-builder > div > .se-btn { grid-column: 1 / -1; }
