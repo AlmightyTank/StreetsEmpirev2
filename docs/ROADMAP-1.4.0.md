@@ -450,7 +450,7 @@ player reaches a perk's tier.
   levels, the tier each opens at, and, once open, what the faction is telling you right now.
   Information and warnings are worked out when the page is read, only for the levels you have
   opened. A Connected nudge says "Active" there and names itself where it applies: Tommy's and
-  Pip's shelves, Pip's counter, the bodyguard line on Travel, the district board on Turf (the
+  Pip's shelves, Pip's counter at home and on a run, the bodyguard line on Travel, the district board on Turf (the
   Kings) and the payroll on the Case panel (Civic Handshake).
 - **Warnings reach the bell.** Every ten minutes the alerts poller looks at up to 300 players
   Trusted with a faction in a live round, most recently active first, and logs each warning they
