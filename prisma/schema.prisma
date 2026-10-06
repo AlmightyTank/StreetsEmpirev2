@@ -198,6 +198,10 @@ model AccountProfile {
   itemCosmetics          Json    @default("{}")
   /// THUG / HOE visual styles. Crew is aggregate inventory, so the style applies to the whole type.
   crewCosmetics          Json    @default("{}")
+  /// Slice E. Visitors see the owner's site theme on their public profile.
+  showThemeOnProfile     Boolean @default(true)
+  /// Slice E. Visitors see the owner's item and crew look on their public profile.
+  showLookOnProfile      Boolean @default(true)
   featuredBadgeKeys     Json    @default("[]")
   profileAccent         String  @default("default")
   uiDensity             String  @default("comfortable")

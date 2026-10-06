@@ -1,7 +1,6 @@
 import type { AccountProfile, PrismaClient } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import {
-  CUSTOMIZABLE_ITEM_KEYS,
   DEFAULT_CREW_COSMETICS,
   RELEASED_CREW_COSMETIC_STYLES,
   RELEASED_ITEM_COSMETIC_STYLES,
@@ -14,10 +13,7 @@ import type {
   AccountProfileSettingsResponseDto,
   BadgeCosmeticOptionDto,
   CosmeticOptionDto,
-  CrewCosmeticLoadout,
-  CrewCosmeticStyleKey,
   DefaultLanding,
-  ItemCosmeticLoadout,
   ItemCosmeticStyleKey,
   MoneyFormat,
   ProfileAccent,
@@ -35,6 +31,7 @@ import { RoundService } from './round.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
 import { isPermanentAward } from './profile-badges.js';
 import { profileTitleForAward } from './profile-titles.js';
+import { crewCosmeticLoadout, itemCosmeticLoadout } from './profile-showcase.service.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 
@@ -61,35 +58,6 @@ function collectionUnlockHints(ruleset: Ruleset | null): Partial<Record<ItemCosm
 async function currentRuleset(prisma: PrismaClient): Promise<Ruleset | null> {
   const round = await RoundService.getCurrent(prisma);
   return round ? loadRulesetForRound(round) : null;
-}
-
-function stringRecord(value: unknown): Record<string, string> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-  return Object.fromEntries(
-    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
-  );
-}
-
-/** Saved item skins the account can still wear; anything else reads as Classic. */
-function itemCosmeticLoadout(value: unknown, owned: ReadonlySet<string>): ItemCosmeticLoadout {
-  const raw = stringRecord(value);
-  const loadout: ItemCosmeticLoadout = {};
-  for (const key of CUSTOMIZABLE_ITEM_KEYS) {
-    const style = raw[key];
-    if (style && isReleasedItemCosmeticStyle(style) && isOwnedCollection(style, owned)) loadout[key] = style;
-  }
-  return loadout;
-}
-
-function crewCosmeticLoadout(value: unknown, owned: ReadonlySet<string>): CrewCosmeticLoadout {
-  const raw = stringRecord(value);
-  const style = (key: keyof CrewCosmeticLoadout): CrewCosmeticStyleKey => {
-    const candidate = raw[key];
-    return candidate && isReleasedItemCosmeticStyle(candidate) && isOwnedCollection(candidate, owned)
-      ? candidate as CrewCosmeticStyleKey
-      : DEFAULT_CREW_COSMETICS[key];
-  };
-  return { THUG: style('THUG'), HOE: style('HOE') };
 }
 
 const honorificTitles: BadgeCosmeticOptionDto[] = [
@@ -245,6 +213,8 @@ function toSettingsDto(
     activeSiteThemeKey,
     itemCosmetics: itemCosmeticLoadout(profile?.itemCosmetics, ownedCollections),
     crewCosmetics: crewCosmeticLoadout(profile?.crewCosmetics, ownedCollections),
+    showThemeOnProfile: profile?.showThemeOnProfile ?? true,
+    showLookOnProfile: profile?.showLookOnProfile ?? true,
     featuredBadgeKeys,
     profileAccent,
     uiDensity,
@@ -428,6 +398,8 @@ export const AccountProfileService = {
         activeSiteThemeKey,
         itemCosmetics: input.itemCosmetics ?? {},
         crewCosmetics: { ...(input.crewCosmetics ?? DEFAULT_CREW_COSMETICS) },
+        showThemeOnProfile: input.showThemeOnProfile ?? true,
+        showLookOnProfile: input.showLookOnProfile ?? true,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
@@ -447,6 +419,8 @@ export const AccountProfileService = {
         activeSiteThemeKey,
         itemCosmetics: input.itemCosmetics ?? {},
         crewCosmetics: { ...(input.crewCosmetics ?? DEFAULT_CREW_COSMETICS) },
+        showThemeOnProfile: input.showThemeOnProfile ?? true,
+        showLookOnProfile: input.showLookOnProfile ?? true,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,

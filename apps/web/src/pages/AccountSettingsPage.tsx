@@ -258,6 +258,8 @@ export function AccountSettingsPage() {
         ...cosmetics,
         itemCosmetics: cosmetics.itemCosmetics ?? {},
         crewCosmetics: cosmetics.crewCosmetics ?? DEFAULT_CREW_COSMETICS,
+        showThemeOnProfile: cosmetics.showThemeOnProfile ?? true,
+        showLookOnProfile: cosmetics.showLookOnProfile ?? true,
       });
       setProfileSettings(response);
       setCosmetics(response.settings);
@@ -868,6 +870,34 @@ export function AccountSettingsPage() {
                 <span>
                   <strong>Reduced motion</strong>
                   <small>Limit interface animation and transitions.</small>
+                </span>
+              </label>
+              <label className="se-checkrow se-checkrow--toggle">
+                <input
+                  type="checkbox"
+                  checked={cosmetics.showThemeOnProfile ?? true}
+                  onChange={(event) => setCosmetics((current) => ({
+                    ...current,
+                    showThemeOnProfile: event.target.checked,
+                  }))}
+                />
+                <span>
+                  <strong>Show my theme on my profile</strong>
+                  <small>Visitors see your profile in your site theme.</small>
+                </span>
+              </label>
+              <label className="se-checkrow se-checkrow--toggle">
+                <input
+                  type="checkbox"
+                  checked={cosmetics.showLookOnProfile ?? true}
+                  onChange={(event) => setCosmetics((current) => ({
+                    ...current,
+                    showLookOnProfile: event.target.checked,
+                  }))}
+                />
+                <span>
+                  <strong>Show my look on my profile</strong>
+                  <small>Visitors see your item and crew collections. Never your counts.</small>
                 </span>
               </label>
             </div>

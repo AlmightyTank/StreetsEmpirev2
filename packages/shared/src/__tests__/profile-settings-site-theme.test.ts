@@ -18,6 +18,26 @@ describe('account profile settings schema', () => {
     expect(result.titlePlacement).toBe('prefix');
     expect(result.itemCosmetics).toEqual({});
     expect(result.crewCosmetics).toEqual({ THUG: 'classic', HOE: 'classic' });
+    expect(result.showThemeOnProfile).toBe(true);
+    expect(result.showLookOnProfile).toBe(true);
+  });
+
+  it('keeps profile showcase toggles a player turns off', () => {
+    const result = updateAccountProfileSettingsSchema.parse({
+      activeTitleKey: null,
+      activeProfileFrameKey: null,
+      featuredBadgeKeys: [],
+      profileAccent: 'default',
+      uiDensity: 'comfortable',
+      reducedMotion: false,
+      moneyFormat: 'full',
+      defaultLanding: 'game',
+      showThemeOnProfile: false,
+      showLookOnProfile: false,
+    });
+
+    expect(result.showThemeOnProfile).toBe(false);
+    expect(result.showLookOnProfile).toBe(false);
   });
 
   it('accepts the released Classic weapon and ride loadout', () => {

@@ -237,6 +237,10 @@ export interface AccountProfileSettingsDto {
   itemCosmetics?: ItemCosmeticLoadout;
   /** Whole-crew visual style for thugs and hoes. Optional for backward-compatible clients. */
   crewCosmetics?: CrewCosmeticLoadout;
+  /** Slice E. Visitors see this player's site theme on their profile. Optional for older clients. */
+  showThemeOnProfile?: boolean;
+  /** Slice E. Visitors see this player's item and crew look on their profile. Optional for older clients. */
+  showLookOnProfile?: boolean;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;

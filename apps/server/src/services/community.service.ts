@@ -28,6 +28,7 @@ import { selectProfileBadges } from './profile-badges.js';
 import { isBuiltInProfileTitle, profileTitleForAward, profileTitleForKey } from './profile-titles.js';
 import { TurfHistoryService } from './turf-history.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { profileShowcase } from './profile-showcase.service.js';
 import { seasonFeatAwards, type FeatSeason } from './season-feats.js';
 import { emptySeasonTotals, SeasonStatsService, toStatSheet, type SeasonTotals } from './season-stats.service.js';
 
@@ -1036,6 +1037,7 @@ export const CommunityService = {
     const frame = frameOptions.some((option) => option.key === profileSettings?.activeProfileFrameKey)
       ? profileSettings!.activeProfileFrameKey
       : null;
+    const showcase = await profileShowcase(prisma, player.accountId, profileSettings);
 
     return {
       forumProfileUrl: forumLink ? forumProfileUrl(forumLink) : null,
@@ -1058,7 +1060,10 @@ export const CommunityService = {
           : 'none',
         imageUrl: profileSettings?.profileImageUrl ?? null,
         bannerUrl: profileSettings?.profileBannerUrl ?? null,
+        siteTheme: showcase.siteTheme,
+        siteThemeLabel: showcase.siteThemeLabel,
       },
+      look: showcase.look,
       experience: playerExperienceDto(player.account.experiencePoints),
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,

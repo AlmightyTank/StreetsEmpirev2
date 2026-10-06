@@ -3,6 +3,67 @@
   gap: 16px;
 }
 
+/* Slice E: a visitor sees the owner's site theme on this page only. The theme
+   class on this element rescopes the theme tokens and panel styles; Shell drops
+   the viewer's own theme from the app root meanwhile. */
+.se-profile--themed {
+  color: var(--se-text);
+  background-color: var(--se-bg);
+  border: 1px solid var(--se-line);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.se-profile-themebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--se-line-soft, var(--se-line));
+  border-radius: 8px;
+  background: rgba(var(--se-accent-rgb, 125, 211, 252), 0.08);
+  color: var(--se-text-dim);
+  font-size: 13px;
+}
+
+.se-profile-look {
+  display: grid;
+  gap: 12px;
+}
+
+.se-profile-look__groups {
+  display: grid;
+  gap: 12px;
+}
+
+.se-profile-look__collections,
+.se-profile-look__group {
+  display: grid;
+  gap: 6px;
+}
+
+.se-profile-look__label {
+  color: var(--se-text-dim);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.se-profile-look__tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .se-profile--themed {
+    padding: 10px;
+    border-radius: 10px;
+  }
+}
+
 .se-profile-hero {
   position: relative;
   overflow: hidden;

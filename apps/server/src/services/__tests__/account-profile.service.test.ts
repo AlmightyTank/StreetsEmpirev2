@@ -57,6 +57,8 @@ const updateInput: UpdateAccountProfileSettingsInput = {
   activeSiteThemeKey: 'neon-vice',
   itemCosmetics: {},
   crewCosmetics: { THUG: 'classic', HOE: 'classic' },
+  showThemeOnProfile: true,
+  showLookOnProfile: true,
   featuredBadgeKeys: [],
   profileAccent: 'default',
   uiDensity: 'comfortable',
@@ -213,5 +215,28 @@ describe('AccountProfileService Street Pass collection unlocks', () => {
     const response = await AccountProfileService.settings(prismaFor(true), 'account-1');
 
     expect(response.options.itemStyles?.every((option) => !option.locked)).toBe(true);
+  });
+});
+
+describe('AccountProfileService profile showcase toggles', () => {
+  beforeEach(() => {
+    vi.mocked(RoundService.getCurrent).mockResolvedValue(null);
+  });
+
+  it('defaults both toggles on and saves a player turning them off', async () => {
+    const prisma = prismaFor(false);
+    expect((await AccountProfileService.settings(prisma, 'account-1')).settings).toMatchObject({
+      showThemeOnProfile: true,
+      showLookOnProfile: true,
+    });
+
+    const saved = await AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: null,
+      showThemeOnProfile: false,
+      showLookOnProfile: false,
+    });
+
+    expect(saved.settings).toMatchObject({ showThemeOnProfile: false, showLookOnProfile: false });
   });
 });
