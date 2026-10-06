@@ -45,5 +45,5 @@ The public profile only ever shows what the account has earned:
 
 ## Later
 
+- Hover cards, rankings and the player directory: done in [Slice F](COSMETIC-ART-SLICE-F.md).
 - The owner's item art in combat reports when you fight them.
-- A themed accent on leaderboard and player-list rows, and on profile hover cards.
