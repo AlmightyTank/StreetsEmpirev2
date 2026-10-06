@@ -20,6 +20,7 @@ import { productTradeSchema, type GameActionResult, type ProductsDto, type Produ
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
+import { FactionService } from './faction.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
@@ -88,6 +89,8 @@ export const ProductMarketService = {
     const favorBonuses = await TimedFavorService.bonuses(prisma, roundPlayerId, ruleset, now);
     const relationship = relationshipPriceAdjustments(standings.PIP?.points ?? 0, ruleset, 'PIP');
     const effects = readRacketEffects(player.racketEffects);
+    // 1.4.0-D: Connected with the Cartel Line, Pip shades his buy price.
+    const nudge = await FactionService.nudge(prisma, roundPlayerId, ruleset, 'PIP_PRODUCT');
 
     return {
       enabled: true,
@@ -107,7 +110,7 @@ export const ProductMarketService = {
         const requiredUnlock = PermanentUnlockService.productPurchaseUnlock(ruleset, key);
         const purchaseUnlocked = !requiredUnlock || unlockKeys.has(requiredUnlock.key);
         const effectiveBuyCents = quote
-          ? discountedPipBuyCents(quote.buyCents, sellCents, relationship.buyDiscountPercent + favorBonuses.pipBuyDiscountPercent)
+          ? discountedPipBuyCents(quote.buyCents, sellCents, relationship.buyDiscountPercent + favorBonuses.pipBuyDiscountPercent + (nudge?.percent ?? 0))
           : 0;
         return {
           key,
@@ -138,6 +141,7 @@ export const ProductMarketService = {
               ...(favorBonuses.pipBuyDiscountPercent > 0 ? { favorDiscountPercent: favorBonuses.pipBuyDiscountPercent } : {}),
               ...(relationship.buyDiscountPercent > 0 ? { relationshipBuyDiscountPercent: relationship.buyDiscountPercent } : {}),
               ...(relationship.sellBonusPercent > 0 ? { relationshipSellBonusPercent: relationship.sellBonusPercent } : {}),
+              ...(nudge ? { factionDiscount: { factionKey: nudge.factionKey, factionName: ruleset.factions?.[nudge.factionKey]?.name ?? nudge.factionKey, percent: nudge.percent } } : {}),
               unlockName: requiredUnlock?.name ?? null,
               unlockDescription: requiredUnlock?.description ?? null,
             } : null,
@@ -188,10 +192,16 @@ export const ProductMarketService = {
         // 1.1.0-C: Ecstasy demand and the like pay a little more on top of standing.
         const racketBonus = racketStorePrice(ruleset, readRacketEffects(player.racketEffects), 'PIP', input.product).sellBonusPercent;
         const sellUnitCents = boostedSellCents(quote.sellCents, quote.buyCents, relationship.sellBonusPercent + racketBonus) ?? quote.sellCents;
-        const buyUnitCents = discountedPipBuyCents(
+        const nudge = input.direction === 'buy' ? await FactionService.nudge(tx, roundPlayerId, ruleset, 'PIP_PRODUCT') : null;
+        const unnudgedBuyCents = discountedPipBuyCents(
           quote.buyCents,
           sellUnitCents,
           relationship.buyDiscountPercent + favorBonuses.pipBuyDiscountPercent,
+        );
+        const buyUnitCents = discountedPipBuyCents(
+          quote.buyCents,
+          sellUnitCents,
+          relationship.buyDiscountPercent + favorBonuses.pipBuyDiscountPercent + (nudge?.percent ?? 0),
         );
         let trade;
         try {
@@ -229,6 +239,15 @@ export const ProductMarketService = {
           }
         }
 
+        // 1.4.0-D: the Cartel Line's cut is logged where it took effect.
+        const savedCents = nudge ? Math.max(0, unnudgedBuyCents - trade.unitCents) * trade.quantity : 0;
+        if (nudge && savedCents > 0) {
+          await FactionService.logNudge(tx, roundPlayerId, nudge, 'PIP_PRODUCT', `product:${input.actionId ?? now.toISOString()}`, { cents: savedCents }, now);
+        }
+        const factionDiscount = nudge && savedCents > 0
+          ? { factionKey: nudge.factionKey, factionName: ruleset.factions?.[nudge.factionKey]?.name ?? nudge.factionKey, percent: nudge.percent, savedCents }
+          : null;
+
         // Being a regular at Pip's counts the same whichever product you trade.
         const credit = creditDailyTrade(standings.PIP, now, ruleset);
         const result: ProductTradeResult = {
@@ -245,6 +264,7 @@ export const ProductMarketService = {
           ...(input.direction === 'buy' && favorBonuses.pipBuyDiscountPercent > 0
             ? { favorDiscountPercent: favorBonuses.pipBuyDiscountPercent }
             : {}),
+          ...(factionDiscount ? { factionDiscount } : {}),
         };
         return {
           next: { ...current, cashCents: current.cashCents + trade.cashChangeCents },
@@ -268,6 +288,7 @@ export const ProductMarketService = {
               quantity: trade.quantity,
               totalCents: result.totalCents,
               ...(result.favorDiscountPercent ? { favorDiscountPercent: result.favorDiscountPercent } : {}),
+              ...(factionDiscount ? { factionDiscount } : {}),
             },
           },
         };

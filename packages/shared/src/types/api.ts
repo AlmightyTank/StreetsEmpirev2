@@ -710,6 +710,13 @@ export interface HideoutUpgradeResult {
   effect: string;
 }
 
+/** 1.4.0-D. A Connected faction's nudge on a price: who gives it and how much it takes off. */
+export interface FactionDiscountDto {
+  factionKey: string;
+  factionName: string;
+  percent: number;
+}
+
 export interface StoreItemDto {
   unlock: WeaponUnlockDto | null;
   key: string;
@@ -721,6 +728,8 @@ export interface StoreItemDto {
   favorDiscountPercent?: number;
   relationshipBuyDiscountPercent?: number;
   relationshipSellBonusPercent?: number;
+  /** 1.4.0-D. A Connected faction's cut in the buy quote. */
+  factionDiscount?: FactionDiscountDto;
   sellCents: number | null;
   owned: number;
   maxBuy: number;
@@ -909,6 +918,25 @@ export interface FactionStandingDto {
   max: number;
 }
 
+/** 1.4.0-D. One level of a faction's perks: what it is, the tier it opens at, and what it says now. */
+export interface FactionPerkLevelDto {
+  /** Whether the player's standing opens it. */
+  open: boolean;
+  tierName: string;
+  /** What this level gives, e.g. "Where Pip is short". */
+  title: string;
+  /** What the faction is telling the player right now; empty while closed or with nothing to say. */
+  lines: string[];
+}
+
+/** 1.4.0-D. A faction's perks: information at Known, early warnings at Trusted, a nudge at Connected. */
+export interface FactionPerksDto {
+  information: FactionPerkLevelDto;
+  warnings: FactionPerkLevelDto;
+  /** Null for a faction with no nudge. */
+  nudge: (FactionPerkLevelDto & { percent: number }) | null;
+}
+
 /** 1.4.0-A. One underworld faction, as the Jobs page shows it. */
 export interface FactionDto {
   key: string;
@@ -926,6 +954,8 @@ export interface FactionDto {
   standing: FactionStandingDto | null;
   /** 1.4.0-B. The faction's own Jobs, the tier each opens at, and where the player is with it. */
   jobs: Array<{ key: string; title: string; tierName: string | null; status: string }>;
+  /** 1.4.0-D. What standing with it opens and what it says now. Absent before D. */
+  perks?: FactionPerksDto | null;
 }
 
 export interface PlayerQuestDto {
@@ -1206,6 +1236,8 @@ export interface StoreTradeResult {
   favorKey?: string;
   favorDiscountPercent?: number;
   baseUnitCents?: number;
+  /** 1.4.0-D. A Connected faction's cut on this purchase, and what it saved. */
+  factionDiscount?: FactionDiscountDto & { savedCents: number };
 }
 
 export type StoreCheckoutLineResult = StoreTradeResult;
@@ -1260,6 +1292,8 @@ export interface ProductStockDto {
     favorDiscountPercent?: number;
     relationshipBuyDiscountPercent?: number;
     relationshipSellBonusPercent?: number;
+    /** 1.4.0-D. The Cartel Line's Connected cut in the buy quote. */
+    factionDiscount?: FactionDiscountDto;
   } | null;
   /** 0.4.0-D. Present where Produce can cook it. */
   recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
@@ -1278,6 +1312,8 @@ export interface ProductTradeResult {
   stockAfter: number | null;
   reputationGained: number;
   favorDiscountPercent?: number;
+  /** 1.4.0-D. The Cartel Line's Connected cut on this purchase, and what it saved. */
+  factionDiscount?: FactionDiscountDto & { savedCents: number };
 }
 
 /** GET /api/game/products. Disabled on rounds where Product is still only crack. */

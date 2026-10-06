@@ -572,6 +572,40 @@ export interface ContractSponsorRules {
   readonly knownLean: number;
 }
 
+/**
+ * 1.4.0-D. The one small price or cost a faction shades for a player Connected with it, each
+ * inside a system that already exists:
+ * - CORNER_UPKEEP: the beer and product a held corner burns (The Kings).
+ * - TOMMY_WEAPONS: what Tommy charges for guns (The Outfit).
+ * - BODYGUARD_TICKETS: the plane tickets for bodyguards flying with the boss (Road Saints MC).
+ * - PIP_PRODUCT: what Pip charges for product, at his store and his counter (The Cartel Line).
+ * - OFFICIAL_EXPOSURE: the Internal Affairs exposure each official's favor adds (Civic Handshake).
+ */
+export type FactionNudgeKind = 'CORNER_UPKEEP' | 'TOMMY_WEAPONS' | 'BODYGUARD_TICKETS' | 'PIP_PRODUCT' | 'OFFICIAL_EXPOSURE';
+
+/**
+ * 1.4.0-D. Faction perks. Known with a faction brings its information, Trusted its early
+ * warnings, and Connected its nudge: a small whole percentage off one thing, capped by the
+ * validator. Every warning reads the player's own state or the round's public schedule, never
+ * another player's.
+ */
+export interface FactionPerkRules {
+  /** Each faction's Connected nudge. A faction left out has none. */
+  readonly nudges: Readonly<Partial<Record<FactionKey, { readonly kind: FactionNudgeKind; readonly percent: number }>>>;
+  readonly warnings: {
+    /** The Kings: hours ahead they warn a corner will run dry, or a held block's shield ends. */
+    readonly cornerLeadHours: number;
+    /** The Outfit: hours before the crackdown's public warning they say where it lands. */
+    readonly sweepLeadHours: number;
+    /** Road Saints MC: a run's next road is hot at or above this stop chance (0..1). */
+    readonly hotRoadChance: number;
+    /** The Cartel Line: hours ahead they hear of a drought, or of Pip running out. */
+    readonly supplyLeadHours: number;
+    /** Civic Handshake: Case points short of the next stage at which they warn. */
+    readonly stageLeadPoints: number;
+  };
+}
+
 /** 1.4.0-B2 contract board rotation. */
 export interface ContractRotationRules {
   /**
@@ -2696,6 +2730,8 @@ export interface Ruleset {
   readonly contractRotation?: ContractRotationRules;
   /** 1.4.0-C. Board contracts carry a sponsoring faction and pay it standing. */
   readonly contractSponsors?: ContractSponsorRules;
+  /** 1.4.0-D. Information, warnings and a capped nudge per faction, by standing tier. */
+  readonly factionPerks?: FactionPerkRules;
   /** Permanent per-round capabilities earned through Jobs. */
   readonly permanentUnlocks?: PermanentUnlockCatalog;
   /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */

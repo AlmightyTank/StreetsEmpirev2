@@ -992,6 +992,8 @@ export interface TripPanelDto {
       max: number;
       ticketCents: number;
       lodgingCentsPerThugHour: number;
+      /** 1.4.0-D. Road Saints' Connected cut, already taken off `ticketCents`. */
+      factionDiscount?: { factionKey: string; factionName: string; percent: number; fullTicketCents: number };
       gunRentCents: { PISTOL: number; SHOTGUN: number; TEK9: number; AK47: number };
     } | null;
   };

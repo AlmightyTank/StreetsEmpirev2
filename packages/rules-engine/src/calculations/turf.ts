@@ -130,13 +130,17 @@ export function canClaim(
   return presence >= rules.presence.turnsToClaim && armedFitThugs >= cornerMinimumFor(ruleset, district, crewThugs);
 }
 
-/** Beer and product a corner crew burns standing there for `hours`. */
-export function cornerUpkeep(ruleset: Ruleset, thugs: number, hours: number): { beer: number; product: number } {
+/**
+ * Beer and product a corner crew burns standing there for `hours`. `cutPercent` (1.4.0-D, the
+ * Kings' Connected nudge) takes a whole percent off the burn rate before rounding up.
+ */
+export function cornerUpkeep(ruleset: Ruleset, thugs: number, hours: number, cutPercent = 0): { beer: number; product: number } {
   const corner = ruleset.turf?.corner;
   if (!corner || thugs <= 0 || hours <= 0) return { beer: 0, product: 0 };
+  const keep = 1 - Math.min(100, Math.max(0, cutPercent)) / 100;
   return {
-    beer: Math.ceil(thugs * corner.beerPerThugPerHour * hours),
-    product: Math.ceil(thugs * corner.productPerThugPerHour * hours),
+    beer: Math.ceil(thugs * corner.beerPerThugPerHour * hours * keep),
+    product: Math.ceil(thugs * corner.productPerThugPerHour * hours * keep),
   };
 }
 

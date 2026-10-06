@@ -4,6 +4,7 @@ import {
   crossesIaLine,
   lawPriceCents,
   loadRulesetForRound,
+  nudgedAmount,
   rulesetForCity,
   type Ruleset,
 } from '@streets/rules-engine';
@@ -14,6 +15,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
 import { ActivityService } from './activity.service.js';
 import { LawService } from './law.service.js';
+import { FactionService } from './faction.service.js';
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -63,7 +65,13 @@ export const LawOfficialService = {
   async favor(tx: Db, ruleset: Ruleset, official: PlayerOfficial, favor: OfficialFavor, now: Date, times = 1): Promise<void> {
     const rules = ruleset.law?.officials;
     if (!rules) return;
-    const added = Math.round(rules.exposure.perFavor[favor] * times);
+    const raw = Math.round(rules.exposure.perFavor[favor] * times);
+    // 1.4.0-D: Connected with Civic Handshake, each favor leaves a little less of a trail.
+    const nudge = await FactionService.nudge(tx, official.roundPlayerId, ruleset, 'OFFICIAL_EXPOSURE');
+    const added = nudge ? nudgedAmount(raw, nudge.percent) : raw;
+    if (nudge && raw > added) {
+      await FactionService.logNudge(tx, official.roundPlayerId, nudge, 'OFFICIAL_EXPOSURE', `exposure:${official.id}:${favor}:${official.exposure}:${now.toISOString()}`, { exposure: raw - added }, now);
+    }
     if (added <= 0) return;
     const opens = !official.iaOpenedAt && crossesIaLine(official.exposure, added, rules);
     const stingAt = new Date(now.getTime() + rules.exposure.iaWarningHours * HOUR_MS);

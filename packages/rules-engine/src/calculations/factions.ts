@@ -3,6 +3,7 @@ import {
   contractBoard,
   jobHelpedFactions,
   type FactionKey,
+  type FactionNudgeKind,
   type FactionStandingRules,
   type FactionTier,
   type QuestBranchDefinition,
@@ -152,4 +153,67 @@ export function contractStanding(
 ): number {
   if (!board || !ruleset.factionStanding) return 0;
   return Math.max(0, Math.round(ruleset.contractSponsors?.standing[board] ?? 0));
+}
+
+/**
+ * 1.4.0-D. What standing opens: a faction's information at Known, its early warnings at Trusted,
+ * and its nudge at Connected. Each level keeps the ones below it.
+ */
+export type FactionPerkLevel = 'INFORMATION' | 'WARNINGS' | 'NUDGE';
+
+export const FACTION_PERK_TIERS: Readonly<Record<FactionPerkLevel, FactionTier>> = {
+  INFORMATION: 'KNOWN',
+  WARNINGS: 'TRUSTED',
+  NUDGE: 'CONNECTED',
+};
+
+/** 1.4.0-D. Whether a tier opens a perk level. */
+export function factionPerkOpen(tier: FactionTier | undefined, level: FactionPerkLevel): boolean {
+  return factionTierRank(tier ?? 'UNKNOWN') >= factionTierRank(FACTION_PERK_TIERS[level]);
+}
+
+export interface FactionNudge {
+  factionKey: FactionKey;
+  percent: number;
+}
+
+/**
+ * 1.4.0-D. The nudge of a kind a player has: the faction that gives it, and its whole percent,
+ * when they are Connected or above with it. Null in a ruleset without perks or below Connected.
+ */
+export function factionNudge(
+  ruleset: Pick<Ruleset, 'factionPerks' | 'factionStanding'>,
+  tiers: Readonly<Partial<Record<FactionKey, FactionTier>>>,
+  kind: FactionNudgeKind,
+): FactionNudge | null {
+  const perks = ruleset.factionPerks;
+  if (!perks || !ruleset.factionStanding) return null;
+  for (const [factionKey, nudge] of Object.entries(perks.nudges) as Array<[FactionKey, { kind: FactionNudgeKind; percent: number }]>) {
+    if (nudge?.kind !== kind || !factionPerkOpen(tiers[factionKey], 'NUDGE')) continue;
+    return { factionKey, percent: Math.min(100, Math.max(0, Math.round(nudge.percent))) };
+  }
+  return null;
+}
+
+/** 1.4.0-D. A whole amount with a nudge's percent taken off, rounded to the nearest whole. */
+export function nudgedAmount(amount: number, percent: number): number {
+  return Math.round(amount * (100 - Math.min(100, Math.max(0, percent))) / 100);
+}
+
+/** 1.4.0-D. A cents amount with a nudge's percent taken off, rounding the saving down. */
+export function nudgedCents(cents: bigint, percent: number): bigint {
+  const whole = BigInt(Math.min(100, Math.max(0, Math.round(percent))));
+  return cents - (cents * whole) / 100n;
+}
+
+const TOMMY_GUNS: readonly string[] = ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47'];
+
+/**
+ * 1.4.0-D. The nudge a store purchase can take: Tommy's guns (never his thugs) for The Outfit,
+ * and anything Pip sells for The Cartel Line. Null for every other store and item.
+ */
+export function storeNudgeKind(store: string, item: string): Extract<FactionNudgeKind, 'TOMMY_WEAPONS' | 'PIP_PRODUCT'> | null {
+  if (store === 'TOMMY' && TOMMY_GUNS.includes(item)) return 'TOMMY_WEAPONS';
+  if (store === 'PIP') return 'PIP_PRODUCT';
+  return null;
 }

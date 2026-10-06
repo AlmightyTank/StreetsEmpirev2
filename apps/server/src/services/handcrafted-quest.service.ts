@@ -36,6 +36,7 @@ import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { addContactRep, grantRewards, rewardDto } from './reward-grant.service.js';
 import { FactionService } from './faction.service.js';
+import { FactionPerkService } from './faction-perk.service.js';
 import { contractSponsor } from './contract-sponsor.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
 import {
@@ -697,6 +698,8 @@ export const HandcraftedQuestService = {
         };
       });
       const standings = await FactionService.standings(tx, roundPlayerId, ruleset);
+      // 1.4.0-D: what standing opens with each faction, and what it says right now.
+      const perks = await FactionPerkService.perks(tx, roundPlayerId, ruleset);
       const factions = ruleset.factions ? Object.values(ruleset.factions).flatMap((faction) => faction ? [{
         key: faction.key,
         name: faction.name,
@@ -714,6 +717,7 @@ export const HandcraftedQuestService = {
           const row = rows.find((candidate) => candidate.questDefinition.key === definition.key);
           return [{ key: definition.key, title: definition.title, tierName: tier ? factionTierName(tier) : null, status: row?.status ?? 'LOCKED' }];
         }),
+        ...(ruleset.factionPerks ? { perks: perks.get(faction.key) ?? null } : {}),
       }] : []) : null;
       const unlockRows = await tx.playerUnlock.findMany({
         where: { roundPlayerId },

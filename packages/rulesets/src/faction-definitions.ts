@@ -1,8 +1,14 @@
-import type { ContactKey, FactionKey, QuestBranchDefinition, QuestDefinition, Ruleset, SponsoredBoard } from './types.js';
+import type { ContactKey, FactionKey, FactionNudgeKind, QuestBranchDefinition, QuestDefinition, Ruleset, SponsoredBoard } from './types.js';
 
 type FactionView = Pick<Ruleset, 'factions' | 'contacts'>;
 
 const TIERS = ['KNOWN', 'TRUSTED', 'CONNECTED', 'INNER_CIRCLE'];
+
+/** 1.4.0-D. The nudges a faction can give at Connected. */
+export const FACTION_NUDGE_KINDS: readonly FactionNudgeKind[] = ['CORNER_UPKEEP', 'TOMMY_WEAPONS', 'BODYGUARD_TICKETS', 'PIP_PRODUCT', 'OFFICIAL_EXPOSURE'];
+
+/** 1.4.0-D. No faction nudge may take off more than this share, in whole percent. */
+export const FACTION_NUDGE_CAP_PERCENT = 10;
 
 /** The faction a contact works for, if any. */
 export function contactFaction(ruleset: FactionView, contactKey: string | null | undefined): FactionKey | undefined {
@@ -74,7 +80,7 @@ export function sponsorCandidates(
  * catalog or says why it is independent (never both), every rivalry is listed on both sides,
  * and no faction is its own rival. Rulesets without factions have nothing to check.
  */
-export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' | 'questDefinitions'> & Partial<Pick<Ruleset, 'contractSponsors'>>): string[] {
+export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' | 'questDefinitions'> & Partial<Pick<Ruleset, 'contractSponsors' | 'factionPerks' | 'factionStanding'>>): string[] {
   const factions = ruleset.factions;
   if (!factions) return [];
   const problems: string[] = [];
@@ -143,6 +149,28 @@ export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' |
       for (const candidate of candidates) if (!keys.has(candidate)) problems.push(`Sponsor lane ${lane} names unknown faction ${candidate}.`);
     }
     if (!(sponsors.knownLean >= 0)) problems.push('The sponsor lean must not be negative.');
+  }
+
+  // 1.4.0-D: every nudge is small, capped, whole, and one per kind; warnings look ahead sanely.
+  const perks = ruleset.factionPerks;
+  if (perks) {
+    if (!ruleset.factionStanding) problems.push('Faction perks need faction standing.');
+    const kinds = new Set<string>();
+    for (const [key, nudge] of Object.entries(perks.nudges)) {
+      if (!nudge) continue;
+      if (!keys.has(key)) problems.push(`Nudge names unknown faction ${key}.`);
+      if (!(FACTION_NUDGE_KINDS as readonly string[]).includes(nudge.kind)) problems.push(`${key} has an unknown nudge ${nudge.kind}.`);
+      if (kinds.has(nudge.kind)) problems.push(`Two factions share the ${nudge.kind} nudge.`);
+      kinds.add(nudge.kind);
+      if (!Number.isSafeInteger(nudge.percent) || nudge.percent <= 0 || nudge.percent > FACTION_NUDGE_CAP_PERCENT) {
+        problems.push(`${key}'s nudge must be a whole percent from 1 to ${FACTION_NUDGE_CAP_PERCENT}.`);
+      }
+    }
+    const warnings = perks.warnings;
+    for (const [name, value] of Object.entries({ cornerLeadHours: warnings.cornerLeadHours, sweepLeadHours: warnings.sweepLeadHours, supplyLeadHours: warnings.supplyLeadHours, stageLeadPoints: warnings.stageLeadPoints })) {
+      if (!(value > 0) || value > 72) problems.push(`Warning ${name} must be above 0 and at most 72.`);
+    }
+    if (!(warnings.hotRoadChance > 0 && warnings.hotRoadChance < 1)) problems.push('A hot road must be a stop chance between 0 and 1.');
   }
 
   for (const faction of Object.values(factions)) {

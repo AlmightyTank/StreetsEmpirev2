@@ -1209,6 +1209,7 @@ model RoundPlayer {
   caseReceipts           PlayerCaseReceipt[]
   factionStandings       PlayerFactionStanding[]
   factionReceipts        PlayerFactionReceipt[]
+  factionPerkUses        PlayerFactionPerkUse[]
   warrants               PlayerWarrant[]
   /// 1.3.0-D. Corrupt officials on the payroll, and tips bought from informants.
   officials              PlayerOfficial[]
@@ -3585,6 +3586,29 @@ model PlayerFactionReceipt {
   delta       Int
   pointsAfter Int
   tierAfter   String
+
+  createdAt DateTime @default(now())
+
+  @@unique([roundPlayerId, sourceKey])
+  @@index([roundPlayerId, factionKey, createdAt])
+}
+
+/// 1.4.0-D. A Connected nudge taking effect: which faction, which nudge, the percent the ruleset
+/// pinned, and what it saved. Keyed on the act it applied to, so a retried action or a re-run
+/// settle never logs twice. Read-only to play; G's admin view audits it.
+model PlayerFactionPerkUse {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  factionKey String
+  /// CORNER_UPKEEP, TOMMY_WEAPONS, BODYGUARD_TICKETS, PIP_PRODUCT or OFFICIAL_EXPOSURE.
+  kind       String
+  sourceKey  String
+  percent    Int
+  /// What it saved: { cents }, { beer, product } or { exposure }.
+  saved      Json
 
   createdAt DateTime @default(now())
 

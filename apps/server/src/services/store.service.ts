@@ -16,9 +16,11 @@ import {
   type Standings,
   racketStorePrice,
   readRacketEffects,
+  storeNudgeKind,
+  type FactionNudge,
   type RacketEffects,
 } from '@streets/rules-engine';
-import type { HideoutRoomKey, SingleUseFavorEffect, StoreKey, StoreRelationshipPerk, TraderKey } from '@streets/rulesets';
+import type { FactionNudgeKind, HideoutRoomKey, SingleUseFavorEffect, StoreKey, StoreRelationshipPerk, TraderKey } from '@streets/rulesets';
 import type {
   GameActionResult,
   StoreCheckoutInput,
@@ -47,6 +49,8 @@ import { TurfService } from './turf.service.js';
 import { ProductInventoryService, productKeys } from './product-inventory.service.js';
 import { HighMarketService } from './high-market.service.js';
 import { marketPrice } from './run-settle.service.js';
+import { FactionService } from './faction.service.js';
+import type { Db } from '../utils/db.js';
 
 type CatalogPlayer = RoundPlayer & { city: { slug: string } };
 
@@ -355,6 +359,47 @@ function normalizeStoreLine(
   };
 }
 
+/** 1.4.0-D. The store nudges this player has: The Outfit on Tommy's guns, The Cartel Line on Pip. */
+type StoreNudges = Partial<Record<'TOMMY_WEAPONS' | 'PIP_PRODUCT', FactionNudge | null>>;
+
+async function storeNudges(db: Db, roundPlayerId: string, ruleset: Ruleset): Promise<StoreNudges> {
+  if (!ruleset.factionPerks) return {};
+  return {
+    TOMMY_WEAPONS: await FactionService.nudge(db, roundPlayerId, ruleset, 'TOMMY_WEAPONS'),
+    PIP_PRODUCT: await FactionService.nudge(db, roundPlayerId, ruleset, 'PIP_PRODUCT'),
+  };
+}
+
+function storeNudgeFor(nudges: StoreNudges, store: string, item: string): FactionNudge | null {
+  const kind = storeNudgeKind(store, item);
+  return kind ? nudges[kind] ?? null : null;
+}
+
+function factionDiscountDto(ruleset: Ruleset, nudge: FactionNudge) {
+  return { factionKey: nudge.factionKey, factionName: ruleset.factions?.[nudge.factionKey]?.name ?? nudge.factionKey, percent: nudge.percent };
+}
+
+/**
+ * 1.4.0-D. Log a store nudge where it took effect: what the purchase would have cost without it,
+ * less what it did cost. Returns the receipt line for the result, or null when it saved nothing.
+ */
+async function logStoreNudge(
+  tx: Db,
+  roundPlayerId: string,
+  ruleset: Ruleset,
+  quote: { nudge?: FactionNudge; nudgeKind?: FactionNudgeKind; unnudgedBuyCents?: number },
+  unitCents: number,
+  quantity: number,
+  sourceKey: string,
+  now: Date,
+): Promise<(ReturnType<typeof factionDiscountDto> & { savedCents: number }) | null> {
+  if (!quote.nudge || !quote.nudgeKind || quote.unnudgedBuyCents === undefined) return null;
+  const savedCents = Math.max(0, quote.unnudgedBuyCents - unitCents) * quantity;
+  if (savedCents <= 0) return null;
+  await FactionService.logNudge(tx, roundPlayerId, quote.nudge, quote.nudgeKind, sourceKey, { cents: savedCents }, now);
+  return { ...factionDiscountDto(ruleset, quote.nudge), savedCents };
+}
+
 function quoteForLine(
   ruleset: Ruleset,
   standings: Standings,
@@ -362,12 +407,17 @@ function quoteForLine(
   foundStore: ReturnType<typeof findStore>,
   input: StoreCheckoutLineInput,
   effects: RacketEffects = {},
+  nudges: StoreNudges = {},
 ): {
   buyUnitCents?: number;
   sellUnitCents?: number | null;
   favorApplies: boolean;
   relationshipBuyDiscountPercent: number;
   relationshipSellBonusPercent: number;
+  /** 1.4.0-D. The faction nudge in the buy quote, and the buy quote without it. */
+  nudge?: FactionNudge;
+  nudgeKind?: FactionNudgeKind;
+  unnudgedBuyCents?: number;
 } {
   if (!foundStore) return { favorApplies: false, relationshipBuyDiscountPercent: 0, relationshipSellBonusPercent: 0 };
   const storeItem = Object.hasOwn(foundStore.store.items, input.item)
@@ -385,13 +435,20 @@ function quoteForLine(
     && discount.effect.storeKey === foundStore.key
     && discount.effect.itemKeys.includes(input.item),
   );
-  const buyDiscountPercent = relationship.buyDiscountPercent + racket.buyDiscountPercent + (favorApplies ? discount!.effect.discountPercent : 0);
+  const nudge = input.direction === 'buy' ? storeNudgeFor(nudges, foundStore.key, input.item) : null;
+  const unnudgedPercent = relationship.buyDiscountPercent + racket.buyDiscountPercent + (favorApplies ? discount!.effect.discountPercent : 0);
+  const buyDiscountPercent = unnudgedPercent + (nudge?.percent ?? 0);
   const buyUnitCents = buyDiscountPercent > 0
     ? discountedBuyCents(storeItem.buyCents, sellUnitCents, buyDiscountPercent)
     : undefined;
   return {
     ...(buyUnitCents !== undefined ? { buyUnitCents } : {}),
     ...(sellUnitCents !== storeItem.sellCents ? { sellUnitCents } : {}),
+    ...(nudge ? {
+      nudge,
+      nudgeKind: storeNudgeKind(foundStore.key, input.item) ?? undefined,
+      unnudgedBuyCents: unnudgedPercent > 0 ? discountedBuyCents(storeItem.buyCents, sellUnitCents, unnudgedPercent) : storeItem.buyCents,
+    } : {}),
     favorApplies,
     relationshipBuyDiscountPercent: relationship.buyDiscountPercent,
     relationshipSellBonusPercent: relationship.sellBonusPercent,
@@ -421,6 +478,7 @@ export const StoreService = {
     const armed = await SingleUseFavorService.matching(prisma, roundPlayerId, ruleset, 'STORE_BUY_DISCOUNT');
     const discount = armed?.effect.kind === 'STORE_BUY_DISCOUNT' ? armed.effect : null;
     const effects = readRacketEffects(options.playerRow?.racketEffects);
+    const nudges = await storeNudges(prisma, roundPlayerId, ruleset);
     let incomingShipments = 0;
     const ordered = await openSpecialOrders(prisma, roundPlayerId, now);
     const stores = Object.entries(ruleset.stores).map(([key, store]) => {
@@ -452,7 +510,8 @@ export const StoreService = {
             && discount.storeKey === key
             && discount.itemKeys.includes(itemKey),
           );
-          const buyDiscountPercent = relationship.buyDiscountPercent + racket.buyDiscountPercent + (favorApplies ? discount!.discountPercent : 0);
+          const nudge = storeNudgeFor(nudges, key, itemKey);
+          const buyDiscountPercent = relationship.buyDiscountPercent + racket.buyDiscountPercent + (favorApplies ? discount!.discountPercent : 0) + (nudge?.percent ?? 0);
           const quotedBuyCents = buyDiscountPercent > 0
             ? discountedBuyCents(item.buyCents, quotedSellCents, buyDiscountPercent)
             : item.buyCents;
@@ -473,6 +532,7 @@ export const StoreService = {
             } : {}),
             ...(relationship.buyDiscountPercent > 0 ? { relationshipBuyDiscountPercent: relationship.buyDiscountPercent } : {}),
             ...(relationship.sellBonusPercent > 0 ? { relationshipSellBonusPercent: relationship.sellBonusPercent } : {}),
+            ...(nudge ? { factionDiscount: factionDiscountDto(ruleset, nudge) } : {}),
             owned: player[item.field],
             unlock: item.unlockKey
               ? weaponUnlockProgress(player, standings, item.unlockKey, ruleset)
@@ -552,7 +612,7 @@ export const StoreService = {
         const storeItem = foundStore && Object.hasOwn(foundStore.store.items, normalizedItem)
           ? foundStore.store.items[normalizedItem]
           : undefined;
-        const quote = quoteForLine(ruleset, standings, discount, foundStore, normalizedInput, readRacketEffects(player.racketEffects));
+        const quote = quoteForLine(ruleset, standings, discount, foundStore, normalizedInput, readRacketEffects(player.racketEffects), await storeNudges(tx, roundPlayerId, ruleset));
 
         let trade;
         try {
@@ -579,6 +639,7 @@ export const StoreService = {
         const credit = creditDailyTrade(standings[trader], now, ruleset);
 
         if (discount && quote.favorApplies) await SingleUseFavorService.consume(tx, discount.id);
+        const nudged = await logStoreNudge(tx, roundPlayerId, ruleset, quote, trade.unitCents, input.quantity, `store:${input.actionId ?? now.toISOString()}`, now);
 
         const result: StoreTradeResult = {
           ...priced, direction: input.direction, quantity: input.quantity,
@@ -589,6 +650,7 @@ export const StoreService = {
             favorDiscountPercent: discount.effect.discountPercent,
             baseUnitCents: storeItem?.buyCents,
           } : {}),
+          ...(nudged ? { factionDiscount: nudged } : {}),
         };
         return {
           next: {
@@ -621,6 +683,7 @@ export const StoreService = {
               totalCents: result.totalCents,
               ...(result.favorKey ? { favorKey: result.favorKey } : {}),
               ...(result.favorDiscountPercent ? { favorDiscountPercent: result.favorDiscountPercent } : {}),
+              ...(nudged ? { factionDiscount: nudged } : {}),
             },
           },
         };
@@ -727,6 +790,7 @@ export const StoreService = {
           ? { id: armed.id, key: armed.key, effect: armed.effect }
           : null;
         let discountApplied = false;
+        const nudges = await storeNudges(tx, roundPlayerId, ruleset);
 
         const next: PlayerState = { ...current };
         const results: StoreTradeResult[] = [];
@@ -736,7 +800,7 @@ export const StoreService = {
 
         for (const [index, line] of input.lines.entries()) {
           const { foundStore, normalized } = normalizeStoreLine(ruleset, line);
-          const quote = quoteForLine(ruleset, standings, discount, foundStore, normalized, readRacketEffects(player.racketEffects));
+          const quote = quoteForLine(ruleset, standings, discount, foundStore, normalized, readRacketEffects(player.racketEffects), nudges);
           let trade;
           try {
             trade = calculateStoreTrade(
@@ -763,6 +827,7 @@ export const StoreService = {
           const storeItem = foundStore && Object.hasOwn(foundStore.store.items, normalized.item)
             ? foundStore.store.items[normalized.item]
             : undefined;
+          const nudged = await logStoreNudge(tx, roundPlayerId, ruleset, quote, trade.unitCents, normalized.quantity, `checkout:${input.actionId ?? now.toISOString()}:${index}`, now);
           const result: StoreTradeResult = {
             ...priced,
             direction: normalized.direction,
@@ -775,6 +840,7 @@ export const StoreService = {
               favorDiscountPercent: discount.effect.discountPercent,
               baseUnitCents: storeItem.buyCents,
             } : {}),
+            ...(nudged ? { factionDiscount: nudged } : {}),
           };
 
           if (quote.favorApplies) discountApplied = true;

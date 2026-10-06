@@ -1,13 +1,15 @@
 import type { Prisma } from '@prisma/client';
 import {
   addStanding,
+  factionNudge,
   factionTier,
   factionTierName,
   factionTierRank,
   nextFactionTier,
+  type FactionNudge,
   type Ruleset,
 } from '@streets/rules-engine';
-import type { FactionKey, FactionTier } from '@streets/rulesets';
+import type { FactionKey, FactionNudgeKind, FactionTier } from '@streets/rulesets';
 import type { FactionStandingDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -83,6 +85,38 @@ export const FactionService = {
       key,
       factionTier(rows.find((row) => row.factionKey === key)?.points ?? 0, rules),
     ]));
+  },
+
+  /**
+   * 1.4.0-D. The Connected nudge of a kind this player has right now, or null. Reads standing
+   * only in a ruleset with perks, so older rounds never pay for the query.
+   */
+  async nudge(db: Db, roundPlayerId: string, ruleset: Ruleset, kind: FactionNudgeKind): Promise<FactionNudge | null> {
+    if (!ruleset.factionPerks || !ruleset.factionStanding) return null;
+    const owner = Object.entries(ruleset.factionPerks.nudges).find(([, nudge]) => nudge?.kind === kind)?.[0] as FactionKey | undefined;
+    if (!owner) return null;
+    const row = await db.playerFactionStanding.findUnique({ where: { roundPlayerId_factionKey: { roundPlayerId, factionKey: owner } }, select: { points: true } });
+    return factionNudge(ruleset, { [owner]: factionTier(row?.points ?? 0, ruleset.factionStanding) }, kind);
+  },
+
+  /**
+   * 1.4.0-D. Log a nudge where it took effect, keyed on the act, with what it saved. Nothing is
+   * logged when it saved nothing, and a retried act never logs twice.
+   */
+  async logNudge(
+    tx: Db,
+    roundPlayerId: string,
+    nudge: FactionNudge,
+    kind: FactionNudgeKind,
+    sourceKey: string,
+    saved: Record<string, number>,
+    now: Date = new Date(),
+  ): Promise<void> {
+    if (!Object.values(saved).some((value) => value > 0)) return;
+    await tx.playerFactionPerkUse.createMany({
+      data: [{ roundPlayerId, factionKey: nudge.factionKey, kind, sourceKey, percent: nudge.percent, saved: json(saved), createdAt: now }],
+      skipDuplicates: true,
+    });
   },
 
   /** The player's standing with every faction in the round, Unknown where there is none yet. */

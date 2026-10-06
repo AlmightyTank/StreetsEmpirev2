@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   formatCents,
   formatNumber,
+  type FactionPerksDto,
   type PlayerQuestDto,
   type QuestPageDto,
 } from '@streets/shared';
@@ -1002,7 +1003,7 @@ export function QuestPage() {
                 {page.factions?.length ? (
                   <div id="factions">
                     <Panel title="Factions" className="se-quests-panel">
-                      <p className="se-hint">The organizations behind your contacts: who works for whom, and who they are up against.{page.factions.some((faction) => faction.standing) ? ' A one-time Job earns standing with the faction it works for, and only the factions it helps; only you can see it. Each faction also has Jobs of its own that open as your standing grows.' : ''}{page.quests.some((quest) => BOARD_TYPES.has(quest.type) && quest.factionStandings.length) ? ' Board contracts are sponsored too: a finished contract pays its sponsor standing, and when work could go to two factions it leans toward one you are Known with.' : ''}</p>
+                      <p className="se-hint">The organizations behind your contacts: who works for whom, and who they are up against.{page.factions.some((faction) => faction.standing) ? ' A one-time Job earns standing with the faction it works for, and only the factions it helps; only you can see it. Each faction also has Jobs of its own that open as your standing grows.' : ''}{page.quests.some((quest) => BOARD_TYPES.has(quest.type) && quest.factionStandings.length) ? ' Board contracts are sponsored too: a finished contract pays its sponsor standing, and when work could go to two factions it leans toward one you are Known with.' : ''}{page.factions.some((faction) => faction.perks) ? ' Standing also opens perks: a faction\'s word on its lane at Known, early warnings at Trusted, and one small saving at Connected.' : ''}</p>
                       <div className="se-quests-contacts">
                         {page.factions.map((faction) => (
                           <div key={faction.key}>
@@ -1032,6 +1033,7 @@ export function QuestPage() {
                                 ))}
                               </ul>
                             ) : null}
+                            {faction.perks ? <FactionPerks perks={faction.perks} /> : null}
                           </div>
                         ))}
                       </div>
@@ -1183,5 +1185,31 @@ export function QuestPage() {
         ) : null}
       </div>
     </GameLayout>
+  );
+}
+
+/** 1.4.0-D. What standing opens with a faction, and what it is telling you right now. */
+function FactionPerks({ perks }: { perks: FactionPerksDto }) {
+  const levels = [
+    { key: 'information', level: perks.information, empty: 'Nothing to tell you right now.' },
+    { key: 'warnings', level: perks.warnings, empty: 'Nothing to warn you about.' },
+    ...(perks.nudge ? [{ key: 'nudge', level: perks.nudge, empty: '' }] : []),
+  ];
+  return (
+    <ul className="se-faction-perks">
+      {levels.map(({ key, level, empty }) => (
+        <li key={key} className={level.open ? 'is-open' : 'is-locked'}>
+          <div className="se-faction-perks__head">
+            <span>{level.title}</span>
+            <span>{level.open ? (key === 'nudge' ? 'Active' : level.tierName) : `Opens at ${level.tierName}`}</span>
+          </div>
+          {level.open && key !== 'nudge' ? (
+            level.lines.length
+              ? <ul>{level.lines.map((line) => <li key={line}>{line}</li>)}</ul>
+              : <p>{empty}</p>
+          ) : null}
+        </li>
+      ))}
+    </ul>
   );
 }

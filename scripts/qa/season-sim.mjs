@@ -6,13 +6,13 @@ import { runSeasonBands, seasonMarkdown } from '@streets/rules-engine';
 const args = process.argv.slice(2);
 let output = null;
 let quiet = false;
-let rulesetId = 'classic-og-v1.4-c2';
+let rulesetId = 'classic-og-v1.4-d';
 let seeds = [1, 2, 3, 4, 5];
 try {
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     if (flag === '--help') {
-      console.log('npm run qa:season -- [--ruleset classic-og-v1.4-c2] [--seeds 1,2,3,4,5] [--output season.md] [--quiet]');
+      console.log('npm run qa:season -- [--ruleset classic-og-v1.4-d] [--seeds 1,2,3,4,5] [--output season.md] [--quiet]');
       process.exit(0);
     }
     if (flag === '--quiet') { quiet = true; continue; }
