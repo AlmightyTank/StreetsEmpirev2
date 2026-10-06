@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV01 } from '@streets/rulesets';
+import { classicOgStreetPassA, classicOgV01, classicOgV14C2 } from '@streets/rulesets';
 
 type Who = { id: string; username: string; cookie: string };
 type RoundStatus = 'SCHEDULED' | 'REGISTRATION' | 'ACTIVE' | 'ENDED';
@@ -90,6 +90,8 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin news, banner, round
       { method: 'POST' as const, url: '/api/admin/rounds/close-expired' },
       { method: 'GET' as const, url: '/api/admin/rounds/some-round/health' },
       { method: 'POST' as const, url: '/api/admin/rounds/some-round/update', payload: { reason: 'Never runs here', name: 'Nope' } },
+      { method: 'GET' as const, url: '/api/admin/rounds/some-round/ruleset-change' },
+      { method: 'POST' as const, url: '/api/admin/rounds/some-round/ruleset', payload: { reason: 'Never runs here', rulesetId: classicOgV01.meta.id } },
     ];
     for (const request of requests) {
       expect((await app.inject({ ...request, headers: headers() })).statusCode, `${request.method} ${request.url} as a guest`).toBe(401);
@@ -187,6 +189,56 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin news, banner, round
 
     const ended = await createRound('ENDED', new Date('2020-01-01T00:00:00.000Z'), new Date('2020-01-29T00:00:00.000Z'));
     const frozen = await post(`/api/admin/rounds/${ended.id}/update`, { reason: 'Rewriting history', name: 'Nope' });
+    expect(frozen.statusCode, frozen.body).toBe(409);
+    expect(frozen.json().error.code).toBe('ROUND_FINISHED');
+  });
+
+  it('moves an unfinished round onto another ruleset, confirming what could break', async () => {
+    const live = await createRound('ACTIVE', new Date('2020-01-01T00:00:00.000Z'), new Date(Date.now() + 10 * DAY));
+    const options = await get(`/api/admin/rounds/${live.id}/ruleset-change`);
+    expect(options.statusCode, options.body).toBe(200);
+    expect(options.json()).toMatchObject({ current: { id: classicOgV01.meta.id, version: classicOgV01.meta.version, available: true }, editable: true, target: null });
+    expect(options.json().rulesets.map((option: { id: string }) => option.id)).toContain(classicOgStreetPassA.meta.id);
+    expect((await get(`/api/admin/rounds/${live.id}/ruleset-change?rulesetId=nope`)).statusCode).toBe(404);
+
+    const preview = await get(`/api/admin/rounds/${live.id}/ruleset-change?rulesetId=${classicOgStreetPassA.meta.id}`);
+    expect(preview.statusCode, preview.body).toBe(200);
+    expect(preview.json().target.changedCount).toBeGreaterThan(0);
+    expect(preview.json().target.warnings.map((warning: { code: string }) => warning.code)).toContain('ROUND_LIVE');
+
+    const url = `/api/admin/rounds/${live.id}/ruleset`;
+    expect((await post(url, { rulesetId: classicOgStreetPassA.meta.id })).statusCode).toBe(400);
+    expect((await post(url, { reason: 'Unknown target', rulesetId: 'nope' })).json().error.code).toBe('UNKNOWN_RULESET');
+    expect((await post(url, { reason: 'Same ruleset', rulesetId: classicOgV01.meta.id })).json().error.code).toBe('NO_CHANGES');
+    const unconfirmed = await post(url, { reason: 'Balance hotfix', rulesetId: classicOgStreetPassA.meta.id });
+    expect(unconfirmed.statusCode, unconfirmed.body).toBe(409);
+    expect(unconfirmed.json().error.code).toBe('RULESET_CHANGE_UNCONFIRMED');
+    expect((await app.prisma.round.findUniqueOrThrow({ where: { id: live.id } })).rulesetId).toBe(classicOgV01.meta.id);
+
+    const changed = await post(url, { reason: 'Balance hotfix', rulesetId: classicOgStreetPassA.meta.id, confirm: true });
+    expect(changed.statusCode, changed.body).toBe(200);
+    expect(changed.json().round).toMatchObject({ id: live.id, status: 'ACTIVE', rulesetId: classicOgStreetPassA.meta.id, rulesetVersion: classicOgStreetPassA.meta.version });
+    expect(await app.prisma.turf.count({ where: { roundId: live.id } })).toBeGreaterThan(0);
+    const audit = await app.prisma.adminAuditLog.findFirstOrThrow({ where: { targetId: live.id, action: 'round.ruleset.change' } });
+    expect(audit).toMatchObject({ reason: 'Balance hotfix' });
+    expect((audit.before as { rulesetId: string }).rulesetId).toBe(classicOgV01.meta.id);
+    expect((audit.after as { confirmedWarnings: string[] }).confirmedWarnings).toContain('ROUND_LIVE');
+
+    const tiers = classicOgStreetPassA.streetPass!.tiers.map((tier) => ({ tier: tier.tier, rewards: [{ kind: 'CASH', amount: 100 }] }));
+    const scheduled = await createRound('SCHEDULED', new Date(Date.now() + 10 * DAY), new Date(Date.now() + 38 * DAY));
+    await app.prisma.round.update({
+      where: { id: scheduled.id },
+      data: { rulesetId: classicOgStreetPassA.meta.id, rulesetVersion: classicOgStreetPassA.meta.version, streetPassOverride: { ...classicOgStreetPassA.streetPass!, tiers } },
+    });
+    const carried = await post(`/api/admin/rounds/${scheduled.id}/ruleset`, { reason: 'Ship the newer balance', rulesetId: classicOgV14C2.meta.id, confirm: true });
+    expect(carried.statusCode, carried.body).toBe(200);
+    const override = (await app.prisma.round.findUniqueOrThrow({ where: { id: scheduled.id } })).streetPassOverride as { key: string; tiers: typeof tiers };
+    expect(override.key).toBe(classicOgV14C2.streetPass!.key);
+    expect(override.tiers[0]!.rewards).toEqual([{ kind: 'CASH', amount: 100 }]);
+
+    const ended = await createRound('ENDED', new Date('2020-01-01T00:00:00.000Z'), new Date('2020-01-29T00:00:00.000Z'));
+    expect((await get(`/api/admin/rounds/${ended.id}/ruleset-change`)).json().editable).toBe(false);
+    const frozen = await post(`/api/admin/rounds/${ended.id}/ruleset`, { reason: 'Rewriting history', rulesetId: classicOgStreetPassA.meta.id, confirm: true });
     expect(frozen.statusCode, frozen.body).toBe(409);
     expect(frozen.json().error.code).toBe('ROUND_FINISHED');
   });

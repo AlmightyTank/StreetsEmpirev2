@@ -582,6 +582,35 @@ export interface AdminUpdateRoundInput {
   registrationOpensAt?: string | null;
 }
 
+/** Something moving a round onto another ruleset could break. Each one has to be confirmed. */
+export interface AdminRulesetChangeWarningDto {
+  code: 'ROUND_LIVE' | 'CURRENT_RULESET_MISSING' | 'SECTIONS_REMOVED' | 'KEYS_REMOVED' | 'STREET_PASS_TRACK_CHANGED' | 'STREET_PASS_EDITS_DROPPED';
+  message: string;
+}
+
+export interface AdminRulesetChangeDto {
+  /** What the round is pinned to; `available` is false when the code no longer ships it. */
+  current: { id: string; version: string; available: boolean };
+  /** False once the round has finished: its ruleset is frozen. */
+  editable: boolean;
+  /** Newest first. */
+  rulesets: AdminRulesetOptionDto[];
+  /** Present when a target ruleset was asked about. */
+  target: {
+    ruleset: AdminRulesetOptionDto;
+    /** Values that differ from the current ruleset, or null when it could not be compared. */
+    changedCount: number | null;
+    warnings: AdminRulesetChangeWarningDto[];
+  } | null;
+}
+
+export interface AdminChangeRulesetInput {
+  rulesetId: string;
+  reason: string;
+  /** Required when the change has warnings. */
+  confirm?: boolean;
+}
+
 export interface AdminCloseExpiredResultDto {
   closed: AdminRoundDto[];
 }

@@ -6,6 +6,7 @@ import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AdminAllianceBalancePanel } from '../components/AdminAllianceBalancePanel.js';
 import { AdminAlliancesPanel } from '../components/AdminAlliancesPanel.js';
+import { AdminRulesetChangePanel } from '../components/AdminRulesetChangePanel.js';
 import { AdminStreetPassEditor } from '../components/AdminStreetPassEditor.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -237,6 +238,8 @@ export function AdminRoundPage() {
           </p>
         </Panel>
       </div>
+
+      <AdminRulesetChangePanel roundId={round.id} onChanged={load} />
 
       {health.storeEconomy ? (
         <Panel title="Store economy" aside="0.8.0-H operator view" flush className="se-mt">
