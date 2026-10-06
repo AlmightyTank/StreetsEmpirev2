@@ -2,6 +2,8 @@
 
 Slice A changes item cosmetics from CSS recolors into authored art variants.
 
+**Status:** shipped. All 15 assets are in `apps/web/public/items/cosmetics/`, every entry is active in `ITEM_COSMETIC_ART`, and Midnight Ops, Urban Ghost and Cartel Gold are `released: true`. No migration was needed.
+
 ## Scope
 
 Player-selectable cosmetic targets in this slice:
@@ -79,6 +81,29 @@ That is 15 new authored images.
 
 Export production files as lossless/near-lossless WebP with alpha. Keep source masters outside the runtime tree if desired; only optimized WebP files belong in `public/items/cosmetics/`.
 
+## Source masters and rendering
+
+Each asset has an SVG master in `apps/web/art/cosmetics/{weapons,rides}/`, named like its WebP. Masters use the same 128×128 (pistol) / 256×128 grid, orientation and outline/shadow language as the Classic SVGs, so a cosmetic sits in the tile exactly where Classic does. They are outside `public/`, so they never ship.
+
+Regenerate the runtime files after editing a master:
+
+```sh
+node scripts/art/render-cosmetic-art.mjs            # all 15
+node scripts/art/render-cosmetic-art.mjs ak47 rides # only matching paths
+```
+
+The script rasterises each master at 4× in Chromium (installed Chrome/Edge, or `CHROMIUM_PATH`) and encodes lossless WebP with alpha through Pillow (`python -m pip install pillow`; `PYTHON` overrides the interpreter). Chromium's own canvas encoder only produces lossy WebP, which is why Pillow does the encode step.
+
+What each collection changes per item:
+
+| Item | Midnight Ops | Urban Ghost | Cartel Gold |
+| --- | --- | --- | --- |
+| Pistol | optic, compensator, weapon light, stippled grip, extended base | lightening cuts, tall sights, flared magwell, camo grip | single-action frame, ring hammer, scroll-engraved slide, pearl grips with medallion |
+| Shotgun | collapsible stock, pistol grip, side-saddle shells, vented heat shield, breacher, forend light | camo full stock, top rail, M-LOK forend, extended tube with clamp, ported brake | burl walnut with inlay, engraved receiver, vent rib, gold bands/bead/butt plate |
+| Tek-9 | rail with micro optic, slotted handguard, suppressor, extended ribbed mag | camo receiver/grip, triangle-cut shroud, vertical foregrip, birdcage | engraved lacquer receiver, holed gold shroud, ebony grip with diamond inlay |
+| AK-47 | skeleton side-folder, optic, quad rail, angled foregrip, slant brake | camo stock with cheek riser, slotted handguard, light, smoke mag, long flash hider | rosewood with inlay, engraved receiver, polished top cover, gold mag, pearl grip |
+| Low-Rider | slammed matte black, limo tint, black chrome, deep-dish rims, shark fin, violet underglow | concrete/graphite two-tone, camo rocker wrap, sun visor, pillar spotlight, steelies | candy black-cherry flake, landau top, gold-leaf scrolls, wire wheels with white walls, nose up on hydraulics |
+
 ## Code/data map
 
 ### `packages/shared/src/cosmetics.ts`
@@ -92,7 +117,7 @@ Owns the shared cosmetic contract:
 - `ItemCosmeticLoadout`
 - Classic-only crew contract until Slice C
 
-A collection stays `released: false` until all five Slice A assets for that collection exist and have been reviewed.
+A collection stays `released: false` until all five Slice A assets for that collection exist and have been reviewed. All three Slice A collections are now released.
 
 ### `packages/shared/src/schemas/auth.ts`
 
@@ -134,11 +159,9 @@ Adds the JSON cosmetic loadout columns. Slice A does not need another migration.
 
 Owns the visual asset registry.
 
-`PLANNED_SLICE_A_ART_FILES` locks the expected paths before art production.
+`SLICE_A_ART_FILES` (formerly `PLANNED_SLICE_A_ART_FILES`) holds the 15 authored paths.
 
-`ITEM_COSMETIC_ART` contains only files that actually exist. This is intentional: if a partial deployment or stale preference references missing art, the resolver falls back to Classic instead of returning a broken image.
-
-When a collection is complete, add its five paths to `ITEM_COSMETIC_ART`.
+`ITEM_COSMETIC_ART` contains only files that actually exist: Classic plus the Slice A entries spread in from `SLICE_A_ART_FILES`. If a stale preference references an unknown style, the resolver still falls back to Classic instead of returning a broken image.
 
 ### `apps/web/src/components/ItemTile.tsx`
 
@@ -177,14 +200,20 @@ There are no cosmetic hue/filter classes anymore. Visual variants come from imag
 
 - Classic defaults for older clients
 - valid Slice A item keys
-- rejection of planned/unreleased artwork
+- acceptance of every released Slice A collection
+- rejection of unknown artwork keys
 - rejection of products/supplies before Slice B
 
-A web resolver test should verify every active cosmetic path resolves to an explicit asset and that unknown/missing variants fall back to Classic.
+`apps/web/src/items/itemCosmeticArt.test.ts` covers:
+
+- every released style resolving to its own explicit asset
+- Classic fallback for unknown styles and items without cosmetic art
+- every file being a lossless WebP with alpha at 512×512 (pistol) or 1024×512
+- a source master for every runtime file, and no orphan renders
 
 ## Activating a completed collection
 
-For example, when all Midnight Ops art is committed:
+This is how Slice A was activated, and how a future collection should be. For example, when all Midnight Ops art is committed:
 
 1. Add the 5 WebP files at the paths above.
 2. Add the 5 `midnight-ops` entries from `PLANNED_SLICE_A_ART_FILES` to `ITEM_COSMETIC_ART`.
