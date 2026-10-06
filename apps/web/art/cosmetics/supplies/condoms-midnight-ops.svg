@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Midnight Ops condoms: three crimped matte-black foils fanned like a hand of cards, teal ring emboss. -->
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".65"/></filter>
+    <linearGradient id="foil" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a4f56"/><stop offset=".4" stop-color="#202226"/><stop offset=".7" stop-color="#30343a"/><stop offset="1" stop-color="#0e0f11"/></linearGradient>
+    <g id="packet">
+      <rect x="-21" y="-21" width="42" height="42" rx="2" fill="url(#foil)" stroke="#060708" stroke-width="1.4"/>
+      <rect x="-18" y="-18" width="36" height="36" rx="1" fill="none" stroke="#060708" stroke-opacity=".7" stroke-width="2.2" stroke-dasharray="1.4 1.4"/>
+      <circle r="10" fill="none" stroke="#060708" stroke-width="2.2"/>
+      <circle r="10" fill="none" stroke="#4fd1a8" stroke-width="1.2"/>
+      <circle r="6.5" fill="none" stroke="#4fd1a8" stroke-opacity=".45" stroke-width=".8"/>
+      <path d="M-16 -12 L-4 -16" stroke="#8a929c" stroke-opacity=".45" stroke-width="1.6" stroke-linecap="round"/>
+    </g>
+  </defs>
+  <g filter="url(#s)">
+    <use href="#packet" transform="translate(40 70) rotate(-20)"/>
+    <use href="#packet" transform="translate(88 70) rotate(18)"/>
+    <use href="#packet" transform="translate(64 62) rotate(-2)"/>
+  </g>
+  <!-- tear notch on the front packet -->
+  <path d="M84.6 45 L80 48 L84.6 51 Z" transform="rotate(-2 64 62)" fill="#060708"/>
+</svg>

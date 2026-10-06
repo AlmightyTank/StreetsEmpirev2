@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Urban Ghost beer: graphite-glazed swing-top growler with handle, camo label and wire bail. -->
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="glaze" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2b2e33"/><stop offset=".3" stop-color="#8a9098"/><stop offset=".55" stop-color="#4c5158"/><stop offset="1" stop-color="#1d2024"/></linearGradient>
+    <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f7fa"/><stop offset="1" stop-color="#a9aeb3"/></linearGradient>
+    <clipPath id="labelclip"><rect x="34" y="66" width="52" height="30" rx="2"/></clipPath>
+  </defs>
+  <!-- handle -->
+  <path d="M76 44 Q100 42 98 62 Q96 76 84 76" fill="none" stroke="#16181b" stroke-width="9" stroke-linecap="round"/>
+  <path d="M76 44 Q100 42 98 62 Q96 76 84 76" fill="none" stroke="url(#glaze)" stroke-width="5.5" stroke-linecap="round"/>
+  <g filter="url(#s)">
+    <path d="M52 22 H68 V34 Q70 40 78 46 Q90 54 90 68 V100 Q90 108 82 108 H38 Q30 108 30 100 V68 Q30 54 42 46 Q50 40 52 34 Z" fill="url(#glaze)" stroke="#16181b" stroke-width="1.6" stroke-linejoin="round"/>
+  </g>
+  <path d="M38 60 Q40 52 48 48" stroke="#e6eef5" stroke-opacity=".55" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+  <path d="M36 70 V100" stroke="#e6eef5" stroke-opacity=".35" stroke-width="3" stroke-linecap="round"/>
+  <!-- camo label -->
+  <rect x="34" y="66" width="52" height="30" rx="2" fill="#8f949a"/>
+  <g clip-path="url(#labelclip)">
+    <path d="M32 64 L50 64 L46 80 L32 82 Z" fill="#c4c8cc"/>
+    <path d="M54 72 L72 68 L74 90 L56 92 Z" fill="#3f4348"/>
+    <path d="M74 62 L90 64 L88 80 L76 78 Z" fill="#5c6168"/>
+    <path d="M36 86 L52 84 L52 98 L34 98 Z" fill="#5c6168"/>
+  </g>
+  <rect x="34" y="66" width="52" height="30" rx="2" fill="none" stroke="#16181b" stroke-width="1.4"/>
+  <rect x="44" y="75" width="32" height="12" rx="1" fill="#e6eaee" stroke="#16181b" stroke-width="1"/>
+  <path d="M48 81 H72" stroke="#3f4348" stroke-width="2" stroke-dasharray="4 2"/>
+  <!-- swing-top stopper and wire bail -->
+  <path d="M50 28 L46 40M70 28 L74 40" stroke="#c9cdd1" stroke-width="1.4"/>
+  <g filter="url(#s)"><path d="M50 14 H70 Q72 14 72 16 V22 H48 V16 Q48 14 50 14 Z" fill="url(#cap)" stroke="#16181b" stroke-width="1.4"/></g>
+  <rect x="49" y="22" width="22" height="3" fill="#c2222e" stroke="#16181b" stroke-width=".8"/>
+  <path d="M50 16 H70" stroke="#fff" stroke-width="1"/>
+</svg>
