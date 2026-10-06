@@ -74,13 +74,27 @@ export type CustomizableItemKey = typeof CUSTOMIZABLE_ITEM_KEYS[number];
 export type ItemCosmeticLoadout = Partial<Record<CustomizableItemKey, ItemCosmeticStyleKey>>;
 
 /**
- * Crew remains aggregate inventory. Slice C replaces this Classic-only contract
- * with authored outfit sets for THUG and HOE.
+ * Slice C: crew outfit sets. Crew stay aggregate inventory; the loadout picks
+ * one authored outfit per crew type from the same collection catalog as items,
+ * so a collection's `released` flag gates items and crew together.
  */
 export const CREW_COSMETIC_KEYS = ['THUG', 'HOE'] as const;
 export type CrewCosmeticKey = typeof CREW_COSMETIC_KEYS[number];
-export const CREW_COSMETIC_STYLE_KEYS = ['classic'] as const;
-export type CrewCosmeticStyleKey = typeof CREW_COSMETIC_STYLE_KEYS[number];
+export const CREW_COSMETIC_STYLE_KEYS = ITEM_COSMETIC_STYLE_KEYS;
+export type CrewCosmeticStyleKey = ItemCosmeticStyleKey;
+
+const CREW_OUTFIT_DESCRIPTIONS: Record<ItemCosmeticStyleKey, string> = {
+  classic: 'The original crew artwork.',
+  'midnight-ops': 'Blacked-out night fits: hood up, leather, matte black with teal accents.',
+  'urban-ghost': 'Concrete-grey streetwear: camo puffers, beanies and caps, silver chains.',
+  'cartel-gold': 'High-roller dress: cream suit and fedora, velvet and fur, heavy gold.',
+};
+
+export const RELEASED_CREW_COSMETIC_STYLES = RELEASED_ITEM_COSMETIC_STYLES.map((style) => ({
+  key: style.key,
+  label: style.label,
+  description: CREW_OUTFIT_DESCRIPTIONS[style.key],
+}));
 
 export const DEFAULT_CREW_COSMETICS = {
   THUG: 'classic',

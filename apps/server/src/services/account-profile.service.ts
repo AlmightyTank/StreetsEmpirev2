@@ -1,9 +1,9 @@
 import type { AccountProfile, PrismaClient } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import {
-  CREW_COSMETIC_STYLE_KEYS,
   CUSTOMIZABLE_ITEM_KEYS,
   DEFAULT_CREW_COSMETICS,
+  RELEASED_CREW_COSMETIC_STYLES,
   RELEASED_ITEM_COSMETIC_STYLES,
   isReleasedItemCosmeticStyle,
 } from '@streets/shared';
@@ -42,11 +42,7 @@ export const ITEM_COSMETIC_STYLE_OPTIONS: CosmeticOptionDto[] = RELEASED_ITEM_CO
   description: style.description,
 }));
 
-export const CREW_COSMETIC_STYLE_OPTIONS: CosmeticOptionDto[] = [
-  { key: 'classic', label: 'Classic', description: 'Original crew artwork. Outfit collections arrive in Slice C.' },
-];
-
-const crewCosmeticStyleKeys = new Set<string>(CREW_COSMETIC_STYLE_KEYS);
+export const CREW_COSMETIC_STYLE_OPTIONS: CosmeticOptionDto[] = RELEASED_CREW_COSMETIC_STYLES.map((style) => ({ ...style }));
 
 function stringRecord(value: unknown): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -69,7 +65,7 @@ function crewCosmeticLoadout(value: unknown): CrewCosmeticLoadout {
   const raw = stringRecord(value);
   const style = (key: keyof CrewCosmeticLoadout): CrewCosmeticStyleKey => {
     const candidate = raw[key];
-    return candidate && crewCosmeticStyleKeys.has(candidate)
+    return candidate && isReleasedItemCosmeticStyle(candidate)
       ? candidate as CrewCosmeticStyleKey
       : DEFAULT_CREW_COSMETICS[key];
   };

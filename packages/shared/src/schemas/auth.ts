@@ -164,7 +164,10 @@ export const itemCosmeticStyleSchema = z.enum([
   'cartel-gold',
 ]);
 
-export const crewCosmeticStyleSchema = z.literal('classic');
+export const crewCosmeticStyleSchema = itemCosmeticStyleSchema.refine(
+  isReleasedItemCosmeticStyle,
+  'That outfit has not been released yet.',
+);
 
 const customizableItemKeys = new Set<string>(CUSTOMIZABLE_ITEM_KEYS);
 export const itemCosmeticLoadoutSchema = z

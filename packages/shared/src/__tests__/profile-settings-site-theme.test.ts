@@ -94,6 +94,39 @@ describe('account profile settings schema', () => {
     expect(result.itemCosmetics).toEqual(itemCosmetics);
   });
 
+  it('accepts released Slice C crew outfits', () => {
+    const result = updateAccountProfileSettingsSchema.parse({
+      activeTitleKey: null,
+      activeProfileFrameKey: null,
+      featuredBadgeKeys: [],
+      profileAccent: 'default',
+      uiDensity: 'comfortable',
+      reducedMotion: false,
+      moneyFormat: 'full',
+      defaultLanding: 'game',
+      crewCosmetics: { THUG: 'cartel-gold', HOE: 'urban-ghost' },
+    });
+
+    expect(result.crewCosmetics).toEqual({ THUG: 'cartel-gold', HOE: 'urban-ghost' });
+  });
+
+  it('defaults a missing crew outfit to Classic and rejects unknown outfits', () => {
+    const base = {
+      activeTitleKey: null,
+      activeProfileFrameKey: null,
+      featuredBadgeKeys: [],
+      profileAccent: 'default',
+      uiDensity: 'comfortable',
+      reducedMotion: false,
+      moneyFormat: 'full',
+      defaultLanding: 'game',
+    };
+
+    expect(updateAccountProfileSettingsSchema.parse({ ...base, crewCosmetics: { THUG: 'midnight-ops' } }).crewCosmetics)
+      .toEqual({ THUG: 'midnight-ops', HOE: 'classic' });
+    expect(updateAccountProfileSettingsSchema.safeParse({ ...base, crewCosmetics: { HOE: 'gilded-ghost' } }).success).toBe(false);
+  });
+
   it('rejects cosmetics for items without authored variants', () => {
     const result = updateAccountProfileSettingsSchema.safeParse({
       activeTitleKey: null,

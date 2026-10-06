@@ -88,8 +88,22 @@ export const SLICE_B_ART_FILES = {
   },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
-/** Every authored non-classic file, by item. */
-export const AUTHORED_ITEM_ART_FILES = { ...SLICE_A_ART_FILES, ...SLICE_B_ART_FILES };
+/** Slice C authored crew outfits, relative to public/items/. */
+export const SLICE_C_ART_FILES = {
+  THUG: {
+    'midnight-ops': 'cosmetics/crew/thug-midnight-ops.webp',
+    'urban-ghost': 'cosmetics/crew/thug-urban-ghost.webp',
+    'cartel-gold': 'cosmetics/crew/thug-cartel-gold.webp',
+  },
+  HOE: {
+    'midnight-ops': 'cosmetics/crew/hoe-midnight-ops.webp',
+    'urban-ghost': 'cosmetics/crew/hoe-urban-ghost.webp',
+    'cartel-gold': 'cosmetics/crew/hoe-cartel-gold.webp',
+  },
+} as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
+
+/** Every authored non-classic file, by item or crew key. */
+export const AUTHORED_ITEM_ART_FILES = { ...SLICE_A_ART_FILES, ...SLICE_B_ART_FILES, ...SLICE_C_ART_FILES };
 
 /**
  * Authored cosmetic art registry.
@@ -113,6 +127,8 @@ const ITEM_COSMETIC_ART = {
   CONDOM: { classic: 'condoms.svg', ...SLICE_B_ART_FILES.CONDOM },
   MEDICINE: { classic: 'medicine.svg', ...SLICE_B_ART_FILES.MEDICINE },
   BEER: { classic: 'beer.svg', ...SLICE_B_ART_FILES.BEER },
+  THUG: { classic: 'thug.svg', ...SLICE_C_ART_FILES.THUG },
+  HOE: { classic: 'hoe.svg', ...SLICE_C_ART_FILES.HOE },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
 export function itemCosmeticArtFile(item: ItemArtKey, style: ItemCosmeticStyleKey): string {

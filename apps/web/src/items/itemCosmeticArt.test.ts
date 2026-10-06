@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  CREW_COSMETIC_KEYS,
   CUSTOMIZABLE_ITEM_KEYS,
   ITEM_COSMETIC_GROUPS,
   ITEM_COSMETIC_STYLE_KEYS,
@@ -10,12 +11,21 @@ import {
   WEAPON_RIDE_COSMETIC_KEYS,
   type ItemCosmeticStyleKey,
 } from '@streets/shared';
-import { AUTHORED_ITEM_ART_FILES, itemCosmeticArtFile, itemCosmeticArtUrl, SLICE_A_ART_FILES, SLICE_B_ART_FILES } from './itemCosmeticArt.js';
+import {
+  AUTHORED_ITEM_ART_FILES,
+  itemCosmeticArtFile,
+  itemCosmeticArtUrl,
+  SLICE_A_ART_FILES,
+  SLICE_B_ART_FILES,
+  SLICE_C_ART_FILES,
+} from './itemCosmeticArt.js';
 import { ITEM_ART } from './itemArt.js';
 
 const ITEMS_DIR = path.resolve(import.meta.dirname, '../../public/items');
 const MASTERS_DIR = path.resolve(import.meta.dirname, '../../art/cosmetics');
 const AUTHORED_STYLES = ['midnight-ops', 'urban-ghost', 'cartel-gold'] as const;
+/** Items (Slices A and B) and crew (Slice C). */
+const AUTHORED_KEYS = [...CUSTOMIZABLE_ITEM_KEYS, ...CREW_COSMETIC_KEYS] as const;
 
 /** Width, height and alpha flag from a lossless (VP8L) WebP header. */
 function readLosslessWebp(file: string) {
@@ -33,16 +43,17 @@ function readLosslessWebp(file: string) {
 }
 
 describe('item cosmetic art resolver', () => {
-  it('keeps every customizable item on its classic authored asset for the Classic style', () => {
-    for (const key of CUSTOMIZABLE_ITEM_KEYS) {
+  it('keeps every customizable item and crew type on its classic asset for the Classic style', () => {
+    for (const key of AUTHORED_KEYS) {
       expect(itemCosmeticArtFile(key, 'classic')).toBe(ITEM_ART[key].file);
     }
   });
 
-  it('locks three authored files per customizable item, split by slice', () => {
+  it('locks three authored files per item and crew type, split by slice', () => {
     expect(Object.keys(SLICE_A_ART_FILES)).toEqual([...WEAPON_RIDE_COSMETIC_KEYS]);
     expect(Object.keys(SLICE_B_ART_FILES)).toEqual([...PRODUCT_SUPPLY_COSMETIC_KEYS]);
-    for (const key of CUSTOMIZABLE_ITEM_KEYS) {
+    expect(Object.keys(SLICE_C_ART_FILES)).toEqual([...CREW_COSMETIC_KEYS]);
+    for (const key of AUTHORED_KEYS) {
       expect(Object.keys(AUTHORED_ITEM_ART_FILES[key])).toEqual([...AUTHORED_STYLES]);
     }
   });
@@ -56,7 +67,7 @@ describe('item cosmetic art resolver', () => {
   });
 
   it('resolves every released style to its own explicit asset', () => {
-    for (const key of CUSTOMIZABLE_ITEM_KEYS) {
+    for (const key of AUTHORED_KEYS) {
       for (const style of AUTHORED_STYLES) {
         expect(itemCosmeticArtFile(key, style)).toBe(AUTHORED_ITEM_ART_FILES[key][style]);
         expect(itemCosmeticArtUrl(key, style)).toBe(`/items/${AUTHORED_ITEM_ART_FILES[key][style]}`);
@@ -67,11 +78,11 @@ describe('item cosmetic art resolver', () => {
   it('falls back to Classic for unknown styles and items without cosmetic art', () => {
     expect(itemCosmeticArtFile('AK47', 'gilded-ghost' as ItemCosmeticStyleKey)).toBe(ITEM_ART.AK47.file);
     expect(itemCosmeticArtFile('CASH', 'cartel-gold')).toBe(ITEM_ART.CASH.file);
-    expect(itemCosmeticArtFile('THUG', 'midnight-ops')).toBe(ITEM_ART.THUG.file);
+    expect(itemCosmeticArtFile('MAMA_ADVICE', 'urban-ghost')).toBe(ITEM_ART.MAMA_ADVICE.file);
   });
 
   it('ships every authored file as a lossless WebP with alpha on a 512px-per-cell canvas', () => {
-    for (const key of CUSTOMIZABLE_ITEM_KEYS) {
+    for (const key of AUTHORED_KEYS) {
       for (const style of AUTHORED_STYLES) {
         const file = path.join(ITEMS_DIR, AUTHORED_ITEM_ART_FILES[key][style]);
         expect(existsSync(file), file).toBe(true);
@@ -86,7 +97,7 @@ describe('item cosmetic art resolver', () => {
   });
 
   it('keeps a source master for every authored file and no orphan renders', () => {
-    const expected = CUSTOMIZABLE_ITEM_KEYS.flatMap((key) => AUTHORED_STYLES.map((style) => AUTHORED_ITEM_ART_FILES[key][style]))
+    const expected = AUTHORED_KEYS.flatMap((key) => AUTHORED_STYLES.map((style) => AUTHORED_ITEM_ART_FILES[key][style]))
       .map((file) => file.replace(/^cosmetics\//, ''))
       .sort();
     const list = (dir: string, ext: string) => readdirSync(dir, { withFileTypes: true })

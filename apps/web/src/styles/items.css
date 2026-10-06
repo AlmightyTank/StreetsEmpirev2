@@ -212,10 +212,3 @@
     grid-template-columns: 1fr;
   }
 }
-
-
-.se-cosmetic-locker__roadmap {
-  margin: 16px 0 0;
-  padding-top: 12px;
-  border-top: 1px dashed var(--se-line);
-}

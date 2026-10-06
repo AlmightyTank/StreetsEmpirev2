@@ -9,7 +9,7 @@ import type {
   ProfileEffect,
   UiDensity,
 } from '@streets/shared';
-import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_ITEM_COSMETIC_STYLES, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
+import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -111,7 +111,7 @@ export function AccountSettingsPage() {
                 { key: 'smoke', label: 'Smoke', description: null },
               ],
               itemStyles: RELEASED_ITEM_COSMETIC_STYLES.map((style) => ({ ...style })),
-              crewStyles: [{ key: 'classic', label: 'Classic', description: 'Original crew artwork.' }],
+              crewStyles: RELEASED_CREW_COSMETIC_STYLES.map((style) => ({ ...style })),
               densities: [
                 { key: 'comfortable', label: 'Comfortable', description: null },
                 { key: 'compact', label: 'Compact', description: null },
@@ -797,6 +797,7 @@ export function AccountSettingsPage() {
             <ItemCrewCosmeticsEditor
               settings={cosmetics}
               styles={profileSettings.options.itemStyles ?? RELEASED_ITEM_COSMETIC_STYLES}
+              crewStyles={profileSettings.options.crewStyles ?? RELEASED_CREW_COSMETIC_STYLES}
               onChange={setCosmetics}
             />
 
