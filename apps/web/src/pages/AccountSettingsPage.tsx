@@ -9,7 +9,7 @@ import type {
   ProfileEffect,
   UiDensity,
 } from '@streets/shared';
-import { CREW_NAME_MAX, RELEASED_ITEM_COSMETIC_STYLES, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
+import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_ITEM_COSMETIC_STYLES, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -251,7 +251,11 @@ export function AccountSettingsPage() {
     setFields({});
 
     try {
-      const response = await authApi.updateProfileSettings(cosmetics);
+      const response = await authApi.updateProfileSettings({
+        ...cosmetics,
+        itemCosmetics: cosmetics.itemCosmetics ?? {},
+        crewCosmetics: cosmetics.crewCosmetics ?? DEFAULT_CREW_COSMETICS,
+      });
       setProfileSettings(response);
       setCosmetics(response.settings);
       setSessionProfileSettings(response.settings);

@@ -49,6 +49,8 @@ const updateInput: UpdateAccountProfileSettingsInput = {
   titlePlacement: 'prefix',
   activeProfileFrameKey: null,
   activeSiteThemeKey: 'neon-vice',
+  itemCosmetics: {},
+  crewCosmetics: { THUG: 'classic', HOE: 'classic' },
   featuredBadgeKeys: [],
   profileAccent: 'default',
   uiDensity: 'comfortable',
