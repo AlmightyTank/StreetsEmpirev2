@@ -9,7 +9,7 @@ import type {
   ProfileEffect,
   UiDensity,
 } from '@streets/shared';
-import { CREW_NAME_MAX, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
+import { CREW_NAME_MAX, ITEM_COSMETIC_STYLES, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -20,6 +20,7 @@ import { YourDataPanel } from '../components/YourDataPanel.js';
 import { TwoFactorPanel } from '../components/TwoFactorPanel.js';
 import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
+import { ItemCrewCosmeticsEditor } from '../components/ItemCrewCosmeticsEditor.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -109,6 +110,8 @@ export function AccountSettingsPage() {
                 { key: 'sirens', label: 'Sirens', description: null },
                 { key: 'smoke', label: 'Smoke', description: null },
               ],
+              itemStyles: ITEM_COSMETIC_STYLES.map((style) => ({ ...style })),
+              crewStyles: ITEM_COSMETIC_STYLES.map((style) => ({ ...style })),
               densities: [
                 { key: 'comfortable', label: 'Comfortable', description: null },
                 { key: 'compact', label: 'Compact', description: null },
@@ -786,6 +789,12 @@ export function AccountSettingsPage() {
                 </div>
               </div>
             </div>
+
+            <ItemCrewCosmeticsEditor
+              settings={cosmetics}
+              styles={profileSettings.options.itemStyles ?? ITEM_COSMETIC_STYLES}
+              onChange={setCosmetics}
+            />
 
             <div className="se-interface-preferences">
               <div className="se-field">
