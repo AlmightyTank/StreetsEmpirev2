@@ -8,6 +8,7 @@ with a short name in the top-right corner and an optional count bottom-right.
 - Art: `apps/web/public/items/*.svg`
 - Catalog: `apps/web/src/items/itemArt.ts` (`ITEM_ART`, keyed by ruleset key)
 - Tile: `apps/web/src/components/ItemTile.tsx` + `apps/web/src/styles/items.css`
+- Cosmetic variants: authored WebP art per collection, see [Slice A](COSMETIC-ART-SLICE-A.md) (weapons, rides) and [Slice B](COSMETIC-ART-SLICE-B.md) (products, supplies)
 
 ```tsx
 <ItemTile item="LOW_RIDER" />

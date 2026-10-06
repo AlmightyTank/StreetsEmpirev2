@@ -14,7 +14,7 @@ Player-selectable cosmetic targets in this slice:
 - AK-47 (`AK47`)
 - Low-Rider (`LOW_RIDER`)
 
-Products and supplies remain Classic until Slice B. Thugs and hoes remain Classic until Slice C adds outfit sets.
+Products and supplies are covered by [Slice B](COSMETIC-ART-SLICE-B.md). Thugs and hoes remain Classic until Slice C adds outfit sets.
 
 Cosmetics are presentation-only. They do not change rarity, prices, inventory, combat, weapon access, vehicle value, Street Cred, XP, quests, or any other gameplay calculation.
 
@@ -179,10 +179,10 @@ Because stores, inventory, rewards, armory rows and other surfaces already use `
 
 Slice A's locker UI.
 
-- Shows only the five weapon/ride targets.
+- Shows one section per `ITEM_COSMETIC_GROUPS` entry: weapons & rides, then products & supplies (Slice B).
 - Uses only released choices returned by the server.
 - Previews the actual authored asset through `ItemTile`.
-- Products/supplies and crew are explicitly deferred rather than showing fake recolor skins.
+- Crew is explicitly deferred to Slice C rather than showing fake recolor skins.
 
 ### `apps/web/src/pages/AccountSettingsPage.tsx`
 
@@ -202,7 +202,8 @@ There are no cosmetic hue/filter classes anymore. Visual variants come from imag
 - valid Slice A item keys
 - acceptance of every released Slice A collection
 - rejection of unknown artwork keys
-- rejection of products/supplies before Slice B
+- acceptance of Slice B product and supply keys
+- rejection of items without authored variants
 
 `apps/web/src/items/itemCosmeticArt.test.ts` covers:
 
