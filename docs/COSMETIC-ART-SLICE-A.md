@@ -99,7 +99,7 @@ All three Slice A collections now have all five authored assets committed and ar
 Validates account settings.
 
 - Only Slice A item keys can receive an item cosmetic.
-- A planned collection is rejected while `released: false`.
+- Only collections marked `released: true` are accepted.
 - This blocks clients from selecting artwork that is not deployed.
 
 ### `apps/server/src/services/account-profile.service.ts`
@@ -138,7 +138,7 @@ Owns the visual asset registry.
 
 `ITEM_COSMETIC_ART` activates the committed variants and still falls back to Classic for stale or unknown selections.
 
-When a collection is complete, add its five paths to `ITEM_COSMETIC_ART`.
+All three Slice A collections are registered in `ITEM_COSMETIC_ART`; future collections follow the same pattern.
 
 ### `apps/web/src/components/ItemTile.tsx`
 
@@ -177,10 +177,10 @@ There are no cosmetic hue/filter classes anymore. Visual variants come from imag
 
 - Classic defaults for older clients
 - valid Slice A item keys
-- rejection of planned/unreleased artwork
+- acceptance of released authored Slice A artwork
 - rejection of products/supplies before Slice B
 
-A web resolver test should verify every active cosmetic path resolves to an explicit asset and that unknown/missing variants fall back to Classic.
+The web resolver test verifies every active Slice A cosmetic maps to an explicit asset while Classic remains the fallback.
 
 ## Slice A completion
 
