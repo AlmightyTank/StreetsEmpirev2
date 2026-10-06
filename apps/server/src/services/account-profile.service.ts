@@ -1,12 +1,19 @@
 import type { AccountProfile, PrismaClient } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
-import { CUSTOMIZABLE_ITEM_KEYS, DEFAULT_CREW_COSMETICS, ITEM_COSMETIC_STYLES, ITEM_COSMETIC_STYLE_KEYS } from '@streets/shared';
+import {
+  CREW_COSMETIC_STYLE_KEYS,
+  CUSTOMIZABLE_ITEM_KEYS,
+  DEFAULT_CREW_COSMETICS,
+  RELEASED_ITEM_COSMETIC_STYLES,
+  isReleasedItemCosmeticStyle,
+} from '@streets/shared';
 import type {
   AccountProfileSettingsDto,
   AccountProfileSettingsResponseDto,
   BadgeCosmeticOptionDto,
   CosmeticOptionDto,
   CrewCosmeticLoadout,
+  CrewCosmeticStyleKey,
   DefaultLanding,
   ItemCosmeticLoadout,
   ItemCosmeticStyleKey,
@@ -29,13 +36,17 @@ import { profileTitleForAward } from './profile-titles.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 
-export const ITEM_COSMETIC_STYLE_OPTIONS: CosmeticOptionDto[] = ITEM_COSMETIC_STYLES.map((style) => ({
+export const ITEM_COSMETIC_STYLE_OPTIONS: CosmeticOptionDto[] = RELEASED_ITEM_COSMETIC_STYLES.map((style) => ({
   key: style.key,
   label: style.label,
   description: style.description,
 }));
 
-const itemCosmeticStyleKeys = new Set<string>(ITEM_COSMETIC_STYLE_KEYS);
+export const CREW_COSMETIC_STYLE_OPTIONS: CosmeticOptionDto[] = [
+  { key: 'classic', label: 'Classic', description: 'Original crew artwork. Outfit collections arrive in Slice C.' },
+];
+
+const crewCosmeticStyleKeys = new Set<string>(CREW_COSMETIC_STYLE_KEYS);
 
 function stringRecord(value: unknown): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -49,17 +60,17 @@ function itemCosmeticLoadout(value: unknown): ItemCosmeticLoadout {
   const loadout: ItemCosmeticLoadout = {};
   for (const key of CUSTOMIZABLE_ITEM_KEYS) {
     const style = raw[key];
-    if (style && itemCosmeticStyleKeys.has(style)) loadout[key] = style as ItemCosmeticStyleKey;
+    if (style && isReleasedItemCosmeticStyle(style)) loadout[key] = style as ItemCosmeticStyleKey;
   }
   return loadout;
 }
 
 function crewCosmeticLoadout(value: unknown): CrewCosmeticLoadout {
   const raw = stringRecord(value);
-  const style = (key: keyof CrewCosmeticLoadout): ItemCosmeticStyleKey => {
+  const style = (key: keyof CrewCosmeticLoadout): CrewCosmeticStyleKey => {
     const candidate = raw[key];
-    return candidate && itemCosmeticStyleKeys.has(candidate)
-      ? candidate as ItemCosmeticStyleKey
+    return candidate && crewCosmeticStyleKeys.has(candidate)
+      ? candidate as CrewCosmeticStyleKey
       : DEFAULT_CREW_COSMETICS[key];
   };
   return { THUG: style('THUG'), HOE: style('HOE') };
@@ -302,7 +313,7 @@ export const AccountProfileService = {
         themes: appearance.themes,
         effects: PROFILE_EFFECTS,
         itemStyles: ITEM_COSMETIC_STYLE_OPTIONS,
-        crewStyles: ITEM_COSMETIC_STYLE_OPTIONS,
+        crewStyles: CREW_COSMETIC_STYLE_OPTIONS,
         densities: UI_DENSITIES,
         moneyFormats: MONEY_FORMATS,
         defaultLandings: DEFAULT_LANDINGS,
