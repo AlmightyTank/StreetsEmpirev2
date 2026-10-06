@@ -825,7 +825,8 @@ export interface RunDto {
   /** Pip's counter and (0.5.0-C) the high market where the run is, while it is in town. */
   counter: {
     city: string;
-    products: Array<{ key: string; supply: SupplyLevelDto | null; buyCents: number | null; sellCents: number | null; stock: number; nextAt: string | null; market: MarketPriceDto | null }>;
+    /** 1.4.0-D. factionDiscountPercent: the Cartel Line's Connected cut, already in buyCents. */
+    products: Array<{ key: string; supply: SupplyLevelDto | null; buyCents: number | null; sellCents: number | null; stock: number; nextAt: string | null; market: MarketPriceDto | null; factionDiscountPercent?: number }>;
     /** A glut or drought in town right now. */
     event: PriceEventDto | null;
   } | null;
@@ -1240,6 +1241,8 @@ export interface RunTradeResult {
   trunkUnits: number;
   capacity: number;
   shelfStock: number;
+  /** 1.4.0-D. The Cartel Line's Connected cut on a buy at Pip's counter, and what it saved. */
+  factionDiscount?: { factionKey: string; factionName: string; percent: number; savedCents: number };
   venue: 'pip' | 'market';
   /** 0.5.0-C. What selling did to Heat, and whether the town's police got the run. */
   heat: { before: number; added: number; after: number } | null;

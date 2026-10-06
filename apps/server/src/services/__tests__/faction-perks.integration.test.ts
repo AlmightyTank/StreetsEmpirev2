@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV14C2, classicOgV14D, type FactionKey, type Ruleset } from '@streets/rulesets';
-import { cornerUpkeep, startingStock } from '@streets/rules-engine';
+import { cornerUpkeep, cutCityBuyCents, liveCounter, startingStock } from '@streets/rules-engine';
 import { BELL_CATEGORIES, bellMutedActivityTypes } from '@streets/shared';
 import { FactionService } from '../faction.service.js';
 import { FactionWarningService } from '../faction-warning.service.js';
@@ -13,6 +13,8 @@ import { LawService } from '../law.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { StoreService } from '../store.service.js';
 import { TurfService } from '../turf.service.js';
+import { TravelService } from '../travel.service.js';
+import { BossTripService } from '../boss-trip.service.js';
 
 const ruleset = classicOgV14D;
 const HOUR = 3_600_000;
@@ -119,6 +121,50 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-D faction perks with
     expect(bought.result.factionDiscount).toMatchObject({ factionKey: 'CARTEL_LINE', percent: 5 });
     expect(bought.result.unitCents).toBeLessThan(ruleset.stores.PIP.items.CRACK.buyCents);
     expect(await app.prisma.playerFactionPerkUse.count({ where: { roundPlayerId: player.id, kind: 'PIP_PRODUCT' } })).toBe(1);
+  });
+
+  it('cuts Pip\'s price in other cities on a run for the Cartel Line, and logs it once', async () => {
+    const { round, player } = await fixture(ruleset, { lowRiders: 2, cashCents: 50_000_000n, turns: 144, heat: 0, lastTurnCalculationAt: new Date() });
+    await standWith(player.id, 'CARTEL_LINE', ruleset.factionStanding.tiers.connected);
+    const launched = await TravelService.launch(app.prisma, player.id, { to: 'detroit', route: 0, lowRiders: 2, escortThugs: 0, cashCents: 20_000_000, cargo: {}, actionId: randomUUID() });
+    expect(launched.success).toBe(true);
+    // Drive it into Detroit.
+    const run = await app.prisma.run.findFirstOrThrow({ where: { roundPlayerId: player.id, status: 'ACTIVE' }, include: { stops: true } });
+    const back = run.stops[0]!.arriveAt.getTime() - Date.now() + 60_000;
+    for (const stop of run.stops) {
+      await app.prisma.runStop.update({ where: { id: stop.id }, data: {
+        departAt: new Date(stop.departAt.getTime() - back), arriveAt: new Date(stop.arriveAt.getTime() - back),
+        leaveAt: stop.leaveAt ? new Date(stop.leaveAt.getTime() - back) : null,
+      } });
+    }
+    const now = new Date();
+    const product = Object.keys(ruleset.products).find((key) => liveCounter(ruleset, round.id, 'detroit', key, now)?.supply !== 'OUT' && liveCounter(ruleset, round.id, 'detroit', key, now))!;
+    const counter = liveCounter(ruleset, round.id, 'detroit', product, now)!;
+    const actionId = randomUUID();
+    const traded = await TravelService.trade(app.prisma, player.id, { runId: run.id, product, direction: 'buy', venue: 'pip', quantity: 5, actionId }, () => 0.99);
+    expect(traded.result.unitCents).toBe(cutCityBuyCents(counter, 5));
+    expect(traded.result.unitCents).toBeLessThan(counter.buyCents);
+    expect(traded.result.factionDiscount).toMatchObject({ factionKey: 'CARTEL_LINE', percent: 5, savedCents: (counter.buyCents - traded.result.unitCents) * 5 });
+    await TravelService.trade(app.prisma, player.id, { runId: run.id, product, direction: 'buy', venue: 'pip', quantity: 5, actionId }, () => 0.99);
+    expect(await app.prisma.playerFactionPerkUse.count({ where: { roundPlayerId: player.id, kind: 'PIP_PRODUCT' } })).toBe(1);
+  });
+
+  it('cuts bodyguard tickets for Road Saints on a real launch, never the boss\'s own', async () => {
+    const extra = { thugs: 40, cashCents: 80_000_000n, turns: 144, heat: 0, lastTurnCalculationAt: new Date() };
+    const plain = await fixture(ruleset, extra);
+    const connected = await fixture(ruleset, extra);
+    await standWith(connected.player.id, 'ROAD_SAINTS', ruleset.factionStanding.tiers.connected);
+    const trips = ruleset.travel.trips!;
+    const fly = (playerId: string, bodyguards: number) => BossTripService.launch(app.prisma, playerId, { to: 'las-vegas', stayMinutes: trips.stayMinutes[0]!, bankrollCents: 0, bodyguards, actionId: randomUUID() });
+    const full = await fly(plain.player.id, 3);
+    const cut = await fly(connected.player.id, 3);
+    const perGuard = trips.bodyguards!.ticketCents;
+    expect(full.result.ticketCents - cut.result.ticketCents).toBe(3 * Math.floor(perGuard / 10));
+    expect(await app.prisma.playerFactionPerkUse.findMany({ where: { roundPlayerId: connected.player.id } })).toMatchObject([
+      { kind: 'BODYGUARD_TICKETS', factionKey: 'ROAD_SAINTS', percent: 10, saved: { cents: 3 * Math.floor(perGuard / 10) } },
+    ]);
+    const page = await BossTripService.page(app.prisma, await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: connected.player.id }, include: { city: true } }), ruleset, connected.round.endsAt, new Date());
+    expect(page?.rules.bodyguards?.factionDiscount).toMatchObject({ percent: 10, fullTicketCents: perGuard });
   });
 
   it('takes Civic Handshake\'s cut off each official favor\'s exposure', async () => {

@@ -304,6 +304,16 @@ export function settleCityShelf(shelf: { stock: number; stockAt: Date } | null, 
   return shelf ? settled : { ...settled, changed: true };
 }
 
+/**
+ * 1.4.0-D. Pip's buy price in another city with the Cartel Line's cut, never at or below what he
+ * pays back for the same unit.
+ */
+export function cutCityBuyCents(counter: Pick<CityCounter, 'buyCents' | 'sellCents'>, cutPercent = 0): number {
+  if (cutPercent <= 0) return counter.buyCents;
+  const cut = Math.floor(counter.buyCents * (100 - Math.min(100, cutPercent)) / 100);
+  return Math.max(counter.sellCents + 1, cut);
+}
+
 export interface CityTrade {
   product: string;
   direction: 'buy' | 'sell';
@@ -337,6 +347,8 @@ export function calculateCityTrade(input: {
   shelfStock: number;
   /** 0.5.0-C. Pip's counter at today's supply; his usual one when left out. */
   counter?: CityCounter | null;
+  /** 1.4.0-D. The Cartel Line's Connected cut off Pip's buy price, in whole percent. */
+  buyCutPercent?: number;
 }): CityTrade {
   const { ruleset, city, product, direction, quantity } = input;
   const name = ruleset.products?.[product]?.name ?? product.charAt(0) + product.slice(1).toLowerCase();
@@ -347,7 +359,7 @@ export function calculateCityTrade(input: {
     throw new RunError('INVALID_QUANTITY', 'Enter a positive whole quantity.', 'quantity');
   }
   const buying = direction === 'buy';
-  const unitCents = buying ? counter.buyCents : counter.sellCents;
+  const unitCents = buying ? cutCityBuyCents(counter, input.buyCutPercent) : counter.sellCents;
   const totalCents = BigInt(unitCents) * BigInt(quantity);
   if (buying) {
     const stock = Math.max(0, input.shelfStock);

@@ -472,7 +472,7 @@ player reaches a perk's tier.
   | The Kings | the locals holding each unheld block in your city and the cities where you hold turf, weakest first | your home corners or an outpost running out of beer or product within 6 hours (at the burn rate after the nudge), and a held block's shield dropping within 6 hours | corners burn 10% less beer and product (`CORNER_UPKEEP`) |
   | The Outfit | how many rackets run in each city and across how many crews, only where at least 3 crews run them | where and when the round's crackdown sweeps, from 24 hours before its public warning, if it lands in your city or a city where you hold a block | Tommy's guns (not his thugs) 5% cheaper (`TOMMY_WEAPONS`) |
   | Road Saints MC | the three roads out of your city with the highest stop chance for an empty run at your Heat | a run on the road whose next leg has a 5% or higher stop chance with the trunk it carries now | bodyguard tickets 10% cheaper (`BODYGUARD_TICKETS`) |
-  | The Cartel Line | every city where Pip is low or out right now, and of what | every drought, and every swing that takes Pip out, in the next 24 hours | Pip's product 5% cheaper, at his store and his counter (`PIP_PRODUCT`) |
+  | The Cartel Line | every city where Pip is low or out right now, and of what | every drought, and every swing that takes Pip out, in the next 24 hours | Pip's product 5% cheaper, at his store, his counter and his counters in other cities on a run (`PIP_PRODUCT`) |
   | Civic Handshake | each official on your payroll: the exposure left before Internal Affairs, or when an open file's sting lands | a Case within 5 points of its next stage | each official favor adds 10% less exposure (`OFFICIAL_EXPOSURE`) |
 
 - **Two candidates changed to keep guardrail 5.** Another crew's rackets are private (only the
@@ -493,7 +493,7 @@ player reaches a perk's tier.
   or below its sellback; corner upkeep is cut at the rate before rounding up; bodyguard tickets
   round the saving down; exposure is rounded to the nearest whole, so a 5-point favor stays 5.
 - **Logged where it applies.** Every nudge that saves something writes a `PlayerFactionPerkUse`
-  row (faction, kind, percent, what it saved) keyed on the act: `store:`/`checkout:`/`product:`
+  row (faction, kind, percent, what it saved) keyed on the act: `store:`/`checkout:`/`product:`/`run-trade:`
   on the action id, `trip:` on the launch, `exposure:` on the official and favor, and
   `upkeep:<block>:<from>` on each block's settle, so a retried action or a re-run settle never
   logs twice. Store, counter and trip results also carry it as `factionDiscount`, with the saving.

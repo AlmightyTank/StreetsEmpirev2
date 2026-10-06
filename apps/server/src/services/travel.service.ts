@@ -6,6 +6,7 @@ import {
   armEscorts,
   bustChance,
   calculateCityTrade,
+  cutCityBuyCents,
   cargoUnits,
   cityEventAt,
   driveMs,
@@ -60,6 +61,7 @@ import { RelocationService } from './relocation.service.js';
 import { BossTripService } from './boss-trip.service.js';
 import { bossAway } from './boss-trip-settle.service.js';
 import { ActivityService } from './activity.service.js';
+import { FactionService } from './faction.service.js';
 import { HighMarketService } from './high-market.service.js';
 import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
@@ -159,6 +161,7 @@ function stopsDto(ruleset: Ruleset, stops: readonly RunStopPlan[]): RunDto['stop
 /** Pip's counter and the high market where a run is, with the player's own shelf there. */
 async function liveCounter(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, seed: string, city: string, now: Date): Promise<NonNullable<RunDto['counter']>> {
   const shelves = await db.cityShelf.findMany({ where: { roundPlayerId, city } });
+  const nudge = await FactionService.nudge(db as Db, roundPlayerId, ruleset, 'PIP_PRODUCT');
   const pushes = await HighMarketService.pushes(db, ruleset, seed, city, now);
   const event = cityEventAt(ruleset, seed, city, now);
   return {
@@ -170,7 +173,10 @@ async function liveCounter(db: Db | PrismaClient, roundPlayerId: string, ruleset
       const counter = settled.counter;
       const market = marketPrice(ruleset, seed, city, key, pushes.get(key) ?? 0, now);
       if (!counter) return { key, supply: null, buyCents: null, sellCents: null, stock: 0, nextAt: null, market };
-      return { key, supply: counter.supply, buyCents: counter.buyCents, sellCents: counter.sellCents, stock: settled.stock, nextAt: settled.nextAt?.toISOString() ?? null, market };
+      return {
+        key, supply: counter.supply, buyCents: cutCityBuyCents(counter, nudge?.percent), sellCents: counter.sellCents, stock: settled.stock, nextAt: settled.nextAt?.toISOString() ?? null, market,
+        ...(nudge ? { factionDiscountPercent: nudge.percent } : {}),
+      };
     }),
   };
 }
@@ -671,6 +677,7 @@ export const TravelService = {
         let unitCents: number;
         let totalCents: bigint;
         let shelfStock = 0;
+        let factionDiscount: RunTradeResult['factionDiscount'] = undefined;
 
         if (input.venue === 'market') {
           const rules = base.travel?.market;
@@ -699,13 +706,21 @@ export const TravelService = {
         } else {
           const shelfRow = await tx.cityShelf.findUnique({ where: { roundPlayerId_city_productKey: { roundPlayerId, city, productKey: input.product } } });
           const shelf = settleLiveShelf(shelfRow, base, seed, city, input.product, now);
+          // 1.4.0-D: Connected with the Cartel Line, Pip shades his price in every city.
+          const nudge = buying ? await FactionService.nudge(tx, roundPlayerId, base, 'PIP_PRODUCT') : null;
           let trade;
           try {
             trade = calculateCityTrade({
               ruleset: base, city, product: input.product, direction: input.direction, quantity: input.quantity, counter: shelf.counter,
               runCashCents: run.cashCents, held: cargo[input.product] ?? 0, trunkUnits: cargoUnits(cargo), capacity, shelfStock: shelf.stock,
+              buyCutPercent: nudge?.percent ?? 0,
             });
           } catch (error) { refuse(error); }
+          const savedCents = nudge && shelf.counter ? (shelf.counter.buyCents - trade.unitCents) * trade.quantity : 0;
+          if (nudge && savedCents > 0) {
+            await FactionService.logNudge(tx, roundPlayerId, nudge, 'PIP_PRODUCT', `run-trade:${input.actionId ?? now.toISOString()}`, { cents: savedCents }, now);
+            factionDiscount = { factionKey: nudge.factionKey, factionName: base.factions?.[nudge.factionKey]?.name ?? nudge.factionKey, percent: nudge.percent, savedCents };
+          }
           if (shelf.counter) {
             // A sale never touches the shelf, but settling it is still kept, or a parked clock is lost.
             shelfStock = shelf.stock - trade.stockTaken;
@@ -786,6 +801,7 @@ export const TravelService = {
             trunkUnits: cargoUnits(nextCargo),
             capacity,
             shelfStock,
+            ...(factionDiscount ? { factionDiscount } : {}),
             heat: town.heat ? { before: current.heat, added, after: heatAfter } : null,
             trouble,
           },

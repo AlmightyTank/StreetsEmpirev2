@@ -343,7 +343,7 @@ function TownCounter({ run, data, onDone }: { run: RunDto; data: TravelDto; onDo
       <p className="se-hint">
         {onMarket
           ? 'Everyone in the round trades here. Every unit moves the price against you, and it drifts back over the next few hours.'
-          : 'Your own shelf: nobody else can buy it out from under you. Buy / sell prices each.'}
+          : `Your own shelf: nobody else can buy it out from under you. Buy / sell prices each.${row?.factionDiscountPercent ? ` The Cartel Line takes ${row.factionDiscountPercent}% off buying.` : ''}`}
       </p>
       <div className="se-rows">
         {counter.products.map((entry) => {
