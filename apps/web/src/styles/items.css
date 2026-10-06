@@ -43,6 +43,13 @@
   pointer-events: none;
 }
 
+/* Account item/crew skins. Locked state below intentionally overrides these filters. */
+.se-item-tile--skin-blackout img { filter: grayscale(1) brightness(0.62) contrast(1.38); }
+.se-item-tile--skin-crimson img { filter: sepia(0.7) saturate(2.7) hue-rotate(310deg) brightness(0.92) contrast(1.12); }
+.se-item-tile--skin-gold img { filter: sepia(0.9) saturate(2.1) hue-rotate(350deg) brightness(1.08) contrast(1.08); }
+.se-item-tile--skin-ice img { filter: sepia(0.25) saturate(1.7) hue-rotate(155deg) brightness(1.12) contrast(1.05); }
+.se-item-tile--skin-violet img { filter: sepia(0.45) saturate(2.2) hue-rotate(225deg) brightness(1.02) contrast(1.08); }
+
 .se-item-tile__name,
 .se-item-tile__qty {
   position: absolute;
@@ -136,4 +143,77 @@
 .se-portrait--lg {
   width: 88px;
   height: 88px;
+}
+
+
+/* Account settings: compact item/crew cosmetic locker. */
+.se-cosmetic-locker {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--se-line);
+}
+
+.se-cosmetic-locker__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
+  gap: 18px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.se-cosmetic-locker__head h3,
+.se-cosmetic-locker__group h4 {
+  margin: 0;
+}
+
+.se-cosmetic-locker__group + .se-cosmetic-locker__group {
+  margin-top: 20px;
+}
+
+.se-cosmetic-locker__group h4 {
+  margin-bottom: 10px;
+  color: var(--se-text);
+}
+
+.se-cosmetic-locker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.se-cosmetic-locker__card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--se-line);
+  border-radius: var(--se-radius);
+  background: var(--se-panel-hi);
+}
+
+.se-cosmetic-locker__preview {
+  display: grid;
+  min-height: 118px;
+  place-items: center;
+}
+
+@media (max-width: 720px) {
+  .se-cosmetic-locker__head {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .se-cosmetic-locker__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-cosmetic-locker__preview .se-item-tile--lg {
+    --se-item-cell: 84px;
+  }
+}
+
+@media (max-width: 420px) {
+  .se-cosmetic-locker__grid {
+    grid-template-columns: 1fr;
+  }
 }
