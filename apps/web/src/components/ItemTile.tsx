@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type { CustomizableItemKey, ItemCosmeticStyleKey } from '@streets/shared';
-import { hasItemArt, ITEM_ART, itemArtUrl, type ItemArtKey } from '../items/itemArt.js';
+import { hasItemArt, ITEM_ART, type ItemArtKey } from '../items/itemArt.js';
+import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
 import { useSession } from '../stores/session.js';
 
 /**
@@ -64,7 +65,7 @@ export function ItemTile({
     : profileSettings.itemCosmetics?.[item as CustomizableItemKey] ?? 'classic';
   const skin = cosmeticStyle ?? accountStyle;
   const [w, h] = art.cells;
-  const classes = ['se-item-tile', `se-item-tile--skin-${skin}`, `se-item-tile--${art.rarity.toLowerCase()}`, `se-item-tile--${size}`, w > 1 ? 'se-item-tile--wide' : null, className]
+  const classes = ['se-item-tile', `se-item-tile--${art.rarity.toLowerCase()}`, `se-item-tile--${size}`, w > 1 ? 'se-item-tile--wide' : null, className]
     .filter(Boolean)
     .join(' ');
 
@@ -74,7 +75,7 @@ export function ItemTile({
       style={{ '--se-item-w': w, '--se-item-h': h } as CSSProperties}
       title={title ?? (quantity === undefined ? art.name : `${art.name} ×${quantity.toLocaleString()}`)}
     >
-      <img src={itemArtUrl(item)} alt={art.name} loading="lazy" decoding="async" draggable={false} />
+      <img src={itemCosmeticArtUrl(item, skin)} alt={art.name} loading="lazy" decoding="async" draggable={false} />
       {label && <figcaption className="se-item-tile__name">{art.shortName}</figcaption>}
       {quantityText !== undefined || quantity !== undefined
         ? <span className="se-item-tile__qty">{quantityText ?? formatQuantity(quantity!)}</span>
