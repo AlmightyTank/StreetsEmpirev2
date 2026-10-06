@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128">
+  <!-- Cartel Gold shotgun: burl walnut with gold inlay, engraved black receiver, vent rib, gold bands and bead. -->
+  <defs>
+    <filter id="s" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="burl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a2c1a"/><stop offset=".5" stop-color="#46150c"/><stop offset="1" stop-color="#1c0705"/></linearGradient>
+    <pattern id="figure" width="14" height="9" patternUnits="userSpaceOnUse"><path d="M0 4 Q4 0 7 4 T14 4" fill="none" stroke="#a24a26" stroke-opacity=".35" stroke-width=".8"/><circle cx="10" cy="7" r="1.1" fill="none" stroke="#120403" stroke-opacity=".45" stroke-width=".6"/></pattern>
+    <linearGradient id="blued" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a6274"/><stop offset=".45" stop-color="#232837"/><stop offset="1" stop-color="#0c0e14"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b8"/><stop offset=".35" stop-color="#e7b94a"/><stop offset=".7" stop-color="#9a6614"/><stop offset="1" stop-color="#f0c95f"/></linearGradient>
+    <pattern id="check" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0H3M0 0V3" stroke="#0f0302" stroke-opacity=".55" stroke-width=".7"/></pattern>
+  </defs>
+  <g filter="url(#s)" stroke="#07080b" stroke-width="1.6" stroke-linejoin="round">
+    <!-- barrel, vent rib and magazine tube -->
+    <rect x="120" y="55" width="104" height="8" rx="1.5" fill="url(#blued)"/>
+    <rect x="221" y="54" width="6" height="10" rx="1.5" fill="url(#gold)"/>
+    <rect x="120" y="45" width="128" height="9" rx="1.5" fill="url(#blued)"/>
+    <rect x="124" y="40" width="122" height="2.5" rx=".8" fill="url(#blued)" stroke-width="1"/>
+    <!-- figured stock with gold butt plate -->
+    <path d="M12 52 Q44 49 82 47 V67 Q64 69 54 73 L20 88 Q13 91 11 85 L9 57 Q9 52 12 52 Z" fill="url(#burl)"/>
+    <path d="M12 52 Q44 49 82 47 V67 Q64 69 54 73 L20 88 Q13 91 11 85 L9 57 Q9 52 12 52 Z" fill="url(#figure)" stroke="none"/>
+    <path d="M5 54 H11 L13 88 Q9 90 5 88 Z" fill="url(#gold)"/>
+    <!-- gold trigger guard -->
+    <path d="M86 68 Q86 80 96 80 H108 Q112 80 112 74 V68" fill="none" stroke-width="4.5"/>
+    <path d="M86 68 Q86 80 96 80 H108 Q112 80 112 74 V68" fill="none" stroke="url(#gold)" stroke-width="2"/>
+    <path d="M97 68 Q95 74 99 78" fill="none" stroke="url(#gold)" stroke-width="2.6"/>
+    <!-- engraved receiver -->
+    <rect x="78" y="43" width="46" height="26" rx="3" fill="url(#blued)"/>
+    <!-- checkered forend with gold ferrules -->
+    <rect x="140" y="53" width="60" height="15" rx="4" fill="url(#burl)"/>
+    <rect x="146" y="55" width="48" height="11" rx="2" fill="url(#check)" stroke="none"/>
+    <rect x="138" y="53" width="5" height="15" rx="1.5" fill="url(#gold)" stroke-width="1.1"/>
+    <rect x="197" y="53" width="5" height="15" rx="1.5" fill="url(#gold)" stroke-width="1.1"/>
+  </g>
+  <!-- vent rib posts -->
+  <g fill="#07080b"><rect x="130" y="42.5" width="2" height="2.5"/><rect x="142" y="42.5" width="2" height="2.5"/><rect x="154" y="42.5" width="2" height="2.5"/><rect x="166" y="42.5" width="2" height="2.5"/><rect x="178" y="42.5" width="2" height="2.5"/><rect x="190" y="42.5" width="2" height="2.5"/><rect x="202" y="42.5" width="2" height="2.5"/><rect x="214" y="42.5" width="2" height="2.5"/><rect x="226" y="42.5" width="2" height="2.5"/><rect x="238" y="42.5" width="2" height="2.5"/></g>
+  <!-- gold barrel bands and bead -->
+  <g fill="url(#gold)" stroke="#07080b" stroke-width=".8"><rect x="208" y="44.5" width="4" height="10" rx="1"/><rect x="242" y="44.5" width="5" height="10" rx="1"/></g>
+  <circle cx="245" cy="38.5" r="2" fill="url(#gold)" stroke="#5c3b08" stroke-width=".6"/>
+  <!-- receiver engraving -->
+  <rect x="82" y="46" width="38" height="20" rx="2" fill="none" stroke="#d9a73a" stroke-width=".8"/>
+  <g fill="none" stroke="#f2cd6a" stroke-width=".8" stroke-linecap="round">
+    <path d="M86 61 C86 52 94 51 95 56 C96 59 92 60 91 57"/>
+    <path d="M97 50 C102 60 108 61 111 55 C113 51 110 49 108 52"/>
+    <path d="M112 62 C114 58 117 57 117 52"/>
+    <path d="M88 49 C92 48 95 50 96 48M101 63 C105 64 108 62 110 64"/>
+  </g>
+  <!-- stock inlay -->
+  <path d="M40 58 L48 54 L56 58 L48 62 Z" fill="url(#gold)" stroke="#5c3b08" stroke-width=".6"/>
+  <path d="M30 59 Q36 56 40 58M56 58 Q62 56 68 58" stroke="#e7b94a" stroke-width=".8" fill="none"/>
+  <!-- highlights -->
+  <path d="M122 47.5 H246" stroke="#c5cbe0" stroke-opacity=".5" stroke-width="1.1"/>
+  <path d="M16 55 Q46 52 80 50" stroke="#e8946a" stroke-opacity=".45" stroke-width="1.3" fill="none"/>
+  <path d="M80 45.5 H122" stroke="#c5cbe0" stroke-opacity=".45" stroke-width="1.1"/>
+  <path d="M6.5 56 L8 86" stroke="#fff6cf" stroke-opacity=".7" stroke-width=".9"/>
+</svg>

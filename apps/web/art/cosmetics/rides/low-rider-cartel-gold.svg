@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128">
+  <!-- Cartel Gold Low-Rider: candy black-cherry flake, cream landau top, gold-leaf scrolls, gold trim, wire wheels with white walls, nose lifted on the switches. -->
+  <defs>
+    <filter id="s" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="paint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a1f33"/><stop offset=".35" stop-color="#4f0b1a"/><stop offset="1" stop-color="#16020a"/></linearGradient>
+    <pattern id="flake" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".35" fill="#ffd36b" fill-opacity=".45"/><circle cx="3.5" cy="3" r=".3" fill="#ff8aa0" fill-opacity=".35"/></pattern>
+    <linearGradient id="vinyl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6efdf"/><stop offset="1" stop-color="#c7b691"/></linearGradient>
+    <pattern id="grainv" width="3" height="3" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r=".35" fill="#8a7650" fill-opacity=".35"/></pattern>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2f2a"/><stop offset=".6" stop-color="#1a1210"/><stop offset=".8" stop-color="#8a5a1a"/><stop offset="1" stop-color="#e2b04a"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c8"/><stop offset=".45" stop-color="#e2b04a"/><stop offset=".55" stop-color="#8f5c10"/><stop offset="1" stop-color="#f5d684"/></linearGradient>
+    <radialGradient id="hub" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#fff5c4"/><stop offset=".55" stop-color="#d9a73a"/><stop offset="1" stop-color="#7c510e"/></radialGradient>
+    <clipPath id="bodyclip"><path d="M12 66 Q44 62 75 61 C84 54 92 47 102 46 L152 46 C158 47 166 56 172 63 L178 63 C205 64 235 67 248 70 L250 72 Q251 80 249 90 L232 95 A18 18 0 0 0 195 95 L95 96 A18 18 0 0 0 59 96 L14 94 Q10 92 10 86 L10 70 Q10 66 12 66 Z"/></clipPath>
+    <g id="spokes" stroke="#f3cf6c" stroke-width=".55">
+      <path d="M0 -3 L2.6 -10.6M0 -3 L-2.6 -10.6"/>
+    </g>
+    <g id="wheel">
+      <circle r="15" fill="#121212" stroke="#050505" stroke-width="1.4"/>
+      <!-- white wall -->
+      <circle r="12.6" fill="none" stroke="#f4f1ea" stroke-width="2.6"/>
+      <circle r="11" fill="#2a1d0a" stroke="url(#gold)" stroke-width="1.4"/>
+      <use href="#spokes"/><use href="#spokes" transform="rotate(30)"/><use href="#spokes" transform="rotate(60)"/><use href="#spokes" transform="rotate(90)"/><use href="#spokes" transform="rotate(120)"/><use href="#spokes" transform="rotate(150)"/><use href="#spokes" transform="rotate(180)"/><use href="#spokes" transform="rotate(210)"/><use href="#spokes" transform="rotate(240)"/><use href="#spokes" transform="rotate(270)"/><use href="#spokes" transform="rotate(300)"/><use href="#spokes" transform="rotate(330)"/>
+      <circle r="3.6" fill="url(#hub)" stroke="#5c3b08" stroke-width=".7"/>
+      <!-- knock-off spinner -->
+      <path d="M-6 -1 L6 -1 L6.8 0 L6 1 L-6 1 L-6.8 0 Z" fill="url(#gold)" stroke="#5c3b08" stroke-width=".5" transform="rotate(-25)"/>
+      <circle r="1.3" fill="#fff6c8"/>
+    </g>
+  </defs>
+  <g transform="translate(0 -9)">
+    <ellipse cx="128" cy="106" rx="120" ry="4.5" fill="#000" opacity=".45"/>
+    <!-- hydraulics: the nose is lifted around the rear axle -->
+    <g transform="rotate(-2.4 77 91)">
+      <path d="M61 62 L38 43" stroke="#e7d8a8" stroke-width="1.1" stroke-linecap="round"/><circle cx="38" cy="43" r="1.6" fill="url(#hub)"/>
+      <g filter="url(#s)">
+        <path d="M12 66 Q44 62 75 61 C84 54 92 47 102 46 L152 46 C158 47 166 56 172 63 L178 63 C205 64 235 67 248 70 L250 72 Q251 80 249 90 L232 95 A18 18 0 0 0 195 95 L95 96 A18 18 0 0 0 59 96 L14 94 Q10 92 10 86 L10 70 Q10 66 12 66 Z" fill="url(#paint)" stroke="#120208" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M8 81 H20 V91 H11 Q8 91 8 88 Z" fill="url(#gold)" stroke="#3a2406" stroke-width="1.1"/>
+        <path d="M236 88 L250 84 Q253 84 253 87 V90 Q253 93 250 93 H238 Z" fill="url(#gold)" stroke="#3a2406" stroke-width="1.1"/>
+      </g>
+      <path d="M12 66 Q44 62 75 61 L178 63 C205 64 235 67 248 70 L250 72 Q251 80 249 90 L232 95 A18 18 0 0 0 195 95 L95 96 A18 18 0 0 0 59 96 L14 94 Q10 92 10 86 L10 70 Q10 66 12 66 Z" fill="url(#flake)"/>
+      <!-- cream landau vinyl top -->
+      <path d="M75 61 C84 54 92 47 102 46 L152 46 C158 47 166 56 172 63 Z" fill="url(#vinyl)"/>
+      <path d="M75 61 C84 54 92 47 102 46 L152 46 C158 47 166 56 172 63 Z" fill="url(#grainv)"/>
+      <path d="M100 63 C99 56 101 50 106 49 L150 49 C155 50 160 55 164 63 Z" fill="url(#glass)" stroke="#120208" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M126 49 V63" stroke="url(#gold)" stroke-width="1.4"/>
+      <path d="M112 60 L122 50 M140 60 L148 52" stroke="#fff4d0" stroke-opacity=".25" stroke-width="2.4"/>
+      <!-- landau S-bar -->
+      <path d="M84 59 C86 54 92 56 94 52 C95 50 93 49 92 50.5" fill="none" stroke="url(#gold)" stroke-width="1.6" stroke-linecap="round"/>
+      <g clip-path="url(#bodyclip)">
+        <!-- gold-leaf scrolls -->
+        <g fill="none" stroke="#f0c95f" stroke-width=".8" stroke-linecap="round">
+          <path d="M130 86 C134 78 142 78 142 83 C142 86 138 86 138 83.5"/>
+          <path d="M144 80 C150 90 158 90 161 84 C162.5 81 159.5 80 158.5 82.5"/>
+          <path d="M163 87 C166 82 170 81 172 78"/>
+          <path d="M127 80 C122 82 120 86 116 86"/>
+          <path d="M24 84 C28 77 36 77 36 82 C36 85 32 85 32 82.5"/>
+          <path d="M38 79 C42 86 48 86 50 82"/>
+          <path d="M196 76 C204 74 216 75 226 78 C230 79 232 77 231 75.5"/>
+        </g>
+        <path d="M14 67 Q44 63.5 76 62.5 M180 64.5 C206 65.5 232 68 246 71" stroke="#ff9cb0" stroke-opacity=".45" stroke-width="1.3" fill="none"/>
+      </g>
+      <path d="M178 63 V96 M123 64 V97" stroke="#2a0612" stroke-width="1.2"/>
+      <path d="M14 70 L244 73" stroke="url(#gold)" stroke-width="2"/>
+      <path d="M16 92.5 L232 93.5" stroke="url(#gold)" stroke-width="1.2"/>
+      <rect x="127" y="67" width="7" height="2" rx="1" fill="url(#gold)"/>
+      <ellipse cx="168" cy="62" rx="2.2" ry="1.6" fill="url(#gold)" stroke="#3a2406" stroke-width=".6"/>
+      <!-- hood ornament -->
+      <path d="M236 67.5 L238 63 L241 62 L240 64.5 L242 68.5 Z" fill="url(#gold)" stroke="#3a2406" stroke-width=".5"/>
+      <rect x="10" y="67" width="2.4" height="7" fill="#e0263a"/>
+      <path d="M244 72 L249 72.5 Q250.5 74 249 75.5 L244 75 Z" fill="#fff4d0"/>
+    </g>
+    <use href="#wheel" transform="translate(213 91)"/>
+    <use href="#wheel" transform="translate(77 91)"/>
+  </g>
+</svg>
