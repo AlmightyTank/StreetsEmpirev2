@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { Prisma } from '@prisma/client';
 import { classicOgStreetPassA, type Ruleset } from '@streets/rulesets';
 import { availableRoundActions, rulesetChangeWarnings, slugifyRoundName, startDecision, streetPassTiersProblem } from '../admin-round.service.js';
 
@@ -90,7 +91,7 @@ describe('rulesetChangeWarnings', () => {
   });
 
   it('keeps Street Pass edits that fit the new track and drops ones that do not', () => {
-    const edited = pinned({ streetPassOverride: { ...pass, tiers } });
+    const edited = pinned({ streetPassOverride: { ...pass, tiers } as unknown as Prisma.JsonValue });
     expect(codes(edited, target())).toEqual([]);
     expect(codes(edited, target({ streetPass: { ...pass, tiers: pass.tiers.slice(1) } }))).toEqual(['STREET_PASS_EDITS_DROPPED']);
     expect(codes(edited, target({ streetPass: undefined }))).toEqual(['SECTIONS_REMOVED', 'STREET_PASS_EDITS_DROPPED']);
