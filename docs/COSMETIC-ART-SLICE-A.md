@@ -224,18 +224,6 @@ This is how Slice A was activated, and how a future collection should be. For ex
 6. Verify changing a selection updates every `ItemTile` surface after settings refresh.
 7. Verify gameplay values are unchanged.
 
-## Future unlocks
+## Unlocks
 
-Slice A starts with the same storage shape needed for later unlock-gating. When Street Pass, quests, achievements, premium rewards or events award a blueprint, the server can filter the per-account style options without changing `ItemTile` or inventory storage.
-
-Recommended next data addition after the artwork lands:
-
-```ts
-{
-  key: 'cartel-gold',
-  rarity: 'legendary',
-  unlock: { kind: 'STREET_PASS', key: '...' }
-}
-```
-
-Keep unlock ownership server-authoritative; the image file being publicly reachable must never itself count as owning the cosmetic.
+Collections are earned on the Street Pass; see [Slice D](COSMETIC-ART-SLICE-D.md). Ownership is server-authoritative: the image file being publicly reachable never counts as owning the cosmetic.

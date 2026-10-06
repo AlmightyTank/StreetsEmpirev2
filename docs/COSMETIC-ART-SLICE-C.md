@@ -8,7 +8,7 @@ Crew stay aggregate inventory. An outfit is a per-account presentation choice fo
 
 ## Collections
 
-Crew reuse the item collection catalog (`ITEM_COSMETIC_STYLES`), so one `released` flag gates items and crew together. They carry their own outfit descriptions (`RELEASED_CREW_COSMETIC_STYLES`) so the picker reads as clothing rather than hardware.
+Crew reuse the item collection catalog (`ITEM_COSMETIC_STYLES`), so one `released` flag gates items and crew together, and one Street Pass unlock ([Slice D](COSMETIC-ART-SLICE-D.md)) covers both. They carry their own outfit descriptions (`RELEASED_CREW_COSMETIC_STYLES`) so the picker reads as clothing rather than hardware.
 
 Each outfit keeps the Classic face so the character stays recognisable; headwear, eyewear, hair colour, clothing and jewellery change.
 
