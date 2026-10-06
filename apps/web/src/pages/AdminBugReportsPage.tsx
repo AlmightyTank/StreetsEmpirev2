@@ -101,7 +101,7 @@ export function AdminBugReportsPage() {
     <GameLayout>
       <div className="se-pagehead se-admin-pagehead">
         <div>
-          <h1 className="se-title">Bug reports</h1>
+          <h1 className="se-title">Bug Reports</h1>
           <p className="se-eyebrow">Admin · sent by players from Report a bug</p>
         </div>
       </div>

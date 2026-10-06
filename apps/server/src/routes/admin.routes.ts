@@ -38,6 +38,7 @@ import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
 import { AdminCasinoService } from '../services/admin-casino.service.js';
+import { AdminFactionService } from '../services/admin-faction.service.js';
 import { AdminLawService } from '../services/admin-law.service.js';
 import { AdminTurfService } from '../services/admin-turf.service.js';
 import { BugReportService } from '../services/support.service.js';
@@ -148,6 +149,13 @@ const lawAdjustSchema = z.object({
   reason,
   citySlug: z.string().trim().min(1).max(64).regex(/^[a-z0-9-]+$/),
   points: z.number().min(0).max(1_000),
+}).strict();
+
+// 1.4.0-G: set one faction's standing to an exact value, with a receipt and audit row.
+const factionAdjustSchema = z.object({
+  reason,
+  factionKey: z.string().trim().min(1).max(64).regex(/^[A-Z][A-Z0-9_]{1,63}$/),
+  points: z.number().int().min(0).max(10_000),
 }).strict();
 
 const grantSchema = z.object({
@@ -761,6 +769,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminLawService.report(fastify.prisma, roundId);
   });
 
+  /** 1.4.0-G: faction standing health for a round. Read-only; points stay staff-only. */
+  fastify.get('/rounds/:roundId/factions', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    return AdminFactionService.report(fastify.prisma, roundId);
+  });
+
   fastify.get('/players/:roundPlayerId/law', async (request) => {
     const { roundPlayerId } = parseBody(playerParams, request.params);
     return AdminLawService.player(fastify.prisma, roundPlayerId);
@@ -771,6 +785,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { roundPlayerId } = parseBody(playerParams, request.params);
     const body = parseBody(lawAdjustSchema, request.body ?? {});
     return AdminLawService.adjust(fastify.prisma, request.auth!.account, roundPlayerId, body);
+  });
+
+  /** 1.4.0-G: an audited correction to one faction's standing. */
+  fastify.post('/players/:roundPlayerId/factions/adjust', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    const body = parseBody(factionAdjustSchema, request.body ?? {});
+    return AdminFactionService.adjust(fastify.prisma, request.auth!.account, roundPlayerId, body);
   });
 
   fastify.get('/rounds/:roundId/shipments', async (request) => {

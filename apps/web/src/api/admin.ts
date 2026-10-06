@@ -5,6 +5,8 @@ import type {
   MonitoringSnapshotDto,
   AdminExploitFlagDto,
   AdminExploitFlagsDto,
+  AdminFactionAdjustmentInput,
+  AdminFactionRoundDto,
   AdminCasinoDto,
   AdminLawDto,
   AdminLawPlayerDto,
@@ -201,6 +203,10 @@ export const adminApi = {
   // 1.0.0-E: economy, fights, exploit flags and turf.
   markets: (roundId: string) => api.get<AdminMarketsDto>(roundPath(roundId, 'markets')),
   casino: (roundId: string) => api.get<AdminCasinoDto>(roundPath(roundId, 'casino')),
+  // 1.4.0-G: faction standing health and audited correction.
+  factions: (roundId: string) => api.get<AdminFactionRoundDto>(roundPath(roundId, 'factions')),
+  adjustPlayerFaction: (roundPlayerId: string, input: AdminFactionAdjustmentInput) =>
+    api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/factions/adjust`, input),
   // 1.3.0-G: law health, one player's Case, and an audited correction.
   law: (roundId: string) => api.get<AdminLawDto>(roundPath(roundId, 'law')),
   playerLaw: (roundPlayerId: string) => api.get<AdminLawPlayerDto>(`/admin/players/${enc(roundPlayerId)}/law`),

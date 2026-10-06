@@ -207,12 +207,13 @@ export function AdminPage() {
     <GameLayout>
       <div className="se-pagehead se-admin-pagehead">
         <div>
-          <h1 className="se-title">Admin Panel</h1>
-          <p className="se-eyebrow">Rounds · every action is audited</p>
+          <h1 className="se-title">Rounds</h1>
+          <p className="se-eyebrow">Admin · seasons, schedule and release checklist</p>
         </div>
         <div className="se-cta">
+          <Link className="se-btn se-btn--ghost" to="/game/admin/monitoring">Monitoring</Link>
+          <Link className="se-btn se-btn--ghost" to="/game/admin/news">News and Banners</Link>
           <Link className="se-btn se-btn--ghost" to="/game/admin/surveys">Surveys</Link>
-          <Link className="se-btn se-btn--ghost" to="/game/admin/quests">Quest content</Link>
         </div>
       </div>
 

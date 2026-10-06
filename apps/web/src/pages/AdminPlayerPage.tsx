@@ -64,6 +64,10 @@ export function AdminPlayerPage() {
   const [supportQuestKey, setSupportQuestKey] = useState('');
   const [supportFavorKey, setSupportFavorKey] = useState('');
   const [supportFavorDelta, setSupportFavorDelta] = useState('');
+  const [factionReason, setFactionReason] = useState('');
+  const [factionKey, setFactionKey] = useState('');
+  const [factionPoints, setFactionPoints] = useState('');
+  const [factionFields, setFactionFields] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     try {
@@ -73,6 +77,7 @@ export function AdminPlayerPage() {
         adminApi.questContent(inspected.round.id),
       ]);
       setPlayer(inspected);
+      setFactionKey((current) => current || inspected.factions[0]?.factionKey || '');
       setQuestContent(content);
       setSupportQuestKey((current) => current || content.quests.find((quest) => quest.isEnabled)?.key || '');
       setSupportFavorKey((current) => current || content.favors.find((favor) => favor.isEnabled)?.key || '');
@@ -223,6 +228,39 @@ export function AdminPlayerPage() {
     }
   }
 
+  async function adjustFactionStanding(event: FormEvent) {
+    event.preventDefault();
+    const points = Number(factionPoints);
+    setFactionFields({});
+    setError(null);
+    setNotice(null);
+    if (!Number.isInteger(points) || points < 0) {
+      setFactionFields({ points: 'Use a whole number of zero or more.' });
+      return;
+    }
+    setBusy(true);
+    try {
+      const updated = await adminApi.adjustPlayerFaction(roundPlayerId, {
+        factionKey,
+        points,
+        reason: factionReason.trim(),
+      });
+      setPlayer(updated);
+      setFactionPoints('');
+      setFactionReason('');
+      setNotice('Faction standing corrected. The receipt total and admin audit log were updated.');
+    } catch (caught) {
+      if (caught instanceof ApiError) {
+        setFactionFields(caught.fields ?? {});
+        setError(caught.message);
+      } else {
+        setError('That faction correction did not go through.');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!player) {
     return (
       <GameLayout>
@@ -236,6 +274,13 @@ export function AdminPlayerPage() {
   const supportReasonReady = supportReason.trim().length >= 5;
   const supportDelta = Number(supportFavorDelta);
   const supportDeltaReady = Number.isInteger(supportDelta) && supportDelta !== 0 && Math.abs(supportDelta) <= 1000;
+  const factionSelected = player.factions.find((row) => row.factionKey === factionKey);
+  const factionPointsNumber = Number(factionPoints);
+  const factionReady = Boolean(factionKey)
+    && Number.isInteger(factionPointsNumber)
+    && factionPointsNumber >= 0
+    && factionReason.trim().length >= 5
+    && factionSelected?.points !== factionPointsNumber;
 
   return (
     <GameLayout>
@@ -365,9 +410,69 @@ export function AdminPlayerPage() {
             {player.reputation.length ? player.reputation.map((row) => (
               <Row key={row.trader} label={`Rep: ${row.trader}`} value={`${formatNumber(row.points)}${row.legacyFavorDone ? ' · legacy favor' : ''}`} />
             )) : <Row label="Reputation" value="-" />}
+            {player.factions.length ? player.factions.map((row) => (
+              <Row
+                key={row.factionKey}
+                label={`Faction: ${row.factionName}`}
+                value={`${formatNumber(row.points)} · ${row.tierName}${row.points === row.receiptPoints ? '' : ` · receipts ${formatNumber(row.receiptPoints)}`}`}
+              />
+            )) : <Row label="Faction standing" value="-" />}
           </div>
         </Panel>
       </div>
+
+      {player.factions.length ? (
+        <Panel title="Faction standing correction" aside={<Link to={`/game/admin/audit?targetType=player-faction-standing`}>Audit log</Link>} className="se-mb">
+          {!player.live ? (
+            <p className="se-hint">This round has finished, so faction standing corrections are frozen.</p>
+          ) : (
+            <form onSubmit={adjustFactionStanding} noValidate>
+              <div className="se-grid se-grid--2">
+                <div className="se-field">
+                  <label className="se-label" htmlFor="admin-faction-key">Faction</label>
+                  <select
+                    id="admin-faction-key"
+                    className="se-input"
+                    value={factionKey}
+                    onChange={(event) => {
+                      setFactionKey(event.target.value);
+                      const selected = player.factions.find((row) => row.factionKey === event.target.value);
+                      setFactionPoints(selected ? String(selected.points) : '');
+                    }}
+                  >
+                    {player.factions.map((row) => (
+                      <option key={row.factionKey} value={row.factionKey}>{row.factionName} · {row.points} · {row.tierName}</option>
+                    ))}
+                  </select>
+                  {factionSelected ? <p className="se-hint">Receipts total {formatNumber(factionSelected.receiptPoints)} across {formatNumber(factionSelected.receipts)} changes.</p> : null}
+                </div>
+                <Field
+                  id="admin-faction-points"
+                  label="Exact standing"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={factionPoints}
+                  onChange={(event) => setFactionPoints(event.target.value)}
+                  error={factionFields.points}
+                  hint="Sets the stored value exactly and writes an ADMIN receipt for the difference."
+                />
+              </div>
+              <div className="se-field">
+                <label className="se-label" htmlFor="admin-faction-reason">Reason</label>
+                <textarea id="admin-faction-reason" className="se-input se-admin-reason" maxLength={500} value={factionReason} onChange={(event) => setFactionReason(event.target.value)} />
+                {factionFields.reason ? <p className="se-error" role="alert">{factionFields.reason}</p> : <p className="se-hint">Shown in the player's activity feed and saved to the audit log. At least 5 characters.</p>}
+              </div>
+              <Button
+                className="se-btn se-btn--primary"
+                disabledReason={busy ? working : !factionReady ? 'Choose a faction, a changed whole-number value, and a reason of at least 5 characters.' : null}
+              >
+                Correct standing
+              </Button>
+            </form>
+          )}
+        </Panel>
+      ) : null}
 
       <Panel
         title="Quest and favor support"

@@ -9,7 +9,7 @@ import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { InfoLayout } from '../layouts/InfoLayout.js';
 
-/** rc.2. Report a bug to staff. It lands in Admin → Bug reports with the page and app version. */
+/** rc.2. Report a bug to staff. It lands in Admin → Bug Reports with the page and app version. */
 export function ReportBugPage() {
   const location = useLocation();
   // The page they came from, when a link carried it here.

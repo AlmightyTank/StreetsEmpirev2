@@ -44,6 +44,24 @@ SUVs, box trucks, armored cars and performance cars can stay in the backlog unti
 
 ---
 
+## First-pass vehicle behavior
+
+These identities should be clear enough for implementation and simulation before exact numbers are pinned.
+
+| Class | First-pass behavior | Watch item |
+| --- | --- | --- |
+| **Low-Rider** | Medium crew seats, medium cargo, normal route risk and the required vehicle for drive-bys. It remains the familiar all-purpose street car. | Must stay useful without being the best answer for every run. |
+| **Sedan** | Low crew seats, low cargo, lower-profile travel and cheaper or faster service. It is the small-job, quiet-movement option. | Must not become the automatic way to bypass Heat, police or road pressure. |
+| **Van** | Medium crew seats, high cargo, higher visibility and higher service cost. It is the practical hauler for larger product moves. | Must not become the default profit vehicle for every serious run. |
+
+Mixed loadouts are allowed if the run planner can show total seats, cargo, cash carried and risk in a readable way. If that UI becomes muddy, 1.5.0-B should start with one class per run and save mixed fleets for a later slice.
+
+Vehicle condition should start with readable states such as **Ready**, **Away**, **Damaged** and **Disabled**. Permanent loss and insurance should remain deferred unless simulation proves repairable damage is too soft.
+
+Risk language should stay player-facing. Labels such as **Heavy**, **Hot** or **Soft target** can explain why a route is tense without exposing hidden rolls or thresholds.
+
+---
+
 ## Proposed roadmap
 
 Each slice should have its own release gate and pinned ruleset, following the earlier StreetsEmpire roadmap pattern.

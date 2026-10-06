@@ -101,7 +101,7 @@ export function AdminRoundPage() {
       <div className="se-pagehead">
         <div>
           <h1 className="se-title">{round.name}</h1>
-          <p className="se-eyebrow"><Link to="/game/admin">Rounds</Link> · {round.status} · {round.rulesetVersion} · {round.slug}</p>
+          <p className="se-eyebrow"><Link to="/game/admin/rounds">Rounds</Link> · {round.status} · {round.rulesetVersion} · {round.slug}</p>
         </div>
       </div>
 

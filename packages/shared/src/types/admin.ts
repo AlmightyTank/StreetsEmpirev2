@@ -411,6 +411,38 @@ export interface AdminQuestContentDto {
   favors: AdminFavorCatalogRowDto[];
 }
 
+export interface AdminFactionStandingDto {
+  factionKey: string;
+  factionName: string;
+  points: number;
+  tier: string;
+  tierName: string;
+  receiptPoints: number;
+  receipts: number;
+  lastReceiptAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface AdminFactionRoundDto {
+  roundId: string;
+  generatedAt: string;
+  enabled: boolean;
+  rulesetId: string;
+  standings: Array<AdminFactionStandingDto & { roundPlayerId: string; displayName: string }>;
+  receipts24h: Array<{ source: string; entries: number; standing: number }>;
+  integrity: {
+    checked: number;
+    mismatches: Array<{ roundPlayerId: string; displayName: string; factionKey: string; stored: number; receipts: number }>;
+  };
+  adjustments7d: number;
+}
+
+export interface AdminFactionAdjustmentInput {
+  factionKey: string;
+  points: number;
+  reason: string;
+}
+
 /** Read-only player state as stored. Turns are as of the last settlement, not regenerated. */
 export interface AdminPlayerDto {
   roundPlayerId: string;
@@ -475,6 +507,8 @@ export interface AdminPlayerDto {
   };
   hideout: { safeRoom: number; lookouts: number; workshop: number; backOffice: number };
   reputation: Array<{ trader: string; points: number; legacyFavorDone: boolean }>;
+  /** 1.4.0-G. Staff-only standing with receipt totals for audit and correction. */
+  factions: AdminFactionStandingDto[];
   injuries: Array<{ id: string; thugs: number; recoverAt: string; battleId: string | null }>;
   intel: { observing: number; observedBy: number };
   activity: ActivityDto[];

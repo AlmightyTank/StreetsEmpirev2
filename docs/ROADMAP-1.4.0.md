@@ -2,8 +2,8 @@
 
 ## Brainstorm
 
-**Status:** 1.4.0-A, 1.4.0-B, B2, C, D, E and F are built; the newest ruleset is `classic-og-v1.4-f`.
-G is design only. See the [Roadmap](#roadmap) table.
+**Status:** 1.4.0-A, 1.4.0-B, B2, C, D, E, F and G are built; the newest ruleset is `classic-og-v1.4-g`.
+See the [Roadmap](#roadmap) table.
 
 **Target base:** StreetsEmpire v1.3.0 (`classic-og-v1.3-g`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** make each city's underworld feel populated
@@ -52,7 +52,7 @@ contact reputation exactly as they were.
 | **1.4.0-D — Faction Perks** | Built | `classic-og-v1.4-d` | Information at Known and early warnings at Trusted on each faction's card, then one capped nudge per faction at Connected (corner upkeep, Tommy's guns, bodyguard tickets, Pip's product, official exposure), each logged where it applies. |
 | **1.4.0-E — Rivalries & Inner Circle** | Built | `classic-og-v1.4-e` | The Inner Circle rival lock, previewed on the card and confirmed before it lands; Vic's paid introductions to Known; a Connected Job and an Inner Circle capstone (standing and a title) per faction. |
 | **1.4.0-F — Rewards & Public Flavor** | Built | `classic-og-v1.4-f` | A title and accent per faction at Connected and a frame at Inner Circle; alignment on profiles from Connected; Inner Circle on the public street feed; three faction feats; a Rules page section. |
-| **1.4.0-G — Balance, Admin & Release** | Planned | `classic-og-v1.4-g` | A `qa:factions` simulation, an admin standing view with audited corrections, an exploit audit, mobile checks and the release gate. |
+| **1.4.0-G — Balance, Admin & Release** | Built | `classic-og-v1.4-g` | A `qa:factions` simulation, an admin standing view with audited corrections, an exploit audit, mobile checks and the release gate. |
 
 ---
 
@@ -626,9 +626,18 @@ F invariants:
 
 ### 1.4.0-G — Balance, Admin & Release
 
-`qa:factions` whole-round simulation (street-only, faction-heavy, business-heavy, runner and mixed),
-an Admin → Factions view with audited standing corrections, an exploit audit, mobile checks and the
-release gate. Pins the tier thresholds and the nudge sizes.
+**Status: implemented.** Ruleset `classic-og-v1.4-g` (1.4.0-G) is a release wrapper on
+1.4.0-F. It changes no play values, and pins the tier thresholds and nudge sizes through
+`qa:factions`.
+
+`qa:factions` runs a 28-day abstract whole-round simulation (street-only, faction-heavy,
+business-heavy, runner and mixed), checks mixed play against faction-only play, verifies receipt
+totals, and reports the pinned thresholds, board standing and nudge sizes. Admin → Factions shows
+standing, 24-hour receipts, receipt integrity and 7-day staff corrections; each player inspector
+also shows faction standing and can set one faction to an exact audited value. Corrections write an
+`ADMIN` standing receipt, a player-visible admin activity and a `faction.standing-adjust` audit row.
+The release gate runs `qa:factions` alongside the existing law, exploit, mobile and integration
+checks.
 
 **Gate:** mixed play beats faction-only play; every standing change is auditable; the release gate
 runs the simulation and the integration suites.

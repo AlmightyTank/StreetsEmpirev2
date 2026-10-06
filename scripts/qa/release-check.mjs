@@ -45,6 +45,8 @@ run('Casino game Monte Carlo', npm, ['run', 'qa:casino']);
 run('Slot reels and free-spin Monte Carlo', npm, ['run', 'qa:slots']);
 // 1.3.0-G: whole rounds of Heat and Case for careful, managed, trading and reckless players.
 run('Law balance bands', npm, ['run', 'qa:law', '--', '--quiet']);
+// 1.4.0-G: faction-heavy play, mixed play, receipt integrity and pinned faction release values.
+run('Faction balance and audit gates', npm, ['run', 'qa:factions', '--', '--quiet']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup

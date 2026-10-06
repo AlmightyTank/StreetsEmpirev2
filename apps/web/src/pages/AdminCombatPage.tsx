@@ -92,7 +92,7 @@ export function AdminCombatPage() {
     <GameLayout>
       <div className="se-pagehead se-admin-pagehead">
         <div>
-          <h1 className="se-title">Combat &amp; exploits</h1>
+          <h1 className="se-title">Combat and Exploits</h1>
           <p className="se-eyebrow">Admin · exploit flags and battle reports</p>
         </div>
         <AdminRoundPicker rounds={rounds} roundId={roundId} onChange={setRoundId} />
