@@ -20,7 +20,7 @@ describe('account profile settings schema', () => {
     expect(result.crewCosmetics).toEqual({ THUG: 'classic', HOE: 'classic' });
   });
 
-  it('accepts item and crew cosmetic loadouts', () => {
+  it('accepts the released Classic weapon and ride loadout', () => {
     const result = updateAccountProfileSettingsSchema.parse({
       activeTitleKey: null,
       activeProfileFrameKey: null,
@@ -30,15 +30,15 @@ describe('account profile settings schema', () => {
       reducedMotion: false,
       moneyFormat: 'full',
       defaultLanding: 'game',
-      itemCosmetics: { AK47: 'gold', CRACK: 'violet' },
-      crewCosmetics: { THUG: 'blackout', HOE: 'ice' },
+      itemCosmetics: { AK47: 'classic', LOW_RIDER: 'classic' },
+      crewCosmetics: { THUG: 'classic', HOE: 'classic' },
     });
 
-    expect(result.itemCosmetics).toEqual({ AK47: 'gold', CRACK: 'violet' });
-    expect(result.crewCosmetics).toEqual({ THUG: 'blackout', HOE: 'ice' });
+    expect(result.itemCosmetics).toEqual({ AK47: 'classic', LOW_RIDER: 'classic' });
+    expect(result.crewCosmetics).toEqual({ THUG: 'classic', HOE: 'classic' });
   });
 
-  it('rejects cosmetics for item keys outside the customizable catalog', () => {
+  it('rejects planned artwork until that collection is released', () => {
     const result = updateAccountProfileSettingsSchema.safeParse({
       activeTitleKey: null,
       activeProfileFrameKey: null,
@@ -48,7 +48,23 @@ describe('account profile settings schema', () => {
       reducedMotion: false,
       moneyFormat: 'full',
       defaultLanding: 'game',
-      itemCosmetics: { CASH: 'gold' },
+      itemCosmetics: { AK47: 'midnight-ops' },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects cosmetics for items outside Slice A', () => {
+    const result = updateAccountProfileSettingsSchema.safeParse({
+      activeTitleKey: null,
+      activeProfileFrameKey: null,
+      featuredBadgeKeys: [],
+      profileAccent: 'default',
+      uiDensity: 'comfortable',
+      reducedMotion: false,
+      moneyFormat: 'full',
+      defaultLanding: 'game',
+      itemCosmetics: { CRACK: 'classic' },
     });
 
     expect(result.success).toBe(false);
