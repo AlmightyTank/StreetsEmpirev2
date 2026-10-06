@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Cartel Gold collection">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4d5262"/><stop offset=".35" stop-color="#1b1e27"/><stop offset="1" stop-color="#08090c"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b8"/><stop offset=".35" stop-color="#e7b94a"/><stop offset=".7" stop-color="#9a6614"/><stop offset="1" stop-color="#f0c95f"/></linearGradient>
+    <linearGradient id="pearl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset=".5" stop-color="#eadfca"/><stop offset="1" stop-color="#cdbb9b"/></linearGradient>
+  </defs>
+  <g transform="rotate(-6 64 64)">
+    <g filter="url(#s)"><rect x="26" y="16" width="76" height="96" rx="7" fill="url(#card)" stroke="#07080b" stroke-width="1.6"/></g>
+    <rect x="30" y="20" width="68" height="88" rx="5" fill="none" stroke="url(#gold)" stroke-width="2.4"/>
+    <rect x="34" y="24" width="60" height="80" rx="3" fill="none" stroke="#d9a73a" stroke-opacity=".6" stroke-width=".8"/>
+    <!-- gold pistol with pearl grip -->
+    <g transform="translate(32 18) scale(.48)" stroke="#3a2406" stroke-width="2.6" stroke-linejoin="round">
+      <path d="M28 55 H58 L52 104 Q51 108 46 108 H27 Q22 108 22 103 L24 66 Q18 62 14 56 Q20 55 28 55 Z" fill="#14171e"/>
+      <path d="M30 63 H54 L49 100 Q48 103 44 103 H31 Q27 103 27 99 Z" fill="url(#pearl)"/>
+      <path d="M26 53 H106 V60 Q106 64 102 64 H30 Z" fill="#14171e"/>
+      <path d="M22 38 H108 Q112 38 112 42 V51 Q112 54 109 54 H22 Q19 54 19 51 V41 Q19 38 22 38 Z" fill="url(#gold)"/>
+      <path d="M16 45 L12 37 A5 5 0 1 1 20 34 L24 41 Z" fill="url(#gold)"/>
+    </g>
+    <!-- crown emblem -->
+    <path d="M50 98 V84 L57 90 L64 80 L71 90 L78 84 V98 Z" fill="url(#gold)" stroke="#3a2406" stroke-width="1.3" stroke-linejoin="round"/>
+    <g fill="#c8182c"><circle cx="57" cy="94" r="1.6"/><circle cx="64" cy="93" r="1.8"/><circle cx="71" cy="94" r="1.6"/></g>
+    <path d="M36 28 Q50 24 62 25" stroke="#c5cbe0" stroke-opacity=".5" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  </g>
+  <path d="M104 22 l1.5 -4 l1.5 4 l4 1.5 l-4 1.5 l-1.5 4 l-1.5 -4 l-4 -1.5 Z" fill="#fff3b8"/>
+</svg>

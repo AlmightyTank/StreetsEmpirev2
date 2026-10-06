@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Urban Ghost collection">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d3d7db"/><stop offset=".5" stop-color="#979ca2"/><stop offset="1" stop-color="#5c6168"/></linearGradient>
+    <linearGradient id="gun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6c7178"/><stop offset="1" stop-color="#2b2e33"/></linearGradient>
+    <clipPath id="cardclip"><rect x="26" y="16" width="76" height="96" rx="7"/></clipPath>
+  </defs>
+  <g transform="rotate(-6 64 64)">
+    <g filter="url(#s)"><rect x="26" y="16" width="76" height="96" rx="7" fill="url(#card)" stroke="#16181b" stroke-width="1.6"/></g>
+    <g clip-path="url(#cardclip)" opacity=".55">
+      <path d="M22 14 L52 14 L46 34 L22 38 Z" fill="#c4c8cc"/>
+      <path d="M80 12 L106 12 L106 36 L84 30 Z" fill="#3f4348"/>
+      <path d="M22 92 L46 88 L50 116 L22 116 Z" fill="#3f4348"/>
+      <path d="M74 96 L106 92 L106 116 L78 116 Z" fill="#c4c8cc"/>
+    </g>
+    <rect x="31" y="21" width="66" height="86" rx="4" fill="none" stroke="#f2f8fd" stroke-opacity=".7" stroke-width="1"/>
+    <!-- pistol in the collection finish -->
+    <g transform="translate(32 18) scale(.48)" stroke="#16181b" stroke-width="2.6" stroke-linejoin="round">
+      <path d="M32 58 H60 L51 103 Q50 108 44 108 H25 Q19 108 20 102 Z" fill="#8d9298"/>
+      <path d="M28 54 H108 V60 Q108 64 104 64 H30 Z" fill="url(#gun)"/>
+      <path d="M20 37 H112 Q116 37 116 41 V52 Q116 55 113 55 H20 Q17 55 17 52 V40 Q17 37 20 37 Z" fill="#e6eaee"/>
+      <rect x="64" y="39" width="12" height="7" rx="3" fill="#2b2e33"/>
+      <rect x="80" y="39" width="12" height="7" rx="3" fill="#2b2e33"/>
+    </g>
+    <!-- ghost emblem -->
+    <path d="M-9 8 V-1.5 A9 9 0 0 1 9 -1.5 V8 L6 5.4 L3 8 L0 5.4 L-3 8 L-6 5.4 Z" transform="translate(64 88)" fill="#f4f7fa" stroke="#16181b" stroke-width="1.4" stroke-linejoin="round"/>
+    <g fill="#16181b"><circle cx="61" cy="87" r="1.4"/><circle cx="67" cy="87" r="1.4"/></g>
+  </g>
+</svg>
