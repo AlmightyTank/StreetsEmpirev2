@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Midnight Ops beer: matte black tallboy can, teal band and chevrons, cold condensation beads. -->
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".65"/></filter>
+    <linearGradient id="can" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0e0f11"/><stop offset=".25" stop-color="#3a3e44"/><stop offset=".45" stop-color="#1e2024"/><stop offset="1" stop-color="#0a0b0c"/></linearGradient>
+    <linearGradient id="lid" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4c5158"/><stop offset=".4" stop-color="#9aa1a9"/><stop offset="1" stop-color="#3a3e44"/></linearGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1f7f6a"/><stop offset=".3" stop-color="#7fe8c8"/><stop offset=".5" stop-color="#4fd1a8"/><stop offset="1" stop-color="#16594a"/></linearGradient>
+  </defs>
+  <g transform="rotate(6 64 64)">
+    <g filter="url(#s)" stroke="#060708" stroke-width="1.6" stroke-linejoin="round">
+      <path d="M40 26 L44 20 H84 L88 26 V102 L84 108 H44 L40 102 Z" fill="url(#can)"/>
+      <ellipse cx="64" cy="20" rx="20" ry="5" fill="url(#lid)"/>
+    </g>
+    <ellipse cx="64" cy="20" rx="15" ry="3.6" fill="none" stroke="#2b2e33" stroke-width="1"/>
+    <path d="M64 18 h7 q3 0 3 2 q0 2 -3 2 h-7 Z" fill="#6b727b" stroke="#2b2e33" stroke-width=".8"/>
+    <ellipse cx="57" cy="20.5" rx="3" ry="1.4" fill="#16181b"/>
+    <!-- teal band and chevrons -->
+    <rect x="40" y="56" width="48" height="10" fill="url(#band)"/>
+    <path d="M40 56 H88M40 66 H88" stroke="#060708" stroke-width="1"/>
+    <g fill="none" stroke="#4fd1a8" stroke-width="2.2" stroke-linejoin="round"><path d="M54 76 L64 70 L74 76M54 84 L64 78 L74 84"/></g>
+    <g fill="#4fd1a8"><rect x="54" y="40" width="20" height="3" rx="1"/><rect x="58" y="46" width="12" height="2" rx="1"/></g>
+    <path d="M40 98 H88" stroke="#5d636b" stroke-opacity=".5" stroke-width="1"/>
+    <!-- sheen and condensation -->
+    <path d="M48 30 V98" stroke="#8a929c" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/>
+    <g fill="#dff4ff" fill-opacity=".55"><ellipse cx="46" cy="38" rx="1" ry="1.6"/><ellipse cx="52" cy="50" rx=".9" ry="1.4"/><ellipse cx="80" cy="34" rx="1" ry="1.6"/><ellipse cx="78" cy="88" rx="1.1" ry="1.8"/><ellipse cx="50" cy="92" rx=".9" ry="1.4"/><ellipse cx="82" cy="72" rx=".8" ry="1.3"/><ellipse cx="46" cy="70" rx=".8" ry="1.3"/></g>
+    <path d="M78 88 V96" stroke="#dff4ff" stroke-opacity=".35" stroke-width="1" stroke-linecap="round"/>
+  </g>
+</svg>

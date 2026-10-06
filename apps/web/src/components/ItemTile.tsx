@@ -1,18 +1,30 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type { CustomizableItemKey, ItemCosmeticStyleKey } from '@streets/shared';
-import { hasItemArt, ITEM_ART, itemArtUrl, type ItemArtKey } from '../items/itemArt.js';
+import { hasItemArt, ITEM_ART, type ItemArtKey } from '../items/itemArt.js';
+import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
 import { useSession } from '../stores/session.js';
 
 /**
  * A small picture ahead of a list row's label. `slot` reserves room for a
  * two-cell item so labels line up in a list that mixes sizes (the Armory).
  */
-export function ItemLabel({ itemKey, children, slot = false }: { itemKey: string; children: ReactNode; slot?: boolean }) {
+export function ItemLabel({
+  itemKey,
+  children,
+  slot = false,
+  cosmeticStyle,
+}: {
+  itemKey: string;
+  children: ReactNode;
+  slot?: boolean;
+  /** Draw the item in this style instead of the viewer's own (e.g. an opponent's in a battle report). */
+  cosmeticStyle?: ItemCosmeticStyleKey;
+}) {
   if (!hasItemArt(itemKey)) return <>{children}</>;
   return (
     <span className="se-item-label">
       <span className={`se-item-label__art${slot ? ' se-item-label__art--slot' : ''}`}>
-        <ItemTile item={itemKey} size="sm" label={false} />
+        <ItemTile item={itemKey} size="sm" label={false} cosmeticStyle={cosmeticStyle} />
       </span>
       <span className="se-item-label__text">{children}</span>
     </span>
@@ -64,7 +76,7 @@ export function ItemTile({
     : profileSettings.itemCosmetics?.[item as CustomizableItemKey] ?? 'classic';
   const skin = cosmeticStyle ?? accountStyle;
   const [w, h] = art.cells;
-  const classes = ['se-item-tile', `se-item-tile--skin-${skin}`, `se-item-tile--${art.rarity.toLowerCase()}`, `se-item-tile--${size}`, w > 1 ? 'se-item-tile--wide' : null, className]
+  const classes = ['se-item-tile', `se-item-tile--${art.rarity.toLowerCase()}`, `se-item-tile--${size}`, w > 1 ? 'se-item-tile--wide' : null, className]
     .filter(Boolean)
     .join(' ');
 
@@ -74,7 +86,7 @@ export function ItemTile({
       style={{ '--se-item-w': w, '--se-item-h': h } as CSSProperties}
       title={title ?? (quantity === undefined ? art.name : `${art.name} ×${quantity.toLocaleString()}`)}
     >
-      <img src={itemArtUrl(item)} alt={art.name} loading="lazy" decoding="async" draggable={false} />
+      <img src={itemCosmeticArtUrl(item, skin)} alt={art.name} loading="lazy" decoding="async" draggable={false} />
       {label && <figcaption className="se-item-tile__name">{art.shortName}</figcaption>}
       {quantityText !== undefined || quantity !== undefined
         ? <span className="se-item-tile__qty">{quantityText ?? formatQuantity(quantity!)}</span>

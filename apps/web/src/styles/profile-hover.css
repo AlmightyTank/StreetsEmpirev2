@@ -29,6 +29,37 @@
 .se-profile-hover-card[data-accent="open-road-blue"] { --se-hover-accent: #5eafe2; }
 .se-profile-hover-card[data-accent="clean-slate-ice"] { --se-hover-accent: #9ed9e8; }
 .se-profile-hover-card[data-accent="corner-amber"] { --se-hover-accent: #e6a344; }
+
+/* Slice F: the owner's site theme tints the card. The theme class on the card
+   supplies its tokens; an accent the owner picked still wins over the theme's. */
+.se-profile-hover-card:not([data-theme="none"]) {
+  --se-hover-bg: var(--se-bg);
+  --se-hover-panel: var(--se-panel-hi);
+  --se-hover-line: var(--se-line);
+  --se-hover-text: var(--se-text);
+  --se-hover-muted: var(--se-text-dim);
+  background-color: var(--se-hover-bg);
+}
+.se-profile-hover-card:not([data-theme="none"])[data-accent="default"] { --se-hover-accent: var(--se-accent); }
+
+.se-profile-hover-card__look {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 16px 0;
+}
+/* Four tiles (two wide) fit one row of the 330px card. */
+.se-profile-hover-card__look .se-item-tile { --se-item-cell: 44px; }
+/* Themed cards draw the banner from the theme; an uploaded banner (inline style) still wins. */
+.se-profile-hover-card:not([data-theme="none"]) .se-profile-hover-card__banner {
+  background:
+    radial-gradient(ellipse at 72% 115%, color-mix(in srgb, var(--se-hover-accent) 48%, transparent), transparent 46%),
+    linear-gradient(128deg, var(--se-bg), var(--se-panel-hi) 56%, var(--se-bg));
+}
+.se-profile-hover-card:not([data-theme="none"]) .se-profile-hover-card__banner::before,
+.se-profile-hover-card:not([data-theme="none"]) .se-profile-hover-card__banner::after {
+  background: color-mix(in srgb, var(--se-bg) 82%, transparent);
+}
 .se-profile-hover-card[data-accent="velvet-rose"] { --se-hover-accent: #dc82a9; }
 .se-profile-hover-card[data-accent="kings-gold"] { --se-hover-accent: #e9c46a; }
 .se-profile-hover-card[data-accent="outfit-oxblood"] { --se-hover-accent: #d0683f; }

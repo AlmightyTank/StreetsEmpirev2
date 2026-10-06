@@ -142,6 +142,9 @@ export interface PlayerDirectoryEntryDto {
   activity: PlayerActivityBand;
   isYou: boolean;
   isContact: boolean;
+  /** Slice F. The site theme this player shows on their profile; optional for older servers. */
+  siteTheme?: string | null;
+  siteThemeLabel?: string | null;
 }
 
 export interface PlayerDirectoryDto {

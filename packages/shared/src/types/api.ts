@@ -207,6 +207,13 @@ export interface CosmeticOptionDto {
   description: string | null;
 }
 
+/** An item art collection; non-classic collections are earned on the Street Pass. */
+export interface CollectionOptionDto extends CosmeticOptionDto {
+  locked: boolean;
+  /** How to earn a locked collection, e.g. "Street Pass · Season 1, tier 18". */
+  unlockHint: string | null;
+}
+
 export interface BadgeCosmeticOptionDto extends CosmeticOptionDto {
   rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
   permanent: boolean;
@@ -230,6 +237,10 @@ export interface AccountProfileSettingsDto {
   itemCosmetics?: ItemCosmeticLoadout;
   /** Whole-crew visual style for thugs and hoes. Optional for backward-compatible clients. */
   crewCosmetics?: CrewCosmeticLoadout;
+  /** Slice E. Visitors see this player's site theme on their profile. Optional for older clients. */
+  showThemeOnProfile?: boolean;
+  /** Slice E. Visitors see this player's item and crew look on their profile. Optional for older clients. */
+  showLookOnProfile?: boolean;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;
@@ -247,9 +258,9 @@ export interface AccountProfileSettingsResponseDto {
     frames: CosmeticOptionDto[];
     themes: CosmeticOptionDto[];
     effects: CosmeticOptionDto[];
-    /** Universal item/crew skins. Optional so older fixture payloads stay valid. */
-    itemStyles?: CosmeticOptionDto[];
-    crewStyles?: CosmeticOptionDto[];
+    /** Universal item/crew skins, locked ones included. Optional so older fixture payloads stay valid. */
+    itemStyles?: CollectionOptionDto[];
+    crewStyles?: CollectionOptionDto[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];

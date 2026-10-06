@@ -12,6 +12,7 @@ import { UpdateBanner } from '../components/UpdateBanner.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.js';
 import { useScrollableRegions } from '../hooks/useScrollableRegions.js';
 import { SiteThemeDecor } from '../components/SiteThemeDecor.js';
+import { usePageTheme } from '../stores/pageTheme.js';
 import { useSession } from '../stores/session.js';
 import { formatWhen } from '../utils/time.js';
 
@@ -318,6 +319,7 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
   const account = useSession((s) => s.account);
   const me = useSession((s) => s.me);
   const settings = useSession((s) => s.profileSettings);
+  const pageTheme = usePageTheme((s) => s.themeKey);
   const logout = useSession((s) => s.logout);
   const navigate = useNavigate();
   const location = useLocation();
@@ -372,7 +374,7 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
   );
 
   return (
-    <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${settings.activeSiteThemeKey ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}${sidebar ? ' se-app--sidebar' : ''}`}>
+    <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${pageTheme ? 'none' : settings.activeSiteThemeKey ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}${sidebar ? ' se-app--sidebar' : ''}`}>
       {/* 1.0.0-G: the first Tab stop jumps past the header and navigation. */}
       <a
         className="se-skiplink"
@@ -388,7 +390,7 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
       </a>
       <EnvironmentRibbon />
       <InstallBanner />
-      <SiteThemeDecor themeKey={settings.activeSiteThemeKey} />
+      <SiteThemeDecor themeKey={pageTheme ?? settings.activeSiteThemeKey} />
 
       {sidebar ? <SidebarFrame sidebar={sidebar}>{page}</SidebarFrame> : page}
       <ConfirmDialog />

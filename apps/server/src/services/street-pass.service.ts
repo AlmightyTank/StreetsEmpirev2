@@ -27,6 +27,41 @@ function sourceKey(rules: StreetPassRules, tier: number): string {
   return `${rules.key}:${tier}`;
 }
 
+/**
+ * Award any cosmetic on a tier this player already claimed that the account
+ * is missing. A tier can gain a cosmetic after players claimed it (Slice D
+ * added the item art collections to Season 1 at tiers 8, 18 and 28), so each
+ * claim and the round close top these up. Already-owned unlocks are skipped.
+ */
+async function awardClaimedTierCosmetics(
+  tx: Db,
+  roundPlayerId: string,
+  accountId: string,
+  ruleset: Ruleset,
+  rules: StreetPassRules,
+  at: Date,
+): Promise<number> {
+  const claims = await tx.streetPassClaim.findMany({ where: { roundPlayerId, passKey: rules.key }, select: { tier: true } });
+  const claimed = new Set(claims.map((claim) => claim.tier));
+  const due = rules.tiers
+    .filter((t) => claimed.has(t.tier))
+    .flatMap((t) => t.rewards.flatMap((reward) => (reward.kind === 'COSMETIC_UNLOCK' && reward.key ? [{ key: reward.key, tier: t.tier }] : [])));
+  if (!due.length) return 0;
+  const owned = await tx.accountCosmeticUnlock.findMany({
+    where: { accountId, key: { in: due.map((reward) => reward.key) } },
+    select: { key: true },
+  });
+  const have = new Set(owned.map((unlock) => unlock.key));
+  let awarded = 0;
+  for (const reward of due) {
+    if (have.has(reward.key)) continue;
+    await QuestCosmeticService.award(tx, accountId, ruleset, reward.key, sourceKey(rules, reward.tier), at);
+    have.add(reward.key);
+    awarded++;
+  }
+  return awarded;
+}
+
 export const StreetPassService = {
   /** The round's track and this player's Cred, tier and claims. Null on rounds without a pass. */
   async view(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, now = new Date()): Promise<StreetPassDto | null> {
@@ -119,6 +154,7 @@ export const StreetPassService = {
           next,
           definition.rewards,
         );
+        await awardClaimedTierCosmetics(tx, roundPlayerId, player.accountId, ruleset, rules, now);
         const rewards = definition.rewards.map((reward) => rewardDto(reward, ruleset));
         return {
           next,
@@ -135,7 +171,8 @@ export const StreetPassService = {
   /**
    * Round close: a tier that pays a permanent cosmetic and was reached but
    * never claimed is claimed automatically, cosmetics only. Gameplay rewards
-   * on unclaimed tiers expire with the round. Runs inside the close
+   * on unclaimed tiers expire with the round. Cosmetics added to tiers the
+   * player had already claimed are topped up too. Runs inside the close
    * transaction, before the round is marked ended.
    */
   async grantUnclaimedCosmetics(tx: Db, roundId: string, ruleset: Ruleset, at: Date): Promise<number> {
@@ -162,6 +199,7 @@ export const StreetPassService = {
         }
         granted++;
       }
+      await awardClaimedTierCosmetics(tx, player.roundPlayerId, player.roundPlayer.accountId, ruleset, rules, at);
     }
     return granted;
   },

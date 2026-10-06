@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Cartel Gold beer: black-glass reserve bottle with gold foil neck, gold crest label and a spare crown cap. -->
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#07080b"/><stop offset=".3" stop-color="#3a3f4e"/><stop offset=".5" stop-color="#14161d"/><stop offset="1" stop-color="#050608"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b8"/><stop offset=".35" stop-color="#e7b94a"/><stop offset=".7" stop-color="#9a6614"/><stop offset="1" stop-color="#f0c95f"/></linearGradient>
+    <linearGradient id="goldh" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a5a10"/><stop offset=".35" stop-color="#ffe9a0"/><stop offset=".7" stop-color="#c58f2a"/><stop offset="1" stop-color="#7a4e0c"/></linearGradient>
+    <clipPath id="bottle"><path d="M57 12 H71 V20 Q73 22 73 26 V40 Q88 48 88 62 V104 Q88 110 82 110 H46 Q40 110 40 104 V62 Q40 48 55 40 V26 Q55 22 57 20 Z"/></clipPath>
+  </defs>
+  <g transform="rotate(-5 64 64)">
+    <g filter="url(#s)">
+      <path d="M57 12 H71 V20 Q73 22 73 26 V40 Q88 48 88 62 V104 Q88 110 82 110 H46 Q40 110 40 104 V62 Q40 48 55 40 V26 Q55 22 57 20 Z" fill="url(#glass)" stroke="#07080b" stroke-width="1.6" stroke-linejoin="round"/>
+    </g>
+    <!-- foil neck wrap -->
+    <g clip-path="url(#bottle)">
+      <path d="M36 8 H92 V44 L84 48 L76 44 L68 49 L60 44 L52 49 L44 44 L36 48 Z" fill="url(#goldh)"/>
+      <path d="M36 32 H92" stroke="#7a4e0c" stroke-width="1"/>
+      <path d="M36 36 H92" stroke="#fff3b8" stroke-opacity=".6" stroke-width=".8"/>
+    </g>
+    <path d="M57 12 H71 V20 Q73 22 73 26 V40 Q88 48 88 62 V104 Q88 110 82 110 H46 Q40 110 40 104 V62 Q40 48 55 40 V26 Q55 22 57 20 Z" fill="none" stroke="#07080b" stroke-width="1.6" stroke-linejoin="round"/>
+    <!-- crest label -->
+    <path d="M48 66 H80 V88 Q80 98 64 104 Q48 98 48 88 Z" fill="#0d0e12" stroke="url(#gold)" stroke-width="2"/>
+    <path d="M52 70 H76 V87 Q76 95 64 100 Q52 95 52 87 Z" fill="none" stroke="#d9a73a" stroke-width=".7"/>
+    <path d="M56 86 V77 L60 81 L64 74 L68 81 L72 77 V86 Z" fill="url(#gold)" stroke="#5c3b08" stroke-width=".7"/>
+    <path d="M57 90 H71" stroke="#e7b94a" stroke-width="1"/>
+    <!-- glass highlights -->
+    <path d="M46 62 V100" stroke="#c5cbe0" stroke-opacity=".35" stroke-width="3" stroke-linecap="round"/>
+    <path d="M47 58 Q48 52 54 48" stroke="#c5cbe0" stroke-opacity=".4" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </g>
+  <!-- spare crown cap -->
+  <g filter="url(#s)" transform="translate(102 102) rotate(-20)">
+    <path d="M-10 -3 L-8 -6 L-5 -5 L-3 -8 L0 -6 L3 -8 L5 -5 L8 -6 L10 -3 L10 3 L-10 3 Z" fill="url(#goldh)" stroke="#3a2406" stroke-width="1"/>
+    <ellipse cx="0" cy="3" rx="10" ry="3" fill="url(#gold)" stroke="#3a2406" stroke-width="1"/>
+  </g>
+  <path d="M100 30 l1.5 -4 l1.5 4 l4 1.5 l-4 1.5 l-1.5 4 l-1.5 -4 l-4 -1.5 Z" fill="#fff3b8"/>
+</svg>

@@ -591,3 +591,28 @@
   }
 
 }
+
+/* Slice G: each side's item and crew art in a battle report. */
+.se-faceoff {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.se-faceoff__side {
+  display: grid;
+  gap: 4px;
+}
+
+.se-faceoff__label {
+  color: var(--se-text-dim);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.se-faceoff__tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

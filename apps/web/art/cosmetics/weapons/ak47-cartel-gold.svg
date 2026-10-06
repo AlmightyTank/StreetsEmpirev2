@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128">
+  <!-- Cartel Gold AK: rosewood furniture with gold inlay, engraved dark receiver, polished top cover, gold gas tube and brake, pearl grip. -->
+  <defs>
+    <filter id="s" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="rosewood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a2a1c"/><stop offset=".5" stop-color="#3f120b"/><stop offset="1" stop-color="#180504"/></linearGradient>
+    <pattern id="grain" width="18" height="6" patternUnits="userSpaceOnUse"><path d="M0 3 Q4.5 1 9 3 T18 3" fill="none" stroke="#a5452a" stroke-opacity=".3" stroke-width=".7"/></pattern>
+    <linearGradient id="blued" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a6274"/><stop offset=".45" stop-color="#232837"/><stop offset="1" stop-color="#0c0e14"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b8"/><stop offset=".35" stop-color="#e7b94a"/><stop offset=".7" stop-color="#9a6614"/><stop offset="1" stop-color="#f0c95f"/></linearGradient>
+    <linearGradient id="goldmag" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a5a10"/><stop offset=".3" stop-color="#f6d77a"/><stop offset=".55" stop-color="#c58f2a"/><stop offset=".8" stop-color="#ffefb0"/><stop offset="1" stop-color="#7a4e0c"/></linearGradient>
+    <linearGradient id="pearl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset=".3" stop-color="#eadfca"/><stop offset=".55" stop-color="#f6efe2"/><stop offset=".8" stop-color="#cdbb9b"/><stop offset="1" stop-color="#e9dcc3"/></linearGradient>
+    <radialGradient id="medal" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#fff5c4"/><stop offset=".6" stop-color="#d9a73a"/><stop offset="1" stop-color="#7c510e"/></radialGradient>
+  </defs>
+  <g filter="url(#s)" stroke="#07080b" stroke-width="1.6" stroke-linejoin="round">
+    <!-- barrel, gold gas block, front sight and brake -->
+    <rect x="194" y="49" width="44" height="6" fill="url(#blued)"/>
+    <path d="M236 46 H248 Q250 46 250 48 V56 Q250 58 248 58 H236 Z" fill="url(#gold)"/>
+    <path d="M218 49 V40 H224 V49" fill="url(#gold)"/>
+    <rect x="186" y="44" width="12" height="14" rx="1.5" fill="url(#gold)"/>
+    <!-- gold-plated magazine -->
+    <path d="M128 62 H152 Q158 88 176 106 L154 116 Q134 94 128 62 Z" fill="url(#goldmag)"/>
+    <!-- pearl pistol grip -->
+    <path d="M88 62 H105 L98 92 Q97 96 92 96 L84 94 Q80 93 81 89 Z" fill="url(#pearl)"/>
+    <!-- gold trigger guard -->
+    <path d="M105 63 Q105 75 114 75 H128" fill="none" stroke-width="4"/>
+    <path d="M105 63 Q105 75 114 75 H128" fill="none" stroke="url(#gold)" stroke-width="1.8"/>
+    <path d="M117 63 Q115 68 118 72" fill="none" stroke="url(#gold)" stroke-width="2.4"/>
+    <!-- rosewood stock with gold butt plate -->
+    <path d="M12 55 L72 45 V62 L52 65 L16 82 Q8 85 8 78 V60 Q8 56 12 55 Z" fill="url(#rosewood)"/>
+    <path d="M12 55 L72 45 V62 L52 65 L16 82 Q8 85 8 78 V60 Q8 56 12 55 Z" fill="url(#grain)" stroke="none"/>
+    <path d="M5 58 L10 57 V82 L5 83 Z" fill="url(#gold)"/>
+    <!-- engraved receiver and polished top cover -->
+    <path d="M70 44 H150 V63 H70 Z" fill="url(#blued)"/>
+    <path d="M72 44 Q110 38 150 42 V46 H72 Z" fill="url(#gold)"/>
+    <rect x="148" y="40" width="8" height="6" fill="url(#gold)"/>
+    <!-- rosewood handguards with gold ferrules -->
+    <rect x="152" y="42" width="36" height="7" rx="3" fill="url(#rosewood)"/>
+    <path d="M150 50 H190 L188 64 Q170 66 152 64 Z" fill="url(#rosewood)"/>
+    <path d="M150 50 H190 L188 64 Q170 66 152 64 Z" fill="url(#grain)" stroke="none"/>
+    <rect x="186" y="42" width="4" height="22" rx="1" fill="url(#gold)" stroke-width="1.1"/>
+    <rect x="150" y="49" width="4" height="15" rx="1" fill="url(#gold)" stroke-width="1.1"/>
+    <rect x="138" y="52" width="10" height="4" rx="1.5" fill="url(#gold)"/>
+  </g>
+  <!-- receiver engraving panel -->
+  <rect x="76" y="48" width="58" height="12" rx="2" fill="none" stroke="#d9a73a" stroke-width=".8"/>
+  <g fill="none" stroke="#f2cd6a" stroke-width=".8" stroke-linecap="round">
+    <path d="M80 57 C80 50 87 50 87 53.5 C87 56 84 56 84 54"/>
+    <path d="M89 51 C93 58 98 58 100 53.5 C101 51.5 99 50.5 98 52.5"/>
+    <path d="M102 57 C102 50 109 50 109 53.5 C109 56 106 56 106 54"/>
+    <path d="M111 51 C115 58 120 58 122 53.5 C123 51.5 121 50.5 120 52.5"/>
+    <path d="M124 57 C126 54 129 53 130 50"/>
+  </g>
+  <g fill="url(#medal)" stroke="#5c3b08" stroke-width=".5"><circle cx="74" cy="60" r="1.3"/><circle cx="146" cy="60" r="1.3"/></g>
+  <!-- engraved magazine ribs -->
+  <g stroke="#6a430a" stroke-width="1.2" fill="none">
+    <path d="M133 70 Q138 72 154 70M136 82 Q141 84 160 82M142 94 Q148 96 168 93"/>
+  </g>
+  <path d="M138 76 Q144 78 156 76M140 88 Q146 90 163 88" stroke="#fff3b8" stroke-opacity=".55" stroke-width=".7" fill="none"/>
+  <!-- stock inlay -->
+  <path d="M30 60 L38 56 L46 60 L38 64 Z" fill="url(#gold)" stroke="#5c3b08" stroke-width=".6"/>
+  <path d="M20 63 Q26 60 30 60M46 60 Q54 57 62 56" stroke="#e7b94a" stroke-width=".8" fill="none"/>
+  <!-- grip medallion -->
+  <circle cx="92" cy="77" r="4" fill="url(#medal)" stroke="#5c3b08" stroke-width=".7"/>
+  <path d="M86 66 Q90 76 87 88" stroke="#fff" stroke-opacity=".5" stroke-width=".9" fill="none"/>
+  <!-- highlights -->
+  <path d="M16 58 L70 49" stroke="#e8946a" stroke-opacity=".45" stroke-width="1.3"/>
+  <path d="M76 42.5 Q110 39.5 148 41.5" stroke="#fff6cf" stroke-opacity=".8" stroke-width="1" fill="none"/>
+  <path d="M196 50.5 H236" stroke="#c5cbe0" stroke-opacity=".45" stroke-width="1"/>
+  <path d="M154 44 H184" stroke="#e8946a" stroke-opacity=".4" stroke-width="1"/>
+</svg>

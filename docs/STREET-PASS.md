@@ -81,7 +81,7 @@ testing, not final.
 | ★ 5 | 25 pistols + 5 thugs |
 | 6 | 500 beer |
 | 7 | 50 medicine |
-| 8 | $50,000 |
+| ★ 8 | $50,000 + **Urban Ghost** collection |
 | 9 | 250 weed |
 | ★ 10 | 3 shotguns + 5 hoes + **Fresh Face** title |
 | 11 | 40 turns |
@@ -91,7 +91,7 @@ testing, not final.
 | ★ 15 | $100,000 + Tommy Voucher + **Night Drive · Season 1** theme |
 | 16 | 8 hoes |
 | 17 | Cookhouse Rush |
-| 18 | 200 meth |
+| ★ 18 | 200 meth + **Midnight Ops** collection |
 | 19 | 60 turns |
 | ★ 20 | 2 Tek-9s + 1 Low-Rider + **Made Man** title |
 | 21 | $150,000 |
@@ -101,7 +101,7 @@ testing, not final.
 | ★ 25 | 12 hoes + Doctor Favor + **Chrome Halo · Season 1** frame |
 | 26 | 100 turns |
 | 27 | 200 heroin |
-| 28 | $200,000 |
+| ★ 28 | $200,000 + **Cartel Gold** collection |
 | 29 | 2 AK-47s + 1 Low-Rider |
 | ★ 30 | **Kingpin** title + season badge + season profile frame (all permanent) |
 
@@ -151,7 +151,7 @@ end-of-round crew (271 engaged, 203 casual) and 30 thugs are 22–28%.
 ## Shipping
 
 Season 1 ships in `classic-og-street-pass-a` ("Classic OG - Street Pass
-(Season 1)"): Trips E plus `streetPass: STREET_PASS_S1` and the seven season
+(Season 1)"): Trips E plus `streetPass: STREET_PASS_S1` and the ten season
 cosmetics. Older rulesets stay without a pass, so rounds already running are
 unchanged. Admins pick it when creating a round. The dev seed still creates
 its current round on 0.8-H, as it did when Trips E shipped.
@@ -181,11 +181,21 @@ permanent on the account, through the existing cosmetics system
 | 25 | Chrome Halo · Season 1 | profile frame (`PROFILE_FRAME`) | epic |
 | 30 | Street Pass · Season 1 | badge (`TITLE_BADGE`) | legendary |
 | 30 | Season 1 Frame | profile frame (`PROFILE_FRAME`) | legendary |
+| 8 | Urban Ghost Collection | item art collection (`ITEM_COLLECTION`) | rare |
+| 18 | Midnight Ops Collection | item art collection (`ITEM_COLLECTION`) | epic |
+| 28 | Cartel Gold Collection | item art collection (`ITEM_COLLECTION`) | legendary |
 
 Later seasons reuse the title names with their own season number. Because
-tiers 10, 20 and 30 carry permanent cosmetics, round close claims them
-automatically for a player who reached them but never claimed (cosmetics
-only). Each cosmetic needs its own art for the pass tile (step 4).
+these tiers carry permanent cosmetics, round close claims them automatically
+for a player who reached them but never claimed (cosmetics only). Each
+cosmetic needs its own art for the pass tile (step 4).
+
+An item art collection unlocks that collection's authored art for every
+weapon, ride, product, supply and crew outfit in the Account Settings locker
+(see [COSMETIC-ART-SLICE-D.md](COSMETIC-ART-SLICE-D.md)). The collections were
+added to tiers 8, 18 and 28 after Season 1 shipped, so a player who claimed one
+of those tiers earlier gets the collection on their next claim, or at round
+close at the latest.
 
 ## Build outline
 

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Cartel Gold thug: black fedora with gold band, gold aviators, cream suit over black silk shirt, gold grill, Cuban link and medallion. -->
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <radialGradient id="skin" cx=".42" cy=".35" r=".75"><stop offset="0" stop-color="#a0673f"/><stop offset=".7" stop-color="#734326"/><stop offset="1" stop-color="#4d2b16"/></radialGradient>
+    <linearGradient id="cream" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf4e4"/><stop offset=".6" stop-color="#e2d4b4"/><stop offset="1" stop-color="#b8a47c"/></linearGradient>
+    <linearGradient id="silk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a3f4e"/><stop offset=".5" stop-color="#0d0e12"/><stop offset="1" stop-color="#262a36"/></linearGradient>
+    <linearGradient id="felt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3f4e"/><stop offset="1" stop-color="#0a0b0f"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2a8"/><stop offset=".5" stop-color="#e8b93a"/><stop offset="1" stop-color="#8a6508"/></linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a1e05"/><stop offset=".6" stop-color="#8a4a10"/><stop offset="1" stop-color="#e2a040"/></linearGradient>
+    <pattern id="paisley" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M3 6 q-2 -3 1 -4 q3 0 2 3 q-1 2 -3 1" fill="none" stroke="#d9a73a" stroke-width=".6"/><circle cx="8" cy="8" r=".6" fill="#d9a73a"/></pattern>
+  </defs>
+  <g filter="url(#s)" stroke="#07080b" stroke-width="1.6" stroke-linejoin="round">
+    <!-- black silk shirt -->
+    <path d="M46 88 L82 88 L86 128 H42 Z" fill="url(#silk)"/>
+  </g>
+  <path d="M46 88 L82 88 L86 128 H42 Z" fill="url(#paisley)"/>
+  <g filter="url(#s)" stroke="#07080b" stroke-width="1.6" stroke-linejoin="round">
+    <!-- cream suit jacket -->
+    <path d="M10 128 Q12 98 32 90 L50 86 L58 108 L54 128 Z" fill="url(#cream)"/>
+    <path d="M118 128 Q116 98 96 90 L78 86 L70 108 L74 128 Z" fill="url(#cream)"/>
+  </g>
+  <!-- lapels with gold edge -->
+  <g stroke="#07080b" stroke-width="1.2" stroke-linejoin="round">
+    <path d="M50 86 L58 108 L50 106 L44 92 Z" fill="#d6c59e"/>
+    <path d="M78 86 L70 108 L78 106 L84 92 Z" fill="#d6c59e"/>
+  </g>
+  <path d="M51 88 L58 107M77 88 L70 107" stroke="url(#gold)" stroke-width="1"/>
+  <!-- gold pocket square -->
+  <path d="M24 106 L32 103 L34 108 L26 110 Z" fill="url(#gold)" stroke="#3a2a05" stroke-width=".8"/>
+  <path d="M28 110 H40" stroke="#8a7650" stroke-width="1"/>
+  <g filter="url(#s)" stroke="#07080b" stroke-width="1.6" stroke-linejoin="round">
+    <path d="M56 70 H72 V90 Q64 95 56 90 Z" fill="url(#skin)"/>
+    <!-- open silk collar -->
+    <path d="M52 86 L60 96 L58 86 Z M76 86 L68 96 L70 86 Z" fill="url(#silk)" stroke-width="1"/>
+    <path d="M44 56 Q40 54 41 60 Q42 66 46 66 Z M84 56 Q88 54 87 60 Q86 66 82 66 Z" fill="url(#skin)"/>
+    <ellipse cx="64" cy="55" rx="19" ry="23" fill="url(#skin)"/>
+    <!-- fedora -->
+    <path d="M44 41 Q43 19 64 18 Q85 19 84 41 Q64 36 44 41 Z" fill="url(#felt)"/>
+    <path d="M28 43 Q64 31 100 43 Q101 48 88 47 Q64 40 40 47 Q27 48 28 43 Z" fill="url(#felt)"/>
+    <!-- gold aviators -->
+    <path d="M47 50 H60 Q61 58 55 60 Q48 60 47 54 Z M81 50 H68 Q67 58 73 60 Q80 60 81 54 Z" fill="url(#amber)" stroke="url(#gold)" stroke-width="1.3"/>
+  </g>
+  <path d="M44 38.5 Q64 33 84 38.5 L84 41 Q64 36 44 41 Z" fill="url(#gold)" stroke="#3a2a05" stroke-width=".7"/>
+  <path d="M58 20 Q64 25 70 20" stroke="#07080b" stroke-width="1" fill="none"/>
+  <path d="M34 42 Q50 36 64 35" stroke="#5a6274" stroke-opacity=".6" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <path d="M60 51 Q64 49 68 51M47 51 L43 50M81 51 L85 50" stroke="url(#gold)" stroke-width="1.2" fill="none"/>
+  <path d="M49 52 L53 51.5M70 52 L74 51.5" stroke="#ffe3a0" stroke-opacity=".7" stroke-width="1" stroke-linecap="round"/>
+  <!-- face with gold grill -->
+  <path d="M62 61 Q64 64 66 61" stroke="#4d2b16" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <path d="M56 67 Q64 64 72 67 Q70 69 64 68 Q58 69 56 67 Z" fill="#1b100a"/>
+  <rect x="58.5" y="70" width="11" height="3.4" rx="1.2" fill="url(#gold)" stroke="#3a2a05" stroke-width=".7"/>
+  <path d="M61.2 70 V73.4M64 70 V73.4M66.8 70 V73.4" stroke="#8a6508" stroke-width=".5"/>
+  <path d="M60 75 Q64 79 68 75 Q66 78.5 64 78.5 Q62 78.5 60 75 Z" fill="#1b100a"/>
+  <!-- heavy Cuban link and medallion -->
+  <path d="M50 88 Q64 110 78 88" fill="none" stroke="#3a2a05" stroke-width="5"/>
+  <path d="M50 88 Q64 110 78 88" fill="none" stroke="url(#gold)" stroke-width="3.4" stroke-dasharray="3 1.2"/>
+  <g filter="url(#s)">
+    <circle cx="64" cy="106" r="7" fill="url(#gold)" stroke="#3a2a05" stroke-width="1.1"/>
+    <path d="M60 108 V104 L62 106 L64 102.5 L66 106 L68 104 V108 Z" fill="#8a6508"/>
+  </g>
+  <path d="M60 101.5 Q62 100 64 100" stroke="#fffbe0" stroke-width=".9" fill="none" stroke-linecap="round"/>
+</svg>

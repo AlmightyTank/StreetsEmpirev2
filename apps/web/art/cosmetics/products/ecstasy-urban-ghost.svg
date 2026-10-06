@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Urban Ghost ecstasy: frosted vial with camo cap, pale hex pills stamped with a ghost, a few spilled. -->
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c9d6e0" stop-opacity=".35"/><stop offset=".3" stop-color="#ffffff" stop-opacity=".45"/><stop offset="1" stop-color="#9fb0bf" stop-opacity=".25"/></linearGradient>
+    <linearGradient id="pill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f5f8"/><stop offset="1" stop-color="#a6adb5"/></linearGradient>
+    <linearGradient id="pillside" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9aa1a9"/><stop offset=".4" stop-color="#e6eaee"/><stop offset="1" stop-color="#8a9198"/></linearGradient>
+    <clipPath id="capclip"><rect x="34" y="16" width="42" height="18" rx="3"/></clipPath>
+    <clipPath id="vialclip"><rect x="38" y="32" width="34" height="78" rx="6"/></clipPath>
+    <path id="hex" d="M-11 0 L-5.5 -9.5 H5.5 L11 0 L5.5 9.5 H-5.5 Z"/>
+    <path id="ghost" d="M-4.5 4 V-0.5 A4.5 4.5 0 0 1 4.5 -0.5 V4 L3 2.6 L1.5 4 L0 2.6 L-1.5 4 L-3 2.6 Z"/>
+  </defs>
+  <!-- vial -->
+  <g filter="url(#s)">
+    <rect x="38" y="32" width="34" height="78" rx="6" fill="#4a5560" fill-opacity=".35" stroke="#16181b" stroke-width="1.6"/>
+  </g>
+  <g clip-path="url(#vialclip)" stroke="#5c6168" stroke-width="1">
+    <rect x="40" y="98" width="30" height="8" rx="3" fill="url(#pillside)"/>
+    <rect x="40" y="89" width="30" height="8" rx="3" fill="url(#pillside)" transform="rotate(-6 55 93)"/>
+    <rect x="40" y="80" width="30" height="8" rx="3" fill="url(#pillside)" transform="rotate(4 55 84)"/>
+    <rect x="40" y="71" width="30" height="8" rx="3" fill="url(#pillside)"/>
+    <rect x="40" y="62" width="30" height="8" rx="3" fill="url(#pillside)" transform="rotate(-8 55 66)"/>
+  </g>
+  <rect x="38" y="32" width="34" height="78" rx="6" fill="url(#glass)" stroke="#e8eef3" stroke-opacity=".7" stroke-width="1.2"/>
+  <path d="M44 40 V102" stroke="#fff" stroke-opacity=".6" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M66 42 H72M66 50 H72M66 58 H72" stroke="#e8eef3" stroke-opacity=".7" stroke-width="1"/>
+  <!-- camo cap -->
+  <g filter="url(#s)"><rect x="34" y="16" width="42" height="18" rx="3" fill="#8f949a" stroke="#16181b" stroke-width="1.6"/></g>
+  <g clip-path="url(#capclip)">
+    <path d="M32 14 L48 14 L44 26 L32 28 Z" fill="#c4c8cc"/>
+    <path d="M52 22 L66 18 L68 36 L54 36 Z" fill="#3f4348"/>
+    <path d="M66 12 L80 14 L80 26 L70 24 Z" fill="#5c6168"/>
+  </g>
+  <rect x="34" y="16" width="42" height="18" rx="3" fill="none" stroke="#16181b" stroke-width="1.6"/>
+  <path d="M38 19 H72" stroke="#f2f8fd" stroke-opacity=".6" stroke-width="1"/>
+  <!-- spilled pills -->
+  <g filter="url(#s)" stroke="#5c6168" stroke-width="1.1" stroke-linejoin="round">
+    <use href="#hex" transform="translate(94 74) rotate(12)" fill="url(#pill)"/>
+    <use href="#hex" transform="translate(98 98) rotate(-8)" fill="url(#pill)"/>
+    <use href="#hex" transform="translate(80 108) rotate(24) scale(.9)" fill="url(#pill)"/>
+  </g>
+  <g fill="#5c6168">
+    <use href="#ghost" transform="translate(94 74) rotate(12)"/>
+    <use href="#ghost" transform="translate(98 98) rotate(-8)"/>
+    <use href="#ghost" transform="translate(80 108) rotate(24) scale(.9)"/>
+  </g>
+  <g fill="#f2f5f8"><circle cx="92.6" cy="73.6" r=".9"/><circle cx="95.4" cy="74.2" r=".9"/><circle cx="96.6" cy="98" r=".9"/><circle cx="99.4" cy="97.6" r=".9"/></g>
+</svg>

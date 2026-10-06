@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { isValidTimeZone, NOTIFICATION_CATEGORIES } from '../notifications.js';
-import { CUSTOMIZABLE_ITEM_KEYS } from '../cosmetics.js';
+import { CUSTOMIZABLE_ITEM_KEYS, isReleasedItemCosmeticStyle } from '../cosmetics.js';
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
@@ -159,23 +159,32 @@ export const profileImageUrlSchema = z
 
 export const itemCosmeticStyleSchema = z.enum([
   'classic',
-  'blackout',
-  'crimson',
-  'gold',
-  'ice',
-  'violet',
+  'midnight-ops',
+  'urban-ghost',
+  'cartel-gold',
 ]);
+
+export const crewCosmeticStyleSchema = itemCosmeticStyleSchema.refine(
+  isReleasedItemCosmeticStyle,
+  'That outfit has not been released yet.',
+);
 
 const customizableItemKeys = new Set<string>(CUSTOMIZABLE_ITEM_KEYS);
 export const itemCosmeticLoadoutSchema = z
   .record(z.string().trim().min(1).max(40), itemCosmeticStyleSchema)
   .superRefine((value, ctx) => {
-    for (const key of Object.keys(value)) {
+    for (const [key, style] of Object.entries(value)) {
       if (!customizableItemKeys.has(key)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: [key],
-          message: 'That item does not support a custom skin.',
+          message: 'That item does not support a custom skin yet.',
+        });
+      } else if (!isReleasedItemCosmeticStyle(style)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: 'That cosmetic artwork has not been released yet.',
         });
       }
     }
@@ -183,8 +192,8 @@ export const itemCosmeticLoadoutSchema = z
   .default({});
 
 export const crewCosmeticLoadoutSchema = z.object({
-  THUG: itemCosmeticStyleSchema.default('classic'),
-  HOE: itemCosmeticStyleSchema.default('classic'),
+  THUG: crewCosmeticStyleSchema.default('classic'),
+  HOE: crewCosmeticStyleSchema.default('classic'),
 }).strict().default({ THUG: 'classic', HOE: 'classic' });
 
 export const updateAccountProfileSettingsSchema = z.object({
@@ -200,6 +209,8 @@ export const updateAccountProfileSettingsSchema = z.object({
   activeSiteThemeKey: z.string().trim().min(1).max(80).nullable().default(null),
   itemCosmetics: itemCosmeticLoadoutSchema,
   crewCosmetics: crewCosmeticLoadoutSchema,
+  showThemeOnProfile: z.boolean().default(true),
+  showLookOnProfile: z.boolean().default(true),
   featuredBadgeKeys: z.array(z.string().trim().min(1).max(80)).max(6),
   profileAccent: profileAccentSchema,
   uiDensity: uiDensitySchema,

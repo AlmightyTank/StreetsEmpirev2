@@ -1,33 +1,13 @@
 import type {
   AccountProfileSettingsDto,
-  CosmeticOptionDto,
+  CollectionOptionDto,
   CrewCosmeticKey,
   CustomizableItemKey,
   ItemCosmeticStyleKey,
 } from '@streets/shared';
-import { CUSTOMIZABLE_ITEM_KEYS, DEFAULT_CREW_COSMETICS } from '@streets/shared';
+import { CREW_COSMETIC_KEYS, DEFAULT_CREW_COSMETICS, ITEM_COSMETIC_GROUPS } from '@streets/shared';
 import { ITEM_ART } from '../items/itemArt.js';
 import { ItemTile } from './ItemTile.js';
-
-const crewChoices: ReadonlyArray<{ key: CrewCosmeticKey; label: string }> = [
-  { key: 'THUG', label: 'Thugs' },
-  { key: 'HOE', label: 'Hoes' },
-];
-
-const itemGroups = [
-  {
-    title: 'Weapons & rides',
-    keys: CUSTOMIZABLE_ITEM_KEYS.filter((key) => ITEM_ART[key].category === 'WEAPON' || ITEM_ART[key].category === 'VEHICLE'),
-  },
-  {
-    title: 'Supplies',
-    keys: CUSTOMIZABLE_ITEM_KEYS.filter((key) => ITEM_ART[key].category === 'SUPPLY'),
-  },
-  {
-    title: 'Products',
-    keys: CUSTOMIZABLE_ITEM_KEYS.filter((key) => ITEM_ART[key].category === 'PRODUCT'),
-  },
-] as const;
 
 function StylePicker({
   value,
@@ -36,7 +16,7 @@ function StylePicker({
   id,
 }: {
   value: ItemCosmeticStyleKey;
-  styles: readonly CosmeticOptionDto[];
+  styles: readonly CollectionOptionDto[];
   onChange: (style: ItemCosmeticStyleKey) => void;
   id: string;
 }) {
@@ -48,31 +28,31 @@ function StylePicker({
       onChange={(event) => onChange(event.target.value as ItemCosmeticStyleKey)}
     >
       {styles.map((style) => (
-        <option key={style.key} value={style.key}>{style.label}</option>
+        <option key={style.key} value={style.key} disabled={style.locked}>
+          {style.locked ? `${style.label} (locked)` : style.label}
+        </option>
       ))}
     </select>
   );
 }
 
+/**
+ * Weapons, the Low-Rider (Slice A), products and supplies (Slice B) and crew
+ * outfits (Slice C) each pick an authored collection. Collections other than
+ * Classic are earned on the Street Pass (Slice D) and show locked until then.
+ */
 export function ItemCrewCosmeticsEditor({
   settings,
   styles,
+  crewStyles,
   onChange,
 }: {
   settings: AccountProfileSettingsDto;
-  styles: readonly CosmeticOptionDto[];
+  styles: readonly CollectionOptionDto[];
+  crewStyles: readonly CollectionOptionDto[];
   onChange: (settings: AccountProfileSettingsDto) => void;
 }) {
-  function setCrewStyle(key: CrewCosmeticKey, style: ItemCosmeticStyleKey) {
-    onChange({
-      ...settings,
-      crewCosmetics: {
-        ...DEFAULT_CREW_COSMETICS,
-        ...(settings.crewCosmetics ?? {}),
-        [key]: style,
-      },
-    });
-  }
+  const locked = styles.filter((style) => style.locked);
 
   function setItemStyle(key: CustomizableItemKey, style: ItemCosmeticStyleKey) {
     onChange({
@@ -84,46 +64,41 @@ export function ItemCrewCosmeticsEditor({
     });
   }
 
+  function setCrewStyle(key: CrewCosmeticKey, style: ItemCosmeticStyleKey) {
+    onChange({
+      ...settings,
+      crewCosmetics: {
+        ...(settings.crewCosmetics ?? DEFAULT_CREW_COSMETICS),
+        [key]: style,
+      },
+    });
+  }
+
   return (
     <section className="se-cosmetic-locker" aria-labelledby="item-cosmetic-locker-title">
       <div className="se-cosmetic-locker__head">
         <div>
           <p className="se-eyebrow">Personal loadout</p>
-          <h3 id="item-cosmetic-locker-title">Item & crew cosmetics</h3>
+          <h3 id="item-cosmetic-locker-title">Item cosmetics</h3>
         </div>
         <p className="se-hint">
-          Pick a look for each item and your whole crew type. These are visual only and never change combat, prices, rarity or stats.
+          Each non-classic choice uses its own authored drawing. No color-filter skins. Cosmetics never change combat, prices, rarity or stats.
         </p>
       </div>
 
-      <div className="se-cosmetic-locker__group">
-        <h4>Crew</h4>
-        <div className="se-cosmetic-locker__grid">
-          {crewChoices.map(({ key, label }) => {
-            const style = settings.crewCosmetics?.[key] ?? DEFAULT_CREW_COSMETICS[key];
-            return (
-              <div className="se-cosmetic-locker__card" key={key}>
-                <div className="se-cosmetic-locker__preview">
-                  <ItemTile item={key} size="lg" cosmeticStyle={style} />
-                </div>
-                <label className="se-label" htmlFor={`crew-cosmetic-${key.toLowerCase()}`}>{label}</label>
-                <StylePicker
-                  id={`crew-cosmetic-${key.toLowerCase()}`}
-                  value={style}
-                  styles={styles}
-                  onChange={(next) => setCrewStyle(key, next)}
-                />
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {locked.length > 0 && (
+        <ul className="se-cosmetic-locker__unlocks" aria-label="Collections still to earn">
+          {locked.map((style) => (
+            <li key={style.key}><strong>{style.label}</strong> · {style.unlockHint}</li>
+          ))}
+        </ul>
+      )}
 
-      {itemGroups.map((group) => (
-        <div className="se-cosmetic-locker__group" key={group.title}>
-          <h4>{group.title}</h4>
+      {ITEM_COSMETIC_GROUPS.map((group) => (
+        <div className="se-cosmetic-locker__group" key={group.key}>
+          <h4>{group.label}</h4>
           <div className="se-cosmetic-locker__grid">
-            {group.keys.map((key) => {
+            {group.items.map((key) => {
               const style = settings.itemCosmetics?.[key] ?? 'classic';
               return (
                 <div className="se-cosmetic-locker__card" key={key}>
@@ -143,6 +118,29 @@ export function ItemCrewCosmeticsEditor({
           </div>
         </div>
       ))}
+
+      <div className="se-cosmetic-locker__group">
+        <h4>Crew outfits</h4>
+        <div className="se-cosmetic-locker__grid">
+          {CREW_COSMETIC_KEYS.map((key) => {
+            const style = settings.crewCosmetics?.[key] ?? 'classic';
+            return (
+              <div className="se-cosmetic-locker__card" key={key}>
+                <div className="se-cosmetic-locker__preview">
+                  <ItemTile item={key} size="lg" cosmeticStyle={style} />
+                </div>
+                <label className="se-label" htmlFor={`crew-cosmetic-${key.toLowerCase()}`}>{ITEM_ART[key].name}</label>
+                <StylePicker
+                  id={`crew-cosmetic-${key.toLowerCase()}`}
+                  value={style}
+                  styles={crewStyles}
+                  onChange={(next) => setCrewStyle(key, next)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </section>
   );
 }

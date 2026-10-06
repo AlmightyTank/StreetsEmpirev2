@@ -1,14 +1,19 @@
 import type { AccountProfile, PrismaClient } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
-import { CUSTOMIZABLE_ITEM_KEYS, DEFAULT_CREW_COSMETICS, ITEM_COSMETIC_STYLES, ITEM_COSMETIC_STYLE_KEYS } from '@streets/shared';
+import {
+  DEFAULT_CREW_COSMETICS,
+  RELEASED_CREW_COSMETIC_STYLES,
+  RELEASED_ITEM_COSMETIC_STYLES,
+  collectionOptions,
+  isOwnedCollection,
+  isReleasedItemCosmeticStyle,
+} from '@streets/shared';
 import type {
   AccountProfileSettingsDto,
   AccountProfileSettingsResponseDto,
   BadgeCosmeticOptionDto,
   CosmeticOptionDto,
-  CrewCosmeticLoadout,
   DefaultLanding,
-  ItemCosmeticLoadout,
   ItemCosmeticStyleKey,
   MoneyFormat,
   ProfileAccent,
@@ -26,43 +31,33 @@ import { RoundService } from './round.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
 import { isPermanentAward } from './profile-badges.js';
 import { profileTitleForAward } from './profile-titles.js';
+import { crewCosmeticLoadout, itemCosmeticLoadout } from './profile-showcase.service.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 
-export const ITEM_COSMETIC_STYLE_OPTIONS: CosmeticOptionDto[] = ITEM_COSMETIC_STYLES.map((style) => ({
-  key: style.key,
-  label: style.label,
-  description: style.description,
-}));
-
-const itemCosmeticStyleKeys = new Set<string>(ITEM_COSMETIC_STYLE_KEYS);
-
-function stringRecord(value: unknown): Record<string, string> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-  return Object.fromEntries(
-    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
-  );
-}
-
-function itemCosmeticLoadout(value: unknown): ItemCosmeticLoadout {
-  const raw = stringRecord(value);
-  const loadout: ItemCosmeticLoadout = {};
-  for (const key of CUSTOMIZABLE_ITEM_KEYS) {
-    const style = raw[key];
-    if (style && itemCosmeticStyleKeys.has(style)) loadout[key] = style as ItemCosmeticStyleKey;
+/**
+ * Slice D: "Street Pass · Season 1, tier 18" for each collection the round's
+ * pass pays, so the locker can say how to earn a locked one.
+ */
+function collectionUnlockHints(ruleset: Ruleset | null): Partial<Record<ItemCosmeticStyleKey, string>> {
+  const hints: Partial<Record<ItemCosmeticStyleKey, string>> = {};
+  const pass = ruleset?.streetPass;
+  if (!ruleset || !pass) return hints;
+  for (const tier of pass.tiers) {
+    for (const reward of tier.rewards) {
+      if (reward.kind !== 'COSMETIC_UNLOCK' || !reward.key) continue;
+      const cosmetic = ruleset.cosmetics?.[reward.key];
+      if (cosmetic?.kind === 'ITEM_COLLECTION' && cosmetic.styleKey && isReleasedItemCosmeticStyle(cosmetic.styleKey)) {
+        hints[cosmetic.styleKey] ??= `${pass.name}, tier ${tier.tier}`;
+      }
+    }
   }
-  return loadout;
+  return hints;
 }
 
-function crewCosmeticLoadout(value: unknown): CrewCosmeticLoadout {
-  const raw = stringRecord(value);
-  const style = (key: keyof CrewCosmeticLoadout): ItemCosmeticStyleKey => {
-    const candidate = raw[key];
-    return candidate && itemCosmeticStyleKeys.has(candidate)
-      ? candidate as ItemCosmeticStyleKey
-      : DEFAULT_CREW_COSMETICS[key];
-  };
-  return { THUG: style('THUG'), HOE: style('HOE') };
+async function currentRuleset(prisma: PrismaClient): Promise<Ruleset | null> {
+  const round = await RoundService.getCurrent(prisma);
+  return round ? loadRulesetForRound(round) : null;
 }
 
 const honorificTitles: BadgeCosmeticOptionDto[] = [
@@ -174,6 +169,7 @@ function toSettingsDto(
   accentOptions: CosmeticOptionDto[],
   frameOptions: CosmeticOptionDto[],
   themeOptions: CosmeticOptionDto[],
+  ownedCollections: ReadonlySet<string>,
 ): AccountProfileSettingsDto {
   const activeTitleKey = profile?.activeTitleKey && earnedTitleKeys.has(profile.activeTitleKey)
     ? profile.activeTitleKey
@@ -215,8 +211,10 @@ function toSettingsDto(
     profileEffect,
     activeProfileFrameKey,
     activeSiteThemeKey,
-    itemCosmetics: itemCosmeticLoadout(profile?.itemCosmetics),
-    crewCosmetics: crewCosmeticLoadout(profile?.crewCosmetics),
+    itemCosmetics: itemCosmeticLoadout(profile?.itemCosmetics, ownedCollections),
+    crewCosmetics: crewCosmeticLoadout(profile?.crewCosmetics, ownedCollections),
+    showThemeOnProfile: profile?.showThemeOnProfile ?? true,
+    showLookOnProfile: profile?.showLookOnProfile ?? true,
     featuredBadgeKeys,
     profileAccent,
     uiDensity,
@@ -252,11 +250,14 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   accents: CosmeticOptionDto[];
   frames: CosmeticOptionDto[];
   themes: CosmeticOptionDto[];
+  /** Item art collection keys this account has earned (Classic is implicit). */
+  collections: Set<string>;
 }> {
-  const [questAccents, frames, themes, account] = await Promise.all([
+  const [questAccents, frames, themes, collectionUnlocks, account] = await Promise.all([
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'SITE_THEME'),
+    QuestCosmeticService.optionsForAccount(prisma, accountId, 'ITEM_COLLECTION'),
     prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true } }),
   ]);
   const accents = [...PROFILE_ACCENTS];
@@ -269,6 +270,7 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   }
   const themeOptions = [...themes];
   const knownThemes = new Set(themeOptions.map((option) => option.key));
+  const collections = new Set(collectionUnlocks.map((option) => option.key));
   if (account?.isAdmin && env.seasonalEvents.adminTestMode) {
     for (const option of adminCatalogSiteThemeOptions()) {
       if (!knownThemes.has(option.key)) {
@@ -276,24 +278,27 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
         knownThemes.add(option.key);
       }
     }
+    for (const style of RELEASED_ITEM_COSMETIC_STYLES) collections.add(style.key);
   }
-  return { accents, frames, themes: themeOptions };
+  return { accents, frames, themes: themeOptions, collections };
 }
 
 export const AccountProfileService = {
   async settings(prisma: PrismaClient, accountId: string): Promise<AccountProfileSettingsResponseDto> {
-    const [profile, awards, appearance] = await Promise.all([
+    const [profile, awards, appearance, ruleset] = await Promise.all([
       readProfile(prisma, accountId),
       earnedAwards(prisma, accountId),
       appearanceOptions(prisma, accountId),
+      currentRuleset(prisma),
     ]);
+    const hints = collectionUnlockHints(ruleset);
     const titleOptions = [...honorificTitles, ...awards.map(titleOptionFromAward)];
     const badgeOptions = awards.map(optionFromAward);
     const earnedBadgeKeys = new Set(badgeOptions.map((option) => option.key));
     const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
 
     return {
-      settings: toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes),
+      settings: toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections),
       options: {
         titles: titleOptions,
         badges: badgeOptions,
@@ -301,8 +306,8 @@ export const AccountProfileService = {
         frames: appearance.frames,
         themes: appearance.themes,
         effects: PROFILE_EFFECTS,
-        itemStyles: ITEM_COSMETIC_STYLE_OPTIONS,
-        crewStyles: ITEM_COSMETIC_STYLE_OPTIONS,
+        itemStyles: collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, appearance.collections, hints),
+        crewStyles: collectionOptions(RELEASED_CREW_COSMETIC_STYLES, appearance.collections, hints),
         densities: UI_DENSITIES,
         moneyFormats: MONEY_FORMATS,
         defaultLandings: DEFAULT_LANDINGS,
@@ -353,6 +358,16 @@ export const AccountProfileService = {
         profileAccent: 'That profile accent is not unlocked.',
       });
     }
+    if (Object.values(input.itemCosmetics ?? {}).some((style) => !isOwnedCollection(style, appearance.collections))) {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick a collection you have already earned on the Street Pass.', {
+        itemCosmetics: 'That collection is not unlocked.',
+      });
+    }
+    if (Object.values(input.crewCosmetics ?? {}).some((style) => !isOwnedCollection(style, appearance.collections))) {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick an outfit collection you have already earned on the Street Pass.', {
+        crewCosmetics: 'That outfit collection is not unlocked.',
+      });
+    }
     const featuredBadgeKeys = uniqueKeys(input.featuredBadgeKeys)
       .filter((key) => earnedBadgeKeys.has(key))
       .slice(0, PROFILE_BADGE_FEATURE_LIMIT);
@@ -383,6 +398,8 @@ export const AccountProfileService = {
         activeSiteThemeKey,
         itemCosmetics: input.itemCosmetics ?? {},
         crewCosmetics: { ...(input.crewCosmetics ?? DEFAULT_CREW_COSMETICS) },
+        showThemeOnProfile: input.showThemeOnProfile ?? true,
+        showLookOnProfile: input.showLookOnProfile ?? true,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
@@ -402,6 +419,8 @@ export const AccountProfileService = {
         activeSiteThemeKey,
         itemCosmetics: input.itemCosmetics ?? {},
         crewCosmetics: { ...(input.crewCosmetics ?? DEFAULT_CREW_COSMETICS) },
+        showThemeOnProfile: input.showThemeOnProfile ?? true,
+        showLookOnProfile: input.showLookOnProfile ?? true,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
@@ -426,7 +445,7 @@ export const AccountProfileService = {
     const unlocked = awards.filter((award) => award.unlocked);
     const earnedBadgeKeys = new Set(unlocked.map((award) => award.key));
     const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
-    const settings = toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes);
+    const settings = toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections);
     const titleAward = unlocked.find((award) => award.key === settings.activeTitleKey);
     const title = settings.activeTitleKey && honorificTitleKeys.includes(settings.activeTitleKey)
       ? profileTitleForAward({ key: settings.activeTitleKey, title: settings.activeTitleKey })

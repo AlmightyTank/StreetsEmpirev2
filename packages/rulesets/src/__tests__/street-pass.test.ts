@@ -186,10 +186,13 @@ describe('streetPassProblems', () => {
 
   it('refuses season 1 on a round without its cosmetics', () => {
     expect(streetPassProblems(STREET_PASS_S1, classicOgV08H)).toEqual([
+      'street-pass-s1 tier 8: COSMETIC_UNLOCK street-pass-s1-urban-ghost is not a cosmetic in this round',
       'street-pass-s1 tier 10: COSMETIC_UNLOCK street-pass-s1-fresh-face is not a cosmetic in this round',
       'street-pass-s1 tier 15: COSMETIC_UNLOCK street-pass-s1-night-drive-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 18: COSMETIC_UNLOCK street-pass-s1-midnight-ops is not a cosmetic in this round',
       'street-pass-s1 tier 20: COSMETIC_UNLOCK street-pass-s1-made-man is not a cosmetic in this round',
       'street-pass-s1 tier 25: COSMETIC_UNLOCK street-pass-s1-chrome-halo-frame is not a cosmetic in this round',
+      'street-pass-s1 tier 28: COSMETIC_UNLOCK street-pass-s1-cartel-gold is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-kingpin is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-badge is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-frame is not a cosmetic in this round',

@@ -15,8 +15,10 @@ import { AllianceTag } from '../components/AllianceTag.js';
 import { ContactButton } from '../components/ContactButton.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
+import { hasProfileLook, ProfileLook } from '../components/ProfileLook.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { usePageTheme } from '../stores/pageTheme.js';
 import { useSession } from '../stores/session.js';
 import { formatDate, formatElapsed } from '../utils/time.js';
 
@@ -436,6 +438,19 @@ export function ProfilePage() {
   const [showLockedAchievements, setShowLockedAchievements] = useState(false);
   const [achievementStatusFilter, setAchievementStatusFilter] = useState<AchievementStatusFilter>('all');
   const [achievementCategoryFilter, setAchievementCategoryFilter] = useState<AchievementCategoryFilter>('all');
+  // Slice E: visitors see the owner's site theme here, and can switch back to their own.
+  const [useMyTheme, setUseMyTheme] = useState(false);
+  const setPageTheme = usePageTheme((s) => s.setThemeKey);
+  const isYou = Boolean(player && me && player.publicPimpId === me.publicPimpId);
+  const ownerTheme = player && !isYou ? player.cosmetics.siteTheme ?? null : null;
+  const shownTheme = useMyTheme ? null : ownerTheme;
+
+  useEffect(() => {
+    setPageTheme(shownTheme);
+    return () => setPageTheme(null);
+  }, [shownTheme, setPageTheme]);
+
+  useEffect(() => setUseMyTheme(false), [target, params.forumUserId]);
 
   useEffect(() => {
     if (params.forumUserId || (target && Number.isSafeInteger(target))) {
@@ -490,7 +505,19 @@ export function ProfilePage() {
   });
   return (
     <GameLayout>
-      <div className="se-profile">
+      <div className={`se-profile${shownTheme ? ` se-profile--themed se-site-theme--${shownTheme}` : ''}`}>
+        {player && ownerTheme ? (
+          <div className="se-profile-themebar" role="status">
+            <span>
+              {useMyTheme
+                ? `${player.displayName} styled this profile with ${player.cosmetics.siteThemeLabel ?? 'their own theme'}.`
+                : `Viewing in ${player.displayName}'s ${player.cosmetics.siteThemeLabel ?? 'site theme'}.`}
+            </span>
+            <button type="button" className="se-btn se-btn--sm" onClick={() => setUseMyTheme((current) => !current)}>
+              {useMyTheme ? 'Show their theme' : 'Use my theme'}
+            </button>
+          </div>
+        ) : null}
         <div
           className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player?.cosmetics.frame ? ` se-profile-frame se-profile-frame--${player.cosmetics.frame}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}`}
         >
@@ -616,6 +643,8 @@ export function ProfilePage() {
                 </div>
               )}
             </section>
+
+            {hasProfileLook(player.look) ? <ProfileLook look={player.look} isYou={isYou} /> : null}
 
             {player.showcase.length ? (
               <AwardStrip title="Showcase" awards={player.showcase} empty="" className="se-profile-showcase" />

@@ -1,3 +1,4 @@
+import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
 import type { AllianceDetailDto, AllianceTagDto } from './alliance.js';
 import type { NoticeCategory, NotificationCategory } from '../notifications.js';
 import type { ActivityDto, CityDto, PlayerExperienceDto, ProfileAccent, ProfileEffect, RoundDto, SeasonHideoutDto } from './api.js';
@@ -188,6 +189,9 @@ export interface RankingEntryDto {
   intelRequired: boolean;
   /** 0.3.0-C. Null for solo players and on rounds without alliances. */
   alliance: AllianceTagDto | null;
+  /** Slice F. The site theme this player shows on their profile; optional for older servers. */
+  siteTheme?: string | null;
+  siteThemeLabel?: string | null;
 }
 
 export interface TerritoryCrewStandingDto {
@@ -231,6 +235,17 @@ export interface RankingsDto {
   territory?: TerritoryBoardDto | null;
 }
 
+/**
+ * Slice E. The owner's item and crew look, shown to visitors as art only:
+ * every item type in the owner's chosen collection, never counts or inventory.
+ */
+export interface ProfileLookDto {
+  items: ItemCosmeticLoadout;
+  crew: CrewCosmeticLoadout;
+  /** Item art collections the owner has earned, oldest first. */
+  collections: { key: string; title: string; rarity: string }[];
+}
+
 export interface PublicPlayerProfileDto {
   forumProfileUrl: string | null;
   badges: ProfileBadgeDto[];
@@ -243,7 +258,13 @@ export interface PublicPlayerProfileDto {
     effect: ProfileEffect;
     imageUrl: string | null;
     bannerUrl: string | null;
+    /** Slice E. The owner's site theme, when they share it and own it. Optional for older servers. */
+    siteTheme?: string | null;
+    /** Display name for `siteTheme`, e.g. "Night Drive · Season 1". */
+    siteThemeLabel?: string | null;
   };
+  /** Slice E. Null when the owner hides their look. Optional for older servers. */
+  look?: ProfileLookDto | null;
   /** Lifetime account XP, safe to show on public player cards. */
   experience?: PlayerExperienceDto;
   publicPimpId: number;

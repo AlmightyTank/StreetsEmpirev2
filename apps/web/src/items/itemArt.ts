@@ -84,6 +84,9 @@ export const ITEM_ART = {
   'street-pass-s1-frame': { name: 'Season 1 Frame', shortName: 'S1 Frame', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-frame.svg', cells: ONE },
   'street-pass-s1-night-drive-theme': { name: 'Night Drive · Season 1', shortName: 'Night Drive', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-night-drive-theme.svg', cells: ONE },
   'street-pass-s1-chrome-halo-frame': { name: 'Chrome Halo · Season 1', shortName: 'Chrome Halo', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-chrome-halo-frame.svg', cells: ONE },
+  'street-pass-s1-urban-ghost': { name: 'Urban Ghost Collection', shortName: 'Urban Ghost', category: 'COSMETIC', rarity: 'RARE', file: 'street-pass-s1-urban-ghost.svg', cells: ONE },
+  'street-pass-s1-midnight-ops': { name: 'Midnight Ops Collection', shortName: 'Midnight', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-midnight-ops.svg', cells: ONE },
+  'street-pass-s1-cartel-gold': { name: 'Cartel Gold Collection', shortName: 'Cartel Gold', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-cartel-gold.svg', cells: ONE },
 
   // Contact reputation gained or lost on a job
   REP: { name: 'Reputation', shortName: 'RP+', category: 'REPUTATION', rarity: 'RARE', file: 'rep.svg', cells: ONE },
