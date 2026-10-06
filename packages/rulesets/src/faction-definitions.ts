@@ -115,6 +115,26 @@ export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' |
     if (job.factionKey && !keys.has(job.factionKey)) problems.push(`${job.key} works for unknown faction ${job.factionKey}.`);
     if (job.factionKey && giver && job.factionKey !== giver) problems.push(`${job.key} works for ${job.factionKey}, but its giver works for ${giver}.`);
     if (job.factionKey && job.contactKey && !giver) problems.push(`${job.key} names a faction, but its giver is independent.`);
+    // 1.4.0-E: an introduction is a broker's Job, paid by its claim, open only below Known.
+    if (job.introduces) {
+      if (!keys.has(job.introduces)) problems.push(`${job.key} introduces unknown faction ${job.introduces}.`);
+      if (giver || job.factionKey || job.helps?.length) problems.push(`${job.key} introduces ${job.introduces}, so it has to come from an independent broker who works for no one.`);
+      if (job.repeatability !== 'ONCE') problems.push(`${job.key} introduces ${job.introduces}, so it has to be one-time.`);
+      if (job.rewards.some((reward) => reward.kind === 'FACTION_STANDING' || reward.kind === 'CONTACT_REP')) problems.push(`${job.key} is an introduction and pays standing through its claim, never as a reward.`);
+      const below = job.prerequisites.some((prerequisite) => prerequisite.kind === 'FACTION_STANDING_BELOW'
+        && prerequisite.params?.factionKey === job.introduces && prerequisite.params?.tier === 'KNOWN');
+      if (!below) problems.push(`${job.key} introduces ${job.introduces}, so it needs FACTION_STANDING_BELOW Known with it.`);
+    }
+    if (job.fee && (!(job.fee.netWorthShare >= 0 && job.fee.netWorthShare < 1) || !Number.isSafeInteger(job.fee.minCents) || job.fee.minCents <= 0)) {
+      problems.push(`${job.key} has a fee that is not a share of net worth below 1 with a positive whole floor.`);
+    }
+    // 1.4.0-E: a capstone at Inner Circle pays standing and cosmetics, never cash or power.
+    const capstone = job.prerequisites.some((prerequisite) => prerequisite.kind === 'FACTION_STANDING_AT_LEAST' && prerequisite.params?.tier === 'INNER_CIRCLE');
+    if (capstone) {
+      const paid = job.rewards.filter((reward) => reward.kind !== 'FACTION_STANDING' && reward.kind !== 'COSMETIC_UNLOCK');
+      if (paid.length) problems.push(`${job.key} is an Inner Circle capstone, so it pays only standing and cosmetics, not ${paid.map((reward) => reward.kind).join(', ')}.`);
+      if (job.repeatability !== 'ONCE') problems.push(`${job.key} is an Inner Circle capstone, so it has to be one-time.`);
+    }
     for (const helped of job.helps ?? []) {
       if (!keys.has(helped)) problems.push(`${job.key} helps unknown faction ${helped}.`);
       else if (!own) problems.push(`${job.key} helps ${helped} without working for a faction itself.`);
@@ -130,7 +150,7 @@ export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' |
       else if (paid && !helped.has(paid)) problems.push(`${job.key} pays ${reward.kind === 'CONTACT_REP' ? `${reward.key}'s reputation` : 'standing'} for ${paid}, a faction it does not help.`);
     }
     for (const prerequisite of job.prerequisites) {
-      if (prerequisite.kind !== 'FACTION_STANDING_AT_LEAST') continue;
+      if (prerequisite.kind !== 'FACTION_STANDING_AT_LEAST' && prerequisite.kind !== 'FACTION_STANDING_BELOW') continue;
       if (!keys.has(String(prerequisite.params?.factionKey))) problems.push(`${job.key} needs standing with unknown faction ${String(prerequisite.params?.factionKey)}.`);
       if (!TIERS.includes(String(prerequisite.params?.tier))) problems.push(`${job.key} needs an unknown standing tier ${String(prerequisite.params?.tier)}.`);
     }

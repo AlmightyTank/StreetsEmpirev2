@@ -958,6 +958,15 @@ export interface FactionDto {
   jobs: Array<{ key: string; title: string; tierName: string | null; status: string }>;
   /** 1.4.0-D. What standing with it opens and what it says now. Absent before D. */
   perks?: FactionPerksDto | null;
+  /** 1.4.0-E. The Inner Circle lock, from this player's side. Absent before E. */
+  innerCircle?: {
+    /** The rival whose Inner Circle has locked this one for the season, or null. */
+    lockedBy: { key: string; name: string } | null;
+    /** The rivals reaching Inner Circle here would lock (empty once reached or locked). */
+    wouldLock: Array<{ key: string; name: string }>;
+    /** Vic's introduction to this faction, while the player is below Known with it. */
+    introduction: { key: string; title: string; status: string } | null;
+  };
 }
 
 export interface PlayerQuestDto {
@@ -974,7 +983,17 @@ export interface PlayerQuestDto {
   /** 1.4.0-B. A faction's own Job, opened by standing. */
   factionJob: boolean;
   /** 1.4.0-B. Standing the Job pays, one entry per faction it helps. */
-  factionStandings: Array<{ factionKey: string; factionName: string; amount: number; label: string }>;
+  factionStandings: Array<{
+    factionKey: string; factionName: string; amount: number; label: string;
+    /** 1.4.0-E. Rivals whose Inner Circle collecting this would lock for the season. Shown before it applies. */
+    locks?: string[];
+    /** 1.4.0-E. The rival whose Inner Circle holds this faction short of its own; the standing stops one point short. */
+    heldShortBy?: string;
+  }>;
+  /** 1.4.0-E. What collecting it costs, in cents, at today's net worth (Vic's introductions). */
+  feeCents?: number;
+  /** 1.4.0-E. The faction a broker's Job introduces you to. */
+  introduces?: { factionKey: string; factionName: string };
   type: string;
   category: string;
   difficulty: string;
@@ -1159,7 +1178,15 @@ export interface QuestClaimResult {
   reputationChanges: QuestBranchReputationDto[];
   newlyAvailable: string[];
   /** 1.4.0-B. Faction standing the claim paid. Empty before standing exists. */
-  standingChanges: Array<{ factionKey: string; factionName: string; amount: number; tierName: string; tierUp: boolean; label: string }>;
+  standingChanges: Array<{
+    factionKey: string; factionName: string; amount: number; tierName: string; tierUp: boolean; label: string;
+    /** 1.4.0-E. Rivals whose Inner Circle this claim locked for the season. */
+    locked?: string[];
+    /** 1.4.0-E. The rival whose Inner Circle held this faction one point short. */
+    heldShortBy?: string;
+  }>;
+  /** 1.4.0-E. The fee the claim took (Vic's introductions), in cents. */
+  feeCents?: number;
 }
 
 export interface StoreDto {

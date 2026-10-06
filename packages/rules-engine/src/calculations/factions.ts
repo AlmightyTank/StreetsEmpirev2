@@ -217,3 +217,56 @@ export function storeNudgeKind(store: string, item: string): Extract<FactionNudg
   if (store === 'PIP') return 'PIP_PRODUCT';
   return null;
 }
+
+/**
+ * 1.4.0-E. The rival whose Inner Circle locks this faction's for the season, or null. Locked
+ * means a rival is already at Inner Circle; the lock only matters in a ruleset that has it.
+ */
+export function innerCircleLockedBy(
+  ruleset: Pick<Ruleset, 'factions' | 'factionStanding' | 'factionRivalry'>,
+  points: Readonly<Partial<Record<FactionKey, number>>>,
+  factionKey: FactionKey,
+): FactionKey | null {
+  const rules = ruleset.factionStanding;
+  if (!rules || !ruleset.factionRivalry?.innerCircleLock) return null;
+  return ruleset.factions?.[factionKey]?.rivals.find((rival) => (points[rival] ?? 0) >= rules.tiers.innerCircle) ?? null;
+}
+
+/**
+ * 1.4.0-E. The most standing a player may hold with a faction: the ruleset's max, or one point
+ * short of Inner Circle while a rival holds theirs. Never below what they already have, so a
+ * lock never takes standing away.
+ */
+export function standingCap(
+  ruleset: Pick<Ruleset, 'factions' | 'factionStanding' | 'factionRivalry'>,
+  points: Readonly<Partial<Record<FactionKey, number>>>,
+  factionKey: FactionKey,
+): number {
+  const rules = ruleset.factionStanding;
+  if (!rules) return 0;
+  if (!innerCircleLockedBy(ruleset, points, factionKey)) return rules.max;
+  return Math.max(points[factionKey] ?? 0, rules.tiers.innerCircle - 1);
+}
+
+/**
+ * 1.4.0-E. What a standing payment would set off: the rivals whose Inner Circles it would lock
+ * (it takes this faction to Inner Circle for the first time, and they are not there yet), or
+ * that it stops short because this faction is locked. Shown before the player takes the step.
+ */
+export function innerCirclePreview(
+  ruleset: Pick<Ruleset, 'factions' | 'factionStanding' | 'factionRivalry'>,
+  points: Readonly<Partial<Record<FactionKey, number>>>,
+  factionKey: FactionKey,
+  amount: number,
+): { locks: FactionKey[]; lockedBy: FactionKey | null } {
+  const rules = ruleset.factionStanding;
+  if (!rules || !ruleset.factionRivalry?.innerCircleLock || amount <= 0) return { locks: [], lockedBy: null };
+  const lockedBy = innerCircleLockedBy(ruleset, points, factionKey);
+  const before = points[factionKey] ?? 0;
+  if (lockedBy) return { locks: [], lockedBy: before + amount >= rules.tiers.innerCircle ? lockedBy : null };
+  const reaches = before < rules.tiers.innerCircle && before + amount >= rules.tiers.innerCircle;
+  const locks = reaches
+    ? (ruleset.factions?.[factionKey]?.rivals ?? []).filter((rival) => (points[rival] ?? 0) < rules.tiers.innerCircle)
+    : [];
+  return { locks, lockedBy: null };
+}

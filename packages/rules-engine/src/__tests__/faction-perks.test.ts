@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV14C2, classicOgV14D } from '@streets/rulesets';
-import { factionNudge, factionPerkOpen, nudgedAmount, nudgedCents } from '../calculations/factions.js';
+import { classicOgV14C2, classicOgV14D, classicOgV14E, type FactionKey } from '@streets/rulesets';
+import { factionNudge, factionPerkOpen, innerCircleLockedBy, innerCirclePreview, nudgedAmount, nudgedCents, standingCap } from '../calculations/factions.js';
 import { shortSupplies, supplyAt, supplyCrashesAhead } from '../calculations/markets.js';
 import { cornerUpkeep } from '../calculations/turf.js';
 import { bodyguardTicketCents, checkTrip, tripRules } from '../calculations/trips.js';
@@ -79,6 +79,45 @@ describe('1.4.0-D faction perks', () => {
     const at = new Date('2026-10-03T12:00:00Z');
     for (const short of shortSupplies(classicOgV14D, 'perk-seed', at)) {
       expect(supplyAt(classicOgV14D, 'perk-seed', short.city, short.product, at)).toBe(short.supply);
+    }
+  });
+});
+
+describe('1.4.0-E Inner Circle lock', () => {
+  const ic = classicOgV14E.factionStanding.tiers.innerCircle;
+
+  it('locks a faction once a rival is at Inner Circle, never before, and only from E', () => {
+    expect(innerCircleLockedBy(classicOgV14E, { KINGS: ic - 1 }, 'OUTFIT')).toBeNull();
+    expect(innerCircleLockedBy(classicOgV14E, { KINGS: ic }, 'OUTFIT')).toBe('KINGS');
+    expect(innerCircleLockedBy(classicOgV14E, { CIVIC_HANDSHAKE: ic }, 'ROAD_SAINTS')).toBe('CIVIC_HANDSHAKE');
+    expect(innerCircleLockedBy(classicOgV14E, { CIVIC_HANDSHAKE: ic }, 'CARTEL_LINE')).toBe('CIVIC_HANDSHAKE');
+    expect(innerCircleLockedBy(classicOgV14E, { ROAD_SAINTS: ic }, 'CARTEL_LINE')).toBeNull();
+    expect(innerCircleLockedBy(classicOgV14D, { KINGS: ic }, 'OUTFIT')).toBeNull();
+  });
+
+  it('caps a locked faction one point short, and never takes standing away', () => {
+    expect(standingCap(classicOgV14E, { KINGS: ic }, 'OUTFIT')).toBe(ic - 1);
+    expect(standingCap(classicOgV14E, { KINGS: ic, OUTFIT: 120 }, 'OUTFIT')).toBe(ic - 1);
+    expect(standingCap(classicOgV14E, {}, 'OUTFIT')).toBe(classicOgV14E.factionStanding.max);
+  });
+
+  it('previews the lock on the step that reaches Inner Circle, and only that step', () => {
+    expect(innerCirclePreview(classicOgV14E, { KINGS: ic - 10 }, 'KINGS', 10)).toEqual({ locks: ['OUTFIT'], lockedBy: null });
+    expect(innerCirclePreview(classicOgV14E, { KINGS: ic - 10 }, 'KINGS', 9)).toEqual({ locks: [], lockedBy: null });
+    expect(innerCirclePreview(classicOgV14E, { KINGS: ic }, 'KINGS', 10)).toEqual({ locks: [], lockedBy: null });
+    expect(innerCirclePreview(classicOgV14E, { CIVIC_HANDSHAKE: ic - 1 }, 'CIVIC_HANDSHAKE', 5)).toEqual({ locks: ['ROAD_SAINTS', 'CARTEL_LINE'], lockedBy: null });
+    expect(innerCirclePreview(classicOgV14E, { KINGS: ic, OUTFIT: ic - 3 }, 'OUTFIT', 5)).toEqual({ locks: [], lockedBy: 'KINGS' });
+    expect(innerCirclePreview(classicOgV14D, { KINGS: ic - 10 }, 'KINGS', 10)).toEqual({ locks: [], lockedBy: null });
+  });
+
+  it('always leaves some faction whose Inner Circle is open, whatever has been reached', () => {
+    const keys = Object.keys(classicOgV14E.factions) as FactionKey[];
+    for (let mask = 0; mask < 1 << keys.length; mask++) {
+      const points = Object.fromEntries(keys.map((key, index) => [key, mask & (1 << index) ? ic : 0])) as Partial<Record<FactionKey, number>>;
+      // Only states the lock allows: two rivals never both at Inner Circle.
+      if (keys.some((key) => (points[key] ?? 0) >= ic && innerCircleLockedBy(classicOgV14E, points, key))) continue;
+      const open = keys.filter((key) => (points[key] ?? 0) >= ic || standingCap(classicOgV14E, points, key) >= ic);
+      expect(open.length, JSON.stringify(points)).toBeGreaterThan(0);
     }
   });
 });

@@ -161,7 +161,9 @@ export type QuestPrerequisiteKind =
   | 'CONTACT_REP_AT_LEAST'
   | 'BRANCH_CHOSEN'
   /** 1.4.0-B. params: { factionKey, tier } — the player's standing with the faction is at that tier or above. */
-  | 'FACTION_STANDING_AT_LEAST';
+  | 'FACTION_STANDING_AT_LEAST'
+  /** 1.4.0-E. params: { factionKey, tier } — the player's standing with the faction is below that tier. */
+  | 'FACTION_STANDING_BELOW';
 
 export interface QuestPrerequisiteDefinition {
   readonly kind: QuestPrerequisiteKind;
@@ -544,6 +546,17 @@ export interface QuestDefinition {
    * standing only to the faction it works for, these, and the side a branch picks.
    */
   readonly helps?: readonly FactionKey[];
+  /**
+   * 1.4.0-E. Vic's introductions: a broker's Job that starts the player at Known with this
+   * faction. Paid by the claim (never a standing reward), only from an independent giver, and
+   * only while the player is below Known with it.
+   */
+  readonly introduces?: FactionKey;
+  /**
+   * 1.4.0-E. Cash the claim takes, like a bribe: a share of net worth with a floor. The claim is
+   * refused when the player cannot pay it.
+   */
+  readonly fee?: { readonly netWorthShare: number; readonly minCents: number };
 }
 
 export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;
@@ -604,6 +617,15 @@ export interface FactionPerkRules {
     /** Civic Handshake: Case points short of the next stage at which they warn. */
     readonly stageLeadPoints: number;
   };
+}
+
+/**
+ * 1.4.0-E. Rivalries at the top. Reaching Inner Circle with a faction locks every one of its
+ * rivals' Inner Circles for the season: standing with a locked faction keeps climbing, but stops
+ * one point short of Inner Circle. Nothing below Inner Circle costs standing anywhere.
+ */
+export interface FactionRivalryRules {
+  readonly innerCircleLock: true;
 }
 
 /** 1.4.0-B2 contract board rotation. */
@@ -2732,6 +2754,8 @@ export interface Ruleset {
   readonly contractSponsors?: ContractSponsorRules;
   /** 1.4.0-D. Information, warnings and a capped nudge per faction, by standing tier. */
   readonly factionPerks?: FactionPerkRules;
+  /** 1.4.0-E. The Inner Circle rival lock. Absent: every faction's Inner Circle stays open. */
+  readonly factionRivalry?: FactionRivalryRules;
   /** Permanent per-round capabilities earned through Jobs. */
   readonly permanentUnlocks?: PermanentUnlockCatalog;
   /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */

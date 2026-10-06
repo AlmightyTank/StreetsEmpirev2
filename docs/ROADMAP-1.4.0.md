@@ -2,8 +2,8 @@
 
 ## Brainstorm
 
-**Status:** 1.4.0-A, 1.4.0-B, B2, C and D are built; the newest ruleset is `classic-og-v1.4-d`. E to G
-are design only. See the [Roadmap](#roadmap) table.
+**Status:** 1.4.0-A, 1.4.0-B, B2, C, D and E are built; the newest ruleset is `classic-og-v1.4-e`. F and
+G are design only. See the [Roadmap](#roadmap) table.
 
 **Target base:** StreetsEmpire v1.3.0 (`classic-og-v1.3-g`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** make each city's underworld feel populated
@@ -50,7 +50,7 @@ contact reputation exactly as they were.
 | **1.4.0-B2 — Contract Rotation** | Built | `classic-og-v1.4-b2` | 28 more daily contracts (36 in all) and 14 more weekly contracts (20 in all), including the first contracts for businesses, block wars, convoys, boss trips and outposts. Each round deals its boards from its own deck: every daily is dealt once every 12 days and never twice within 6, every weekly once every 10 weeks and never twice within 5, with boards mixing categories. City boards never post two orders in one city, avoid the last board's cities, and add a third slot for a city job (fly in and back, or play that city's casino). A new Season board deals each round 3 of 9 round-long goals that sit outside the active-job limit. |
 | **1.4.0-C — Sponsored Contracts** | Built | `classic-og-v1.4-c` | Every daily, weekly, city, Season and alliance contract carries a sponsoring faction and pays it standing. Where work could go to two factions, the sponsor leans toward ones you're Known with. |
 | **1.4.0-D — Faction Perks** | Built | `classic-og-v1.4-d` | Information at Known and early warnings at Trusted on each faction's card, then one capped nudge per faction at Connected (corner upkeep, Tommy's guns, bodyguard tickets, Pip's product, official exposure), each logged where it applies. |
-| **1.4.0-E — Rivalries & Inner Circle** | Planned | `classic-og-v1.4-e` | The Inner Circle rival lock, previewed before it lands; Vic's introductions; one short Job arc and a capstone per faction. |
+| **1.4.0-E — Rivalries & Inner Circle** | Built | `classic-og-v1.4-e` | The Inner Circle rival lock, previewed on the card and confirmed before it lands; Vic's paid introductions to Known; a Connected Job and an Inner Circle capstone (standing and a title) per faction. |
 | **1.4.0-F — Rewards & Public Flavor** | Planned | `classic-og-v1.4-f` | Faction titles and frames, alignment on profiles from Connected, feed entries, feats and a Rules page section. |
 | **1.4.0-G — Balance, Admin & Release** | Planned | `classic-og-v1.4-g` | A `qa:factions` simulation, an admin standing view with audited corrections, an exploit audit, mobile checks and the release gate. |
 
@@ -519,6 +519,58 @@ first-release faction.
 
 **Gate:** the lock is previewed before it applies; capstones can't be farmed; a player can always
 reach Inner Circle with some faction.
+
+#### Built in E
+
+**Status: implemented.** Ruleset `classic-og-v1.4-e` (1.4.0-E) is 1.4.0-D plus a `factionRivalry`
+block, ten arc Jobs, five introductions and five capstone titles. Every D Job, contract, perk,
+standing amount and tier is unchanged.
+
+- **The lock.** Reaching Inner Circle with a faction locks each of its rivals' Inner Circles for the
+  season: the Kings and the Outfit lock each other, and Civic Handshake locks both Road Saints MC and
+  the Cartel Line (each of which locks only Civic Handshake). Standing with a locked faction keeps
+  counting, but `standingCap` stops it one point short of Inner Circle, and a lock never takes
+  standing away. The first Inner Circle a player reaches is never held back, so there is always one
+  open (`innerCircleLockedBy` reads only rivals already there).
+- **Previewed, then confirmed.** Any Job or board contract whose standing would take a faction to
+  Inner Circle says on its card which rivals it locks (`innerCirclePreview`), and collecting it
+  asks for confirmation first. A card for a locked faction says it stops one point short. Each
+  faction card says whether reaching Inner Circle there would lock anyone, or who has locked it.
+  The tier-up entry and the claim say which rivals were locked.
+- **Vic's introductions.** Vic, who works for no faction, has one paid one-time Job per faction,
+  open only while the player is below Known with it (`FACTION_STANDING_BELOW`): put in 10 turns of
+  street work, then pay his fee on collection (0.2% of net worth, at least $20,000) to start at
+  Known. The standing is an `INTRODUCTION` receipt and the fee a `QUEST_FEE` ledger line; a player
+  who cannot pay is refused, and one who became Known some other way is charged nothing and gets
+  nothing. It never touches Inner Circle, so it can never open a locked one. `factionProblems`
+  holds introductions to independent givers and the Known prerequisite.
+- **Arcs and capstones.** Each faction's arc continues from its Trusted Job:
+
+  | Faction | Connected Job | Inner Circle capstone | Title |
+  | --- | --- | --- | --- |
+  | The Kings | Hold the Line (Mama King): hold turf 96 hours (+15) | Crown of the Block (Blocks): win 5 turf pushes | Crown of the Block |
+  | The Outfit | The Books (Tommy): run 2 different rackets | The Commission (Tommy): collect from businesses 10 times | Seat at the Table |
+  | Road Saints MC | Iron Convoy (Wheels): 5 runs home with no incident | Every Road (Wheels): runs home from 6 cities | Full Patch |
+  | The Cartel Line | Wholesale (Pip): produce 500 product | The Pipeline (Pip): sell 1,500 product to Pip | The Pipeline |
+  | Civic Handshake | Friends in High Places: officials in 3 cities (+40) | Untouchable: renew officials 4 times | Untouchable |
+
+  Connected Jobs pay 30 standing (Kings 15, Civic Handshake 40) and $35,000 (Civic Handshake none).
+  Capstones pay 20 standing and the title, one-time, so they can't be farmed; `factionProblems`
+  rejects a capstone that pays anything but standing and cosmetics. The Kings' step is smaller
+  because their one-time Jobs already pay the most: no faction reaches Inner Circle from one-time
+  Jobs alone, which keeps it a season goal. G's `qa:factions` sizes all of these.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-e`.
+
+E invariants:
+
+1. Every D invariant still holds.
+2. Reaching Inner Circle with a faction locks exactly its rivals', for the season, and never
+   lowers anyone's standing.
+3. The step that would set off a lock says so before it is taken.
+4. Some faction's Inner Circle is always open to every player.
+5. Capstones are one-time and pay only standing and cosmetics.
+6. An introduction pays only up to Known, only below Known, and charges its fee only then.
+7. `classic-og-v1.4-d` and older rounds have no lock, introductions or capstones.
 
 ### 1.4.0-F — Rewards & Public Flavor
 

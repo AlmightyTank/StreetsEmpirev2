@@ -5,7 +5,9 @@ import {
   factionTier,
   factionTierName,
   factionTierRank,
+  innerCirclePreview,
   nextFactionTier,
+  standingCap,
   type FactionNudge,
   type Ruleset,
 } from '@streets/rules-engine';
@@ -15,7 +17,7 @@ import type { Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
 
 /** Where a standing change came from. */
-export type FactionStandingSource = 'JOB' | 'CONTRACT';
+export type FactionStandingSource = 'JOB' | 'CONTRACT' | 'INTRODUCTION';
 
 export interface FactionStandingChange {
   factionKey: FactionKey;
@@ -24,6 +26,10 @@ export interface FactionStandingChange {
   after: number;
   tier: FactionTier;
   tierUp: boolean;
+  /** 1.4.0-E. Rivals whose Inner Circle this change locked for the season. */
+  locked: FactionKey[];
+  /** 1.4.0-E. The rival whose Inner Circle held this one short of its own, if it did. */
+  heldShortBy: FactionKey | null;
 }
 
 function json(value: unknown): Prisma.InputJsonValue {
@@ -53,12 +59,16 @@ export const FactionService = {
     if (!rules || !faction || amount === 0) return null;
     if (await tx.playerFactionReceipt.findUnique({ where: { roundPlayerId_sourceKey: { roundPlayerId, sourceKey } }, select: { id: true } })) return null;
 
-    const existing = await tx.playerFactionStanding.findUnique({ where: { roundPlayerId_factionKey: { roundPlayerId, factionKey } } });
-    const before = existing?.points ?? 0;
-    const after = addStanding(before, amount, rules);
+    // 1.4.0-E: a rival at Inner Circle holds this faction one point short of its own.
+    const points = await FactionService.points(tx, roundPlayerId);
+    const before = points[factionKey] ?? 0;
+    const preview = innerCirclePreview(ruleset, points, factionKey, amount);
+    const after = Math.min(standingCap(ruleset, points, factionKey), addStanding(before, amount, rules));
     if (after === before) return null;
     const tier = factionTier(after, rules);
     const tierUp = factionTierRank(tier) > factionTierRank(factionTier(before, rules));
+    const locked = tier === 'INNER_CIRCLE' && tierUp ? preview.locks : [];
+    const heldShortBy = after < addStanding(before, amount, rules) ? preview.lockedBy : null;
 
     await tx.playerFactionStanding.upsert({
       where: { roundPlayerId_factionKey: { roundPlayerId, factionKey } },
@@ -71,9 +81,16 @@ export const FactionService = {
     if (tierUp) {
       await ActivityService.log(tx, roundPlayerId, 'FACTION_TIER_UP', json({
         factionKey, factionName: faction.name, tier, tierName: factionTierName(tier), points: after,
+        ...(locked.length ? { lockedRivals: locked.map((rival) => ruleset.factions?.[rival]?.name ?? rival) } : {}),
       }));
     }
-    return { factionKey, factionName: faction.name, before, after, tier, tierUp };
+    return { factionKey, factionName: faction.name, before, after, tier, tierUp, locked, heldShortBy };
+  },
+
+  /** 1.4.0-E. The player's points with every faction they have any standing with. */
+  async points(db: Db, roundPlayerId: string): Promise<Partial<Record<FactionKey, number>>> {
+    const rows = await db.playerFactionStanding.findMany({ where: { roundPlayerId }, select: { factionKey: true, points: true } });
+    return Object.fromEntries(rows.map((row) => [row.factionKey, row.points]));
   },
 
   /** The player's tier with every faction in the round; empty before standing exists. */

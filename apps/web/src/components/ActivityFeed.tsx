@@ -448,7 +448,8 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'FACTION_TIER_UP':
       return {
         text: `${str(p.factionName, 'A faction')} now counts you as ${str(p.tierName, 'known')}.`,
-        detail: formatNumber(num(p.points)) + ' standing · private to you',
+        detail: formatNumber(num(p.points)) + ' standing · private to you'
+          + (Array.isArray(p.lockedRivals) && p.lockedRivals.length ? ` · ${p.lockedRivals.map(String).join(' and ')} Inner Circle locked this season` : ''),
       };
 
     case 'STREET_PASS_CLAIMED':
