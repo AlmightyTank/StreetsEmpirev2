@@ -256,7 +256,11 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-D faction perks with
       ...await app.prisma.$transaction((tx) => factionWarnings(tx, new Date(), pushOnly)),
     ].filter((row) => row.accountId === accountId);
     const warning = await app.prisma.playerFactionWarning.findFirstOrThrow({ where: { roundPlayerId: player.id } });
-    const mine = rows.filter((row) => row.dedupeKey.startsWith(`faction-warning:${warning.id}:`));
+    const key = `faction-warning:${warning.id}:`;
+    // Another suite's alert pass can collect it first and write the outbox row itself; either
+    // way it goes out exactly once.
+    const collectedElsewhere = await app.prisma.notificationOutbox.findMany({ where: { accountId, dedupeKey: { startsWith: key } } });
+    const mine = [...rows.filter((row) => row.dedupeKey.startsWith(key)), ...collectedElsewhere];
     expect(mine).toHaveLength(1);
     expect(mine[0]).toMatchObject({ channel: 'PUSH', category: 'factions', payload: { category: 'factions', notice: { title: 'Word from Civic Handshake', body: 'Your Case in New York City is 3 points from Noticed.', url: expect.stringContaining('/game#case') } } });
     expect(await app.prisma.playerFactionWarning.count({ where: { roundPlayerId: player.id, alertsCollectedAt: null } })).toBe(0);
