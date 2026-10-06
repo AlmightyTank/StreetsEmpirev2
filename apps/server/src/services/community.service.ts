@@ -1,6 +1,7 @@
 import type { City, Prisma, PrismaClient } from '@prisma/client';
 import { RelocationService } from './relocation.service.js';
-import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
+import { factionTier, factionTierName, factionTierRank, loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
+import type { FactionKey } from '@streets/rulesets';
 import type {
   PublicHallOfFameAppearanceDto,
   PublicAchievementCategory,
@@ -578,6 +579,11 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'clean-slate-ice',
     'corner-amber',
     'velvet-rose',
+    'kings-gold',
+    'outfit-oxblood',
+    'saints-chrome',
+    'cartel-jade',
+    'civic-seal',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';
@@ -1093,6 +1099,23 @@ export const CommunityService = {
       joinedAt: player.createdAt.toISOString(),
       lastActiveAt: player.lastActiveAt.toISOString(),
       isYou,
+      ...(ruleset.factionPublic ? { factionAlignment: await factionAlignment(prisma, player.id, ruleset) } : {}),
     };
   },
 };
+
+/**
+ * 1.4.0-F. A player's public alignment: each faction they stand at or above the ruleset's public
+ * tier with, highest first. Only the tier is shown, never the points, and nothing below it.
+ */
+async function factionAlignment(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<NonNullable<PublicPlayerProfileDto['factionAlignment']>> {
+  const rules = ruleset.factionStanding;
+  const publicFrom = ruleset.factionPublic?.publicFrom;
+  if (!rules || !publicFrom) return [];
+  const rows = await prisma.playerFactionStanding.findMany({ where: { roundPlayerId }, select: { factionKey: true, points: true } });
+  return rows
+    .map((row) => ({ row, tier: factionTier(row.points, rules) }))
+    .filter(({ row, tier }) => ruleset.factions?.[row.factionKey as FactionKey] && factionTierRank(tier) >= factionTierRank(publicFrom))
+    .sort((a, b) => b.row.points - a.row.points)
+    .map(({ row, tier }) => ({ key: row.factionKey, name: ruleset.factions![row.factionKey as FactionKey]!.name, tierName: factionTierName(tier) }));
+}

@@ -137,7 +137,7 @@ function progressMap(value: Prisma.JsonValue): Record<string, QuestObjectiveProg
   return result;
 }
 
-async function syncDerivedTurfProgress(
+export async function syncDerivedTurfProgress(
   db: Db,
   roundPlayerId: string,
   ruleset: Ruleset,

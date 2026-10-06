@@ -92,6 +92,9 @@ import { classicOgV14B } from './classic-og-v1.4-b/index.js';
 import { classicOgV14B2 } from './classic-og-v1.4-b2/index.js';
 import { classicOgV14C } from './classic-og-v1.4-c/index.js';
 import { classicOgV14C2 } from './classic-og-v1.4-c2/index.js';
+import { classicOgV14D } from './classic-og-v1.4-d/index.js';
+import { classicOgV14E } from './classic-og-v1.4-e/index.js';
+import { classicOgV14F } from './classic-og-v1.4-f/index.js';
 import type { Ruleset } from './types.js';
 
 export { classicOgV01 };
@@ -188,6 +191,9 @@ export { classicOgV14B };
 export { classicOgV14B2 };
 export { classicOgV14C };
 export { classicOgV14C2 };
+export { classicOgV14D };
+export { classicOgV14E };
+export { classicOgV14F };
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './combat-prototype.js';
@@ -294,6 +300,9 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV14B2.meta.id]: classicOgV14B2,
   [classicOgV14C.meta.id]: classicOgV14C,
   [classicOgV14C2.meta.id]: classicOgV14C2,
+  [classicOgV14D.meta.id]: classicOgV14D,
+  [classicOgV14E.meta.id]: classicOgV14E,
+  [classicOgV14F.meta.id]: classicOgV14F,
 };
 
 export const DEFAULT_RULESET_ID = classicOgV01.meta.id;

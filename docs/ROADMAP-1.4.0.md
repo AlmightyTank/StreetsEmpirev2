@@ -2,8 +2,8 @@
 
 ## Brainstorm
 
-**Status:** 1.4.0-A, 1.4.0-B, B2 and C are built; the newest ruleset is `classic-og-v1.4-c`. D to G
-are design only. See the [Roadmap](#roadmap) table.
+**Status:** 1.4.0-A, 1.4.0-B, B2, C, D, E and F are built; the newest ruleset is `classic-og-v1.4-f`.
+G is design only. See the [Roadmap](#roadmap) table.
 
 **Target base:** StreetsEmpire v1.3.0 (`classic-og-v1.3-g`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** make each city's underworld feel populated
@@ -49,9 +49,9 @@ contact reputation exactly as they were.
 | **1.4.0-B — Standing** | Built | `classic-og-v1.4-b` | Seasonal standing per faction with receipts, tiers, tier-up alerts and a standing panel. Jobs pay standing only to the factions they help; two faction Jobs each; contact portraits. |
 | **1.4.0-B2 — Contract Rotation** | Built | `classic-og-v1.4-b2` | 28 more daily contracts (36 in all) and 14 more weekly contracts (20 in all), including the first contracts for businesses, block wars, convoys, boss trips and outposts. Each round deals its boards from its own deck: every daily is dealt once every 12 days and never twice within 6, every weekly once every 10 weeks and never twice within 5, with boards mixing categories. City boards never post two orders in one city, avoid the last board's cities, and add a third slot for a city job (fly in and back, or play that city's casino). A new Season board deals each round 3 of 9 round-long goals that sit outside the active-job limit. |
 | **1.4.0-C — Sponsored Contracts** | Built | `classic-og-v1.4-c` | Every daily, weekly, city, Season and alliance contract carries a sponsoring faction and pays it standing. Where work could go to two factions, the sponsor leans toward ones you're Known with. |
-| **1.4.0-D — Faction Perks** | Planned | `classic-og-v1.4-d` | Information and warnings at Known and Trusted, then a small capped nudge per faction at Connected. |
-| **1.4.0-E — Rivalries & Inner Circle** | Planned | `classic-og-v1.4-e` | The Inner Circle rival lock, previewed before it lands; Vic's introductions; one short Job arc and a capstone per faction. |
-| **1.4.0-F — Rewards & Public Flavor** | Planned | `classic-og-v1.4-f` | Faction titles and frames, alignment on profiles from Connected, feed entries, feats and a Rules page section. |
+| **1.4.0-D — Faction Perks** | Built | `classic-og-v1.4-d` | Information at Known and early warnings at Trusted on each faction's card, then one capped nudge per faction at Connected (corner upkeep, Tommy's guns, bodyguard tickets, Pip's product, official exposure), each logged where it applies. |
+| **1.4.0-E — Rivalries & Inner Circle** | Built | `classic-og-v1.4-e` | The Inner Circle rival lock, previewed on the card and confirmed before it lands; Vic's paid introductions to Known; a Connected Job and an Inner Circle capstone (standing and a title) per faction. |
+| **1.4.0-F — Rewards & Public Flavor** | Built | `classic-og-v1.4-f` | A title and accent per faction at Connected and a frame at Inner Circle; alignment on profiles from Connected; Inner Circle on the public street feed; three faction feats; a Rules page section. |
 | **1.4.0-G — Balance, Admin & Release** | Planned | `classic-og-v1.4-g` | A `qa:factions` simulation, an admin standing view with audited corrections, an exploit audit, mobile checks and the release gate. |
 
 ---
@@ -191,7 +191,8 @@ Kings, road → Road Saints, and so on).
 
 Every nudge is a small percentage, capped, applies only inside its system, and is pinned per
 ruleset. Every warning reads information the game already has and never reveals another player's
-Case, recon or private state. These are candidates; D pins them, and G's simulation sizes them.
+Case, recon or private state. These were the candidates; [Built in D](#built-in-d) has what D
+pinned, including where two of them changed to keep that rule, and G's simulation sizes them.
 
 ---
 
@@ -439,6 +440,78 @@ The information, warnings and capped nudges in the perks table.
 **Gate:** every nudge is capped and logged where it applies; no warning reveals another player's
 private state.
 
+#### Built in D
+
+**Status: implemented.** Ruleset `classic-og-v1.4-d` (1.4.0-D) is 1.4.0-C2 plus a `factionPerks`
+block. Every C2 Job, contract, standing amount, tier, price, odd and law number is unchanged until a
+player reaches a perk's tier.
+
+- **Where perks show.** Each faction's card in the Jobs page's Factions panel lists its three
+  levels, the tier each opens at, and, once open, what the faction is telling you right now.
+  Information and warnings are worked out when the page is read, only for the levels you have
+  opened. A Connected nudge says "Active" there and names itself where it applies: Tommy's and
+  Pip's shelves, Pip's counter at home and on a run, the bodyguard line on Travel, the district board on Turf (the
+  Kings) and the payroll on the Case panel (Civic Handshake).
+- **Warnings reach the bell.** Every ten minutes the alerts poller looks at up to 300 players
+  Trusted with a faction in a live round, most recently active first, and logs each warning they
+  have not had yet as a `FACTION_WARNING` activity: the bell, a toast linking to the place it is
+  about, the Activity feed and the Console's street group. Each warning has a key (a block's shield
+  and its end, a corner's supply and the day, a run's leg, a drought and its start, the crackdown
+  and its city, a Case's next stage while it stays open), and a `PlayerFactionWarning` row with
+  that key is written in the same transaction as the activity, so a warning alerts once however
+  often the sweep runs. "The crackdown is coming, but not to anywhere you hold" stays on the card.
+- **Their own alert category.** Faction warnings are the `factions` notification category: a
+  player can mute them in the bell like any other category, and switch them on for push and
+  Discord under Account → Alerts ("Faction warnings", off by default like the other optional
+  categories). The alert collector sends each `PlayerFactionWarning` once (`alertsCollectedAt`),
+  titled "Word from *faction*" with the same text and link as the bell.
+- **Pinned perks.**
+
+  | Faction | Known: information | Trusted: early warning | Connected: nudge |
+  | --- | --- | --- | --- |
+  | The Kings | the locals holding each unheld block in your city and the cities where you hold turf, weakest first | your home corners or an outpost running out of beer or product within 6 hours (at the burn rate after the nudge), and a held block's shield dropping within 6 hours | corners burn 10% less beer and product (`CORNER_UPKEEP`) |
+  | The Outfit | how many rackets run in each city and across how many crews, only where at least 3 crews run them | where and when the round's crackdown sweeps, from 24 hours before its public warning, if it lands in your city or a city where you hold a block | Tommy's guns (not his thugs) 5% cheaper (`TOMMY_WEAPONS`) |
+  | Road Saints MC | the three roads out of your city with the highest stop chance for an empty run at your Heat | a run on the road whose next leg has a 5% or higher stop chance with the trunk it carries now | bodyguard tickets 10% cheaper (`BODYGUARD_TICKETS`) |
+  | The Cartel Line | every city where Pip is low or out right now, and of what | every drought, and every swing that takes Pip out, in the next 24 hours | Pip's product 5% cheaper, at his store, his counter and his counters in other cities on a run (`PIP_PRODUCT`) |
+  | Civic Handshake | each official on your payroll: the exposure left before Internal Affairs, or when an open file's sting lands | a Case within 5 points of its next stage | each official favor adds 10% less exposure (`OFFICIAL_EXPOSURE`) |
+
+- **Two candidates changed to keep guardrail 5.** Another crew's rackets are private (only the
+  holder sees them on the turf map), so the Outfit's information is a per-city count with a
+  three-crew floor instead of naming blocks. A rival lining up a block war would mean reading
+  another crew's presence on your block, so the Kings warn about your own corners and shields
+  instead. The racket raid became the crackdown, the one raid the game schedules ahead, and
+  Road Saints warn with the stop chance, never the outcome of the seeded roll.
+- **Looking ahead.** The Cartel Line's warning is the only perk that reads the future: the market
+  schedule is a pure function of the round and the time, so `supplyCrashesAhead` lists what the
+  street wire will only report once it happens, and only what Pip actually feels (a drought on
+  something he never deals, or a swing a glut covers, is left out). The crackdown warning reads the
+  same schedule the sweep uses (`crackdownPlan`), which informants already sell at any time.
+- **Nudges.** `factionNudge` gives a nudge only at Connected or above, from the one faction that
+  pins that kind. `factionProblems` rejects a nudge over `FACTION_NUDGE_CAP_PERCENT` (10), two
+  factions sharing a kind, unknown factions, and warnings that look nowhere or too far ahead.
+  Store discounts add to relationship, racket and favor discounts and still never price a buy at
+  or below its sellback; corner upkeep is cut at the rate before rounding up; bodyguard tickets
+  round the saving down; exposure is rounded to the nearest whole, so a 5-point favor stays 5.
+- **Logged where it applies.** Every nudge that saves something writes a `PlayerFactionPerkUse`
+  row (faction, kind, percent, what it saved) keyed on the act: `store:`/`checkout:`/`product:`/`run-trade:`
+  on the action id, `trip:` on the launch, `exposure:` on the official and favor, and
+  `upkeep:<block>:<from>` on each block's settle, so a retried action or a re-run settle never
+  logs twice. Store, counter and trip results also carry it as `factionDiscount`, with the saving.
+  G's admin view reads these rows.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-d`.
+
+D invariants:
+
+1. Every C invariant still holds.
+2. Information opens at Known, warnings at Trusted and the nudge at Connected; nothing opens below.
+3. Every nudge is a whole percent of at most 10, works only inside its own system, and is logged
+   once on the act it applied to.
+4. No information or warning names or reads another player: it comes from the player's own state,
+   the round's public schedule, or counts across at least three crews.
+5. No perk touches combat, turns, casino odds, contact reputation, or how a Case is built.
+6. `classic-og-v1.4-c2` and older rounds show no perks and take no nudge.
+7. Each keyed warning reaches the bell at most once, and only while its faction is Trusted or above.
+
 ### 1.4.0-E — Rivalries & Inner Circle
 
 The Inner Circle lock with its preview, Vic's introductions, and one arc with a capstone per
@@ -447,6 +520,58 @@ first-release faction.
 **Gate:** the lock is previewed before it applies; capstones can't be farmed; a player can always
 reach Inner Circle with some faction.
 
+#### Built in E
+
+**Status: implemented.** Ruleset `classic-og-v1.4-e` (1.4.0-E) is 1.4.0-D plus a `factionRivalry`
+block, ten arc Jobs, five introductions and five capstone titles. Every D Job, contract, perk,
+standing amount and tier is unchanged.
+
+- **The lock.** Reaching Inner Circle with a faction locks each of its rivals' Inner Circles for the
+  season: the Kings and the Outfit lock each other, and Civic Handshake locks both Road Saints MC and
+  the Cartel Line (each of which locks only Civic Handshake). Standing with a locked faction keeps
+  counting, but `standingCap` stops it one point short of Inner Circle, and a lock never takes
+  standing away. The first Inner Circle a player reaches is never held back, so there is always one
+  open (`innerCircleLockedBy` reads only rivals already there).
+- **Previewed, then confirmed.** Any Job or board contract whose standing would take a faction to
+  Inner Circle says on its card which rivals it locks (`innerCirclePreview`), and collecting it
+  asks for confirmation first. A card for a locked faction says it stops one point short. Each
+  faction card says whether reaching Inner Circle there would lock anyone, or who has locked it.
+  The tier-up entry and the claim say which rivals were locked.
+- **Vic's introductions.** Vic, who works for no faction, has one paid one-time Job per faction,
+  open only while the player is below Known with it (`FACTION_STANDING_BELOW`): put in 10 turns of
+  street work, then pay his fee on collection (0.2% of net worth, at least $20,000) to start at
+  Known. The standing is an `INTRODUCTION` receipt and the fee a `QUEST_FEE` ledger line; a player
+  who cannot pay is refused, and one who became Known some other way is charged nothing and gets
+  nothing. It never touches Inner Circle, so it can never open a locked one. `factionProblems`
+  holds introductions to independent givers and the Known prerequisite.
+- **Arcs and capstones.** Each faction's arc continues from its Trusted Job:
+
+  | Faction | Connected Job | Inner Circle capstone | Title |
+  | --- | --- | --- | --- |
+  | The Kings | Hold the Line (Mama King): hold turf 96 hours (+15) | Crown of the Block (Blocks): win 5 turf pushes | Crown of the Block |
+  | The Outfit | The Books (Tommy): run 2 different rackets | The Commission (Tommy): collect from businesses 10 times | Seat at the Table |
+  | Road Saints MC | Iron Convoy (Wheels): 5 runs home with no incident | Every Road (Wheels): runs home from 6 cities | Full Patch |
+  | The Cartel Line | Wholesale (Pip): produce 500 product | The Pipeline (Pip): sell 1,500 product to Pip | The Pipeline |
+  | Civic Handshake | Friends in High Places: officials in 3 cities (+40) | Untouchable: renew officials 4 times | Untouchable |
+
+  Connected Jobs pay 30 standing (Kings 15, Civic Handshake 40) and $35,000 (Civic Handshake none).
+  Capstones pay 20 standing and the title, one-time, so they can't be farmed; `factionProblems`
+  rejects a capstone that pays anything but standing and cosmetics. The Kings' step is smaller
+  because their one-time Jobs already pay the most: no faction reaches Inner Circle from one-time
+  Jobs alone, which keeps it a season goal. G's `qa:factions` sizes all of these.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-e`.
+
+E invariants:
+
+1. Every D invariant still holds.
+2. Reaching Inner Circle with a faction locks exactly its rivals', for the season, and never
+   lowers anyone's standing.
+3. The step that would set off a lock says so before it is taken.
+4. Some faction's Inner Circle is always open to every player.
+5. Capstones are one-time and pay only standing and cosmetics.
+6. An introduction pays only up to Known, only below Known, and charges its fee only then.
+7. `classic-og-v1.4-d` and older rounds have no lock, introductions or capstones.
+
 ### 1.4.0-F — Rewards & Public Flavor
 
 Faction titles, frames and accents; public alignment from Connected; feed and Console entries for
@@ -454,6 +579,50 @@ tier-ups; season feats; a Rules page section.
 
 **Gate:** live standing numbers and contract progress stay private; cosmetics change nothing in
 play.
+
+#### Built in F
+
+**Status: implemented.** Ruleset `classic-og-v1.4-f` (1.4.0-F) is 1.4.0-E plus a `factionPublic`
+block and fifteen faction cosmetics. Every E Job, contract, perk, lock and number is unchanged.
+
+- **Cosmetics.** Reaching Connected with a faction awards its title and accent; reaching Inner
+  Circle, its frame. They are awarded once per account by `FactionService.grant` for every tier a
+  change crosses (a jump straight to Inner Circle awards both), kept for good, and named in the
+  tier-up entry. `factionProblems` holds every key to the cosmetics catalog.
+
+  | Faction | Connected title | Connected accent | Inner Circle frame |
+  | --- | --- | --- | --- |
+  | The Kings | Friend of the Kings | Kings Gold | Kings Crown Frame |
+  | The Outfit | Outfit Associate | Outfit Oxblood | Pinstripe Frame |
+  | Road Saints MC | Saints Prospect | Saints Chrome | Patch Frame |
+  | The Cartel Line | Line Partner | Cartel Jade | Pipeline Frame |
+  | Civic Handshake | Civic Contributor | Civic Seal | Seal Frame |
+
+  The E capstones still pay their own Inner Circle titles.
+- **Public alignment.** From Connected, a profile shows each faction's tier as a chip ("The Outfit
+  · Inner Circle"), highest first. Points, the tiers below Connected and contract progress stay
+  private. 1.4.0-E and older rounds show none.
+- **The street feed.** Reaching Inner Circle stamps `innerCircleAt` on the standing row, and the
+  Discord bot's claim posts it to the public street feed once ("Civic Handshake · Inner Circle"),
+  with the player's name and profile link and nothing about standing. Rows from rounds without
+  `factionPublic` are marked off unposted. Tier-ups already reached the player's own feed, bell,
+  toast and Console in B.
+- **Season feats** (titles only, on the profile like every feat): Many Friends (Connected with
+  three factions in a season, rare), Inner Circle (reach one, epic) and Two Crowns (two Inner
+  Circles in a season, legendary; only non-rivals can manage it). Their progress counts tiers from
+  Connected up, which profiles show anyway, so nothing is sealed.
+- **Rules page.** The Factions section explains the cosmetics, public alignment, the feed post and
+  the feats.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-f`.
+
+F invariants:
+
+1. Every E invariant still holds.
+2. Faction cosmetics change nothing in play, and each is awarded at most once per account.
+3. Nothing public shows standing points or any tier below Connected.
+4. Each Inner Circle is posted to the street feed at most once, and only on rounds that make it
+   public.
+5. `classic-og-v1.4-e` and older rounds award no faction cosmetics and show no alignment.
 
 ### 1.4.0-G — Balance, Admin & Release
 

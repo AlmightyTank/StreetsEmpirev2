@@ -221,6 +221,11 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
           Relationship perk — {relationshipSummary(item)}.
         </p>
       ) : null}
+      {item.factionDiscount ? (
+        <p className="se-hint se-good">
+          {item.factionDiscount.factionName} perk — {formatNumber(item.factionDiscount.percent)}% off buying.
+        </p>
+      ) : null}
       {item.restock ? (
         <RestockLine restock={item.restock} name={item.name} keeper={keeper} onArrival={onRestock} />
       ) : null}

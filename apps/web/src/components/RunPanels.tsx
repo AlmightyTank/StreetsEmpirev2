@@ -308,8 +308,11 @@ function TownCounter({ run, data, onDone }: { run: RunDto; data: TravelDto; onDo
         : Math.max(0, Math.min(row!.stock, room, unit > 0 ? Math.floor(run.cashCents / unit) : 0));
   const qty = typeof quantity === 'number' ? quantity : 0;
   const total = onMarket && market ? marketEstimate(market, buying, qty) : qty * unit;
+  // Pip keeps a locked product off his counter in every city; the high market sells it to anyone.
+  const locked = buying && !onMarket ? (data.lockedProducts ?? []).find((entry) => entry.key === product) ?? null : null;
   const block = trade.busy ? 'Counting it out.'
     : !open ? (onMarket ? 'Nobody here trades that in bulk.' : 'Pick something Pip carries here.')
+      : locked ? `Pip will not sell you ${nameOf(products, product)} in any city until you have ${locked.unlockName}. The high market sells it at its own price.`
       : max < 1 ? (buying ? (!onMarket && row!.stock === 0 ? 'Pip has none left here.' : room <= 0 ? 'The trunk is full.' : 'The run cannot afford one.') : 'There is none in the trunk.')
         : qty < 1 || qty > max ? `Enter a whole number from 1 to ${formatNumber(max)}.`
           : null;
@@ -343,7 +346,7 @@ function TownCounter({ run, data, onDone }: { run: RunDto; data: TravelDto; onDo
       <p className="se-hint">
         {onMarket
           ? 'Everyone in the round trades here. Every unit moves the price against you, and it drifts back over the next few hours.'
-          : 'Your own shelf: nobody else can buy it out from under you. Buy / sell prices each.'}
+          : `Your own shelf: nobody else can buy it out from under you. Buy / sell prices each.${row?.factionDiscountPercent ? ` The Cartel Line takes ${row.factionDiscountPercent}% off buying.` : ''}`}
       </p>
       <div className="se-rows">
         {counter.products.map((entry) => {

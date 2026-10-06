@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   formatCents,
   formatNumber,
+  type FactionPerksDto,
   type PlayerQuestDto,
   type QuestPageDto,
 } from '@streets/shared';
@@ -304,10 +305,22 @@ function QuestCard({
               <RewardChip key={reward.kind + ':' + (reward.key ?? index)} reward={reward} />
             ))}
             {quest.factionStandings.map((standing) => (
-              <RewardChip key={'standing:' + standing.factionKey} reward={{ kind: 'FACTION_STANDING', key: standing.factionKey, amount: standing.amount, label: standing.label }} />
+              <RewardChip key={'standing:' + standing.factionKey} reward={{ kind: 'FACTION_STANDING', key: standing.factionKey, amount: standing.amount, label: quest.introduces ? `Starts you at Known with ${standing.factionName}` : standing.label }} />
             ))}
           </div>
+          {quest.factionStandings.map((standing) => standing.locks?.length ? (
+            <p key={'locks:' + standing.factionKey} className="se-hint se-warn">
+              This takes you to {standing.factionName}&rsquo;s Inner Circle, which locks {standing.locks.join(' and ')}&rsquo;s Inner Circle for the rest of the season.
+            </p>
+          ) : standing.heldShortBy ? (
+            <p key={'short:' + standing.factionKey} className="se-hint">
+              You are in {standing.heldShortBy}&rsquo;s Inner Circle, so {standing.factionName} stops one point short of theirs.
+            </p>
+          ) : null)}
         </div>
+      ) : null}
+      {quest.feeCents ? (
+        <p className="se-hint">{quest.contactName ?? 'They'} wants {formatCents(quest.feeCents)} when you collect{quest.introduces ? `, and only if you are still a stranger to ${quest.introduces.factionName}` : ''}.</p>
       ) : null}
 
       {quest.status === 'READY_TO_TURN_IN' && quest.branchChoices.length ? (
@@ -679,6 +692,16 @@ export function QuestPage() {
   }
 
   async function claim(key: string, branchKey?: string, branchTitle?: string) {
+    // 1.4.0-E: reaching one faction's Inner Circle locks its rivals'. Ask before it happens.
+    const locking = page?.quests.find((quest) => quest.key === key)?.factionStandings.filter((standing) => standing.locks?.length) ?? [];
+    if (locking.length) {
+      const confirmed = await confirmAction({
+        title: `Join ${locking.map((standing) => standing.factionName).join(' and ')}'s Inner Circle?`,
+        body: locking.map((standing) => `This locks ${standing.locks!.join(' and ')}'s Inner Circle for the rest of the season. Standing with them keeps counting, one point short of it.`).join(' '),
+        confirmLabel: 'Collect and join',
+      });
+      if (!confirmed) return;
+    }
     if (branchKey) {
       const confirmed = await confirmAction({
         title: `Choose "${branchTitle ?? branchKey}"?`,
@@ -692,10 +715,12 @@ export function QuestPage() {
     setNotice(null);
     try {
       const result = await questsApi.claim(key, crypto.randomUUID(), branchKey);
+      const locked = result.result.standingChanges.flatMap((change) => change.locked ?? []);
       setNotice(
         result.result.title
         + ' complete — payment collected.'
-        + (result.result.chosenBranch ? ' Choice locked: ' + (branchTitle ?? result.result.chosenBranch) + '.' : ''),
+        + (result.result.chosenBranch ? ' Choice locked: ' + (branchTitle ?? result.result.chosenBranch) + '.' : '')
+        + (locked.length ? ' Inner Circle locked for the season: ' + locked.join(', ') + '.' : ''),
       );
       window.dispatchEvent(new Event('streets:quests-changed'));
       await Promise.all([load(), refreshSnapshot()]);
@@ -1002,7 +1027,7 @@ export function QuestPage() {
                 {page.factions?.length ? (
                   <div id="factions">
                     <Panel title="Factions" className="se-quests-panel">
-                      <p className="se-hint">The organizations behind your contacts: who works for whom, and who they are up against.{page.factions.some((faction) => faction.standing) ? ' A one-time Job earns standing with the faction it works for, and only the factions it helps; only you can see it. Each faction also has Jobs of its own that open as your standing grows.' : ''}{page.quests.some((quest) => BOARD_TYPES.has(quest.type) && quest.factionStandings.length) ? ' Board contracts are sponsored too: a finished contract pays its sponsor standing, and when work could go to two factions it leans toward one you are Known with.' : ''}</p>
+                      <p className="se-hint">The organizations behind your contacts: who works for whom, and who they are up against.{page.factions.some((faction) => faction.standing) ? ' A one-time Job earns standing with the faction it works for, and only the factions it helps; only you can see it. Each faction also has Jobs of its own that open as your standing grows.' : ''}{page.quests.some((quest) => BOARD_TYPES.has(quest.type) && quest.factionStandings.length) ? ' Board contracts are sponsored too: a finished contract pays its sponsor standing, and when work could go to two factions it leans toward one you are Known with.' : ''}{page.factions.some((faction) => faction.perks) ? ' Standing also opens perks: a faction\'s word on its lane at Known, early warnings at Trusted, and one small saving at Connected.' : ''}</p>
                       <div className="se-quests-contacts">
                         {page.factions.map((faction) => (
                           <div key={faction.key}>
@@ -1032,6 +1057,19 @@ export function QuestPage() {
                                 ))}
                               </ul>
                             ) : null}
+                            {faction.innerCircle?.lockedBy ? (
+                              <small className="se-warn">Inner Circle locked this season: you are in {faction.innerCircle.lockedBy.name}&rsquo;s.</small>
+                            ) : faction.innerCircle?.wouldLock.length ? (
+                              <small>Reaching Inner Circle here locks {faction.innerCircle.wouldLock.map((rival) => rival.name).join(' and ')}&rsquo;s.</small>
+                            ) : null}
+                            {faction.innerCircle?.introduction && faction.innerCircle.introduction.status !== 'COMPLETED' ? (
+                              <small>
+                                {faction.innerCircle.introduction.status === 'LOCKED'
+                                  ? 'Vic can introduce you once you are not already known here.'
+                                  : <>Vic can introduce you: <a href={`#quest-${faction.innerCircle.introduction.key}`}>{faction.innerCircle.introduction.title}</a></>}
+                              </small>
+                            ) : null}
+                            {faction.perks ? <FactionPerks perks={faction.perks} /> : null}
                           </div>
                         ))}
                       </div>
@@ -1183,5 +1221,31 @@ export function QuestPage() {
         ) : null}
       </div>
     </GameLayout>
+  );
+}
+
+/** 1.4.0-D. What standing opens with a faction, and what it is telling you right now. */
+function FactionPerks({ perks }: { perks: FactionPerksDto }) {
+  const levels = [
+    { key: 'information', level: perks.information, empty: 'Nothing to tell you right now.' },
+    { key: 'warnings', level: perks.warnings, empty: 'Nothing to warn you about.' },
+    ...(perks.nudge ? [{ key: 'nudge', level: perks.nudge, empty: '' }] : []),
+  ];
+  return (
+    <ul className="se-faction-perks">
+      {levels.map(({ key, level, empty }) => (
+        <li key={key} className={level.open ? 'is-open' : 'is-locked'}>
+          <div className="se-faction-perks__head">
+            <span>{level.title}</span>
+            <span>{level.open ? (key === 'nudge' ? 'Active' : level.tierName) : `Opens at ${level.tierName}`}</span>
+          </div>
+          {level.open && key !== 'nudge' ? (
+            level.lines.length
+              ? <ul>{level.lines.map((line) => <li key={line}>{line}</li>)}</ul>
+              : <p>{empty}</p>
+          ) : null}
+        </li>
+      ))}
+    </ul>
   );
 }

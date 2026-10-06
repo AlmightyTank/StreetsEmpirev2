@@ -289,6 +289,11 @@ export interface PublicPlayerProfileDto {
   joinedAt: string;
   lastActiveAt: string;
   isYou: boolean;
+  /**
+   * 1.4.0-F. The factions this player stands at Connected or above with, and the tier. Never the
+   * points, and nothing below Connected. Absent before 1.4.0-F.
+   */
+  factionAlignment?: Array<{ key: string; name: string; tierName: string }>;
 }
 
 export interface PublicPlayerProfileResponseDto {
@@ -602,6 +607,21 @@ export interface DiscordAlertsClaimDto {
   territory: DiscordTerritoryEventDto[];
   crackdowns: DiscordCrackdownEventDto[];
   rounds: DiscordRoundEventDto[];
+  /** 1.4.0-F. Players reaching a faction's Inner Circle. Older bots ignore the field. */
+  factions?: DiscordFactionEventDto[];
+}
+
+/** 1.4.0-F. A player reached a faction's Inner Circle: public, like the tier on their profile. */
+export interface DiscordFactionEventDto {
+  id: string;
+  roundName: string;
+  publicPimpId: number;
+  displayName: string;
+  profileUrl: string;
+  factionKey: string;
+  factionName: string;
+  tierName: string;
+  happenedAt: string;
 }
 
 /**

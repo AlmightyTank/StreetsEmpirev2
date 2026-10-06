@@ -161,7 +161,9 @@ export type QuestPrerequisiteKind =
   | 'CONTACT_REP_AT_LEAST'
   | 'BRANCH_CHOSEN'
   /** 1.4.0-B. params: { factionKey, tier } — the player's standing with the faction is at that tier or above. */
-  | 'FACTION_STANDING_AT_LEAST';
+  | 'FACTION_STANDING_AT_LEAST'
+  /** 1.4.0-E. params: { factionKey, tier } — the player's standing with the faction is below that tier. */
+  | 'FACTION_STANDING_BELOW';
 
 export interface QuestPrerequisiteDefinition {
   readonly kind: QuestPrerequisiteKind;
@@ -544,6 +546,17 @@ export interface QuestDefinition {
    * standing only to the faction it works for, these, and the side a branch picks.
    */
   readonly helps?: readonly FactionKey[];
+  /**
+   * 1.4.0-E. Vic's introductions: a broker's Job that starts the player at Known with this
+   * faction. Paid by the claim (never a standing reward), only from an independent giver, and
+   * only while the player is below Known with it.
+   */
+  readonly introduces?: FactionKey;
+  /**
+   * 1.4.0-E. Cash the claim takes, like a bribe: a share of net worth with a floor. The claim is
+   * refused when the player cannot pay it.
+   */
+  readonly fee?: { readonly netWorthShare: number; readonly minCents: number };
 }
 
 export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;
@@ -570,6 +583,61 @@ export interface ContractSponsorRules {
    * as likely). The board itself never changes; only which candidate sponsors it.
    */
   readonly knownLean: number;
+}
+
+/**
+ * 1.4.0-D. The one small price or cost a faction shades for a player Connected with it, each
+ * inside a system that already exists:
+ * - CORNER_UPKEEP: the beer and product a held corner burns (The Kings).
+ * - TOMMY_WEAPONS: what Tommy charges for guns (The Outfit).
+ * - BODYGUARD_TICKETS: the plane tickets for bodyguards flying with the boss (Road Saints MC).
+ * - PIP_PRODUCT: what Pip charges for product, at his store and his counter (The Cartel Line).
+ * - OFFICIAL_EXPOSURE: the Internal Affairs exposure each official's favor adds (Civic Handshake).
+ */
+export type FactionNudgeKind = 'CORNER_UPKEEP' | 'TOMMY_WEAPONS' | 'BODYGUARD_TICKETS' | 'PIP_PRODUCT' | 'OFFICIAL_EXPOSURE';
+
+/**
+ * 1.4.0-D. Faction perks. Known with a faction brings its information, Trusted its early
+ * warnings, and Connected its nudge: a small whole percentage off one thing, capped by the
+ * validator. Every warning reads the player's own state or the round's public schedule, never
+ * another player's.
+ */
+export interface FactionPerkRules {
+  /** Each faction's Connected nudge. A faction left out has none. */
+  readonly nudges: Readonly<Partial<Record<FactionKey, { readonly kind: FactionNudgeKind; readonly percent: number }>>>;
+  readonly warnings: {
+    /** The Kings: hours ahead they warn a corner will run dry, or a held block's shield ends. */
+    readonly cornerLeadHours: number;
+    /** The Outfit: hours before the crackdown's public warning they say where it lands. */
+    readonly sweepLeadHours: number;
+    /** Road Saints MC: a run's next road is hot at or above this stop chance (0..1). */
+    readonly hotRoadChance: number;
+    /** The Cartel Line: hours ahead they hear of a drought, or of Pip running out. */
+    readonly supplyLeadHours: number;
+    /** Civic Handshake: Case points short of the next stage at which they warn. */
+    readonly stageLeadPoints: number;
+  };
+}
+
+/**
+ * 1.4.0-E. Rivalries at the top. Reaching Inner Circle with a faction locks every one of its
+ * rivals' Inner Circles for the season: standing with a locked faction keeps climbing, but stops
+ * one point short of Inner Circle. Nothing below Inner Circle costs standing anywhere.
+ */
+export interface FactionRivalryRules {
+  readonly innerCircleLock: true;
+}
+
+/**
+ * 1.4.0-F. What standing shows the world. Reaching a tier awards that faction's cosmetics once
+ * per account; from `publicFrom` a profile shows the tier (never the points); reaching
+ * `feedFrom` is posted to the public street feed. Cosmetics never change anything in play.
+ */
+export interface FactionPublicRules {
+  /** Cosmetic keys awarded on reaching each tier, per faction. Every key is in `cosmetics`. */
+  readonly rewards: Readonly<Partial<Record<'CONNECTED' | 'INNER_CIRCLE', Readonly<Partial<Record<FactionKey, readonly string[]>>>>>>;
+  readonly publicFrom: 'CONNECTED' | 'INNER_CIRCLE';
+  readonly feedFrom: 'INNER_CIRCLE';
 }
 
 /** 1.4.0-B2 contract board rotation. */
@@ -2696,6 +2764,12 @@ export interface Ruleset {
   readonly contractRotation?: ContractRotationRules;
   /** 1.4.0-C. Board contracts carry a sponsoring faction and pay it standing. */
   readonly contractSponsors?: ContractSponsorRules;
+  /** 1.4.0-D. Information, warnings and a capped nudge per faction, by standing tier. */
+  readonly factionPerks?: FactionPerkRules;
+  /** 1.4.0-E. The Inner Circle rival lock. Absent: every faction's Inner Circle stays open. */
+  readonly factionRivalry?: FactionRivalryRules;
+  /** 1.4.0-F. Faction cosmetics, public alignment and the street feed. Absent: standing stays private. */
+  readonly factionPublic?: FactionPublicRules;
   /** Permanent per-round capabilities earned through Jobs. */
   readonly permanentUnlocks?: PermanentUnlockCatalog;
   /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */

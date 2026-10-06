@@ -43,4 +43,25 @@ export const PermanentUnlockService = {
       && definition.effect.productKey === productKey
     ) ?? null;
   },
+
+  /**
+   * The products this player may not buy from Pip yet, with the unlock each needs: at his home
+   * counter and at his counter in every other city alike. The high markets sell to anyone.
+   */
+  async lockedProducts(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<Map<string, PermanentUnlockDefinition>> {
+    const locked = new Map<string, PermanentUnlockDefinition>();
+    const gated = Object.values(ruleset.permanentUnlocks ?? {}).filter((definition) => definition.effect.kind === 'PRODUCT_PURCHASE_ACCESS');
+    if (!gated.length) return locked;
+    const keys = await PermanentUnlockService.keys(db, roundPlayerId);
+    for (const definition of gated) {
+      if (definition.effect.kind === 'PRODUCT_PURCHASE_ACCESS' && !keys.has(definition.key)) locked.set(definition.effect.productKey, definition);
+    }
+    return locked;
+  },
+
+  /** Refuse buying from Pip a product the player has not unlocked, in any city. */
+  async assertCanBuyProduct(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, productKey: string): Promise<void> {
+    const required = (await PermanentUnlockService.lockedProducts(db, roundPlayerId, ruleset)).get(productKey);
+    if (required) throw AppError.conflict('PRODUCT_PURCHASE_LOCKED', `Complete the required job to unlock ${required.name}.`);
+  },
 };

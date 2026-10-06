@@ -9,7 +9,7 @@ import { useSession } from '../stores/session.js';
 
 interface CategoryRow { key: NotificationCategory; label: string; hint: string }
 
-/** 0.9.0-G. Grouped so fourteen switches stay scannable on a phone. */
+/** 0.9.0-G. Grouped so the switches stay scannable on a phone. */
 const CATEGORY_GROUPS: Array<{ title: string; rows: CategoryRow[] }> = [
   {
     title: 'Combat & turf',
@@ -19,6 +19,7 @@ const CATEGORY_GROUPS: Array<{ title: string; rows: CategoryRow[] }> = [
       { key: 'turf', label: 'My turf', hint: 'A rival crew takes one of your blocks.' },
       { key: 'revenge', label: 'Revenge expiring', hint: 'A couple of hours before your revenge window on a hitter closes.' },
       { key: 'law', label: 'Case stage', hint: 'A city’s police move you up the Wanted ladder. Only the city and stage are sent.' },
+      { key: 'factions', label: 'Faction warnings', hint: 'A faction you are Trusted with warns you early: a corner running dry, a shield dropping, the crackdown, a hot road, a drought, a Case near its next stage.' },
     ],
   },
   {

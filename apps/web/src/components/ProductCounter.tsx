@@ -130,6 +130,11 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
           Relationship perk — {relationshipSummary(pip)}.
         </p>
       ) : null}
+      {pip.factionDiscount ? (
+        <p className="se-hint se-good">
+          {pip.factionDiscount.factionName} perk — {formatNumber(pip.factionDiscount.percent)}% off buying.
+        </p>
+      ) : null}
       <div className="se-store-shelf__top">
         <ShelfArt itemKey={product.key} locked={!pip.purchaseUnlocked} soldOut={pip.purchaseUnlocked && pip.stock === 0} />
         <div className="se-store-prices">

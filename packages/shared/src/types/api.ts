@@ -95,6 +95,8 @@ export type ActivityType =
   | 'CASE_STAGE_UP'
   /** 1.4.0-B. Standing with a faction reached a new tier. */
   | 'FACTION_TIER_UP'
+  /** 1.4.0-D. An early warning from a faction the player is Trusted with. */
+  | 'FACTION_WARNING'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'
@@ -177,7 +179,12 @@ export type ProfileAccent =
   | 'open-road-blue'
   | 'clean-slate-ice'
   | 'corner-amber'
-  | 'velvet-rose';
+  | 'velvet-rose'
+  | 'kings-gold'
+  | 'outfit-oxblood'
+  | 'saints-chrome'
+  | 'cartel-jade'
+  | 'civic-seal';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
@@ -710,6 +717,13 @@ export interface HideoutUpgradeResult {
   effect: string;
 }
 
+/** 1.4.0-D. A Connected faction's nudge on a price: who gives it and how much it takes off. */
+export interface FactionDiscountDto {
+  factionKey: string;
+  factionName: string;
+  percent: number;
+}
+
 export interface StoreItemDto {
   unlock: WeaponUnlockDto | null;
   key: string;
@@ -721,6 +735,8 @@ export interface StoreItemDto {
   favorDiscountPercent?: number;
   relationshipBuyDiscountPercent?: number;
   relationshipSellBonusPercent?: number;
+  /** 1.4.0-D. A Connected faction's cut in the buy quote. */
+  factionDiscount?: FactionDiscountDto;
   sellCents: number | null;
   owned: number;
   maxBuy: number;
@@ -909,6 +925,25 @@ export interface FactionStandingDto {
   max: number;
 }
 
+/** 1.4.0-D. One level of a faction's perks: what it is, the tier it opens at, and what it says now. */
+export interface FactionPerkLevelDto {
+  /** Whether the player's standing opens it. */
+  open: boolean;
+  tierName: string;
+  /** What this level gives, e.g. "Where Pip is short". */
+  title: string;
+  /** What the faction is telling the player right now; empty while closed or with nothing to say. */
+  lines: string[];
+}
+
+/** 1.4.0-D. A faction's perks: information at Known, early warnings at Trusted, a nudge at Connected. */
+export interface FactionPerksDto {
+  information: FactionPerkLevelDto;
+  warnings: FactionPerkLevelDto;
+  /** Null for a faction with no nudge. */
+  nudge: (FactionPerkLevelDto & { percent: number }) | null;
+}
+
 /** 1.4.0-A. One underworld faction, as the Jobs page shows it. */
 export interface FactionDto {
   key: string;
@@ -926,6 +961,17 @@ export interface FactionDto {
   standing: FactionStandingDto | null;
   /** 1.4.0-B. The faction's own Jobs, the tier each opens at, and where the player is with it. */
   jobs: Array<{ key: string; title: string; tierName: string | null; status: string }>;
+  /** 1.4.0-D. What standing with it opens and what it says now. Absent before D. */
+  perks?: FactionPerksDto | null;
+  /** 1.4.0-E. The Inner Circle lock, from this player's side. Absent before E. */
+  innerCircle?: {
+    /** The rival whose Inner Circle has locked this one for the season, or null. */
+    lockedBy: { key: string; name: string } | null;
+    /** The rivals reaching Inner Circle here would lock (empty once reached or locked). */
+    wouldLock: Array<{ key: string; name: string }>;
+    /** Vic's introduction to this faction, while the player is below Known with it. */
+    introduction: { key: string; title: string; status: string } | null;
+  };
 }
 
 export interface PlayerQuestDto {
@@ -942,7 +988,17 @@ export interface PlayerQuestDto {
   /** 1.4.0-B. A faction's own Job, opened by standing. */
   factionJob: boolean;
   /** 1.4.0-B. Standing the Job pays, one entry per faction it helps. */
-  factionStandings: Array<{ factionKey: string; factionName: string; amount: number; label: string }>;
+  factionStandings: Array<{
+    factionKey: string; factionName: string; amount: number; label: string;
+    /** 1.4.0-E. Rivals whose Inner Circle collecting this would lock for the season. Shown before it applies. */
+    locks?: string[];
+    /** 1.4.0-E. The rival whose Inner Circle holds this faction short of its own; the standing stops one point short. */
+    heldShortBy?: string;
+  }>;
+  /** 1.4.0-E. What collecting it costs, in cents, at today's net worth (Vic's introductions). */
+  feeCents?: number;
+  /** 1.4.0-E. The faction a broker's Job introduces you to. */
+  introduces?: { factionKey: string; factionName: string };
   type: string;
   category: string;
   difficulty: string;
@@ -1127,7 +1183,15 @@ export interface QuestClaimResult {
   reputationChanges: QuestBranchReputationDto[];
   newlyAvailable: string[];
   /** 1.4.0-B. Faction standing the claim paid. Empty before standing exists. */
-  standingChanges: Array<{ factionKey: string; factionName: string; amount: number; tierName: string; tierUp: boolean; label: string }>;
+  standingChanges: Array<{
+    factionKey: string; factionName: string; amount: number; tierName: string; tierUp: boolean; label: string;
+    /** 1.4.0-E. Rivals whose Inner Circle this claim locked for the season. */
+    locked?: string[];
+    /** 1.4.0-E. The rival whose Inner Circle held this faction one point short. */
+    heldShortBy?: string;
+  }>;
+  /** 1.4.0-E. The fee the claim took (Vic's introductions), in cents. */
+  feeCents?: number;
 }
 
 export interface StoreDto {
@@ -1206,6 +1270,8 @@ export interface StoreTradeResult {
   favorKey?: string;
   favorDiscountPercent?: number;
   baseUnitCents?: number;
+  /** 1.4.0-D. A Connected faction's cut on this purchase, and what it saved. */
+  factionDiscount?: FactionDiscountDto & { savedCents: number };
 }
 
 export type StoreCheckoutLineResult = StoreTradeResult;
@@ -1260,6 +1326,8 @@ export interface ProductStockDto {
     favorDiscountPercent?: number;
     relationshipBuyDiscountPercent?: number;
     relationshipSellBonusPercent?: number;
+    /** 1.4.0-D. The Cartel Line's Connected cut in the buy quote. */
+    factionDiscount?: FactionDiscountDto;
   } | null;
   /** 0.4.0-D. Present where Produce can cook it. */
   recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
@@ -1278,6 +1346,8 @@ export interface ProductTradeResult {
   stockAfter: number | null;
   reputationGained: number;
   favorDiscountPercent?: number;
+  /** 1.4.0-D. The Cartel Line's Connected cut on this purchase, and what it saved. */
+  factionDiscount?: FactionDiscountDto & { savedCents: number };
 }
 
 /** GET /api/game/products. Disabled on rounds where Product is still only crack. */

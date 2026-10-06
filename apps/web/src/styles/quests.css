@@ -932,3 +932,56 @@
   min-height: 24px;
   line-height: 24px;
 }
+
+/* 1.4.0-D: what standing opens with a faction, and what it says right now. */
+.se-faction-perks {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 9px;
+}
+
+.se-faction-perks > li {
+  display: grid;
+  gap: 3px;
+  padding: 6px 8px;
+  border: 1px solid var(--se-line);
+  border-radius: 6px;
+}
+
+.se-faction-perks__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.se-quests-contacts .se-faction-perks__head span {
+  display: inline;
+}
+
+.se-quests-contacts .se-faction-perks__head span:last-child {
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.se-faction-perks > li.is-locked {
+  color: var(--se-muted);
+}
+
+.se-faction-perks > li.is-open .se-faction-perks__head span:last-child {
+  color: var(--se-accent);
+}
+
+.se-faction-perks ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding-left: 12px;
+}
+
+.se-faction-perks p {
+  margin: 0;
+  color: var(--se-muted);
+}

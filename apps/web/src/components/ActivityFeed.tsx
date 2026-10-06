@@ -440,10 +440,17 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           ? [...(p.rewards as unknown[]), ...(Array.isArray(p.standingChanges) ? p.standingChanges as unknown[] : [])].map(String).join(' · ')
           : undefined,
       };
+    case 'FACTION_WARNING':
+      return {
+        text: str(p.text, 'A faction has a warning for you.'),
+        detail: `${str(p.factionName, 'A faction')} · Trusted perk · private to you`,
+      };
     case 'FACTION_TIER_UP':
       return {
         text: `${str(p.factionName, 'A faction')} now counts you as ${str(p.tierName, 'known')}.`,
-        detail: formatNumber(num(p.points)) + ' standing · private to you',
+        detail: formatNumber(num(p.points)) + ' standing · private to you'
+          + (Array.isArray(p.lockedRivals) && p.lockedRivals.length ? ` · ${p.lockedRivals.map(String).join(' and ')} Inner Circle locked this season` : '')
+          + (Array.isArray(p.cosmetics) && p.cosmetics.length ? ` · unlocked ${p.cosmetics.map(String).join(', ')}` : ''),
       };
 
     case 'STREET_PASS_CLAIMED':
@@ -749,6 +756,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     INFORMANT_TIP: 'Informant',
     CASE_FOLLOWED: 'Federal case',
     FACTION_TIER_UP: 'Faction',
+    FACTION_WARNING: 'Faction word',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();

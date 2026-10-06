@@ -16,6 +16,7 @@ import {
   attackAlertEmbed,
   battleFeedEmbed,
   crackdownFeedEmbed,
+  factionFeedEmbed,
   describeDiscordError,
   gameNoticeEmbed,
   newsPostEmbed,
@@ -196,6 +197,16 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
         await channels.raidFeed.send({ embeds: [territoryFeedEmbed(event)], allowedMentions: { parse: [] } });
       } catch (error) {
         console.error(`Could not post city-control change ${event.id} to #${channels.raidFeed.name}:`, error);
+      }
+    }
+  }
+
+  for (const event of claimed.factions) {
+    if (channels.raidFeed) {
+      try {
+        await channels.raidFeed.send({ embeds: [factionFeedEmbed(event)], allowedMentions: { parse: [] } });
+      } catch (error) {
+        console.error(`Could not post Inner Circle ${event.id} to #${channels.raidFeed.name}:`, error);
       }
     }
   }

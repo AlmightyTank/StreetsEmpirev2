@@ -72,6 +72,13 @@ export interface SeasonTotals {
   lawSeason: number;
   lawPeakStage: number;
   lawWarrantsServed: number;
+
+  /**
+   * 1.4.0-F. Factions the player stood at Connected or above with, and at Inner Circle, by the
+   * season's end (or now). Public anyway: a profile shows every tier from Connected up.
+   */
+  factionsConnected: number;
+  factionsInnerCircle: number;
 }
 
 /** What the loader needs from each RoundPlayer. */
@@ -128,6 +135,8 @@ export const emptySeasonTotals = (): SeasonTotals => ({
   lawSeason: 0,
   lawPeakStage: 0,
   lawWarrantsServed: 0,
+  factionsConnected: 0,
+  factionsInnerCircle: 0,
 });
 
 /** A numeric JSON field, or 0 when a payload predates it or holds anything else. */
@@ -338,7 +347,7 @@ export const SeasonStatsService = {
 
     const [
       activity, checkout, battles, captured, lost, segments, cities, returned, stops, runs, reputation,
-      businessIncome, laundering, blockWarAttack, blockWarDefense, casinoRatings, caseStages, warrantsServed,
+      businessIncome, laundering, blockWarAttack, blockWarDefense, casinoRatings, caseStages, warrantsServed, factionStandings,
     ] = await Promise.all([
       activityTotals(prisma, ids),
       checkoutProductSales(prisma, ids),
@@ -370,6 +379,7 @@ export const SeasonStatsService = {
       }),
       prisma.playerCaseReceipt.groupBy({ by: ['roundPlayerId', 'stageAfter'], where: { roundPlayerId: { in: ids } } }),
       prisma.playerWarrant.groupBy({ by: ['roundPlayerId'], where: { roundPlayerId: { in: ids }, status: 'SERVED' }, _count: { _all: true } }),
+      prisma.playerFactionStanding.findMany({ where: { roundPlayerId: { in: ids } }, select: { roundPlayerId: true, points: true } }),
     ]);
 
     const activityById = byId(activity);
@@ -463,6 +473,15 @@ export const SeasonStatsService = {
       totals.casinoCompsCents += Number(rating.compsSpentCents);
       totals.casinoJackpots += rating.jackpots;
       totals.casinoBiggestWinCents = Math.max(totals.casinoBiggestWinCents, Number(rating.biggestWinCents));
+    }
+
+    for (const row of factionStandings) {
+      const player = players_.get(row.roundPlayerId);
+      const totals = result.get(row.roundPlayerId);
+      const rules = player ? rulesetFor(player)?.factionStanding : undefined;
+      if (!totals || !rules) continue;
+      if (row.points >= rules.tiers.connected) totals.factionsConnected += 1;
+      if (row.points >= rules.tiers.innerCircle) totals.factionsInnerCircle += 1;
     }
 
     for (const row of caseStages) {

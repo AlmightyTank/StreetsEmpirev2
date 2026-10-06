@@ -140,14 +140,14 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
           problems.push(`${catalogKey}: CONTACT_REP_AT_LEAST requires positive points`);
         }
       }
-      if (prerequisite.kind === 'FACTION_STANDING_AT_LEAST') {
+      if (prerequisite.kind === 'FACTION_STANDING_AT_LEAST' || prerequisite.kind === 'FACTION_STANDING_BELOW') {
         const factionKey = prerequisite.params?.factionKey;
         const tier = prerequisite.params?.tier;
         if (typeof factionKey !== 'string' || !factionKey.trim()) {
-          problems.push(`${catalogKey}: FACTION_STANDING_AT_LEAST requires factionKey`);
+          problems.push(`${catalogKey}: ${prerequisite.kind} requires factionKey`);
         }
         if (typeof tier !== 'string' || !['KNOWN', 'TRUSTED', 'CONNECTED', 'INNER_CIRCLE'].includes(tier)) {
-          problems.push(`${catalogKey}: FACTION_STANDING_AT_LEAST requires a tier above UNKNOWN`);
+          problems.push(`${catalogKey}: ${prerequisite.kind} requires a tier above UNKNOWN`);
         }
       }
       if (prerequisite.kind === 'BRANCH_CHOSEN') {

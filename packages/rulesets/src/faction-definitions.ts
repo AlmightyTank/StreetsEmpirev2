@@ -1,8 +1,14 @@
-import type { ContactKey, FactionKey, QuestBranchDefinition, QuestDefinition, Ruleset, SponsoredBoard } from './types.js';
+import type { ContactKey, FactionKey, FactionNudgeKind, QuestBranchDefinition, QuestDefinition, Ruleset, SponsoredBoard } from './types.js';
 
 type FactionView = Pick<Ruleset, 'factions' | 'contacts'>;
 
 const TIERS = ['KNOWN', 'TRUSTED', 'CONNECTED', 'INNER_CIRCLE'];
+
+/** 1.4.0-D. The nudges a faction can give at Connected. */
+export const FACTION_NUDGE_KINDS: readonly FactionNudgeKind[] = ['CORNER_UPKEEP', 'TOMMY_WEAPONS', 'BODYGUARD_TICKETS', 'PIP_PRODUCT', 'OFFICIAL_EXPOSURE'];
+
+/** 1.4.0-D. No faction nudge may take off more than this share, in whole percent. */
+export const FACTION_NUDGE_CAP_PERCENT = 10;
 
 /** The faction a contact works for, if any. */
 export function contactFaction(ruleset: FactionView, contactKey: string | null | undefined): FactionKey | undefined {
@@ -74,7 +80,7 @@ export function sponsorCandidates(
  * catalog or says why it is independent (never both), every rivalry is listed on both sides,
  * and no faction is its own rival. Rulesets without factions have nothing to check.
  */
-export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' | 'questDefinitions'> & Partial<Pick<Ruleset, 'contractSponsors'>>): string[] {
+export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' | 'questDefinitions'> & Partial<Pick<Ruleset, 'contractSponsors' | 'factionPerks' | 'factionStanding' | 'factionPublic' | 'cosmetics'>>): string[] {
   const factions = ruleset.factions;
   if (!factions) return [];
   const problems: string[] = [];
@@ -109,6 +115,26 @@ export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' |
     if (job.factionKey && !keys.has(job.factionKey)) problems.push(`${job.key} works for unknown faction ${job.factionKey}.`);
     if (job.factionKey && giver && job.factionKey !== giver) problems.push(`${job.key} works for ${job.factionKey}, but its giver works for ${giver}.`);
     if (job.factionKey && job.contactKey && !giver) problems.push(`${job.key} names a faction, but its giver is independent.`);
+    // 1.4.0-E: an introduction is a broker's Job, paid by its claim, open only below Known.
+    if (job.introduces) {
+      if (!keys.has(job.introduces)) problems.push(`${job.key} introduces unknown faction ${job.introduces}.`);
+      if (giver || job.factionKey || job.helps?.length) problems.push(`${job.key} introduces ${job.introduces}, so it has to come from an independent broker who works for no one.`);
+      if (job.repeatability !== 'ONCE') problems.push(`${job.key} introduces ${job.introduces}, so it has to be one-time.`);
+      if (job.rewards.some((reward) => reward.kind === 'FACTION_STANDING' || reward.kind === 'CONTACT_REP')) problems.push(`${job.key} is an introduction and pays standing through its claim, never as a reward.`);
+      const below = job.prerequisites.some((prerequisite) => prerequisite.kind === 'FACTION_STANDING_BELOW'
+        && prerequisite.params?.factionKey === job.introduces && prerequisite.params?.tier === 'KNOWN');
+      if (!below) problems.push(`${job.key} introduces ${job.introduces}, so it needs FACTION_STANDING_BELOW Known with it.`);
+    }
+    if (job.fee && (!(job.fee.netWorthShare >= 0 && job.fee.netWorthShare < 1) || !Number.isSafeInteger(job.fee.minCents) || job.fee.minCents <= 0)) {
+      problems.push(`${job.key} has a fee that is not a share of net worth below 1 with a positive whole floor.`);
+    }
+    // 1.4.0-E: a capstone at Inner Circle pays standing and cosmetics, never cash or power.
+    const capstone = job.prerequisites.some((prerequisite) => prerequisite.kind === 'FACTION_STANDING_AT_LEAST' && prerequisite.params?.tier === 'INNER_CIRCLE');
+    if (capstone) {
+      const paid = job.rewards.filter((reward) => reward.kind !== 'FACTION_STANDING' && reward.kind !== 'COSMETIC_UNLOCK');
+      if (paid.length) problems.push(`${job.key} is an Inner Circle capstone, so it pays only standing and cosmetics, not ${paid.map((reward) => reward.kind).join(', ')}.`);
+      if (job.repeatability !== 'ONCE') problems.push(`${job.key} is an Inner Circle capstone, so it has to be one-time.`);
+    }
     for (const helped of job.helps ?? []) {
       if (!keys.has(helped)) problems.push(`${job.key} helps unknown faction ${helped}.`);
       else if (!own) problems.push(`${job.key} helps ${helped} without working for a faction itself.`);
@@ -124,7 +150,7 @@ export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' |
       else if (paid && !helped.has(paid)) problems.push(`${job.key} pays ${reward.kind === 'CONTACT_REP' ? `${reward.key}'s reputation` : 'standing'} for ${paid}, a faction it does not help.`);
     }
     for (const prerequisite of job.prerequisites) {
-      if (prerequisite.kind !== 'FACTION_STANDING_AT_LEAST') continue;
+      if (prerequisite.kind !== 'FACTION_STANDING_AT_LEAST' && prerequisite.kind !== 'FACTION_STANDING_BELOW') continue;
       if (!keys.has(String(prerequisite.params?.factionKey))) problems.push(`${job.key} needs standing with unknown faction ${String(prerequisite.params?.factionKey)}.`);
       if (!TIERS.includes(String(prerequisite.params?.tier))) problems.push(`${job.key} needs an unknown standing tier ${String(prerequisite.params?.tier)}.`);
     }
@@ -143,6 +169,42 @@ export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' |
       for (const candidate of candidates) if (!keys.has(candidate)) problems.push(`Sponsor lane ${lane} names unknown faction ${candidate}.`);
     }
     if (!(sponsors.knownLean >= 0)) problems.push('The sponsor lean must not be negative.');
+  }
+
+  // 1.4.0-D: every nudge is small, capped, whole, and one per kind; warnings look ahead sanely.
+  const perks = ruleset.factionPerks;
+  if (perks) {
+    if (!ruleset.factionStanding) problems.push('Faction perks need faction standing.');
+    const kinds = new Set<string>();
+    for (const [key, nudge] of Object.entries(perks.nudges)) {
+      if (!nudge) continue;
+      if (!keys.has(key)) problems.push(`Nudge names unknown faction ${key}.`);
+      if (!(FACTION_NUDGE_KINDS as readonly string[]).includes(nudge.kind)) problems.push(`${key} has an unknown nudge ${nudge.kind}.`);
+      if (kinds.has(nudge.kind)) problems.push(`Two factions share the ${nudge.kind} nudge.`);
+      kinds.add(nudge.kind);
+      if (!Number.isSafeInteger(nudge.percent) || nudge.percent <= 0 || nudge.percent > FACTION_NUDGE_CAP_PERCENT) {
+        problems.push(`${key}'s nudge must be a whole percent from 1 to ${FACTION_NUDGE_CAP_PERCENT}.`);
+      }
+    }
+    const warnings = perks.warnings;
+    for (const [name, value] of Object.entries({ cornerLeadHours: warnings.cornerLeadHours, sweepLeadHours: warnings.sweepLeadHours, supplyLeadHours: warnings.supplyLeadHours, stageLeadPoints: warnings.stageLeadPoints })) {
+      if (!(value > 0) || value > 72) problems.push(`Warning ${name} must be above 0 and at most 72.`);
+    }
+    if (!(warnings.hotRoadChance > 0 && warnings.hotRoadChance < 1)) problems.push('A hot road must be a stop chance between 0 and 1.');
+  }
+
+  // 1.4.0-F: tier cosmetics are real cosmetics, for real factions, and nothing else.
+  const publicRules = ruleset.factionPublic;
+  if (publicRules) {
+    if (!ruleset.factionStanding) problems.push('Faction cosmetics and alignment need faction standing.');
+    for (const [tier, byFaction] of Object.entries(publicRules.rewards)) {
+      for (const [key, cosmetics] of Object.entries(byFaction ?? {})) {
+        if (!keys.has(key)) problems.push(`${tier} cosmetics name unknown faction ${key}.`);
+        for (const cosmetic of cosmetics ?? []) {
+          if (!ruleset.cosmetics?.[cosmetic]) problems.push(`${key}'s ${tier} cosmetic ${cosmetic} is missing from the cosmetics catalog.`);
+        }
+      }
+    }
   }
 
   for (const faction of Object.values(factions)) {

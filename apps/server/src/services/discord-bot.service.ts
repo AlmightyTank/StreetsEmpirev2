@@ -12,6 +12,7 @@ import type {
   DiscordBattleEventDto,
   DiscordCityDto,
   DiscordCrackdownEventDto,
+  DiscordFactionEventDto,
   DiscordHallOfFameDto,
   DiscordHistoryDto,
   DiscordLeaderboardDto,
@@ -333,6 +334,41 @@ async function claimTerritory(prisma: PrismaClient, now: Date, limit = 25): Prom
       blocksTotal: row.blocksTotal,
       happenedAt: row.happenedAt.toISOString(),
     }));
+  });
+}
+
+/**
+ * 1.4.0-F. Players reaching a faction's Inner Circle, each once, for the public street feed. Only
+ * on rulesets that make it public; anything else is marked off without a post, so it is never
+ * looked at again. Says the faction and the tier, never standing points.
+ */
+export async function claimFactions(prisma: PrismaClient, now: Date, limit = 25): Promise<DiscordFactionEventDto[]> {
+  return prisma.$transaction(async (tx) => {
+    const rows = await tx.playerFactionStanding.findMany({
+      where: { innerCircleAt: { not: null, lte: now }, innerCirclePostedAt: null },
+      orderBy: { innerCircleAt: 'asc' },
+      take: limit,
+      include: { roundPlayer: { select: { publicPimpId: true, displayName: true, account: { select: { isActive: true } }, round: { select: { name: true, status: true, rulesetId: true, rulesetVersion: true } } } } },
+    });
+    if (!rows.length) return [];
+    await tx.playerFactionStanding.updateMany({ where: { id: { in: rows.map((row) => row.id) }, innerCirclePostedAt: null }, data: { innerCirclePostedAt: now } });
+    return rows.flatMap((row): DiscordFactionEventDto[] => {
+      const { roundPlayer } = row;
+      const ruleset = loadRulesetForRound(roundPlayer.round);
+      const faction = ruleset.factions?.[row.factionKey as keyof NonNullable<typeof ruleset.factions>];
+      if (ruleset.factionPublic?.feedFrom !== 'INNER_CIRCLE' || !faction || roundPlayer.round.status !== 'ACTIVE' || !roundPlayer.account.isActive) return [];
+      return [{
+        id: row.id,
+        roundName: roundPlayer.round.name,
+        publicPimpId: roundPlayer.publicPimpId,
+        displayName: roundPlayer.displayName,
+        profileUrl: playerUrl(roundPlayer.publicPimpId),
+        factionKey: faction.key,
+        factionName: faction.name,
+        tierName: 'Inner Circle',
+        happenedAt: row.innerCircleAt!.toISOString(),
+      }];
+    });
   });
 }
 
@@ -973,15 +1009,16 @@ export const DiscordBotService = {
   async claimAlerts(prisma: PrismaClient): Promise<DiscordAlertsClaimDto> {
     const now = new Date();
     await NotificationService.collect(prisma, now);
-    const [battles, turf, blockWars, territory, crackdowns, rounds, dms] = await Promise.all([
+    const [battles, turf, blockWars, territory, crackdowns, rounds, factions, dms] = await Promise.all([
       claimBattles(prisma, now),
       claimTurf(prisma, now),
       claimBlockWars(prisma, now),
       claimTerritory(prisma, now),
       claimCrackdowns(prisma, now),
       claimRoundEnds(prisma, now),
+      claimFactions(prisma, now),
       NotificationService.claimDiscord(prisma, now),
     ]);
-    return { ...dms, battles, turf, blockWars, territory, crackdowns, rounds };
+    return { ...dms, battles, turf, blockWars, territory, crackdowns, rounds, factions };
   },
 };

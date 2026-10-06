@@ -88,6 +88,12 @@ export const profileAccentSchema = z.enum([
   'clean-slate-ice',
   'corner-amber',
   'velvet-rose',
+  // 1.4.0-F faction accents, earned at Connected.
+  'kings-gold',
+  'outfit-oxblood',
+  'saints-chrome',
+  'cartel-jade',
+  'civic-seal',
 ]);
 export const CREW_NAME_MIN = 3;
 export const CREW_NAME_MAX = 32;

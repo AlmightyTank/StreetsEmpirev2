@@ -1,5 +1,6 @@
 import type { BossTrip, PrismaClient, RoundPlayer } from '@prisma/client';
 import {
+  bodyguardTicketCents,
   checkExtend,
   checkTrip,
   gunRentCents,
@@ -39,6 +40,7 @@ import { BossHitService } from './boss-hit.service.js';
 import { BossPresenceService } from './boss-presence.service.js';
 import { totalAwayWorth } from './run-settle.service.js';
 import { LawOfficialService } from './law-official.service.js';
+import { FactionService } from './faction.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 
@@ -160,6 +162,8 @@ export const BossTripService = {
     // Trips B: the town the boss's run is headed for or sitting in, the last before home.
     const ridingTo = riding ? riding.stops[Math.max(0, riding.stops.length - 2)]?.city ?? home : null;
     const connect = await hasGunConnect(db, ruleset, player.id);
+    // 1.4.0-D: Connected with Road Saints MC, bodyguard tickets cost a little less.
+    const ticketNudge = await FactionService.nudge(db as Db, player.id, ruleset, 'BODYGUARD_TICKETS');
     const destinations = Object.keys(ruleset.cities ?? {}).filter((slug) => slug !== home);
     // Any city but home gives the same general reason, at the cheapest stay and no bankroll.
     const general: TripCheck = checkTrip(ruleset, {
@@ -193,7 +197,18 @@ export const BossTripService = {
         lieutenantCut: rules.lieutenantCut,
         rideAlong: rules.rideAlong ? { ...rules.rideAlong } : null,
         bodyguards: rules.bodyguards
-          ? { max: rules.bodyguards.max, ticketCents: rules.bodyguards.ticketCents, lodgingCentsPerThugHour: rules.bodyguards.lodgingCentsPerThugHour, gunRentCents: { ...rules.bodyguards.gunRentCents } }
+          ? {
+              max: rules.bodyguards.max,
+              ticketCents: Number(bodyguardTicketCents(rules.bodyguards.ticketCents, ticketNudge?.percent)),
+              lodgingCentsPerThugHour: rules.bodyguards.lodgingCentsPerThugHour,
+              gunRentCents: { ...rules.bodyguards.gunRentCents },
+              ...(ticketNudge ? { factionDiscount: {
+                factionKey: ticketNudge.factionKey,
+                factionName: ruleset.factions?.[ticketNudge.factionKey]?.name ?? ticketNudge.factionKey,
+                percent: ticketNudge.percent,
+                fullTicketCents: rules.bodyguards.ticketCents,
+              } } : {}),
+            }
           : null,
       },
       gunConnect: rules.bodyguards ? { unlocked: connect, weapons: rentableWeapons(player) } : null,
@@ -235,6 +250,7 @@ export const BossTripService = {
         const bankrollCents = BigInt(input.bankrollCents);
         // Trips B: one boss. A boss riding with a run cannot also be on a plane.
         if (await bossRun(tx, roundPlayerId)) throw AppError.conflict('BOSS_ON_RUN', 'The boss is riding with your run. Bring it home first.');
+        const ticketNudge = input.bodyguards > 0 ? await FactionService.nudge(tx, roundPlayerId, base, 'BODYGUARD_TICKETS') : null;
         const check = checkTrip(base, {
           from: player.city.slug,
           to: input.to,
@@ -251,8 +267,14 @@ export const BossTripService = {
           bodyguards: input.bodyguards,
           fitThugs: fitThugs(current),
           heat: current.heat,
+          bodyguardTicketCutPercent: ticketNudge?.percent ?? 0,
         });
         if (check.blockedReason) throw refusal(check);
+        if (ticketNudge) {
+          const perGuard = tripRules(base)?.bodyguards?.ticketCents ?? 0;
+          const savedCents = Number(BigInt(perGuard) - bodyguardTicketCents(perGuard, ticketNudge.percent)) * input.bodyguards;
+          await FactionService.logNudge(tx, roundPlayerId, ticketNudge, 'BODYGUARD_TICKETS', `trip:${input.actionId ?? now.toISOString()}`, { cents: savedCents }, now);
+        }
         const to = await tx.city.findUnique({ where: { slug: input.to }, select: { isEnabled: true } });
         if (!to?.isEnabled) throw AppError.badRequest('UNKNOWN_CITY', 'That city is not on the map.', { to: 'Pick a city.' });
 

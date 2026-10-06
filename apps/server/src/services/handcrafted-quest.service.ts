@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { FACTION_TIERS, contractStanding, factionTierName, factionTierRank, jobStanding as jobStandingFor } from '@streets/rules-engine';
+import { FACTION_TIERS, contractStanding, factionTierName, factionTierRank, factionTierStartsAt, innerCircleLockedBy, innerCirclePreview, jobStanding as jobStandingFor, lawPriceCents } from '@streets/rules-engine';
 import {
   type ContactKey,
   contractBoard,
@@ -36,6 +36,8 @@ import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { addContactRep, grantRewards, rewardDto } from './reward-grant.service.js';
 import { FactionService } from './faction.service.js';
+import { EconomyLedgerService } from './economy-ledger.service.js';
+import { FactionPerkService } from './faction-perk.service.js';
 import { contractSponsor } from './contract-sponsor.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
 import {
@@ -45,6 +47,7 @@ import {
 } from './daily-contract.service.js';
 import {
   WEEKLY_CONTRACT_SLOTS,
+  syncDerivedTurfProgress,
   syncWeeklyContractAttempts,
   weeklyContractWindow,
 } from './weekly-contract.service.js';
@@ -297,7 +300,29 @@ function standingLabel(amount: number, factionName: string): string {
   return `+${amount} ${factionName} standing`;
 }
 
-function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEventSnapshot): PlayerQuestDto {
+/** 1.4.0-E. What a player brings to a Job card: their standing points and net worth. */
+interface QuestContext {
+  points: Partial<Record<FactionKey, number>>;
+  netWorthCents: bigint;
+}
+
+/**
+ * 1.4.0-E. The standing an introduction pays: whatever brings the player up to Known with the
+ * faction it introduces, or nothing once they are there.
+ */
+function introductionStanding(ruleset: Ruleset, definition: QuestDefinition | undefined, points: Partial<Record<FactionKey, number>>): Map<FactionKey, number> {
+  const rules = ruleset.factionStanding;
+  if (!definition?.introduces || !rules || !ruleset.factions?.[definition.introduces]) return new Map();
+  const amount = factionTierStartsAt('KNOWN', rules) - (points[definition.introduces] ?? 0);
+  return amount > 0 ? new Map([[definition.introduces, amount]]) : new Map();
+}
+
+/** 1.4.0-E. A Job's fee at a net worth, in cents, or 0 for a Job with none. */
+function questFeeCents(definition: QuestDefinition | undefined, netWorthCents: bigint): bigint {
+  return definition?.fee ? lawPriceCents(netWorthCents, definition.fee) : 0n;
+}
+
+function questDto(row: QuestRow, ruleset: Ruleset, context: QuestContext, communityEvent?: CommunityEventSnapshot): PlayerQuestDto {
   const contact = contactFor(ruleset, row.questDefinition.contactKey);
   const cityState = cityContractState(row.rewardState);
   const allianceContribution = allianceContractContributionSnapshot(
@@ -328,10 +353,28 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
     factionStandings: [
       ...jobStanding(ruleset, row.questDefinition.key, rewards(row.questDefinition.rewards)),
       ...boardStanding(ruleset, ruleset.questDefinitions?.[row.questDefinition.key], row.rewardState),
+      ...introductionStanding(ruleset, ruleset.questDefinitions?.[row.questDefinition.key], context.points),
     ].flatMap(([factionKey, amount]) => {
       const name = ruleset.factions?.[factionKey]?.name;
-      return name ? [{ factionKey, factionName: name, amount, label: standingLabel(amount, name) }] : [];
+      if (!name) return [];
+      // 1.4.0-E: say what collecting it would set off, before it does.
+      const preview = row.status === 'COMPLETED' ? { locks: [], lockedBy: null } : innerCirclePreview(ruleset, context.points, factionKey, amount);
+      const rivalName = (key: FactionKey) => ruleset.factions?.[key]?.name ?? key;
+      return [{
+        factionKey, factionName: name, amount, label: standingLabel(amount, name),
+        ...(preview.locks.length ? { locks: preview.locks.map(rivalName) } : {}),
+        ...(preview.lockedBy ? { heldShortBy: rivalName(preview.lockedBy) } : {}),
+      }];
     }),
+    ...(() => {
+      const definition = ruleset.questDefinitions?.[row.questDefinition.key];
+      const introduced = definition?.introduces ? ruleset.factions?.[definition.introduces] : undefined;
+      const fee = questFeeCents(definition, context.netWorthCents);
+      return {
+        ...(fee > 0n ? { feeCents: Number(fee) } : {}),
+        ...(introduced ? { introduces: { factionKey: introduced.key, factionName: introduced.name } } : {}),
+      };
+    })(),
     type: row.questDefinition.type,
     category: row.questDefinition.category,
     difficulty: row.questDefinition.difficulty,
@@ -414,6 +457,16 @@ export function questPrerequisitesMet(
         && typeof tier === 'string'
         && (FACTION_TIERS as readonly string[]).includes(tier)
         && factionTierRank(reached) >= factionTierRank(tier as FactionTier);
+    }
+    if (prerequisite.kind === 'FACTION_STANDING_BELOW') {
+      // 1.4.0-E. Only where standing exists: a round without it has nothing to be below.
+      const factionKey = prerequisite.params?.factionKey;
+      const tier = prerequisite.params?.tier;
+      const reached = typeof factionKey === 'string' ? factionTiers[factionKey] : undefined;
+      return reached !== undefined
+        && typeof tier === 'string'
+        && (FACTION_TIERS as readonly string[]).includes(tier)
+        && factionTierRank(reached) < factionTierRank(tier as FactionTier);
     }
     if (prerequisite.kind === 'BRANCH_CHOSEN') {
       const questKey = prerequisite.params?.questKey;
@@ -548,6 +601,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   await refreshCommunityEventReadinessForPlayer(db, roundPlayerId, ruleset, now);
   newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
   await autoAcceptBoardWork(db, roundPlayerId, ruleset, now);
+  await syncDerivedTurfProgress(db, roundPlayerId, ruleset, questDefinitions, now);
   return newlyAvailable;
 }
 
@@ -697,6 +751,13 @@ export const HandcraftedQuestService = {
         };
       });
       const standings = await FactionService.standings(tx, roundPlayerId, ruleset);
+      // 1.4.0-E: standing and net worth, for each card's Inner Circle preview and fee.
+      const questContext: QuestContext = {
+        points: await FactionService.points(tx, roundPlayerId),
+        netWorthCents: (await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { netWorthCents: true } })).netWorthCents,
+      };
+      // 1.4.0-D: what standing opens with each faction, and what it says right now.
+      const perks = await FactionPerkService.perks(tx, roundPlayerId, ruleset);
       const factions = ruleset.factions ? Object.values(ruleset.factions).flatMap((faction) => faction ? [{
         key: faction.key,
         name: faction.name,
@@ -714,6 +775,25 @@ export const HandcraftedQuestService = {
           const row = rows.find((candidate) => candidate.questDefinition.key === definition.key);
           return [{ key: definition.key, title: definition.title, tierName: tier ? factionTierName(tier) : null, status: row?.status ?? 'LOCKED' }];
         }),
+        ...(ruleset.factionPerks ? { perks: perks.get(faction.key) ?? null } : {}),
+        ...(ruleset.factionRivalry?.innerCircleLock ? (() => {
+          const lockedBy = innerCircleLockedBy(ruleset, questContext.points, faction.key);
+          const reached = (questContext.points[faction.key] ?? 0) >= (ruleset.factionStanding?.tiers.innerCircle ?? Infinity);
+          const introduction = Object.values(ruleset.questDefinitions ?? {}).find((definition) => definition.introduces === faction.key);
+          const introRow = introduction ? rows.find((candidate) => candidate.questDefinition.key === introduction.key) : undefined;
+          const below = (questContext.points[faction.key] ?? 0) < (ruleset.factionStanding?.tiers.known ?? 0);
+          return {
+            innerCircle: {
+              lockedBy: lockedBy ? { key: lockedBy, name: ruleset.factions?.[lockedBy]?.name ?? lockedBy } : null,
+              wouldLock: lockedBy || reached ? [] : faction.rivals
+                .filter((rival) => (questContext.points[rival] ?? 0) < (ruleset.factionStanding?.tiers.innerCircle ?? Infinity))
+                .map((rival) => ({ key: rival, name: ruleset.factions?.[rival]?.name ?? rival })),
+              introduction: introduction && (below || introRow?.status === 'COMPLETED')
+                ? { key: introduction.key, title: introduction.title, status: introRow?.status ?? 'LOCKED' }
+                : null,
+            },
+          };
+        })() : {}),
       }] : []) : null;
       const unlockRows = await tx.playerUnlock.findMany({
         where: { roundPlayerId },
@@ -794,7 +874,7 @@ export const HandcraftedQuestService = {
         activeFavors,
         armedFavors,
         favors,
-        quests: rows.map((row) => questDto(row, ruleset, communitySnapshots.get(row.id))),
+        quests: rows.map((row) => questDto(row, ruleset, questContext, communitySnapshots.get(row.id))),
       };
     });
   },
@@ -964,6 +1044,15 @@ export const HandcraftedQuestService = {
           await addContactRep(tx, roundPlayerId, delta.contactKey, delta.amount);
         }
 
+        // 1.4.0-E: an introduction brings the player up to Known; its fee is only taken when it
+        // still has something to give, and a claim the player cannot pay for is refused.
+        const introduction = introductionStanding(ruleset, rulesetDefinition, rulesetDefinition.introduces ? await FactionService.points(tx, roundPlayerId) : {});
+        const feeCents = rulesetDefinition.introduces && !introduction.size ? 0n : questFeeCents(rulesetDefinition, player.netWorthCents);
+        if (feeCents > 0n && current.cashCents < feeCents) {
+          throw AppError.conflict('QUEST_FEE', `${contactFor(ruleset, row.questDefinition.contactKey)?.shortName ?? 'They'} want $${(Number(feeCents) / 100).toLocaleString('en-US')} up front, and you are short.`);
+        }
+        next.cashCents -= feeCents;
+
         const questRewards = [
           ...(cityContractRewards(row.rewardState) ?? rewards(row.questDefinition.rewards)),
           ...(selectedBranch?.rewards ?? []),
@@ -972,11 +1061,17 @@ export const HandcraftedQuestService = {
         // 1.4.0-B: a one-time Job also pays standing to the factions it helps, and no others.
         const standingChanges: QuestClaimResult['standingChanges'] = [];
         // 1.4.0-C: a board contract pays its sponsor instead.
-        for (const [factionKey, amount] of [...jobStanding(ruleset, key, questRewards, selectedBranch), ...boardStanding(ruleset, rulesetDefinition, row.rewardState)]) {
-          const change = await FactionService.grant(tx, roundPlayerId, ruleset, factionKey, amount, contractBoard(rulesetDefinition) ? 'CONTRACT' : 'JOB', `job:${row.id}:${factionKey}`, now);
+        for (const [factionKey, amount] of [...jobStanding(ruleset, key, questRewards, selectedBranch), ...boardStanding(ruleset, rulesetDefinition, row.rewardState), ...introduction]) {
+          const source = rulesetDefinition.introduces ? 'INTRODUCTION' : contractBoard(rulesetDefinition) ? 'CONTRACT' : 'JOB';
+          const change = await FactionService.grant(tx, roundPlayerId, ruleset, factionKey, amount, source, `job:${row.id}:${factionKey}`, now);
           if (change) {
             const paid = change.after - change.before;
-            standingChanges.push({ factionKey, factionName: change.factionName, amount: paid, tierName: factionTierName(change.tier), tierUp: change.tierUp, label: standingLabel(paid, change.factionName) });
+            const rivalName = (rival: FactionKey) => ruleset.factions?.[rival]?.name ?? rival;
+            standingChanges.push({
+              factionKey, factionName: change.factionName, amount: paid, tierName: factionTierName(change.tier), tierUp: change.tierUp, label: standingLabel(paid, change.factionName),
+              ...(change.locked.length ? { locked: change.locked.map(rivalName) } : {}),
+              ...(change.heldShortBy ? { heldShortBy: rivalName(change.heldShortBy) } : {}),
+            });
           }
         }
         await StreetPassCredService.creditQuest(
@@ -1010,7 +1105,13 @@ export const HandcraftedQuestService = {
             reputationChanges,
             newlyAvailable,
             standingChanges,
+            ...(feeCents > 0n ? { feeCents: Number(feeCents) } : {}),
           },
+          // The fee is its own ledger line; whatever else the claim paid keeps the usual one.
+          ...(feeCents > 0n ? { ledger: [
+            { source: 'QUEST_FEE', label: `${row.questDefinition.title} · fee`, amountCents: -feeCents },
+            ...EconomyLedgerService.defaultForAction('QUEST_CLAIM', current.cashCents - feeCents, next.cashCents),
+          ] } : {}),
           activity: {
             type: 'QUEST_CLAIMED',
             payload: inputJson({
@@ -1021,6 +1122,8 @@ export const HandcraftedQuestService = {
               rewards: dtoRewards.map((reward) => reward.label),
               reputationChanges: reputationChanges.map((change) => change.label),
               standingChanges: standingChanges.map((change) => change.label),
+              ...(standingChanges.some((change) => change.locked?.length) ? { lockedRivals: standingChanges.flatMap((change) => change.locked ?? []) } : {}),
+              ...(feeCents > 0n ? { feeCents: Number(feeCents) } : {}),
               newlyAvailable,
             }),
           },

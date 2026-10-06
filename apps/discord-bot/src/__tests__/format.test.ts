@@ -6,6 +6,7 @@ import {
   badgesEmbed,
   compareEmbed,
   crackdownFeedEmbed,
+  factionFeedEmbed,
   escapeMarkdown,
   formatRemaining,
   hallOfFameEmbed,
@@ -478,3 +479,18 @@ describe('blockWarFeedEmbed', () => {
   });
 });
 
+
+describe('factionFeedEmbed', () => {
+  it('names the player, the faction and the tier, and nothing about standing', () => {
+    const embed = factionFeedEmbed({
+      id: 'standing-1', roundName: 'Season 9', publicPimpId: 42, displayName: 'Big_Mo',
+      profileUrl: 'https://streetsempire.test/players/42', factionKey: 'KINGS', factionName: 'The Kings',
+      tierName: 'Inner Circle', happenedAt: '2026-10-06T12:00:00.000Z',
+    });
+    expect(embed.title).toBe('The Kings · Inner Circle');
+    expect(embed.url).toBe('https://streetsempire.test/players/42');
+    expect(embed.description).toContain('Big\\_Mo');
+    expect(embed.description).toContain('Season 9');
+    expect(embed.description).not.toMatch(/\d{2,} standing/);
+  });
+});

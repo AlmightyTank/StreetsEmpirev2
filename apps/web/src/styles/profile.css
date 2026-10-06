@@ -256,6 +256,51 @@
   border-color: rgba(200, 52, 52, 0.42);
 }
 
+.se-profile-pagehead__avatar--kings-crown-frame {
+  --se-profile-avatar-frame: #f2c14e;
+  --se-profile-avatar-glow: rgba(242, 193, 78, 0.4);
+}
+
+.se-profile-pagehead__avatar--kings-crown-frame::after {
+  border-color: rgba(138, 92, 246, 0.5);
+}
+
+.se-profile-pagehead__avatar--outfit-pinstripe-frame {
+  --se-profile-avatar-frame: #94a3b8;
+  --se-profile-avatar-glow: rgba(148, 163, 184, 0.4);
+}
+
+.se-profile-pagehead__avatar--outfit-pinstripe-frame::after {
+  border-color: rgba(194, 65, 12, 0.5);
+}
+
+.se-profile-pagehead__avatar--saints-patch-frame {
+  --se-profile-avatar-frame: #cbd5e1;
+  --se-profile-avatar-glow: rgba(203, 213, 225, 0.4);
+}
+
+.se-profile-pagehead__avatar--saints-patch-frame::after {
+  border-color: rgba(146, 64, 14, 0.5);
+}
+
+.se-profile-pagehead__avatar--cartel-pipeline-frame {
+  --se-profile-avatar-frame: #10b981;
+  --se-profile-avatar-glow: rgba(16, 185, 129, 0.4);
+}
+
+.se-profile-pagehead__avatar--cartel-pipeline-frame::after {
+  border-color: rgba(214, 181, 120, 0.5);
+}
+
+.se-profile-pagehead__avatar--civic-seal-frame {
+  --se-profile-avatar-frame: #818cf8;
+  --se-profile-avatar-glow: rgba(129, 140, 248, 0.4);
+}
+
+.se-profile-pagehead__avatar--civic-seal-frame::after {
+  border-color: rgba(214, 181, 120, 0.5);
+}
+
 .se-profile-pagehead__avatar--street-pass-s1-frame {
   --se-profile-avatar-frame: #f0c233;
   --se-profile-avatar-glow: rgba(240, 194, 51, 0.42);
@@ -791,4 +836,25 @@
   .se-profile-statgrid {
     grid-template-columns: 1fr;
   }
+}
+
+/* 1.4.0-F. Public faction alignment: the tier from Connected up, never the points. */
+.se-profile-alignment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 0;
+}
+
+.se-profile-alignment__chip {
+  padding: 2px 8px;
+  border: 1px solid var(--se-line);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--se-muted);
+}
+
+.se-profile-alignment__chip.is-inner {
+  border-color: var(--se-profile-accent, var(--se-accent));
+  color: var(--se-text);
 }

@@ -47,6 +47,16 @@ function targetCitySlug(roundId: string, ruleset: Ruleset): string | null {
   return cities[hashParts(roundId, ruleset.meta.id, 'turf-crackdown-city') % cities.length] ?? null;
 }
 
+/**
+ * 1.4.0-D. Where and when the round's crackdown lands, from the same schedule the sweep uses.
+ * Null on a round without one. Callers decide who may hear it, and how early.
+ */
+export function crackdownPlan(round: Pick<Round, 'id' | 'startsAt' | 'endsAt'>, ruleset: Ruleset): { citySlug: string; warningAt: Date; sweepAt: Date } | null {
+  const times = schedule(round, ruleset);
+  const citySlug = targetCitySlug(round.id, ruleset);
+  return times && citySlug ? { citySlug, ...times } : null;
+}
+
 async function ensureEvent(tx: Db, round: Round, ruleset: Ruleset) {
   const times = schedule(round, ruleset);
   const slug = targetCitySlug(round.id, ruleset);
