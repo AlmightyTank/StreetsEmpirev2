@@ -8,12 +8,23 @@ import { useSession } from '../stores/session.js';
  * A small picture ahead of a list row's label. `slot` reserves room for a
  * two-cell item so labels line up in a list that mixes sizes (the Armory).
  */
-export function ItemLabel({ itemKey, children, slot = false }: { itemKey: string; children: ReactNode; slot?: boolean }) {
+export function ItemLabel({
+  itemKey,
+  children,
+  slot = false,
+  cosmeticStyle,
+}: {
+  itemKey: string;
+  children: ReactNode;
+  slot?: boolean;
+  /** Draw the item in this style instead of the viewer's own (e.g. an opponent's in a battle report). */
+  cosmeticStyle?: ItemCosmeticStyleKey;
+}) {
   if (!hasItemArt(itemKey)) return <>{children}</>;
   return (
     <span className="se-item-label">
       <span className={`se-item-label__art${slot ? ' se-item-label__art--slot' : ''}`}>
-        <ItemTile item={itemKey} size="sm" label={false} />
+        <ItemTile item={itemKey} size="sm" label={false} cosmeticStyle={cosmeticStyle} />
       </span>
       <span className="se-item-label__text">{children}</span>
     </span>

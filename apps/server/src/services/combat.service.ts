@@ -25,6 +25,7 @@ import {
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { annotateLogContext } from '../utils/request-context.js';
+import { battleLooks } from './profile-showcase.service.js';
 import { RelocationService } from './relocation.service.js';
 import { assertNotPaused, fitThugs, toState, workingWhores } from './action.service.js';
 import { BusinessService } from './business.service.js';
@@ -917,8 +918,9 @@ export const CombatService = {
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
         };
       };
-      const attackerReport = makeReport(true);
-      const defenderReport = makeReport(false);
+      const looks = await battleLooks(tx, attacker.accountId, defender.accountId);
+      const attackerReport = { ...makeReport(true), looks: looks.attacker };
+      const defenderReport = { ...makeReport(false), looks: looks.defender };
       await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
         calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, ...(bossAwayMultiplier !== 1 ? { bossAwayMultiplier } : {}), retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
@@ -1071,8 +1073,9 @@ export const CombatService = {
             : { whoresKilled: result.whoresKilled, whoresAfter: nextD.whores },
         };
       };
-      const attackerReport = makeReport(true);
-      const defenderReport = makeReport(false);
+      const looks = await battleLooks(tx, attacker.accountId, defender.accountId);
+      const attackerReport = { ...makeReport(true), looks: looks.attacker };
+      const defenderReport = { ...makeReport(false), looks: looks.defender };
       await tx.raidBattle.create({ data: { id, kind: 'DRIVE_BY', attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
         calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), lowRiders: attacker.lowRiders, defenderWhores: defender.whores }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
@@ -1296,8 +1299,9 @@ export const CombatService = {
           },
         };
       };
-      const attackerReport = makeReport(true);
-      const defenderReport = makeReport(false);
+      const looks = await battleLooks(tx, attacker.accountId, defender.accountId);
+      const attackerReport = { ...makeReport(true), looks: looks.attacker };
+      const defenderReport = { ...makeReport(false), looks: looks.defender };
       await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
         calculation: json({ kind: input.kind, result, ...(bossAwayMultiplier !== 1 ? { bossAwayMultiplier } : {}), effects: { crackSpent, beerSpent, whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured }, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset) }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),

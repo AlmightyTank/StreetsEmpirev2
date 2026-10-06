@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatSpecialRaidDto, type CombatTargetDto, type SpecialRaidKindDto } from '@streets/shared';
+import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatSpecialRaidDto, type CombatTargetDto, type CustomizableItemKey, type ItemCosmeticStyleKey, type SpecialRaidKindDto } from '@streets/shared';
 import { combatApi } from '../api/combat.js';
 import { ApiError } from '../api/client.js';
 import { ActionDock, deltaChip, type ResultChip } from '../components/ActionDock.js';
@@ -8,7 +8,7 @@ import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { showGameToast } from '../components/GameEventToasts.js';
 import { Button } from '../components/Button.js';
-import { ItemLabel } from '../components/ItemTile.js';
+import { ItemLabel, ItemTile } from '../components/ItemTile.js';
 import { Panel, Row } from '../components/Panel.js';
 import { supplyEffects, supplySummary, WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -26,8 +26,55 @@ const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
 
 const signedUnits = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatNumber(Math.abs(value))}`;
-/** A report row label with the item's picture; `slot` keeps labels lined up when a Low-Rider row is in the list. */
-const art = (itemKey: string, text: string) => <ItemLabel itemKey={itemKey} slot>{text}</ItemLabel>;
+/**
+ * A report row label with the item's picture; `slot` keeps labels lined up when
+ * a Low-Rider row is in the list. `style` draws it in one side's art (Slice G).
+ */
+const art = (itemKey: string, text: string, style?: ItemCosmeticStyleKey) => <ItemLabel itemKey={itemKey} slot cosmeticStyle={style}>{text}</ItemLabel>;
+
+type LookSide = 'you' | 'opponent';
+
+/**
+ * Slice G: the style an item had on one side of this battle. Undefined on
+ * reports from before looks were captured, which keeps the viewer's own art.
+ */
+function sideStyle(report: BattleReportDto, side: LookSide, itemKey: string): ItemCosmeticStyleKey | undefined {
+  const look = report.looks?.[side];
+  if (!look) return undefined;
+  if (itemKey === 'THUG' || itemKey === 'HOE') return look.crew[itemKey];
+  return look.items[itemKey as CustomizableItemKey] ?? 'classic';
+}
+
+/** Whose side the defender's crew, product and rides are on in this report. */
+const defenderSide = (report: BattleReportDto): LookSide => (report.role === 'DEFENDER' ? 'you' : 'opponent');
+
+const FACE_OFF_ITEMS = ['THUG', 'AK47', 'LOW_RIDER'] as const;
+
+function hasLookFlair(report: BattleReportDto): boolean {
+  const looks = report.looks;
+  if (!looks) return false;
+  return [looks.you, looks.opponent].some((look) => Object.values(look.items).some((style) => style && style !== 'classic')
+    || Object.values(look.crew).some((style) => style !== 'classic'));
+}
+
+/** Slice G: each side's look when the battle happened. Art only, never counts. */
+function FaceOff({ report }: { report: BattleReportDto }) {
+  if (!hasLookFlair(report)) return null;
+  const side = (who: LookSide, label: string) => (
+    <div className="se-faceoff__side">
+      <span className="se-faceoff__label">{label}</span>
+      <div className="se-faceoff__tiles">
+        {FACE_OFF_ITEMS.map((key) => <ItemTile key={key} item={key} size="sm" label={false} cosmeticStyle={sideStyle(report, who, key)} />)}
+      </div>
+    </div>
+  );
+  return (
+    <div className="se-faceoff" aria-label="Each side's look in this fight">
+      {side('you', 'You')}
+      {side('opponent', `vs ${report.opponent.displayName}`)}
+    </div>
+  );
+}
 
 const signedCents = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatCents(Math.abs(value))}`;
 
@@ -69,7 +116,7 @@ function BattleInventoryRows({ report }: { report: BattleReportDto }) {
         ].filter(Boolean).join(' · ');
         return <Row
           key={row.product}
-          label={art(row.product, row.name)}
+          label={art(row.product, row.name, sideStyle(report, 'you', row.product))}
           value={`${signedUnits(row.change)} / ${formatNumber(row.after)} left${parts ? ` · ${parts}` : ''}`}
           strong={row.change !== 0}
         />;
@@ -80,13 +127,13 @@ function BattleInventoryRows({ report }: { report: BattleReportDto }) {
   return <>
     {report.crackChange !== undefined && report.crackAfter !== undefined
       ? <Row
-          label={art('CRACK', report.productChanges ? 'Crack' : 'Product')}
+          label={art('CRACK', report.productChanges ? 'Crack' : 'Product', sideStyle(report, 'you', 'CRACK'))}
           value={`${signedUnits(report.crackChange)} / ${formatNumber(report.crackAfter)} left`}
           strong={report.crackChange !== 0}
         />
       : null}
     {(report.productChanges ?? []).map((row) => (
-      <Row key={row.product} label={art(row.product, row.name)} value={signedUnits(row.change)} strong={row.change !== 0} />
+      <Row key={row.product} label={art(row.product, row.name, sideStyle(report, 'you', row.product))} value={signedUnits(row.change)} strong={row.change !== 0} />
     ))}
   </>;
 }
@@ -245,14 +292,15 @@ function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?:
   const landed = attacking === report.won;
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They hit you') : (attacking ? 'They shot back' : 'Seen off')} · ${reportLabel(report)}`}>
     <p>{attacking ? 'On' : 'By'} <b><AllianceTag alliance={report.opponent.alliance} link={false} />{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
+    <FaceOff report={report} />
     <div className="se-rows">
       <Row label={attacking ? 'Shooters — yours / out front' : 'Out front — yours / shooters'} value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Firepower — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
       {report.yourSupply ? <Row label="Fight supply plan" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
       <BattleInventoryRows report={report} />
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds)} / ${formatNumber(report.opponentWounds)}`} />
-      <Row label={art('HOE', attacking ? 'Their whores killed' : 'Your whores killed')} value={d.whoresAfter !== undefined ? `${formatNumber(d.whoresKilled)} · ${formatNumber(d.whoresAfter)} left` : formatNumber(d.whoresKilled)} strong />
-      {attacking ? <Row label={art('LOW_RIDER', 'Low-Riders — sent / lost / left')} value={`${formatNumber(d.carsSent ?? 0)} / ${formatNumber(d.lowRidersLost ?? 0)} / ${formatNumber(d.lowRidersAfter ?? 0)}`} strong={(d.lowRidersLost ?? 0) > 0} /> : null}
+      <Row label={art('HOE', attacking ? 'Their whores killed' : 'Your whores killed', sideStyle(report, defenderSide(report), 'HOE'))} value={d.whoresAfter !== undefined ? `${formatNumber(d.whoresKilled)} · ${formatNumber(d.whoresAfter)} left` : formatNumber(d.whoresKilled)} strong />
+      {attacking ? <Row label={art('LOW_RIDER', 'Low-Riders — sent / lost / left', sideStyle(report, 'you', 'LOW_RIDER'))} value={`${formatNumber(d.carsSent ?? 0)} / ${formatNumber(d.lowRidersLost ?? 0)} / ${formatNumber(d.lowRidersAfter ?? 0)}`} strong={(d.lowRidersLost ?? 0) > 0} /> : null}
       {attacking ? <Row label={art('TURNS', 'Turns spent / remaining')} value={`${report.turnsSpent} / ${report.turnsAfter}`} /> : null}
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
     </div>
@@ -274,6 +322,7 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
   const outcome = raidFormOutcome(report);
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They got through') : (attacking ? 'They held you off' : 'You held them off')} · ${reportLabel(report)}`}>
     <p>{attacking ? 'Against' : 'By'} <b><AllianceTag alliance={report.opponent.alliance} link={false} />{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
+    <FaceOff report={report} />
     {outcome ? <p className={outcome.tone === 'good' ? 'se-good' : outcome.tone === 'bad' ? 'se-bad' : 'se-hint'}>{outcome.text}</p> : null}
     <div className="se-rows">
       <Row label="Crew — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
@@ -288,14 +337,14 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
         />
       ) : null}
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
-      {form.whoresDrugged !== undefined ? <Row label={art('HOE', attacking ? 'Their hoes drugged' : 'Your hoes drugged')} value={formatNumber(form.whoresDrugged)} strong={form.whoresDrugged > 0} /> : null}
-      {form.whoresLured !== undefined ? <Row label={art('HOE', attacking ? 'Hoes joined / now' : 'Hoes lost / left')} value={form.whoresAfter !== undefined ? `${formatNumber(form.whoresLured)} / ${formatNumber(form.whoresAfter)}` : formatNumber(form.whoresLured)} strong={form.whoresLured > 0} /> : null}
-      {form.thugsLured !== undefined ? <Row label={art('THUG', attacking ? 'Thugs joined / now' : 'Thugs lost / left')} value={form.thugsAfter !== undefined ? `${formatNumber(form.thugsLured)} / ${formatNumber(form.thugsAfter)}` : formatNumber(form.thugsLured)} strong={form.thugsLured > 0} /> : null}
-      {!report.inventoryChanges?.length && form.crackSpent !== undefined && attacking ? <Row label={art('CRACK', 'Product spent')} value={formatNumber(form.crackSpent)} /> : null}
-      {form.beerSpent !== undefined && attacking ? <Row label={art('BEER', 'Beer spent')} value={formatNumber(form.beerSpent)} /> : null}
-      {!report.inventoryChanges?.length && form.defenderCrackBurned !== undefined ? <Row label={art('CRACK', attacking ? 'Their product burned' : 'Your product burned')} value={formatNumber(form.defenderCrackBurned)} strong={form.defenderCrackBurned > 0} /> : null}
-      {form.defenderCondomsBurned !== undefined ? <Row label={art('CONDOM', attacking ? 'Their condoms burned' : 'Your condoms burned')} value={formatNumber(form.defenderCondomsBurned)} strong={form.defenderCondomsBurned > 0} /> : null}
-      {form.lowRidersStolen !== undefined ? <Row label={art('LOW_RIDER', attacking ? 'Low-Riders stolen' : 'Low-Riders lost')} value={`${formatNumber(form.lowRidersStolen)} · ${formatNumber(form.lowRidersAfter ?? 0)} left`} strong={form.lowRidersStolen > 0} /> : null}
+      {form.whoresDrugged !== undefined ? <Row label={art('HOE', attacking ? 'Their hoes drugged' : 'Your hoes drugged', sideStyle(report, defenderSide(report), 'HOE'))} value={formatNumber(form.whoresDrugged)} strong={form.whoresDrugged > 0} /> : null}
+      {form.whoresLured !== undefined ? <Row label={art('HOE', attacking ? 'Hoes joined / now' : 'Hoes lost / left', sideStyle(report, defenderSide(report), 'HOE'))} value={form.whoresAfter !== undefined ? `${formatNumber(form.whoresLured)} / ${formatNumber(form.whoresAfter)}` : formatNumber(form.whoresLured)} strong={form.whoresLured > 0} /> : null}
+      {form.thugsLured !== undefined ? <Row label={art('THUG', attacking ? 'Thugs joined / now' : 'Thugs lost / left', sideStyle(report, defenderSide(report), 'THUG'))} value={form.thugsAfter !== undefined ? `${formatNumber(form.thugsLured)} / ${formatNumber(form.thugsAfter)}` : formatNumber(form.thugsLured)} strong={form.thugsLured > 0} /> : null}
+      {!report.inventoryChanges?.length && form.crackSpent !== undefined && attacking ? <Row label={art('CRACK', 'Product spent', sideStyle(report, 'you', 'CRACK'))} value={formatNumber(form.crackSpent)} /> : null}
+      {form.beerSpent !== undefined && attacking ? <Row label={art('BEER', 'Beer spent', sideStyle(report, 'you', 'BEER'))} value={formatNumber(form.beerSpent)} /> : null}
+      {!report.inventoryChanges?.length && form.defenderCrackBurned !== undefined ? <Row label={art('CRACK', attacking ? 'Their product burned' : 'Your product burned', sideStyle(report, defenderSide(report), 'CRACK'))} value={formatNumber(form.defenderCrackBurned)} strong={form.defenderCrackBurned > 0} /> : null}
+      {form.defenderCondomsBurned !== undefined ? <Row label={art('CONDOM', attacking ? 'Their condoms burned' : 'Your condoms burned', sideStyle(report, defenderSide(report), 'CONDOM'))} value={formatNumber(form.defenderCondomsBurned)} strong={form.defenderCondomsBurned > 0} /> : null}
+      {form.lowRidersStolen !== undefined ? <Row label={art('LOW_RIDER', attacking ? 'Low-Riders stolen' : 'Low-Riders lost', sideStyle(report, defenderSide(report), 'LOW_RIDER'))} value={`${formatNumber(form.lowRidersStolen)} · ${formatNumber(form.lowRidersAfter ?? 0)} left`} strong={form.lowRidersStolen > 0} /> : null}
       {attacking ? <Row label={art('TURNS', 'Turns spent / remaining')} value={`${report.turnsSpent} / ${report.turnsAfter}`} /> : null}
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
     </div>
@@ -313,6 +362,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
   if ((report.kind === 'DRUG_HOES' || report.kind === 'STEAL_RIDE' || report.kind === 'LURE_CREW') && report.raidForm) return <RaidFormReport report={report} onClose={onClose} />;
   return <Panel title={`${report.won ? 'Victory' : 'Defeat'} · ${reportLabel(report)}`}>
     <p>Against <b><AllianceTag alliance={report.opponent.alliance} link={false} />{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
+    <FaceOff report={report} />
     <div className="se-rows">
       <Row label="Squads — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />

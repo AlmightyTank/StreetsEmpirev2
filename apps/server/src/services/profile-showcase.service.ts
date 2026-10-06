@@ -5,7 +5,7 @@ import {
   isOwnedCollection,
   isReleasedItemCosmeticStyle,
 } from '@streets/shared';
-import type { CrewCosmeticLoadout, CrewCosmeticStyleKey, ItemCosmeticLoadout, ProfileLookDto } from '@streets/shared';
+import type { BattleLookDto, CrewCosmeticLoadout, CrewCosmeticStyleKey, ItemCosmeticLoadout, ProfileLookDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
 
@@ -121,4 +121,44 @@ export async function profileThemeTags(
 /** The DTO fields for a list row: the owner's theme tag, or nulls. */
 export function themeTagFields(tag: ProfileThemeTag | undefined): { siteTheme: string | null; siteThemeLabel: string | null } {
   return { siteTheme: tag?.siteTheme ?? null, siteThemeLabel: tag?.siteThemeLabel ?? null };
+}
+
+const CLASSIC_LOOK: BattleLookDto = { items: {}, crew: { ...DEFAULT_CREW_COSMETICS } };
+
+/**
+ * Slice G: both sides' art for a battle report, captured when the fight
+ * happens. Each side sees its own full look; the opponent's look is Classic
+ * when they hide it on their profile. Two queries per battle.
+ */
+export async function battleLooks(
+  db: Db | PrismaClient,
+  attackerAccountId: string,
+  defenderAccountId: string,
+): Promise<{ attacker: { you: BattleLookDto; opponent: BattleLookDto }; defender: { you: BattleLookDto; opponent: BattleLookDto } }> {
+  const ids = [attackerAccountId, defenderAccountId];
+  const [profiles, collections] = await Promise.all([
+    db.accountProfile.findMany({
+      where: { accountId: { in: ids } },
+      select: { accountId: true, itemCosmetics: true, crewCosmetics: true, showLookOnProfile: true },
+    }),
+    db.accountCosmeticUnlock.findMany({
+      where: { accountId: { in: ids }, kind: 'ITEM_COLLECTION' },
+      select: { accountId: true, key: true, styleKey: true },
+    }),
+  ]);
+  const looks = (accountId: string) => {
+    const profile = profiles.find((row) => row.accountId === accountId);
+    const owned = new Set(collections.filter((row) => row.accountId === accountId).map((row) => row.styleKey ?? row.key));
+    const full: BattleLookDto = {
+      items: itemCosmeticLoadout(profile?.itemCosmetics, owned),
+      crew: crewCosmeticLoadout(profile?.crewCosmetics, owned),
+    };
+    return { full, shown: profile?.showLookOnProfile === false ? CLASSIC_LOOK : full };
+  };
+  const attacker = looks(attackerAccountId);
+  const defender = looks(defenderAccountId);
+  return {
+    attacker: { you: attacker.full, opponent: defender.shown },
+    defender: { you: defender.full, opponent: attacker.shown },
+  };
 }

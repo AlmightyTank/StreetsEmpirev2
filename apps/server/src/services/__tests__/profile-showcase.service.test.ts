@@ -1,6 +1,6 @@
 import type { AccountProfile, PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
-import { profileShowcase, profileThemeTags, themeTagFields } from '../profile-showcase.service.js';
+import { battleLooks, profileShowcase, profileThemeTags, themeTagFields } from '../profile-showcase.service.js';
 
 type UnlockRow = { key: string; kind: string; title: string; description: string; rarity: string; styleKey: string | null; awardedAt: Date };
 
@@ -126,5 +126,47 @@ describe('profileThemeTags', () => {
 
     expect((await profileThemeTags(db, [])).size).toBe(0);
     expect(calls).toEqual({ profiles: 0, unlocks: 0 });
+  });
+});
+
+describe('battleLooks', () => {
+  type LookProfile = { accountId: string; itemCosmetics: unknown; crewCosmetics: unknown; showLookOnProfile: boolean };
+
+  function battleDb(profiles: LookProfile[], unlocks: { accountId: string; key: string; styleKey: string | null }[]) {
+    return {
+      accountProfile: {
+        findMany: async (args: { where: { accountId: { in: string[] } } }) => profiles.filter((row) => args.where.accountId.in.includes(row.accountId)),
+      },
+      accountCosmeticUnlock: {
+        findMany: async (args: { where: { accountId: { in: string[] } } }) => unlocks.filter((row) => args.where.accountId.in.includes(row.accountId)),
+      },
+    } as unknown as PrismaClient;
+  }
+
+  const gold = { accountId: 'attacker', key: 'street-pass-s1-cartel-gold', styleKey: 'cartel-gold' };
+  const ghost = { accountId: 'defender', key: 'street-pass-s1-urban-ghost', styleKey: 'urban-ghost' };
+
+  it('gives each side its own look and the opponent the look they show', async () => {
+    const looks = await battleLooks(battleDb([
+      { accountId: 'attacker', itemCosmetics: { AK47: 'cartel-gold', PISTOL: 'midnight-ops' }, crewCosmetics: { THUG: 'cartel-gold' }, showLookOnProfile: true },
+      { accountId: 'defender', itemCosmetics: { LOW_RIDER: 'urban-ghost' }, crewCosmetics: { HOE: 'urban-ghost' }, showLookOnProfile: true },
+    ], [gold, ghost]), 'attacker', 'defender');
+
+    const attackerLook = { items: { AK47: 'cartel-gold' }, crew: { THUG: 'cartel-gold', HOE: 'classic' } };
+    const defenderLook = { items: { LOW_RIDER: 'urban-ghost' }, crew: { THUG: 'classic', HOE: 'urban-ghost' } };
+    expect(looks).toEqual({
+      attacker: { you: attackerLook, opponent: defenderLook },
+      defender: { you: defenderLook, opponent: attackerLook },
+    });
+  });
+
+  it('shows a hidden look as Classic to the opponent but keeps it in the owner report', async () => {
+    const looks = await battleLooks(battleDb([
+      { accountId: 'attacker', itemCosmetics: { AK47: 'cartel-gold' }, crewCosmetics: {}, showLookOnProfile: false },
+    ], [gold]), 'attacker', 'defender');
+
+    expect(looks.attacker.you).toEqual({ items: { AK47: 'cartel-gold' }, crew: { THUG: 'classic', HOE: 'classic' } });
+    expect(looks.defender.opponent).toEqual({ items: {}, crew: { THUG: 'classic', HOE: 'classic' } });
+    expect(looks.defender.you).toEqual({ items: {}, crew: { THUG: 'classic', HOE: 'classic' } });
   });
 });

@@ -1,4 +1,11 @@
 import type { AllianceTagDto } from './alliance.js';
+import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
+
+/** Slice G. One side's item and crew art in a battle, captured when the battle happened. */
+export interface BattleLookDto {
+  items: ItemCosmeticLoadout;
+  crew: CrewCosmeticLoadout;
+}
 export interface CombatIntelReportDto {
   targetPublicPimpId: number;
   displayName: string;
@@ -43,6 +50,11 @@ export interface BattleReportDto {
   won: boolean;
   /** alliance is the opponent's tag when the battle happened; absent on reports from before 0.3.0-C. */
   opponent: { publicPimpId: number; displayName: string; alliance?: AllianceTagDto | null };
+  /**
+   * Slice G. Each side's item and crew art at battle time. Yours is your full
+   * look; theirs is Classic when they hide their look. Absent on older reports.
+   */
+  looks?: { you: BattleLookDto; opponent: BattleLookDto };
   yourSquad: number;
   opponentSquad: number;
   yourEquipment: Record<string, number>;
