@@ -43,12 +43,7 @@
   pointer-events: none;
 }
 
-/* Account item/crew skins. Locked state below intentionally overrides these filters. */
-.se-item-tile--skin-blackout img { filter: grayscale(1) brightness(0.62) contrast(1.38); }
-.se-item-tile--skin-crimson img { filter: sepia(0.7) saturate(2.7) hue-rotate(310deg) brightness(0.92) contrast(1.12); }
-.se-item-tile--skin-gold img { filter: sepia(0.9) saturate(2.1) hue-rotate(350deg) brightness(1.08) contrast(1.08); }
-.se-item-tile--skin-ice img { filter: sepia(0.25) saturate(1.7) hue-rotate(155deg) brightness(1.12) contrast(1.05); }
-.se-item-tile--skin-violet img { filter: sepia(0.45) saturate(2.2) hue-rotate(225deg) brightness(1.02) contrast(1.08); }
+/* Cosmetic variants use separate authored image files. No CSS recolor/filter skins. */
 
 .se-item-tile__name,
 .se-item-tile__qty {
@@ -216,4 +211,11 @@
   .se-cosmetic-locker__grid {
     grid-template-columns: 1fr;
   }
+}
+
+
+.se-cosmetic-locker__roadmap {
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px dashed var(--se-line);
 }
