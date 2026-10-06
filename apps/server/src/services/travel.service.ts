@@ -527,8 +527,6 @@ export const TravelService = {
             throw AppError.conflict('NO_HOME_MARKET', 'You cannot buy on your own city\'s high market this round.');
           }
           const seed = player.roundId;
-          // A product you have not unlocked is locked on the market too, not just at Pip's.
-          for (const key of Object.keys(bought)) await PermanentUnlockService.assertCanBuyProduct(tx, roundPlayerId, ruleset, key);
           // In catalog order, so two crews loading up at once never take their locks the other way round.
           for (const key of productKeys(ruleset).filter((product) => (bought[product] ?? 0) > 0)) {
             const quantity = bought[key]!;
@@ -678,8 +676,9 @@ export const TravelService = {
         const cargo = cargoOf(run);
         const capacity = runCapacity(base, run.lowRiders, racketCargoShare(base, readRacketEffects(player.racketEffects)));
         const buying = input.direction === 'buy';
-        // Being in another city never gets round an unlock: the same products are locked here.
-        if (buying) await PermanentUnlockService.assertCanBuyProduct(tx, roundPlayerId, base, input.product);
+        // Pip sells a locked product in no city, not just at home. The high market sells to anyone,
+        // at whatever the market is asking, above or below Pip's price.
+        if (buying && input.venue === 'pip') await PermanentUnlockService.assertCanBuyProduct(tx, roundPlayerId, base, input.product);
         let unitCents: number;
         let totalCents: bigint;
         let shelfStock = 0;

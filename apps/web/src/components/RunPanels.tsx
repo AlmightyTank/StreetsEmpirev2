@@ -108,10 +108,8 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   const cashCents = (typeof cash === 'number' ? cash : 0) * 100;
   // 0.5.0-F: the home market, wholesale, as the crew loads up.
   const homeCity = data.cities.find((city) => city.isHome) ?? null;
-  // A product you have not unlocked cannot be bought on the market either.
-  const lockedKeys = new Set((data.lockedProducts ?? []).map((entry) => entry.key));
   const wholesale = rules.homeMarketAtLaunch
-    ? (homeCity?.counter?.products ?? []).flatMap((entry) => (entry.market && !lockedKeys.has(entry.key) ? [{ key: entry.key, market: entry.market }] : []))
+    ? (homeCity?.counter?.products ?? []).flatMap((entry) => (entry.market ? [{ key: entry.key, market: entry.market }] : []))
     : [];
   const bought = Object.fromEntries(Object.entries(buy).filter(([, count]) => typeof count === 'number' && count > 0)) as Record<string, number>;
   const marketCents = wholesale.reduce((sum, entry) => sum + marketEstimate(entry.market, true, bought[entry.key] ?? 0), 0);
@@ -237,7 +235,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
                 </div>
               ))}
             </div>
-            <p className="se-hint">Wholesale, out of home cash and straight into the trunk. Every unit you buy moves the price, and you cannot sell here: the market at home is for loading up.{data.lockedProducts?.length ? ` Still locked: ${data.lockedProducts.map((entry) => nameOf(data.products, entry.key)).join(', ')}.` : ''}</p>
+            <p className="se-hint">Wholesale, out of home cash and straight into the trunk. Every unit you buy moves the price, and you cannot sell here: the market at home is for loading up.</p>
           </>
         ) : null}
 
@@ -310,10 +308,11 @@ function TownCounter({ run, data, onDone }: { run: RunDto; data: TravelDto; onDo
         : Math.max(0, Math.min(row!.stock, room, unit > 0 ? Math.floor(run.cashCents / unit) : 0));
   const qty = typeof quantity === 'number' ? quantity : 0;
   const total = onMarket && market ? marketEstimate(market, buying, qty) : qty * unit;
-  const locked = buying ? (data.lockedProducts ?? []).find((entry) => entry.key === product) ?? null : null;
+  // Pip keeps a locked product off his counter in every city; the high market sells it to anyone.
+  const locked = buying && !onMarket ? (data.lockedProducts ?? []).find((entry) => entry.key === product) ?? null : null;
   const block = trade.busy ? 'Counting it out.'
     : !open ? (onMarket ? 'Nobody here trades that in bulk.' : 'Pick something Pip carries here.')
-      : locked ? `You need ${locked.unlockName} to buy ${nameOf(products, product)}: finish the Job that unlocks it. Being out of town does not change that.`
+      : locked ? `Pip will not sell you ${nameOf(products, product)} in any city until you have ${locked.unlockName}. The high market sells it at its own price.`
       : max < 1 ? (buying ? (!onMarket && row!.stock === 0 ? 'Pip has none left here.' : room <= 0 ? 'The trunk is full.' : 'The run cannot afford one.') : 'There is none in the trunk.')
         : qty < 1 || qty > max ? `Enter a whole number from 1 to ${formatNumber(max)}.`
           : null;

@@ -886,7 +886,7 @@ export interface RunReceiptDto {
 /** 0.5.0-B. GET /api/game/travel: the map, what the crew knows, and the run. */
 export interface TravelDto extends CitiesDto {
   runsEnabled: boolean;
-  /** Products this player cannot buy yet anywhere (home, other cities, the high markets), and the unlock each needs. */
+  /** Products Pip will not sell this player yet, in any city, and the unlock each needs. The high markets still sell them. */
   lockedProducts?: Array<{ key: string; unlockName: string }>;
   rules: {
     cargoPerLowRider: number;

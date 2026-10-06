@@ -10,9 +10,9 @@ import { TravelService } from '../travel.service.js';
 const ruleset = classicOgV14E;
 
 /**
- * A product's purchase unlock holds everywhere: Pip in another city and the high markets on a
- * run, and the home market as a run loads up, exactly as at Pip's home counter. Selling stays
- * open. Opt in with TURF_INTEGRATION=1.
+ * A product's purchase unlock holds at Pip's counter in every city, not just at home. The high
+ * markets sell it to anyone at the market's own price, on a run and as a run loads up. Selling
+ * stays open. Opt in with TURF_INTEGRATION=1.
  */
 describe.runIf(process.env.TURF_INTEGRATION === '1')('product unlocks on runs with PostgreSQL', () => {
   let app: FastifyInstance;
@@ -70,16 +70,17 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('product unlocks on runs wi
     await app?.close();
   });
 
-  it('refuses buying a locked product from Pip or the market in another city, and lists it as locked', async () => {
+  it('refuses a locked product at Pip\'s counter in another city, but sells it on the market there', async () => {
     const { player, run, product } = await inDetroit();
     expect(product).toBeTruthy();
-    for (const venue of ['pip', 'market'] as const) {
-      await expect(TravelService.trade(app.prisma, player.id, { runId: run.id, product, direction: 'buy', venue, quantity: 1, actionId: randomUUID() }, () => 0.99))
-        .rejects.toMatchObject({ code: 'PRODUCT_PURCHASE_LOCKED' });
-    }
+    await expect(TravelService.trade(app.prisma, player.id, { runId: run.id, product, direction: 'buy', venue: 'pip', quantity: 1, actionId: randomUUID() }, () => 0.99))
+      .rejects.toMatchObject({ code: 'PRODUCT_PURCHASE_LOCKED' });
     expect((await app.prisma.runCargo.findFirst({ where: { runId: run.id, productKey: product } }))?.quantity ?? 0).toBe(0);
     const page = await TravelService.page(app.prisma, player.id);
     expect(page.lockedProducts?.map((entry) => entry.key)).toContain(product);
+
+    const market = await TravelService.trade(app.prisma, player.id, { runId: run.id, product, direction: 'buy', venue: 'market', quantity: 3, actionId: randomUUID() }, () => 0.99);
+    expect(market.result).toMatchObject({ venue: 'market', held: 3 });
   });
 
   it('lets the same buy through once the product is unlocked, and never stops a sale', async () => {
@@ -92,12 +93,13 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('product unlocks on runs wi
     expect(sold.result.held).toBe(0);
   });
 
-  it('refuses a locked product on the home market as a run loads up', async () => {
+  it('sells a locked product on the home market as a run loads up', async () => {
     const { player, product } = await inDetroit();
     // Bring the first run's cars home so a second can load up.
     await app.prisma.run.updateMany({ where: { roundPlayerId: player.id }, data: { status: 'RETURNED', returnedAt: new Date() } });
     await app.prisma.roundPlayer.update({ where: { id: player.id }, data: { lowRiders: 2 } });
-    await expect(TravelService.launch(app.prisma, player.id, { to: 'detroit', route: 0, lowRiders: 1, escortThugs: 0, cashCents: 1_000_000, cargo: {}, market: { [product]: 5 }, actionId: randomUUID() }))
-      .rejects.toMatchObject({ code: 'PRODUCT_PURCHASE_LOCKED' });
+    await TravelService.launch(app.prisma, player.id, { to: 'detroit', route: 0, lowRiders: 1, escortThugs: 0, cashCents: 1_000_000, cargo: {}, market: { [product]: 5 }, actionId: randomUUID() });
+    const run = await app.prisma.run.findFirstOrThrow({ where: { roundPlayerId: player.id, status: 'ACTIVE' }, include: { cargo: true } });
+    expect(run.cargo.find((row) => row.productKey === product)?.quantity).toBe(5);
   });
 });

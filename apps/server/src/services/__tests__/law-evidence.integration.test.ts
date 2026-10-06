@@ -13,7 +13,6 @@ import { ReputationService } from '../reputation.service.js';
 import { RoundService } from '../round.service.js';
 import { ScoutService } from '../scout.service.js';
 import { TravelService } from '../travel.service.js';
-import { PermanentUnlockService } from '../permanent-unlock.service.js';
 import { TurfService } from '../turf.service.js';
 
 const HOUR_MS = 3_600_000;
@@ -125,9 +124,6 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.3.0-B evidence sources w
       } });
     }
     const quiet = () => 0.99;
-    // Heroin is bought only with its counter access, on a run as at home.
-    const heroin = PermanentUnlockService.productPurchaseUnlock(rules, 'HEROIN');
-    if (heroin) await app.prisma.playerUnlock.upsert({ where: { roundPlayerId_key: { roundPlayerId: playerId, key: heroin.key } }, create: { roundPlayerId: playerId, key: heroin.key, sourceQuestKey: 'TEST' }, update: {} });
     const bought = await TravelService.trade(app.prisma, playerId, { product: 'HEROIN', direction: 'buy', venue: 'market', quantity: 200, actionId: randomUUID() }, quiet);
     const sold = await TravelService.trade(app.prisma, playerId, { product: 'HEROIN', direction: 'sell', venue: 'market', quantity: 200, actionId: randomUUID() }, quiet);
     const detroit = await app.prisma.city.findUniqueOrThrow({ where: { slug: 'detroit' } });
