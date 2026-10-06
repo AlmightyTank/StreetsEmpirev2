@@ -20,7 +20,7 @@ Cosmetics are presentation-only. They do not change product prices, potency, mar
 | `MEDICINE` | `medicine.svg` | supplies |
 | `BEER` | `beer.svg` | supplies |
 
-Thugs and hoes stay Classic until Slice C.
+Thugs and hoes get outfit sets in [Slice C](COSMETIC-ART-SLICE-C.md).
 
 ## Collections
 

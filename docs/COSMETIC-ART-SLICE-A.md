@@ -14,7 +14,7 @@ Player-selectable cosmetic targets in this slice:
 - AK-47 (`AK47`)
 - Low-Rider (`LOW_RIDER`)
 
-Products and supplies are covered by [Slice B](COSMETIC-ART-SLICE-B.md). Thugs and hoes remain Classic until Slice C adds outfit sets.
+Products and supplies are covered by [Slice B](COSMETIC-ART-SLICE-B.md). Thugs and hoes get outfit sets in [Slice C](COSMETIC-ART-SLICE-C.md).
 
 Cosmetics are presentation-only. They do not change rarity, prices, inventory, combat, weapon access, vehicle value, Street Cred, XP, quests, or any other gameplay calculation.
 
@@ -115,7 +115,7 @@ Owns the shared cosmetic contract:
 - `RELEASED_ITEM_COSMETIC_STYLES`
 - `CUSTOMIZABLE_ITEM_KEYS`
 - `ItemCosmeticLoadout`
-- Classic-only crew contract until Slice C
+- Crew outfit contract (Slice C)
 
 A collection stays `released: false` until all five Slice A assets for that collection exist and have been reviewed. All three Slice A collections are now released.
 
@@ -132,7 +132,7 @@ Validates account settings.
 Builds the personalized cosmetic settings payload.
 
 - Only released item styles are returned to the player.
-- Crew styles are independent and Classic-only until Slice C.
+- Crew outfits use the same released collections; see [Slice C](COSMETIC-ART-SLICE-C.md).
 - Saved JSON remains account-level so the visual loadout survives round resets.
 
 ### `prisma/schema.prisma`
@@ -182,7 +182,7 @@ Slice A's locker UI.
 - Shows one section per `ITEM_COSMETIC_GROUPS` entry: weapons & rides, then products & supplies (Slice B).
 - Uses only released choices returned by the server.
 - Previews the actual authored asset through `ItemTile`.
-- Crew is explicitly deferred to Slice C rather than showing fake recolor skins.
+- Ends with a Crew outfits section (Slice C).
 
 ### `apps/web/src/pages/AccountSettingsPage.tsx`
 
