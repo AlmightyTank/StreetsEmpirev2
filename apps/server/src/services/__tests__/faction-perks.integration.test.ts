@@ -235,6 +235,23 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-D faction perks with
     expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: known.player.id, type: 'FACTION_WARNING' } })).toBe(0);
   });
 
+  it('pages through every Trusted player during a warning sweep', async () => {
+    const players = [await fixture(), await fixture(), await fixture()];
+    const now = new Date();
+    for (let i = 0; i < players.length; i += 1) {
+      const { player, city } = players[i]!;
+      await app.prisma.roundPlayer.update({ where: { id: player.id }, data: { lastActiveAt: new Date(now.getTime() - i * HOUR) } });
+      await app.prisma.playerCase.create({ data: { roundPlayerId: player.id, cityId: city.id, caseHundredths: 1_700, lastEvidenceAt: now } });
+      await standWith(player.id, 'CIVIC_HANDSHAKE', ruleset.factionStanding.tiers.trusted);
+    }
+
+    await FactionWarningService.sweep(app.prisma, now, 1);
+
+    for (const { player } of players) {
+      expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: player.id, type: 'FACTION_WARNING' } })).toBe(1);
+    }
+  });
+
   it('can be muted in the bell, and reaches push once for players who switch factions on', async () => {
     expect(BELL_CATEGORIES).toContain('factions');
     expect(bellMutedActivityTypes(['factions'])).toEqual(['FACTION_WARNING']);

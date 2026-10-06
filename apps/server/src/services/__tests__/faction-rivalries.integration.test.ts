@@ -6,6 +6,7 @@ import { startingStock } from '@streets/rules-engine';
 import { FactionService } from '../faction.service.js';
 import { HandcraftedQuestService } from '../handcrafted-quest.service.js';
 import { ReputationService } from '../reputation.service.js';
+import { TurfService } from '../turf.service.js';
 
 const ruleset = classicOgV14E;
 const IC = ruleset.factionStanding.tiers.innerCircle;
@@ -130,6 +131,35 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-E rivalries and Inne
     expect(after.cashCents).toBe(50_000_000n - BigInt(card.feeCents!));
     expect(await app.prisma.playerFactionReceipt.findFirst({ where: { roundPlayerId: player.id, factionKey: 'OUTFIT' } })).toMatchObject({ source: 'INTRODUCTION', delta: 25 });
     expect(await app.prisma.economyLedgerEntry.findFirst({ where: { roundPlayerId: player.id, source: 'QUEST_FEE' } })).toMatchObject({ amountCents: -BigInt(card.feeCents!) });
+  });
+
+  it('reconciles turf hold hours for the Kings faction arc', async () => {
+    const player = await fixture();
+    await grant(player.id, 'KINGS', ruleset.factionStanding.tiers.connected);
+    await HandcraftedQuestService.page(app.prisma, player.id, ruleset);
+    const blockParty = await app.prisma.playerQuest.findFirstOrThrow({ where: { roundPlayerId: player.id, questDefinition: { key: 'KINGS_BLOCK_PARTY' } } });
+    await app.prisma.playerQuest.update({ where: { id: blockParty.id }, data: { status: 'COMPLETED', acceptedAt: new Date(), completedAt: new Date(), claimedAt: new Date() } });
+    await HandcraftedQuestService.page(app.prisma, player.id, ruleset);
+    const hold = await app.prisma.playerQuest.findFirstOrThrow({ where: { roundPlayerId: player.id, questDefinition: { key: 'KINGS_HOLD_THE_LINE' } } });
+    const now = new Date();
+    const startedAt = new Date(now.getTime() - 100 * 3_600_000);
+    await app.prisma.playerQuest.update({ where: { id: hold.id }, data: { status: 'ACTIVE', acceptedAt: startedAt, objectiveProgress: {} } });
+
+    await TurfService.ensureRound(app.prisma, player.roundId, ruleset);
+    const block = await app.prisma.turf.findFirstOrThrow({ where: { roundId: player.roundId, cityId: player.cityId } });
+    await app.prisma.turfHoldSegment.create({
+      data: {
+        roundId: player.roundId, turfId: block.id, holderId: player.id,
+        holderPublicPimpId: player.publicPimpId, holderName: player.displayName,
+        startedAt, endedAt: null,
+      },
+    });
+
+    const page = await HandcraftedQuestService.page(app.prisma, player.id, ruleset);
+    const card = page.quests.find((quest) => quest.key === 'KINGS_HOLD_THE_LINE')!;
+    expect(card.status).toBe('READY_TO_TURN_IN');
+    expect(card.objectives.find((objective) => objective.id === 'hold')).toMatchObject({ current: 96, completed: true });
+    expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: player.id, type: 'QUEST_READY', payload: { path: ['questKey'], equals: 'KINGS_HOLD_THE_LINE' } } })).toBe(1);
   });
 
   it('refuses an introduction the player cannot pay for, and waives it once they are already Known', async () => {

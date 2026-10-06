@@ -47,6 +47,7 @@ import {
 } from './daily-contract.service.js';
 import {
   WEEKLY_CONTRACT_SLOTS,
+  syncDerivedTurfProgress,
   syncWeeklyContractAttempts,
   weeklyContractWindow,
 } from './weekly-contract.service.js';
@@ -600,6 +601,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   await refreshCommunityEventReadinessForPlayer(db, roundPlayerId, ruleset, now);
   newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
   await autoAcceptBoardWork(db, roundPlayerId, ruleset, now);
+  await syncDerivedTurfProgress(db, roundPlayerId, ruleset, questDefinitions, now);
   return newlyAvailable;
 }
 
