@@ -40,11 +40,11 @@ All cosmetic artwork lives under `apps/web/public/items/cosmetics/`.
 
 | Item | Midnight Ops | Urban Ghost | Cartel Gold |
 | --- | --- | --- | --- |
-| Pistol | `weapons/pistol-midnight-ops.webp` | `weapons/pistol-urban-ghost.webp` | `weapons/pistol-cartel-gold.webp` |
-| Shotgun | `weapons/shotgun-midnight-ops.webp` | `weapons/shotgun-urban-ghost.webp` | `weapons/shotgun-cartel-gold.webp` |
-| Tek-9 | `weapons/tek9-midnight-ops.webp` | `weapons/tek9-urban-ghost.webp` | `weapons/tek9-cartel-gold.webp` |
-| AK-47 | `weapons/ak47-midnight-ops.webp` | `weapons/ak47-urban-ghost.webp` | `weapons/ak47-cartel-gold.webp` |
-| Low-Rider | `rides/low-rider-midnight-ops.webp` | `rides/low-rider-urban-ghost.webp` | `rides/low-rider-cartel-gold.webp` |
+| Pistol | `weapons/pistol-midnight-ops.svg` | `weapons/pistol-urban-ghost.svg` | `weapons/pistol-cartel-gold.svg` |
+| Shotgun | `weapons/shotgun-midnight-ops.svg` | `weapons/shotgun-urban-ghost.svg` | `weapons/shotgun-cartel-gold.svg` |
+| Tek-9 | `weapons/tek9-midnight-ops.svg` | `weapons/tek9-urban-ghost.svg` | `weapons/tek9-cartel-gold.svg` |
+| AK-47 | `weapons/ak47-midnight-ops.svg` | `weapons/ak47-urban-ghost.svg` | `weapons/ak47-cartel-gold.svg` |
+| Low-Rider | `rides/low-rider-midnight-ops.svg` | `rides/low-rider-urban-ghost.svg` | `rides/low-rider-cartel-gold.svg` |
 
 That is 15 new authored images.
 
@@ -77,7 +77,7 @@ That is 15 new authored images.
 - Urban Ghost: gray/graphite city build
 - Cartel Gold: premium custom show-car treatment with polished trim
 
-Export production files as lossless/near-lossless WebP with alpha. Keep source masters outside the runtime tree if desired; only optimized WebP files belong in `public/items/cosmetics/`.
+Production assets are transparent authored SVG drawings committed directly under `public/items/cosmetics/`.
 
 ## Code/data map
 
@@ -92,7 +92,7 @@ Owns the shared cosmetic contract:
 - `ItemCosmeticLoadout`
 - Classic-only crew contract until Slice C
 
-A collection stays `released: false` until all five Slice A assets for that collection exist and have been reviewed.
+All three Slice A collections now have all five authored assets committed and are `released: true`.
 
 ### `packages/shared/src/schemas/auth.ts`
 
@@ -134,9 +134,9 @@ Adds the JSON cosmetic loadout columns. Slice A does not need another migration.
 
 Owns the visual asset registry.
 
-`PLANNED_SLICE_A_ART_FILES` locks the expected paths before art production.
+`SLICE_A_ART_FILES` is the active source-of-truth for the 15 committed authored assets.
 
-`ITEM_COSMETIC_ART` contains only files that actually exist. This is intentional: if a partial deployment or stale preference references missing art, the resolver falls back to Classic instead of returning a broken image.
+`ITEM_COSMETIC_ART` activates the committed variants and still falls back to Classic for stale or unknown selections.
 
 When a collection is complete, add its five paths to `ITEM_COSMETIC_ART`.
 
@@ -182,17 +182,11 @@ There are no cosmetic hue/filter classes anymore. Visual variants come from imag
 
 A web resolver test should verify every active cosmetic path resolves to an explicit asset and that unknown/missing variants fall back to Classic.
 
-## Activating a completed collection
+## Slice A completion
 
-For example, when all Midnight Ops art is committed:
+Midnight Ops, Urban Ghost, and Cartel Gold are active. The five supported item keys each have one separate authored SVG per collection, for 15 new cosmetic assets total.
 
-1. Add the 5 WebP files at the paths above.
-2. Add the 5 `midnight-ops` entries from `PLANNED_SLICE_A_ART_FILES` to `ITEM_COSMETIC_ART`.
-3. Change Midnight Ops to `released: true` in `packages/shared/src/cosmetics.ts`.
-4. Run shared tests, web typecheck/build, server typecheck/build, and the UI audit.
-5. Verify Account Settings previews all five images.
-6. Verify changing a selection updates every `ItemTile` surface after settings refresh.
-7. Verify gameplay values are unchanged.
+Before merging, run shared tests, web typecheck/build, server typecheck/build, and the UI audit. Verify all five Account Settings previews and confirm the selection follows the shared `ItemTile` surfaces without changing any gameplay values.
 
 ## Future unlocks
 
