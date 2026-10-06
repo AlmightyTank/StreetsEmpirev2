@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="512" viewBox="0 0 1024 512"><defs>
+<linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#28a9ff"/><stop offset=".24" stop-color="#171d22"/><stop offset=".58" stop-color="#2c3942"/><stop offset="1" stop-color="#606f78"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#2c3942"/><stop offset="1" stop-color="#0b0f12"/></linearGradient>
+<linearGradient id="shine" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#53c7ff" stop-opacity="0"/><stop offset=".48" stop-color="#53c7ff" stop-opacity=".65"/><stop offset=".55" stop-color="white" stop-opacity=".72"/><stop offset=".62" stop-color="#53c7ff" stop-opacity=".25"/><stop offset="1" stop-color="#53c7ff" stop-opacity="0"/></linearGradient>
+<filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation="8"/><feOffset dy="10"/><feComponentTransfer><feFuncA type="linear" slope=".55"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs><g filter="url(#shadow)" stroke="#080b0d" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"><path d="M94 316 Q131 253 230 235 L374 176 H647 L748 228 Q845 242 917 291 L938 333 H82 Z" fill="url(#metal)"/>
+<path d="M258 233 L392 188 H625 L702 230 Z" fill="#10171d"/>
+<path d="M407 194 V232 M619 193 L676 230" stroke="#5d7280" stroke-width="9"/>
+<rect x="135" y="300" width="740" height="43" rx="19" fill="#0b0f12"/>
+<circle cx="260" cy="340" r="68" fill="#080b0d"/><circle cx="260" cy="340" r="37" fill="#606f78"/>
+<circle cx="760" cy="340" r="68" fill="#080b0d"/><circle cx="760" cy="340" r="37" fill="#606f78"/>
+<path d="M136 281 H888" stroke="#28a9ff" stroke-width="6" opacity=".75"/>
+<rect x="858" y="276" width="55" height="16" rx="5" fill="#53c7ff" stroke="none"/></g></svg>
