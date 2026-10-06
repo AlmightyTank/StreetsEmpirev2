@@ -38,8 +38,8 @@ describe('account profile settings schema', () => {
     expect(result.crewCosmetics).toEqual({ THUG: 'classic', HOE: 'classic' });
   });
 
-  it('rejects planned artwork until that collection is released', () => {
-    const result = updateAccountProfileSettingsSchema.safeParse({
+  it('accepts released authored weapon and ride cosmetics', () => {
+    const result = updateAccountProfileSettingsSchema.parse({
       activeTitleKey: null,
       activeProfileFrameKey: null,
       featuredBadgeKeys: [],
@@ -48,10 +48,18 @@ describe('account profile settings schema', () => {
       reducedMotion: false,
       moneyFormat: 'full',
       defaultLanding: 'game',
-      itemCosmetics: { AK47: 'midnight-ops' },
+      itemCosmetics: {
+        PISTOL: 'midnight-ops',
+        AK47: 'urban-ghost',
+        LOW_RIDER: 'cartel-gold',
+      },
     });
 
-    expect(result.success).toBe(false);
+    expect(result.itemCosmetics).toEqual({
+      PISTOL: 'midnight-ops',
+      AK47: 'urban-ghost',
+      LOW_RIDER: 'cartel-gold',
+    });
   });
 
   it('rejects cosmetics for items outside Slice A', () => {
