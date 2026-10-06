@@ -30,6 +30,11 @@
 .se-profile-hover-card[data-accent="clean-slate-ice"] { --se-hover-accent: #9ed9e8; }
 .se-profile-hover-card[data-accent="corner-amber"] { --se-hover-accent: #e6a344; }
 .se-profile-hover-card[data-accent="velvet-rose"] { --se-hover-accent: #dc82a9; }
+.se-profile-hover-card[data-accent="kings-gold"] { --se-hover-accent: #e9c46a; }
+.se-profile-hover-card[data-accent="outfit-oxblood"] { --se-hover-accent: #d0683f; }
+.se-profile-hover-card[data-accent="saints-chrome"] { --se-hover-accent: #c3cbd6; }
+.se-profile-hover-card[data-accent="cartel-jade"] { --se-hover-accent: #3fbf93; }
+.se-profile-hover-card[data-accent="civic-seal"] { --se-hover-accent: #9aa1ee; }
 .se-profile-hover-card__banner {
   position: relative;
   display: flex;

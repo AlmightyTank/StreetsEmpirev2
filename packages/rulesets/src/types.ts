@@ -628,6 +628,18 @@ export interface FactionRivalryRules {
   readonly innerCircleLock: true;
 }
 
+/**
+ * 1.4.0-F. What standing shows the world. Reaching a tier awards that faction's cosmetics once
+ * per account; from `publicFrom` a profile shows the tier (never the points); reaching
+ * `feedFrom` is posted to the public street feed. Cosmetics never change anything in play.
+ */
+export interface FactionPublicRules {
+  /** Cosmetic keys awarded on reaching each tier, per faction. Every key is in `cosmetics`. */
+  readonly rewards: Readonly<Partial<Record<'CONNECTED' | 'INNER_CIRCLE', Readonly<Partial<Record<FactionKey, readonly string[]>>>>>>;
+  readonly publicFrom: 'CONNECTED' | 'INNER_CIRCLE';
+  readonly feedFrom: 'INNER_CIRCLE';
+}
+
 /** 1.4.0-B2 contract board rotation. */
 export interface ContractRotationRules {
   /**
@@ -2756,6 +2768,8 @@ export interface Ruleset {
   readonly factionPerks?: FactionPerkRules;
   /** 1.4.0-E. The Inner Circle rival lock. Absent: every faction's Inner Circle stays open. */
   readonly factionRivalry?: FactionRivalryRules;
+  /** 1.4.0-F. Faction cosmetics, public alignment and the street feed. Absent: standing stays private. */
+  readonly factionPublic?: FactionPublicRules;
   /** Permanent per-round capabilities earned through Jobs. */
   readonly permanentUnlocks?: PermanentUnlockCatalog;
   /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */

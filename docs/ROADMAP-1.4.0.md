@@ -2,8 +2,8 @@
 
 ## Brainstorm
 
-**Status:** 1.4.0-A, 1.4.0-B, B2, C, D and E are built; the newest ruleset is `classic-og-v1.4-e`. F and
-G are design only. See the [Roadmap](#roadmap) table.
+**Status:** 1.4.0-A, 1.4.0-B, B2, C, D, E and F are built; the newest ruleset is `classic-og-v1.4-f`.
+G is design only. See the [Roadmap](#roadmap) table.
 
 **Target base:** StreetsEmpire v1.3.0 (`classic-og-v1.3-g`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** make each city's underworld feel populated
@@ -51,7 +51,7 @@ contact reputation exactly as they were.
 | **1.4.0-C — Sponsored Contracts** | Built | `classic-og-v1.4-c` | Every daily, weekly, city, Season and alliance contract carries a sponsoring faction and pays it standing. Where work could go to two factions, the sponsor leans toward ones you're Known with. |
 | **1.4.0-D — Faction Perks** | Built | `classic-og-v1.4-d` | Information at Known and early warnings at Trusted on each faction's card, then one capped nudge per faction at Connected (corner upkeep, Tommy's guns, bodyguard tickets, Pip's product, official exposure), each logged where it applies. |
 | **1.4.0-E — Rivalries & Inner Circle** | Built | `classic-og-v1.4-e` | The Inner Circle rival lock, previewed on the card and confirmed before it lands; Vic's paid introductions to Known; a Connected Job and an Inner Circle capstone (standing and a title) per faction. |
-| **1.4.0-F — Rewards & Public Flavor** | Planned | `classic-og-v1.4-f` | Faction titles and frames, alignment on profiles from Connected, feed entries, feats and a Rules page section. |
+| **1.4.0-F — Rewards & Public Flavor** | Built | `classic-og-v1.4-f` | A title and accent per faction at Connected and a frame at Inner Circle; alignment on profiles from Connected; Inner Circle on the public street feed; three faction feats; a Rules page section. |
 | **1.4.0-G — Balance, Admin & Release** | Planned | `classic-og-v1.4-g` | A `qa:factions` simulation, an admin standing view with audited corrections, an exploit audit, mobile checks and the release gate. |
 
 ---
@@ -579,6 +579,50 @@ tier-ups; season feats; a Rules page section.
 
 **Gate:** live standing numbers and contract progress stay private; cosmetics change nothing in
 play.
+
+#### Built in F
+
+**Status: implemented.** Ruleset `classic-og-v1.4-f` (1.4.0-F) is 1.4.0-E plus a `factionPublic`
+block and fifteen faction cosmetics. Every E Job, contract, perk, lock and number is unchanged.
+
+- **Cosmetics.** Reaching Connected with a faction awards its title and accent; reaching Inner
+  Circle, its frame. They are awarded once per account by `FactionService.grant` for every tier a
+  change crosses (a jump straight to Inner Circle awards both), kept for good, and named in the
+  tier-up entry. `factionProblems` holds every key to the cosmetics catalog.
+
+  | Faction | Connected title | Connected accent | Inner Circle frame |
+  | --- | --- | --- | --- |
+  | The Kings | Friend of the Kings | Kings Gold | Kings Crown Frame |
+  | The Outfit | Outfit Associate | Outfit Oxblood | Pinstripe Frame |
+  | Road Saints MC | Saints Prospect | Saints Chrome | Patch Frame |
+  | The Cartel Line | Line Partner | Cartel Jade | Pipeline Frame |
+  | Civic Handshake | Civic Contributor | Civic Seal | Seal Frame |
+
+  The E capstones still pay their own Inner Circle titles.
+- **Public alignment.** From Connected, a profile shows each faction's tier as a chip ("The Outfit
+  · Inner Circle"), highest first. Points, the tiers below Connected and contract progress stay
+  private. 1.4.0-E and older rounds show none.
+- **The street feed.** Reaching Inner Circle stamps `innerCircleAt` on the standing row, and the
+  Discord bot's claim posts it to the public street feed once ("Civic Handshake · Inner Circle"),
+  with the player's name and profile link and nothing about standing. Rows from rounds without
+  `factionPublic` are marked off unposted. Tier-ups already reached the player's own feed, bell,
+  toast and Console in B.
+- **Season feats** (titles only, on the profile like every feat): Many Friends (Connected with
+  three factions in a season, rare), Inner Circle (reach one, epic) and Two Crowns (two Inner
+  Circles in a season, legendary; only non-rivals can manage it). Their progress counts tiers from
+  Connected up, which profiles show anyway, so nothing is sealed.
+- **Rules page.** The Factions section explains the cosmetics, public alignment, the feed post and
+  the feats.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-f`.
+
+F invariants:
+
+1. Every E invariant still holds.
+2. Faction cosmetics change nothing in play, and each is awarded at most once per account.
+3. Nothing public shows standing points or any tier below Connected.
+4. Each Inner Circle is posted to the street feed at most once, and only on rounds that make it
+   public.
+5. `classic-og-v1.4-e` and older rounds award no faction cosmetics and show no alignment.
 
 ### 1.4.0-G — Balance, Admin & Release
 

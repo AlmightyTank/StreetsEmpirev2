@@ -80,7 +80,7 @@ export function sponsorCandidates(
  * catalog or says why it is independent (never both), every rivalry is listed on both sides,
  * and no faction is its own rival. Rulesets without factions have nothing to check.
  */
-export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' | 'questDefinitions'> & Partial<Pick<Ruleset, 'contractSponsors' | 'factionPerks' | 'factionStanding'>>): string[] {
+export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' | 'questDefinitions'> & Partial<Pick<Ruleset, 'contractSponsors' | 'factionPerks' | 'factionStanding' | 'factionPublic' | 'cosmetics'>>): string[] {
   const factions = ruleset.factions;
   if (!factions) return [];
   const problems: string[] = [];
@@ -191,6 +191,20 @@ export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' |
       if (!(value > 0) || value > 72) problems.push(`Warning ${name} must be above 0 and at most 72.`);
     }
     if (!(warnings.hotRoadChance > 0 && warnings.hotRoadChance < 1)) problems.push('A hot road must be a stop chance between 0 and 1.');
+  }
+
+  // 1.4.0-F: tier cosmetics are real cosmetics, for real factions, and nothing else.
+  const publicRules = ruleset.factionPublic;
+  if (publicRules) {
+    if (!ruleset.factionStanding) problems.push('Faction cosmetics and alignment need faction standing.');
+    for (const [tier, byFaction] of Object.entries(publicRules.rewards)) {
+      for (const [key, cosmetics] of Object.entries(byFaction ?? {})) {
+        if (!keys.has(key)) problems.push(`${tier} cosmetics name unknown faction ${key}.`);
+        for (const cosmetic of cosmetics ?? []) {
+          if (!ruleset.cosmetics?.[cosmetic]) problems.push(`${key}'s ${tier} cosmetic ${cosmetic} is missing from the cosmetics catalog.`);
+        }
+      }
+    }
   }
 
   for (const faction of Object.values(factions)) {

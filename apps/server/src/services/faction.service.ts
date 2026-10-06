@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import {
+  FACTION_TIERS,
   addStanding,
   factionNudge,
   factionTier,
@@ -15,6 +16,7 @@ import type { FactionKey, FactionNudgeKind, FactionTier } from '@streets/ruleset
 import type { FactionStandingDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
+import { QuestCosmeticService } from './quest-cosmetic.service.js';
 
 /** Where a standing change came from. */
 export type FactionStandingSource = 'JOB' | 'CONTRACT' | 'INTRODUCTION';
@@ -70,11 +72,15 @@ export const FactionService = {
     const locked = tier === 'INNER_CIRCLE' && tierUp ? preview.locks : [];
     const heldShortBy = after < addStanding(before, amount, rules) ? preview.lockedBy : null;
 
+    // 1.4.0-F: the tiers this change crossed, for their cosmetics and the street feed.
+    const crossed = tierUp ? FACTION_TIERS.slice(factionTierRank(factionTier(before, rules)) + 1, factionTierRank(tier) + 1) : [];
+    const reachedInnerCircle = crossed.includes('INNER_CIRCLE');
     await tx.playerFactionStanding.upsert({
       where: { roundPlayerId_factionKey: { roundPlayerId, factionKey } },
-      create: { roundPlayerId, factionKey, points: after, tier, createdAt: now },
-      update: { points: after, tier },
+      create: { roundPlayerId, factionKey, points: after, tier, createdAt: now, ...(reachedInnerCircle ? { innerCircleAt: now } : {}) },
+      update: { points: after, tier, ...(reachedInnerCircle ? { innerCircleAt: now } : {}) },
     });
+    const cosmetics = await FactionService.awardTierCosmetics(tx, roundPlayerId, ruleset, factionKey, crossed, now);
     await tx.playerFactionReceipt.create({
       data: { roundPlayerId, factionKey, source, sourceKey, delta: after - before, pointsAfter: after, tierAfter: tier, createdAt: now },
     });
@@ -82,9 +88,27 @@ export const FactionService = {
       await ActivityService.log(tx, roundPlayerId, 'FACTION_TIER_UP', json({
         factionKey, factionName: faction.name, tier, tierName: factionTierName(tier), points: after,
         ...(locked.length ? { lockedRivals: locked.map((rival) => ruleset.factions?.[rival]?.name ?? rival) } : {}),
+        ...(cosmetics.length ? { cosmetics } : {}),
       }));
     }
     return { factionKey, factionName: faction.name, before, after, tier, tierUp, locked, heldShortBy };
+  },
+
+  /**
+   * 1.4.0-F. Award a faction's cosmetics for the tiers just crossed, once per account (a later
+   * season reaching the same tier finds them already owned). Returns the names awarded.
+   */
+  async awardTierCosmetics(tx: Db, roundPlayerId: string, ruleset: Ruleset, factionKey: FactionKey, crossed: readonly FactionTier[], now: Date): Promise<string[]> {
+    const rewards = ruleset.factionPublic?.rewards;
+    const keys = rewards ? crossed.flatMap((tier) => tier === 'CONNECTED' || tier === 'INNER_CIRCLE' ? rewards[tier]?.[factionKey] ?? [] : []) : [];
+    if (!keys.length) return [];
+    const { accountId } = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { accountId: true } });
+    const names: string[] = [];
+    for (const key of keys) {
+      const cosmetic = await QuestCosmeticService.award(tx, accountId, ruleset, key, `faction:${factionKey}`, now);
+      names.push(cosmetic.name);
+    }
+    return names;
   },
 
   /** 1.4.0-E. The player's points with every faction they have any standing with. */

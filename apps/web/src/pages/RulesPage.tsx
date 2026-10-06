@@ -425,6 +425,8 @@ export function RulesPage() {
               <li>At the top, rivalries bite. Reaching Inner Circle with a faction locks its rivals&rsquo; Inner Circles for the rest of the season: the Kings and the Outfit lock each other, and Civic Handshake locks both Road Saints and the Cartel Line. Standing with a locked faction keeps counting, one point short. A Job or contract that would do it says so on its card, and asks before you collect. Nothing below Inner Circle ever costs you standing.</li>
               <li>Vic works for nobody, but knows everybody. While you are a stranger to a faction, he can introduce you for a fee (a small share of your net worth), starting you at Known with it.</li>
               <li>Each faction has a short arc: a Job at Connected, then a capstone at Inner Circle that pays standing and a title. Capstones never pay cash or anything that helps in play.</li>
+              <li>Standing shows. Reaching Connected with a faction unlocks its title and color accent for your profile, and Inner Circle its frame; they are yours for good and change nothing in play. From Connected, your profile shows the tier with each faction (never your points), and reaching an Inner Circle is announced on the street feed.</li>
+              <li>Three season feats track faction play: Many Friends (Connected with three factions in a season), Inner Circle (reach one) and Two Crowns (two in a season).</li>
               <li>Perks never tell you about another player: everything a faction says comes from your own crew, the round&rsquo;s public schedule, or counts across enough crews that none stands out.</li>
             </ul>
           </Panel></section>

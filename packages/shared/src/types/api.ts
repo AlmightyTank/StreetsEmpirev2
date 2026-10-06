@@ -179,7 +179,12 @@ export type ProfileAccent =
   | 'open-road-blue'
   | 'clean-slate-ice'
   | 'corner-amber'
-  | 'velvet-rose';
+  | 'velvet-rose'
+  | 'kings-gold'
+  | 'outfit-oxblood'
+  | 'saints-chrome'
+  | 'cartel-jade'
+  | 'civic-seal';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';

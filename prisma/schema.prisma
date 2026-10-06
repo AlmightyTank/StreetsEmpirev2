@@ -3568,11 +3568,15 @@ model PlayerFactionStanding {
   points     Int    @default(0)
   /// The tier the standing last read as; a rise logs FACTION_TIER_UP once.
   tier       String @default("UNKNOWN")
+  /// 1.4.0-F. When the player reached Inner Circle, and when the street feed posted it.
+  innerCircleAt       DateTime?
+  innerCirclePostedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([roundPlayerId, factionKey])
+  @@index([innerCirclePostedAt, innerCircleAt])
 }
 
 /// 1.4.0-B. An immutable change to faction standing, keyed on the act that caused it so a retry

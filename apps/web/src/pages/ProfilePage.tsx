@@ -516,6 +516,15 @@ export function ProfilePage() {
                 {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
               </h1>
               {player?.crewName ? <p className="se-profile-crew">Crew · <strong>{player.crewName}</strong></p> : null}
+              {player?.factionAlignment?.length ? (
+                <p className="se-profile-alignment" aria-label="Faction alignment">
+                  {player.factionAlignment.map((faction) => (
+                    <span key={faction.key} className={`se-profile-alignment__chip${faction.tierName === 'Inner Circle' ? ' is-inner' : ''}`}>
+                      {faction.name} · {faction.tierName}
+                    </span>
+                  ))}
+                </p>
+              ) : null}
               <p className="se-eyebrow">
                 {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Permanent season record'}
               </p>

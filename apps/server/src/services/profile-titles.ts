@@ -104,6 +104,10 @@ const profileTitleLabels: Record<string, string> = {
 
   // 1.3.0-F clean-record season feats and Ledger's job titles.
   'clean-record': 'Clean Record',
+  // 1.4.0-F faction feats.
+  'faction-many-friends': 'Many Friends',
+  'faction-inner-circle': 'Inner Circle',
+  'faction-two-crowns': 'Two Crowns',
   'nothing-on-paper': 'Nothing on Paper',
   'off-the-books': 'Off the Books',
   'ledger-cool-head': 'Cool Head',

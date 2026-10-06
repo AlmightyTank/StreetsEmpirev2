@@ -538,6 +538,37 @@ body {
   --se-accent-hover: #ec8ea4;
   --se-accent-rgb: 224, 96, 126;
 }
+/* 1.4.0-F faction accents, earned at Connected. */
+.se-site-accent--kings-gold {
+  --se-accent: #f2c14e;
+  --se-accent-dim: #b38d32;
+  --se-accent-hover: #f7d77f;
+  --se-accent-rgb: 242, 193, 78;
+}
+.se-site-accent--outfit-oxblood {
+  --se-accent: #c2410c;
+  --se-accent-dim: #8a2e09;
+  --se-accent-hover: #df6a3a;
+  --se-accent-rgb: 194, 65, 12;
+}
+.se-site-accent--saints-chrome {
+  --se-accent: #cbd5e1;
+  --se-accent-dim: #94a3b8;
+  --se-accent-hover: #e2e8f0;
+  --se-accent-rgb: 203, 213, 225;
+}
+.se-site-accent--cartel-jade {
+  --se-accent: #10b981;
+  --se-accent-dim: #0b8460;
+  --se-accent-hover: #4fd3a5;
+  --se-accent-rgb: 16, 185, 129;
+}
+.se-site-accent--civic-seal {
+  --se-accent: #818cf8;
+  --se-accent-dim: #5b63c4;
+  --se-accent-hover: #a5adfb;
+  --se-accent-rgb: 129, 140, 248;
+}
 
 /*
  * Green was historically used as both the default accent and the generic
@@ -2417,6 +2448,11 @@ a:hover { color: var(--se-accent-hover); }
 .se-profile-accent--clean-slate-ice { --se-profile-accent: #a5f3fc; }
 .se-profile-accent--corner-amber { --se-profile-accent: #f58514; }
 .se-profile-accent--velvet-rose { --se-profile-accent: #e0607e; }
+.se-profile-accent--kings-gold { --se-profile-accent: #f2c14e; }
+.se-profile-accent--outfit-oxblood { --se-profile-accent: #c2410c; }
+.se-profile-accent--saints-chrome { --se-profile-accent: #cbd5e1; }
+.se-profile-accent--cartel-jade { --se-profile-accent: #10b981; }
+.se-profile-accent--civic-seal { --se-profile-accent: #818cf8; }
 
 .se-profile-frame {
   position: relative;
@@ -2564,6 +2600,81 @@ a:hover { color: var(--se-accent-hover); }
 }
 .se-profile-frame--case-file-frame::after {
   border-color: rgba(200, 52, 52, 0.3);
+}
+
+/* 1.4.0-F A gold crown frame with royal purple corners. */
+.se-profile-frame--kings-crown-frame {
+  border: 2px solid rgba(242, 193, 78, 0.78);
+  box-shadow: 0 0 18px rgba(242, 193, 78, 0.12), inset 0 0 0 3px rgba(138, 92, 246, 0.08);
+}
+.se-profile-frame--kings-crown-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(138, 92, 246, 0.2), transparent 16%),
+    linear-gradient(315deg, rgba(138, 92, 246, 0.2), transparent 16%);
+}
+.se-profile-frame--kings-crown-frame::after {
+  border-color: rgba(138, 92, 246, 0.3);
+}
+
+/* 1.4.0-F A charcoal pinstripe frame with an oxblood edge. */
+.se-profile-frame--outfit-pinstripe-frame {
+  border: 2px solid rgba(148, 163, 184, 0.78);
+  box-shadow: 0 0 18px rgba(148, 163, 184, 0.12), inset 0 0 0 3px rgba(194, 65, 12, 0.08);
+}
+.se-profile-frame--outfit-pinstripe-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(194, 65, 12, 0.2), transparent 16%),
+    linear-gradient(315deg, rgba(194, 65, 12, 0.2), transparent 16%);
+}
+.se-profile-frame--outfit-pinstripe-frame::after {
+  border-color: rgba(194, 65, 12, 0.3);
+}
+
+/* 1.4.0-F A chrome frame on worn leather. */
+.se-profile-frame--saints-patch-frame {
+  border: 2px solid rgba(203, 213, 225, 0.78);
+  box-shadow: 0 0 18px rgba(203, 213, 225, 0.12), inset 0 0 0 3px rgba(146, 64, 14, 0.08);
+}
+.se-profile-frame--saints-patch-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(146, 64, 14, 0.2), transparent 16%),
+    linear-gradient(315deg, rgba(146, 64, 14, 0.2), transparent 16%);
+}
+.se-profile-frame--saints-patch-frame::after {
+  border-color: rgba(146, 64, 14, 0.3);
+}
+
+/* 1.4.0-F A jade frame with brass fittings. */
+.se-profile-frame--cartel-pipeline-frame {
+  border: 2px solid rgba(16, 185, 129, 0.78);
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.12), inset 0 0 0 3px rgba(214, 181, 120, 0.08);
+}
+.se-profile-frame--cartel-pipeline-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(214, 181, 120, 0.2), transparent 16%),
+    linear-gradient(315deg, rgba(214, 181, 120, 0.2), transparent 16%);
+}
+.se-profile-frame--cartel-pipeline-frame::after {
+  border-color: rgba(214, 181, 120, 0.3);
+}
+
+/* 1.4.0-F An embossed indigo seal with a gilt edge. */
+.se-profile-frame--civic-seal-frame {
+  border: 2px solid rgba(129, 140, 248, 0.78);
+  box-shadow: 0 0 18px rgba(129, 140, 248, 0.12), inset 0 0 0 3px rgba(214, 181, 120, 0.08);
+}
+.se-profile-frame--civic-seal-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(214, 181, 120, 0.2), transparent 16%),
+    linear-gradient(315deg, rgba(214, 181, 120, 0.2), transparent 16%);
+}
+.se-profile-frame--civic-seal-frame::after {
+  border-color: rgba(214, 181, 120, 0.3);
 }
 
 /* Street Pass Season 1: a gold double frame with warm corners. */
@@ -3462,6 +3573,11 @@ a:hover { color: var(--se-accent-hover); }
 .se-swatch--clean-slate-ice { --se-swatch: #a5f3fc; }
 .se-swatch--corner-amber { --se-swatch: #f58514; }
 .se-swatch--velvet-rose { --se-swatch: #e0607e; }
+.se-swatch--kings-gold { --se-swatch: #f2c14e; }
+.se-swatch--outfit-oxblood { --se-swatch: #c2410c; }
+.se-swatch--saints-chrome { --se-swatch: #cbd5e1; }
+.se-swatch--cartel-jade { --se-swatch: #10b981; }
+.se-swatch--civic-seal { --se-swatch: #818cf8; }
 .se-swatch--on {
   border-color: var(--se-swatch);
   color: var(--se-text);

@@ -449,7 +449,8 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       return {
         text: `${str(p.factionName, 'A faction')} now counts you as ${str(p.tierName, 'known')}.`,
         detail: formatNumber(num(p.points)) + ' standing · private to you'
-          + (Array.isArray(p.lockedRivals) && p.lockedRivals.length ? ` · ${p.lockedRivals.map(String).join(' and ')} Inner Circle locked this season` : ''),
+          + (Array.isArray(p.lockedRivals) && p.lockedRivals.length ? ` · ${p.lockedRivals.map(String).join(' and ')} Inner Circle locked this season` : '')
+          + (Array.isArray(p.cosmetics) && p.cosmetics.length ? ` · unlocked ${p.cosmetics.map(String).join(', ')}` : ''),
       };
 
     case 'STREET_PASS_CLAIMED':
