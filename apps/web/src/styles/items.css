@@ -161,6 +161,17 @@
   margin: 0;
 }
 
+.se-cosmetic-locker__unlocks {
+  margin: 0 0 18px;
+  padding: 8px 12px;
+  list-style: none;
+  border: 1px dashed var(--se-line);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.se-cosmetic-locker__unlocks li + li { margin-top: 4px; }
+
 .se-cosmetic-locker__group + .se-cosmetic-locker__group {
   margin-top: 20px;
 }

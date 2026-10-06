@@ -1,6 +1,6 @@
 import type {
   AccountProfileSettingsDto,
-  CosmeticOptionDto,
+  CollectionOptionDto,
   CrewCosmeticKey,
   CustomizableItemKey,
   ItemCosmeticStyleKey,
@@ -16,7 +16,7 @@ function StylePicker({
   id,
 }: {
   value: ItemCosmeticStyleKey;
-  styles: readonly CosmeticOptionDto[];
+  styles: readonly CollectionOptionDto[];
   onChange: (style: ItemCosmeticStyleKey) => void;
   id: string;
 }) {
@@ -28,7 +28,9 @@ function StylePicker({
       onChange={(event) => onChange(event.target.value as ItemCosmeticStyleKey)}
     >
       {styles.map((style) => (
-        <option key={style.key} value={style.key}>{style.label}</option>
+        <option key={style.key} value={style.key} disabled={style.locked}>
+          {style.locked ? `${style.label} (locked)` : style.label}
+        </option>
       ))}
     </select>
   );
@@ -36,7 +38,8 @@ function StylePicker({
 
 /**
  * Weapons, the Low-Rider (Slice A), products and supplies (Slice B) and crew
- * outfits (Slice C) each pick an authored collection.
+ * outfits (Slice C) each pick an authored collection. Collections other than
+ * Classic are earned on the Street Pass (Slice D) and show locked until then.
  */
 export function ItemCrewCosmeticsEditor({
   settings,
@@ -45,10 +48,12 @@ export function ItemCrewCosmeticsEditor({
   onChange,
 }: {
   settings: AccountProfileSettingsDto;
-  styles: readonly CosmeticOptionDto[];
-  crewStyles: readonly CosmeticOptionDto[];
+  styles: readonly CollectionOptionDto[];
+  crewStyles: readonly CollectionOptionDto[];
   onChange: (settings: AccountProfileSettingsDto) => void;
 }) {
+  const locked = styles.filter((style) => style.locked);
+
   function setItemStyle(key: CustomizableItemKey, style: ItemCosmeticStyleKey) {
     onChange({
       ...settings,
@@ -80,6 +85,14 @@ export function ItemCrewCosmeticsEditor({
           Each non-classic choice uses its own authored drawing. No color-filter skins. Cosmetics never change combat, prices, rarity or stats.
         </p>
       </div>
+
+      {locked.length > 0 && (
+        <ul className="se-cosmetic-locker__unlocks" aria-label="Collections still to earn">
+          {locked.map((style) => (
+            <li key={style.key}><strong>{style.label}</strong> · {style.unlockHint}</li>
+          ))}
+        </ul>
+      )}
 
       {ITEM_COSMETIC_GROUPS.map((group) => (
         <div className="se-cosmetic-locker__group" key={group.key}>

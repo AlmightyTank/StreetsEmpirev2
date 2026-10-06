@@ -38,8 +38,10 @@ const cosmetic = (key: string): QuestRewardDefinition => ({ kind: 'COSMETIC_UNLO
 
 /**
  * Season 1's permanent cosmetics: a title at tiers 10, 20 and 30, plus the
- * tier 30 badge and frame. A ruleset that ships this pass adds these to its
- * cosmetics. Titles carry the season so each season's set is collectible.
+ * tier 30 badge and frame, the tier 15 theme, the tier 25 frame, and the three
+ * item art collections at tiers 8, 18 and 28. A ruleset that ships this pass
+ * adds these to its cosmetics. Titles carry the season so each season's set is
+ * collectible.
  */
 export const STREET_PASS_S1_COSMETICS = {
   'street-pass-s1-fresh-face': {
@@ -94,6 +96,30 @@ export const STREET_PASS_S1_COSMETICS = {
     rarity: 'epic',
     styleKey: 'street-pass-s1-chrome-halo',
   },
+  'street-pass-s1-urban-ghost': {
+    key: 'street-pass-s1-urban-ghost',
+    name: 'Urban Ghost Collection',
+    description: 'Concrete, graphite and pale camo art for every weapon, ride, product, supply and crew outfit.',
+    kind: 'ITEM_COLLECTION',
+    rarity: 'rare',
+    styleKey: 'urban-ghost',
+  },
+  'street-pass-s1-midnight-ops': {
+    key: 'street-pass-s1-midnight-ops',
+    name: 'Midnight Ops Collection',
+    description: 'Blacked-out tactical art with teal accents for every weapon, ride, product, supply and crew outfit.',
+    kind: 'ITEM_COLLECTION',
+    rarity: 'epic',
+    styleKey: 'midnight-ops',
+  },
+  'street-pass-s1-cartel-gold': {
+    key: 'street-pass-s1-cartel-gold',
+    name: 'Cartel Gold Collection',
+    description: 'Engraved, gold-trimmed high-roller art for every weapon, ride, product, supply and crew outfit.',
+    kind: 'ITEM_COLLECTION',
+    rarity: 'legendary',
+    styleKey: 'cartel-gold',
+  },
 } as const satisfies QuestCosmeticCatalog;
 
 /**
@@ -126,7 +152,7 @@ export const STREET_PASS_S1 = {
     { tier: 5, rewards: [item('pistols', 25), item('thugs', 5)] },
     { tier: 6, rewards: [item('beer', 500)] },
     { tier: 7, rewards: [item('medicine', 50)] },
-    { tier: 8, rewards: [cash(50_000)] },
+    { tier: 8, rewards: [cash(50_000), cosmetic('street-pass-s1-urban-ghost')] },
     { tier: 9, rewards: [product('WEED', 250)] },
     { tier: 10, rewards: [item('shotguns', 3), item('whores', 5), cosmetic('street-pass-s1-fresh-face')] },
     { tier: 11, rewards: [turns(40)] },
@@ -136,7 +162,7 @@ export const STREET_PASS_S1 = {
     { tier: 15, rewards: [cash(100_000), favor('TOMMY_VOUCHER'), cosmetic('street-pass-s1-night-drive-theme')] },
     { tier: 16, rewards: [item('whores', 8)] },
     { tier: 17, rewards: [favor('COOKHOUSE_RUSH')] },
-    { tier: 18, rewards: [product('METH', 200)] },
+    { tier: 18, rewards: [product('METH', 200), cosmetic('street-pass-s1-midnight-ops')] },
     { tier: 19, rewards: [turns(60)] },
     { tier: 20, rewards: [item('tek9s', 2), item('lowRiders', 1), cosmetic('street-pass-s1-made-man')] },
     { tier: 21, rewards: [cash(150_000)] },
@@ -146,7 +172,7 @@ export const STREET_PASS_S1 = {
     { tier: 25, rewards: [item('whores', 12), favor('DOCTOR_FAVOR'), cosmetic('street-pass-s1-chrome-halo-frame')] },
     { tier: 26, rewards: [turns(100)] },
     { tier: 27, rewards: [product('HEROIN', 200)] },
-    { tier: 28, rewards: [cash(200_000)] },
+    { tier: 28, rewards: [cash(200_000), cosmetic('street-pass-s1-cartel-gold')] },
     { tier: 29, rewards: [item('ak47s', 2), item('lowRiders', 1)] },
     { tier: 30, rewards: [cosmetic('street-pass-s1-kingpin'), cosmetic('street-pass-s1-badge'), cosmetic('street-pass-s1-frame')] },
   ],

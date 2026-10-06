@@ -9,7 +9,7 @@ import type {
   ProfileEffect,
   UiDensity,
 } from '@streets/shared';
-import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
+import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -30,6 +30,9 @@ import { formatWhen } from '../utils/time.js';
 
 /** Sessions listed before "Show all": this one first, then the most recently used. */
 const SESSIONS_SHOWN = 5;
+/** Used when settings fail to load: only Classic is known to be owned. */
+const FALLBACK_ITEM_STYLES = collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, new Set());
+const FALLBACK_CREW_STYLES = collectionOptions(RELEASED_CREW_COSMETIC_STYLES, new Set());
 
 function formatDate(value: string | null): string {
   return value ? formatWhen(value) : 'Never';
@@ -110,8 +113,8 @@ export function AccountSettingsPage() {
                 { key: 'sirens', label: 'Sirens', description: null },
                 { key: 'smoke', label: 'Smoke', description: null },
               ],
-              itemStyles: RELEASED_ITEM_COSMETIC_STYLES.map((style) => ({ ...style })),
-              crewStyles: RELEASED_CREW_COSMETIC_STYLES.map((style) => ({ ...style })),
+              itemStyles: FALLBACK_ITEM_STYLES,
+              crewStyles: FALLBACK_CREW_STYLES,
               densities: [
                 { key: 'comfortable', label: 'Comfortable', description: null },
                 { key: 'compact', label: 'Compact', description: null },
@@ -796,8 +799,8 @@ export function AccountSettingsPage() {
 
             <ItemCrewCosmeticsEditor
               settings={cosmetics}
-              styles={profileSettings.options.itemStyles ?? RELEASED_ITEM_COSMETIC_STYLES}
-              crewStyles={profileSettings.options.crewStyles ?? RELEASED_CREW_COSMETIC_STYLES}
+              styles={profileSettings.options.itemStyles ?? FALLBACK_ITEM_STYLES}
+              crewStyles={profileSettings.options.crewStyles ?? FALLBACK_CREW_STYLES}
               onChange={setCosmetics}
             />
 

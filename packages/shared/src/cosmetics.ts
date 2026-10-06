@@ -76,7 +76,8 @@ export type ItemCosmeticLoadout = Partial<Record<CustomizableItemKey, ItemCosmet
 /**
  * Slice C: crew outfit sets. Crew stay aggregate inventory; the loadout picks
  * one authored outfit per crew type from the same collection catalog as items,
- * so a collection's `released` flag gates items and crew together.
+ * so a collection's `released` flag and its Street Pass unlock (Slice D) cover
+ * items and crew together.
  */
 export const CREW_COSMETIC_KEYS = ['THUG', 'HOE'] as const;
 export type CrewCosmeticKey = typeof CREW_COSMETIC_KEYS[number];
@@ -105,4 +106,33 @@ export type CrewCosmeticLoadout = Record<CrewCosmeticKey, CrewCosmeticStyleKey>;
 
 export function isReleasedItemCosmeticStyle(key: string): key is ItemCosmeticStyleKey {
   return RELEASED_ITEM_COSMETIC_STYLES.some((style) => style.key === key);
+}
+
+/**
+ * Slice D: every non-classic collection is earned (Street Pass), so a player
+ * owns Classic plus the collection keys on their account unlocks. The server
+ * decides ownership; these helpers keep its options and the web fallback in
+ * the same shape.
+ */
+export const DEFAULT_COLLECTION_UNLOCK_HINT = 'Earned on the Street Pass.';
+
+export function isOwnedCollection(key: string, owned: ReadonlySet<string>): boolean {
+  return key === 'classic' || owned.has(key);
+}
+
+export function collectionOptions(
+  styles: readonly { key: ItemCosmeticStyleKey; label: string; description: string }[],
+  owned: ReadonlySet<string>,
+  hints: Partial<Record<ItemCosmeticStyleKey, string>> = {},
+): { key: ItemCosmeticStyleKey; label: string; description: string; locked: boolean; unlockHint: string | null }[] {
+  return styles.map((style) => {
+    const locked = !isOwnedCollection(style.key, owned);
+    return {
+      key: style.key,
+      label: style.label,
+      description: style.description,
+      locked,
+      unlockHint: locked ? hints[style.key] ?? DEFAULT_COLLECTION_UNLOCK_HINT : null,
+    };
+  });
 }

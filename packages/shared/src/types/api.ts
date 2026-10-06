@@ -207,6 +207,13 @@ export interface CosmeticOptionDto {
   description: string | null;
 }
 
+/** An item art collection; non-classic collections are earned on the Street Pass. */
+export interface CollectionOptionDto extends CosmeticOptionDto {
+  locked: boolean;
+  /** How to earn a locked collection, e.g. "Street Pass · Season 1, tier 18". */
+  unlockHint: string | null;
+}
+
 export interface BadgeCosmeticOptionDto extends CosmeticOptionDto {
   rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
   permanent: boolean;
@@ -247,9 +254,9 @@ export interface AccountProfileSettingsResponseDto {
     frames: CosmeticOptionDto[];
     themes: CosmeticOptionDto[];
     effects: CosmeticOptionDto[];
-    /** Universal item/crew skins. Optional so older fixture payloads stay valid. */
-    itemStyles?: CosmeticOptionDto[];
-    crewStyles?: CosmeticOptionDto[];
+    /** Universal item/crew skins, locked ones included. Optional so older fixture payloads stay valid. */
+    itemStyles?: CollectionOptionDto[];
+    crewStyles?: CollectionOptionDto[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];

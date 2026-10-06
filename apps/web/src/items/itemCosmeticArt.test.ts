@@ -19,6 +19,7 @@ import {
   SLICE_B_ART_FILES,
   SLICE_C_ART_FILES,
 } from './itemCosmeticArt.js';
+import { STREET_PASS_S1, STREET_PASS_S1_COSMETICS } from '@streets/rulesets';
 import { ITEM_ART } from './itemArt.js';
 
 const ITEMS_DIR = path.resolve(import.meta.dirname, '../../public/items');
@@ -109,5 +110,16 @@ describe('item cosmetic art resolver', () => {
 
     expect(list(MASTERS_DIR, '.svg')).toEqual(expected);
     expect(list(path.join(ITEMS_DIR, 'cosmetics'), '.webp')).toEqual(expected);
+  });
+
+  it('makes every non-classic collection earnable on the Season 1 Street Pass', () => {
+    const paid = STREET_PASS_S1.tiers.flatMap((tier) => tier.rewards)
+      .filter((reward) => reward.kind === 'COSMETIC_UNLOCK')
+      .map((reward) => STREET_PASS_S1_COSMETICS[reward.key as keyof typeof STREET_PASS_S1_COSMETICS])
+      .filter((cosmetic) => cosmetic.kind === 'ITEM_COLLECTION')
+      .map((cosmetic) => ('styleKey' in cosmetic ? cosmetic.styleKey : null));
+
+    expect([...paid].sort()).toEqual([...AUTHORED_STYLES].sort());
+    for (const key of paid) expect(ITEM_COSMETIC_STYLE_KEYS).toContain(key);
   });
 });
