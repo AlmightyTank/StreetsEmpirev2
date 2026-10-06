@@ -1,10 +1,19 @@
 import { Prisma, type PrismaClient, type Round } from '@prisma/client';
-import { rulesets } from '@streets/rulesets';
-import type { AdminRoundAction, AdminRoundDto, AdminRoundsDto, AdminStreetPassUpdateInput } from '@streets/shared';
+import { rulesets, type Ruleset } from '@streets/rulesets';
+import type {
+  AdminRoundAction,
+  AdminRoundDto,
+  AdminRoundsDto,
+  AdminRulesetChangeDto,
+  AdminRulesetChangeWarningDto,
+  AdminRulesetOptionDto,
+  AdminStreetPassUpdateInput,
+} from '@streets/shared';
 import { toRoundDto } from '../game/dto.js';
 import { lockRound, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
+import { AdminRulesetService } from './admin-ruleset.service.js';
 import { RoundService, seasonCloseTransaction } from './round.service.js';
 import { TurfService } from './turf.service.js';
 
@@ -84,6 +93,98 @@ export function slugifyRoundName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/g, '');
 }
 
+const STREET_PASS_ITEM_FIELDS = new Set(['condoms', 'medicine', 'crack', 'beer', 'pistols', 'shotguns', 'tek9s', 'ak47s', 'lowRiders', 'thugs', 'whores']);
+
+/** Why these tiers cannot be this ruleset's Street Pass, or null when they can. */
+export function streetPassTiersProblem(ruleset: Ruleset, tiers: AdminStreetPassUpdateInput['tiers']): string | null {
+  const pass = ruleset.streetPass;
+  if (!pass) return 'This round has no Street Pass.';
+  if (tiers.length !== pass.tiers.length || tiers.some((tier, index) => tier.tier !== index + 1 || !tier.rewards.length)) {
+    return 'Keep every existing tier and give each tier at least one reward.';
+  }
+  for (const tier of tiers) {
+    for (const reward of tier.rewards) {
+      if (reward.kind === 'CASH' || reward.kind === 'TURNS') {
+        if (!validStreetPassAmount(reward.amount)) return 'Reward amounts must be positive whole numbers.';
+      } else if (reward.kind === 'ITEM') {
+        if (!STREET_PASS_ITEM_FIELDS.has(reward.key ?? '') || !validStreetPassAmount(reward.amount)) return 'Choose a valid item and a positive whole amount.';
+      } else if (reward.kind === 'PRODUCT') {
+        if (!reward.key || !ruleset.products || !Object.hasOwn(ruleset.products, reward.key) || !validStreetPassAmount(reward.amount)) return 'Choose a valid product and a positive whole amount.';
+      } else if (reward.kind === 'FAVOR_ITEM') {
+        if (!reward.key || !ruleset.favors?.[reward.key] || !validStreetPassAmount(reward.amount)) return 'Choose a valid favor and a positive whole amount.';
+      } else if (reward.kind === 'CONTACT_REP') {
+        if (!reward.key || !ruleset.contacts || !Object.hasOwn(ruleset.contacts, reward.key) || !validStreetPassAmount(reward.amount)) return 'Choose a contact in this round and a positive whole amount.';
+      } else if (reward.kind === 'COSMETIC_UNLOCK') {
+        if (!reward.key || !ruleset.cosmetics?.[reward.key]) return 'Choose a cosmetic in this round ruleset.';
+      }
+    }
+  }
+  return null;
+}
+
+/** Keyed catalogs whose keys a round's rows hold, so a key the new ruleset drops can strand that data. */
+const RULESET_CATALOGS = [
+  'cities', 'districts', 'products', 'stores', 'weapons', 'favors', 'contacts', 'factions', 'cosmetics', 'permanentUnlocks', 'questDefinitions',
+] as const satisfies ReadonlyArray<keyof Ruleset>;
+
+type RulesetChangeRound = Pick<Round, 'name' | 'status' | 'rulesetId' | 'rulesetVersion' | 'streetPassOverride'>;
+
+/** The round's pinned ruleset, or undefined when the code no longer ships that id at that version. */
+function pinnedRuleset(round: Pick<Round, 'rulesetId' | 'rulesetVersion'>): Ruleset | undefined {
+  const ruleset = Object.hasOwn(rulesets, round.rulesetId) ? rulesets[round.rulesetId] : undefined;
+  return ruleset?.meta.version === round.rulesetVersion ? ruleset : undefined;
+}
+
+/**
+ * The round's Street Pass edits carried onto the new ruleset's track, null when
+ * there are none, or 'dropped' when they no longer fit it.
+ */
+function carriedStreetPass(round: RulesetChangeRound, to: Ruleset): NonNullable<Ruleset['streetPass']> | null | 'dropped' {
+  if (round.streetPassOverride == null) return null;
+  const tiers = (round.streetPassOverride as { tiers?: AdminStreetPassUpdateInput['tiers'] }).tiers;
+  if (!to.streetPass || !Array.isArray(tiers) || streetPassTiersProblem(to, tiers)) return 'dropped';
+  return { ...to.streetPass, tiers: tiers as unknown as NonNullable<Ruleset['streetPass']>['tiers'] };
+}
+
+/**
+ * What moving a round onto another ruleset could break. Each warning has to be
+ * confirmed before the change goes through; an empty list needs no confirmation.
+ */
+export function rulesetChangeWarnings(round: RulesetChangeRound, to: Ruleset): AdminRulesetChangeWarningDto[] {
+  const warnings: AdminRulesetChangeWarningDto[] = [];
+  if (round.status === 'ACTIVE') {
+    warnings.push({ code: 'ROUND_LIVE', message: `${round.name} is live. Players get the new numbers on their next action, and timers already running land on the old ones. Pause the round first if you want a clean cut.` });
+  }
+  const from = pinnedRuleset(round);
+  if (!from) {
+    warnings.push({ code: 'CURRENT_RULESET_MISSING', message: `The code no longer ships ${round.rulesetId} at ${round.rulesetVersion}, so nothing could be checked against what this round already holds.` });
+  } else {
+    const { meta: _meta, ...sections } = from;
+    const gone = Object.keys(sections).filter((key) => sections[key as keyof typeof sections] !== undefined && to[key as keyof Ruleset] === undefined);
+    if (gone.length) {
+      warnings.push({ code: 'SECTIONS_REMOVED', message: `${to.meta.id} has no ${gone.join(', ')}. Anything this round built on them stops working.` });
+    }
+    for (const catalog of RULESET_CATALOGS) {
+      const before = from[catalog];
+      const after = to[catalog];
+      if (!before || !after) continue;
+      const missing = Object.keys(before).filter((key) => !Object.hasOwn(after, key));
+      if (missing.length) {
+        warnings.push({ code: 'KEYS_REMOVED', message: `${catalog}: ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} not in ${to.meta.id}. Rows in this round that hold ${missing.length === 1 ? 'it' : 'them'} will not resolve.` });
+      }
+    }
+    if (from.streetPass && to.streetPass && from.streetPass.key !== to.streetPass.key && round.status !== 'SCHEDULED') {
+      warnings.push({ code: 'STREET_PASS_TRACK_CHANGED', message: `The Street Pass track changes from ${from.streetPass.key} to ${to.streetPass.key}. Claims so far are recorded against the old track, so players could claim those tiers again.` });
+    }
+  }
+  if (carriedStreetPass(round, to) === 'dropped') {
+    warnings.push({ code: 'STREET_PASS_EDITS_DROPPED', message: `This round's Street Pass edits do not fit ${to.meta.id}'s track, so they are dropped and the round uses that ruleset's rewards as shipped.` });
+  }
+  return warnings;
+}
+
+const rulesetOption = (ruleset: Ruleset): AdminRulesetOptionDto => ({ id: ruleset.meta.id, version: ruleset.meta.version, name: ruleset.meta.name });
+
 function toAdminRoundDto(round: Round, playerCount: number): AdminRoundDto {
   return { ...toRoundDto(round, playerCount), createdAt: round.createdAt.toISOString(), actions: availableRoundActions(round) };
 }
@@ -115,9 +216,7 @@ export const AdminRoundService = {
     return {
       now: now.toISOString(),
       rounds: rows.map((round) => toAdminRoundDto(round, countFor.get(round.id) ?? 0)),
-      rulesets: Object.values(rulesets)
-        .map((ruleset) => ({ id: ruleset.meta.id, version: ruleset.meta.version, name: ruleset.meta.name }))
-        .reverse(),
+      rulesets: Object.values(rulesets).map(rulesetOption).reverse(),
     };
   },
 
@@ -378,27 +477,8 @@ export const AdminRoundService = {
       }
       const pass = ruleset.streetPass;
       if (!pass) throw AppError.conflict('STREET_PASS_DISABLED', 'This round has no Street Pass.');
-      if (input.tiers.length !== pass.tiers.length || input.tiers.some((tier, index) => tier.tier !== index + 1 || !tier.rewards.length)) {
-        throw AppError.badRequest('INVALID_STREET_PASS', 'Keep every existing tier and give each tier at least one reward.');
-      }
-      const itemFields = new Set(['condoms', 'medicine', 'crack', 'beer', 'pistols', 'shotguns', 'tek9s', 'ak47s', 'lowRiders', 'thugs', 'whores']);
-      for (const tier of input.tiers) {
-        for (const reward of tier.rewards) {
-          if (reward.kind === 'CASH' || reward.kind === 'TURNS') {
-            if (!validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Reward amounts must be positive whole numbers.');
-          } else if (reward.kind === 'ITEM') {
-            if (!itemFields.has(reward.key ?? '') || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid item and a positive whole amount.');
-          } else if (reward.kind === 'PRODUCT') {
-            if (!reward.key || !ruleset.products || !Object.hasOwn(ruleset.products, reward.key) || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid product and a positive whole amount.');
-          } else if (reward.kind === 'FAVOR_ITEM') {
-            if (!reward.key || !ruleset.favors?.[reward.key] || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid favor and a positive whole amount.');
-          } else if (reward.kind === 'CONTACT_REP') {
-            if (!reward.key || !ruleset.contacts || !Object.hasOwn(ruleset.contacts, reward.key) || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a contact in this round and a positive whole amount.');
-          } else if (reward.kind === 'COSMETIC_UNLOCK') {
-            if (!reward.key || !ruleset.cosmetics?.[reward.key]) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a cosmetic in this round ruleset.');
-          }
-        }
-      }
+      const problem = streetPassTiersProblem(ruleset, input.tiers);
+      if (problem) throw AppError.badRequest('INVALID_STREET_PASS', problem);
       const afterPass = { ...pass, tiers: input.tiers };
       const after = await tx.round.update({
         where: { id: roundId },
@@ -413,6 +493,79 @@ export const AdminRoundService = {
         after: after.streetPassOverride,
       });
     }, LIFECYCLE_TRANSACTION);
+  },
+
+  /** The rulesets a round can move to and, given a target, what the move changes and could break. */
+  async rulesetChange(prisma: PrismaClient, roundId: string, rulesetId?: string): Promise<AdminRulesetChangeDto> {
+    const round = await prisma.round.findUnique({ where: { id: roundId } });
+    if (!round) throw AppError.notFound('ROUND_NOT_FOUND', 'That round does not exist.');
+    const from = pinnedRuleset(round);
+    let target: AdminRulesetChangeDto['target'] = null;
+    if (rulesetId) {
+      const to = Object.hasOwn(rulesets, rulesetId) ? rulesets[rulesetId]! : undefined;
+      if (!to) throw AppError.notFound('RULESET_NOT_FOUND', 'That ruleset does not exist.');
+      target = {
+        ruleset: rulesetOption(to),
+        changedCount: from ? AdminRulesetService.view(to.meta.id, from.meta.id).changedCount : null,
+        warnings: rulesetChangeWarnings(round, to),
+      };
+    }
+    return {
+      current: { id: round.rulesetId, version: round.rulesetVersion, available: Boolean(from) },
+      editable: round.status !== 'ENDED' && round.status !== 'ARCHIVED',
+      rulesets: Object.values(rulesets).map(rulesetOption).reverse(),
+      target,
+    };
+  },
+
+  /**
+   * Move an unfinished round onto another ruleset without starting a new one.
+   * Anything rulesetChangeWarnings finds has to be confirmed first. Street Pass
+   * edits move over when they fit the new track, and new turf and lots are laid out.
+   */
+  async changeRuleset(
+    prisma: PrismaClient,
+    actor: AuditActor,
+    roundId: string,
+    input: { rulesetId: string; reason: string; confirm: boolean },
+  ): Promise<AdminRoundDto> {
+    const to = Object.hasOwn(rulesets, input.rulesetId) ? rulesets[input.rulesetId]! : undefined;
+    if (!to) throw AppError.badRequest('UNKNOWN_RULESET', 'Pick a ruleset from the list.', { rulesetId: 'Unknown ruleset.' });
+    const round = await prisma.$transaction(async (tx) => {
+      await lockRound(tx, roundId);
+      const before = await tx.round.findUnique({ where: { id: roundId } });
+      if (!before) throw AppError.notFound('ROUND_NOT_FOUND', 'That round does not exist.');
+      if (before.status === 'ENDED' || before.status === 'ARCHIVED') {
+        throw AppError.conflict('ROUND_FINISHED', `${before.name} has finished, so its ruleset is frozen.`);
+      }
+      if (before.rulesetId === to.meta.id && before.rulesetVersion === to.meta.version) {
+        throw AppError.badRequest('NO_CHANGES', `${before.name} already plays ${to.meta.id}.`);
+      }
+      const warnings = rulesetChangeWarnings(before, to);
+      if (warnings.length && !input.confirm) {
+        throw AppError.conflict('RULESET_CHANGE_UNCONFIRMED', `Confirm the change first. ${warnings.map((warning) => warning.message).join(' ')}`);
+      }
+      const streetPass = carriedStreetPass(before, to);
+      const updated = await tx.round.update({
+        where: { id: before.id },
+        data: {
+          rulesetId: to.meta.id,
+          rulesetVersion: to.meta.version,
+          streetPassOverride: streetPass && streetPass !== 'dropped' ? streetPass as unknown as Prisma.InputJsonValue : Prisma.DbNull,
+        },
+      });
+      await TurfService.ensureRound(tx, updated.id, to);
+      await AdminAuditService.record(tx, actor, {
+        action: 'round.ruleset.change',
+        targetType: 'round',
+        targetId: before.id,
+        reason: input.reason,
+        before,
+        after: { ...updated, confirmedWarnings: warnings.map((warning) => warning.code) },
+      });
+      return updated;
+    }, LIFECYCLE_TRANSACTION);
+    return adminRound(prisma, round);
   },
 
   /** Season checklist action: close every round past its end date now instead of waiting for a visitor. */

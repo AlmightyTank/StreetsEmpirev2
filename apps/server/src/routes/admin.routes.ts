@@ -84,6 +84,13 @@ const updateRoundSchema = z.object({
   registrationOpensAt: isoDate.nullable().optional(),
 }).strict();
 
+const rulesetChangeQuery = z.object({ rulesetId: z.string().trim().min(1).max(64).optional() }).strict();
+const changeRulesetSchema = z.object({
+  reason,
+  rulesetId: z.string().trim().min(1).max(64),
+  confirm: z.boolean().optional(),
+}).strict();
+
 const roundParams = z.object({ roundId: id }).strict();
 const accountParams = z.object({ accountId: id }).strict();
 const playerParams = z.object({ roundPlayerId: id }).strict();
@@ -253,6 +260,18 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const input = parseBody(updateStreetPassSchema, request.body ?? {});
     await AdminRoundService.updateStreetPass(fastify.prisma, request.auth!.account, roundId, input);
     return AdminHealthService.roundHealth(fastify.prisma, roundId);
+  });
+
+  fastify.get('/rounds/:roundId/ruleset-change', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    const { rulesetId } = parseBody(rulesetChangeQuery, request.query ?? {});
+    return AdminRoundService.rulesetChange(fastify.prisma, roundId, rulesetId);
+  });
+
+  fastify.post('/rounds/:roundId/ruleset', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    const input = parseBody(changeRulesetSchema, request.body ?? {});
+    return { round: await AdminRoundService.changeRuleset(fastify.prisma, request.auth!.account, roundId, { ...input, confirm: input.confirm ?? false }) };
   });
 
   fastify.post('/rounds/:roundId/update', async (request) => {
