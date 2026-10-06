@@ -163,18 +163,7 @@ export const ProductMarketService = {
         const economy = productEconomy(ruleset, input.product);
         if (!economy?.pip) throw AppError.badRequest('UNKNOWN_ITEM', 'Pip does not deal that product.', { product: 'Pick a product Pip deals.' });
 
-        if (input.direction === 'buy') {
-          const requiredUnlock = PermanentUnlockService.productPurchaseUnlock(ruleset, input.product);
-          if (requiredUnlock) {
-            const unlockKeys = await PermanentUnlockService.keys(tx, roundPlayerId);
-            if (!unlockKeys.has(requiredUnlock.key)) {
-              throw AppError.conflict(
-                'PRODUCT_PURCHASE_LOCKED',
-                `Complete the required job to unlock ${requiredUnlock.name}.`,
-              );
-            }
-          }
-        }
+        if (input.direction === 'buy') await PermanentUnlockService.assertCanBuyProduct(tx, roundPlayerId, ruleset, input.product);
 
         const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
         const owned = inventory[input.product] ?? 0;
