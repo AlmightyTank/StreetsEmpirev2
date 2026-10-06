@@ -35,4 +35,4 @@ Covered lists: national and local rankings (`RankingEntryDto`) and the player di
 
 ## Next
 
-- Combat reports with each side's item and crew art (planned as Slice G; it changes what battle reports store).
+- Combat reports with each side's item and crew art: done in [Slice G](COSMETIC-ART-SLICE-G.md).
