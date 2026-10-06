@@ -81,3 +81,44 @@ export async function profileShowcase(
     },
   };
 }
+
+export interface ProfileThemeTag {
+  siteTheme: string;
+  siteThemeLabel: string;
+}
+
+/**
+ * Slice F: the site theme each account shares, for lists that show many
+ * players at once (rankings, the player directory). Two queries however long
+ * the list. Only themes the owner shows on their profile and has earned get a
+ * tag; anyone else is simply missing from the map.
+ */
+export async function profileThemeTags(
+  db: Db | PrismaClient,
+  accountIds: readonly string[],
+): Promise<Map<string, ProfileThemeTag>> {
+  const ids = [...new Set(accountIds)];
+  const tags = new Map<string, ProfileThemeTag>();
+  if (!ids.length) return tags;
+  const profiles = await db.accountProfile.findMany({
+    where: { accountId: { in: ids }, activeSiteThemeKey: { not: null }, showThemeOnProfile: true },
+    select: { accountId: true, activeSiteThemeKey: true },
+  });
+  if (!profiles.length) return tags;
+  const unlocks = await db.accountCosmeticUnlock.findMany({
+    where: { accountId: { in: profiles.map((profile) => profile.accountId) }, kind: 'SITE_THEME' },
+    select: { accountId: true, key: true, styleKey: true, title: true },
+  });
+  for (const profile of profiles) {
+    const unlock = unlocks.find((row) => row.accountId === profile.accountId && (row.styleKey ?? row.key) === profile.activeSiteThemeKey);
+    if (unlock && profile.activeSiteThemeKey) {
+      tags.set(profile.accountId, { siteTheme: profile.activeSiteThemeKey, siteThemeLabel: unlock.title });
+    }
+  }
+  return tags;
+}
+
+/** The DTO fields for a list row: the owner's theme tag, or nulls. */
+export function themeTagFields(tag: ProfileThemeTag | undefined): { siteTheme: string | null; siteThemeLabel: string | null } {
+  return { siteTheme: tag?.siteTheme ?? null, siteThemeLabel: tag?.siteThemeLabel ?? null };
+}

@@ -28,6 +28,20 @@
   font-size: 13px;
 }
 
+/* Slice F: a player's theme colours next to their name in lists. The theme
+   class on the dot rescopes the tokens; the attribute selector outranks the
+   theme's own background so the dot stays a plain swatch. */
+.se-theme-swatch[class*="se-site-theme--"] {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-left: 6px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--se-accent) 0 50%, var(--se-accent-2, var(--se-accent)) 50% 100%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 6px rgba(var(--se-accent-rgb, 125, 211, 252), 0.55);
+}
+
 .se-profile-look {
   display: grid;
   gap: 12px;

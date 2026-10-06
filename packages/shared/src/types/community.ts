@@ -189,6 +189,9 @@ export interface RankingEntryDto {
   intelRequired: boolean;
   /** 0.3.0-C. Null for solo players and on rounds without alliances. */
   alliance: AllianceTagDto | null;
+  /** Slice F. The site theme this player shows on their profile; optional for older servers. */
+  siteTheme?: string | null;
+  siteThemeLabel?: string | null;
 }
 
 export interface TerritoryCrewStandingDto {

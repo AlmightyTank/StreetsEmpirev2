@@ -7,6 +7,7 @@ import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
+import { ThemeSwatch } from '../components/ThemeSwatch.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -85,6 +86,7 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
                 <Link to={`/game/players/${row.publicPimpId}`} className="se-playerlink">
                   {row.displayName} <span className="se-muted se-num">#{row.publicPimpId}</span>
                 </Link>
+                <ThemeSwatch theme={row.siteTheme} label={row.siteThemeLabel} />
                 {row.isYou ? <span className="se-you">YOU</span> : null}
               </td>
               {showCity ? <td data-label="City">{row.city.name}</td> : null}

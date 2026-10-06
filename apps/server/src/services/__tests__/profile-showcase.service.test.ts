@@ -1,6 +1,6 @@
 import type { AccountProfile, PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
-import { profileShowcase } from '../profile-showcase.service.js';
+import { profileShowcase, profileThemeTags, themeTagFields } from '../profile-showcase.service.js';
 
 type UnlockRow = { key: string; kind: string; title: string; description: string; rarity: string; styleKey: string | null; awardedAt: Date };
 
@@ -74,5 +74,57 @@ describe('profileShowcase', () => {
       siteThemeLabel: null,
       look: { items: {}, crew: { THUG: 'classic', HOE: 'classic' }, collections: [] },
     });
+  });
+});
+
+describe('profileThemeTags', () => {
+  type ProfileRow = { accountId: string; activeSiteThemeKey: string | null; showThemeOnProfile: boolean };
+
+  function listDb(profiles: ProfileRow[], unlocks: (UnlockRow & { accountId: string })[]) {
+    const calls = { profiles: 0, unlocks: 0 };
+    const db = {
+      accountProfile: {
+        findMany: async (args: { where: { accountId: { in: string[] } } }) => {
+          calls.profiles++;
+          return profiles.filter((row) => args.where.accountId.in.includes(row.accountId) && row.activeSiteThemeKey && row.showThemeOnProfile);
+        },
+      },
+      accountCosmeticUnlock: {
+        findMany: async (args: { where: { accountId: { in: string[] }; kind: string } }) => {
+          calls.unlocks++;
+          return unlocks.filter((row) => args.where.accountId.in.includes(row.accountId) && row.kind === args.where.kind);
+        },
+      },
+    } as unknown as PrismaClient;
+    return { db, calls };
+  }
+
+  it('tags only players who show an earned theme, in two queries for the whole list', async () => {
+    const { db, calls } = listDb(
+      [
+        { accountId: 'shows', activeSiteThemeKey: 'street-pass-s1-night-drive', showThemeOnProfile: true },
+        { accountId: 'hides', activeSiteThemeKey: 'street-pass-s1-night-drive', showThemeOnProfile: false },
+        { accountId: 'unearned', activeSiteThemeKey: 'neon-vice', showThemeOnProfile: true },
+      ],
+      [
+        { ...NIGHT_DRIVE, accountId: 'shows' },
+        { ...NIGHT_DRIVE, accountId: 'hides' },
+      ],
+    );
+
+    const tags = await profileThemeTags(db, ['shows', 'hides', 'unearned', 'plain', 'shows']);
+
+    expect([...tags.entries()]).toEqual([
+      ['shows', { siteTheme: 'street-pass-s1-night-drive', siteThemeLabel: 'Night Drive · Season 1' }],
+    ]);
+    expect(calls).toEqual({ profiles: 1, unlocks: 1 });
+    expect(themeTagFields(tags.get('plain'))).toEqual({ siteTheme: null, siteThemeLabel: null });
+  });
+
+  it('makes no queries for an empty list', async () => {
+    const { db, calls } = listDb([], []);
+
+    expect((await profileThemeTags(db, [])).size).toBe(0);
+    expect(calls).toEqual({ profiles: 0, unlocks: 0 });
   });
 });

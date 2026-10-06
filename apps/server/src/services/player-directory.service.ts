@@ -7,6 +7,7 @@ import {
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { allianceTagDto } from './alliance.service.js';
+import { profileThemeTags, themeTagFields } from './profile-showcase.service.js';
 
 const ONLINE_MS = 5 * 60 * 1000;
 const RECENT_MS = 60 * 60 * 1000;
@@ -18,6 +19,7 @@ const ENCOUNTER_LIMIT = 250;
 
 const directorySelect = {
   id: true,
+  accountId: true,
   publicPimpId: true,
   displayName: true,
   cityId: true,
@@ -307,7 +309,10 @@ export const PlayerDirectoryService = {
       });
     }
 
-    const rankByWorth = await ranksForRows(prisma, owner.roundId, rows);
+    const [rankByWorth, themeTags] = await Promise.all([
+      ranksForRows(prisma, owner.roundId, rows),
+      profileThemeTags(prisma, rows.map((row) => row.accountId)),
+    ]);
     const contactIds = new Set(contacts.map((row) => row.targetId));
 
     return {
@@ -343,6 +348,7 @@ export const PlayerDirectoryService = {
         activity: activityBand(row.lastActiveAt, now),
         isYou: row.id === owner.id,
         isContact: contactIds.has(row.id),
+        ...themeTagFields(themeTags.get(row.accountId)),
       })),
     };
   },

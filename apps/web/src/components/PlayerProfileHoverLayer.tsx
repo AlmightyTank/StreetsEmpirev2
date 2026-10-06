@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import type { PublicPlayerProfileDto } from '@streets/shared';
-import { formatCents, formatNumber } from '@streets/shared';
+import { CREW_COSMETIC_KEYS, formatCents, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
+import { ItemTile } from './ItemTile.js';
+import { hasProfileLook } from './ProfileLook.js';
 import '../styles/profile-hover.css';
 
 type Target = { id: number; anchor: HTMLAnchorElement; label: string };
@@ -11,6 +13,8 @@ type Position = { top: number; left: number; width: number };
 const cache = new Map<number, Promise<PublicPlayerProfileDto>>();
 const CARD_WIDTH = 330;
 const CARD_HEIGHT = 370;
+/** Slice F: the hover card's look strip, a gun and the ride (plus both crew) in the owner's art. */
+const HOVER_LOOK_ITEMS = ['AK47', 'LOW_RIDER'] as const;
 
 function getProfile(id: number): Promise<PublicPlayerProfileDto> {
   let request = cache.get(id);
@@ -224,7 +228,8 @@ export function PlayerProfileHoverLayer() {
     <aside
       ref={cardRef}
       id="se-player-profile-hover-card"
-      className={`se-profile-hover-card${profile ? ` se-profile-effect se-profile-effect--${profile.cosmetics.effect}` : ''}`}
+      className={`se-profile-hover-card${profile ? ` se-profile-effect se-profile-effect--${profile.cosmetics.effect}` : ''}${profile?.cosmetics.siteTheme ? ` se-site-theme--${profile.cosmetics.siteTheme}` : ''}`}
+      data-theme={profile?.cosmetics.siteTheme ?? 'none'}
       data-accent={profile?.cosmetics.accent ?? 'default'}
       data-framed={profile?.cosmetics.frame ? 'true' : 'false'}
       data-frame={profile?.cosmetics.frame ?? 'none'}
@@ -293,9 +298,20 @@ export function PlayerProfileHoverLayer() {
               ))}
             </div>
           ) : null}
-          {profile.cosmetics.frame || profile.cosmetics.accent !== 'default' || profile.cosmetics.effect !== 'none' ? (
+          {hasProfileLook(profile.look) ? (
+            <div className="se-profile-hover-card__look" aria-label="Item and crew look">
+              {HOVER_LOOK_ITEMS.map((key) => (
+                <ItemTile key={key} item={key} size="sm" label={false} cosmeticStyle={profile.look!.items[key] ?? 'classic'} />
+              ))}
+              {CREW_COSMETIC_KEYS.map((key) => (
+                <ItemTile key={key} item={key} size="sm" label={false} cosmeticStyle={profile.look!.crew[key]} />
+              ))}
+            </div>
+          ) : null}
+          {profile.cosmetics.frame || profile.cosmetics.accent !== 'default' || profile.cosmetics.effect !== 'none' || profile.cosmetics.siteThemeLabel ? (
             <div className="se-profile-hover-card__effects">
               <small>PROFILE EFFECTS</small>
+              {profile.cosmetics.siteThemeLabel ? <span>{profile.cosmetics.siteThemeLabel} theme</span> : null}
               {profile.cosmetics.frame ? <span>{profile.cosmetics.frame.replaceAll('-', ' ')}</span> : null}
               {profile.cosmetics.accent !== 'default' ? <span>{profile.cosmetics.accent.replaceAll('-', ' ')} accent</span> : null}
               {profile.cosmetics.effect !== 'none' ? <span>{profile.cosmetics.effect.replaceAll('-', ' ')}</span> : null}
