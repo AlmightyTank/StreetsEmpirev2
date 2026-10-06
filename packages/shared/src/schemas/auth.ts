@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isValidTimeZone, NOTIFICATION_CATEGORIES } from '../notifications.js';
+import { CUSTOMIZABLE_ITEM_KEYS } from '../cosmetics.js';
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
@@ -156,6 +157,36 @@ export const profileImageUrlSchema = z
   .union([z.literal(''), profileImageUrlValue])
   .transform((value) => value || null);
 
+export const itemCosmeticStyleSchema = z.enum([
+  'classic',
+  'blackout',
+  'crimson',
+  'gold',
+  'ice',
+  'violet',
+]);
+
+const customizableItemKeys = new Set<string>(CUSTOMIZABLE_ITEM_KEYS);
+export const itemCosmeticLoadoutSchema = z
+  .record(z.string().trim().min(1).max(40), itemCosmeticStyleSchema)
+  .superRefine((value, ctx) => {
+    for (const key of Object.keys(value)) {
+      if (!customizableItemKeys.has(key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: 'That item does not support a custom skin.',
+        });
+      }
+    }
+  })
+  .default({});
+
+export const crewCosmeticLoadoutSchema = z.object({
+  THUG: itemCosmeticStyleSchema.default('classic'),
+  HOE: itemCosmeticStyleSchema.default('classic'),
+}).strict().default({ THUG: 'classic', HOE: 'classic' });
+
 export const updateAccountProfileSettingsSchema = z.object({
   activeTitleKey: z.string().trim().min(1).max(80).nullable(),
   titlePlacement: z.enum(['prefix', 'suffix']).default('prefix'),
@@ -167,6 +198,8 @@ export const updateAccountProfileSettingsSchema = z.object({
   profileEffect: profileEffectSchema.optional(),
   activeProfileFrameKey: z.string().trim().min(1).max(80).nullable(),
   activeSiteThemeKey: z.string().trim().min(1).max(80).nullable().default(null),
+  itemCosmetics: itemCosmeticLoadoutSchema,
+  crewCosmetics: crewCosmeticLoadoutSchema,
   featuredBadgeKeys: z.array(z.string().trim().min(1).max(80)).max(6),
   profileAccent: profileAccentSchema,
   uiDensity: uiDensitySchema,

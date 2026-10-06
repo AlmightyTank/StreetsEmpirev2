@@ -1,5 +1,6 @@
 import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
 import type { LawSummaryDto } from './law.js';
+import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
 /**
  * The contract between apps/server and apps/web.
  *
@@ -225,6 +226,10 @@ export interface AccountProfileSettingsDto {
   profileEffect: ProfileEffect;
   activeProfileFrameKey: string | null;
   activeSiteThemeKey: string | null;
+  /** Player-selected skin per item. Optional for backward-compatible clients. */
+  itemCosmetics?: ItemCosmeticLoadout;
+  /** Whole-crew visual style for thugs and hoes. Optional for backward-compatible clients. */
+  crewCosmetics?: CrewCosmeticLoadout;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;
@@ -242,6 +247,9 @@ export interface AccountProfileSettingsResponseDto {
     frames: CosmeticOptionDto[];
     themes: CosmeticOptionDto[];
     effects: CosmeticOptionDto[];
+    /** Universal item/crew skins. Optional so older fixture payloads stay valid. */
+    itemStyles?: CosmeticOptionDto[];
+    crewStyles?: CosmeticOptionDto[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];

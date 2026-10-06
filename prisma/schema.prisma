@@ -194,6 +194,10 @@ model AccountProfile {
   profileEffect         String  @default("none")
   activeProfileFrameKey String?
   activeSiteThemeKey    String?
+  /// Player-selected visual skin per inventory item key. Cosmetic only.
+  itemCosmetics          Json    @default("{}")
+  /// THUG / HOE visual styles. Crew is aggregate inventory, so the style applies to the whole type.
+  crewCosmetics          Json    @default("{}")
   featuredBadgeKeys     Json    @default("[]")
   profileAccent         String  @default("default")
   uiDensity             String  @default("comfortable")

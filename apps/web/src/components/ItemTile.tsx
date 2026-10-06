@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
+import type { CustomizableItemKey, ItemCosmeticStyleKey } from '@streets/shared';
 import { hasItemArt, ITEM_ART, itemArtUrl, type ItemArtKey } from '../items/itemArt.js';
+import { useSession } from '../stores/session.js';
 
 /**
  * A small picture ahead of a list row's label. `slot` reserves room for a
@@ -41,6 +43,7 @@ export function ItemTile({
   label = true,
   className,
   title,
+  cosmeticStyle,
 }: {
   item: ItemArtKey;
   quantity?: number;
@@ -51,10 +54,17 @@ export function ItemTile({
   className?: string;
   /** Tooltip; defaults to the item name and count. */
   title?: string;
+  /** Settings preview or authored override. Otherwise the signed-in player's loadout is used. */
+  cosmeticStyle?: ItemCosmeticStyleKey;
 }) {
   const art = ITEM_ART[item];
+  const profileSettings = useSession((state) => state.profileSettings);
+  const accountStyle = item === 'THUG' || item === 'HOE'
+    ? profileSettings.crewCosmetics?.[item] ?? 'classic'
+    : profileSettings.itemCosmetics?.[item as CustomizableItemKey] ?? 'classic';
+  const skin = cosmeticStyle ?? accountStyle;
   const [w, h] = art.cells;
-  const classes = ['se-item-tile', `se-item-tile--${art.rarity.toLowerCase()}`, `se-item-tile--${size}`, w > 1 ? 'se-item-tile--wide' : null, className]
+  const classes = ['se-item-tile', `se-item-tile--skin-${skin}`, `se-item-tile--${art.rarity.toLowerCase()}`, `se-item-tile--${size}`, w > 1 ? 'se-item-tile--wide' : null, className]
     .filter(Boolean)
     .join(' ');
 

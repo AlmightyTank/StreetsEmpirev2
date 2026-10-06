@@ -16,6 +16,42 @@ describe('account profile settings schema', () => {
 
     expect(result.activeSiteThemeKey).toBeNull();
     expect(result.titlePlacement).toBe('prefix');
+    expect(result.itemCosmetics).toEqual({});
+    expect(result.crewCosmetics).toEqual({ THUG: 'classic', HOE: 'classic' });
+  });
+
+  it('accepts item and crew cosmetic loadouts', () => {
+    const result = updateAccountProfileSettingsSchema.parse({
+      activeTitleKey: null,
+      activeProfileFrameKey: null,
+      featuredBadgeKeys: [],
+      profileAccent: 'default',
+      uiDensity: 'comfortable',
+      reducedMotion: false,
+      moneyFormat: 'full',
+      defaultLanding: 'game',
+      itemCosmetics: { AK47: 'gold', CRACK: 'violet' },
+      crewCosmetics: { THUG: 'blackout', HOE: 'ice' },
+    });
+
+    expect(result.itemCosmetics).toEqual({ AK47: 'gold', CRACK: 'violet' });
+    expect(result.crewCosmetics).toEqual({ THUG: 'blackout', HOE: 'ice' });
+  });
+
+  it('rejects cosmetics for item keys outside the customizable catalog', () => {
+    const result = updateAccountProfileSettingsSchema.safeParse({
+      activeTitleKey: null,
+      activeProfileFrameKey: null,
+      featuredBadgeKeys: [],
+      profileAccent: 'default',
+      uiDensity: 'comfortable',
+      reducedMotion: false,
+      moneyFormat: 'full',
+      defaultLanding: 'game',
+      itemCosmetics: { CASH: 'gold' },
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it('accepts a selected site theme presentation key', () => {
