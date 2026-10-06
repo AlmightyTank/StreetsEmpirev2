@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="512" viewBox="0 0 1024 512"><defs>
+<linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd875"/><stop offset=".24" stop-color="#b98219"/><stop offset=".58" stop-color="#e3b94c"/><stop offset="1" stop-color="#66430c"/></linearGradient>
+<linearGradient id="dark" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#e3b94c"/><stop offset="1" stop-color="#17110c"/></linearGradient>
+<linearGradient id="shine" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#ffcf57" stop-opacity="0"/><stop offset=".48" stop-color="#ffcf57" stop-opacity=".65"/><stop offset=".55" stop-color="white" stop-opacity=".72"/><stop offset=".62" stop-color="#ffcf57" stop-opacity=".25"/><stop offset="1" stop-color="#ffcf57" stop-opacity="0"/></linearGradient>
+<filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation="8"/><feOffset dy="10"/><feComponentTransfer><feFuncA type="linear" slope=".55"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<pattern id="engrave" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M2 16 Q8 4 16 16 T30 16 M16 2 Q4 8 16 16 T16 30" fill="none" stroke="#5a3505" stroke-opacity=".65" stroke-width="2"/></pattern>
+</defs><g filter="url(#shadow)" stroke="#080b0d" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"><path d="M101 225 H725 L884 205 L943 230 L908 258 L725 254 H101 Z" fill="url(#metal)"/>
+<path d="M113 228 H704 V252 H113 Z" fill="url(#engrave)" stroke="none"/>
+<path d="M112 249 L36 329 L11 310 L69 247 Z" fill="#4a260d"/>
+<path d="M208 253 L263 253 L235 370 L173 370 Z" fill="#342116"/>
+<path d="M524 239 h181 v78 H524 Z" fill="url(#engrave)"/>
+<path d="M346 183 h91 v27 h-91z" fill="#17110c"/>
+<circle cx="754" cy="241" r="8" fill="#ffd875" stroke="none"/>
+<path d="M151 235 h530" stroke="url(#shine)" stroke-width="6"/></g></svg>
