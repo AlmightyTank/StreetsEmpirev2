@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { isValidTimeZone, NOTIFICATION_CATEGORIES } from '../notifications.js';
-import { CUSTOMIZABLE_ITEM_KEYS, DEFAULT_CREW_COSMETICS } from '../cosmetics.js';
+import { CUSTOMIZABLE_ITEM_KEYS } from '../cosmetics.js';
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
@@ -185,7 +185,7 @@ export const itemCosmeticLoadoutSchema = z
 export const crewCosmeticLoadoutSchema = z.object({
   THUG: itemCosmeticStyleSchema.default('classic'),
   HOE: itemCosmeticStyleSchema.default('classic'),
-}).strict().default(DEFAULT_CREW_COSMETICS);
+}).strict().default({ THUG: 'classic', HOE: 'classic' });
 
 export const updateAccountProfileSettingsSchema = z.object({
   activeTitleKey: z.string().trim().min(1).max(80).nullable(),
