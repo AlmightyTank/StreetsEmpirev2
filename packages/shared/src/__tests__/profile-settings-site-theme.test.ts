@@ -38,7 +38,30 @@ describe('account profile settings schema', () => {
     expect(result.crewCosmetics).toEqual({ THUG: 'classic', HOE: 'classic' });
   });
 
-  it('rejects planned artwork until that collection is released', () => {
+  it('accepts every released Slice A collection', () => {
+    const itemCosmetics = {
+      PISTOL: 'midnight-ops',
+      SHOTGUN: 'urban-ghost',
+      TEK9: 'cartel-gold',
+      AK47: 'midnight-ops',
+      LOW_RIDER: 'cartel-gold',
+    };
+    const result = updateAccountProfileSettingsSchema.parse({
+      activeTitleKey: null,
+      activeProfileFrameKey: null,
+      featuredBadgeKeys: [],
+      profileAccent: 'default',
+      uiDensity: 'comfortable',
+      reducedMotion: false,
+      moneyFormat: 'full',
+      defaultLanding: 'game',
+      itemCosmetics,
+    });
+
+    expect(result.itemCosmetics).toEqual(itemCosmetics);
+  });
+
+  it('rejects artwork keys that are not in the catalog', () => {
     const result = updateAccountProfileSettingsSchema.safeParse({
       activeTitleKey: null,
       activeProfileFrameKey: null,
@@ -48,7 +71,7 @@ describe('account profile settings schema', () => {
       reducedMotion: false,
       moneyFormat: 'full',
       defaultLanding: 'game',
-      itemCosmetics: { AK47: 'midnight-ops' },
+      itemCosmetics: { AK47: 'gilded-ghost' },
     });
 
     expect(result.success).toBe(false);

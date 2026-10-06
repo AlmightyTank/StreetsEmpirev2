@@ -2,13 +2,13 @@ import type { ItemCosmeticStyleKey } from '@streets/shared';
 import { ITEM_ART, type ItemArtKey } from './itemArt.js';
 
 /**
- * Exact Slice A output paths for the authored art pass.
+ * Slice A authored art, relative to public/items/.
  *
- * These files are intentionally not activated until the artwork itself is in
- * public/items/cosmetics/. Once a collection is complete, copy its entries into
- * ITEM_COSMETIC_ART below and mark that shared collection released.
+ * Rendered from the SVG masters in apps/web/art/cosmetics/ by
+ * scripts/art/render-cosmetic-art.mjs. Every path here must exist on disk;
+ * itemCosmeticArt.test.ts checks the files and their canvas sizes.
  */
-export const PLANNED_SLICE_A_ART_FILES = {
+export const SLICE_A_ART_FILES = {
   PISTOL: {
     'midnight-ops': 'cosmetics/weapons/pistol-midnight-ops.webp',
     'urban-ghost': 'cosmetics/weapons/pistol-urban-ghost.webp',
@@ -44,15 +44,16 @@ export const PLANNED_SLICE_A_ART_FILES = {
  * a broken image.
  */
 const ITEM_COSMETIC_ART = {
-  PISTOL: { classic: 'pistol.svg' },
-  SHOTGUN: { classic: 'shotgun.svg' },
-  TEK9: { classic: 'tek9.svg' },
-  AK47: { classic: 'ak47.svg' },
-  LOW_RIDER: { classic: 'low-rider.svg' },
+  PISTOL: { classic: 'pistol.svg', ...SLICE_A_ART_FILES.PISTOL },
+  SHOTGUN: { classic: 'shotgun.svg', ...SLICE_A_ART_FILES.SHOTGUN },
+  TEK9: { classic: 'tek9.svg', ...SLICE_A_ART_FILES.TEK9 },
+  AK47: { classic: 'ak47.svg', ...SLICE_A_ART_FILES.AK47 },
+  LOW_RIDER: { classic: 'low-rider.svg', ...SLICE_A_ART_FILES.LOW_RIDER },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
 export function itemCosmeticArtFile(item: ItemArtKey, style: ItemCosmeticStyleKey): string {
-  const variants = ITEM_COSMETIC_ART[item] as Partial<Record<ItemCosmeticStyleKey, string>> | undefined;
+  const registry: Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>> = ITEM_COSMETIC_ART;
+  const variants = registry[item];
   return variants?.[style] ?? variants?.classic ?? ITEM_ART[item].file;
 }
 

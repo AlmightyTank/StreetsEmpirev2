@@ -16,19 +16,19 @@ export const ITEM_COSMETIC_STYLES = [
     key: 'midnight-ops',
     label: 'Midnight Ops',
     description: 'A dark premium tactical build with low-reflective hardware and street-ready details.',
-    released: false,
+    released: true,
   },
   {
     key: 'urban-ghost',
     label: 'Urban Ghost',
     description: 'Graphite, concrete and pale urban camouflage with a clean blueprint finish.',
-    released: false,
+    released: true,
   },
   {
     key: 'cartel-gold',
     label: 'Cartel Gold',
     description: 'Engraved metal, polished trim and high-roller custom work.',
-    released: false,
+    released: true,
   },
 ] as const;
 
