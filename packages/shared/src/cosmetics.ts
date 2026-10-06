@@ -1,9 +1,10 @@
 /**
  * Account-level cosmetic loadouts.
  *
- * Slice A ships the weapon/ride pipeline first. Every non-classic weapon/ride style
- * resolves to its own authored image; CSS color filters are not part of the contract.
- * Products/supplies join this catalog in Slice B and crew outfit keys in Slice C.
+ * One style catalog covers every customizable item: Slice A weapons/rides and
+ * Slice B products/supplies. Every non-classic style resolves to its own
+ * authored image; CSS color filters are not part of the contract. Crew outfit
+ * keys arrive separately in Slice C.
  */
 export const ITEM_COSMETIC_STYLES = [
   {
@@ -15,19 +16,19 @@ export const ITEM_COSMETIC_STYLES = [
   {
     key: 'midnight-ops',
     label: 'Midnight Ops',
-    description: 'A dark premium tactical build with low-reflective hardware and street-ready details.',
+    description: 'Blacked-out tactical builds and matte black packaging with teal stencil marks.',
     released: true,
   },
   {
     key: 'urban-ghost',
     label: 'Urban Ghost',
-    description: 'Graphite, concrete and pale urban camouflage with a clean blueprint finish.',
+    description: 'Graphite, concrete and pale urban camouflage on hardware and packaging alike.',
     released: true,
   },
   {
     key: 'cartel-gold',
     label: 'Cartel Gold',
-    description: 'Engraved metal, polished trim and high-roller custom work.',
+    description: 'Engraved metal, polished gold trim and high-roller presentation.',
     released: true,
   },
 ] as const;
@@ -36,13 +37,37 @@ export type ItemCosmeticStyleKey = typeof ITEM_COSMETIC_STYLES[number]['key'];
 export const ITEM_COSMETIC_STYLE_KEYS = ITEM_COSMETIC_STYLES.map((style) => style.key) as readonly ItemCosmeticStyleKey[];
 export const RELEASED_ITEM_COSMETIC_STYLES = ITEM_COSMETIC_STYLES.filter((style) => style.released);
 
-/** Slice A: only weapons and the Low-Rider can be reskinned. */
-export const CUSTOMIZABLE_ITEM_KEYS = [
+/** Slice A: weapons and the Low-Rider. */
+export const WEAPON_RIDE_COSMETIC_KEYS = [
   'PISTOL',
   'SHOTGUN',
   'TEK9',
   'AK47',
   'LOW_RIDER',
+] as const;
+
+/** Slice B: products and Corner Store supplies get redrawn packaging. */
+export const PRODUCT_SUPPLY_COSMETIC_KEYS = [
+  'CRACK',
+  'WEED',
+  'ECSTASY',
+  'METH',
+  'COCAINE',
+  'HEROIN',
+  'CONDOM',
+  'MEDICINE',
+  'BEER',
+] as const;
+
+export const CUSTOMIZABLE_ITEM_KEYS = [
+  ...WEAPON_RIDE_COSMETIC_KEYS,
+  ...PRODUCT_SUPPLY_COSMETIC_KEYS,
+] as const;
+
+/** Locker sections, in display order. */
+export const ITEM_COSMETIC_GROUPS = [
+  { key: 'weapons-rides', label: 'Weapons & rides', items: WEAPON_RIDE_COSMETIC_KEYS },
+  { key: 'products-supplies', label: 'Products & supplies', items: PRODUCT_SUPPLY_COSMETIC_KEYS },
 ] as const;
 
 export type CustomizableItemKey = typeof CUSTOMIZABLE_ITEM_KEYS[number];

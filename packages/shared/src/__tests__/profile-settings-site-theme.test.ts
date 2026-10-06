@@ -77,7 +77,24 @@ describe('account profile settings schema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects cosmetics for items outside Slice A', () => {
+  it('accepts Slice B product and supply packaging', () => {
+    const itemCosmetics = { CRACK: 'cartel-gold', WEED: 'urban-ghost', BEER: 'midnight-ops' };
+    const result = updateAccountProfileSettingsSchema.parse({
+      activeTitleKey: null,
+      activeProfileFrameKey: null,
+      featuredBadgeKeys: [],
+      profileAccent: 'default',
+      uiDensity: 'comfortable',
+      reducedMotion: false,
+      moneyFormat: 'full',
+      defaultLanding: 'game',
+      itemCosmetics,
+    });
+
+    expect(result.itemCosmetics).toEqual(itemCosmetics);
+  });
+
+  it('rejects cosmetics for items without authored variants', () => {
     const result = updateAccountProfileSettingsSchema.safeParse({
       activeTitleKey: null,
       activeProfileFrameKey: null,
@@ -87,7 +104,7 @@ describe('account profile settings schema', () => {
       reducedMotion: false,
       moneyFormat: 'full',
       defaultLanding: 'game',
-      itemCosmetics: { CRACK: 'classic' },
+      itemCosmetics: { CASH: 'classic' },
     });
 
     expect(result.success).toBe(false);

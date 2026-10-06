@@ -1,8 +1,16 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CUSTOMIZABLE_ITEM_KEYS, ITEM_COSMETIC_STYLE_KEYS, RELEASED_ITEM_COSMETIC_STYLES, type ItemCosmeticStyleKey } from '@streets/shared';
-import { itemCosmeticArtFile, itemCosmeticArtUrl, SLICE_A_ART_FILES } from './itemCosmeticArt.js';
+import {
+  CUSTOMIZABLE_ITEM_KEYS,
+  ITEM_COSMETIC_GROUPS,
+  ITEM_COSMETIC_STYLE_KEYS,
+  PRODUCT_SUPPLY_COSMETIC_KEYS,
+  RELEASED_ITEM_COSMETIC_STYLES,
+  WEAPON_RIDE_COSMETIC_KEYS,
+  type ItemCosmeticStyleKey,
+} from '@streets/shared';
+import { AUTHORED_ITEM_ART_FILES, itemCosmeticArtFile, itemCosmeticArtUrl, SLICE_A_ART_FILES, SLICE_B_ART_FILES } from './itemCosmeticArt.js';
 import { ITEM_ART } from './itemArt.js';
 
 const ITEMS_DIR = path.resolve(import.meta.dirname, '../../public/items');
@@ -25,16 +33,22 @@ function readLosslessWebp(file: string) {
 }
 
 describe('item cosmetic art resolver', () => {
-  it('keeps every Slice A item on its classic authored asset for the Classic style', () => {
+  it('keeps every customizable item on its classic authored asset for the Classic style', () => {
     for (const key of CUSTOMIZABLE_ITEM_KEYS) {
       expect(itemCosmeticArtFile(key, 'classic')).toBe(ITEM_ART[key].file);
     }
   });
 
-  it('locks three authored files per Slice A item', () => {
+  it('locks three authored files per customizable item, split by slice', () => {
+    expect(Object.keys(SLICE_A_ART_FILES)).toEqual([...WEAPON_RIDE_COSMETIC_KEYS]);
+    expect(Object.keys(SLICE_B_ART_FILES)).toEqual([...PRODUCT_SUPPLY_COSMETIC_KEYS]);
     for (const key of CUSTOMIZABLE_ITEM_KEYS) {
-      expect(Object.keys(SLICE_A_ART_FILES[key])).toEqual([...AUTHORED_STYLES]);
+      expect(Object.keys(AUTHORED_ITEM_ART_FILES[key])).toEqual([...AUTHORED_STYLES]);
     }
+  });
+
+  it('shows every customizable item in exactly one locker section', () => {
+    expect(ITEM_COSMETIC_GROUPS.flatMap((group) => group.items)).toEqual([...CUSTOMIZABLE_ITEM_KEYS]);
   });
 
   it('releases every collection that has authored art', () => {
@@ -44,27 +58,27 @@ describe('item cosmetic art resolver', () => {
   it('resolves every released style to its own explicit asset', () => {
     for (const key of CUSTOMIZABLE_ITEM_KEYS) {
       for (const style of AUTHORED_STYLES) {
-        expect(itemCosmeticArtFile(key, style)).toBe(SLICE_A_ART_FILES[key][style]);
-        expect(itemCosmeticArtUrl(key, style)).toBe(`/items/${SLICE_A_ART_FILES[key][style]}`);
+        expect(itemCosmeticArtFile(key, style)).toBe(AUTHORED_ITEM_ART_FILES[key][style]);
+        expect(itemCosmeticArtUrl(key, style)).toBe(`/items/${AUTHORED_ITEM_ART_FILES[key][style]}`);
       }
     }
   });
 
   it('falls back to Classic for unknown styles and items without cosmetic art', () => {
     expect(itemCosmeticArtFile('AK47', 'gilded-ghost' as ItemCosmeticStyleKey)).toBe(ITEM_ART.AK47.file);
-    expect(itemCosmeticArtFile('BEER', 'cartel-gold')).toBe(ITEM_ART.BEER.file);
+    expect(itemCosmeticArtFile('CASH', 'cartel-gold')).toBe(ITEM_ART.CASH.file);
     expect(itemCosmeticArtFile('THUG', 'midnight-ops')).toBe(ITEM_ART.THUG.file);
   });
 
-  it('ships every authored file as a lossless WebP with alpha on the Slice A canvas', () => {
+  it('ships every authored file as a lossless WebP with alpha on a 512px-per-cell canvas', () => {
     for (const key of CUSTOMIZABLE_ITEM_KEYS) {
       for (const style of AUTHORED_STYLES) {
-        const file = path.join(ITEMS_DIR, SLICE_A_ART_FILES[key][style]);
+        const file = path.join(ITEMS_DIR, AUTHORED_ITEM_ART_FILES[key][style]);
         expect(existsSync(file), file).toBe(true);
         const header = readLosslessWebp(file);
         expect(header, file).toEqual({
-          width: key === 'PISTOL' ? 512 : 1024,
-          height: 512,
+          width: 512 * ITEM_ART[key].cells[0],
+          height: 512 * ITEM_ART[key].cells[1],
           alpha: true,
         });
       }
@@ -72,7 +86,7 @@ describe('item cosmetic art resolver', () => {
   });
 
   it('keeps a source master for every authored file and no orphan renders', () => {
-    const expected = CUSTOMIZABLE_ITEM_KEYS.flatMap((key) => AUTHORED_STYLES.map((style) => SLICE_A_ART_FILES[key][style]))
+    const expected = CUSTOMIZABLE_ITEM_KEYS.flatMap((key) => AUTHORED_STYLES.map((style) => AUTHORED_ITEM_ART_FILES[key][style]))
       .map((file) => file.replace(/^cosmetics\//, ''))
       .sort();
     const list = (dir: string, ext: string) => readdirSync(dir, { withFileTypes: true })
