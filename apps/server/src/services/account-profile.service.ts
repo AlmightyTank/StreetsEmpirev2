@@ -1,11 +1,15 @@
 import type { AccountProfile, PrismaClient } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
+import { CUSTOMIZABLE_ITEM_KEYS, DEFAULT_CREW_COSMETICS, ITEM_COSMETIC_STYLES, ITEM_COSMETIC_STYLE_KEYS } from '@streets/shared';
 import type {
   AccountProfileSettingsDto,
   AccountProfileSettingsResponseDto,
   BadgeCosmeticOptionDto,
   CosmeticOptionDto,
+  CrewCosmeticLoadout,
   DefaultLanding,
+  ItemCosmeticLoadout,
+  ItemCosmeticStyleKey,
   MoneyFormat,
   ProfileAccent,
   ProfileEffect,
@@ -24,6 +28,42 @@ import { isPermanentAward } from './profile-badges.js';
 import { profileTitleForAward } from './profile-titles.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
+
+export const ITEM_COSMETIC_STYLE_OPTIONS: CosmeticOptionDto[] = ITEM_COSMETIC_STYLES.map((style) => ({
+  key: style.key,
+  label: style.label,
+  description: style.description,
+}));
+
+const itemCosmeticStyleKeys = new Set<string>(ITEM_COSMETIC_STYLE_KEYS);
+
+function stringRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  );
+}
+
+function itemCosmeticLoadout(value: unknown): ItemCosmeticLoadout {
+  const raw = stringRecord(value);
+  const loadout: ItemCosmeticLoadout = {};
+  for (const key of CUSTOMIZABLE_ITEM_KEYS) {
+    const style = raw[key];
+    if (style && itemCosmeticStyleKeys.has(style)) loadout[key] = style as ItemCosmeticStyleKey;
+  }
+  return loadout;
+}
+
+function crewCosmeticLoadout(value: unknown): CrewCosmeticLoadout {
+  const raw = stringRecord(value);
+  const style = (key: keyof CrewCosmeticLoadout): ItemCosmeticStyleKey => {
+    const candidate = raw[key];
+    return candidate && itemCosmeticStyleKeys.has(candidate)
+      ? candidate as ItemCosmeticStyleKey
+      : DEFAULT_CREW_COSMETICS[key];
+  };
+  return { THUG: style('THUG'), HOE: style('HOE') };
+}
 
 const honorificTitles: BadgeCosmeticOptionDto[] = [
   { key: 'honorific-sir', label: 'Sir', description: 'A classic street honorific.', rarity: 'common', permanent: true },
@@ -175,6 +215,8 @@ function toSettingsDto(
     profileEffect,
     activeProfileFrameKey,
     activeSiteThemeKey,
+    itemCosmetics: itemCosmeticLoadout(profile?.itemCosmetics),
+    crewCosmetics: crewCosmeticLoadout(profile?.crewCosmetics),
     featuredBadgeKeys,
     profileAccent,
     uiDensity,
@@ -259,6 +301,8 @@ export const AccountProfileService = {
         frames: appearance.frames,
         themes: appearance.themes,
         effects: PROFILE_EFFECTS,
+        itemStyles: ITEM_COSMETIC_STYLE_OPTIONS,
+        crewStyles: ITEM_COSMETIC_STYLE_OPTIONS,
         densities: UI_DENSITIES,
         moneyFormats: MONEY_FORMATS,
         defaultLandings: DEFAULT_LANDINGS,
@@ -337,6 +381,8 @@ export const AccountProfileService = {
         profileEffect: profileEffect ?? 'none',
         activeProfileFrameKey,
         activeSiteThemeKey,
+        itemCosmetics: input.itemCosmetics ?? {},
+        crewCosmetics: input.crewCosmetics ?? DEFAULT_CREW_COSMETICS,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
@@ -354,6 +400,8 @@ export const AccountProfileService = {
         ...(profileEffect !== undefined ? { profileEffect } : {}),
         activeProfileFrameKey,
         activeSiteThemeKey,
+        itemCosmetics: input.itemCosmetics ?? {},
+        crewCosmetics: input.crewCosmetics ?? DEFAULT_CREW_COSMETICS,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
