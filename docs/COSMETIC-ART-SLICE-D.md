@@ -42,6 +42,10 @@ Each collection has its own pass-tile art, `apps/web/public/items/street-pass-s1
 - `itemCosmeticArt.test.ts`: every non-classic collection is paid by the Season 1 pass.
 - `street-pass.test.ts`, `reward-grant.integration.test.ts`, `street-pass.integration.test.ts`: Season 1 now carries ten cosmetics.
 
+## Showing them off
+
+Visitors see an owner's theme and collections on their public profile; see [Slice E](COSMETIC-ART-SLICE-E.md).
+
 ## Future seasons
 
 A later pass can re-award a collection (the unlock upsert is a no-op for owners) or introduce a new collection: add its art (Slices A–C pipeline), add it to `ITEM_COSMETIC_STYLES`, and give it an `ITEM_COLLECTION` cosmetic on that season's track.
