@@ -95,6 +95,8 @@ export type ActivityType =
   | 'CASE_STAGE_UP'
   /** 1.4.0-B. Standing with a faction reached a new tier. */
   | 'FACTION_TIER_UP'
+  /** 1.4.0-D. An early warning from a faction the player is Trusted with. */
+  | 'FACTION_WARNING'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'

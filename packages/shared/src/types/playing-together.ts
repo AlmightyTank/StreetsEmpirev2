@@ -562,6 +562,8 @@ export interface CityTurfDto {
     isYours: boolean;
   } | null;
   presenceRequired: number;
+  /** 1.4.0-D. The Kings' Connected cut in the beer and product every corner burns. */
+  upkeepDiscount?: { factionKey: string; factionName: string; percent: number };
   postTurnCost: number;
   pullTurnCost: number;
   pushTurnCost: number;

@@ -449,8 +449,18 @@ player reaches a perk's tier.
 - **Where perks show.** Each faction's card in the Jobs page's Factions panel lists its three
   levels, the tier each opens at, and, once open, what the faction is telling you right now.
   Information and warnings are worked out when the page is read, only for the levels you have
-  opened; nothing is stored. A Connected nudge says "Active" there and names itself where it
-  applies (Tommy's and Pip's shelves, Pip's counter, the bodyguard line on Travel).
+  opened. A Connected nudge says "Active" there and names itself where it applies: Tommy's and
+  Pip's shelves, Pip's counter, the bodyguard line on Travel, the district board on Turf (the
+  Kings) and the payroll on the Case panel (Civic Handshake).
+- **Warnings reach the bell.** Every ten minutes the alerts poller looks at up to 300 players
+  Trusted with a faction in a live round, most recently active first, and logs each warning they
+  have not had yet as a `FACTION_WARNING` activity: the bell, a toast linking to the place it is
+  about, the Activity feed and the Console's street group. Each warning has a key (a block's shield
+  and its end, a corner's supply and the day, a run's leg, a drought and its start, the crackdown
+  and its city, a Case's next stage while it stays open), and a `PlayerFactionWarning` row with
+  that key is written in the same transaction as the activity, so a warning alerts once however
+  often the sweep runs. "The crackdown is coming, but not to anywhere you hold" stays on the card.
+  Warnings reach the bell only, not push or Discord.
 - **Pinned perks.**
 
   | Faction | Known: information | Trusted: early warning | Connected: nudge |
@@ -496,6 +506,7 @@ D invariants:
    the round's public schedule, or counts across at least three crews.
 5. No perk touches combat, turns, casino odds, contact reputation, or how a Case is built.
 6. `classic-og-v1.4-c2` and older rounds show no perks and take no nudge.
+7. Each keyed warning reaches the bell at most once, and only while its faction is Trusted or above.
 
 ### 1.4.0-E — Rivalries & Inner Circle
 

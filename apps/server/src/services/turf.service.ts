@@ -912,6 +912,8 @@ export const TurfService = {
     }
 
     const byCity = new Map<string, CityTurfDto>();
+    // 1.4.0-D: Connected with the Kings, every corner burns less; say so where corners are worked.
+    const upkeepNudge = await FactionService.nudge(db as Db, roundPlayerId, ruleset, 'CORNER_UPKEEP');
     for (const row of rows) {
       const citySlug = row.city.slug;
       const district = row.district as TurfBlockDto['district'];
@@ -1129,6 +1131,11 @@ export const TurfService = {
           isYours: cityControl.allianceId === player.allianceId,
         } : null,
         presenceRequired: ruleset.turf.presence.turnsToClaim,
+        ...(upkeepNudge ? { upkeepDiscount: {
+          factionKey: upkeepNudge.factionKey,
+          factionName: ruleset.factions?.[upkeepNudge.factionKey]?.name ?? upkeepNudge.factionKey,
+          percent: upkeepNudge.percent,
+        } } : {}),
         postTurnCost: ruleset.turf.corner.postTurnCost,
         pullTurnCost: ruleset.turf.corner.pullTurnCost,
         pushTurnCost: ruleset.turf.push.turnCost,

@@ -77,6 +77,19 @@ interface PerkPlayer {
   round: { id: string; startsAt: Date; endsAt: Date; rulesetId: string; rulesetVersion: string };
 }
 
+/**
+ * One early warning: what to say, where to look, and the key it alerts under. A warning with no
+ * key shows on the faction's card but never reaches the bell; the same key never alerts twice.
+ */
+export interface FactionWarning {
+  text: string;
+  href: string;
+  key: string | null;
+}
+
+const turfHref = (slug: string) => `/game/turf?city=${encodeURIComponent(slug)}`;
+const day = (now: Date) => now.toISOString().slice(0, 10);
+
 async function heldBlocks(db: Db, player: PerkPlayer) {
   return db.turf.findMany({
     where: { roundId: player.round.id, holderId: player.id },
@@ -103,28 +116,34 @@ async function kingsInformation(db: Db, ruleset: Ruleset, player: PerkPlayer, no
     `${districtName(ruleset, row.city.slug, row.district)}, ${cityName(ruleset, row.city.slug)}: ${thugs.toLocaleString('en-US')} locals`);
 }
 
-async function kingsWarnings(db: Db, ruleset: Ruleset, player: PerkPlayer, lead: number, now: Date): Promise<string[]> {
+async function kingsWarnings(db: Db, ruleset: Ruleset, player: PerkPlayer, lead: number, now: Date): Promise<FactionWarning[]> {
   const corner = ruleset.turf?.corner;
   if (!corner) return [];
   const leadMs = lead * HOUR_MS;
-  const lines: string[] = [];
+  const lines: FactionWarning[] = [];
   const held = await heldBlocks(db, player);
   for (const row of held) {
     const left = row.shieldUntil ? row.shieldUntil.getTime() - now.getTime() : 0;
     if (left > 0 && left <= leadMs) {
-      lines.push(`${districtName(ruleset, row.city.slug, row.district)}, ${cityName(ruleset, row.city.slug)} opens to pushes again ${within(left)}.`);
+      lines.push({
+        text: `${districtName(ruleset, row.city.slug, row.district)}, ${cityName(ruleset, row.city.slug)} opens to pushes again ${within(left)}.`,
+        href: turfHref(row.city.slug),
+        key: `shield:${row.id}:${row.shieldUntil!.toISOString()}`,
+      });
     }
   }
   // The Kings' own nudge already counts in how fast a corner burns.
   const cut = (await FactionService.nudge(db, player.id, ruleset, 'CORNER_UPKEEP'))?.percent ?? 0;
   const keep = 1 - cut / 100;
-  const dry = (place: string, plural: boolean, thugs: number, beer: number, product: number) => {
+  // A corner running dry alerts at most once a day for each place and supply.
+  const dry = (place: string, plural: boolean, where: string, href: string, thugs: number, beer: number, product: number) => {
     const beerRate = thugs * corner.beerPerThugPerHour * keep;
     const productRate = thugs * corner.productPerThugPerHour * keep;
     for (const [what, have, rate] of [['beer', beer, beerRate], ['product', product, productRate]] as const) {
       if (rate <= 0) continue;
-      if (have <= 0) lines.push(`${place} ${plural ? 'are' : 'is'} out of ${what}: the crew will start walking.`);
-      else if (have / rate * HOUR_MS <= leadMs) lines.push(`${place} run${plural ? '' : 's'} out of ${what} ${within(have / rate * HOUR_MS)}.`);
+      const key = `dry:${where}:${what}:${day(now)}`;
+      if (have <= 0) lines.push({ text: `${place} ${plural ? 'are' : 'is'} out of ${what}: the crew will start walking.`, href, key });
+      else if (have / rate * HOUR_MS <= leadMs) lines.push({ text: `${place} run${plural ? '' : 's'} out of ${what} ${within(have / rate * HOUR_MS)}.`, href, key });
     }
   };
   const home = held.filter((row) => !row.outpost && row.cornerThugs > 0);
@@ -135,12 +154,12 @@ async function kingsWarnings(db: Db, ruleset: Ruleset, player: PerkPlayer, lead:
       : defaultWorkSupplyPolicy();
     const inventory = await ProductInventoryService.read(db, player.id, ruleset);
     const product = workSupplyOrder(policy).reduce((sum, key) => sum + Math.max(0, inventory[key] ?? 0), 0);
-    dry('Your home corners', true, home.reduce((sum, row) => sum + row.cornerThugs, 0), player.beer, product);
+    dry('Your home corners', true, 'home', turfHref(player.citySlug), home.reduce((sum, row) => sum + row.cornerThugs, 0), player.beer, product);
   }
   for (const row of held) {
     if (!row.outpost || row.cornerThugs <= 0) continue;
     const product = Object.values((row.outpost.products ?? {}) as Record<string, number>).reduce((sum, value) => sum + Math.max(0, value), 0);
-    dry(`Your outpost in ${districtName(ruleset, row.city.slug, row.district)}, ${cityName(ruleset, row.city.slug)}`, false, row.cornerThugs, row.outpost.beer, product);
+    dry(`Your outpost in ${districtName(ruleset, row.city.slug, row.district)}, ${cityName(ruleset, row.city.slug)}`, false, row.id, turfHref(row.city.slug), row.cornerThugs, row.outpost.beer, product);
   }
   return lines;
 }
@@ -173,14 +192,18 @@ async function outfitInformation(db: Db, ruleset: Ruleset, player: PerkPlayer, n
   return lines.length ? lines : ['No city has enough crews running rackets for the Outfit to talk about.'];
 }
 
-async function outfitWarnings(db: Db, base: Ruleset, player: PerkPlayer, lead: number, now: Date): Promise<string[]> {
+async function outfitWarnings(db: Db, base: Ruleset, player: PerkPlayer, lead: number, now: Date): Promise<FactionWarning[]> {
   const plan = crackdownPlan(player.round, base);
   if (!plan || now >= plan.sweepAt || now.getTime() < plan.warningAt.getTime() - lead * HOUR_MS) return [];
   const held = await heldBlocks(db, player);
   const yours = new Set([player.citySlug, ...held.map((row) => row.city.slug)]);
-  if (!yours.has(plan.citySlug)) return ['The crackdown is coming, but not to anywhere you hold.'];
+  if (!yours.has(plan.citySlug)) return [{ text: 'The crackdown is coming, but not to anywhere you hold.', href: '/game/turf', key: null }];
   const street = now < plan.warningAt ? ` The street hears ${within(plan.warningAt.getTime() - now.getTime())}.` : '';
-  return [`The crackdown sweeps ${cityName(base, plan.citySlug)} ${within(plan.sweepAt.getTime() - now.getTime())}.${street}`];
+  return [{
+    text: `The crackdown sweeps ${cityName(base, plan.citySlug)} ${within(plan.sweepAt.getTime() - now.getTime())}.${street}`,
+    href: turfHref(plan.citySlug),
+    key: `crackdown:${player.round.id}:${plan.citySlug}`,
+  }];
 }
 
 // --- Road Saints MC -------------------------------------------------------------------
@@ -199,14 +222,14 @@ function roadSaintsInformation(base: Ruleset, player: PerkPlayer): string[] {
     .map(({ road, other, chance }) => `${road.name} to ${cityName(base, other)}: ${percent(chance)} stop chance empty, at your Heat`);
 }
 
-async function roadSaintsWarnings(db: Db, base: Ruleset, player: PerkPlayer, hot: number): Promise<string[]> {
+async function roadSaintsWarnings(db: Db, base: Ruleset, player: PerkPlayer, hot: number): Promise<FactionWarning[]> {
   if (!base.travel?.stops) return [];
   const runs = await db.run.findMany({
     where: { roundPlayerId: player.id, status: 'ACTIVE' },
     include: { stops: { orderBy: { order: 'asc' } }, cargo: true },
   });
   const stopCut = racketRunStopCut(base, readRacketEffects(player.racketEffects));
-  const lines: string[] = [];
+  const lines: FactionWarning[] = [];
   for (const run of runs) {
     const next = run.stops[run.roadChecks];
     if (!next) continue;
@@ -220,7 +243,11 @@ async function roadSaintsWarnings(db: Db, base: Ruleset, player: PerkPlayer, hot
     const chance = 1 - roads.reduce((clear, road) => clear * (1 - road.chance), 1);
     if (chance < hot) continue;
     const hottest = [...roads].sort((a, b) => b.chance - a.chance)[0];
-    lines.push(`Your run's road into ${cityName(base, next.city)}${hottest ? ` (${hottest.road.name})` : ''} is hot: ${percent(chance)} stop chance with this trunk.`);
+    lines.push({
+      text: `Your run's road into ${cityName(base, next.city)}${hottest ? ` (${hottest.road.name})` : ''} is hot: ${percent(chance)} stop chance with this trunk.`,
+      href: '/game/travel',
+      key: `road:${run.id}:${run.roadChecks}`,
+    });
   }
   return lines;
 }
@@ -238,10 +265,14 @@ function cartelInformation(base: Ruleset, player: PerkPlayer, now: Date): string
   return [...byCity.entries()].slice(0, MAX_LINES).map(([city, list]) => `${cityName(base, city)}: ${list.join(', ')}`);
 }
 
-function cartelWarnings(base: Ruleset, player: PerkPlayer, lead: number, now: Date): string[] {
+function cartelWarnings(base: Ruleset, player: PerkPlayer, lead: number, now: Date): FactionWarning[] {
   return supplyCrashesAhead(base, player.round.id, now, new Date(now.getTime() + lead * HOUR_MS))
     .slice(0, MAX_LINES)
-    .map((crash) => `${cityName(base, crash.city)} runs out of ${productName(base, crash.product)} ${within(crash.at.getTime() - now.getTime())}${crash.kind === 'DROUGHT' && crash.endsAt ? `, for about ${Math.round((crash.endsAt.getTime() - crash.at.getTime()) / HOUR_MS)} hours` : ''}.`);
+    .map((crash) => ({
+      text: `${cityName(base, crash.city)} runs out of ${productName(base, crash.product)} ${within(crash.at.getTime() - now.getTime())}${crash.kind === 'DROUGHT' && crash.endsAt ? `, for about ${Math.round((crash.endsAt.getTime() - crash.at.getTime()) / HOUR_MS)} hours` : ''}.`,
+      href: '/game/travel',
+      key: `supply:${crash.city}:${crash.product}:${crash.at.toISOString()}`,
+    }));
 }
 
 // --- Civic Handshake ------------------------------------------------------------------
@@ -258,11 +289,11 @@ async function civicInformation(db: Db, base: Ruleset, player: PerkPlayer, now: 
   });
 }
 
-async function civicWarnings(db: Db, base: Ruleset, player: PerkPlayer, leadPoints: number, now: Date): Promise<string[]> {
+async function civicWarnings(db: Db, base: Ruleset, player: PerkPlayer, leadPoints: number, now: Date): Promise<FactionWarning[]> {
   const rules = base.law;
   if (!rules) return [];
   const cases = await db.playerCase.findMany({ where: { roundPlayerId: player.id, caseHundredths: { gt: 0 } }, include: { city: { select: { slug: true, name: true } } } });
-  const lines: string[] = [];
+  const lines: FactionWarning[] = [];
   for (const row of cases) {
     const value = coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed);
     const next = WANTED_STAGES[WANTED_STAGES.indexOf(wantedStage(value, rules)) + 1];
@@ -270,10 +301,35 @@ async function civicWarnings(db: Db, base: Ruleset, player: PerkPlayer, leadPoin
     const gap = stageStartsAt(next, rules) - value;
     if (gap > 0 && gap <= leadPoints * CASE_SCALE) {
       const points = Math.ceil(gap / CASE_SCALE);
-      lines.push(`Your Case in ${row.city.name} is ${points} point${points === 1 ? '' : 's'} from ${STAGE_NAMES[next]}.`);
+      // Once for each stage a Case nears while it stays open; a Case that cools to Quiet starts over.
+      lines.push({
+        text: `Your Case in ${row.city.name} is ${points} point${points === 1 ? '' : 's'} from ${STAGE_NAMES[next]}.`,
+        href: '/game#case',
+        key: `stage:${row.id}:${next}:${row.openedAt?.toISOString() ?? day(now)}`,
+      });
     }
   }
   return lines;
+}
+
+async function perkPlayer(db: Db, roundPlayerId: string): Promise<{ player: PerkPlayer; base: Ruleset }> {
+  const row = await db.roundPlayer.findUniqueOrThrow({
+    where: { id: roundPlayerId },
+    select: { id: true, heat: true, beer: true, racketEffects: true, cityId: true, city: { select: { slug: true } }, round: { select: { id: true, startsAt: true, endsAt: true, rulesetId: true, rulesetVersion: true } } },
+  });
+  // The schedule-driven reads (markets, roads, the crackdown) use the round's own ruleset.
+  return { player: { ...row, citySlug: row.city.slug }, base: loadRulesetForRound(row.round) };
+}
+
+function factionWarnings(db: Db, ruleset: Ruleset, base: Ruleset, player: PerkPlayer, key: FactionKey, now: Date): Promise<FactionWarning[]> {
+  const warnings = ruleset.factionPerks!.warnings;
+  switch (key) {
+    case 'KINGS': return kingsWarnings(db, ruleset, player, warnings.cornerLeadHours, now);
+    case 'OUTFIT': return outfitWarnings(db, base, player, warnings.sweepLeadHours, now);
+    case 'ROAD_SAINTS': return roadSaintsWarnings(db, base, player, warnings.hotRoadChance);
+    case 'CARTEL_LINE': return Promise.resolve(cartelWarnings(base, player, warnings.supplyLeadHours, now));
+    case 'CIVIC_HANDSHAKE': return civicWarnings(db, base, player, warnings.stageLeadPoints, now);
+  }
 }
 
 /**
@@ -288,14 +344,7 @@ export const FactionPerkService = {
     const perks = ruleset.factionPerks;
     if (!perks || !ruleset.factions || !ruleset.factionStanding) return result;
     const tiers = await FactionService.tiers(db, roundPlayerId, ruleset);
-    const row = await db.roundPlayer.findUniqueOrThrow({
-      where: { id: roundPlayerId },
-      select: { id: true, heat: true, beer: true, racketEffects: true, cityId: true, city: { select: { slug: true } }, round: { select: { id: true, startsAt: true, endsAt: true, rulesetId: true, rulesetVersion: true } } },
-    });
-    const player: PerkPlayer = { ...row, citySlug: row.city.slug };
-    // The schedule-driven reads (markets, roads, the crackdown) use the round's own ruleset.
-    const base = loadRulesetForRound(row.round);
-    const warnings = perks.warnings;
+    const { player, base } = await perkPlayer(db, roundPlayerId);
 
     for (const key of Object.keys(ruleset.factions) as FactionKey[]) {
       const tier: FactionTier = tiers[key] ?? 'UNKNOWN';
@@ -310,19 +359,11 @@ export const FactionPerkService = {
           case 'CIVIC_HANDSHAKE': return civicInformation(db, base, player, now);
         }
       })();
-      const early = !warningsOpen ? [] : await (async () => {
-        switch (key) {
-          case 'KINGS': return kingsWarnings(db, ruleset, player, warnings.cornerLeadHours, now);
-          case 'OUTFIT': return outfitWarnings(db, base, player, warnings.sweepLeadHours, now);
-          case 'ROAD_SAINTS': return roadSaintsWarnings(db, base, player, warnings.hotRoadChance);
-          case 'CARTEL_LINE': return cartelWarnings(base, player, warnings.supplyLeadHours, now);
-          case 'CIVIC_HANDSHAKE': return civicWarnings(db, base, player, warnings.stageLeadPoints, now);
-        }
-      })();
+      const early = warningsOpen ? await factionWarnings(db, ruleset, base, player, key, now) : [];
       const nudge = perks.nudges[key];
       result.set(key, {
         information: { open: informationOpen, tierName: factionTierName(FACTION_PERK_TIERS.INFORMATION), title: TITLES[key].information, lines: information },
-        warnings: { open: warningsOpen, tierName: factionTierName(FACTION_PERK_TIERS.WARNINGS), title: TITLES[key].warnings, lines: early },
+        warnings: { open: warningsOpen, tierName: factionTierName(FACTION_PERK_TIERS.WARNINGS), title: TITLES[key].warnings, lines: early.map((warning) => warning.text) },
         nudge: nudge ? {
           open: factionPerkOpen(tier, 'NUDGE'),
           tierName: factionTierName(FACTION_PERK_TIERS.NUDGE),
@@ -331,6 +372,20 @@ export const FactionPerkService = {
           percent: nudge.percent,
         } : null,
       });
+    }
+    return result;
+  },
+
+  /** 1.4.0-D. The early warnings from every faction the player is Trusted with or above. */
+  async warnings(db: Db, roundPlayerId: string, ruleset: Ruleset, now: Date = new Date()): Promise<Array<FactionWarning & { factionKey: FactionKey }>> {
+    if (!ruleset.factionPerks || !ruleset.factions || !ruleset.factionStanding) return [];
+    const tiers = await FactionService.tiers(db, roundPlayerId, ruleset);
+    const open = (Object.keys(ruleset.factions) as FactionKey[]).filter((key) => factionPerkOpen(tiers[key], 'WARNINGS'));
+    if (!open.length) return [];
+    const { player, base } = await perkPlayer(db, roundPlayerId);
+    const result: Array<FactionWarning & { factionKey: FactionKey }> = [];
+    for (const key of open) {
+      for (const warning of await factionWarnings(db, ruleset, base, player, key, now)) result.push({ ...warning, factionKey: key });
     }
     return result;
   },

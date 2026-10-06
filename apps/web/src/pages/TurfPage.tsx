@@ -369,6 +369,11 @@ export function TurfPage() {
                     <span className="se-cityblocks-sectionhead__meta">5 districts</span>
                   </div>
 
+                  {selected.turf?.upkeepDiscount ? (
+                    <p className="se-hint se-good">
+                      {selected.turf.upkeepDiscount.factionName} perk — your corners burn {selected.turf.upkeepDiscount.percent}% less beer and product.
+                    </p>
+                  ) : null}
                   <div className="se-cityblocks-boardwrap">
                     <CityBlockBoard city={selected} onChanged={load} />
                   </div>

@@ -4,8 +4,10 @@ import type { FastifyInstance } from 'fastify';
 import { classicOgV14C2, classicOgV14D, type FactionKey, type Ruleset } from '@streets/rulesets';
 import { cornerUpkeep, startingStock } from '@streets/rules-engine';
 import { FactionService } from '../faction.service.js';
+import { FactionWarningService } from '../faction-warning.service.js';
 import { HandcraftedQuestService } from '../handcrafted-quest.service.js';
 import { LawOfficialService } from '../law-official.service.js';
+import { LawService } from '../law.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { StoreService } from '../store.service.js';
 import { TurfService } from '../turf.service.js';
@@ -131,6 +133,9 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-D faction perks with
     expect((await app.prisma.playerOfficial.findUniqueOrThrow({ where: { id: judge.id } })).exposure).toBe(14);
     const uses = await app.prisma.playerFactionPerkUse.findMany({ where: { roundPlayerId: player.id } });
     expect(uses).toMatchObject([{ kind: 'OFFICIAL_EXPOSURE', saved: { exposure: 1 } }]);
+    const law = await LawService.page(app.prisma, player.id, city.id, ruleset);
+    const decorated = await LawOfficialService.decoratePage(app.prisma, law!, player.id);
+    expect(decorated.payroll?.exposureDiscount).toEqual({ factionKey: 'CIVIC_HANDSHAKE', factionName: 'Civic Handshake', percent: 10 });
   });
 
   it('burns less corner upkeep for the Kings at Connected, logged per block and settle', async () => {
@@ -151,9 +156,35 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-D faction perks with
     const uses = await app.prisma.playerFactionPerkUse.findMany({ where: { roundPlayerId: player.id } });
     expect(uses).toMatchObject([{ kind: 'CORNER_UPKEEP', factionKey: 'KINGS', saved: { beer: full.beer - cut.beer, product: full.product - cut.product } }]);
 
+    const view = await TurfService.byCity(app.prisma, player.id, ruleset);
+    expect(view?.get(city.slug)?.upkeepDiscount).toEqual({ factionKey: 'KINGS', factionName: 'The Kings', percent: 10 });
+
     // Settling again with nothing new to burn logs nothing more.
     await app.prisma.$transaction((tx) => TurfService.settlePlayer(tx, player.id, ruleset, now, () => 0.99));
     expect(await app.prisma.playerFactionPerkUse.count({ where: { roundPlayerId: player.id } })).toBe(1);
+  });
+
+  it('sends each Trusted warning to the bell once, and none below Trusted', async () => {
+    const trusted = await fixture();
+    const known = await fixture();
+    for (const { player, city } of [trusted, known]) {
+      // 17 points: 3 short of Noticed.
+      await app.prisma.playerCase.create({ data: { roundPlayerId: player.id, cityId: city.id, caseHundredths: 1_700, lastEvidenceAt: new Date() } });
+    }
+    await standWith(trusted.player.id, 'CIVIC_HANDSHAKE', ruleset.factionStanding.tiers.trusted);
+    await standWith(known.player.id, 'CIVIC_HANDSHAKE', ruleset.factionStanding.tiers.known);
+
+    await FactionWarningService.sweep(app.prisma);
+    await FactionWarningService.sweep(app.prisma);
+
+    const activity = await app.prisma.playerActivity.findMany({ where: { roundPlayerId: trusted.player.id, type: 'FACTION_WARNING' } });
+    expect(activity).toHaveLength(1);
+    expect(activity[0]!.payload).toMatchObject({ factionKey: 'CIVIC_HANDSHAKE', factionName: 'Civic Handshake', href: '/game#case' });
+    expect(String((activity[0]!.payload as Record<string, unknown>).text)).toMatch(/3 points from Noticed/);
+    expect(await app.prisma.inAppNotification.count({ where: { activityId: activity[0]!.id } })).toBe(1);
+    expect(await app.prisma.playerFactionWarning.count({ where: { roundPlayerId: trusted.player.id } })).toBe(1);
+
+    expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: known.player.id, type: 'FACTION_WARNING' } })).toBe(0);
   });
 
   it('gives 1.4.0-C2 rounds no perks and no nudges', async () => {
@@ -163,6 +194,10 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-D faction perks with
     expect(page.factions!.every((faction) => faction.perks === undefined)).toBe(true);
     const bought = await StoreService.trade(app.prisma, player.id, { store: 'TOMMY', item: 'PISTOL', direction: 'buy', quantity: 1, actionId: randomUUID() });
     expect(bought.result.unitCents).toBe(classicOgV14C2.stores.TOMMY.items.PISTOL.buyCents);
+    const view = await TurfService.byCity(app.prisma, player.id, classicOgV14C2);
+    expect([...(view?.values() ?? [])].every((city) => city.upkeepDiscount === undefined)).toBe(true);
     expect(await app.prisma.playerFactionPerkUse.count({ where: { roundPlayerId: player.id } })).toBe(0);
+    await FactionWarningService.sweep(app.prisma);
+    expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: player.id, type: 'FACTION_WARNING' } })).toBe(0);
   });
 });

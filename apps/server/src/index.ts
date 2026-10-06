@@ -3,6 +3,7 @@ import { buildApp } from './app.js';
 import { env } from './config/env.js';
 import { IdempotencyService } from './services/idempotency.service.js';
 import { GameAlertService } from './services/game-alerts.service.js';
+import { FactionWarningService } from './services/faction-warning.service.js';
 import { NotificationService } from './services/notification.service.js';
 import { ConvoyService } from './services/convoy.service.js';
 import { BossHitService } from './services/boss-hit.service.js';
@@ -49,6 +50,8 @@ const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
 // 0.9.0-G: always on, because clock events (spotted pushes, tails, revenge, special orders)
 // reach the in-game bell even on a server with no Discord bot or push keys.
 let pruneAt = 0;
+// 1.4.0-D: faction warnings look hours ahead, so every ten minutes is plenty.
+let factionWarningsAt = 0;
 const stopAlerts = startPoller('Alerts', 60_000, async () => {
     const now = new Date();
     // 0.5.0-E: land tails whose window has closed, so a landing is pushed even if nobody is on.
@@ -62,6 +65,10 @@ const stopAlerts = startPoller('Alerts', 60_000, async () => {
     const lawOwners = new Set([...await LawWarrantService.dueOwners(app.prisma, now), ...await LawOfficialService.dueOwners(app.prisma, now)]);
     for (const ownerId of lawOwners) {
       await PlayerStateService.settle(app.prisma, ownerId, { markActive: false, now });
+    }
+    if (now.getTime() >= factionWarningsAt) {
+      factionWarningsAt = now.getTime() + 10 * 60_000;
+      await FactionWarningService.sweep(app.prisma, now);
     }
     const collected = await NotificationService.collect(app.prisma, now);
     if (collected > 0) wakeDiscordBot('alerts');

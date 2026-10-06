@@ -33,6 +33,11 @@ export function PayrollSection({ payroll, cashCents }: { payroll: NonNullable<La
   return (
     <>
       <p className="se-eyebrow se-mt">Payroll</p>
+      {payroll.exposureDiscount ? (
+        <p className="se-hint se-good">
+          {payroll.exposureDiscount.factionName} perk — every favor leaves {payroll.exposureDiscount.percent}% less exposure.
+        </p>
+      ) : null}
       {payroll.officials.length ? (
         <ul className="se-case__cities">
           {payroll.officials.map((official) => {

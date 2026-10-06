@@ -1210,6 +1210,7 @@ model RoundPlayer {
   factionStandings       PlayerFactionStanding[]
   factionReceipts        PlayerFactionReceipt[]
   factionPerkUses        PlayerFactionPerkUse[]
+  factionWarnings        PlayerFactionWarning[]
   warrants               PlayerWarrant[]
   /// 1.3.0-D. Corrupt officials on the payroll, and tips bought from informants.
   officials              PlayerOfficial[]
@@ -2260,6 +2261,7 @@ enum ActivityType {
   INFORMANT_TIP
   CASE_FOLLOWED
   FACTION_TIER_UP
+  FACTION_WARNING
 }
 
 enum BattleKind {
@@ -3614,4 +3616,21 @@ model PlayerFactionPerkUse {
 
   @@unique([roundPlayerId, sourceKey])
   @@index([roundPlayerId, factionKey, createdAt])
+}
+
+/// 1.4.0-D. An early warning from a faction the player is Trusted with that has reached the bell.
+/// Keyed on the warning itself (a shield, a run's leg, a drought, a Case nearing a stage), so the
+/// alert sweep sends each warning once however often it looks.
+model PlayerFactionWarning {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  factionKey String
+  warningKey String
+
+  createdAt DateTime @default(now())
+
+  @@unique([roundPlayerId, warningKey])
 }

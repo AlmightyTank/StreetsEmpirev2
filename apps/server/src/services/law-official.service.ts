@@ -294,6 +294,7 @@ export const LawOfficialService = {
       db.playerTip.findMany({ where: { roundPlayerId }, include: { city: { select: { name: true } } }, orderBy: { createdAt: 'desc' }, take: 20 }),
       db.city.findMany({ where: { isEnabled: true, slug: { in: Object.keys(base.cities ?? {}) } }, select: { id: true, slug: true, name: true }, orderBy: { sortOrder: 'asc' } }),
     ]);
+    const exposureNudge = rules ? await FactionService.nudge(db, roundPlayerId, base, 'OFFICIAL_EXPOSURE') : null;
     const quashCities = new Set(officials.filter((row) => row.role === 'DA' && working(row, now) && (!row.quashReadyAt || row.quashReadyAt <= now)).map((row) => row.cityId));
     const cityIds = new Map(cities.map((city) => [city.slug, city.id]));
     return {
@@ -308,6 +309,11 @@ export const LawOfficialService = {
         stingPoints: rules.exposure.stingPoints,
         roles: ROLES.map((role) => ({ role, weekCents: Number(lawPriceCents(player.netWorthCents, rules.roles[role])) })),
         cities: cities.map((city) => ({ slug: city.slug, name: city.name })),
+        ...(exposureNudge ? { exposureDiscount: {
+          factionKey: exposureNudge.factionKey,
+          factionName: base.factions?.[exposureNudge.factionKey]?.name ?? exposureNudge.factionKey,
+          percent: exposureNudge.percent,
+        } } : {}),
         officials: officials
           .filter((row) => row.status === 'ACTIVE' || (row.endedAt && row.endedAt.getTime() > now.getTime() - 7 * DAY_MS))
           .map((row): OfficialDto => ({
