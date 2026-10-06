@@ -243,6 +243,23 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin news, banner, round
     expect(frozen.json().error.code).toBe('ROUND_FINISHED');
   });
 
+  it('opens the round page for a round whose ruleset the code no longer ships, and repairs it', async () => {
+    const broken = await createRound('ACTIVE', new Date('2020-01-01T00:00:00.000Z'), new Date(Date.now() + 10 * DAY));
+    await app.prisma.round.update({ where: { id: broken.id }, data: { rulesetVersion: 'no-longer-shipped' } });
+
+    const health = await get(`/api/admin/rounds/${broken.id}/health`);
+    expect(health.statusCode, health.body).toBe(200);
+    expect(health.json()).toMatchObject({ streetPass: null, storeEconomy: null });
+    expect(health.json().rulesetProblem).toContain('Change ruleset');
+    const preview = await get(`/api/admin/rounds/${broken.id}/ruleset-change?rulesetId=${classicOgV01.meta.id}`);
+    expect(preview.json()).toMatchObject({ current: { available: false }, target: { changedCount: null } });
+    expect(preview.json().target.warnings.map((warning: { code: string }) => warning.code)).toEqual(['ROUND_LIVE', 'CURRENT_RULESET_MISSING']);
+
+    const repaired = await post(`/api/admin/rounds/${broken.id}/ruleset`, { reason: 'Repin after a bad deploy', rulesetId: classicOgV01.meta.id, confirm: true });
+    expect(repaired.statusCode, repaired.body).toBe(200);
+    expect((await get(`/api/admin/rounds/${broken.id}/health`)).json().rulesetProblem).toBeNull();
+  });
+
   it('closes expired rounds from the checklist action and audits each one', async () => {
     const expired = await createRound('ACTIVE', new Date('2020-01-01T00:00:00.000Z'), new Date(Date.now() - HOUR));
     const response = await post('/api/admin/rounds/close-expired');

@@ -106,6 +106,7 @@ export function AdminRoundPage() {
       </div>
 
       {error ? <Alert>{error}</Alert> : null}
+      {health.rulesetProblem ? <Alert tone="warning">{health.rulesetProblem}</Alert> : null}
       {notice ? <p className="se-admin-notice" role="status">{notice}</p> : null}
       {health.streetPass ? <AdminStreetPassEditor roundId={round.id} pass={health.streetPass} onSaved={load} /> : null}
 

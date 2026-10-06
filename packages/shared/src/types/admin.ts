@@ -654,6 +654,11 @@ export interface AdminStreetPassUpdateInput {
 
 export interface AdminRoundHealthDto {
   round: AdminRoundDto;
+  /**
+   * Set when the code no longer ships the round's pinned ruleset. Ruleset-backed
+   * sections are then left out, and Change ruleset is the way to repair it.
+   */
+  rulesetProblem: string | null;
   streetPass?: AdminStreetPassDto | null;
   players: { total: number; active24h: number; active7d: number; neverActed: number };
   /** Newest first, up to the last 14 days of the round. */
