@@ -30,6 +30,7 @@
     "qa:casino": "node --import tsx scripts/qa/casino-sim.mjs",
     "qa:law": "node --import tsx scripts/qa/law-sim.mjs",
     "qa:factions": "node --import tsx scripts/qa/faction-sim.mjs",
+    "qa:vehicles": "node --import tsx scripts/qa/vehicle-sim.mjs",
     "qa:street-pass": "tsx scripts/qa/street-pass-sim.ts",
     "qa:turf": "node --import tsx scripts/qa/turf-sim.mjs",
     "qa:season": "node --import tsx scripts/qa/season-sim.mjs",

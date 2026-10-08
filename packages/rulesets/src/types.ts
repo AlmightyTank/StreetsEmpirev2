@@ -726,6 +726,11 @@ export interface VehicleCatalog {
   readonly classes: readonly VehicleClassDefinition[];
   /** 1.5.0-C. Absent: vehicles are never damaged and the garage has nothing to service. */
   readonly service?: VehicleServiceRules;
+  /**
+   * 1.5.0-E. Route-risk multiplier for each non-normal route profile. Absent: 1.5.0-B's
+   * 0.9 for a low-profile car and 1.15 for a highly visible one.
+   */
+  readonly routeRisk?: { readonly LOW_PROFILE: number; readonly HIGH_VISIBILITY: number };
 }
 
 // --- round ------------------------------------------------------------------

@@ -25,6 +25,7 @@ import {
   rulesetForCity,
   runCapacity,
   vehicleLoadoutSeats,
+  routeProfileRisk,
   vehicleRiskMultiplier,
   vehicleServiceCents,
   racketCargoShare,
@@ -445,6 +446,7 @@ export const TravelService = {
               ? null
               : vehiclePurchaseCents(ruleset, vehicleClass.id, vehicleClass.purchasePriceCents, player.racketEffects).cents,
             routeProfile: vehicleClass.routeProfile,
+            routeRiskPercent: Math.round((routeProfileRisk(ruleset, vehicleClass.routeProfile) - 1) * 100),
             ...(service && listRepair !== undefined && listRecovery !== undefined ? {
               damaged,
               disabled,

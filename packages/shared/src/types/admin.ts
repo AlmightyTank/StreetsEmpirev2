@@ -443,6 +443,57 @@ export interface AdminFactionAdjustmentInput {
   reason: string;
 }
 
+/** 1.5.0-E. One vehicle class's whereabouts: home and ready, on runs, or waiting on the garage. */
+export interface AdminVehicleClassDto {
+  classId: 'LOW_RIDER' | 'SEDAN' | 'VAN';
+  name: string;
+  ready: number;
+  away: number;
+  damaged: number;
+  disabled: number;
+}
+
+/** 1.5.0-E. A player's fleet, for support and corrections. */
+export interface AdminPlayerFleetDto {
+  classes: AdminVehicleClassDto[];
+  /** Active runs, with what each will bring home to the garage. */
+  runs: Array<{
+    runId: string;
+    loadout: { LOW_RIDER: number; SEDAN: number; VAN: number };
+    damaged: { LOW_RIDER: number; SEDAN: number; VAN: number };
+    disabled: { LOW_RIDER: number; SEDAN: number; VAN: number };
+  }>;
+  /** Garage repairs and recoveries this round. */
+  service: { entries: number; spentCents: number };
+}
+
+/** 1.5.0-E. Vehicle health for a round: the fleet, the garage, and runs that do not add up. */
+export interface AdminVehicleRoundDto {
+  roundId: string;
+  generatedAt: string;
+  enabled: boolean;
+  rulesetId: string;
+  fleet: AdminVehicleClassDto[];
+  /** Largest fleets first. */
+  players: Array<{ roundPlayerId: string; displayName: string; ready: number; away: number; damaged: number; disabled: number }>;
+  service24h: { entries: number; spentCents: number };
+  service7d: { entries: number; spentCents: number };
+  purchases7d: { entries: number; spentCents: number };
+  adjustments7d: number;
+  integrity: {
+    checked: number;
+    problems: Array<{ runId: string; roundPlayerId: string; displayName: string; problem: string }>;
+  };
+}
+
+export interface AdminVehicleAdjustmentInput {
+  classId: 'LOW_RIDER' | 'SEDAN' | 'VAN';
+  ready: number;
+  damaged: number;
+  disabled: number;
+  reason: string;
+}
+
 /** Read-only player state as stored. Turns are as of the last settlement, not regenerated. */
 export interface AdminPlayerDto {
   roundPlayerId: string;
@@ -509,6 +560,8 @@ export interface AdminPlayerDto {
   reputation: Array<{ trader: string; points: number; legacyFavorDone: boolean }>;
   /** 1.4.0-G. Staff-only standing with receipt totals for audit and correction. */
   factions: AdminFactionStandingDto[];
+  /** 1.5.0-E. Null on rounds without vehicle classes. */
+  fleet: AdminPlayerFleetDto | null;
   injuries: Array<{ id: string; thugs: number; recoverAt: string; battleId: string | null }>;
   intel: { observing: number; observedBy: number };
   activity: ActivityDto[];

@@ -250,6 +250,14 @@ export function vehicleLoadoutSeats(ruleset: Ruleset, loadout: VehicleLoadout): 
   }, 0);
 }
 
+/** 1.5.0-B. One route profile's risk multiplier; 1.5.0-E moves the numbers into the ruleset. */
+export function routeProfileRisk(ruleset: Ruleset, profile: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY' | undefined): number {
+  const risk = ruleset.vehicleCatalog?.routeRisk;
+  if (profile === 'LOW_PROFILE') return risk?.LOW_PROFILE ?? 0.9;
+  if (profile === 'HIGH_VISIBILITY') return risk?.HIGH_VISIBILITY ?? 1.15;
+  return 1;
+}
+
 /** Small, capped route-risk nudge from the fleet profile; it never makes a route safe. */
 export function vehicleRiskMultiplier(ruleset: Ruleset, loadout: VehicleLoadout): number {
   const count = Object.values(loadout).reduce((sum, value) => sum + Math.max(0, value ?? 0), 0);
@@ -257,8 +265,7 @@ export function vehicleRiskMultiplier(ruleset: Ruleset, loadout: VehicleLoadout)
   const weighted = Object.entries(loadout).reduce((sum, [classId, quantity]) => {
     if (!quantity || quantity <= 0) return sum;
     const profile = ruleset.vehicleCatalog!.classes.find((entry) => entry.id === classId)?.routeProfile;
-    const factor = profile === 'LOW_PROFILE' ? 0.9 : profile === 'HIGH_VISIBILITY' ? 1.15 : 1;
-    return sum + quantity * factor;
+    return sum + quantity * routeProfileRisk(ruleset, profile);
   }, 0);
   return weighted / count;
 }

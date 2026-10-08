@@ -200,7 +200,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
                 <label className="se-label" htmlFor={`run-${key}`}><ItemLabel itemKey={classId}>{name} <span className="se-muted">of {owned[classId]}</span></ItemLabel></label>
                 <input id={`run-${key}`} className="se-input" type="number" inputMode="numeric" min={0} max={owned[classId]} value={vehicleLoadout[classId]}
                   onChange={(event) => setVehicleLoadout({ ...vehicleLoadout, [classId]: whole(event.target.value) })} />
-                {spec ? <span className="se-hint">{spec.cargoPercent ?? 100}% cargo · {spec.crewSeats ?? rules.thugsPerLowRider} seats · {routeProfileText(spec.routeProfile)}</span> : null}
+                {spec ? <span className="se-hint">{spec.cargoPercent ?? 100}% cargo · {spec.crewSeats ?? rules.thugsPerLowRider} seats · {routeProfileText(spec)}</span> : null}
               </div>
             );
           })}

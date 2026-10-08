@@ -2,7 +2,7 @@
 
 ## Brainstorm
 
-**Status:** 1.5.0-A through D are implemented on beta as `classic-og-v1.5-a` to `classic-og-v1.5-d`. The remaining slices are proposals.
+**Status:** 1.5.0-A through E are implemented on beta as `classic-og-v1.5-a` to `classic-og-v1.5-e`, the 1.5 release ruleset. 1.5.0-F (cosmetics) is a proposal.
 
 **Target base:** StreetsEmpire v1.4.0, after its release ruleset is pinned.  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Low-Riders into a useful fleet.  
@@ -72,7 +72,7 @@ Each slice should have its own release gate and pinned ruleset, following the ea
 | **1.5.0-B — Vehicle Classes & Run Loadouts** | Built | `classic-og-v1.5-b` adds Sedan and Van ownership, predictable garage purchase prices, mixed run loadouts, class-specific cargo and seating capacity, and visible route profiles before dispatch. |
 | **1.5.0-C — Garage Service, Recovery & Class Art** | Built | `classic-og-v1.5-c` adds Damaged and Disabled vehicle states, priced garage repair and recovery, a Garage tab on Travel, and class artwork in the garage, run loadout and Hideout. Busts, arrests and lost convoy fights dent cars instead of deleting them. |
 | **1.5.0-D — Road Specialization** | Built | `classic-og-v1.5-d` connects the road lane to garage service: an Auto Garage cuts repairs, the Chop Shop's Vehicle recovery racket cuts recovery and Stolen Low-Riders now discounts Sedans and Vans, and Road Saints MC at Trusted cut both. Capped at 35%; no vehicle is exclusive to anyone. |
-| **1.5.0-E — Balance, Admin & Release** | Proposed | Simulate route value, vehicle use, repairs and losses; add admin visibility and audited corrections where needed; complete mobile, exploit and historical-ruleset checks. |
+| **1.5.0-E — Balance, Admin & Release** | Built | `classic-og-v1.5-e` adds the `qa:vehicles` simulation and release gate, trims the Sedan's low-profile edge from 10% to 5% lower route risk, and adds Admin → Vehicles, a fleet view and audited fleet corrections in the player inspector, exploit-audit checks and historical-ruleset tests. |
 | **1.5.0-F — Vehicle Cosmetics** | Proposed | After the base class silhouettes and garage presentation are settled, add optional player-selected vehicle looks. Cosmetics remain presentation-only and do not change vehicle stats or route outcomes. |
 
 ---
@@ -137,6 +137,38 @@ The road lane makes a fleet **cheaper to keep running**, and that is all it does
 All service discounts together are capped at 35%. They are read on the server when the action runs, never taken from the client. The Garage tab shows the discounted price with the list price struck through, and a line naming each source that applies. The Road Saints Connected nudge (bodyguard tickets) and their Known and Trusted road information are unchanged.
 
 **Why the numbers are small.** At full strength an Auto Garage saves $125 to $313 per repair, and Road Saints save $50 to $340 per service. A running Auto Garage's front income alone is $165 an hour at level 1. The discount rewards a crew already in the lane; it does not pay for building into it. Trouble that dents a car is occasional, so even a heavy runner saves far less from the lane than its rackets earn.
+
+### 1.5.0-E — Balance, Admin & Release
+
+**Status: implemented on beta.** `classic-og-v1.5-e` is the 1.5 release ruleset. It wraps `classic-og-v1.5-d` with one balance change.
+
+**Simulation.** `npm run qa:vehicles` drives every class through four run scenarios on the best mid-round trade: a small quiet job at high Heat, a big haul, a heavily escorted run under convoy pressure, and a hot road. It uses the engine the server uses: road stops and town trouble at the fleet's route risk, convoy hits and theft, the damage they leave, and garage prices. Every fleet that can carry and seat the run is scored on the same paired draws, so differences come from the fleet and not the dice. Each fleet is charged fines, seizures, loot, garage bills, stolen cars and the share of each car's price that net worth never gives back. The full report is in [VEHICLES-SIMULATION-1.5.0-E.md](VEHICLES-SIMULATION-1.5.0-E.md).
+
+**What it found.** On a route worth driving, the trade dwarfs what cars cost, so classes land within a few percent of each other. On 1.5.0-D's numbers, though, the Sedan was the favourite in every scenario, and 5.2% ahead on a hot road. Carrying less is no real cost when another Sedan is cheap, so its low profile made it the automatic way past Heat, which was this roadmap's own watch item. Fewer Sedan seats or less Sedan cargo changed nothing. The lever was the risk edge itself.
+
+**The change.** Route-profile risk is now a ruleset value (`vehicleCatalog.routeRisk`). Older rulesets keep 1.5.0-B's 0.9 and 1.15 through the defaults. 1.5.0-E sets the Sedan to 0.95 (5% lower route risk) and leaves the Van at 1.15. The Garage tab and run loadout read the percentage from the round. The Sedan's lead on a hot road drops to 3.6%.
+
+**Gate.** The release check runs `qa:vehicles`:
+- Every class is a reasonable pick somewhere (within 3% of the best fleet in at least one scenario).
+- No class is a must-have (the best class leads the next by under 5% in every scenario).
+- No reasonable fleet spends over 10% of its run on the garage.
+- Every fleet still meets trouble on the hot road.
+- Repair < recovery < half a new car, and net worth never counts a car above its price.
+- The road specialization cap stays under 50%.
+
+The Sedan is still the narrow favourite. The gate asks for real choices, not an outright winner per class. The Low-Rider's other job, drive-bys, isn't a run and isn't scored.
+
+**Admin.**
+- **Admin → Vehicles:** per round, the fleet by class (Ready, Away, Damaged, Disabled), the largest fleets, garage spend over 24 hours and 7 days, Sedan and Van sales, staff corrections, and active runs whose classes don't add up to their car count.
+- **Player inspector:** each class's counts and the garage spend. **Fleet correction** sets one class's home Ready, Damaged and Disabled counts exactly. It settles the player first, leaves cars on a run alone, recomputes net worth and ranks, refuses self-corrections and finished rounds, and writes a player-visible admin activity and a `vehicle.fleet-adjust` audit row (target `player-vehicles`).
+
+**Exploit audit.** `ops:exploit-audit` checks the 1.5 constraints (class counts, garage counts, and run loadout and damage records as JSON objects), active runs whose classes miss their car count, and runs with more dented cars than cars.
+
+**Historical rulesets.** Tests pin that 1.4.0-G has no vehicle catalog, that Low-Rider capacity and route risk on 1.5.0-A and E match 1.4.0-G, and that 1.5.0-B keeps its −10% Sedan.
+
+**Mobile.** The Garage tab, run loadout, Admin → Vehicles and the fleet correction form have no horizontal scroll at phone width.
+
+**Open options, not shipped.** The sim also tested *fleet exposure*, where every car past the first few adds route risk. It didn't change the picture enough to justify a new mechanic. It stays available if a later season shows big Sedan columns dominating.
 
 ### Vehicle artwork
 

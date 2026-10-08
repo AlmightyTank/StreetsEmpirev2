@@ -9,6 +9,7 @@ import { AdminBugReportsPage } from './pages/AdminBugReportsPage.js';
 import { AdminEconomyPage } from './pages/AdminEconomyPage.js';
 import { AdminCasinoPage } from './pages/AdminCasinoPage.js';
 import { AdminFactionsPage } from './pages/AdminFactionsPage.js';
+import { AdminVehiclesPage } from './pages/AdminVehiclesPage.js';
 import { AdminLawPage } from './pages/AdminLawPage.js';
 import { AdminLawPlayerPage } from './pages/AdminLawPlayerPage.js';
 import { AdminCombatPage } from './pages/AdminCombatPage.js';
@@ -210,6 +211,7 @@ export function App() {
         <Route path="admin/economy" element={admin(<AdminEconomyPage />)} />
         <Route path="admin/casino" element={admin(<AdminCasinoPage />)} />
         <Route path="admin/factions" element={admin(<AdminFactionsPage />)} />
+        <Route path="admin/vehicles" element={admin(<AdminVehiclesPage />)} />
         <Route path="admin/law" element={admin(<AdminLawPage />)} />
         <Route path="admin/players/:roundPlayerId/law" element={admin(<AdminLawPlayerPage />)} />
         <Route path="admin/combat" element={admin(<AdminCombatPage />)} />

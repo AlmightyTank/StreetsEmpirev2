@@ -907,6 +907,8 @@ export interface TravelDto extends CitiesDto {
     crewSeats?: number | null;
     purchasePriceCents?: number | null;
     routeProfile?: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
+    /** 1.5.0-E. The profile's whole-percent change to route risk: -5 is 5% lower. */
+    routeRiskPercent?: number;
     /** 1.5.0-C. At home but waiting on the garage; not counted in `home`. */
     damaged?: number;
     disabled?: number;

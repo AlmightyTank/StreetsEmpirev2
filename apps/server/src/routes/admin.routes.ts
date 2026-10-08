@@ -39,6 +39,7 @@ import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
 import { AdminCasinoService } from '../services/admin-casino.service.js';
 import { AdminFactionService } from '../services/admin-faction.service.js';
+import { ADMIN_VEHICLE_MAX, AdminVehicleService } from '../services/admin-vehicle.service.js';
 import { AdminLawService } from '../services/admin-law.service.js';
 import { AdminTurfService } from '../services/admin-turf.service.js';
 import { BugReportService } from '../services/support.service.js';
@@ -156,6 +157,16 @@ const factionAdjustSchema = z.object({
   reason,
   factionKey: z.string().trim().min(1).max(64).regex(/^[A-Z][A-Z0-9_]{1,63}$/),
   points: z.number().int().min(0).max(10_000),
+}).strict();
+
+// 1.5.0-E: set one vehicle class's home counts exactly, with an audit row.
+const vehicleCount = z.number().int().min(0).max(ADMIN_VEHICLE_MAX);
+const vehicleAdjustSchema = z.object({
+  reason,
+  classId: z.enum(['LOW_RIDER', 'SEDAN', 'VAN']),
+  ready: vehicleCount,
+  damaged: vehicleCount,
+  disabled: vehicleCount,
 }).strict();
 
 const grantSchema = z.object({
@@ -773,6 +784,19 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/rounds/:roundId/factions', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
     return AdminFactionService.report(fastify.prisma, roundId);
+  });
+
+  /** 1.5.0-E: vehicle health for a round: the fleet, the garage and runs that do not add up. */
+  fastify.get('/rounds/:roundId/vehicles', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    return AdminVehicleService.report(fastify.prisma, roundId);
+  });
+
+  /** 1.5.0-E: an audited correction to one vehicle class's home counts. */
+  fastify.post('/players/:roundPlayerId/vehicles/adjust', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    const body = parseBody(vehicleAdjustSchema, request.body ?? {});
+    return AdminVehicleService.adjust(fastify.prisma, request.auth!.account, roundPlayerId, body);
   });
 
   fastify.get('/players/:roundPlayerId/law', async (request) => {

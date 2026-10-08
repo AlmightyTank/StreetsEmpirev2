@@ -5,6 +5,7 @@ import { toActivityDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { ActivityService } from './activity.service.js';
 import { adminFactionStandings } from './admin-faction.service.js';
+import { adminPlayerFleet } from './admin-vehicle.service.js';
 import { CombatService } from './combat.service.js';
 import { ProductInventoryService, productKeys } from './product-inventory.service.js';
 
@@ -200,6 +201,7 @@ export const AdminPlayerService = {
       },
       reputation: player.reputation.map((row) => ({ trader: row.trader, points: row.points, legacyFavorDone: Boolean(row.questDoneAt) })),
       factions: await adminFactionStandings(prisma, player.id),
+      fleet: await adminPlayerFleet(prisma, player.id),
       injuries: player.combatInjuries.map((injury) => ({
         id: injury.id,
         thugs: injury.thugs,

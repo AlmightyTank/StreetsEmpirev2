@@ -95,6 +95,7 @@ export const ADMIN_SECTION: NavSection = {
     { key: 'admin-law', label: 'Law', to: '/game/admin/law', icon: 'admin' },
     { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefix: '/game/admin/accounts/' },
     { key: 'admin-factions', label: 'Factions', to: '/game/admin/factions', icon: 'admin' },
+    { key: 'admin-vehicles', label: 'Vehicles', to: '/game/admin/vehicles', icon: 'admin' },
     { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets', icon: 'admin' },
     { key: 'admin-rounds', label: 'Rounds', to: '/game/admin/rounds', icon: 'admin', prefix: '/game/admin/rounds/' },
     { key: 'admin-monitoring', label: 'Monitoring', to: '/game/admin/monitoring', icon: 'admin' },

@@ -47,6 +47,8 @@ run('Slot reels and free-spin Monte Carlo', npm, ['run', 'qa:slots']);
 run('Law balance bands', npm, ['run', 'qa:law', '--', '--quiet']);
 // 1.4.0-G: faction-heavy play, mixed play, receipt integrity and pinned faction release values.
 run('Faction balance and audit gates', npm, ['run', 'qa:factions', '--', '--quiet']);
+// 1.5.0-E: every vehicle class a reasonable pick somewhere, none a must-have, and the garage a cost, not a tax.
+run('Vehicle balance gates', npm, ['run', 'qa:vehicles', '--', '--quiet']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup

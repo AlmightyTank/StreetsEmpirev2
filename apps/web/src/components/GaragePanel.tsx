@@ -14,9 +14,10 @@ export const VEHICLE_NAMES: Record<VehicleClassId, string> = { LOW_RIDER: 'Low-R
 
 export const vehiclePlural = (classId: VehicleClassId, count: number) => `${VEHICLE_NAMES[classId]}${count === 1 ? '' : 's'}`;
 
-/** 1.5.0-B route profiles in player words. */
-export function routeProfileText(profile: Fleet[number]['routeProfile']): string {
-  return profile === 'LOW_PROFILE' ? '10% lower route risk' : profile === 'HIGH_VISIBILITY' ? '15% higher route risk' : 'normal route risk';
+/** 1.5.0-B route profiles in player words, at the round's own numbers (1.5.0-E). */
+export function routeProfileText(vehicle: Pick<Fleet[number], 'routeProfile' | 'routeRiskPercent'>): string {
+  const percent = vehicle.routeRiskPercent ?? (vehicle.routeProfile === 'LOW_PROFILE' ? -10 : vehicle.routeProfile === 'HIGH_VISIBILITY' ? 15 : 0);
+  return percent < 0 ? `${-percent}% lower route risk` : percent > 0 ? `${percent}% higher route risk` : 'normal route risk';
 }
 
 /** "2 Vans · 1 Sedan" from a class count; empty when every count is zero. */
@@ -119,7 +120,7 @@ export function GaragePanel({ data, onDone }: { data: TravelDto; onDone: () => v
                 <h3>{vehicle.name}</h3>
                 <p className="se-dim">{vehicle.description}</p>
                 <p className="se-hint">
-                  {vehicle.cargoPercent ?? 100}% cargo · {vehicle.crewSeats ?? data.rules.thugsPerLowRider} seats · {routeProfileText(vehicle.routeProfile)}
+                  {vehicle.cargoPercent ?? 100}% cargo · {vehicle.crewSeats ?? data.rules.thugsPerLowRider} seats · {routeProfileText(vehicle)}
                 </p>
               </div>
               <dl className="se-garage__states">
