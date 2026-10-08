@@ -168,6 +168,9 @@ See the working [1.4.0 factions and contracts roadmap](ROADMAP-1.4.0.md).
 
 ### NPC organizations
 
+See the working [NPC gangs roadmap](NPC-GANGS-ROADMAP.md) for the beta implementation
+plan and future phases.
+
 Possible groups:
 
 - Street gangs
