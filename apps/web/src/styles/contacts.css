@@ -134,19 +134,15 @@
   text-align: right;
 }
 
-/* Flex, not grid: the tabs drop under the search box once the main column
-   is too narrow for both, instead of squeezing their count badges out. */
 .se-contacts-toolbar {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(250px, 0.7fr) minmax(0, 1fr);
   gap: 8px;
-  align-items: flex-end;
+  align-items: end;
 }
 
 .se-contacts-search {
   display: grid;
-  flex: 1 1 250px;
-  min-width: 0;
   gap: 5px;
 }
 
@@ -163,20 +159,18 @@
 }
 
 .se-contacts-tabs {
-  display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 5px;
 }
 
 .se-contacts-tabs__tab {
   display: flex;
-  flex: 1 1 auto;
   align-items: center;
   justify-content: space-between;
   gap: 7px;
+  min-width: 0;
   min-height: 40px;
-  white-space: nowrap;
   padding: 7px 9px;
   border: 1px solid var(--se-line);
   border-radius: 3px;
@@ -413,6 +407,10 @@
 }
 
 @media (max-width: 900px) {
+  .se-contacts-toolbar {
+    grid-template-columns: 1fr;
+  }
+
   .se-contacts-work__rail {
     grid-template-columns: 1fr 1fr;
   }
@@ -456,6 +454,10 @@
     text-align: left;
   }
 
+  .se-contacts-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .se-contacts-work__rail {
     grid-template-columns: 1fr;
   }
@@ -494,5 +496,9 @@
 
   .se-contacts-hero__readout strong {
     margin-top: 0;
+  }
+
+  .se-contacts-tabs {
+    grid-template-columns: 1fr 1fr;
   }
 }
