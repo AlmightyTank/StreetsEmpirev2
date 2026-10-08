@@ -203,6 +203,20 @@ export interface CombatDriveByDto {
   };
 }
 
+export type NpcGangDangerDto = 'QUIET' | 'ACTIVE' | 'HOT';
+
+export interface NpcGangIntelDto {
+  danger: NpcGangDangerDto;
+  activeGangs: number;
+  recentHits: number;
+  recentDriveBys: number;
+  recentSpecialRaids: number;
+  seenSince: string;
+  topArchetype?: string;
+  topTier?: string;
+  rumors: string[];
+}
+
 export interface CombatPageDto {
   enabled: boolean;
   roundId: string;
@@ -226,4 +240,6 @@ export interface CombatPageDto {
   specialRaids?: CombatSpecialRaidDto[];
   /** Absent where drive-bys have not shipped. */
   driveBy?: CombatDriveByDto;
+  /** Phase H. Local, fuzzy warnings about server-run gangs in your current city. */
+  npcGangIntel?: NpcGangIntelDto;
 }

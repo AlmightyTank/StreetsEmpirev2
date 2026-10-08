@@ -829,12 +829,49 @@ export interface AdminDevBotsDto {
   /** Why dev bots are refused on this server, or null when they are allowed. */
   blockedReason: string | null;
   currentRound: { id: string; name: string; rulesetVersion: string } | null;
+  /** Phase I. Read-only operator view of server-run gang pressure. */
+  npcGangSummary: {
+    generatedAt: string;
+    active: number;
+    dueNow: number;
+    acted24h: number;
+    blocked24h: number;
+    cities: Array<{
+      city: string;
+      activeGangs: number;
+      dueNow: number;
+      recentHits: number;
+      recentDriveBys: number;
+      recentSpecialRaids: number;
+      nextActionAt: string | null;
+    }>;
+  };
   bots: Array<{
     accountId: string;
     username: string;
     isActive: boolean;
     roundsPlayed: number;
-    inCurrentRound: { roundPlayerId: string; displayName: string; publicPimpId: number; netWorthCents: number } | null;
+    inCurrentRound: {
+      roundPlayerId: string;
+      displayName: string;
+      publicPimpId: number;
+      netWorthCents: number;
+      npcGang: {
+        archetype: string;
+        tier: string;
+        aggression: number;
+        ambition: number;
+        discipline: number;
+        nextActionAt: string;
+        lastActionAt: string | null;
+        dormantUntil: string | null;
+        homeCity: string;
+        lastIntent: string | null;
+        lastOutcome: string | null;
+        lastTarget: string | null;
+        lastError: string | null;
+      } | null;
+    } | null;
   }>;
 }
 

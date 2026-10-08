@@ -768,6 +768,7 @@ export interface SeededRivalRule {
   readonly publicPimpId: number;
   readonly note: string;
   readonly startingPlayer: Partial<StartingPlayer>;
+  readonly npcGang?: NpcGangSeedProfile;
 }
 
 export interface RoundRules {
@@ -776,6 +777,27 @@ export interface RoundRules {
   readonly startingCitySlug: string;
   readonly startingPlayer: StartingPlayer;
   readonly seededRivals?: readonly SeededRivalRule[];
+}
+
+export type NpcGangTier = 'SCRUB' | 'STREET' | 'VETERAN' | 'KINGPIN';
+
+export interface NpcGangSeedProfile {
+  readonly archetype: string;
+  readonly tier: NpcGangTier;
+  /** How likely this crew is to pick violent moves once the scheduler is live. */
+  readonly aggression: number;
+  /** How strongly this crew prefers growth moves like product, turf and rides. */
+  readonly ambition: number;
+  /** How likely this crew is to wait, restock or lay low instead of forcing a bad move. */
+  readonly discipline: number;
+}
+
+export interface NpcGangRules {
+  readonly enabled: boolean;
+  readonly tickMinutes: number;
+  readonly maxActionsPerTick: number;
+  readonly maxPerCity: number;
+  readonly retaliationHours: number;
 }
 
 // --- turns ------------------------------------------------------------------
@@ -2835,6 +2857,8 @@ export interface Ruleset {
   readonly contacts?: ContactCatalog;
   /** 1.4.0-A. The underworld factions behind the contacts. Absent before 1.4. */
   readonly factions?: FactionCatalog;
+  /** Server-run street crews: identity, scheduler pacing and NPC action limits. */
+  readonly npcGangs?: NpcGangRules;
   /** 1.5.0-A. Catalog only; no class-specific balance or dispatch behavior yet. */
   readonly vehicleCatalog?: VehicleCatalog;
   /** 1.4.0-B. Seasonal faction standing. Absent: factions are identity only. */

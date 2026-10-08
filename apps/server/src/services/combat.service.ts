@@ -18,6 +18,7 @@ import {
   type CombatReconResultDto,
   type CombatTreatmentInputDto,
   type DriveByInputDto,
+  type NpcGangIntelDto,
   type RaidInputDto,
   type CombatSpecialRaidDto,
   type SpecialRaidInputDto,
@@ -37,7 +38,7 @@ import { CombatRecoveryService } from './combat-recovery.service.js';
 import { HappinessService } from './happiness.service.js';
 import { assertPlayerState } from './invariant.service.js';
 import { NetWorthService } from './net-worth.service.js';
-import { PlayerStateService, type SettledPlayer } from './player-state.service.js';
+import { PlayerStateService, type PlayerWithCity, type SettledPlayer } from './player-state.service.js';
 import { bossAway } from './boss-trip-settle.service.js';
 import { truceBlock, trucesFor } from './boss-presence.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
@@ -680,6 +681,97 @@ async function recoveryDto(
   };
 }
 
+function readableArchetype(archetype: string): string {
+  return archetype
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function storedReportKind(battle: Pick<Prisma.RaidBattleGetPayload<{ select: { kind: true; attackerReport: true } }>, 'kind' | 'attackerReport'>): string {
+  const report = battle.attackerReport && typeof battle.attackerReport === 'object' && !Array.isArray(battle.attackerReport)
+    ? battle.attackerReport as Prisma.JsonObject
+    : {};
+  return typeof report.kind === 'string' ? report.kind : battle.kind;
+}
+
+async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date): Promise<NpcGangIntelDto | undefined> {
+  if (ruleset.npcGangs?.enabled === false) return undefined;
+  const seenSince = new Date(now.getTime() - 24 * 3_600_000);
+  const [gangs, recentRows] = await Promise.all([
+    prisma.npcGang.findMany({
+      where: {
+        roundPlayer: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } },
+        OR: [{ dormantUntil: null }, { dormantUntil: { lte: now } }],
+      },
+      select: {
+        archetype: true,
+        tier: true,
+        aggression: true,
+        ambition: true,
+        discipline: true,
+        lastActionAt: true,
+        roundPlayer: { select: { displayName: true } },
+      },
+      orderBy: [{ aggression: 'desc' }, { ambition: 'desc' }],
+      take: 8,
+    }),
+    prisma.raidBattle.findMany({
+      where: {
+        createdAt: { gte: seenSince },
+        voidedAt: null,
+        defender: { roundId: player.roundId, cityId: player.cityId },
+      },
+      select: {
+        kind: true,
+        attackerReport: true,
+        attacker: {
+          select: {
+            displayName: true,
+            npcGang: { select: { id: true, archetype: true, tier: true, aggression: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 25,
+    }),
+  ]);
+
+  const recent = recentRows.filter((battle) => Boolean(battle.attacker.npcGang));
+  const recentDriveBys = recent.filter((battle) => storedReportKind(battle) === 'DRIVE_BY').length;
+  const recentSpecialRaids = recent.filter((battle) => ['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW'].includes(storedReportKind(battle))).length;
+  const maxAggression = Math.max(0, ...gangs.map((gang) => gang.aggression), ...recent.map((battle) => battle.attacker.npcGang?.aggression ?? 0));
+  const dangerScore = gangs.length + recent.length * 2 + recentDriveBys * 2 + recentSpecialRaids + Math.floor(maxAggression / 25);
+  const danger: NpcGangIntelDto['danger'] = dangerScore >= 8 ? 'HOT' : dangerScore >= 3 ? 'ACTIVE' : 'QUIET';
+  const top = gangs[0] ?? recent.find((battle) => battle.attacker.npcGang)?.attacker.npcGang ?? null;
+  const rumors: string[] = [];
+
+  if (recent.length) {
+    rumors.push(`${recent.length} NPC gang hit${recent.length === 1 ? '' : 's'} made noise in the last day.`);
+  } else if (gangs.length) {
+    rumors.push('No fresh NPC hits on the wire, but crews are still moving locally.');
+  } else {
+    rumors.push('No server-run crews are making noise in this city right now.');
+  }
+  if (recentDriveBys) rumors.push(`${recentDriveBys} drive-by${recentDriveBys === 1 ? '' : 's'} had engines talking.`);
+  if (recentSpecialRaids) rumors.push(`${recentSpecialRaids} old-school move${recentSpecialRaids === 1 ? '' : 's'} showed up in street chatter.`);
+  if (top) rumors.push(`${readableArchetype(top.archetype)} crews look like the loudest local problem.`);
+  if (danger === 'HOT') rumors.push('Keep medicine, rides and backup ready before picking a fight here.');
+  else if (danger === 'ACTIVE') rumors.push('Watch the target list. A quiet block can turn noisy fast.');
+
+  return {
+    danger,
+    activeGangs: gangs.length,
+    recentHits: recent.length,
+    recentDriveBys,
+    recentSpecialRaids,
+    seenSince: seenSince.toISOString(),
+    ...(top ? { topArchetype: readableArchetype(top.archetype), topTier: top.tier } : {}),
+    rumors: rumors.slice(0, 4),
+  };
+}
+
 export const CombatService = {
   async page(prisma: PrismaClient, playerId: string, after = 0, background = false): Promise<CombatPageDto> {
     const settled = await PlayerStateService.settle(prisma, playerId, { markActive: !background });
@@ -723,6 +815,7 @@ export const CombatService = {
     const burnerFavor = model.strategy
       ? await SingleUseFavorService.matching(prisma, playerId, ruleset, 'FREE_RECON')
       : null;
+    const npcGangIntel = await npcGangIntelDto(prisma, player, ruleset, now);
     return {
       ...base, enabled: true, blockedReason,
       protectedUntil: combatProtectionUntil(player, model) > now ? iso(combatProtectionUntil(player, model)) : null,
@@ -770,6 +863,7 @@ export const CombatService = {
       nextTarget: targets.length > 25 ? targets[24]!.publicPimpId : null,
       ...(model.specialRaids ? { specialRaids: specialRaidDtos(player, model, now) } : {}),
       ...(model.driveBy ? { driveBy: driveByDto(player, model, model.driveBy, now) } : {}),
+      ...(npcGangIntel ? { npcGangIntel } : {}),
     };
   },
 

@@ -41,6 +41,7 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin integrations API wi
     if (!app) return;
     await app.prisma.adminAuditLog.deleteMany({ where: { actorAccountId: { in: accountIds } } });
     await app.prisma.discordResyncRequest.deleteMany({ where: { requestedByAccountId: { in: accountIds } } });
+    await app.prisma.account.deleteMany({ where: { username: { startsWith: 'seed-rival-' }, email: { endsWith: '@streets.local' } } });
     if (accountIds.length) await app.prisma.account.deleteMany({ where: { id: { in: accountIds } } });
     await app.close();
   });
@@ -142,5 +143,26 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin integrations API wi
     expect(bots.json().blockedReason).toBeNull();
     expect(Array.isArray(bots.json().bots)).toBe(true);
     expect((await post('/api/admin/dev-bots/remove', {})).statusCode).toBe(400);
+  });
+
+  it('seeds dev bots with inert NPC gang profiles', async () => {
+    const before = await get('/api/admin/dev-bots');
+    expect(before.statusCode, before.body).toBe(200);
+    if (before.json().blockedReason || !before.json().currentRound) return;
+
+    try {
+      const seeded = await post('/api/admin/dev-bots/seed', {});
+      expect(seeded.statusCode, seeded.body).toBe(200);
+      const current = seeded.json().bots
+        .map((bot: { inCurrentRound: unknown }) => bot.inCurrentRound)
+        .filter(Boolean);
+      expect(current.length).toBeGreaterThan(0);
+      for (const bot of current as Array<{ npcGang: { tier: string; archetype: string; nextActionAt: string } | null }>) {
+        expect(bot.npcGang).toMatchObject({ tier: expect.any(String), archetype: expect.any(String) });
+        expect(Date.parse(bot.npcGang!.nextActionAt)).not.toBeNaN();
+      }
+    } finally {
+      await post('/api/admin/dev-bots/remove', { reason: 'test cleanup' });
+    }
   });
 });

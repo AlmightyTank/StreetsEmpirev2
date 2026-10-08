@@ -104,18 +104,18 @@ model Account {
   mutesMade              PlayerMute[]            @relation("PlayerMuter")
   mutesReceived          PlayerMute[]            @relation("PlayerMuted")
   moderationNotes        AccountModerationNote[]
-  surveySubmissions       SurveySubmission[]
-  experienceEvents        PlayerExperienceEvent[]
-  experiencePoints        Int                     @default(0)
+  surveySubmissions      SurveySubmission[]
+  experienceEvents       PlayerExperienceEvent[]
+  experiencePoints       Int                     @default(0)
 
   @@index([registeredIp, createdAt])
 }
 
 /// Permanent account progress, separate from season resources and Street Pass Cred.
 model PlayerExperienceEvent {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   accountId String
-  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   sourceKey String
   source    String
@@ -185,7 +185,7 @@ model AccountProfile {
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   activeTitleKey        String?
-  titlePlacement       String  @default("prefix")
+  titlePlacement        String  @default("prefix")
   /// 0.9.0-F. Optional public crew name, account-level so it carries across seasons.
   crewName              String?
   profileBio            String?
@@ -195,13 +195,13 @@ model AccountProfile {
   activeProfileFrameKey String?
   activeSiteThemeKey    String?
   /// Player-selected visual skin per inventory item key. Cosmetic only.
-  itemCosmetics          Json    @default("{}")
+  itemCosmetics         Json    @default("{}")
   /// THUG / HOE visual styles. Crew is aggregate inventory, so the style applies to the whole type.
-  crewCosmetics          Json    @default("{}")
+  crewCosmetics         Json    @default("{}")
   /// Slice E. Visitors see the owner's site theme on their public profile.
-  showThemeOnProfile     Boolean @default(true)
+  showThemeOnProfile    Boolean @default(true)
   /// Slice E. Visitors see the owner's item and crew look on their public profile.
-  showLookOnProfile      Boolean @default(true)
+  showLookOnProfile     Boolean @default(true)
   featuredBadgeKeys     Json    @default("[]")
   profileAccent         String  @default("default")
   uiDensity             String  @default("comfortable")
@@ -591,7 +591,7 @@ model SurveyQuestion {
   type        SurveyQuestionType
   prompt      String
   description String?
-  required    Boolean @default(true)
+  required    Boolean            @default(true)
   position    Int
 
   /// Text questions may use these; null means the service default.
@@ -645,7 +645,7 @@ model SurveySubmission {
   submittedAt DateTime @default(now())
 
   /// Exact reward definition snapshot used for this completion.
-  rewardSnapshot Json @default("[]")
+  rewardSnapshot  Json      @default("[]")
   rewardGrantedAt DateTime?
 
   answers SurveyAnswer[]
@@ -1007,8 +1007,8 @@ model Round {
   name String
   slug String @unique
 
-  rulesetId      String
-  rulesetVersion String
+  rulesetId          String
+  rulesetVersion     String
   /// Per-round Street Pass reward edits, frozen when registration opens.
   streetPassOverride Json?
 
@@ -1094,6 +1094,7 @@ model City {
   warrants          PlayerWarrant[]
   officials         PlayerOfficial[]
   tips              PlayerTip[]
+  npcGangs          NpcGang[]           @relation("NpcGangHomeCity")
 }
 
 // ---------------------------------------------------------------------------
@@ -1169,10 +1170,10 @@ model RoundPlayer {
   thugStock       Int      @default(0)
   thugStockAt     DateTime @default(now())
 
-  lowRiders Int @default(0)
+  lowRiders         Int @default(0)
   /// 1.5.0-B. Separate vehicle classes; Low-Riders remain in the legacy field.
-  sedans Int @default(0)
-  vans   Int @default(0)
+  sedans            Int @default(0)
+  vans              Int @default(0)
   /// 1.5.0-C. At home but out of action until the garage repairs (Damaged) or
   /// recovers (Disabled) them. Not in the Ready counts above.
   damagedLowRiders  Int @default(0)
@@ -1197,49 +1198,50 @@ model RoundPlayer {
 
   /// 0.4.0-C. Attention the crew's product draws, 0..ruleset heat max. Decays on the turn clock
   /// (lastTurnCalculationAt), so it needs no clock of its own. Always 0 on rounds without Heat.
-  heat                 Int       @default(0)
+  heat                    Int                      @default(0)
   /// 0.5.0-C. Locked up after an arrest at home: no actions until then.
-  lockedUntil          DateTime?
+  lockedUntil             DateTime?
   /// 0.5.0-D. On the road to a new home until then: no actions, and still a target in
   /// the old city (cityId changes on arrival). The move itself is a Relocation row.
-  movingUntil          DateTime?
+  movingUntil             DateTime?
   /// Trips C. A beaten boss heals until then: no trips, no riding along, and the
   /// lieutenant keeps running home.
-  laidUpUntil          DateTime?
+  laidUpUntil             DateTime?
   /// 0.5.0-E. Thugs out on a tail or riding backup for a convoy: still the player's, still
   /// in net worth, but not fit for anything else until the fight is settled.
-  busyThugs            Int       @default(0)
+  busyThugs               Int                      @default(0)
   /// 0.6.0-A. Thugs standing on corners this crew holds: still the player's and still in
   /// net worth, but not at home to work, cover the street, cook or defend. Unlike
   /// `busyThugs` they have no deadline: they stand there until they are pulled or pushed off.
-  postedThugs          Int       @default(0)
+  postedThugs             Int                      @default(0)
   /// 0.6.0-B. Net-worth value of guns removed from the home arsenal and posted on turf.
-  postedNetWorthCents  BigInt    @default(0)
+  postedNetWorthCents     BigInt                   @default(0)
   /// 0.6.0-D. Net-worth value stored in away outpost boxes.
-  outpostNetWorthCents BigInt    @default(0)
+  outpostNetWorthCents    BigInt                   @default(0)
   /// 1.1.0-B. Thugs and girls working a business. Still counted in `thugs` and `whores`
   /// (and in net worth), but never fit at home and never working the street.
-  businessThugs        Int       @default(0)
-  businessWhores       Int       @default(0)
+  businessThugs           Int                      @default(0)
+  businessWhores          Int                      @default(0)
   /// 1.2.0-A. City chip wallets, open bankroll sessions and immutable casino receipts.
-  casinoWallets        CasinoWallet[]
-  casinoSessions       CasinoSession[]
-  casinoLedger           CasinoLedgerEntry[]
+  casinoWallets           CasinoWallet[]
+  casinoSessions          CasinoSession[]
+  casinoLedger            CasinoLedgerEntry[]
   /// 1.3.0-A. What each city's police have on this player, and every change to it.
-  cases                  PlayerCase[]
-  caseReceipts           PlayerCaseReceipt[]
-  factionStandings       PlayerFactionStanding[]
-  factionReceipts        PlayerFactionReceipt[]
-  factionPerkUses        PlayerFactionPerkUse[]
-  factionWarnings        PlayerFactionWarning[]
-  warrants               PlayerWarrant[]
+  cases                   PlayerCase[]
+  caseReceipts            PlayerCaseReceipt[]
+  factionStandings        PlayerFactionStanding[]
+  factionReceipts         PlayerFactionReceipt[]
+  factionPerkUses         PlayerFactionPerkUse[]
+  factionWarnings         PlayerFactionWarning[]
+  warrants                PlayerWarrant[]
   /// 1.3.0-D. Corrupt officials on the payroll, and tips bought from informants.
-  officials              PlayerOfficial[]
-  tips                   PlayerTip[]
-  casinoFreeSpinBonus    CasinoFreeSpinBonus?
-  casinoBlackjackShoes   CasinoBlackjackShoe[]
-  casinoBlackjackHands   CasinoBlackjackHand[]
-  casinoBlackjackActions CasinoBlackjackAction[]
+  officials               PlayerOfficial[]
+  tips                    PlayerTip[]
+  npcGang                 NpcGang?
+  casinoFreeSpinBonus     CasinoFreeSpinBonus?
+  casinoBlackjackShoes    CasinoBlackjackShoe[]
+  casinoBlackjackHands    CasinoBlackjackHand[]
+  casinoBlackjackActions  CasinoBlackjackAction[]
   casinoStreetDiceRounds  CasinoStreetDiceRound[]
   casinoStreetDiceActions CasinoStreetDiceAction[]
   casinoPokerHands        CasinoPokerHand[]
@@ -1250,32 +1252,32 @@ model RoundPlayer {
   casinoRatings           CasinoRating[]
   /// 1.1.0-C. The crew's live rackets, racket key -> strength (0..1], rebuilt on every
   /// business settle so any system can read them off the player row.
-  racketEffects        Json      @default("{}")
+  racketEffects           Json                     @default("{}")
   /// Heat washed by laundering rackets on `launderedDay` (UTC) and over the round, for the caps.
-  launderedDay         String?
-  launderedHeatToday   Int       @default(0)
-  launderedHeatRound   Int       @default(0)
+  launderedDay            String?
+  launderedHeatToday      Int                      @default(0)
+  launderedHeatRound      Int                      @default(0)
   /// 1.3.0-B. Case washed by laundering on `launderedCaseDay` (UTC), in hundredths, for the daily cap.
-  launderedCaseDay     String?
-  launderedCaseToday   Int       @default(0)
+  launderedCaseDay        String?
+  launderedCaseToday      Int                      @default(0)
   /// 1.3.0-C. Police losses (busts, arrests, raids, fines) on `policeLossDay` (UTC), at net-worth
   /// value, for the daily cap. Busts and arrests count toward it but are never reduced by it.
-  policeLossDay        String?
-  policeLossCents      BigInt    @default(0)
+  policeLossDay           String?
+  policeLossCents         BigInt                   @default(0)
   /// 1.3.0-C. A lawyer on retainer until then.
-  lawyerRetainedUntil  DateTime?
+  lawyerRetainedUntil     DateTime?
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
-  rocksSuppliedToPip   Int       @default(0)
+  rocksSuppliedToPip      Int                      @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
-  driveBysDone         Int       @default(0)
+  driveBysDone            Int                      @default(0)
   /// 0.3.0-B favours. Store purchases this round, whichever shop sold them. Rows from
   /// rounds before these were added start at zero.
-  condomsBought        Int       @default(0)
-  medicineBought       Int       @default(0)
-  beerBought           Int       @default(0)
-  pistolsBought        Int       @default(0)
+  condomsBought           Int                      @default(0)
+  medicineBought          Int                      @default(0)
+  beerBought              Int                      @default(0)
+  pistolsBought           Int                      @default(0)
   /// Raids carried out this round in any form but the drive-by, landed or not.
-  raidsDone            Int       @default(0)
+  raidsDone               Int                      @default(0)
 
   /// Derived from supplies, protection and fatigue. Stored so it can be read
   /// and ranked without recomputing, but never the source of truth.
@@ -1314,7 +1316,7 @@ model RoundPlayer {
   armedFavors           PlayerArmedFavor[]
   streetPassProgress    StreetPassProgress?
   streetPassClaims      StreetPassClaim[]
-  surveySubmissions    SurveySubmission[]
+  surveySubmissions     SurveySubmission[]
   raidsSent             RaidBattle[]         @relation("RaidAttacker")
   raidsReceived         RaidBattle[]         @relation("RaidDefender")
   combatInjuries        CombatInjury[]
@@ -1405,6 +1407,37 @@ model RoundPlayer {
   @@index([roundId, netWorthCents(sort: Desc)])
   @@index([roundId, cityId, netWorthCents(sort: Desc)])
   @@index([allianceId])
+}
+
+/// Server-run street crews that use the same seasonal body as a player crew, with
+/// a small scheduler profile layered on top.
+model NpcGang {
+  id String @id @default(cuid())
+
+  roundPlayerId String      @unique
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  archetype String
+  tier      String
+
+  homeCityId String
+  homeCity   City   @relation("NpcGangHomeCity", fields: [homeCityId], references: [id])
+
+  aggression Int
+  ambition   Int
+  discipline Int
+
+  nextActionAt DateTime
+  lastActionAt DateTime?
+  dormantUntil DateTime?
+
+  memory Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([nextActionAt])
+  @@index([homeCityId, tier])
 }
 
 // ---------------------------------------------------------------------------
@@ -1538,10 +1571,10 @@ model Run {
   homeCity       String
   lowRiders      Int
   /// 1.5.0-B. Class composition for this run; old runs default to Low-Riders.
-  vehicleLoadout Json @default("{\"LOW_RIDER\":1}")
+  vehicleLoadout Json          @default("{\"LOW_RIDER\":1}")
   /// 1.5.0-C. The part of the loadout that comes home Damaged or Disabled:
   /// { damaged: {LOW_RIDER, SEDAN, VAN}, disabled: {...} }. Empty is a clean run.
-  vehicleDamage  Json @default("{}")
+  vehicleDamage  Json          @default("{}")
   escortThugs    Int
   /// The run's wallet, integer cents. Never below zero.
   cashCents      BigInt
@@ -2536,27 +2569,27 @@ model Business {
 
   /// 1.1.0-B. Staff working it: thugs, or girls for a Strip Club. Still counted in the
   /// owner's `thugs`/`whores`, and marked there as `businessThugs`/`businessWhores`.
-  staff         Int          @default(0)
+  staff           Int             @default(0)
   /// How many staff the crew wants here: up to the level's max, 0 to close it.
-  staffTarget   Int          @default(0)
+  staffTarget     Int             @default(0)
   /// Replace staff who desert or are lured from the fit crew, up to the target, on settle.
-  autoStaff     Boolean      @default(true)
+  autoStaff       Boolean         @default(true)
   /// Whose staff they are. Only earns while this crew holds the block; when it no longer
   /// does, the staff go home on the owner's next settle and the register is lost.
-  staffOwnerId  String?
-  staffOwner    RoundPlayer? @relation("BusinessStaffOwner", fields: [staffOwnerId], references: [id], onDelete: SetNull)
+  staffOwnerId    String?
+  staffOwner      RoundPlayer?    @relation("BusinessStaffOwner", fields: [staffOwnerId], references: [id], onDelete: SetNull)
   /// Income waiting to be collected, capped at the ruleset's register hours.
-  registerCents BigInt       @default(0)
+  registerCents   BigInt          @default(0)
   /// Whole hours of income and supply are settled up to here.
-  accruedAt     DateTime     @default(now())
+  accruedAt       DateTime        @default(now())
   /// 1.1.0-C. The ruleset racket key this business runs on top of its front, if any.
   /// Cleared when another crew takes it over.
-  racket        String?
+  racket          String?
   /// When the racket was last set or switched; the switch cooldown runs from here.
-  racketSince   DateTime?
+  racketSince     DateTime?
   /// 1.1.0-D. A torch the holder lit during a war: it burns down at `torchUntil`.
-  torchUntil    DateTime?
-  torchById     String?
+  torchUntil      DateTime?
+  torchById       String?
   /// 1.3.0-C. A business raid shuts the racket (never the front) for this window.
   racketShutFrom  DateTime?
   racketShutUntil DateTime?
@@ -2578,11 +2611,11 @@ model CasinoWallet {
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
   cityId String
-  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
 
-  chipsCents BigInt @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  chipsCents BigInt   @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([roundPlayerId, cityId])
   @@index([cityId])
@@ -2596,14 +2629,14 @@ model CasinoSession {
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
   cityId String
-  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
 
-  status        String @default("OPEN")
+  status        String    @default("OPEN")
   bankrollCents BigInt
-  openedAt DateTime @default(now())
-  closedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  openedAt      DateTime  @default(now())
+  closedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   ledger CasinoLedgerEntry[]
 
@@ -2616,7 +2649,7 @@ model CasinoSession {
 model CasinoFreeSpinBonus {
   id String @id @default(cuid())
 
-  roundPlayerId String @unique
+  roundPlayerId String      @unique
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
   citySlug          String
@@ -2625,7 +2658,7 @@ model CasinoFreeSpinBonus {
   activePaylineKeys Json
   awardedSpins      Int
   remainingSpins    Int
-  totalWonCents     BigInt @default(0)
+  totalWonCents     BigInt   @default(0)
   sourceActionId    String
   awardedAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -2644,8 +2677,8 @@ model CasinoBlackjackShoe {
 
   tableKey      String
   cards         Json
-  cursor        Int @default(0)
-  shuffleNumber Int @default(1)
+  cursor        Int      @default(0)
+  shuffleNumber Int      @default(1)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -2661,23 +2694,23 @@ model CasinoBlackjackHand {
   roundPlayerId String
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
-  sessionId        String
-  cityId           String
-  tableKey         String
-  status           String @default("ACTIVE")
-  wagerCents            BigInt
-  committedWagerCents   BigInt
-  playerHands           Json
-  dealerCards      Json
-  activeHandIndex  Int @default(0)
-  totalReturnCents  BigInt @default(0)
-  bankrollAfterCents BigInt @default(0)
-  shoeRemainingCards Int @default(0)
-  shuffleNumber     Int @default(1)
-  initialActionId   String
-  settledAt        DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  sessionId           String
+  cityId              String
+  tableKey            String
+  status              String    @default("ACTIVE")
+  wagerCents          BigInt
+  committedWagerCents BigInt
+  playerHands         Json
+  dealerCards         Json
+  activeHandIndex     Int       @default(0)
+  totalReturnCents    BigInt    @default(0)
+  bankrollAfterCents  BigInt    @default(0)
+  shoeRemainingCards  Int       @default(0)
+  shuffleNumber       Int       @default(1)
+  initialActionId     String
+  settledAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@unique([roundPlayerId, initialActionId])
   @@index([roundPlayerId, status, createdAt(sort: Desc)])
@@ -2717,19 +2750,19 @@ model CasinoStreetDiceRound {
   status    String @default("ACTIVE")
 
   lineWagerCents BigInt
-  oddsWagerCents BigInt @default(0)
-  point           Int?
-  lastDice        Json @default("[]")
-  lastOutcome     String?
-  rollCount       Int @default(0)
+  oddsWagerCents BigInt  @default(0)
+  point          Int?
+  lastDice       Json    @default("[]")
+  lastOutcome    String?
+  rollCount      Int     @default(0)
 
-  totalReturnCents  BigInt @default(0)
+  totalReturnCents   BigInt @default(0)
   bankrollAfterCents BigInt @default(0)
 
   initialActionId String
-  settledAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  settledAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@unique([roundPlayerId, initialActionId])
   @@index([roundPlayerId, status, createdAt(sort: Desc)])
@@ -2765,14 +2798,14 @@ model CasinoPokerHand {
   sessionId          String
   cityId             String
   tableKey           String
-  status             String @default("ACTIVE")
+  status             String    @default("ACTIVE")
   buyInCents         BigInt
   state              Json
   bankrollAfterCents BigInt
   initialActionId    String
   settledAt          DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@unique([roundPlayerId, initialActionId])
   @@index([roundPlayerId, status, createdAt(sort: Desc)])
@@ -2799,41 +2832,43 @@ model CasinoPokerAction {
 
 /// 1.2.0-F. Multiplayer Hold’em lobby table; gameplay is added in the next slice.
 model CasinoPokerTable {
-  id String @id @default(cuid())
-  roundId String
-  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  cityId String
-  name String
-  visibility String @default("PUBLIC")
-  inviteCodeHash String?
+  id                   String                 @id @default(cuid())
+  roundId              String
+  round                Round                  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  cityId               String
+  name                 String
+  visibility           String                 @default("PUBLIC")
+  inviteCodeHash       String?
   creatorRoundPlayerId String
-  createActionId String
-  maxPlayers Int @default(6)
-  buyInCents BigInt
-  status String @default("WAITING")
-  dealerSeatNo Int?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  seats CasinoPokerSeat[]
-  hands CasinoPokerTableHand[]
+  createActionId       String
+  maxPlayers           Int                    @default(6)
+  buyInCents           BigInt
+  status               String                 @default("WAITING")
+  dealerSeatNo         Int?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  seats                CasinoPokerSeat[]
+  hands                CasinoPokerTableHand[]
+
+  @@unique([creatorRoundPlayerId, createActionId])
   @@index([roundId, status, visibility, createdAt])
   @@index([cityId, status])
-  @@unique([creatorRoundPlayerId, createActionId])
 }
 
 model CasinoPokerSeat {
-  id String @id @default(cuid())
-  tableId String
-  table CasinoPokerTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  id            String           @id @default(cuid())
+  tableId       String
+  table         CasinoPokerTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
   roundPlayerId String
-  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
-  sessionId String
-  actionId String
-  seatNo Int
-  stackCents BigInt
-  status String @default("WAITING")
-  joinedAt DateTime @default(now())
-  leftAt DateTime?
+  roundPlayer   RoundPlayer      @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  sessionId     String
+  actionId      String
+  seatNo        Int
+  stackCents    BigInt
+  status        String           @default("WAITING")
+  joinedAt      DateTime         @default(now())
+  leftAt        DateTime?
+
   @@unique([tableId, seatNo])
   @@unique([roundPlayerId, actionId])
   @@index([roundPlayerId, status])
@@ -2841,32 +2876,34 @@ model CasinoPokerSeat {
 }
 
 model CasinoPokerTableHand {
-  id String @id @default(cuid())
-  tableId String
-  table CasinoPokerTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  handNo Int
-  status String @default("ACTIVE")
-  state Json
-  outcome String?
-  startedAt DateTime @default(now())
+  id        String                   @id @default(cuid())
+  tableId   String
+  table     CasinoPokerTable         @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  handNo    Int
+  status    String                   @default("ACTIVE")
+  state     Json
+  outcome   String?
+  startedAt DateTime                 @default(now())
   settledAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  actions CasinoPokerTableAction[]
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+  actions   CasinoPokerTableAction[]
+
   @@unique([tableId, handNo])
   @@index([tableId, status, handNo])
 }
 
 model CasinoPokerTableAction {
-  id String @id @default(cuid())
+  id            String               @id @default(cuid())
   roundPlayerId String
-  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
-  handId String
-  hand CasinoPokerTableHand @relation(fields: [handId], references: [id], onDelete: Cascade)
-  actionId String
-  kind String
-  response Json
-  createdAt DateTime @default(now())
+  roundPlayer   RoundPlayer          @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  handId        String
+  hand          CasinoPokerTableHand @relation(fields: [handId], references: [id], onDelete: Cascade)
+  actionId      String
+  kind          String
+  response      Json
+  createdAt     DateTime             @default(now())
+
   @@unique([roundPlayerId, actionId])
   @@index([handId, createdAt])
 }
@@ -2879,20 +2916,20 @@ model CasinoLedgerEntry {
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
   cityId String
-  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
 
   sessionId String?
   session   CasinoSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
-  actionId String
-  kind     String
-  cashDeltaCents         BigInt @default(0)
-  walletChipDeltaCents   BigInt @default(0)
-  sessionChipDeltaCents  BigInt @default(0)
+  actionId               String
+  kind                   String
+  cashDeltaCents         BigInt   @default(0)
+  walletChipDeltaCents   BigInt   @default(0)
+  sessionChipDeltaCents  BigInt   @default(0)
   walletChipsAfterCents  BigInt
-  sessionChipsAfterCents BigInt @default(0)
-  metadata Json @default("{}")
-  createdAt DateTime @default(now())
+  sessionChipsAfterCents BigInt   @default(0)
+  metadata               Json     @default("{}")
+  createdAt              DateTime @default(now())
 
   @@unique([roundPlayerId, actionId])
   @@index([roundPlayerId, createdAt(sort: Desc)])
@@ -2912,25 +2949,25 @@ model CasinoRating {
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
   cityId String
-  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
 
   /// Charged chips wagered here. Free spins and comped play add nothing.
-  wageredCents     BigInt @default(0)
+  wageredCents    BigInt    @default(0)
   /// Theoretical house win in cents x bps.
-  theoBasis        BigInt @default(0)
+  theoBasis       BigInt    @default(0)
   /// Comps earned here in cents x bps.
-  compBasis        BigInt @default(0)
+  compBasis       BigInt    @default(0)
   /// Whole comp cents redeemed while the boss was in this city.
-  compsSpentCents  BigInt @default(0)
-  ratedWagers      Int    @default(0)
+  compsSpentCents BigInt    @default(0)
+  ratedWagers     Int       @default(0)
   /// 1.2.0-F. Season casino feats: wagers placed at VIP tables, progressive jackpots hit,
   /// and the biggest net win on one settled hand, spin, roll or poker hand.
-  vipWagers        Int    @default(0)
-  jackpots         Int    @default(0)
-  biggestWinCents  BigInt @default(0)
-  lastRatedAt      DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  vipWagers       Int       @default(0)
+  jackpots        Int       @default(0)
+  biggestWinCents BigInt    @default(0)
+  lastRatedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@unique([roundPlayerId, cityId])
   @@index([cityId])
@@ -2941,12 +2978,12 @@ model CasinoJackpot {
   id String @id @default(cuid())
 
   roundId String
-  round   Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
 
   machineKey String
   poolCents  BigInt
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([roundId, machineKey])
   @@index([machineKey])
@@ -3427,9 +3464,9 @@ model PlayerCase {
   cityId String
   city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
 
-  caseHundredths Int    @default(0)
+  caseHundredths Int       @default(0)
   /// The Wanted stage the Case last read as; a rise logs CASE_STAGE_UP once.
-  stage          String @default("QUIET")
+  stage          String    @default("QUIET")
   /// 1.3.0-B. When `caseHundredths` was last brought up to date. Cooling after it is worked
   /// out on read and written as a COOLING receipt with the next change.
   caseAt         DateTime  @default(now())
@@ -3534,19 +3571,19 @@ model PlayerOfficial {
   city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
 
   /// CAPTAIN, DA, JUDGE or CUSTOMS.
-  role      String
+  role         String
   /// ACTIVE (working while `paidUntil` is ahead), CUT (let go) or STUNG (caught by Internal Affairs).
-  status    String    @default("ACTIVE")
-  hiredAt   DateTime
-  paidUntil DateTime
+  status       String    @default("ACTIVE")
+  hiredAt      DateTime
+  paidUntil    DateTime
   /// Exposure points from favors. Starts again from zero with each new hire.
-  exposure  Int       @default(0)
+  exposure     Int       @default(0)
   /// Internal Affairs opened a file at `iaOpenedAt`; the sting lands at `stingAt` unless cut first.
-  iaOpenedAt DateTime?
-  stingAt    DateTime?
+  iaOpenedAt   DateTime?
+  stingAt      DateTime?
   /// A DA can quash again from here.
   quashReadyAt DateTime?
-  endedAt    DateTime?
+  endedAt      DateTime?
 
   /// Alert collection markers.
   iaAlertedAt    DateTime?
@@ -3588,10 +3625,10 @@ model PlayerFactionStanding {
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
   /// KINGS, OUTFIT, ROAD_SAINTS, CARTEL_LINE or CIVIC_HANDSHAKE.
-  factionKey String
-  points     Int    @default(0)
+  factionKey          String
+  points              Int       @default(0)
   /// The tier the standing last read as; a rise logs FACTION_TIER_UP once.
-  tier       String @default("UNKNOWN")
+  tier                String    @default("UNKNOWN")
   /// 1.4.0-F. When the player reached Inner Circle, and when the street feed posted it.
   innerCircleAt       DateTime?
   innerCirclePostedAt DateTime?
@@ -3657,11 +3694,11 @@ model PlayerFactionWarning {
   roundPlayerId String
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
-  factionKey String
-  warningKey String
+  factionKey        String
+  warningKey        String
   /// What the warning said and where it pointed, for the push and Discord alert.
-  text       String    @default("")
-  href       String    @default("/game/quests#factions")
+  text              String    @default("")
+  href              String    @default("/game/quests#factions")
   /// When the alert collector turned it into push and Discord alerts.
   alertsCollectedAt DateTime?
 

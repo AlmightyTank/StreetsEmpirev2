@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import type { AdminDevBotsDto } from '@streets/shared';
 import { env } from '../config/env.js';
@@ -18,10 +18,44 @@ async function record(prisma: PrismaClient, actor: AuditActor, action: string, a
   await prisma.$transaction((tx) => AdminAuditService.record(tx, actor, { action, targetType: 'dev-bots', targetId: null, reason: reason ?? null, after }));
 }
 
+function jsonObject(value: Prisma.JsonValue): Prisma.JsonObject {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Prisma.JsonObject : {};
+}
+
+function stringField(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function npcGangMemory(memory: Prisma.JsonValue): {
+  lastIntent: string | null;
+  lastOutcome: string | null;
+  lastTarget: string | null;
+  lastError: string | null;
+} {
+  const root = jsonObject(memory);
+  const detail = jsonObject(root.lastDetail as Prisma.JsonValue);
+  const error = jsonObject(root.lastError as Prisma.JsonValue);
+  const errorCode = stringField(error.code);
+  const errorMessage = stringField(error.message);
+  return {
+    lastIntent: stringField(root.lastIntent),
+    lastOutcome: stringField(root.lastOutcome),
+    lastTarget: stringField(detail.targetName),
+    lastError: errorMessage ? (errorCode ? `${errorCode}: ${errorMessage}` : errorMessage) : null,
+  };
+}
+
+function storedReportKind(battle: { kind: string; attackerReport: Prisma.JsonValue }): string {
+  const report = jsonObject(battle.attackerReport);
+  return stringField(report.kind) ?? battle.kind;
+}
+
 /** Local test targets from the panel instead of the CLI. Refused in production and against a non-local database. */
 export const AdminDevBotsService = {
   async status(prisma: PrismaClient): Promise<AdminDevBotsDto> {
+    const now = new Date();
     const round = await RoundService.getCurrent(prisma);
+    const since = new Date(now.getTime() - 24 * 3_600_000);
     const accounts = await prisma.account.findMany({
       where: devBotAccountWhere,
       orderBy: { username: 'asc' },
@@ -31,22 +65,145 @@ export const AdminDevBotsService = {
         isActive: true,
         _count: { select: { roundPlayers: true } },
         roundPlayers: round
-          ? { where: { roundId: round.id }, select: { id: true, displayName: true, publicPimpId: true, netWorthCents: true } }
-          : { where: { id: '' }, select: { id: true, displayName: true, publicPimpId: true, netWorthCents: true } },
+          ? {
+              where: { roundId: round.id },
+              select: {
+                id: true,
+                displayName: true,
+                publicPimpId: true,
+                city: { select: { id: true, name: true } },
+                netWorthCents: true,
+                npcGang: { select: { archetype: true, tier: true, aggression: true, ambition: true, discipline: true, nextActionAt: true, lastActionAt: true, dormantUntil: true, memory: true, homeCity: { select: { name: true } } } },
+              },
+            }
+          : {
+              where: { id: '' },
+              select: {
+                id: true,
+                displayName: true,
+                publicPimpId: true,
+                city: { select: { id: true, name: true } },
+                netWorthCents: true,
+                npcGang: { select: { archetype: true, tier: true, aggression: true, ambition: true, discipline: true, nextActionAt: true, lastActionAt: true, dormantUntil: true, memory: true, homeCity: { select: { name: true } } } },
+              },
+            },
       },
     });
+    const currentPlayers = accounts.flatMap((account) => account.roundPlayers);
+    const cityRows = new Map<string, {
+      city: string;
+      activeGangs: number;
+      dueNow: number;
+      recentHits: number;
+      recentDriveBys: number;
+      recentSpecialRaids: number;
+      nextActionAt: Date | null;
+    }>();
+
+    for (const player of currentPlayers) {
+      if (!player.npcGang) continue;
+      const cityId = player.city.id;
+      const row = cityRows.get(cityId) ?? {
+        city: player.city.name,
+        activeGangs: 0,
+        dueNow: 0,
+        recentHits: 0,
+        recentDriveBys: 0,
+        recentSpecialRaids: 0,
+        nextActionAt: null,
+      };
+      row.activeGangs += 1;
+      if (player.npcGang.nextActionAt <= now && (!player.npcGang.dormantUntil || player.npcGang.dormantUntil <= now)) row.dueNow += 1;
+      if (!row.nextActionAt || player.npcGang.nextActionAt < row.nextActionAt) row.nextActionAt = player.npcGang.nextActionAt;
+      cityRows.set(cityId, row);
+    }
+
+    if (round && cityRows.size > 0) {
+      const recent = await prisma.raidBattle.findMany({
+        where: {
+          createdAt: { gte: since },
+          voidedAt: null,
+          attacker: { roundId: round.id, npcGang: { isNot: null } },
+          defender: { roundId: round.id },
+        },
+        select: {
+          kind: true,
+          attackerReport: true,
+          defender: { select: { cityId: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+      for (const battle of recent) {
+        const row = cityRows.get(battle.defender.cityId);
+        if (!row) continue;
+        const kind = storedReportKind(battle);
+        row.recentHits += 1;
+        if (kind === 'DRIVE_BY') row.recentDriveBys += 1;
+        if (['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW'].includes(kind)) row.recentSpecialRaids += 1;
+      }
+    }
+
+    const npcGangs = currentPlayers.flatMap((player) => player.npcGang ? [player.npcGang] : []);
+    const acted24h = npcGangs.filter((gang) => gang.lastActionAt && gang.lastActionAt >= since).length;
+    const blocked24h = currentPlayers.filter((player) => {
+      if (!player.npcGang?.lastActionAt || player.npcGang.lastActionAt < since) return false;
+      return npcGangMemory(player.npcGang.memory).lastOutcome === 'BLOCKED';
+    }).length;
+
     return {
       blockedReason: blockedReason(),
       currentRound: round ? { id: round.id, name: round.name, rulesetVersion: round.rulesetVersion } : null,
+      npcGangSummary: {
+        generatedAt: now.toISOString(),
+        active: npcGangs.length,
+        dueNow: npcGangs.filter((gang) => gang.nextActionAt <= now && (!gang.dormantUntil || gang.dormantUntil <= now)).length,
+        acted24h,
+        blocked24h,
+        cities: Array.from(cityRows.values())
+          .sort((left, right) => right.recentHits - left.recentHits || right.dueNow - left.dueNow || left.city.localeCompare(right.city))
+          .map((row) => ({
+            city: row.city,
+            activeGangs: row.activeGangs,
+            dueNow: row.dueNow,
+            recentHits: row.recentHits,
+            recentDriveBys: row.recentDriveBys,
+            recentSpecialRaids: row.recentSpecialRaids,
+            nextActionAt: row.nextActionAt?.toISOString() ?? null,
+          })),
+      },
       bots: accounts.map((account) => {
         const player = account.roundPlayers[0];
+        const memory = player?.npcGang ? npcGangMemory(player.npcGang.memory) : null;
         return {
           accountId: account.id,
           username: account.username,
           isActive: account.isActive,
           roundsPlayed: account._count.roundPlayers,
           inCurrentRound: player
-            ? { roundPlayerId: player.id, displayName: player.displayName, publicPimpId: player.publicPimpId, netWorthCents: Number(player.netWorthCents) }
+            ? {
+                roundPlayerId: player.id,
+                displayName: player.displayName,
+                publicPimpId: player.publicPimpId,
+                netWorthCents: Number(player.netWorthCents),
+                npcGang: player.npcGang
+                  ? {
+                      archetype: player.npcGang.archetype,
+                      tier: player.npcGang.tier,
+                      aggression: player.npcGang.aggression,
+                      ambition: player.npcGang.ambition,
+                      discipline: player.npcGang.discipline,
+                      nextActionAt: player.npcGang.nextActionAt.toISOString(),
+                      lastActionAt: player.npcGang.lastActionAt?.toISOString() ?? null,
+                      dormantUntil: player.npcGang.dormantUntil?.toISOString() ?? null,
+                      homeCity: player.npcGang.homeCity.name,
+                      lastIntent: memory?.lastIntent ?? null,
+                      lastOutcome: memory?.lastOutcome ?? null,
+                      lastTarget: memory?.lastTarget ?? null,
+                      lastError: memory?.lastError ?? null,
+                    }
+                  : null,
+              }
             : null,
         };
       }),

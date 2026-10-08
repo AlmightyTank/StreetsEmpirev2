@@ -24,6 +24,7 @@ import { formatWhen } from '../utils/time.js';
 const date = (value: string) => formatWhen(value);
 const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 'AK-47' : key.toLowerCase();
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
+const npcDangerLabel = { QUIET: 'Quiet', ACTIVE: 'Active', HOT: 'Hot' } as const;
 
 const signedUnits = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatNumber(Math.abs(value))}`;
 /**
@@ -650,6 +651,19 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
 
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="info">{notice}</Alert> : null}
+      {page?.npcGangIntel ? (
+        <Panel title="Street rumors" aside={`NPC gangs · ${npcDangerLabel[page.npcGangIntel.danger]}`} className="se-raids-panel">
+          <div className="se-rows">
+            <Row label="Local pressure" value={npcDangerLabel[page.npcGangIntel.danger]} strong={page.npcGangIntel.danger !== 'QUIET'} />
+            <Row label="Crews nearby" value={formatNumber(page.npcGangIntel.activeGangs)} />
+            <Row label="NPC hits since" value={`${date(page.npcGangIntel.seenSince)} · ${formatNumber(page.npcGangIntel.recentHits)} hit${page.npcGangIntel.recentHits === 1 ? '' : 's'}`} />
+            {page.npcGangIntel.topArchetype ? <Row label="Loudest style" value={`${page.npcGangIntel.topArchetype}${page.npcGangIntel.topTier ? ` · ${page.npcGangIntel.topTier}` : ''}`} /> : null}
+          </div>
+          <ul className="se-city__talk">
+            {page.npcGangIntel.rumors.map((rumor) => <li key={rumor}>{rumor}</li>)}
+          </ul>
+        </Panel>
+      ) : null}
 
       {pending ? (
         <section className="se-raids-pending">

@@ -36,6 +36,12 @@ function age(iso: string | null): string {
   return `oldest ${formatDuration(Math.max(0, Date.now() - Date.parse(iso)))} ago`;
 }
 
+function timing(iso: string | null): string {
+  if (!iso) return 'not scheduled';
+  const delta = Date.parse(iso) - Date.now();
+  return delta <= 0 ? `due ${formatDuration(Math.abs(delta))} ago` : `in ${formatDuration(delta)}`;
+}
+
 export function AdminIntegrationsPage() {
   const [discord, setDiscord] = useState<AdminDiscordStatusDto | null>(null);
   const [bots, setBots] = useState<AdminDevBotsDto | null>(null);
@@ -195,6 +201,28 @@ export function AdminIntegrationsPage() {
                     {!bots.currentRound ? <p className="se-hint se-mt">There is no current round to add them to.</p> : null}
                   </>
                 )}
+                <div className="se-rows se-mt">
+                  <Row label="NPC gangs active" value={formatNumber(bots.npcGangSummary.active)} />
+                  <Row label="Ready to move" value={formatNumber(bots.npcGangSummary.dueNow)} strong={bots.npcGangSummary.dueNow > 0} />
+                  <Row label="Moved in 24h" value={formatNumber(bots.npcGangSummary.acted24h)} />
+                  <Row label="Blocked in 24h" value={formatNumber(bots.npcGangSummary.blocked24h)} strong={bots.npcGangSummary.blocked24h > 0} />
+                </div>
+                {bots.npcGangSummary.cities.length ? (
+                  <ol className="se-admin-list">
+                    {bots.npcGangSummary.cities.map((city) => (
+                      <li key={city.city}>
+                        <div className="se-admin-check__head">
+                          <strong>{city.city}</strong>
+                          <span className="se-muted">{timing(city.nextActionAt)}</span>
+                        </div>
+                        <p className="se-hint">
+                          {formatNumber(city.activeGangs)} crew{city.activeGangs === 1 ? '' : 's'} · {formatNumber(city.dueNow)} ready · {formatNumber(city.recentHits)} hit{city.recentHits === 1 ? '' : 's'} in 24h
+                          {city.recentDriveBys || city.recentSpecialRaids ? ` · ${formatNumber(city.recentDriveBys)} drive-by · ${formatNumber(city.recentSpecialRaids)} special` : ''}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
               </div>
               {bots.bots.length === 0 ? (
                 <p className="se-muted se-admin-pad">No dev bots exist.</p>
@@ -205,6 +233,7 @@ export function AdminIntegrationsPage() {
                       <tr>
                         <th>Bot</th>
                         <th>This round</th>
+                        <th>NPC gang</th>
                         <th className="se-table__number">Net worth</th>
                         <th className="se-table__number">Rounds</th>
                       </tr>
@@ -220,6 +249,22 @@ export function AdminIntegrationsPage() {
                             {bot.inCurrentRound
                               ? <Link to={`/game/admin/players/${bot.inCurrentRound.roundPlayerId}`}>{bot.inCurrentRound.displayName} #{bot.inCurrentRound.publicPimpId}</Link>
                               : <span className="se-muted">Not in it</span>}
+                          </td>
+                          <td data-label="NPC gang">
+                            {bot.inCurrentRound?.npcGang ? (
+                              <>
+                                <strong>{bot.inCurrentRound.npcGang.tier}</strong>
+                                <span className="se-muted"> · {bot.inCurrentRound.npcGang.archetype} · {bot.inCurrentRound.npcGang.homeCity}</span>
+                                <p className="se-hint">
+                                  Next {timing(bot.inCurrentRound.npcGang.nextActionAt)}
+                                  {bot.inCurrentRound.npcGang.lastOutcome ? ` · last ${bot.inCurrentRound.npcGang.lastOutcome.toLowerCase().replace(/_/g, ' ')}` : ''}
+                                  {bot.inCurrentRound.npcGang.lastTarget ? ` vs ${bot.inCurrentRound.npcGang.lastTarget}` : ''}
+                                </p>
+                                {bot.inCurrentRound.npcGang.lastError ? <p className="se-hint">Blocked: {bot.inCurrentRound.npcGang.lastError}</p> : null}
+                              </>
+                            ) : (
+                              <span className="se-muted">Missing</span>
+                            )}
                           </td>
                           <td className="se-table__number se-num" data-label="Net worth">{bot.inCurrentRound ? formatCents(bot.inCurrentRound.netWorthCents) : '-'}</td>
                           <td className="se-table__number se-num" data-label="Rounds">{formatNumber(bot.roundsPlayed)}</td>

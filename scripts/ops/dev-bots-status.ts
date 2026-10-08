@@ -1,7 +1,15 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+function jsonObject(value: Prisma.JsonValue): Prisma.JsonObject {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Prisma.JsonObject : {};
+}
+
+function text(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
 
 async function main() {
   const currentRound = await prisma.round.findFirst({
@@ -24,6 +32,7 @@ async function main() {
           roundId: true,
           displayName: true,
           publicPimpId: true,
+          npcGang: { select: { archetype: true, tier: true, nextActionAt: true, lastActionAt: true, memory: true } },
         },
       },
     },
@@ -50,7 +59,12 @@ async function main() {
   console.log(`Dev bot accounts: ${accounts.length}`);
   console.log(`Dev bots in current round: ${currentPlayers.length}`);
   for (const { account, player } of currentPlayers) {
-    console.log(`- ${player.displayName} (#${player.publicPimpId}) via ${account.username} ${account.isActive ? 'active' : 'inactive'}`);
+    const memory = player.npcGang ? jsonObject(player.npcGang.memory) : {};
+    const outcome = text(memory.lastOutcome);
+    const npc = player.npcGang
+      ? ` npc:${player.npcGang.tier}/${player.npcGang.archetype} next ${player.npcGang.nextActionAt.toISOString()} last ${outcome ?? 'none'}`
+      : ' npc:missing';
+    console.log(`- ${player.displayName} (#${player.publicPimpId}) via ${account.username} ${account.isActive ? 'active' : 'inactive'}${npc}`);
   }
   console.log('Remove dev bots: npm run db:cleanup:seed-rivals');
 }
