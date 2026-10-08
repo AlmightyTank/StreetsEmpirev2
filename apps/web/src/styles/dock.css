@@ -227,6 +227,17 @@
     min-width: 0;
   }
 
+  /* What the button will do shares the button's row, so the dock stays two rows tall:
+     the summary shrinks and ellipsizes, the button keeps its label. */
+  .se-dock__controls > :first-child {
+    flex: 1 1 0;
+  }
+
+  .se-dock__controls > .se-btn,
+  .se-dock__controls > .se-why {
+    flex: 0 0 auto;
+  }
+
   .se-dock__controls .se-spend__input {
     width: 64px;
   }
