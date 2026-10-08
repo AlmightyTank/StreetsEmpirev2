@@ -92,14 +92,6 @@ async function checkPostChannel(guild: Guild, channelId: string, envName: string
   return { channel, problem: null };
 }
 
-/** A configured text channel, or null (with the reason logged) if the bot can't post there. */
-async function findPostChannel(guild: Guild, channelId: string, envName: string, label: string): Promise<GuildTextBasedChannel | null> {
-  if (!channelId) return null;
-  const { channel, problem } = await checkPostChannel(guild, channelId, envName);
-  if (problem) console.warn(`${label} is off: ${problem}`);
-  return channel;
-}
-
 async function postNews(channel: GuildTextBasedChannel): Promise<void> {
   // Claimed posts count as posted, which is why the channel is checked before any claim.
   for (const post of await api.claimNews()) {
@@ -118,8 +110,8 @@ async function postNews(channel: GuildTextBasedChannel): Promise<void> {
   }
 }
 
-async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFeed: GuildTextBasedChannel | null }): Promise<void> {
-  const claimed = await api.claimAlerts();
+async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFeed: GuildTextBasedChannel | null }, feed: boolean): Promise<void> {
+  const claimed = await api.claimAlerts({ feed });
 
   for (const reminder of claimed.turns) {
     try {
@@ -318,10 +310,21 @@ client.once(Events.ClientReady, async (ready) => {
     });
     startPoller('News auto-post', config.DISCORD_NEWS_MINUTES * 60_000, runNews);
 
-    const raidFeedChannel = await findPostChannel(guild, config.DISCORD_RAID_FEED_CHANNEL_ID, 'DISCORD_RAID_FEED_CHANNEL_ID', 'Raid feed');
-    if (raidFeedChannel) console.log(`Posting raid feed events to #${raidFeedChannel.name}.`);
-
-    const runAlerts = serialTask('Discord alerts', () => sendAlerts({ news: newsChannel, raidFeed: raidFeedChannel }));
+    // Also checked on every run. While a configured feed channel is unusable its events stay
+    // on the server, since a claimed event counts as posted; with no channel set they are dropped.
+    let raidFeedProblem: string | null | undefined;
+    const runAlerts = serialTask('Discord alerts', async () => {
+      const configured = Boolean(config.DISCORD_RAID_FEED_CHANNEL_ID);
+      const check = configured
+        ? await checkPostChannel(guild, config.DISCORD_RAID_FEED_CHANNEL_ID, 'DISCORD_RAID_FEED_CHANNEL_ID')
+        : { channel: null, problem: null };
+      if (check.problem !== raidFeedProblem) {
+        if (check.problem) console.warn(`Raid feed is paused until fixed: ${check.problem}`);
+        else if (check.channel) console.log(`Posting raid feed events to #${check.channel.name}.`);
+        raidFeedProblem = check.problem;
+      }
+      await sendAlerts({ news: newsChannel, raidFeed: check.channel }, !check.problem);
+    });
     const runAdminResync = serialTask('Admin role resync', async () => {
       const claim = await api.claimResync();
       if (claim.all) {
