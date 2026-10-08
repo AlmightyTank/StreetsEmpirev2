@@ -839,6 +839,8 @@ export interface AdminDevBotsDto {
     /** Phase I. Grudges still open across all gangs, and NPC paybacks that landed in 24h. */
     openGrudges: number;
     revenge24h: number;
+    /** Phase J. Blocks NPC gangs hold across the round right now. */
+    heldBlocks: number;
     cities: Array<{
       city: string;
       activeGangs: number;
@@ -847,6 +849,7 @@ export interface AdminDevBotsDto {
       recentDriveBys: number;
       recentSpecialRaids: number;
       recentRevengeHits: number;
+      heldBlocks: string[];
       nextActionAt: string | null;
     }>;
   };
@@ -884,6 +887,14 @@ export interface AdminDevBotsDto {
           settledAt: string | null;
         }>;
         lastRevenge: { targetName: string; at: string; won: boolean | null } | null;
+        /** Phase J. The gang's turf as of its last tick. */
+        turf: {
+          held: Array<{ districtName: string; cornerThugs: number; minimum: number; pushLandsAt: string | null }>;
+          prospect: { districtName: string; presence: number; needed: number; locals: number } | null;
+          recentLosses: number;
+          pressure: number;
+          lastMove: { kind: string; districtName: string; at: string; detail: string | null } | null;
+        } | null;
       } | null;
     } | null;
   }>;

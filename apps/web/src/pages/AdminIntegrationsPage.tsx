@@ -212,6 +212,7 @@ export function AdminIntegrationsPage() {
                   <Row label="Blocked in 24h" value={formatNumber(bots.npcGangSummary.blocked24h)} strong={bots.npcGangSummary.blocked24h > 0} />
                   <Row label="Open grudges" value={formatNumber(bots.npcGangSummary.openGrudges)} strong={bots.npcGangSummary.openGrudges > 0} />
                   <Row label="Paybacks in 24h" value={formatNumber(bots.npcGangSummary.revenge24h)} />
+                  <Row label="Blocks held" value={formatNumber(bots.npcGangSummary.heldBlocks)} />
                 </div>
                 {bots.npcGangSummary.cities.length ? (
                   <ol className="se-admin-list">
@@ -225,6 +226,7 @@ export function AdminIntegrationsPage() {
                           {formatNumber(city.activeGangs)} crew{city.activeGangs === 1 ? '' : 's'} · {formatNumber(city.dueNow)} ready · {formatNumber(city.recentHits)} hit{city.recentHits === 1 ? '' : 's'} in 24h
                           {city.recentDriveBys || city.recentSpecialRaids ? ` · ${formatNumber(city.recentDriveBys)} drive-by · ${formatNumber(city.recentSpecialRaids)} special` : ''}
                           {city.recentRevengeHits ? ` · ${formatNumber(city.recentRevengeHits)} payback` : ''}
+                          {city.heldBlocks.length ? ` · holding ${city.heldBlocks.join(', ')}` : ''}
                         </p>
                       </li>
                     ))}
@@ -274,6 +276,28 @@ export function AdminIntegrationsPage() {
                                     {grudge.settledAt ? ` · paid back ${ago(grudge.settledAt)}` : ` · expires ${timing(grudge.expiresAt)}`}
                                   </p>
                                 ))}
+                                {bot.inCurrentRound.npcGang.turf?.held.map((block) => (
+                                  <p key={block.districtName} className="se-hint">
+                                    Holds {block.districtName} · {formatNumber(block.cornerThugs)}/{formatNumber(block.minimum)} on the corner
+                                    {block.pushLandsAt ? ` · push lands ${timing(block.pushLandsAt)}` : ''}
+                                  </p>
+                                ))}
+                                {bot.inCurrentRound.npcGang.turf?.prospect ? (
+                                  <p className="se-hint">
+                                    Working {bot.inCurrentRound.npcGang.turf.prospect.districtName} · presence {bot.inCurrentRound.npcGang.turf.prospect.presence}/{bot.inCurrentRound.npcGang.turf.prospect.needed} · {formatNumber(bot.inCurrentRound.npcGang.turf.prospect.locals)} locals
+                                  </p>
+                                ) : null}
+                                {bot.inCurrentRound.npcGang.turf && (bot.inCurrentRound.npcGang.turf.recentLosses || bot.inCurrentRound.npcGang.turf.pressure) ? (
+                                  <p className="se-hint">
+                                    Turf strain: {formatNumber(bot.inCurrentRound.npcGang.turf.recentLosses)} lost fight{bot.inCurrentRound.npcGang.turf.recentLosses === 1 ? '' : 's'} · {formatNumber(bot.inCurrentRound.npcGang.turf.pressure)} crew{bot.inCurrentRound.npcGang.turf.pressure === 1 ? '' : 's'} working their block
+                                  </p>
+                                ) : null}
+                                {bot.inCurrentRound.npcGang.turf?.lastMove ? (
+                                  <p className="se-hint">
+                                    Last turf move: {bot.inCurrentRound.npcGang.turf.lastMove.kind.toLowerCase()} {bot.inCurrentRound.npcGang.turf.lastMove.districtName} {ago(bot.inCurrentRound.npcGang.turf.lastMove.at)}
+                                    {bot.inCurrentRound.npcGang.turf.lastMove.detail ? ` · ${bot.inCurrentRound.npcGang.turf.lastMove.detail}` : ''}
+                                  </p>
+                                ) : null}
                                 {bot.inCurrentRound.npcGang.lastRevenge ? (
                                   <p className="se-hint">
                                     Last payback: {bot.inCurrentRound.npcGang.lastRevenge.targetName} {ago(bot.inCurrentRound.npcGang.lastRevenge.at)}

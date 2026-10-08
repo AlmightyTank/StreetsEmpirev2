@@ -219,6 +219,9 @@ export interface NpcGangIntelDto {
   /** Phase I. Local crews you hit that can still hit back, and when the last grudge cools. */
   wantedBy?: number;
   wantedUntil?: string;
+  /** Phase J. Blocks server-run crews hold in this city, and whether your crew works one of them. */
+  npcBlocks?: string[];
+  onTheirTurf?: boolean;
   rumors: string[];
 }
 

@@ -1,6 +1,6 @@
 # NPC Gangs Roadmap
 
-Status: **Phases A-I built in beta. Phase J is next.**
+Status: **Phases A-J built in beta. Phase K is next.**
 
 NPC gangs are server-run seasonal crews that use the same core systems players use:
 round players, cities, stores, production, raids, drive-bys, special raid forms,
@@ -37,7 +37,7 @@ or hitting players with unavoidable punishment.
 | G | Built | Smarter weighted intent by archetype, tier, aggression, ambition and discipline. |
 | H | Built | Player-facing local intel: rumors, recent hits and city danger level. |
 | I | Built | Retaliation memory so NPC gangs remember attackers and can revenge-hit within limits. |
-| J | Planned | Turf behavior so NPC gangs claim, defend, pressure or abandon territory. |
+| J | Built | Turf behavior so NPC gangs claim, defend, pressure or abandon territory. |
 | K | Planned | Travel and migration so stronger gangs can relocate or send crews between cities. |
 | L | Planned | Escalation and dormancy so gangs heat up, cool down, recover or lay low. |
 | M | Planned | Boss and archetype personalities with named gangs and distinct patterns. |
@@ -170,24 +170,35 @@ Delivered:
 - Admin: open grudges and 24h paybacks in the summary, per-city payback counts,
   and per-gang grudge lists with expiry and last payback.
 
-## Remaining Phases
-
 ### Phase J: Turf Behavior
 
-NPC gangs claim, defend, pressure or abandon turf so they feel like crews holding
-territory, not just random attackers.
+NPC gangs hold blocks the way human crews do, through the same turf actions.
+NPC-held turf is ordinary turf: the gang is the block's `holderId`.
 
-Goals:
+Delivered:
 
-- Define what "NPC-held turf" means using existing turf/block systems.
-- Let gangs prefer targets or actions around their turf.
-- Let repeated losses or lack of resources make a gang abandon turf.
-- Expose turf pressure as city intel rather than exact hidden math.
+- **Claim:** ambitious gangs (`npcGangs.turf.minAmbition`) pick a locals-held
+  block, Scout it for presence until `turnsToClaim`, then claim it with a squad
+  sized to beat the locals. Claims go through `TurfActionService.claim`.
+- **Defend:** thin corners are reinforced with `post`. A spotted push gets owner
+  backup (Lookouts rules apply, as for players), and in block-war rounds the gang
+  sends a squad to each incoming assault and tries to break a siege.
+- **Pressure:** human crews with live presence on an NPC block are tried first
+  among ordinary raid targets, and raids gain `pressureIntentBonus` while any are
+  there. Hits record `onTurf` in gang memory.
+- **Abandon:** a gang pulls its whole corner after `abandonAfterLosses` lost fights
+  in `lossWindowHours`, when the corner is below minimum and cannot be refilled,
+  or when it has no beer and cannot buy any. It then lays off turf for the loss
+  window. A gang at war never walks; the war decides the block.
+- **Upkeep:** gangs holding corners restock beer and product for
+  `supplyHours` of corner upkeep.
+- **Limits:** one block per gang and two NPC blocks per city by default, under the
+  ruleset's own crew caps. NPCs never push or declare war on a human-held block.
+- **Intel:** street rumors name NPC-held blocks and warn when your crew works one;
+  a "Crew-held blocks" row shows them. Admin shows held blocks per city, and per
+  gang the corner strength, prospect presence, turf strain and last turf move.
 
-Gate:
-
-- NPC gangs create recognizable neighborhood pressure without becoming a second
-  full PvP map owner system.
+## Remaining Phases
 
 ### Phase K: Travel & Migration
 
@@ -267,6 +278,7 @@ Current support already built:
 - Per-city pressure summary with recent hits, drive-bys and special raids.
 - Per-bot NPC gang status: next action, last outcome, target and error.
 - Per-bot grudge memory with expiry, settled state and last payback (Phase I).
+- Per-bot turf: held corners, prospect presence, strain and last turf move (Phase J).
 - CLI status script includes the latest NPC gang outcome.
 
 Future controls:
@@ -292,6 +304,7 @@ Current support already built:
   outcomes.
 - City pressure counts recent hits, drive-bys and special raids.
 - Open grudges, 24h paybacks and per-city payback counts (Phase I).
+- NPC-held blocks in total and per city (Phase J).
 
 Future telemetry:
 

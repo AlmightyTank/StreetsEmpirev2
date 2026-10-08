@@ -806,6 +806,31 @@ export interface NpcGangRules {
   readonly revengeAggressionBoost: number;
   /** Phase I. Flat weight a valid grudge adds to raid, drive-by and special-raid intents. */
   readonly revengeIntentBonus: number;
+  /** Phase J. How NPC gangs hold blocks through the same turf actions players use. */
+  readonly turf: NpcGangTurfRules;
+}
+
+/**
+ * Phase J. NPC turf is ordinary turf: presence from Scout turns, a claim fight
+ * against the locals, posted corner crews with upkeep. NPCs only take blocks
+ * the locals hold; they never push a block a human crew holds.
+ */
+export interface NpcGangTurfRules {
+  readonly enabled: boolean;
+  /** Gangs below this ambition never go looking for a block; they still defend one they hold. */
+  readonly minAmbition: number;
+  readonly maxBlocksPerGang: number;
+  /** All NPC gangs together, so every city keeps blocks for human crews. */
+  readonly maxNpcBlocksPerCity: number;
+  /** Reinforce while the corner is below this multiple of its minimum. */
+  readonly reinforceBelowMinimum: number;
+  /** Hours of corner beer the gang tries to keep at home. */
+  readonly supplyHours: number;
+  /** Lost fights inside `lossWindowHours` that make a gang give its block up. */
+  readonly abandonAfterLosses: number;
+  readonly lossWindowHours: number;
+  /** Raid weight added while human crews are working the gang's block. */
+  readonly pressureIntentBonus: number;
 }
 
 // --- turns ------------------------------------------------------------------

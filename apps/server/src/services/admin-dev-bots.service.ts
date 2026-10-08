@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
+import type { DistrictKey } from '@streets/rulesets';
 import type { AdminDevBotsDto } from '@streets/shared';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
@@ -29,7 +30,46 @@ function stringField(value: unknown): string | null {
 
 type AdminNpcGang = NonNullable<NonNullable<AdminDevBotsDto['bots'][number]['inCurrentRound']>['npcGang']>;
 
-function npcGangMemory(memory: Prisma.JsonValue, now: Date): Pick<AdminNpcGang, 'lastIntent' | 'lastOutcome' | 'lastTarget' | 'lastError' | 'grudges' | 'lastRevenge'> {
+function numberField(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+/** Phase J. The turf snapshot the scheduler wrote on the gang's last tick. */
+function npcGangTurf(root: Prisma.JsonObject): AdminNpcGang['turf'] {
+  if (!root.turf || typeof root.turf !== 'object' || Array.isArray(root.turf)) return null;
+  const turf = root.turf as Prisma.JsonObject;
+  const held = Array.isArray(turf.held) ? turf.held : [];
+  const prospect = jsonObject(turf.prospect as Prisma.JsonValue);
+  const move = jsonObject(root.lastTurfMove as Prisma.JsonValue);
+  const moveKind = stringField(move.kind);
+  const moveAt = stringField(move.at);
+  const moveDetail = typeof move.won === 'boolean'
+    ? (move.won ? 'won' : 'lost')
+    : stringField(move.reason)?.toLowerCase() ?? (typeof move.thugs === 'number' ? `${move.thugs} thugs` : typeof move.turns === 'number' ? `${move.turns} turns` : null);
+  return {
+    held: held.flatMap((row) => {
+      const block = jsonObject(row);
+      const districtName = stringField(block.districtName);
+      return districtName ? [{
+        districtName,
+        cornerThugs: numberField(block.cornerThugs),
+        minimum: numberField(block.minimum),
+        pushLandsAt: stringField(block.pushLandsAt),
+      }] : [];
+    }),
+    prospect: stringField(prospect.districtName) ? {
+      districtName: stringField(prospect.districtName)!,
+      presence: numberField(prospect.presence),
+      needed: numberField(prospect.needed),
+      locals: numberField(prospect.locals),
+    } : null,
+    recentLosses: numberField(turf.recentLosses),
+    pressure: numberField(turf.pressure),
+    lastMove: moveKind && moveAt ? { kind: moveKind, districtName: stringField(move.districtName) ?? '', at: moveAt, detail: moveDetail } : null,
+  };
+}
+
+function npcGangMemory(memory: Prisma.JsonValue, now: Date): Pick<AdminNpcGang, 'lastIntent' | 'lastOutcome' | 'lastTarget' | 'lastError' | 'grudges' | 'lastRevenge' | 'turf'> {
   const root = jsonObject(memory);
   const detail = jsonObject(root.lastDetail as Prisma.JsonValue);
   const error = jsonObject(root.lastError as Prisma.JsonValue);
@@ -55,6 +95,7 @@ function npcGangMemory(memory: Prisma.JsonValue, now: Date): Pick<AdminNpcGang, 
     lastRevenge: revengeTarget && revengeAt
       ? { targetName: revengeTarget, at: revengeAt, won: typeof revenge.won === 'boolean' ? revenge.won : null }
       : null,
+    turf: npcGangTurf(root),
   };
 }
 
@@ -111,6 +152,7 @@ export const AdminDevBotsService = {
       recentDriveBys: number;
       recentSpecialRaids: number;
       recentRevengeHits: number;
+      heldBlocks: string[];
       nextActionAt: Date | null;
     }>();
 
@@ -125,6 +167,7 @@ export const AdminDevBotsService = {
         recentDriveBys: 0,
         recentSpecialRaids: 0,
         recentRevengeHits: 0,
+        heldBlocks: [],
         nextActionAt: null,
       };
       row.activeGangs += 1;
@@ -134,7 +177,21 @@ export const AdminDevBotsService = {
     }
 
     let revenge24h = 0;
+    let heldBlocks = 0;
     if (round && cityRows.size > 0) {
+      const ruleset = loadRulesetForRound(round);
+      const held = await prisma.turf.findMany({
+        where: { roundId: round.id, holder: { npcGang: { isNot: null } } },
+        select: { cityId: true, district: true, city: { select: { slug: true } } },
+        orderBy: { district: 'asc' },
+      });
+      heldBlocks = held.length;
+      for (const block of held) {
+        const key = block.district as DistrictKey;
+        const name = ruleset.cities?.[block.city.slug]?.districts?.[key]?.name ?? ruleset.districts[key]?.name ?? block.district;
+        cityRows.get(block.cityId)?.heldBlocks.push(name);
+      }
+
       const recent = await prisma.raidBattle.findMany({
         where: {
           createdAt: { gte: since },
@@ -184,6 +241,7 @@ export const AdminDevBotsService = {
         blocked24h,
         openGrudges,
         revenge24h,
+        heldBlocks,
         cities: Array.from(cityRows.values())
           .sort((left, right) => right.recentHits - left.recentHits || right.dueNow - left.dueNow || left.city.localeCompare(right.city))
           .map((row) => ({
@@ -194,6 +252,7 @@ export const AdminDevBotsService = {
             recentDriveBys: row.recentDriveBys,
             recentSpecialRaids: row.recentSpecialRaids,
             recentRevengeHits: row.recentRevengeHits,
+            heldBlocks: row.heldBlocks,
             nextActionAt: row.nextActionAt?.toISOString() ?? null,
           })),
       },
@@ -228,6 +287,7 @@ export const AdminDevBotsService = {
                       lastError: memory?.lastError ?? null,
                       grudges: memory?.grudges ?? [],
                       lastRevenge: memory?.lastRevenge ?? null,
+                      turf: memory?.turf ?? null,
                     }
                   : null,
               }

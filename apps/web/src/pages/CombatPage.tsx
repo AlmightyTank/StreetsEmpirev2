@@ -661,6 +661,14 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             <Row label="Crews nearby" value={formatNumber(page.npcGangIntel.activeGangs)} />
             <Row label="NPC hits since" value={`${date(page.npcGangIntel.seenSince)} · ${formatNumber(page.npcGangIntel.recentHits)} hit${page.npcGangIntel.recentHits === 1 ? '' : 's'}`} />
             {page.npcGangIntel.topArchetype ? <Row label="Loudest style" value={`${page.npcGangIntel.topArchetype}${page.npcGangIntel.topTier ? ` · ${page.npcGangIntel.topTier}` : ''}`} /> : null}
+            {page.npcGangIntel.npcBlocks?.length ? (
+              <Row
+                label="Crew-held blocks"
+                value={`${page.npcGangIntel.npcBlocks.join(', ')}${page.npcGangIntel.onTheirTurf ? ' · you work there' : ''}`}
+                strong={page.npcGangIntel.onTheirTurf}
+                tooltip="Server-run crews hold these corners like anyone else. They lean on crews that work their blocks, and you can push them off."
+              />
+            ) : null}
             {page.npcGangIntel.wantedBy && page.npcGangIntel.wantedUntil ? (
               <Row
                 label="Payback risk"

@@ -1,7 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
 import { DEFENSE_JOB, RAID_JOB, bossAwayDefenseMultiplier, driveByMaxShooters, equipCombatSquad, loadRulesetForRound, planWorkSupply, productStashHint, racketReconDiscount, readRacketEffects, simulateDriveBy, simulateRaid, splitProductUnits, type CombatBoost, type CombatCrew, type Ruleset, type WorkSupplyPlan } from '@streets/rules-engine';
-import { hideoutV2For, type DriveByRules, type DrugHoesRules, type LureCrewRules, type SpecialRaidKind, type StealRideRules } from '@streets/rulesets';
+import { hideoutV2For, type DistrictKey, type DriveByRules, type DrugHoesRules, type LureCrewRules, type SpecialRaidKind, type StealRideRules } from '@streets/rulesets';
 import {
   combatReconSchema,
   combatTreatmentSchema,
@@ -732,10 +732,32 @@ async function npcGrudgesAgainst(prisma: PrismaClient, player: PlayerWithCity, r
   return { wantedBy, wantedUntil };
 }
 
+/**
+ * Phase J. Blocks server-run crews hold in the player's city, and whether the
+ * player's own crew has live presence on one, which is what draws their raids.
+ */
+async function npcTurfAround(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date): Promise<{ blocks: string[]; onTheirTurf: boolean }> {
+  if (!ruleset.turf?.holding || ruleset.npcGangs?.turf?.enabled === false) return { blocks: [], onTheirTurf: false };
+  const held = await prisma.turf.findMany({
+    where: { roundId: player.roundId, cityId: player.cityId, holder: { npcGang: { isNot: null } } },
+    select: { district: true },
+    orderBy: { district: 'asc' },
+  });
+  let onTheirTurf = false;
+  for (const row of held) {
+    if (await TurfService.presenceFor(prisma, player.id, player.cityId, row.district, ruleset, now) >= 1) onTheirTurf = true;
+  }
+  const blocks = held.map((row) => {
+    const key = row.district as DistrictKey;
+    return ruleset.cities?.[player.city.slug]?.districts?.[key]?.name ?? ruleset.districts[key]?.name ?? row.district;
+  });
+  return { blocks, onTheirTurf };
+}
+
 async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date): Promise<NpcGangIntelDto | undefined> {
   if (ruleset.npcGangs?.enabled === false) return undefined;
   const seenSince = new Date(now.getTime() - 24 * 3_600_000);
-  const [gangs, recentRows, grudges] = await Promise.all([
+  const [gangs, recentRows, grudges, turf] = await Promise.all([
     prisma.npcGang.findMany({
       where: {
         roundPlayer: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } },
@@ -773,13 +795,14 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
       take: 25,
     }),
     npcGrudgesAgainst(prisma, player, ruleset, now),
+    npcTurfAround(prisma, player, ruleset, now),
   ]);
 
   const recent = recentRows.filter((battle) => Boolean(battle.attacker.npcGang));
   const recentDriveBys = recent.filter((battle) => storedReportKind(battle) === 'DRIVE_BY').length;
   const recentSpecialRaids = recent.filter((battle) => ['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW'].includes(storedReportKind(battle))).length;
   const maxAggression = Math.max(0, ...gangs.map((gang) => gang.aggression), ...recent.map((battle) => battle.attacker.npcGang?.aggression ?? 0));
-  const dangerScore = gangs.length + recent.length * 2 + recentDriveBys * 2 + recentSpecialRaids + grudges.wantedBy * 2 + Math.floor(maxAggression / 25);
+  const dangerScore = gangs.length + recent.length * 2 + recentDriveBys * 2 + recentSpecialRaids + grudges.wantedBy * 2 + turf.blocks.length + (turf.onTheirTurf ? 2 : 0) + Math.floor(maxAggression / 25);
   const danger: NpcGangIntelDto['danger'] = dangerScore >= 8 ? 'HOT' : dangerScore >= 3 ? 'ACTIVE' : 'QUIET';
   const top = gangs[0] ?? recent.find((battle) => battle.attacker.npcGang)?.attacker.npcGang ?? null;
   const rumors: string[] = [];
@@ -788,6 +811,11 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     rumors.push(grudges.wantedBy === 1
       ? 'A crew you hit is still talking about payback. Shields and cool-offs still hold them back.'
       : `${grudges.wantedBy} crews you hit are still talking about payback. Shields and cool-offs still hold them back.`);
+  }
+  if (turf.onTheirTurf) {
+    rumors.push('You have been working a block a server-run crew holds. Expect them to lean on you first.');
+  } else if (turf.blocks.length) {
+    rumors.push(`A server-run crew is holding ${turf.blocks.join(' and ')}. Working there puts you on their radar.`);
   }
   if (recent.length) {
     rumors.push(`${recent.length} NPC gang hit${recent.length === 1 ? '' : 's'} made noise in the last day.`);
@@ -811,6 +839,7 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     seenSince: seenSince.toISOString(),
     ...(top ? { topArchetype: readableArchetype(top.archetype), topTier: top.tier } : {}),
     ...(grudges.wantedBy && grudges.wantedUntil ? { wantedBy: grudges.wantedBy, wantedUntil: grudges.wantedUntil.toISOString() } : {}),
+    ...(turf.blocks.length ? { npcBlocks: turf.blocks, onTheirTurf: turf.onTheirTurf } : {}),
     rumors: rumors.slice(0, 4),
   };
 }
