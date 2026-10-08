@@ -1,6 +1,6 @@
 # NPC Gangs Roadmap
 
-Status: **Phases A-N built in beta. Phases O and P are started.**
+Status: **Phases A-O built in beta. Phase P is started.**
 
 NPC gangs are server-run seasonal crews that use the same core systems players use:
 round players, cities, stores, production, raids, drive-bys, special raid forms,
@@ -42,7 +42,7 @@ or hitting players with unavoidable punishment.
 | L | Built | Escalation and dormancy so gangs heat up, cool down, recover or lay low. |
 | M | Built | Boss and archetype personalities with named gangs and distinct patterns. |
 | N | Built | Rewards and cleanup for beating NPC gangs or relieving city pressure. |
-| O | Started | Admin controls for spawning, pausing, dormancy, tuning and memory inspection. |
+| O | Built | Admin controls for spawning, pausing, dormancy, tuning and memory inspection. |
 | P | Started | Balance telemetry for attack rate, wins, dogpiles, drain and stalled actions. |
 
 ## Built Phases
@@ -333,14 +333,33 @@ Delivered:
 Not done: faction standing for NPC suppression. Standing comes only from Jobs by
 design; a Job or contract that targets NPC crews is the way to pay it.
 
-## Remaining Phases
-
 ### Phase O: Admin Controls
 
-Admin panel controls for spawning, pausing, dormancy, tuning aggression,
-inspecting memory and forcing next action.
+Operators can correct NPC gangs from Admin → Integrations without database
+surgery. Every control needs a reason and writes an `npc-gang.*` audit entry with
+before and after.
 
-Current support already built:
+Delivered:
+
+- **Spawn and remove:** add any one seeded crew to the current round, or remove one
+  dev bot, alongside the existing add-all and remove-all. Dev-bot rules still apply:
+  refused in production and against a non-local database.
+- **Manage panel** per gang (`GET /api/admin/npc-gangs/:roundPlayerId`,
+  `POST .../control`):
+  - **Act now** runs one normal tick immediately (refused while paused or dormant).
+  - **Delay** pushes the next move back 5 minutes to a week.
+  - **Pause** for some hours or the rest of the round, on the dormancy clock the
+    scheduler already respects, with who, when and why kept in memory.
+  - **Wake** ends a pause, a dormancy or a break-up and makes the gang due now; a
+    dormancy woken early still gives the clean momentum slate.
+  - **Tune** aggression, ambition, discipline, tier and personality (known keys only).
+  - **Reset** momentum (earlier fights stop counting), grudges (earlier hits are
+    forgotten, via `grudgesClearedAt`) or a migration plan.
+- **Inspect:** traits, next move, pause or dormancy, the last 20 decisions (the
+  scheduler now keeps `memory.decisions`), the last 10 audit entries for the gang,
+  and the raw memory JSON.
+
+Read-only views from earlier phases:
 
 - Read-only admin summary for active gangs, due gangs, 24h actions and blocked
   outcomes.
@@ -352,17 +371,7 @@ Current support already built:
 - Per-bot mood, momentum and dormancy (Phase L).
 - CLI status script includes the latest NPC gang outcome.
 
-Future controls:
-
-- Spawn or remove NPC gangs from the admin panel.
-- Pause, wake or dormancy-toggle a gang.
-- Adjust aggression, ambition, discipline, tier and archetype with audit logs.
-- Force or delay next action.
-- Inspect memory, retaliation state and recent decision history.
-
-Gate:
-
-- Operators can correct runaway behavior without database surgery.
+## Remaining Phases
 
 ### Phase P: Balance Telemetry
 

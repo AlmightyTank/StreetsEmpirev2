@@ -5,7 +5,8 @@ import type { AdminDevBotsDto } from '@streets/shared';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
-import { devBotAccountWhere, devBotsBlockedReason, removeDevBots, seedDevBots } from './dev-bots.service.js';
+import { DEV_BOT_USERNAME_PREFIX, DEV_TEST_RIVALS, devBotAccountWhere, devBotsBlockedReason, removeDevBots, seedDevBots } from './dev-bots.service.js';
+import { NPC_GANG_TIERS, storedPause } from './admin-npc-gang.service.js';
 import { storedMigrationPlan } from './npc-gang-migration.js';
 import { npcMood, storedDormancy, storedMomentum } from './npc-gang-momentum.js';
 import { DEFAULT_NPC_GANG_RULES, npcRules } from './npc-gang-rules.js';
@@ -315,6 +316,16 @@ export const AdminDevBotsService = {
     return {
       blockedReason: blockedReason(),
       currentRound: round ? { id: round.id, name: round.name, rulesetVersion: round.rulesetVersion } : null,
+      controls: {
+        personalities: Object.entries(gangRules.personalities).map(([key, personality]) => ({ key, label: personality.label })),
+        tiers: [...NPC_GANG_TIERS],
+        rivals: DEV_TEST_RIVALS.map((rival) => ({
+          slug: rival.slug,
+          displayName: rival.displayName,
+          personality: npcPersonality(gangRules, rival.npcGang.archetype).personality.label,
+          inRound: accounts.some((account) => account.username === `${DEV_BOT_USERNAME_PREFIX}${rival.slug}` && account.roundPlayers.length > 0),
+        })),
+      },
       npcGangSummary: {
         generatedAt: now.toISOString(),
         active: npcGangs.length,
@@ -373,6 +384,9 @@ export const AdminDevBotsService = {
                       lastOutcome: memory?.lastOutcome ?? null,
                       lastTarget: memory?.lastTarget ?? null,
                       lastError: memory?.lastError ?? null,
+                      gangId: player.npcGang.id,
+                      personalityKey: npcPersonality(gangRules, player.npcGang.archetype).key,
+                      paused: storedPause(player.npcGang.memory),
                       grudges: memory?.grudges ?? [],
                       lastRevenge: memory?.lastRevenge ?? null,
                       turf: memory?.turf ?? null,
@@ -402,6 +416,28 @@ export const AdminDevBotsService = {
       throw error;
     }
     await record(prisma, actor, 'dev-bots.seed', { roundId: round.id, roundName: round.name, seeded });
+    return AdminDevBotsService.status(prisma);
+  },
+
+  /** Phase O. Add or reset one dev crew in the current round. */
+  async seedOne(prisma: PrismaClient, actor: AuditActor, slug: string, now = new Date()): Promise<AdminDevBotsDto> {
+    refuseIfBlocked();
+    const rival = DEV_TEST_RIVALS.find((row) => row.slug === slug);
+    if (!rival) throw AppError.notFound('DEV_BOT_NOT_FOUND', 'There is no dev crew with that name.');
+    const round = await RoundService.getCurrent(prisma, now);
+    if (!round) throw AppError.conflict('NO_ACTIVE_ROUND', 'There is no current round to add a dev crew to.');
+    await seedDevBots(prisma, round, loadRulesetForRound(round), now, [rival]);
+    await record(prisma, actor, 'dev-bots.seed-one', { roundId: round.id, slug });
+    return AdminDevBotsService.status(prisma);
+  },
+
+  /** Phase O. Delete one dev bot account, and its players in every round. */
+  async removeOne(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminDevBotsDto> {
+    refuseIfBlocked();
+    const account = await prisma.account.findFirst({ where: { id: accountId, ...devBotAccountWhere }, select: { id: true, username: true } });
+    if (!account) throw AppError.notFound('DEV_BOT_NOT_FOUND', 'That account is not a dev bot.');
+    await prisma.account.delete({ where: { id: account.id } });
+    await record(prisma, actor, 'dev-bots.remove-one', { accountId: account.id, username: account.username }, reason);
     return AdminDevBotsService.status(prisma);
   },
 

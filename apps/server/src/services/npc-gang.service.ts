@@ -474,7 +474,9 @@ function storedBattleKind(battle: { kind: string; attackerReport: Prisma.JsonVal
 
 /** Phase I. Rebuilds the gang's grudges from the battles themselves, so lost memory heals itself. */
 async function loadGrudges(prisma: PrismaClient, gang: DueNpcGang, rules: NpcGangRules, now: Date): Promise<NpcGrudge[]> {
-  const since = new Date(now.getTime() - Math.max(1, rules.retaliationHours) * 3_600_000);
+  // Phase O. An operator reset forgets hits from before it.
+  const clearedAt = stringField((memoryObject(gang.memory) as Prisma.JsonObject).grudgesClearedAt);
+  const since = new Date(Math.max(now.getTime() - Math.max(1, rules.retaliationHours) * 3_600_000, clearedAt ? Date.parse(clearedAt) : 0));
   const hits = await prisma.raidBattle.findMany({
     where: {
       defenderId: gang.roundPlayerId,
@@ -595,6 +597,15 @@ async function claimDueGang(prisma: PrismaClient, gangId: string, now: Date): Pr
   return claimed.count === 1;
 }
 
+const DECISION_LOG = 20;
+
+function storedDecisions(memory: Prisma.JsonValue): Prisma.InputJsonObject[] {
+  const rows = (memoryObject(memory) as Prisma.JsonObject).decisions;
+  return Array.isArray(rows)
+    ? rows.filter((row): row is Prisma.JsonObject => Boolean(row) && typeof row === 'object' && !Array.isArray(row)).map((row) => ({ ...row }) as Prisma.InputJsonObject)
+    : [];
+}
+
 async function recordOutcome(
   prisma: PrismaClient,
   gang: DueNpcGang,
@@ -618,6 +629,18 @@ async function recordOutcome(
     : input.error instanceof Error
       ? { code: 'ERROR', message: input.error.message }
       : undefined;
+  // Phase O. A short decision log for operators: newest first, last DECISION_LOG entries.
+  const detail = input.detail && typeof input.detail === 'object' && !Array.isArray(input.detail) ? input.detail as Prisma.InputJsonObject : {};
+  const about = detail.targetName ?? detail.districtName ?? detail.toName ?? detail.item ?? null;
+  const decision: Prisma.InputJsonObject = {
+    at: now.toISOString(),
+    intent: input.intent,
+    outcome: input.outcome,
+    ...(typeof about === 'string' ? { about } : {}),
+    ...(typeof detail.won === 'boolean' ? { won: detail.won } : {}),
+    ...(error ? { error: error.code } : {}),
+  };
+  const decisions = [decision, ...storedDecisions(gang.memory)].slice(0, DECISION_LOG);
   await prisma.npcGang.update({
     where: { id: gang.id },
     data: {
@@ -633,6 +656,7 @@ async function recordOutcome(
         lastError: error ?? null,
         // Phase L. Consecutive blocked moves cost momentum.
         blockedStreak: input.outcome === 'BLOCKED' ? blockedStreak(gang.memory) + 1 : 0,
+        decisions,
         ...input.memory,
       },
     },
@@ -1262,6 +1286,18 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
 }
 
 export const NpcGangService = {
+  /**
+   * Phase O. Run one gang's tick right now, for operators. A paused or dormant gang is
+   * refused: wake it first. Everything else is the normal tick and its normal checks.
+   */
+  async runNow(prisma: PrismaClient, gangId: string, now = new Date()): Promise<NpcGangOutcome> {
+    const gang = await prisma.npcGang.findUnique({ where: { id: gangId }, include: { roundPlayer: { include: { city: true, round: true } } } });
+    if (!gang) throw AppError.notFound('NPC_GANG_NOT_FOUND', 'That NPC gang is gone.');
+    if (gang.dormantUntil && gang.dormantUntil > now) throw AppError.conflict('NPC_GANG_DORMANT', 'That gang is paused or gone to ground. Wake it first.');
+    await prisma.npcGang.update({ where: { id: gang.id }, data: { nextActionAt: new Date(now.getTime() + 15 * 60_000) } });
+    return (await runGang(prisma, gang, now)).outcome;
+  },
+
   /**
    * Phase G: due NPC gangs choose weighted intents by archetype, traits and available moves.
    * Phase I: gangs remember the humans who hit them and lean toward payback inside the window.

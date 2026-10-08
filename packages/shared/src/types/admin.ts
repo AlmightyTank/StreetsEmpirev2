@@ -829,6 +829,12 @@ export interface AdminDevBotsDto {
   /** Why dev bots are refused on this server, or null when they are allowed. */
   blockedReason: string | null;
   currentRound: { id: string; name: string; rulesetVersion: string } | null;
+  /** Phase O. What the controls can set, and the seedable crews with whether each is in this round. */
+  controls: {
+    personalities: Array<{ key: string; label: string }>;
+    tiers: string[];
+    rivals: Array<{ slug: string; displayName: string; personality: string; inRound: boolean }>;
+  };
   /** Phase I. Read-only operator view of server-run gang pressure. */
   npcGangSummary: {
     generatedAt: string;
@@ -887,6 +893,10 @@ export interface AdminDevBotsDto {
         lastOutcome: string | null;
         lastTarget: string | null;
         lastError: string | null;
+        /** Phase O. The gang id, its personality key, and an operator pause if one is on. */
+        gangId: string;
+        personalityKey: string;
+        paused: { by: string; at: string; reason: string; until: string } | null;
         /** Phase I. Humans this gang remembers, newest first; expired grudges are dropped. */
         grudges: Array<{
           targetName: string;
@@ -1247,4 +1257,39 @@ export interface AdminLawPlayerDto {
   cities: Array<{ slug: string; name: string }>;
   /** Null when the round's ruleset keeps no Case. */
   page: LawPageDto | null;
+}
+
+/** Phase O. One operator correction to an NPC gang. Every action needs a reason for the audit log. */
+export type AdminNpcGangControlInput =
+  | { action: 'ACT_NOW'; reason: string }
+  | { action: 'DELAY'; minutes: number; reason: string }
+  | { action: 'PAUSE'; hours?: number; reason: string }
+  | { action: 'WAKE'; reason: string }
+  | { action: 'TUNE'; aggression?: number; ambition?: number; discipline?: number; tier?: string; archetype?: string; reason: string }
+  | { action: 'RESET'; scope: 'MOMENTUM' | 'GRUDGES' | 'MIGRATION'; reason: string };
+
+/** Phase O. Everything an operator needs to see about one gang. */
+export interface AdminNpcGangInspectDto {
+  gangId: string;
+  roundPlayerId: string;
+  displayName: string;
+  crewName: string;
+  tier: string;
+  archetype: string;
+  personality: string;
+  aggression: number;
+  ambition: number;
+  discipline: number;
+  nextActionAt: string;
+  dormantUntil: string | null;
+  paused: { by: string; at: string; reason: string; until: string } | null;
+  decisions: Array<{ at: string; intent: string; outcome: string; about: string | null; won: boolean | null; error: string | null }>;
+  /** The raw scheduler memory, for anything the panel does not summarize. */
+  memory: unknown;
+  audit: Array<{ at: string; actor: string; action: string; reason: string | null }>;
+}
+
+export interface AdminNpcGangControlResultDto {
+  message: string;
+  gang: AdminNpcGangInspectDto;
 }

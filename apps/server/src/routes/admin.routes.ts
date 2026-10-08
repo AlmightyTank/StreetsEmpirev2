@@ -23,6 +23,7 @@ import { WireService } from '../services/wire.service.js';
 import { AdminBattleService } from '../services/admin-battle.service.js';
 import { AdminConvoyService } from '../services/admin-convoy.service.js';
 import { AdminDevBotsService } from '../services/admin-dev-bots.service.js';
+import { AdminNpcGangService } from '../services/admin-npc-gang.service.js';
 import { AdminDiscordService } from '../services/admin-discord.service.js';
 import { AdminGrantService } from '../services/admin-grant.service.js';
 import { AdminHealthService } from '../services/admin-health.service.js';
@@ -106,6 +107,26 @@ const bannerParams = z.object({ bannerId: id }).strict();
 const surveyParams = z.object({ surveyId: id }).strict();
 const rulesetParams = z.object({ rulesetId: id }).strict();
 const emptyBody = z.object({}).strict();
+// Phase O: NPC gang controls. Every action carries a reason for the audit log.
+const npcGangParams = z.object({ roundPlayerId: id }).strict();
+const devBotSlugParams = z.object({ slug: z.string().trim().regex(/^[a-z][a-z0-9-]{1,40}$/) }).strict();
+const trait = z.number().int().min(0).max(100);
+const npcGangControlBody = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('ACT_NOW'), reason }).strict(),
+  z.object({ action: z.literal('DELAY'), minutes: z.number().int().min(5).max(7 * 24 * 60), reason }).strict(),
+  z.object({ action: z.literal('PAUSE'), hours: z.number().int().min(1).max(24 * 30).optional(), reason }).strict(),
+  z.object({ action: z.literal('WAKE'), reason }).strict(),
+  z.object({
+    action: z.literal('TUNE'),
+    aggression: trait.optional(),
+    ambition: trait.optional(),
+    discipline: trait.optional(),
+    tier: z.string().trim().min(1).max(20).optional(),
+    archetype: z.string().trim().min(1).max(60).optional(),
+    reason,
+  }).strict(),
+  z.object({ action: z.literal('RESET'), scope: z.enum(['MOMENTUM', 'GRUDGES', 'MIGRATION']), reason }).strict(),
+]);
 const reasonBody = z.object({ reason }).strict();
 // 1.0.0-E: resuming extends the season by the pause unless told not to.
 const resumeRoundSchema = z.object({ extend: z.boolean().optional(), reason: reason.optional() }).strict();
@@ -486,6 +507,29 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/dev-bots/remove', async (request) => {
     const body = parseBody(reasonBody, request.body ?? {});
     return AdminDevBotsService.remove(fastify.prisma, request.auth!.account, body.reason);
+  });
+
+  fastify.post('/dev-bots/rivals/:slug/seed', async (request) => {
+    const { slug } = parseBody(devBotSlugParams, request.params);
+    parseBody(emptyBody, request.body ?? {});
+    return AdminDevBotsService.seedOne(fastify.prisma, request.auth!.account, slug);
+  });
+
+  fastify.post('/dev-bots/accounts/:accountId/remove', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminDevBotsService.removeOne(fastify.prisma, request.auth!.account, accountId, body.reason);
+  });
+
+  fastify.get('/npc-gangs/:roundPlayerId', async (request) => {
+    const { roundPlayerId } = parseBody(npcGangParams, request.params);
+    return AdminNpcGangService.inspect(fastify.prisma, roundPlayerId);
+  });
+
+  fastify.post('/npc-gangs/:roundPlayerId/control', async (request) => {
+    const { roundPlayerId } = parseBody(npcGangParams, request.params);
+    const body = parseBody(npcGangControlBody, request.body ?? {});
+    return AdminNpcGangService.control(fastify.prisma, request.auth!.account, roundPlayerId, body);
   });
 
   // Accounts
