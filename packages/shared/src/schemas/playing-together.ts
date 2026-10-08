@@ -127,6 +127,15 @@ export const vehiclePurchaseSchema = z.object({
 }).strict();
 export type VehiclePurchaseInput = z.infer<typeof vehiclePurchaseSchema>;
 
+/** 1.5.0-C. Repair Damaged vehicles or recover Disabled ones at the garage. */
+export const vehicleServiceSchema = z.object({
+  classId: z.enum(['LOW_RIDER', 'SEDAN', 'VAN']),
+  kind: z.enum(['REPAIR', 'RECOVER']),
+  quantity: z.number().int().min(1).max(50),
+  actionId: actionIdSchema,
+}).strict();
+export type VehicleServiceInput = z.infer<typeof vehicleServiceSchema>;
+
 export const runTradeSchema = z.object({
   runId: runId.optional(),
   product: runProduct,

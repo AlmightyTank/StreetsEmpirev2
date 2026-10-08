@@ -26,6 +26,7 @@ import {
   runCapacity,
   vehicleLoadoutSeats,
   vehicleRiskMultiplier,
+  vehicleServiceCents,
   racketCargoShare,
   readRacketEffects,
   runPosition,
@@ -45,6 +46,7 @@ import {
   runLaunchSchema,
   runTradeSchema,
   vehiclePurchaseSchema,
+  vehicleServiceSchema,
   type GameActionResult,
   type RunDto,
   type RunLaunchResult,
@@ -53,6 +55,8 @@ import {
   type RunTradeDto,
   type VehiclePurchaseInput,
   type VehiclePurchaseResult,
+  type VehicleServiceInput,
+  type VehicleServiceResult,
   type RunTradeResult,
   type TravelDto,
   type TravelRoutesDto,
@@ -74,7 +78,7 @@ import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
-import { readVehicleLoadout, type VehicleLoadout } from './vehicle-fleet.service.js';
+import { VEHICLE_FIELDS, damageRunVehicles, hasVehicleDamage, readVehicleDamage, readVehicleLoadout, type VehicleLoadout } from './vehicle-fleet.service.js';
 import {
   RUN_INCLUDE,
   awayWorth,
@@ -197,6 +201,12 @@ async function cargoShareFor(db: Db | PrismaClient, roundPlayerId: string, rules
   return player ? racketCargoShare(ruleset, readRacketEffects(player.racketEffects)) : 0;
 }
 
+/** 1.5.0-C. A run's dents, when it has any. */
+function damageDto(run: { vehicleLoadout: Prisma.JsonValue; vehicleDamage: Prisma.JsonValue; lowRiders: number }): Pick<RunDto, 'vehicleDamage'> {
+  const damage = readVehicleDamage(run.vehicleDamage, readVehicleLoadout(run.vehicleLoadout, run.lowRiders));
+  return hasVehicleDamage(damage) ? { vehicleDamage: damage } : {};
+}
+
 async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, seed: string, run: LoadedRun, now: Date): Promise<RunDto | null> {
   const stops = toStopPlans(run.stops);
   const position = runPosition(ruleset, stops, now);
@@ -208,6 +218,7 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
     launchedAt: run.launchedAt.toISOString(),
     lowRiders: run.lowRiders,
     vehicleLoadout: readVehicleLoadout(run.vehicleLoadout, run.lowRiders),
+    ...damageDto(run),
     escortThugs: run.escortThugs,
     cashCents: Number(run.cashCents),
     startCashCents: Number(run.startCashCents),
@@ -258,6 +269,7 @@ async function lastRunDto(db: Db | PrismaClient, roundPlayerId: string, ruleset:
     cities: visited.map((slug) => ({ slug, name: cityName(ruleset, slug) })),
     lowRiders: run.lowRiders,
     vehicleLoadout: readVehicleLoadout(run.vehicleLoadout, run.lowRiders),
+    ...damageDto(run),
     escortThugs: run.escortThugs,
     startCashCents: Number(run.startCashCents),
     cashCents: Number(run.cashCents),
@@ -410,19 +422,36 @@ export const TravelService = {
         vehicleFleet: ruleset.vehicleCatalog.classes.map((vehicleClass) => {
           const away = active.reduce((sum, run) => sum + readVehicleLoadout(run.vehicleLoadout, run.lowRiders)[vehicleClass.id], 0);
           const home = player[vehicleClass.legacyResource];
+          const service = ruleset.vehicleCatalog?.service;
+          const damaged = player[VEHICLE_FIELDS[vehicleClass.id].damaged];
+          const disabled = player[VEHICLE_FIELDS[vehicleClass.id].disabled];
           return {
             classId: vehicleClass.id,
             name: vehicleClass.name,
             description: vehicleClass.description,
             home,
             away,
-            total: home + away,
+            total: home + away + damaged + disabled,
             cargoPercent: vehicleClass.cargoPercent,
             crewSeats: vehicleClass.crewSeats,
             purchasePriceCents: vehicleClass.purchasePriceCents,
             routeProfile: vehicleClass.routeProfile,
+            ...(service ? {
+              damaged,
+              disabled,
+              repairCents: service.repairCents[vehicleClass.id],
+              recoveryCents: service.recoveryCents[vehicleClass.id],
+            } : {}),
           };
         }),
+        ...(ruleset.vehicleCatalog.service ? {
+          vehicleService: {
+            damagedByBust: ruleset.vehicleCatalog.service.damage.bust,
+            damagedByConvoyLoss: ruleset.vehicleCatalog.service.damage.convoyLoss,
+            disabledByArrest: ruleset.vehicleCatalog.service.disable.arrest,
+            damageOrder: [...ruleset.vehicleCatalog.service.damageOrder],
+          },
+        } : {}),
       } : {}),
       lockedProducts: [...(await PermanentUnlockService.lockedProducts(prisma, roundPlayerId, base))].map(([key, unlock]) => ({ key, unlockName: unlock.name })),
       rules: {
@@ -474,6 +503,43 @@ export const TravelService = {
           next: { ...current, cashCents: current.cashCents - price, [field]: homeCount },
           result: { classId: input.classId, name: vehicleClass.name, quantity: input.quantity, paidCents: Number(price), homeCount },
           ledger: [{ source: 'STORE_BUY', label: `Charlie’s garage · ${vehicleClass.name} × ${input.quantity}`, amountCents: -price }],
+        };
+      },
+    });
+  },
+
+  /**
+   * 1.5.0-C. The garage puts Damaged vehicles (a repair) or Disabled ones (a recovery)
+   * back to Ready at the round's listed price per vehicle. Instant, and never a roll.
+   */
+  serviceVehicles(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<VehicleServiceResult>> {
+    const input: VehicleServiceInput = vehicleServiceSchema.parse(rawInput);
+    return ActionService.run<VehicleServiceResult>(prisma, roundPlayerId, {
+      action: 'VEHICLE_SERVICE',
+      actionId: input.actionId,
+      execute: async ({ current, ruleset }) => {
+        const vehicleClass = ruleset.vehicleCatalog?.classes.find((entry) => entry.id === input.classId);
+        const price = vehicleServiceCents(ruleset, input.classId, input.kind, input.quantity);
+        if (!vehicleClass || price === null) {
+          throw AppError.conflict('VEHICLE_SERVICE_UNAVAILABLE', 'The garage does not service vehicles in this round.');
+        }
+        const fields = VEHICLE_FIELDS[input.classId];
+        const from = input.kind === 'REPAIR' ? fields.damaged : fields.disabled;
+        const waiting = current[from];
+        const plural = (count: number) => `${vehicleClass.name}${count === 1 ? '' : 's'}`;
+        if (input.quantity > waiting) {
+          const state = input.kind === 'REPAIR' ? 'damaged' : 'disabled';
+          throw AppError.badRequest('NOT_ENOUGH_VEHICLES', `You have ${waiting} ${state} ${plural(waiting)}.`, { quantity: `At most ${waiting}.` });
+        }
+        if (current.cashCents < price) {
+          throw AppError.badRequest('NOT_ENOUGH_CASH', `You need ${formatCents(Number(price))} at home for that.`, { quantity: 'Not enough cash.' });
+        }
+        const readyCount = current[fields.ready] + input.quantity;
+        const verb = input.kind === 'REPAIR' ? 'repair' : 'recovery';
+        return {
+          next: { ...current, cashCents: current.cashCents - price, [from]: waiting - input.quantity, [fields.ready]: readyCount },
+          result: { classId: input.classId, name: vehicleClass.name, kind: input.kind, quantity: input.quantity, paidCents: Number(price), readyCount },
+          ledger: [{ source: 'VEHICLE_SERVICE', label: `Garage ${verb} · ${vehicleClass.name} × ${input.quantity}`, amountCents: -price }],
         };
       },
     });
@@ -846,6 +912,13 @@ export const TravelService = {
             data: { runId: run.id, kind: roll.kind, city, road: null, seized, fineCents: roll.fineCents, at: now },
           });
           trouble = toIncidentDto(base, incident);
+          // 1.5.0-C: a search tears a car apart; an arrest leaves one in the impound lot.
+          const service = base.vehicleCatalog?.service;
+          if (service) {
+            traded = roll.kind === 'ARREST'
+              ? await damageRunVehicles(tx, base, traded, 'disabled', service.disable.arrest)
+              : await damageRunVehicles(tx, base, traded, 'damaged', service.damage.bust);
+          }
           await LawService.notePoliceLoss(tx, roundPlayerId, base, seizedValueCents(roll.seized, base) + roll.fineCents, now);
           await ActivityService.log(tx, roundPlayerId, 'RUN_INCIDENT', { runId: run.id, ...trouble } as unknown as Prisma.InputJsonValue);
           // An arrest ends the trip: the crew is let go with the empty car and drives home.

@@ -684,8 +684,30 @@ export interface VehicleClassDefinition {
   readonly routeProfile?: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
 }
 
+export type VehicleClassId = VehicleClassDefinition['id'];
+
+/**
+ * 1.5.0-C. Garage service. Road trouble leaves vehicles Damaged or Disabled instead of
+ * destroying them; either state keeps the vehicle out of runs and drive-bys until the
+ * garage puts it back to Ready for the listed price.
+ */
+export interface VehicleServiceRules {
+  /** Cash to repair one Damaged vehicle, by class. */
+  readonly repairCents: Readonly<Record<VehicleClassId, number>>;
+  /** Cash to recover one Disabled (impounded or wrecked) vehicle, by class. */
+  readonly recoveryCents: Readonly<Record<VehicleClassId, number>>;
+  /** Vehicles damaged by a bust in town and by a convoy hit the run loses. */
+  readonly damage: { readonly bust: number; readonly convoyLoss: number };
+  /** Vehicles impounded by an arrest. */
+  readonly disable: { readonly arrest: number };
+  /** Which of a run's vehicles take trouble first: the most visible one leads. */
+  readonly damageOrder: readonly VehicleClassId[];
+}
+
 export interface VehicleCatalog {
   readonly classes: readonly VehicleClassDefinition[];
+  /** 1.5.0-C. Absent: vehicles are never damaged and the garage has nothing to service. */
+  readonly service?: VehicleServiceRules;
 }
 
 // --- round ------------------------------------------------------------------

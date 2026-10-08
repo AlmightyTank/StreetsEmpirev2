@@ -261,6 +261,64 @@ export function vehicleRiskMultiplier(ruleset: Ruleset, loadout: VehicleLoadout)
   return weighted / count;
 }
 
+// --- 1.5.0-C: vehicle condition ------------------------------------------------------
+
+export type VehicleCounts = { LOW_RIDER: number; SEDAN: number; VAN: number };
+/** The part of a run's loadout that comes home needing the garage. */
+export interface VehicleDamage { damaged: VehicleCounts; disabled: VehicleCounts }
+
+const VEHICLE_CLASSES = ['LOW_RIDER', 'SEDAN', 'VAN'] as const;
+const noVehicles = (): VehicleCounts => ({ LOW_RIDER: 0, SEDAN: 0, VAN: 0 });
+
+export function noVehicleDamage(): VehicleDamage {
+  return { damaged: noVehicles(), disabled: noVehicles() };
+}
+
+/** Keep a damage record inside its loadout: a car stolen off a run takes its dents with it. */
+export function clampVehicleDamage(loadout: VehicleCounts, damage: VehicleDamage): VehicleDamage {
+  const result = noVehicleDamage();
+  for (const key of VEHICLE_CLASSES) {
+    const owned = Math.max(0, loadout[key]);
+    result.disabled[key] = Math.min(owned, Math.max(0, damage.disabled[key]));
+    result.damaged[key] = Math.min(owned - result.disabled[key], Math.max(0, damage.damaged[key]));
+  }
+  return result;
+}
+
+/**
+ * Put `count` more of a run's vehicles out of action, in the ruleset's damage order (most
+ * visible first). Damage only finds a car still running; a disabling hit takes a running car
+ * first and a damaged one after. A run with nothing left to hit is returned unchanged.
+ */
+export function markRunVehicles(ruleset: Ruleset, loadout: VehicleCounts, damage: VehicleDamage, state: 'damaged' | 'disabled', count: number): VehicleDamage {
+  const result = clampVehicleDamage(loadout, damage);
+  const order = ruleset.vehicleCatalog?.service?.damageOrder ?? VEHICLE_CLASSES;
+  let left = Math.max(0, Math.floor(count));
+  for (const key of order) {
+    const running = loadout[key] - result.damaged[key] - result.disabled[key];
+    const hit = Math.min(left, running);
+    result[state][key] += hit;
+    left -= hit;
+  }
+  if (state === 'disabled') {
+    for (const key of order) {
+      const hit = Math.min(left, result.damaged[key]);
+      result.damaged[key] -= hit;
+      result.disabled[key] += hit;
+      left -= hit;
+    }
+  }
+  return result;
+}
+
+/** What the garage charges to put `quantity` of a class back to Ready. Null when this round has no service. */
+export function vehicleServiceCents(ruleset: Ruleset, classId: keyof VehicleCounts, kind: 'REPAIR' | 'RECOVER', quantity: number): bigint | null {
+  const service = ruleset.vehicleCatalog?.service;
+  if (!service) return null;
+  const each = kind === 'REPAIR' ? service.repairCents[classId] : service.recoveryCents[classId];
+  return BigInt(each) * BigInt(Math.max(0, Math.floor(quantity)));
+}
+
 export function cargoUnits(cargo: Readonly<Record<string, number>>): number {
   return Object.values(cargo).reduce((sum, units) => sum + Math.max(0, units), 0);
 }

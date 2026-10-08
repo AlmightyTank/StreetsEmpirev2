@@ -124,6 +124,8 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   });
   app.post('/travel/launch', { preHandler: app.requireAuth }, async (request) =>
     TravelService.launch(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+  app.post('/travel/vehicles/service', { preHandler: app.requireAuth }, async (request) =>
+    TravelService.serviceVehicles(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
   app.post('/travel/vehicles/purchase', { preHandler: app.requireAuth }, async (request) =>
     TravelService.purchaseVehicle(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
   app.post('/travel/trade', { preHandler: app.requireAuth }, async (request) =>

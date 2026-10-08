@@ -791,6 +791,8 @@ export interface RunDto {
   lowRiders: number;
   /** 1.5.0-B. Vehicle composition, preserved for the return trip. */
   vehicleLoadout?: { LOW_RIDER: number; SEDAN: number; VAN: number };
+  /** 1.5.0-C. The part of the loadout coming home Damaged or Disabled. Absent on a clean run. */
+  vehicleDamage?: VehicleDamageDto;
   escortThugs: number;
   cashCents: number;
   startCashCents: number;
@@ -875,6 +877,8 @@ export interface RunReceiptDto {
   cities: Array<{ slug: string; name: string }>;
   lowRiders: number;
   vehicleLoadout?: { LOW_RIDER: number; SEDAN: number; VAN: number };
+  /** 1.5.0-C. What came home needing the garage. */
+  vehicleDamage?: VehicleDamageDto;
   escortThugs: number;
   startCashCents: number;
   cashCents: number;
@@ -903,7 +907,21 @@ export interface TravelDto extends CitiesDto {
     crewSeats?: number | null;
     purchasePriceCents?: number | null;
     routeProfile?: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
+    /** 1.5.0-C. At home but waiting on the garage; not counted in `home`. */
+    damaged?: number;
+    disabled?: number;
+    /** 1.5.0-C. Price per vehicle to put a Damaged / Disabled one back to Ready. */
+    repairCents?: number;
+    recoveryCents?: number;
   }>;
+  /** 1.5.0-C. What road trouble does to a run's vehicles, so it can be shown before launch. */
+  vehicleService?: {
+    damagedByBust: number;
+    damagedByConvoyLoss: number;
+    disabledByArrest: number;
+    /** Class ids in the order a run's vehicles take trouble. */
+    damageOrder: Array<'LOW_RIDER' | 'SEDAN' | 'VAN'>;
+  };
   runsEnabled: boolean;
   /** Products Pip will not sell this player yet, in any city, and the unlock each needs. The high markets still sell them. */
   lockedProducts?: Array<{ key: string; unlockName: string }>;
@@ -945,6 +963,25 @@ export interface TravelDto extends CitiesDto {
   relocation: RelocationDto | null;
   /** Trips A. The boss travels. Null on rounds without trips. */
   trips: TripPanelDto | null;
+}
+
+/** 1.5.0-C. Vehicle counts by class. */
+export type VehicleCountsDto = { LOW_RIDER: number; SEDAN: number; VAN: number };
+
+/** 1.5.0-C. The part of a run's loadout that needs the garage when it gets home. */
+export interface VehicleDamageDto {
+  damaged: VehicleCountsDto;
+  disabled: VehicleCountsDto;
+}
+
+/** 1.5.0-C. Outcome of a garage repair or recovery. */
+export interface VehicleServiceResult {
+  classId: 'LOW_RIDER' | 'SEDAN' | 'VAN';
+  name: string;
+  kind: 'REPAIR' | 'RECOVER';
+  quantity: number;
+  paidCents: number;
+  readyCount: number;
 }
 
 /** 1.5.0-B. Outcome of buying a Sedan or Van for the home garage. */

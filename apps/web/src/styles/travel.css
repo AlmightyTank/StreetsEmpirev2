@@ -525,3 +525,106 @@
       grid-template-columns: 1fr;
     }
 }
+
+/* ---------- 1.5.0-C garage ----------
+   One card per vehicle class: its picture, its job, where every car is, and the
+   priced buttons that put a car back on the road. */
+
+.se-garage {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.se-garage__car {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--se-line);
+  border-radius: var(--se-radius-sm);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.se-garage__art {
+  align-self: center;
+}
+
+.se-garage__about h3 {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+
+.se-garage__about p {
+  margin: 0 0 4px;
+}
+
+.se-garage__states {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid var(--se-line-soft);
+  border-radius: var(--se-radius-sm);
+}
+
+.se-garage__states > div {
+  padding: 5px 6px;
+  text-align: center;
+}
+
+.se-garage__states > div + div {
+  border-left: 1px solid var(--se-line-soft);
+}
+
+.se-garage__states dt {
+  color: var(--se-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.se-garage__states dd {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.se-garage__states .is-warn dd {
+  color: var(--se-warn);
+}
+
+.se-garage__states .is-bad dd {
+  color: var(--se-bad);
+}
+
+.se-garage__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+
+@media (max-width: 900px) {
+  .se-garage {
+    grid-template-columns: 1fr;
+  }
+
+  .se-garage__car {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .se-garage__states,
+  .se-garage__actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 520px) {
+  .se-garage__car {
+    grid-template-columns: 1fr;
+  }
+}

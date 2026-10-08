@@ -10,6 +10,7 @@ import { MovePanel } from '../components/MovePanel.js';
 import { TripPanel } from '../components/TripPanel.js';
 import { BossPresencePanel } from '../components/BossPresencePanel.js';
 import { LaunchPanel, ReceiptPanel, RunPanel } from '../components/RunPanels.js';
+import { GaragePanel } from '../components/GaragePanel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 
@@ -62,12 +63,12 @@ function StreetWire({ items }: { items: WireItemDto[] }) {
   );
 }
 
-type TravelTab = 'runs' | 'trip' | 'move';
+type TravelTab = 'runs' | 'garage' | 'trip' | 'move';
 
 /**
  * 0.5.0-B, reworked for 1.4: the map is the page. Pick a city on it (its intel
  * sits beside the map), keep convoys above the tabs and market below the active tab,
- * then act from one tab at a time: runs, the boss's trip, or moving house.
+ * then act from one tab at a time: runs, the garage (1.5.0-C), the boss's trip, or moving house.
  * Anything urgent on the road is pinned above the map.
  */
 export function TravelPage() {
@@ -93,9 +94,12 @@ export function TravelPage() {
   const runLimit = data?.rules.runLimit ?? 0;
   const openRunSlots = Math.max(0, runLimit - runs.length);
   const bossAway = Boolean(data?.trips?.trip);
+  const inService = (data?.vehicleFleet ?? []).reduce((sum, vehicle) => sum + (vehicle.damaged ?? 0) + (vehicle.disabled ?? 0), 0);
 
   const tabs: Array<{ key: TravelTab; label: string; badge?: string; alert?: boolean }> = data?.enabled ? [
     ...(data.runsEnabled ? [{ key: 'runs' as const, label: 'Runs', badge: `${formatNumber(runs.length)}/${formatNumber(runLimit)}` }] : []),
+    // 1.5.0-C: the garage, flagged while any car waits on a repair or recovery.
+    ...(data.runsEnabled && data.vehicleFleet?.length ? [{ key: 'garage' as const, label: 'Garage', ...(inService ? { badge: formatNumber(inService), alert: true } : {}) }] : []),
     ...(data.trips ? [{ key: 'trip' as const, label: bossAway ? 'Boss away' : 'Boss trip', alert: bossAway }] : []),
     ...(data.relocation ? [{ key: 'move' as const, label: 'Move house', alert: Boolean(me.moving) }] : []),
   ] : [];
@@ -237,6 +241,8 @@ export function TravelPage() {
                   {!runs.length && data.lastRun ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
                 </>
               ) : null}
+
+              {tab === 'garage' ? <GaragePanel data={data} onDone={load} /> : null}
 
               {tab === 'trip' ? (
                 <>

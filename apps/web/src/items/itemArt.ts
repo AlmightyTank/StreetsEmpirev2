@@ -47,7 +47,7 @@ export const ITEM_ART = {
 
   // Charlie's Chop Shop
   LOW_RIDER: { name: 'Low-Rider', shortName: 'Low-Rider', category: 'VEHICLE', rarity: 'EPIC', file: 'low-rider.svg', cells: WIDE },
-  // Not in any ruleset yet; drawn ahead so they can be sold or paid out later.
+  // 1.5.0-B classes, bought in the Travel garage.
   SEDAN: { name: 'Sedan', shortName: 'Sedan', category: 'VEHICLE', rarity: 'UNCOMMON', file: 'sedan.svg', cells: WIDE },
   VAN: { name: 'Van', shortName: 'Van', category: 'VEHICLE', rarity: 'RARE', file: 'van.svg', cells: WIDE },
 

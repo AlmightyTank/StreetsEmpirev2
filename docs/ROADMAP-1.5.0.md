@@ -2,7 +2,7 @@
 
 ## Brainstorm
 
-**Status:** 1.5.0-A and B are implemented on beta as `classic-og-v1.5-a` and `classic-og-v1.5-b`. The remaining slices are proposals.
+**Status:** 1.5.0-A, B and C are implemented on beta as `classic-og-v1.5-a`, `classic-og-v1.5-b` and `classic-og-v1.5-c`. The remaining slices are proposals.
 
 **Target base:** StreetsEmpire v1.4.0, after its release ruleset is pinned.  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Low-Riders into a useful fleet.  
@@ -70,7 +70,7 @@ Each slice should have its own release gate and pinned ruleset, following the ea
 | --- | --- | --- |
 | **1.5.0-A — Fleet Foundation** | Built | `classic-og-v1.5-a` adds the stable `LOW_RIDER` class identity and exposes existing home/away counts in the Hideout Garage. Older rulesets and all travel values remain unchanged. |
 | **1.5.0-B — Vehicle Classes & Run Loadouts** | Built | `classic-og-v1.5-b` adds Sedan and Van ownership, predictable garage purchase prices, mixed run loadouts, class-specific cargo and seating capacity, and visible route profiles before dispatch. |
-| **1.5.0-C — Garage Service, Recovery & Class Art** | Proposed | Give the garage a clear purpose for checking, repairing and recovering vehicles after a run. Add distinct Low-Rider, Sedan and Van artwork to the garage and run loadout, with costs and consequences previewed before committing. Prefer damage and repair over surprise permanent loss. |
+| **1.5.0-C — Garage Service, Recovery & Class Art** | Built | `classic-og-v1.5-c` adds Damaged and Disabled vehicle states, priced garage repair and recovery, a Garage tab on Travel, and class artwork in the garage, run loadout and Hideout. Busts, arrests and lost convoy fights dent cars instead of deleting them. |
 | **1.5.0-D — Road Specialization** | Proposed | If simulation supports it, connect the existing Auto Garage, Chop Shop and Road Saints lane to vehicle access, service or a limited specialization. Avoid faction-exclusive vehicles that create a must-pick advantage. |
 | **1.5.0-E — Balance, Admin & Release** | Proposed | Simulate route value, vehicle use, repairs and losses; add admin visibility and audited corrections where needed; complete mobile, exploit and historical-ruleset checks. |
 | **1.5.0-F — Vehicle Cosmetics** | Proposed | After the base class silhouettes and garage presentation are settled, add optional player-selected vehicle looks. Cosmetics remain presentation-only and do not change vehicle stats or route outcomes. |
@@ -89,9 +89,41 @@ Start with **Low-Rider, Sedan and Van**, class-based run loadouts, and a straigh
 
 **Status: implemented on beta.** `classic-og-v1.5-b` adds the Sedan and Van classes. Sedans carry 65% of baseline cargo, seat four crew, cost $3,500, and reduce route exposure by 10%; Vans carry 150% of baseline cargo, use the round’s normal crew capacity, cost $8,500, and raise exposure by 15%. Neither class removes police, Heat, road-stop or convoy risk. Players can buy them from the travel garage, choose a mixed loadout, and see class capacities and route profiles before committing. Runs store the class breakdown and restore the surviving vehicles on return. The legacy `lowRiders` request field remains supported for clients that only dispatch Low-Riders.
 
-### Vehicle artwork schedule
+### 1.5.0-C — Garage Service, Recovery & Class Art
 
-Create and integrate the distinct base-class illustrations in **1.5.0-C**, when the garage service and run-loadout presentation are being built. The recent sedan/van concept image is a direction reference; production artwork should be individual vehicle assets that fit the existing item-tile presentation. Keep the silhouettes readable and give the Sedan a discreet, low-profile treatment and the Van a larger, cargo-focused treatment.
+**Status: implemented on beta.** `classic-og-v1.5-c` wraps `classic-og-v1.5-b` with `vehicleCatalog.service`. Every other value is unchanged.
+
+**Vehicle condition.** Cars at home are **Ready**, **Damaged** or **Disabled**; cars on a run are **Away**. Damaged and Disabled cars cannot go on runs or drive-bys, still count toward net worth at the normal per-vehicle value, and still count toward Hideout Low-Rider requirements. On a run, a dented car keeps driving with its cargo and comes home to the garage when the run returns.
+
+| Trouble | What happens to the run's vehicles |
+| --- | --- |
+| Bust in town | 1 vehicle comes home Damaged |
+| Convoy hit the run loses | 1 vehicle comes home Damaged |
+| Arrest in town | 1 vehicle is impounded and comes home Disabled |
+| Convoy theft (escorts down) | A Low-Rider is still stolen. A run with no Low-Rider has a Sedan or Van wrecked (Disabled) instead, so it is no longer turned into a Low-Rider for the attacker |
+| Road stop | No vehicle effect |
+
+Trouble lands on the most visible car first: Vans, then Low-Riders, then Sedans. A disabling hit takes a running car before a damaged one. A car stolen off a run takes its damage record with it.
+
+**Garage service.** Instant, paid from home cash, never a roll, and priced on the button before the player commits:
+
+| Class | Repair (Damaged → Ready) | Recovery (Disabled → Ready) | New price |
+| --- | --- | --- | --- |
+| Low-Rider | $750 | $2,000 | $5,000 at Charlie's |
+| Sedan | $500 | $1,400 | $3,500 |
+| Van | $1,250 | $3,400 | $8,500 |
+
+Repair is about 15% of a class's price and recovery about 40%, so a bad run costs real money without costing the car. The Sedan is the cheap car to keep running and the Van the expensive one.
+
+**Presentation.** A **Garage** tab on Travel shows one card per class with its art, role, capacity, route profile, Ready/Away/Damaged/Disabled counts, and priced buy, repair and recover buttons. The tab shows a count when anything is waiting for service. Buying Sedans and Vans moved there from the launch panel. The launch panel puts each class's art on its loadout field, says which cars are waiting on the garage, and previews what busts, arrests and convoy losses do to vehicles and what fixing them costs. Active runs and the last-run receipt list damaged and disabled cars. The Hideout Garage uses each class's own art and shows service counts.
+
+**Fixed along the way.** The Hideout v2 extension now covers `classic-og-v1.5-a` and later, which A and B had missed, so the Hideout rooms (including the Garage) appear on 1.5 rounds. The player-state invariant now treats the optional vehicle counts as zero when absent.
+
+**Not in C.** Drive-by losses and Steal-a-Ride raids keep their permanent Low-Rider losses: they are combat outcomes, and changing them is a balance call for E. Admin voids of convoy hits do not undo vehicle damage. Admin visibility and corrections for vehicle condition belong in **1.5.0-E**.
+
+### Vehicle artwork
+
+The Low-Rider, Sedan and Van base-class illustrations are individual item-tile assets in `apps/web/public/items/` (`low-rider.svg`, `sedan.svg`, `van.svg`) and are wired into the garage, run loadout and Hideout in 1.5.0-C. The Sedan has a discreet, low-profile look and the Van a larger, cargo-focused one.
 
 The repository's `scripts/art/render-cosmetic-art.mjs` script renders authored SVG masters from `apps/web/art/cosmetics/` into lossless WebP files under `apps/web/public/items/cosmetics/`. For example, `node scripts/art/render-cosmetic-art.mjs rides` rebuilds the ride cosmetic files. It is an export step, not an image generator; base vehicle artwork will need its own registry/runtime paths, while optional cosmetic variants belong in **1.5.0-F**.
 

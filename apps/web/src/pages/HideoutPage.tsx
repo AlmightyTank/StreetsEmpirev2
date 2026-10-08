@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import type {
   HideoutRoomV2Dto,
   HideoutSpecializationResult,
@@ -699,8 +700,12 @@ export function HideoutPage() {
                           <Metric
                             key={vehicle.classId}
                             label={`${vehicle.name} fleet`}
-                            art="LOW_RIDER"
-                            value={`${formatNumber(vehicle.home)} home · ${formatNumber(vehicle.away)} away`}
+                            art={vehicle.classId}
+                            value={`${formatNumber(vehicle.home)} ready · ${formatNumber(vehicle.away)} away`}
+                            tone={(vehicle.damaged ?? 0) + (vehicle.disabled ?? 0) ? 'warn' : undefined}
+                            detail={(vehicle.damaged ?? 0) + (vehicle.disabled ?? 0)
+                              ? `${formatNumber(vehicle.damaged ?? 0)} damaged · ${formatNumber(vehicle.disabled ?? 0)} disabled`
+                              : undefined}
                           />
                         )) : <>
                           <Metric label="Low-Riders home" art="LOW_RIDER" value={formatNumber(lowRidersHome)} />
@@ -745,7 +750,7 @@ export function HideoutPage() {
                       </div>
                       <div className="se-hideout-note">
                         {travel?.vehicleFleet?.length
-                          ? `${travel.vehicleFleet.map((vehicle) => `${vehicle.name}: ${vehicle.description}`).join(' ')} Vehicle classes are inventory labels in this release; travel rules are unchanged.`
+                          ? <>{travel.vehicleFleet.map((vehicle) => `${vehicle.name}: ${vehicle.description}`).join(' ')} {travel.vehicleService ? <>Repairs and recovery are in the <Link to="/game/travel?tab=garage">Travel garage</Link>.</> : null}</>
                           : 'Garage bonuses stay logistical. Route time, police risk, and local markets are unchanged.'}
                       </div>
                     </Panel>

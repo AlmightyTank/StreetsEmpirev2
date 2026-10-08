@@ -24,6 +24,12 @@ export interface InvariantPlayerState {
   lowRiders: number;
   sedans?: number;
   vans?: number;
+  damagedLowRiders?: number;
+  damagedSedans?: number;
+  damagedVans?: number;
+  disabledLowRiders?: number;
+  disabledSedans?: number;
+  disabledVans?: number;
   heat: number;
   cleanShiftStreak: number;
   rocksSuppliedToPip: number;
@@ -67,6 +73,12 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
   'lowRiders',
   'sedans',
   'vans',
+  'damagedLowRiders',
+  'damagedSedans',
+  'damagedVans',
+  'disabledLowRiders',
+  'disabledSedans',
+  'disabledVans',
   'heat',
   'cleanShiftStreak',
   'rocksSuppliedToPip',
@@ -92,6 +104,10 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
   'thugStock',
 ];
 
+const OPTIONAL_COUNTS: ReadonlySet<keyof InvariantPlayerState> = new Set([
+  'sedans', 'vans', 'damagedLowRiders', 'damagedSedans', 'damagedVans', 'disabledLowRiders', 'disabledSedans', 'disabledVans',
+]);
+
 function invalid(message: string): never {
   // Deliberately not an AppError: invariant failures are server bugs, so the
   // central error handler logs the detail and gives the player the generic 500.
@@ -116,7 +132,8 @@ export function assertPlayerState(
   if ((state.outpostNetWorthCents ?? 0n) < 0n) invalid(`${phase}.outpostNetWorthCents is negative`);
 
   for (const field of WHOLE_NON_NEGATIVE) {
-    const value = state[field];
+    // 1.5.0-B/C vehicle counts are optional on the type: absent is none.
+    const value = state[field] ?? (OPTIONAL_COUNTS.has(field) ? 0 : undefined);
     if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
       invalid(`${phase}.${field} must be a non-negative safe integer`);
     }

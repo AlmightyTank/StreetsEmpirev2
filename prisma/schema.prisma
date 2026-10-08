@@ -1173,6 +1173,14 @@ model RoundPlayer {
   /// 1.5.0-B. Separate vehicle classes; Low-Riders remain in the legacy field.
   sedans Int @default(0)
   vans   Int @default(0)
+  /// 1.5.0-C. At home but out of action until the garage repairs (Damaged) or
+  /// recovers (Disabled) them. Not in the Ready counts above.
+  damagedLowRiders  Int @default(0)
+  damagedSedans     Int @default(0)
+  damagedVans       Int @default(0)
+  disabledLowRiders Int @default(0)
+  disabledSedans    Int @default(0)
+  disabledVans      Int @default(0)
 
   /// 0.9.0-F. Largest whores + thugs this crew has had this round. Profile history
   /// only; raised on every action and settle, never lowered.
@@ -1531,6 +1539,9 @@ model Run {
   lowRiders      Int
   /// 1.5.0-B. Class composition for this run; old runs default to Low-Riders.
   vehicleLoadout Json @default("{\"LOW_RIDER\":1}")
+  /// 1.5.0-C. The part of the loadout that comes home Damaged or Disabled:
+  /// { damaged: {LOW_RIDER, SEDAN, VAN}, disabled: {...} }. Empty is a clean run.
+  vehicleDamage  Json @default("{}")
   escortThugs    Int
   /// The run's wallet, integer cents. Never below zero.
   cashCents      BigInt

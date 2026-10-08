@@ -12,6 +12,13 @@ export interface NetWorthInput {
   lowRiders: number;
   sedans?: number;
   vans?: number;
+  /** 1.5.0-C. Vehicles at home waiting on a repair or a recovery, by class. */
+  damagedLowRiders?: number;
+  damagedSedans?: number;
+  damagedVans?: number;
+  disabledLowRiders?: number;
+  disabledSedans?: number;
+  disabledVans?: number;
   medicine: number;
   crack: number;
   condoms: number;
