@@ -2,18 +2,24 @@ import { Link } from 'react-router-dom';
 import type { CitiesDto, CityCharacterDto, SupplyLevelDto } from '@streets/shared';
 import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
 import { Panel, Row } from './Panel.js';
+import { USA_MAP } from './usaMap.generated.js';
 
-/** Where each city sits on the map, roughly where it is on the real one. */
-const MAP: Record<string, { x: number; y: number; label: 'left' | 'right' | 'above' | 'below' }> = {
-  'seattle': { x: 52, y: 36, label: 'right' },
-  'los-angeles': { x: 64, y: 150, label: 'right' },
-  'beverly-hills': { x: 36, y: 184, label: 'below' },
-  'las-vegas': { x: 118, y: 124, label: 'right' },
-  'detroit': { x: 272, y: 60, label: 'above' },
-  'new-york-city': { x: 352, y: 50, label: 'above' },
-  'atlanta': { x: 290, y: 152, label: 'left' },
-  'miami-beach': { x: 336, y: 206, label: 'left' },
+/** Which side of its dot each city's name sits, clear of its neighbours. */
+const LABEL: Record<string, 'left' | 'right' | 'above' | 'below'> = {
+  'seattle': 'right',
+  'los-angeles': 'right',
+  'beverly-hills': 'below',
+  'las-vegas': 'right',
+  'detroit': 'above',
+  'new-york-city': 'above',
+  'atlanta': 'left',
+  'miami-beach': 'left',
 };
+
+/** Where each city sits: its real place on the lower 48 (scripts/art/build-usa-map.mjs). */
+const MAP: Record<string, { x: number; y: number; label: 'left' | 'right' | 'above' | 'below' }> = Object.fromEntries(
+  Object.entries(USA_MAP.cities).map(([slug, at]) => [slug, { ...at, label: LABEL[slug] ?? 'right' }]),
+);
 
 export const SHORT_CITY: Record<string, string> = {
   'new-york-city': 'New York',
@@ -80,7 +86,9 @@ export function RoadMap({ data, selected, onSelect, runAt, runAts }: {
 
   return (
     <div className="se-citymap-scroll" role="region" aria-label="Road map">
-      <svg className="se-citymap" viewBox="0 0 400 230" role="group" aria-label="The road map">
+      <svg className="se-citymap" viewBox={`0 0 ${USA_MAP.width} ${USA_MAP.height}`} role="group" aria-label="The road map">
+      <path d={USA_MAP.outline} className="se-citymap__land" aria-hidden="true" />
+      <path d={USA_MAP.states} className="se-citymap__states" aria-hidden="true" />
       {roads.map((road) => {
         const a = MAP[road.from];
         const b = MAP[road.to];
