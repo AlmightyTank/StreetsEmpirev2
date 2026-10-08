@@ -49,6 +49,36 @@ export function vehicleTroubleText(data: TravelDto): string | null {
     + `Repairs run ${range((vehicle) => vehicle.repairCents)} a car and recovery ${range((vehicle) => vehicle.recoveryCents)}; nothing is lost for good.`;
 }
 
+/** 1.5.0-D. A price, with the list price struck through beside it when the road lane took some off. */
+function Price({ cents, list }: { cents: number; list?: number }) {
+  return list !== undefined && list > cents
+    ? <><s className="se-muted">{formatCents(list)}</s> {formatCents(cents)}</>
+    : <>{formatCents(cents)}</>;
+}
+
+const DISCOUNT_NAMES = { AUTO_GARAGE: 'Your Auto Garage', CHOP_SHOP: 'Your Chop Shop', ROAD_SAINTS: 'Road Saints MC' } as const;
+
+/**
+ * 1.5.0-D. Where this crew's garage discounts come from, and how to get the ones it lacks.
+ * The road lane makes a fleet cheaper to keep running; it never unlocks a car.
+ */
+function DiscountNote({ discounts }: { discounts: NonNullable<NonNullable<TravelDto['vehicleService']>['discounts']> }) {
+  const line = (kind: 'REPAIR' | 'RECOVER') => {
+    const entry = discounts[kind];
+    if (!entry.sources.length) return null;
+    const parts = entry.sources.map((source) => `${DISCOUNT_NAMES[source.source]} ${source.percent}%`).join(' + ');
+    const total = entry.sources.reduce((sum, source) => sum + source.percent, 0);
+    return `${kind === 'REPAIR' ? 'Repairs' : 'Recovery'} ${entry.percent}% off (${parts}${total > entry.percent ? `, capped` : ''}).`;
+  };
+  const active = [line('REPAIR'), line('RECOVER')].filter(Boolean);
+  return (
+    <p className="se-hint">
+      {active.length ? `${active.join(' ')} ` : ''}
+      The road lane keeps a fleet cheaper to run: an Auto Garage on your blocks cuts repairs, a Chop Shop running Vehicle recovery cuts recovery, and Trusted standing with Road Saints MC cuts both.
+    </p>
+  );
+}
+
 /**
  * 1.5.0-C. The garage: every vehicle class with its picture, what it is for, where each
  * car is (Ready, Away, Damaged, Disabled), and what it costs to buy one or put one back
@@ -102,7 +132,7 @@ export function GaragePanel({ data, onDone }: { data: TravelDto; onDone: () => v
                 {damaged > 0 && vehicle.repairCents !== undefined ? (
                   <>
                     <button type="button" className="se-btn se-btn--sm" disabled={busy || cash < vehicle.repairCents}
-                      onClick={() => void fix(vehicle.classId, 'REPAIR', 1)}>Repair 1 · {formatCents(vehicle.repairCents)}</button>
+                      onClick={() => void fix(vehicle.classId, 'REPAIR', 1)}>Repair 1 · <Price cents={vehicle.repairCents} list={vehicle.listRepairCents} /></button>
                     {damaged > 1 ? (
                       <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy || cash < vehicle.repairCents * damaged}
                         onClick={() => void fix(vehicle.classId, 'REPAIR', damaged)}>Repair all {damaged} · {formatCents(vehicle.repairCents * damaged)}</button>
@@ -112,7 +142,7 @@ export function GaragePanel({ data, onDone }: { data: TravelDto; onDone: () => v
                 {disabled > 0 && vehicle.recoveryCents !== undefined ? (
                   <>
                     <button type="button" className="se-btn se-btn--sm" disabled={busy || cash < vehicle.recoveryCents}
-                      onClick={() => void fix(vehicle.classId, 'RECOVER', 1)}>Recover 1 · {formatCents(vehicle.recoveryCents)}</button>
+                      onClick={() => void fix(vehicle.classId, 'RECOVER', 1)}>Recover 1 · <Price cents={vehicle.recoveryCents} list={vehicle.listRecoveryCents} /></button>
                     {disabled > 1 ? (
                       <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy || cash < vehicle.recoveryCents * disabled}
                         onClick={() => void fix(vehicle.classId, 'RECOVER', disabled)}>Recover all {disabled} · {formatCents(vehicle.recoveryCents * disabled)}</button>
@@ -120,8 +150,8 @@ export function GaragePanel({ data, onDone }: { data: TravelDto; onDone: () => v
                   </>
                 ) : null}
                 {buyable ? (
-                  <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy || cash < vehicle.purchasePriceCents!}
-                    onClick={() => void buy(vehicle.classId)}>Buy one · {formatCents(vehicle.purchasePriceCents!)}</button>
+                  <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy || cash < (vehicle.buyCents ?? vehicle.purchasePriceCents!)}
+                    onClick={() => void buy(vehicle.classId)}>Buy one · <Price cents={vehicle.buyCents ?? vehicle.purchasePriceCents!} list={vehicle.purchasePriceCents!} /></button>
                 ) : vehicle.classId === 'LOW_RIDER' ? (
                   <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/stores/charlie">Charlie sells these</Link>
                 ) : null}
@@ -134,7 +164,7 @@ export function GaragePanel({ data, onDone }: { data: TravelDto; onDone: () => v
       {purchase.error ? <Alert>{purchase.error}</Alert> : null}
       {done ? (
         <p className="se-good se-mt" role="status">
-          {done.kind === 'REPAIR' ? 'Repaired' : 'Recovered'} {done.quantity} {vehiclePlural(done.classId, done.quantity)} for {formatCents(done.paidCents)}. {done.readyCount} ready at home.
+          {done.kind === 'REPAIR' ? 'Repaired' : 'Recovered'} {done.quantity} {vehiclePlural(done.classId, done.quantity)} for {formatCents(done.paidCents)}{done.discountPercent ? ` (${done.discountPercent}% off)` : ''}. {done.readyCount} ready at home.
         </p>
       ) : bought ? (
         <p className="se-good se-mt" role="status">Bought {bought.quantity} {vehiclePlural(bought.classId, bought.quantity)} for {formatCents(bought.paidCents)}.</p>
@@ -142,6 +172,7 @@ export function GaragePanel({ data, onDone }: { data: TravelDto; onDone: () => v
       <p className="se-hint se-mt">
         {vehicleTroubleText(data) ?? 'Vehicles in this round never need the garage.'} Service is paid from cash at home and the car is ready at once. Damaged and Disabled cars cannot go on runs or drive-bys.
       </p>
+      {data.vehicleService?.discounts ? <DiscountNote discounts={data.vehicleService.discounts} /> : null}
     </Panel>
   );
 }

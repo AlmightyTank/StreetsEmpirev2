@@ -78,7 +78,7 @@ import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
-import { VEHICLE_FIELDS, damageRunVehicles, hasVehicleDamage, readVehicleDamage, readVehicleLoadout, type VehicleLoadout } from './vehicle-fleet.service.js';
+import { VEHICLE_FIELDS, damageRunVehicles, hasVehicleDamage, readVehicleDamage, readVehicleLoadout, vehiclePurchaseCents, vehicleServiceDiscounts, type VehicleLoadout } from './vehicle-fleet.service.js';
 import {
   RUN_INCLUDE,
   awayWorth,
@@ -414,12 +414,18 @@ export const TravelService = {
         ? { ...city, counter: { ...city.counter, products: city.counter.products.map((entry) => ({ ...entry, market: marketPrice(ruleset, seed, player.city.slug, entry.key, homePushes.get(entry.key) ?? 0, now) })) } }
         : city))
       : map.cities;
+    // 1.5.0-D: the road lane's garage discounts for this crew.
+    const discounts = ruleset.vehicleCatalog?.service?.specialization
+      ? await vehicleServiceDiscounts(prisma, roundPlayerId, ruleset, player.racketEffects)
+      : null;
     return {
       ...map,
       cities,
       runsEnabled: Boolean(runRules(ruleset)),
       ...(ruleset.vehicleCatalog ? {
         vehicleFleet: ruleset.vehicleCatalog.classes.map((vehicleClass) => {
+          const listRepair = ruleset.vehicleCatalog?.service?.repairCents[vehicleClass.id];
+          const listRecovery = ruleset.vehicleCatalog?.service?.recoveryCents[vehicleClass.id];
           const away = active.reduce((sum, run) => sum + readVehicleLoadout(run.vehicleLoadout, run.lowRiders)[vehicleClass.id], 0);
           const home = player[vehicleClass.legacyResource];
           const service = ruleset.vehicleCatalog?.service;
@@ -435,12 +441,17 @@ export const TravelService = {
             cargoPercent: vehicleClass.cargoPercent,
             crewSeats: vehicleClass.crewSeats,
             purchasePriceCents: vehicleClass.purchasePriceCents,
+            buyCents: vehicleClass.purchasePriceCents === null || vehicleClass.purchasePriceCents === undefined
+              ? null
+              : vehiclePurchaseCents(ruleset, vehicleClass.id, vehicleClass.purchasePriceCents, player.racketEffects).cents,
             routeProfile: vehicleClass.routeProfile,
-            ...(service ? {
+            ...(service && listRepair !== undefined && listRecovery !== undefined ? {
               damaged,
               disabled,
-              repairCents: service.repairCents[vehicleClass.id],
-              recoveryCents: service.recoveryCents[vehicleClass.id],
+              repairCents: Number(vehicleServiceCents(ruleset, vehicleClass.id, 'REPAIR', 1, discounts?.REPAIR.percent ?? 0)),
+              recoveryCents: Number(vehicleServiceCents(ruleset, vehicleClass.id, 'RECOVER', 1, discounts?.RECOVER.percent ?? 0)),
+              ...(discounts?.REPAIR.percent ? { listRepairCents: listRepair } : {}),
+              ...(discounts?.RECOVER.percent ? { listRecoveryCents: listRecovery } : {}),
             } : {}),
           };
         }),
@@ -450,6 +461,7 @@ export const TravelService = {
             damagedByConvoyLoss: ruleset.vehicleCatalog.service.damage.convoyLoss,
             disabledByArrest: ruleset.vehicleCatalog.service.disable.arrest,
             damageOrder: [...ruleset.vehicleCatalog.service.damageOrder],
+            ...(discounts ? { discounts } : {}),
           },
         } : {}),
       } : {}),
@@ -488,12 +500,14 @@ export const TravelService = {
     return ActionService.run<VehiclePurchaseResult>(prisma, roundPlayerId, {
       action: 'VEHICLE_PURCHASE',
       actionId: input.actionId,
-      execute: async ({ current, ruleset }) => {
+      execute: async ({ current, ruleset, player }) => {
         const vehicleClass = ruleset.vehicleCatalog?.classes.find((entry) => entry.id === input.classId);
         if (!vehicleClass || vehicleClass.purchasePriceCents === null || vehicleClass.purchasePriceCents === undefined) {
           throw AppError.conflict('VEHICLE_UNAVAILABLE', 'That vehicle is not available in this round.');
         }
-        const price = BigInt(vehicleClass.purchasePriceCents) * BigInt(input.quantity);
+        // 1.5.0-D: Stolen Low-Riders takes its cut off Sedans and Vans too.
+        const each = vehiclePurchaseCents(ruleset, input.classId, vehicleClass.purchasePriceCents, player.racketEffects);
+        const price = BigInt(each.cents) * BigInt(input.quantity);
         if (current.cashCents < price) {
           throw AppError.badRequest('NOT_ENOUGH_CASH', `You need ${formatCents(Number(price))} for that order.`, { quantity: 'Not enough cash.' });
         }
@@ -517,9 +531,13 @@ export const TravelService = {
     return ActionService.run<VehicleServiceResult>(prisma, roundPlayerId, {
       action: 'VEHICLE_SERVICE',
       actionId: input.actionId,
-      execute: async ({ current, ruleset }) => {
+      execute: async ({ tx, current, ruleset, player }) => {
         const vehicleClass = ruleset.vehicleCatalog?.classes.find((entry) => entry.id === input.classId);
-        const price = vehicleServiceCents(ruleset, input.classId, input.kind, input.quantity);
+        // 1.5.0-D: the road lane's cut, read as the action runs, never from the client.
+        const discount = ruleset.vehicleCatalog?.service?.specialization
+          ? (await vehicleServiceDiscounts(tx, roundPlayerId, ruleset, player.racketEffects))[input.kind].percent
+          : 0;
+        const price = vehicleServiceCents(ruleset, input.classId, input.kind, input.quantity, discount);
         if (!vehicleClass || price === null) {
           throw AppError.conflict('VEHICLE_SERVICE_UNAVAILABLE', 'The garage does not service vehicles in this round.');
         }
@@ -538,7 +556,7 @@ export const TravelService = {
         const verb = input.kind === 'REPAIR' ? 'repair' : 'recovery';
         return {
           next: { ...current, cashCents: current.cashCents - price, [from]: waiting - input.quantity, [fields.ready]: readyCount },
-          result: { classId: input.classId, name: vehicleClass.name, kind: input.kind, quantity: input.quantity, paidCents: Number(price), readyCount },
+          result: { classId: input.classId, name: vehicleClass.name, kind: input.kind, quantity: input.quantity, paidCents: Number(price), readyCount, ...(discount ? { discountPercent: discount } : {}) },
           ledger: [{ source: 'VEHICLE_SERVICE', label: `Garage ${verb} · ${vehicleClass.name} × ${input.quantity}`, amountCents: -price }],
         };
       },

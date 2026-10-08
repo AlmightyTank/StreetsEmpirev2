@@ -2,7 +2,7 @@
 
 ## Brainstorm
 
-**Status:** 1.5.0-A, B and C are implemented on beta as `classic-og-v1.5-a`, `classic-og-v1.5-b` and `classic-og-v1.5-c`. The remaining slices are proposals.
+**Status:** 1.5.0-A through D are implemented on beta as `classic-og-v1.5-a` to `classic-og-v1.5-d`. The remaining slices are proposals.
 
 **Target base:** StreetsEmpire v1.4.0, after its release ruleset is pinned.  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Low-Riders into a useful fleet.  
@@ -71,7 +71,7 @@ Each slice should have its own release gate and pinned ruleset, following the ea
 | **1.5.0-A — Fleet Foundation** | Built | `classic-og-v1.5-a` adds the stable `LOW_RIDER` class identity and exposes existing home/away counts in the Hideout Garage. Older rulesets and all travel values remain unchanged. |
 | **1.5.0-B — Vehicle Classes & Run Loadouts** | Built | `classic-og-v1.5-b` adds Sedan and Van ownership, predictable garage purchase prices, mixed run loadouts, class-specific cargo and seating capacity, and visible route profiles before dispatch. |
 | **1.5.0-C — Garage Service, Recovery & Class Art** | Built | `classic-og-v1.5-c` adds Damaged and Disabled vehicle states, priced garage repair and recovery, a Garage tab on Travel, and class artwork in the garage, run loadout and Hideout. Busts, arrests and lost convoy fights dent cars instead of deleting them. |
-| **1.5.0-D — Road Specialization** | Proposed | If simulation supports it, connect the existing Auto Garage, Chop Shop and Road Saints lane to vehicle access, service or a limited specialization. Avoid faction-exclusive vehicles that create a must-pick advantage. |
+| **1.5.0-D — Road Specialization** | Built | `classic-og-v1.5-d` connects the road lane to garage service: an Auto Garage cuts repairs, the Chop Shop's Vehicle recovery racket cuts recovery and Stolen Low-Riders now discounts Sedans and Vans, and Road Saints MC at Trusted cut both. Capped at 35%; no vehicle is exclusive to anyone. |
 | **1.5.0-E — Balance, Admin & Release** | Proposed | Simulate route value, vehicle use, repairs and losses; add admin visibility and audited corrections where needed; complete mobile, exploit and historical-ruleset checks. |
 | **1.5.0-F — Vehicle Cosmetics** | Proposed | After the base class silhouettes and garage presentation are settled, add optional player-selected vehicle looks. Cosmetics remain presentation-only and do not change vehicle stats or route outcomes. |
 
@@ -120,6 +120,23 @@ Repair is about 15% of a class's price and recovery about 40%, so a bad run cost
 **Fixed along the way.** The Hideout v2 extension now covers `classic-og-v1.5-a` and later, which A and B had missed, so the Hideout rooms (including the Garage) appear on 1.5 rounds. The player-state invariant now treats the optional vehicle counts as zero when absent.
 
 **Not in C.** Drive-by losses and Steal-a-Ride raids keep their permanent Low-Rider losses: they are combat outcomes, and changing them is a balance call for E. Admin voids of convoy hits do not undo vehicle damage. Admin visibility and corrections for vehicle condition belong in **1.5.0-E**.
+
+### 1.5.0-D — Road Specialization
+
+**Status: implemented on beta.** `classic-og-v1.5-d` wraps `classic-og-v1.5-c`. It adds `vehicleCatalog.service.specialization`, widens one racket and rewords three racket descriptions. Every other value is unchanged.
+
+The road lane makes a fleet **cheaper to keep running**, and that is all it does. No business or faction unlocks a vehicle class, changes capacity or route risk, or makes a car safer, so nobody has to pick the lane to field the same fleet.
+
+| Source | Effect | At full strength |
+| --- | --- | --- |
+| Auto Garage (either racket, scaled by the strongest running one) | Off repairs | 25% |
+| Chop Shop · Vehicle recovery racket (also still cuts convoy theft) | Off recovery | 25% |
+| Chop Shop · Stolen Low-Riders racket | Off Low-Riders at Charlie's, and now Sedans and Vans in the garage | 8% |
+| Road Saints MC at Trusted or above | Off every repair and recovery | 10% |
+
+All service discounts together are capped at 35%. They are read on the server when the action runs, never taken from the client. The Garage tab shows the discounted price with the list price struck through, and a line naming each source that applies. The Road Saints Connected nudge (bodyguard tickets) and their Known and Trusted road information are unchanged.
+
+**Why the numbers are small.** At full strength an Auto Garage saves $125 to $313 per repair, and Road Saints save $50 to $340 per service. A running Auto Garage's front income alone is $165 an hour at level 1. The discount rewards a crew already in the lane; it does not pay for building into it. Trouble that dents a car is occasional, so even a heavy runner saves far less from the lane than its rackets earn.
 
 ### Vehicle artwork
 

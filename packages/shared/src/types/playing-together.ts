@@ -910,9 +910,14 @@ export interface TravelDto extends CitiesDto {
     /** 1.5.0-C. At home but waiting on the garage; not counted in `home`. */
     damaged?: number;
     disabled?: number;
-    /** 1.5.0-C. Price per vehicle to put a Damaged / Disabled one back to Ready. */
+    /** 1.5.0-C. Price per vehicle to put a Damaged / Disabled one back to Ready, after any 1.5.0-D discount. */
     repairCents?: number;
     recoveryCents?: number;
+    /** 1.5.0-D. The garage's list prices, when a discount applies. */
+    listRepairCents?: number;
+    listRecoveryCents?: number;
+    /** 1.5.0-D. What one costs this crew today, after Stolen Low-Riders. */
+    buyCents?: number | null;
   }>;
   /** 1.5.0-C. What road trouble does to a run's vehicles, so it can be shown before launch. */
   vehicleService?: {
@@ -921,6 +926,8 @@ export interface TravelDto extends CitiesDto {
     disabledByArrest: number;
     /** Class ids in the order a run's vehicles take trouble. */
     damageOrder: Array<'LOW_RIDER' | 'SEDAN' | 'VAN'>;
+    /** 1.5.0-D. What the road lane takes off service for this crew, and why. Absent before D. */
+    discounts?: Record<'REPAIR' | 'RECOVER', VehicleServiceDiscountDto>;
   };
   runsEnabled: boolean;
   /** Products Pip will not sell this player yet, in any city, and the unlock each needs. The high markets still sell them. */
@@ -965,6 +972,12 @@ export interface TravelDto extends CitiesDto {
   trips: TripPanelDto | null;
 }
 
+/** 1.5.0-D. A garage discount and each source behind it. */
+export interface VehicleServiceDiscountDto {
+  percent: number;
+  sources: Array<{ source: 'AUTO_GARAGE' | 'CHOP_SHOP' | 'ROAD_SAINTS'; percent: number }>;
+}
+
 /** 1.5.0-C. Vehicle counts by class. */
 export type VehicleCountsDto = { LOW_RIDER: number; SEDAN: number; VAN: number };
 
@@ -982,6 +995,8 @@ export interface VehicleServiceResult {
   quantity: number;
   paidCents: number;
   readyCount: number;
+  /** 1.5.0-D. Percent the road lane took off. */
+  discountPercent?: number;
 }
 
 /** 1.5.0-B. Outcome of buying a Sedan or Van for the home garage. */

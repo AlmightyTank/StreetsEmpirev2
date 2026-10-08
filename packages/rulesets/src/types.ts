@@ -702,6 +702,24 @@ export interface VehicleServiceRules {
   readonly disable: { readonly arrest: number };
   /** Which of a run's vehicles take trouble first: the most visible one leads. */
   readonly damageOrder: readonly VehicleClassId[];
+  /** 1.5.0-D. The road lane services the fleet for less. Absent: list prices for everyone. */
+  readonly specialization?: VehicleSpecializationRules;
+}
+
+/**
+ * 1.5.0-D. Road specialization. The road-lane businesses and Road Saints MC make keeping a
+ * fleet running cheaper; none of them unlocks a vehicle or changes what one does on the road,
+ * so no faction or business is the only way to field a fleet.
+ */
+export interface VehicleSpecializationRules {
+  /** Percent off repairs at full strength of the crew's strongest running Auto Garage racket. */
+  readonly autoGarageRepairPercent: number;
+  /** Percent off recovery at full strength of the Chop Shop's Vehicle recovery racket. */
+  readonly chopShopRecoveryPercent: number;
+  /** Percent off every repair and recovery with Road Saints MC at `tier` or above. */
+  readonly roadSaints: { readonly tier: FactionTier; readonly percent: number };
+  /** The most every source together takes off one service. */
+  readonly maxDiscountPercent: number;
 }
 
 export interface VehicleCatalog {

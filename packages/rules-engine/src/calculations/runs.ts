@@ -1,4 +1,6 @@
-import type { RestockRule, Ruleset, RunRules, WeaponPriority } from '@streets/rulesets';
+import type { FactionTier, RestockRule, Ruleset, RunRules, WeaponPriority } from '@streets/rulesets';
+import { factionTierRank } from './factions.js';
+import { racketsFor, type RacketEffects } from './rackets.js';
 import { cityCounter, findRoutes, type CityCounter, type TravelRoute } from './cities.js';
 import { calculateNetWorthCents } from './net-worth.js';
 import { CRACK_PRODUCT } from './product-economy.js';
@@ -312,11 +314,48 @@ export function markRunVehicles(ruleset: Ruleset, loadout: VehicleCounts, damage
 }
 
 /** What the garage charges to put `quantity` of a class back to Ready. Null when this round has no service. */
-export function vehicleServiceCents(ruleset: Ruleset, classId: keyof VehicleCounts, kind: 'REPAIR' | 'RECOVER', quantity: number): bigint | null {
+export function vehicleServiceCents(ruleset: Ruleset, classId: keyof VehicleCounts, kind: 'REPAIR' | 'RECOVER', quantity: number, discountPercent = 0): bigint | null {
   const service = ruleset.vehicleCatalog?.service;
   if (!service) return null;
-  const each = kind === 'REPAIR' ? service.repairCents[classId] : service.recoveryCents[classId];
+  const list = kind === 'REPAIR' ? service.repairCents[classId] : service.recoveryCents[classId];
+  const each = Math.floor(list * (100 - Math.min(100, Math.max(0, discountPercent))) / 100);
   return BigInt(each) * BigInt(Math.max(0, Math.floor(quantity)));
+}
+
+export type VehicleDiscountSource = 'AUTO_GARAGE' | 'CHOP_SHOP' | 'ROAD_SAINTS';
+export interface VehicleServiceDiscount {
+  /** Whole percent off, after the cap. */
+  percent: number;
+  /** Each source that applies, with its own whole percent before the cap. */
+  sources: Array<{ source: VehicleDiscountSource; percent: number }>;
+}
+
+/**
+ * 1.5.0-D. What the road lane takes off a repair or a recovery: an Auto Garage on the crew's
+ * blocks (repairs), the Chop Shop's Vehicle recovery racket (recovery), and Road Saints MC
+ * standing (both). Rackets scale with their strength; the total is capped.
+ */
+export function vehicleServiceDiscount(
+  ruleset: Ruleset,
+  kind: 'REPAIR' | 'RECOVER',
+  input: { racketEffects: RacketEffects; roadSaintsTier?: FactionTier | null },
+): VehicleServiceDiscount {
+  const rules = ruleset.vehicleCatalog?.service?.specialization;
+  if (!rules) return { percent: 0, sources: [] };
+  const sources: VehicleServiceDiscount['sources'] = [];
+  if (kind === 'REPAIR') {
+    const garage = racketsFor(ruleset, 'AUTO_GARAGE').reduce((top, racket) => Math.max(top, input.racketEffects[racket] ?? 0), 0);
+    const percent = Math.round(rules.autoGarageRepairPercent * Math.min(1, garage));
+    if (percent > 0) sources.push({ source: 'AUTO_GARAGE', percent });
+  } else {
+    const percent = Math.round(rules.chopShopRecoveryPercent * Math.min(1, input.racketEffects.VEHICLE_RECOVERY ?? 0));
+    if (percent > 0) sources.push({ source: 'CHOP_SHOP', percent });
+  }
+  if (input.roadSaintsTier && factionTierRank(input.roadSaintsTier) >= factionTierRank(rules.roadSaints.tier) && rules.roadSaints.percent > 0) {
+    sources.push({ source: 'ROAD_SAINTS', percent: rules.roadSaints.percent });
+  }
+  const total = sources.reduce((sum, entry) => sum + entry.percent, 0);
+  return { percent: Math.min(rules.maxDiscountPercent, total), sources };
 }
 
 export function cargoUnits(cargo: Readonly<Record<string, number>>): number {

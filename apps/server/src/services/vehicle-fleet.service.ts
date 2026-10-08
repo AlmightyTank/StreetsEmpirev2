@@ -1,6 +1,18 @@
 import type { Prisma } from '@prisma/client';
-import { clampVehicleDamage, markRunVehicles, noVehicleDamage, type Ruleset, type VehicleDamage } from '@streets/rules-engine';
+import {
+  clampVehicleDamage,
+  markRunVehicles,
+  noVehicleDamage,
+  racketStorePrice,
+  readRacketEffects,
+  vehicleServiceDiscount,
+  type Ruleset,
+  type VehicleDamage,
+  type VehicleServiceDiscount,
+} from '@streets/rules-engine';
+import type { VehicleClassId } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
+import { FactionService } from './faction.service.js';
 
 export type VehicleLoadout = { LOW_RIDER: number; SEDAN: number; VAN: number };
 const emptyLoadout = (): VehicleLoadout => ({ LOW_RIDER: 0, SEDAN: 0, VAN: 0 });
@@ -78,4 +90,30 @@ export async function damageRunVehicles<T extends { id: string; lowRiders: numbe
   const damage = markRunVehicles(ruleset, loadout, readVehicleDamage(run.vehicleDamage, loadout), state, count);
   await tx.run.update({ where: { id: run.id }, data: { vehicleDamage: vehicleDamageJson(damage) } });
   return { ...run, vehicleDamage: vehicleDamageJson(damage) as Prisma.JsonValue };
+}
+
+export interface VehicleServiceDiscounts {
+  REPAIR: VehicleServiceDiscount;
+  RECOVER: VehicleServiceDiscount;
+}
+
+/**
+ * 1.5.0-D. What the road lane takes off this crew's garage service right now: its running
+ * Auto Garage and Chop Shop rackets, and its Road Saints MC standing. Rounds without road
+ * specialization never read standing.
+ */
+export async function vehicleServiceDiscounts(db: Db, roundPlayerId: string, ruleset: Ruleset, racketEffects: Prisma.JsonValue): Promise<VehicleServiceDiscounts> {
+  const effects = readRacketEffects(racketEffects);
+  const specialized = Boolean(ruleset.vehicleCatalog?.service?.specialization);
+  const roadSaintsTier = specialized ? (await FactionService.tiers(db, roundPlayerId, ruleset)).ROAD_SAINTS ?? null : null;
+  return {
+    REPAIR: vehicleServiceDiscount(ruleset, 'REPAIR', { racketEffects: effects, roadSaintsTier }),
+    RECOVER: vehicleServiceDiscount(ruleset, 'RECOVER', { racketEffects: effects, roadSaintsTier }),
+  };
+}
+
+/** 1.5.0-D. Charlie's price for a class vehicle, after any Stolen Low-Riders discount. */
+export function vehiclePurchaseCents(ruleset: Ruleset, classId: VehicleClassId, listCents: number, racketEffects: Prisma.JsonValue): { cents: number; discountPercent: number } {
+  const discountPercent = racketStorePrice(ruleset, readRacketEffects(racketEffects), 'CHARLIE', classId).buyDiscountPercent;
+  return { cents: Math.floor(listCents * (100 - discountPercent) / 100), discountPercent };
 }
