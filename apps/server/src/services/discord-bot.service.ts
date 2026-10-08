@@ -726,11 +726,15 @@ export const DiscordBotService = {
   },
 
   async cities(prisma: PrismaClient): Promise<DiscordCityDto[]> {
-    return prisma.city.findMany({
+    const rows = await prisma.city.findMany({
       where: { isEnabled: true },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       select: { slug: true, name: true },
     });
+    // 1.5.0-E3: the current round's map decides which cities exist (San Francisco replaced Beverly Hills).
+    const round = await RoundService.getCurrent(prisma);
+    const ruleset = round ? loadRulesetForRound(round) : null;
+    return ruleset?.cities ? rows.filter((row) => ruleset.cities![row.slug]) : rows;
   },
 
   async cityRankings(prisma: PrismaClient, citySlug: string, limit = 10): Promise<DiscordRankingsDto> {

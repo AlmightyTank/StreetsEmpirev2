@@ -22,6 +22,10 @@ export const USA_MAP = {
       "x": 24.1,
       "y": 157.3
     },
+    "san-francisco": {
+      "x": 12.8,
+      "y": 108.7
+    },
     "las-vegas": {
       "x": 61.6,
       "y": 136.3

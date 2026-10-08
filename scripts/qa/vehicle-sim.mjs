@@ -5,14 +5,14 @@ import { rulesets } from '@streets/rulesets';
 const args = process.argv.slice(2);
 let output = null;
 let quiet = false;
-let rulesetId = 'classic-og-v1.5-e2';
+let rulesetId = 'classic-og-v1.5-e3';
 let samples;
 
 try {
   for (let i = 0; i < args.length; i += 1) {
     const flag = args[i];
     if (flag === '--help') {
-      console.log('npm run qa:vehicles -- [--ruleset classic-og-v1.5-e2] [--samples 2000] [--output vehicles.md] [--quiet]');
+      console.log('npm run qa:vehicles -- [--ruleset classic-og-v1.5-e3] [--samples 2000] [--output vehicles.md] [--quiet]');
       process.exit(0);
     }
     if (flag === '--quiet') { quiet = true; continue; }

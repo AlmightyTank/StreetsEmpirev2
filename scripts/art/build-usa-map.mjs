@@ -21,7 +21,9 @@ const PAD = 6;
 const CITIES = {
   'seattle': [-122.3321, 47.6062],
   'los-angeles': [-118.2437, 34.0522],
+  // Older rulesets' Beverly Hills; 1.5.0-E3 rounds have San Francisco instead.
   'beverly-hills': [-118.4004, 34.0736],
+  'san-francisco': [-122.4194, 37.7749],
   'las-vegas': [-115.1398, 36.1699],
   'detroit': [-83.0458, 42.3314],
   'new-york-city': [-74.006, 40.7128],

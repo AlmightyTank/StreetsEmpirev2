@@ -9,6 +9,7 @@ const LABEL: Record<string, 'left' | 'right' | 'above' | 'below'> = {
   'seattle': 'right',
   'los-angeles': 'right',
   'beverly-hills': 'below',
+  'san-francisco': 'right',
   'las-vegas': 'right',
   'detroit': 'above',
   'new-york-city': 'above',
@@ -25,6 +26,7 @@ export const SHORT_CITY: Record<string, string> = {
   'new-york-city': 'New York',
   'miami-beach': 'Miami',
   'beverly-hills': 'Bev. Hills',
+  'san-francisco': 'SF',
   'las-vegas': 'Las Vegas',
   'los-angeles': 'LA',
 };

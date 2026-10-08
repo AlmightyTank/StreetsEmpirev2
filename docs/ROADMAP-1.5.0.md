@@ -74,6 +74,7 @@ Each slice should have its own release gate and pinned ruleset, following the ea
 | **1.5.0-D — Road Specialization** | Built | `classic-og-v1.5-d` connects the road lane to garage service: an Auto Garage cuts repairs, the Chop Shop's Vehicle recovery racket cuts recovery and Stolen Low-Riders now discounts Sedans and Vans, and Road Saints MC at Trusted cut both. Capped at 35%; no vehicle is exclusive to anyone. |
 | **1.5.0-E — Balance, Admin & Release** | Built | `classic-og-v1.5-e` adds the `qa:vehicles` simulation and release gate, trims the Sedan's low-profile edge from 10% to 5% lower route risk, and adds Admin → Vehicles, a fleet view and audited fleet corrections in the player inspector, exploit-audit checks and historical-ruleset tests. |
 | **1.5.0-E2 — Charlie's Fleet** | Built | `classic-og-v1.5-e2` moves Sedan and Van sales onto Charlie's shelf, each opened by a Wheels job (Pack Your Bags opens Sedans, Heavy Haul opens Vans). Every locked shelf (Tommy's racks, Pip's products, Charlie's vehicles) links straight to the job that opens it, and a locked job shows what it is waiting for. |
+| **1.5.0-E3 — San Francisco** | Built | `classic-og-v1.5-e3` replaces Beverly Hills with San Francisco on the same economy (rich buyers, heavy police) and runs I-5 Los Angeles → San Francisco (6h) → Seattle (12h). The road map draws the real lower 48; the app reports version 1.5.0. |
 | **1.5.0-F — Vehicle Cosmetics** | Proposed | After the base class silhouettes and garage presentation are settled, add optional player-selected vehicle looks. Cosmetics remain presentation-only and do not change vehicle stats or route outcomes. |
 
 ---
@@ -180,6 +181,10 @@ The Sedan is still the narrow favourite. The gate asks for real choices, not an 
 - **Every locked item names its job.** Tommy's racks, Pip's products (at his counter and on a run), Charlie's Sedans and Vans, and the garage each say "Finish “Job” for Contact to unlock X" and link to `/game/quests?focus=KEY`. The server refuses a locked purchase with the same wording.
 - **A linked Job that is itself locked** is pinned at the top of the jobs list, with an **Opens after** list: earlier Jobs (linked), contact rep needed (with what the player has), and faction tiers.
 - Pip's products also join the store basket (separate fix, same release).
+
+### 1.5.0-E3 — San Francisco
+
+**Status: implemented on beta.** `classic-og-v1.5-e3` wraps `classic-og-v1.5-e2`. San Francisco takes Beverly Hills' place: its prices, supply, police pressure, Heat lines, Pawn Shop signature, trip hotel rate, turf locals, private-club casino (now the Nob Hill Private Club) and law profile carry over, with new names and copy. The 30-minute Sunset Blvd hop and the direct Los Angeles–Seattle road give way to I-5 through San Francisco (6 and 12 hours). Travel and vehicle gates pass on the new map. A migration adds the San Francisco city row; Beverly Hills stays for older pinned rounds, and each round's ruleset decides which cities its map, admin law and Discord lists show.
 
 ### Vehicle artwork
 

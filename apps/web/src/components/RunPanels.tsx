@@ -807,7 +807,7 @@ function tripNodes(run: RunDto): Array<{ slug: string; name: string; stop: RunDt
   ];
 }
 
-const SHORT_NAME = (name: string) => name.replace('New York City', 'New York').replace('Beverly Hills', 'Bev. Hills').replace('Los Angeles', 'LA');
+const SHORT_NAME = (name: string) => name.replace('New York City', 'New York').replace('Beverly Hills', 'Bev. Hills').replace('San Francisco', 'SF').replace('Los Angeles', 'LA');
 const cityLabel = (data: TravelDto, slug: string) => SHORT_NAME(data.cities.find((city) => city.slug === slug)?.name ?? slug);
 
 function TradeList({ trades, products }: { trades: RunDto['trades']; products: Products }) {
