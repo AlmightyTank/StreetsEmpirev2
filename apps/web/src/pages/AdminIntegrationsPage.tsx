@@ -42,6 +42,10 @@ function timing(iso: string | null): string {
   return delta <= 0 ? `due ${formatDuration(Math.abs(delta))} ago` : `in ${formatDuration(delta)}`;
 }
 
+function ago(iso: string): string {
+  return `${formatDuration(Math.max(0, Date.now() - Date.parse(iso)))} ago`;
+}
+
 export function AdminIntegrationsPage() {
   const [discord, setDiscord] = useState<AdminDiscordStatusDto | null>(null);
   const [bots, setBots] = useState<AdminDevBotsDto | null>(null);
@@ -206,6 +210,8 @@ export function AdminIntegrationsPage() {
                   <Row label="Ready to move" value={formatNumber(bots.npcGangSummary.dueNow)} strong={bots.npcGangSummary.dueNow > 0} />
                   <Row label="Moved in 24h" value={formatNumber(bots.npcGangSummary.acted24h)} />
                   <Row label="Blocked in 24h" value={formatNumber(bots.npcGangSummary.blocked24h)} strong={bots.npcGangSummary.blocked24h > 0} />
+                  <Row label="Open grudges" value={formatNumber(bots.npcGangSummary.openGrudges)} strong={bots.npcGangSummary.openGrudges > 0} />
+                  <Row label="Paybacks in 24h" value={formatNumber(bots.npcGangSummary.revenge24h)} />
                 </div>
                 {bots.npcGangSummary.cities.length ? (
                   <ol className="se-admin-list">
@@ -218,6 +224,7 @@ export function AdminIntegrationsPage() {
                         <p className="se-hint">
                           {formatNumber(city.activeGangs)} crew{city.activeGangs === 1 ? '' : 's'} · {formatNumber(city.dueNow)} ready · {formatNumber(city.recentHits)} hit{city.recentHits === 1 ? '' : 's'} in 24h
                           {city.recentDriveBys || city.recentSpecialRaids ? ` · ${formatNumber(city.recentDriveBys)} drive-by · ${formatNumber(city.recentSpecialRaids)} special` : ''}
+                          {city.recentRevengeHits ? ` · ${formatNumber(city.recentRevengeHits)} payback` : ''}
                         </p>
                       </li>
                     ))}
@@ -261,6 +268,18 @@ export function AdminIntegrationsPage() {
                                   {bot.inCurrentRound.npcGang.lastTarget ? ` vs ${bot.inCurrentRound.npcGang.lastTarget}` : ''}
                                 </p>
                                 {bot.inCurrentRound.npcGang.lastError ? <p className="se-hint">Blocked: {bot.inCurrentRound.npcGang.lastError}</p> : null}
+                                {bot.inCurrentRound.npcGang.grudges.map((grudge) => (
+                                  <p key={grudge.publicPimpId} className="se-hint">
+                                    Grudge: {grudge.targetName} #{grudge.publicPimpId} · {formatNumber(grudge.hits)} hit{grudge.hits === 1 ? '' : 's'}
+                                    {grudge.settledAt ? ` · paid back ${ago(grudge.settledAt)}` : ` · expires ${timing(grudge.expiresAt)}`}
+                                  </p>
+                                ))}
+                                {bot.inCurrentRound.npcGang.lastRevenge ? (
+                                  <p className="se-hint">
+                                    Last payback: {bot.inCurrentRound.npcGang.lastRevenge.targetName} {ago(bot.inCurrentRound.npcGang.lastRevenge.at)}
+                                    {bot.inCurrentRound.npcGang.lastRevenge.won === null ? '' : bot.inCurrentRound.npcGang.lastRevenge.won ? ' · landed' : ' · held off'}
+                                  </p>
+                                ) : null}
                               </>
                             ) : (
                               <span className="se-muted">Missing</span>

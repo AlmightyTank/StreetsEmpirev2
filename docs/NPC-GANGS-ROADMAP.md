@@ -1,6 +1,6 @@
 # NPC Gangs Roadmap
 
-Status: **Phases A-H built in beta. Phase I is next.**
+Status: **Phases A-I built in beta. Phase J is next.**
 
 NPC gangs are server-run seasonal crews that use the same core systems players use:
 round players, cities, stores, production, raids, drive-bys, special raid forms,
@@ -36,7 +36,7 @@ or hitting players with unavoidable punishment.
 | F | Built | Restock and shopping so NPC gangs buy supplies, weapons, rides and product when short. |
 | G | Built | Smarter weighted intent by archetype, tier, aggression, ambition and discipline. |
 | H | Built | Player-facing local intel: rumors, recent hits and city danger level. |
-| I | Planned | Retaliation memory so NPC gangs remember attackers and can revenge-hit within limits. |
+| I | Built | Retaliation memory so NPC gangs remember attackers and can revenge-hit within limits. |
 | J | Planned | Turf behavior so NPC gangs claim, defend, pressure or abandon territory. |
 | K | Planned | Travel and migration so stronger gangs can relocate or send crews between cities. |
 | L | Planned | Escalation and dormancy so gangs heat up, cool down, recover or lay low. |
@@ -143,26 +143,34 @@ Delivered:
 - Fuzzy rumor text that tells players what kind of trouble is nearby without
   exposing perfect internals.
 
-## Remaining Phases
-
 ### Phase I: Retaliation Memory
 
-NPC gangs remember who hit them and can revenge-hit within a limited window,
-while still respecting protections where needed.
+NPC gangs remember the humans who hit them and can hit back inside a limited
+window, through the same safety rules as every other NPC hit.
 
-Goals:
+Delivered:
 
-- Store recent player attackers in NPC gang memory.
-- Weight valid revenge targets above ordinary targets for a short window.
-- Respect raid protection, drive-by protection, cooldowns, city rules and active
-  round state.
-- Add player-facing report language that makes retaliation understandable.
-- Add admin visibility for revenge memory and expiry.
+- Grudges rebuilt each tick from `RaidBattle` rows (human hits on the gang inside
+  `npcGangs.retaliationHours`), cached in `NpcGang.memory.grudges` with hit
+  count, last hit, expiry and settled state. Lost memory heals on the next tick.
+- A grudge settles when the gang lands a payback after that attacker's latest
+  hit; hitting the gang again reopens it.
+- A valid grudge lifts the gang's aggression by `revengeAggressionBoost` and adds
+  `revengeIntentBonus` to raid, drive-by and special-raid weights. While one is
+  valid, attack moves only look at remembered crews; ordinary targets wait.
+- Revenge targets pass the same checks as ordinary NPC targets: newcomer and raid
+  protection, drive-by cool-off, "not back since the last hit", same round and
+  city, active account and the NPC anti-dogpile window. NPC payback never takes
+  the player-side `bypassProtection` revenge pass. The combat engine still owns
+  final legality and stamps `retaliation` on the attacker report.
+- Defender reports and activity carry `payback`, so players read "as payback"
+  and "You hit them first" on raids, drive-bys and special raids.
+- Street rumors warn when a local crew you hit still wants payback, with a
+  "Payback risk" row showing when the last grudge cools.
+- Admin: open grudges and 24h paybacks in the summary, per-city payback counts,
+  and per-gang grudge lists with expiry and last payback.
 
-Gate:
-
-- An NPC gang can retaliate without bypassing the same safety rules that protect
-  players from dogpiling.
+## Remaining Phases
 
 ### Phase J: Turf Behavior
 
@@ -258,6 +266,7 @@ Current support already built:
   outcomes.
 - Per-city pressure summary with recent hits, drive-bys and special raids.
 - Per-bot NPC gang status: next action, last outcome, target and error.
+- Per-bot grudge memory with expiry, settled state and last payback (Phase I).
 - CLI status script includes the latest NPC gang outcome.
 
 Future controls:
@@ -282,6 +291,7 @@ Current support already built:
 - Admin summary counts active gangs, due gangs, recent actions and blocked
   outcomes.
 - City pressure counts recent hits, drive-bys and special raids.
+- Open grudges, 24h paybacks and per-city payback counts (Phase I).
 
 Future telemetry:
 

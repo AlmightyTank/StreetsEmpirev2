@@ -13,6 +13,7 @@ import type { NpcGangRules, SpecialRaidKind } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 import { fitThugs } from './action.service.js';
 import { CombatService, combatProtectionUntil } from './combat.service.js';
+import { buildNpcGrudges, grudgesJson, openNpcGrudges, type NpcGrudge } from './npc-gang-memory.js';
 import { ProductionService } from './production.service.js';
 import { StoreService } from './store.service.js';
 
@@ -63,10 +64,12 @@ const DEFAULT_NPC_GANG_RULES: NpcGangRules = {
   maxActionsPerTick: 6,
   maxPerCity: 4,
   retaliationHours: 24,
+  revengeAggressionBoost: 20,
+  revengeIntentBonus: 30,
 };
 
 function npcRules(ruleset: Ruleset): NpcGangRules {
-  return ruleset.npcGangs ?? DEFAULT_NPC_GANG_RULES;
+  return { ...DEFAULT_NPC_GANG_RULES, ...ruleset.npcGangs };
 }
 
 function memoryObject(value: Prisma.JsonValue): Prisma.InputJsonObject {
@@ -273,12 +276,13 @@ function weightedChoice(candidates: readonly NpcGangIntentCandidate[], rng: () =
   return candidates[candidates.length - 1]?.intent ?? 'LAY_LOW';
 }
 
-function chooseIntent(gang: DueNpcGang, ruleset: Ruleset, now: Date, rng: () => number): NpcGangIntent {
+/** Phase I. `revengeBonus` is the grudge pull toward hitting back; 0 when nobody valid is owed. */
+function chooseIntent(gang: DueNpcGang, ruleset: Ruleset, now: Date, rng: () => number, revengeBonus = 0): NpcGangIntent {
   const candidates: NpcGangIntentCandidate[] = [];
   if (canRestock(gang, ruleset, now)) candidates.push({ intent: 'RESTOCK', weight: intentWeight(gang, 'RESTOCK') });
-  if (canDriveBy(gang, ruleset, now)) candidates.push({ intent: 'DRIVE_BY_PLAYER', weight: intentWeight(gang, 'DRIVE_BY_PLAYER') });
-  if (availableSpecialRaidKinds(gang, ruleset, now).length) candidates.push({ intent: 'SPECIAL_RAID_PLAYER', weight: intentWeight(gang, 'SPECIAL_RAID_PLAYER') });
-  if (canRaid(gang, ruleset, now)) candidates.push({ intent: 'RAID_PLAYER', weight: intentWeight(gang, 'RAID_PLAYER') });
+  if (canDriveBy(gang, ruleset, now)) candidates.push({ intent: 'DRIVE_BY_PLAYER', weight: intentWeight(gang, 'DRIVE_BY_PLAYER') + revengeBonus });
+  if (availableSpecialRaidKinds(gang, ruleset, now).length) candidates.push({ intent: 'SPECIAL_RAID_PLAYER', weight: intentWeight(gang, 'SPECIAL_RAID_PLAYER') + revengeBonus });
+  if (canRaid(gang, ruleset, now)) candidates.push({ intent: 'RAID_PLAYER', weight: intentWeight(gang, 'RAID_PLAYER') + revengeBonus });
   if (canProduce(gang, ruleset, now)) candidates.push({ intent: 'PRODUCE', weight: intentWeight(gang, 'PRODUCE') });
   if (!candidates.length) return 'LAY_LOW';
 
@@ -347,63 +351,163 @@ function targetSupportsSpecialRaid(gang: DueNpcGang, target: NpcGangCombatTarget
   return canLureWhores || canLureThugs;
 }
 
-async function pickRaidTarget(prisma: PrismaClient, gang: DueNpcGang, ruleset: Ruleset, rules: NpcGangRules, now: Date, specialKind?: SpecialRaidKind, mode: 'RAID' | 'DRIVE_BY' = 'RAID'): Promise<NpcGangCombatTarget | null> {
-  const model = ruleset.combat;
-  if (!model) return null;
+const COMBAT_TARGET_SELECT = {
+  id: true,
+  publicPimpId: true,
+  displayName: true,
+  createdAt: true,
+  raidProtectedUntil: true,
+  driveByProtectedUntil: true,
+  lastRaidedAt: true,
+  lastDrivenByAt: true,
+  lastActiveAt: true,
+  whores: true,
+  thugs: true,
+  woundedThugs: true,
+  lowRiders: true,
+  crack: true,
+  condoms: true,
+  whoreHappiness: true,
+  thugHappiness: true,
+  businessThugs: true,
+  postedThugs: true,
+} satisfies Prisma.RoundPlayerSelect;
 
-  const candidates = await prisma.roundPlayer.findMany({
+type NpcGangTargetMode = 'RAID' | 'DRIVE_BY';
+
+/**
+ * Phase I. Who this gang is owed payback by and can legally hit right now. When
+ * non-empty the gang only looks at these crews this tick; ordinary targets wait.
+ */
+type NpcGangRevenge = { grudges: NpcGrudge[]; targets: NpcGangCombatTarget[] };
+
+/** Live human crews in the gang's round and city. `ids` narrows to remembered attackers. */
+async function cityTargets(prisma: PrismaClient, gang: DueNpcGang, ids?: readonly string[]): Promise<NpcGangCombatTarget[]> {
+  return prisma.roundPlayer.findMany({
     where: {
       roundId: gang.roundPlayer.roundId,
       cityId: gang.roundPlayer.cityId,
-      id: { not: gang.roundPlayerId },
+      id: ids ? { in: [...ids], not: gang.roundPlayerId } : { not: gang.roundPlayerId },
       account: { isActive: true },
       npcGang: { is: null },
     },
-    select: {
-      id: true,
-      publicPimpId: true,
-      displayName: true,
-      createdAt: true,
-      raidProtectedUntil: true,
-      driveByProtectedUntil: true,
-      lastRaidedAt: true,
-      lastDrivenByAt: true,
-      lastActiveAt: true,
-      whores: true,
-      thugs: true,
-      woundedThugs: true,
-      lowRiders: true,
-      crack: true,
-      condoms: true,
-      whoreHappiness: true,
-      thugHappiness: true,
-      businessThugs: true,
-      postedThugs: true,
-    },
+    select: COMBAT_TARGET_SELECT,
     orderBy: [{ netWorthCents: 'desc' }, { cashCents: 'desc' }, { publicPimpId: 'asc' }],
     take: 20,
   });
+}
 
+/**
+ * The shields every NPC hit respects, revenge included: newcomer and raid
+ * protection, drive-by cool-off, and the "not back since the last hit" rule.
+ * NPC payback never takes the player-side `bypassProtection` revenge pass.
+ */
+function targetOpen(gang: DueNpcGang, target: NpcGangCombatTarget, ruleset: Ruleset, now: Date, mode: NpcGangTargetMode, specialKind?: SpecialRaidKind): boolean {
+  const model = ruleset.combat;
+  if (!model) return false;
+  if (combatProtectionUntil(target, model) > now) return false;
+  if (mode === 'DRIVE_BY') {
+    if (target.driveByProtectedUntil && target.driveByProtectedUntil > now) return false;
+    if (target.lastDrivenByAt && target.lastActiveAt <= target.lastDrivenByAt) return false;
+    if (fitThugs(target) < 1 && target.whores < 1) return false;
+  } else if (target.lastRaidedAt && target.lastActiveAt <= target.lastRaidedAt) return false;
+  return !specialKind || targetSupportsSpecialRaid(gang, target, ruleset, specialKind);
+}
+
+async function pickRaidTarget(prisma: PrismaClient, gang: DueNpcGang, ruleset: Ruleset, rules: NpcGangRules, now: Date, revenge: NpcGangRevenge, specialKind?: SpecialRaidKind, mode: NpcGangTargetMode = 'RAID'): Promise<NpcGangCombatTarget | null> {
+  if (!ruleset.combat) return null;
+  const candidates = revenge.targets.length ? revenge.targets : await cityTargets(prisma, gang);
   for (const target of candidates) {
-    if (combatProtectionUntil(target, model) > now) continue;
-    if (mode === 'DRIVE_BY') {
-      if (target.driveByProtectedUntil && target.driveByProtectedUntil > now) continue;
-      if (target.lastDrivenByAt && target.lastActiveAt <= target.lastDrivenByAt) continue;
-      if (fitThugs(target) < 1 && target.whores < 1) continue;
-    } else if (target.lastRaidedAt && target.lastActiveAt <= target.lastRaidedAt) continue;
+    if (!targetOpen(gang, target, ruleset, now, mode, specialKind)) continue;
     if (await wasRecentlyNpcRaided(prisma, target.id, now, rules)) continue;
-    if (specialKind && !targetSupportsSpecialRaid(gang, target, ruleset, specialKind)) continue;
     return target;
   }
   return null;
 }
 
-async function pickSpecialRaidPlan(prisma: PrismaClient, gang: DueNpcGang, ruleset: Ruleset, rules: NpcGangRules, now: Date): Promise<{ kind: SpecialRaidKind; target: NpcGangCombatTarget } | null> {
+async function pickSpecialRaidPlan(prisma: PrismaClient, gang: DueNpcGang, ruleset: Ruleset, rules: NpcGangRules, now: Date, revenge: NpcGangRevenge): Promise<{ kind: SpecialRaidKind; target: NpcGangCombatTarget } | null> {
   for (const kind of availableSpecialRaidKinds(gang, ruleset, now)) {
-    const target = await pickRaidTarget(prisma, gang, ruleset, rules, now, kind);
+    const target = await pickRaidTarget(prisma, gang, ruleset, rules, now, revenge, kind);
     if (target) return { kind, target };
   }
   return null;
+}
+
+function storedBattleKind(battle: { kind: string; attackerReport: Prisma.JsonValue }): string {
+  const report = battle.attackerReport;
+  return report && typeof report === 'object' && !Array.isArray(report) && typeof report.kind === 'string' ? report.kind : battle.kind;
+}
+
+/** Phase I. Rebuilds the gang's grudges from the battles themselves, so lost memory heals itself. */
+async function loadGrudges(prisma: PrismaClient, gang: DueNpcGang, rules: NpcGangRules, now: Date): Promise<NpcGrudge[]> {
+  const since = new Date(now.getTime() - Math.max(1, rules.retaliationHours) * 3_600_000);
+  const hits = await prisma.raidBattle.findMany({
+    where: {
+      defenderId: gang.roundPlayerId,
+      createdAt: { gte: since },
+      voidedAt: null,
+      attacker: { npcGang: { is: null } },
+    },
+    select: {
+      id: true,
+      kind: true,
+      attackerReport: true,
+      attackerId: true,
+      createdAt: true,
+      attacker: { select: { publicPimpId: true, displayName: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  });
+  if (!hits.length) return [];
+  const paybacks = await prisma.raidBattle.findMany({
+    where: {
+      attackerId: gang.roundPlayerId,
+      defenderId: { in: [...new Set(hits.map((hit) => hit.attackerId))] },
+      createdAt: { gte: since },
+      voidedAt: null,
+    },
+    select: { id: true, defenderId: true, createdAt: true },
+  });
+  return buildNpcGrudges(
+    hits.map((hit) => ({
+      id: hit.id,
+      attackerId: hit.attackerId,
+      publicPimpId: hit.attacker.publicPimpId,
+      name: hit.attacker.displayName,
+      kind: storedBattleKind(hit),
+      createdAt: hit.createdAt,
+    })),
+    paybacks,
+    rules.retaliationHours,
+    now,
+  );
+}
+
+/**
+ * Open grudges whose attacker is still in town and hittable by at least one of
+ * this gang's attack forms. The anti-dogpile window applies exactly as it does
+ * to ordinary targets, so a crew another NPC already hit is left alone.
+ */
+async function revengeTargets(prisma: PrismaClient, gang: DueNpcGang, ruleset: Ruleset, rules: NpcGangRules, now: Date, grudges: readonly NpcGrudge[]): Promise<NpcGangCombatTarget[]> {
+  const open = openNpcGrudges(grudges, now);
+  if (!open.length || !ruleset.combat) return [];
+  const rank = new Map(open.map((grudge, index) => [grudge.attackerId, index]));
+  const rows = (await cityTargets(prisma, gang, open.map((grudge) => grudge.attackerId)))
+    .sort((left, right) => (rank.get(left.id) ?? 0) - (rank.get(right.id) ?? 0));
+  const valid: NpcGangCombatTarget[] = [];
+  for (const target of rows) {
+    if (!targetOpen(gang, target, ruleset, now, 'RAID') && !targetOpen(gang, target, ruleset, now, 'DRIVE_BY')) continue;
+    if (await wasRecentlyNpcRaided(prisma, target.id, now, rules)) continue;
+    valid.push(target);
+  }
+  return valid;
+}
+
+function settleGrudge(grudges: readonly NpcGrudge[], targetId: string, battleId: string, now: Date): NpcGrudge[] {
+  return grudges.map((grudge) => grudge.attackerId === targetId && !grudge.settledAt
+    ? { ...grudge, settledAt: now.toISOString(), settledBattleId: battleId }
+    : grudge);
 }
 
 async function restock(prisma: PrismaClient, gang: DueNpcGang, ruleset: Ruleset, rules: NpcGangRules, now: Date): Promise<NpcGangOutcome | null> {
@@ -467,6 +571,8 @@ async function recordOutcome(
     rules: NpcGangRules;
     detail?: Prisma.InputJsonValue;
     error?: unknown;
+    /** Phase I. Extra memory written after the standard fields, e.g. settled grudges. */
+    memory?: Prisma.InputJsonObject;
   },
 ): Promise<void> {
   const error = input.error instanceof AppError
@@ -486,33 +592,73 @@ async function recordOutcome(
         lastActionAt: now.toISOString(),
         ...(input.detail !== undefined ? { lastDetail: input.detail } : {}),
         lastError: error ?? null,
+        ...input.memory,
       },
     },
   });
 }
 
-async function runGang(prisma: PrismaClient, gang: DueNpcGang, now: Date): Promise<NpcGangOutcome> {
-  const baseRuleset = loadRulesetForRound(gang.roundPlayer.round);
-  const livingRuleset = rulesetForCity(baseRuleset, gang.roundPlayer.city.slug);
+/**
+ * Phase I. A gang owed payback acts angrier: its aggression is lifted for gating
+ * and weighting, and its attack moves only look at the crews it remembers.
+ */
+function angryGang(gang: DueNpcGang, rules: NpcGangRules): DueNpcGang {
+  return { ...gang, aggression: Math.min(100, gang.aggression + Math.max(0, rules.revengeAggressionBoost)) };
+}
+
+function rememberGrudges(gang: DueNpcGang, grudges: readonly NpcGrudge[]): DueNpcGang {
+  return { ...gang, memory: { ...(memoryObject(gang.memory) as Prisma.JsonObject), grudges: grudgesJson(grudges) } };
+}
+
+/** The memory written when a hit lands; a hit on a remembered crew settles that grudge. */
+function hitMemory(revenge: NpcGangRevenge, target: NpcGangCombatTarget, battleId: string, kind: string, won: boolean, now: Date): { revenge: boolean; memory?: Prisma.InputJsonObject } {
+  if (!revenge.targets.some((row) => row.id === target.id)) return { revenge: false };
+  return {
+    revenge: true,
+    memory: {
+      grudges: grudgesJson(settleGrudge(revenge.grudges, target.id, battleId, now)),
+      lastRevenge: {
+        battleId,
+        kind,
+        targetPublicPimpId: target.publicPimpId,
+        targetName: target.displayName,
+        won,
+        at: now.toISOString(),
+      },
+    },
+  };
+}
+
+type NpcGangRun = { outcome: NpcGangOutcome; revenge: boolean };
+
+async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promise<NpcGangRun> {
+  const baseRuleset = loadRulesetForRound(due.roundPlayer.round);
+  const livingRuleset = rulesetForCity(baseRuleset, due.roundPlayer.city.slug);
   const rules = npcRules(livingRuleset);
-  if (!rules.enabled || gang.roundPlayer.round.status !== 'ACTIVE') {
-    await recordOutcome(prisma, gang, now, { intent: 'LAY_LOW', outcome: 'SKIPPED', rules });
-    return 'SKIPPED';
+  if (!rules.enabled || due.roundPlayer.round.status !== 'ACTIVE') {
+    await recordOutcome(prisma, due, now, { intent: 'LAY_LOW', outcome: 'SKIPPED', rules });
+    return { outcome: 'SKIPPED', revenge: false };
   }
 
-  const intent = chooseIntent(gang, livingRuleset, now, seededRng(hashParts(gang.id, now.toISOString(), 'intent')));
+  const grudges = await loadGrudges(prisma, due, rules, now);
+  const remembered = rememberGrudges(due, grudges);
+  const revenge: NpcGangRevenge = { grudges, targets: await revengeTargets(prisma, remembered, livingRuleset, rules, now, grudges) };
+  const gang = revenge.targets.length ? angryGang(remembered, rules) : remembered;
+  const outcome = (value: NpcGangOutcome, hit?: { revenge: boolean }): NpcGangRun => ({ outcome: value, revenge: Boolean(hit?.revenge) });
+
+  const intent = chooseIntent(gang, livingRuleset, now, seededRng(hashParts(gang.id, now.toISOString(), 'intent')), revenge.targets.length ? rules.revengeIntentBonus : 0);
   if (intent === 'LAY_LOW') {
     await recordOutcome(prisma, gang, now, { intent, outcome: 'LAY_LOW', rules });
-    return 'LAY_LOW';
+    return outcome('LAY_LOW');
   }
 
   if (intent === 'RESTOCK') {
-    const outcome = await restock(prisma, gang, livingRuleset, rules, now);
-    if (outcome) return outcome;
+    const restocked = await restock(prisma, gang, livingRuleset, rules, now);
+    if (restocked) return outcome(restocked);
   }
 
   if (intent === 'DRIVE_BY_PLAYER' || (intent === 'RESTOCK' && canDriveBy(gang, livingRuleset, now))) {
-    const target = await pickRaidTarget(prisma, gang, livingRuleset, rules, now, undefined, 'DRIVE_BY');
+    const target = await pickRaidTarget(prisma, gang, livingRuleset, rules, now, revenge, undefined, 'DRIVE_BY');
     if (target) {
       try {
         const actionId = `npc:${gang.id}:${randomUUID()}`;
@@ -522,6 +668,7 @@ async function runGang(prisma: PrismaClient, gang: DueNpcGang, now: Date): Promi
           attackingThugs: driveBySquad(gang, livingRuleset),
           actionId,
         });
+        const hit = hitMemory(revenge, target, report.id, 'DRIVE_BY', report.won, now);
         await recordOutcome(prisma, gang, now, {
           intent,
           outcome: 'DROVE_BY',
@@ -535,12 +682,15 @@ async function runGang(prisma: PrismaClient, gang: DueNpcGang, now: Date): Promi
             wounds: report.yourWounds,
             turnsSpent: report.turnsSpent,
             driveBy: report.driveBy ?? null,
+            revenge: hit.revenge,
+            retaliation: report.retaliation ?? false,
           },
+          memory: hit.memory,
         });
-        return 'DROVE_BY';
+        return outcome('DROVE_BY', hit);
       } catch (error) {
         await recordOutcome(prisma, gang, now, { intent, outcome: 'BLOCKED', rules, error });
-        return 'BLOCKED';
+        return outcome('BLOCKED');
       }
     }
   }
@@ -550,7 +700,7 @@ async function runGang(prisma: PrismaClient, gang: DueNpcGang, now: Date): Promi
     || intent === 'DRIVE_BY_PLAYER'
     || (intent === 'RESTOCK' && availableSpecialRaidKinds(gang, livingRuleset, now).length > 0)
   ) {
-    const plan = await pickSpecialRaidPlan(prisma, gang, livingRuleset, rules, now);
+    const plan = await pickSpecialRaidPlan(prisma, gang, livingRuleset, rules, now, revenge);
     if (plan) {
       try {
         const actionId = `npc:${gang.id}:${randomUUID()}`;
@@ -561,6 +711,7 @@ async function runGang(prisma: PrismaClient, gang: DueNpcGang, now: Date): Promi
           kind: plan.kind,
           actionId,
         });
+        const hit = hitMemory(revenge, plan.target, report.id, plan.kind, report.won, now);
         await recordOutcome(prisma, gang, now, {
           intent: 'SPECIAL_RAID_PLAYER',
           outcome: 'SPECIAL_RAIDED',
@@ -576,12 +727,15 @@ async function runGang(prisma: PrismaClient, gang: DueNpcGang, now: Date): Promi
             wounds: report.yourWounds,
             turnsSpent: report.turnsSpent,
             raidForm: report.raidForm ?? null,
+            revenge: hit.revenge,
+            retaliation: report.retaliation ?? false,
           },
+          memory: hit.memory,
         });
-        return 'SPECIAL_RAIDED';
+        return outcome('SPECIAL_RAIDED', hit);
       } catch (error) {
         await recordOutcome(prisma, gang, now, { intent: 'SPECIAL_RAID_PLAYER', outcome: 'BLOCKED', rules, error });
-        return 'BLOCKED';
+        return outcome('BLOCKED');
       }
     }
   }
@@ -590,7 +744,7 @@ async function runGang(prisma: PrismaClient, gang: DueNpcGang, now: Date): Promi
     intent === 'RAID_PLAYER'
     || ((intent === 'RESTOCK' || intent === 'SPECIAL_RAID_PLAYER' || intent === 'DRIVE_BY_PLAYER') && canRaid(gang, livingRuleset, now))
   ) {
-    const target = await pickRaidTarget(prisma, gang, livingRuleset, rules, now);
+    const target = await pickRaidTarget(prisma, gang, livingRuleset, rules, now, revenge);
     if (target) {
       try {
         const actionId = `npc:${gang.id}:${randomUUID()}`;
@@ -600,6 +754,7 @@ async function runGang(prisma: PrismaClient, gang: DueNpcGang, now: Date): Promi
           attackingThugs: raidSquad(gang, livingRuleset),
           actionId,
         });
+        const hit = hitMemory(revenge, target, report.id, 'RAID', report.won, now);
         await recordOutcome(prisma, gang, now, {
           intent,
           outcome: 'RAIDED',
@@ -614,17 +769,20 @@ async function runGang(prisma: PrismaClient, gang: DueNpcGang, now: Date): Promi
             crackChange: report.crackChange ?? 0,
             wounds: report.yourWounds,
             turnsSpent: report.turnsSpent,
+            revenge: hit.revenge,
+            retaliation: report.retaliation ?? false,
           },
+          memory: hit.memory,
         });
-        return 'RAIDED';
+        return outcome('RAIDED', hit);
       } catch (error) {
         await recordOutcome(prisma, gang, now, { intent, outcome: 'BLOCKED', rules, error });
-        return 'BLOCKED';
+        return outcome('BLOCKED');
       }
     }
     if (!canProduce(gang, livingRuleset, now)) {
       await recordOutcome(prisma, gang, now, { intent: 'LAY_LOW', outcome: 'LAY_LOW', rules });
-      return 'LAY_LOW';
+      return outcome('LAY_LOW');
     }
   }
 
@@ -646,19 +804,20 @@ async function runGang(prisma: PrismaClient, gang: DueNpcGang, now: Date): Promi
         turnsUsed: result.result.turnsUsed,
       },
     });
-    return 'PRODUCED';
+    return outcome('PRODUCED');
   } catch (error) {
     await recordOutcome(prisma, gang, now, { intent, outcome: 'BLOCKED', rules, error });
-    return 'BLOCKED';
+    return outcome('BLOCKED');
   }
 }
 
 export const NpcGangService = {
   /**
    * Phase G: due NPC gangs choose weighted intents by archetype, traits and available moves.
+   * Phase I: gangs remember the humans who hit them and lean toward payback inside the window.
    * The raid engine still owns combat legality, cooldowns and player alerts.
    */
-  async sweep(prisma: PrismaClient, now = new Date()): Promise<{ checked: number; acted: number; restocked: number; produced: number; raided: number; droveBy: number; specialRaided: number; blocked: number }> {
+  async sweep(prisma: PrismaClient, now = new Date()): Promise<{ checked: number; acted: number; restocked: number; produced: number; raided: number; droveBy: number; specialRaided: number; revenged: number; blocked: number }> {
     const due = await prisma.npcGang.findMany({
       where: {
         nextActionAt: { lte: now },
@@ -676,14 +835,16 @@ export const NpcGangService = {
     let raided = 0;
     let droveBy = 0;
     let specialRaided = 0;
+    let revenged = 0;
     let blocked = 0;
     for (const gang of due) {
       const baseRuleset = loadRulesetForRound(gang.roundPlayer.round);
       const rules = npcRules(rulesetForCity(baseRuleset, gang.roundPlayer.city.slug));
       if (acted >= rules.maxActionsPerTick) break;
       if (!await claimDueGang(prisma, gang.id, now)) continue;
-      const outcome = await runGang(prisma, gang, now);
+      const { outcome, revenge } = await runGang(prisma, gang, now);
       acted += outcome === 'SKIPPED' ? 0 : 1;
+      if (revenge) revenged += 1;
       if (outcome === 'RESTOCKED') restocked += 1;
       if (outcome === 'PRODUCED') produced += 1;
       if (outcome === 'RAIDED') raided += 1;
@@ -692,6 +853,6 @@ export const NpcGangService = {
       if (outcome === 'BLOCKED') blocked += 1;
     }
 
-    return { checked: due.length, acted, restocked, produced, raided, droveBy, specialRaided, blocked };
+    return { checked: due.length, acted, restocked, produced, raided, droveBy, specialRaided, revenged, blocked };
   },
 };

@@ -797,7 +797,15 @@ export interface NpcGangRules {
   readonly tickMinutes: number;
   readonly maxActionsPerTick: number;
   readonly maxPerCity: number;
+  /**
+   * Phase I. How long a gang remembers a human who hit it, and how long one NPC
+   * hit keeps every other NPC off that player (the anti-dogpile window).
+   */
   readonly retaliationHours: number;
+  /** Phase I. Aggression a valid grudge adds when gating and weighting attack moves. */
+  readonly revengeAggressionBoost: number;
+  /** Phase I. Flat weight a valid grudge adds to raid, drive-by and special-raid intents. */
+  readonly revengeIntentBonus: number;
 }
 
 // --- turns ------------------------------------------------------------------

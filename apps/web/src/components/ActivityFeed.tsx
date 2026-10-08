@@ -119,7 +119,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       return {
         text: attacking
           ? `${move} on ${opponent(p)} — ${p.won ? 'won' : 'lost'}.`
-          : `${opponent(p)} tried ${move.toLowerCase()} on you — ${p.won ? 'you held them off' : 'they got through'}.`,
+          : `${opponent(p)} tried ${move.toLowerCase()} on you${p.payback ? ' as payback' : ''} — ${p.won ? 'you held them off' : 'they got through'}.`,
         detail: details,
       };
     }
@@ -129,7 +129,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       return {
         text: attacking
           ? `Drive-by on ${opponent(p)} — ${p.won ? 'it landed' : 'they shot back and won'}.`
-          : `${opponent(p)} did a drive-by on your block — ${p.won ? 'your crew saw them off' : 'it landed'}.`,
+          : `${opponent(p)} did a drive-by on your block${p.payback ? ' as payback' : ''} — ${p.won ? 'your crew saw them off' : 'it landed'}.`,
         detail: [
           attacking ? `${num(p.turns)} turns` : null,
           num(p.whoresKilled) ? `${formatNumber(num(p.whoresKilled))} ${attacking ? 'of their' : 'of your'} whores killed` : null,

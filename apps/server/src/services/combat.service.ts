@@ -696,10 +696,46 @@ function storedReportKind(battle: Pick<Prisma.RaidBattleGetPayload<{ select: { k
   return typeof report.kind === 'string' ? report.kind : battle.kind;
 }
 
+/**
+ * Phase I. Local NPC gangs this player hit inside the gang's memory window that
+ * have not hit back since. Mirrors the scheduler's grudge rule from the other side.
+ */
+async function npcGrudgesAgainst(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date): Promise<{ wantedBy: number; wantedUntil: Date | null }> {
+  const hours = Math.max(1, ruleset.npcGangs?.retaliationHours ?? 24);
+  const since = new Date(now.getTime() - hours * 3_600_000);
+  const hits = await prisma.raidBattle.findMany({
+    where: {
+      attackerId: player.id,
+      createdAt: { gte: since },
+      voidedAt: null,
+      defender: { roundId: player.roundId, cityId: player.cityId, npcGang: { isNot: null } },
+    },
+    select: { defenderId: true, createdAt: true },
+    orderBy: { createdAt: 'desc' },
+    take: 25,
+  });
+  if (!hits.length) return { wantedBy: 0, wantedUntil: null };
+  const latest = new Map<string, Date>();
+  for (const hit of hits) if (!latest.has(hit.defenderId)) latest.set(hit.defenderId, hit.createdAt);
+  const paybacks = await prisma.raidBattle.findMany({
+    where: { defenderId: player.id, attackerId: { in: [...latest.keys()] }, createdAt: { gte: since }, voidedAt: null },
+    select: { attackerId: true, createdAt: true },
+  });
+  let wantedBy = 0;
+  let wantedUntil: Date | null = null;
+  for (const [gangPlayerId, hitAt] of latest) {
+    if (paybacks.some((payback) => payback.attackerId === gangPlayerId && payback.createdAt > hitAt)) continue;
+    const until = new Date(hitAt.getTime() + hours * 3_600_000);
+    wantedBy += 1;
+    if (!wantedUntil || until > wantedUntil) wantedUntil = until;
+  }
+  return { wantedBy, wantedUntil };
+}
+
 async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date): Promise<NpcGangIntelDto | undefined> {
   if (ruleset.npcGangs?.enabled === false) return undefined;
   const seenSince = new Date(now.getTime() - 24 * 3_600_000);
-  const [gangs, recentRows] = await Promise.all([
+  const [gangs, recentRows, grudges] = await Promise.all([
     prisma.npcGang.findMany({
       where: {
         roundPlayer: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } },
@@ -736,17 +772,23 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
       orderBy: { createdAt: 'desc' },
       take: 25,
     }),
+    npcGrudgesAgainst(prisma, player, ruleset, now),
   ]);
 
   const recent = recentRows.filter((battle) => Boolean(battle.attacker.npcGang));
   const recentDriveBys = recent.filter((battle) => storedReportKind(battle) === 'DRIVE_BY').length;
   const recentSpecialRaids = recent.filter((battle) => ['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW'].includes(storedReportKind(battle))).length;
   const maxAggression = Math.max(0, ...gangs.map((gang) => gang.aggression), ...recent.map((battle) => battle.attacker.npcGang?.aggression ?? 0));
-  const dangerScore = gangs.length + recent.length * 2 + recentDriveBys * 2 + recentSpecialRaids + Math.floor(maxAggression / 25);
+  const dangerScore = gangs.length + recent.length * 2 + recentDriveBys * 2 + recentSpecialRaids + grudges.wantedBy * 2 + Math.floor(maxAggression / 25);
   const danger: NpcGangIntelDto['danger'] = dangerScore >= 8 ? 'HOT' : dangerScore >= 3 ? 'ACTIVE' : 'QUIET';
   const top = gangs[0] ?? recent.find((battle) => battle.attacker.npcGang)?.attacker.npcGang ?? null;
   const rumors: string[] = [];
 
+  if (grudges.wantedBy) {
+    rumors.push(grudges.wantedBy === 1
+      ? 'A crew you hit is still talking about payback. Shields and cool-offs still hold them back.'
+      : `${grudges.wantedBy} crews you hit are still talking about payback. Shields and cool-offs still hold them back.`);
+  }
   if (recent.length) {
     rumors.push(`${recent.length} NPC gang hit${recent.length === 1 ? '' : 's'} made noise in the last day.`);
   } else if (gangs.length) {
@@ -768,6 +810,7 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     recentSpecialRaids,
     seenSince: seenSince.toISOString(),
     ...(top ? { topArchetype: readableArchetype(top.archetype), topTier: top.tier } : {}),
+    ...(grudges.wantedBy && grudges.wantedUntil ? { wantedBy: grudges.wantedBy, wantedUntil: grudges.wantedUntil.toISOString() } : {}),
     rumors: rumors.slice(0, 4),
   };
 }
@@ -1009,6 +1052,7 @@ export const CombatService = {
           nationalRankAfter: (isAttacker ? afterA : afterD).nationalRank,
           protectedUntil: isAttacker ? null : shield.toISOString(), cooldownUntil: isAttacker ? cooldown.toISOString() : iso(defender.raidCooldownUntil),
           retaliation: isAttacker ? retaliation : false,
+          ...(!isAttacker && retaliation ? { payback: true } : {}),
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
         };
       };
@@ -1045,6 +1089,7 @@ export const CombatService = {
           turns: report.turnsSpent,
           wounds: report.yourWounds,
           inventoryChanges: report.inventoryChanges ?? [],
+          ...(type === 'RAID_DEFENSE' && retaliation ? { payback: true } : {}),
         }));
       }
       // Reserve the action namespace for the lifetime of this raid, including other action types.
@@ -1161,6 +1206,7 @@ export const CombatService = {
           protectedUntil: isAttacker ? null : shield.toISOString(),
           cooldownUntil: isAttacker ? cooldown.toISOString() : iso(defender.driveByCooldownUntil),
           retaliation: isAttacker ? retaliation : false,
+          ...(!isAttacker && retaliation ? { payback: true } : {}),
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
           driveBy: isAttacker
             ? { whoresKilled: result.whoresKilled, carsSent: result.cars.length, lowRidersLost: result.lowRidersLost, lowRidersAfter: nextA.lowRiders }
@@ -1180,7 +1226,8 @@ export const CombatService = {
       for (const [playerId, type, report] of [[attackerId, 'DRIVE_BY_ATTACK', attackerReport], [target.id, 'DRIVE_BY_DEFENSE', defenderReport]] as const) {
         await ActivityService.log(tx, playerId, type, json({ battleId: id, opponent: report.opponent.displayName, opponentTag: report.opponent.alliance?.tag ?? null, won: report.won,
           wounds: report.yourWounds, opponentWounds: report.opponentWounds, whoresKilled: result.whoresKilled,
-          lowRidersLost: type === 'DRIVE_BY_ATTACK' ? result.lowRidersLost : 0, turns: report.turnsSpent }));
+          lowRidersLost: type === 'DRIVE_BY_ATTACK' ? result.lowRidersLost : 0, turns: report.turnsSpent,
+          ...(type === 'DRIVE_BY_DEFENSE' && retaliation ? { payback: true } : {}) }));
       }
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: 'DRIVE_BY', result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });
       return attackerReport;
@@ -1384,6 +1431,7 @@ export const CombatService = {
           nationalRankAfter: (isAttacker ? afterA : afterD).nationalRank,
           protectedUntil: isAttacker ? null : shield.toISOString(), cooldownUntil: isAttacker ? cooldown.toISOString() : iso(defender.raidCooldownUntil),
           retaliation: isAttacker ? retaliation : false,
+          ...(!isAttacker && retaliation ? { payback: true } : {}),
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
           raidForm: {
             title: rule.title,
@@ -1417,6 +1465,7 @@ export const CombatService = {
           whoresLured,
           thugsLured,
           beerSpent,
+          ...(type === 'RAID_DEFENSE' && retaliation ? { payback: true } : {}),
         }));
       }
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: input.kind, result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });

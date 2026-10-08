@@ -5,6 +5,7 @@ import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { devBotAccountWhere, devBotsBlockedReason, removeDevBots, seedDevBots } from './dev-bots.service.js';
+import { openNpcGrudges, storedNpcGrudges } from './npc-gang-memory.js';
 import { RoundService } from './round.service.js';
 
 const blockedReason = () => devBotsBlockedReason({ isProduction: env.isProduction, databaseUrl: env.DATABASE_URL });
@@ -26,22 +27,34 @@ function stringField(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
-function npcGangMemory(memory: Prisma.JsonValue): {
-  lastIntent: string | null;
-  lastOutcome: string | null;
-  lastTarget: string | null;
-  lastError: string | null;
-} {
+type AdminNpcGang = NonNullable<NonNullable<AdminDevBotsDto['bots'][number]['inCurrentRound']>['npcGang']>;
+
+function npcGangMemory(memory: Prisma.JsonValue, now: Date): Pick<AdminNpcGang, 'lastIntent' | 'lastOutcome' | 'lastTarget' | 'lastError' | 'grudges' | 'lastRevenge'> {
   const root = jsonObject(memory);
   const detail = jsonObject(root.lastDetail as Prisma.JsonValue);
   const error = jsonObject(root.lastError as Prisma.JsonValue);
+  const revenge = jsonObject(root.lastRevenge as Prisma.JsonValue);
   const errorCode = stringField(error.code);
   const errorMessage = stringField(error.message);
+  const revengeTarget = stringField(revenge.targetName);
+  const revengeAt = stringField(revenge.at);
   return {
     lastIntent: stringField(root.lastIntent),
     lastOutcome: stringField(root.lastOutcome),
     lastTarget: stringField(detail.targetName),
     lastError: errorMessage ? (errorCode ? `${errorCode}: ${errorMessage}` : errorMessage) : null,
+    // Phase I. The cache from the gang's last tick, minus anything that expired since.
+    grudges: storedNpcGrudges(memory, now).map((grudge) => ({
+      targetName: grudge.name,
+      publicPimpId: grudge.publicPimpId,
+      hits: grudge.hits,
+      lastHitAt: grudge.lastHitAt,
+      expiresAt: grudge.expiresAt,
+      settledAt: grudge.settledAt,
+    })),
+    lastRevenge: revengeTarget && revengeAt
+      ? { targetName: revengeTarget, at: revengeAt, won: typeof revenge.won === 'boolean' ? revenge.won : null }
+      : null,
   };
 }
 
@@ -97,6 +110,7 @@ export const AdminDevBotsService = {
       recentHits: number;
       recentDriveBys: number;
       recentSpecialRaids: number;
+      recentRevengeHits: number;
       nextActionAt: Date | null;
     }>();
 
@@ -110,6 +124,7 @@ export const AdminDevBotsService = {
         recentHits: 0,
         recentDriveBys: 0,
         recentSpecialRaids: 0,
+        recentRevengeHits: 0,
         nextActionAt: null,
       };
       row.activeGangs += 1;
@@ -118,6 +133,7 @@ export const AdminDevBotsService = {
       cityRows.set(cityId, row);
     }
 
+    let revenge24h = 0;
     if (round && cityRows.size > 0) {
       const recent = await prisma.raidBattle.findMany({
         where: {
@@ -141,6 +157,11 @@ export const AdminDevBotsService = {
         row.recentHits += 1;
         if (kind === 'DRIVE_BY') row.recentDriveBys += 1;
         if (['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW'].includes(kind)) row.recentSpecialRaids += 1;
+        // The engine stamps `retaliation` on the attacker's report when the hit answered an earlier one.
+        if (jsonObject(battle.attackerReport).retaliation === true) {
+          row.recentRevengeHits += 1;
+          revenge24h += 1;
+        }
       }
     }
 
@@ -148,8 +169,9 @@ export const AdminDevBotsService = {
     const acted24h = npcGangs.filter((gang) => gang.lastActionAt && gang.lastActionAt >= since).length;
     const blocked24h = currentPlayers.filter((player) => {
       if (!player.npcGang?.lastActionAt || player.npcGang.lastActionAt < since) return false;
-      return npcGangMemory(player.npcGang.memory).lastOutcome === 'BLOCKED';
+      return npcGangMemory(player.npcGang.memory, now).lastOutcome === 'BLOCKED';
     }).length;
+    const openGrudges = npcGangs.reduce((sum, gang) => sum + openNpcGrudges(storedNpcGrudges(gang.memory, now), now).length, 0);
 
     return {
       blockedReason: blockedReason(),
@@ -160,6 +182,8 @@ export const AdminDevBotsService = {
         dueNow: npcGangs.filter((gang) => gang.nextActionAt <= now && (!gang.dormantUntil || gang.dormantUntil <= now)).length,
         acted24h,
         blocked24h,
+        openGrudges,
+        revenge24h,
         cities: Array.from(cityRows.values())
           .sort((left, right) => right.recentHits - left.recentHits || right.dueNow - left.dueNow || left.city.localeCompare(right.city))
           .map((row) => ({
@@ -169,12 +193,13 @@ export const AdminDevBotsService = {
             recentHits: row.recentHits,
             recentDriveBys: row.recentDriveBys,
             recentSpecialRaids: row.recentSpecialRaids,
+            recentRevengeHits: row.recentRevengeHits,
             nextActionAt: row.nextActionAt?.toISOString() ?? null,
           })),
       },
       bots: accounts.map((account) => {
         const player = account.roundPlayers[0];
-        const memory = player?.npcGang ? npcGangMemory(player.npcGang.memory) : null;
+        const memory = player?.npcGang ? npcGangMemory(player.npcGang.memory, now) : null;
         return {
           accountId: account.id,
           username: account.username,
@@ -201,6 +226,8 @@ export const AdminDevBotsService = {
                       lastOutcome: memory?.lastOutcome ?? null,
                       lastTarget: memory?.lastTarget ?? null,
                       lastError: memory?.lastError ?? null,
+                      grudges: memory?.grudges ?? [],
+                      lastRevenge: memory?.lastRevenge ?? null,
                     }
                   : null,
               }

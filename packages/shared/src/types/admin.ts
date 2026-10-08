@@ -836,6 +836,9 @@ export interface AdminDevBotsDto {
     dueNow: number;
     acted24h: number;
     blocked24h: number;
+    /** Phase I. Grudges still open across all gangs, and NPC paybacks that landed in 24h. */
+    openGrudges: number;
+    revenge24h: number;
     cities: Array<{
       city: string;
       activeGangs: number;
@@ -843,6 +846,7 @@ export interface AdminDevBotsDto {
       recentHits: number;
       recentDriveBys: number;
       recentSpecialRaids: number;
+      recentRevengeHits: number;
       nextActionAt: string | null;
     }>;
   };
@@ -870,6 +874,16 @@ export interface AdminDevBotsDto {
         lastOutcome: string | null;
         lastTarget: string | null;
         lastError: string | null;
+        /** Phase I. Humans this gang remembers, newest first; expired grudges are dropped. */
+        grudges: Array<{
+          targetName: string;
+          publicPimpId: number;
+          hits: number;
+          lastHitAt: string;
+          expiresAt: string;
+          settledAt: string | null;
+        }>;
+        lastRevenge: { targetName: string; at: string; won: boolean | null } | null;
       } | null;
     } | null;
   }>;

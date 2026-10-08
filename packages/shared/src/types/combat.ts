@@ -104,6 +104,8 @@ export interface BattleReportDto {
   protectedUntil: string | null;
   cooldownUntil: string | null;
   retaliation?: boolean;
+  /** Defender side only: the attacker was hitting back for an earlier hit by you. */
+  payback?: boolean;
   trophyCallouts?: Array<{ key: string; title: string; description: string }>;
   /** Special raid forms only. */
   raidForm?: {
@@ -214,6 +216,9 @@ export interface NpcGangIntelDto {
   seenSince: string;
   topArchetype?: string;
   topTier?: string;
+  /** Phase I. Local crews you hit that can still hit back, and when the last grudge cools. */
+  wantedBy?: number;
+  wantedUntil?: string;
   rumors: string[];
 }
 
