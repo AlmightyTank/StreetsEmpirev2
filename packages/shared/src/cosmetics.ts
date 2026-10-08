@@ -59,14 +59,24 @@ export const PRODUCT_SUPPLY_COSMETIC_KEYS = [
   'BEER',
 ] as const;
 
+/**
+ * 1.5.0-F: the Sedan and Van join the rides. Same collections, presentation only: a look never
+ * changes cargo, seats, route risk, price or anything else a car does.
+ */
+export const VEHICLE_COSMETIC_KEYS = [
+  'SEDAN',
+  'VAN',
+] as const;
+
 export const CUSTOMIZABLE_ITEM_KEYS = [
   ...WEAPON_RIDE_COSMETIC_KEYS,
+  ...VEHICLE_COSMETIC_KEYS,
   ...PRODUCT_SUPPLY_COSMETIC_KEYS,
 ] as const;
 
 /** Locker sections, in display order. */
 export const ITEM_COSMETIC_GROUPS = [
-  { key: 'weapons-rides', label: 'Weapons & rides', items: WEAPON_RIDE_COSMETIC_KEYS },
+  { key: 'weapons-rides', label: 'Weapons & rides', items: [...WEAPON_RIDE_COSMETIC_KEYS, ...VEHICLE_COSMETIC_KEYS] },
   { key: 'products-supplies', label: 'Products & supplies', items: PRODUCT_SUPPLY_COSMETIC_KEYS },
 ] as const;
 

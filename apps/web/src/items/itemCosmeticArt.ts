@@ -102,8 +102,22 @@ export const SLICE_C_ART_FILES = {
   },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
+/** 1.5.0-F authored Sedan and Van looks, relative to public/items/. Same render pipeline and checks. */
+export const VEHICLE_ART_FILES = {
+  SEDAN: {
+    'midnight-ops': 'cosmetics/rides/sedan-midnight-ops.webp',
+    'urban-ghost': 'cosmetics/rides/sedan-urban-ghost.webp',
+    'cartel-gold': 'cosmetics/rides/sedan-cartel-gold.webp',
+  },
+  VAN: {
+    'midnight-ops': 'cosmetics/rides/van-midnight-ops.webp',
+    'urban-ghost': 'cosmetics/rides/van-urban-ghost.webp',
+    'cartel-gold': 'cosmetics/rides/van-cartel-gold.webp',
+  },
+} as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
+
 /** Every authored non-classic file, by item or crew key. */
-export const AUTHORED_ITEM_ART_FILES = { ...SLICE_A_ART_FILES, ...SLICE_B_ART_FILES, ...SLICE_C_ART_FILES };
+export const AUTHORED_ITEM_ART_FILES = { ...SLICE_A_ART_FILES, ...VEHICLE_ART_FILES, ...SLICE_B_ART_FILES, ...SLICE_C_ART_FILES };
 
 /**
  * Authored cosmetic art registry.
@@ -118,6 +132,8 @@ const ITEM_COSMETIC_ART = {
   TEK9: { classic: 'tek9.svg', ...SLICE_A_ART_FILES.TEK9 },
   AK47: { classic: 'ak47.svg', ...SLICE_A_ART_FILES.AK47 },
   LOW_RIDER: { classic: 'low-rider.svg', ...SLICE_A_ART_FILES.LOW_RIDER },
+  SEDAN: { classic: 'sedan.svg', ...VEHICLE_ART_FILES.SEDAN },
+  VAN: { classic: 'van.svg', ...VEHICLE_ART_FILES.VAN },
   CRACK: { classic: 'crack.svg', ...SLICE_B_ART_FILES.CRACK },
   WEED: { classic: 'weed.svg', ...SLICE_B_ART_FILES.WEED },
   ECSTASY: { classic: 'ecstasy.svg', ...SLICE_B_ART_FILES.ECSTASY },

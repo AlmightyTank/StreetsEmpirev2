@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128">
+  <!-- Urban Ghost Sedan: concrete satin, graphite camo on the lower doors, cold-blue glass, steelies with dog-dish caps. -->
+  <defs>
+    <filter id="s" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="paint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d6dade"/><stop offset=".4" stop-color="#a3a8ae"/><stop offset=".75" stop-color="#7c8288"/><stop offset="1" stop-color="#5e6369"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4c5866"/><stop offset=".6" stop-color="#232a33"/><stop offset=".8" stop-color="#5f7f99"/><stop offset="1" stop-color="#a9c6dc"/></linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#c3cad2"/><stop offset=".55" stop-color="#6d747c"/><stop offset="1" stop-color="#e3e7ec"/></linearGradient>
+    <linearGradient id="lamp" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff9a2a"/><stop offset=".3" stop-color="#e8eef3"/><stop offset="1" stop-color="#ffffff"/></linearGradient>
+    <linearGradient id="tail" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8e1018"/><stop offset=".6" stop-color="#e0303c"/><stop offset="1" stop-color="#ff9a2a"/></linearGradient>
+    <radialGradient id="rim" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#b3bac3"/><stop offset="1" stop-color="#5d646d"/></radialGradient>
+    <clipPath id="bodyclip"><path d="M18 96 Q11 95 10 87 L10 72 Q10 64 16 62 L46 60 Q54 59.5 60 56 C80 42 104 35 130 35 C154 35 172 42 194 59 Q226 61.5 240 68 Q248 72 249 80 L249 88 Q248 95 240 96 L211 96 A19 19 0 0 0 173 96 L85 96 A19 19 0 0 0 47 96 Z"/></clipPath>
+    <path id="spoke" d="M-1.4 -3.5 L1.4 -3.5 L2.8 -9.6 L-2.8 -9.6 Z" fill="url(#rim)" stroke="#3a3f46" stroke-width=".6"/>
+    <g id="wheel">
+      <circle r="15" fill="#141414" stroke="#050505" stroke-width="1.4"/>
+      <circle r="11" fill="#2a2e33" stroke="#9aa2ab" stroke-width="1.4"/>
+      <use href="#spoke"/><use href="#spoke" transform="rotate(60)"/><use href="#spoke" transform="rotate(120)"/><use href="#spoke" transform="rotate(180)"/><use href="#spoke" transform="rotate(240)"/><use href="#spoke" transform="rotate(300)"/>
+      <circle r="3.6" fill="url(#rim)" stroke="#3a3e45" stroke-width=".8"/>
+      <circle r="1.2" fill="#6b727b"/>
+    </g>
+  <pattern id="camo" width="34" height="22" patternUnits="userSpaceOnUse"><rect width="34" height="22" fill="#8e949b"/><path d="M2 4 Q8 0 14 4 Q18 9 11 11 Q4 12 2 4 Z" fill="#5d636b"/><path d="M18 12 Q25 8 31 13 Q33 19 25 19 Q19 19 18 12 Z" fill="#c3c8ce"/><path d="M6 15 Q11 13 14 17 Q12 21 7 20 Q4 18 6 15 Z" fill="#3f444b"/><path d="M22 2 Q27 1 29 5 Q26 8 22 6 Z" fill="#aab0b7"/></pattern>
+  </defs>
+  <g transform="translate(0 -7)">
+    <ellipse cx="128" cy="109" rx="118" ry="4.5" fill="#000" opacity=".45"/>
+    <g filter="url(#s)">
+      <path d="M18 96 Q11 95 10 87 L10 72 Q10 64 16 62 L46 60 Q54 59.5 60 56 C80 42 104 35 130 35 C154 35 172 42 194 59 Q226 61.5 240 68 Q248 72 249 80 L249 88 Q248 95 240 96 L211 96 A19 19 0 0 0 173 96 L85 96 A19 19 0 0 0 47 96 Z" fill="url(#paint)" stroke="#0a0b0d" stroke-width="1.5" stroke-linejoin="round"/>
+    </g>
+    <g clip-path="url(#bodyclip)">
+      <path d="M0 77 Q128 73.5 256 76 V100 H0 Z" fill="url(#camo)" opacity=".9"/><path d="M0 88 Q128 92 256 88 V100 H0 Z" fill="#2b2e33" opacity=".55"/>
+    </g>
+    <path d="M62 55.5 C82 42.5 105 36.5 130 36.5 C153 36.5 171 43 192 58.5" stroke="#fff" stroke-opacity=".7" stroke-width="1.1" fill="none"/>
+    <path d="M196 60.5 Q225 63 239 69" stroke="#fff" stroke-opacity=".6" stroke-width="1" fill="none"/>
+    <path d="M17 63.5 L46 61.5" stroke="#fff" stroke-opacity=".6" stroke-width="1" fill="none"/>
+    <path d="M73 58.5 C88 46.5 106 40.5 129 40.5 C149 40.5 163 45 179 58 Q130 57 73 58.5 Z" fill="#141518" stroke="#0a0b0d" stroke-width="1"/>
+    <path d="M90 57.6 C100 48 112 42.5 126.5 42.3 L126.5 57.4 Z" fill="url(#glass)"/>
+    <path d="M131.5 42.3 C147 42.6 160 46.5 174 57.2 L131.5 57.3 Z" fill="url(#glass)"/>
+    <path d="M77.5 58 C81 55 84 52.6 87.5 50.6 L87.5 57.7 Z" fill="url(#glass)"/>
+    <path d="M100 55 L111 45.5 M140 55 L152 45.5" stroke="#fff" stroke-opacity=".2" stroke-width="2.6"/>
+    <path d="M175.5 58 Q176 76 172 92 M129 58 V95 M88 59 Q85 70 87 84" stroke="#4a4f56" stroke-width="1.2" fill="none"/>
+    <path d="M24 77 Q130 73.5 238 76" stroke="#fff" stroke-opacity=".45" stroke-width="1" fill="none"/>
+    <path d="M24 78.2 Q130 74.7 238 77.2" stroke="#4a4f56" stroke-opacity=".5" stroke-width="1" fill="none"/>
+    <path d="M112 66.5 h9 a1.3 1.3 0 0 1 0 2.6 h-9 a1.3 1.3 0 0 1 0 -2.6 Z M158 66.5 h9 a1.3 1.3 0 0 1 0 2.6 h-9 a1.3 1.3 0 0 1 0 -2.6 Z" fill="#c9ced3" stroke="#4a4f56" stroke-width=".7"/>
+    <path d="M188 59 L179 54 Q175 52.5 174 55.5 L174.5 59.5 Q181 61 188 60.5 Z" fill="url(#paint)" stroke="#0a0b0d" stroke-width=".9" stroke-linejoin="round"/>
+    <path d="M222 64.3 Q236 65.8 245.5 71.2 L246 75.5 Q234 73.5 221 68.5 Z" fill="url(#lamp)" stroke="#0a0b0d" stroke-width=".9" stroke-linejoin="round"/>
+    <path d="M11 69 Q11.5 63 17 62.5 L34 61.4 L33 66.5 Q21 67 11 70.5 Z" fill="url(#tail)" stroke="#0a0b0d" stroke-width=".9" stroke-linejoin="round"/>
+    <path d="M241 84 Q246 84.5 247.5 82" stroke="#0a0b0d" stroke-width=".9" fill="none"/>
+    <rect x="236" y="86.5" width="11" height="4" rx="2" fill="#16181b" stroke="#0a0b0d" stroke-width=".7"/>
+    <path d="M12 82 Q30 83 46 82" stroke="#4a4f56" stroke-width=".9" fill="none"/>
+    <use href="#wheel" transform="translate(192 94)"/>
+    <use href="#wheel" transform="translate(66 94)"/>
+  </g>
+</svg>

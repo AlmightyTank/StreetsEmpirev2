@@ -8,6 +8,7 @@ import {
   ITEM_COSMETIC_STYLE_KEYS,
   PRODUCT_SUPPLY_COSMETIC_KEYS,
   RELEASED_ITEM_COSMETIC_STYLES,
+  VEHICLE_COSMETIC_KEYS,
   WEAPON_RIDE_COSMETIC_KEYS,
   type ItemCosmeticStyleKey,
 } from '@streets/shared';
@@ -18,6 +19,7 @@ import {
   SLICE_A_ART_FILES,
   SLICE_B_ART_FILES,
   SLICE_C_ART_FILES,
+  VEHICLE_ART_FILES,
 } from './itemCosmeticArt.js';
 import { STREET_PASS_S1, STREET_PASS_S1_COSMETICS } from '@streets/rulesets';
 import { ITEM_ART } from './itemArt.js';
@@ -54,6 +56,8 @@ describe('item cosmetic art resolver', () => {
     expect(Object.keys(SLICE_A_ART_FILES)).toEqual([...WEAPON_RIDE_COSMETIC_KEYS]);
     expect(Object.keys(SLICE_B_ART_FILES)).toEqual([...PRODUCT_SUPPLY_COSMETIC_KEYS]);
     expect(Object.keys(SLICE_C_ART_FILES)).toEqual([...CREW_COSMETIC_KEYS]);
+    // 1.5.0-F: the Sedan and Van.
+    expect(Object.keys(VEHICLE_ART_FILES)).toEqual([...VEHICLE_COSMETIC_KEYS]);
     for (const key of AUTHORED_KEYS) {
       expect(Object.keys(AUTHORED_ITEM_ART_FILES[key])).toEqual([...AUTHORED_STYLES]);
     }

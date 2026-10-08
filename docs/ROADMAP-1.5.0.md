@@ -2,7 +2,7 @@
 
 ## Brainstorm
 
-**Status:** 1.5.0-A through E are implemented on beta as `classic-og-v1.5-a` to `classic-og-v1.5-e`, the 1.5 release ruleset. 1.5.0-F (cosmetics) is a proposal.
+**Status:** 1.5.0-A through E are implemented on beta as `classic-og-v1.5-a` to `classic-og-v1.5-e`, the 1.5 release ruleset. 1.5.0-F adds Sedan and Van looks to the cosmetic locker.
 
 **Target base:** StreetsEmpire v1.4.0, after its release ruleset is pinned.  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Low-Riders into a useful fleet.  
@@ -75,7 +75,7 @@ Each slice should have its own release gate and pinned ruleset, following the ea
 | **1.5.0-E — Balance, Admin & Release** | Built | `classic-og-v1.5-e` adds the `qa:vehicles` simulation and release gate, trims the Sedan's low-profile edge from 10% to 5% lower route risk, and adds Admin → Vehicles, a fleet view and audited fleet corrections in the player inspector, exploit-audit checks and historical-ruleset tests. |
 | **1.5.0-E2 — Charlie's Fleet** | Built | `classic-og-v1.5-e2` moves Sedan and Van sales onto Charlie's shelf, each opened by a Wheels job (Pack Your Bags opens Sedans, Heavy Haul opens Vans). Every locked shelf (Tommy's racks, Pip's products, Charlie's vehicles) links straight to the job that opens it, and a locked job shows what it is waiting for. |
 | **1.5.0-E3 — San Francisco** | Built | `classic-og-v1.5-e3` replaces Beverly Hills with San Francisco on the same economy (rich buyers, heavy police) and runs I-5 Los Angeles → San Francisco (6h) → Seattle (12h). The road map draws the real lower 48; the app reports version 1.5.0. |
-| **1.5.0-F — Vehicle Cosmetics** | Proposed | After the base class silhouettes and garage presentation are settled, add optional player-selected vehicle looks. Cosmetics remain presentation-only and do not change vehicle stats or route outcomes. |
+| **1.5.0-F — Vehicle Cosmetics** | Built | After the base class silhouettes and garage presentation are settled, add optional player-selected vehicle looks. Cosmetics remain presentation-only and do not change vehicle stats or route outcomes. |
 
 ---
 
