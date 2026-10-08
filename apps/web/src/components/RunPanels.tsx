@@ -8,6 +8,8 @@ import { ItemLabel } from './ItemTile.js';
 import { QuestLockNote } from './QuestLink.js';
 import { routeProfileText, vehicleCountsText, vehicleTroubleText } from './GaragePanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
+import { useSession } from '../stores/session.js';
+import { rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { formatClockTime, formatDuration, formatWeekdayTime } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
@@ -327,10 +329,14 @@ function TownCounter({ run, data, onDone }: { run: RunDto; data: TravelDto; onDo
   const trade = useGameAction<RunTradeResult>();
   const counter = run.counter!;
   const hasMarket = Boolean(data.rules.market) && counter.products.some((entry) => entry.market);
-  const [venue, setVenue] = useState<'pip' | 'market'>('pip');
+  const playerId = useSession((s) => s.me?.id);
+  const [venue, setVenue] = useRememberedState<'pip' | 'market'>(rememberedKey('run.counter.venue', playerId), 'pip',
+    { accept: (value): value is 'pip' | 'market' => value === 'pip' || (value === 'market' && hasMarket) });
   const tradable = counter.products.filter((entry) => (venue === 'pip' ? entry.supply !== null : entry.market !== null));
-  const [product, setProduct] = useState(tradable[0]?.key ?? '');
-  const [direction, setDirection] = useState<'buy' | 'sell'>('buy');
+  const [product, setProduct] = useRememberedState(rememberedKey('run.counter.product', playerId), tradable[0]?.key ?? '',
+    { accept: (value): value is string => typeof value === 'string' && tradable.some((entry) => entry.key === value) });
+  const [direction, setDirection] = useRememberedState<'buy' | 'sell'>(rememberedKey('run.counter.direction', playerId), 'buy',
+    { accept: (value): value is 'buy' | 'sell' => value === 'buy' || value === 'sell' });
   const [quantity, setQuantity] = useState<number | ''>('');
   const row = counter.products.find((entry) => entry.key === product) ?? null;
   const inTrunk = run.cargo.find((entry) => entry.key === product)?.quantity ?? 0;
@@ -479,7 +485,10 @@ export function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: Tra
   const transfer = useGameAction<RunOutpostTransferResult>();
   const openBlocks = turf?.blocks.filter((block) => !block.holder) ?? [];
   const owned = turf?.blocks.filter((block) => block.isMine && block.outpost) ?? [];
-  const [district, setDistrict] = useState(openBlocks[0]?.district ?? '');
+  // The corner you picked in this town comes back while it is still open.
+  const playerId = useSession((s) => s.me?.id);
+  const [district, setDistrict] = useRememberedState(rememberedKey(`run.outpost.${run.position.city}`, playerId), openBlocks[0]?.district ?? '',
+    { accept: (value): value is string => typeof value === 'string' && openBlocks.some((block) => block.district === value) });
   const target = openBlocks.find((block) => block.district === district) ?? openBlocks[0] ?? null;
   const [thugs, setThugs] = useState<number | ''>(target?.cornerMinimumThugs ?? 1);
   const [cash, setCash] = useState<number | ''>(0);

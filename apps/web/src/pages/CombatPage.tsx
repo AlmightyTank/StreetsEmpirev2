@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate } from 'react-router-dom';
 import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatSpecialRaidDto, type CombatTargetDto, type CustomizableItemKey, type ItemCosmeticStyleKey, type SpecialRaidKindDto } from '@streets/shared';
 import { combatApi } from '../api/combat.js';
@@ -408,8 +409,10 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const [closingReportId, setClosingReportId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingRaid | null>(() => loadPendingRaid(browserSessionStorage(), playerId));
   const [targetId, setTargetId] = useState('');
-  const [mode, setMode] = useState<Mode>('RAID');
-  const [squad, setSquad] = useState('1');
+  // The kind of hit and the squad size come back; the target is picked fresh each time.
+  const [mode, setMode] = useRememberedState<Mode>(rememberedKey('combat.mode', playerId), 'RAID',
+    { accept: (value): value is Mode => value === 'RAID' || value === 'DRIVE_BY' || value === 'DRUG_HOES' || value === 'STEAL_RIDE' || value === 'LURE_CREW' });
+  const [squad, setSquad] = useRememberedState<string>(rememberedKey('combat.squad', playerId), '1', { accept: isString });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -484,6 +487,10 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const specialRaid = specialRaids.find((action) => action.kind === mode);
   const driving = mode === 'DRIVE_BY' && !!driveBy;
   const doingSpecialRaid = !!specialRaid;
+  // A remembered kind of hit this page no longer offers falls back to a plain raid.
+  useEffect(() => {
+    if (page && mode !== 'RAID' && !driving && !doingSpecialRaid) setMode('RAID');
+  }, [page, mode, driving, doingSpecialRaid, setMode]);
   /** Drive-bys have their own clock. The other forms share the raid clock. */
   const targetBlock = useCallback((target: CombatTargetDto) => {
     if (driving) return target.driveByBlockedReason ?? null;

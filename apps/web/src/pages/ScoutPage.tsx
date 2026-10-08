@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate } from 'react-router-dom';
 import type { DistrictDto, ScoutResult } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
@@ -47,8 +48,9 @@ export function ScoutPage() {
   const action = useGameAction<ScoutResult>();
 
   const [districts, setDistricts] = useState<DistrictDto[]>([]);
-  const [district, setDistrict] = useState<string>('');
-  const [turns, setTurns] = useState<number | ''>(13);
+  // The block and the turns come back next time; a block that is gone falls back below.
+  const [district, setDistrict] = useRememberedState<string>(rememberedKey('scout.district', me?.id), '', { accept: isString });
+  const [turns, setTurns] = useRememberedState<number | ''>(rememberedKey('scout.turns', me?.id), 13, { accept: isTurns });
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Refetched whenever the crew changes, because the visible coverage on offer
@@ -60,7 +62,7 @@ export function ScoutPage() {
       .districts()
       .then((response) => {
         setDistricts(response.districts);
-        setDistrict((current) => current || response.districts[0]?.key || '');
+        setDistrict((current) => (current && response.districts.some((row) => row.key === current) ? current : response.districts[0]?.key || ''));
       })
       .catch(() => setLoadError('Could not load the districts. Try again in a moment.'));
   }, [crewSize]);

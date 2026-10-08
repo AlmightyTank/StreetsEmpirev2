@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto, type CasinoTournamentPageDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
@@ -211,9 +212,12 @@ export function CasinoPage() {
   const [data, setData] = useState<CasinoPageDto | null>(null);
   const [cashierAmount, setCashierAmount] = useState('1000');
   const [sessionAmount, setSessionAmount] = useState('1000');
-  const [selectedMachineKey, setSelectedMachineKey] = useState<string | null>(null);
-  const [slotBetPerLine, setSlotBetPerLine] = useState('1');
-  const [selectedPaylineKeys, setSelectedPaylineKeys] = useState<string[]>([]);
+  // The machine, bet and lines come back; an unknown machine falls back to the default below.
+  const [selectedMachineKey, setSelectedMachineKey] = useRememberedState<string | null>(rememberedKey('casino.machine', me?.id), null,
+    { accept: (value): value is string | null => value === null || isString(value) });
+  const [slotBetPerLine, setSlotBetPerLine] = useRememberedState<string>(rememberedKey('casino.bet', me?.id), '1', { accept: isString });
+  const [selectedPaylineKeys, setSelectedPaylineKeys] = useRememberedState<string[]>(rememberedKey('casino.lines', me?.id), [],
+    { accept: (value): value is string[] => Array.isArray(value) && value.every(isString) });
   const [lastSpin, setLastSpin] = useState<CasinoSlotSpinDto | null>(null);
   const [revealedReels, setRevealedReels] = useState(99);
   const [displayedWinCents, setDisplayedWinCents] = useState(0);
@@ -266,7 +270,12 @@ export function CasinoPage() {
       return;
     }
     const current = data.slotMachines.find((machine) => machine.key === selectedMachineKey);
-    if (current) return;
+    if (current) {
+      // A remembered machine keeps its bet; lines that do not exist on it are dropped.
+      const lines = selectedPaylineKeys.filter((key) => current.paylines.some((line) => line.key === key));
+      if (lines.length !== selectedPaylineKeys.length || !lines.length) setSelectedPaylineKeys(lines.length ? lines : current.paylines.map((line) => line.key));
+      return;
+    }
     const next = data.slotMachines.find((machine) => machine.availableHere) ?? data.slotMachines[0]!;
     setSelectedMachineKey(next.key);
     setSlotBetPerLine(String(next.minBetPerLineCents / 100));

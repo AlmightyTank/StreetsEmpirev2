@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate } from 'react-router-dom';
 import type { AllianceRankingsDto, RankingEntryDto, RankingsDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
@@ -181,7 +182,8 @@ export function RankingsPage() {
   const [data, setData] = useState<RankingsDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [alliances, setAlliances] = useState<AllianceRankingsDto | null>(null);
-  const [view, setView] = useState<RankingView>('national');
+  const [view, setView] = useRememberedState<RankingView>(rememberedKey('rankings.view', me?.id), 'national',
+    { accept: (value): value is RankingView => value === 'national' || value === 'local' || value === 'alliances' || value === 'turf-crews' || value === 'turf-alliances' });
 
   useEffect(() => {
     communityApi.rankings()

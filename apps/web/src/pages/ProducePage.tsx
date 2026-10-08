@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate } from 'react-router-dom';
 import type { ProduceCrackResult, ProductsDto, ProductTypeDto } from '@streets/shared';
 import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
@@ -58,8 +59,8 @@ export function ProducePage() {
   const me = useSession((s) => s.me);
   const action = useGameAction<ProduceCrackResult>();
 
-  const [turns, setTurns] = useState<number | ''>(10);
-  const [productType, setProductType] = useState<ProductTypeDto>('CRACK');
+  const [turns, setTurns] = useRememberedState<number | ''>(rememberedKey('produce.turns', me?.id), 10, { accept: isTurns });
+  const [productType, setProductType] = useRememberedState<ProductTypeDto>(rememberedKey('produce.product', me?.id), 'CRACK', { accept: (value): value is ProductTypeDto => isString(value) });
   const [catalog, setCatalog] = useState<ProductsDto | null>(null);
 
   useEffect(() => {
@@ -67,6 +68,13 @@ export function ProducePage() {
   }, []);
 
   const PRODUCT_PROFILES = recipeProfiles(catalog);
+
+  // A remembered product this round no longer cooks falls back to the first one on offer.
+  useEffect(() => {
+    if (catalog && PRODUCT_PROFILES.length && !PRODUCT_PROFILES.some((profile) => profile.key === productType)) {
+      setProductType(PRODUCT_PROFILES[0]!.key as ProductTypeDto);
+    }
+  }, [catalog, PRODUCT_PROFILES, productType, setProductType]);
 
   if (!me) return <Navigate to="/join" replace />;
 

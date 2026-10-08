@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate, NavLink, useParams } from 'react-router-dom';
 import { formatCents, formatNumber, type ProductsDto, type StoreCheckoutLineInput, type StoreCheckoutResult, type StoreDto, type StoreItemDto, type StoreMarketContextDto, type StoreRestockDto, type StoresDto, type StoreSpecialOrderResult, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
@@ -900,7 +901,14 @@ export function StorePage() {
   // The store counter itself remounts on each tab so its per-shelf form state
   // starts clean. The basket lives one level higher so it follows the player
   // between Corner, Tommy, Charlie, and Pip until checkout or an explicit clear.
-  const [basket, setBasket] = useState<BasketLine[]>([]);
+  // It also survives leaving the stores for a day, so a half-built order is still there.
+  // Prices on the lines are a guide; checkout charges what the shelf says then.
+  const me = useSession((s) => s.me);
+  const [basket, setBasket] = useRememberedState<BasketLine[]>(rememberedKey('store.basket', me?.id), [], {
+    accept: (value): value is BasketLine[] => Array.isArray(value)
+      && value.every((line) => line && typeof line === 'object' && typeof (line as BasketLine).key === 'string' && typeof (line as BasketLine).quantity === 'number'),
+    maxAgeMs: 24 * 3_600_000,
+  });
   function addToBasket(line: BasketLine) {
     setBasket((current) => {
       const existing = current.find((entry) => entry.key === line.key);
