@@ -215,6 +215,8 @@ export function AdminIntegrationsPage() {
                   <Row label="Blocks held" value={formatNumber(bots.npcGangSummary.heldBlocks)} />
                   <Row label="Packing or moving" value={formatNumber(bots.npcGangSummary.migrating)} strong={bots.npcGangSummary.migrating > 0} />
                   <Row label="On a run · gone to ground" value={`${formatNumber(bots.npcGangSummary.hot)} · ${formatNumber(bots.npcGangSummary.dormant)}`} strong={bots.npcGangSummary.hot > 0} />
+                  <Row label="Bounties in 24h" value={`${formatNumber(bots.npcGangSummary.bounties24h.count)} · ${formatCents(bots.npcGangSummary.bounties24h.cents)}`} />
+                  <Row label="Crews broken up" value={formatNumber(bots.npcGangSummary.retired)} />
                 </div>
                 {bots.npcGangSummary.cities.length ? (
                   <ol className="se-admin-list">
@@ -309,6 +311,8 @@ export function AdminIntegrationsPage() {
                                   {bot.inCurrentRound.npcGang.record.lastLossTo ? ` · last lost to ${bot.inCurrentRound.npcGang.record.lastLossTo}` : ''}
                                 </p>
                                 <p className="se-hint">
+                                  {bot.inCurrentRound.npcGang.retired ? `Broke up ${ago(bot.inCurrentRound.npcGang.retired.at)} (${bot.inCurrentRound.npcGang.retired.reason.toLowerCase().replace(/_/g, ' ')}) · ` : ''}
+                                  {bot.inCurrentRound.npcGang.dormancies ? `Grounded ${formatNumber(bot.inCurrentRound.npcGang.dormancies)}× · ` : ''}
                                   Mood {bot.inCurrentRound.npcGang.mood.toLowerCase()} · momentum {bot.inCurrentRound.npcGang.momentum > 0 ? '+' : ''}{bot.inCurrentRound.npcGang.momentum}
                                   {bot.inCurrentRound.npcGang.mood === 'DORMANT' && bot.inCurrentRound.npcGang.dormancy
                                     ? ` · ${bot.inCurrentRound.npcGang.dormancy.reason.toLowerCase().replace(/_/g, ' ')}, back ${timing(bot.inCurrentRound.npcGang.dormancy.until)}`

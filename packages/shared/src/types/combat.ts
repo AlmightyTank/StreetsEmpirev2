@@ -106,6 +106,10 @@ export interface BattleReportDto {
   retaliation?: boolean;
   /** Defender side only: the attacker was hitting back for an earlier hit by you. */
   payback?: boolean;
+  /** Phase N. The other side is a server-run crew. */
+  opponentNpc?: boolean;
+  /** Phase N. House bounty this win paid, for beating a wanted crew. */
+  npcBounty?: { cents: number; crew: string };
   trophyCallouts?: Array<{ key: string; title: string; description: string }>;
   /** Special raid forms only. */
   raidForm?: {
@@ -235,7 +239,13 @@ export interface NpcGangIntelDto {
     style: string;
     mood: 'HOT' | 'STEADY' | 'COOLED';
     reputation: string[];
+    /** Phase N. The crew has hit a human lately, so beating it pays a bounty. */
+    wanted: boolean;
   }>;
+  /** Phase N. Crews here stand down while a crew humans sent to ground is fresh. */
+  relief?: { crew: string; until: string };
+  /** Phase N. Crews from this city that broke up lately. */
+  brokeUp?: string[];
   /** Phase L. Local crews on a run, licking wounds, or gone to ground. Absent when all are steady. */
   mood?: { hot: number; cooled: number; dormant: number };
   /** Phase K. Crews moving around this city. Absent when nothing is moving. */

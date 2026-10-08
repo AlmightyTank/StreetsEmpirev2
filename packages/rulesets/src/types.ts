@@ -848,6 +848,33 @@ export interface NpcGangRules {
   readonly personalities: Readonly<Record<string, NpcGangPersonality>>;
   /** Phase M. The personality an archetype falls back to when nothing matches. */
   readonly defaultPersonality: string;
+  /** Phase N. What beating an NPC gang pays, and when beaten or stale gangs are cleaned up. */
+  readonly rewards: NpcGangRewardRules;
+}
+
+/**
+ * Phase N. Bounties are minted by the house, not taken from the gang, so they are capped
+ * hard: only a crew that has hit a human recently is wanted, each player collects a few a
+ * day and once per crew per cooldown, and each crew pays out a few times a day in total.
+ * Over-targeting a crew also sends it to ground (Phase L), which ends its bounty.
+ */
+export interface NpcGangRewardRules {
+  readonly enabled: boolean;
+  /** Bounty for beating a wanted crew as the attacker, by its tier. */
+  readonly bountyCents: Readonly<Record<NpcGangTier, number>>;
+  /** Share of the bounty paid for holding off a wanted crew's hit. */
+  readonly defenseShare: number;
+  /** A crew is wanted while it has hit a human inside this many hours. */
+  readonly wantedHours: number;
+  readonly maxPerPlayerPerDay: number;
+  readonly perCrewCooldownHours: number;
+  readonly maxPerCrewPerDay: number;
+  /** Hours other crews in a city stand down after humans send one to ground. */
+  readonly reliefHours: number;
+  /** A crew that has gone to ground this many times in a round breaks up. */
+  readonly retireAfterDormancies: number;
+  /** A crew that wakes with fewer thugs than this breaks up. */
+  readonly retireBelowThugs: number;
 }
 
 /**

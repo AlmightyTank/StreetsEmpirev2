@@ -72,7 +72,8 @@ describe('NPC gang personalities (Phase M)', () => {
 
     expect(withLoss(history, { opponent: 'Older', kind: 'RAID', at: hoursAgo(20) }).lastLoss?.opponent).toBe('Lou');
     expect(withLoss(history, { opponent: 'Newer', kind: 'RAID', at: hoursAgo(1) }).lastLoss?.opponent).toBe('Newer');
-    expect(storedHistory({ history: historyJson(history) })).toEqual(history);
+    // Round-trip through real JSON, the way memory is stored.
+    expect(storedHistory(JSON.parse(JSON.stringify({ history: historyJson(history) })))).toEqual(history);
   });
 
   it('phrases reputation in bands, without exact money or counts', () => {

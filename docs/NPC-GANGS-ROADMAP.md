@@ -1,6 +1,6 @@
 # NPC Gangs Roadmap
 
-Status: **Phases A-M built in beta. Phase N is next.**
+Status: **Phases A-N built in beta. Phases O and P are started.**
 
 NPC gangs are server-run seasonal crews that use the same core systems players use:
 round players, cities, stores, production, raids, drive-bys, special raid forms,
@@ -41,7 +41,7 @@ or hitting players with unavoidable punishment.
 | K | Built | Travel and migration so stronger gangs can relocate between cities. Crew runs are a follow-up. |
 | L | Built | Escalation and dormancy so gangs heat up, cool down, recover or lay low. |
 | M | Built | Boss and archetype personalities with named gangs and distinct patterns. |
-| N | Planned | Rewards and cleanup for beating NPC gangs or relieving city pressure. |
+| N | Built | Rewards and cleanup for beating NPC gangs or relieving city pressure. |
 | O | Started | Admin controls for spawning, pausing, dormancy, tuning and memory inspection. |
 | P | Started | Balance telemetry for attack rate, wins, dogpiles, drain and stalled actions. |
 
@@ -295,23 +295,45 @@ Delivered:
   fifth, Hubcap Hector's Hubcap Kings, is a Veteran ride-thief crew so migration
   has a candidate in dev.
 
-## Remaining Phases
-
 ### Phase N: Rewards & Cleanup
 
-Beating NPC gangs can grant trophies, contracts, faction standing, bounties or
-temporary city relief.
+Beating NPC crews pays, quiets the city and can break a crew up, with hard caps on
+farming. Rules live in `npcGangs.rewards`.
 
-Goals:
+Delivered:
 
-- Reward successful suppression without making NPC gangs farmable.
-- Consider temporary city relief after a gang is beaten.
-- Hook into contracts or faction standing when those systems want NPC targets.
-- Add cleanup paths for defeated or stale gangs.
+- **Bounties:** a human who beats a *wanted* crew (one that hit a human inside
+  `wantedHours`) is paid a house bounty by the crew's tier; holding off a crew's hit
+  pays `defenseShare` of it. Caps: `maxPerPlayerPerDay`, one per crew per player
+  per `perCrewCooldownHours`, and `maxPerCrewPerDay` across all players. Bounties are
+  paid inside the combat transaction and logged in the economy ledger as
+  `NPC_BOUNTY` with battle and crew, which is where the caps are read from. Passive
+  crews carry no bounty, and over-targeting a crew still sends it to ground
+  (Phase L), so a crew cannot be farmed.
+- **Reports and activity:** battle reports and activity mark `opponentNpc` and show
+  the bounty a win paid; the feed adds it to the line.
+- **Contracts:** combat activity now carries `opponentNpc: true` when the other side
+  is an NPC crew, so any contract can target NPC crews with an ordinary objective
+  `where` (for example `WIN_EVENTS` on `RAID_ATTACK` where `opponentNpc` is true).
+  No contract does yet; that is content for the contract boards.
+- **City relief:** when humans send a crew to ground (or break it up), every other
+  crew in that city stands down from attacks and revenge for `reliefHours`. They still
+  restock, produce and work turf.
+- **Break-ups:** a crew grounded `retireAfterDormancies` times in a round, or that
+  wakes with fewer than `retireBelowThugs` thugs, pulls its corner and breaks up for
+  the rest of the round (dormant past the round end, `memory.retired`).
+- **Stale cleanup:** the scheduler only loads gangs in active rounds, so crews from
+  finished rounds are no longer ticked.
+- **Intel:** wanted crews are marked in the local crew list and a rumor names one;
+  a "Street relief" row and rumor show who went to ground and how long the quiet
+  lasts; recent break-ups make the rumor mill.
+- **Admin:** bounties paid in 24h (count and cash), crews broken up, and per gang its
+  groundings and break-up reason.
 
-Gate:
+Not done: faction standing for NPC suppression. Standing comes only from Jobs by
+design; a Job or contract that targets NPC crews is the way to pay it.
 
-- Fighting NPC gangs feels worthwhile, but repeated farming is capped.
+## Remaining Phases
 
 ### Phase O: Admin Controls
 
@@ -356,6 +378,7 @@ Current support already built:
 - NPC-held blocks in total and per city (Phase J).
 - Gangs packing or moving, and inbound trucks per city (Phase K).
 - Gangs on a run and gone to ground (Phase L).
+- Bounties paid in 24h and crews broken up (Phase N).
 
 Future telemetry:
 

@@ -10,6 +10,7 @@ import { storedMigrationPlan } from './npc-gang-migration.js';
 import { npcMood, storedDormancy, storedMomentum } from './npc-gang-momentum.js';
 import { DEFAULT_NPC_GANG_RULES, npcRules } from './npc-gang-rules.js';
 import { favoriteMove, npcIdentity, npcPersonality, storedHistory } from './npc-gang-personality.js';
+import { NPC_BOUNTY_SOURCE, storedRetirement } from './npc-gang-rewards.js';
 import { openNpcGrudges, storedNpcGrudges } from './npc-gang-memory.js';
 import { RoundService } from './round.service.js';
 
@@ -74,11 +75,14 @@ function npcGangTurf(root: Prisma.JsonObject): AdminNpcGang['turf'] {
 }
 
 /** Phase M. Who the gang is in public, and its record for operators (exact numbers are fine here). */
-function npcGangIdentity(gang: { id: string; archetype: string; memory: Prisma.JsonValue }, rules: ReturnType<typeof npcRules>): Pick<AdminNpcGang, 'personality' | 'crewName' | 'crewTag' | 'record'> {
+function npcGangIdentity(gang: { id: string; archetype: string; memory: Prisma.JsonValue }, rules: ReturnType<typeof npcRules>): Pick<AdminNpcGang, 'personality' | 'crewName' | 'crewTag' | 'record' | 'dormancies' | 'retired'> {
   const view = npcPersonality(rules, gang.archetype);
   const identity = npcIdentity(view, gang.id, gang.memory);
   const history = storedHistory(gang.memory);
+  const dormancies = jsonObject(gang.memory).dormancies;
   return {
+    dormancies: typeof dormancies === 'number' ? dormancies : 0,
+    retired: storedRetirement(gang.memory),
     personality: view.personality.label,
     crewName: identity.name,
     crewTag: identity.tag,
@@ -296,6 +300,11 @@ export const AdminDevBotsService = {
     const gangRules = round ? npcRules(loadRulesetForRound(round)) : DEFAULT_NPC_GANG_RULES;
     const escalation = gangRules.escalation;
     const moodOf = (gang: (typeof npcGangs)[number]) => npcGangMood(gang.memory, gang.dormantUntil, escalation, now).mood;
+    const bounties = await prisma.economyLedgerEntry.aggregate({
+      where: { source: NPC_BOUNTY_SOURCE, createdAt: { gte: since }, ...(round ? { roundPlayer: { roundId: round.id } } : {}) },
+      _count: { _all: true },
+      _sum: { amountCents: true },
+    });
     const acted24h = npcGangs.filter((gang) => gang.lastActionAt && gang.lastActionAt >= since).length;
     const blocked24h = currentPlayers.filter((player) => {
       if (!player.npcGang?.lastActionAt || player.npcGang.lastActionAt < since) return false;
@@ -315,6 +324,8 @@ export const AdminDevBotsService = {
         openGrudges,
         revenge24h,
         heldBlocks,
+        bounties24h: { count: bounties._count._all, cents: Number(bounties._sum.amountCents ?? 0n) },
+        retired: npcGangs.filter((gang) => storedRetirement(gang.memory)).length,
         hot: npcGangs.filter((gang) => moodOf(gang) === 'HOT').length,
         dormant: npcGangs.filter((gang) => moodOf(gang) === 'DORMANT').length,
         migrating: currentPlayers.filter((player) => player.npcGang && npcGangMigration(player.npcGang.memory, player.movingUntil, now).migration).length,

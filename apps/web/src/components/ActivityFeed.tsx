@@ -115,6 +115,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         num(p.thugsLured) ? `${formatNumber(num(p.thugsLured))} thugs lured` : null,
         num(p.beerSpent) ? `${formatNumber(num(p.beerSpent))} beer spent` : null,
         num(p.wounds) ? `${formatNumber(num(p.wounds))} wounded` : null,
+        num(p.npcBounty) ? `+${formatCents(num(p.npcBounty))} bounty` : null,
       ].filter(Boolean).join(' · ');
       return {
         text: attacking
@@ -135,6 +136,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           num(p.whoresKilled) ? `${formatNumber(num(p.whoresKilled))} ${attacking ? 'of their' : 'of your'} whores killed` : null,
           num(p.wounds) ? `${formatNumber(num(p.wounds))} of yours wounded` : null,
           num(p.opponentWounds) ? `${formatNumber(num(p.opponentWounds))} of theirs wounded` : null,
+          num(p.npcBounty) ? `+${formatCents(num(p.npcBounty))} bounty` : null,
           num(p.lowRidersLost) ? `${formatNumber(num(p.lowRidersLost))} Low-Rider${num(p.lowRidersLost) === 1 ? '' : 's'} lost` : null,
         ].filter(Boolean).join(' · '),
       };

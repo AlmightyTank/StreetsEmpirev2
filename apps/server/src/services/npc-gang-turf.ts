@@ -202,7 +202,7 @@ export async function loadNpcTurf(prisma: PrismaClient, gang: NpcTurfGang, rules
 }
 
 export type NpcTurfMove =
-  | { kind: 'ABANDON'; block: NpcTurfBlock; reason: 'LOSSES' | 'UNDERMANNED' | 'UNSUPPLIED' | 'MIGRATING' | 'LAYING_LOW' }
+  | { kind: 'ABANDON'; block: NpcTurfBlock; reason: 'LOSSES' | 'UNDERMANNED' | 'UNSUPPLIED' | 'MIGRATING' | 'LAYING_LOW' | 'BREAKING_UP' }
   | { kind: 'BACKUP'; block: NpcTurfBlock; pushId: string; thugs: number }
   | { kind: 'WAR_DEFEND'; block: NpcTurfBlock; warId: string; thugs: number }
   | { kind: 'WAR_BREAK'; block: NpcTurfBlock; warId: string; thugs: number }

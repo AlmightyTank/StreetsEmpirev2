@@ -60,6 +60,18 @@ export const DEFAULT_NPC_GANG_RULES: NpcGangRules = {
   },
   personalities: NPC_GANG_PERSONALITIES,
   defaultPersonality: 'cautious-hustlers',
+  rewards: {
+    enabled: true,
+    bountyCents: { SCRUB: 150_000, STREET: 300_000, VETERAN: 600_000, KINGPIN: 1_200_000 },
+    defenseShare: 0.5,
+    wantedHours: 24,
+    maxPerPlayerPerDay: 3,
+    perCrewCooldownHours: 24,
+    maxPerCrewPerDay: 4,
+    reliefHours: 6,
+    retireAfterDormancies: 3,
+    retireBelowThugs: 3,
+  },
 };
 
 export function npcRules(ruleset: Ruleset): NpcGangRules {
@@ -70,5 +82,10 @@ export function npcRules(ruleset: Ruleset): NpcGangRules {
     migration: { ...DEFAULT_NPC_GANG_RULES.migration, ...ruleset.npcGangs?.migration },
     escalation: { ...DEFAULT_NPC_GANG_RULES.escalation, ...ruleset.npcGangs?.escalation },
     personalities: { ...DEFAULT_NPC_GANG_RULES.personalities, ...ruleset.npcGangs?.personalities },
+    rewards: {
+      ...DEFAULT_NPC_GANG_RULES.rewards,
+      ...ruleset.npcGangs?.rewards,
+      bountyCents: { ...DEFAULT_NPC_GANG_RULES.rewards.bountyCents, ...ruleset.npcGangs?.rewards?.bountyCents },
+    },
   };
 }

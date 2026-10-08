@@ -846,6 +846,9 @@ export interface AdminDevBotsDto {
     /** Phase L. Gangs on a run, and gangs gone to ground. */
     hot: number;
     dormant: number;
+    /** Phase N. Bounties paid in the last day, gangs broken up this round. */
+    bounties24h: { count: number; cents: number };
+    retired: number;
     cities: Array<{
       city: string;
       activeGangs: number;
@@ -915,6 +918,9 @@ export interface AdminDevBotsDto {
         momentum: number;
         mood: 'HOT' | 'STEADY' | 'COOLED' | 'DORMANT';
         dormancy: { reason: string; since: string; until: string; wokeAt: string | null } | null;
+        /** Phase N. Times grounded this round, and the break-up if it happened. */
+        dormancies: number;
+        retired: { reason: string; at: string } | null;
       } | null;
     } | null;
   }>;
