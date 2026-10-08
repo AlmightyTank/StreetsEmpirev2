@@ -1009,16 +1009,19 @@ export const DiscordBotService = {
   /**
    * Everything due to announce, each handed out once: the public raid feed and round-end
    * posts, plus DMs. Collecting first means a DM never waits for the server's own timer.
+   * `feed: false` (the bot can't post in its raid feed) leaves feed events waiting, since a
+   * claimed event counts as posted.
    */
-  async claimAlerts(prisma: PrismaClient): Promise<DiscordAlertsClaimDto> {
+  async claimAlerts(prisma: PrismaClient, options: { feed?: boolean } = {}): Promise<DiscordAlertsClaimDto> {
     const now = new Date();
+    const feed = options.feed ?? true;
     await NotificationService.collect(prisma, now);
-    const [battles, turf, blockWars, territory, crackdowns, rounds, factions, dms] = await Promise.all([
-      claimBattles(prisma, now),
-      claimTurf(prisma, now),
-      claimBlockWars(prisma, now),
-      claimTerritory(prisma, now),
-      claimCrackdowns(prisma, now),
+    const [battles, turf, blockWars, territory, crackdowns, rounds, dms] = await Promise.all([
+      feed ? claimBattles(prisma, now) : [],
+      feed ? claimTurf(prisma, now) : [],
+      feed ? claimBlockWars(prisma, now) : [],
+      feed ? claimTerritory(prisma, now) : [],
+      feed ? claimCrackdowns(prisma, now) : [],
       claimRoundEnds(prisma, now),
       claimFactions(prisma, now),
       NotificationService.claimDiscord(prisma, now),
