@@ -813,9 +813,8 @@ export const CommunityService = {
         rulesetVersion: true,
         startsAt: true,
         endsAt: true,
-        _count: { select: { players: true } },
         players: {
-          where: { nationalRank: { not: null, lte: 10 }, account: { isActive: true } },
+          where: { nationalRank: { not: null, lte: 10 }, account: { isActive: true }, npcGang: { is: null } },
           orderBy: [{ nationalRank: 'asc' }, { netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
           select: {
             nationalRank: true,
@@ -855,13 +854,16 @@ export const CommunityService = {
           joinedAt: player.createdAt.toISOString(),
           lastActiveAt: player.lastActiveAt.toISOString(),
         }));
-        const territory = await TurfHistoryService.board(
-          prisma,
-          round.id,
-          loadRulesetForRound(round),
-          null,
-          round.endsAt,
-        );
+        const [territory, playerCount] = await Promise.all([
+          TurfHistoryService.board(
+            prisma,
+            round.id,
+            loadRulesetForRound(round),
+            null,
+            round.endsAt,
+          ),
+          prisma.roundPlayer.count({ where: { roundId: round.id, npcGang: { is: null } } }),
+        ]);
         return {
           id: round.id,
           name: round.name,
@@ -871,7 +873,7 @@ export const CommunityService = {
           rulesetVersion: round.rulesetVersion,
           startsAt: round.startsAt.toISOString(),
           endedAt: round.endsAt.toISOString(),
-          playerCount: round._count.players,
+          playerCount,
           podium: topTen.filter((player) => player.rank <= podiumSize),
           topTen,
           territory: territory ? {
@@ -912,13 +914,13 @@ export const CommunityService = {
     await RelocationService.settleDue(prisma, player.roundId, now);
     const [nationalRows, localRows] = await Promise.all([
       prisma.roundPlayer.findMany({
-        where: { roundId: player.roundId, account: { isActive: true } },
+        where: { roundId: player.roundId, account: { isActive: true }, npcGang: { is: null } },
         include: { city: true, alliance: { select: { name: true, tag: true } } },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: topCount,
       }),
       prisma.roundPlayer.findMany({
-        where: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } },
+        where: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true }, npcGang: { is: null } },
         include: { city: true, alliance: { select: { name: true, tag: true } } },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: topCount,
@@ -978,7 +980,7 @@ export const CommunityService = {
 
     const [nationalAhead, localAhead, forumLink] = await Promise.all([
       prisma.roundPlayer.count({
-        where: { roundId, netWorthCents: { gt: player.netWorthCents }, account: { isActive: true } },
+        where: { roundId, netWorthCents: { gt: player.netWorthCents }, account: { isActive: true }, npcGang: { is: null } },
       }),
       prisma.roundPlayer.count({
         where: {
@@ -986,6 +988,7 @@ export const CommunityService = {
           cityId: player.cityId,
           netWorthCents: { gt: player.netWorthCents },
           account: { isActive: true },
+          npcGang: { is: null },
         },
       }),
       // Same rules as the forum-side lookup: linking enabled and the current forum only.

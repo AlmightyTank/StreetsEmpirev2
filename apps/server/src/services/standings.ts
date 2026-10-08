@@ -26,7 +26,7 @@ export function playerUrl(publicPimpId: number): string {
 /** Active players of a round, richest first, with tie-aware ranks. */
 export async function roundStandings(prisma: Pick<PrismaClient, 'roundPlayer'>, roundId: string) {
   const players = await prisma.roundPlayer.findMany({
-    where: { roundId, account: { isActive: true } },
+    where: { roundId, account: { isActive: true }, npcGang: { is: null } },
     orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
     select: { accountId: true, publicPimpId: true, displayName: true, netWorthCents: true, city: { select: { name: true } } },
   });

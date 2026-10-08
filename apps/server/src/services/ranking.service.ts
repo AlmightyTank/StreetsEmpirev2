@@ -49,6 +49,7 @@ export const RankingService = {
         roundId,
         netWorthCents: { gt: netWorthCents },
         account: { isActive: true },
+        npcGang: { is: null },
         ...(excludePlayerId ? { id: { not: excludePlayerId } } : {}),
       },
     });
@@ -68,6 +69,7 @@ export const RankingService = {
         cityId,
         netWorthCents: { gt: netWorthCents },
         account: { isActive: true },
+        npcGang: { is: null },
         ...(excludePlayerId ? { id: { not: excludePlayerId } } : {}),
       },
     });

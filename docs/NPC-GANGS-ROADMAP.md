@@ -426,8 +426,10 @@ Delivered:
 - **Fix:** NPC action ids were the gang id plus a UUID, past the shared 64-character
   limit, so combat refused every NPC hit since Phase C. They are now short and tested.
 
-Not decided: crews are ordinary round players, so they appear in rankings and could
-take season-end placements from humans.
+Decided: crews keep ordinary round-player bodies internally so stores, combat,
+turf, travel and reports stay in one world, but human-facing standings are
+human-only. NPC crews do not take ranking, season-end, Hall of Fame or Discord
+role placement from humans.
 
 ## Open Balance Questions
 

@@ -29,6 +29,7 @@ describe('finalStandingRanks', () => {
       { id: 'c', cityId: 'detroit', netWorthCents: 400n, localRank: null, nationalRank: null, account: { isActive: true } },
       { id: 'd', cityId: 'nyc', netWorthCents: 300n, localRank: null, nationalRank: null, account: { isActive: true } },
       { id: 'inactive', cityId: 'detroit', netWorthCents: 999n, localRank: 1, nationalRank: 1, account: { isActive: false } },
+      { id: 'npc', cityId: 'nyc', netWorthCents: 999n, localRank: 1, nationalRank: 1, account: { isActive: true }, npcGang: { id: 'gang-1' } },
     ]);
 
     expect(Object.fromEntries(ranks)).toEqual({
@@ -37,6 +38,7 @@ describe('finalStandingRanks', () => {
       c: { localRank: 1, nationalRank: 2 },
       d: { localRank: 3, nationalRank: 4 },
       inactive: { localRank: null, nationalRank: null },
+      npc: { localRank: null, nationalRank: null },
     });
   });
 });
