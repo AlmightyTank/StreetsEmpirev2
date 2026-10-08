@@ -7,6 +7,8 @@ import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { devBotAccountWhere, devBotsBlockedReason, removeDevBots, seedDevBots } from './dev-bots.service.js';
 import { storedMigrationPlan } from './npc-gang-migration.js';
+import { npcMood, storedDormancy, storedMomentum } from './npc-gang-momentum.js';
+import { DEFAULT_NPC_GANG_RULES, npcRules } from './npc-gang-rules.js';
 import { openNpcGrudges, storedNpcGrudges } from './npc-gang-memory.js';
 import { RoundService } from './round.service.js';
 
@@ -67,6 +69,17 @@ function npcGangTurf(root: Prisma.JsonObject): AdminNpcGang['turf'] {
     recentLosses: numberField(turf.recentLosses),
     pressure: numberField(turf.pressure),
     lastMove: moveKind && moveAt ? { kind: moveKind, districtName: stringField(move.districtName) ?? '', at: moveAt, detail: moveDetail } : null,
+  };
+}
+
+/** Phase L. A gang whose dormancy is still running reads as dormant whatever its momentum. */
+function npcGangMood(memory: Prisma.JsonValue, dormantUntil: Date | null, escalation: ReturnType<typeof npcRules>['escalation'], now: Date): Pick<AdminNpcGang, 'momentum' | 'mood' | 'dormancy'> {
+  const momentum = storedMomentum(memory);
+  const dormancy = storedDormancy(memory);
+  return {
+    momentum,
+    mood: dormantUntil && dormantUntil > now ? 'DORMANT' : npcMood(momentum, escalation),
+    dormancy: dormancy ? { reason: dormancy.reason, since: dormancy.since, until: dormancy.until, wokeAt: dormancy.wokeAt } : null,
   };
 }
 
@@ -259,6 +272,8 @@ export const AdminDevBotsService = {
     }
 
     const npcGangs = currentPlayers.flatMap((player) => player.npcGang ? [player.npcGang] : []);
+    const escalation = round ? npcRules(loadRulesetForRound(round)).escalation : DEFAULT_NPC_GANG_RULES.escalation;
+    const moodOf = (gang: (typeof npcGangs)[number]) => npcGangMood(gang.memory, gang.dormantUntil, escalation, now).mood;
     const acted24h = npcGangs.filter((gang) => gang.lastActionAt && gang.lastActionAt >= since).length;
     const blocked24h = currentPlayers.filter((player) => {
       if (!player.npcGang?.lastActionAt || player.npcGang.lastActionAt < since) return false;
@@ -278,6 +293,8 @@ export const AdminDevBotsService = {
         openGrudges,
         revenge24h,
         heldBlocks,
+        hot: npcGangs.filter((gang) => moodOf(gang) === 'HOT').length,
+        dormant: npcGangs.filter((gang) => moodOf(gang) === 'DORMANT').length,
         migrating: currentPlayers.filter((player) => player.npcGang && npcGangMigration(player.npcGang.memory, player.movingUntil, now).migration).length,
         cities: Array.from(cityRows.values())
           .sort((left, right) => right.recentHits - left.recentHits || right.dueNow - left.dueNow || left.city.localeCompare(right.city))
@@ -328,6 +345,7 @@ export const AdminDevBotsService = {
                       turf: memory?.turf ?? null,
                       currentCity: player.city.name,
                       ...npcGangMigration(player.npcGang.memory, player.movingUntil, now),
+                      ...npcGangMood(player.npcGang.memory, player.npcGang.dormantUntil, escalation, now),
                     }
                   : null,
               }

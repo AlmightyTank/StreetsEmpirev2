@@ -32,6 +32,8 @@ import { assertNotPaused, fitThugs, toState, workingWhores } from './action.serv
 import { BusinessService } from './business.service.js';
 import { TurfService } from './turf.service.js';
 import { storedMigrationPlan } from './npc-gang-migration.js';
+import { npcMood, storedMomentum } from './npc-gang-momentum.js';
+import { npcRules } from './npc-gang-rules.js';
 import { ActivityService } from './activity.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
@@ -788,7 +790,7 @@ async function npcMovementAround(prisma: PrismaClient, player: PlayerWithCity, r
 async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date): Promise<NpcGangIntelDto | undefined> {
   if (ruleset.npcGangs?.enabled === false) return undefined;
   const seenSince = new Date(now.getTime() - 24 * 3_600_000);
-  const [gangs, recentRows, grudges, turf, movement] = await Promise.all([
+  const [gangs, recentRows, grudges, turf, movement, dormant] = await Promise.all([
     prisma.npcGang.findMany({
       where: {
         // Phase K: a crew on the road out is not a local problem any more.
@@ -802,6 +804,7 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
         ambition: true,
         discipline: true,
         lastActionAt: true,
+        memory: true,
         roundPlayer: { select: { displayName: true } },
       },
       orderBy: [{ aggression: 'desc' }, { ambition: 'desc' }],
@@ -829,14 +832,20 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     npcGrudgesAgainst(prisma, player, ruleset, now),
     npcTurfAround(prisma, player, ruleset, now),
     npcMovementAround(prisma, player, ruleset, now),
+    // Phase L: crews gone to ground still live here; they are just not moving.
+    prisma.npcGang.count({ where: { dormantUntil: { gt: now }, roundPlayer: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } } } }),
   ]);
+  const escalation = npcRules(ruleset).escalation;
+  const moods = gangs.map((gang) => npcMood(storedMomentum(gang.memory), escalation));
+  const hot = moods.filter((mood) => mood === 'HOT').length;
+  const cooled = moods.filter((mood) => mood === 'COOLED').length;
 
   const recent = recentRows.filter((battle) => Boolean(battle.attacker.npcGang));
   const recentDriveBys = recent.filter((battle) => storedReportKind(battle) === 'DRIVE_BY').length;
   const recentSpecialRaids = recent.filter((battle) => ['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW'].includes(storedReportKind(battle))).length;
   const maxAggression = Math.max(0, ...gangs.map((gang) => gang.aggression), ...recent.map((battle) => battle.attacker.npcGang?.aggression ?? 0));
   const dangerScore = gangs.length + recent.length * 2 + recentDriveBys * 2 + recentSpecialRaids + grudges.wantedBy * 2 + turf.blocks.length + (turf.onTheirTurf ? 2 : 0)
-    + movement.inbound.length * 2 + movement.newArrivals * 2 + Math.floor(maxAggression / 25);
+    + movement.inbound.length * 2 + movement.newArrivals * 2 + hot * 2 - cooled + Math.floor(maxAggression / 25);
   const danger: NpcGangIntelDto['danger'] = dangerScore >= 8 ? 'HOT' : dangerScore >= 3 ? 'ACTIVE' : 'QUIET';
   const top = gangs[0] ?? recent.find((battle) => battle.attacker.npcGang)?.attacker.npcGang ?? null;
   const rumors: string[] = [];
@@ -851,6 +860,9 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
   } else if (turf.blocks.length) {
     rumors.push(`A server-run crew is holding ${turf.blocks.join(' and ')}. Working there puts you on their radar.`);
   }
+  if (hot) rumors.push(`${hot === 1 ? 'A local crew is' : `${hot} local crews are`} on a run and getting bolder by the day.`);
+  if (cooled) rumors.push(`${cooled === 1 ? 'A local crew took' : `${cooled} local crews took`} some beatings and ${cooled === 1 ? 'is' : 'are'} keeping their heads down.`);
+  if (dormant) rumors.push(`${dormant === 1 ? 'A crew has' : `${dormant} crews have`} gone to ground after one beating too many. They will be back.`);
   if (movement.inbound.length) {
     const from = [...new Set(movement.inbound.map((move) => move.fromName))].join(' and ');
     rumors.push(movement.inbound.length === 1
@@ -884,6 +896,7 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     ...(grudges.wantedBy && grudges.wantedUntil ? { wantedBy: grudges.wantedBy, wantedUntil: grudges.wantedUntil.toISOString() } : {}),
     ...(turf.blocks.length ? { npcBlocks: turf.blocks, onTheirTurf: turf.onTheirTurf } : {}),
     ...(movement.inbound.length || movement.leaving || movement.packing || movement.newArrivals ? { movement } : {}),
+    ...(hot || cooled || dormant ? { mood: { hot, cooled, dormant } } : {}),
     rumors: rumors.slice(0, 5),
   };
 }

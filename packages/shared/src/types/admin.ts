@@ -843,6 +843,9 @@ export interface AdminDevBotsDto {
     heldBlocks: number;
     /** Phase K. Gangs packing up or on the road. */
     migrating: number;
+    /** Phase L. Gangs on a run, and gangs gone to ground. */
+    hot: number;
+    dormant: number;
     cities: Array<{
       city: string;
       activeGangs: number;
@@ -903,6 +906,10 @@ export interface AdminDevBotsDto {
         currentCity: string;
         migration: { status: 'PACKING' | 'MOVING'; toName: string; reason: string; since: string; arrivesAt: string | null } | null;
         lastMigration: { fromName: string; toName: string; reason: string; at: string } | null;
+        /** Phase L. Momentum as of the last tick, how it reads, and the current or last dormancy. */
+        momentum: number;
+        mood: 'HOT' | 'STEADY' | 'COOLED' | 'DORMANT';
+        dormancy: { reason: string; since: string; until: string; wokeAt: string | null } | null;
       } | null;
     } | null;
   }>;

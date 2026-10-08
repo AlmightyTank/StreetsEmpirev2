@@ -669,6 +669,18 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 tooltip="Server-run crews hold these corners like anyone else. They lean on crews that work their blocks, and you can push them off."
               />
             ) : null}
+            {page.npcGangIntel.mood ? (
+              <Row
+                label="Crew mood"
+                value={[
+                  page.npcGangIntel.mood.hot ? `${formatNumber(page.npcGangIntel.mood.hot)} on a run` : null,
+                  page.npcGangIntel.mood.cooled ? `${formatNumber(page.npcGangIntel.mood.cooled)} licking wounds` : null,
+                  page.npcGangIntel.mood.dormant ? `${formatNumber(page.npcGangIntel.mood.dormant)} gone to ground` : null,
+                ].filter(Boolean).join(' · ')}
+                strong={page.npcGangIntel.mood.hot > 0}
+                tooltip="Crews that keep winning get bolder and move faster. Beat them enough, or keep hitting them, and they go to ground for a while."
+              />
+            ) : null}
             {page.npcGangIntel.movement?.inbound.length ? (
               <Row
                 label="Crews inbound"

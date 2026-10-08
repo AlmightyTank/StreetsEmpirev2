@@ -1,6 +1,6 @@
 # NPC Gangs Roadmap
 
-Status: **Phases A-K built in beta. Phase L is next.**
+Status: **Phases A-L built in beta. Phase M is next.**
 
 NPC gangs are server-run seasonal crews that use the same core systems players use:
 round players, cities, stores, production, raids, drive-bys, special raid forms,
@@ -39,7 +39,7 @@ or hitting players with unavoidable punishment.
 | I | Built | Retaliation memory so NPC gangs remember attackers and can revenge-hit within limits. |
 | J | Built | Turf behavior so NPC gangs claim, defend, pressure or abandon territory. |
 | K | Built | Travel and migration so stronger gangs can relocate between cities. Crew runs are a follow-up. |
-| L | Planned | Escalation and dormancy so gangs heat up, cool down, recover or lay low. |
+| L | Built | Escalation and dormancy so gangs heat up, cool down, recover or lay low. |
 | M | Planned | Boss and archetype personalities with named gangs and distinct patterns. |
 | N | Planned | Rewards and cleanup for beating NPC gangs or relieving city pressure. |
 | O | Started | Admin controls for spawning, pausing, dormancy, tuning and memory inspection. |
@@ -232,23 +232,38 @@ Delivered:
 Not yet: NPC trade runs ("sending crews") between cities. Runs bring tails,
 ambushes and trunk loot, which is its own balance pass.
 
-## Remaining Phases
-
 ### Phase L: Escalation & Dormancy
 
-NPC gangs heat up when successful, cool down after losses, go dormant when
-repeatedly beaten, and recover over time.
+Gangs heat up when they win, cool down when they lose, go to ground when beaten
+or over-targeted, and come back on a clean slate. Rules live in
+`npcGangs.escalation`; server defaults are in `npc-gang-rules.ts`.
 
-Goals:
+Delivered:
 
-- Increase pressure after wins or profitable runs.
-- Reduce pressure after losses, blocked actions or repeated player suppression.
-- Use dormancy to cool down gangs that are failing or over-targeted.
-- Let dormant gangs recover supplies and re-enter later.
+- **Momentum:** rebuilt each tick from the gang's raid battles since it last woke
+  (inside `windowHours`), each fight fading on `halfLifeHours`. Wins add
+  (`attackWin`, plus `profitBonus` when cash came home), losses subtract, defended
+  hits add a little, and each consecutive blocked move costs `blockedPenalty`.
+  Capped at plus or minus `maxMomentum`.
+- **Escalation:** momentum shifts aggression by `aggressionPerPoint` (capped at
+  `maxAggressionShift`) and pacing by up to `maxPaceShift`, so a hot gang reaches
+  for violent moves sooner and more often; a cooled one backs off and slows down.
+  Traits never change; the shift is applied per tick.
+- **Dormancy:** at or below `dormantBelow`, or after `overTargetedHits` human hits in
+  `overTargetedHours` (win or lose), the gang pulls its corner and goes to ground for
+  `dormantMinHours` to `dormantMaxHours` (deeper holes and over-targeting run
+  longest). It uses the existing `NpcGang.dormantUntil`, which the scheduler and intel
+  already respect. A gang at war fights it out first; a packing gang just leaves.
+- **Recovery:** turns, healing and corner settlement keep running while dormant. On
+  waking, fights from before count for nothing, so the gang starts steady, and its
+  first move is a restock if it needs one.
+- **Intel:** street rumors call out crews on a run, crews licking wounds, and crews
+  gone to ground; a "Crew mood" row sums them. Hot crews raise local danger; cooled
+  ones lower it.
+- **Admin:** gangs on a run and gone to ground in the summary, and per gang its
+  mood, momentum, dormancy reason and return time, or when it last woke.
 
-Gate:
-
-- NPC gangs feel reactive instead of ticking forever at one fixed danger level.
+## Remaining Phases
 
 ### Phase M: Boss/Archetype Personalities
 
@@ -297,6 +312,7 @@ Current support already built:
 - Per-bot grudge memory with expiry, settled state and last payback (Phase I).
 - Per-bot turf: held corners, prospect presence, strain and last turf move (Phase J).
 - Per-bot migration: current city, packing or on the road, reason, last move (Phase K).
+- Per-bot mood, momentum and dormancy (Phase L).
 - CLI status script includes the latest NPC gang outcome.
 
 Future controls:
@@ -324,6 +340,7 @@ Current support already built:
 - Open grudges, 24h paybacks and per-city payback counts (Phase I).
 - NPC-held blocks in total and per city (Phase J).
 - Gangs packing or moving, and inbound trucks per city (Phase K).
+- Gangs on a run and gone to ground (Phase L).
 
 Future telemetry:
 

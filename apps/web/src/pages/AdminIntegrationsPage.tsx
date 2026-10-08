@@ -214,6 +214,7 @@ export function AdminIntegrationsPage() {
                   <Row label="Paybacks in 24h" value={formatNumber(bots.npcGangSummary.revenge24h)} />
                   <Row label="Blocks held" value={formatNumber(bots.npcGangSummary.heldBlocks)} />
                   <Row label="Packing or moving" value={formatNumber(bots.npcGangSummary.migrating)} strong={bots.npcGangSummary.migrating > 0} />
+                  <Row label="On a run · gone to ground" value={`${formatNumber(bots.npcGangSummary.hot)} · ${formatNumber(bots.npcGangSummary.dormant)}`} strong={bots.npcGangSummary.hot > 0} />
                 </div>
                 {bots.npcGangSummary.cities.length ? (
                   <ol className="se-admin-list">
@@ -300,6 +301,12 @@ export function AdminIntegrationsPage() {
                                     {bot.inCurrentRound.npcGang.turf.lastMove.detail ? ` · ${bot.inCurrentRound.npcGang.turf.lastMove.detail}` : ''}
                                   </p>
                                 ) : null}
+                                <p className="se-hint">
+                                  Mood {bot.inCurrentRound.npcGang.mood.toLowerCase()} · momentum {bot.inCurrentRound.npcGang.momentum > 0 ? '+' : ''}{bot.inCurrentRound.npcGang.momentum}
+                                  {bot.inCurrentRound.npcGang.mood === 'DORMANT' && bot.inCurrentRound.npcGang.dormancy
+                                    ? ` · ${bot.inCurrentRound.npcGang.dormancy.reason.toLowerCase().replace(/_/g, ' ')}, back ${timing(bot.inCurrentRound.npcGang.dormancy.until)}`
+                                    : bot.inCurrentRound.npcGang.dormancy?.wokeAt ? ` · woke ${ago(bot.inCurrentRound.npcGang.dormancy.wokeAt)}` : ''}
+                                </p>
                                 {bot.inCurrentRound.npcGang.migration ? (
                                   <p className="se-hint">
                                     {bot.inCurrentRound.npcGang.migration.status === 'MOVING'

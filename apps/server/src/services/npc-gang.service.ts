@@ -13,7 +13,12 @@ import type { NpcGangRules, SpecialRaidKind } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 import { fitThugs } from './action.service.js';
 import { CombatService, combatProtectionUntil } from './combat.service.js';
+import { npcRules } from './npc-gang-rules.js';
 import { buildNpcGrudges, grudgesJson, openNpcGrudges, type NpcGrudge } from './npc-gang-memory.js';
+import {
+  dormancyCall, loadNpcFights, momentumAggression, momentumPace, npcMomentum, storedDormancy, storedMomentum,
+  type NpcDormancy,
+} from './npc-gang-momentum.js';
 import {
   chooseMigration, destinationOpen, loadNpcCityStats, npcLostFights, npcRevengeOpenUntil, storedMigrationPlan,
   type NpcMigrationPlan,
@@ -66,52 +71,10 @@ type NpcGangIntent = 'RESTOCK' | 'PRODUCE' | 'RAID_PLAYER' | 'DRIVE_BY_PLAYER' |
 type NpcGangOutcome =
   | 'RESTOCKED' | 'PRODUCED' | 'RAIDED' | 'DROVE_BY' | 'SPECIAL_RAIDED'
   | 'WORKED_TURF' | 'CLAIMED_TURF' | 'TURF_CLAIM_LOST' | 'DEFENDED_TURF' | 'ABANDONED_TURF'
-  | 'MIGRATED' | 'LAY_LOW' | 'BLOCKED' | 'SKIPPED';
+  | 'MIGRATED' | 'WENT_DORMANT' | 'LAY_LOW' | 'BLOCKED' | 'SKIPPED';
 type NpcGangIntentCandidate = { intent: NpcGangIntent; weight: number };
 
 const SPECIAL_RAID_KINDS = ['STEAL_RIDE', 'LURE_CREW', 'DRUG_HOES'] as const satisfies readonly SpecialRaidKind[];
-
-const DEFAULT_NPC_GANG_RULES: NpcGangRules = {
-  enabled: true,
-  tickMinutes: 5,
-  maxActionsPerTick: 6,
-  maxPerCity: 4,
-  retaliationHours: 24,
-  revengeAggressionBoost: 20,
-  revengeIntentBonus: 30,
-  turf: {
-    enabled: true,
-    minAmbition: 50,
-    maxBlocksPerGang: 1,
-    maxNpcBlocksPerCity: 2,
-    reinforceBelowMinimum: 1.25,
-    supplyHours: 12,
-    abandonAfterLosses: 3,
-    lossWindowHours: 24,
-    pressureIntentBonus: 15,
-  },
-  migration: {
-    enabled: true,
-    tiers: ['VETERAN', 'KINGPIN'],
-    evaluateEveryHours: 6,
-    minStayHours: 36,
-    activeHumanHours: 24,
-    quietBelowHumans: 2,
-    humansPerGang: 3,
-    hostileLosses: 4,
-    betterByHumans: 4,
-    packingHours: 36,
-  },
-};
-
-function npcRules(ruleset: Ruleset): NpcGangRules {
-  return {
-    ...DEFAULT_NPC_GANG_RULES,
-    ...ruleset.npcGangs,
-    turf: { ...DEFAULT_NPC_GANG_RULES.turf, ...ruleset.npcGangs?.turf },
-    migration: { ...DEFAULT_NPC_GANG_RULES.migration, ...ruleset.npcGangs?.migration },
-  };
-}
 
 function memoryObject(value: Prisma.JsonValue): Prisma.InputJsonObject {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -119,7 +82,7 @@ function memoryObject(value: Prisma.JsonValue): Prisma.InputJsonObject {
     : {};
 }
 
-function nextActionAt(now: Date, gang: Pick<DueNpcGang, 'ambition' | 'discipline'>, rules: NpcGangRules, outcome: NpcGangOutcome): Date {
+function nextActionAt(now: Date, gang: Pick<DueNpcGang, 'ambition' | 'discipline' | 'memory'>, rules: NpcGangRules, outcome: NpcGangOutcome): Date {
   const tick = Math.max(1, rules.tickMinutes);
   const multiplier = outcome === 'DROVE_BY'
     ? 14
@@ -144,7 +107,9 @@ function nextActionAt(now: Date, gang: Pick<DueNpcGang, 'ambition' | 'discipline
         : 2;
   const ambitionNudge = outcome === 'PRODUCED' ? Math.round((100 - gang.ambition) / 25) : 0;
   const disciplineNudge = outcome === 'BLOCKED' ? Math.round(gang.discipline / 25) : 0;
-  return new Date(now.getTime() + Math.max(tick, tick * multiplier + ambitionNudge + disciplineNudge) * 60_000);
+  // Phase L. A hot crew moves sooner, a cooled one waits longer.
+  const pace = momentumPace(storedMomentum(gang.memory), rules.escalation);
+  return new Date(now.getTime() + Math.max(tick, (tick * multiplier + ambitionNudge + disciplineNudge) * pace) * 60_000);
 }
 
 function affordableQuantity(gang: DueNpcGang, ruleset: Ruleset, plan: NpcGangRestockPlan): number {
@@ -660,6 +625,8 @@ async function recordOutcome(
     memory?: Prisma.InputJsonObject;
     /** Phase K. Wake at this time instead of the outcome's normal pace, e.g. on arrival. */
     nextAt?: Date;
+    /** Phase L. Send the gang to ground until then. */
+    dormantUntil?: Date;
   },
 ): Promise<void> {
   const error = input.error instanceof AppError
@@ -672,6 +639,7 @@ async function recordOutcome(
     data: {
       lastActionAt: now,
       nextActionAt: input.nextAt ?? nextActionAt(now, gang, input.rules, input.outcome),
+      ...(input.dormantUntil ? { dormantUntil: input.dormantUntil } : {}),
       memory: {
         ...memoryObject(gang.memory),
         lastIntent: input.intent,
@@ -679,6 +647,8 @@ async function recordOutcome(
         lastActionAt: now.toISOString(),
         ...(input.detail !== undefined ? { lastDetail: input.detail } : {}),
         lastError: error ?? null,
+        // Phase L. Consecutive blocked moves cost momentum.
+        blockedStreak: input.outcome === 'BLOCKED' ? blockedStreak(gang.memory) + 1 : 0,
         ...input.memory,
       },
     },
@@ -719,6 +689,58 @@ function hitMemory(focus: NpcGangFocus, target: NpcGangCombatTarget, battleId: s
 }
 
 type NpcGangRun = { outcome: NpcGangOutcome; revenge: boolean };
+
+function blockedStreak(memory: Prisma.JsonValue): number {
+  const value = (memoryObject(memory) as Prisma.JsonObject).blockedStreak;
+  return typeof value === 'number' && value > 0 ? value : 0;
+}
+
+type NpcGangMomentum = { momentum: number; humanHits: number; dormancy: NpcDormancy | null; woke: boolean; lastWokeAt: string | null };
+
+/**
+ * Phase L. Momentum from the gang's fights since it last woke (inside the window), and
+ * whether this tick is the first one after a dormancy ended.
+ */
+async function gangMomentum(prisma: PrismaClient, gang: DueNpcGang, rules: NpcGangRules, now: Date): Promise<NpcGangMomentum> {
+  const settings = rules.escalation;
+  const memory = memoryObject(gang.memory) as Prisma.JsonObject;
+  const stored = storedDormancy(gang.memory);
+  const woke = Boolean(stored && !stored.wokeAt && Date.parse(stored.until) <= now.getTime());
+  const lastWokeAt = woke ? now.toISOString() : stringField(memory.lastWokeAt);
+  const dormancy = stored && woke ? { ...stored, wokeAt: now.toISOString() } : stored;
+  if (!settings.enabled) return { momentum: 0, humanHits: 0, dormancy, woke, lastWokeAt };
+
+  const windowStart = now.getTime() - Math.max(1, settings.windowHours) * 3_600_000;
+  const since = new Date(Math.max(windowStart, lastWokeAt ? Date.parse(lastWokeAt) : 0));
+  const fights = await loadNpcFights(prisma, gang.roundPlayerId, since);
+  const hitCutoff = now.getTime() - Math.max(1, settings.overTargetedHours) * 3_600_000;
+  return {
+    momentum: npcMomentum(fights, woke ? 0 : blockedStreak(gang.memory), settings, now),
+    humanHits: fights.filter((fight) => !fight.attacker && fight.human && fight.at.getTime() >= hitCutoff).length,
+    dormancy,
+    woke,
+    lastWokeAt,
+  };
+}
+
+function rememberMomentum(gang: DueNpcGang, state: NpcGangMomentum): DueNpcGang {
+  return {
+    ...gang,
+    memory: {
+      ...(memoryObject(gang.memory) as Prisma.JsonObject),
+      momentum: state.momentum,
+      ...(state.dormancy ? { dormancy: { ...state.dormancy } } : {}),
+      ...(state.lastWokeAt ? { lastWokeAt: state.lastWokeAt } : {}),
+      ...(state.woke ? { blockedStreak: 0 } : {}),
+    },
+  };
+}
+
+/** Phase L. Hot gangs push harder, cooled ones back off; the trait itself never changes. */
+function temperedGang(gang: DueNpcGang, momentum: number, rules: NpcGangRules): DueNpcGang {
+  const shift = momentumAggression(momentum, rules.escalation);
+  return shift ? { ...gang, aggression: Math.max(0, Math.min(100, gang.aggression + shift)) } : gang;
+}
 
 /** Phase K. Codes that mean the destination or the money is gone, not just "not yet". */
 const MIGRATION_DEAD_ENDS = new Set(['NO_ROAD', 'UNKNOWN_CITY', 'NOT_ENOUGH_CASH', 'MOVES_CLOSED', 'MOVES_DISABLED']);
@@ -981,7 +1003,12 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
   const grudges = await loadGrudges(prisma, due, rules, now);
   const turf = await loadGangTurf(prisma, due, livingRuleset, rules, now);
   const migration = await migrationPlan(prisma, due, baseRuleset, rules, now);
-  const remembered = rememberMigration(rememberTurf(rememberGrudges(due, grudges), turf), migration, now);
+  const momentum = await gangMomentum(prisma, due, rules, now);
+  const remembered = temperedGang(
+    rememberMomentum(rememberMigration(rememberTurf(rememberGrudges(due, grudges), turf), migration, now), momentum),
+    momentum.momentum,
+    rules,
+  );
   const packing = migration.plan;
   const focus: NpcGangFocus = {
     grudges,
@@ -1000,6 +1027,28 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
       const moved = await tryMigrate(prisma, gang, baseRuleset, rules, now, packing);
       if (moved) return outcome(moved);
     }
+  }
+
+  // Phase L. Back from dormancy: regroup and restock before anything else.
+  if (momentum.woke && canRestock(gang, livingRuleset, now)) {
+    const restocked = await restock(prisma, gang, livingRuleset, rules, now);
+    if (restocked) return outcome(restocked);
+  }
+
+  // Phase L. Beaten or over-targeted: pull the corner, then go to ground. A war is fought out first.
+  const ground = packing ? null : dormancyCall({ momentum: momentum.momentum, humanHits: momentum.humanHits, rules: rules.escalation });
+  if (ground && !turf.held.some((block) => block.war)) {
+    const corner = turf.held[0];
+    if (corner) return outcome(await runTurfMove(prisma, gang, rules, now, { kind: 'ABANDON', block: corner, reason: 'LAYING_LOW' }, turfRng));
+    const until = new Date(now.getTime() + ground.hours * 3_600_000);
+    await recordOutcome(prisma, gang, now, {
+      intent: 'LAY_LOW', outcome: 'WENT_DORMANT', rules,
+      detail: { reason: ground.reason, momentum: momentum.momentum, humanHits: momentum.humanHits, until: until.toISOString() },
+      memory: { dormancy: { reason: ground.reason, since: now.toISOString(), until: until.toISOString(), momentum: momentum.momentum, wokeAt: null } },
+      nextAt: until,
+      dormantUntil: until,
+    });
+    return outcome('WENT_DORMANT');
   }
 
   const allTurfMoves = npcTurfMoves(turf, rules.turf, turfCapacity(gang, livingRuleset, rules));
@@ -1189,9 +1238,10 @@ export const NpcGangService = {
    * Phase I: gangs remember the humans who hit them and lean toward payback inside the window.
    * Phase J: gangs work, claim, reinforce and abandon locals' blocks through the player turf actions.
    * Phase K: stronger gangs pack up quietly and relocate when their city is hostile, crowded or dead.
+   * Phase L: wins heat a gang up and losses cool it down; beaten or over-targeted gangs go to ground.
    * The raid engine still owns combat legality, cooldowns and player alerts.
    */
-  async sweep(prisma: PrismaClient, now = new Date()): Promise<{ checked: number; acted: number; restocked: number; produced: number; raided: number; droveBy: number; specialRaided: number; revenged: number; turfMoves: number; migrated: number; blocked: number }> {
+  async sweep(prisma: PrismaClient, now = new Date()): Promise<{ checked: number; acted: number; restocked: number; produced: number; raided: number; droveBy: number; specialRaided: number; revenged: number; turfMoves: number; migrated: number; dormant: number; blocked: number }> {
     // Phase K. Bring in NPC trucks that have arrived, so due gangs are read in their new city.
     const arrived = await prisma.relocation.findMany({
       where: { arrivedAt: null, arrivesAt: { lte: now }, roundPlayer: { npcGang: { isNot: null } } },
@@ -1222,6 +1272,7 @@ export const NpcGangService = {
     let revenged = 0;
     let turfMoves = 0;
     let migrated = 0;
+    let dormant = 0;
     let blocked = 0;
     for (const gang of due) {
       const baseRuleset = loadRulesetForRound(gang.roundPlayer.round);
@@ -1238,9 +1289,10 @@ export const NpcGangService = {
       if (outcome === 'DROVE_BY') droveBy += 1;
       if (outcome === 'SPECIAL_RAIDED') specialRaided += 1;
       if (outcome === 'MIGRATED') migrated += 1;
+      if (outcome === 'WENT_DORMANT') dormant += 1;
       if (outcome === 'BLOCKED') blocked += 1;
     }
 
-    return { checked: due.length, acted, restocked, produced, raided, droveBy, specialRaided, revenged, turfMoves, migrated, blocked };
+    return { checked: due.length, acted, restocked, produced, raided, droveBy, specialRaided, revenged, turfMoves, migrated, dormant, blocked };
   },
 };

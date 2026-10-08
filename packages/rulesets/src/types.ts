@@ -810,6 +810,44 @@ export interface NpcGangRules {
   readonly turf: NpcGangTurfRules;
   /** Phase K. When stronger gangs pack up and relocate to another city. */
   readonly migration: NpcGangMigrationRules;
+  /** Phase L. How fights heat a gang up, cool it down or send it to ground. */
+  readonly escalation: NpcGangEscalationRules;
+}
+
+/**
+ * Phase L. Momentum is rebuilt each tick from the gang's own fights since it last woke,
+ * each one fading on `halfLifeHours`. It runs from -`maxMomentum` (beaten) to
+ * +`maxMomentum` (on a run) and shifts aggression and pacing; deep enough in the hole,
+ * or hit by too many humans, the gang goes dormant and comes back on a clean slate.
+ */
+export interface NpcGangEscalationRules {
+  readonly enabled: boolean;
+  readonly windowHours: number;
+  readonly halfLifeHours: number;
+  /** Momentum per fight, before fading. A profitable win adds `profitBonus` on top. */
+  readonly attackWin: number;
+  readonly profitBonus: number;
+  readonly attackLoss: number;
+  readonly defendWin: number;
+  readonly defendLoss: number;
+  /** Momentum lost per consecutive blocked move. */
+  readonly blockedPenalty: number;
+  readonly maxMomentum: number;
+  /** Aggression shifted per point of momentum, capped at `maxAggressionShift` either way. */
+  readonly aggressionPerPoint: number;
+  readonly maxAggressionShift: number;
+  /** Largest share pacing speeds up (hot) or slows down (cooled), e.g. 0.25. */
+  readonly maxPaceShift: number;
+  /** Momentum at or above which a gang reads as hot, and at or below which it reads as cooled. */
+  readonly hotAt: number;
+  readonly coolAt: number;
+  /** At or below this momentum a gang goes dormant. */
+  readonly dormantBelow: number;
+  /** Human hits on the gang inside `overTargetedHours` that send it to ground, win or lose. */
+  readonly overTargetedHits: number;
+  readonly overTargetedHours: number;
+  readonly dormantMinHours: number;
+  readonly dormantMaxHours: number;
 }
 
 /**
