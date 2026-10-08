@@ -213,6 +213,7 @@ export function AdminIntegrationsPage() {
                   <Row label="Open grudges" value={formatNumber(bots.npcGangSummary.openGrudges)} strong={bots.npcGangSummary.openGrudges > 0} />
                   <Row label="Paybacks in 24h" value={formatNumber(bots.npcGangSummary.revenge24h)} />
                   <Row label="Blocks held" value={formatNumber(bots.npcGangSummary.heldBlocks)} />
+                  <Row label="Packing or moving" value={formatNumber(bots.npcGangSummary.migrating)} strong={bots.npcGangSummary.migrating > 0} />
                 </div>
                 {bots.npcGangSummary.cities.length ? (
                   <ol className="se-admin-list">
@@ -227,6 +228,7 @@ export function AdminIntegrationsPage() {
                           {city.recentDriveBys || city.recentSpecialRaids ? ` · ${formatNumber(city.recentDriveBys)} drive-by · ${formatNumber(city.recentSpecialRaids)} special` : ''}
                           {city.recentRevengeHits ? ` · ${formatNumber(city.recentRevengeHits)} payback` : ''}
                           {city.heldBlocks.length ? ` · holding ${city.heldBlocks.join(', ')}` : ''}
+                          {city.inbound ? ` · ${formatNumber(city.inbound)} inbound` : ''}
                         </p>
                       </li>
                     ))}
@@ -263,7 +265,7 @@ export function AdminIntegrationsPage() {
                             {bot.inCurrentRound?.npcGang ? (
                               <>
                                 <strong>{bot.inCurrentRound.npcGang.tier}</strong>
-                                <span className="se-muted"> · {bot.inCurrentRound.npcGang.archetype} · {bot.inCurrentRound.npcGang.homeCity}</span>
+                                <span className="se-muted"> · {bot.inCurrentRound.npcGang.archetype} · {bot.inCurrentRound.npcGang.currentCity}{bot.inCurrentRound.npcGang.currentCity !== bot.inCurrentRound.npcGang.homeCity ? ` (from ${bot.inCurrentRound.npcGang.homeCity})` : ''}</span>
                                 <p className="se-hint">
                                   Next {timing(bot.inCurrentRound.npcGang.nextActionAt)}
                                   {bot.inCurrentRound.npcGang.lastOutcome ? ` · last ${bot.inCurrentRound.npcGang.lastOutcome.toLowerCase().replace(/_/g, ' ')}` : ''}
@@ -296,6 +298,18 @@ export function AdminIntegrationsPage() {
                                   <p className="se-hint">
                                     Last turf move: {bot.inCurrentRound.npcGang.turf.lastMove.kind.toLowerCase()} {bot.inCurrentRound.npcGang.turf.lastMove.districtName} {ago(bot.inCurrentRound.npcGang.turf.lastMove.at)}
                                     {bot.inCurrentRound.npcGang.turf.lastMove.detail ? ` · ${bot.inCurrentRound.npcGang.turf.lastMove.detail}` : ''}
+                                  </p>
+                                ) : null}
+                                {bot.inCurrentRound.npcGang.migration ? (
+                                  <p className="se-hint">
+                                    {bot.inCurrentRound.npcGang.migration.status === 'MOVING'
+                                      ? `On the road to ${bot.inCurrentRound.npcGang.migration.toName}, arrives ${timing(bot.inCurrentRound.npcGang.migration.arrivesAt)}`
+                                      : `Packing for ${bot.inCurrentRound.npcGang.migration.toName} since ${ago(bot.inCurrentRound.npcGang.migration.since)}`}
+                                    {` · ${bot.inCurrentRound.npcGang.migration.reason.toLowerCase()}`}
+                                  </p>
+                                ) : bot.inCurrentRound.npcGang.lastMigration ? (
+                                  <p className="se-hint">
+                                    Moved {bot.inCurrentRound.npcGang.lastMigration.fromName} to {bot.inCurrentRound.npcGang.lastMigration.toName} {ago(bot.inCurrentRound.npcGang.lastMigration.at)} · {bot.inCurrentRound.npcGang.lastMigration.reason.toLowerCase()}
                                   </p>
                                 ) : null}
                                 {bot.inCurrentRound.npcGang.lastRevenge ? (

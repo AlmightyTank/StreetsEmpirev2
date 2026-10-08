@@ -841,6 +841,8 @@ export interface AdminDevBotsDto {
     revenge24h: number;
     /** Phase J. Blocks NPC gangs hold across the round right now. */
     heldBlocks: number;
+    /** Phase K. Gangs packing up or on the road. */
+    migrating: number;
     cities: Array<{
       city: string;
       activeGangs: number;
@@ -850,6 +852,8 @@ export interface AdminDevBotsDto {
       recentSpecialRaids: number;
       recentRevengeHits: number;
       heldBlocks: string[];
+      /** Phase K. NPC trucks on the road into this city. */
+      inbound: number;
       nextActionAt: string | null;
     }>;
   };
@@ -895,6 +899,10 @@ export interface AdminDevBotsDto {
           pressure: number;
           lastMove: { kind: string; districtName: string; at: string; detail: string | null } | null;
         } | null;
+        /** Phase K. Where the gang lives now, and any move it is packing for or driving. */
+        currentCity: string;
+        migration: { status: 'PACKING' | 'MOVING'; toName: string; reason: string; since: string; arrivesAt: string | null } | null;
+        lastMigration: { fromName: string; toName: string; reason: string; at: string } | null;
       } | null;
     } | null;
   }>;

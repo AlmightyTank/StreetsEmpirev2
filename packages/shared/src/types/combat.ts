@@ -222,6 +222,13 @@ export interface NpcGangIntelDto {
   /** Phase J. Blocks server-run crews hold in this city, and whether your crew works one of them. */
   npcBlocks?: string[];
   onTheirTurf?: boolean;
+  /** Phase K. Crews moving around this city. Absent when nothing is moving. */
+  movement?: {
+    inbound: Array<{ fromName: string; arrivesAt: string }>;
+    leaving: number;
+    packing: number;
+    newArrivals: number;
+  };
   rumors: string[];
 }
 

@@ -808,6 +808,35 @@ export interface NpcGangRules {
   readonly revengeIntentBonus: number;
   /** Phase J. How NPC gangs hold blocks through the same turf actions players use. */
   readonly turf: NpcGangTurfRules;
+  /** Phase K. When stronger gangs pack up and relocate to another city. */
+  readonly migration: NpcGangMigrationRules;
+}
+
+/**
+ * Phase K. NPC migration is an ordinary relocation: fee, time on the road, cooldown and
+ * the round-end cutoff all apply, and a gang cannot leave while someone it hit can still
+ * hit back. A gang that decides to move goes quiet first, so the move is readable.
+ */
+export interface NpcGangMigrationRules {
+  readonly enabled: boolean;
+  /** Only these tiers ever move house. */
+  readonly tiers: readonly NpcGangTier[];
+  /** How often a settled gang reconsiders its city. */
+  readonly evaluateEveryHours: number;
+  /** Hours a gang stays after arriving (or being seeded) before it reconsiders. */
+  readonly minStayHours: number;
+  /** A human counts toward a city's population if active inside this many hours. */
+  readonly activeHumanHours: number;
+  /** A city with fewer active humans than this is too quiet to stay in or move to. */
+  readonly quietBelowHumans: number;
+  /** One NPC gang per this many active humans, at least one and at most `maxPerCity`. */
+  readonly humansPerGang: number;
+  /** Lost fights inside the turf loss window that make a city too hostile. */
+  readonly hostileLosses: number;
+  /** A richer city must have at least this many more active humans to be worth the move. */
+  readonly betterByHumans: number;
+  /** A gang that has not managed to leave within this many hours drops the plan. */
+  readonly packingHours: number;
 }
 
 /**

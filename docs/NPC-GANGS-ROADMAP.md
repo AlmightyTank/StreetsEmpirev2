@@ -1,6 +1,6 @@
 # NPC Gangs Roadmap
 
-Status: **Phases A-J built in beta. Phase K is next.**
+Status: **Phases A-K built in beta. Phase L is next.**
 
 NPC gangs are server-run seasonal crews that use the same core systems players use:
 round players, cities, stores, production, raids, drive-bys, special raid forms,
@@ -38,7 +38,7 @@ or hitting players with unavoidable punishment.
 | H | Built | Player-facing local intel: rumors, recent hits and city danger level. |
 | I | Built | Retaliation memory so NPC gangs remember attackers and can revenge-hit within limits. |
 | J | Built | Turf behavior so NPC gangs claim, defend, pressure or abandon territory. |
-| K | Planned | Travel and migration so stronger gangs can relocate or send crews between cities. |
+| K | Built | Travel and migration so stronger gangs can relocate between cities. Crew runs are a follow-up. |
 | L | Planned | Escalation and dormancy so gangs heat up, cool down, recover or lay low. |
 | M | Planned | Boss and archetype personalities with named gangs and distinct patterns. |
 | N | Planned | Rewards and cleanup for beating NPC gangs or relieving city pressure. |
@@ -198,24 +198,41 @@ Delivered:
   a "Crew-held blocks" row shows them. Admin shows held blocks per city, and per
   gang the corner strength, prospect presence, turf strain and last turf move.
 
-## Remaining Phases
-
 ### Phase K: Travel & Migration
 
-Stronger NPC gangs can relocate or send crews between cities, creating scav-like
-danger zones that shift over time.
+Stronger gangs move house between cities, so danger zones shift over the season.
+A migration is an ordinary `RelocationService.move`: fee, time on the road,
+cooldown, the round-end cutoff and every other move check apply.
 
-Goals:
+Delivered:
 
-- Let higher-tier gangs migrate when a city is too quiet, too hostile or too
-  profitable elsewhere.
-- Respect travel, movement locks and city availability rules.
-- Show rumor hints when a crew is seen moving or cruising.
-- Keep low-population cities from becoming permanently unsafe.
+- **Who moves:** `npcGangs.migration.tiers` (Veteran and Kingpin by default), after
+  `minStayHours` in a city, reconsidering every `evaluateEveryHours`.
+- **Why:** a hostile city (`hostileLosses` lost fights in the loss window), a
+  crowded one (more NPC gangs than its humans support), a quiet one (fewer than
+  `quietBelowHumans` active humans), or a clearly richer one (`betterByHumans`
+  more active humans).
+- **Where:** a reachable, enabled city with enough humans and room. A city carries
+  one NPC gang per `humansPerGang` active humans, at least one and at most
+  `maxPerCity`, counting crews already on the road. That cap, plus crowded and
+  quiet cities pushing gangs out, keeps low-population cities from staying unsafe.
+  Room is checked again just before the truck leaves.
+- **Packing:** a gang that decides to move goes quiet. It stops raiding, drive-bys
+  and turf moves, pulls its corner (a block at war is fought out first), and
+  leaves once nobody it hit can still hit back, the same "no running from a fight"
+  rule players have. A plan that cannot leave inside `packingHours` is dropped.
+- **On the road:** the gang sleeps until its truck arrives. The scheduler settles NPC
+  arrivals before each sweep so gangs wake in their new city.
+- **Intel:** street rumors announce crews on the road in, fresh arrivals, local crews
+  gone quiet to pack and crews that just left; a "Crews inbound" row shows origin
+  and arrival time. Crews on the road out no longer count as local.
+- **Admin:** gangs packing or moving in the summary, inbound trucks per city, and per
+  gang its current city, packing or road status, reason and last move.
 
-Gate:
+Not yet: NPC trade runs ("sending crews") between cities. Runs bring tails,
+ambushes and trunk loot, which is its own balance pass.
 
-- City danger can move over time, but players can still read and react to it.
+## Remaining Phases
 
 ### Phase L: Escalation & Dormancy
 
@@ -279,6 +296,7 @@ Current support already built:
 - Per-bot NPC gang status: next action, last outcome, target and error.
 - Per-bot grudge memory with expiry, settled state and last payback (Phase I).
 - Per-bot turf: held corners, prospect presence, strain and last turf move (Phase J).
+- Per-bot migration: current city, packing or on the road, reason, last move (Phase K).
 - CLI status script includes the latest NPC gang outcome.
 
 Future controls:
@@ -305,6 +323,7 @@ Current support already built:
 - City pressure counts recent hits, drive-bys and special raids.
 - Open grudges, 24h paybacks and per-city payback counts (Phase I).
 - NPC-held blocks in total and per city (Phase J).
+- Gangs packing or moving, and inbound trucks per city (Phase K).
 
 Future telemetry:
 

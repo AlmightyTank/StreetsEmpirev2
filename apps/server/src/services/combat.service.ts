@@ -31,6 +31,7 @@ import { RelocationService } from './relocation.service.js';
 import { assertNotPaused, fitThugs, toState, workingWhores } from './action.service.js';
 import { BusinessService } from './business.service.js';
 import { TurfService } from './turf.service.js';
+import { storedMigrationPlan } from './npc-gang-migration.js';
 import { ActivityService } from './activity.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
@@ -754,13 +755,44 @@ async function npcTurfAround(prisma: PrismaClient, player: PlayerWithCity, rules
   return { blocks, onTheirTurf };
 }
 
+/**
+ * Phase K. Crews on the move around this city: trucks inbound, crews that just set
+ * up, local crews gone quiet to pack, and crews already on the road out.
+ */
+async function npcMovementAround(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date) {
+  const slug = player.city.slug;
+  const npcInRound = { roundId: player.roundId, npcGang: { isNot: null } };
+  const [moves, newArrivals, locals] = await Promise.all([
+    prisma.relocation.findMany({
+      where: { arrivedAt: null, arrivesAt: { gt: now }, roundPlayer: npcInRound, OR: [{ toCity: slug }, { fromCity: slug }] },
+      select: { fromCity: true, toCity: true, arrivesAt: true },
+      orderBy: { arrivesAt: 'asc' },
+    }),
+    prisma.relocation.count({
+      where: { toCity: slug, arrivedAt: { gte: new Date(now.getTime() - 12 * 3_600_000) }, roundPlayer: npcInRound },
+    }),
+    prisma.npcGang.findMany({
+      where: { roundPlayer: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true }, OR: [{ movingUntil: null }, { movingUntil: { lte: now } }] } },
+      select: { memory: true },
+    }),
+  ]);
+  const cityName = (city: string) => ruleset.cities?.[city]?.name ?? city;
+  return {
+    inbound: moves.filter((move) => move.toCity === slug).map((move) => ({ fromName: cityName(move.fromCity), arrivesAt: move.arrivesAt.toISOString() })),
+    leaving: moves.filter((move) => move.fromCity === slug).length,
+    packing: locals.filter((gang) => storedMigrationPlan(gang.memory)).length,
+    newArrivals,
+  };
+}
+
 async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date): Promise<NpcGangIntelDto | undefined> {
   if (ruleset.npcGangs?.enabled === false) return undefined;
   const seenSince = new Date(now.getTime() - 24 * 3_600_000);
-  const [gangs, recentRows, grudges, turf] = await Promise.all([
+  const [gangs, recentRows, grudges, turf, movement] = await Promise.all([
     prisma.npcGang.findMany({
       where: {
-        roundPlayer: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } },
+        // Phase K: a crew on the road out is not a local problem any more.
+        roundPlayer: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true }, OR: [{ movingUntil: null }, { movingUntil: { lte: now } }] },
         OR: [{ dormantUntil: null }, { dormantUntil: { lte: now } }],
       },
       select: {
@@ -796,13 +828,15 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     }),
     npcGrudgesAgainst(prisma, player, ruleset, now),
     npcTurfAround(prisma, player, ruleset, now),
+    npcMovementAround(prisma, player, ruleset, now),
   ]);
 
   const recent = recentRows.filter((battle) => Boolean(battle.attacker.npcGang));
   const recentDriveBys = recent.filter((battle) => storedReportKind(battle) === 'DRIVE_BY').length;
   const recentSpecialRaids = recent.filter((battle) => ['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW'].includes(storedReportKind(battle))).length;
   const maxAggression = Math.max(0, ...gangs.map((gang) => gang.aggression), ...recent.map((battle) => battle.attacker.npcGang?.aggression ?? 0));
-  const dangerScore = gangs.length + recent.length * 2 + recentDriveBys * 2 + recentSpecialRaids + grudges.wantedBy * 2 + turf.blocks.length + (turf.onTheirTurf ? 2 : 0) + Math.floor(maxAggression / 25);
+  const dangerScore = gangs.length + recent.length * 2 + recentDriveBys * 2 + recentSpecialRaids + grudges.wantedBy * 2 + turf.blocks.length + (turf.onTheirTurf ? 2 : 0)
+    + movement.inbound.length * 2 + movement.newArrivals * 2 + Math.floor(maxAggression / 25);
   const danger: NpcGangIntelDto['danger'] = dangerScore >= 8 ? 'HOT' : dangerScore >= 3 ? 'ACTIVE' : 'QUIET';
   const top = gangs[0] ?? recent.find((battle) => battle.attacker.npcGang)?.attacker.npcGang ?? null;
   const rumors: string[] = [];
@@ -817,6 +851,15 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
   } else if (turf.blocks.length) {
     rumors.push(`A server-run crew is holding ${turf.blocks.join(' and ')}. Working there puts you on their radar.`);
   }
+  if (movement.inbound.length) {
+    const from = [...new Set(movement.inbound.map((move) => move.fromName))].join(' and ');
+    rumors.push(movement.inbound.length === 1
+      ? `Word is a crew out of ${from} is on the road here.`
+      : `Word is ${movement.inbound.length} crews out of ${from} are on the road here.`);
+  }
+  if (movement.newArrivals) rumors.push('A fresh crew just set up in town and is still sizing up the blocks.');
+  if (movement.packing) rumors.push(`${movement.packing === 1 ? 'A local crew has' : `${movement.packing} local crews have`} gone quiet. Word is they are packing up.`);
+  if (movement.leaving) rumors.push(`${movement.leaving === 1 ? 'A crew' : `${movement.leaving} crews`} just rolled out of town.`);
   if (recent.length) {
     rumors.push(`${recent.length} NPC gang hit${recent.length === 1 ? '' : 's'} made noise in the last day.`);
   } else if (gangs.length) {
@@ -840,7 +883,8 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     ...(top ? { topArchetype: readableArchetype(top.archetype), topTier: top.tier } : {}),
     ...(grudges.wantedBy && grudges.wantedUntil ? { wantedBy: grudges.wantedBy, wantedUntil: grudges.wantedUntil.toISOString() } : {}),
     ...(turf.blocks.length ? { npcBlocks: turf.blocks, onTheirTurf: turf.onTheirTurf } : {}),
-    rumors: rumors.slice(0, 4),
+    ...(movement.inbound.length || movement.leaving || movement.packing || movement.newArrivals ? { movement } : {}),
+    rumors: rumors.slice(0, 5),
   };
 }
 

@@ -6,6 +6,7 @@ import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { devBotAccountWhere, devBotsBlockedReason, removeDevBots, seedDevBots } from './dev-bots.service.js';
+import { storedMigrationPlan } from './npc-gang-migration.js';
 import { openNpcGrudges, storedNpcGrudges } from './npc-gang-memory.js';
 import { RoundService } from './round.service.js';
 
@@ -69,6 +70,27 @@ function npcGangTurf(root: Prisma.JsonObject): AdminNpcGang['turf'] {
   };
 }
 
+/** Phase K. Packing comes from the plan in memory; moving from the last move and the truck clock. */
+function npcGangMigration(memory: Prisma.JsonValue, movingUntil: Date | null, now: Date): Pick<AdminNpcGang, 'migration' | 'lastMigration'> {
+  const root = jsonObject(memory);
+  const last = jsonObject(root.lastMigration as Prisma.JsonValue);
+  const lastTo = stringField(last.toName);
+  const lastAt = stringField(last.startedAt);
+  const lastMigration = lastTo && lastAt ? {
+    fromName: stringField(last.fromName) ?? '',
+    toName: lastTo,
+    reason: stringField(last.reason) ?? '',
+    at: lastAt,
+  } : null;
+  const plan = storedMigrationPlan(memory);
+  const migration = movingUntil && movingUntil > now && lastMigration
+    ? { status: 'MOVING' as const, toName: lastMigration.toName, reason: lastMigration.reason, since: lastMigration.at, arrivesAt: movingUntil.toISOString() }
+    : plan
+      ? { status: 'PACKING' as const, toName: plan.toName, reason: plan.reason, since: plan.decidedAt, arrivesAt: null }
+      : null;
+  return { migration, lastMigration };
+}
+
 function npcGangMemory(memory: Prisma.JsonValue, now: Date): Pick<AdminNpcGang, 'lastIntent' | 'lastOutcome' | 'lastTarget' | 'lastError' | 'grudges' | 'lastRevenge' | 'turf'> {
   const root = jsonObject(memory);
   const detail = jsonObject(root.lastDetail as Prisma.JsonValue);
@@ -127,6 +149,7 @@ export const AdminDevBotsService = {
                 publicPimpId: true,
                 city: { select: { id: true, name: true } },
                 netWorthCents: true,
+                movingUntil: true,
                 npcGang: { select: { archetype: true, tier: true, aggression: true, ambition: true, discipline: true, nextActionAt: true, lastActionAt: true, dormantUntil: true, memory: true, homeCity: { select: { name: true } } } },
               },
             }
@@ -138,6 +161,7 @@ export const AdminDevBotsService = {
                 publicPimpId: true,
                 city: { select: { id: true, name: true } },
                 netWorthCents: true,
+                movingUntil: true,
                 npcGang: { select: { archetype: true, tier: true, aggression: true, ambition: true, discipline: true, nextActionAt: true, lastActionAt: true, dormantUntil: true, memory: true, homeCity: { select: { name: true } } } },
               },
             },
@@ -153,6 +177,7 @@ export const AdminDevBotsService = {
       recentSpecialRaids: number;
       recentRevengeHits: number;
       heldBlocks: string[];
+      inbound: number;
       nextActionAt: Date | null;
     }>();
 
@@ -168,6 +193,7 @@ export const AdminDevBotsService = {
         recentSpecialRaids: 0,
         recentRevengeHits: 0,
         heldBlocks: [],
+        inbound: 0,
         nextActionAt: null,
       };
       row.activeGangs += 1;
@@ -186,6 +212,16 @@ export const AdminDevBotsService = {
         orderBy: { district: 'asc' },
       });
       heldBlocks = held.length;
+      const inbound = await prisma.relocation.findMany({
+        where: { arrivedAt: null, arrivesAt: { gt: now }, roundPlayer: { roundId: round.id, npcGang: { isNot: null } } },
+        select: { toCity: true },
+      });
+      const citySlugs = await prisma.city.findMany({ where: { id: { in: [...cityRows.keys()] } }, select: { id: true, slug: true } });
+      for (const move of inbound) {
+        const cityId = citySlugs.find((city) => city.slug === move.toCity)?.id;
+        const row = cityId ? cityRows.get(cityId) : undefined;
+        if (row) row.inbound += 1;
+      }
       for (const block of held) {
         const key = block.district as DistrictKey;
         const name = ruleset.cities?.[block.city.slug]?.districts?.[key]?.name ?? ruleset.districts[key]?.name ?? block.district;
@@ -242,6 +278,7 @@ export const AdminDevBotsService = {
         openGrudges,
         revenge24h,
         heldBlocks,
+        migrating: currentPlayers.filter((player) => player.npcGang && npcGangMigration(player.npcGang.memory, player.movingUntil, now).migration).length,
         cities: Array.from(cityRows.values())
           .sort((left, right) => right.recentHits - left.recentHits || right.dueNow - left.dueNow || left.city.localeCompare(right.city))
           .map((row) => ({
@@ -253,6 +290,7 @@ export const AdminDevBotsService = {
             recentSpecialRaids: row.recentSpecialRaids,
             recentRevengeHits: row.recentRevengeHits,
             heldBlocks: row.heldBlocks,
+            inbound: row.inbound,
             nextActionAt: row.nextActionAt?.toISOString() ?? null,
           })),
       },
@@ -288,6 +326,8 @@ export const AdminDevBotsService = {
                       grudges: memory?.grudges ?? [],
                       lastRevenge: memory?.lastRevenge ?? null,
                       turf: memory?.turf ?? null,
+                      currentCity: player.city.name,
+                      ...npcGangMigration(player.npcGang.memory, player.movingUntil, now),
                     }
                   : null,
               }

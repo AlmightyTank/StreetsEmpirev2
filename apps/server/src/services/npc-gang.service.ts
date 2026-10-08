@@ -14,8 +14,13 @@ import { AppError } from '../utils/errors.js';
 import { fitThugs } from './action.service.js';
 import { CombatService, combatProtectionUntil } from './combat.service.js';
 import { buildNpcGrudges, grudgesJson, openNpcGrudges, type NpcGrudge } from './npc-gang-memory.js';
+import {
+  chooseMigration, destinationOpen, loadNpcCityStats, npcLostFights, npcRevengeOpenUntil, storedMigrationPlan,
+  type NpcMigrationPlan,
+} from './npc-gang-migration.js';
 import { loadNpcTurf, npcTurfMoves, type NpcTurfMove, type NpcTurfState } from './npc-gang-turf.js';
 import { ProductionService } from './production.service.js';
+import { RelocationService } from './relocation.service.js';
 import { ScoutService } from './scout.service.js';
 import { StoreService } from './store.service.js';
 import { BlockWarService } from './block-war.service.js';
@@ -61,7 +66,7 @@ type NpcGangIntent = 'RESTOCK' | 'PRODUCE' | 'RAID_PLAYER' | 'DRIVE_BY_PLAYER' |
 type NpcGangOutcome =
   | 'RESTOCKED' | 'PRODUCED' | 'RAIDED' | 'DROVE_BY' | 'SPECIAL_RAIDED'
   | 'WORKED_TURF' | 'CLAIMED_TURF' | 'TURF_CLAIM_LOST' | 'DEFENDED_TURF' | 'ABANDONED_TURF'
-  | 'LAY_LOW' | 'BLOCKED' | 'SKIPPED';
+  | 'MIGRATED' | 'LAY_LOW' | 'BLOCKED' | 'SKIPPED';
 type NpcGangIntentCandidate = { intent: NpcGangIntent; weight: number };
 
 const SPECIAL_RAID_KINDS = ['STEAL_RIDE', 'LURE_CREW', 'DRUG_HOES'] as const satisfies readonly SpecialRaidKind[];
@@ -85,6 +90,18 @@ const DEFAULT_NPC_GANG_RULES: NpcGangRules = {
     lossWindowHours: 24,
     pressureIntentBonus: 15,
   },
+  migration: {
+    enabled: true,
+    tiers: ['VETERAN', 'KINGPIN'],
+    evaluateEveryHours: 6,
+    minStayHours: 36,
+    activeHumanHours: 24,
+    quietBelowHumans: 2,
+    humansPerGang: 3,
+    hostileLosses: 4,
+    betterByHumans: 4,
+    packingHours: 36,
+  },
 };
 
 function npcRules(ruleset: Ruleset): NpcGangRules {
@@ -92,6 +109,7 @@ function npcRules(ruleset: Ruleset): NpcGangRules {
     ...DEFAULT_NPC_GANG_RULES,
     ...ruleset.npcGangs,
     turf: { ...DEFAULT_NPC_GANG_RULES.turf, ...ruleset.npcGangs?.turf },
+    migration: { ...DEFAULT_NPC_GANG_RULES.migration, ...ruleset.npcGangs?.migration },
   };
 }
 
@@ -323,7 +341,7 @@ function weightedChoice(candidates: readonly NpcGangIntentCandidate[], rng: () =
  * grudge is valid; `pressure` lifts raids while humans work the gang's block;
  * `turf` is the extra weight of the best turf move, or null when there is none.
  */
-type NpcGangPulls = { revenge: number; pressure: number; turf: number | null };
+type NpcGangPulls = { revenge: number; pressure: number; turf: number | null; calm?: boolean };
 
 function turfMoveWeight(move: NpcTurfMove): number {
   if (move.kind === 'REINFORCE') return 18;
@@ -334,9 +352,11 @@ function turfMoveWeight(move: NpcTurfMove): number {
 function chooseIntent(gang: DueNpcGang, ruleset: Ruleset, now: Date, rng: () => number, pulls: NpcGangPulls = { revenge: 0, pressure: 0, turf: null }): NpcGangIntent {
   const candidates: NpcGangIntentCandidate[] = [];
   if (canRestock(gang, ruleset, now)) candidates.push({ intent: 'RESTOCK', weight: intentWeight(gang, 'RESTOCK') });
-  if (canDriveBy(gang, ruleset, now)) candidates.push({ intent: 'DRIVE_BY_PLAYER', weight: intentWeight(gang, 'DRIVE_BY_PLAYER') + pulls.revenge });
-  if (availableSpecialRaidKinds(gang, ruleset, now).length) candidates.push({ intent: 'SPECIAL_RAID_PLAYER', weight: intentWeight(gang, 'SPECIAL_RAID_PLAYER') + pulls.revenge });
-  if (canRaid(gang, ruleset, now)) candidates.push({ intent: 'RAID_PLAYER', weight: intentWeight(gang, 'RAID_PLAYER') + pulls.revenge + pulls.pressure });
+  // Phase K. A packing crew keeps its head down: no hits, so nobody holds a window on it.
+  const violent = !pulls.calm;
+  if (violent && canDriveBy(gang, ruleset, now)) candidates.push({ intent: 'DRIVE_BY_PLAYER', weight: intentWeight(gang, 'DRIVE_BY_PLAYER') + pulls.revenge });
+  if (violent && availableSpecialRaidKinds(gang, ruleset, now).length) candidates.push({ intent: 'SPECIAL_RAID_PLAYER', weight: intentWeight(gang, 'SPECIAL_RAID_PLAYER') + pulls.revenge });
+  if (violent && canRaid(gang, ruleset, now)) candidates.push({ intent: 'RAID_PLAYER', weight: intentWeight(gang, 'RAID_PLAYER') + pulls.revenge + pulls.pressure });
   if (canProduce(gang, ruleset, now)) candidates.push({ intent: 'PRODUCE', weight: intentWeight(gang, 'PRODUCE') });
   if (pulls.turf !== null) candidates.push({ intent: 'TURF', weight: intentWeight(gang, 'TURF') + pulls.turf });
   if (!candidates.length) return 'LAY_LOW';
@@ -638,6 +658,8 @@ async function recordOutcome(
     error?: unknown;
     /** Phase I. Extra memory written after the standard fields, e.g. settled grudges. */
     memory?: Prisma.InputJsonObject;
+    /** Phase K. Wake at this time instead of the outcome's normal pace, e.g. on arrival. */
+    nextAt?: Date;
   },
 ): Promise<void> {
   const error = input.error instanceof AppError
@@ -649,7 +671,7 @@ async function recordOutcome(
     where: { id: gang.id },
     data: {
       lastActionAt: now,
-      nextActionAt: nextActionAt(now, gang, input.rules, input.outcome),
+      nextActionAt: input.nextAt ?? nextActionAt(now, gang, input.rules, input.outcome),
       memory: {
         ...memoryObject(gang.memory),
         lastIntent: input.intent,
@@ -697,6 +719,110 @@ function hitMemory(focus: NpcGangFocus, target: NpcGangCombatTarget, battleId: s
 }
 
 type NpcGangRun = { outcome: NpcGangOutcome; revenge: boolean };
+
+/** Phase K. Codes that mean the destination or the money is gone, not just "not yet". */
+const MIGRATION_DEAD_ENDS = new Set(['NO_ROAD', 'UNKNOWN_CITY', 'NOT_ENOUGH_CASH', 'MOVES_CLOSED', 'MOVES_DISABLED']);
+
+type NpcGangMigration = { plan: NpcMigrationPlan | null; checkedAt: string | null; dropped: string | null };
+
+/**
+ * Phase K. Keeps a packing plan until it times out, and otherwise reconsiders the city
+ * every `evaluateEveryHours` once the gang has stayed `minStayHours`.
+ */
+async function migrationPlan(prisma: PrismaClient, gang: DueNpcGang, ruleset: Ruleset, rules: NpcGangRules, now: Date): Promise<NpcGangMigration> {
+  const settings = rules.migration;
+  const memory = memoryObject(gang.memory) as Prisma.JsonObject;
+  const checkedAt = stringField(memory.migrationCheckedAt);
+  if (!settings.enabled || !settings.tiers.includes(gang.tier as NpcGangRules['migration']['tiers'][number])) {
+    return { plan: null, checkedAt, dropped: null };
+  }
+  const stored = storedMigrationPlan(gang.memory);
+  if (stored) {
+    const stale = now.getTime() - Date.parse(stored.decidedAt) > Math.max(1, settings.packingHours) * 3_600_000;
+    return stale ? { plan: null, checkedAt, dropped: 'TIMED_OUT' } : { plan: stored, checkedAt, dropped: null };
+  }
+  if (checkedAt && now.getTime() - Date.parse(checkedAt) < Math.max(1, settings.evaluateEveryHours) * 3_600_000) {
+    return { plan: null, checkedAt, dropped: null };
+  }
+  const lastMove = await prisma.relocation.findFirst({
+    where: { roundPlayerId: gang.roundPlayerId },
+    orderBy: { startedAt: 'desc' },
+    select: { startedAt: true, arrivedAt: true },
+  });
+  const settledAt = Math.max(gang.createdAt.getTime(), (lastMove?.arrivedAt ?? lastMove?.startedAt)?.getTime() ?? 0);
+  if (now.getTime() - settledAt < Math.max(0, settings.minStayHours) * 3_600_000) return { plan: null, checkedAt, dropped: null };
+
+  const cities = await loadNpcCityStats(prisma, gang.roundPlayer.roundId, gang.roundPlayer.city.slug, ruleset, settings, now);
+  const here = cities.find((city) => city.slug === gang.roundPlayer.city.slug);
+  const losses = await npcLostFights(prisma, gang.roundPlayerId, new Date(now.getTime() - Math.max(1, rules.turf.lossWindowHours) * 3_600_000));
+  const choice = here
+    ? chooseMigration({ tier: gang.tier, here, cities, recentLosses: losses, rules: settings, maxPerCity: rules.maxPerCity })
+    : null;
+  return {
+    plan: choice ? { to: choice.to.slug, toName: choice.to.name, reason: choice.reason, decidedAt: now.toISOString() } : null,
+    checkedAt: now.toISOString(),
+    dropped: null,
+  };
+}
+
+function rememberMigration(gang: DueNpcGang, migration: NpcGangMigration, now: Date): DueNpcGang {
+  return {
+    ...gang,
+    memory: {
+      ...(memoryObject(gang.memory) as Prisma.JsonObject),
+      migration: migration.plan ? { ...migration.plan } : null,
+      migrationCheckedAt: migration.checkedAt,
+      ...(migration.dropped ? { migrationDropped: { reason: migration.dropped, at: now.toISOString() } } : {}),
+    },
+  };
+}
+
+/**
+ * Phase K. Leaves once nobody this gang hit can still hit back and it is not locked up,
+ * through the same relocation players use. Returns null while it still has to wait.
+ */
+async function tryMigrate(prisma: PrismaClient, gang: DueNpcGang, ruleset: Ruleset, rules: NpcGangRules, now: Date, plan: NpcMigrationPlan): Promise<NpcGangOutcome | null> {
+  const player = gang.roundPlayer;
+  if (player.lockedUntil && player.lockedUntil > now) return null;
+  const openUntil = await npcRevengeOpenUntil(prisma, gang.roundPlayerId, ruleset, now);
+  if (openUntil && openUntil > now) return null;
+
+  const cities = await loadNpcCityStats(prisma, player.roundId, player.city.slug, ruleset, rules.migration, now);
+  if (!destinationOpen(cities.find((city) => city.slug === plan.to), rules.migration, rules.maxPerCity)) {
+    await recordOutcome(prisma, gang, now, {
+      intent: 'LAY_LOW', outcome: 'LAY_LOW', rules,
+      detail: { migration: 'DESTINATION_FULL', to: plan.to },
+      memory: { migration: null, migrationDropped: { reason: 'DESTINATION_FULL', at: now.toISOString() } },
+    });
+    return 'LAY_LOW';
+  }
+
+  // Relocation ids must fit the shared 64-character action id.
+  const actionId = `npc-move:${randomUUID()}`;
+  try {
+    const moved = await RelocationService.move(prisma, gang.roundPlayerId, { to: plan.to, actionId });
+    const arrivesAt = new Date(moved.result.arrivesAt);
+    await recordOutcome(prisma, gang, now, {
+      intent: 'LAY_LOW', outcome: 'MIGRATED', rules,
+      detail: { actionId, from: moved.result.from, fromName: moved.result.fromName, to: plan.to, toName: plan.toName, reason: plan.reason, feeCents: moved.result.feeCents, arrivesAt: moved.result.arrivesAt },
+      memory: {
+        migration: null,
+        lastMigration: { from: moved.result.from, fromName: moved.result.fromName, to: plan.to, toName: plan.toName, reason: plan.reason, startedAt: now.toISOString(), arrivesAt: moved.result.arrivesAt },
+      },
+      nextAt: new Date(arrivesAt.getTime() + Math.max(1, rules.tickMinutes) * 60_000),
+    });
+    return 'MIGRATED';
+  } catch (error) {
+    const code = error instanceof AppError ? error.code : null;
+    const deadEnd = code !== null && MIGRATION_DEAD_ENDS.has(code);
+    await recordOutcome(prisma, gang, now, {
+      intent: 'LAY_LOW', outcome: 'BLOCKED', rules, error,
+      detail: { migration: plan.to },
+      ...(deadEnd ? { memory: { migration: null, migrationDropped: { reason: code, at: now.toISOString() } } } : {}),
+    });
+    return 'BLOCKED';
+  }
+}
 
 function stringField(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
@@ -842,26 +968,53 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
     return { outcome: 'SKIPPED', revenge: false };
   }
 
+  // Phase K. On the road: nothing moves until the truck arrives, so wake up then.
+  if (due.roundPlayer.movingUntil && due.roundPlayer.movingUntil > now) {
+    await recordOutcome(prisma, due, now, {
+      intent: 'LAY_LOW', outcome: 'LAY_LOW', rules,
+      detail: { moving: true, arrivesAt: due.roundPlayer.movingUntil.toISOString() },
+      nextAt: new Date(due.roundPlayer.movingUntil.getTime() + Math.max(1, rules.tickMinutes) * 60_000),
+    });
+    return { outcome: 'LAY_LOW', revenge: false };
+  }
+
   const grudges = await loadGrudges(prisma, due, rules, now);
   const turf = await loadGangTurf(prisma, due, livingRuleset, rules, now);
-  const remembered = rememberTurf(rememberGrudges(due, grudges), turf);
+  const migration = await migrationPlan(prisma, due, baseRuleset, rules, now);
+  const remembered = rememberMigration(rememberTurf(rememberGrudges(due, grudges), turf), migration, now);
+  const packing = migration.plan;
   const focus: NpcGangFocus = {
     grudges,
-    revengeTargets: await revengeTargets(prisma, remembered, livingRuleset, rules, now, grudges),
-    pressureIds: new Set(turf.pressureIds),
+    revengeTargets: packing ? [] : await revengeTargets(prisma, remembered, livingRuleset, rules, now, grudges),
+    pressureIds: new Set(packing ? [] : turf.pressureIds),
   };
   const gang = focus.revengeTargets.length ? angryGang(remembered, rules) : remembered;
   const outcome = (value: NpcGangOutcome, hit?: { revenge: boolean }): NpcGangRun => ({ outcome: value, revenge: Boolean(hit?.revenge) });
-
-  const turfMoves = npcTurfMoves(turf, rules.turf, turfCapacity(gang, livingRuleset, rules));
   const turfRng = seededRng(hashParts(gang.id, now.toISOString(), 'turf'));
+
+  if (packing) {
+    // Phase K. Pull the corner first (a block at war is fought out), then leave once the move is legal.
+    const corner = turf.held.find((block) => !block.war);
+    if (corner) return outcome(await runTurfMove(prisma, gang, rules, now, { kind: 'ABANDON', block: corner, reason: 'MIGRATING' }, turfRng));
+    if (!turf.held.length) {
+      const moved = await tryMigrate(prisma, gang, baseRuleset, rules, now, packing);
+      if (moved) return outcome(moved);
+    }
+  }
+
+  const allTurfMoves = npcTurfMoves(turf, rules.turf, turfCapacity(gang, livingRuleset, rules));
+  // A packing crew still fights for a block it is at war over; it just takes on nothing new.
+  const defensive = allTurfMoves.forced && ['WAR_DEFEND', 'WAR_BREAK', 'BACKUP'].includes(allTurfMoves.forced.kind);
+  const turfMoves = packing ? { forced: defensive ? allTurfMoves.forced : null, option: null } : allTurfMoves;
   if (turfMoves.forced) return outcome(await runTurfMove(prisma, gang, rules, now, turfMoves.forced, turfRng));
 
   const intent = chooseIntent(gang, livingRuleset, now, seededRng(hashParts(gang.id, now.toISOString(), 'intent')), {
     revenge: focus.revengeTargets.length ? rules.revengeIntentBonus : 0,
     pressure: focus.pressureIds.size ? rules.turf.pressureIntentBonus : 0,
     turf: turfMoves.option ? turfMoveWeight(turfMoves.option) : null,
+    calm: Boolean(packing),
   });
+  const violent = !packing;
   if (intent === 'TURF' && turfMoves.option) return outcome(await runTurfMove(prisma, gang, rules, now, turfMoves.option, turfRng));
   if (intent === 'LAY_LOW') {
     await recordOutcome(prisma, gang, now, { intent, outcome: 'LAY_LOW', rules });
@@ -873,7 +1026,7 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
     if (restocked) return outcome(restocked);
   }
 
-  if (intent === 'DRIVE_BY_PLAYER' || (intent === 'RESTOCK' && canDriveBy(gang, livingRuleset, now))) {
+  if (violent && (intent === 'DRIVE_BY_PLAYER' || (intent === 'RESTOCK' && canDriveBy(gang, livingRuleset, now)))) {
     const target = await pickRaidTarget(prisma, gang, livingRuleset, rules, now, focus, undefined, 'DRIVE_BY');
     if (target) {
       try {
@@ -912,11 +1065,11 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
     }
   }
 
-  if (
+  if (violent && (
     intent === 'SPECIAL_RAID_PLAYER'
     || intent === 'DRIVE_BY_PLAYER'
     || (intent === 'RESTOCK' && availableSpecialRaidKinds(gang, livingRuleset, now).length > 0)
-  ) {
+  )) {
     const plan = await pickSpecialRaidPlan(prisma, gang, livingRuleset, rules, now, focus);
     if (plan) {
       try {
@@ -958,10 +1111,10 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
     }
   }
 
-  if (
+  if (violent && (
     intent === 'RAID_PLAYER'
     || ((intent === 'RESTOCK' || intent === 'SPECIAL_RAID_PLAYER' || intent === 'DRIVE_BY_PLAYER') && canRaid(gang, livingRuleset, now))
-  ) {
+  )) {
     const target = await pickRaidTarget(prisma, gang, livingRuleset, rules, now, focus);
     if (target) {
       try {
@@ -1035,9 +1188,20 @@ export const NpcGangService = {
    * Phase G: due NPC gangs choose weighted intents by archetype, traits and available moves.
    * Phase I: gangs remember the humans who hit them and lean toward payback inside the window.
    * Phase J: gangs work, claim, reinforce and abandon locals' blocks through the player turf actions.
+   * Phase K: stronger gangs pack up quietly and relocate when their city is hostile, crowded or dead.
    * The raid engine still owns combat legality, cooldowns and player alerts.
    */
-  async sweep(prisma: PrismaClient, now = new Date()): Promise<{ checked: number; acted: number; restocked: number; produced: number; raided: number; droveBy: number; specialRaided: number; revenged: number; turfMoves: number; blocked: number }> {
+  async sweep(prisma: PrismaClient, now = new Date()): Promise<{ checked: number; acted: number; restocked: number; produced: number; raided: number; droveBy: number; specialRaided: number; revenged: number; turfMoves: number; migrated: number; blocked: number }> {
+    // Phase K. Bring in NPC trucks that have arrived, so due gangs are read in their new city.
+    const arrived = await prisma.relocation.findMany({
+      where: { arrivedAt: null, arrivesAt: { lte: now }, roundPlayer: { npcGang: { isNot: null } } },
+      select: { roundPlayer: { select: { roundId: true } } },
+      take: 50,
+    });
+    for (const roundId of new Set(arrived.map((row) => row.roundPlayer.roundId))) {
+      await RelocationService.settleDue(prisma, roundId, now);
+    }
+
     const due = await prisma.npcGang.findMany({
       where: {
         nextActionAt: { lte: now },
@@ -1057,6 +1221,7 @@ export const NpcGangService = {
     let specialRaided = 0;
     let revenged = 0;
     let turfMoves = 0;
+    let migrated = 0;
     let blocked = 0;
     for (const gang of due) {
       const baseRuleset = loadRulesetForRound(gang.roundPlayer.round);
@@ -1072,9 +1237,10 @@ export const NpcGangService = {
       if (outcome === 'RAIDED') raided += 1;
       if (outcome === 'DROVE_BY') droveBy += 1;
       if (outcome === 'SPECIAL_RAIDED') specialRaided += 1;
+      if (outcome === 'MIGRATED') migrated += 1;
       if (outcome === 'BLOCKED') blocked += 1;
     }
 
-    return { checked: due.length, acted, restocked, produced, raided, droveBy, specialRaided, revenged, turfMoves, blocked };
+    return { checked: due.length, acted, restocked, produced, raided, droveBy, specialRaided, revenged, turfMoves, migrated, blocked };
   },
 };

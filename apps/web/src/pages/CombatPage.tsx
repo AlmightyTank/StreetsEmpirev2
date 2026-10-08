@@ -669,6 +669,14 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 tooltip="Server-run crews hold these corners like anyone else. They lean on crews that work their blocks, and you can push them off."
               />
             ) : null}
+            {page.npcGangIntel.movement?.inbound.length ? (
+              <Row
+                label="Crews inbound"
+                value={page.npcGangIntel.movement.inbound.map((move) => `${move.fromName} · ${date(move.arrivesAt)}`).join(', ')}
+                strong
+                tooltip="Server-run crews moving here. They land when their truck does and start working the city like anyone new."
+              />
+            ) : null}
             {page.npcGangIntel.wantedBy && page.npcGangIntel.wantedUntil ? (
               <Row
                 label="Payback risk"
