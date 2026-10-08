@@ -436,7 +436,11 @@ function StoreView({
             : await storesApi.trade({ ...command.order, actionId });
         clearPendingAction(pendingStorage, pendingKey);
         setRetryOrder(null);
-        if (command.kind === 'checkout') onClearBasket();
+        if (command.kind === 'checkout') {
+          onClearBasket();
+          // A basket can carry Pip's products, whose shelves live on their own page.
+          loadProducts();
+        }
         return result;
       } catch (error) {
         // Network/5xx failures are ambiguous: the server may have committed
@@ -480,7 +484,7 @@ function StoreView({
     title: `${receipt.direction === 'buy' ? 'Bought' : 'Sold'} ${receipt.itemName}`,
     subtitle: receipt.storeName,
     lines: [
-      { label: receipt.itemName, delta: receipt.quantityChange, remaining: action.result.after.resources[receipt.field] },
+      { label: receipt.itemName, delta: receipt.quantityChange, remaining: receipt.field ? action.result.after.resources[receipt.field] : receipt.quantityAfter },
       { label: 'Price each', value: formatCents(receipt.unitCents) },
       { label: receipt.direction === 'buy' ? 'Paid' : 'Received', delta: receipt.cashChangeCents, money: true },
       { label: 'Turns used', value: '0' },
@@ -493,7 +497,7 @@ function StoreView({
         label: `${line.direction === 'buy' ? 'Bought' : 'Sold'} ${line.itemName}`,
         detail: line.storeName,
         delta: line.quantityChange,
-        remaining: action.result!.after.resources[line.field],
+        remaining: line.field ? action.result!.after.resources[line.field] : line.quantityAfter,
       })),
       { label: checkoutReceipt.cashChangeCents < 0 ? 'Paid' : 'Received', delta: checkoutReceipt.cashChangeCents, money: true },
       { label: 'Turns used', value: '0' },
@@ -626,6 +630,8 @@ function StoreView({
                       bulkHelpers={catalog.bulkHelpers}
                       blocked={counterBlock}
                       onDone={loadProducts}
+                      storeName={store.name}
+                      onAddToBasket={onAddToBasket}
                     />
                   ))}
                 </div>

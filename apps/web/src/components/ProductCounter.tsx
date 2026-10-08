@@ -81,11 +81,27 @@ function ShelfLine({ pip, name, onArrival }: { pip: NonNullable<ProductStockDto[
  * 0.4.0-D. One product at Pip's counter, laid out like every other shelf item:
  * what you own and his prices, his shelf, then a buy or sell order.
  */
-export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDone }: {
+/** A product line for the store basket, in the shape the basket keeps. */
+export interface ProductBasketLine {
+  key: string;
+  store: 'PIP';
+  item: string;
+  direction: 'buy' | 'sell';
+  quantity: number;
+  storeName: string;
+  itemName: string;
+  unitCents: number;
+  stockLabel: string;
+}
+
+export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDone, storeName, onAddToBasket }: {
   product: ProductStockDto; cashCents: number; bulkHelpers: number[];
   /** Why the whole counter is off, or null when it is open. */
   blocked: string | null;
   onDone: () => void;
+  storeName: string;
+  /** Puts this order in the store basket, to check out with everything else. */
+  onAddToBasket: (line: ProductBasketLine) => void;
 }) {
   const trade = useGameAction<ProductTradeResult>();
   const [direction, setDirection] = useState<'buy' | 'sell'>('buy');
@@ -117,6 +133,21 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
     if (block || purchaseLocked || typeof quantity !== 'number') return;
     await trade.run((actionId): Promise<GameActionResult<ProductTradeResult>> => api.post('/game/products/trade', { product: product.key, direction, quantity, actionId }));
     onDone();
+  }
+
+  function addToBasket() {
+    if (block || purchaseLocked || typeof quantity !== 'number') return;
+    onAddToBasket({
+      key: `PIP:${product.key}:${direction}`,
+      store: 'PIP',
+      item: product.key,
+      direction,
+      quantity,
+      storeName,
+      itemName: product.name,
+      unitCents: unit,
+      stockLabel: `${formatNumber(pip.stock)} / ${formatNumber(pip.cap)} in stock`,
+    });
   }
 
   const id = `product-${product.key}`;
@@ -179,9 +210,14 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
         <p className="se-hint">
           {purchaseLocked ? 'Purchases are locked until the required job is complete.' : `${buying ? 'Can buy' : 'Can sell'} ${formatNumber(max)}.`}
         </p>
-        <Button className="se-btn se-btn--primary se-btn--block" disabledReason={block}>
-          {buying ? 'Buy' : 'Sell'} {product.name}{valid && typeof quantity === 'number' ? ` · ${price(quantity * unit)}` : ''}
-        </Button>
+        <div className="se-store-actions">
+          <Button className="se-btn se-btn--primary se-btn--block" disabledReason={block}>
+            {buying ? 'Buy' : 'Sell'} {product.name}{valid && typeof quantity === 'number' ? ` · ${price(quantity * unit)}` : ''}
+          </Button>
+          <Button type="button" className="se-btn se-btn--block" disabledReason={block} onClick={addToBasket}>
+            Add to basket
+          </Button>
+        </div>
       </form>
       {trade.error ? <Alert>{trade.error}</Alert> : null}
       {trade.result ? (

@@ -5,6 +5,7 @@ import {
   findStore,
   hasWeaponAccess,
   maxStoreBuy,
+  productEconomy,
   restockIntervalFor,
   stockOnHand,
   StoreTradeError,
@@ -50,6 +51,7 @@ import { ProductInventoryService, productKeys } from './product-inventory.servic
 import { HighMarketService } from './high-market.service.js';
 import { marketPrice } from './run-settle.service.js';
 import { FactionService } from './faction.service.js';
+import { tradeProductLine } from './product-market.service.js';
 import type { Db } from '../utils/db.js';
 
 type CatalogPlayer = RoundPlayer & { city: { slug: string } };
@@ -784,7 +786,7 @@ export const StoreService = {
     return ActionService.run<StoreCheckoutResult>(prisma, roundPlayerId, {
       action: 'STORE_CHECKOUT',
       actionId: input.actionId,
-      execute: async ({ tx, current, player, ruleset, standings, now }) => {
+      execute: async ({ tx, current, player, round, ruleset, standings, now }) => {
         const armed = await SingleUseFavorService.matching(tx, roundPlayerId, ruleset, 'STORE_BUY_DISCOUNT');
         const discount: StoreDiscount | null = armed?.effect.kind === 'STORE_BUY_DISCOUNT'
           ? { id: armed.id, key: armed.key, effect: armed.effect }
@@ -800,6 +802,36 @@ export const StoreService = {
 
         for (const [index, line] of input.lines.entries()) {
           const { foundStore, normalized } = normalizeStoreLine(ruleset, line);
+          // Pip's other products ride in the same basket, priced and stocked exactly as at his counter.
+          if (normalized.store === 'PIP' && normalized.item !== 'CRACK' && productEconomy(ruleset, normalized.item)?.pip) {
+            const product = await tradeProductLine(
+              { tx, roundPlayerId, player, round, ruleset, standings, now, cashCents: next.cashCents, sourceKey: `checkout:${input.actionId ?? now.toISOString()}:${index}`, creditPip: !creditedTraders.has('PIP') },
+              { product: normalized.item, direction: normalized.direction, quantity: normalized.quantity },
+            ).catch((error: unknown) => {
+              if (error instanceof AppError) throw new AppError(error.statusCode, error.code, `Line ${index + 1}: ${error.message}`, error.fields);
+              throw error;
+            });
+            creditedTraders.add('PIP');
+            results.push({
+              reputationGained: product.result.reputationGained,
+              storeKey: 'PIP',
+              storeName: ruleset.stores.PIP.name,
+              itemName: product.result.productName,
+              productKey: product.result.product,
+              quantityAfter: product.result.quantityAfter,
+              direction: product.result.direction,
+              quantity: product.result.quantity,
+              unitCents: product.result.unitCents,
+              totalCents: product.result.totalCents,
+              cashChangeCents: product.result.cashChangeCents,
+              quantityChange: product.result.direction === 'buy' ? product.result.quantity : -product.result.quantity,
+              ...(product.result.factionDiscount ? { factionDiscount: product.result.factionDiscount } : {}),
+            });
+            ledger.push(product.ledger);
+            if (product.reputation) reputation.push(product.reputation);
+            next.cashCents += product.cashChangeCents;
+            continue;
+          }
           const quote = quoteForLine(ruleset, standings, discount, foundStore, normalized, readRacketEffects(player.racketEffects), nudges);
           let trade;
           try {

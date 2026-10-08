@@ -1279,7 +1279,11 @@ export interface StoreTradeResult {
   storeKey: string;
   storeName: string;
   itemName: string;
-  field: StoreItemDto['field'];
+  /** The resource the line moved. Absent on a product line from Pip's counter, which moves `productKey`. */
+  field?: StoreItemDto['field'];
+  /** A basket line for one of Pip's products, and how many the crew holds after it. */
+  productKey?: string;
+  quantityAfter?: number;
   direction: 'buy' | 'sell';
   quantity: number;
   unitCents: number;
