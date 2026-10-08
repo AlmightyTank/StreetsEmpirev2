@@ -668,16 +668,12 @@
 .se-turfactions .se-field { margin: 0; }
 
 @media (max-width: 620px) {
-  .se-citymap-scroll {
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    scrollbar-width: thin;
-  }
+  /* Phones: the whole map fits the screen. It scales from its viewBox, so every city and
+     road stays in view instead of hiding behind a sideways scroll. */
   .se-citymap {
-    width: 520px;
-    max-width: none;
+    width: 100%;
     max-height: none;
-    padding-bottom: 4px;
+    padding: 6px 2px 2px;
   }
 
   .se-turfcitystrip__city { flex-basis: 142px; min-height: 68px; }
