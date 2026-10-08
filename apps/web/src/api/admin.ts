@@ -37,6 +37,8 @@ import type {
   AdminNpcGangControlInput,
   AdminNpcGangControlResultDto,
   AdminNpcGangInspectDto,
+  AdminNpcTelemetryDto,
+  AdminNpcTelemetryWindow,
   AdminDiscordStatusDto,
   AdminGrantInput,
   AdminNewsDto,
@@ -141,9 +143,11 @@ export const adminApi = {
   devBots: () => api.get<AdminDevBotsDto>('/admin/dev-bots'),
   seedDevBots: () => api.post<AdminDevBotsDto>('/admin/dev-bots/seed'),
   removeDevBots: (reason: string) => api.post<AdminDevBotsDto>('/admin/dev-bots/remove', { reason }),
+  spawnNpcCrew: () => api.post<AdminDevBotsDto>('/admin/npc-gangs/spawn'),
   seedDevBot: (slug: string) => api.post<AdminDevBotsDto>(`/admin/dev-bots/rivals/${enc(slug)}/seed`),
   removeDevBot: (accountId: string, reason: string) => api.post<AdminDevBotsDto>(`/admin/dev-bots/accounts/${enc(accountId)}/remove`, { reason }),
   npcGang: (roundPlayerId: string) => api.get<AdminNpcGangInspectDto>(`/admin/npc-gangs/${enc(roundPlayerId)}`),
+  npcTelemetry: (window: AdminNpcTelemetryWindow) => api.get<AdminNpcTelemetryDto>(`/admin/npc-gangs/telemetry${queryString({ window })}`),
   controlNpcGang: (roundPlayerId: string, input: AdminNpcGangControlInput) =>
     api.post<AdminNpcGangControlResultDto>(`/admin/npc-gangs/${enc(roundPlayerId)}/control`, input),
 

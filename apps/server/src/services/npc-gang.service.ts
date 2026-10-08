@@ -16,6 +16,8 @@ import { CombatService, combatProtectionUntil } from './combat.service.js';
 import { npcRules } from './npc-gang-rules.js';
 import { historyJson, npcPersonality, orderByTargeting, storedHistory, withHit, withLoss } from './npc-gang-personality.js';
 import { npcCityRelief, npcRetireReason } from './npc-gang-rewards.js';
+import { NpcGangSpawnService, npcProgressTier } from './npc-gang-spawn.service.js';
+import { bumpTelemetry, storedTelemetry, telemetryJson, type NpcSkipReason } from './npc-gang-telemetry.js';
 import { buildNpcGrudges, grudgesJson, openNpcGrudges, type NpcGrudge } from './npc-gang-memory.js';
 import {
   dormancyCall, loadNpcFights, momentumAggression, momentumPace, npcMomentum, storedDormancy, storedMomentum,
@@ -28,7 +30,7 @@ import {
 import { loadNpcTurf, npcTurfMoves, type NpcTurfMove, type NpcTurfState } from './npc-gang-turf.js';
 import { ProductionService } from './production.service.js';
 import { RelocationService } from './relocation.service.js';
-import { ScoutService } from './scout.service.js';
+import { ScoutService, toDistrictDto } from './scout.service.js';
 import { StoreService } from './store.service.js';
 import { BlockWarService } from './block-war.service.js';
 import { TurfActionService } from './turf-action.service.js';
@@ -69,12 +71,21 @@ type NpcGangRestockPlan = {
   reason: string;
 };
 
-type NpcGangIntent = 'RESTOCK' | 'PRODUCE' | 'RAID_PLAYER' | 'DRIVE_BY_PLAYER' | 'SPECIAL_RAID_PLAYER' | 'TURF' | 'LAY_LOW';
+type NpcGangIntent = 'RESTOCK' | 'PRODUCE' | 'HUSTLE' | 'RAID_PLAYER' | 'DRIVE_BY_PLAYER' | 'SPECIAL_RAID_PLAYER' | 'TURF' | 'LAY_LOW';
 type NpcGangOutcome =
-  | 'RESTOCKED' | 'PRODUCED' | 'RAIDED' | 'DROVE_BY' | 'SPECIAL_RAIDED'
+  | 'RESTOCKED' | 'PRODUCED' | 'HUSTLED' | 'RAIDED' | 'DROVE_BY' | 'SPECIAL_RAIDED'
   | 'WORKED_TURF' | 'CLAIMED_TURF' | 'TURF_CLAIM_LOST' | 'DEFENDED_TURF' | 'ABANDONED_TURF'
   | 'MIGRATED' | 'WENT_DORMANT' | 'RETIRED' | 'LAY_LOW' | 'BLOCKED' | 'SKIPPED';
 type NpcGangIntentCandidate = { intent: NpcGangIntent; weight: number };
+
+/**
+ * Every NPC move carries an action id like a player's request, and the shared schema
+ * caps those at 64 characters. A gang id plus a UUID ran past that, so combat refused
+ * every NPC hit; the gang is already on the action row, so the id only needs to be unique.
+ */
+export function npcActionId(): string {
+  return `npc-${randomUUID()}`;
+}
 
 const SPECIAL_RAID_KINDS = ['STEAL_RIDE', 'LURE_CREW', 'DRUG_HOES'] as const satisfies readonly SpecialRaidKind[];
 
@@ -98,7 +109,7 @@ function nextActionAt(now: Date, gang: Pick<DueNpcGang, 'ambition' | 'discipline
     ? 6
     : outcome === 'DEFENDED_TURF'
     ? 4
-    : outcome === 'PRODUCED'
+    : outcome === 'PRODUCED' || outcome === 'HUSTLED'
     ? 6
     : outcome === 'RESTOCKED'
     ? 4
@@ -233,6 +244,44 @@ function specialRaidScore(gang: DueNpcGang, kind: SpecialRaidKind, ruleset: Rule
   return gang.aggression + Math.round(gang.ambition / 3);
 }
 
+/**
+ * Growth. A crew hustles the way a player does: it works a block for cash and picks up
+ * hoes and thugs on the way, keeping enough turns back for a hit. This is how a crew
+ * that spawned with the starting stock grows.
+ */
+function hustleReserve(ruleset: Ruleset): number {
+  return Math.max(ruleset.combat?.turnCost ?? 0, ruleset.combat?.driveBy?.turnCost ?? 0);
+}
+
+function canHustle(gang: DueNpcGang, ruleset: Ruleset, now: Date): boolean {
+  const player = gang.roundPlayer;
+  return player.whores + player.thugs > 0
+    && player.turns - hustleReserve(ruleset) >= ruleset.scouting.minTurns
+    && (!player.lockedUntil || player.lockedUntil <= now)
+    && (!player.movingUntil || player.movingUntil <= now);
+}
+
+function hustleTurns(gang: DueNpcGang, ruleset: Ruleset): number {
+  const spare = gang.roundPlayer.turns - hustleReserve(ruleset);
+  const trip = Math.max(ruleset.scouting.recommendedTurns, 10 + Math.round(gang.ambition / 5));
+  return Math.max(ruleset.scouting.minTurns, Math.min(spare, trip, 40));
+}
+
+/** The block that pays best for this crew: pay, discounted by girls its thugs cannot cover. */
+function hustleDistrict(gang: DueNpcGang, ruleset: Ruleset): string | null {
+  const player = gang.roundPlayer;
+  const crew = { whores: player.whores, thugs: player.thugs, pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s };
+  const all = Object.values(ruleset.districts);
+  let best: { key: string; score: number } | null = null;
+  for (const [key, district] of Object.entries(ruleset.districts)) {
+    const view = toDistrictDto(key, district, all, ruleset, crew, player.city.slug);
+    if (view.requiresArmedThugs && view.armedThugs < 1) continue;
+    const score = district.payMultiplier * (1 - view.exposedFraction) + (district.whoresPerTurn + district.thugsPerTurn) * 0.05;
+    if (!best || score > best.score) best = { key, score };
+  }
+  return best?.key ?? null;
+}
+
 function canProduce(gang: DueNpcGang, ruleset: Ruleset, now: Date): boolean {
   const player = gang.roundPlayer;
   const recipes = productRecipes(ruleset);
@@ -264,6 +313,7 @@ function intentWeight(gang: DueNpcGang, intent: NpcGangIntent, ruleset: Ruleset)
   const raw = (() => {
     if (intent === 'RESTOCK') return 18 + Math.round(gang.discipline / 3) + Math.round(gang.ambition / 6);
     if (intent === 'PRODUCE') return 14 + Math.round(gang.ambition / 2) + Math.round(gang.discipline / 5);
+    if (intent === 'HUSTLE') return 24 + Math.round(gang.ambition / 2) + Math.round(gang.discipline / 6);
     if (intent === 'RAID_PLAYER') return 10 + Math.round(gang.aggression / 2) + Math.round(gang.ambition / 8);
     if (intent === 'DRIVE_BY_PLAYER') return 6 + Math.round(gang.aggression * 0.7);
     if (intent === 'SPECIAL_RAID_PLAYER') return 8 + Math.round(gang.aggression / 2) + Math.round(gang.ambition / 4);
@@ -305,6 +355,7 @@ function chooseIntent(gang: DueNpcGang, ruleset: Ruleset, now: Date, rng: () => 
   if (violent && availableSpecialRaidKinds(gang, ruleset, now).length) candidates.push({ intent: 'SPECIAL_RAID_PLAYER', weight: intentWeight(gang, 'SPECIAL_RAID_PLAYER', ruleset) + pulls.revenge });
   if (violent && canRaid(gang, ruleset, now)) candidates.push({ intent: 'RAID_PLAYER', weight: intentWeight(gang, 'RAID_PLAYER', ruleset) + pulls.revenge + pulls.pressure });
   if (canProduce(gang, ruleset, now)) candidates.push({ intent: 'PRODUCE', weight: intentWeight(gang, 'PRODUCE', ruleset) });
+  if (canHustle(gang, ruleset, now)) candidates.push({ intent: 'HUSTLE', weight: intentWeight(gang, 'HUSTLE', ruleset) });
   if (pulls.turf !== null) candidates.push({ intent: 'TURF', weight: intentWeight(gang, 'TURF', ruleset) + pulls.turf });
   if (!candidates.length) return 'LAY_LOW';
 
@@ -428,16 +479,32 @@ async function cityTargets(prisma: PrismaClient, gang: DueNpcGang, ids?: readonl
  * protection, drive-by cool-off, and the "not back since the last hit" rule.
  * NPC payback never takes the player-side `bypassProtection` revenge pass.
  */
-function targetOpen(gang: DueNpcGang, target: NpcGangCombatTarget, ruleset: Ruleset, now: Date, mode: NpcGangTargetMode, specialKind?: SpecialRaidKind): boolean {
+function targetSkip(gang: DueNpcGang, target: NpcGangCombatTarget, ruleset: Ruleset, now: Date, mode: NpcGangTargetMode, specialKind?: SpecialRaidKind): NpcSkipReason | null {
   const model = ruleset.combat;
-  if (!model) return false;
-  if (combatProtectionUntil(target, model) > now) return false;
+  if (!model) return 'SHIELD';
+  if (combatProtectionUntil(target, model) > now) return 'SHIELD';
   if (mode === 'DRIVE_BY') {
-    if (target.driveByProtectedUntil && target.driveByProtectedUntil > now) return false;
-    if (target.lastDrivenByAt && target.lastActiveAt <= target.lastDrivenByAt) return false;
-    if (fitThugs(target) < 1 && target.whores < 1) return false;
-  } else if (target.lastRaidedAt && target.lastActiveAt <= target.lastRaidedAt) return false;
-  return !specialKind || targetSupportsSpecialRaid(gang, target, ruleset, specialKind);
+    if (target.driveByProtectedUntil && target.driveByProtectedUntil > now) return 'SHIELD';
+    if (target.lastDrivenByAt && target.lastActiveAt <= target.lastDrivenByAt) return 'NOT_BACK';
+    if (fitThugs(target) < 1 && target.whores < 1) return 'EMPTY_BLOCK';
+  } else if (target.lastRaidedAt && target.lastActiveAt <= target.lastRaidedAt) return 'NOT_BACK';
+  return !specialKind || targetSupportsSpecialRaid(gang, target, ruleset, specialKind) ? null : 'NO_MARK';
+}
+
+function targetOpen(gang: DueNpcGang, target: NpcGangCombatTarget, ruleset: Ruleset, now: Date, mode: NpcGangTargetMode, specialKind?: SpecialRaidKind): boolean {
+  return targetSkip(gang, target, ruleset, now, mode, specialKind) === null;
+}
+
+/**
+ * Phase P. Why targets were passed over during the current tick, per gang, until the
+ * tick's outcome is recorded. The sweep runs gangs one at a time, so a map is enough.
+ */
+const tickSkips = new Map<string, Record<string, number>>();
+
+function noteSkip(gangId: string, reason: NpcSkipReason): void {
+  const skips = tickSkips.get(gangId) ?? {};
+  skips[reason] = (skips[reason] ?? 0) + 1;
+  tickSkips.set(gangId, skips);
 }
 
 /** Phase J. Crews working the gang's block come first; the rest keep their net-worth order. */
@@ -452,8 +519,15 @@ async function pickRaidTarget(prisma: PrismaClient, gang: DueNpcGang, ruleset: R
     ? focus.revengeTargets
     : onTurfFirst(orderByTargeting(await cityTargets(prisma, gang), gangPersonality(gang, ruleset).targeting), focus.pressureIds);
   for (const target of candidates) {
-    if (!targetOpen(gang, target, ruleset, now, mode, specialKind)) continue;
-    if (await wasRecentlyNpcRaided(prisma, target.id, now, rules)) continue;
+    const skip = targetSkip(gang, target, ruleset, now, mode, specialKind);
+    if (skip) {
+      noteSkip(gang.id, skip);
+      continue;
+    }
+    if (await wasRecentlyNpcRaided(prisma, target.id, now, rules)) {
+      noteSkip(gang.id, 'DOGPILE');
+      continue;
+    }
     return target;
   }
   return null;
@@ -534,7 +608,10 @@ async function revengeTargets(prisma: PrismaClient, gang: DueNpcGang, ruleset: R
   const valid: NpcGangCombatTarget[] = [];
   for (const target of rows) {
     if (!targetOpen(gang, target, ruleset, now, 'RAID') && !targetOpen(gang, target, ruleset, now, 'DRIVE_BY')) continue;
-    if (await wasRecentlyNpcRaided(prisma, target.id, now, rules)) continue;
+    if (await wasRecentlyNpcRaided(prisma, target.id, now, rules)) {
+      noteSkip(gang.id, 'DOGPILE');
+      continue;
+    }
     valid.push(target);
   }
   return valid;
@@ -550,7 +627,7 @@ async function restock(prisma: PrismaClient, gang: DueNpcGang, ruleset: Ruleset,
   let lastError: unknown;
   for (const plan of restockPlans(gang, ruleset)) {
     try {
-      const actionId = `npc:${gang.id}:${randomUUID()}`;
+      const actionId = npcActionId();
       const result = await StoreService.trade(prisma, gang.roundPlayerId, {
         store: plan.store,
         item: plan.item,
@@ -641,6 +718,10 @@ async function recordOutcome(
     ...(error ? { error: error.code } : {}),
   };
   const decisions = [decision, ...storedDecisions(gang.memory)].slice(0, DECISION_LOG);
+  // Phase P. The day's counters: this outcome, a blocked reason, and the tick's target skips.
+  const skips = tickSkips.get(gang.id);
+  tickSkips.delete(gang.id);
+  const telemetry = telemetryJson(bumpTelemetry(storedTelemetry(gang.memory), now, { outcome: input.outcome, blockedCode: error?.code ?? null, ...(skips ? { skips } : {}) }));
   await prisma.npcGang.update({
     where: { id: gang.id },
     data: {
@@ -657,6 +738,7 @@ async function recordOutcome(
         // Phase L. Consecutive blocked moves cost momentum.
         blockedStreak: input.outcome === 'BLOCKED' ? blockedStreak(gang.memory) + 1 : 0,
         decisions,
+        telemetry,
         ...input.memory,
       },
     },
@@ -849,8 +931,7 @@ async function tryMigrate(prisma: PrismaClient, gang: DueNpcGang, ruleset: Rules
     return 'LAY_LOW';
   }
 
-  // Relocation ids must fit the shared 64-character action id.
-  const actionId = `npc-move:${randomUUID()}`;
+  const actionId = npcActionId();
   try {
     const moved = await RelocationService.move(prisma, gang.roundPlayerId, { to: plan.to, actionId });
     const arrivesAt = new Date(moved.result.arrivesAt);
@@ -940,7 +1021,7 @@ function turfCapacity(gang: DueNpcGang, ruleset: Ruleset, rules: NpcGangRules) {
 
 /** Phase J. Every turf move goes through the player service for it; the services own legality. */
 async function runTurfMove(prisma: PrismaClient, gang: DueNpcGang, rules: NpcGangRules, now: Date, move: NpcTurfMove, rng: () => number): Promise<NpcGangOutcome> {
-  const actionId = `npc:${gang.id}:${randomUUID()}`;
+  const actionId = npcActionId();
   const block = 'block' in move ? move.block : null;
   const where = 'prospect' in move ? move.prospect : move.block;
   const lastTurfMove = (extra: Record<string, Prisma.InputJsonValue | null> = {}): Prisma.InputJsonObject => ({
@@ -1014,7 +1095,24 @@ async function runTurfMove(prisma: PrismaClient, gang: DueNpcGang, rules: NpcGan
   }
 }
 
+/**
+ * A spawned crew climbs tiers by growing: once its net worth reaches the next multiple
+ * of what it started with, it moves up for good. Seeded dev crews without a starting
+ * worth keep the tier they were given.
+ */
+async function promoteTier(prisma: PrismaClient, gang: DueNpcGang, rules: NpcGangRules, now: Date): Promise<DueNpcGang> {
+  const memory = memoryObject(gang.memory) as Prisma.JsonObject;
+  const start = typeof memory.startNetWorthCents === 'number' ? memory.startNetWorthCents : 0;
+  const tier = npcProgressTier({ startNetWorthCents: start, netWorthCents: Number(gang.roundPlayer.netWorthCents), currentTier: gang.tier, rules: rules.progression });
+  if (tier === gang.tier) return gang;
+  const promotion = { from: gang.tier, to: tier, at: now.toISOString() };
+  const promoted = { ...gang, tier, memory: { ...memory, lastPromotion: promotion } };
+  await prisma.npcGang.update({ where: { id: gang.id }, data: { tier, memory: promoted.memory } });
+  return promoted;
+}
+
 async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promise<NpcGangRun> {
+  tickSkips.delete(due.id);
   const baseRuleset = loadRulesetForRound(due.roundPlayer.round);
   const livingRuleset = rulesetForCity(baseRuleset, due.roundPlayer.city.slug);
   const rules = npcRules(livingRuleset);
@@ -1033,6 +1131,7 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
     return { outcome: 'LAY_LOW', revenge: false };
   }
 
+  due = await promoteTier(prisma, due, rules, now);
   const grudges = await loadGrudges(prisma, due, rules, now);
   const turf = await loadGangTurf(prisma, due, livingRuleset, rules, now);
   const migration = await migrationPlan(prisma, due, baseRuleset, rules, now);
@@ -1128,11 +1227,34 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
     if (restocked) return outcome(restocked);
   }
 
+  if (intent === 'HUSTLE') {
+    const district = hustleDistrict(gang, livingRuleset);
+    if (district) {
+      const actionId = npcActionId();
+      const turns = hustleTurns(gang, livingRuleset);
+      try {
+        const trip = await ScoutService.scout(prisma, gang.roundPlayerId, { district, turns, actionId }, seededRng(hashParts(gang.id, now.toISOString(), 'hustle')));
+        await recordOutcome(prisma, gang, now, {
+          intent, outcome: 'HUSTLED', rules,
+          detail: {
+            actionId, district, districtName: trip.result.district.name, turns,
+            whoresRecruited: trip.result.whoresRecruited, thugsRecruited: trip.result.thugsRecruited,
+            cashChangeCents: Number(trip.after.cashCents) - Number(trip.before.cashCents),
+          },
+        });
+        return outcome('HUSTLED');
+      } catch (error) {
+        await recordOutcome(prisma, gang, now, { intent, outcome: 'BLOCKED', rules, error, detail: { actionId, district, turns } });
+        return outcome('BLOCKED');
+      }
+    }
+  }
+
   if (violent && (intent === 'DRIVE_BY_PLAYER' || (intent === 'RESTOCK' && canDriveBy(gang, livingRuleset, now)))) {
     const target = await pickRaidTarget(prisma, gang, livingRuleset, rules, now, focus, undefined, 'DRIVE_BY');
     if (target) {
       try {
-        const actionId = `npc:${gang.id}:${randomUUID()}`;
+        const actionId = npcActionId();
         const report = await CombatService.driveBy(prisma, gang.roundPlayerId, {
           roundId: gang.roundPlayer.roundId,
           targetPublicPimpId: target.publicPimpId,
@@ -1175,7 +1297,7 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
     const plan = await pickSpecialRaidPlan(prisma, gang, livingRuleset, rules, now, focus);
     if (plan) {
       try {
-        const actionId = `npc:${gang.id}:${randomUUID()}`;
+        const actionId = npcActionId();
         const report = await CombatService.specialRaid(prisma, gang.roundPlayerId, {
           roundId: gang.roundPlayer.roundId,
           targetPublicPimpId: plan.target.publicPimpId,
@@ -1220,7 +1342,7 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
     const target = await pickRaidTarget(prisma, gang, livingRuleset, rules, now, focus);
     if (target) {
       try {
-        const actionId = `npc:${gang.id}:${randomUUID()}`;
+        const actionId = npcActionId();
         const report = await CombatService.raid(prisma, gang.roundPlayerId, {
           roundId: gang.roundPlayer.roundId,
           targetPublicPimpId: target.publicPimpId,
@@ -1261,7 +1383,7 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
   }
 
   try {
-    const actionId = `npc:${gang.id}:${randomUUID()}`;
+    const actionId = npcActionId();
     const result = await ProductionService.produceCrack(prisma, gang.roundPlayerId, {
       turns: produceTurns(gang, livingRuleset),
       productType: chooseProduct(livingRuleset),
@@ -1285,6 +1407,32 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
   }
 }
 
+/** Phase P. A gang's traits as the weights and pacing read them. */
+export interface NpcGangModelTraits {
+  archetype: string;
+  tier: string;
+  aggression: number;
+  ambition: number;
+  discipline: number;
+}
+
+/**
+ * Phase P. The scheduler's own intent weights and pacing, read-only, so the balance sim
+ * (`npm run qa:npc-gangs`) models exactly what the live scheduler would weigh. Both only
+ * read traits, archetype, tier and the stored momentum, so a plain trait object is enough.
+ */
+export const NpcGangModel = {
+  intentWeight(traits: NpcGangModelTraits, intent: NpcGangIntent, ruleset: Ruleset): number {
+    return intentWeight(traits as unknown as DueNpcGang, intent, ruleset);
+  },
+  nextActionMinutes(traits: NpcGangModelTraits, momentum: number, ruleset: Ruleset, outcome: NpcGangOutcome, now: Date): number {
+    const at = nextActionAt(now, { ambition: traits.ambition, discipline: traits.discipline, memory: { momentum } }, npcRules(ruleset), outcome);
+    return (at.getTime() - now.getTime()) / 60_000;
+  },
+};
+
+export type { NpcGangIntent, NpcGangOutcome };
+
 export const NpcGangService = {
   /**
    * Phase O. Run one gang's tick right now, for operators. A paused or dormant gang is
@@ -1305,9 +1453,13 @@ export const NpcGangService = {
    * Phase K: stronger gangs pack up quietly and relocate when their city is hostile, crowded or dead.
    * Phase L: wins heat a gang up and losses cool it down; beaten or over-targeted gangs go to ground.
    * Phase N: grounded crews buy their city a quiet spell; crews grounded too often or broken retire.
+   * Real crews: roster crews spawn small into live rounds, hustle to grow and climb tiers by net worth.
    * The raid engine still owns combat legality, cooldowns and player alerts.
    */
   async sweep(prisma: PrismaClient, now = new Date()): Promise<{ checked: number; acted: number; restocked: number; produced: number; raided: number; droveBy: number; specialRaided: number; revenged: number; turfMoves: number; migrated: number; dormant: number; retired: number; blocked: number }> {
+    // Real crews: spawn roster crews into live rounds that are short of them.
+    await NpcGangSpawnService.ensureCrews(prisma, now);
+
     // Phase K. Bring in NPC trucks that have arrived, so due gangs are read in their new city.
     const arrived = await prisma.relocation.findMany({
       where: { arrivedAt: null, arrivesAt: { lte: now }, roundPlayer: { npcGang: { isNot: null } } },

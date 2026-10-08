@@ -1,6 +1,6 @@
 # NPC Gangs Roadmap
 
-Status: **Phases A-O built in beta. Phase P is started.**
+Status: **Phases A-P built in beta, with real crews spawning into live rounds.**
 
 NPC gangs are server-run seasonal crews that use the same core systems players use:
 round players, cities, stores, production, raids, drive-bys, special raid forms,
@@ -43,7 +43,7 @@ or hitting players with unavoidable punishment.
 | M | Built | Boss and archetype personalities with named gangs and distinct patterns. |
 | N | Built | Rewards and cleanup for beating NPC gangs or relieving city pressure. |
 | O | Built | Admin controls for spawning, pausing, dormancy, tuning and memory inspection. |
-| P | Started | Balance telemetry for attack rate, wins, dogpiles, drain and stalled actions. |
+| P | Built | Balance telemetry for attack rate, wins, dogpiles, drain and stalled actions. |
 
 ## Built Phases
 
@@ -371,36 +371,63 @@ Read-only views from earlier phases:
 - Per-bot mood, momentum and dormancy (Phase L).
 - CLI status script includes the latest NPC gang outcome.
 
-## Remaining Phases
-
 ### Phase P: Balance Telemetry
 
-Track how often NPCs attack, win, dogpile, drain players or stall, so we can tune
-them without guessing.
+NPC behavior is measured, and a model predicts it before a season runs.
 
-Current support already built:
+Delivered:
 
-- Admin summary counts active gangs, due gangs, recent actions and blocked
-  outcomes.
-- City pressure counts recent hits, drive-bys and special raids.
-- Open grudges, 24h paybacks and per-city payback counts (Phase I).
-- NPC-held blocks in total and per city (Phase J).
-- Gangs packing or moving, and inbound trucks per city (Phase K).
-- Gangs on a run and gone to ground (Phase L).
-- Bounties paid in 24h and crews broken up (Phase N).
+- **Scheduler counters:** every tick adds to `memory.telemetry.days[YYYY-MM-DD]`: the
+  outcome, the error code when a move was blocked (kept apart from choosing to lay
+  low), and why targets were passed over (`DOGPILE`, `SHIELD`, `NOT_BACK`,
+  `EMPTY_BLOCK`, `NO_MARK`). The last 60 days are kept.
+- **Balance report** (`GET /api/admin/npc-gangs/telemetry?window=24h|7d|season`, the
+  "NPC balance" panel on Admin → Integrations): NPC hits on humans with win rate and
+  hits per active human per day, human hits on NPCs, cash and product taken each way,
+  bounties paid, win rates by city, tier and personality, hits by kind, move mix,
+  blocked reasons, target skips, and blocked, lay-low and dogpile-skip rates.
+- **Model sim** (`npm run qa:npc-gangs`): runs the live weights, pacing, momentum,
+  dormancy, break-up and bounty rules for 7 days and a full season in a shared world
+  with the anti-dogpile rule, for the roster crews a round of `--humans` would carry
+  and for every personality at Scrub, Veteran and Kingpin. Knobs: target odds, win
+  rates and human hit rate. It has no economy, so tiers stay where they start.
 
-Future telemetry:
+First reading (10 active humans, defaults): roster crews hit the anti-dogpile cap,
+about one NPC hit per active human per day. The cap is the real limiter, so
+`retaliationHours` is the main dial for how often NPCs hit people.
 
-- Track raids per active player per day.
-- Track NPC win/loss rates by city, tier and archetype.
-- Track cash/product drained from players and earned by NPCs.
-- Track dogpile prevention skips.
-- Track blocked action reasons separately from normal lay-low behavior.
-- Add simulation reports for 7-day and full-season behavior.
+## Real Crews
 
-Gate:
+NPC gangs used to exist only as dev bots, which are refused in production and against
+any non-local database, so beta never had any. Now the server spawns real crews.
 
-- We can tune NPC gangs from measured season data instead of vibes.
+Delivered:
+
+- **Roster:** `NPC_GANG_ROSTER` in `packages/rulesets/src/npc-gang-personalities.ts`,
+  ten named crews (boss, crew name and tag, personality, traits), reaching the
+  scheduler as `npcGangs.roster`.
+- **Spawning:** each sweep checks every active round and spawns at most one missing
+  roster crew, no sooner than `spawn.spawnEveryMinutes` after the last, until the round
+  carries `minCrews` to `maxCrews` crews (one per `humansPerCrew` humans active inside
+  `activeHumanHours`). Dev bots count toward the total. Admin can spawn the next crew
+  now. Allowed in production.
+- **Spawn small:** a crew joins through `RoundPlayerService.join`, exactly like a new
+  player: the round's starting stock, the starting city and the opening rank snapshot.
+  It starts at Scrub.
+- **Work up:** a new Hustle move scouts the best-paying block the crew can cover,
+  keeping turns back for a hit, so crews earn cash and recruit hoes and thugs the way
+  players do. Tier follows growth: Street, Veteran and Kingpin at 2×, 5× and 12× the
+  crew's starting net worth (`progression.netWorthMultiple`), and only goes up. Higher
+  tiers unlock migration and raise bounties.
+- **System accounts:** `npc.<slug>` usernames (a dot no human name can use) on an
+  `@npc.streets-empire.invalid` address with no usable password, so nobody can sign in
+  as a crew and nothing is mailed to one. The admin bot table lists crews alongside dev
+  bots; only dev bots can be removed.
+- **Fix:** NPC action ids were the gang id plus a UUID, past the shared 64-character
+  limit, so combat refused every NPC hit since Phase C. They are now short and tested.
+
+Not decided: crews are ordinary round players, so they appear in rankings and could
+take season-end placements from humans.
 
 ## Open Balance Questions
 

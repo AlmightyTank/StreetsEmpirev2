@@ -834,6 +834,8 @@ export interface AdminDevBotsDto {
     personalities: Array<{ key: string; label: string }>;
     tiers: string[];
     rivals: Array<{ slug: string; displayName: string; personality: string; inRound: boolean }>;
+    /** Real crews: roster size, how many are in the round, and how many it should carry now. */
+    crews: { roster: number; inRound: number; target: number; spawnEnabled: boolean; nextCrew: string | null };
   };
   /** Phase I. Read-only operator view of server-run gang pressure. */
   npcGangSummary: {
@@ -872,6 +874,8 @@ export interface AdminDevBotsDto {
   bots: Array<{
     accountId: string;
     username: string;
+    /** DEV: a local seed-rival test bot. CREW: a roster crew the server spawned. */
+    kind: 'DEV' | 'CREW';
     isActive: boolean;
     roundsPlayed: number;
     inCurrentRound: {
@@ -1292,4 +1296,38 @@ export interface AdminNpcGangInspectDto {
 export interface AdminNpcGangControlResultDto {
   message: string;
   gang: AdminNpcGangInspectDto;
+}
+
+/** Phase P. Which stretch an NPC balance report covers. */
+export type AdminNpcTelemetryWindow = '24h' | '7d' | 'season';
+
+/** Phase P. Measured NPC gang behavior over a window, for tuning from data. */
+export interface AdminNpcTelemetryDto {
+  window: AdminNpcTelemetryWindow;
+  roundName: string | null;
+  from: string;
+  to: string;
+  days: number;
+  activeHumans: number;
+  gangs: number;
+  /** NPC hits on human crews, from the NPC side. */
+  hits: { total: number; won: number; winRate: number | null; perActiveHumanPerDay: number | null; byKind: Record<string, number> };
+  /** Human hits on NPC crews, from the human side. */
+  humanHits: { total: number; won: number; winRate: number | null };
+  drain: {
+    cashFromHumansCents: number;
+    productFromHumans: number;
+    cashFromNpcsCents: number;
+    productFromNpcs: number;
+    bounties: number;
+    bountiesCents: number;
+  };
+  byCity: Array<{ city: string; hits: number; won: number; winRate: number | null; cashFromHumansCents: number }>;
+  byTier: Array<{ tier: string; hits: number; won: number; winRate: number | null }>;
+  byPersonality: Array<{ personality: string; hits: number; won: number; winRate: number | null }>;
+  /** Scheduler counters: outcomes, blocked reasons by code, and why targets were passed over. */
+  outcomes: Record<string, number>;
+  blocked: Record<string, number>;
+  skips: Record<string, number>;
+  rates: { blocked: number | null; layLow: number | null; dogpileSkips: number | null };
 }

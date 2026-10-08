@@ -5,6 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AdminNpcGangControls } from '../components/AdminNpcGangControls.js';
+import { AdminNpcTelemetryPanel } from '../components/AdminNpcTelemetryPanel.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
@@ -78,6 +79,20 @@ export function AdminIntegrationsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function spawnCrew() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      setBots(await adminApi.spawnNpcCrew());
+      setNotice('A new crew joined the round with starting stock.');
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'That did not go through. Refresh before trying again.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function spawn(slug: string, name: string) {
     setBusy(true);
@@ -244,6 +259,18 @@ export function AdminIntegrationsPage() {
                   </>
                 )}
                 <div className="se-rows se-mt">
+                  <Row label="Roster crews in round" value={`${formatNumber(bots.controls.crews.inRound)} of ${formatNumber(bots.controls.crews.roster)} · target ${formatNumber(bots.controls.crews.target)}`}
+                    tooltip="Real crews join like new players and grow by playing. The round carries one per few active humans, arriving one at a time." />
+                </div>
+                {bots.currentRound && bots.controls.crews.nextCrew ? (
+                  <div className="se-admin-moderation se-mt">
+                    <Button type="button" className="se-btn se-btn--sm se-btn--ghost" disabledReason={busy ? working : !bots.controls.crews.spawnEnabled ? 'Crew spawning is off in this ruleset.' : null}
+                      onClick={() => void spawnCrew()}>
+                      Spawn {bots.controls.crews.nextCrew} now
+                    </Button>
+                  </div>
+                ) : null}
+                <div className="se-rows se-mt">
                   <Row label="NPC gangs active" value={formatNumber(bots.npcGangSummary.active)} />
                   <Row label="Ready to move" value={formatNumber(bots.npcGangSummary.dueNow)} strong={bots.npcGangSummary.dueNow > 0} />
                   <Row label="Moved in 24h" value={formatNumber(bots.npcGangSummary.acted24h)} />
@@ -389,7 +416,7 @@ export function AdminIntegrationsPage() {
                                   {managing === bot.inCurrentRound.roundPlayerId ? 'Hide' : 'Manage'}
                                 </Button>
                               ) : null}
-                              {!bots.blockedReason ? (
+                              {!bots.blockedReason && bot.kind === 'DEV' ? (
                                 <Button type="button" className="se-btn se-btn--sm se-btn--ghost" disabledReason={busy ? working : null}
                                   onClick={() => { setRemoving({ accountId: bot.accountId, username: bot.username }); choose('remove-bot'); }}>
                                   Remove
@@ -414,6 +441,7 @@ export function AdminIntegrationsPage() {
             </>
           )}
         </Panel>
+        <AdminNpcTelemetryPanel />
       </div>
     </GameLayout>
   );

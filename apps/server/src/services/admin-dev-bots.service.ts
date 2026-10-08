@@ -7,6 +7,7 @@ import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { DEV_BOT_USERNAME_PREFIX, DEV_TEST_RIVALS, devBotAccountWhere, devBotsBlockedReason, removeDevBots, seedDevBots } from './dev-bots.service.js';
 import { NPC_GANG_TIERS, storedPause } from './admin-npc-gang.service.js';
+import { NPC_ACCOUNT_DOMAIN, NpcGangSpawnService, npcAccountUsername, npcAccountWhere, npcCrewTarget, nextRosterCrew } from './npc-gang-spawn.service.js';
 import { storedMigrationPlan } from './npc-gang-migration.js';
 import { npcMood, storedDormancy, storedMomentum } from './npc-gang-momentum.js';
 import { DEFAULT_NPC_GANG_RULES, npcRules } from './npc-gang-rules.js';
@@ -172,11 +173,13 @@ export const AdminDevBotsService = {
     const round = await RoundService.getCurrent(prisma);
     const since = new Date(now.getTime() - 24 * 3_600_000);
     const accounts = await prisma.account.findMany({
-      where: devBotAccountWhere,
+      // Dev bots and the roster crews the server spawned, together.
+      where: { OR: [devBotAccountWhere, npcAccountWhere] },
       orderBy: { username: 'asc' },
       select: {
         id: true,
         username: true,
+        email: true,
         isActive: true,
         _count: { select: { roundPlayers: true } },
         roundPlayers: round
@@ -319,6 +322,22 @@ export const AdminDevBotsService = {
       controls: {
         personalities: Object.entries(gangRules.personalities).map(([key, personality]) => ({ key, label: personality.label })),
         tiers: [...NPC_GANG_TIERS],
+        crews: await (async () => {
+          const crewSlugs = new Set(accounts
+            .filter((account) => account.email.endsWith(NPC_ACCOUNT_DOMAIN) && account.roundPlayers.length > 0)
+            .map((account) => gangRules.roster.find((entry) => npcAccountUsername(entry.slug) === account.username)?.slug)
+            .filter((slug): slug is string => Boolean(slug)));
+          const activeHumans = round
+            ? await prisma.roundPlayer.count({ where: { roundId: round.id, npcGang: { is: null }, account: { isActive: true }, lastActiveAt: { gte: new Date(now.getTime() - gangRules.spawn.activeHumanHours * 3_600_000) } } })
+            : 0;
+          return {
+            roster: gangRules.roster.length,
+            inRound: crewSlugs.size,
+            target: npcCrewTarget(activeHumans, gangRules.spawn, gangRules.roster.length),
+            spawnEnabled: gangRules.enabled && gangRules.spawn.enabled,
+            nextCrew: nextRosterCrew(gangRules.roster, crewSlugs)?.crewName ?? null,
+          };
+        })(),
         rivals: DEV_TEST_RIVALS.map((rival) => ({
           slug: rival.slug,
           displayName: rival.displayName,
@@ -360,6 +379,7 @@ export const AdminDevBotsService = {
         const memory = player?.npcGang ? npcGangMemory(player.npcGang.memory, now) : null;
         return {
           accountId: account.id,
+          kind: account.email.endsWith(NPC_ACCOUNT_DOMAIN) ? 'CREW' as const : 'DEV' as const,
           username: account.username,
           isActive: account.isActive,
           roundsPlayed: account._count.roundPlayers,
@@ -416,6 +436,19 @@ export const AdminDevBotsService = {
       throw error;
     }
     await record(prisma, actor, 'dev-bots.seed', { roundId: round.id, roundName: round.name, seeded });
+    return AdminDevBotsService.status(prisma);
+  },
+
+  /**
+   * Real crews: spawn the next roster crew into the current round now, ignoring the target
+   * and the spacing. Allowed in production; the crew starts like any new player.
+   */
+  async spawnCrew(prisma: PrismaClient, actor: AuditActor, now = new Date()): Promise<AdminDevBotsDto> {
+    const round = await RoundService.getCurrent(prisma, now);
+    if (!round) throw AppError.conflict('NO_ACTIVE_ROUND', 'There is no current round to spawn a crew into.');
+    const slug = await NpcGangSpawnService.spawnNext(prisma, round, now);
+    if (!slug) throw AppError.conflict('ROSTER_EXHAUSTED', 'Every roster crew is already in this round.');
+    await record(prisma, actor, 'npc-gang.spawn', { roundId: round.id, slug });
     return AdminDevBotsService.status(prisma);
   },
 

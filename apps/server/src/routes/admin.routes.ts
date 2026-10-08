@@ -24,6 +24,7 @@ import { AdminBattleService } from '../services/admin-battle.service.js';
 import { AdminConvoyService } from '../services/admin-convoy.service.js';
 import { AdminDevBotsService } from '../services/admin-dev-bots.service.js';
 import { AdminNpcGangService } from '../services/admin-npc-gang.service.js';
+import { NpcGangTelemetryService } from '../services/npc-gang-telemetry.service.js';
 import { AdminDiscordService } from '../services/admin-discord.service.js';
 import { AdminGrantService } from '../services/admin-grant.service.js';
 import { AdminHealthService } from '../services/admin-health.service.js';
@@ -109,6 +110,7 @@ const rulesetParams = z.object({ rulesetId: id }).strict();
 const emptyBody = z.object({}).strict();
 // Phase O: NPC gang controls. Every action carries a reason for the audit log.
 const npcGangParams = z.object({ roundPlayerId: id }).strict();
+const npcTelemetryQuery = z.object({ window: z.enum(['24h', '7d', 'season']).default('7d') }).strict();
 const devBotSlugParams = z.object({ slug: z.string().trim().regex(/^[a-z][a-z0-9-]{1,40}$/) }).strict();
 const trait = z.number().int().min(0).max(100);
 const npcGangControlBody = z.discriminatedUnion('action', [
@@ -519,6 +521,17 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(reasonBody, request.body ?? {});
     return AdminDevBotsService.removeOne(fastify.prisma, request.auth!.account, accountId, body.reason);
+  });
+
+  fastify.post('/npc-gangs/spawn', async (request) => {
+    parseBody(emptyBody, request.body ?? {});
+    return AdminDevBotsService.spawnCrew(fastify.prisma, request.auth!.account);
+  });
+
+  // Registered before the :roundPlayerId route so "telemetry" is never read as an id.
+  fastify.get('/npc-gangs/telemetry', async (request) => {
+    const { window } = parseBody(npcTelemetryQuery, request.query ?? {});
+    return NpcGangTelemetryService.report(fastify.prisma, window);
   });
 
   fastify.get('/npc-gangs/:roundPlayerId', async (request) => {

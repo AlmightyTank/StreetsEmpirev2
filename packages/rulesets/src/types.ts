@@ -796,7 +796,43 @@ export interface NpcGangSeedProfile {
 }
 
 /** Phase M. The scheduler intents a personality can lean toward or away from. */
-export type NpcGangIntentKey = 'RESTOCK' | 'PRODUCE' | 'RAID_PLAYER' | 'DRIVE_BY_PLAYER' | 'SPECIAL_RAID_PLAYER' | 'TURF' | 'LAY_LOW';
+export type NpcGangIntentKey = 'RESTOCK' | 'PRODUCE' | 'HUSTLE' | 'RAID_PLAYER' | 'DRIVE_BY_PLAYER' | 'SPECIAL_RAID_PLAYER' | 'TURF' | 'LAY_LOW';
+
+/**
+ * One ruleset-authored crew the server can spawn into a live round. It joins like a
+ * new player, with the round's starting stock, and grows by playing.
+ */
+export interface NpcGangRosterEntry {
+  readonly slug: string;
+  /** The boss, shown as the player name. */
+  readonly bossName: string;
+  readonly crewName: string;
+  readonly crewTag: string;
+  /** A key of `NpcGangRules.personalities`. */
+  readonly personality: string;
+  readonly aggression: number;
+  readonly ambition: number;
+  readonly discipline: number;
+}
+
+/** How many roster crews a live round carries, and how fast they arrive. */
+export interface NpcGangSpawnRules {
+  readonly enabled: boolean;
+  readonly minCrews: number;
+  readonly maxCrews: number;
+  /** One more crew for every this many active humans in the round. */
+  readonly humansPerCrew: number;
+  /** A human counts as active if seen inside this many hours. */
+  readonly activeHumanHours: number;
+  /** At most one new crew per this many minutes, so they arrive over time. */
+  readonly spawnEveryMinutes: number;
+}
+
+/** Tier follows growth: net worth as a multiple of what the crew started with. */
+export interface NpcGangProgressionRules {
+  readonly enabled: boolean;
+  readonly netWorthMultiple: { readonly STREET: number; readonly VETERAN: number; readonly KINGPIN: number };
+}
 
 /** Phase M. Who a crew goes after first among ordinary targets. */
 export type NpcGangTargeting = 'RICHEST' | 'WEAKEST' | 'RIDES' | 'PRODUCT' | 'DISTRACTED';
@@ -850,6 +886,10 @@ export interface NpcGangRules {
   readonly defaultPersonality: string;
   /** Phase N. What beating an NPC gang pays, and when beaten or stale gangs are cleaned up. */
   readonly rewards: NpcGangRewardRules;
+  /** Real crews: who spawns into live rounds, how many, and how they climb tiers. */
+  readonly roster: readonly NpcGangRosterEntry[];
+  readonly spawn: NpcGangSpawnRules;
+  readonly progression: NpcGangProgressionRules;
 }
 
 /**

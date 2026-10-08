@@ -1,5 +1,5 @@
 import type { Ruleset } from '@streets/rules-engine';
-import { NPC_GANG_PERSONALITIES, type NpcGangRules } from '@streets/rulesets';
+import { NPC_GANG_PERSONALITIES, NPC_GANG_ROSTER, type NpcGangRules } from '@streets/rulesets';
 
 /**
  * NPC gang rules with server defaults. Rulesets may override any field, and each
@@ -72,6 +72,19 @@ export const DEFAULT_NPC_GANG_RULES: NpcGangRules = {
     retireAfterDormancies: 3,
     retireBelowThugs: 3,
   },
+  roster: NPC_GANG_ROSTER,
+  spawn: {
+    enabled: true,
+    minCrews: 2,
+    maxCrews: 10,
+    humansPerCrew: 4,
+    activeHumanHours: 72,
+    spawnEveryMinutes: 45,
+  },
+  progression: {
+    enabled: true,
+    netWorthMultiple: { STREET: 2, VETERAN: 5, KINGPIN: 12 },
+  },
 };
 
 export function npcRules(ruleset: Ruleset): NpcGangRules {
@@ -86,6 +99,12 @@ export function npcRules(ruleset: Ruleset): NpcGangRules {
       ...DEFAULT_NPC_GANG_RULES.rewards,
       ...ruleset.npcGangs?.rewards,
       bountyCents: { ...DEFAULT_NPC_GANG_RULES.rewards.bountyCents, ...ruleset.npcGangs?.rewards?.bountyCents },
+    },
+    spawn: { ...DEFAULT_NPC_GANG_RULES.spawn, ...ruleset.npcGangs?.spawn },
+    progression: {
+      ...DEFAULT_NPC_GANG_RULES.progression,
+      ...ruleset.npcGangs?.progression,
+      netWorthMultiple: { ...DEFAULT_NPC_GANG_RULES.progression.netWorthMultiple, ...ruleset.npcGangs?.progression?.netWorthMultiple },
     },
   };
 }
