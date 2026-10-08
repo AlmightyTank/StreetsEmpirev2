@@ -6,6 +6,7 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { Alert } from './Alert.js';
 import { ItemTile } from './ItemTile.js';
 import { Panel } from './Panel.js';
+import { QuestLockNote } from './QuestLink.js';
 
 type Fleet = NonNullable<TravelDto['vehicleFleet']>;
 type VehicleClassId = Fleet[number]['classId'];
@@ -150,7 +151,11 @@ export function GaragePanel({ data, onDone }: { data: TravelDto; onDone: () => v
                     ) : null}
                   </>
                 ) : null}
-                {buyable ? (
+                {vehicle.charlie ? (
+                  vehicle.charlie.unlocked
+                    ? <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/stores/charlie">Buy at Charlie’s</Link>
+                    : <span className="se-garage__lock"><QuestLockNote unlockName={vehicle.charlie.unlockName} quest={vehicle.charlie.quest} /></span>
+                ) : buyable ? (
                   <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy || cash < (vehicle.buyCents ?? vehicle.purchasePriceCents!)}
                     onClick={() => void buy(vehicle.classId)}>Buy one · <Price cents={vehicle.buyCents ?? vehicle.purchasePriceCents!} list={vehicle.purchasePriceCents!} /></button>
                 ) : vehicle.classId === 'LOW_RIDER' ? (

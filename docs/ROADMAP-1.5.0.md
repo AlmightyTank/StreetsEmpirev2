@@ -73,6 +73,7 @@ Each slice should have its own release gate and pinned ruleset, following the ea
 | **1.5.0-C — Garage Service, Recovery & Class Art** | Built | `classic-og-v1.5-c` adds Damaged and Disabled vehicle states, priced garage repair and recovery, a Garage tab on Travel, and class artwork in the garage, run loadout and Hideout. Busts, arrests and lost convoy fights dent cars instead of deleting them. |
 | **1.5.0-D — Road Specialization** | Built | `classic-og-v1.5-d` connects the road lane to garage service: an Auto Garage cuts repairs, the Chop Shop's Vehicle recovery racket cuts recovery and Stolen Low-Riders now discounts Sedans and Vans, and Road Saints MC at Trusted cut both. Capped at 35%; no vehicle is exclusive to anyone. |
 | **1.5.0-E — Balance, Admin & Release** | Built | `classic-og-v1.5-e` adds the `qa:vehicles` simulation and release gate, trims the Sedan's low-profile edge from 10% to 5% lower route risk, and adds Admin → Vehicles, a fleet view and audited fleet corrections in the player inspector, exploit-audit checks and historical-ruleset tests. |
+| **1.5.0-E2 — Charlie's Fleet** | Built | `classic-og-v1.5-e2` moves Sedan and Van sales onto Charlie's shelf, each opened by a Wheels job (Pack Your Bags opens Sedans, Heavy Haul opens Vans). Every locked shelf (Tommy's racks, Pip's products, Charlie's vehicles) links straight to the job that opens it, and a locked job shows what it is waiting for. |
 | **1.5.0-F — Vehicle Cosmetics** | Proposed | After the base class silhouettes and garage presentation are settled, add optional player-selected vehicle looks. Cosmetics remain presentation-only and do not change vehicle stats or route outcomes. |
 
 ---
@@ -169,6 +170,16 @@ The Sedan is still the narrow favourite. The gate asks for real choices, not an 
 **Mobile.** The Garage tab, run loadout, Admin → Vehicles and the fleet correction form have no horizontal scroll at phone width.
 
 **Open options, not shipped.** The sim also tested *fleet exposure*, where every car past the first few adds route risk. It didn't change the picture enough to justify a new mechanic. It stays available if a later season shows big Sedan columns dominating.
+
+### 1.5.0-E2 — Charlie's Fleet
+
+**Status: implemented on beta.** `classic-og-v1.5-e2` wraps `classic-og-v1.5-e`.
+
+- **Charlie sells Sedans and Vans** at their 1.5 prices ($3,500 and $8,500), with no buyback. Each class needs a permanent unlock (`VEHICLE_PURCHASE_ACCESS`) from a Wheels job: **Pack Your Bags** (the story's first real run) opens Sedans, and **Heavy Haul** (real capacity on the road) opens Vans. Owning, driving and servicing them are unchanged, and the Travel garage still repairs and recovers.
+- **The Travel garage no longer sells them.** Its card links to Charlie's once the class is open, or to the job that opens it. On older 1.5 rulesets the garage purchase works as before.
+- **Every locked item names its job.** Tommy's racks, Pip's products (at his counter and on a run), Charlie's Sedans and Vans, and the garage each say "Finish “Job” for Contact to unlock X" and link to `/game/quests?focus=KEY`. The server refuses a locked purchase with the same wording.
+- **A linked Job that is itself locked** is pinned at the top of the jobs list, with an **Opens after** list: earlier Jobs (linked), contact rep needed (with what the player has), and faction tiers.
+- Pip's products also join the store basket (separate fix, same release).
 
 ### Vehicle artwork
 

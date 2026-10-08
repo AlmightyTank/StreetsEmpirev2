@@ -5,6 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { ItemLabel } from './ItemTile.js';
+import { QuestLockNote } from './QuestLink.js';
 import { routeProfileText, vehicleCountsText, vehicleTroubleText } from './GaragePanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { formatClockTime, formatDuration, formatWeekdayTime } from '../utils/time.js';
@@ -370,6 +371,7 @@ function TownCounter({ run, data, onDone }: { run: RunDto; data: TravelDto; onDo
   return (
     <div className="se-towncounter">
       <h3 className="se-city__heading">Trading in {run.position.cityName}</h3>
+      {locked ? <QuestLockNote unlockName={locked.unlockName} quest={locked.quest} after="The high market sells it to anyone." /> : null}
       {counter.event ? (
         <p className={`se-hint se-towncounter__event se-${counter.event.kind === 'GLUT' ? 'good' : 'warn'}`}>
           {EVENT_WORDS[counter.event.kind](eventProduct)} Until {clock(counter.event.endsAt)}.

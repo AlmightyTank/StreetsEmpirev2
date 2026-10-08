@@ -19,7 +19,10 @@ export type ResourceField =
   | 'shotguns'
   | 'tek9s'
   | 'ak47s'
-  | 'lowRiders';
+  | 'lowRiders'
+  /** 1.5.0-E2. Sedans and Vans sold over Charlie's counter. */
+  | 'sedans'
+  | 'vans';
 
 export type DistrictKey =
   | 'CASINO'
@@ -360,13 +363,18 @@ export type PermanentUnlockEffect =
   | {
       readonly kind: 'PRODUCT_PURCHASE_ACCESS';
       readonly productKey: string;
+    }
+  | {
+      /** 1.5.0-E2. Charlie sells this vehicle class. */
+      readonly kind: 'VEHICLE_PURCHASE_ACCESS';
+      readonly classId: 'SEDAN' | 'VAN';
     };
 
 export interface PermanentUnlockDefinition {
   readonly key: string;
   readonly name: string;
   readonly description: string;
-  readonly category: 'WEAPON' | 'PRODUCT' | 'TRAVEL';
+  readonly category: 'WEAPON' | 'PRODUCT' | 'TRAVEL' | 'VEHICLE';
   readonly effect: PermanentUnlockEffect;
 }
 
@@ -1003,6 +1011,11 @@ export interface Weapon {
 
 export interface StoreItem {
   readonly unlockKey?: WeaponUnlockKey;
+  /**
+   * 1.5.0-E2. A vehicle class on the shelf. When the round has a VEHICLE_PURCHASE_ACCESS unlock
+   * for the class, buying it waits for that unlock; selling and owning never do.
+   */
+  readonly vehicleClass?: 'SEDAN' | 'VAN';
   readonly name: string;
   readonly field: ResourceField;
   readonly buyCents: number;

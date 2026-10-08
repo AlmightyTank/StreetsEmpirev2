@@ -303,6 +303,7 @@ export const ProductMarketService = {
               ...(nudge ? { factionDiscount: { factionKey: nudge.factionKey, factionName: ruleset.factions?.[nudge.factionKey]?.name ?? nudge.factionKey, percent: nudge.percent } } : {}),
               unlockName: requiredUnlock?.name ?? null,
               unlockDescription: requiredUnlock?.description ?? null,
+              unlockQuest: requiredUnlock ? PermanentUnlockService.questFor(ruleset, requiredUnlock.key) : null,
             } : null,
             recipe: recipe ? { perThugPerTurn: recipe.perThugPerTurn, ingredientCentsPerUnit: recipe.ingredientCentsPerUnit, heatPerUnit: recipe.heatPerUnit } : null,
           } : {}),

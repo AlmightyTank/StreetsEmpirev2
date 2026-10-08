@@ -36,6 +36,8 @@ const resources = {
   tek9s: 0,
   ak47s: 0,
   lowRiders: 0,
+  sedans: 0,
+  vans: 0,
 };
 
 const before: PlayerSnapshot = {

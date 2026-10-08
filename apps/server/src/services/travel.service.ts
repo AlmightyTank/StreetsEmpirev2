@@ -202,6 +202,11 @@ async function cargoShareFor(db: Db | PrismaClient, roundPlayerId: string, rules
   return player ? racketCargoShare(ruleset, readRacketEffects(player.racketEffects)) : 0;
 }
 
+/** 1.5.0-E2. Whether Charlie's shelf carries this class, which retires the garage purchase. */
+function charlieSells(ruleset: Ruleset, classId: 'LOW_RIDER' | 'SEDAN' | 'VAN'): boolean {
+  return Object.values(ruleset.stores.CHARLIE?.items ?? {}).some((item) => item.vehicleClass === classId);
+}
+
 /** 1.5.0-C. A run's dents, when it has any. */
 function damageDto(run: { vehicleLoadout: Prisma.JsonValue; vehicleDamage: Prisma.JsonValue; lowRiders: number }): Pick<RunDto, 'vehicleDamage'> {
   const damage = readVehicleDamage(run.vehicleDamage, readVehicleLoadout(run.vehicleLoadout, run.lowRiders));
@@ -415,6 +420,16 @@ export const TravelService = {
         ? { ...city, counter: { ...city.counter, products: city.counter.products.map((entry) => ({ ...entry, market: marketPrice(ruleset, seed, player.city.slug, entry.key, homePushes.get(entry.key) ?? 0, now) })) } }
         : city))
       : map.cities;
+    // 1.5.0-E2: classes Charlie sells, and the job each still waits for.
+    const lockedVehicles = await PermanentUnlockService.lockedVehicles(prisma, roundPlayerId, ruleset);
+    const charlieLock = (classId: 'LOW_RIDER' | 'SEDAN' | 'VAN') => {
+      if (classId === 'LOW_RIDER' || !charlieSells(ruleset, classId)) return null;
+      const unlock = lockedVehicles.get(classId)
+        ?? Object.values(ruleset.permanentUnlocks ?? {}).find((definition) => definition.effect.kind === 'VEHICLE_PURCHASE_ACCESS' && definition.effect.classId === classId);
+      return unlock
+        ? { unlocked: !lockedVehicles.has(classId), unlockName: unlock.name, quest: PermanentUnlockService.questFor(ruleset, unlock.key) }
+        : { unlocked: true, unlockName: '', quest: null };
+    };
     // 1.5.0-D: the road lane's garage discounts for this crew.
     const discounts = ruleset.vehicleCatalog?.service?.specialization
       ? await vehicleServiceDiscounts(prisma, roundPlayerId, ruleset, player.racketEffects)
@@ -442,7 +457,8 @@ export const TravelService = {
             cargoPercent: vehicleClass.cargoPercent,
             crewSeats: vehicleClass.crewSeats,
             purchasePriceCents: vehicleClass.purchasePriceCents,
-            buyCents: vehicleClass.purchasePriceCents === null || vehicleClass.purchasePriceCents === undefined
+            charlie: charlieLock(vehicleClass.id),
+            buyCents: vehicleClass.purchasePriceCents === null || vehicleClass.purchasePriceCents === undefined || charlieSells(ruleset, vehicleClass.id)
               ? null
               : vehiclePurchaseCents(ruleset, vehicleClass.id, vehicleClass.purchasePriceCents, player.racketEffects).cents,
             routeProfile: vehicleClass.routeProfile,
@@ -467,7 +483,7 @@ export const TravelService = {
           },
         } : {}),
       } : {}),
-      lockedProducts: [...(await PermanentUnlockService.lockedProducts(prisma, roundPlayerId, base))].map(([key, unlock]) => ({ key, unlockName: unlock.name })),
+      lockedProducts: [...(await PermanentUnlockService.lockedProducts(prisma, roundPlayerId, base))].map(([key, unlock]) => ({ key, unlockName: unlock.name, quest: PermanentUnlockService.questFor(base, unlock.key) })),
       rules: {
         cargoPerLowRider: travel?.cargoPerLowRider ?? 0,
         thugsPerLowRider: ruleset.lowRiderThugCapacity,
@@ -504,6 +520,10 @@ export const TravelService = {
       actionId: input.actionId,
       execute: async ({ current, ruleset, player }) => {
         const vehicleClass = ruleset.vehicleCatalog?.classes.find((entry) => entry.id === input.classId);
+        // 1.5.0-E2: from Charlie's Fleet on, Sedans and Vans are bought over Charlie's counter.
+        if (charlieSells(ruleset, input.classId)) {
+          throw AppError.conflict('BUY_AT_CHARLIE', `Charlie sells ${vehicleClass?.name ?? 'those'}s now. Buy them at Charlie's Chop Shop.`);
+        }
         if (!vehicleClass || vehicleClass.purchasePriceCents === null || vehicleClass.purchasePriceCents === undefined) {
           throw AppError.conflict('VEHICLE_UNAVAILABLE', 'That vehicle is not available in this round.');
         }

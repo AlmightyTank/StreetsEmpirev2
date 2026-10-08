@@ -10,6 +10,7 @@ import { Portrait } from '../components/Portrait.js';
 import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
 import { ProductCounter } from '../components/ProductCounter.js';
+import { QuestLockNote } from '../components/QuestLink.js';
 import { ShelfArt } from '../components/ItemTile.js';
 import { QuantitySteps } from '../components/QuantitySteps.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -142,7 +143,9 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
   const [direction, setDirection] = useState<'buy' | 'sell'>('buy');
   const buying = direction === 'buy';
   const favor = item.unlock;
-  const locked = favor !== null && !favor.unlocked;
+  // 1.5.0-E2: a job-opened shelf (a weapon rack or one of Charlie's vehicles) says which job.
+  const questLock = item.questLock ?? null;
+  const locked = (favor !== null && !favor.unlocked) || (questLock !== null && !questLock.unlocked);
   const purchaseLocked = buying && locked;
   const unitCents = buying ? item.buyCents : item.sellCents;
   const max = buying
@@ -245,14 +248,18 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
           </Button>
         </div>
       ) : null}
-      {favor ? (
-        favor.unlocked ? <p className="se-hint se-good">Purchasing access earned for this round.</p> : (
+      {favor || questLock ? (
+        !locked ? <p className="se-hint se-good">Purchasing access earned for this round.</p> : (
           <div className="se-store-favor">
             <h3 className="se-store-favor__title">Quest locked</h3>
-            <p className="se-hint">
-              Tommy has not opened this part of the rack to you yet. Weapon access is earned through
-              {' '}<Link to="/game/quests">underworld jobs</Link>, not passive reputation.
-            </p>
+            {questLock ? (
+              <QuestLockNote unlockName={questLock.unlockName} quest={questLock.quest} after={owned > 0 ? `You can still use the ${item.name}s you own.` : undefined} />
+            ) : (
+              <p className="se-hint">
+                {keeper} has not opened this to you yet. Access is earned through
+                {' '}<Link to="/game/quests">underworld jobs</Link>, not passive reputation.
+              </p>
+            )}
           </div>
         )
       ) : null}

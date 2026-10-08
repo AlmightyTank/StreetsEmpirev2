@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   formatCents,
   formatNumber,
@@ -13,6 +13,7 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { ItemTile } from '../components/ItemTile.js';
+import { questHref } from '../components/QuestLink.js';
 import { RewardChip } from '../components/RewardChip.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -235,6 +236,18 @@ function QuestCard({
       )}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
+      {quest.status === 'LOCKED' && quest.requires?.length ? (
+        <div className="se-quest-card__requires">
+          <span className="se-eyebrow">Opens after</span>
+          <ul>
+            {quest.requires.map((requirement) => (
+              <li key={requirement.label}>
+                {requirement.questKey ? <Link className="se-golink" to={questHref(requirement.questKey)}>{requirement.label}</Link> : requirement.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {quest.story ? (
         <div className="se-quest-story">
           <div className="se-quest-story__quote">
@@ -628,7 +641,11 @@ export function QuestPage() {
     if (tab === 'ready') return readyToday;
     if (tab === 'tracked') return trackedToday;
     if (tab === 'completed') return page.quests.filter((quest) => ['COMPLETED', 'FAILED', 'EXPIRED'].includes(quest.status));
-    return page.quests.filter((quest) =>
+    // 1.5.0-E2: a locked shelf links to the Job that opens it. That Job may still be locked
+    // itself, so it is pinned at the top of the list with what it waits for.
+    const focusKey = focusedQuestKey(location.search, location.hash);
+    const pinned = focusKey ? page.quests.find((quest) => quest.key === focusKey && quest.status === 'LOCKED') : undefined;
+    return [...(pinned ? [pinned] : []), ...page.quests.filter((quest) =>
       quest.status === 'AVAILABLE'
       && quest.type !== 'DAILY'
       && quest.type !== 'WEEKLY'
@@ -637,13 +654,15 @@ export function QuestPage() {
       && quest.type !== 'CITY_CONTRACT'
       && quest.type !== 'EVENT'
       && quest.category !== 'CITY_CONTRACT'
-    );
-  }, [page, tab, dailyToday, weeklyToday, cityToday, seasonToday, allianceToday, eventToday, readyToday, trackedToday]);
+    )];
+  }, [page, tab, dailyToday, weeklyToday, cityToday, seasonToday, allianceToday, eventToday, readyToday, trackedToday, location.search, location.hash]);
 
   const sortedShown = useMemo(
     () => [...shown].sort((left, right) => {
+      // A locked Job only reaches a list when a link pinned it there, so it leads.
       const weight = (quest: PlayerQuestDto) =>
-        quest.status === 'READY_TO_TURN_IN' ? 0
+        quest.status === 'LOCKED' ? -1
+          : quest.status === 'READY_TO_TURN_IN' ? 0
           : quest.isTracked ? 1
             : quest.status === 'ACTIVE' ? 2
               : quest.status === 'AVAILABLE' ? 3

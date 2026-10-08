@@ -195,6 +195,8 @@ export function toRoundPlayerDto(
       tek9s: player.tek9s,
       ak47s: player.ak47s,
       lowRiders: player.lowRiders,
+      sedans: player.sedans,
+      vans: player.vans,
     },
 
     turns: {

@@ -21,9 +21,10 @@ import {
   type FactionNudge,
   type RacketEffects,
 } from '@streets/rules-engine';
-import type { FactionNudgeKind, HideoutRoomKey, SingleUseFavorEffect, StoreKey, StoreRelationshipPerk, TraderKey } from '@streets/rulesets';
+import type { FactionNudgeKind, HideoutRoomKey, SingleUseFavorEffect, StoreItem, StoreKey, StoreRelationshipPerk, TraderKey } from '@streets/rulesets';
 import type {
   GameActionResult,
+  QuestLockDto,
   StoreCheckoutInput,
   StoreCheckoutLineInput,
   StoreCheckoutResult,
@@ -52,6 +53,7 @@ import { HighMarketService } from './high-market.service.js';
 import { marketPrice } from './run-settle.service.js';
 import { FactionService } from './faction.service.js';
 import { tradeProductLine } from './product-market.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 import type { Db } from '../utils/db.js';
 
 type CatalogPlayer = RoundPlayer & { city: { slug: string } };
@@ -343,6 +345,30 @@ function storeTradeBadRequest(error: StoreTradeError, line?: number): AppError {
   return AppError.badRequest(error.code, message, field ? { [field]: message } : undefined);
 }
 
+/**
+ * 1.5.0-E2. A shelf a job opens, with the job: Tommy's racks where jobs open them, and Charlie's
+ * Sedans and Vans. Null on a shelf no job gates.
+ */
+function questLockFor(
+  ruleset: Ruleset,
+  player: { shotgunUnlocked: boolean; tek9Unlocked: boolean; ak47Unlocked: boolean },
+  item: StoreItem,
+  lockedVehicles: Map<'SEDAN' | 'VAN', { key: string; name: string }>,
+): QuestLockDto | null {
+  if (item.vehicleClass) {
+    const unlock = lockedVehicles.get(item.vehicleClass)
+      ?? Object.values(ruleset.permanentUnlocks ?? {}).find((definition) => definition.effect.kind === 'VEHICLE_PURCHASE_ACCESS' && definition.effect.classId === item.vehicleClass);
+    if (!unlock) return null;
+    return { unlocked: !lockedVehicles.has(item.vehicleClass), unlockName: unlock.name, quest: PermanentUnlockService.questFor(ruleset, unlock.key) };
+  }
+  if (item.unlockKey) {
+    const rack = PermanentUnlockService.weaponQuest(ruleset, item.unlockKey);
+    if (!rack) return null;
+    return { unlocked: hasWeaponAccess(player, item.unlockKey), unlockName: rack.unlock.name, quest: rack.quest };
+  }
+  return null;
+}
+
 function normalizeStoreLine(
   ruleset: Ruleset,
   input: StoreCheckoutLineInput,
@@ -483,6 +509,8 @@ export const StoreService = {
     const nudges = await storeNudges(prisma, roundPlayerId, ruleset);
     let incomingShipments = 0;
     const ordered = await openSpecialOrders(prisma, roundPlayerId, now);
+    // 1.5.0-E2: Sedans and Vans this crew has not opened yet.
+    const lockedVehicles = await PermanentUnlockService.lockedVehicles(prisma, roundPlayerId, ruleset);
     const stores = Object.entries(ruleset.stores).map(([key, store]) => {
         const news: string[] = [];
         const items = Object.entries(store.items).map(([itemKey, item]) => {
@@ -539,7 +567,8 @@ export const StoreService = {
             unlock: item.unlockKey
               ? weaponUnlockProgress(player, standings, item.unlockKey, ruleset)
               : null,
-            maxBuy: item.unlockKey && !hasWeaponAccess(player, item.unlockKey)
+            questLock: questLockFor(ruleset, player, item, lockedVehicles),
+            maxBuy: (item.unlockKey && !hasWeaponAccess(player, item.unlockKey)) || (item.vehicleClass && lockedVehicles.has(item.vehicleClass))
               ? 0 : maxStoreBuy(player.cashCents, player[item.field], quotedItem, onHand),
             market: storeMarketContext({
               buyCents: quotedBuyCents,
@@ -615,6 +644,10 @@ export const StoreService = {
           ? foundStore.store.items[normalizedItem]
           : undefined;
         const quote = quoteForLine(ruleset, standings, discount, foundStore, normalizedInput, readRacketEffects(player.racketEffects), await storeNudges(tx, roundPlayerId, ruleset));
+        // 1.5.0-E2: a Sedan or Van waits for its job from Wheels.
+        if (storeItem?.vehicleClass && normalizedInput.direction === 'buy') {
+          await PermanentUnlockService.assertCanBuyVehicle(tx, roundPlayerId, ruleset, storeItem.vehicleClass);
+        }
 
         let trade;
         try {
@@ -831,6 +864,13 @@ export const StoreService = {
             if (product.reputation) reputation.push(product.reputation);
             next.cashCents += product.cashChangeCents;
             continue;
+          }
+          const lineItem = foundStore && Object.hasOwn(foundStore.store.items, normalized.item) ? foundStore.store.items[normalized.item] : undefined;
+          if (lineItem?.vehicleClass && normalized.direction === 'buy') {
+            await PermanentUnlockService.assertCanBuyVehicle(tx, roundPlayerId, ruleset, lineItem.vehicleClass).catch((error: unknown) => {
+              if (error instanceof AppError) throw new AppError(error.statusCode, error.code, `Line ${index + 1}: ${error.message}`, error.fields);
+              throw error;
+            });
           }
           const quote = quoteForLine(ruleset, standings, discount, foundStore, normalized, readRacketEffects(player.racketEffects), nudges);
           let trade;

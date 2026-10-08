@@ -17,6 +17,7 @@ import {
 import type {
   GameActionResult,
   PlayerQuestDto,
+  QuestRequirementDto,
   QuestClaimInput,
   QuestBranchChoiceDto,
   QuestBranchReputationDto,
@@ -304,6 +305,41 @@ function standingLabel(amount: number, factionName: string): string {
 interface QuestContext {
   points: Partial<Record<FactionKey, number>>;
   netWorthCents: bigint;
+  /** 1.5.0-E2. For a locked card's "Opens after" list. */
+  completed?: ReadonlySet<string>;
+  reps?: Readonly<Record<string, number>>;
+}
+
+/**
+ * 1.5.0-E2. What a locked Job still waits for, in player words, with the earlier Job to link to
+ * where there is one. Met requirements are left out; faction tiers are named as they stand.
+ */
+function questRequirements(ruleset: Ruleset, definition: QuestDefinition | undefined, context: QuestContext): QuestRequirementDto[] {
+  if (!definition) return [];
+  return definition.prerequisites.flatMap((prerequisite): QuestRequirementDto[] => {
+    const params = prerequisite.params ?? {};
+    if (prerequisite.kind === 'QUEST_COMPLETED' && typeof params.questKey === 'string') {
+      if (context.completed?.has(params.questKey)) return [];
+      const earlier = ruleset.questDefinitions?.[params.questKey];
+      const giver = contactFor(ruleset, earlier?.contactKey);
+      return [{ label: `Finish “${earlier?.title ?? params.questKey}”${giver ? ` for ${giver.shortName}` : ''}`, questKey: params.questKey }];
+    }
+    if (prerequisite.kind === 'CONTACT_REP_AT_LEAST' && typeof params.contactKey === 'string' && typeof params.points === 'number') {
+      const have = context.reps?.[params.contactKey] ?? 0;
+      if (have >= params.points) return [];
+      return [{ label: `${params.points} rep with ${contactFor(ruleset, params.contactKey)?.shortName ?? params.contactKey} (you have ${have})` }];
+    }
+    if ((prerequisite.kind === 'FACTION_STANDING_AT_LEAST' || prerequisite.kind === 'FACTION_STANDING_BELOW') && typeof params.factionKey === 'string' && typeof params.tier === 'string') {
+      const faction = ruleset.factions?.[params.factionKey as FactionKey]?.name ?? params.factionKey;
+      const tier = factionTierName(params.tier as FactionTier);
+      return [{ label: prerequisite.kind === 'FACTION_STANDING_AT_LEAST' ? `${tier} with ${faction}` : `Below ${tier} with ${faction}` }];
+    }
+    if (prerequisite.kind === 'BRANCH_CHOSEN' && typeof params.questKey === 'string') {
+      const earlier = ruleset.questDefinitions?.[params.questKey];
+      return [{ label: `Pick this side in “${earlier?.title ?? params.questKey}”`, questKey: params.questKey }];
+    }
+    return [];
+  });
 }
 
 /**
@@ -340,6 +376,7 @@ function questDto(row: QuestRow, ruleset: Ruleset, context: QuestContext, commun
     description: cityState?.description ?? row.questDefinition.description,
     contactKey: row.questDefinition.contactKey,
     contactName: contact?.shortName ?? null,
+    ...(row.status === 'LOCKED' ? { requires: questRequirements(ruleset, ruleset.questDefinitions?.[row.questDefinition.key], context) } : {}),
     ...(() => {
       const definition = ruleset.questDefinitions?.[row.questDefinition.key];
       // A board contract names its sponsor (1.4.0-C); a Job, the faction it works for.
@@ -755,6 +792,8 @@ export const HandcraftedQuestService = {
       const questContext: QuestContext = {
         points: await FactionService.points(tx, roundPlayerId),
         netWorthCents: (await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { netWorthCents: true } })).netWorthCents,
+        completed: new Set(rows.filter((row) => row.status === 'COMPLETED').map((row) => row.questDefinition.key)),
+        reps,
       };
       // 1.4.0-D: what standing opens with each faction, and what it says right now.
       const perks = await FactionPerkService.perks(tx, roundPlayerId, ruleset);

@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
 import type { GameActionResult, ProductStockDto, ProductTradeResult, StoreMarketContextDto } from '@streets/shared';
 import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
 import { api } from '../api/client.js';
@@ -11,6 +10,7 @@ import { Button } from './Button.js';
 import { ShelfArt } from './ItemTile.js';
 import { Panel } from './Panel.js';
 import { QuantitySteps } from './QuantitySteps.js';
+import { QuestLockNote } from './QuestLink.js';
 
 /** "30 minutes", "hour", "2 hours". */
 function waitText(minutes: number): string {
@@ -181,8 +181,8 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
           <h3 className="se-store-favor__title">Purchase access locked</h3>
           <p className="se-hint">
             {pip.unlockDescription ?? `Pip has not opened ${product.name} purchases to you yet.`}
-            {' '}Earn it through <Link to="/game/quests">underworld jobs</Link>. You can still sell stock you already own.
           </p>
+          <QuestLockNote unlockName={pip.unlockName ?? `${product.name} purchases`} quest={pip.unlockQuest} after="You can still sell stock you already own." />
         </div>
       ) : null}
       <ShelfLine pip={pip} name={product.name} onArrival={onDone} />

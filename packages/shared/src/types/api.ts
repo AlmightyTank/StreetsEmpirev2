@@ -335,6 +335,9 @@ export interface ResourcesDto {
   ak47s: number;
 
   lowRiders: number;
+  /** 1.5.0-B/E2. Ready class vehicles; Charlie sells them from 1.5.0-E2. */
+  sedans: number;
+  vans: number;
 }
 
 /** One line of the happiness sum, so a low number can explain itself. */
@@ -745,6 +748,8 @@ export interface FactionDiscountDto {
 
 export interface StoreItemDto {
   unlock: WeaponUnlockDto | null;
+  /** 1.5.0-E2. A shelf a job opens (a weapon rack or a vehicle class), with the job that opens it. */
+  questLock?: QuestLockDto | null;
   key: string;
   name: string;
   field: Exclude<keyof ResourcesDto, 'cashCents' | 'fitThugs' | 'woundedThugs'>;
@@ -993,6 +998,12 @@ export interface FactionDto {
   };
 }
 
+/** 1.5.0-E2. Something a locked Job still waits for, and the earlier Job to go do, if any. */
+export interface QuestRequirementDto {
+  label: string;
+  questKey?: string;
+}
+
 export interface PlayerQuestDto {
   key: string;
   attempt: number;
@@ -1000,6 +1011,8 @@ export interface PlayerQuestDto {
   description: string;
   contactKey: string | null;
   contactName: string | null;
+  /** 1.5.0-E2. On a locked Job: what it still waits for. */
+  requires?: QuestRequirementDto[];
   /** 1.4.0-A. The faction the Job works for (its own, else its contact's), or null. */
   factionName: string | null;
   /** 1.4.0-B. That faction's key, or null. */
@@ -1270,6 +1283,21 @@ export interface StoresDto {
   integrations?: StoreIntegrationDto;
 }
 
+/** 1.5.0-E2. The job behind a lock, for a link straight to it on the jobs page. */
+export interface QuestLinkDto {
+  key: string;
+  title: string;
+  /** The contact who gives it, when there is one. */
+  giverName: string | null;
+}
+
+/** 1.5.0-E2. A shelf a job opens: whether it is open, what it is called, and the job that opens it. */
+export interface QuestLockDto {
+  unlocked: boolean;
+  unlockName: string;
+  quest: QuestLinkDto | null;
+}
+
 export interface StoreTradeResult {
   /**
    * Standing earned by dealing with them today. Zero when the day's credit is
@@ -1346,6 +1374,8 @@ export interface ProductStockDto {
     purchaseUnlocked: boolean;
     unlockName: string | null;
     unlockDescription: string | null;
+    /** 1.5.0-E2. The job that opens purchases. */
+    unlockQuest?: QuestLinkDto | null;
     favorDiscountPercent?: number;
     relationshipBuyDiscountPercent?: number;
     relationshipSellBonusPercent?: number;

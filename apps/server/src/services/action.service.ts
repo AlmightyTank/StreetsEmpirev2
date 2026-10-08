@@ -328,6 +328,8 @@ function toSnapshot(
       tek9s: state.tek9s,
       ak47s: state.ak47s,
       lowRiders: state.lowRiders,
+      sedans: state.sedans,
+      vans: state.vans,
     },
   };
 }

@@ -1,4 +1,5 @@
 import type { AllianceTagDto } from './alliance.js';
+import type { QuestLinkDto, QuestLockDto } from './api.js';
 
 /** 0.3.0-D. Limits that keep the wire and the rolodex small. Not balance, so they live here. */
 export const WIRE_POST_MAX = 280;
@@ -920,6 +921,8 @@ export interface TravelDto extends CitiesDto {
     listRecoveryCents?: number;
     /** 1.5.0-D. What one costs this crew today, after Stolen Low-Riders. */
     buyCents?: number | null;
+    /** 1.5.0-E2. Sold over Charlie's counter instead of here, and the job that opens it. */
+    charlie?: QuestLockDto | null;
   }>;
   /** 1.5.0-C. What road trouble does to a run's vehicles, so it can be shown before launch. */
   vehicleService?: {
@@ -933,7 +936,7 @@ export interface TravelDto extends CitiesDto {
   };
   runsEnabled: boolean;
   /** Products Pip will not sell this player yet, in any city, and the unlock each needs. The high markets still sell them. */
-  lockedProducts?: Array<{ key: string; unlockName: string }>;
+  lockedProducts?: Array<{ key: string; unlockName: string; quest?: QuestLinkDto | null }>;
   rules: {
     cargoPerLowRider: number;
     thugsPerLowRider: number;

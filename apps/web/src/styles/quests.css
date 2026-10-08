@@ -985,3 +985,21 @@
   margin: 0;
   color: var(--se-muted);
 }
+
+/* 1.5.0-E2. What a locked Job waits for, with links to the earlier Jobs. */
+.se-quest-card__requires {
+  margin: 6px 0 2px;
+  padding: 8px 10px;
+  border: 1px dashed var(--se-line);
+  border-radius: var(--se-radius-sm);
+}
+
+.se-quest-card__requires ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.se-quest-card__requires li {
+  font-size: 12px;
+  line-height: 1.5;
+}
