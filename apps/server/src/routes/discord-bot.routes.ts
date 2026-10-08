@@ -30,6 +30,7 @@ const newsSchema = z.object({
 
 const newsParams = z.object({ newsId: z.string().min(1).max(64) }).strict();
 const newsFailedSchema = z.object({ error: z.string().trim().min(1).max(500) }).strict();
+const alertsClaimSchema = z.object({ feed: z.boolean().optional() }).strict();
 const newsStatusSchema = z.object({
   channel: z.string().trim().min(1).max(100).nullable(),
   problem: z.string().trim().min(1).max(500).nullable(),
@@ -123,7 +124,9 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
     return DiscordBotService.setAlert(fastify.prisma, discordId, type, enabled);
   });
 
-  fastify.post('/alerts/claim', async () => DiscordBotService.claimAlerts(fastify.prisma));
+  // Bots from before the raid-feed check send no body, and always had their feed claimed.
+  fastify.post('/alerts/claim', async (request) =>
+    DiscordBotService.claimAlerts(fastify.prisma, parseBody(alertsClaimSchema, request.body ?? {})));
 
   /** 0.3.0-B: role resyncs an admin asked for from the panel, each handed out once. */
   fastify.post('/resync/claim', async () => claimResyncRequests(fastify.prisma));
