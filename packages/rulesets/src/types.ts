@@ -790,6 +790,38 @@ export interface NpcGangSeedProfile {
   readonly ambition: number;
   /** How likely this crew is to wait, restock or lay low instead of forcing a bad move. */
   readonly discipline: number;
+  /** Phase M. A fixed public crew name and tag; otherwise one is picked from the personality. */
+  readonly crewName?: string;
+  readonly crewTag?: string;
+}
+
+/** Phase M. The scheduler intents a personality can lean toward or away from. */
+export type NpcGangIntentKey = 'RESTOCK' | 'PRODUCE' | 'RAID_PLAYER' | 'DRIVE_BY_PLAYER' | 'SPECIAL_RAID_PLAYER' | 'TURF' | 'LAY_LOW';
+
+/** Phase M. Who a crew goes after first among ordinary targets. */
+export type NpcGangTargeting = 'RICHEST' | 'WEAKEST' | 'RIDES' | 'PRODUCT' | 'DISTRACTED';
+
+/**
+ * Phase M. A named crew style: public identity plus the behavior signature that makes
+ * it recognizable on the street. Traits (aggression, ambition, discipline) still set
+ * how strongly a gang acts; the personality sets what it reaches for.
+ */
+export interface NpcGangPersonality {
+  /** Public, e.g. "Ride thieves". */
+  readonly label: string;
+  /** Crew names this style goes by, each with a short tag. */
+  readonly names: readonly { readonly name: string; readonly tag: string }[];
+  /** One public line on how they operate. */
+  readonly style: string;
+  /** Older archetype strings that resolve to this personality (exact, then substring). */
+  readonly aliases: readonly string[];
+  /** Weight added to each intent before the weighted pick. */
+  readonly bias: Readonly<Partial<Record<NpcGangIntentKey, number>>>;
+  readonly targeting: NpcGangTargeting;
+  /** The special raid tried first when one is on the table. */
+  readonly favoriteSpecial?: SpecialRaidKind;
+  /** Multiplies the squad a gang commits to a hit. */
+  readonly squadShare: number;
 }
 
 export interface NpcGangRules {
@@ -812,6 +844,10 @@ export interface NpcGangRules {
   readonly migration: NpcGangMigrationRules;
   /** Phase L. How fights heat a gang up, cool it down or send it to ground. */
   readonly escalation: NpcGangEscalationRules;
+  /** Phase M. Named crew styles keyed by archetype. */
+  readonly personalities: Readonly<Record<string, NpcGangPersonality>>;
+  /** Phase M. The personality an archetype falls back to when nothing matches. */
+  readonly defaultPersonality: string;
 }
 
 /**

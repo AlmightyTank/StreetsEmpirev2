@@ -219,6 +219,7 @@ export * from './faction-definitions.js';
 export * from './quest-progress.js';
 export * from './quest-contacts.js';
 export * from './street-pass.js';
+export * from './npc-gang-personalities.js';
 
 /** Every ruleset the engine can load, keyed by its public id. */
 export const rulesets: Readonly<Record<string, Ruleset>> = {

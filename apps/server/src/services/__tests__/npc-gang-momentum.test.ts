@@ -9,7 +9,7 @@ const now = new Date('2026-10-08T12:00:00.000Z');
 const hoursAgo = (hours: number) => new Date(now.getTime() - hours * 3_600_000);
 
 function fight(overrides: Partial<NpcFight> = {}): NpcFight {
-  return { attacker: true, won: true, cashCents: 0, human: true, at: now, ...overrides };
+  return { attacker: true, won: true, cashCents: 0, human: true, opponent: 'Razor Ray', kind: 'RAID', at: now, ...overrides };
 }
 
 describe('NPC gang momentum (Phase L)', () => {

@@ -14,6 +14,7 @@ import { AppError } from '../utils/errors.js';
 import { fitThugs } from './action.service.js';
 import { CombatService, combatProtectionUntil } from './combat.service.js';
 import { npcRules } from './npc-gang-rules.js';
+import { historyJson, npcPersonality, orderByTargeting, storedHistory, withHit, withLoss } from './npc-gang-personality.js';
 import { buildNpcGrudges, grudgesJson, openNpcGrudges, type NpcGrudge } from './npc-gang-memory.js';
 import {
   dormancyCall, loadNpcFights, momentumAggression, momentumPace, npcMomentum, storedDormancy, storedMomentum,
@@ -220,10 +221,12 @@ function canPaySpecialRaid(gang: DueNpcGang, ruleset: Ruleset, kind: SpecialRaid
 function availableSpecialRaidKinds(gang: DueNpcGang, ruleset: Ruleset, now: Date): SpecialRaidKind[] {
   return SPECIAL_RAID_KINDS
     .filter((kind) => canPaySpecialRaid(gang, ruleset, kind, now))
-    .sort((left, right) => specialRaidScore(gang, right) - specialRaidScore(gang, left));
+    .sort((left, right) => specialRaidScore(gang, right, ruleset) - specialRaidScore(gang, left, ruleset));
 }
 
-function specialRaidScore(gang: DueNpcGang, kind: SpecialRaidKind): number {
+function specialRaidScore(gang: DueNpcGang, kind: SpecialRaidKind, ruleset: Ruleset): number {
+  // Phase M. A crew's signature move goes first when it can pay for it.
+  if (gangPersonality(gang, ruleset).favoriteSpecial === kind) return 1_000;
   if (kind === 'STEAL_RIDE') return gang.ambition + (gang.roundPlayer.lowRiders < 2 ? 25 : 0);
   if (kind === 'LURE_CREW') return gang.ambition + Math.round(gang.aggression / 2);
   return gang.aggression + Math.round(gang.ambition / 3);
@@ -240,35 +243,13 @@ function canProduce(gang: DueNpcGang, ruleset: Ruleset, now: Date): boolean {
     && gang.ambition >= 30;
 }
 
-function archetypeBias(gang: DueNpcGang, intent: NpcGangIntent): number {
-  const archetype = gang.archetype.toLowerCase();
-  if (archetype.includes('stash') || archetype.includes('builder') || archetype.includes('cook')) {
-    if (intent === 'PRODUCE') return 45;
-    if (intent === 'TURF') return 25;
-    if (intent === 'RESTOCK') return 20;
-    if (intent === 'RAID_PLAYER' || intent === 'DRIVE_BY_PLAYER') return -15;
-  }
-  if (archetype.includes('muscle') || archetype.includes('hitter') || archetype.includes('enforcer')) {
-    if (intent === 'RAID_PLAYER') return 35;
-    if (intent === 'SPECIAL_RAID_PLAYER') return 15;
-    if (intent === 'RESTOCK') return 15;
-    if (intent === 'TURF') return 10;
-  }
-  if (archetype.includes('ride') || archetype.includes('driver') || archetype.includes('car')) {
-    if (intent === 'DRIVE_BY_PLAYER') return 45;
-    if (intent === 'SPECIAL_RAID_PLAYER') return 20;
-    if (intent === 'RESTOCK') return 15;
-  }
-  if (archetype.includes('desperate') || archetype.includes('lure') || archetype.includes('locals')) {
-    if (intent === 'SPECIAL_RAID_PLAYER') return 30;
-    if (intent === 'RAID_PLAYER') return 15;
-    if (intent === 'TURF') return -10;
-    if (intent === 'LAY_LOW') return -10;
-  }
-  if (archetype.includes('balanced')) {
-    if (intent === 'RESTOCK' || intent === 'PRODUCE' || intent === 'RAID_PLAYER' || intent === 'TURF') return 10;
-  }
-  return 0;
+/** Phase M. The crew's personality decides what it reaches for; traits decide how hard. */
+function gangPersonality(gang: Pick<DueNpcGang, 'archetype'>, ruleset: Ruleset) {
+  return npcPersonality(npcRules(ruleset), gang.archetype).personality;
+}
+
+function archetypeBias(gang: DueNpcGang, intent: NpcGangIntent, ruleset: Ruleset): number {
+  return gangPersonality(gang, ruleset).bias[intent] ?? 0;
 }
 
 function tierBias(gang: DueNpcGang, intent: NpcGangIntent): number {
@@ -278,7 +259,7 @@ function tierBias(gang: DueNpcGang, intent: NpcGangIntent): number {
   return intent === 'LAY_LOW' ? 8 : 0;
 }
 
-function intentWeight(gang: DueNpcGang, intent: NpcGangIntent): number {
+function intentWeight(gang: DueNpcGang, intent: NpcGangIntent, ruleset: Ruleset): number {
   const raw = (() => {
     if (intent === 'RESTOCK') return 18 + Math.round(gang.discipline / 3) + Math.round(gang.ambition / 6);
     if (intent === 'PRODUCE') return 14 + Math.round(gang.ambition / 2) + Math.round(gang.discipline / 5);
@@ -288,7 +269,7 @@ function intentWeight(gang: DueNpcGang, intent: NpcGangIntent): number {
     if (intent === 'TURF') return 10 + Math.round(gang.ambition / 3) + Math.round(gang.discipline / 4);
     return 8 + Math.round(gang.discipline / 3) + Math.max(0, 45 - gang.aggression);
   })();
-  return Math.max(1, raw + archetypeBias(gang, intent) + tierBias(gang, intent));
+  return Math.max(1, raw + archetypeBias(gang, intent, ruleset) + tierBias(gang, intent));
 }
 
 function weightedChoice(candidates: readonly NpcGangIntentCandidate[], rng: () => number): NpcGangIntent {
@@ -316,17 +297,17 @@ function turfMoveWeight(move: NpcTurfMove): number {
 
 function chooseIntent(gang: DueNpcGang, ruleset: Ruleset, now: Date, rng: () => number, pulls: NpcGangPulls = { revenge: 0, pressure: 0, turf: null }): NpcGangIntent {
   const candidates: NpcGangIntentCandidate[] = [];
-  if (canRestock(gang, ruleset, now)) candidates.push({ intent: 'RESTOCK', weight: intentWeight(gang, 'RESTOCK') });
+  if (canRestock(gang, ruleset, now)) candidates.push({ intent: 'RESTOCK', weight: intentWeight(gang, 'RESTOCK', ruleset) });
   // Phase K. A packing crew keeps its head down: no hits, so nobody holds a window on it.
   const violent = !pulls.calm;
-  if (violent && canDriveBy(gang, ruleset, now)) candidates.push({ intent: 'DRIVE_BY_PLAYER', weight: intentWeight(gang, 'DRIVE_BY_PLAYER') + pulls.revenge });
-  if (violent && availableSpecialRaidKinds(gang, ruleset, now).length) candidates.push({ intent: 'SPECIAL_RAID_PLAYER', weight: intentWeight(gang, 'SPECIAL_RAID_PLAYER') + pulls.revenge });
-  if (violent && canRaid(gang, ruleset, now)) candidates.push({ intent: 'RAID_PLAYER', weight: intentWeight(gang, 'RAID_PLAYER') + pulls.revenge + pulls.pressure });
-  if (canProduce(gang, ruleset, now)) candidates.push({ intent: 'PRODUCE', weight: intentWeight(gang, 'PRODUCE') });
-  if (pulls.turf !== null) candidates.push({ intent: 'TURF', weight: intentWeight(gang, 'TURF') + pulls.turf });
+  if (violent && canDriveBy(gang, ruleset, now)) candidates.push({ intent: 'DRIVE_BY_PLAYER', weight: intentWeight(gang, 'DRIVE_BY_PLAYER', ruleset) + pulls.revenge });
+  if (violent && availableSpecialRaidKinds(gang, ruleset, now).length) candidates.push({ intent: 'SPECIAL_RAID_PLAYER', weight: intentWeight(gang, 'SPECIAL_RAID_PLAYER', ruleset) + pulls.revenge });
+  if (violent && canRaid(gang, ruleset, now)) candidates.push({ intent: 'RAID_PLAYER', weight: intentWeight(gang, 'RAID_PLAYER', ruleset) + pulls.revenge + pulls.pressure });
+  if (canProduce(gang, ruleset, now)) candidates.push({ intent: 'PRODUCE', weight: intentWeight(gang, 'PRODUCE', ruleset) });
+  if (pulls.turf !== null) candidates.push({ intent: 'TURF', weight: intentWeight(gang, 'TURF', ruleset) + pulls.turf });
   if (!candidates.length) return 'LAY_LOW';
 
-  const layLowWeight = Math.max(0, intentWeight(gang, 'LAY_LOW') - candidates.length * 12);
+  const layLowWeight = Math.max(0, intentWeight(gang, 'LAY_LOW', ruleset) - candidates.length * 12);
   if (layLowWeight > 0) candidates.push({ intent: 'LAY_LOW', weight: layLowWeight });
   return weightedChoice(candidates, rng);
 }
@@ -345,7 +326,8 @@ function raidSquad(gang: DueNpcGang, ruleset: Ruleset): number {
   const model = ruleset.combat;
   if (!model) return 0;
   const fit = fitThugs(gang.roundPlayer);
-  const pressure = Math.max(1, Math.ceil(fit * Math.min(0.6, gang.aggression / 180)));
+  const share = gangPersonality(gang, ruleset).squadShare;
+  const pressure = Math.max(1, Math.ceil(fit * Math.min(0.6, gang.aggression / 180) * share));
   return Math.max(1, Math.min(fit, model.squadCap, pressure));
 }
 
@@ -354,7 +336,8 @@ function driveBySquad(gang: DueNpcGang, ruleset: Ruleset): number {
   const rules = model?.driveBy;
   if (!model || !rules) return 0;
   const seats = driveByMaxShooters(fitThugs(gang.roundPlayer), gang.roundPlayer.lowRiders, model, rules);
-  const pressure = Math.max(1, Math.ceil(seats * Math.min(0.75, gang.aggression / 140)));
+  const share = gangPersonality(gang, ruleset).squadShare;
+  const pressure = Math.max(1, Math.ceil(seats * Math.min(0.75, gang.aggression / 140) * share));
   return Math.max(1, Math.min(seats, pressure));
 }
 
@@ -466,7 +449,7 @@ async function pickRaidTarget(prisma: PrismaClient, gang: DueNpcGang, ruleset: R
   if (!ruleset.combat) return null;
   const candidates = focus.revengeTargets.length
     ? focus.revengeTargets
-    : onTurfFirst(await cityTargets(prisma, gang), focus.pressureIds);
+    : onTurfFirst(orderByTargeting(await cityTargets(prisma, gang), gangPersonality(gang, ruleset).targeting), focus.pressureIds);
   for (const target of candidates) {
     if (!targetOpen(gang, target, ruleset, now, mode, specialKind)) continue;
     if (await wasRecentlyNpcRaided(prisma, target.id, now, rules)) continue;
@@ -668,13 +651,16 @@ function rememberGrudges(gang: DueNpcGang, grudges: readonly NpcGrudge[]): DueNp
 }
 
 /** The memory written when a hit lands; a hit on a remembered crew settles that grudge. */
-function hitMemory(focus: NpcGangFocus, target: NpcGangCombatTarget, battleId: string, kind: string, won: boolean, now: Date): { revenge: boolean; onTurf: boolean; memory?: Prisma.InputJsonObject } {
+function hitMemory(focus: NpcGangFocus, gang: DueNpcGang, target: NpcGangCombatTarget, battleId: string, kind: string, won: boolean, cashCents: number, now: Date): { revenge: boolean; onTurf: boolean; memory: Prisma.InputJsonObject } {
   const onTurf = focus.pressureIds.has(target.id);
-  if (!focus.revengeTargets.some((row) => row.id === target.id)) return { revenge: false, onTurf };
+  // Phase M. Every hit lands in the crew's record, win or lose.
+  const history = historyJson(withHit(storedHistory(gang.memory), { kind, won, cashCents: Math.max(0, cashCents), target: target.displayName, at: now.toISOString() }));
+  if (!focus.revengeTargets.some((row) => row.id === target.id)) return { revenge: false, onTurf, memory: { history } };
   return {
     revenge: true,
     onTurf,
     memory: {
+      history,
       grudges: grudgesJson(settleGrudge(focus.grudges, target.id, battleId, now)),
       lastRevenge: {
         battleId,
@@ -695,7 +681,15 @@ function blockedStreak(memory: Prisma.JsonValue): number {
   return typeof value === 'number' && value > 0 ? value : 0;
 }
 
-type NpcGangMomentum = { momentum: number; humanHits: number; dormancy: NpcDormancy | null; woke: boolean; lastWokeAt: string | null };
+type NpcGangMomentum = {
+  momentum: number;
+  humanHits: number;
+  dormancy: NpcDormancy | null;
+  woke: boolean;
+  lastWokeAt: string | null;
+  /** Phase M. The newest fight this gang lost, for its public record. */
+  lastLoss: { opponent: string; kind: string; at: string } | null;
+};
 
 /**
  * Phase L. Momentum from the gang's fights since it last woke (inside the window), and
@@ -708,7 +702,7 @@ async function gangMomentum(prisma: PrismaClient, gang: DueNpcGang, rules: NpcGa
   const woke = Boolean(stored && !stored.wokeAt && Date.parse(stored.until) <= now.getTime());
   const lastWokeAt = woke ? now.toISOString() : stringField(memory.lastWokeAt);
   const dormancy = stored && woke ? { ...stored, wokeAt: now.toISOString() } : stored;
-  if (!settings.enabled) return { momentum: 0, humanHits: 0, dormancy, woke, lastWokeAt };
+  if (!settings.enabled) return { momentum: 0, humanHits: 0, dormancy, woke, lastWokeAt, lastLoss: null };
 
   const windowStart = now.getTime() - Math.max(1, settings.windowHours) * 3_600_000;
   const since = new Date(Math.max(windowStart, lastWokeAt ? Date.parse(lastWokeAt) : 0));
@@ -720,6 +714,10 @@ async function gangMomentum(prisma: PrismaClient, gang: DueNpcGang, rules: NpcGa
     dormancy,
     woke,
     lastWokeAt,
+    lastLoss: (() => {
+      const loss = fights.find((fight) => !fight.won);
+      return loss ? { opponent: loss.opponent, kind: loss.kind, at: loss.at.toISOString() } : null;
+    })(),
   };
 }
 
@@ -729,6 +727,7 @@ function rememberMomentum(gang: DueNpcGang, state: NpcGangMomentum): DueNpcGang 
     memory: {
       ...(memoryObject(gang.memory) as Prisma.JsonObject),
       momentum: state.momentum,
+      history: historyJson(withLoss(storedHistory(gang.memory), state.lastLoss)) as Prisma.JsonObject,
       ...(state.dormancy ? { dormancy: { ...state.dormancy } } : {}),
       ...(state.lastWokeAt ? { lastWokeAt: state.lastWokeAt } : {}),
       ...(state.woke ? { blockedStreak: 0 } : {}),
@@ -932,7 +931,10 @@ async function runTurfMove(prisma: PrismaClient, gang: DueNpcGang, rules: NpcGan
       await recordOutcome(prisma, gang, now, {
         intent: 'TURF', outcome: won ? 'CLAIMED_TURF' : 'TURF_CLAIM_LOST', rules,
         detail: { actionId, move: 'CLAIM', district: move.prospect.district, districtName: move.prospect.districtName, thugs: move.thugs, locals: claimed.result.localsThugs, won },
-        memory: { lastTurfMove: lastTurfMove({ won }) },
+        memory: {
+          lastTurfMove: lastTurfMove({ won }),
+          ...(won ? { history: historyJson(withHit(storedHistory(gang.memory), { kind: 'CLAIM', won: true, cashCents: 0, target: move.prospect.districtName, at: now.toISOString() })) } : {}),
+        },
       });
       return won ? 'CLAIMED_TURF' : 'TURF_CLAIM_LOST';
     }
@@ -1086,7 +1088,7 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
           attackingThugs: driveBySquad(gang, livingRuleset),
           actionId,
         });
-        const hit = hitMemory(focus, target, report.id, 'DRIVE_BY', report.won, now);
+        const hit = hitMemory(focus, gang, target, report.id, 'DRIVE_BY', report.won, 0, now);
         await recordOutcome(prisma, gang, now, {
           intent,
           outcome: 'DROVE_BY',
@@ -1130,7 +1132,7 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
           kind: plan.kind,
           actionId,
         });
-        const hit = hitMemory(focus, plan.target, report.id, plan.kind, report.won, now);
+        const hit = hitMemory(focus, gang, plan.target, report.id, plan.kind, report.won, 0, now);
         await recordOutcome(prisma, gang, now, {
           intent: 'SPECIAL_RAID_PLAYER',
           outcome: 'SPECIAL_RAIDED',
@@ -1174,7 +1176,7 @@ async function runGang(prisma: PrismaClient, due: DueNpcGang, now: Date): Promis
           attackingThugs: raidSquad(gang, livingRuleset),
           actionId,
         });
-        const hit = hitMemory(focus, target, report.id, 'RAID', report.won, now);
+        const hit = hitMemory(focus, gang, target, report.id, 'RAID', report.won, report.cashChangeCents, now);
         await recordOutcome(prisma, gang, now, {
           intent,
           outcome: 'RAIDED',

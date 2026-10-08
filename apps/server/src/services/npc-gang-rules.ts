@@ -1,5 +1,5 @@
 import type { Ruleset } from '@streets/rules-engine';
-import type { NpcGangRules } from '@streets/rulesets';
+import { NPC_GANG_PERSONALITIES, type NpcGangRules } from '@streets/rulesets';
 
 /**
  * NPC gang rules with server defaults. Rulesets may override any field, and each
@@ -58,6 +58,8 @@ export const DEFAULT_NPC_GANG_RULES: NpcGangRules = {
     dormantMinHours: 8,
     dormantMaxHours: 24,
   },
+  personalities: NPC_GANG_PERSONALITIES,
+  defaultPersonality: 'cautious-hustlers',
 };
 
 export function npcRules(ruleset: Ruleset): NpcGangRules {
@@ -67,5 +69,6 @@ export function npcRules(ruleset: Ruleset): NpcGangRules {
     turf: { ...DEFAULT_NPC_GANG_RULES.turf, ...ruleset.npcGangs?.turf },
     migration: { ...DEFAULT_NPC_GANG_RULES.migration, ...ruleset.npcGangs?.migration },
     escalation: { ...DEFAULT_NPC_GANG_RULES.escalation, ...ruleset.npcGangs?.escalation },
+    personalities: { ...DEFAULT_NPC_GANG_RULES.personalities, ...ruleset.npcGangs?.personalities },
   };
 }

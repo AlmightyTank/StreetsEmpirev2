@@ -34,6 +34,7 @@ import { TurfService } from './turf.service.js';
 import { storedMigrationPlan } from './npc-gang-migration.js';
 import { npcMood, storedMomentum } from './npc-gang-momentum.js';
 import { npcRules } from './npc-gang-rules.js';
+import { npcIdentity, npcPersonality, npcReputation, storedHistory } from './npc-gang-personality.js';
 import { ActivityService } from './activity.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
@@ -684,14 +685,6 @@ async function recoveryDto(
   };
 }
 
-function readableArchetype(archetype: string): string {
-  return archetype
-    .split(/[-_\s]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
 function storedReportKind(battle: Pick<Prisma.RaidBattleGetPayload<{ select: { kind: true; attackerReport: true } }>, 'kind' | 'attackerReport'>): string {
   const report = battle.attackerReport && typeof battle.attackerReport === 'object' && !Array.isArray(battle.attackerReport)
     ? battle.attackerReport as Prisma.JsonObject
@@ -798,6 +791,7 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
         OR: [{ dormantUntil: null }, { dormantUntil: { lte: now } }],
       },
       select: {
+        id: true,
         archetype: true,
         tier: true,
         aggression: true,
@@ -805,7 +799,7 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
         discipline: true,
         lastActionAt: true,
         memory: true,
-        roundPlayer: { select: { displayName: true } },
+        roundPlayer: { select: { displayName: true, publicPimpId: true } },
       },
       orderBy: [{ aggression: 'desc' }, { ambition: 'desc' }],
       take: 8,
@@ -835,7 +829,8 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     // Phase L: crews gone to ground still live here; they are just not moving.
     prisma.npcGang.count({ where: { dormantUntil: { gt: now }, roundPlayer: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } } } }),
   ]);
-  const escalation = npcRules(ruleset).escalation;
+  const gangRules = npcRules(ruleset);
+  const escalation = gangRules.escalation;
   const moods = gangs.map((gang) => npcMood(storedMomentum(gang.memory), escalation));
   const hot = moods.filter((mood) => mood === 'HOT').length;
   const cooled = moods.filter((mood) => mood === 'COOLED').length;
@@ -848,6 +843,21 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     + movement.inbound.length * 2 + movement.newArrivals * 2 + hot * 2 - cooled + Math.floor(maxAggression / 25);
   const danger: NpcGangIntelDto['danger'] = dangerScore >= 8 ? 'HOT' : dangerScore >= 3 ? 'ACTIVE' : 'QUIET';
   const top = gangs[0] ?? recent.find((battle) => battle.attacker.npcGang)?.attacker.npcGang ?? null;
+  // Phase M: crews are known by name and habit.
+  const crews = gangs.slice(0, 4).map((gang, index) => {
+    const view = npcPersonality(gangRules, gang.archetype);
+    const identity = npcIdentity(view, gang.id, gang.memory);
+    return {
+      ...identity,
+      boss: gang.roundPlayer.displayName,
+      publicPimpId: gang.roundPlayer.publicPimpId,
+      label: view.personality.label,
+      style: view.personality.style,
+      mood: moods[index]!,
+      reputation: npcReputation(storedHistory(gang.memory), now),
+    };
+  });
+  const topLabel = top ? npcPersonality(gangRules, top.archetype).personality.label : null;
   const rumors: string[] = [];
 
   if (grudges.wantedBy) {
@@ -881,7 +891,8 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
   }
   if (recentDriveBys) rumors.push(`${recentDriveBys} drive-by${recentDriveBys === 1 ? '' : 's'} had engines talking.`);
   if (recentSpecialRaids) rumors.push(`${recentSpecialRaids} old-school move${recentSpecialRaids === 1 ? '' : 's'} showed up in street chatter.`);
-  if (top) rumors.push(`${readableArchetype(top.archetype)} crews look like the loudest local problem.`);
+  if (crews[0]) rumors.push(`The ${crews[0].name} (${crews[0].label.toLowerCase()}) look like the loudest local problem.`);
+  else if (topLabel) rumors.push(`${topLabel} look like the loudest local problem.`);
   if (danger === 'HOT') rumors.push('Keep medicine, rides and backup ready before picking a fight here.');
   else if (danger === 'ACTIVE') rumors.push('Watch the target list. A quiet block can turn noisy fast.');
 
@@ -892,7 +903,8 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     recentDriveBys,
     recentSpecialRaids,
     seenSince: seenSince.toISOString(),
-    ...(top ? { topArchetype: readableArchetype(top.archetype), topTier: top.tier } : {}),
+    ...(top && topLabel ? { topArchetype: topLabel, topTier: top.tier } : {}),
+    ...(crews.length ? { crews } : {}),
     ...(grudges.wantedBy && grudges.wantedUntil ? { wantedBy: grudges.wantedBy, wantedUntil: grudges.wantedUntil.toISOString() } : {}),
     ...(turf.blocks.length ? { npcBlocks: turf.blocks, onTheirTurf: turf.onTheirTurf } : {}),
     ...(movement.inbound.length || movement.leaving || movement.packing || movement.newArrivals ? { movement } : {}),

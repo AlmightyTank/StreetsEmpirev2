@@ -265,7 +265,8 @@ export function AdminIntegrationsPage() {
                           <td data-label="NPC gang">
                             {bot.inCurrentRound?.npcGang ? (
                               <>
-                                <strong>{bot.inCurrentRound.npcGang.tier}</strong>
+                                <strong>{bot.inCurrentRound.npcGang.crewName} [{bot.inCurrentRound.npcGang.crewTag}]</strong>
+                                <span className="se-muted"> · {bot.inCurrentRound.npcGang.tier} · {bot.inCurrentRound.npcGang.personality}</span>
                                 <span className="se-muted"> · {bot.inCurrentRound.npcGang.archetype} · {bot.inCurrentRound.npcGang.currentCity}{bot.inCurrentRound.npcGang.currentCity !== bot.inCurrentRound.npcGang.homeCity ? ` (from ${bot.inCurrentRound.npcGang.homeCity})` : ''}</span>
                                 <p className="se-hint">
                                   Next {timing(bot.inCurrentRound.npcGang.nextActionAt)}
@@ -301,6 +302,12 @@ export function AdminIntegrationsPage() {
                                     {bot.inCurrentRound.npcGang.turf.lastMove.detail ? ` · ${bot.inCurrentRound.npcGang.turf.lastMove.detail}` : ''}
                                   </p>
                                 ) : null}
+                                <p className="se-hint">
+                                  Record {formatNumber(bot.inCurrentRound.npcGang.record.wins)}-{formatNumber(bot.inCurrentRound.npcGang.record.losses)}
+                                  {bot.inCurrentRound.npcGang.record.favoriteMove ? ` · favors ${bot.inCurrentRound.npcGang.record.favoriteMove.toLowerCase().replace(/_/g, ' ')}` : ''}
+                                  {bot.inCurrentRound.npcGang.record.biggestHitCents ? ` · best ${formatCents(bot.inCurrentRound.npcGang.record.biggestHitCents)} off ${bot.inCurrentRound.npcGang.record.biggestHitTarget}` : ''}
+                                  {bot.inCurrentRound.npcGang.record.lastLossTo ? ` · last lost to ${bot.inCurrentRound.npcGang.record.lastLossTo}` : ''}
+                                </p>
                                 <p className="se-hint">
                                   Mood {bot.inCurrentRound.npcGang.mood.toLowerCase()} · momentum {bot.inCurrentRound.npcGang.momentum > 0 ? '+' : ''}{bot.inCurrentRound.npcGang.momentum}
                                   {bot.inCurrentRound.npcGang.mood === 'DORMANT' && bot.inCurrentRound.npcGang.dormancy

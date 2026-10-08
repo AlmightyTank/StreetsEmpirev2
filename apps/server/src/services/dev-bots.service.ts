@@ -17,7 +17,7 @@ export const DEV_TEST_RIVALS = [
     publicPimpId: 1000,
     note: 'Even starter target for cash raids and basic reports.',
     startingPlayer: { cashCents: 3_000_000, whores: 12, thugs: 10, pistols: 10, beer: 10, crack: 180, condoms: 180, medicine: 2 },
-    npcGang: { archetype: 'balanced-street-crew', tier: 'SCRUB', aggression: 35, ambition: 45, discipline: 45 },
+    npcGang: { archetype: 'cautious-hustlers', tier: 'SCRUB', aggression: 35, ambition: 45, discipline: 45, crewName: 'Quiet Money Crew', crewTag: 'QMC' },
   },
   {
     slug: 'cashbox-carlo',
@@ -25,7 +25,7 @@ export const DEV_TEST_RIVALS = [
     publicPimpId: 1001,
     note: 'Cash-heavy target with enough stash to make recon and loot worth testing.',
     startingPlayer: { cashCents: 8_000_000, whores: 28, thugs: 8, pistols: 8, beer: 8, crack: 700, condoms: 500, medicine: 4 },
-    npcGang: { archetype: 'stash-builder', tier: 'SCRUB', aggression: 25, ambition: 70, discipline: 55 },
+    npcGang: { archetype: 'product-cooks', tier: 'SCRUB', aggression: 25, ambition: 70, discipline: 55, crewName: 'Cookhouse Crew', crewTag: 'COOK' },
   },
   {
     slug: 'iron-maya',
@@ -33,7 +33,7 @@ export const DEV_TEST_RIVALS = [
     publicPimpId: 1002,
     note: 'Stronger defender with rides for testing drive-bys and steal-a-ride.',
     startingPlayer: { cashCents: 4_000_000, whores: 20, thugs: 16, pistols: 16, shotguns: 5, beer: 16, crack: 400, condoms: 300, medicine: 8, lowRiders: 2 },
-    npcGang: { archetype: 'muscle-crew', tier: 'STREET', aggression: 60, ambition: 50, discipline: 65 },
+    npcGang: { archetype: 'violent-crew', tier: 'STREET', aggression: 60, ambition: 50, discipline: 65, crewName: 'Block Breakers', crewTag: 'BRK' },
   },
   {
     slug: 'low-morale-lou',
@@ -41,7 +41,15 @@ export const DEV_TEST_RIVALS = [
     publicPimpId: 1003,
     note: 'Unhappy crew for lure testing: no beer, no guns, low payout and thin shelves.',
     startingPlayer: { cashCents: 2_500_000, whores: 20, thugs: 17, pistols: 0, beer: 0, crack: 20, condoms: 10, payoutPercent: 10, medicine: 1, lowRiders: 1 },
-    npcGang: { archetype: 'desperate-locals', tier: 'SCRUB', aggression: 45, ambition: 35, discipline: 20 },
+    npcGang: { archetype: 'ambushers', tier: 'SCRUB', aggression: 45, ambition: 35, discipline: 20, crewName: 'Back Alley Crew', crewTag: 'BAC' },
+  },
+  {
+    slug: 'hubcap-hector',
+    displayName: 'Hubcap Hector',
+    publicPimpId: 1004,
+    note: 'Veteran ride thieves with a garage of Low-Riders: drive-bys, steal-a-ride and migration testing.',
+    startingPlayer: { cashCents: 9_000_000, whores: 18, thugs: 24, pistols: 20, shotguns: 6, beer: 20, crack: 300, condoms: 200, medicine: 8, lowRiders: 4 },
+    npcGang: { archetype: 'ride-thieves', tier: 'VETERAN', aggression: 80, ambition: 60, discipline: 50, crewName: 'Hubcap Kings', crewTag: 'HUB' },
   },
 ] as const satisfies readonly SeededRivalRule[];
 
@@ -244,6 +252,8 @@ export async function seedDevBots(
       slug: rival.slug,
       note: rival.note,
       phase: 'foundation',
+      // Phase M: the crew's public name and tag, when the seed fixes one.
+      ...(profile.crewName && profile.crewTag ? { identity: { name: profile.crewName, tag: profile.crewTag } } : {}),
     } satisfies Prisma.InputJsonObject;
     await prisma.npcGang.upsert({
       where: { roundPlayerId: roundPlayer.id },

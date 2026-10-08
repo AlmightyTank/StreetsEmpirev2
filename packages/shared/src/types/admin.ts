@@ -906,6 +906,11 @@ export interface AdminDevBotsDto {
         currentCity: string;
         migration: { status: 'PACKING' | 'MOVING'; toName: string; reason: string; since: string; arrivesAt: string | null } | null;
         lastMigration: { fromName: string; toName: string; reason: string; at: string } | null;
+        /** Phase M. Public identity and record. */
+        personality: string;
+        crewName: string;
+        crewTag: string;
+        record: { wins: number; losses: number; favoriteMove: string | null; biggestHitCents: number | null; biggestHitTarget: string | null; lastLossTo: string | null };
         /** Phase L. Momentum as of the last tick, how it reads, and the current or last dormancy. */
         momentum: number;
         mood: 'HOT' | 'STEADY' | 'COOLED' | 'DORMANT';

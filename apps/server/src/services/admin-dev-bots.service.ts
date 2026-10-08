@@ -9,6 +9,7 @@ import { devBotAccountWhere, devBotsBlockedReason, removeDevBots, seedDevBots } 
 import { storedMigrationPlan } from './npc-gang-migration.js';
 import { npcMood, storedDormancy, storedMomentum } from './npc-gang-momentum.js';
 import { DEFAULT_NPC_GANG_RULES, npcRules } from './npc-gang-rules.js';
+import { favoriteMove, npcIdentity, npcPersonality, storedHistory } from './npc-gang-personality.js';
 import { openNpcGrudges, storedNpcGrudges } from './npc-gang-memory.js';
 import { RoundService } from './round.service.js';
 
@@ -69,6 +70,26 @@ function npcGangTurf(root: Prisma.JsonObject): AdminNpcGang['turf'] {
     recentLosses: numberField(turf.recentLosses),
     pressure: numberField(turf.pressure),
     lastMove: moveKind && moveAt ? { kind: moveKind, districtName: stringField(move.districtName) ?? '', at: moveAt, detail: moveDetail } : null,
+  };
+}
+
+/** Phase M. Who the gang is in public, and its record for operators (exact numbers are fine here). */
+function npcGangIdentity(gang: { id: string; archetype: string; memory: Prisma.JsonValue }, rules: ReturnType<typeof npcRules>): Pick<AdminNpcGang, 'personality' | 'crewName' | 'crewTag' | 'record'> {
+  const view = npcPersonality(rules, gang.archetype);
+  const identity = npcIdentity(view, gang.id, gang.memory);
+  const history = storedHistory(gang.memory);
+  return {
+    personality: view.personality.label,
+    crewName: identity.name,
+    crewTag: identity.tag,
+    record: {
+      wins: history.wins,
+      losses: history.losses,
+      favoriteMove: favoriteMove(history),
+      biggestHitCents: history.biggestHit?.cents ?? null,
+      biggestHitTarget: history.biggestHit?.target ?? null,
+      lastLossTo: history.lastLoss?.opponent ?? null,
+    },
   };
 }
 
@@ -163,7 +184,7 @@ export const AdminDevBotsService = {
                 city: { select: { id: true, name: true } },
                 netWorthCents: true,
                 movingUntil: true,
-                npcGang: { select: { archetype: true, tier: true, aggression: true, ambition: true, discipline: true, nextActionAt: true, lastActionAt: true, dormantUntil: true, memory: true, homeCity: { select: { name: true } } } },
+                npcGang: { select: { id: true, archetype: true, tier: true, aggression: true, ambition: true, discipline: true, nextActionAt: true, lastActionAt: true, dormantUntil: true, memory: true, homeCity: { select: { name: true } } } },
               },
             }
           : {
@@ -175,7 +196,7 @@ export const AdminDevBotsService = {
                 city: { select: { id: true, name: true } },
                 netWorthCents: true,
                 movingUntil: true,
-                npcGang: { select: { archetype: true, tier: true, aggression: true, ambition: true, discipline: true, nextActionAt: true, lastActionAt: true, dormantUntil: true, memory: true, homeCity: { select: { name: true } } } },
+                npcGang: { select: { id: true, archetype: true, tier: true, aggression: true, ambition: true, discipline: true, nextActionAt: true, lastActionAt: true, dormantUntil: true, memory: true, homeCity: { select: { name: true } } } },
               },
             },
       },
@@ -272,7 +293,8 @@ export const AdminDevBotsService = {
     }
 
     const npcGangs = currentPlayers.flatMap((player) => player.npcGang ? [player.npcGang] : []);
-    const escalation = round ? npcRules(loadRulesetForRound(round)).escalation : DEFAULT_NPC_GANG_RULES.escalation;
+    const gangRules = round ? npcRules(loadRulesetForRound(round)) : DEFAULT_NPC_GANG_RULES;
+    const escalation = gangRules.escalation;
     const moodOf = (gang: (typeof npcGangs)[number]) => npcGangMood(gang.memory, gang.dormantUntil, escalation, now).mood;
     const acted24h = npcGangs.filter((gang) => gang.lastActionAt && gang.lastActionAt >= since).length;
     const blocked24h = currentPlayers.filter((player) => {
@@ -346,6 +368,7 @@ export const AdminDevBotsService = {
                       currentCity: player.city.name,
                       ...npcGangMigration(player.npcGang.memory, player.movingUntil, now),
                       ...npcGangMood(player.npcGang.memory, player.npcGang.dormantUntil, escalation, now),
+                      ...npcGangIdentity(player.npcGang, gangRules),
                     }
                   : null,
               }

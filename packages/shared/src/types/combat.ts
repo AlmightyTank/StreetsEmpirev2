@@ -222,6 +222,20 @@ export interface NpcGangIntelDto {
   /** Phase J. Blocks server-run crews hold in this city, and whether your crew works one of them. */
   npcBlocks?: string[];
   onTheirTurf?: boolean;
+  /**
+   * Phase M. The crews working this city, as the street knows them: name, tag, who runs
+   * it, its style and a few reputation lines. Never exact stats.
+   */
+  crews?: Array<{
+    name: string;
+    tag: string;
+    boss: string;
+    publicPimpId: number;
+    label: string;
+    style: string;
+    mood: 'HOT' | 'STEADY' | 'COOLED';
+    reputation: string[];
+  }>;
   /** Phase L. Local crews on a run, licking wounds, or gone to ground. Absent when all are steady. */
   mood?: { hot: number; cooled: number; dormant: number };
   /** Phase K. Crews moving around this city. Absent when nothing is moving. */

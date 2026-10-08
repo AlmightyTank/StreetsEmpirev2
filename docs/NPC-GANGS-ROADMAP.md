@@ -1,6 +1,6 @@
 # NPC Gangs Roadmap
 
-Status: **Phases A-L built in beta. Phase M is next.**
+Status: **Phases A-M built in beta. Phase N is next.**
 
 NPC gangs are server-run seasonal crews that use the same core systems players use:
 round players, cities, stores, production, raids, drive-bys, special raid forms,
@@ -40,7 +40,7 @@ or hitting players with unavoidable punishment.
 | J | Built | Turf behavior so NPC gangs claim, defend, pressure or abandon territory. |
 | K | Built | Travel and migration so stronger gangs can relocate between cities. Crew runs are a follow-up. |
 | L | Built | Escalation and dormancy so gangs heat up, cool down, recover or lay low. |
-| M | Planned | Boss and archetype personalities with named gangs and distinct patterns. |
+| M | Built | Boss and archetype personalities with named gangs and distinct patterns. |
 | N | Planned | Rewards and cleanup for beating NPC gangs or relieving city pressure. |
 | O | Started | Admin controls for spawning, pausing, dormancy, tuning and memory inspection. |
 | P | Started | Balance telemetry for attack rate, wins, dogpiles, drain and stalled actions. |
@@ -263,24 +263,39 @@ Delivered:
 - **Admin:** gangs on a run and gone to ground in the summary, and per gang its
   mood, momentum, dormancy reason and return time, or when it last woke.
 
-## Remaining Phases
-
 ### Phase M: Boss/Archetype Personalities
 
-Named gangs get distinct patterns: cautious hustlers, violent crews, ride
-thieves, product cooks and ambushers.
+Gangs run as named crews with recognizable habits. The catalog is authored in
+`packages/rulesets/src/npc-gang-personalities.ts` and reaches the scheduler through
+`npcGangs.personalities`; a ruleset can add or override personalities by key.
 
-Goals:
+Delivered:
 
-- Add ruleset-authored gang names, tags and archetype flavor.
-- Give named gangs stronger behavior signatures.
-- Track lightweight history like biggest hit, last loss or favorite move.
-- Keep public identity readable without exposing exact stats.
+- **Five personalities:** cautious hustlers, violent crew, ride thieves, product
+  cooks and ambushers. Each has crew names with tags, a public style line, intent
+  biases, a targeting habit, an optional favorite special raid and a squad share.
+- **Resolution:** a gang's `archetype` matches a personality key, then an alias
+  exactly, then an alias as a substring (so `stash-builder` reads as product cooks),
+  then `defaultPersonality`.
+- **Behavior signatures:** personality biases replace the old substring archetype
+  bias; the favorite special raid is tried first when affordable; ordinary targets
+  are ordered by habit (richest, weakest, rides, product, or wounded and unhappy
+  crews); squads scale by `squadShare`. Revenge and turf pressure still come first.
+- **Identity:** a seeded `crewName`/`crewTag` is kept in memory; otherwise the gang
+  id picks one of the personality's names, stable for the season.
+- **History:** wins, losses, moves that landed (including corner claims), biggest
+  cash hit and last loss, kept in `NpcGang.memory.history`. The last loss is also
+  read back from the gang's own fights.
+- **Public reputation:** the combat page lists local crews by name and tag, who runs
+  them, their style, mood and up to three reputation lines (favorite move, a banded
+  recent score, a recent embarrassment, a rough win/loss lean). No exact stats.
+  Rumors name the loudest crew.
+- **Admin:** crew name, tag, personality and the exact record per gang.
+- **Dev bots:** the four seeded crews map to personalities with fixed names, and a
+  fifth, Hubcap Hector's Hubcap Kings, is a Veteran ride-thief crew so migration
+  has a candidate in dev.
 
-Gate:
-
-- Players can recognize local crews by behavior and reputation, not just by admin
-  data.
+## Remaining Phases
 
 ### Phase N: Rewards & Cleanup
 

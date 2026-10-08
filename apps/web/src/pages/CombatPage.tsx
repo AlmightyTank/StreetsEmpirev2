@@ -701,6 +701,20 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
           <ul className="se-city__talk">
             {page.npcGangIntel.rumors.map((rumor) => <li key={rumor}>{rumor}</li>)}
           </ul>
+          {page.npcGangIntel.crews?.length ? (
+            <ol className="se-admin-list">
+              {page.npcGangIntel.crews.map((crew) => (
+                <li key={crew.publicPimpId}>
+                  <div className="se-admin-check__head">
+                    <strong>{crew.name} [{crew.tag}]</strong>
+                    <span className="se-muted">{crew.label}{crew.mood === 'HOT' ? ' · on a run' : crew.mood === 'COOLED' ? ' · licking wounds' : ''}</span>
+                  </div>
+                  <p className="se-hint">Run by {crew.boss} (#{crew.publicPimpId}). {crew.style}</p>
+                  {crew.reputation.length ? <p className="se-hint">{crew.reputation.join(' ')}</p> : null}
+                </li>
+              ))}
+            </ol>
+          ) : null}
         </Panel>
       ) : null}
 
