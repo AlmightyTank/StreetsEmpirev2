@@ -81,6 +81,7 @@ export const CATEGORY_COLUMN = {
   runs: 'runsEnabled',
   revenge: 'revengeEnabled',
   law: 'lawEnabled',
+  factions: 'factionsEnabled',
   orders: 'ordersEnabled',
   announcements: 'announcementsEnabled',
   messages: 'messagesEnabled',

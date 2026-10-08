@@ -51,10 +51,10 @@ const OFFICIAL_TITLES: Record<string, string> = {
 };
 
 const OFFICIAL_HELP: Record<string, string> = {
-  CAPTAIN: 'Warrants there come with more warning, and a word before the Case gets that far.',
-  DA: 'Slows the Case there, and can quash one warrant there a week.',
-  JUDGE: 'Warrants served there take less and lock the boss up for less.',
-  CUSTOMS: 'Airport checks on flights out of there happen less. The no-fly line still holds.',
+  CAPTAIN: 'Can give you more time to respond when trouble reaches the courts.',
+  DA: 'Can slow an investigation and help with a city warrant.',
+  JUDGE: 'Can soften the penalties from a served warrant.',
+  CUSTOMS: 'Can reduce attention on departures from the city.',
 };
 
 export function officialTitle(role: string): string {

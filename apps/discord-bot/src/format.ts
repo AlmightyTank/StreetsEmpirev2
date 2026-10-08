@@ -9,6 +9,7 @@ import type {
   BattleEvent,
   BlockWarEvent,
   CrackdownEvent,
+  FactionEvent,
   GameNotice,
   HallOfFame,
   History,
@@ -635,6 +636,17 @@ export function crackdownFeedEmbed(event: CrackdownEvent): APIEmbed {
     color: warning ? BRAND_COLOR : MUTED_COLOR,
     description: `${description}\n${escapeMarkdown(event.roundName)}`,
     timestamp: warning ? event.warningAt : event.sweepAt,
+  };
+}
+
+/** 1.4.0-F. A player reaching a faction's Inner Circle: the faction and the tier, nothing else. */
+export function factionFeedEmbed(event: FactionEvent): APIEmbed {
+  return {
+    title: `${escapeMarkdown(event.factionName)} · ${escapeMarkdown(event.tierName)}`,
+    url: event.profileUrl,
+    color: BRAND_COLOR,
+    description: `**${escapeMarkdown(truncate(event.displayName, 40))}** is in ${escapeMarkdown(event.factionName)}'s ${escapeMarkdown(event.tierName)}. Their rivals' doors are closed for the season.\n${escapeMarkdown(event.roundName)}`,
+    timestamp: event.happenedAt,
   };
 }
 

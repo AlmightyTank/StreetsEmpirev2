@@ -14,6 +14,11 @@ const consoleQuery = z.object({
   page: z.coerce.number().int().min(1).max(10_000).default(1),
 }).strict();
 
+const consoleThreadsQuery = z.object({
+  folder: z.enum(['active', 'archived']).default('active'),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+}).strict();
+
 const consoleActivityQuery = z.object({
   filter: z.enum(['all', 'combat', 'turf', 'travel', 'market', 'progress', 'street', 'system']).default('all'),
   page: z.coerce.number().int().min(1).max(10_000).default(1),
@@ -35,6 +40,16 @@ const pimpConsoleRoutes: FastifyPluginAsync = async (app) => {
   app.get('/console', { preHandler: app.requireAuth }, async (request) => {
     const query = parseBody(consoleQuery, request.query);
     return PimpConsoleService.page(
+      app.prisma,
+      request.auth!.account.id,
+      query.folder,
+      query.page,
+    );
+  });
+
+  app.get('/console/threads', { preHandler: app.requireAuth }, async (request) => {
+    const query = parseBody(consoleThreadsQuery, request.query);
+    return PimpConsoleService.threads(
       app.prisma,
       request.auth!.account.id,
       query.folder,
@@ -114,6 +129,11 @@ const pimpConsoleRoutes: FastifyPluginAsync = async (app) => {
   app.post('/console/mutes/:publicPimpId/remove', { preHandler: app.requireAuth }, async (request) => {
     const { publicPimpId } = parseBody(playerParams, request.params);
     return PimpConsoleService.unmute(app.prisma, request.auth!.account.id, publicPimpId);
+  });
+
+  app.get('/console/conversations/:publicPimpId', { preHandler: app.requireAuth }, async (request) => {
+    const { publicPimpId } = parseBody(playerParams, request.params);
+    return PimpConsoleService.conversation(app.prisma, request.auth!.account.id, publicPimpId);
   });
 
   /** 0.9.0-H: delete a whole conversation from your own side. */

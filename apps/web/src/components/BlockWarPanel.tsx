@@ -38,7 +38,7 @@ function ThugsField({ label, value, onChange, disabled }: { label: string; value
 }
 
 /**
- * 1.1.0-D. A block war on City Blocks: declaring one on a rival's block, and once it is on,
+ * 1.1.0-D. A block war on Turf: declaring one on a rival's block, and once it is on,
  * the siege's Control, the coming fight, the allies and their cut, and what you can do.
  */
 export function BlockWarPanel({ block, wars, isHome, onChanged }: { block: TurfBlockDto; wars: Wars; isHome: boolean; onChanged?: () => void }) {

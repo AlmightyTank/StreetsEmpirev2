@@ -1,5 +1,6 @@
 import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
 import type { LawSummaryDto } from './law.js';
+import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
 /**
  * The contract between apps/server and apps/web.
  *
@@ -93,6 +94,10 @@ export type ActivityType =
   | 'CASINO_STATUS_UP'
   | 'CASINO_COMP_HOTEL'
   | 'CASE_STAGE_UP'
+  /** 1.4.0-B. Standing with a faction reached a new tier. */
+  | 'FACTION_TIER_UP'
+  /** 1.4.0-D. An early warning from a faction the player is Trusted with. */
+  | 'FACTION_WARNING'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'
@@ -175,17 +180,38 @@ export type ProfileAccent =
   | 'open-road-blue'
   | 'clean-slate-ice'
   | 'corner-amber'
-  | 'velvet-rose';
+  | 'velvet-rose'
+  | 'kings-gold'
+  | 'outfit-oxblood'
+  | 'saints-chrome'
+  | 'cartel-jade'
+  | 'civic-seal';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
 export type ProfileTitlePlacement = 'prefix' | 'suffix';
-export type ProfileEffect = 'none' | 'neon-pulse' | 'scanlines' | 'spotlight' | 'glitch';
+export type ProfileEffect =
+  | 'none'
+  | 'neon-pulse'
+  | 'scanlines'
+  | 'spotlight'
+  | 'glitch'
+  | 'ember-sparks'
+  | 'cash-shimmer'
+  | 'sirens'
+  | 'smoke';
 
 export interface CosmeticOptionDto {
   key: string;
   label: string;
   description: string | null;
+}
+
+/** An item art collection; non-classic collections are earned on the Street Pass. */
+export interface CollectionOptionDto extends CosmeticOptionDto {
+  locked: boolean;
+  /** How to earn a locked collection, e.g. "Street Pass · Season 1, tier 18". */
+  unlockHint: string | null;
 }
 
 export interface BadgeCosmeticOptionDto extends CosmeticOptionDto {
@@ -207,6 +233,14 @@ export interface AccountProfileSettingsDto {
   profileEffect: ProfileEffect;
   activeProfileFrameKey: string | null;
   activeSiteThemeKey: string | null;
+  /** Player-selected skin per item. Optional for backward-compatible clients. */
+  itemCosmetics?: ItemCosmeticLoadout;
+  /** Whole-crew visual style for thugs and hoes. Optional for backward-compatible clients. */
+  crewCosmetics?: CrewCosmeticLoadout;
+  /** Slice E. Visitors see this player's site theme on their profile. Optional for older clients. */
+  showThemeOnProfile?: boolean;
+  /** Slice E. Visitors see this player's item and crew look on their profile. Optional for older clients. */
+  showLookOnProfile?: boolean;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;
@@ -224,6 +258,9 @@ export interface AccountProfileSettingsResponseDto {
     frames: CosmeticOptionDto[];
     themes: CosmeticOptionDto[];
     effects: CosmeticOptionDto[];
+    /** Universal item/crew skins, locked ones included. Optional so older fixture payloads stay valid. */
+    itemStyles?: CollectionOptionDto[];
+    crewStyles?: CollectionOptionDto[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];
@@ -298,6 +335,9 @@ export interface ResourcesDto {
   ak47s: number;
 
   lowRiders: number;
+  /** 1.5.0-B/E2. Ready class vehicles; Charlie sells them from 1.5.0-E2. */
+  sedans: number;
+  vans: number;
 }
 
 /** One line of the happiness sum, so a low number can explain itself. */
@@ -699,8 +739,17 @@ export interface HideoutUpgradeResult {
   effect: string;
 }
 
+/** 1.4.0-D. A Connected faction's nudge on a price: who gives it and how much it takes off. */
+export interface FactionDiscountDto {
+  factionKey: string;
+  factionName: string;
+  percent: number;
+}
+
 export interface StoreItemDto {
   unlock: WeaponUnlockDto | null;
+  /** 1.5.0-E2. A shelf a job opens (a weapon rack or a vehicle class), with the job that opens it. */
+  questLock?: QuestLockDto | null;
   key: string;
   name: string;
   field: Exclude<keyof ResourcesDto, 'cashCents' | 'fitThugs' | 'woundedThugs'>;
@@ -710,6 +759,8 @@ export interface StoreItemDto {
   favorDiscountPercent?: number;
   relationshipBuyDiscountPercent?: number;
   relationshipSellBonusPercent?: number;
+  /** 1.4.0-D. A Connected faction's cut in the buy quote. */
+  factionDiscount?: FactionDiscountDto;
   sellCents: number | null;
   owned: number;
   maxBuy: number;
@@ -882,6 +933,75 @@ export interface QuestContactDto {
   points: number;
   standing: string;
   nextStandingAt: number | null;
+  /** 1.4.0-A. The faction this contact works for, or null (before 1.4, or independent). */
+  faction: { key: string; name: string } | null;
+  /** 1.4.0-A. Why the contact belongs to no faction; null when they have one or before 1.4. */
+  independent: string | null;
+}
+
+/** 1.4.0-B. The player's own standing with one faction. Private to them. */
+export interface FactionStandingDto {
+  points: number;
+  tier: string;
+  tierName: string;
+  /** The next tier up and where it starts, or null at Inner Circle. */
+  next: { tier: string; tierName: string; startsAt: number } | null;
+  max: number;
+}
+
+/** 1.4.0-D. One level of a faction's perks: what it is, the tier it opens at, and what it says now. */
+export interface FactionPerkLevelDto {
+  /** Whether the player's standing opens it. */
+  open: boolean;
+  tierName: string;
+  /** What this level gives, e.g. "Where Pip is short". */
+  title: string;
+  /** What the faction is telling the player right now; empty while closed or with nothing to say. */
+  lines: string[];
+}
+
+/** 1.4.0-D. A faction's perks: information at Known, early warnings at Trusted, a nudge at Connected. */
+export interface FactionPerksDto {
+  information: FactionPerkLevelDto;
+  warnings: FactionPerkLevelDto;
+  /** Null for a faction with no nudge. */
+  nudge: (FactionPerkLevelDto & { percent: number }) | null;
+}
+
+/** 1.4.0-A. One underworld faction, as the Jobs page shows it. */
+export interface FactionDto {
+  key: string;
+  name: string;
+  shortName: string;
+  identity: string;
+  lane: string;
+  description: string;
+  rivals: Array<{ key: string; name: string }>;
+  /** Contacts who work for it. */
+  faces: Array<{ key: string; name: string }>;
+  /** Faces with no contact of their own. */
+  facesNote: string | null;
+  /** 1.4.0-B. The player's standing, or null before standing exists. */
+  standing: FactionStandingDto | null;
+  /** 1.4.0-B. The faction's own Jobs, the tier each opens at, and where the player is with it. */
+  jobs: Array<{ key: string; title: string; tierName: string | null; status: string }>;
+  /** 1.4.0-D. What standing with it opens and what it says now. Absent before D. */
+  perks?: FactionPerksDto | null;
+  /** 1.4.0-E. The Inner Circle lock, from this player's side. Absent before E. */
+  innerCircle?: {
+    /** The rival whose Inner Circle has locked this one for the season, or null. */
+    lockedBy: { key: string; name: string } | null;
+    /** The rivals reaching Inner Circle here would lock (empty once reached or locked). */
+    wouldLock: Array<{ key: string; name: string }>;
+    /** Vic's introduction to this faction, while the player is below Known with it. */
+    introduction: { key: string; title: string; status: string } | null;
+  };
+}
+
+/** 1.5.0-E2. Something a locked Job still waits for, and the earlier Job to go do, if any. */
+export interface QuestRequirementDto {
+  label: string;
+  questKey?: string;
 }
 
 export interface PlayerQuestDto {
@@ -891,6 +1011,26 @@ export interface PlayerQuestDto {
   description: string;
   contactKey: string | null;
   contactName: string | null;
+  /** 1.5.0-E2. On a locked Job: what it still waits for. */
+  requires?: QuestRequirementDto[];
+  /** 1.4.0-A. The faction the Job works for (its own, else its contact's), or null. */
+  factionName: string | null;
+  /** 1.4.0-B. That faction's key, or null. */
+  factionKey: string | null;
+  /** 1.4.0-B. A faction's own Job, opened by standing. */
+  factionJob: boolean;
+  /** 1.4.0-B. Standing the Job pays, one entry per faction it helps. */
+  factionStandings: Array<{
+    factionKey: string; factionName: string; amount: number; label: string;
+    /** 1.4.0-E. Rivals whose Inner Circle collecting this would lock for the season. Shown before it applies. */
+    locks?: string[];
+    /** 1.4.0-E. The rival whose Inner Circle holds this faction short of its own; the standing stops one point short. */
+    heldShortBy?: string;
+  }>;
+  /** 1.4.0-E. What collecting it costs, in cents, at today's net worth (Vic's introductions). */
+  feeCents?: number;
+  /** 1.4.0-E. The faction a broker's Job introduces you to. */
+  introduces?: { factionKey: string; factionName: string };
   type: string;
   category: string;
   difficulty: string;
@@ -1005,8 +1145,15 @@ export interface QuestPageDto {
     slots: number;
     resetAt: string | null;
   };
-  activeLimit: number;
+  /** 1.4.0-B2 Season board. resetAt is when the round ends. Absent from older servers. */
+  seasonContracts?: {
+    enabled: boolean;
+    slots: number;
+    resetAt: string | null;
+  };
   trackedLimit: number;
+  /** Daily, weekly and city board work starts itself while this is on. Absent from older servers. */
+  autoAccept?: boolean;
   counts: {
     available: number;
     active: number;
@@ -1014,6 +1161,8 @@ export interface QuestPageDto {
     completed: number;
   };
   contacts: QuestContactDto[];
+  /** 1.4.0-A. The round's factions, or null before 1.4. */
+  factions: FactionDto[] | null;
   permanentUnlocks: QuestPermanentUnlockDto[];
   activeFavors: QuestActiveFavorDto[];
   armedFavors: QuestArmedFavorDto[];
@@ -1065,6 +1214,16 @@ export interface QuestClaimResult {
   rewards: QuestRewardDto[];
   reputationChanges: QuestBranchReputationDto[];
   newlyAvailable: string[];
+  /** 1.4.0-B. Faction standing the claim paid. Empty before standing exists. */
+  standingChanges: Array<{
+    factionKey: string; factionName: string; amount: number; tierName: string; tierUp: boolean; label: string;
+    /** 1.4.0-E. Rivals whose Inner Circle this claim locked for the season. */
+    locked?: string[];
+    /** 1.4.0-E. The rival whose Inner Circle held this faction one point short. */
+    heldShortBy?: string;
+  }>;
+  /** 1.4.0-E. The fee the claim took (Vic's introductions), in cents. */
+  feeCents?: number;
 }
 
 export interface StoreDto {
@@ -1124,6 +1283,21 @@ export interface StoresDto {
   integrations?: StoreIntegrationDto;
 }
 
+/** 1.5.0-E2. The job behind a lock, for a link straight to it on the jobs page. */
+export interface QuestLinkDto {
+  key: string;
+  title: string;
+  /** The contact who gives it, when there is one. */
+  giverName: string | null;
+}
+
+/** 1.5.0-E2. A shelf a job opens: whether it is open, what it is called, and the job that opens it. */
+export interface QuestLockDto {
+  unlocked: boolean;
+  unlockName: string;
+  quest: QuestLinkDto | null;
+}
+
 export interface StoreTradeResult {
   /**
    * Standing earned by dealing with them today. Zero when the day's credit is
@@ -1133,7 +1307,11 @@ export interface StoreTradeResult {
   storeKey: string;
   storeName: string;
   itemName: string;
-  field: StoreItemDto['field'];
+  /** The resource the line moved. Absent on a product line from Pip's counter, which moves `productKey`. */
+  field?: StoreItemDto['field'];
+  /** A basket line for one of Pip's products, and how many the crew holds after it. */
+  productKey?: string;
+  quantityAfter?: number;
   direction: 'buy' | 'sell';
   quantity: number;
   unitCents: number;
@@ -1143,6 +1321,8 @@ export interface StoreTradeResult {
   favorKey?: string;
   favorDiscountPercent?: number;
   baseUnitCents?: number;
+  /** 1.4.0-D. A Connected faction's cut on this purchase, and what it saved. */
+  factionDiscount?: FactionDiscountDto & { savedCents: number };
 }
 
 export type StoreCheckoutLineResult = StoreTradeResult;
@@ -1194,9 +1374,13 @@ export interface ProductStockDto {
     purchaseUnlocked: boolean;
     unlockName: string | null;
     unlockDescription: string | null;
+    /** 1.5.0-E2. The job that opens purchases. */
+    unlockQuest?: QuestLinkDto | null;
     favorDiscountPercent?: number;
     relationshipBuyDiscountPercent?: number;
     relationshipSellBonusPercent?: number;
+    /** 1.4.0-D. The Cartel Line's Connected cut in the buy quote. */
+    factionDiscount?: FactionDiscountDto;
   } | null;
   /** 0.4.0-D. Present where Produce can cook it. */
   recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
@@ -1215,6 +1399,8 @@ export interface ProductTradeResult {
   stockAfter: number | null;
   reputationGained: number;
   favorDiscountPercent?: number;
+  /** 1.4.0-D. The Cartel Line's Connected cut on this purchase, and what it saved. */
+  factionDiscount?: FactionDiscountDto & { savedCents: number };
 }
 
 /** GET /api/game/products. Disabled on rounds where Product is still only crack. */

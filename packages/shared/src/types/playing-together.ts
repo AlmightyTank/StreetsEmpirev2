@@ -1,4 +1,5 @@
 import type { AllianceTagDto } from './alliance.js';
+import type { QuestLinkDto, QuestLockDto } from './api.js';
 
 /** 0.3.0-D. Limits that keep the wire and the rolodex small. Not balance, so they live here. */
 export const WIRE_POST_MAX = 280;
@@ -142,6 +143,9 @@ export interface PlayerDirectoryEntryDto {
   activity: PlayerActivityBand;
   isYou: boolean;
   isContact: boolean;
+  /** Slice F. The site theme this player shows on their profile; optional for older servers. */
+  siteTheme?: string | null;
+  siteThemeLabel?: string | null;
 }
 
 export interface PlayerDirectoryDto {
@@ -562,6 +566,8 @@ export interface CityTurfDto {
     isYours: boolean;
   } | null;
   presenceRequired: number;
+  /** 1.4.0-D. The Kings' Connected cut in the beer and product every corner burns. */
+  upkeepDiscount?: { factionKey: string; factionName: string; percent: number };
   postTurnCost: number;
   pullTurnCost: number;
   pushTurnCost: number;
@@ -784,6 +790,10 @@ export interface RunDto {
   id: string;
   launchedAt: string;
   lowRiders: number;
+  /** 1.5.0-B. Vehicle composition, preserved for the return trip. */
+  vehicleLoadout?: { LOW_RIDER: number; SEDAN: number; VAN: number };
+  /** 1.5.0-C. The part of the loadout coming home Damaged or Disabled. Absent on a clean run. */
+  vehicleDamage?: VehicleDamageDto;
   escortThugs: number;
   cashCents: number;
   startCashCents: number;
@@ -823,7 +833,8 @@ export interface RunDto {
   /** Pip's counter and (0.5.0-C) the high market where the run is, while it is in town. */
   counter: {
     city: string;
-    products: Array<{ key: string; supply: SupplyLevelDto | null; buyCents: number | null; sellCents: number | null; stock: number; nextAt: string | null; market: MarketPriceDto | null }>;
+    /** 1.4.0-D. factionDiscountPercent: the Cartel Line's Connected cut, already in buyCents. */
+    products: Array<{ key: string; supply: SupplyLevelDto | null; buyCents: number | null; sellCents: number | null; stock: number; nextAt: string | null; market: MarketPriceDto | null; factionDiscountPercent?: number }>;
     /** A glut or drought in town right now. */
     event: PriceEventDto | null;
   } | null;
@@ -866,6 +877,9 @@ export interface RunReceiptDto {
   returnedAt: string;
   cities: Array<{ slug: string; name: string }>;
   lowRiders: number;
+  vehicleLoadout?: { LOW_RIDER: number; SEDAN: number; VAN: number };
+  /** 1.5.0-C. What came home needing the garage. */
+  vehicleDamage?: VehicleDamageDto;
   escortThugs: number;
   startCashCents: number;
   cashCents: number;
@@ -882,7 +896,47 @@ export interface RunReceiptDto {
 
 /** 0.5.0-B. GET /api/game/travel: the map, what the crew knows, and the run. */
 export interface TravelDto extends CitiesDto {
+  /** 1.5.0-A. Legacy vehicle counts mapped onto stable class identities. */
+  vehicleFleet?: Array<{
+    classId: 'LOW_RIDER' | 'SEDAN' | 'VAN';
+    name: string;
+    description: string;
+    home: number;
+    away: number;
+    total: number;
+    cargoPercent?: number;
+    crewSeats?: number | null;
+    purchasePriceCents?: number | null;
+    routeProfile?: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
+    /** 1.5.0-E. The profile's whole-percent change to route risk: -5 is 5% lower. */
+    routeRiskPercent?: number;
+    /** 1.5.0-C. At home but waiting on the garage; not counted in `home`. */
+    damaged?: number;
+    disabled?: number;
+    /** 1.5.0-C. Price per vehicle to put a Damaged / Disabled one back to Ready, after any 1.5.0-D discount. */
+    repairCents?: number;
+    recoveryCents?: number;
+    /** 1.5.0-D. The garage's list prices, when a discount applies. */
+    listRepairCents?: number;
+    listRecoveryCents?: number;
+    /** 1.5.0-D. What one costs this crew today, after Stolen Low-Riders. */
+    buyCents?: number | null;
+    /** 1.5.0-E2. Sold over Charlie's counter instead of here, and the job that opens it. */
+    charlie?: QuestLockDto | null;
+  }>;
+  /** 1.5.0-C. What road trouble does to a run's vehicles, so it can be shown before launch. */
+  vehicleService?: {
+    damagedByBust: number;
+    damagedByConvoyLoss: number;
+    disabledByArrest: number;
+    /** Class ids in the order a run's vehicles take trouble. */
+    damageOrder: Array<'LOW_RIDER' | 'SEDAN' | 'VAN'>;
+    /** 1.5.0-D. What the road lane takes off service for this crew, and why. Absent before D. */
+    discounts?: Record<'REPAIR' | 'RECOVER', VehicleServiceDiscountDto>;
+  };
   runsEnabled: boolean;
+  /** Products Pip will not sell this player yet, in any city, and the unlock each needs. The high markets still sell them. */
+  lockedProducts?: Array<{ key: string; unlockName: string; quest?: QuestLinkDto | null }>;
   rules: {
     cargoPerLowRider: number;
     thugsPerLowRider: number;
@@ -905,6 +959,7 @@ export interface TravelDto extends CitiesDto {
     cashCents: number;
     beer: number;
     lowRiders: number;
+    vehicles?: { LOW_RIDER: number; SEDAN: number; VAN: number };
     fitThugs: number;
     turns: number;
     products: Array<{ key: string; quantity: number }>;
@@ -920,6 +975,42 @@ export interface TravelDto extends CitiesDto {
   relocation: RelocationDto | null;
   /** Trips A. The boss travels. Null on rounds without trips. */
   trips: TripPanelDto | null;
+}
+
+/** 1.5.0-D. A garage discount and each source behind it. */
+export interface VehicleServiceDiscountDto {
+  percent: number;
+  sources: Array<{ source: 'AUTO_GARAGE' | 'CHOP_SHOP' | 'ROAD_SAINTS'; percent: number }>;
+}
+
+/** 1.5.0-C. Vehicle counts by class. */
+export type VehicleCountsDto = { LOW_RIDER: number; SEDAN: number; VAN: number };
+
+/** 1.5.0-C. The part of a run's loadout that needs the garage when it gets home. */
+export interface VehicleDamageDto {
+  damaged: VehicleCountsDto;
+  disabled: VehicleCountsDto;
+}
+
+/** 1.5.0-C. Outcome of a garage repair or recovery. */
+export interface VehicleServiceResult {
+  classId: 'LOW_RIDER' | 'SEDAN' | 'VAN';
+  name: string;
+  kind: 'REPAIR' | 'RECOVER';
+  quantity: number;
+  paidCents: number;
+  readyCount: number;
+  /** 1.5.0-D. Percent the road lane took off. */
+  discountPercent?: number;
+}
+
+/** 1.5.0-B. Outcome of buying a Sedan or Van for the home garage. */
+export interface VehiclePurchaseResult {
+  classId: 'SEDAN' | 'VAN';
+  name: string;
+  quantity: number;
+  paidCents: number;
+  homeCount: number;
 }
 
 /** Trips A. Where the boss is along a trip. */
@@ -992,6 +1083,8 @@ export interface TripPanelDto {
       max: number;
       ticketCents: number;
       lodgingCentsPerThugHour: number;
+      /** 1.4.0-D. Road Saints' Connected cut, already taken off `ticketCents`. */
+      factionDiscount?: { factionKey: string; factionName: string; percent: number; fullTicketCents: number };
       gunRentCents: { PISTOL: number; SHOTGUN: number; TEK9: number; AK47: number };
     } | null;
   };
@@ -1236,6 +1329,8 @@ export interface RunTradeResult {
   trunkUnits: number;
   capacity: number;
   shelfStock: number;
+  /** 1.4.0-D. The Cartel Line's Connected cut on a buy at Pip's counter, and what it saved. */
+  factionDiscount?: { factionKey: string; factionName: string; percent: number; savedCents: number };
   venue: 'pip' | 'market';
   /** 0.5.0-C. What selling did to Heat, and whether the town's police got the run. */
   heat: { before: number; added: number; after: number } | null;

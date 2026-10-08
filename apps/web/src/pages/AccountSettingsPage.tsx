@@ -9,7 +9,7 @@ import type {
   ProfileEffect,
   UiDensity,
 } from '@streets/shared';
-import { CREW_NAME_MAX, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
+import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -20,14 +20,19 @@ import { YourDataPanel } from '../components/YourDataPanel.js';
 import { TwoFactorPanel } from '../components/TwoFactorPanel.js';
 import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
+import { ItemCrewCosmeticsEditor } from '../components/ItemCrewCosmeticsEditor.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
+import { GameLayout } from '../layouts/GameLayout.js';
 import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
 import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
 import { formatWhen } from '../utils/time.js';
 
 /** Sessions listed before "Show all": this one first, then the most recently used. */
 const SESSIONS_SHOWN = 5;
+/** Used when settings fail to load: only Classic is known to be owned. */
+const FALLBACK_ITEM_STYLES = collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, new Set());
+const FALLBACK_CREW_STYLES = collectionOptions(RELEASED_CREW_COSMETIC_STYLES, new Set());
 
 function formatDate(value: string | null): string {
   return value ? formatWhen(value) : 'Never';
@@ -54,6 +59,9 @@ function initials(name: string): string {
 export function AccountSettingsPage() {
   const account = useSession((s) => s.account)!;
   const me = useSession((s) => s.me);
+  // Players keep the game menu here; an account still verifying or accepting the rules gets the plain shell.
+  const canPlay = useSession((s) => Boolean(s.me && !s.account?.verificationRequired && !s.account?.rulesAcceptanceRequired));
+  const Frame = canPlay ? GameLayout : Shell;
   const round = useSession((s) => s.round);
   const setSessionProfileSettings = useSession((s) => s.setProfileSettings);
   const [searchParams] = useSearchParams();
@@ -100,7 +108,13 @@ export function AccountSettingsPage() {
                 { key: 'scanlines', label: 'Scanlines', description: null },
                 { key: 'spotlight', label: 'Spotlight', description: null },
                 { key: 'glitch', label: 'Glitch', description: null },
+                { key: 'ember-sparks', label: 'Ember sparks', description: null },
+                { key: 'cash-shimmer', label: 'Cash shimmer', description: null },
+                { key: 'sirens', label: 'Sirens', description: null },
+                { key: 'smoke', label: 'Smoke', description: null },
               ],
+              itemStyles: FALLBACK_ITEM_STYLES,
+              crewStyles: FALLBACK_CREW_STYLES,
               densities: [
                 { key: 'comfortable', label: 'Comfortable', description: null },
                 { key: 'compact', label: 'Compact', description: null },
@@ -240,7 +254,13 @@ export function AccountSettingsPage() {
     setFields({});
 
     try {
-      const response = await authApi.updateProfileSettings(cosmetics);
+      const response = await authApi.updateProfileSettings({
+        ...cosmetics,
+        itemCosmetics: cosmetics.itemCosmetics ?? {},
+        crewCosmetics: cosmetics.crewCosmetics ?? DEFAULT_CREW_COSMETICS,
+        showThemeOnProfile: cosmetics.showThemeOnProfile ?? true,
+        showLookOnProfile: cosmetics.showLookOnProfile ?? true,
+      });
       setProfileSettings(response);
       setCosmetics(response.settings);
       setSessionProfileSettings(response.settings);
@@ -309,7 +329,7 @@ export function AccountSettingsPage() {
   const previewRank = me ? `#${me.publicPimpId.toLocaleString()}` : 'Preview';
 
   return (
-    <Shell>
+    <Frame>
       <div className="se-pagehead">
         <div>
           <p className="se-eyebrow">Private account</p>
@@ -779,6 +799,13 @@ export function AccountSettingsPage() {
               </div>
             </div>
 
+            <ItemCrewCosmeticsEditor
+              settings={cosmetics}
+              styles={profileSettings.options.itemStyles ?? FALLBACK_ITEM_STYLES}
+              crewStyles={profileSettings.options.crewStyles ?? FALLBACK_CREW_STYLES}
+              onChange={setCosmetics}
+            />
+
             <div className="se-interface-preferences">
               <div className="se-field">
                 <label className="se-label" htmlFor="ui-density">Interface density</label>
@@ -845,6 +872,34 @@ export function AccountSettingsPage() {
                   <small>Limit interface animation and transitions.</small>
                 </span>
               </label>
+              <label className="se-checkrow se-checkrow--toggle">
+                <input
+                  type="checkbox"
+                  checked={cosmetics.showThemeOnProfile ?? true}
+                  onChange={(event) => setCosmetics((current) => ({
+                    ...current,
+                    showThemeOnProfile: event.target.checked,
+                  }))}
+                />
+                <span>
+                  <strong>Show my theme on my profile</strong>
+                  <small>Visitors see your profile in your site theme.</small>
+                </span>
+              </label>
+              <label className="se-checkrow se-checkrow--toggle">
+                <input
+                  type="checkbox"
+                  checked={cosmetics.showLookOnProfile ?? true}
+                  onChange={(event) => setCosmetics((current) => ({
+                    ...current,
+                    showLookOnProfile: event.target.checked,
+                  }))}
+                />
+                <span>
+                  <strong>Show my look on my profile</strong>
+                  <small>Visitors see your item and crew collections. Never your counts.</small>
+                </span>
+              </label>
             </div>
 
             <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy !== null ? working : null}>
@@ -857,6 +912,6 @@ export function AccountSettingsPage() {
       <YourDataPanel />
 
       <CloseAccountPanel />
-    </Shell>
+    </Frame>
   );
 }

@@ -25,6 +25,10 @@ export function calculateNetWorthCents(
     BigInt(player.whores) * BigInt(v.perWhoreCents) +
     BigInt(player.thugs) * BigInt(v.perThugCents) +
     BigInt(player.lowRiders) * BigInt(v.perLowRiderCents) +
+    BigInt(player.sedans ?? 0) * BigInt(v.perLowRiderCents) +
+    BigInt(player.vans ?? 0) * BigInt(v.perLowRiderCents) +
+    // 1.5.0-C: a car waiting on the garage is still owned, at the same value.
+    BigInt(vehiclesInService(player)) * BigInt(v.perLowRiderCents) +
     BigInt(player.medicine) * BigInt(v.perMedicineCents) +
     BigInt(player.crack) * BigInt(v.perCrackCents) +
     BigInt(player.condoms) * BigInt(v.perCondomCents) +
@@ -44,4 +48,10 @@ export function calculateNetWorthCents(
     // 1.2.0-A: casino chips/bankroll are cash-equivalents, so cage transfers cannot mint ranking value.
     casinoCash
   );
+}
+
+/** 1.5.0-C. Every vehicle at home that the garage still has to repair or recover. */
+export function vehiclesInService(player: Pick<NetWorthInput, 'damagedLowRiders' | 'damagedSedans' | 'damagedVans' | 'disabledLowRiders' | 'disabledSedans' | 'disabledVans'>): number {
+  return (player.damagedLowRiders ?? 0) + (player.damagedSedans ?? 0) + (player.damagedVans ?? 0)
+    + (player.disabledLowRiders ?? 0) + (player.disabledSedans ?? 0) + (player.disabledVans ?? 0);
 }

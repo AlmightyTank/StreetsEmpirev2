@@ -3,6 +3,7 @@ import { buildApp } from './app.js';
 import { env } from './config/env.js';
 import { IdempotencyService } from './services/idempotency.service.js';
 import { GameAlertService } from './services/game-alerts.service.js';
+import { FactionWarningService } from './services/faction-warning.service.js';
 import { NotificationService } from './services/notification.service.js';
 import { ConvoyService } from './services/convoy.service.js';
 import { BossHitService } from './services/boss-hit.service.js';
@@ -16,6 +17,7 @@ import { metrics } from './services/metrics.service.js';
 import { LawWarrantService } from './services/law-warrant.service.js';
 import { LawOfficialService } from './services/law-official.service.js';
 import { PlayerStateService } from './services/player-state.service.js';
+import { NpcGangService } from './services/npc-gang.service.js';
 
 const app = await buildApp();
 
@@ -45,10 +47,17 @@ const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
   await RoundService.settleTurfClock(app.prisma, new Date());
 }, (message, error) => app.log.error(error, message));
 
+// Phase G NPC gangs: weighted archetype-driven restocks, economy moves and attacks.
+const stopNpcGangs = startPoller('NPC gangs', 60_000, async () => {
+  await NpcGangService.sweep(app.prisma, new Date());
+}, (message, error) => app.log.error(error, message));
+
 // Alerts: collect what is due, then send push. The Discord bot also collects before it claims.
 // 0.9.0-G: always on, because clock events (spotted pushes, tails, revenge, special orders)
 // reach the in-game bell even on a server with no Discord bot or push keys.
 let pruneAt = 0;
+// 1.4.0-D: faction warnings look hours ahead, so every ten minutes is plenty.
+let factionWarningsAt = 0;
 const stopAlerts = startPoller('Alerts', 60_000, async () => {
     const now = new Date();
     // 0.5.0-E: land tails whose window has closed, so a landing is pushed even if nobody is on.
@@ -63,6 +72,10 @@ const stopAlerts = startPoller('Alerts', 60_000, async () => {
     for (const ownerId of lawOwners) {
       await PlayerStateService.settle(app.prisma, ownerId, { markActive: false, now });
     }
+    if (now.getTime() >= factionWarningsAt) {
+      factionWarningsAt = now.getTime() + 10 * 60_000;
+      await FactionWarningService.sweep(app.prisma, now);
+    }
     const collected = await NotificationService.collect(app.prisma, now);
     if (collected > 0) wakeDiscordBot('alerts');
     if (env.push.enabled) metrics.recordNotifications(await PushService.deliverPending(app.prisma));
@@ -76,6 +89,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, async () => {
     app.log.info(`${signal} received, shutting down`);
     stopAlerts();
+    stopNpcGangs();
     stopTurfWars();
     await app.close();
     process.exit(0);

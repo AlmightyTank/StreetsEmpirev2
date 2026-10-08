@@ -24,10 +24,6 @@ a.se-statusbar__item {
 a.se-statusbar__item:hover { background: rgba(255, 255, 255, 0.06); }
 a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outline-offset: 1px; }
 
-/* Sidebar links make room for a badge on the right. */
-.se-nav__link { align-items: center; }
-.se-nav__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-
 .se-navbadge {
   display: inline-flex;
   flex: none;

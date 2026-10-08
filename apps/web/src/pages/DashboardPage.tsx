@@ -168,7 +168,8 @@ function DashboardNotice({
 }
 
 /** Turns and the next regeneration tick, kept live without changing dashboard APIs. */
-function TurnsTile({
+/** Turns and the clock to the next batch, in the hero. The top bar has the count; this has the countdown. */
+function HeroTurns({
   turns,
   onTick,
 }: {
@@ -179,14 +180,11 @@ function TurnsTile({
   const { label } = useCountdown(atCap ? null : turns.nextTurnAt, onTick);
 
   return (
-    <DashboardMetric
-      label="Turns"
-      art="TURNS"
-      value={`${formatNumber(turns.turns)} / ${formatNumber(turns.turnCap)}`}
-      detail={atCap ? 'At the cap · spend them' : `Next +${turns.turnsGeneratedNextTick} in ${label}`}
-      tone={atCap ? 'warn' : 'accent'}
-      meter={{ value: turns.turns, max: turns.turnCap }}
-    />
+    <span className={atCap ? 'se-dashboard-hero__mini--warn' : undefined}>
+      <small>Turns</small>
+      <strong>{formatNumber(turns.turns)}<span className="se-muted"> / {formatNumber(turns.turnCap)}</span></strong>
+      <em>{atCap ? 'At the cap' : `+${turns.turnsGeneratedNextTick} in ${label}`}</em>
+    </span>
   );
 }
 
@@ -334,9 +332,6 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
     me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s;
   const postedWeapons = me.turf?.postedGuns.total ?? 0;
   const weapons = homeWeapons + postedWeapons;
-  const productUnits = me.products
-    ? me.products.reduce((sum, product) => sum + product.quantity, 0)
-    : me.resources.product;
   const heatState = me.heat ? heatTone(me.heat) : 'good';
   const heatLocked = Boolean(me.heat?.lockedUntil);
   const runWaiting = me.run?.phase === 'town';
@@ -386,9 +381,17 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
               <span>{refreshing ? 'Syncing operation' : 'Operation live'}</span>
             </div>
             <div className="se-dashboard-hero__mini">
-              <span><small>Crew</small><strong>{formatNumber(me.resources.whores + me.resources.thugs)}</strong></span>
-              <span><small>Weapons</small><strong>{formatNumber(weapons)}</strong></span>
-              <span><small>Product</small><strong>{formatNumber(productUnits)}</strong></span>
+              <HeroTurns turns={me.turns} onTick={() => void refresh(true)} />
+              <span>
+                <small>City rank</small>
+                <strong>{me.rank.local === null ? '—' : `#${formatNumber(me.rank.local)}`}</strong>
+                <em><RankMovement movement={me.rank.localMovement} /></em>
+              </span>
+              <span>
+                <small>National rank</small>
+                <strong>{me.rank.national === null ? '—' : `#${formatNumber(me.rank.national)}`}</strong>
+                <em><RankMovement movement={me.rank.nationalMovement} /></em>
+              </span>
             </div>
           </div>
         </header>
@@ -396,32 +399,6 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         {error ? <Alert>{error}</Alert> : null}
 
         <GettingStarted />
-
-        <section className="se-dashboard-metrics" aria-label="Empire snapshot">
-          <DashboardMetric
-            label="Net worth"
-            value={formatCents(me.netWorthCents)}
-            detail="Ranking value"
-            tone="accent"
-          />
-          <DashboardMetric
-            label="Cash"
-            art="CASH"
-            value={formatCents(me.resources.cashCents)}
-            detail="Spendable now"
-          />
-          <TurnsTile turns={me.turns} onTick={() => void refresh(true)} />
-          <DashboardMetric
-            label="Local rank"
-            value={me.rank.local === null ? '—' : `#${formatNumber(me.rank.local)}`}
-            detail={<RankMovement movement={me.rank.localMovement} />}
-          />
-          <DashboardMetric
-            label="National rank"
-            value={me.rank.national === null ? '—' : `#${formatNumber(me.rank.national)}`}
-            detail={<RankMovement movement={me.rank.nationalMovement} />}
-          />
-        </section>
 
         <section className="se-dashboard-command">
           <div className="se-dashboard-command__column se-dashboard-command__column--left">
@@ -697,14 +674,13 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
             <div className="se-dashboard-stack">
               <HeatPanel />
               <CasePanel />
-              <HideoutPanel hideout={me.hideout} />
             </div>
 
             <div className="se-dashboard-stack">
               <PayoutControl />
 
               {me.turf ? (
-                <Panel title="City Blocks" aside={<Link to="/game/turf">Manage turf</Link>} flush className="se-dashboard-panel">
+                <Panel title="Turf" aside={<Link to="/game/turf">Manage turf</Link>} flush className="se-dashboard-panel">
                   <div className="se-dashboard-stockgrid">
                     <DashboardMetric label="Blocks held" value={formatNumber(me.turf.blocksHeld)} tone="accent" />
                     <DashboardMetric label="Corner guns" value={formatNumber(me.turf.postedGuns.total)} />
@@ -718,6 +694,8 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                   ) : null}
                 </Panel>
               ) : null}
+
+              <HideoutPanel hideout={me.hideout} />
             </div>
           </div>
         </section>

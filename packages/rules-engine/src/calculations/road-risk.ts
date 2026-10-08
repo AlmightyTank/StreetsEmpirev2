@@ -95,13 +95,16 @@ export function resolveRunTrouble(input: {
   cargo: Record<string, number>;
   ruleset: Ruleset;
   bustChance: number;
+  riskMultiplier?: number;
   rng: Rng;
 }): RunTrouble {
   const { heat, cashCents, cargo, ruleset, rng } = input;
   const rules = ruleset.heat;
   const cash = cashCents > 0n ? cashCents : 0n;
-  const arrestAt = arrestChance(heat, ruleset);
-  const quiet: RunTrouble = { kind: null, bustChance: input.bustChance, arrestChance: arrestAt, seized: {}, fineCents: 0n, heatAfter: heat };
+  const riskMultiplier = Math.max(0, input.riskMultiplier ?? 1);
+  const arrestAt = clamp(arrestChance(heat, ruleset) * riskMultiplier, 0, 1);
+  const effectiveBustChance = clamp(input.bustChance * riskMultiplier, 0, 1);
+  const quiet: RunTrouble = { kind: null, bustChance: effectiveBustChance, arrestChance: arrestAt, seized: {}, fineCents: 0n, heatAfter: heat };
   if (!rules) return quiet;
   if (arrestAt > 0 && rng() < arrestAt) {
     const arrest = rules.arrest!;
@@ -113,7 +116,7 @@ export function resolveRunTrouble(input: {
       heatAfter: clamp(heat - arrest.heatDrop, 0, rules.max),
     };
   }
-  if (input.bustChance > 0 && rng() < input.bustChance) {
+  if (effectiveBustChance > 0 && rng() < effectiveBustChance) {
     const seized: Record<string, number> = {};
     for (const [key, units] of Object.entries(cargo)) {
       const taken = Math.floor(Math.max(0, units) * rules.bust.productSeizedFraction);
@@ -140,7 +143,7 @@ function roadBetween(ruleset: Ruleset, a: string, b: string): RoadRules | undefi
  * Each road's chance of a stop on one leg, for a load, escort and Heat. `stopCut` (1.1.0-C, an
  * Auto Garage's Run mods) takes a share off every road's chance.
  */
-export function roadStopChances(ruleset: Ruleset, input: { route: readonly string[]; cargoUnits: number; escorts: number; heat: number; stopCut?: number }): Array<{ road: RoadRules; chance: number }> {
+export function roadStopChances(ruleset: Ruleset, input: { route: readonly string[]; cargoUnits: number; escorts: number; heat: number; stopCut?: number; riskMultiplier?: number }): Array<{ road: RoadRules; chance: number }> {
   const rules = ruleset.travel?.stops;
   if (!rules) return [];
   const cargo = Math.min(rules.maxCargoFactor, 1 + Math.max(0, input.cargoUnits) / rules.cargoScale);
@@ -152,7 +155,7 @@ export function roadStopChances(ruleset: Ruleset, input: { route: readonly strin
     if (!road) continue;
     const perHour = clamp(rules.chancePerDriveHour * road.police, 0, 1);
     const base = 1 - (1 - perHour) ** road.driveHours;
-    roads.push({ road, chance: clamp(base * cargo * heat * escort * (1 - clamp(input.stopCut ?? 0, 0, 1)), 0, 1) });
+    roads.push({ road, chance: clamp(base * cargo * heat * escort * (1 - clamp(input.stopCut ?? 0, 0, 1)) * Math.max(0, input.riskMultiplier ?? 1), 0, 1) });
   }
   return roads;
 }
@@ -179,10 +182,11 @@ export function resolveRoadStop(ruleset: Ruleset, input: {
   heat: number;
   rng: Rng;
   stopCut?: number;
+  riskMultiplier?: number;
 }): RoadStop {
   const rules = ruleset.travel?.stops;
   const units = Object.values(input.cargo).reduce((sum, value) => sum + Math.max(0, value), 0);
-  const roads = roadStopChances(ruleset, { route: input.route, cargoUnits: units, escorts: input.escorts, heat: input.heat, stopCut: input.stopCut });
+  const roads = roadStopChances(ruleset, { route: input.route, cargoUnits: units, escorts: input.escorts, heat: input.heat, stopCut: input.stopCut, riskMultiplier: input.riskMultiplier });
   const chance = 1 - roads.reduce((clear, { chance: each }) => clear * (1 - each), 1);
   const none: RoadStop = { stopped: false, chance, road: null, seized: {}, fineCents: 0n };
   if (!rules || chance <= 0) return none;

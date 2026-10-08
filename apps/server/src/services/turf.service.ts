@@ -48,6 +48,7 @@ import { dormantLevelNow, nextLevelLossAt, type Dormancy } from './block-dormanc
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { turfRevengeByAttacker } from './turf-revenge.service.js';
 import { endTurfHold } from './turf-history.service.js';
+import { FactionService } from './faction.service.js';
 import {
   controlFromRows,
   recordTerritoryControlChange,
@@ -158,9 +159,9 @@ export function outpostBoxWorthCents(
 
 export function settleOutpostSupplies(
   ruleset: Ruleset,
-  input: { thugs: number; hours: number; beer: number; products: Record<string, number>; order: readonly string[] },
+  input: { thugs: number; hours: number; beer: number; products: Record<string, number>; order: readonly string[]; cutPercent?: number },
 ): { beer: number; products: Record<string, number>; beerUsed: number; productUsed: number; leaving: number } {
-  const need = cornerUpkeep(ruleset, input.thugs, input.hours);
+  const need = cornerUpkeep(ruleset, input.thugs, input.hours, input.cutPercent);
   const beerUsed = Math.min(Math.max(0, input.beer), need.beer);
   const products = { ...input.products };
   let productUsed = 0;
@@ -354,6 +355,17 @@ export const TurfService = {
       ? crewAwayDepartures(ruleset, count, player.thugHappiness, hours, desertTurns, rng)
       : 0;
     let walkouts = 0;
+    // 1.4.0-D: Connected with the Kings, every corner burns a little less, logged per block.
+    const upkeepNudge = await FactionService.nudge(tx, roundPlayerId, ruleset, 'CORNER_UPKEEP');
+    const cutPercent = upkeepNudge?.percent ?? 0;
+    const logUpkeepNudge = async (turfId: string, from: Date, thugCount: number, hours: number) => {
+      if (!upkeepNudge) return;
+      const full = cornerUpkeep(ruleset, thugCount, hours);
+      const cut = cornerUpkeep(ruleset, thugCount, hours, cutPercent);
+      await FactionService.logNudge(tx, roundPlayerId, upkeepNudge, 'CORNER_UPKEEP', `upkeep:${turfId}:${from.toISOString()}`, {
+        beer: full.beer - cut.beer, product: full.product - cut.product,
+      }, now);
+    };
 
     const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
     const productChanges: Record<string, number> = {};
@@ -388,7 +400,9 @@ export const TurfService = {
           beer: box.beer,
           products: box.products as Record<string, number>,
           order,
+          cutPercent,
         });
+        await logUpkeepNudge(row.id, row.upkeepAt, row.cornerThugs, wholeHours);
         const advanceTo = new Date(row.upkeepAt.getTime() + wholeHours * HOUR_MS);
         // Trips D2: hours after the boss walked this corner, nobody walks out, however short
         // the box ran. Supplies are still used. 1.1.0-B: an unhappy crew's outpost corner
@@ -441,7 +455,8 @@ export const TurfService = {
         continue;
       }
       if (wholeHours <= 0 || row.cornerThugs <= 0) continue;
-      const need = cornerUpkeep(ruleset, row.cornerThugs, wholeHours);
+      const need = cornerUpkeep(ruleset, row.cornerThugs, wholeHours, cutPercent);
+      await logUpkeepNudge(row.id, row.upkeepAt, row.cornerThugs, wholeHours);
       const beerUsed = Math.min(beer, need.beer);
       beer -= beerUsed;
       const productUsed = takeProduct(need.product);
@@ -897,6 +912,8 @@ export const TurfService = {
     }
 
     const byCity = new Map<string, CityTurfDto>();
+    // 1.4.0-D: Connected with the Kings, every corner burns less; say so where corners are worked.
+    const upkeepNudge = await FactionService.nudge(db as Db, roundPlayerId, ruleset, 'CORNER_UPKEEP');
     for (const row of rows) {
       const citySlug = row.city.slug;
       const district = row.district as TurfBlockDto['district'];
@@ -1114,6 +1131,11 @@ export const TurfService = {
           isYours: cityControl.allianceId === player.allianceId,
         } : null,
         presenceRequired: ruleset.turf.presence.turnsToClaim,
+        ...(upkeepNudge ? { upkeepDiscount: {
+          factionKey: upkeepNudge.factionKey,
+          factionName: ruleset.factions?.[upkeepNudge.factionKey]?.name ?? upkeepNudge.factionKey,
+          percent: upkeepNudge.percent,
+        } } : {}),
         postTurnCost: ruleset.turf.corner.postTurnCost,
         pullTurnCost: ruleset.turf.corner.pullTurnCost,
         pushTurnCost: ruleset.turf.push.turnCost,

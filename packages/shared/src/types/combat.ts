@@ -1,4 +1,11 @@
 import type { AllianceTagDto } from './alliance.js';
+import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
+
+/** Slice G. One side's item and crew art in a battle, captured when the battle happened. */
+export interface BattleLookDto {
+  items: ItemCosmeticLoadout;
+  crew: CrewCosmeticLoadout;
+}
 export interface CombatIntelReportDto {
   targetPublicPimpId: number;
   displayName: string;
@@ -43,6 +50,11 @@ export interface BattleReportDto {
   won: boolean;
   /** alliance is the opponent's tag when the battle happened; absent on reports from before 0.3.0-C. */
   opponent: { publicPimpId: number; displayName: string; alliance?: AllianceTagDto | null };
+  /**
+   * Slice G. Each side's item and crew art at battle time. Yours is your full
+   * look; theirs is Classic when they hide their look. Absent on older reports.
+   */
+  looks?: { you: BattleLookDto; opponent: BattleLookDto };
   yourSquad: number;
   opponentSquad: number;
   yourEquipment: Record<string, number>;
@@ -92,6 +104,8 @@ export interface BattleReportDto {
   protectedUntil: string | null;
   cooldownUntil: string | null;
   retaliation?: boolean;
+  /** Defender side only: the attacker was hitting back for an earlier hit by you. */
+  payback?: boolean;
   trophyCallouts?: Array<{ key: string; title: string; description: string }>;
   /** Special raid forms only. */
   raidForm?: {
@@ -191,6 +205,35 @@ export interface CombatDriveByDto {
   };
 }
 
+export type NpcGangDangerDto = 'QUIET' | 'ACTIVE' | 'HOT';
+
+export interface NpcGangIntelDto {
+  danger: NpcGangDangerDto;
+  activeGangs: number;
+  recentHits: number;
+  recentDriveBys: number;
+  recentSpecialRaids: number;
+  seenSince: string;
+  topArchetype?: string;
+  topTier?: string;
+  /** Phase I. Local crews you hit that can still hit back, and when the last grudge cools. */
+  wantedBy?: number;
+  wantedUntil?: string;
+  /** Phase J. Blocks server-run crews hold in this city, and whether your crew works one of them. */
+  npcBlocks?: string[];
+  onTheirTurf?: boolean;
+  /** Phase L. Local crews on a run, licking wounds, or gone to ground. Absent when all are steady. */
+  mood?: { hot: number; cooled: number; dormant: number };
+  /** Phase K. Crews moving around this city. Absent when nothing is moving. */
+  movement?: {
+    inbound: Array<{ fromName: string; arrivesAt: string }>;
+    leaving: number;
+    packing: number;
+    newArrivals: number;
+  };
+  rumors: string[];
+}
+
 export interface CombatPageDto {
   enabled: boolean;
   roundId: string;
@@ -214,4 +257,6 @@ export interface CombatPageDto {
   specialRaids?: CombatSpecialRaidDto[];
   /** Absent where drive-bys have not shipped. */
   driveBy?: CombatDriveByDto;
+  /** Phase H. Local, fuzzy warnings about server-run gangs in your current city. */
+  npcGangIntel?: NpcGangIntelDto;
 }

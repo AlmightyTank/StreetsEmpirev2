@@ -42,6 +42,7 @@ const settingsSelect = {
   announcementsEnabled: true,
   messagesEnabled: true,
   lawEnabled: true,
+  factionsEnabled: true,
 } as const;
 
 type AlertSettings = Prisma.NotificationSettingsGetPayload<{ select: typeof settingsSelect }>;
@@ -698,6 +699,35 @@ async function officialAlerts(tx: Tx, now: Date, switches: ChannelSwitches): Pro
   return rows;
 }
 
+/**
+ * 1.4.0-D. A faction's early warning, already in the bell, for push and Discord. Says exactly
+ * what the faction card said, which only ever reads the player's own state or public schedules.
+ */
+export async function factionWarnings(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  const warnings = await tx.playerFactionWarning.findMany({
+    where: { alertsCollectedAt: null },
+    orderBy: { createdAt: 'asc' },
+    take: BATCH,
+    select: {
+      id: true, factionKey: true, warningKey: true, text: true, href: true, createdAt: true,
+      roundPlayer: { select: { accountId: true, account: accountSettings, round: { select: { status: true, endsAt: true, rulesetId: true, rulesetVersion: true } } } },
+    },
+  });
+  if (!warnings.length) return [];
+  await tx.playerFactionWarning.updateMany({ where: { id: { in: warnings.map((row) => row.id) }, alertsCollectedAt: null }, data: { alertsCollectedAt: now } });
+  const stale = now.getTime() - MAX_LOOKAHEAD_MS;
+  return warnings.flatMap((warning) => {
+    if (!live(warning.roundPlayer.round, now) || warning.createdAt.getTime() < stale || !warning.text) return [];
+    const faction = rulesetOf(warning.roundPlayer.round)?.factions?.[warning.factionKey as keyof NonNullable<Ruleset['factions']>];
+    return notice(warning.roundPlayer.accountId, warning.roundPlayer.account.notificationSettings, 'factions', `faction-warning:${warning.id}`, {
+      title: `Word from ${faction?.name ?? 'a faction'}`,
+      body: warning.text,
+      url: gameUrl(warning.href),
+      tag: `faction:${warning.warningKey}`,
+    }, switches, now);
+  });
+}
+
 export const GameAlertService = {
   /**
    * Settle runs that are due home, so "made it home" alerts go out while everyone
@@ -729,6 +759,7 @@ export const GameAlertService = {
       ...await caseStages(tx, now, switches),
       ...await warrantAlerts(tx, now, switches),
       ...await officialAlerts(tx, now, switches),
+      ...await factionWarnings(tx, now, switches),
       ...await announcements(tx, now, switches),
       ...await surveyBroadcasts(tx, now, switches),
       ...await newsBroadcasts(tx, now, switches),

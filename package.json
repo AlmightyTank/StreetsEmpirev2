@@ -29,6 +29,8 @@
     "qa:slots": "node --import tsx scripts/qa/slots-sim.mjs",
     "qa:casino": "node --import tsx scripts/qa/casino-sim.mjs",
     "qa:law": "node --import tsx scripts/qa/law-sim.mjs",
+    "qa:factions": "node --import tsx scripts/qa/faction-sim.mjs",
+    "qa:vehicles": "node --import tsx scripts/qa/vehicle-sim.mjs",
     "qa:street-pass": "tsx scripts/qa/street-pass-sim.ts",
     "qa:turf": "node --import tsx scripts/qa/turf-sim.mjs",
     "qa:season": "node --import tsx scripts/qa/season-sim.mjs",
@@ -69,11 +71,14 @@
     "@types/node": "^22.10.0",
     "axe-core": "^4.13.0",
     "concurrently": "^9.1.0",
+    "d3-geo": "^3.1.1",
     "dotenv": "^16.4.7",
     "playwright-core": "^1.63.0",
     "prisma": "^6.1.0",
+    "topojson-client": "^3.1.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
+    "us-atlas": "^3.0.1",
     "vitest": "^5.0.0"
   },
   "engines": {

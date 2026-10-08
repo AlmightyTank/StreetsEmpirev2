@@ -10,6 +10,7 @@ import { MovePanel } from '../components/MovePanel.js';
 import { TripPanel } from '../components/TripPanel.js';
 import { BossPresencePanel } from '../components/BossPresencePanel.js';
 import { LaunchPanel, ReceiptPanel, RunPanel } from '../components/RunPanels.js';
+import { GaragePanel } from '../components/GaragePanel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 
@@ -62,14 +63,19 @@ function StreetWire({ items }: { items: WireItemDto[] }) {
   );
 }
 
+type TravelTab = 'runs' | 'garage' | 'trip' | 'move';
+
 /**
- * 0.5.0-B. Travel: the run (loading one up, or where it is and what it holds), what
- * the last one brought home, and the map with what the crew knows about each city.
+ * 0.5.0-B, reworked for 1.4: the map is the page. Pick a city on it (its intel
+ * sits beside the map), keep convoys above the tabs and market below the active tab,
+ * then act from one tab at a time: runs, the garage (1.5.0-C), the boss's trip, or moving house.
+ * Anything urgent on the road is pinned above the map.
  */
 export function TravelPage() {
   const me = useSession((s) => s.me);
   const [data, setData] = useState<TravelDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cityOpen, setCityOpen] = useState(false);
   const [params, setParams] = useSearchParams();
 
   const load = useCallback(() => {
@@ -82,48 +88,49 @@ export function TravelPage() {
   if (!me) return <Navigate to="/join" replace />;
   const home = data?.cities.find((city) => city.isHome);
   const selected = data?.cities.find((city) => city.slug === params.get('city')) ?? home ?? data?.cities[0];
-  const select = (slug: string) => setParams(slug === home?.slug ? {} : { city: slug }, { replace: true });
   const runs = data?.runs ?? (data?.run ? [data.run] : []);
-  const urgent = Boolean(me.convoyAlert);
+  const urgent = me.convoyAlert;
   const runAts = runs.map((active) => active.position.road ?? { city: active.position.city });
   const runLimit = data?.rules.runLimit ?? 0;
   const openRunSlots = Math.max(0, runLimit - runs.length);
+  const bossAway = Boolean(data?.trips?.trip);
+  const inService = (data?.vehicleFleet ?? []).reduce((sum, vehicle) => sum + (vehicle.damaged ?? 0) + (vehicle.disabled ?? 0), 0);
+
+  const tabs: Array<{ key: TravelTab; label: string; badge?: string; alert?: boolean }> = data?.enabled ? [
+    ...(data.runsEnabled ? [{ key: 'runs' as const, label: 'Runs', badge: `${formatNumber(runs.length)}/${formatNumber(runLimit)}` }] : []),
+    // 1.5.0-C: the garage, flagged while any car waits on a repair or recovery.
+    ...(data.runsEnabled && data.vehicleFleet?.length ? [{ key: 'garage' as const, label: 'Garage', ...(inService ? { badge: formatNumber(inService), alert: true } : {}) }] : []),
+    ...(data.trips ? [{ key: 'trip' as const, label: bossAway ? 'Boss away' : 'Boss trip', alert: bossAway }] : []),
+    ...(data.relocation ? [{ key: 'move' as const, label: 'Move house', alert: Boolean(me.moving) }] : []),
+  ] : [];
+  const requested = params.get('tab') as TravelTab | null;
+  const fallback: TravelTab | undefined = runs.length && tabs.some((tab) => tab.key === 'runs')
+      ? 'runs'
+      : bossAway ? 'trip' : tabs[0]?.key;
+  const tab = tabs.some((candidate) => candidate.key === requested) ? requested! : fallback;
+
+  const setParam = (key: 'city' | 'tab', value: string | null) => {
+    const next = new URLSearchParams(params);
+    if (value === null) next.delete(key);
+    else next.set(key, value);
+    setParams(next, { replace: true });
+  };
+  const select = (slug: string) => setParam('city', slug === home?.slug ? null : slug);
+
   const selectedKnown = Boolean(selected?.counter);
   const selectedDistance = selected?.isHome
     ? 'Home'
     : selected?.gameMinutes !== null && selected?.gameMinutes !== undefined
-      ? `${formatNumber(Math.round(selected.gameMinutes))} min`
-      : 'Unknown';
+      ? `${formatNumber(Math.round(selected.gameMinutes))} min away`
+      : 'Distance unknown';
 
   return (
     <GameLayout>
       <div className="se-travel">
-        <header className="se-travel-hero">
-          <div className="se-travel-hero__copy">
-            <span className="se-eyebrow">Road operations · {home?.name ?? me.city.name}</span>
+        <header className="se-travel-head">
+          <div>
+            <span className="se-eyebrow">Road operations · home in {home?.name ?? me.city.name}</span>
             <h1>Travel</h1>
-            <p>
-              Read the road network, pick a market, load the cars, and keep tabs on every crew you have moving between cities.
-            </p>
-          </div>
-
-          <div className="se-travel-hero__readout">
-            <span>
-              <small>Turns home</small>
-              <strong>{data ? formatNumber(data.home.turns) : '—'}</strong>
-            </span>
-            <span>
-              <small>Active runs</small>
-              <strong>{data ? `${formatNumber(runs.length)} / ${formatNumber(runLimit)}` : '—'}</strong>
-            </span>
-            <span>
-              <small>Low-Riders</small>
-              <strong>{data ? formatNumber(data.home.lowRiders) : '—'}</strong>
-            </span>
-            <span>
-              <small>Road alert</small>
-              <strong>{urgent ? 'Attention' : 'Clear'}</strong>
-            </span>
           </div>
         </header>
 
@@ -138,134 +145,53 @@ export function TravelPage() {
 
         {data?.enabled && selected && home ? (
           <>
-            {data.runsEnabled && urgent ? (
-              <section className="se-travel-alerts">
-                <div className="se-travel-sectionhead">
-                  <div>
-                    <span className="se-eyebrow">Road alert</span>
-                    <h2>Convoy attention</h2>
-                  </div>
-                  <span className="se-travel-sectionhead__meta">Action may be waiting</span>
-                </div>
-                <ConvoysPanel products={data.products} refreshKey={data} />
-              </section>
+            {urgent ? (
+              <div className={`se-travel-alert se-travel-alert--${urgent.kind === 'tailed' ? 'bad' : 'warn'}`} role="alert">
+                <strong>{urgent.kind === 'tailed' ? `Your run is being tailed near ${urgent.cityName}` : `An ally needs backup in ${urgent.cityName}`}</strong>
+                <a className="se-btn se-btn--sm" href="#travel-convoys">Respond</a>
+              </div>
             ) : null}
 
-            {data.runsEnabled && runs.length ? (
-              <section className="se-travel-section">
-                <div className="se-travel-sectionhead">
-                  <div>
-                    <span className="se-eyebrow">Crews on the road</span>
-                    <h2>Active runs</h2>
-                  </div>
-                  <p>{formatNumber(runs.length)} active · {formatNumber(openRunSlots)} slot{openRunSlots === 1 ? '' : 's'} open</p>
-                </div>
-
-                <div className="se-travel-runs">
-                  {runs.map((active) => (
-                    <div className="se-travel-run" key={active.id}>
-                      <RunPanel run={active} data={data} onDone={load} />
-                    </div>
+            <section className="se-travel-deck" aria-label="Road map">
+              <div className="se-travel-deck__map">
+                <RoadMap data={data} selected={selected.slug} onSelect={select} runAts={runAts} />
+                <nav className="se-citypicker" aria-label="Pick a city">
+                  {data.cities.map((city) => (
+                    <button
+                      key={city.slug}
+                      type="button"
+                      onClick={() => select(city.slug)}
+                      className={`se-citypicker__city${city.slug === selected.slug ? ' se-citypicker__city--on' : ''}`}
+                      aria-pressed={city.slug === selected.slug}
+                    >
+                      {SHORT_CITY[city.slug] ?? city.name}
+                    </button>
                   ))}
-                </div>
-              </section>
-            ) : null}
-
-            {data.trips ? (
-              <section className="se-travel-section">
-                <div className="se-travel-sectionhead">
-                  <div>
-                    <span className="se-eyebrow">The boss</span>
-                    <h2>{data.trips.trip ? 'Away from home' : 'Take a trip'}</h2>
-                  </div>
-                  <p>The boss travels in person. Home stays home and keeps working while the lieutenant runs it.</p>
-                </div>
-                <TripPanel data={data} selected={selected.slug} onDone={load} />
-                <BossPresencePanel data={data} onDone={load} />
-              </section>
-            ) : null}
-
-            <section className="se-travel-section">
-              <div className="se-travel-sectionhead">
-                <div>
-                  <span className="se-eyebrow">Route board</span>
-                  <h2>Plan the next move</h2>
-                </div>
-                <p>Select a city on the map first. The destination, route options, cargo, and city intel stay tied together.</p>
+                </nav>
               </div>
-
-              <div className="se-travel-routeboard">
-                <div className="se-travel-routeboard__main">
-                  <Panel title="The roads" aside={`${formatNumber(data.cities.length)} cities`} flush className="se-travel-panel se-travel-map">
-                    <RoadMap data={data} selected={selected.slug} onSelect={select} runAts={runAts} />
-                    <nav className="se-citypicker" aria-label="Pick a city">
-                      {data.cities.map((city) => (
-                        <button
-                          key={city.slug}
-                          type="button"
-                          onClick={() => select(city.slug)}
-                          className={`se-citypicker__city${city.slug === selected.slug ? ' se-citypicker__city--on' : ''}`}
-                          aria-pressed={city.slug === selected.slug}
-                        >
-                          {SHORT_CITY[city.slug] ?? city.name}
-                        </button>
-                      ))}
-                    </nav>
-                  </Panel>
-
-                  <div className="se-travel-destinationbar">
-                    <TravelMetric
-                      label="Selected"
-                      value={selected.name}
-                      detail={selected.isHome ? 'your home city' : 'destination'}
-                      tone="accent"
-                    />
-                    <TravelMetric
-                      label="From home"
-                      value={selectedDistance}
-                      detail={selected.isHome ? 'already here' : 'shortest known trip'}
-                    />
-                    <TravelMetric
-                      label="Market read"
-                      value={selectedKnown ? 'Known' : 'Unseen'}
-                      detail={selectedKnown ? 'crew has price intel' : 'visit to reveal prices'}
-                      tone={selectedKnown ? 'good' : 'warn'}
-                    />
-                    <TravelMetric
-                      label="Run slots"
-                      value={formatNumber(openRunSlots)}
-                      detail={openRunSlots === 1 ? 'slot open' : 'slots open'}
-                      tone={openRunSlots > 0 ? 'good' : 'warn'}
-                    />
-                  </div>
-
-                  {data.runsEnabled && runs.length < data.rules.runLimit ? (
-                    <div className="se-travel-launch">
-                      <LaunchPanel data={data} to={selected.isHome ? '' : selected.slug} onPick={select} onDone={load} />
-                    </div>
-                  ) : data.runsEnabled ? (
-                    <Panel title="Run limit reached" className="se-travel-panel">
-                      <p className="se-dim">
-                        Every run slot is in use. Bring a crew home before sending another one out.
-                      </p>
-                    </Panel>
-                  ) : null}
-
-                  {!runs.length && data.lastRun ? (
-                    <div className="se-travel-lastreceipt">
-                      <ReceiptPanel receipt={data.lastRun} products={data.products} />
-                    </div>
-                  ) : null}
-                </div>
-
-                <aside className="se-travel-routeboard__intel">
-                  <CityDetail city={selected} products={data.products} home={home.name} />
-                </aside>
-              </div>
+              <aside className={`se-travel-deck__city${cityOpen ? ' is-open' : ''}`} id="travel-city-intel">
+                <CityDetail city={selected} products={data.products} home={home.name} />
+              </aside>
             </section>
 
-            {data.runsEnabled && !urgent ? (
-              <section className="se-travel-section">
+            <div className="se-travel-cityline">
+              <strong>{selected.name}</strong>
+              <span>{selectedDistance}</span>
+              <span className={selectedKnown ? 'se-good' : 'se-muted'}>{selectedKnown ? 'Market known' : 'Market unseen'}</span>
+              {data.runsEnabled ? <span>{formatNumber(openRunSlots)} run slot{openRunSlots === 1 ? '' : 's'} open</span> : null}
+              <button
+                type="button"
+                className="se-travel-cityline__toggle"
+                aria-expanded={cityOpen}
+                aria-controls="travel-city-intel"
+                onClick={() => setCityOpen((open) => !open)}
+              >
+                {cityOpen ? 'Hide city intel' : 'City intel'}
+              </button>
+            </div>
+
+            {data.runsEnabled ? (
+              <section id="travel-convoys" className="se-travel-section">
                 <div className="se-travel-sectionhead">
                   <div>
                     <span className="se-eyebrow">Road security</span>
@@ -277,39 +203,84 @@ export function TravelPage() {
               </section>
             ) : null}
 
-            {(data.relocation || (data.runsEnabled && data.rules.market) || (runs.length > 0 && data.lastRun)) ? (
-              <section className="se-travel-section">
-                <div className="se-travel-sectionhead">
-                  <div>
-                    <span className="se-eyebrow">Operations</span>
-                    <h2>Home & market desk</h2>
-                  </div>
-                  <p>Long-term relocation, recent market chatter, and the latest completed run stay separate from route planning.</p>
-                </div>
+            <nav className="se-travel-tabs" role="tablist" aria-label="Travel">
+              {tabs.map((entry) => (
+                <button
+                  key={entry.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === entry.key}
+                  className={`se-travel-tabs__tab${tab === entry.key ? ' is-active' : ''}${entry.alert ? ' has-alert' : ''}`}
+                  onClick={() => setParam('tab', entry.key)}
+                >
+                  {entry.label}
+                  {entry.badge ? <small>{entry.badge}</small> : null}
+                </button>
+              ))}
+            </nav>
 
-                <div className="se-travel-opsgrid">
-                  <div className="se-travel-stack">
-                    {data.relocation ? <MovePanel data={data} selected={selected.slug} onDone={load} /> : null}
-                    {runs.length > 0 && data.lastRun ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
-                  </div>
-                  <div className="se-travel-stack">
-                    {data.runsEnabled && data.rules.market ? <StreetWire items={data.wire} /> : null}
-                    <Panel title="Home road assets" className="se-travel-panel">
-                      <div className="se-travel-assets">
-                        <TravelMetric label="Cash" value={formatCents(data.home.cashCents)} detail="available at home" />
-                        <TravelMetric label="Fit thugs" value={formatNumber(data.home.fitThugs)} detail="possible escorts" />
-                        <TravelMetric label="Beer" value={formatNumber(data.home.beer)} detail="can ride in cargo" />
-                        <TravelMetric
-                          label="Cargo per car"
-                          value={formatNumber(data.rules.cargoPerLowRider)}
-                          detail={`${formatNumber(data.rules.thugsPerLowRider)} thug seats per car`}
-                        />
-                      </div>
+            <section className="se-travel-tabpanel" role="tabpanel">
+              {tab === 'runs' ? (
+                <>
+                  {runs.length ? (
+                    <div className="se-travel-runs">
+                      {runs.map((active) => (
+                        <div className="se-travel-run" key={active.id}>
+                          <RunPanel run={active} data={data} onDone={load} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {runs.length < runLimit ? (
+                    <LaunchPanel data={data} to={selected.isHome ? '' : selected.slug} onPick={select} onDone={load} />
+                  ) : (
+                    <Panel title="Run limit reached" className="se-travel-panel">
+                      <p className="se-dim">Every run slot is in use. Bring a crew home before sending another one out.</p>
                     </Panel>
-                  </div>
+                  )}
+                  {!runs.length && data.lastRun ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
+                </>
+              ) : null}
+
+              {tab === 'garage' ? <GaragePanel data={data} onDone={load} /> : null}
+
+              {tab === 'trip' ? (
+                <>
+                  <p className="se-travel-tabpanel__lede">The boss travels in person. Home keeps working while the lieutenant runs it.</p>
+                  <TripPanel data={data} selected={selected.slug} onDone={load} />
+                  <BossPresencePanel data={data} onDone={load} />
+                </>
+              ) : null}
+
+              {tab === 'move' && data.relocation ? <MovePanel data={data} selected={selected.slug} onDone={load} /> : null}
+            </section>
+
+            <section className="se-travel-section">
+              <div className="se-travel-sectionhead">
+                <div>
+                  <span className="se-eyebrow">Operations</span>
+                  <h2>Market</h2>
                 </div>
-              </section>
-            ) : null}
+                <p>Recent market chatter, home road assets, and the latest completed run stay below the active travel tool.</p>
+              </div>
+
+              <div className="se-travel-market">
+                {data.runsEnabled && data.rules.market ? <StreetWire items={data.wire} /> : null}
+                <Panel title="Home road assets" className="se-travel-panel">
+                  <div className="se-travel-assets">
+                    <TravelMetric label="Cash" value={formatCents(data.home.cashCents)} detail="available at home" />
+                    <TravelMetric label="Fit thugs" value={formatNumber(data.home.fitThugs)} detail="possible escorts" />
+                    <TravelMetric label="Beer" value={formatNumber(data.home.beer)} detail="can ride in cargo" />
+                    <TravelMetric
+                      label="Cargo per car"
+                      value={formatNumber(data.rules.cargoPerLowRider)}
+                      detail={`${formatNumber(data.rules.thugsPerLowRider)} thug seats per car`}
+                    />
+                  </div>
+                </Panel>
+                {runs.length > 0 && data.lastRun ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
+              </div>
+            </section>
           </>
         ) : null}
       </div>

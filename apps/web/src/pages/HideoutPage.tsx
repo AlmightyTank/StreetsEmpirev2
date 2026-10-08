@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import type {
   HideoutRoomV2Dto,
   HideoutSpecializationResult,
@@ -295,6 +296,9 @@ export function HideoutPage() {
   const receipt = action.result?.result ?? null;
   const openRooms = hideout?.rooms.filter((room) => room.nextCostCents !== null) ?? [];
   const readyRooms = openRooms.filter((room) => room.canUpgrade);
+  // Each panel below exists only on rulesets that carry it; a section with none of them stays out of the page and the nav.
+  const hasSecurity = Boolean(hideout && (hideout.security || hideout.assetProtection || hideout.armory || hideout.infirmary));
+  const hasOperations = Boolean(hideout && (hideout.workshop || hideout.garage || hideout.ledger));
   const nextRoom = [...openRooms].sort((a, b) => a.nextCostCents! - b.nextCostCents!)[0] ?? null;
   const buildProgress = hideout && hideout.totalMaxLevel > 0
     ? Math.round((hideout.totalLevel / hideout.totalMaxLevel) * 100)
@@ -366,8 +370,8 @@ export function HideoutPage() {
             <nav className="se-hideout-nav" aria-label="Hideout sections">
               <a href="#hideout-overview">Overview</a>
               <a href="#hideout-upgrades">Upgrades <span>{formatNumber(readyRooms.length)}</span></a>
-              <a href="#hideout-security">Security</a>
-              <a href="#hideout-operations">Operations</a>
+              {hasSecurity ? <a href="#hideout-security">Security</a> : null}
+              {hasOperations ? <a href="#hideout-operations">Operations</a> : null}
             </nav>
 
             <section id="hideout-overview" className="se-hideout-overview">
@@ -496,282 +500,301 @@ export function HideoutPage() {
               </div>
             </section>
 
-            <section id="hideout-security" className="se-hideout-section">
-              <SectionHeading
-                eyebrow="Protect"
-                title="Security & assets"
-                copy="See what is protected, what is exposed, and whether anything is moving against your home operation."
-              />
+            {hasSecurity ? (
+              <section id="hideout-security" className="se-hideout-section">
+                <SectionHeading
+                  eyebrow="Protect"
+                  title="Security & assets"
+                  copy="See what is protected, what is exposed, and whether anything is moving against your home operation."
+                />
 
-              <div className="se-hideout-detailgrid">
-                {hideout.security ? (
-                  <Panel
-                    title="Lookouts & security"
-                    aside={activeThreats > 0 ? `${formatNumber(activeThreats)} active` : 'Quiet'}
-                    className="se-hideout-panel"
-                  >
-                    <div className="se-hideout-panelstats">
-                      <Metric label="Home defense" value={`+${formatNumber(hideout.security.defenseBonusPercent)}%`} tone="good" />
-                      <Metric label="Warning tier" value={securityTierLabel(hideout.security.reconWarningTier)} />
-                      <Metric
-                        label="History"
-                        value={hideout.security.historyHours > 0 ? `${formatNumber(hideout.security.historyHours)}h` : 'None'}
-                      />
-                      <Metric
-                        label="Threat heads-up"
-                        value={hideout.security.convoyHeadsUpMinutes > 0
-                          ? `~${hideout.security.convoyHeadsUpMinutes.toFixed(1)} min`
-                          : 'None'}
-                      />
-                    </div>
-
-                    {hideout.security.suspicious.length ? (
-                      <div className="se-rows se-mt">
-                        {hideout.security.suspicious.map((event, index) => (
-                          <Row
-                            key={`${event.kind}:${event.at}:${index}`}
-                            label={event.title}
-                            value={`${event.detail} · ${formatWhen(event.at)}`}
-                            strong={event.urgent}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="se-muted se-mt">
-                        {hideout.security.reconWarningTier === 'NONE'
-                          ? 'Build Lookouts to start hearing about suspicious activity.'
-                          : 'Nothing suspicious is inside your current warning window.'}
-                      </p>
-                    )}
-
-                    <div className="se-hideout-note">
-                      Nearby-run awareness stays count-only. Names, cargo, escort strength, and route details still require normal recon or turf sightings.
-                    </div>
-                  </Panel>
-                ) : null}
-
-                {hideout.assetProtection ? (
-                  <Panel title="Safe Room" aside="Raid protection" className="se-hideout-panel">
-                    <div className="se-hideout-panelstats">
-                      <Metric label="Cash protected" value={formatCents(hideout.assetProtection.protectedCashCents)} tone="good" />
-                      <Metric label="Cash exposed" value={formatCents(hideout.assetProtection.exposedCashCents)} tone={hideout.assetProtection.exposedCashCents > 0 ? 'warn' : 'good'} />
-                      <Metric
-                        label="Product protected"
-                        value={`${formatNumber(hideout.assetProtection.protectedProductUnits)} / ${formatNumber(hideout.assetProtection.protectedProductCapacity)}`}
-                        tone="good"
-                      />
-                      <Metric label="Product exposed" value={formatNumber(hideout.assetProtection.exposedProductUnits)} tone={hideout.assetProtection.exposedProductUnits > 0 ? 'warn' : 'good'} />
-                    </div>
-                    {hideout.assetProtection.products.length ? (
-                      <div className="se-rows se-mt">
-                        {hideout.assetProtection.products.map((product) => (
-                          <Row
-                            key={product.key}
-                            label={<ItemLabel itemKey={product.key}>{product.name}</ItemLabel>}
-                            value={`${formatNumber(product.protected)} safe · ${formatNumber(product.exposed)} exposed`}
-                            strong={product.exposed > 0}
-                          />
-                        ))}
-                      </div>
-                    ) : <p className="se-muted se-mt">No product is stored here right now.</p>}
-                    <div className="se-hideout-note">
-                      The Safe Room protects your highest-value product first. Anything above its capacity stays exposed.
-                    </div>
-                  </Panel>
-                ) : null}
-
-                {hideout.armory ? (
-                  <Panel title="Armory" aside="Weapon policy" className="se-hideout-panel">
-                    <div className="se-hideout-panelstats">
-                      <Metric label="Weapons home" value={formatNumber(hideout.armory.weapons.total)} />
-                      <Metric label="Armed capacity" value={formatNumber(hideout.armory.armedCapacity)} tone="accent" />
-                      <Metric label="Fit thugs" value={formatNumber(hideout.armory.fitThugs)} />
-                      <Metric label="Unarmed fit" value={formatNumber(hideout.armory.unarmedFitThugs)} tone={hideout.armory.unarmedFitThugs > 0 ? 'warn' : 'good'} />
-                    </div>
-                    <div className="se-rows se-mt">
-                      <Row label={<ItemLabel itemKey="PISTOL" slot>Pistols</ItemLabel>} value={formatNumber(hideout.armory.weapons.pistols)} />
-                      <Row label={<ItemLabel itemKey="SHOTGUN" slot>Shotguns</ItemLabel>} value={formatNumber(hideout.armory.weapons.shotguns)} />
-                      <Row label={<ItemLabel itemKey="TEK9" slot>Tek-9s</ItemLabel>} value={formatNumber(hideout.armory.weapons.tek9s)} />
-                      <Row label={<ItemLabel itemKey="AK47" slot>AK-47s</ItemLabel>} value={formatNumber(hideout.armory.weapons.ak47s)} />
-                    </div>
-                    <div className="se-hideout-policy">
-                      <span className="se-eyebrow">Equip first</span>
-                      <div className="se-hideout-policy__buttons">
-                        {hideout.armory.choices.map((choice) => (
-                          <Button
-                            key={choice.key}
-                            type="button"
-                            className={`se-btn ${hideout.armory!.priority === choice.key ? 'se-btn--primary' : 'se-btn--ghost'}`}
-                            disabledReason={armoryAction.busy
-                              ? 'Saving the Armory policy.'
-                              : hideout.armory!.priority === choice.key
-                                ? 'This policy is already active.'
-                                : null}
-                            onClick={() => void setWeaponPriority(choice.key)}
-                          >
-                            {choice.name}
-                          </Button>
-                        ))}
-                      </div>
-                      <p>{hideout.armory.choices.find((choice) => choice.key === hideout.armory!.priority)?.blurb}</p>
-                    </div>
-                    {armoryAction.error ? <Alert tone="error">{armoryAction.error}</Alert> : null}
-                  </Panel>
-                ) : null}
-
-                {hideout.infirmary ? (
-                  <Panel title="Infirmary" aside="Crew recovery" className="se-hideout-panel">
-                    <div className="se-hideout-panelstats">
-                      <Metric label="Fit thugs" value={formatNumber(hideout.infirmary.fitThugs)} />
-                      <Metric label="Wounded" value={formatNumber(hideout.infirmary.woundedThugs)} tone={hideout.infirmary.woundedThugs > 0 ? 'warn' : 'good'} />
-                      <Metric label="Medicine" art="MEDICINE" value={formatNumber(hideout.infirmary.medicine)} />
-                      <Metric label="Treat now" value={formatNumber(hideout.infirmary.maxTreatableThugs)} tone="accent" />
-                    </div>
-                    <div className="se-rows se-mt">
-                      <Row
-                        label="Medicine efficiency"
-                        value={hideout.infirmary.medicineEfficiencyPercent > 0
-                          ? `${formatNumber(hideout.infirmary.medicineEfficiencyPercent)}%`
-                          : 'Base'}
-                      />
-                      <Row
-                        label="Medicine for all wounds"
-                        value={formatNumber(hideout.infirmary.medicineNeededForAll)}
-                      />
-                      <Row
-                        label="Next natural recovery"
-                        value={hideout.infirmary.nextRecoveryAt
-                          ? formatWhen(hideout.infirmary.nextRecoveryAt)
-                          : 'No wounds queued'}
-                      />
-                    </div>
-                    <div className="se-hideout-note">
-                      Treatment remains on Combat so there is still one authoritative recovery action.
-                    </div>
-                  </Panel>
-                ) : null}
-              </div>
-            </section>
-
-            <section id="hideout-operations" className="se-hideout-section">
-              <SectionHeading
-                eyebrow="Run"
-                title="Operations"
-                copy="Production, logistics, and the books—everything that keeps the headquarters moving."
-              />
-
-              <div className="se-hideout-detailgrid">
-                {hideout.workshop ? (
-                  <Panel title="Workshop" aside="Production" className="se-hideout-panel">
-                    <div className="se-hideout-panelstats">
-                      <Metric label="Output bonus" value={`+${formatNumber(hideout.workshop.outputBonusPercent)}%`} tone="good" />
-                      <Metric label="Ingredient efficiency" value={`${formatNumber(hideout.workshop.ingredientEfficiencyPercent)}%`} tone="good" />
-                    </div>
-                    <div className="se-rows se-mt">
-                      {hideout.workshop.recipes.map((recipe) => (
-                        <Row
-                          key={recipe.key}
-                          label={<ItemLabel itemKey={recipe.key}>{recipe.name}</ItemLabel>}
-                          value={recipe.baseIngredientCentsPerUnit === recipe.effectiveIngredientCentsPerUnit
-                            ? `${formatCents(recipe.baseIngredientCentsPerUnit)} / unit`
-                            : `${formatCents(recipe.effectiveIngredientCentsPerUnit)} / unit · base ${formatCents(recipe.baseIngredientCentsPerUnit)}`}
-                          strong={recipe.effectiveIngredientCentsPerUnit < recipe.baseIngredientCentsPerUnit}
-                        />
-                      ))}
-                    </div>
-                    <div className="se-hideout-note">
-                      Output tops out at 15%; ingredient efficiency tops out at 8%. The Workshop improves every cookable product.
-                    </div>
-                  </Panel>
-                ) : null}
-
-                {hideout.garage ? (
-                  <Panel title="Garage" aside="Logistics" className="se-hideout-panel">
-                    <div className="se-hideout-panelstats">
-                      <Metric label="Run slots" value={`${formatNumber(activeRuns)} / ${formatNumber(hideout.garage.runLimit)}`} tone="accent" />
-                      <Metric label="Low-Riders home" art="LOW_RIDER" value={formatNumber(lowRidersHome)} />
-                      <Metric label="Low-Riders away" art="LOW_RIDER" value={formatNumber(lowRidersAway)} />
-                      <Metric label="Escorts away" value={formatNumber(escortsAway)} />
-                    </div>
-                    {garageRuns.length ? (
-                      <div className="se-rows se-mt">
-                        {garageRuns.map((run, index) => {
-                          const used = run.beer + run.cargo.reduce((sum, row) => sum + row.quantity, 0);
-                          return (
-                            <Row
-                              key={run.id}
-                              label={`Run ${index + 1} · ${run.position.cityName}`}
-                              value={`${formatNumber(run.lowRiders)} cars · ${formatNumber(run.escortThugs)} escorts · ${formatNumber(used)} / ${formatNumber(run.capacity)} cargo`}
-                              strong
-                            />
-                          );
-                        })}
-                      </div>
-                    ) : <p className="se-muted se-mt">No runs are away right now.</p>}
-                    <div className="se-rows se-mt">
-                      <Row
-                        label="Cargo away"
-                        value={garageRuns.length ? `${formatNumber(cargoUsed)} / ${formatNumber(cargoCapacity)}` : 'None'}
-                      />
-                      <Row
-                        label="Move discount"
-                        value={`${formatNumber(hideout.garage.relocationFeeDiscountPercent)}%`}
-                      />
-                      {travel?.relocation ? (
-                        <Row
-                          label="Relocation"
-                          value={travel.relocation.moving
-                            ? `Moving to ${travel.relocation.moving.toName}`
-                            : travel.relocation.garageFeeDiscountPercent > 0
-                              ? `${formatCents(travel.relocation.feeCents)} · save ${formatCents(travel.relocation.garageSavingsCents)}`
-                              : formatCents(travel.relocation.feeCents)}
-                        />
-                      ) : null}
-                    </div>
-                    <div className="se-hideout-note">
-                      Garage bonuses stay logistical. Route time, police risk, and local markets are unchanged.
-                    </div>
-                  </Panel>
-                ) : null}
-
-                {hideout.ledger ? (
-                  <Panel title="Back Office" aside="Ledger" className="se-hideout-panel se-hideout-panel--wide">
-                    <div className="se-hideout-panelstats se-hideout-panelstats--ledger">
-                      {hideout.ledger.windows.map((window) => (
+                <div className="se-hideout-detailgrid">
+                  {hideout.security ? (
+                    <Panel
+                      title="Lookouts & security"
+                      aside={activeThreats > 0 ? `${formatNumber(activeThreats)} active` : 'Quiet'}
+                      className="se-hideout-panel"
+                    >
+                      <div className="se-hideout-panelstats">
+                        <Metric label="Home defense" value={`+${formatNumber(hideout.security.defenseBonusPercent)}%`} tone="good" />
+                        <Metric label="Warning tier" value={securityTierLabel(hideout.security.reconWarningTier)} />
                         <Metric
-                          key={window.days}
-                          label={window.days === 1 ? '24h net' : `${window.days}d net`}
-                          value={formatCents(window.netCents)}
-                          tone={window.netCents > 0 ? 'good' : window.netCents < 0 ? 'bad' : undefined}
+                          label="History"
+                          value={hideout.security.historyHours > 0 ? `${formatNumber(hideout.security.historyHours)}h` : 'None'}
                         />
-                      ))}
-                      <Metric
-                        label="Audit history"
-                        value={`${formatNumber(hideout.ledger.historyDays)}d`}
-                        detail={`${formatNumber(hideout.ledger.rowLimit)} rows`}
-                      />
-                    </div>
-                    {hideout.ledger.entries.length ? (
+                        <Metric
+                          label="Threat heads-up"
+                          value={hideout.security.convoyHeadsUpMinutes > 0
+                            ? `~${hideout.security.convoyHeadsUpMinutes.toFixed(1)} min`
+                            : 'None'}
+                        />
+                      </div>
+
+                      {hideout.security.suspicious.length ? (
+                        <div className="se-rows se-mt">
+                          {hideout.security.suspicious.map((event, index) => (
+                            <Row
+                              key={`${event.kind}:${event.at}:${index}`}
+                              label={event.title}
+                              value={`${event.detail} · ${formatWhen(event.at)}`}
+                              strong={event.urgent}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="se-muted se-mt">
+                          {hideout.security.reconWarningTier === 'NONE'
+                            ? 'Build Lookouts to start hearing about suspicious activity.'
+                            : 'Nothing suspicious is inside your current warning window.'}
+                        </p>
+                      )}
+
+                      <div className="se-hideout-note">
+                        Nearby-run awareness stays count-only. Names, cargo, escort strength, and route details still require normal recon or turf sightings.
+                      </div>
+                    </Panel>
+                  ) : null}
+
+                  {hideout.assetProtection ? (
+                    <Panel title="Safe Room" aside="Raid protection" className="se-hideout-panel">
+                      <div className="se-hideout-panelstats">
+                        <Metric label="Cash protected" value={formatCents(hideout.assetProtection.protectedCashCents)} tone="good" />
+                        <Metric label="Cash exposed" value={formatCents(hideout.assetProtection.exposedCashCents)} tone={hideout.assetProtection.exposedCashCents > 0 ? 'warn' : 'good'} />
+                        <Metric
+                          label="Product protected"
+                          value={`${formatNumber(hideout.assetProtection.protectedProductUnits)} / ${formatNumber(hideout.assetProtection.protectedProductCapacity)}`}
+                          tone="good"
+                        />
+                        <Metric label="Product exposed" value={formatNumber(hideout.assetProtection.exposedProductUnits)} tone={hideout.assetProtection.exposedProductUnits > 0 ? 'warn' : 'good'} />
+                      </div>
+                      {hideout.assetProtection.products.length ? (
+                        <div className="se-rows se-mt">
+                          {hideout.assetProtection.products.map((product) => (
+                            <Row
+                              key={product.key}
+                              label={<ItemLabel itemKey={product.key}>{product.name}</ItemLabel>}
+                              value={`${formatNumber(product.protected)} safe · ${formatNumber(product.exposed)} exposed`}
+                              strong={product.exposed > 0}
+                            />
+                          ))}
+                        </div>
+                      ) : <p className="se-muted se-mt">No product is stored here right now.</p>}
+                      <div className="se-hideout-note">
+                        The Safe Room protects your highest-value product first. Anything above its capacity stays exposed.
+                      </div>
+                    </Panel>
+                  ) : null}
+
+                  {hideout.armory ? (
+                    <Panel title="Armory" aside="Weapon policy" className="se-hideout-panel">
+                      <div className="se-hideout-panelstats">
+                        <Metric label="Weapons home" value={formatNumber(hideout.armory.weapons.total)} />
+                        <Metric label="Armed capacity" value={formatNumber(hideout.armory.armedCapacity)} tone="accent" />
+                        <Metric label="Fit thugs" value={formatNumber(hideout.armory.fitThugs)} />
+                        <Metric label="Unarmed fit" value={formatNumber(hideout.armory.unarmedFitThugs)} tone={hideout.armory.unarmedFitThugs > 0 ? 'warn' : 'good'} />
+                      </div>
                       <div className="se-rows se-mt">
-                        {hideout.ledger.entries.map((entry) => (
+                        <Row label={<ItemLabel itemKey="PISTOL" slot>Pistols</ItemLabel>} value={formatNumber(hideout.armory.weapons.pistols)} />
+                        <Row label={<ItemLabel itemKey="SHOTGUN" slot>Shotguns</ItemLabel>} value={formatNumber(hideout.armory.weapons.shotguns)} />
+                        <Row label={<ItemLabel itemKey="TEK9" slot>Tek-9s</ItemLabel>} value={formatNumber(hideout.armory.weapons.tek9s)} />
+                        <Row label={<ItemLabel itemKey="AK47" slot>AK-47s</ItemLabel>} value={formatNumber(hideout.armory.weapons.ak47s)} />
+                      </div>
+                      <div className="se-hideout-policy">
+                        <span className="se-eyebrow">Equip first</span>
+                        <div className="se-hideout-policy__buttons">
+                          {hideout.armory.choices.map((choice) => (
+                            <Button
+                              key={choice.key}
+                              type="button"
+                              className={`se-btn ${hideout.armory!.priority === choice.key ? 'se-btn--primary' : 'se-btn--ghost'}`}
+                              disabledReason={armoryAction.busy
+                                ? 'Saving the Armory policy.'
+                                : hideout.armory!.priority === choice.key
+                                  ? 'This policy is already active.'
+                                  : null}
+                              onClick={() => void setWeaponPriority(choice.key)}
+                            >
+                              {choice.name}
+                            </Button>
+                          ))}
+                        </div>
+                        <p>{hideout.armory.choices.find((choice) => choice.key === hideout.armory!.priority)?.blurb}</p>
+                      </div>
+                      {armoryAction.error ? <Alert tone="error">{armoryAction.error}</Alert> : null}
+                    </Panel>
+                  ) : null}
+
+                  {hideout.infirmary ? (
+                    <Panel title="Infirmary" aside="Crew recovery" className="se-hideout-panel">
+                      <div className="se-hideout-panelstats">
+                        <Metric label="Fit thugs" value={formatNumber(hideout.infirmary.fitThugs)} />
+                        <Metric label="Wounded" value={formatNumber(hideout.infirmary.woundedThugs)} tone={hideout.infirmary.woundedThugs > 0 ? 'warn' : 'good'} />
+                        <Metric label="Medicine" art="MEDICINE" value={formatNumber(hideout.infirmary.medicine)} />
+                        <Metric label="Treat now" value={formatNumber(hideout.infirmary.maxTreatableThugs)} tone="accent" />
+                      </div>
+                      <div className="se-rows se-mt">
+                        <Row
+                          label="Medicine efficiency"
+                          value={hideout.infirmary.medicineEfficiencyPercent > 0
+                            ? `${formatNumber(hideout.infirmary.medicineEfficiencyPercent)}%`
+                            : 'Base'}
+                        />
+                        <Row
+                          label="Medicine for all wounds"
+                          value={formatNumber(hideout.infirmary.medicineNeededForAll)}
+                        />
+                        <Row
+                          label="Next natural recovery"
+                          value={hideout.infirmary.nextRecoveryAt
+                            ? formatWhen(hideout.infirmary.nextRecoveryAt)
+                            : 'No wounds queued'}
+                        />
+                      </div>
+                      <div className="se-hideout-note">
+                        Treatment remains on Combat so there is still one authoritative recovery action.
+                      </div>
+                    </Panel>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
+
+            {hasOperations ? (
+              <section id="hideout-operations" className="se-hideout-section">
+                <SectionHeading
+                  eyebrow="Run"
+                  title="Operations"
+                  copy="Production, logistics, and the books—everything that keeps the headquarters moving."
+                />
+
+                <div className="se-hideout-detailgrid">
+                  {hideout.workshop ? (
+                    <Panel title="Workshop" aside="Production" className="se-hideout-panel">
+                      <div className="se-hideout-panelstats">
+                        <Metric label="Output bonus" value={`+${formatNumber(hideout.workshop.outputBonusPercent)}%`} tone="good" />
+                        <Metric label="Ingredient efficiency" value={`${formatNumber(hideout.workshop.ingredientEfficiencyPercent)}%`} tone="good" />
+                      </div>
+                      <div className="se-rows se-mt">
+                        {hideout.workshop.recipes.map((recipe) => (
                           <Row
-                            key={entry.id}
-                            label={entry.label}
-                            value={`${entry.amountCents >= 0 ? '+' : '−'}${formatCents(Math.abs(entry.amountCents))} · ${formatWhen(entry.createdAt)}`}
-                            strong={entry.category === 'INCOME'}
+                            key={recipe.key}
+                            label={<ItemLabel itemKey={recipe.key}>{recipe.name}</ItemLabel>}
+                            value={recipe.baseIngredientCentsPerUnit === recipe.effectiveIngredientCentsPerUnit
+                              ? `${formatCents(recipe.baseIngredientCentsPerUnit)} / unit`
+                              : `${formatCents(recipe.effectiveIngredientCentsPerUnit)} / unit · base ${formatCents(recipe.baseIngredientCentsPerUnit)}`}
+                            strong={recipe.effectiveIngredientCentsPerUnit < recipe.baseIngredientCentsPerUnit}
                           />
                         ))}
                       </div>
-                    ) : (
-                      <p className="se-muted se-mt">No cash-moving activity is inside your current ledger window yet.</p>
-                    )}
-                    <div className="se-hideout-note">
-                      Cash merely loaded into a run is not counted as spending. Rolling totals always show 24 hours, 7 days, and 30 days.
-                    </div>
-                  </Panel>
-                ) : null}
-              </div>
-            </section>
+                      <div className="se-hideout-note">
+                        Output tops out at 15%; ingredient efficiency tops out at 8%. The Workshop improves every cookable product.
+                      </div>
+                    </Panel>
+                  ) : null}
+
+                  {hideout.garage ? (
+                    <Panel title="Garage" aside="Logistics" className="se-hideout-panel">
+                      <div className="se-hideout-panelstats">
+                        <Metric label="Run slots" value={`${formatNumber(activeRuns)} / ${formatNumber(hideout.garage.runLimit)}`} tone="accent" />
+                        {travel?.vehicleFleet?.length ? travel.vehicleFleet.map((vehicle) => (
+                          <Metric
+                            key={vehicle.classId}
+                            label={`${vehicle.name} fleet`}
+                            art={vehicle.classId}
+                            value={`${formatNumber(vehicle.home)} ready · ${formatNumber(vehicle.away)} away`}
+                            tone={(vehicle.damaged ?? 0) + (vehicle.disabled ?? 0) ? 'warn' : undefined}
+                            detail={(vehicle.damaged ?? 0) + (vehicle.disabled ?? 0)
+                              ? `${formatNumber(vehicle.damaged ?? 0)} damaged · ${formatNumber(vehicle.disabled ?? 0)} disabled`
+                              : undefined}
+                          />
+                        )) : <>
+                          <Metric label="Low-Riders home" art="LOW_RIDER" value={formatNumber(lowRidersHome)} />
+                          <Metric label="Low-Riders away" art="LOW_RIDER" value={formatNumber(lowRidersAway)} />
+                        </>}
+                        <Metric label="Escorts away" value={formatNumber(escortsAway)} />
+                      </div>
+                      {garageRuns.length ? (
+                        <div className="se-rows se-mt">
+                          {garageRuns.map((run, index) => {
+                            const used = run.beer + run.cargo.reduce((sum, row) => sum + row.quantity, 0);
+                            return (
+                              <Row
+                                key={run.id}
+                                label={`Run ${index + 1} · ${run.position.cityName}`}
+                                value={`${formatNumber(run.lowRiders)} cars · ${formatNumber(run.escortThugs)} escorts · ${formatNumber(used)} / ${formatNumber(run.capacity)} cargo`}
+                                strong
+                              />
+                            );
+                          })}
+                        </div>
+                      ) : <p className="se-muted se-mt">No runs are away right now.</p>}
+                      <div className="se-rows se-mt">
+                        <Row
+                          label="Cargo away"
+                          value={garageRuns.length ? `${formatNumber(cargoUsed)} / ${formatNumber(cargoCapacity)}` : 'None'}
+                        />
+                        <Row
+                          label="Move discount"
+                          value={`${formatNumber(hideout.garage.relocationFeeDiscountPercent)}%`}
+                        />
+                        {travel?.relocation ? (
+                          <Row
+                            label="Relocation"
+                            value={travel.relocation.moving
+                              ? `Moving to ${travel.relocation.moving.toName}`
+                              : travel.relocation.garageFeeDiscountPercent > 0
+                                ? `${formatCents(travel.relocation.feeCents)} · save ${formatCents(travel.relocation.garageSavingsCents)}`
+                                : formatCents(travel.relocation.feeCents)}
+                          />
+                        ) : null}
+                      </div>
+                      <div className="se-hideout-note">
+                        {travel?.vehicleFleet?.length
+                          ? <>{travel.vehicleFleet.map((vehicle) => `${vehicle.name}: ${vehicle.description}`).join(' ')} {travel.vehicleService ? <>Repairs and recovery are in the <Link to="/game/travel?tab=garage">Travel garage</Link>.</> : null}</>
+                          : 'Garage bonuses stay logistical. Route time, police risk, and local markets are unchanged.'}
+                      </div>
+                    </Panel>
+                  ) : null}
+
+                  {hideout.ledger ? (
+                    <Panel title="Back Office" aside="Ledger" className="se-hideout-panel se-hideout-panel--wide">
+                      <div className="se-hideout-panelstats se-hideout-panelstats--ledger">
+                        {hideout.ledger.windows.map((window) => (
+                          <Metric
+                            key={window.days}
+                            label={window.days === 1 ? '24h net' : `${window.days}d net`}
+                            value={formatCents(window.netCents)}
+                            tone={window.netCents > 0 ? 'good' : window.netCents < 0 ? 'bad' : undefined}
+                          />
+                        ))}
+                        <Metric
+                          label="Audit history"
+                          value={`${formatNumber(hideout.ledger.historyDays)}d`}
+                          detail={`${formatNumber(hideout.ledger.rowLimit)} rows`}
+                        />
+                      </div>
+                      {hideout.ledger.entries.length ? (
+                        <div className="se-rows se-mt">
+                          {hideout.ledger.entries.map((entry) => (
+                            <Row
+                              key={entry.id}
+                              label={entry.label}
+                              value={`${entry.amountCents >= 0 ? '+' : '−'}${formatCents(Math.abs(entry.amountCents))} · ${formatWhen(entry.createdAt)}`}
+                              strong={entry.category === 'INCOME'}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="se-muted se-mt">No cash-moving activity is inside your current ledger window yet.</p>
+                      )}
+                      <div className="se-hideout-note">
+                        Cash merely loaded into a run is not counted as spending. Rolling totals always show 24 hours, 7 days, and 30 days.
+                      </div>
+                    </Panel>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
 
             <footer className="se-hideout-season">
               <div>

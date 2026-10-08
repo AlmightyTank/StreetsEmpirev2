@@ -62,8 +62,8 @@ export interface StoreTradeInput {
 
 /** Price and validate the entire order. No partial fills and no turn costs. */
 export function calculateStoreTrade(
-  player: { cashCents: bigint } & Record<ResourceField, number> & WeaponUnlockState &
-    StockHolder,
+  player: { cashCents: bigint } & Record<Exclude<ResourceField, 'sedans' | 'vans'>, number>
+    & Partial<Record<'sedans' | 'vans', number>> & WeaponUnlockState & StockHolder,
   input: StoreTradeInput,
   ruleset: Ruleset,
   options?: { buyUnitCents?: number; sellUnitCents?: number | null },
@@ -95,7 +95,8 @@ export function calculateStoreTrade(
   const unitCents = buying ? safeBuyCents : effectiveSellCents;
   if (unitCents === null) throw new StoreTradeError('SELL_NOT_ALLOWED', 'This store does not buy that item back.', 'item');
   const totalCents = BigInt(unitCents) * BigInt(input.quantity);
-  const owned = player[item.field];
+  // 1.5.0-E2: a crew from before Charlie sold Sedans and Vans owns none.
+  const owned = player[item.field] ?? 0;
   // Supply, not money. Selling back is always allowed: the shelf tracks what
   // Tommy can get for you, not what the two of you have traded.
   const stock = stockOnHand(player, item);

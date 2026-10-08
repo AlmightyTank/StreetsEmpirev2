@@ -114,6 +114,21 @@ Notes that matter:
   checkbox is the whole safety net, so read the warning.
 - **Editing details.** Name, start, end and registration date can be changed from
   the round page while the round is unfinished. A finished round is frozen.
+- **Changing the ruleset.** **Change ruleset** on the round page moves an
+  unfinished round onto another ruleset without starting a new season; older
+  rounds keep theirs. Pick the target and the panel lists what could break, all
+  of which you have to confirm:
+  - the round is live (players get the new numbers on their next action; pause
+    first for a clean cut);
+  - the current ruleset is no longer in the code, so nothing could be checked;
+  - whole sections (turf, casino...) or catalog keys (products, favors,
+    contacts, cities...) the current ruleset has and the target does not;
+  - a different Street Pass track after registration, so claims could repeat;
+  - Street Pass edits that do not fit the target's track, which are dropped.
+  Street Pass edits that do fit carry over, and any turf blocks and lots the
+  target adds are laid out. It needs a reason, and the audit entry keeps the
+  round before and after plus the warnings you confirmed. A finished round's
+  ruleset is frozen.
 - **Round health** on the round page shows joins, active players, battles and
   the richest players, which is usually enough to tell a quiet round from a
   broken one.

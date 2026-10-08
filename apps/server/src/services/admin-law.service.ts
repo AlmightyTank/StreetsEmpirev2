@@ -129,7 +129,11 @@ export const AdminLawService = {
       : null;
     // Every city on the map, so staff can correct a city the player has no Case in yet, on
     // rulesets before officials (D) as well.
-    const cities = page ? await prisma.city.findMany({ where: { isEnabled: true }, orderBy: { sortOrder: 'asc' }, select: { slug: true, name: true } }) : [];
+    // 1.5.0-E3: only the cities this round's map has (San Francisco replaced Beverly Hills).
+    const cities = page
+      ? (await prisma.city.findMany({ where: { isEnabled: true }, orderBy: { sortOrder: 'asc' }, select: { slug: true, name: true } }))
+        .filter((city) => !ruleset.cities || ruleset.cities[city.slug])
+      : [];
     return { playerId: player.id, displayName: player.displayName, roundId: player.round.id, roundName: player.round.name, cities, page: decorated };
   },
 

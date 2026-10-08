@@ -6,11 +6,12 @@ import type {
   ConsoleActivityFilter,
   ConsoleBlocksDto,
   ConsoleCountsDto,
-  ConsoleFolder,
   DirectMessageDto,
+  DirectMessageConversationDto,
+  DirectMessageThreadDto,
   InAppNotificationDto,
   InAppNotificationFeedDto,
-  PimpConsoleDto,
+  PimpConsoleThreadsDto,
 } from '@streets/shared';
 import {
   MESSAGE_BODY_MAX,
@@ -31,12 +32,11 @@ import { newActionId } from '../utils/actionId.js';
 import { confirmAction } from '../stores/confirm.js';
 import { formatWhen } from '../utils/time.js';
 
-type ConsoleView = ConsoleFolder | 'alliance' | 'attacks' | 'notifications' | 'activity' | 'blocked';
+type ConsoleView = 'threads' | 'alliance' | 'attacks' | 'notifications' | 'activity' | 'archived' | 'blocked';
 type ConsoleMode = 'detail' | 'compose';
 
 const VIEWS: Array<{ key: ConsoleView; label: string }> = [
-  { key: 'inbox', label: 'Inbox' },
-  { key: 'sent', label: 'Sent' },
+  { key: 'threads', label: 'Threads' },
   { key: 'alliance', label: 'Alliance' },
   { key: 'attacks', label: 'Attacks' },
   { key: 'notifications', label: 'Alerts' },
@@ -71,12 +71,15 @@ export function ConsolePage() {
   const crackWord = useSession((s) => s.me?.products) ? 'crack' : 'product';
   const [view, setView] = useState<ConsoleView>(() => {
     const requested = searchParams.get('view');
-    return VIEWS.some((item) => item.key === requested) ? requested as ConsoleView : 'inbox';
+    if (requested === 'inbox' || requested === 'sent') return 'threads';
+    return VIEWS.some((item) => item.key === requested) ? requested as ConsoleView : 'threads';
   });
   const [activityFilter, setActivityFilter] = useState<ConsoleActivityFilter>('all');
   const [page, setPage] = useState(1);
   const [counts, setCounts] = useState<ConsoleCountsDto | null>(null);
-  const [data, setData] = useState<PimpConsoleDto | null>(null);
+  const [data, setData] = useState<PimpConsoleThreadsDto | null>(null);
+  const [conversation, setConversation] = useState<DirectMessageConversationDto | null>(null);
+  const [selectedThreadPimpId, setSelectedThreadPimpId] = useState<number | null>(null);
   const [activityData, setActivityData] = useState<ConsoleActivityDto | null>(null);
   const [blocks, setBlocks] = useState<ConsoleBlocksDto | null>(null);
   const [notifications, setNotifications] = useState<InAppNotificationFeedDto | null>(null);
@@ -94,7 +97,9 @@ export function ConsolePage() {
   const [notice, setNotice] = useState<string | null>(null);
   const actionId = useRef(newActionId());
 
-  const selected = data?.messages.find((message) => message.id === selectedId) ?? null;
+  const selected = conversation?.messages.find((message) => message.id === selectedId)
+    ?? conversation?.messages.at(-1)
+    ?? null;
   const selectedEvent = activityData?.events.find((event) => event.activity.id === selectedEventId) ?? activityData?.events[0] ?? null;
   const selectedNotification =
     notifications?.notifications.find((notification) => notification.id === selectedNotificationId)
@@ -103,10 +108,12 @@ export function ConsolePage() {
 
   useEffect(() => {
     const requested = searchParams.get('view');
-    if (requested && VIEWS.some((item) => item.key === requested)) {
+    if (requested === 'inbox' || requested === 'sent') {
+      setView('threads');
+    } else if (requested && VIEWS.some((item) => item.key === requested)) {
       setView(requested as ConsoleView);
     } else if (!searchParams.get('to')) {
-      setView('inbox');
+      setView('threads');
     }
 
     const to = searchParams.get('to');
@@ -122,6 +129,7 @@ export function ConsolePage() {
     setSelectedEventId(null);
     setReporting(false);
     setData(null);
+    setConversation(null);
     setActivityData(null);
     setNotifications(null);
 
@@ -178,17 +186,77 @@ export function ConsolePage() {
       return () => { live = false; };
     }
 
-    consoleApi.page(view, page)
+    consoleApi.threads(view === 'archived' ? 'archived' : 'active', page)
       .then((next) => {
         if (!live) return;
         setData(next);
         setCounts(next.counts);
+        setSelectedThreadPimpId((current) => {
+          if (current && next.threads.some((thread) => thread.counterpart.publicPimpId === current)) return current;
+          return next.threads[0]?.counterpart.publicPimpId ?? null;
+        });
       })
       .catch((caught: unknown) => {
         if (live) setError(caught instanceof ApiError ? caught.message : 'Could not load the Console.');
       });
     return () => { live = false; };
   }, [view, activityFilter, page]);
+
+  useEffect(() => {
+    if ((view !== 'threads' && view !== 'archived') || mode === 'compose' || !selectedThreadPimpId) {
+      setConversation(null);
+      setSelectedId(null);
+      return;
+    }
+
+    let live = true;
+    setReporting(false);
+    setReportReason('');
+    consoleApi.conversation(selectedThreadPimpId)
+      .then(async (next) => {
+        if (!live) return;
+        setConversation(next);
+        setSelectedId((current) =>
+          current && next.messages.some((message) => message.id === current)
+            ? current
+            : next.messages.at(-1)?.id ?? null);
+
+        const unread = next.messages.filter((message) => message.direction === 'in' && !message.readAt);
+        if (!unread.length) return;
+        const readAt = new Date().toISOString();
+        setCounts((current) => current ? {
+          ...current,
+          unread: Math.max(0, current.unread - unread.length),
+        } : current);
+        setData((current) => current ? {
+          ...current,
+          counts: {
+            ...current.counts,
+            unread: Math.max(0, current.counts.unread - unread.length),
+          },
+          threads: current.threads.map((thread) =>
+            thread.counterpart.publicPimpId === next.counterpart.publicPimpId
+              ? { ...thread, unreadCount: 0 }
+              : thread),
+        } : current);
+        setConversation((current) => current && current.counterpart.publicPimpId === next.counterpart.publicPimpId ? {
+          ...current,
+          unreadCount: 0,
+          messages: current.messages.map((message) =>
+            message.direction === 'in' && !message.readAt ? { ...message, readAt } : message),
+        } : current);
+        try {
+          await Promise.all(unread.map((message) => consoleApi.read(message.id)));
+          announceConsoleUpdated();
+        } catch {
+          await refreshCurrent();
+        }
+      })
+      .catch((caught: unknown) => {
+        if (live) setError(caught instanceof ApiError ? caught.message : 'Could not load that thread.');
+      });
+    return () => { live = false; };
+  }, [view, mode, selectedThreadPimpId]);
 
   function changeComposeField(setter: (value: string) => void, value: string) {
     setter(value);
@@ -224,38 +292,20 @@ export function ConsolePage() {
       setCounts(nextCounts);
       return;
     }
-    const next = await consoleApi.page(view, page);
+    const next = await consoleApi.threads(view === 'archived' ? 'archived' : 'active', page);
     setData(next);
     setCounts(next.counts);
+    if (selectedThreadPimpId) {
+      setConversation(await consoleApi.conversation(selectedThreadPimpId));
+    }
   }
 
-  async function openMessage(message: DirectMessageDto) {
-    setSelectedId(message.id);
+  function openThread(thread: DirectMessageThreadDto) {
+    setSelectedThreadPimpId(thread.counterpart.publicPimpId);
+    setSelectedId(thread.lastMessageId);
     setMode('detail');
     setReporting(false);
     setReportReason('');
-
-    if (message.direction === 'in' && !message.readAt) {
-      try {
-        await consoleApi.read(message.id);
-        announceConsoleUpdated();
-        setCounts((current) => current ? {
-          ...current,
-          unread: Math.max(0, current.unread - 1),
-        } : current);
-        setData((current) => current ? {
-          ...current,
-          counts: {
-            ...current.counts,
-            unread: Math.max(0, current.counts.unread - 1),
-          },
-          messages: current.messages.map((row) =>
-            row.id === message.id ? { ...row, readAt: new Date().toISOString() } : row),
-        } : current);
-      } catch {
-        // Opening the message should still work if the read receipt fails.
-      }
-    }
   }
 
   async function send(event: FormEvent) {
@@ -282,12 +332,14 @@ export function ConsolePage() {
       setBody('');
       actionId.current = newActionId();
       setMode('detail');
-      setView('sent');
+      setView('threads');
       setPage(1);
-      const next = await consoleApi.page('sent', 1);
+      const next = await consoleApi.threads('active', 1);
       setData(next);
       setCounts(next.counts);
+      setSelectedThreadPimpId(result.message.counterpart.publicPimpId);
       setSelectedId(result.message.id);
+      setConversation(await consoleApi.conversation(result.message.counterpart.publicPimpId));
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'The message did not go through.');
     } finally {
@@ -295,13 +347,39 @@ export function ConsolePage() {
     }
   }
 
-  function reply(message: DirectMessageDto) {
-    setRecipient(String(message.counterpart.publicPimpId));
-    setSubject(subjectForReply(message.subject));
-    setBody('');
-    actionId.current = newActionId();
-    setMode('compose');
-    setReporting(false);
+  async function sendThreadReply(event: FormEvent, thread: DirectMessageConversationDto) {
+    event.preventDefault();
+    const lastSubject = thread.messages.at(-1)?.subject ?? 'Street business';
+
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await consoleApi.send({
+        recipientPublicPimpId: thread.counterpart.publicPimpId,
+        subject: subjectForReply(lastSubject),
+        body,
+        actionId: actionId.current,
+      });
+      setNotice(result.replayed ? 'That reply was already delivered.' : 'Reply sent.');
+      setBody('');
+      actionId.current = newActionId();
+      setView('threads');
+      setPage(1);
+      const [nextThreads, nextConversation] = await Promise.all([
+        consoleApi.threads('active', 1),
+        consoleApi.conversation(thread.counterpart.publicPimpId),
+      ]);
+      setData(nextThreads);
+      setCounts(nextThreads.counts);
+      setConversation(nextConversation);
+      setSelectedThreadPimpId(thread.counterpart.publicPimpId);
+      setSelectedId(result.message.id);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'The reply did not go through.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function archive(message: DirectMessageDto, archived: boolean) {
@@ -330,6 +408,14 @@ export function ConsolePage() {
       await consoleApi.report(message.id, reportReason.trim());
       setData((current) => current ? {
         ...current,
+        threads: current.threads.map((thread) =>
+          thread.counterpart.publicPimpId === message.counterpart.publicPimpId
+            ? { ...thread, reported: true }
+            : thread),
+      } : current);
+      setConversation((current) => current ? {
+        ...current,
+        reported: true,
         messages: current.messages.map((row) =>
           row.id === message.id ? { ...row, reported: true } : row),
       } : current);
@@ -353,10 +439,15 @@ export function ConsolePage() {
       setData((current) => current ? {
         ...current,
         counts: { ...current.counts, blocked: next.blocked.length },
-        messages: current.messages.map((row) =>
-          row.counterpart.publicPimpId === message.counterpart.publicPimpId
-            ? { ...row, blocked: true }
-            : row),
+        threads: current.threads.map((thread) =>
+          thread.counterpart.publicPimpId === message.counterpart.publicPimpId
+            ? { ...thread, blocked: true }
+            : thread),
+      } : current);
+      setConversation((current) => current && current.counterpart.publicPimpId === message.counterpart.publicPimpId ? {
+        ...current,
+        blocked: true,
+        messages: current.messages.map((row) => ({ ...row, blocked: true })),
       } : current);
       setNotice(`${message.counterpart.displayName} is blocked. Messages are disabled both ways.`);
     } catch (caught) {
@@ -377,8 +468,13 @@ export function ConsolePage() {
       setData((current) => current ? {
         ...current,
         counts: { ...current.counts, muted: next.muted.length },
-        messages: current.messages.map((row) =>
-          row.counterpart.publicPimpId === publicPimpId ? { ...row, muted } : row),
+        threads: current.threads.map((thread) =>
+          thread.counterpart.publicPimpId === publicPimpId ? { ...thread, muted } : thread),
+      } : current);
+      setConversation((current) => current && current.counterpart.publicPimpId === publicPimpId ? {
+        ...current,
+        muted,
+        messages: current.messages.map((row) => ({ ...row, muted })),
       } : current);
       setNotice(muted
         ? `${displayName} is muted. Their new messages go straight to Archived with no alerts. They are not told.`
@@ -403,9 +499,11 @@ export function ConsolePage() {
     try {
       const { hidden } = await consoleApi.hideConversation(message.counterpart.publicPimpId);
       setSelectedId(null);
+      setSelectedThreadPimpId(null);
+      setConversation(null);
       setData((current) => current ? {
         ...current,
-        messages: current.messages.filter((row) => row.counterpart.publicPimpId !== message.counterpart.publicPimpId),
+        threads: current.threads.filter((thread) => thread.counterpart.publicPimpId !== message.counterpart.publicPimpId),
       } : current);
       setNotice(`Deleted ${hidden} message${hidden === 1 ? '' : 's'} with ${message.counterpart.displayName} from your Console.`);
       setCounts(await consoleApi.summary());
@@ -476,9 +574,8 @@ export function ConsolePage() {
 
   function countFor(key: ConsoleView): number {
     if (!counts) return key === 'blocked' ? (blocks?.blocked.length ?? 0) + (blocks?.muted.length ?? 0) : 0;
-    if (key === 'inbox') return counts.inbox;
-    if (key === 'sent') return counts.sent;
-    if (key === 'archived') return counts.archived;
+    if (key === 'threads') return data?.folder === 'active' ? data.total : counts.inbox + counts.sent;
+    if (key === 'archived') return data?.folder === 'archived' ? data.total : counts.archived;
     if (key === 'alliance') return 0;
     if (key === 'attacks') return counts.attacks;
     if (key === 'notifications') return counts.notifications;
@@ -523,8 +620,8 @@ export function ConsolePage() {
           <div className="se-console-hero__stats">
             <span><small>Unread</small><strong>{counts?.unread ?? 0}</strong></span>
             <span><small>Alerts</small><strong>{counts?.notifications ?? notifications?.unreadCount ?? 0}</strong></span>
-            <span><small>Inbox</small><strong>{counts?.inbox ?? 0}</strong></span>
-            <span><small>Sent</small><strong>{counts?.sent ?? 0}</strong></span>
+            <span><small>Threads</small><strong>{data?.folder === 'active' ? data.total : (counts ? counts.inbox + counts.sent : 0)}</strong></span>
+            <span><small>Archived</small><strong>{counts?.archived ?? 0}</strong></span>
             <span><small>Attacks</small><strong>{counts?.attacks ?? 0}</strong></span>
             <span><small>Activity</small><strong>{counts?.activity ?? 0}</strong></span>
           </div>
@@ -545,7 +642,7 @@ export function ConsolePage() {
                 onClick={() => {
                   const next = new URLSearchParams(searchParams);
                   next.delete('to');
-                  if (key === 'inbox') next.delete('view');
+                  if (key === 'threads') next.delete('view');
                   else next.set('view', key);
                   setSearchParams(next, { replace: true });
                   setView(key);
@@ -556,7 +653,7 @@ export function ConsolePage() {
               >
                 <span>{label}</span>
                 <strong>{countFor(key)}</strong>
-                {key === 'inbox' && (counts?.unread ?? 0) > 0
+                {key === 'threads' && (counts?.unread ?? 0) > 0
                   ? <em>{counts!.unread} unread</em>
                   : null}
                 {key === 'notifications' && (counts?.notifications ?? notifications?.unreadCount ?? 0) > 0
@@ -569,7 +666,7 @@ export function ConsolePage() {
             type="button"
             className="se-btn se-btn--primary"
             onClick={() => {
-              setView('inbox');
+              setView('threads');
               setPage(1);
               setMode('compose');
             }}
@@ -826,36 +923,40 @@ export function ConsolePage() {
         ) : (
           <section className="se-console-work">
             <Panel
-              title={view === 'inbox' ? 'Inbox' : view === 'sent' ? 'Sent mail' : 'Archived mail'}
-              aside={data ? `${data.messages.length} of ${data.total}` : 'Loading'}
+              title={view === 'archived' ? 'Archived threads' : 'Message threads'}
+              aside={data ? `${data.threads.length} of ${data.total}` : 'Loading'}
               flush
               className="se-console-listpanel"
             >
               {!data ? <p className="se-muted se-console-pad">Checking the wire...</p> : null}
-              {data && data.messages.length === 0 ? (
+              {data && data.threads.length === 0 ? (
                 <div className="se-console-empty">
-                  <strong>No messages here.</strong>
-                  <span>{view === 'inbox' ? 'When another player writes, it will land here.' : 'This folder is clear.'}</span>
+                  <strong>No threads here.</strong>
+                  <span>{view === 'threads' ? 'When a conversation starts, it will land here.' : 'Archived conversations collect here.'}</span>
                 </div>
               ) : null}
               <div className="se-console-list">
-                {data?.messages.map((message) => (
+                {data?.threads.map((thread) => (
                   <button
-                    key={message.id}
+                    key={thread.counterpart.publicPimpId}
                     type="button"
-                    className={`se-console-message${selectedId === message.id ? ' se-console-message--selected' : ''}${message.direction === 'in' && !message.readAt ? ' se-console-message--unread' : ''}`}
-                    onClick={() => void openMessage(message)}
+                    className={`se-console-message${selectedThreadPimpId === thread.counterpart.publicPimpId ? ' se-console-message--selected' : ''}${thread.unreadCount > 0 ? ' se-console-message--unread' : ''}`}
+                    onClick={() => openThread(thread)}
                   >
                     <span className="se-console-message__top">
-                      <strong>{message.counterpart.displayName}</strong>
-                      <time>{messageTime(message.createdAt)}</time>
+                      <strong>{thread.counterpart.displayName}</strong>
+                      <time>{messageTime(thread.lastMessageAt)}</time>
                     </span>
-                    <span className="se-console-message__subject">{message.subject}</span>
+                    <span className="se-console-message__subject">{thread.subject}</span>
+                    <span className="se-console-message__preview">{thread.preview}</span>
                     <span className="se-console-message__meta">
-                      <span className="se-num">#{message.counterpart.publicPimpId}</span>
-                      <span>{message.direction === 'in' ? 'Received' : 'Sent'}</span>
-                      {message.blocked ? <span>Blocked</span> : null}
-                      {message.reported ? <span>Reported</span> : null}
+                      <span className="se-num">#{thread.counterpart.publicPimpId}</span>
+                      <span>{thread.messageCount} message{thread.messageCount === 1 ? '' : 's'}</span>
+                      <span>{thread.lastDirection === 'in' ? 'They replied' : 'You replied'}</span>
+                      {thread.unreadCount > 0 ? <span>{thread.unreadCount} unread</span> : null}
+                      {thread.blocked ? <span>Blocked</span> : null}
+                      {thread.muted ? <span>Muted</span> : null}
+                      {thread.reported ? <span>Reported</span> : null}
                     </span>
                   </button>
                 ))}
@@ -932,79 +1033,87 @@ export function ConsolePage() {
                     <p className="se-hint">Retries reuse the same delivery key until you edit the draft, preventing double sends.</p>
                   </form>
                 </Panel>
-              ) : selected ? (
+              ) : conversation ? (
                 <Panel
-                  title={selected.subject}
-                  aside={selected.direction === 'in' ? 'Received' : 'Sent'}
+                  title={conversation.counterpart.displayName}
+                  aside={`${conversation.messageCount} message${conversation.messageCount === 1 ? '' : 's'}`}
                   className="se-console-panel"
                 >
-                  <article className="se-console-letter">
-                    <header>
-                      <div>
-                        <strong>{selected.counterpart.displayName}</strong>
-                        <span className="se-num">#{selected.counterpart.publicPimpId}</span>
-                      </div>
-                      <time>{messageTime(selected.createdAt)}</time>
-                    </header>
-                    <p>{selected.body}</p>
-                  </article>
+                  <div className="se-console-thread">
+                    {conversation.messages.map((message) => (
+                      <button
+                        key={message.id}
+                        type="button"
+                        className={`se-console-bubble se-console-bubble--${message.direction === 'in' ? 'in' : 'out'}${selected?.id === message.id ? ' se-console-bubble--selected' : ''}`}
+                        onClick={() => {
+                          setSelectedId(message.id);
+                          setReporting(false);
+                          setReportReason('');
+                        }}
+                      >
+                        <span className="se-console-bubble__meta">
+                          <strong>{message.direction === 'in' ? conversation.counterpart.displayName : 'You'}</strong>
+                          <time>{messageTime(message.createdAt)}</time>
+                        </span>
+                        <span className="se-console-bubble__subject">{message.subject}</span>
+                        <span className="se-console-bubble__body">{message.body}</span>
+                        {message.reported ? <span className="se-tag se-tag--dim">Reported</span> : null}
+                      </button>
+                    ))}
+                  </div>
 
-                  <div className="se-console-actions">
-                    <button type="button" className="se-btn se-btn--primary se-btn--sm" onClick={() => reply(selected)}>
-                      Reply
-                    </button>
-                    <button
-                      type="button"
-                      className="se-btn se-btn--ghost se-btn--sm"
-                      disabled={busy}
-                      onClick={() => void archive(selected, !selected.archived)}
-                    >
-                      {selected.archived ? 'Restore' : 'Archive'}
-                    </button>
-                    {selected.direction === 'in' && !selected.blocked ? (
+                  {selected ? (
+                    <div className="se-console-actions">
                       <button
                         type="button"
                         className="se-btn se-btn--ghost se-btn--sm"
                         disabled={busy}
-                        onClick={() => void block(selected)}
+                        onClick={() => void archive(selected, !selected.archived)}
                       >
-                        Block sender
+                        {selected.archived ? 'Restore selected' : 'Archive selected'}
                       </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="se-btn se-btn--ghost se-btn--sm"
-                      disabled={busy}
-                      onClick={() => void setMuted(selected.counterpart.publicPimpId, selected.counterpart.displayName, !selected.muted)}
-                    >
-                      {selected.muted ? 'Unmute' : 'Mute'}
-                    </button>
-                    <button
-                      type="button"
-                      className="se-btn se-btn--ghost se-btn--sm"
-                      disabled={busy}
-                      onClick={() => void hideConversation(selected)}
-                    >
-                      Delete conversation
-                    </button>
-                    {selected.direction === 'in' && !selected.reported ? (
+                      {selected.direction === 'in' && !selected.blocked ? (
+                        <button
+                          type="button"
+                          className="se-btn se-btn--ghost se-btn--sm"
+                          disabled={busy}
+                          onClick={() => void block(selected)}
+                        >
+                          Block sender
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="se-btn se-btn--ghost se-btn--sm"
-                        onClick={() => setReporting((current) => !current)}
+                        disabled={busy}
+                        onClick={() => void setMuted(selected.counterpart.publicPimpId, selected.counterpart.displayName, !selected.muted)}
                       >
-                        Report
+                        {selected.muted ? 'Unmute' : 'Mute'}
                       </button>
-                    ) : null}
-                    {selected.direction === 'in' && selected.reported ? (
-                      <span className="se-tag se-tag--dim">Reported</span>
-                    ) : null}
-                    <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/players/${selected.counterpart.publicPimpId}`}>
-                      Profile
-                    </Link>
-                  </div>
+                      <button
+                        type="button"
+                        className="se-btn se-btn--ghost se-btn--sm"
+                        disabled={busy}
+                        onClick={() => void hideConversation(selected)}
+                      >
+                        Delete thread
+                      </button>
+                      {selected.direction === 'in' && !selected.reported ? (
+                        <button
+                          type="button"
+                          className="se-btn se-btn--ghost se-btn--sm"
+                          onClick={() => setReporting((current) => !current)}
+                        >
+                          Report selected
+                        </button>
+                      ) : null}
+                      <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/players/${selected.counterpart.publicPimpId}`}>
+                        Profile
+                      </Link>
+                    </div>
+                  ) : null}
 
-                  {reporting && selected.direction === 'in' ? (
+                  {reporting && selected && selected.direction === 'in' ? (
                     <div className="se-console-report">
                       <label>
                         <span>Why are you reporting this message?</span>
@@ -1030,12 +1139,42 @@ export function ConsolePage() {
                       </div>
                     </div>
                   ) : null}
+
+                  <form className="se-console-thread-reply" onSubmit={(event) => void sendThreadReply(event, conversation)}>
+                    <label>
+                      <span>Reply</span>
+                      <textarea
+                        className="se-input"
+                        maxLength={MESSAGE_BODY_MAX}
+                        value={body}
+                        onChange={(event) => changeComposeField(setBody, event.target.value)}
+                      />
+                      <small>{body.length}/{MESSAGE_BODY_MAX}</small>
+                    </label>
+                    <div className="se-inline-actions">
+                      <button
+                        type="submit"
+                        className="se-btn se-btn--primary"
+                        disabled={busy || !body.trim() || Boolean(conversation.restriction)}
+                      >
+                        {busy ? 'Sending...' : 'Send reply'}
+                      </button>
+                      <button
+                        type="button"
+                        className="se-btn se-btn--ghost"
+                        onClick={() => setBody('')}
+                        disabled={!body.trim()}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </form>
                 </Panel>
               ) : (
-                <Panel title="Street mail" className="se-console-panel">
+                <Panel title="Message threads" className="se-console-panel">
                   <div className="se-console-placeholder">
-                    <strong>Select a message or start a new one.</strong>
-                    <p>Messages are asynchronous. Blocking either account disables private messages in both directions.</p>
+                    <strong>Select a thread or start a new one.</strong>
+                    <p>Messages are grouped by player, so the whole back-and-forth stays together.</p>
                     <button type="button" className="se-btn se-btn--primary" onClick={() => setMode('compose')}>
                       Compose
                     </button>

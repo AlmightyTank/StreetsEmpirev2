@@ -308,6 +308,19 @@ const crackdownEventSchema = z.object({
   racketHeatPerBusiness: z.number().default(0),
 });
 
+// 1.4.0-F. A player reaching a faction's Inner Circle. Older game servers send none.
+const factionEventSchema = z.object({
+  id: z.string(),
+  roundName: z.string(),
+  publicPimpId: z.number(),
+  displayName: z.string(),
+  profileUrl: z.string().url(),
+  factionKey: z.string(),
+  factionName: z.string(),
+  tierName: z.string(),
+  happenedAt: z.string(),
+});
+
 const roundEventSchema = z.object({
   type: z.enum(['opened', 'ending-soon', 'ended']),
   roundName: z.string(),
@@ -359,6 +372,7 @@ const alertsClaimSchema = z.object({
   territory: z.array(territoryEventSchema),
   crackdowns: z.array(crackdownEventSchema),
   rounds: z.array(roundEventSchema),
+  factions: z.array(factionEventSchema).default([]),
 });
 
 const statusSchema = z.object({
@@ -401,6 +415,7 @@ export type TurfEvent = AlertsClaim['turf'][number];
 export type BlockWarEvent = AlertsClaim['blockWars'][number];
 export type TerritoryEvent = AlertsClaim['territory'][number];
 export type CrackdownEvent = AlertsClaim['crackdowns'][number];
+export type FactionEvent = AlertsClaim['factions'][number];
 export type TurfAlert = AlertsClaim['turfAlerts'][number];
 export type AllianceAlert = AlertsClaim['allianceAlerts'][number];
 export type GameNotice = AlertsClaim['notices'][number];

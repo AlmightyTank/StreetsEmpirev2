@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
 import type { GameActionResult, ProductStockDto, ProductTradeResult, StoreMarketContextDto } from '@streets/shared';
 import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
 import { api } from '../api/client.js';
@@ -11,6 +10,7 @@ import { Button } from './Button.js';
 import { ShelfArt } from './ItemTile.js';
 import { Panel } from './Panel.js';
 import { QuantitySteps } from './QuantitySteps.js';
+import { QuestLockNote } from './QuestLink.js';
 
 /** "30 minutes", "hour", "2 hours". */
 function waitText(minutes: number): string {
@@ -81,11 +81,27 @@ function ShelfLine({ pip, name, onArrival }: { pip: NonNullable<ProductStockDto[
  * 0.4.0-D. One product at Pip's counter, laid out like every other shelf item:
  * what you own and his prices, his shelf, then a buy or sell order.
  */
-export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDone }: {
+/** A product line for the store basket, in the shape the basket keeps. */
+export interface ProductBasketLine {
+  key: string;
+  store: 'PIP';
+  item: string;
+  direction: 'buy' | 'sell';
+  quantity: number;
+  storeName: string;
+  itemName: string;
+  unitCents: number;
+  stockLabel: string;
+}
+
+export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDone, storeName, onAddToBasket }: {
   product: ProductStockDto; cashCents: number; bulkHelpers: number[];
   /** Why the whole counter is off, or null when it is open. */
   blocked: string | null;
   onDone: () => void;
+  storeName: string;
+  /** Puts this order in the store basket, to check out with everything else. */
+  onAddToBasket: (line: ProductBasketLine) => void;
 }) {
   const trade = useGameAction<ProductTradeResult>();
   const [direction, setDirection] = useState<'buy' | 'sell'>('buy');
@@ -119,6 +135,21 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
     onDone();
   }
 
+  function addToBasket() {
+    if (block || purchaseLocked || typeof quantity !== 'number') return;
+    onAddToBasket({
+      key: `PIP:${product.key}:${direction}`,
+      store: 'PIP',
+      item: product.key,
+      direction,
+      quantity,
+      storeName,
+      itemName: product.name,
+      unitCents: unit,
+      stockLabel: `${formatNumber(pip.stock)} / ${formatNumber(pip.cap)} in stock`,
+    });
+  }
+
   const id = `product-${product.key}`;
   return (
     <Panel title={product.name}>
@@ -128,6 +159,11 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
       {pip.relationshipBuyDiscountPercent || pip.relationshipSellBonusPercent ? (
         <p className="se-hint se-good">
           Relationship perk — {relationshipSummary(pip)}.
+        </p>
+      ) : null}
+      {pip.factionDiscount ? (
+        <p className="se-hint se-good">
+          {pip.factionDiscount.factionName} perk — {formatNumber(pip.factionDiscount.percent)}% off buying.
         </p>
       ) : null}
       <div className="se-store-shelf__top">
@@ -145,8 +181,8 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
           <h3 className="se-store-favor__title">Purchase access locked</h3>
           <p className="se-hint">
             {pip.unlockDescription ?? `Pip has not opened ${product.name} purchases to you yet.`}
-            {' '}Earn it through <Link to="/game/quests">underworld jobs</Link>. You can still sell stock you already own.
           </p>
+          <QuestLockNote unlockName={pip.unlockName ?? `${product.name} purchases`} quest={pip.unlockQuest} after="You can still sell stock you already own." />
         </div>
       ) : null}
       <ShelfLine pip={pip} name={product.name} onArrival={onDone} />
@@ -174,9 +210,14 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
         <p className="se-hint">
           {purchaseLocked ? 'Purchases are locked until the required job is complete.' : `${buying ? 'Can buy' : 'Can sell'} ${formatNumber(max)}.`}
         </p>
-        <Button className="se-btn se-btn--primary se-btn--block" disabledReason={block}>
-          {buying ? 'Buy' : 'Sell'} {product.name}{valid && typeof quantity === 'number' ? ` · ${price(quantity * unit)}` : ''}
-        </Button>
+        <div className="se-store-actions">
+          <Button className="se-btn se-btn--primary se-btn--block" disabledReason={block}>
+            {buying ? 'Buy' : 'Sell'} {product.name}{valid && typeof quantity === 'number' ? ` · ${price(quantity * unit)}` : ''}
+          </Button>
+          <Button type="button" className="se-btn se-btn--block" disabledReason={block} onClick={addToBasket}>
+            Add to basket
+          </Button>
+        </div>
       </form>
       {trade.error ? <Alert>{trade.error}</Alert> : null}
       {trade.result ? (

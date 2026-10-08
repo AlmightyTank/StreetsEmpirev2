@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
-import { classicOgV01, classicOgV02D, classicOgV13G, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV15E3, type Ruleset } from '@streets/rulesets';
 // The panel and the seed create the same bots from one definition. Changing the
 // roster in the service changes it here too.
 import { DEV_TEST_RIVALS, seedDevBots } from '../apps/server/src/services/dev-bots.service.js';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV13G;
+const CURRENT_RULESET = classicOgV15E3;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
 
@@ -41,6 +41,8 @@ const CITIES = [
   { slug: 'las-vegas', name: 'Las Vegas', sortOrder: 6 },
   { slug: 'los-angeles', name: 'Los Angeles', sortOrder: 7 },
   { slug: 'atlanta', name: 'Atlanta', sortOrder: 8 },
+  // 1.5.0-E3: takes Beverly Hills' place on the map; older rulesets never list it.
+  { slug: 'san-francisco', name: 'San Francisco', sortOrder: 9 },
 ] as const;
 
 async function seedCities() {

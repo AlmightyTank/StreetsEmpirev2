@@ -6,6 +6,7 @@ import { ApiError } from '../api/client.js';
 import { contactsApi, playersApi } from '../api/playing-together.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
+import { ThemeSwatch } from '../components/ThemeSwatch.js';
 import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -92,13 +93,6 @@ export function PlayersPage() {
               Find crews in the current round, open their public profile, and build your Contacts list
               without turning the directory into free recon.
             </p>
-          </div>
-
-          <div className="se-players-hero__readout">
-            <span><small>Round players</small><strong>{data ? formatNumber(data.counts.all) : '—'}</strong></span>
-            <span><small>In your city</small><strong>{data ? formatNumber(data.counts.city) : '—'}</strong></span>
-            <span><small>Alliance</small><strong>{data ? formatNumber(data.counts.alliance) : '—'}</strong></span>
-            <span><small>Active 24h</small><strong>{data ? formatNumber(data.counts.active) : '—'}</strong></span>
           </div>
         </header>
 
@@ -192,6 +186,7 @@ export function PlayersPage() {
                                 {player.displayName}
                               </Link>
                               <span className="se-muted se-num">#{player.publicPimpId}</span>
+                              <ThemeSwatch theme={player.siteTheme} label={player.siteThemeLabel} />
                               {player.isYou ? <span className="se-tag se-tag--good">You</span> : null}
                             </div>
                             {player.crewName ? <span className="se-players-person__crew se-muted">{player.crewName}</span> : null}

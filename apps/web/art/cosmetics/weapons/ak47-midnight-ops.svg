@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128">
+  <!-- Midnight Ops AK: skeleton side-folder, railed top cover with optic, quad-rail handguard, angled foregrip, slant brake. -->
+  <defs>
+    <filter id="s" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".65"/></filter>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#454a51"/><stop offset=".45" stop-color="#23262a"/><stop offset="1" stop-color="#0f1012"/></linearGradient>
+    <linearGradient id="poly" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1c1e21"/><stop offset=".5" stop-color="#34373c"/><stop offset="1" stop-color="#141517"/></linearGradient>
+    <linearGradient id="grip" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2c2f33"/><stop offset="1" stop-color="#0c0d0e"/></linearGradient>
+    <linearGradient id="lens" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f1a17"/><stop offset=".6" stop-color="#1f3a33"/><stop offset="1" stop-color="#4f8f7c"/></linearGradient>
+  </defs>
+  <g filter="url(#s)" stroke="#060708" stroke-width="1.6" stroke-linejoin="round">
+    <!-- barrel and slant brake -->
+    <rect x="196" y="49" width="36" height="6" fill="url(#steel)"/>
+    <path d="M230 46 H246 L250 49 V58 H230 Z" fill="#1d1f23"/>
+    <rect x="186" y="45" width="12" height="14" rx="1.5" fill="#1d1f23"/>
+    <!-- ribbed polymer magazine -->
+    <path d="M128 62 H152 Q158 88 176 106 L154 116 Q134 94 128 62 Z" fill="url(#poly)"/>
+    <!-- ergonomic pistol grip -->
+    <path d="M88 62 H105 L99 92 Q98 97 92 97 L84 95 Q79 94 81 88 L84 76 Q85 72 88 70 Z" fill="url(#grip)"/>
+    <path d="M105 63 Q105 75 114 75 H128" fill="none" stroke-width="4"/>
+    <path d="M105 63 Q105 75 114 75 H128" fill="none" stroke="#23262a" stroke-width="1.8"/>
+    <path d="M117 63 Q115 68 118 72" fill="none" stroke-width="2.6"/>
+    <!-- skeleton side-folding stock -->
+    <path d="M70 48 H16 L12 52 V78 Q12 82 16 82 L24 80 L70 60" fill="none" stroke-width="6.5"/>
+    <path d="M70 48 H16 L12 52 V78 Q12 82 16 82 L24 80 L70 60" fill="none" stroke="#2a2d31" stroke-width="3.2"/>
+    <path d="M4 50 H12 V84 H4 Q2 84 2 82 V52 Q2 50 4 50 Z" fill="#17181a"/>
+    <rect x="64" y="46" width="8" height="16" rx="1.5" fill="#1d1f23"/>
+    <!-- receiver -->
+    <path d="M70 44 H150 V63 H70 Z" fill="url(#steel)"/>
+    <!-- railed top cover and optic -->
+    <rect x="76" y="39" width="74" height="6" rx="1" fill="#16181b"/>
+    <path d="M100 39 V31 Q100 28 103 28 H120 Q126 28 127 33 L128 39 Z" fill="url(#steel)"/>
+    <path d="M120 30 Q124 30 125 33 L125.6 38 H120 Z" fill="url(#lens)" stroke-width="1"/>
+    <rect x="138" y="52" width="10" height="4" rx="1.5" fill="#0c0d0f"/>
+    <!-- quad-rail handguard -->
+    <rect x="150" y="41" width="40" height="23" rx="2" fill="url(#steel)"/>
+    <!-- angled foregrip -->
+    <path d="M166 64 H186 L180 76 Q179 78 176 78 H172 Z" fill="url(#grip)"/>
+  </g>
+  <!-- rail teeth: top cover and handguard -->
+  <g fill="#2e3135">
+    <rect x="80" y="39.5" width="3" height="2"/><rect x="86" y="39.5" width="3" height="2"/><rect x="92" y="39.5" width="3" height="2"/><rect x="132" y="39.5" width="3" height="2"/><rect x="138" y="39.5" width="3" height="2"/><rect x="144" y="39.5" width="3" height="2"/>
+    <rect x="153" y="41.5" width="3" height="2"/><rect x="159" y="41.5" width="3" height="2"/><rect x="165" y="41.5" width="3" height="2"/><rect x="171" y="41.5" width="3" height="2"/><rect x="177" y="41.5" width="3" height="2"/><rect x="183" y="41.5" width="3" height="2"/>
+  </g>
+  <g fill="#060708"><rect x="153" y="50" width="34" height="1.6"/><rect x="153" y="55" width="34" height="1.6"/></g>
+  <g fill="#060708"><rect x="234" y="47" width="2.5" height="5" rx="1"/><rect x="239" y="47" width="2.5" height="5" rx="1"/></g>
+  <!-- magazine ribs -->
+  <g stroke="#060708" stroke-width="1.3" fill="none">
+    <path d="M133 70 Q138 72 154 70M136 82 Q141 84 160 82M142 94 Q148 96 168 93"/>
+  </g>
+  <!-- low-reflective highlights -->
+  <path d="M72 46.5 H148" stroke="#8a929c" stroke-opacity=".25" stroke-width="1.1"/>
+  <path d="M152 46 H188" stroke="#8a929c" stroke-opacity=".22" stroke-width="1"/>
+  <path d="M198 50.5 H230" stroke="#8a929c" stroke-opacity=".3" stroke-width="1"/>
+  <path d="M18 49.5 H64" stroke="#6b727b" stroke-opacity=".35" stroke-width="1"/>
+  <circle cx="123" cy="33.5" r="1" fill="#7dffcf" fill-opacity=".6"/>
+</svg>

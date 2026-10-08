@@ -1,6 +1,7 @@
 import type { City, Prisma, PrismaClient } from '@prisma/client';
 import { RelocationService } from './relocation.service.js';
-import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
+import { factionTier, factionTierName, factionTierRank, loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
+import type { FactionKey } from '@streets/rulesets';
 import type {
   PublicHallOfFameAppearanceDto,
   PublicAchievementCategory,
@@ -27,6 +28,7 @@ import { selectProfileBadges } from './profile-badges.js';
 import { isBuiltInProfileTitle, profileTitleForAward, profileTitleForKey } from './profile-titles.js';
 import { TurfHistoryService } from './turf-history.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { profileShowcase, profileThemeTags, themeTagFields } from './profile-showcase.service.js';
 import { seasonFeatAwards, type FeatSeason } from './season-feats.js';
 import { emptySeasonTotals, SeasonStatsService, toStatSheet, type SeasonTotals } from './season-stats.service.js';
 
@@ -578,6 +580,11 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'clean-slate-ice',
     'corner-amber',
     'velvet-rose',
+    'kings-gold',
+    'outfit-oxblood',
+    'saints-chrome',
+    'cartel-jade',
+    'civic-seal',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';
@@ -922,7 +929,8 @@ export const CommunityService = {
     const contexts = await loadPublicContexts(prisma, player.roundId, allRows);
     const national = rankRows(nationalRows, player.publicPimpId, contexts, 'national', now);
     const local = rankRows(localRows, player.publicPimpId, contexts, 'local', now);
-    await Promise.all([
+    const [themeTags] = await Promise.all([
+      profileThemeTags(prisma, allRows.map((row) => row.accountId)),
       syncVisibleRankTenure(prisma, nationalRows, national, 'national', now),
       syncVisibleRankTenure(prisma, localRows, local, 'local', now),
     ]);
@@ -933,8 +941,8 @@ export const CommunityService = {
     }, now);
 
     return {
-      national,
-      local,
+      national: national.map((entry, index) => ({ ...entry, ...themeTagFields(themeTags.get(nationalRows[index]!.accountId)) })),
+      local: local.map((entry, index) => ({ ...entry, ...themeTagFields(themeTags.get(localRows[index]!.accountId)) })),
       localCity: toCityDto(player.city),
       me: {
         publicPimpId: player.publicPimpId,
@@ -1030,6 +1038,7 @@ export const CommunityService = {
     const frame = frameOptions.some((option) => option.key === profileSettings?.activeProfileFrameKey)
       ? profileSettings!.activeProfileFrameKey
       : null;
+    const showcase = await profileShowcase(prisma, player.accountId, profileSettings);
 
     return {
       forumProfileUrl: forumLink ? forumProfileUrl(forumLink) : null,
@@ -1044,11 +1053,18 @@ export const CommunityService = {
           || profileSettings?.profileEffect === 'scanlines'
           || profileSettings?.profileEffect === 'spotlight'
           || profileSettings?.profileEffect === 'glitch'
+          || profileSettings?.profileEffect === 'ember-sparks'
+          || profileSettings?.profileEffect === 'cash-shimmer'
+          || profileSettings?.profileEffect === 'sirens'
+          || profileSettings?.profileEffect === 'smoke'
           ? profileSettings.profileEffect
           : 'none',
         imageUrl: profileSettings?.profileImageUrl ?? null,
         bannerUrl: profileSettings?.profileBannerUrl ?? null,
+        siteTheme: showcase.siteTheme,
+        siteThemeLabel: showcase.siteThemeLabel,
       },
+      look: showcase.look,
       experience: playerExperienceDto(player.account.experiencePoints),
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,
@@ -1089,6 +1105,23 @@ export const CommunityService = {
       joinedAt: player.createdAt.toISOString(),
       lastActiveAt: player.lastActiveAt.toISOString(),
       isYou,
+      ...(ruleset.factionPublic ? { factionAlignment: await factionAlignment(prisma, player.id, ruleset) } : {}),
     };
   },
 };
+
+/**
+ * 1.4.0-F. A player's public alignment: each faction they stand at or above the ruleset's public
+ * tier with, highest first. Only the tier is shown, never the points, and nothing below it.
+ */
+async function factionAlignment(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<NonNullable<PublicPlayerProfileDto['factionAlignment']>> {
+  const rules = ruleset.factionStanding;
+  const publicFrom = ruleset.factionPublic?.publicFrom;
+  if (!rules || !publicFrom) return [];
+  const rows = await prisma.playerFactionStanding.findMany({ where: { roundPlayerId }, select: { factionKey: true, points: true } });
+  return rows
+    .map((row) => ({ row, tier: factionTier(row.points, rules) }))
+    .filter(({ row, tier }) => ruleset.factions?.[row.factionKey as FactionKey] && factionTierRank(tier) >= factionTierRank(publicFrom))
+    .sort((a, b) => b.row.points - a.row.points)
+    .map(({ row, tier }) => ({ key: row.factionKey, name: ruleset.factions![row.factionKey as FactionKey]!.name, tierName: factionTierName(tier) }));
+}

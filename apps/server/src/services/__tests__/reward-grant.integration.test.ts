@@ -103,10 +103,15 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('reward grants with 
     const cosmetics = await app.prisma.accountCosmeticUnlock.findMany({ where: { accountId }, orderBy: { key: 'asc' } });
     expect(cosmetics.map((row) => [row.key, row.kind, row.rarity, row.sourceQuestKey])).toEqual([
       ['street-pass-s1-badge', 'TITLE_BADGE', 'legendary', 'street-pass-s1:30'],
+      ['street-pass-s1-cartel-gold', 'ITEM_COLLECTION', 'legendary', 'street-pass-s1:28'],
+      ['street-pass-s1-chrome-halo-frame', 'PROFILE_FRAME', 'epic', 'street-pass-s1:25'],
       ['street-pass-s1-frame', 'PROFILE_FRAME', 'legendary', 'street-pass-s1:30'],
       ['street-pass-s1-fresh-face', 'TITLE_BADGE', 'rare', 'street-pass-s1:10'],
       ['street-pass-s1-kingpin', 'TITLE_BADGE', 'legendary', 'street-pass-s1:30'],
       ['street-pass-s1-made-man', 'TITLE_BADGE', 'epic', 'street-pass-s1:20'],
+      ['street-pass-s1-midnight-ops', 'ITEM_COLLECTION', 'epic', 'street-pass-s1:18'],
+      ['street-pass-s1-night-drive-theme', 'SITE_THEME', 'epic', 'street-pass-s1:15'],
+      ['street-pass-s1-urban-ghost', 'ITEM_COLLECTION', 'rare', 'street-pass-s1:8'],
     ]);
   });
 

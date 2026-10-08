@@ -15,6 +15,7 @@ export const NOTIFICATION_CATEGORIES = [
   'runs',
   'revenge',
   'law',
+  'factions',
   'orders',
   'announcements',
   'messages',
@@ -60,6 +61,8 @@ export const BELL_CATEGORY_BY_ACTIVITY: Partial<Record<ActivityType, Notificatio
   OFFICIAL_STUNG: 'law',
   CAPTAIN_TIP: 'law',
   CASE_FOLLOWED: 'law',
+  // 1.4.0-D. Early warnings from a faction the player is Trusted with.
+  FACTION_WARNING: 'factions',
 };
 
 /** Categories that have in-game bell items, and so can be muted there. */

@@ -254,7 +254,7 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
           <input id="trip-guards" className="se-input" type="number" inputMode="numeric" min={0} max={Math.min(bg.max, trips.fitThugs)} step={1} value={guards}
             onChange={(event) => setGuards(wholeDollars(event.target.value))} />
           <p className="se-hint">
-            {formatCents(bg.ticketCents)} a ticket and {formatCents(bg.lodgingCentsPerThugHour)} an hour each. They fight anyone who comes for the boss
+            {formatCents(bg.ticketCents)} a ticket{bg.factionDiscount ? ` (${bg.factionDiscount.percent}% off with ${bg.factionDiscount.factionName})` : ''} and {formatCents(bg.lodgingCentsPerThugHour)} an hour each. They fight anyone who comes for the boss
             {trips.gunConnect?.unlocked ? ', and Tommy\u2019s people can rent them guns in town.' : ', bare-handed unless Tommy\u2019s people in town will rent to you.'}
           </p>
         </div>

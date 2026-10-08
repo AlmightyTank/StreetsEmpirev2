@@ -4,7 +4,10 @@ import type {
   ConsoleBlocksDto,
   ConsoleCountsDto,
   ConsoleFolder,
+  ConsoleThreadFolder,
+  DirectMessageConversationDto,
   PimpConsoleDto,
+  PimpConsoleThreadsDto,
   SendMessageResultDto,
 } from '@streets/shared';
 import { api } from './client.js';
@@ -22,6 +25,12 @@ export const consoleApi = {
 
   page: (folder: ConsoleFolder = 'inbox', page = 1) =>
     api.get<PimpConsoleDto>(`/game/console?folder=${encodeURIComponent(folder)}&page=${page}`),
+
+  threads: (folder: ConsoleThreadFolder = 'active', page = 1) =>
+    api.get<PimpConsoleThreadsDto>(`/game/console/threads?folder=${encodeURIComponent(folder)}&page=${page}`),
+
+  conversation: (publicPimpId: number) =>
+    api.get<DirectMessageConversationDto>(`/game/console/conversations/${publicPimpId}`),
 
   activity: (filter: ConsoleActivityFilter = 'all', page = 1) =>
     api.get<ConsoleActivityDto>(`/game/console/activity?filter=${encodeURIComponent(filter)}&page=${page}`),

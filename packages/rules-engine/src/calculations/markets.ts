@@ -367,3 +367,73 @@ export function streetWire(ruleset: Ruleset, seed: string, from: Date, to: Date)
   }
   return items.sort((a, b) => b.at.getTime() - a.at.getTime());
 }
+
+// --- 1.4.0-D: what the Cartel Line hears -------------------------------------------
+
+export interface ShortSupply {
+  city: string;
+  product: string;
+  supply: 'LOW' | 'OUT';
+}
+
+/** Every city and product where Pip is low or out at a moment. Only what is already true. */
+export function shortSupplies(ruleset: Ruleset, seed: string, at: Date): ShortSupply[] {
+  const short: ShortSupply[] = [];
+  const products = Object.keys(ruleset.products ?? { CRACK: true });
+  for (const city of Object.keys(ruleset.cities ?? {})) {
+    for (const product of products) {
+      const supply = supplyAt(ruleset, seed, city, product, at);
+      if (supply === 'LOW' || supply === 'OUT') short.push({ city, product, supply });
+    }
+  }
+  return short;
+}
+
+export interface SupplyCrash {
+  at: Date;
+  city: string;
+  product: string;
+  /** A drought event, or Pip's swing running out. */
+  kind: 'DROUGHT' | 'OUT';
+  /** When a drought ends; a swing has no set end. */
+  endsAt?: Date;
+}
+
+/**
+ * 1.4.0-D. Every drought that starts, and every swing that takes Pip out, after `from` and up to
+ * `to`, soonest first. Unlike the street wire, this looks ahead: the Cartel Line hears first.
+ */
+export function supplyCrashesAhead(ruleset: Ruleset, seed: string, from: Date, to: Date): SupplyCrash[] {
+  const crashes: SupplyCrash[] = [];
+  const events = ruleset.travel?.events;
+  const swings = ruleset.travel?.swings;
+  const products = Object.keys(ruleset.products ?? { CRACK: true });
+  const after = (at: number) => at > from.getTime() && at <= to.getTime();
+  for (const city of Object.keys(ruleset.cities ?? {})) {
+    if (events) {
+      const clock = slotClock(seed, 'event', city, events.slotMinutes);
+      for (let slot = slotOf(from.getTime(), clock); slotStart(slot, clock) <= to.getTime(); slot++) {
+        const event = eventInSlot(ruleset, seed, city, slot);
+        if (event?.kind === 'DROUGHT' && after(event.startsAt.getTime())) {
+          crashes.push({ at: event.startsAt, city, product: event.product, kind: 'DROUGHT', endsAt: event.endsAt });
+        }
+      }
+    }
+    if (swings) {
+      const clock = slotClock(seed, 'swing', city, swings.slotMinutes);
+      for (let slot = slotOf(from.getTime(), clock) + 1; slotStart(slot, clock) <= to.getTime(); slot++) {
+        const at = slotStart(slot, clock);
+        if (!after(at)) continue;
+        for (const product of products) {
+          const before = swingLevel(ruleset, seed, city, product, slot - 1);
+          if (before !== 'OUT' && swingLevel(ruleset, seed, city, product, slot) === 'OUT') crashes.push({ at: new Date(at), city, product, kind: 'OUT' });
+        }
+      }
+    }
+  }
+  // Only what Pip actually feels: a drought on something he never deals, or a swing a glut
+  // covers, leaves his counter as it was.
+  return crashes
+    .filter((crash) => supplyAt(ruleset, seed, crash.city, crash.product, new Date(crash.at.getTime() + 1)) === 'OUT')
+    .sort((a, b) => a.at.getTime() - b.at.getTime());
+}

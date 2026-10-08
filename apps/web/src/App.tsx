@@ -8,6 +8,8 @@ import { AdminReportsPage } from './pages/AdminReportsPage.js';
 import { AdminBugReportsPage } from './pages/AdminBugReportsPage.js';
 import { AdminEconomyPage } from './pages/AdminEconomyPage.js';
 import { AdminCasinoPage } from './pages/AdminCasinoPage.js';
+import { AdminFactionsPage } from './pages/AdminFactionsPage.js';
+import { AdminVehiclesPage } from './pages/AdminVehiclesPage.js';
 import { AdminLawPage } from './pages/AdminLawPage.js';
 import { AdminLawPlayerPage } from './pages/AdminLawPlayerPage.js';
 import { AdminCombatPage } from './pages/AdminCombatPage.js';
@@ -165,7 +167,7 @@ export function App() {
         <Route path="street-pass" element={<Protected><LiveRound><StreetPassPage /></LiveRound></Protected>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
-        <Route path="casino" element={<Navigate to="/game/casino/slots" replace />} />
+        <Route path="casino" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
         <Route path="casino/:game" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
 
         <Route path="travel" element={<Protected><LiveRound><TravelPage /></LiveRound></Protected>} />
@@ -191,7 +193,8 @@ export function App() {
         <Route path="report-bug" element={<RequireAccount><ReportBugPage /></RequireAccount>} />
         <Route path="reputation" element={<Protected><LiveRound><Navigate to="/game/quests#contact-standing" replace /></LiveRound></Protected>} />
 
-        <Route path="admin" element={admin(<AdminPage />)} />
+        <Route path="admin" element={admin(<Navigate to="/game/admin/rounds" replace />)} />
+        <Route path="admin/rounds" element={admin(<AdminPage />)} />
         <Route path="admin/rounds/:roundId" element={admin(<AdminRoundPage />)} />
         <Route path="admin/news" element={admin(<AdminNewsPage />)} />
         <Route path="admin/accounts" element={admin(<AdminAccountsPage />)} />
@@ -207,6 +210,8 @@ export function App() {
         <Route path="admin/bugs" element={admin(<AdminBugReportsPage />)} />
         <Route path="admin/economy" element={admin(<AdminEconomyPage />)} />
         <Route path="admin/casino" element={admin(<AdminCasinoPage />)} />
+        <Route path="admin/factions" element={admin(<AdminFactionsPage />)} />
+        <Route path="admin/vehicles" element={admin(<AdminVehiclesPage />)} />
         <Route path="admin/law" element={admin(<AdminLawPage />)} />
         <Route path="admin/players/:roundPlayerId/law" element={admin(<AdminLawPlayerPage />)} />
         <Route path="admin/combat" element={admin(<AdminCombatPage />)} />

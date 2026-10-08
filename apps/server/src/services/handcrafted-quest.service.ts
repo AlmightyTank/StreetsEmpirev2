@@ -1,6 +1,11 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { FACTION_TIERS, contractStanding, factionTierName, factionTierRank, factionTierStartsAt, innerCircleLockedBy, innerCirclePreview, jobStanding as jobStandingFor, lawPriceCents } from '@streets/rules-engine';
 import {
   type ContactKey,
+  contractBoard,
+  jobFaction,
+  type FactionKey,
+  type FactionTier,
   type QuestBranchDefinition,
   type QuestDefinition,
   type QuestObjectiveDefinition,
@@ -12,6 +17,7 @@ import {
 import type {
   GameActionResult,
   PlayerQuestDto,
+  QuestRequirementDto,
   QuestClaimInput,
   QuestBranchChoiceDto,
   QuestBranchReputationDto,
@@ -30,6 +36,10 @@ import { FavorInventoryService } from './favor-inventory.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { addContactRep, grantRewards, rewardDto } from './reward-grant.service.js';
+import { FactionService } from './faction.service.js';
+import { EconomyLedgerService } from './economy-ledger.service.js';
+import { FactionPerkService } from './faction-perk.service.js';
+import { contractSponsor } from './contract-sponsor.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
 import {
   DAILY_CONTRACT_SLOTS,
@@ -38,12 +48,13 @@ import {
 } from './daily-contract.service.js';
 import {
   WEEKLY_CONTRACT_SLOTS,
+  syncDerivedTurfProgress,
   syncWeeklyContractAttempts,
   weeklyContractWindow,
 } from './weekly-contract.service.js';
 import { syncSecretQuestAttempts } from './secret-quest.service.js';
 import {
-  CITY_CONTRACT_SLOTS,
+  cityContractSlots,
   cityContractObjectives,
   cityContractRewards,
   cityContractState,
@@ -51,6 +62,7 @@ import {
   isDynamicCityContractDefinition,
   syncCityContractAttempts,
 } from './city-contract.service.js';
+import { SEASON_CONTRACT_SLOTS, isSeasonContractDefinition, syncSeasonContractAttempts } from './season-contract.service.js';
 import {
   acceptAllianceContract,
   allianceContractContributionSnapshot,
@@ -68,9 +80,9 @@ import {
   type CommunityEventSnapshot,
 } from './community-event.service.js';
 
-const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
-const SLOTLESS_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT'] as const;
+/** Shared-board work: not counted as a personal job and not abandonable. Personal jobs have no cap. */
+const BOARD_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
 const CONTACT_TIERS = [
   { at: 0, name: 'Unknown' },
   { at: 25, name: 'Acquaintance' },
@@ -252,7 +264,101 @@ function objectiveDtos(row: QuestRow, communityEvent?: CommunityEventSnapshot): 
   ];
 }
 
-function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEventSnapshot): PlayerQuestDto {
+/**
+ * 1.4.0-B. Standing a one-time Job pays each faction it helps (see `jobStanding` in the rules
+ * engine): never a faction whose contact it merely pays.
+ */
+function jobStanding(
+  ruleset: Ruleset,
+  key: string,
+  rewards: ReadonlyArray<{ kind: string; key?: string | null; amount?: number | null }>,
+  branch?: QuestBranchDefinition | null,
+): Map<FactionKey, number> {
+  const definition = ruleset.questDefinitions?.[key];
+  return definition ? jobStandingFor(ruleset, definition, rewards, branch) : new Map();
+}
+
+/** 1.4.0-C. The standing a board contract pays its sponsor, as a one-entry map, or empty. */
+function boardStanding(ruleset: Ruleset, definition: QuestDefinition | undefined, rewardState: unknown): Map<FactionKey, number> {
+  const sponsor = contractSponsor(ruleset, definition, rewardState);
+  const amount = definition ? contractStanding(ruleset, contractBoard(definition)) : 0;
+  return sponsor && amount > 0 ? new Map([[sponsor, amount]]) : new Map();
+}
+
+/** A faction standing reward is shown and paid as standing, not as an ordinary reward. */
+function visibleRewards<T extends { kind: string }>(rewards: readonly T[]): T[] {
+  return rewards.filter((reward) => reward.kind !== 'FACTION_STANDING');
+}
+
+/** The tier a faction Job needs, or null when it needs none. */
+function factionJobTier(definition: QuestDefinition | undefined): FactionTier | null {
+  const prerequisite = definition?.prerequisites.find((row) => row.kind === 'FACTION_STANDING_AT_LEAST');
+  const tier = prerequisite?.params?.tier;
+  return typeof tier === 'string' && (FACTION_TIERS as readonly string[]).includes(tier) ? tier as FactionTier : null;
+}
+
+function standingLabel(amount: number, factionName: string): string {
+  return `+${amount} ${factionName} standing`;
+}
+
+/** 1.4.0-E. What a player brings to a Job card: their standing points and net worth. */
+interface QuestContext {
+  points: Partial<Record<FactionKey, number>>;
+  netWorthCents: bigint;
+  /** 1.5.0-E2. For a locked card's "Opens after" list. */
+  completed?: ReadonlySet<string>;
+  reps?: Readonly<Record<string, number>>;
+}
+
+/**
+ * 1.5.0-E2. What a locked Job still waits for, in player words, with the earlier Job to link to
+ * where there is one. Met requirements are left out; faction tiers are named as they stand.
+ */
+function questRequirements(ruleset: Ruleset, definition: QuestDefinition | undefined, context: QuestContext): QuestRequirementDto[] {
+  if (!definition) return [];
+  return definition.prerequisites.flatMap((prerequisite): QuestRequirementDto[] => {
+    const params = prerequisite.params ?? {};
+    if (prerequisite.kind === 'QUEST_COMPLETED' && typeof params.questKey === 'string') {
+      if (context.completed?.has(params.questKey)) return [];
+      const earlier = ruleset.questDefinitions?.[params.questKey];
+      const giver = contactFor(ruleset, earlier?.contactKey);
+      return [{ label: `Finish “${earlier?.title ?? params.questKey}”${giver ? ` for ${giver.shortName}` : ''}`, questKey: params.questKey }];
+    }
+    if (prerequisite.kind === 'CONTACT_REP_AT_LEAST' && typeof params.contactKey === 'string' && typeof params.points === 'number') {
+      const have = context.reps?.[params.contactKey] ?? 0;
+      if (have >= params.points) return [];
+      return [{ label: `${params.points} rep with ${contactFor(ruleset, params.contactKey)?.shortName ?? params.contactKey} (you have ${have})` }];
+    }
+    if ((prerequisite.kind === 'FACTION_STANDING_AT_LEAST' || prerequisite.kind === 'FACTION_STANDING_BELOW') && typeof params.factionKey === 'string' && typeof params.tier === 'string') {
+      const faction = ruleset.factions?.[params.factionKey as FactionKey]?.name ?? params.factionKey;
+      const tier = factionTierName(params.tier as FactionTier);
+      return [{ label: prerequisite.kind === 'FACTION_STANDING_AT_LEAST' ? `${tier} with ${faction}` : `Below ${tier} with ${faction}` }];
+    }
+    if (prerequisite.kind === 'BRANCH_CHOSEN' && typeof params.questKey === 'string') {
+      const earlier = ruleset.questDefinitions?.[params.questKey];
+      return [{ label: `Pick this side in “${earlier?.title ?? params.questKey}”`, questKey: params.questKey }];
+    }
+    return [];
+  });
+}
+
+/**
+ * 1.4.0-E. The standing an introduction pays: whatever brings the player up to Known with the
+ * faction it introduces, or nothing once they are there.
+ */
+function introductionStanding(ruleset: Ruleset, definition: QuestDefinition | undefined, points: Partial<Record<FactionKey, number>>): Map<FactionKey, number> {
+  const rules = ruleset.factionStanding;
+  if (!definition?.introduces || !rules || !ruleset.factions?.[definition.introduces]) return new Map();
+  const amount = factionTierStartsAt('KNOWN', rules) - (points[definition.introduces] ?? 0);
+  return amount > 0 ? new Map([[definition.introduces, amount]]) : new Map();
+}
+
+/** 1.4.0-E. A Job's fee at a net worth, in cents, or 0 for a Job with none. */
+function questFeeCents(definition: QuestDefinition | undefined, netWorthCents: bigint): bigint {
+  return definition?.fee ? lawPriceCents(netWorthCents, definition.fee) : 0n;
+}
+
+function questDto(row: QuestRow, ruleset: Ruleset, context: QuestContext, communityEvent?: CommunityEventSnapshot): PlayerQuestDto {
   const contact = contactFor(ruleset, row.questDefinition.contactKey);
   const cityState = cityContractState(row.rewardState);
   const allianceContribution = allianceContractContributionSnapshot(
@@ -270,6 +376,42 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
     description: cityState?.description ?? row.questDefinition.description,
     contactKey: row.questDefinition.contactKey,
     contactName: contact?.shortName ?? null,
+    ...(row.status === 'LOCKED' ? { requires: questRequirements(ruleset, ruleset.questDefinitions?.[row.questDefinition.key], context) } : {}),
+    ...(() => {
+      const definition = ruleset.questDefinitions?.[row.questDefinition.key];
+      // A board contract names its sponsor (1.4.0-C); a Job, the faction it works for.
+      const factionKey = definition && contractBoard(definition) && ruleset.contractSponsors
+        ? contractSponsor(ruleset, definition, row.rewardState)
+        : definition ? jobFaction(ruleset, definition) : contact?.factionKey;
+      const faction = factionKey ? ruleset.factions?.[factionKey] : undefined;
+      return { factionKey: faction?.key ?? null, factionName: faction?.name ?? null };
+    })(),
+    factionJob: ruleset.questDefinitions?.[row.questDefinition.key]?.category === 'FACTION',
+    factionStandings: [
+      ...jobStanding(ruleset, row.questDefinition.key, rewards(row.questDefinition.rewards)),
+      ...boardStanding(ruleset, ruleset.questDefinitions?.[row.questDefinition.key], row.rewardState),
+      ...introductionStanding(ruleset, ruleset.questDefinitions?.[row.questDefinition.key], context.points),
+    ].flatMap(([factionKey, amount]) => {
+      const name = ruleset.factions?.[factionKey]?.name;
+      if (!name) return [];
+      // 1.4.0-E: say what collecting it would set off, before it does.
+      const preview = row.status === 'COMPLETED' ? { locks: [], lockedBy: null } : innerCirclePreview(ruleset, context.points, factionKey, amount);
+      const rivalName = (key: FactionKey) => ruleset.factions?.[key]?.name ?? key;
+      return [{
+        factionKey, factionName: name, amount, label: standingLabel(amount, name),
+        ...(preview.locks.length ? { locks: preview.locks.map(rivalName) } : {}),
+        ...(preview.lockedBy ? { heldShortBy: rivalName(preview.lockedBy) } : {}),
+      }];
+    }),
+    ...(() => {
+      const definition = ruleset.questDefinitions?.[row.questDefinition.key];
+      const introduced = definition?.introduces ? ruleset.factions?.[definition.introduces] : undefined;
+      const fee = questFeeCents(definition, context.netWorthCents);
+      return {
+        ...(fee > 0n ? { feeCents: Number(fee) } : {}),
+        ...(introduced ? { introduces: { factionKey: introduced.key, factionName: introduced.name } } : {}),
+      };
+    })(),
     type: row.questDefinition.type,
     category: row.questDefinition.category,
     difficulty: row.questDefinition.difficulty,
@@ -279,7 +421,7 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
     branchChoices: branchChoicesDto(row, ruleset),
     ...(story ? { story } : {}),
     objectives: objectiveDtos(row, communityEvent),
-    rewards: resolvedRewards.map((reward) => rewardDto(reward, ruleset)),
+    rewards: visibleRewards(resolvedRewards).map((reward) => rewardDto(reward, ruleset)),
     ...(availability.seasonalEvent ? {
       seasonalEvent: {
         eventKey: availability.seasonalEvent.eventKey,
@@ -332,6 +474,7 @@ export function questPrerequisitesMet(
   completed: ReadonlySet<string>,
   reps: Readonly<Record<string, number>>,
   chosenBranches: Readonly<Record<string, string>>,
+  factionTiers: Readonly<Partial<Record<string, FactionTier>>> = {},
 ): boolean {
   return definition.prerequisites.every((prerequisite) => {
     if (prerequisite.kind === 'QUEST_COMPLETED') {
@@ -342,6 +485,25 @@ export function questPrerequisitesMet(
       const key = prerequisite.params?.contactKey;
       const points = prerequisite.params?.points;
       return typeof key === 'string' && typeof points === 'number' && (reps[key] ?? 0) >= points;
+    }
+    if (prerequisite.kind === 'FACTION_STANDING_AT_LEAST') {
+      const factionKey = prerequisite.params?.factionKey;
+      const tier = prerequisite.params?.tier;
+      const reached = typeof factionKey === 'string' ? factionTiers[factionKey] : undefined;
+      return reached !== undefined
+        && typeof tier === 'string'
+        && (FACTION_TIERS as readonly string[]).includes(tier)
+        && factionTierRank(reached) >= factionTierRank(tier as FactionTier);
+    }
+    if (prerequisite.kind === 'FACTION_STANDING_BELOW') {
+      // 1.4.0-E. Only where standing exists: a round without it has nothing to be below.
+      const factionKey = prerequisite.params?.factionKey;
+      const tier = prerequisite.params?.tier;
+      const reached = typeof factionKey === 'string' ? factionTiers[factionKey] : undefined;
+      return reached !== undefined
+        && typeof tier === 'string'
+        && (FACTION_TIERS as readonly string[]).includes(tier)
+        && factionTierRank(reached) < factionTierRank(tier as FactionTier);
     }
     if (prerequisite.kind === 'BRANCH_CHOSEN') {
       const questKey = prerequisite.params?.questKey;
@@ -429,6 +591,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       .map((row) => [row.questDefinition.key, row.chosenBranch!]),
   );
   const reps = await contactPoints(db, roundPlayerId, ruleset);
+  const tiers = await FactionService.tiers(db, roundPlayerId, ruleset);
   const adminTestMode = await seasonalEventAdminTestModeForPlayer(db, roundPlayerId);
   const newlyAvailable: string[] = [];
 
@@ -444,10 +607,11 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       || isDynamicCityContractDefinition(definition)
       || isAllianceContractDefinition(definition)
       || isCommunityEventDefinition(definition)
+      || isSeasonContractDefinition(definition)
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
     const seasonalAvailable = seasonalEventAvailable(definition, now, adminTestMode);
-    const available = seasonalAvailable && questPrerequisitesMet(definition, completed, reps, chosenBranches);
+    const available = seasonalAvailable && questPrerequisitesMet(definition, completed, reps, chosenBranches, tiers);
     if (!current) {
       await db.playerQuest.create({
         data: {
@@ -468,11 +632,83 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   await syncDailyContractAttempts(db, roundPlayerId, ruleset, now);
   await syncWeeklyContractAttempts(db, roundPlayerId, ruleset, now);
   newlyAvailable.push(...await syncCityContractAttempts(db, roundPlayerId, ruleset, now));
+  newlyAvailable.push(...await syncSeasonContractAttempts(db, roundPlayerId, ruleset));
   newlyAvailable.push(...await syncAllianceContractAttempts(db, roundPlayerId, ruleset, now));
   await syncCommunityEventAttempts(db, roundPlayerId, ruleset, now);
   await refreshCommunityEventReadinessForPlayer(db, roundPlayerId, ruleset, now);
   newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
+  await autoAcceptBoardWork(db, roundPlayerId, ruleset, now);
+  await syncDerivedTurfProgress(db, roundPlayerId, ruleset, questDefinitions, now);
   return newlyAvailable;
+}
+
+/** Move an AVAILABLE job to ACTIVE, the same way whether the player clicked Accept or auto-accept did. */
+async function startQuest(db: Db, roundPlayerId: string, row: QuestRow, ruleset: Ruleset, acceptedAt: Date, track: boolean): Promise<void> {
+  const preserveOffer = preservesGeneratedOffer(row, ruleset);
+  await db.playerQuest.update({
+    where: { id: row.id },
+    data: {
+      status: 'ACTIVE',
+      acceptedAt,
+      completedAt: null,
+      claimedAt: null,
+      failedAt: null,
+      abandonedAt: null,
+      objectiveProgress: {},
+      bonusProgress: {},
+      rewardState: preserveOffer ? inputJson(row.rewardState) : {},
+      expiresAt: preserveOffer
+        ? row.expiresAt
+        : row.questDefinition.expiresAfterMinutes
+          ? new Date(acceptedAt.getTime() + row.questDefinition.expiresAfterMinutes * 60_000)
+          : null,
+      isTracked: track,
+    },
+  });
+  await QuestProgressService.emit(db, roundPlayerId, {
+    sourceKey: `quest-accept:${row.id}:${acceptedAt.getTime()}`,
+    type: 'QUEST_ACCEPTED',
+    payload: { questKey: row.questDefinition.key },
+    at: acceptedAt,
+  });
+}
+
+/** Rotating board work that auto-accept may start: daily and weekly contracts and the city board. */
+function isAutoAcceptBoardWork(definition: QuestDefinition | undefined): boolean {
+  if (!definition) return false;
+  return (definition.type === 'DAILY' && definition.repeatability === 'DAILY')
+    || (definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY')
+    || isDynamicCityContractDefinition(definition);
+}
+
+/**
+ * Start fresh daily, weekly and city work for players who leave auto-accept on
+ * (the default). Community events already start themselves. Auto-started jobs
+ * stay off the tracker so they never push out jobs the player pinned, and an
+ * attempt the player abandoned is left for them to pick up again by hand.
+ */
+async function autoAcceptBoardWork(db: Db, roundPlayerId: string, ruleset: Ruleset, now: Date): Promise<void> {
+  const player = await db.roundPlayer.findUnique({
+    where: { id: roundPlayerId },
+    select: { account: { select: { profile: { select: { autoAcceptBoardWork: true } } } } },
+  });
+  if (player?.account.profile?.autoAcceptBoardWork === false) return;
+
+  const rows = await db.playerQuest.findMany({
+    where: {
+      roundPlayerId,
+      status: 'AVAILABLE',
+      abandonedAt: null,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      questDefinition: { rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version, isEnabled: true },
+    },
+    include: { questDefinition: true },
+    orderBy: [{ createdAt: 'asc' }],
+  });
+  for (const row of rows) {
+    if (!isAutoAcceptBoardWork(ruleset.questDefinitions?.[row.questDefinition.key])) continue;
+    await startQuest(db, roundPlayerId, row, ruleset, now, false);
+  }
 }
 
 async function loadQuest(db: Db, roundPlayerId: string, ruleset: Ruleset, key: string): Promise<QuestRow> {
@@ -515,6 +751,13 @@ export const HandcraftedQuestService = {
       const weeklyWindow = weeklyEnabled ? weeklyContractWindow(now, ruleset) : null;
       const cityEnabled = definitions(ruleset).some(isDynamicCityContractDefinition);
       const cityWindow = cityEnabled ? cityContractWindow(now) : null;
+      const seasonEnabled = definitions(ruleset).some(isSeasonContractDefinition);
+      const seasonEndsAt = seasonEnabled
+        ? (await tx.roundPlayer.findUnique({
+            where: { id: roundPlayerId },
+            select: { round: { select: { endsAt: true } } },
+          }))?.round.endsAt ?? null
+        : null;
       const rows = await tx.playerQuest.findMany({
         where: {
           roundPlayerId,
@@ -533,13 +776,64 @@ export const HandcraftedQuestService = {
       const contacts = Object.values(ruleset.contacts ?? {}).map((contact): QuestContactDto => {
         const points = reps[contact.key] ?? 0;
         const tier = contactTier(points);
+        const { factionKey, independent, ...identity } = contact;
+        const faction = factionKey ? ruleset.factions?.[factionKey] : undefined;
         return {
-          ...contact,
+          ...identity,
           points,
           standing: tier.name,
           nextStandingAt: tier.next,
+          faction: faction ? { key: faction.key, name: faction.name } : null,
+          independent: independent ?? null,
         };
       });
+      const standings = await FactionService.standings(tx, roundPlayerId, ruleset);
+      // 1.4.0-E: standing and net worth, for each card's Inner Circle preview and fee.
+      const questContext: QuestContext = {
+        points: await FactionService.points(tx, roundPlayerId),
+        netWorthCents: (await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { netWorthCents: true } })).netWorthCents,
+        completed: new Set(rows.filter((row) => row.status === 'COMPLETED').map((row) => row.questDefinition.key)),
+        reps,
+      };
+      // 1.4.0-D: what standing opens with each faction, and what it says right now.
+      const perks = await FactionPerkService.perks(tx, roundPlayerId, ruleset);
+      const factions = ruleset.factions ? Object.values(ruleset.factions).flatMap((faction) => faction ? [{
+        key: faction.key,
+        name: faction.name,
+        shortName: faction.shortName,
+        identity: faction.identity,
+        lane: faction.lane,
+        description: faction.description,
+        rivals: faction.rivals.map((rival) => ({ key: rival, name: ruleset.factions?.[rival]?.name ?? rival })),
+        faces: Object.values(ruleset.contacts ?? {}).flatMap((contact) => contact?.factionKey === faction.key ? [{ key: contact.key, name: contact.shortName }] : []),
+        facesNote: faction.facesNote ?? null,
+        standing: standings.get(faction.key) ?? null,
+        jobs: Object.values(ruleset.questDefinitions ?? {}).flatMap((definition) => {
+          if (definition.category !== 'FACTION' || jobFaction(ruleset, definition) !== faction.key) return [];
+          const tier = factionJobTier(definition);
+          const row = rows.find((candidate) => candidate.questDefinition.key === definition.key);
+          return [{ key: definition.key, title: definition.title, tierName: tier ? factionTierName(tier) : null, status: row?.status ?? 'LOCKED' }];
+        }),
+        ...(ruleset.factionPerks ? { perks: perks.get(faction.key) ?? null } : {}),
+        ...(ruleset.factionRivalry?.innerCircleLock ? (() => {
+          const lockedBy = innerCircleLockedBy(ruleset, questContext.points, faction.key);
+          const reached = (questContext.points[faction.key] ?? 0) >= (ruleset.factionStanding?.tiers.innerCircle ?? Infinity);
+          const introduction = Object.values(ruleset.questDefinitions ?? {}).find((definition) => definition.introduces === faction.key);
+          const introRow = introduction ? rows.find((candidate) => candidate.questDefinition.key === introduction.key) : undefined;
+          const below = (questContext.points[faction.key] ?? 0) < (ruleset.factionStanding?.tiers.known ?? 0);
+          return {
+            innerCircle: {
+              lockedBy: lockedBy ? { key: lockedBy, name: ruleset.factions?.[lockedBy]?.name ?? lockedBy } : null,
+              wouldLock: lockedBy || reached ? [] : faction.rivals
+                .filter((rival) => (questContext.points[rival] ?? 0) < (ruleset.factionStanding?.tiers.innerCircle ?? Infinity))
+                .map((rival) => ({ key: rival, name: ruleset.factions?.[rival]?.name ?? rival })),
+              introduction: introduction && (below || introRow?.status === 'COMPLETED')
+                ? { key: introduction.key, title: introduction.title, status: introRow?.status ?? 'LOCKED' }
+                : null,
+            },
+          };
+        })() : {}),
+      }] : []) : null;
       const unlockRows = await tx.playerUnlock.findMany({
         where: { roundPlayerId },
         orderBy: { awardedAt: 'asc' },
@@ -574,6 +868,10 @@ export const HandcraftedQuestService = {
       }));
       const activeFavors = await TimedFavorService.listActive(tx, roundPlayerId, ruleset, now);
       const armedFavors = await SingleUseFavorService.listArmed(tx, roundPlayerId, ruleset);
+      const owner = await tx.roundPlayer.findUnique({
+        where: { id: roundPlayerId },
+        select: { account: { select: { profile: { select: { autoAcceptBoardWork: true } } } } },
+      });
       return {
         // Sample immediately before the response object is built so browser clock
         // skew cannot decide when an active favor expires.
@@ -590,26 +888,32 @@ export const HandcraftedQuestService = {
         },
         cityContracts: {
           enabled: cityEnabled,
-          slots: cityEnabled ? CITY_CONTRACT_SLOTS : 0,
+          slots: cityEnabled ? cityContractSlots(ruleset) : 0,
           resetAt: cityWindow?.endsAt.toISOString() ?? null,
         },
-        activeLimit: ACTIVE_LIMIT,
+        seasonContracts: {
+          enabled: seasonEnabled,
+          slots: seasonEnabled ? SEASON_CONTRACT_SLOTS : 0,
+          resetAt: seasonEndsAt?.toISOString() ?? null,
+        },
         trackedLimit: TRACKED_LIMIT,
+        autoAccept: owner?.account.profile?.autoAcceptBoardWork ?? true,
         counts: {
           available: rows.filter((row) => row.status === 'AVAILABLE').length,
           active: rows.filter((row) =>
-            !SLOTLESS_QUEST_TYPES.includes(row.questDefinition.type as typeof SLOTLESS_QUEST_TYPES[number])
+            !BOARD_QUEST_TYPES.includes(row.questDefinition.type as typeof BOARD_QUEST_TYPES[number])
             && ['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)
           ).length,
           ready: rows.filter((row) => row.status === 'READY_TO_TURN_IN').length,
           completed: rows.filter((row) => row.status === 'COMPLETED').length,
         },
         contacts,
+        factions,
         permanentUnlocks,
         activeFavors,
         armedFavors,
         favors,
-        quests: rows.map((row) => questDto(row, ruleset, communitySnapshots.get(row.id))),
+        quests: rows.map((row) => questDto(row, ruleset, questContext, communitySnapshots.get(row.id))),
       };
     });
   },
@@ -637,16 +941,6 @@ export const HandcraftedQuestService = {
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN') return;
       if (row.status !== 'AVAILABLE') throw AppError.conflict('QUEST_NOT_AVAILABLE', 'That job is not available yet.');
-      if (!allianceContract) {
-        const active = await tx.playerQuest.count({
-          where: {
-            roundPlayerId,
-            status: { in: ['ACTIVE', 'READY_TO_TURN_IN'] },
-            questDefinition: { type: { notIn: [...SLOTLESS_QUEST_TYPES] } },
-          },
-        });
-        if (active >= ACTIVE_LIMIT) throw AppError.conflict('QUEST_ACTIVE_LIMIT', `You can only have ${ACTIVE_LIMIT} active jobs at once.`);
-      }
       const tracked = await tx.playerQuest.count({ where: { roundPlayerId, isTracked: true } });
       const acceptedAt = new Date();
       if (row.expiresAt && row.expiresAt.getTime() <= acceptedAt.getTime()) {
@@ -661,32 +955,19 @@ export const HandcraftedQuestService = {
         await acceptAllianceContract(tx, roundPlayerId, ruleset, key, acceptedAt, tracked < TRACKED_LIMIT);
         return;
       }
-      const preserveOffer = preservesGeneratedOffer(row, ruleset);
-      await tx.playerQuest.update({
-        where: { id: row.id },
-        data: {
-          status: 'ACTIVE',
-          acceptedAt,
-          completedAt: null,
-          claimedAt: null,
-          failedAt: null,
-          objectiveProgress: {},
-          bonusProgress: {},
-          rewardState: preserveOffer ? inputJson(row.rewardState) : {},
-          expiresAt: preserveOffer
-            ? row.expiresAt
-            : row.questDefinition.expiresAfterMinutes
-              ? new Date(acceptedAt.getTime() + row.questDefinition.expiresAfterMinutes * 60_000)
-              : null,
-          isTracked: tracked < TRACKED_LIMIT,
-        },
-      });
-      await QuestProgressService.emit(tx, roundPlayerId, {
-        sourceKey: `quest-accept:${row.id}:${acceptedAt.getTime()}`,
-        type: 'QUEST_ACCEPTED',
-        payload: { questKey: key },
-        at: acceptedAt,
-      });
+      await startQuest(tx, roundPlayerId, row, ruleset, acceptedAt, tracked < TRACKED_LIMIT);
+    });
+    return this.page(prisma, roundPlayerId, ruleset);
+  },
+
+  /** Account-wide, so the choice carries into the next season. Turning it on starts waiting board work right away. */
+  async setAutoAccept(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, enabled: boolean): Promise<QuestPageDto> {
+    const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { accountId: true } });
+    if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'You are not in this round.');
+    await prisma.accountProfile.upsert({
+      where: { accountId: player.accountId },
+      create: { accountId: player.accountId, autoAcceptBoardWork: enabled },
+      update: { autoAcceptBoardWork: enabled },
     });
     return this.page(prisma, roundPlayerId, ruleset);
   },
@@ -718,6 +999,7 @@ export const HandcraftedQuestService = {
           status: 'AVAILABLE',
           isTracked: false,
           acceptedAt: null,
+          abandonedAt: new Date(),
           completedAt: null,
           expiresAt: preserveOffer ? row.expiresAt : null,
           objectiveProgress: {},
@@ -801,11 +1083,36 @@ export const HandcraftedQuestService = {
           await addContactRep(tx, roundPlayerId, delta.contactKey, delta.amount);
         }
 
+        // 1.4.0-E: an introduction brings the player up to Known; its fee is only taken when it
+        // still has something to give, and a claim the player cannot pay for is refused.
+        const introduction = introductionStanding(ruleset, rulesetDefinition, rulesetDefinition.introduces ? await FactionService.points(tx, roundPlayerId) : {});
+        const feeCents = rulesetDefinition.introduces && !introduction.size ? 0n : questFeeCents(rulesetDefinition, player.netWorthCents);
+        if (feeCents > 0n && current.cashCents < feeCents) {
+          throw AppError.conflict('QUEST_FEE', `${contactFor(ruleset, row.questDefinition.contactKey)?.shortName ?? 'They'} want $${(Number(feeCents) / 100).toLocaleString('en-US')} up front, and you are short.`);
+        }
+        next.cashCents -= feeCents;
+
         const questRewards = [
           ...(cityContractRewards(row.rewardState) ?? rewards(row.questDefinition.rewards)),
           ...(selectedBranch?.rewards ?? []),
         ];
         await grantRewards({ tx, roundPlayerId, accountId: player.accountId, ruleset, now, sourceKey: key }, next, questRewards);
+        // 1.4.0-B: a one-time Job also pays standing to the factions it helps, and no others.
+        const standingChanges: QuestClaimResult['standingChanges'] = [];
+        // 1.4.0-C: a board contract pays its sponsor instead.
+        for (const [factionKey, amount] of [...jobStanding(ruleset, key, questRewards, selectedBranch), ...boardStanding(ruleset, rulesetDefinition, row.rewardState), ...introduction]) {
+          const source = rulesetDefinition.introduces ? 'INTRODUCTION' : contractBoard(rulesetDefinition) ? 'CONTRACT' : 'JOB';
+          const change = await FactionService.grant(tx, roundPlayerId, ruleset, factionKey, amount, source, `job:${row.id}:${factionKey}`, now);
+          if (change) {
+            const paid = change.after - change.before;
+            const rivalName = (rival: FactionKey) => ruleset.factions?.[rival]?.name ?? rival;
+            standingChanges.push({
+              factionKey, factionName: change.factionName, amount: paid, tierName: factionTierName(change.tier), tierUp: change.tierUp, label: standingLabel(paid, change.factionName),
+              ...(change.locked.length ? { locked: change.locked.map(rivalName) } : {}),
+              ...(change.heldShortBy ? { heldShortBy: rivalName(change.heldShortBy) } : {}),
+            });
+          }
+        }
         await StreetPassCredService.creditQuest(
           tx,
           roundPlayerId,
@@ -825,7 +1132,7 @@ export const HandcraftedQuestService = {
           },
         });
         const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now);
-        const dtoRewards = questRewards.map((reward) => rewardDto(reward, ruleset));
+        const dtoRewards = visibleRewards(questRewards).map((reward) => rewardDto(reward, ruleset));
 
         return {
           next,
@@ -836,7 +1143,14 @@ export const HandcraftedQuestService = {
             rewards: dtoRewards,
             reputationChanges,
             newlyAvailable,
+            standingChanges,
+            ...(feeCents > 0n ? { feeCents: Number(feeCents) } : {}),
           },
+          // The fee is its own ledger line; whatever else the claim paid keeps the usual one.
+          ...(feeCents > 0n ? { ledger: [
+            { source: 'QUEST_FEE', label: `${row.questDefinition.title} · fee`, amountCents: -feeCents },
+            ...EconomyLedgerService.defaultForAction('QUEST_CLAIM', current.cashCents - feeCents, next.cashCents),
+          ] } : {}),
           activity: {
             type: 'QUEST_CLAIMED',
             payload: inputJson({
@@ -846,6 +1160,9 @@ export const HandcraftedQuestService = {
               chosenBranch: selectedBranch?.key ?? row.chosenBranch,
               rewards: dtoRewards.map((reward) => reward.label),
               reputationChanges: reputationChanges.map((change) => change.label),
+              standingChanges: standingChanges.map((change) => change.label),
+              ...(standingChanges.some((change) => change.locked?.length) ? { lockedRivals: standingChanges.flatMap((change) => change.locked ?? []) } : {}),
+              ...(feeCents > 0n ? { feeCents: Number(feeCents) } : {}),
               newlyAvailable,
             }),
           },

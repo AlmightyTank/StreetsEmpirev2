@@ -15,8 +15,10 @@ import { AllianceTag } from '../components/AllianceTag.js';
 import { ContactButton } from '../components/ContactButton.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
+import { hasProfileLook, ProfileLook } from '../components/ProfileLook.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { usePageTheme } from '../stores/pageTheme.js';
 import { useSession } from '../stores/session.js';
 import { formatDate, formatElapsed } from '../utils/time.js';
 
@@ -436,6 +438,19 @@ export function ProfilePage() {
   const [showLockedAchievements, setShowLockedAchievements] = useState(false);
   const [achievementStatusFilter, setAchievementStatusFilter] = useState<AchievementStatusFilter>('all');
   const [achievementCategoryFilter, setAchievementCategoryFilter] = useState<AchievementCategoryFilter>('all');
+  // Slice E: visitors see the owner's site theme here, and can switch back to their own.
+  const [useMyTheme, setUseMyTheme] = useState(false);
+  const setPageTheme = usePageTheme((s) => s.setThemeKey);
+  const isYou = Boolean(player && me && player.publicPimpId === me.publicPimpId);
+  const ownerTheme = player && !isYou ? player.cosmetics.siteTheme ?? null : null;
+  const shownTheme = useMyTheme ? null : ownerTheme;
+
+  useEffect(() => {
+    setPageTheme(shownTheme);
+    return () => setPageTheme(null);
+  }, [shownTheme, setPageTheme]);
+
+  useEffect(() => setUseMyTheme(false), [target, params.forumUserId]);
 
   useEffect(() => {
     if (params.forumUserId || (target && Number.isSafeInteger(target))) {
@@ -490,14 +505,32 @@ export function ProfilePage() {
   });
   return (
     <GameLayout>
-      <div className="se-profile">
+      <div className={`se-profile${shownTheme ? ` se-profile--themed se-site-theme--${shownTheme}` : ''}`}>
+        {player && ownerTheme ? (
+          <div className="se-profile-themebar" role="status">
+            <span>
+              {useMyTheme
+                ? `${player.displayName} styled this profile with ${player.cosmetics.siteThemeLabel ?? 'their own theme'}.`
+                : `Viewing in ${player.displayName}'s ${player.cosmetics.siteThemeLabel ?? 'site theme'}.`}
+            </span>
+            <button type="button" className="se-btn se-btn--sm" onClick={() => setUseMyTheme((current) => !current)}>
+              {useMyTheme ? 'Show their theme' : 'Use my theme'}
+            </button>
+          </div>
+        ) : null}
         <div
           className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player?.cosmetics.frame ? ` se-profile-frame se-profile-frame--${player.cosmetics.frame}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}`}
-          style={player?.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(10, 13, 17, 0.88), rgba(10, 13, 17, 0.66)), url("${player.cosmetics.bannerUrl}")` } : undefined}
         >
+          {player ? (
+            <div
+              className="se-profile-pagehead__banner"
+              aria-hidden="true"
+              style={player.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 12, 0.9), rgba(5, 8, 12, 0.58) 48%, rgba(5, 8, 12, 0.78)), url("${player.cosmetics.bannerUrl}")` } : undefined}
+            />
+          ) : null}
           <div className="se-profile-pagehead__main">
             {player ? (
-              <span className="se-profile-pagehead__avatar" aria-hidden="true">
+              <span className={`se-profile-pagehead__avatar${player.cosmetics.frame ? ` se-profile-pagehead__avatar--framed se-profile-pagehead__avatar--${player.cosmetics.frame}` : ''}`} aria-hidden="true">
                 {player.cosmetics.imageUrl ? <img src={player.cosmetics.imageUrl} alt="" /> : initials(player.displayName)}
               </span>
             ) : null}
@@ -510,6 +543,15 @@ export function ProfilePage() {
                 {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
               </h1>
               {player?.crewName ? <p className="se-profile-crew">Crew · <strong>{player.crewName}</strong></p> : null}
+              {player?.factionAlignment?.length ? (
+                <p className="se-profile-alignment" aria-label="Faction alignment">
+                  {player.factionAlignment.map((faction) => (
+                    <span key={faction.key} className={`se-profile-alignment__chip${faction.tierName === 'Inner Circle' ? ' is-inner' : ''}`}>
+                      {faction.name} · {faction.tierName}
+                    </span>
+                  ))}
+                </p>
+              ) : null}
               <p className="se-eyebrow">
                 {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Permanent season record'}
               </p>
@@ -601,6 +643,8 @@ export function ProfilePage() {
                 </div>
               )}
             </section>
+
+            {hasProfileLook(player.look) ? <ProfileLook look={player.look} isYou={isYou} /> : null}
 
             {player.showcase.length ? (
               <AwardStrip title="Showcase" awards={player.showcase} empty="" className="se-profile-showcase" />

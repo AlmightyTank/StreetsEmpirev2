@@ -11,7 +11,7 @@ import { Button } from './Button.js';
 function officialStatus(official: OfficialDto): { text: string; tone: 'good' | 'warn' | 'bad' } {
   if (official.status === 'STUNG') return { text: 'Stung by Internal Affairs', tone: 'bad' };
   if (official.status === 'CUT') return { text: 'Cut loose', tone: 'warn' };
-  if (official.stingAt) return { text: `Internal Affairs moves ${formatWhen(official.stingAt)}`, tone: 'bad' };
+  if (official.stingAt) return { text: 'Internal Affairs is closing in', tone: 'bad' };
   if (official.status === 'LAPSED') return { text: 'Unpaid: doing nothing', tone: 'warn' };
   return { text: `Paid until ${formatWhen(official.paidUntil)}`, tone: 'good' };
 }
@@ -33,6 +33,11 @@ export function PayrollSection({ payroll, cashCents }: { payroll: NonNullable<La
   return (
     <>
       <p className="se-eyebrow se-mt">Payroll</p>
+      {payroll.exposureDiscount ? (
+        <p className="se-hint se-good">
+          {payroll.exposureDiscount.factionName} perk — every favor leaves {payroll.exposureDiscount.percent}% less exposure.
+        </p>
+      ) : null}
       {payroll.officials.length ? (
         <ul className="se-case__cities">
           {payroll.officials.map((official) => {
@@ -49,16 +54,8 @@ export function PayrollSection({ payroll, cashCents }: { payroll: NonNullable<La
                 </div>
                 {onBooks ? (
                   <>
-                    <div className="se-meter se-heat__meter" aria-hidden="true">
-                      <div
-                        className={`se-meter__fill${official.stingAt ? ' se-meter__fill--bad' : official.exposure >= payroll.exposureLine / 2 ? ' se-meter__fill--warn' : ''}`}
-                        style={{ width: `${Math.min(100, (official.exposure / payroll.exposureLine) * 100)}%` }}
-                      />
-                    </div>
                     <span className="se-hint">
-                      Exposure {formatNumber(official.exposure)} of {formatNumber(payroll.exposureLine)}
-                      {official.quashReadyAt ? ` · next quash ${formatWhen(official.quashReadyAt)}` : ''}
-                      {official.stingAt ? ` · keep them and ${formatNumber(payroll.stingPoints)} Case lands in ${official.cityName}` : ''}
+                      Favors can draw attention from Internal Affairs.
                     </span>
                     <div className="se-case__actions">
                       <Button
@@ -85,7 +82,7 @@ export function PayrollSection({ payroll, cashCents }: { payroll: NonNullable<La
           })}
         </ul>
       ) : (
-        <p className="se-hint">Nobody on the payroll. Every favor an official does builds exposure; at {formatNumber(payroll.exposureLine)} Internal Affairs opens a file and you get a warning to cut them loose.</p>
+        <p className="se-hint">Nobody is on the payroll. Hiring an official can draw attention from Internal Affairs.</p>
       )}
       <div className="se-case__hire">
         <select className="se-input" aria-label="City" value={city} onChange={(event) => setCity(event.target.value)}>

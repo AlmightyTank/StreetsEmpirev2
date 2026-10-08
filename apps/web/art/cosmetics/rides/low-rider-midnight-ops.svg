@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128">
+  <!-- Midnight Ops Low-Rider: slammed matte-black night build, limo tint, black-chrome trim, deep-dish black rims, violet underglow. -->
+  <defs>
+    <filter id="s" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".65"/></filter>
+    <filter id="under" x="-20%" y="-300%" width="140%" height="700%"><feGaussianBlur stdDeviation="3.5"/></filter>
+    <filter id="glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="1.6"/></filter>
+    <linearGradient id="paint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b3f45"/><stop offset=".35" stop-color="#202226"/><stop offset="1" stop-color="#0c0d0f"/></linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#43474e"/><stop offset="1" stop-color="#1a1c1f"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1d22"/><stop offset=".55" stop-color="#08090b"/><stop offset=".8" stop-color="#2a1d45"/><stop offset="1" stop-color="#4a3480"/></linearGradient>
+    <linearGradient id="blackchrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a9099"/><stop offset=".45" stop-color="#3a3e45"/><stop offset=".55" stop-color="#16181b"/><stop offset="1" stop-color="#4c5159"/></linearGradient>
+    <radialGradient id="rim" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#4e535b"/><stop offset=".55" stop-color="#1f2125"/><stop offset="1" stop-color="#0b0c0e"/></radialGradient>
+    <clipPath id="bodyclip"><path d="M12 66 Q44 62 75 61 C84 54 92 47 102 46 L152 46 C158 47 166 56 172 63 L178 63 C205 64 235 67 248 70 L250 72 Q251 80 249 90 L232 95 A18 18 0 0 0 195 95 L95 96 A18 18 0 0 0 59 96 L14 94 Q10 92 10 86 L10 70 Q10 66 12 66 Z"/></clipPath>
+    <path id="spoke" d="M-1.1 -3.4 H1.1 L1.6 -10 H-1.6 Z" fill="#3c4048"/>
+    <g id="wheel">
+      <circle r="15" fill="#0b0b0c" stroke="#030303" stroke-width="1.4"/>
+      <circle r="12.6" fill="none" stroke="#2a2d32" stroke-width="1.6"/>
+      <circle r="11" fill="url(#rim)" stroke="#5d636b" stroke-width=".9"/>
+      <use href="#spoke"/><use href="#spoke" transform="rotate(60)"/><use href="#spoke" transform="rotate(120)"/><use href="#spoke" transform="rotate(180)"/><use href="#spoke" transform="rotate(240)"/><use href="#spoke" transform="rotate(300)"/>
+      <circle r="3.2" fill="#16181b" stroke="#5d636b" stroke-width=".8"/>
+      <circle r="1.2" fill="#9b7bff"/>
+    </g>
+  </defs>
+  <g transform="translate(0 -9)">
+    <!-- violet underglow -->
+    <ellipse cx="138" cy="104" rx="112" ry="5" fill="#8b5cf6" opacity=".7" filter="url(#under)"/>
+    <ellipse cx="128" cy="106" rx="120" ry="4" fill="#000" opacity=".45"/>
+    <!-- slammed body: sits 3 units lower over the wheels -->
+    <g transform="translate(0 3)">
+      <g filter="url(#s)">
+        <path d="M12 66 Q44 62 75 61 C84 54 92 47 102 46 L152 46 C158 47 166 56 172 63 L178 63 C205 64 235 67 248 70 L250 72 Q251 80 249 90 L232 95 A18 18 0 0 0 195 95 L95 96 A18 18 0 0 0 59 96 L14 94 Q10 92 10 86 L10 70 Q10 66 12 66 Z" fill="url(#paint)" stroke="#040405" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M8 81 H20 V91 H11 Q8 91 8 88 Z" fill="url(#blackchrome)" stroke="#040405" stroke-width="1.1"/>
+        <path d="M236 88 L250 84 Q253 84 253 87 V90 Q253 93 250 93 H238 Z" fill="url(#blackchrome)" stroke="#040405" stroke-width="1.1"/>
+      </g>
+      <path d="M75 61 C84 54 92 47 102 46 L152 46 C158 47 166 56 172 63 Z" fill="url(#roof)"/>
+      <!-- shark-fin antenna replaces the whips -->
+      <path d="M118 46.5 L124 41 Q126 40 127 42 L129 46.5 Z" fill="#1a1c1f" stroke="#040405" stroke-width=".8"/>
+      <path d="M100 63 C99 56 101 50 106 49 L150 49 C155 50 160 55 164 63 Z" fill="url(#glass)" stroke="#040405" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M126 49 V63" stroke="#16181b" stroke-width="1.6"/>
+      <path d="M112 60 L122 50 M140 60 L148 52" stroke="#b9a6ff" stroke-opacity=".16" stroke-width="2.4"/>
+      <g clip-path="url(#bodyclip)">
+        <!-- satin highlight sweep and twin graphite pinstripes -->
+        <path d="M14 67 Q44 63.5 76 62.5 M180 64.5 C206 65.5 232 68 246 71" stroke="#6b727b" stroke-opacity=".45" stroke-width="1.2" fill="none"/>
+        <path d="M14 80 L246 82.5 M14 82 L246 84.5" stroke="#3e434a" stroke-width=".7"/>
+      </g>
+      <path d="M178 63 V96 M123 64 V97" stroke="#040405" stroke-width="1.2"/>
+      <path d="M14 70 L244 73" stroke="url(#blackchrome)" stroke-width="1.8"/>
+      <rect x="127" y="67" width="7" height="2" rx="1" fill="#2a2d32"/>
+      <rect x="183" y="67.5" width="7" height="2" rx="1" fill="#2a2d32"/>
+      <ellipse cx="168" cy="62" rx="2.2" ry="1.6" fill="#2a2d32" stroke="#040405" stroke-width=".6"/>
+      <!-- smoked tail light and halo headlight -->
+      <rect x="10" y="67" width="2.6" height="8" fill="#ff2a3a"/>
+      <rect x="9" y="66" width="4.6" height="10" fill="#ff2a3a" opacity=".6" filter="url(#glow)"/>
+      <path d="M244 72 L249 72.5 Q250.5 74 249 75.5 L244 75 Z" fill="#e8f2ff"/>
+      <circle cx="248" cy="74" r="3.2" fill="#dfe9ff" opacity=".55" filter="url(#glow)"/>
+    </g>
+    <use href="#wheel" transform="translate(213 91)"/>
+    <use href="#wheel" transform="translate(77 91)"/>
+  </g>
+</svg>

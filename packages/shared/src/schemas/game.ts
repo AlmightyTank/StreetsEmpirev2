@@ -239,6 +239,8 @@ export const questClaimSchema = z.object({
   branchKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,63}$/, 'Invalid branch.').optional(),
 }).strict();
 export const questTrackSchema = z.object({ tracked: z.boolean() }).strict();
+/** Start daily, weekly and city board work automatically. */
+export const questAutoAcceptSchema = z.object({ enabled: z.boolean() }).strict();
 /** Street Pass: claim one reached tier. */
 export const streetPassClaimSchema = z.object({
   tier: z.number().int().min(1).max(200),

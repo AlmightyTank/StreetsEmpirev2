@@ -5,7 +5,9 @@ import type {
   Ruleset,
 } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
+import { deckOrder, hash32, roundDeckSeed, usesRoundDeck } from './contract-rotation.js';
 import { createPlayerActivity } from './in-app-notification.service.js';
+import { dealSponsors, sponsorState } from './contract-sponsor.js';
 
 export const WEEKLY_CONTRACT_SLOTS = 2;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -22,15 +24,6 @@ function pool(ruleset: Ruleset, enabledKeys?: ReadonlySet<string>): QuestDefinit
       && definition.repeatability === 'WEEKLY'
       && (!enabledKeys || enabledKeys.has(definition.key))
     );
-}
-
-function hash32(value: string): number {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return hash >>> 0;
 }
 
 /**
@@ -61,12 +54,31 @@ export function weeklyContractWindow(now: Date, ruleset: Ruleset): { startsAt: D
 
 /**
  * The weekly board is shared and deterministic. Prefer different categories so
- * the two-slot board cannot become two versions of the same activity loop.
+ * the two-slot board cannot become two versions of the same activity loop. From
+ * 1.4.0-B2 the order comes from a deck seeded by the round (see the daily board).
  */
-export function selectedWeeklyContractKeys(ruleset: Ruleset, now: Date, enabledKeys?: ReadonlySet<string>): string[] {
+export function selectedWeeklyContractKeys(
+  ruleset: Ruleset,
+  now: Date,
+  enabledKeys?: ReadonlySet<string>,
+  roundId?: string,
+): string[] {
   const { startsAt } = weeklyContractWindow(now, ruleset);
+  const definitions = pool(ruleset, enabledKeys);
+  if (usesRoundDeck(ruleset) && roundId) {
+    // The deck already spreads categories across each board. Skipping cards here
+    // would push them onto next week's board, so take the deal as it comes.
+    const categoryOf = new Map(definitions.map((definition) => [definition.key, definition.category]));
+    return deckOrder(
+      definitions.map((definition) => definition.key),
+      roundDeckSeed(ruleset, roundId) + ':weekly',
+      Math.floor(startsAt.getTime() / WEEK_MS),
+      WEEKLY_CONTRACT_SLOTS,
+      (key) => categoryOf.get(key) ?? key,
+    ).slice(0, WEEKLY_CONTRACT_SLOTS);
+  }
   const seed = ruleset.meta.id + ':' + ruleset.meta.version + ':' + startsAt.toISOString();
-  const ordered = pool(ruleset, enabledKeys)
+  const ordered = definitions
     .map((definition) => ({
       definition,
       order: hash32(seed + ':' + definition.key),
@@ -125,7 +137,7 @@ function progressMap(value: Prisma.JsonValue): Record<string, QuestObjectiveProg
   return result;
 }
 
-async function syncDerivedTurfProgress(
+export async function syncDerivedTurfProgress(
   db: Db,
   roundPlayerId: string,
   ruleset: Ruleset,
@@ -254,8 +266,16 @@ export async function syncWeeklyContractAttempts(
     select: { id: true, key: true },
   });
   const enabledKeys = new Set(definitionRows.map((row) => row.key));
-  const keys = selectedWeeklyContractKeys(ruleset, now, enabledKeys);
+  const roundId = usesRoundDeck(ruleset)
+    ? (await db.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { roundId: true } }))?.roundId
+    : undefined;
+  const keys = selectedWeeklyContractKeys(ruleset, now, enabledKeys, roundId);
   const definitionIds = definitionRows.map((row) => row.id);
+  // 1.4.0-C: each contract's sponsor, chosen for this player's board as a whole.
+  const sponsors = await dealSponsors(db, roundPlayerId, ruleset, keys.map((key) => ({
+    definition: definitions.find((definition) => definition.key === key)!,
+    window: startsAt.toISOString(),
+  })));
 
   await db.playerQuest.updateMany({
     where: {
@@ -303,6 +323,7 @@ export async function syncWeeklyContractAttempts(
         rewardState: inputJson({
           weeklyWindowStart: startsAt.toISOString(),
           weeklyWindowEnd: endsAt.toISOString(),
+          ...sponsorState(sponsors[keys.indexOf(key)] ?? null),
         }),
       },
       select: {

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Urban Ghost meth: stoppered lab flask of ice-pale crystal, stencilled graduations, camo grip sleeve. -->
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b8c6d2" stop-opacity=".3"/><stop offset=".3" stop-color="#ffffff" stop-opacity=".35"/><stop offset="1" stop-color="#8a9aa8" stop-opacity=".2"/></linearGradient>
+    <linearGradient id="ice" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#cfe6f4"/><stop offset="1" stop-color="#7f9fb5"/></linearGradient>
+    <linearGradient id="graphite" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a8088"/><stop offset="1" stop-color="#2b2e33"/></linearGradient>
+    <clipPath id="flask"><path d="M54 30 H74 V50 L98 96 Q101 106 90 106 H38 Q27 106 30 96 L54 50 Z"/></clipPath>
+  </defs>
+  <g filter="url(#s)">
+    <path d="M54 30 H74 V50 L98 96 Q101 106 90 106 H38 Q27 106 30 96 L54 50 Z" fill="#3a4550" fill-opacity=".45" stroke="#16181b" stroke-width="1.6" stroke-linejoin="round"/>
+  </g>
+  <g clip-path="url(#flask)">
+    <!-- crystal fill -->
+    <path d="M26 108 L28 84 L36 76 L42 82 L48 70 L56 78 L62 66 L70 76 L78 68 L84 80 L92 74 L102 90 L102 108 Z" fill="url(#ice)" stroke="#5c6f80" stroke-width="1"/>
+    <path d="M36 98 L42 84 L48 96M58 92 L64 76 L70 94M78 98 L84 84 L90 96" fill="none" stroke="#7f9fb5" stroke-width="1"/>
+    <!-- camo sleeve -->
+    <rect x="24" y="96" width="80" height="12" fill="#8f949a"/>
+    <path d="M24 96 L44 96 L40 108 L24 108 Z" fill="#3f4348"/>
+    <path d="M56 96 L72 96 L76 108 L58 108 Z" fill="#c4c8cc"/>
+    <path d="M84 96 L104 96 L104 108 L88 108 Z" fill="#5c6168"/>
+  </g>
+  <path d="M54 30 H74 V50 L98 96 Q101 106 90 106 H38 Q27 106 30 96 L54 50 Z" fill="url(#glass)" stroke="#e8eef3" stroke-opacity=".75" stroke-width="1.3" stroke-linejoin="round"/>
+  <path d="M30 96 H98" stroke="#16181b" stroke-width="1.2"/>
+  <!-- graduations -->
+  <g stroke="#e8eef3" stroke-opacity=".8" stroke-width="1.1"><path d="M48 62 H54M44 70 H52M40 78 H48M36 86 H44"/></g>
+  <path d="M58 36 V50 L38 90" stroke="#fff" stroke-opacity=".55" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <!-- stopper -->
+  <g filter="url(#s)">
+    <path d="M52 18 H76 L74 32 H54 Z" fill="url(#graphite)" stroke="#16181b" stroke-width="1.4" stroke-linejoin="round"/>
+  </g>
+  <path d="M54 21 H74" stroke="#f2f8fd" stroke-opacity=".6" stroke-width="1"/>
+  <!-- loose crystals -->
+  <g filter="url(#s)" stroke="#5c6f80" stroke-width="1" stroke-linejoin="round">
+    <path d="M100 110 L104 96 L110 92 L112 104 L108 112 Z" fill="url(#ice)"/>
+    <path d="M14 108 L18 98 L24 104 L22 112 Z" fill="url(#ice)"/>
+  </g>
+</svg>

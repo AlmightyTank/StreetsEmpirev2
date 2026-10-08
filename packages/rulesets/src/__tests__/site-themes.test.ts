@@ -43,6 +43,21 @@ describe('Phase Y-E player-facing site themes', () => {
       styleKey: 'back-office',
       rarity: 'epic',
     });
+    expect(classicOgV07Z.cosmetics?.['casino-floor']).toMatchObject({
+      kind: 'SITE_THEME',
+      styleKey: 'casino-floor',
+      rarity: 'epic',
+    });
+    expect(classicOgV07Z.cosmetics?.['federal-case']).toMatchObject({
+      kind: 'SITE_THEME',
+      styleKey: 'federal-case',
+      rarity: 'epic',
+    });
+    expect(classicOgV07Z.cosmetics?.['midnight-market']).toMatchObject({
+      kind: 'SITE_THEME',
+      styleKey: 'midnight-market',
+      rarity: 'epic',
+    });
     expect(classicOgV07Z.cosmetics?.['winter-christmas-2026']).toMatchObject({
       kind: 'SITE_THEME',
       styleKey: 'winter-lights',

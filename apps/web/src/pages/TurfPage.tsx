@@ -233,7 +233,7 @@ export function TurfPage() {
       setTravel(travelData);
       setError(null);
     }).catch((caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Could not load city blocks.');
+      setError(caught instanceof ApiError ? caught.message : 'Could not load turf.');
     });
   }, []);
 
@@ -264,7 +264,7 @@ export function TurfPage() {
         <header className="se-cityblocks-hero">
           <div className="se-cityblocks-hero__copy">
             <span className="se-eyebrow">Territory command · {selected?.name ?? me.city.name}</span>
-            <h1>City Blocks</h1>
+            <h1>Turf</h1>
             <p>Read who owns the street, where pressure is building, and where your crew can claim, reinforce, defend, or push next.</p>
           </div>
 
@@ -274,33 +274,15 @@ export function TurfPage() {
                 Travel / roads
               </Link>
             ) : null}
-            <div className="se-cityblocks-hero__readout">
-              <span>
-                <small>Your blocks</small>
-                <strong>{selectedPulse ? formatNumber(selectedPulse.mine) : '—'}</strong>
-              </span>
-              <span>
-                <small>Player-held</small>
-                <strong>{selectedPulse ? `${formatNumber(selectedPulse.held)} / 5` : '—'}</strong>
-              </span>
-              <span>
-                <small>Visible pushes</small>
-                <strong>{selectedPulse ? formatNumber(selectedPulse.visiblePushes) : '—'}</strong>
-              </span>
-              <span>
-                <small>Posted crew</small>
-                <strong>{selectedPulse ? formatNumber(selectedPulse.postedThugs) : '—'}</strong>
-              </span>
-            </div>
           </div>
         </header>
 
         {error ? <Alert>{error}</Alert> : null}
-        {!cities && !error ? <div className="se-cityblocks-loading" role="status">Checking the blocks...</div> : null}
+        {!cities && !error ? <div className="se-cityblocks-loading" role="status">Checking turf...</div> : null}
 
         {cities && !turfCities.length ? (
           <Panel title="No Turf this round" className="se-cityblocks-panel">
-            <p className="se-dim">City Blocks comes alive on Turf rulesets. This round does not have holdable districts.</p>
+            <p className="se-dim">Turf comes alive on Turf rulesets. This round does not have holdable districts.</p>
           </Panel>
         ) : null}
 
@@ -387,6 +369,11 @@ export function TurfPage() {
                     <span className="se-cityblocks-sectionhead__meta">5 districts</span>
                   </div>
 
+                  {selected.turf?.upkeepDiscount ? (
+                    <p className="se-hint se-good">
+                      {selected.turf.upkeepDiscount.factionName} perk — your corners burn {selected.turf.upkeepDiscount.percent}% less beer and product.
+                    </p>
+                  ) : null}
                   <div className="se-cityblocks-boardwrap">
                     <CityBlockBoard city={selected} onChanged={load} />
                   </div>

@@ -56,7 +56,10 @@ export const CitiesService = {
       enabled: true,
       homeCity: home,
       products: catalog,
-      cities: rows.filter((row) => cities[row.slug]).map(({ slug }): CityCharacterDto => {
+      // 1.5.0-E3: the ruleset's order, so San Francisco takes Beverly Hills' place in the list.
+      cities: rows.filter((row) => cities[row.slug])
+        .sort((a, b) => Object.keys(cities).indexOf(a.slug) - Object.keys(cities).indexOf(b.slug))
+        .map(({ slug }): CityCharacterDto => {
         const city = cities[slug]!;
         const isHome = slug === home;
         const route = isHome ? null : findRoutes(ruleset, home, slug)[0] ?? null;

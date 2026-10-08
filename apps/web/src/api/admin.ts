@@ -5,6 +5,10 @@ import type {
   MonitoringSnapshotDto,
   AdminExploitFlagDto,
   AdminExploitFlagsDto,
+  AdminFactionAdjustmentInput,
+  AdminVehicleAdjustmentInput,
+  AdminVehicleRoundDto,
+  AdminFactionRoundDto,
   AdminCasinoDto,
   AdminLawDto,
   AdminLawPlayerDto,
@@ -27,6 +31,7 @@ import type {
   AdminAuditRetentionDto,
   AdminCloseExpiredResultDto,
   AdminCreateBannerInput,
+  AdminChangeRulesetInput,
   AdminCreateNewsInput,
   AdminDevBotsDto,
   AdminDiscordStatusDto,
@@ -37,8 +42,10 @@ import type {
   AdminPlayerSearchDto,
   AdminQuestContentDto,
   AdminRoundHealthDto,
+  AdminStreetPassUpdateInput,
   AdminRoundResultDto,
   AdminRoundsDto,
+  AdminRulesetChangeDto,
   AdminRulesetViewDto,
   AdminScheduleRoundInput,
   AdminSignalsDto,
@@ -83,6 +90,10 @@ export const adminApi = {
   resumeRound: (roundId: string, extend: boolean) => api.post<AdminRoundResultDto>(roundPath(roundId, 'resume'), { extend }),
   updateRound: (roundId: string, input: AdminUpdateRoundInput) => api.post<AdminRoundResultDto>(roundPath(roundId, 'update'), input),
   roundHealth: (roundId: string) => api.get<AdminRoundHealthDto>(roundPath(roundId, 'health')),
+  updateStreetPass: (roundId: string, input: AdminStreetPassUpdateInput) => api.post<AdminRoundHealthDto>(roundPath(roundId, 'street-pass'), input),
+  rulesetChange: (roundId: string, rulesetId?: string) =>
+    api.get<AdminRulesetChangeDto>(`${roundPath(roundId, 'ruleset-change')}${queryString({ rulesetId })}`),
+  changeRuleset: (roundId: string, input: AdminChangeRulesetInput) => api.post<AdminRoundResultDto>(roundPath(roundId, 'ruleset'), input),
   closeExpiredRounds: () => api.post<AdminCloseExpiredResultDto>('/admin/rounds/close-expired'),
 
   questContent: (roundId: string) =>
@@ -194,6 +205,14 @@ export const adminApi = {
   // 1.0.0-E: economy, fights, exploit flags and turf.
   markets: (roundId: string) => api.get<AdminMarketsDto>(roundPath(roundId, 'markets')),
   casino: (roundId: string) => api.get<AdminCasinoDto>(roundPath(roundId, 'casino')),
+  // 1.4.0-G: faction standing health and audited correction.
+  factions: (roundId: string) => api.get<AdminFactionRoundDto>(roundPath(roundId, 'factions')),
+  adjustPlayerFaction: (roundPlayerId: string, input: AdminFactionAdjustmentInput) =>
+    api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/factions/adjust`, input),
+  /** 1.5.0-E. Vehicle health for a round, and audited fleet corrections. */
+  vehicles: (roundId: string) => api.get<AdminVehicleRoundDto>(roundPath(roundId, 'vehicles')),
+  adjustPlayerVehicles: (roundPlayerId: string, input: AdminVehicleAdjustmentInput) =>
+    api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/vehicles/adjust`, input),
   // 1.3.0-G: law health, one player's Case, and an audited correction.
   law: (roundId: string) => api.get<AdminLawDto>(roundPath(roundId, 'law')),
   playerLaw: (roundPlayerId: string) => api.get<AdminLawPlayerDto>(`/admin/players/${enc(roundPlayerId)}/law`),

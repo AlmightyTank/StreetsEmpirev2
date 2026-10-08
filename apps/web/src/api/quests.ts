@@ -7,6 +7,8 @@ export const questsApi = {
     api.post<QuestPageDto>('/game/quests/' + encodeURIComponent(key) + '/accept', { actionId }),
   abandon: (key: string) =>
     api.post<QuestPageDto>('/game/quests/' + encodeURIComponent(key) + '/abandon', {}),
+  setAutoAccept: (enabled: boolean) =>
+    api.put<QuestPageDto>('/game/quests/auto-accept', { enabled }),
   track: (key: string, tracked: boolean) =>
     api.post<QuestPageDto>('/game/quests/' + encodeURIComponent(key) + '/track', { tracked }),
   claim: (key: string, actionId: string, branchKey?: string) =>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '../stores/session.js';
+import { useOnboarding } from '../stores/onboarding.js';
 import { CONSOLE_UPDATED_EVENT, consoleApi } from '../api/console.js';
 import { SURVEYS_CHANGED_EVENT, surveysApi } from '../api/surveys.js';
 import { formatWhen } from '../utils/time.js';
@@ -23,6 +24,8 @@ export interface NavPage {
 export interface NavSection {
   id: string;
   title: string;
+  /** Initial sidebar state before the player changes it. */
+  defaultOpen?: boolean;
   pages: NavPage[];
 }
 
@@ -41,10 +44,10 @@ export const SECTIONS: NavSection[] = [
       { key: 'produce', label: 'Produce', to: '/game/produce', icon: 'produce' },
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
-      { key: 'casino', label: 'Casino', to: '/game/casino', icon: 'casino' },
+      { key: 'casino', label: 'Casino', to: '/game/casino', icon: 'casino', prefix: '/game/casino/' },
       { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },
       { key: 'travel', label: 'Travel', to: '/game/travel', icon: 'cities' },
-      { key: 'turf', label: 'City Blocks', short: 'Blocks', to: '/game/turf', icon: 'cities' },
+      { key: 'turf', label: 'Turf', to: '/game/turf', icon: 'cities' },
     ],
   },
   {
@@ -89,35 +92,82 @@ export const ADMIN_SECTION: NavSection = {
   id: 'admin',
   title: 'Admin',
   pages: [
-    { key: 'admin-monitoring', label: 'Monitoring', to: '/game/admin/monitoring', icon: 'admin' },
-    { key: 'admin-rounds', label: 'Rounds', to: '/game/admin', icon: 'admin', prefix: '/game/admin/rounds/' },
-    { key: 'admin-news', label: 'News & banner', short: 'Banner', to: '/game/admin/news', icon: 'admin' },
-    { key: 'admin-surveys', label: 'Surveys', to: '/game/admin/surveys', icon: 'admin' },
-    { key: 'admin-quests', label: 'Quest Content', short: 'Quests', to: '/game/admin/quests', icon: 'admin' },
+    { key: 'admin-law', label: 'Law', to: '/game/admin/law', icon: 'admin' },
     { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefix: '/game/admin/accounts/' },
-    { key: 'admin-integrations', label: 'Integrations', short: 'Integr.', to: '/game/admin/integrations', icon: 'admin' },
+    { key: 'admin-factions', label: 'Factions', to: '/game/admin/factions', icon: 'admin' },
+    { key: 'admin-vehicles', label: 'Vehicles', to: '/game/admin/vehicles', icon: 'admin' },
     { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets', icon: 'admin' },
+    { key: 'admin-rounds', label: 'Rounds', to: '/game/admin/rounds', icon: 'admin', prefix: '/game/admin/rounds/' },
+    { key: 'admin-monitoring', label: 'Monitoring', to: '/game/admin/monitoring', icon: 'admin' },
+    { key: 'admin-news', label: 'News and Banners', short: 'News', to: '/game/admin/news', icon: 'admin' },
+    { key: 'admin-surveys', label: 'Surveys', to: '/game/admin/surveys', icon: 'admin' },
+    { key: 'admin-quests', label: 'Quests', to: '/game/admin/quests', icon: 'admin' },
+    { key: 'admin-integrations', label: 'Integrations', short: 'Integr.', to: '/game/admin/integrations', icon: 'admin' },
     { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports', icon: 'admin' },
-    { key: 'admin-bugs', label: 'Bug reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin' },
+    { key: 'admin-bugs', label: 'Bug Reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin' },
     { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy', icon: 'admin' },
     { key: 'admin-casino', label: 'Casino', to: '/game/admin/casino', icon: 'admin' },
-    { key: 'admin-law', label: 'Law', to: '/game/admin/law', icon: 'admin' },
-    { key: 'admin-combat', label: 'Combat & exploits', short: 'Combat', to: '/game/admin/combat', icon: 'admin' },
+    { key: 'admin-combat', label: 'Combat and Exploits', short: 'Combat', to: '/game/admin/combat', icon: 'admin' },
     { key: 'admin-turf', label: 'Turf', to: '/game/admin/turf', icon: 'admin' },
-    { key: 'admin-signals', label: 'Signals', to: '/game/admin/signals', icon: 'admin' },
     { key: 'admin-audit', label: 'Audit log', short: 'Audit', to: '/game/admin/audit', icon: 'admin' },
+    { key: 'admin-signals', label: 'Signals', to: '/game/admin/signals', icon: 'admin' },
   ],
 };
+
+function pagesByKey(sections: readonly NavSection[]): Map<string, NavPage> {
+  return new Map(sections.flatMap((section) => section.pages.map((page) => [page.key, page] as const)));
+}
+
+function pickPages(pages: ReadonlyMap<string, NavPage>, keys: readonly string[]): NavPage[] {
+  return keys.map((key) => pages.get(key)).filter((page): page is NavPage => Boolean(page));
+}
+
+export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSection[] {
+  const pages = pagesByKey(sections);
+  return [
+    {
+      id: 'new-player-core',
+      title: 'Start Here',
+      pages: pickPages(pages, ['dashboard', 'scout', 'stores', 'produce', 'raids', 'quests']),
+    },
+    {
+      id: 'new-player-next',
+      title: 'Next Steps',
+      defaultOpen: false,
+      pages: pickPages(pages, ['hideout', 'travel', 'turf', 'casino', 'street-pass']),
+    },
+    {
+      id: 'new-player-people',
+      title: 'People',
+      defaultOpen: false,
+      pages: pickPages(pages, ['console', 'players', 'alliance', 'rankings', 'profile']),
+    },
+    {
+      id: 'new-player-game',
+      title: 'Game',
+      defaultOpen: false,
+      pages: pickPages(pages, ['news', 'status', 'rules', 'account']),
+    },
+  ].filter((section) => section.pages.length > 0);
+}
+
+export function useNewPlayerNavModel(): boolean {
+  const me = useSession((s) => s.me);
+  const guide = useOnboarding((s) => s.state?.guide ?? null);
+  return Boolean(me && guide && !guide.complete);
+}
 
 export function useSections(): NavSection[] {
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
   const hasPass = useSession((s) => Boolean(s.me?.streetPass));
+  const newPlayerNav = useNewPlayerNavModel();
   return useMemo(() => {
     const sections = hasPass
       ? SECTIONS
       : SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => page.key !== 'street-pass') }));
-    return isAdmin ? [...sections, ADMIN_SECTION] : sections;
-  }, [isAdmin, hasPass]);
+    const playerSections = newPlayerNav ? newPlayerSectionsFor(sections) : sections;
+    return isAdmin ? [...playerSections, ADMIN_SECTION] : playerSections;
+  }, [isAdmin, hasPass, newPlayerNav]);
 }
 
 function pathMatches(pathname: string, to: string, aliases: readonly string[] = [], prefix?: string, prefixes: readonly string[] = []): boolean {

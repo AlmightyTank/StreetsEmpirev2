@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatSpecialRaidDto, type CombatTargetDto, type SpecialRaidKindDto } from '@streets/shared';
+import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatSpecialRaidDto, type CombatTargetDto, type CustomizableItemKey, type ItemCosmeticStyleKey, type SpecialRaidKindDto } from '@streets/shared';
 import { combatApi } from '../api/combat.js';
 import { ApiError } from '../api/client.js';
+import { ActionDock, deltaChip, type ResultChip } from '../components/ActionDock.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
+import { showGameToast } from '../components/GameEventToasts.js';
 import { Button } from '../components/Button.js';
-import { ItemLabel } from '../components/ItemTile.js';
+import { ItemLabel, ItemTile } from '../components/ItemTile.js';
 import { Panel, Row } from '../components/Panel.js';
 import { supplyEffects, supplySummary, WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -22,12 +24,87 @@ import { formatWhen } from '../utils/time.js';
 const date = (value: string) => formatWhen(value);
 const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 'AK-47' : key.toLowerCase();
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
+const npcDangerLabel = { QUIET: 'Quiet', ACTIVE: 'Active', HOT: 'Hot' } as const;
 
 const signedUnits = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatNumber(Math.abs(value))}`;
-/** A report row label with the item's picture; `slot` keeps labels lined up when a Low-Rider row is in the list. */
-const art = (itemKey: string, text: string) => <ItemLabel itemKey={itemKey} slot>{text}</ItemLabel>;
+/**
+ * A report row label with the item's picture; `slot` keeps labels lined up when
+ * a Low-Rider row is in the list. `style` draws it in one side's art (Slice G).
+ */
+const art = (itemKey: string, text: string, style?: ItemCosmeticStyleKey) => <ItemLabel itemKey={itemKey} slot cosmeticStyle={style}>{text}</ItemLabel>;
+
+type LookSide = 'you' | 'opponent';
+
+/**
+ * Slice G: the style an item had on one side of this battle. Undefined on
+ * reports from before looks were captured, which keeps the viewer's own art.
+ */
+function sideStyle(report: BattleReportDto, side: LookSide, itemKey: string): ItemCosmeticStyleKey | undefined {
+  const look = report.looks?.[side];
+  if (!look) return undefined;
+  if (itemKey === 'THUG' || itemKey === 'HOE') return look.crew[itemKey];
+  return look.items[itemKey as CustomizableItemKey] ?? 'classic';
+}
+
+/** Whose side the defender's crew, product and rides are on in this report. */
+const defenderSide = (report: BattleReportDto): LookSide => (report.role === 'DEFENDER' ? 'you' : 'opponent');
+
+const FACE_OFF_ITEMS = ['THUG', 'AK47', 'LOW_RIDER'] as const;
+
+function hasLookFlair(report: BattleReportDto): boolean {
+  const looks = report.looks;
+  if (!looks) return false;
+  return [looks.you, looks.opponent].some((look) => Object.values(look.items).some((style) => style && style !== 'classic')
+    || Object.values(look.crew).some((style) => style !== 'classic'));
+}
+
+/** Slice G: each side's look when the battle happened. Art only, never counts. */
+function FaceOff({ report }: { report: BattleReportDto }) {
+  if (!hasLookFlair(report)) return null;
+  const side = (who: LookSide, label: string) => (
+    <div className="se-faceoff__side">
+      <span className="se-faceoff__label">{label}</span>
+      <div className="se-faceoff__tiles">
+        {FACE_OFF_ITEMS.map((key) => <ItemTile key={key} item={key} size="sm" label={false} cosmeticStyle={sideStyle(report, who, key)} />)}
+      </div>
+    </div>
+  );
+  return (
+    <div className="se-faceoff" aria-label="Each side's look in this fight">
+      {side('you', 'You')}
+      {side('opponent', `vs ${report.opponent.displayName}`)}
+    </div>
+  );
+}
 
 const signedCents = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatCents(Math.abs(value))}`;
+
+/** The battle report squeezed into one line for the dock: what you took, lost and broke. */
+function battleChips(report: BattleReportDto): ResultChip[] {
+  const chips: ResultChip[] = [];
+  if (report.cashChangeCents) chips.push(deltaChip('Cash', report.cashChangeCents, { money: true }));
+  if (report.inventoryChanges?.length) {
+    for (const row of report.inventoryChanges) if (row.change) chips.push(deltaChip(row.name, row.change));
+  } else {
+    if (report.crackChange) chips.push(deltaChip(report.productChanges ? 'Crack' : 'Product', report.crackChange));
+    for (const row of report.productChanges ?? []) if (row.change) chips.push(deltaChip(row.name, row.change));
+  }
+  const form = report.raidForm;
+  if (form?.whoresDrugged) chips.push(deltaChip('Hoes drugged', form.whoresDrugged));
+  if (form?.whoresLured) chips.push(deltaChip('Hoes joined', form.whoresLured));
+  if (form?.thugsLured) chips.push(deltaChip('Thugs joined', form.thugsLured));
+  if (form?.lowRidersStolen) chips.push(deltaChip('Low-Riders', form.lowRidersStolen));
+  if (report.driveBy?.whoresKilled) chips.push(deltaChip('Their whores killed', report.driveBy.whoresKilled));
+  if (report.driveBy?.lowRidersLost) chips.push(deltaChip('Low-Riders', -report.driveBy.lowRidersLost));
+  if (report.yourWounds) chips.push(deltaChip('Your wounded', report.yourWounds, { invert: true }));
+  if (report.opponentWounds) chips.push(deltaChip('Their wounded', report.opponentWounds));
+  if (report.nationalRankBefore !== report.nationalRankAfter) {
+    chips.push({ ...deltaChip('National rank', report.nationalRankBefore - report.nationalRankAfter), text: `#${report.nationalRankAfter}` });
+  }
+  chips.push({ key: 'turns', label: 'Turns', text: `−${formatNumber(report.turnsSpent)}`, tone: 'muted' });
+  if (report.cooldownUntil) chips.push({ key: 'cooldown', label: 'Next hit', text: date(report.cooldownUntil), tone: 'muted' });
+  return chips;
+}
 
 function BattleInventoryRows({ report }: { report: BattleReportDto }) {
   if (report.inventoryChanges?.length) {
@@ -40,7 +117,7 @@ function BattleInventoryRows({ report }: { report: BattleReportDto }) {
         ].filter(Boolean).join(' · ');
         return <Row
           key={row.product}
-          label={art(row.product, row.name)}
+          label={art(row.product, row.name, sideStyle(report, 'you', row.product))}
           value={`${signedUnits(row.change)} / ${formatNumber(row.after)} left${parts ? ` · ${parts}` : ''}`}
           strong={row.change !== 0}
         />;
@@ -51,13 +128,13 @@ function BattleInventoryRows({ report }: { report: BattleReportDto }) {
   return <>
     {report.crackChange !== undefined && report.crackAfter !== undefined
       ? <Row
-          label={art('CRACK', report.productChanges ? 'Crack' : 'Product')}
+          label={art('CRACK', report.productChanges ? 'Crack' : 'Product', sideStyle(report, 'you', 'CRACK'))}
           value={`${signedUnits(report.crackChange)} / ${formatNumber(report.crackAfter)} left`}
           strong={report.crackChange !== 0}
         />
       : null}
     {(report.productChanges ?? []).map((row) => (
-      <Row key={row.product} label={art(row.product, row.name)} value={signedUnits(row.change)} strong={row.change !== 0} />
+      <Row key={row.product} label={art(row.product, row.name, sideStyle(report, 'you', row.product))} value={signedUnits(row.change)} strong={row.change !== 0} />
     ))}
   </>;
 }
@@ -169,25 +246,6 @@ function raidFormOutcome(report: BattleReportDto): { text: string; tone: 'good' 
   return null;
 }
 
-function TrophyCallouts({ report }: { report: BattleReportDto }) {
-  if (!report.trophyCallouts?.length) return null;
-  return (
-    <div className="se-trophies" role="status" aria-label="Unlocked achievements">
-      <p className="se-trophies__label">
-        {report.trophyCallouts.length === 1 ? 'Achievement unlocked' : 'Achievements unlocked'}
-      </p>
-      <ul>
-        {report.trophyCallouts.map((trophy) => (
-          <li key={trophy.key}>
-            <span className="se-trophy__title">{trophy.title}</span>
-            <span className="se-trophy__desc">{trophy.description}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 function TargetCard({ target, selectedBlock, driving }: { target: CombatTargetDto; selectedBlock: string | null; driving: boolean }) {
   return (
     <div className={`se-target-card${selectedBlock ? ' se-target-card--blocked' : ''}`}>
@@ -235,15 +293,15 @@ function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?:
   const landed = attacking === report.won;
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They hit you') : (attacking ? 'They shot back' : 'Seen off')} · ${reportLabel(report)}`}>
     <p>{attacking ? 'On' : 'By'} <b><AllianceTag alliance={report.opponent.alliance} link={false} />{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
-    <TrophyCallouts report={report} />
+    <FaceOff report={report} />
     <div className="se-rows">
       <Row label={attacking ? 'Shooters — yours / out front' : 'Out front — yours / shooters'} value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Firepower — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
       {report.yourSupply ? <Row label="Fight supply plan" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
       <BattleInventoryRows report={report} />
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds)} / ${formatNumber(report.opponentWounds)}`} />
-      <Row label={art('HOE', attacking ? 'Their whores killed' : 'Your whores killed')} value={d.whoresAfter !== undefined ? `${formatNumber(d.whoresKilled)} · ${formatNumber(d.whoresAfter)} left` : formatNumber(d.whoresKilled)} strong />
-      {attacking ? <Row label={art('LOW_RIDER', 'Low-Riders — sent / lost / left')} value={`${formatNumber(d.carsSent ?? 0)} / ${formatNumber(d.lowRidersLost ?? 0)} / ${formatNumber(d.lowRidersAfter ?? 0)}`} strong={(d.lowRidersLost ?? 0) > 0} /> : null}
+      <Row label={art('HOE', attacking ? 'Their whores killed' : 'Your whores killed', sideStyle(report, defenderSide(report), 'HOE'))} value={d.whoresAfter !== undefined ? `${formatNumber(d.whoresKilled)} · ${formatNumber(d.whoresAfter)} left` : formatNumber(d.whoresKilled)} strong />
+      {attacking ? <Row label={art('LOW_RIDER', 'Low-Riders — sent / lost / left', sideStyle(report, 'you', 'LOW_RIDER'))} value={`${formatNumber(d.carsSent ?? 0)} / ${formatNumber(d.lowRidersLost ?? 0)} / ${formatNumber(d.lowRidersAfter ?? 0)}`} strong={(d.lowRidersLost ?? 0) > 0} /> : null}
       {attacking ? <Row label={art('TURNS', 'Turns spent / remaining')} value={`${report.turnsSpent} / ${report.turnsAfter}`} /> : null}
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
     </div>
@@ -251,6 +309,7 @@ function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?:
     {(d.lowRidersLost ?? 0) > 0 ? <p className="se-hint se-bad">Nobody made it back in {formatNumber(d.lowRidersLost!)} of your cars, so {d.lowRidersLost === 1 ? 'it is' : 'they are'} gone.</p> : null}
     {report.yourWounds > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
     {report.retaliation ? <p className="se-hint">This was retaliation for a hit on you.</p> : null}
+    {report.payback ? <p className="se-hint">This was payback. You hit {report.opponent.displayName} first, and they answered inside the revenge window.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Your block is left alone by drive-bys until {date(report.protectedUntil)}. A drive-by does not stop a raid.</p> : null}
     {attacking && report.cooldownUntil ? <p className="se-hint">Next drive-by after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
@@ -265,8 +324,8 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
   const outcome = raidFormOutcome(report);
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They got through') : (attacking ? 'They held you off' : 'You held them off')} · ${reportLabel(report)}`}>
     <p>{attacking ? 'Against' : 'By'} <b><AllianceTag alliance={report.opponent.alliance} link={false} />{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
+    <FaceOff report={report} />
     {outcome ? <p className={outcome.tone === 'good' ? 'se-good' : outcome.tone === 'bad' ? 'se-bad' : 'se-hint'}>{outcome.text}</p> : null}
-    <TrophyCallouts report={report} />
     <div className="se-rows">
       <Row label="Crew — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
@@ -280,20 +339,21 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
         />
       ) : null}
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
-      {form.whoresDrugged !== undefined ? <Row label={art('HOE', attacking ? 'Their hoes drugged' : 'Your hoes drugged')} value={formatNumber(form.whoresDrugged)} strong={form.whoresDrugged > 0} /> : null}
-      {form.whoresLured !== undefined ? <Row label={art('HOE', attacking ? 'Hoes joined / now' : 'Hoes lost / left')} value={form.whoresAfter !== undefined ? `${formatNumber(form.whoresLured)} / ${formatNumber(form.whoresAfter)}` : formatNumber(form.whoresLured)} strong={form.whoresLured > 0} /> : null}
-      {form.thugsLured !== undefined ? <Row label={art('THUG', attacking ? 'Thugs joined / now' : 'Thugs lost / left')} value={form.thugsAfter !== undefined ? `${formatNumber(form.thugsLured)} / ${formatNumber(form.thugsAfter)}` : formatNumber(form.thugsLured)} strong={form.thugsLured > 0} /> : null}
-      {!report.inventoryChanges?.length && form.crackSpent !== undefined && attacking ? <Row label={art('CRACK', 'Product spent')} value={formatNumber(form.crackSpent)} /> : null}
-      {form.beerSpent !== undefined && attacking ? <Row label={art('BEER', 'Beer spent')} value={formatNumber(form.beerSpent)} /> : null}
-      {!report.inventoryChanges?.length && form.defenderCrackBurned !== undefined ? <Row label={art('CRACK', attacking ? 'Their product burned' : 'Your product burned')} value={formatNumber(form.defenderCrackBurned)} strong={form.defenderCrackBurned > 0} /> : null}
-      {form.defenderCondomsBurned !== undefined ? <Row label={art('CONDOM', attacking ? 'Their condoms burned' : 'Your condoms burned')} value={formatNumber(form.defenderCondomsBurned)} strong={form.defenderCondomsBurned > 0} /> : null}
-      {form.lowRidersStolen !== undefined ? <Row label={art('LOW_RIDER', attacking ? 'Low-Riders stolen' : 'Low-Riders lost')} value={`${formatNumber(form.lowRidersStolen)} · ${formatNumber(form.lowRidersAfter ?? 0)} left`} strong={form.lowRidersStolen > 0} /> : null}
+      {form.whoresDrugged !== undefined ? <Row label={art('HOE', attacking ? 'Their hoes drugged' : 'Your hoes drugged', sideStyle(report, defenderSide(report), 'HOE'))} value={formatNumber(form.whoresDrugged)} strong={form.whoresDrugged > 0} /> : null}
+      {form.whoresLured !== undefined ? <Row label={art('HOE', attacking ? 'Hoes joined / now' : 'Hoes lost / left', sideStyle(report, defenderSide(report), 'HOE'))} value={form.whoresAfter !== undefined ? `${formatNumber(form.whoresLured)} / ${formatNumber(form.whoresAfter)}` : formatNumber(form.whoresLured)} strong={form.whoresLured > 0} /> : null}
+      {form.thugsLured !== undefined ? <Row label={art('THUG', attacking ? 'Thugs joined / now' : 'Thugs lost / left', sideStyle(report, defenderSide(report), 'THUG'))} value={form.thugsAfter !== undefined ? `${formatNumber(form.thugsLured)} / ${formatNumber(form.thugsAfter)}` : formatNumber(form.thugsLured)} strong={form.thugsLured > 0} /> : null}
+      {!report.inventoryChanges?.length && form.crackSpent !== undefined && attacking ? <Row label={art('CRACK', 'Product spent', sideStyle(report, 'you', 'CRACK'))} value={formatNumber(form.crackSpent)} /> : null}
+      {form.beerSpent !== undefined && attacking ? <Row label={art('BEER', 'Beer spent', sideStyle(report, 'you', 'BEER'))} value={formatNumber(form.beerSpent)} /> : null}
+      {!report.inventoryChanges?.length && form.defenderCrackBurned !== undefined ? <Row label={art('CRACK', attacking ? 'Their product burned' : 'Your product burned', sideStyle(report, defenderSide(report), 'CRACK'))} value={formatNumber(form.defenderCrackBurned)} strong={form.defenderCrackBurned > 0} /> : null}
+      {form.defenderCondomsBurned !== undefined ? <Row label={art('CONDOM', attacking ? 'Their condoms burned' : 'Your condoms burned', sideStyle(report, defenderSide(report), 'CONDOM'))} value={formatNumber(form.defenderCondomsBurned)} strong={form.defenderCondomsBurned > 0} /> : null}
+      {form.lowRidersStolen !== undefined ? <Row label={art('LOW_RIDER', attacking ? 'Low-Riders stolen' : 'Low-Riders lost', sideStyle(report, defenderSide(report), 'LOW_RIDER'))} value={`${formatNumber(form.lowRidersStolen)} · ${formatNumber(form.lowRidersAfter ?? 0)} left`} strong={form.lowRidersStolen > 0} /> : null}
       {attacking ? <Row label={art('TURNS', 'Turns spent / remaining')} value={`${report.turnsSpent} / ${report.turnsAfter}`} /> : null}
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
     </div>
     {attacking ? <p className="se-hint">Your weapons: {weaponsText(report.yourEquipment)}.</p> : null}
     {(report.yourWounds ?? 0) > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
     {report.retaliation ? <p className="se-hint">This was payback. Revenge let you answer the crew that hit you.</p> : null}
+    {report.payback ? <p className="se-hint">This was payback. You hit {report.opponent.displayName} first, and they answered inside the revenge window.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Your block is protected until {date(report.protectedUntil)}. You also need your crew back before the next raid.</p> : null}
     {report.cooldownUntil ? <p className="se-hint">Next move after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
@@ -305,7 +365,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
   if ((report.kind === 'DRUG_HOES' || report.kind === 'STEAL_RIDE' || report.kind === 'LURE_CREW') && report.raidForm) return <RaidFormReport report={report} onClose={onClose} />;
   return <Panel title={`${report.won ? 'Victory' : 'Defeat'} · ${reportLabel(report)}`}>
     <p>Against <b><AllianceTag alliance={report.opponent.alliance} link={false} />{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
-    <TrophyCallouts report={report} />
+    <FaceOff report={report} />
     <div className="se-rows">
       <Row label="Squads — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
@@ -327,6 +387,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
     <p className="se-hint">Your weapons: {weaponsText(report.yourEquipment)}.</p>
     {(report.yourWounds ?? 0) > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
     {report.retaliation ? <p className="se-hint">This was payback. Revenge let you answer the crew that hit you.</p> : null}
+    {report.payback ? <p className="se-hint">This was payback. You hit {report.opponent.displayName} first, and they answered inside the revenge window.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Your block is protected until {date(report.protectedUntil)}. You also need your crew back before the next raid.</p> : null}
     {report.cooldownUntil ? <p className="se-hint">Next raid after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
@@ -340,6 +401,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const [reports, setReports] = useState<BattleReportDto[]>([]);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
   const [report, setReport] = useState<BattleReportDto | null>(null);
+  const [latest, setLatest] = useState<BattleReportDto | null>(null);
   const [closingReportId, setClosingReportId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingRaid | null>(() => loadPendingRaid(browserSessionStorage(), playerId));
   const [targetId, setTargetId] = useState('');
@@ -490,10 +552,20 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
         : request.kind === 'DRUG_HOES' || request.kind === 'STEAL_RIDE' || request.kind === 'LURE_CREW'
           ? await combatApi.specialRaid({ ...request.input, kind: request.kind })
           : await combatApi.raid(request.input);
-      if (closeReportTimer.current !== null) window.clearTimeout(closeReportTimer.current);
-      closeReportTimer.current = null;
-      setClosingReportId(null);
-      setReport(result);
+      // The fresh result lands in the dock under the launch button; the top
+      // report slot stays for opening older hits from the history list.
+      setLatest(result);
+      // Achievements are news, not part of the fight's ledger: they pop as
+      // alerts once, when earned, instead of living inside the report.
+      for (const trophy of result.trophyCallouts ?? []) {
+        showGameToast({
+          id: `trophy:${result.id}:${trophy.key}`,
+          title: `Achievement unlocked: ${trophy.title}`,
+          detail: trophy.description,
+          tone: 'good',
+          href: '/game/profile',
+        });
+      }
       setSaved(null);
       setTargetId('');
       await refresh(true);
@@ -577,17 +649,60 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
           >
             Refresh street
           </Button>
-          <div className="se-raids-hero__readout">
-            <span><small>Turns</small><strong>{formatNumber(me.turns.turns)}</strong></span>
-            <span><small>Fit thugs</small><strong>{formatNumber(recovery?.fitThugs ?? me.resources.fitThugs)}</strong></span>
-            <span><small>Armed</small><strong>{formatNumber(me.resources.armedThugs)}</strong></span>
-            <span><small>Wounded</small><strong>{formatNumber(recovery?.woundedThugs ?? me.resources.woundedThugs)}</strong></span>
-          </div>
         </div>
       </header>
 
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="info">{notice}</Alert> : null}
+      {page?.npcGangIntel ? (
+        <Panel title="Street rumors" aside={`NPC gangs · ${npcDangerLabel[page.npcGangIntel.danger]}`} className="se-raids-panel">
+          <div className="se-rows">
+            <Row label="Local pressure" value={npcDangerLabel[page.npcGangIntel.danger]} strong={page.npcGangIntel.danger !== 'QUIET'} />
+            <Row label="Crews nearby" value={formatNumber(page.npcGangIntel.activeGangs)} />
+            <Row label="NPC hits since" value={`${date(page.npcGangIntel.seenSince)} · ${formatNumber(page.npcGangIntel.recentHits)} hit${page.npcGangIntel.recentHits === 1 ? '' : 's'}`} />
+            {page.npcGangIntel.topArchetype ? <Row label="Loudest style" value={`${page.npcGangIntel.topArchetype}${page.npcGangIntel.topTier ? ` · ${page.npcGangIntel.topTier}` : ''}`} /> : null}
+            {page.npcGangIntel.npcBlocks?.length ? (
+              <Row
+                label="Crew-held blocks"
+                value={`${page.npcGangIntel.npcBlocks.join(', ')}${page.npcGangIntel.onTheirTurf ? ' · you work there' : ''}`}
+                strong={page.npcGangIntel.onTheirTurf}
+                tooltip="Server-run crews hold these corners like anyone else. They lean on crews that work their blocks, and you can push them off."
+              />
+            ) : null}
+            {page.npcGangIntel.mood ? (
+              <Row
+                label="Crew mood"
+                value={[
+                  page.npcGangIntel.mood.hot ? `${formatNumber(page.npcGangIntel.mood.hot)} on a run` : null,
+                  page.npcGangIntel.mood.cooled ? `${formatNumber(page.npcGangIntel.mood.cooled)} licking wounds` : null,
+                  page.npcGangIntel.mood.dormant ? `${formatNumber(page.npcGangIntel.mood.dormant)} gone to ground` : null,
+                ].filter(Boolean).join(' · ')}
+                strong={page.npcGangIntel.mood.hot > 0}
+                tooltip="Crews that keep winning get bolder and move faster. Beat them enough, or keep hitting them, and they go to ground for a while."
+              />
+            ) : null}
+            {page.npcGangIntel.movement?.inbound.length ? (
+              <Row
+                label="Crews inbound"
+                value={page.npcGangIntel.movement.inbound.map((move) => `${move.fromName} · ${date(move.arrivesAt)}`).join(', ')}
+                strong
+                tooltip="Server-run crews moving here. They land when their truck does and start working the city like anyone new."
+              />
+            ) : null}
+            {page.npcGangIntel.wantedBy && page.npcGangIntel.wantedUntil ? (
+              <Row
+                label="Payback risk"
+                value={`${formatNumber(page.npcGangIntel.wantedBy)} crew${page.npcGangIntel.wantedBy === 1 ? '' : 's'} · cools ${date(page.npcGangIntel.wantedUntil)}`}
+                strong
+                tooltip="NPC crews you hit can hit you back until then. They still respect your shields, cool-offs and the dogpile limit."
+              />
+            ) : null}
+          </div>
+          <ul className="se-city__talk">
+            {page.npcGangIntel.rumors.map((rumor) => <li key={rumor}>{rumor}</li>)}
+          </ul>
+        </Panel>
+      ) : null}
 
       {pending ? (
         <section className="se-raids-pending">
@@ -682,7 +797,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               {modeBlock ? <div className="se-raids-block" role="status">{modeBlock}</div> : null}
 
               {page.targets.length ? (
-                <form onSubmit={(event) => void submit(event)} className="se-raids-form">
+                <div className="se-raids-form">
                   <fieldset disabled={busy || !!pending}>
                     <div className="se-raids-field">
                       <label htmlFor="raid-target">Mark in your city</label>
@@ -697,20 +812,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                     </div>
 
                     <div className="se-raids-field">
-                      <div className="se-raids-field__head">
-                        <label htmlFor="raid-squad">{driving ? 'Shooters to send' : 'Thugs to send'}</label>
-                        <span>max {formatNumber(maxSquad)}</span>
-                      </div>
-                      <input
-                        id="raid-squad"
-                        className="se-input"
-                        type="number"
-                        inputMode="numeric"
-                        min="1"
-                        max={maxSquad}
-                        value={squad}
-                        onChange={(event) => setSquad(event.target.value)}
-                      />
                       <p className="se-hint">
                         {driving
                           ? `${formatNumber(driveBy!.lowRiders)} Low-Rider${driveBy!.lowRiders === 1 ? '' : 's'} available · ${driveBy!.rules.thugsPerLowRider} shooters per car. A car is lost only if nobody in it makes it home.`
@@ -723,23 +824,8 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                                 : 'Your best guns go with the crew automatically. One weapon per fighter.'}
                       </p>
                     </div>
-
-                    <div className="se-raids-launch">
-                      <div>
-                        <span className="se-raids-launch__label">Crew order</span>
-                        <strong>{selected ? selected.displayName : 'Choose a mark'} · {formatNumber(squadNumber || 0)} sent</strong>
-                        <span>{attackBlock ?? `${formatNumber(turnCost)} turns will be spent when the hit resolves.`}</span>
-                      </div>
-                      <Button type="submit" className="se-btn se-btn--primary se-raids-launch__button" disabledReason={attackBlock}>
-                        {driving
-                          ? (selectedBlock ? 'Drive-by blocked' : 'Launch drive-by')
-                          : doingSpecialRaid
-                            ? (selectedBlock ? `${specialRaid.buttonLabel} blocked` : specialRaid.buttonLabel)
-                            : (selectedBlock ? 'Raid blocked' : 'Launch raid')}
-                      </Button>
-                    </div>
                   </fieldset>
-                </form>
+                </div>
               ) : (
                 <div className="se-raids-empty">No marks are exposed in your city right now. Check back when another crew is active or protection drops.</div>
               )}
@@ -870,7 +956,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                     <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
                     <Row label="Beer" value={formatNumber(me.resources.beer)} />
                     <Row label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
-                    <WorkSupplyStockRows jobs={FIGHT_SUPPLY_JOBS} refreshKey={report?.id} />
+                    <WorkSupplyStockRows jobs={FIGHT_SUPPLY_JOBS} refreshKey={latest?.id ?? report?.id} />
                   </div>
                 </Panel>
               </div>
@@ -884,7 +970,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                     { job: 'CONVOY', label: 'Escorts on a run' },
                   ]}
                   turns={1}
-                  refreshKey={report?.id}
+                  refreshKey={latest?.id ?? report?.id}
                 />
                 <HitRulesPanel mode={mode} rules={rules!} driveBy={driveBy} specialRaid={specialRaid} />
               </div>
@@ -935,6 +1021,56 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               ) : null}
             </Panel>
           </section>
+
+          <ActionDock
+            label="Send the crew"
+            onSubmit={(event) => void submit(event)}
+            outcome={latest ? {
+              id: latest.id,
+              title: `${latest.won ? 'Won' : 'Lost'} · ${reportLabel(latest)} on ${latest.opponent.displayName}`,
+              tone: latest.won ? 'good' : 'bad',
+              chips: battleChips(latest),
+              receipt: <BattleReport report={latest} />,
+              onDismiss: () => setLatest(null),
+            } : null}
+          >
+            <div>
+              <span className="se-dock__label">Crew order · {attackName(driving ? 'DRIVE_BY' : doingSpecialRaid ? specialRaid.kind : 'RAID')}</span>
+              <strong>{selected ? selected.displayName : 'Choose a mark'}</strong>
+              <span>{attackBlock ?? `${formatNumber(turnCost)} turns when the hit resolves`}</span>
+            </div>
+            <div className="se-dock__amount">
+              <label htmlFor="raid-squad">{driving ? 'Shooters' : 'Thugs'}</label>
+              <input
+                id="raid-squad"
+                className="se-input"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                max={maxSquad}
+                value={squad}
+                disabled={busy || !!pending}
+                onChange={(event) => setSquad(event.target.value)}
+              />
+              <Button
+                type="button"
+                className="se-btn se-btn--sm"
+                disabledReason={busy || pending ? 'Your last hit is still going through.' : maxSquad < 1 ? 'Nobody fit to send.' : null}
+                onClick={() => setSquad(String(maxSquad))}
+              >
+                Max {formatNumber(maxSquad)}
+              </Button>
+            </div>
+            <Button type="submit" className="se-btn se-btn--primary" disabledReason={attackBlock}>
+              {busy
+                ? 'Crew is out...'
+                : driving
+                  ? (selectedBlock ? 'Drive-by blocked' : 'Launch drive-by')
+                  : doingSpecialRaid
+                    ? (selectedBlock ? `${specialRaid.buttonLabel} blocked` : specialRaid.buttonLabel)
+                    : (selectedBlock ? 'Raid blocked' : 'Launch raid')}
+            </Button>
+          </ActionDock>
         </>
       )}
     </div>

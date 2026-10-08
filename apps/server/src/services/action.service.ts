@@ -73,6 +73,15 @@ export interface PlayerState {
   ak47s: number;
 
   lowRiders: number;
+  sedans: number;
+  vans: number;
+  /** 1.5.0-C. Out of action until the garage repairs or recovers them. */
+  damagedLowRiders: number;
+  damagedSedans: number;
+  damagedVans: number;
+  disabledLowRiders: number;
+  disabledSedans: number;
+  disabledVans: number;
 
   /** Weapon access, earned with reputation and never revoked. */
   shotgunUnlocked: boolean;
@@ -223,6 +232,14 @@ export function toState(player: RoundPlayer): PlayerState {
     tek9s: player.tek9s,
     ak47s: player.ak47s,
     lowRiders: player.lowRiders,
+    sedans: player.sedans,
+    vans: player.vans,
+    damagedLowRiders: player.damagedLowRiders,
+    damagedSedans: player.damagedSedans,
+    damagedVans: player.damagedVans,
+    disabledLowRiders: player.disabledLowRiders,
+    disabledSedans: player.disabledSedans,
+    disabledVans: player.disabledVans,
     shotgunUnlocked: player.shotgunUnlocked,
     tek9Unlocked: player.tek9Unlocked,
     ak47Unlocked: player.ak47Unlocked,
@@ -311,6 +328,8 @@ function toSnapshot(
       tek9s: state.tek9s,
       ak47s: state.ak47s,
       lowRiders: state.lowRiders,
+      sedans: state.sedans,
+      vans: state.vans,
     },
   };
 }

@@ -200,13 +200,17 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
     expect(closed.closed).toBe(true);
 
     const claims = await app.prisma.streetPassClaim.findMany({ where: { roundPlayerId: finisher.id }, orderBy: { tier: 'asc' } });
-    // Tiers 10, 20 and 30 carry permanent cosmetics, so round close claims them.
-    expect(claims.map((claim) => [claim.tier, claim.automatic])).toEqual([[2, false], [10, true], [20, true], [30, true]]);
+    // Tiers 8, 10, 15, 18, 20, 25, 28 and 30 carry permanent cosmetics, so round close claims them.
+    expect(claims.map((claim) => [claim.tier, claim.automatic])).toEqual([
+      [2, false], [8, true], [10, true], [15, true], [18, true], [20, true], [25, true], [28, true], [30, true],
+    ]);
     const cosmetics = await app.prisma.accountCosmeticUnlock.findMany({ where: { accountId: finisher.accountId }, orderBy: { key: 'asc' } });
     expect(cosmetics.map((row) => row.key)).toEqual([
-      'street-pass-s1-badge', 'street-pass-s1-frame', 'street-pass-s1-fresh-face', 'street-pass-s1-kingpin', 'street-pass-s1-made-man',
+      'street-pass-s1-badge', 'street-pass-s1-cartel-gold', 'street-pass-s1-chrome-halo-frame', 'street-pass-s1-frame',
+      'street-pass-s1-fresh-face', 'street-pass-s1-kingpin', 'street-pass-s1-made-man', 'street-pass-s1-midnight-ops',
+      'street-pass-s1-night-drive-theme', 'street-pass-s1-urban-ghost',
     ]);
-    // Gameplay rewards on the other 27 reached tiers expired with the round.
+    // Gameplay rewards on every other reached tier, and the cash on cosmetic tiers 8 and 28, expired with the round.
     const after = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: finisher.id } });
     expect(after.cashCents).toBe(before.cashCents);
 

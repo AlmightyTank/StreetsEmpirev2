@@ -119,7 +119,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       return {
         text: attacking
           ? `${move} on ${opponent(p)} — ${p.won ? 'won' : 'lost'}.`
-          : `${opponent(p)} tried ${move.toLowerCase()} on you — ${p.won ? 'you held them off' : 'they got through'}.`,
+          : `${opponent(p)} tried ${move.toLowerCase()} on you${p.payback ? ' as payback' : ''} — ${p.won ? 'you held them off' : 'they got through'}.`,
         detail: details,
       };
     }
@@ -129,7 +129,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       return {
         text: attacking
           ? `Drive-by on ${opponent(p)} — ${p.won ? 'it landed' : 'they shot back and won'}.`
-          : `${opponent(p)} did a drive-by on your block — ${p.won ? 'your crew saw them off' : 'it landed'}.`,
+          : `${opponent(p)} did a drive-by on your block${p.payback ? ' as payback' : ''} — ${p.won ? 'your crew saw them off' : 'it landed'}.`,
         detail: [
           attacking ? `${num(p.turns)} turns` : null,
           num(p.whoresKilled) ? `${formatNumber(num(p.whoresKilled))} ${attacking ? 'of their' : 'of your'} whores killed` : null,
@@ -436,7 +436,21 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'QUEST_CLAIMED':
       return {
         text: `Collected payment for ${str(p.title, 'a quest')}.`,
-        detail: Array.isArray(p.rewards) ? (p.rewards as unknown[]).map(String).join(' · ') : undefined,
+        detail: Array.isArray(p.rewards)
+          ? [...(p.rewards as unknown[]), ...(Array.isArray(p.standingChanges) ? p.standingChanges as unknown[] : [])].map(String).join(' · ')
+          : undefined,
+      };
+    case 'FACTION_WARNING':
+      return {
+        text: str(p.text, 'A faction has a warning for you.'),
+        detail: `${str(p.factionName, 'A faction')} · Trusted perk · private to you`,
+      };
+    case 'FACTION_TIER_UP':
+      return {
+        text: `${str(p.factionName, 'A faction')} now counts you as ${str(p.tierName, 'known')}.`,
+        detail: formatNumber(num(p.points)) + ' standing · private to you'
+          + (Array.isArray(p.lockedRivals) && p.lockedRivals.length ? ` · ${p.lockedRivals.map(String).join(' and ')} Inner Circle locked this season` : '')
+          + (Array.isArray(p.cosmetics) && p.cosmetics.length ? ` · unlocked ${p.cosmetics.map(String).join(', ')}` : ''),
       };
 
     case 'STREET_PASS_CLAIMED':
@@ -741,6 +755,8 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     CAPTAIN_TIP: 'Captain',
     INFORMANT_TIP: 'Informant',
     CASE_FOLLOWED: 'Federal case',
+    FACTION_TIER_UP: 'Faction',
+    FACTION_WARNING: 'Faction word',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();

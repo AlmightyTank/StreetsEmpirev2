@@ -152,7 +152,7 @@ export function TurfActions({
     );
   }
 
-  // Away corners are established/serviced by a run below the City Blocks board.
+  // Away corners are established/serviced by a run below the Turf board.
   // Incoming pushes still need to be defendable here by the remote owner.
   if (!isHome) return null;
 

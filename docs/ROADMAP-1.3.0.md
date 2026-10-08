@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # StreetsEmpire v1.3.0 — Law Enforcement, Wanted Level & Corruption
 
 ## Brainstorm
@@ -37,15 +38,46 @@ risk system.
   [Federal cases follow you](#federal-cases-follow-you)).
 
 ---
+=======
+﻿# StreetsEmpire v1.3.0 — Law Enforcement, Wanted Level & Corruption
+
+## Theme
+
+Expand Heat into a wider law system without turning punishment into random noise.
+
+Heat remains the immediate action risk players already understand. The law layer adds a
+longer shadow cast by noisy work: attention, evidence, Cases, warrants, informants and
+corrupt counterplay.
+
+## 1.3.0-F — Law Pressure Release
+
+**Status:** built and pinned as `classic-og-v1.3-f`.
+
+F establishes the stable contract the server and UI can persist:
+
+- wanted tiers from Quiet through Most Wanted;
+- source-specific attention for street work, product sales, production, turf violence,
+  business rackets, convoy hijacks, casino markers and large cash movement;
+- evidence pressure that can cross warrant and informant thresholds;
+- corruption pricing with a daily cap, so bribery is counterplay rather than immunity;
+- pure rules-engine calculations for adding, cooling and pricing law pressure.
+
+### Guardrails
+
+- F does not change 1.2.0-F casino odds, tables, jobs, rewards or status.
+- F does not add migrations or live player penalties by itself.
+- Historical rulesets have no `law` block and continue to load unchanged.
+- Evidence does not decay in the F calculator; later slices make any reduction explicit.
+>>>>>>> Stashed changes
 
 ## Roadmap
 
-Seven slices, each on its own pinned ruleset that adds to the one before it. Every slice
-leaves Heat, busts, arrests and bribes exactly as they were. Details of what each built are
-under [Stages](#stages-sketch-following-the-11--12-pattern).
+The law system was built in slices, and F is the final pinned pressure release that sits atop the
+same idea as A through E:
 
 | Slice | Status | Ruleset | What it delivers |
 | --- | --- | --- | --- |
+<<<<<<< Updated upstream
 | **1.3.0-A — Case Foundation** | Built | `classic-og-v1.3-a` | A private Case per city, built from 10% of the Heat drawn there, with itemised receipts and the Wanted ladder (Quiet → Noticed → Under Investigation → Warrant → Federal). Read-only Case panel. |
 | **1.3.0-B — Evidence Sources** | Built | `classic-og-v1.3-b` | Direct evidence (busts, arrests, road stops, torches, sacks, run hits), currency reports on cash moved per city per day, cooling after 24 quiet hours, laundering that washes the Case. Stage rises reach Discord and phones. |
 | **1.3.0-C — Warrants & Raids** | Built | `classic-og-v1.3-c` | Warrants at the Warrant stage with a 12-hour warning: Hideout, business or personal raids. A daily police-loss cap. Lawyers: a weekly retainer, or lawyering up to answer a warrant. |
@@ -90,11 +122,27 @@ What's missing is **memory and warning**. Heat forgets everything in a few hours
 consequence except the sweep arrives as a dice roll at the moment of a trip. A player who
 stays hot in one city for a week faces the same per-trip dice as one who got hot an hour
 ago, and gets no chance to see a consequence coming.
+=======
+| **1.3.0-A — Case Foundation** | Built | `classic-og-v1.3-a` | A private Case per city, built from 10% of the Heat drawn there, with itemised receipts and the Wanted ladder (Quiet → Noticed → Under Investigation → Warrant → Federal). |
+| **1.3.0-B — Evidence Sources** | Built | `classic-og-v1.3-b` | Direct evidence (busts, arrests, road stops, torches, sacks, run hits), currency reports, cooling after 24 quiet hours, and laundering that washes the Case. |
+| **1.3.0-C — Warrants & Raids** | Built | `classic-og-v1.3-c` | Warrants with a 12-hour warning and city-targeted raids, plus daily police-loss caps and lawyer retention. |
+| **1.3.0-D — Corruption & Informants** | Built | `classic-og-v1.3-d` | A weekly payroll of Captain, DA, Judge and Customs, plus Internal Affairs and city tips. |
+| **1.3.0-E — City Identity & the Feds** | Built | `classic-og-v1.3-e` | Cities police at their own pace; the Feds shorten warrant windows and move a federal case on relocation. |
+| **1.3.0-F — Law Pressure Release** | Built | `classic-og-v1.3-f` | Source-specific attention and corruption pricing, expanding the same law system into a persistent pressure model. |
+| **1.3.0-G — Balance, Admin & Release** | Planned | — | QA simulation, admin case review, exploit audit and release gating. |
+
+## Handoff
+
+Later slices can wire this contract into persisted player state, admin tools and player-facing
+surfaces. They should reuse the pinned source names, stage ladder and Case vocabulary rather than
+inventing a second law vocabulary.
+>>>>>>> Stashed changes
 
 ---
 
 ## Recommendation: Heat is the noise, the Case is the memory
 
+<<<<<<< Updated upstream
 Add one new number per player **per city**: the **Case**. It's what that city's police have
 on you.
 
@@ -830,3 +878,7 @@ proposals until `qa:law` pins them.
 - A Case that moves on trips, runs or flights.
 - Paid or real-money ways to clear a case.
 - Tipping off rivals, or any other way for one player to add evidence to another's case.
+=======
+Heat forgets everything in a few hours, while the Case holds the long memory of what the police
+have seen. Law pressure is the slower layer that makes that memory matter.
+>>>>>>> Stashed changes

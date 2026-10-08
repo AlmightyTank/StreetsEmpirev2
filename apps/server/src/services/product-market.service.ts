@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient, Round } from '@prisma/client';
 import {
   calculateProductTrade,
   creditDailyTrade,
@@ -20,12 +20,15 @@ import { productTradeSchema, type GameActionResult, type ProductsDto, type Produ
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
+import { FactionService } from './faction.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { boostedSellCents, relationshipPriceAdjustments, storeMarketContext } from './store.service.js';
 import { HighMarketService } from './high-market.service.js';
+import type { EconomyLedgerWrite } from './economy-ledger.service.js';
+import type { ReputationChange } from './reputation.service.js';
 
 function pressureQuote(
   buyCents: number,
@@ -70,6 +73,163 @@ function discountedPipBuyCents(buyCents: number, sellCents: number, discountPerc
  * Each product has its own shelf on the lazy restock clock, stored only once a
  * player has bought from it. Crack stays Pip's Product item at his store.
  */
+
+export interface ProductLineContext {
+  tx: Db;
+  roundPlayerId: string;
+  player: { city: { slug: string }; racketEffects: Prisma.JsonValue };
+  round: Round;
+  ruleset: Ruleset;
+  standings: Standings;
+  now: Date;
+  /** Cash at home as this line is rung up: a basket's earlier lines have already moved it. */
+  cashCents: bigint;
+  /** Unique per line, for the faction nudge log. */
+  sourceKey: string;
+  /** False when an earlier basket line already earned today's credit with Pip. */
+  creditPip: boolean;
+}
+
+export interface ProductLineOutcome {
+  result: ProductTradeResult;
+  cashChangeCents: bigint;
+  ledger: EconomyLedgerWrite;
+  reputation: ReputationChange | null;
+  activity: Prisma.InputJsonObject;
+}
+
+/**
+ * One trade of a product at Pip's counter, inside an action already holding the player's lock:
+ * unlocks, the shelf, market pressure, standing, rackets, favors and the Cartel Line's cut.
+ * The product endpoint runs one; the store basket runs one per product line (1.5.x).
+ */
+export async function tradeProductLine(
+  ctx: ProductLineContext,
+  input: { product: string; direction: 'buy' | 'sell'; quantity: number },
+): Promise<ProductLineOutcome> {
+  const { tx, roundPlayerId, player, round, ruleset, standings, now } = ctx;
+  if (!ruleset.productEconomy) throw AppError.conflict('PRODUCT_ECONOMY_DISABLED', 'Pip only deals Product this round.');
+  if (input.product === CRACK) throw AppError.badRequest('USE_PIP_PRODUCT', 'Buy and sell crack as Product at Pip’s.', { product: 'Crack is sold at Pip’s store.' });
+  const economy = productEconomy(ruleset, input.product);
+  if (!economy?.pip) throw AppError.badRequest('UNKNOWN_ITEM', 'Pip does not deal that product.', { product: 'Pick a product Pip deals.' });
+
+  if (input.direction === 'buy') await PermanentUnlockService.assertCanBuyProduct(tx, roundPlayerId, ruleset, input.product);
+
+  const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
+  const owned = inventory[input.product] ?? 0;
+  const shelf = settleProductShelf(await shelfRow(tx, roundPlayerId, input.product), economy, now, shelfInterval(ruleset, standings, economy.pip.restock.intervalMinutes))!;
+
+  const baseRuleset = loadRulesetForRound(round);
+  const pressureEnabled = Boolean(ruleset.storeEconomy?.pipProductPressure?.enabled && baseRuleset.travel?.market);
+  const market = pressureEnabled
+    ? await HighMarketService.lock(tx, baseRuleset, round.id, player.city.slug, input.product, now)
+    : null;
+  const pressure = pressureFor(ruleset, market?.push ?? 0) ?? 0;
+  const quote = pressureQuote(economy.pip.buyCents, economy.pip.sellCents, pressure);
+  const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
+  const relationship = relationshipPriceAdjustments(standings.PIP?.points ?? 0, ruleset, 'PIP');
+  // 1.1.0-C: Ecstasy demand and the like pay a little more on top of standing.
+  const racketBonus = racketStorePrice(ruleset, readRacketEffects(player.racketEffects), 'PIP', input.product).sellBonusPercent;
+  const sellUnitCents = boostedSellCents(quote.sellCents, quote.buyCents, relationship.sellBonusPercent + racketBonus) ?? quote.sellCents;
+  const nudge = input.direction === 'buy' ? await FactionService.nudge(tx, roundPlayerId, ruleset, 'PIP_PRODUCT') : null;
+  const unnudgedBuyCents = discountedPipBuyCents(
+    quote.buyCents,
+    sellUnitCents,
+    relationship.buyDiscountPercent + favorBonuses.pipBuyDiscountPercent,
+  );
+  const buyUnitCents = discountedPipBuyCents(
+    quote.buyCents,
+    sellUnitCents,
+    relationship.buyDiscountPercent + favorBonuses.pipBuyDiscountPercent + (nudge?.percent ?? 0),
+  );
+  let trade;
+  try {
+    trade = calculateProductTrade({
+      ruleset,
+      product: input.product,
+      direction: input.direction,
+      quantity: input.quantity,
+      owned,
+      cashCents: ctx.cashCents,
+      shelfStock: shelf.stock,
+      ...(input.direction === 'buy' ? { buyUnitCents } : {}),
+      sellUnitCents,
+    });
+  } catch (error) {
+    if (error instanceof StoreTradeError) throw AppError.badRequest(error.code, error.message, error.field ? { [error.field]: error.message } : undefined);
+    throw error;
+  }
+
+  await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, { [input.product]: trade.quantityChange });
+  // A sale never touches the shelf, but settling it still has to be kept, or a parked clock is lost.
+  const stockAfter = shelf.stock - trade.stockTaken;
+  if (trade.stockTaken > 0 || shelf.changed) {
+    await tx.productShelf.upsert({
+      where: { roundPlayerId_productKey: { roundPlayerId, productKey: input.product } },
+      create: { roundPlayerId, productKey: input.product, stock: stockAfter, stockAt: shelf.stockAt },
+      update: { stock: stockAfter, stockAt: shelf.stockAt },
+    });
+  }
+  if (market && baseRuleset.travel?.market) {
+    const view = marketView(baseRuleset, round.id, player.city.slug, input.product, market.push, now);
+    if (view) {
+      const fill = fillMarket(view, baseRuleset.travel.market, input.direction, input.quantity);
+      await HighMarketService.write(tx, market.id, fill.pushAfter, now);
+    }
+  }
+
+  // 1.4.0-D: the Cartel Line's cut is logged where it took effect.
+  const savedCents = nudge ? Math.max(0, unnudgedBuyCents - trade.unitCents) * trade.quantity : 0;
+  if (nudge && savedCents > 0) {
+    await FactionService.logNudge(tx, roundPlayerId, nudge, 'PIP_PRODUCT', ctx.sourceKey, { cents: savedCents }, now);
+  }
+  const factionDiscount = nudge && savedCents > 0
+    ? { factionKey: nudge.factionKey, factionName: ruleset.factions?.[nudge.factionKey]?.name ?? nudge.factionKey, percent: nudge.percent, savedCents }
+    : null;
+
+  // Being a regular at Pip's counts the same whichever product you trade.
+  const credit = ctx.creditPip ? creditDailyTrade(standings.PIP, now, ruleset) : { credited: false as const, gained: 0, points: 0, creditedOn: null };
+  const result: ProductTradeResult = {
+    product: trade.product,
+    productName: trade.productName,
+    direction: trade.direction,
+    quantity: trade.quantity,
+    unitCents: trade.unitCents,
+    totalCents: Number(trade.totalCents),
+    cashChangeCents: Number(trade.cashChangeCents),
+    quantityAfter: owned + trade.quantityChange,
+    stockAfter: input.direction === 'buy' ? stockAfter : null,
+    reputationGained: credit.gained,
+    ...(input.direction === 'buy' && favorBonuses.pipBuyDiscountPercent > 0
+      ? { favorDiscountPercent: favorBonuses.pipBuyDiscountPercent }
+      : {}),
+    ...(factionDiscount ? { factionDiscount } : {}),
+  };
+  return {
+    result,
+    cashChangeCents: trade.cashChangeCents,
+    ledger: {
+      source: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
+      label: `${ruleset.stores.PIP.name} · ${input.direction === 'buy' ? 'buy' : 'sell'} ${trade.productName}`,
+      amountCents: trade.cashChangeCents,
+    },
+    reputation: credit.credited ? { trader: 'PIP', points: credit.points, creditedOn: credit.creditedOn } : null,
+    activity: {
+      store: ruleset.stores.PIP.name,
+      storeKey: 'PIP',
+      item: trade.productName,
+      itemKey: trade.product,
+      product: trade.product,
+      city: player.city.slug,
+      direction: trade.direction,
+      quantity: trade.quantity,
+      totalCents: result.totalCents,
+      ...(result.favorDiscountPercent ? { favorDiscountPercent: result.favorDiscountPercent } : {}),
+      ...(factionDiscount ? { factionDiscount } : {}),
+    },
+  };
+}
+
 export const ProductMarketService = {
   async page(prisma: PrismaClient, roundPlayerId: string): Promise<ProductsDto> {
     const settled = await PlayerStateService.settle(prisma, roundPlayerId, { markActive: false });
@@ -88,6 +248,8 @@ export const ProductMarketService = {
     const favorBonuses = await TimedFavorService.bonuses(prisma, roundPlayerId, ruleset, now);
     const relationship = relationshipPriceAdjustments(standings.PIP?.points ?? 0, ruleset, 'PIP');
     const effects = readRacketEffects(player.racketEffects);
+    // 1.4.0-D: Connected with the Cartel Line, Pip shades his buy price.
+    const nudge = await FactionService.nudge(prisma, roundPlayerId, ruleset, 'PIP_PRODUCT');
 
     return {
       enabled: true,
@@ -107,7 +269,7 @@ export const ProductMarketService = {
         const requiredUnlock = PermanentUnlockService.productPurchaseUnlock(ruleset, key);
         const purchaseUnlocked = !requiredUnlock || unlockKeys.has(requiredUnlock.key);
         const effectiveBuyCents = quote
-          ? discountedPipBuyCents(quote.buyCents, sellCents, relationship.buyDiscountPercent + favorBonuses.pipBuyDiscountPercent)
+          ? discountedPipBuyCents(quote.buyCents, sellCents, relationship.buyDiscountPercent + favorBonuses.pipBuyDiscountPercent + (nudge?.percent ?? 0))
           : 0;
         return {
           key,
@@ -138,8 +300,10 @@ export const ProductMarketService = {
               ...(favorBonuses.pipBuyDiscountPercent > 0 ? { favorDiscountPercent: favorBonuses.pipBuyDiscountPercent } : {}),
               ...(relationship.buyDiscountPercent > 0 ? { relationshipBuyDiscountPercent: relationship.buyDiscountPercent } : {}),
               ...(relationship.sellBonusPercent > 0 ? { relationshipSellBonusPercent: relationship.sellBonusPercent } : {}),
+              ...(nudge ? { factionDiscount: { factionKey: nudge.factionKey, factionName: ruleset.factions?.[nudge.factionKey]?.name ?? nudge.factionKey, percent: nudge.percent } } : {}),
               unlockName: requiredUnlock?.name ?? null,
               unlockDescription: requiredUnlock?.description ?? null,
+              unlockQuest: requiredUnlock ? PermanentUnlockService.questFor(ruleset, requiredUnlock.key) : null,
             } : null,
             recipe: recipe ? { perThugPerTurn: recipe.perThugPerTurn, ingredientCentsPerUnit: recipe.ingredientCentsPerUnit, heatPerUnit: recipe.heatPerUnit } : null,
           } : {}),
@@ -154,121 +318,18 @@ export const ProductMarketService = {
       action: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
       actionId: input.actionId,
       execute: async ({ tx, current, player, round, ruleset, standings, now }) => {
-        if (!ruleset.productEconomy) throw AppError.conflict('PRODUCT_ECONOMY_DISABLED', 'Pip only deals Product this round.');
-        if (input.product === CRACK) throw AppError.badRequest('USE_PIP_PRODUCT', 'Buy and sell crack as Product at Pip’s.', { product: 'Crack is sold at Pip’s store.' });
-        const economy = productEconomy(ruleset, input.product);
-        if (!economy?.pip) throw AppError.badRequest('UNKNOWN_ITEM', 'Pip does not deal that product.', { product: 'Pick a product Pip deals.' });
-
-        if (input.direction === 'buy') {
-          const requiredUnlock = PermanentUnlockService.productPurchaseUnlock(ruleset, input.product);
-          if (requiredUnlock) {
-            const unlockKeys = await PermanentUnlockService.keys(tx, roundPlayerId);
-            if (!unlockKeys.has(requiredUnlock.key)) {
-              throw AppError.conflict(
-                'PRODUCT_PURCHASE_LOCKED',
-                `Complete the required job to unlock ${requiredUnlock.name}.`,
-              );
-            }
-          }
-        }
-
-        const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
-        const owned = inventory[input.product] ?? 0;
-        const shelf = settleProductShelf(await shelfRow(tx, roundPlayerId, input.product), economy, now, shelfInterval(ruleset, standings, economy.pip.restock.intervalMinutes))!;
-
-        const baseRuleset = loadRulesetForRound(round);
-        const pressureEnabled = Boolean(ruleset.storeEconomy?.pipProductPressure?.enabled && baseRuleset.travel?.market);
-        const market = pressureEnabled
-          ? await HighMarketService.lock(tx, baseRuleset, round.id, player.city.slug, input.product, now)
-          : null;
-        const pressure = pressureFor(ruleset, market?.push ?? 0) ?? 0;
-        const quote = pressureQuote(economy.pip.buyCents, economy.pip.sellCents, pressure);
-        const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
-        const relationship = relationshipPriceAdjustments(standings.PIP?.points ?? 0, ruleset, 'PIP');
-        // 1.1.0-C: Ecstasy demand and the like pay a little more on top of standing.
-        const racketBonus = racketStorePrice(ruleset, readRacketEffects(player.racketEffects), 'PIP', input.product).sellBonusPercent;
-        const sellUnitCents = boostedSellCents(quote.sellCents, quote.buyCents, relationship.sellBonusPercent + racketBonus) ?? quote.sellCents;
-        const buyUnitCents = discountedPipBuyCents(
-          quote.buyCents,
-          sellUnitCents,
-          relationship.buyDiscountPercent + favorBonuses.pipBuyDiscountPercent,
+        const line = await tradeProductLine(
+          { tx, roundPlayerId, player, round, ruleset, standings, now, cashCents: current.cashCents, sourceKey: `product:${input.actionId ?? now.toISOString()}`, creditPip: true },
+          input,
         );
-        let trade;
-        try {
-          trade = calculateProductTrade({
-            ruleset,
-            product: input.product,
-            direction: input.direction,
-            quantity: input.quantity,
-            owned,
-            cashCents: current.cashCents,
-            shelfStock: shelf.stock,
-            ...(input.direction === 'buy' ? { buyUnitCents } : {}),
-            sellUnitCents,
-          });
-        } catch (error) {
-          if (error instanceof StoreTradeError) throw AppError.badRequest(error.code, error.message, error.field ? { [error.field]: error.message } : undefined);
-          throw error;
-        }
-
-        await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, { [input.product]: trade.quantityChange });
-        // A sale never touches the shelf, but settling it still has to be kept, or a parked clock is lost.
-        const stockAfter = shelf.stock - trade.stockTaken;
-        if (trade.stockTaken > 0 || shelf.changed) {
-          await tx.productShelf.upsert({
-            where: { roundPlayerId_productKey: { roundPlayerId, productKey: input.product } },
-            create: { roundPlayerId, productKey: input.product, stock: stockAfter, stockAt: shelf.stockAt },
-            update: { stock: stockAfter, stockAt: shelf.stockAt },
-          });
-        }
-        if (market && baseRuleset.travel?.market) {
-          const view = marketView(baseRuleset, round.id, player.city.slug, input.product, market.push, now);
-          if (view) {
-            const fill = fillMarket(view, baseRuleset.travel.market, input.direction, input.quantity);
-            await HighMarketService.write(tx, market.id, fill.pushAfter, now);
-          }
-        }
-
-        // Being a regular at Pip's counts the same whichever product you trade.
-        const credit = creditDailyTrade(standings.PIP, now, ruleset);
-        const result: ProductTradeResult = {
-          product: trade.product,
-          productName: trade.productName,
-          direction: trade.direction,
-          quantity: trade.quantity,
-          unitCents: trade.unitCents,
-          totalCents: Number(trade.totalCents),
-          cashChangeCents: Number(trade.cashChangeCents),
-          quantityAfter: owned + trade.quantityChange,
-          stockAfter: input.direction === 'buy' ? stockAfter : null,
-          reputationGained: credit.gained,
-          ...(input.direction === 'buy' && favorBonuses.pipBuyDiscountPercent > 0
-            ? { favorDiscountPercent: favorBonuses.pipBuyDiscountPercent }
-            : {}),
-        };
         return {
-          next: { ...current, cashCents: current.cashCents + trade.cashChangeCents },
-          result,
-          ledger: [{
-            source: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
-            label: `${ruleset.stores.PIP.name} · ${input.direction === 'buy' ? 'buy' : 'sell'} ${trade.productName}`,
-            amountCents: trade.cashChangeCents,
-          }],
-          reputation: credit.credited ? [{ trader: 'PIP', points: credit.points, creditedOn: credit.creditedOn }] : undefined,
+          next: { ...current, cashCents: current.cashCents + line.cashChangeCents },
+          result: line.result,
+          ledger: [line.ledger],
+          reputation: line.reputation ? [line.reputation] : undefined,
           activity: {
             type: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
-            payload: {
-              store: ruleset.stores.PIP.name,
-              storeKey: 'PIP',
-              item: trade.productName,
-              itemKey: trade.product,
-              product: trade.product,
-              city: player.city.slug,
-              direction: trade.direction,
-              quantity: trade.quantity,
-              totalCents: result.totalCents,
-              ...(result.favorDiscountPercent ? { favorDiscountPercent: result.favorDiscountPercent } : {}),
-            },
+            payload: line.activity,
           },
         };
       },

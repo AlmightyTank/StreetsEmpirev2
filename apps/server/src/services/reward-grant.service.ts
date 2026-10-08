@@ -1,6 +1,7 @@
 import {
   isItemRewardField,
   type ContactKey,
+  type FactionKey,
   type QuestRewardDefinition,
   type Ruleset,
 } from '@streets/rulesets';
@@ -104,6 +105,8 @@ export async function grantRewards(
     } else if (reward.kind === 'COSMETIC_UNLOCK') {
       if (!reward.key) throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid cosmetic reward.');
       await QuestCosmeticService.award(tx, ctx.accountId, ruleset, reward.key, sourceKey, now);
+    } else if (reward.kind === 'FACTION_STANDING') {
+      // 1.4.0-B: the Job claim pays standing itself, with a receipt (FactionService).
     } else if (reward.kind === 'PRODUCT') {
       const amount = reward.amount ?? 0;
       if (!reward.key || !Number.isSafeInteger(amount) || amount <= 0) {
@@ -153,6 +156,8 @@ export function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): st
       const prefix = favor?.rarity === 'LEGENDARY' ? '★ Legendary · ' : '';
       return `${prefix}${name} ×${amount.toLocaleString('en-US')}`;
     }
+    case 'FACTION_STANDING':
+      return `+${amount} ${ruleset.factions?.[reward.key as FactionKey]?.name ?? reward.key ?? 'faction'} standing`;
     case 'COSMETIC_UNLOCK': {
       const cosmetic = ruleset.cosmetics?.[reward.key ?? ''];
       return `Permanent cosmetic · ${cosmetic?.name ?? reward.key ?? 'Cosmetic'}`;

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128">
+  <!-- Midnight Ops shotgun: collapsible stock, pistol grip, side-saddle shells, vented heat shield, breacher muzzle, forend light. -->
+  <defs>
+    <filter id="s" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".65"/></filter>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.8"/></filter>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4f56"/><stop offset=".45" stop-color="#25282d"/><stop offset="1" stop-color="#111214"/></linearGradient>
+    <linearGradient id="poly" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34373c"/><stop offset="1" stop-color="#121315"/></linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d4248"/><stop offset="1" stop-color="#16181b"/></linearGradient>
+    <linearGradient id="hull" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#262c24"/><stop offset=".5" stop-color="#4b5644"/><stop offset="1" stop-color="#1f241d"/></linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5e4a22"/><stop offset=".5" stop-color="#9c8448"/><stop offset="1" stop-color="#4a3a1a"/></linearGradient>
+  </defs>
+  <g filter="url(#s)" stroke="#060708" stroke-width="1.6" stroke-linejoin="round">
+    <!-- magazine tube and barrel -->
+    <rect x="120" y="55" width="104" height="8" rx="1.5" fill="url(#steel)"/>
+    <rect x="221" y="53" width="7" height="12" rx="1.5" fill="#1a1c1f"/>
+    <rect x="120" y="46" width="118" height="8" rx="1.5" fill="url(#steel)"/>
+    <!-- breacher muzzle with standoff teeth -->
+    <path d="M236 44 H246 L250 46 L247 48 L250 50 L247 52 L250 54 L246 56 H236 Z" fill="#1d1f23"/>
+    <!-- vented heat shield -->
+    <path d="M128 42 H206 Q210 42 210 46 V50 H128 Z" fill="url(#shield)"/>
+    <!-- collapsible stock on buffer tube -->
+    <rect x="28" y="49" width="56" height="9" rx="2" fill="url(#poly)"/>
+    <path d="M10 46 H44 Q48 46 48 50 V60 L40 72 H22 L16 86 Q14 90 10 90 H8 Z" fill="url(#poly)"/>
+    <path d="M24 56 H38 L34 64 H26 Z" fill="#060708"/>
+    <path d="M4 46 H10 V90 H4 Q2 90 2 88 V48 Q2 46 4 46 Z" fill="#1a1b1d"/>
+    <!-- pistol grip -->
+    <path d="M80 64 H98 L94 98 Q93 102 88 102 H78 Q74 102 75 97 Z" fill="url(#poly)"/>
+    <!-- trigger guard -->
+    <path d="M96 68 Q96 80 104 80 H112 Q116 80 116 74 V68" fill="none" stroke-width="4.5"/>
+    <path d="M96 68 Q96 80 104 80 H112 Q116 80 116 74 V68" fill="none" stroke="#2a2d31" stroke-width="2"/>
+    <path d="M104 68 Q102 74 106 78" fill="none" stroke-width="3"/>
+    <!-- receiver -->
+    <rect x="78" y="42" width="46" height="27" rx="3" fill="url(#steel)"/>
+    <!-- ghost-ring rear sight -->
+    <path d="M112 42 V36 H118 V42" fill="#1a1c1f"/>
+    <!-- side-saddle shell carrier -->
+    <rect x="82" y="45" width="34" height="18" rx="2" fill="#141517"/>
+    <rect x="84" y="46" width="5" height="15" rx="1.2" fill="url(#hull)" stroke-width="1"/>
+    <rect x="90.5" y="46" width="5" height="15" rx="1.2" fill="url(#hull)" stroke-width="1"/>
+    <rect x="97" y="46" width="5" height="15" rx="1.2" fill="url(#hull)" stroke-width="1"/>
+    <rect x="103.5" y="46" width="5" height="15" rx="1.2" fill="url(#hull)" stroke-width="1"/>
+    <rect x="110" y="46" width="5" height="15" rx="1.2" fill="url(#hull)" stroke-width="1"/>
+    <!-- ribbed polymer forend -->
+    <path d="M140 53 H198 Q202 53 202 57 V66 Q202 71 197 71 H143 Q139 71 139 67 Z" fill="url(#poly)"/>
+    <!-- forend light -->
+    <path d="M166 71 H192 Q195 71 195 74 V79 Q195 82 192 82 H169 Q166 82 166 79 Z" fill="url(#shield)"/>
+    <rect x="194" y="72" width="4" height="9" rx="1" fill="#9fb3bd"/>
+  </g>
+  <!-- shell brass bases -->
+  <g fill="url(#brass)"><rect x="84.6" y="57" width="3.8" height="3.5"/><rect x="91.1" y="57" width="3.8" height="3.5"/><rect x="97.6" y="57" width="3.8" height="3.5"/><rect x="104.1" y="57" width="3.8" height="3.5"/><rect x="110.6" y="57" width="3.8" height="3.5"/></g>
+  <!-- heat shield vents -->
+  <g fill="#060708"><rect x="134" y="44" width="9" height="3" rx="1.5"/><rect x="148" y="44" width="9" height="3" rx="1.5"/><rect x="162" y="44" width="9" height="3" rx="1.5"/><rect x="176" y="44" width="9" height="3" rx="1.5"/><rect x="190" y="44" width="9" height="3" rx="1.5"/></g>
+  <!-- forend ribs -->
+  <g stroke="#060708" stroke-width="1.6"><path d="M146 56V68M152 56V68M158 56V68M164 56V68M170 56V68M176 56V68M182 56V68M188 56V68M194 56V68"/></g>
+  <path d="M116 38 H114" stroke="#060708" stroke-width="1.5"/>
+  <circle cx="115" cy="39" r="1.3" fill="none" stroke="#5d636b" stroke-width=".8"/>
+  <!-- low-reflective highlights -->
+  <path d="M130 43.5 H206" stroke="#7d858f" stroke-opacity=".3" stroke-width="1"/>
+  <path d="M212 47.5 H236" stroke="#7d858f" stroke-opacity=".3" stroke-width="1"/>
+  <path d="M30 51 H82" stroke="#6b727b" stroke-opacity=".3" stroke-width="1"/>
+  <path d="M12 48 H44" stroke="#6b727b" stroke-opacity=".28" stroke-width="1"/>
+  <circle cx="198" cy="76.5" r="3" fill="#dff4ff" fill-opacity=".55" filter="url(#glow)"/>
+</svg>

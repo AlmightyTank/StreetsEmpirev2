@@ -404,9 +404,94 @@ export interface AdminQuestContentDto {
   rotations: {
     daily: { keys: string[]; resetAt: string | null; slots: number };
     weekly: { keys: string[]; resetAt: string | null; slots: number };
+    /** 1.4.0-B2. This round's season board; absent on rulesets without one. */
+    season?: { keys: string[]; resetAt: string | null; slots: number };
   };
   quests: AdminQuestCatalogRowDto[];
   favors: AdminFavorCatalogRowDto[];
+}
+
+export interface AdminFactionStandingDto {
+  factionKey: string;
+  factionName: string;
+  points: number;
+  tier: string;
+  tierName: string;
+  receiptPoints: number;
+  receipts: number;
+  lastReceiptAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface AdminFactionRoundDto {
+  roundId: string;
+  generatedAt: string;
+  enabled: boolean;
+  rulesetId: string;
+  standings: Array<AdminFactionStandingDto & { roundPlayerId: string; displayName: string }>;
+  receipts24h: Array<{ source: string; entries: number; standing: number }>;
+  integrity: {
+    checked: number;
+    mismatches: Array<{ roundPlayerId: string; displayName: string; factionKey: string; stored: number; receipts: number }>;
+  };
+  adjustments7d: number;
+}
+
+export interface AdminFactionAdjustmentInput {
+  factionKey: string;
+  points: number;
+  reason: string;
+}
+
+/** 1.5.0-E. One vehicle class's whereabouts: home and ready, on runs, or waiting on the garage. */
+export interface AdminVehicleClassDto {
+  classId: 'LOW_RIDER' | 'SEDAN' | 'VAN';
+  name: string;
+  ready: number;
+  away: number;
+  damaged: number;
+  disabled: number;
+}
+
+/** 1.5.0-E. A player's fleet, for support and corrections. */
+export interface AdminPlayerFleetDto {
+  classes: AdminVehicleClassDto[];
+  /** Active runs, with what each will bring home to the garage. */
+  runs: Array<{
+    runId: string;
+    loadout: { LOW_RIDER: number; SEDAN: number; VAN: number };
+    damaged: { LOW_RIDER: number; SEDAN: number; VAN: number };
+    disabled: { LOW_RIDER: number; SEDAN: number; VAN: number };
+  }>;
+  /** Garage repairs and recoveries this round. */
+  service: { entries: number; spentCents: number };
+}
+
+/** 1.5.0-E. Vehicle health for a round: the fleet, the garage, and runs that do not add up. */
+export interface AdminVehicleRoundDto {
+  roundId: string;
+  generatedAt: string;
+  enabled: boolean;
+  rulesetId: string;
+  fleet: AdminVehicleClassDto[];
+  /** Largest fleets first. */
+  players: Array<{ roundPlayerId: string; displayName: string; ready: number; away: number; damaged: number; disabled: number }>;
+  service24h: { entries: number; spentCents: number };
+  service7d: { entries: number; spentCents: number };
+  purchases7d: { entries: number; spentCents: number };
+  adjustments7d: number;
+  integrity: {
+    checked: number;
+    problems: Array<{ runId: string; roundPlayerId: string; displayName: string; problem: string }>;
+  };
+}
+
+export interface AdminVehicleAdjustmentInput {
+  classId: 'LOW_RIDER' | 'SEDAN' | 'VAN';
+  ready: number;
+  damaged: number;
+  disabled: number;
+  reason: string;
 }
 
 /** Read-only player state as stored. Turns are as of the last settlement, not regenerated. */
@@ -473,6 +558,10 @@ export interface AdminPlayerDto {
   };
   hideout: { safeRoom: number; lookouts: number; workshop: number; backOffice: number };
   reputation: Array<{ trader: string; points: number; legacyFavorDone: boolean }>;
+  /** 1.4.0-G. Staff-only standing with receipt totals for audit and correction. */
+  factions: AdminFactionStandingDto[];
+  /** 1.5.0-E. Null on rounds without vehicle classes. */
+  fleet: AdminPlayerFleetDto | null;
   injuries: Array<{ id: string; thugs: number; recoverAt: string; battleId: string | null }>;
   intel: { observing: number; observedBy: number };
   activity: ActivityDto[];
@@ -580,6 +669,35 @@ export interface AdminUpdateRoundInput {
   registrationOpensAt?: string | null;
 }
 
+/** Something moving a round onto another ruleset could break. Each one has to be confirmed. */
+export interface AdminRulesetChangeWarningDto {
+  code: 'ROUND_LIVE' | 'CURRENT_RULESET_MISSING' | 'SECTIONS_REMOVED' | 'KEYS_REMOVED' | 'STREET_PASS_TRACK_CHANGED' | 'STREET_PASS_EDITS_DROPPED';
+  message: string;
+}
+
+export interface AdminRulesetChangeDto {
+  /** What the round is pinned to; `available` is false when the code no longer ships it. */
+  current: { id: string; version: string; available: boolean };
+  /** False once the round has finished: its ruleset is frozen. */
+  editable: boolean;
+  /** Newest first. */
+  rulesets: AdminRulesetOptionDto[];
+  /** Present when a target ruleset was asked about. */
+  target: {
+    ruleset: AdminRulesetOptionDto;
+    /** Values that differ from the current ruleset, or null when it could not be compared. */
+    changedCount: number | null;
+    warnings: AdminRulesetChangeWarningDto[];
+  } | null;
+}
+
+export interface AdminChangeRulesetInput {
+  rulesetId: string;
+  reason: string;
+  /** Required when the change has warnings. */
+  confirm?: boolean;
+}
+
 export interface AdminCloseExpiredResultDto {
   closed: AdminRoundDto[];
 }
@@ -597,8 +715,38 @@ export interface AdminRoundHealthDayDto {
   recon: number;
 }
 
+/**
+ * Reward kinds a Street Pass tier can hold, as streetPassProblems accepts them.
+ * Buying access (WEAPON_ACCESS, PERMANENT_UNLOCK) is never a Street Pass reward.
+ */
+export const ADMIN_STREET_PASS_REWARD_KINDS = ['CASH', 'TURNS', 'ITEM', 'PRODUCT', 'FAVOR_ITEM', 'CONTACT_REP', 'COSMETIC_UNLOCK'] as const;
+
+export interface AdminStreetPassRewardDto {
+  kind: typeof ADMIN_STREET_PASS_REWARD_KINDS[number];
+  amount?: number;
+  key?: string;
+}
+
+export interface AdminStreetPassDto {
+  name: string;
+  tiers: Array<{ tier: number; rewards: AdminStreetPassRewardDto[] }>;
+  catalogs: { items: string[]; products: string[]; favors: string[]; contacts: string[]; cosmetics: string[] };
+  editable: boolean;
+}
+
+export interface AdminStreetPassUpdateInput {
+  reason: string;
+  tiers: Array<{ tier: number; rewards: AdminStreetPassRewardDto[] }>;
+}
+
 export interface AdminRoundHealthDto {
   round: AdminRoundDto;
+  /**
+   * Set when the code no longer ships the round's pinned ruleset. Ruleset-backed
+   * sections are then left out, and Change ruleset is the way to repair it.
+   */
+  rulesetProblem: string | null;
+  streetPass?: AdminStreetPassDto | null;
   players: { total: number; active24h: number; active7d: number; neverActed: number };
   /** Newest first, up to the last 14 days of the round. */
   days: AdminRoundHealthDayDto[];
@@ -681,12 +829,89 @@ export interface AdminDevBotsDto {
   /** Why dev bots are refused on this server, or null when they are allowed. */
   blockedReason: string | null;
   currentRound: { id: string; name: string; rulesetVersion: string } | null;
+  /** Phase I. Read-only operator view of server-run gang pressure. */
+  npcGangSummary: {
+    generatedAt: string;
+    active: number;
+    dueNow: number;
+    acted24h: number;
+    blocked24h: number;
+    /** Phase I. Grudges still open across all gangs, and NPC paybacks that landed in 24h. */
+    openGrudges: number;
+    revenge24h: number;
+    /** Phase J. Blocks NPC gangs hold across the round right now. */
+    heldBlocks: number;
+    /** Phase K. Gangs packing up or on the road. */
+    migrating: number;
+    /** Phase L. Gangs on a run, and gangs gone to ground. */
+    hot: number;
+    dormant: number;
+    cities: Array<{
+      city: string;
+      activeGangs: number;
+      dueNow: number;
+      recentHits: number;
+      recentDriveBys: number;
+      recentSpecialRaids: number;
+      recentRevengeHits: number;
+      heldBlocks: string[];
+      /** Phase K. NPC trucks on the road into this city. */
+      inbound: number;
+      nextActionAt: string | null;
+    }>;
+  };
   bots: Array<{
     accountId: string;
     username: string;
     isActive: boolean;
     roundsPlayed: number;
-    inCurrentRound: { roundPlayerId: string; displayName: string; publicPimpId: number; netWorthCents: number } | null;
+    inCurrentRound: {
+      roundPlayerId: string;
+      displayName: string;
+      publicPimpId: number;
+      netWorthCents: number;
+      npcGang: {
+        archetype: string;
+        tier: string;
+        aggression: number;
+        ambition: number;
+        discipline: number;
+        nextActionAt: string;
+        lastActionAt: string | null;
+        dormantUntil: string | null;
+        homeCity: string;
+        lastIntent: string | null;
+        lastOutcome: string | null;
+        lastTarget: string | null;
+        lastError: string | null;
+        /** Phase I. Humans this gang remembers, newest first; expired grudges are dropped. */
+        grudges: Array<{
+          targetName: string;
+          publicPimpId: number;
+          hits: number;
+          lastHitAt: string;
+          expiresAt: string;
+          settledAt: string | null;
+        }>;
+        lastRevenge: { targetName: string; at: string; won: boolean | null } | null;
+        /** Phase J. The gang's turf as of its last tick. */
+        turf: {
+          held: Array<{ districtName: string; cornerThugs: number; minimum: number; pushLandsAt: string | null }>;
+          prospect: { districtName: string; presence: number; needed: number; locals: number } | null;
+          recentLosses: number;
+          pressure: number;
+          lastMove: { kind: string; districtName: string; at: string; detail: string | null } | null;
+        } | null;
+        /** Phase K. Where the gang lives now, and any move it is packing for or driving. */
+        currentCity: string;
+        migration: { status: 'PACKING' | 'MOVING'; toName: string; reason: string; since: string; arrivesAt: string | null } | null;
+        lastMigration: { fromName: string; toName: string; reason: string; at: string } | null;
+        /** Phase L. Momentum as of the last tick, how it reads, and the current or last dormancy. */
+        momentum: number;
+        mood: 'HOT' | 'STEADY' | 'COOLED' | 'DORMANT';
+        dormancy: { reason: string; since: string; until: string; wokeAt: string | null } | null;
+      } | null;
+    } | null;
   }>;
 }
 

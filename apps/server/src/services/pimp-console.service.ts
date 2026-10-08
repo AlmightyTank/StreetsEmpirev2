@@ -12,8 +12,12 @@ import {
   type ConsoleBlocksDto,
   type ConsoleCountsDto,
   type ConsoleFolder,
+  type ConsoleThreadFolder,
+  type DirectMessageConversationDto,
   type DirectMessageDto,
+  type DirectMessageThreadDto,
   type PimpConsoleDto,
+  type PimpConsoleThreadsDto,
   type ReportDirectMessageInput,
   type SendDirectMessageInput,
   type SendMessageResultDto,
@@ -76,8 +80,8 @@ const ACTIVITY_GROUP_TYPES: Record<ConsoleActivityGroup, ActivityType[]> = {
   turf: ['TURF_CLAIM', 'TURF_POST', 'TURF_PULL', 'TURF_PUSH', 'TURF_PUSH_BACKUP', 'TURF_PUSH_ATTACK', 'TURF_PUSH_DEFENSE', 'TURF_OUTPOST_ESTABLISH', 'TURF_OUTPOST_TRANSFER', 'TURF_PUSH_INCOMING', 'ALLIANCE_CALL'],
   travel: ['RUN_LAUNCHED', 'RUN_RETURNED', 'RUN_INCIDENT', 'RELOCATION_STARTED', 'RELOCATED', 'CONVOY_TAIL', 'CONVOY_ATTACK', 'CONVOY_DEFENSE', 'CONVOY_BACKUP', 'CONVOY_TAILED'],
   market: ['STORE_BUY', 'STORE_SELL', 'SPECIAL_ORDER_READY', 'CASINO_BUY_CHIPS', 'CASINO_REDEEM_CHIPS', 'CASINO_SESSION_OPENED', 'CASINO_SESSION_CLOSED', 'CASINO_STATUS_UP', 'CASINO_COMP_HOTEL'],
-  progress: ['QUEST_OBJECTIVE_COMPLETE', 'QUEST_READY', 'QUEST_CLAIMED', 'STREET_PASS_CLAIMED', 'FAVOR_ACTIVATED', 'FAVOR_ARMED', 'FAVOR_DISARMED', 'HIDEOUT_UPGRADE', 'WEAPON_UNLOCK'],
-  street: ['SCOUT', 'WORK_STREETS', 'PRODUCE_CRACK', 'HEAT_BRIBE', 'CASE_STAGE_UP', 'WARRANT_DRAFTED', 'WARRANT_SERVED', 'WARRANT_LAWYERED', 'LAWYER_RETAINED', 'OFFICIAL_HIRED', 'OFFICIAL_IA_OPENED', 'OFFICIAL_CUT', 'OFFICIAL_STUNG', 'WARRANT_QUASHED', 'CAPTAIN_TIP', 'INFORMANT_TIP', 'CASE_FOLLOWED', 'PAYOUT_CHANGE'],
+  progress: ['QUEST_OBJECTIVE_COMPLETE', 'QUEST_READY', 'QUEST_CLAIMED', 'FACTION_TIER_UP', 'STREET_PASS_CLAIMED', 'FAVOR_ACTIVATED', 'FAVOR_ARMED', 'FAVOR_DISARMED', 'HIDEOUT_UPGRADE', 'WEAPON_UNLOCK'],
+  street: ['SCOUT', 'WORK_STREETS', 'PRODUCE_CRACK', 'HEAT_BRIBE', 'CASE_STAGE_UP', 'WARRANT_DRAFTED', 'WARRANT_SERVED', 'WARRANT_LAWYERED', 'LAWYER_RETAINED', 'OFFICIAL_HIRED', 'OFFICIAL_IA_OPENED', 'OFFICIAL_CUT', 'OFFICIAL_STUNG', 'WARRANT_QUASHED', 'CAPTAIN_TIP', 'INFORMANT_TIP', 'CASE_FOLLOWED', 'PAYOUT_CHANGE', 'FACTION_WARNING'],
   system: ['ROUND_JOINED', 'AWAY_BONUS', 'ADMIN_GRANT', 'GAME_ANNOUNCEMENT'],
 };
 
@@ -152,6 +156,32 @@ function folderWhere(folder: ConsoleFolder, playerId: string): Prisma.DirectMess
     };
   }
   return { recipientId: playerId, recipientArchivedAt: null, recipientHiddenAt: null };
+}
+
+function threadFolderWhere(folder: ConsoleThreadFolder, playerId: string): Prisma.DirectMessageWhereInput {
+  if (folder === 'archived') {
+    return {
+      OR: [
+        { senderId: playerId, senderArchivedAt: { not: null }, senderHiddenAt: null },
+        { recipientId: playerId, recipientArchivedAt: { not: null }, recipientHiddenAt: null },
+      ],
+    };
+  }
+  return {
+    OR: [
+      { senderId: playerId, senderArchivedAt: null, senderHiddenAt: null },
+      { recipientId: playerId, recipientArchivedAt: null, recipientHiddenAt: null },
+    ],
+  };
+}
+
+function visibleConversationWhere(ownerId: string, counterpartId: string): Prisma.DirectMessageWhereInput {
+  return {
+    OR: [
+      { senderId: ownerId, recipientId: counterpartId, senderHiddenAt: null },
+      { senderId: counterpartId, recipientId: ownerId, recipientHiddenAt: null },
+    ],
+  };
 }
 
 function messageDto(
@@ -343,6 +373,24 @@ async function oneMessageDto(
   return (await decorateMessages(prisma, owner, [row]))[0]!;
 }
 
+function threadDto(messages: DirectMessageDto[]): DirectMessageThreadDto {
+  const latest = messages[0]!;
+  return {
+    counterpart: latest.counterpart,
+    subject: latest.subject,
+    preview: latest.body,
+    lastMessageAt: latest.createdAt,
+    lastMessageId: latest.id,
+    lastDirection: latest.direction,
+    unreadCount: messages.filter((message) => message.direction === 'in' && !message.readAt).length,
+    messageCount: messages.length,
+    archived: latest.archived,
+    blocked: messages.some((message) => message.blocked),
+    muted: messages.some((message) => message.muted),
+    reported: messages.some((message) => message.reported),
+  };
+}
+
 async function restrictionFor(prisma: PrismaClient, accountId: string, now = new Date()): Promise<CommsRestrictionDto | null> {
   const account = await prisma.account.findUnique({
     where: { id: accountId },
@@ -372,6 +420,89 @@ async function isCommunicationBlocked(
 }
 
 export const PimpConsoleService = {
+  async threads(
+    prisma: PrismaClient,
+    accountId: string,
+    folder: ConsoleThreadFolder,
+    requestedPage = 1,
+  ): Promise<PimpConsoleThreadsDto> {
+    const owner = await currentPlayer(prisma, accountId);
+    const rows = await prisma.directMessage.findMany({
+      where: threadFolderWhere(folder, owner.id),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: messageSelect,
+    });
+    const messages = await decorateMessages(prisma, owner, rows);
+    const grouped = new Map<number, DirectMessageDto[]>();
+    for (const message of messages) {
+      const key = message.counterpart.publicPimpId;
+      const existing = grouped.get(key);
+      if (existing) existing.push(message);
+      else grouped.set(key, [message]);
+    }
+
+    const allThreads = [...grouped.values()].map(threadDto);
+    const total = allThreads.length;
+    const totalPages = Math.max(1, Math.ceil(total / MESSAGE_PAGE_SIZE));
+    const page = Math.min(Math.max(1, requestedPage), totalPages);
+    const start = (page - 1) * MESSAGE_PAGE_SIZE;
+
+    return {
+      folder,
+      counts: await consoleCounts(prisma, owner),
+      page,
+      pageSize: MESSAGE_PAGE_SIZE,
+      total,
+      totalPages,
+      threads: allThreads.slice(start, start + MESSAGE_PAGE_SIZE),
+      restriction: await restrictionFor(prisma, owner.accountId),
+    };
+  },
+
+  async conversation(
+    prisma: PrismaClient,
+    accountId: string,
+    counterpartPublicPimpId: number,
+  ): Promise<DirectMessageConversationDto> {
+    const owner = await currentPlayer(prisma, accountId);
+    const counterpart = await prisma.roundPlayer.findFirst({
+      where: { roundId: owner.roundId, publicPimpId: counterpartPublicPimpId },
+      select: {
+        id: true,
+        publicPimpId: true,
+        displayName: true,
+      },
+    });
+    if (!counterpart || counterpart.id === owner.id) {
+      throw AppError.notFound('CONVERSATION_NOT_FOUND', 'That conversation does not exist.');
+    }
+
+    const rows = await prisma.directMessage.findMany({
+      where: visibleConversationWhere(owner.id, counterpart.id),
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: messageSelect,
+    });
+    const messages = await decorateMessages(prisma, owner, rows);
+    if (!messages.length) {
+      throw AppError.notFound('CONVERSATION_NOT_FOUND', 'That conversation does not exist.');
+    }
+
+    return {
+      counterpart: {
+        publicPimpId: counterpart.publicPimpId,
+        displayName: counterpart.displayName,
+      },
+      messages,
+      unreadCount: messages.filter((message) => message.direction === 'in' && !message.readAt).length,
+      messageCount: messages.length,
+      archived: messages.every((message) => message.archived),
+      blocked: messages.some((message) => message.blocked),
+      muted: messages.some((message) => message.muted),
+      reported: messages.some((message) => message.reported),
+      restriction: await restrictionFor(prisma, owner.accountId),
+    };
+  },
+
   async page(
     prisma: PrismaClient,
     accountId: string,

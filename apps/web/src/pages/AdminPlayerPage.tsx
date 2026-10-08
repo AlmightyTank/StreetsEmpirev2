@@ -64,6 +64,14 @@ export function AdminPlayerPage() {
   const [supportQuestKey, setSupportQuestKey] = useState('');
   const [supportFavorKey, setSupportFavorKey] = useState('');
   const [supportFavorDelta, setSupportFavorDelta] = useState('');
+  const [factionReason, setFactionReason] = useState('');
+  const [factionKey, setFactionKey] = useState('');
+  const [factionPoints, setFactionPoints] = useState('');
+  const [factionFields, setFactionFields] = useState<Record<string, string>>({});
+  const [vehicleClass, setVehicleClass] = useState<'LOW_RIDER' | 'SEDAN' | 'VAN'>('LOW_RIDER');
+  const [vehicleCounts, setVehicleCounts] = useState<{ ready: string; damaged: string; disabled: string }>({ ready: '', damaged: '', disabled: '' });
+  const [vehicleReason, setVehicleReason] = useState('');
+  const [vehicleFields, setVehicleFields] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     try {
@@ -73,6 +81,12 @@ export function AdminPlayerPage() {
         adminApi.questContent(inspected.round.id),
       ]);
       setPlayer(inspected);
+      setFactionKey((current) => current || inspected.factions[0]?.factionKey || '');
+      // 1.5.0-E: the fleet form opens on the Low-Riders at home.
+      const lowRiders = inspected.fleet?.classes.find((row) => row.classId === 'LOW_RIDER');
+      setVehicleCounts((current) => (current.ready === '' && lowRiders
+        ? { ready: String(lowRiders.ready), damaged: String(lowRiders.damaged), disabled: String(lowRiders.disabled) }
+        : current));
       setQuestContent(content);
       setSupportQuestKey((current) => current || content.quests.find((quest) => quest.isEnabled)?.key || '');
       setSupportFavorKey((current) => current || content.favors.find((favor) => favor.isEnabled)?.key || '');
@@ -223,6 +237,76 @@ export function AdminPlayerPage() {
     }
   }
 
+  async function adjustFactionStanding(event: FormEvent) {
+    event.preventDefault();
+    const points = Number(factionPoints);
+    setFactionFields({});
+    setError(null);
+    setNotice(null);
+    if (!Number.isInteger(points) || points < 0) {
+      setFactionFields({ points: 'Use a whole number of zero or more.' });
+      return;
+    }
+    setBusy(true);
+    try {
+      const updated = await adminApi.adjustPlayerFaction(roundPlayerId, {
+        factionKey,
+        points,
+        reason: factionReason.trim(),
+      });
+      setPlayer(updated);
+      setFactionPoints('');
+      setFactionReason('');
+      setNotice('Faction standing corrected. The receipt total and admin audit log were updated.');
+    } catch (caught) {
+      if (caught instanceof ApiError) {
+        setFactionFields(caught.fields ?? {});
+        setError(caught.message);
+      } else {
+        setError('That faction correction did not go through.');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** 1.5.0-E. Load a class's current home counts into the form, so a correction starts from the truth. */
+  function pickVehicleClass(classId: 'LOW_RIDER' | 'SEDAN' | 'VAN', from: AdminPlayerDto | null = player) {
+    setVehicleClass(classId);
+    const row = from?.fleet?.classes.find((entry) => entry.classId === classId);
+    setVehicleCounts(row ? { ready: String(row.ready), damaged: String(row.damaged), disabled: String(row.disabled) } : { ready: '', damaged: '', disabled: '' });
+  }
+
+  async function adjustVehicles(event: FormEvent) {
+    event.preventDefault();
+    setVehicleFields({});
+    setError(null);
+    setNotice(null);
+    const counts = { ready: Number(vehicleCounts.ready), damaged: Number(vehicleCounts.damaged), disabled: Number(vehicleCounts.disabled) };
+    const bad = Object.entries(counts).filter(([, value]) => !Number.isInteger(value) || value < 0);
+    if (bad.length) {
+      setVehicleFields(Object.fromEntries(bad.map(([field]) => [field, 'Use a whole number of zero or more.'])));
+      return;
+    }
+    setBusy(true);
+    try {
+      const updated = await adminApi.adjustPlayerVehicles(roundPlayerId, { classId: vehicleClass, ...counts, reason: vehicleReason.trim() });
+      setPlayer(updated);
+      pickVehicleClass(vehicleClass, updated);
+      setVehicleReason('');
+      setNotice('Fleet corrected. Net worth, ranks and the admin audit log were updated.');
+    } catch (caught) {
+      if (caught instanceof ApiError) {
+        setVehicleFields(caught.fields ?? {});
+        setError(caught.message);
+      } else {
+        setError('That fleet correction did not go through.');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!player) {
     return (
       <GameLayout>
@@ -236,6 +320,20 @@ export function AdminPlayerPage() {
   const supportReasonReady = supportReason.trim().length >= 5;
   const supportDelta = Number(supportFavorDelta);
   const supportDeltaReady = Number.isInteger(supportDelta) && supportDelta !== 0 && Math.abs(supportDelta) <= 1000;
+  const factionSelected = player.factions.find((row) => row.factionKey === factionKey);
+  const factionPointsNumber = Number(factionPoints);
+  const vehicleSelected = player.fleet?.classes.find((row) => row.classId === vehicleClass);
+  const vehicleNumbers = [vehicleCounts.ready, vehicleCounts.damaged, vehicleCounts.disabled].map(Number);
+  const vehicleReady = Boolean(vehicleSelected)
+    && [vehicleCounts.ready, vehicleCounts.damaged, vehicleCounts.disabled].every((value) => value.trim() !== '')
+    && vehicleNumbers.every((value) => Number.isInteger(value) && value >= 0)
+    && vehicleReason.trim().length >= 5
+    && (vehicleSelected!.ready !== vehicleNumbers[0] || vehicleSelected!.damaged !== vehicleNumbers[1] || vehicleSelected!.disabled !== vehicleNumbers[2]);
+  const factionReady = Boolean(factionKey)
+    && Number.isInteger(factionPointsNumber)
+    && factionPointsNumber >= 0
+    && factionReason.trim().length >= 5
+    && factionSelected?.points !== factionPointsNumber;
 
   return (
     <GameLayout>
@@ -299,7 +397,14 @@ export function AdminPlayerPage() {
           <div className="se-rows">
             <Row label="Whores" value={formatNumber(player.crew.whores)} />
             <Row label="Thugs" value={`${formatNumber(player.crew.thugs)} (${formatNumber(player.crew.woundedThugs)} wounded)`} />
-            <Row label="Low-Riders" value={formatNumber(player.crew.lowRiders)} />
+            {player.fleet ? player.fleet.classes.map((row) => (
+              <Row
+                key={row.classId}
+                label={`${row.name}s`}
+                value={`${formatNumber(row.ready)} ready · ${formatNumber(row.away)} away${row.damaged || row.disabled ? ` · ${formatNumber(row.damaged)} damaged · ${formatNumber(row.disabled)} disabled` : ''}`}
+              />
+            )) : <Row label="Low-Riders" value={formatNumber(player.crew.lowRiders)} />}
+            {player.fleet?.service.entries ? <Row label="Garage spend" value={`${formatCents(player.fleet.service.spentCents)} · ${formatNumber(player.fleet.service.entries)} jobs`} /> : null}
             <Row label="Pistols" value={formatNumber(player.weapons.pistols)} />
             <Row label="Shotguns" value={formatNumber(player.weapons.shotguns)} />
             <Row label="Tek-9s" value={formatNumber(player.weapons.tek9s)} />
@@ -365,9 +470,121 @@ export function AdminPlayerPage() {
             {player.reputation.length ? player.reputation.map((row) => (
               <Row key={row.trader} label={`Rep: ${row.trader}`} value={`${formatNumber(row.points)}${row.legacyFavorDone ? ' · legacy favor' : ''}`} />
             )) : <Row label="Reputation" value="-" />}
+            {player.factions.length ? player.factions.map((row) => (
+              <Row
+                key={row.factionKey}
+                label={`Faction: ${row.factionName}`}
+                value={`${formatNumber(row.points)} · ${row.tierName}${row.points === row.receiptPoints ? '' : ` · receipts ${formatNumber(row.receiptPoints)}`}`}
+              />
+            )) : <Row label="Faction standing" value="-" />}
           </div>
         </Panel>
       </div>
+
+      {player.factions.length ? (
+        <Panel title="Faction standing correction" aside={<Link to={`/game/admin/audit?targetType=player-faction-standing`}>Audit log</Link>} className="se-mb">
+          {!player.live ? (
+            <p className="se-hint">This round has finished, so faction standing corrections are frozen.</p>
+          ) : (
+            <form onSubmit={adjustFactionStanding} noValidate>
+              <div className="se-grid se-grid--2">
+                <div className="se-field">
+                  <label className="se-label" htmlFor="admin-faction-key">Faction</label>
+                  <select
+                    id="admin-faction-key"
+                    className="se-input"
+                    value={factionKey}
+                    onChange={(event) => {
+                      setFactionKey(event.target.value);
+                      const selected = player.factions.find((row) => row.factionKey === event.target.value);
+                      setFactionPoints(selected ? String(selected.points) : '');
+                    }}
+                  >
+                    {player.factions.map((row) => (
+                      <option key={row.factionKey} value={row.factionKey}>{row.factionName} · {row.points} · {row.tierName}</option>
+                    ))}
+                  </select>
+                  {factionSelected ? <p className="se-hint">Receipts total {formatNumber(factionSelected.receiptPoints)} across {formatNumber(factionSelected.receipts)} changes.</p> : null}
+                </div>
+                <Field
+                  id="admin-faction-points"
+                  label="Exact standing"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={factionPoints}
+                  onChange={(event) => setFactionPoints(event.target.value)}
+                  error={factionFields.points}
+                  hint="Sets the stored value exactly and writes an ADMIN receipt for the difference."
+                />
+              </div>
+              <div className="se-field">
+                <label className="se-label" htmlFor="admin-faction-reason">Reason</label>
+                <textarea id="admin-faction-reason" className="se-input se-admin-reason" maxLength={500} value={factionReason} onChange={(event) => setFactionReason(event.target.value)} />
+                {factionFields.reason ? <p className="se-error" role="alert">{factionFields.reason}</p> : <p className="se-hint">Shown in the player's activity feed and saved to the audit log. At least 5 characters.</p>}
+              </div>
+              <Button
+                className="se-btn se-btn--primary"
+                disabledReason={busy ? working : !factionReady ? 'Choose a faction, a changed whole-number value, and a reason of at least 5 characters.' : null}
+              >
+                Correct standing
+              </Button>
+            </form>
+          )}
+        </Panel>
+      ) : null}
+
+      {player.fleet ? (
+        <Panel title="Fleet correction" aside={<Link to={`/game/admin/audit?targetType=player-vehicles`}>Audit log</Link>} className="se-mb">
+          {player.fleet.runs.length ? (
+            <p className="se-hint">
+              {player.fleet.runs.length} run{player.fleet.runs.length === 1 ? ' is' : 's are'} out. Cars on a run are left alone and come home on their own; this sets only what is at home.
+            </p>
+          ) : null}
+          {!player.live ? (
+            <p className="se-hint">This round has finished, so fleet corrections are frozen.</p>
+          ) : (
+            <form onSubmit={adjustVehicles} noValidate>
+              <div className="se-grid se-grid--2">
+                <div className="se-field">
+                  <label className="se-label" htmlFor="admin-vehicle-class">Class</label>
+                  <select id="admin-vehicle-class" className="se-input" value={vehicleClass}
+                    onChange={(event) => pickVehicleClass(event.target.value as 'LOW_RIDER' | 'SEDAN' | 'VAN')}>
+                    {player.fleet.classes.map((row) => (
+                      <option key={row.classId} value={row.classId}>{row.name} · {row.ready} ready · {row.damaged} damaged · {row.disabled} disabled</option>
+                    ))}
+                  </select>
+                  <p className="se-hint">Pick a class to load its current home counts.</p>
+                </div>
+                {(['ready', 'damaged', 'disabled'] as const).map((field) => (
+                  <Field
+                    key={field}
+                    id={`admin-vehicle-${field}`}
+                    label={`${field[0]!.toUpperCase()}${field.slice(1)} at home`}
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={vehicleCounts[field]}
+                    onChange={(event) => setVehicleCounts({ ...vehicleCounts, [field]: event.target.value })}
+                    error={vehicleFields[field]}
+                  />
+                ))}
+              </div>
+              <div className="se-field">
+                <label className="se-label" htmlFor="admin-vehicle-reason">Reason</label>
+                <textarea id="admin-vehicle-reason" className="se-input se-admin-reason" maxLength={500} value={vehicleReason} onChange={(event) => setVehicleReason(event.target.value)} />
+                {vehicleFields.reason ? <p className="se-error" role="alert">{vehicleFields.reason}</p> : <p className="se-hint">Shown in the player's activity feed and saved to the audit log. At least 5 characters.</p>}
+              </div>
+              <Button
+                className="se-btn se-btn--primary"
+                disabledReason={busy ? working : !vehicleReady ? 'Pick a class, change at least one count, and give a reason of at least 5 characters.' : null}
+              >
+                Correct fleet
+              </Button>
+            </form>
+          )}
+        </Panel>
+      ) : null}
 
       <Panel
         title="Quest and favor support"

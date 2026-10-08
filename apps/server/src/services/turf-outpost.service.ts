@@ -17,6 +17,7 @@ import type {
   RunOutpostTransferResult,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
+import { readVehicleLoadout } from './vehicle-fleet.service.js';
 import { ActionService, assertTurns } from './action.service.js';
 import { productKeys } from './product-inventory.service.js';
 import { RUN_INCLUDE, cargoOf, toStopPlans, totalAwayWorth, type LoadedRun } from './run-settle.service.js';
@@ -343,7 +344,7 @@ export const TurfOutpostService = {
           }
           const roomNeeded = input.beer + productUnits(moved);
           const runUsed = run.beer + cargoUnits(runCargo);
-          if (runUsed + roomNeeded > runCapacity(ruleset, run.lowRiders)) {
+          if (runUsed + roomNeeded > runCapacity(ruleset, readVehicleLoadout(run.vehicleLoadout, run.lowRiders))) {
             throw AppError.conflict('TRUNK_FULL', 'The run does not have enough room for that pickup.');
           }
           nextBoxCash -= cash;

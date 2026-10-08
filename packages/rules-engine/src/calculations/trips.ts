@@ -23,6 +23,13 @@ export function hotelCents(rules: TripRules, city: string, minutes: number): big
   return BigInt(Math.round(rules.hotelCentsPerHour * lean)) * BigInt(hours);
 }
 
+/** Trips D. One bodyguard's ticket, less any whole-percent cut (1.4.0-D), the saving rounded down. */
+export function bodyguardTicketCents(ticketCents: number, cutPercent = 0): bigint {
+  const cut = BigInt(Math.min(100, Math.max(0, Math.round(cutPercent))));
+  const full = BigInt(Math.max(0, ticketCents));
+  return full - (full * cut) / 100n;
+}
+
 /** Trips D. Lodging for `bodyguards` over `minutes`, rounded up to whole hours like the hotel. */
 export function lodgingCents(rules: TripRules, bodyguards: number, minutes: number): bigint {
   const rate = rules.bodyguards?.lodgingCentsPerThugHour ?? 0;
@@ -157,6 +164,8 @@ export function checkTrip(ruleset: Ruleset, input: {
   fitThugs?: number;
   /** Trips D2. The boss's Heat, for the airport. */
   heat?: number;
+  /** 1.4.0-D. Road Saints' Connected nudge: whole percent off each bodyguard's ticket. */
+  bodyguardTicketCutPercent?: number;
 }): TripCheck {
   const rules = tripRules(ruleset);
   const now = input.now.getTime();
@@ -170,7 +179,7 @@ export function checkTrip(ruleset: Ruleset, input: {
   };
   const cutoffAt = new Date(input.roundEndsAt.getTime() - (rules?.cutoffHours ?? 0) * 3_600_000);
   const guards = Math.max(0, Math.trunc(input.bodyguards ?? 0));
-  const ticketCents = BigInt(rules?.ticketCents ?? 0) + BigInt(rules?.bodyguards?.ticketCents ?? 0) * BigInt(guards);
+  const ticketCents = BigInt(rules?.ticketCents ?? 0) + bodyguardTicketCents(rules?.bodyguards?.ticketCents ?? 0, input.bodyguardTicketCutPercent) * BigInt(guards);
   const hotel = rules ? hotelCents(rules, input.to, input.stayMinutes) + lodgingCents(rules, guards, input.stayMinutes) : 0n;
   const bankroll = input.bankrollCents > 0n ? input.bankrollCents : 0n;
   const totalCents = ticketCents + hotel + bankroll;

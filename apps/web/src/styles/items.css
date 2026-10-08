@@ -43,6 +43,8 @@
   pointer-events: none;
 }
 
+/* Cosmetic variants use separate authored image files. No CSS recolor/filter skins. */
+
 .se-item-tile__name,
 .se-item-tile__qty {
   position: absolute;
@@ -105,4 +107,119 @@
   position: absolute;
   top: 8px;
   right: 8px;
+}
+
+/* Portraits of contacts, traders and faction faces (public/portraits/), drawn like the item art. */
+.se-portrait {
+  display: inline-grid;
+  flex: none;
+  place-items: end center;
+  overflow: hidden;
+  width: 44px;
+  height: 44px;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 35%, var(--se-line));
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.35) 70%), var(--se-panel-hi);
+  vertical-align: middle;
+}
+
+.se-portrait img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.se-portrait--sm {
+  width: 28px;
+  height: 28px;
+}
+
+.se-portrait--lg {
+  width: 88px;
+  height: 88px;
+}
+
+
+/* Account settings: compact item/crew cosmetic locker. */
+.se-cosmetic-locker {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--se-line);
+}
+
+.se-cosmetic-locker__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
+  gap: 18px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.se-cosmetic-locker__head h3,
+.se-cosmetic-locker__group h4 {
+  margin: 0;
+}
+
+.se-cosmetic-locker__unlocks {
+  margin: 0 0 18px;
+  padding: 8px 12px;
+  list-style: none;
+  border: 1px dashed var(--se-line);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.se-cosmetic-locker__unlocks li + li { margin-top: 4px; }
+
+.se-cosmetic-locker__group + .se-cosmetic-locker__group {
+  margin-top: 20px;
+}
+
+.se-cosmetic-locker__group h4 {
+  margin-bottom: 10px;
+  color: var(--se-text);
+}
+
+.se-cosmetic-locker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.se-cosmetic-locker__card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--se-line);
+  border-radius: var(--se-radius);
+  background: var(--se-panel-hi);
+}
+
+.se-cosmetic-locker__preview {
+  display: grid;
+  min-height: 118px;
+  place-items: center;
+}
+
+@media (max-width: 720px) {
+  .se-cosmetic-locker__head {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .se-cosmetic-locker__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-cosmetic-locker__preview .se-item-tile--lg {
+    --se-item-cell: 84px;
+  }
+}
+
+@media (max-width: 420px) {
+  .se-cosmetic-locker__grid {
+    grid-template-columns: 1fr;
+  }
 }

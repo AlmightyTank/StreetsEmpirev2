@@ -8,7 +8,7 @@
   position: relative;
   overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(430px, 0.54fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 28px;
   align-items: end;
   padding: 24px;
@@ -57,41 +57,6 @@
   display: grid;
   gap: 10px;
   justify-items: end;
-}
-
-.se-raids-hero__readout {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  width: 100%;
-  border: 1px solid var(--se-line);
-  background: rgba(11, 12, 14, 0.72);
-}
-
-.se-raids-hero__readout > span {
-  min-width: 0;
-  padding: 11px;
-  border-right: 1px solid var(--se-line);
-}
-
-.se-raids-hero__readout > span:last-child {
-  border-right: 0;
-}
-
-.se-raids-hero__readout small {
-  display: block;
-  color: var(--se-muted);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.se-raids-hero__readout strong {
-  display: block;
-  margin-top: 4px;
-  overflow-wrap: anywhere;
-  font-family: var(--se-mono);
-  font-size: 15px;
 }
 
 .se-raids-pending,
@@ -349,65 +314,12 @@
   gap: 6px;
 }
 
-.se-raids-field > label,
-.se-raids-field__head label {
+.se-raids-field > label {
   color: var(--se-text-dim);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-}
-
-.se-raids-field__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.se-raids-field__head span {
-  color: var(--se-muted);
-  font-family: var(--se-mono);
-  font-size: 9px;
-}
-
-.se-raids-launch {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 14px;
-  align-items: center;
-  padding: 12px;
-  border: 1px solid rgba(243, 63, 99, 0.16);
-  background: rgba(243, 63, 99, 0.018);
-}
-
-.se-raids-launch > div {
-  display: grid;
-  min-width: 0;
-}
-
-.se-raids-launch__label {
-  color: var(--se-muted);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.se-raids-launch strong {
-  margin-top: 2px;
-  font-size: 13px;
-}
-
-.se-raids-launch > div > span:last-child {
-  margin-top: 2px;
-  color: var(--se-muted);
-  font-size: 10px;
-  line-height: 1.35;
-}
-
-.se-raids-launch__button {
-  min-width: 170px;
 }
 
 .se-raids-pagination {
@@ -649,18 +561,6 @@
     font-size: 34px;
   }
 
-  .se-raids-hero__readout {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .se-raids-hero__readout > span:nth-child(2) {
-    border-right: 0;
-  }
-
-  .se-raids-hero__readout > span:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--se-line);
-  }
-
   .se-raids-plan__main,
   .se-raids-plan__intel {
     padding: 13px;
@@ -677,15 +577,6 @@
     text-align: left;
   }
 
-  .se-raids-launch {
-    grid-template-columns: 1fr;
-  }
-
-  .se-raids-launch__button {
-    width: 100%;
-    min-width: 0;
-  }
-
   .se-raids-pending {
     display: grid;
   }
@@ -699,24 +590,29 @@
     grid-template-columns: 1fr;
   }
 
-  .se-raids-hero__readout {
-    grid-template-columns: 1fr;
-  }
+}
 
-  .se-raids-hero__readout > span {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    border-right: 0;
-    border-bottom: 1px solid var(--se-line);
-  }
+/* Slice G: each side's item and crew art in a battle report. */
+.se-faceoff {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
 
-  .se-raids-hero__readout > span:last-child {
-    border-bottom: 0;
-  }
+.se-faceoff__side {
+  display: grid;
+  gap: 4px;
+}
 
-  .se-raids-hero__readout strong {
-    margin-top: 0;
-  }
+.se-faceoff__label {
+  color: var(--se-text-dim);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.se-faceoff__tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }

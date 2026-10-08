@@ -1,453 +1,663 @@
-# StreetsEmpire v1.4.0 — Contracts, Factions & Underworld NPCs
+# StreetsEmpire v1.4.0 — Factions, Contracts & the Underworld
 
 ## Brainstorm
 
-**Status:** proposed roadmap.
+**Status:** 1.4.0-A, 1.4.0-B, B2, C, D, E, F and G are built; the newest ruleset is `classic-og-v1.4-g`.
+See the [Roadmap](#roadmap) table.
 
-**Target base:** StreetsEmpire v1.3.0  
-**Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** make each city's underworld feel
-populated even outside player competition.  
-**Core loop:** meet faction -> take contract -> pay risk -> earn standing -> unlock harder
-choices.
+**Target base:** StreetsEmpire v1.3.0 (`classic-og-v1.3-g`)  
+**Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** make each city's underworld feel populated
+even outside player competition.  
+**The question:** who else runs these streets besides players?  
+**Core loop:** work for a contact → earn their faction's standing → unlock information, then small
+advantages in that faction's lane → choose a side at the top.
 
----
+**Decided so far:**
 
-## The question
-
-1.4.0 answers:
-
-> Who else runs these streets besides players?
-
-The answer should not be a second game full of autonomous NPC empires. The answer should be a
-faction and contract layer that gives existing systems human faces: the gangs that hold the
-block, the suppliers behind Pip, the corrupt officials behind 1.3, the casino people behind Ace,
-and the fixers who know how to introduce one side to another.
-
-## Recommendation: quest givers belong to factions
-
-Every quest giver should have a faction relationship. Most have a **primary faction**. Some can be
-**faction-adjacent**, and a few can be **independent brokers**, but nobody should float outside the
-underworld map without a reason.
-
-This makes Jobs and contracts carry long-term consequences:
-
-- helping Tommy is not just "Tommy reputation"; it also strengthens your relationship with The
-  Outfit;
-- helping Wheels can open Road Saints work and make vehicle contracts easier;
-- helping Civic Handshake can lower pressure in the short term while hurting trust with crews
-  that hate officials;
-- helping a broker can buy introductions without making anyone fully trust you.
-
-Faction standing should sit beside existing contact reputation, not replace it. Contacts remain
-the personal face; factions are the wider political consequence.
+- **Factions sponsor the boards that already exist.** There is no new contract board. Daily,
+  weekly, city and alliance contracts carry a sponsoring faction and pay its standing, and each
+  faction adds a handful of its own one-time Jobs.
+- **Standing buys information, then small capped nudges.** Low tiers bring information and
+  warnings. Mid tiers bring small, capped advantages inside systems that already exist. The top
+  tier brings a capstone Job, titles and cosmetics. Standing never pays an income stream, turns
+  or combat strength.
+- **Rivalries stay soft until the top tier.** Anyone can earn standing with every faction.
+  Reaching **Inner Circle** with a faction locks you out of its rival's Inner Circle for the
+  season. The lock is shown before you take the step.
+- **Alignment is public from Connected up.** A profile shows "Kings-connected" once a player
+  reaches Connected. Exact standing and contract progress stay private, like the Case.
+- **Five factions ship first:** The Kings, The Outfit, Road Saints MC, The Cartel Line and Civic
+  Handshake. Harbor Ghosts, The Velvet Table and The Quiet Office are later or optional.
+- **Civic Handshake is the faction behind the 1.3 officials.** Its standing works through the
+  existing payroll (Captain, DA, Judge, Customs). It is not a second way to clear a Case.
+- **Vic is The Quiet Office's broker,** not a Civic Handshake officer. **Ledger stays
+  independent:** the one voice in the room who never took an envelope.
+- **No faction can hurt another player's Case.** The earlier draft's "point heat at a rival" is
+  cut, keeping the 1.3 rule that a Case is built only from the player's own actions.
 
 ---
 
-## Design principles
+## Roadmap
 
-1. **Factions are faces for existing systems.** Contracts should ask players to use Scout,
-   Product, Combat, Travel, Turf, Businesses, Casino and 1.3 pressure systems instead of inventing
-   unrelated chores.
-2. **NPC content supplements PvP.** Contracts can create targets, opportunities and pressure, but
-   should not become the safest optimal money source.
-3. **Actual law is pressure, not a friendly faction.** 1.3's law enforcement system remains the
-   outside force. Civic Handshake is the corrupt interface players can work through.
-4. **Standing opens choices, not raw power.** Unlocks can include better contracts, information,
-   introductions, discounts, limited pressure relief, titles and cosmetics. They should not grant
-   permanent combat strength, turns or risk-free income.
-5. **Rivalries matter.** A crew can be respected by everyone only at low levels. Deep allegiance
-   should create tension with at least one other faction.
-6. **Rulesets pin the faction catalog.** Older rounds do not gain faction behavior accidentally.
+Seven slices, each on its own pinned ruleset that adds to the one before it, starting from
+`classic-og-v1.3-g`. Every slice leaves the law system, combat odds, casino odds and existing
+contact reputation exactly as they were.
 
----
-
-## Core factions
-
-| Key | Faction | Identity | Main gameplay lane | Natural quest givers |
-|---|---|---|---|---|
-| `KINGS` | **The Kings** | street gangs, block bosses, neighborhood crews | Turf, raids, block wars, street reputation | Mama King, Blocks |
-| `OUTFIT` | **The Outfit** | old-school organized crime, weapons, protection, business pressure | weapons, rackets, protection, intimidation | Tommy |
-| `ROAD_SAINTS` | **Road Saints MC** | bikers, chop shops, convoy escorts, muscle on wheels | vehicles, travel, convoys, recovery | Wheels |
-| `CARTEL_LINE` | **The Cartel Line** | product suppliers and wholesale distribution | Product, Pip prices, city supply, risky orders | Pip |
-| `HARBOR_GHOSTS` | **Harbor Ghosts** | smugglers, dock crews, airport and port handlers | long-distance runs, hidden cargo, shipment contracts | Pip, Wheels, future handler |
-| `CIVIC_HANDSHAKE` | **Civic Handshake** | corrupt officials, inspectors, clerks, lawyers and dirty cops | 1.3 pressure, bribes, warrants, permits, inspections | Vic or a new 1.3 contact |
-| `VELVET_TABLE` | **The Velvet Table** | casino hosts, high rollers, financiers and back-room money | casino, comps, VIP access, markers | Ace |
-| `QUIET_OFFICE` | **The Quiet Office** | fixers, brokers, accountants and information dealers | introductions, debts, secrets, faction diplomacy | new broker |
-
-### First active set
-
-The first 1.4 release should not ship all eight factions as full systems. Start with:
-
-1. **The Kings**
-2. **The Outfit**
-3. **Road Saints MC**
-4. **The Cartel Line**
-5. **Civic Handshake**
-
-Then add Harbor Ghosts for advanced travel/smuggling, Velvet Table for deeper casino work, and
-Quiet Office once introductions and rivalries need a broker.
+| Slice | Status | Ruleset | What it delivers |
+| --- | --- | --- | --- |
+| **1.4.0-A — Faction Catalog** | Built | `classic-og-v1.4-a` | Factions in the ruleset, each contact's faction, faction identity on Jobs and contacts. No balance change. |
+| **1.4.0-B — Standing** | Built | `classic-og-v1.4-b` | Seasonal standing per faction with receipts, tiers, tier-up alerts and a standing panel. Jobs pay standing only to the factions they help; two faction Jobs each; contact portraits. |
+| **1.4.0-B2 — Contract Rotation** | Built | `classic-og-v1.4-b2` | 28 more daily contracts (36 in all) and 14 more weekly contracts (20 in all), including the first contracts for businesses, block wars, convoys, boss trips and outposts. Each round deals its boards from its own deck: every daily is dealt once every 12 days and never twice within 6, every weekly once every 10 weeks and never twice within 5, with boards mixing categories. City boards never post two orders in one city, avoid the last board's cities, and add a third slot for a city job (fly in and back, or play that city's casino). A new Season board deals each round 3 of 9 round-long goals that sit outside the active-job limit. |
+| **1.4.0-C — Sponsored Contracts** | Built | `classic-og-v1.4-c` | Every daily, weekly, city, Season and alliance contract carries a sponsoring faction and pays it standing. Where work could go to two factions, the sponsor leans toward ones you're Known with. |
+| **1.4.0-D — Faction Perks** | Built | `classic-og-v1.4-d` | Information at Known and early warnings at Trusted on each faction's card, then one capped nudge per faction at Connected (corner upkeep, Tommy's guns, bodyguard tickets, Pip's product, official exposure), each logged where it applies. |
+| **1.4.0-E — Rivalries & Inner Circle** | Built | `classic-og-v1.4-e` | The Inner Circle rival lock, previewed on the card and confirmed before it lands; Vic's paid introductions to Known; a Connected Job and an Inner Circle capstone (standing and a title) per faction. |
+| **1.4.0-F — Rewards & Public Flavor** | Built | `classic-og-v1.4-f` | A title and accent per faction at Connected and a frame at Inner Circle; alignment on profiles from Connected; Inner Circle on the public street feed; three faction feats; a Rules page section. |
+| **1.4.0-G — Balance, Admin & Release** | Built | `classic-og-v1.4-g` | A `qa:factions` simulation, an admin standing view with audited corrections, an exploit audit, mobile checks and the release gate. |
 
 ---
 
-## Quest giver alignment
+## What already exists
 
-| Contact | Primary faction | Secondary relationships | Notes |
-|---|---|---|---|
-| Mama King | The Kings | respected by The Quiet Office | Street legitimacy and local protection. |
-| Blocks | The Kings | tense with The Outfit | Block-by-block street control. |
-| Tommy | The Outfit | trades with The Kings; tense with Road Saints MC | Guns, intimidation and protection money. |
-| Pip | The Cartel Line | works with Harbor Ghosts | Product supply, shortages and wholesale orders. |
-| Wheels | Road Saints MC | works with Harbor Ghosts; tense with The Outfit | Cars, roads, convoys and recovery. |
-| Vic | Civic Handshake | quietly works with The Quiet Office | Heat, clean slates, warrants and favors around 1.3 pressure. |
-| Ace | The Velvet Table | works with Civic Handshake | Casino access, VIP treatment, markers and comps. |
-| New broker | The Quiet Office | knows everyone; trusted by nobody | Introductions, betrayals, debt settlement and faction diplomacy. |
+1.4 is mostly a politics layer over systems the game already has:
 
-### Relationship types
+| Piece | Since | What it gives 1.4 |
+| --- | --- | --- |
+| Contacts and Jobs | 0.7 | Mama King, Pip, Tommy, Wheels, Vic and Blocks; Ace (1.2-F) and Ledger (1.3-F). One-time Jobs with prerequisites, objectives driven by real game signals, retry-safe receipts. |
+| Contact reputation | 0.7 | `PlayerReputation` per contact, earned from Jobs and regular trade. Prerequisites read it. |
+| Daily contracts | 0.7-N | A rotating board, 3 slots a day. |
+| Weekly contracts | 0.7-O | A rotating board, 2 slots a week. |
+| City contracts | 0.7-R | 2 slots per 12-hour window, driven by each city's market supply. |
+| Alliance contracts | 0.7-S | Shared alliance work, 4 slots. |
+| Favors | 0.7-I | Timed and single-use favor rewards in Street, Underworld and Muscle categories. |
+| Stores | early | Corner, Tommy (weapons), Charlie (supplies), Pip (product), each with prices and relationship pricing. |
+| Turf locals | 0.6 | Blocks held by local crews before players take them. |
+| Travel | 0.5 / Trips | Runs, convoys, road stops, bodyguards and the airport. |
+| Businesses | 1.1 | Fronts, rackets and block wars. |
+| The law | 1.3 | The Case, warrants, lawyers, the officials' payroll with exposure and Internal Affairs, informants. |
 
-Each quest giver can be represented with:
-
-- `primaryFactionKey`: the faction standing their normal Jobs affect;
-- `friendlyFactionKeys`: factions that may give side credit or unlock introductions;
-- `rivalFactionKeys`: factions that may dislike deep progress with this contact;
-- `brokeredFactionKeys`: factions they can introduce without belonging to them.
-
-This keeps existing contacts usable without pretending each one is a rigid faction officer.
+What's missing is a **reason the work adds up**. Every Job and board contract today is a separate
+transaction with one contact. Nothing says that helping Tommy and helping Blocks pulls you in
+different directions, or that the people behind Pip have an opinion about what you do with their
+product.
 
 ---
 
-## Rivalry web
+## Recommendation: contacts belong to factions
 
-Keep the rivalry graph readable:
+Every contact keeps their own reputation; that is the personal relationship. Each one also belongs
+to a **faction**, which is the wider political consequence. Helping Tommy earns Tommy's reputation
+*and* The Outfit's standing. Contacts are the faces, factions the politics.
+
+### Design principles
+
+1. **Factions are faces for existing systems.** Faction work is Scout, Product, Combat, Travel,
+   Turf, Businesses, Casino and the law, never unrelated chores.
+2. **NPC work supplements PvP.** Contracts create opportunities and pressure; they are never the
+   safest best way to earn.
+3. **The law stays the outside force.** Civic Handshake is the corrupt interface to it, sold as
+   counterplay inside 1.3's caps, never immunity.
+4. **Standing opens choices, not raw power.** Information, access, small capped nudges, titles
+   and cosmetics. Never turns, combat strength or unearned income.
+5. **Rivalries bite at the top.** Being liked by everyone is possible, being trusted by everyone
+   is not.
+6. **Rulesets pin the faction catalog.** Older rounds never gain faction behaviour.
+
+---
+
+## Factions
+
+| Key | Faction | Identity | Lane | Faces | First release |
+| --- | --- | --- | --- | --- | --- |
+| `KINGS` | **The Kings** | street gangs, block bosses, neighborhood crews | Turf, raids, block wars, the street | Mama King, Blocks | ✅ |
+| `OUTFIT` | **The Outfit** | old-school organized crime, weapons, protection | Weapons, rackets, protection | Tommy | ✅ |
+| `ROAD_SAINTS` | **Road Saints MC** | bikers, chop shops, convoy escorts | Vehicles, runs, convoys, the road | Wheels | ✅ |
+| `CARTEL_LINE` | **The Cartel Line** | product suppliers and wholesale | Product, Pip, supply | Pip | ✅ |
+| `CIVIC_HANDSHAKE` | **Civic Handshake** | corrupt officials, clerks, inspectors | The 1.3 payroll | the payroll officials | ✅ |
+| `HARBOR_GHOSTS` | **Harbor Ghosts** | smugglers, dock and airport handlers | Hidden cargo, ports, airports | a future handler | later |
+| `VELVET_TABLE` | **The Velvet Table** | casino hosts, high rollers, back-room money | Casino, VIP, comps | Ace | later |
+| `QUIET_OFFICE` | **The Quiet Office** | fixers, brokers, information dealers | Introductions, debts, diplomacy | Vic | E (as a broker only) |
+
+**Independent:** Ledger, the retired records sergeant (1.3-F), belongs to no faction. Her Jobs
+pay no faction standing.
+
+### The Quiet Office in the first release
+
+Vic introduces players across factions in E (see below) but is not a faction you climb in the first
+release. His Jobs keep paying Vic's reputation only. A full Quiet Office ladder is a later option.
+
+### Rivalry web
+
+Each first-release faction has exactly one rival, so the top-tier choice is readable:
 
 | Rivalry | Reason |
-|---|---|
+| --- | --- |
 | The Kings vs. The Outfit | street control vs. old-money control |
-| Road Saints MC vs. The Outfit | chop-shop routes and vehicle work |
-| The Cartel Line vs. Civic Handshake | product flow vs. enforcement pressure |
-| Harbor Ghosts vs. Civic Handshake | smuggling vs. inspections |
-| The Velvet Table vs. The Kings | polished money vs. street heat |
-| The Quiet Office vs. everyone | brokers profit from trust but survive on leverage |
+| Road Saints MC vs. Civic Handshake | the road vs. the checkpoints |
+| The Cartel Line vs. Civic Handshake | product flow vs. inspections |
 
-Rivalries should not hard-lock players out immediately. Early standing can stay flexible. High
-standing, capstones and faction-exclusive contracts are where the tradeoffs begin.
+Civic Handshake has two rivals because everyone who moves goods hates it. Later factions add
+their own: Harbor Ghosts vs. Civic Handshake, The Velvet Table vs. The Kings.
 
 ---
 
-## Contracts
+## Standing
 
-Contracts are faction Jobs with rotating availability, explicit costs and durable receipts. They
-should use existing action systems whenever possible.
+Standing is seasonal: it starts at zero each round, like the Case. Every change has a receipt keyed
+on the act that caused it, so a retry never pays twice and staff can audit every point.
 
-| Contract lane | Examples | Cost/risk | Reward shape |
-|---|---|---|---|
-| Street | collect a debt, hit an NPC crew, hold a block | turns, wounds, Heat, retaliation | faction standing, cash below PvP value, titles |
-| Product | supply an order, cover a shortage, move a package | product, road risk, police pressure | standing, price access, limited product opportunities |
-| Travel | escort a courier, recover a car, cross a hot road | time, vehicles, bodyguards, road stops | standing, intel, vehicle discounts/recovery |
-| Turf | pressure locals, defend a storefront, hold a block window | posted crew, block exposure, war risk | standing, block intel, faction favor |
-| Business | protect a front, collect protection, settle a racket dispute | staff time, register exposure, Heat | standing, racket hooks, limited business boosts |
-| Casino | arrange a private table, settle a marker, host a VIP | bankroll risk, travel, casino status | standing, cosmetics, access, comp-like perks |
-| Civic | bury evidence, buy a warning, fix a permit, cool an inspection | cash, favors, rival standing loss | pressure relief, warning, warrant delay |
-| Broker | introduction, truce talk, debt swap, secret tip | cash, reputation tradeoff, cooldown | access, information, relationship change |
+| Tier | Standing | Meaning | What it opens |
+| --- | --- | --- | --- |
+| **Unknown** | 0 | no relationship | the faction's sponsored board contracts |
+| **Known** | 25 | they've heard of you | faction one-time Jobs; information (D) |
+| **Trusted** | 75 | they'll call you | early warnings (D) |
+| **Connected** | 150 | they'll vouch for you | the faction's capped nudge (D); public alignment (F) |
+| **Inner Circle** | 300 | they'd risk something for you | the capstone Job and cosmetics (E); locks out the rival's Inner Circle |
 
-### Contract guardrails
+*Thresholds are first passes, to be pinned by `qa:factions` in G.*
 
-- Repeatable contracts should be capped by rotation, cooldown, inventory, city, faction standing
-  or risk.
-- Cash contracts must pay below strong player-facing strategies after costs and risk.
-- Standing and cosmetics can be generous; money, product, turns and combat advantage must be
-  conservative.
-- Contracts cannot be completed by client-authored outcomes. Server receipts decide progress.
-- A retried action ID never advances a contract twice.
+**Where standing comes from:**
+
+- a contact's one-time Jobs pay their faction's standing (B);
+- sponsored board contracts pay the sponsor's standing (C);
+- each faction's own Jobs (B) and arc (E).
+
+**What standing never comes from:** cash, purchases, real money, other players, or anything a
+player can repeat without limit. Regular trade at a store keeps paying contact reputation only.
 
 ---
 
-## 1.3 integration
+## Sponsored contracts
 
-1.4.0 should build on 1.3 without swallowing it.
+No new board. Each existing board contract gets a **sponsoring faction**, from the contact who
+gives it or, for market-driven city contracts, from its lane (product → Cartel Line, turf →
+Kings, road → Road Saints, and so on).
 
-### Actual law enforcement
-
-The 1.3 law system should remain systemic pressure: Heat, attention, evidence, warrants,
-informants, investigations or whatever shape the final 1.3 branch takes.
-
-### Civic Handshake
-
-Civic Handshake is the underworld interface with that pressure:
-
-- pay for warnings;
-- delay or soften inspections;
-- find corrupt paperwork;
-- point heat at a rival through risky contracts;
-- reduce evidence pressure within strict caps;
-- create faction consequences for relying on officials too much.
-
-Civic Handshake should never make law pressure ignorable. It sells counterplay, not immunity.
-
-### Other factions and law pressure
-
-- The Kings can hide you locally but draw attention through violence.
-- The Outfit can protect businesses and witnesses but expects obedience.
-- Road Saints can route around hot roads, not erase police.
-- The Cartel Line can supply high-profit work that draws serious attention.
-- Harbor Ghosts can move hidden cargo through ports and airports, with inspection risk.
-- The Velvet Table can make money look respectable, but public casino action leaves a trail.
-- The Quiet Office can bury one problem by creating another.
+- **Standing on completion,** shown before acceptance next to the contract's existing reward.
+- **Boards lean your way.** When choosing a board's offers, a faction you're Known with or above
+  is a little more likely to sponsor one. A player is never offered only one faction's work.
+- **Alliance contracts** pay standing to each contributor, by share, the way they already split
+  rewards.
+- **Unchanged:** the boards' slots, windows, objectives, cash and favor rewards.
 
 ---
 
-## Standing and unlocks
+## Faction perks (D)
 
-Faction standing should be seasonal like other competitive progression unless a reward is
-explicitly cosmetic/permanent.
+| Tier | Kings | Outfit | Road Saints | Cartel Line | Civic Handshake |
+| --- | --- | --- | --- | --- | --- |
+| **Known:** information | which local crews hold blocks near yours | which blocks run rackets | which roads are hot today | which cities are short of what | which offices are under Internal Affairs |
+| **Trusted:** early warning | a rival lining up a block war on you | a racket raid coming in your city | a road stop on your next run's route | a supply crash a day early | a stage rise a few points early |
+| **Connected:** capped nudge | corner upkeep a little cheaper | Tommy's weapons a little cheaper | bodyguards a little cheaper | Pip's product a little cheaper | officials' exposure per favor a little lower |
 
-### Suggested tiers
-
-| Tier | Meaning | Unlock style |
-|---|---|---|
-| Unknown | no relationship | public/basic contracts |
-| Known | they have heard of you | basic board access, small flavor |
-| Trusted | they will call you | better contracts, limited intel |
-| Connected | they will vouch for you | introductions, faction events |
-| Inner Circle | they risk something for you | capstone Jobs, cosmetics, rare contract lines |
-
-### Unlock examples
-
-- contract board slots;
-- faction-specific one-time Jobs;
-- introductions to another faction;
-- title/profile cosmetics;
-- minor price or fee nudges within existing guardrails;
-- better information, earlier warnings or narrower recon;
-- limited 1.3 counterplay with daily/round caps.
-
-### What standing must not unlock
-
-- turns;
-- permanent cash flow with no action;
-- direct combat stat boosts;
-- unbounded Heat/evidence removal;
-- free product loops;
-- odds changes in casino games;
-- private player-to-player transfers.
+Every nudge is a small percentage, capped, applies only inside its system, and is pinned per
+ruleset. Every warning reads information the game already has and never reveals another player's
+Case, recon or private state. These were the candidates; [Built in D](#built-in-d) has what D
+pinned, including where two of them changed to keep that rule, and G's simulation sizes them.
 
 ---
 
-## Milestone overview
+## Rivalries & Inner Circle (E)
 
-| Version | Theme | Outcome |
-|---|---|---|
-| **1.4.0-A** | Faction Catalog | Ruleset-pinned factions, quest giver affiliations and UI surfaces |
-| **1.4.0-B** | Contract Board | Rotating faction contracts with durable progress and receipts |
-| **1.4.0-C** | Faction Standing | Seasonal standing, tiers, relationship changes and rival effects |
-| **1.4.0-D** | System Contracts | Product, travel, turf, business and 1.3-aware contract objectives |
-| **1.4.0-E** | Rivalries & Introductions | Faction tensions, brokered introductions and tradeoffs |
-| **1.4.0-F** | Underworld NPC Arcs | Named faction quest lines and capstones |
-| **1.4.0-G** | Rewards & Public Flavor | Titles, profile cosmetics, achievements, activity and rules copy |
-| **1.4.0-H** | Balance, Admin & Release | Simulations, admin review tools, UI audit and release gate |
-
----
-
-## 1.4.0-A — Faction Catalog
-
-### Objective
-
-Make factions first-class ruleset content without changing balance yet.
-
-### Scope
-
-- Add the faction catalog to the ruleset.
-- Add primary/secondary faction relationships to quest givers.
-- Show faction identity on Jobs and contact surfaces.
-- Add player-facing faction descriptions and rivalry hints.
-- Keep all existing Jobs functionally unchanged in A.
-
-### Gate
-
-- Older rulesets have no faction behavior.
-- Every contact with Jobs has a faction relationship or an explicit independent-broker reason.
-- Rules page copy explains factions without promising contract behavior not yet shipped.
+- **The lock.** Reaching Inner Circle with a faction locks its rival's Inner Circle for the season.
+  The Jobs page says so on the step that would do it, before you take it. Standing with the rival
+  keeps working below Inner Circle.
+- **No early traps.** Nothing below Inner Circle costs standing anywhere else, so a new player
+  can't make a mistake that hurts later.
+- **Vic's introductions.** Vic can introduce you to a faction you have no standing with: a paid
+  one-time Job that starts you at Known. It never unlocks a locked Inner Circle.
+- **Arcs.** Each first-release faction gets a short one-time Job arc ending in a capstone at
+  Inner Circle. Capstones pay titles, a frame or an accent, and standing; never cash or power.
 
 ---
 
-## 1.4.0-B — Contract Board
+## Hooks into what's already built
 
-### Objective
-
-Ship the first repeatable faction contract board.
-
-### Scope
-
-- Rotating offers by faction and city.
-- Contract acceptance, tracking, expiry and completion receipts.
-- Objective types reuse existing event signals and current-state checks.
-- Rewards grant faction standing first, with conservative cash/item rewards only when justified.
-
-### First board
-
-Start with The Kings, The Outfit, Road Saints MC, The Cartel Line and Civic Handshake.
-
-### Gate
-
-- Duplicate action IDs cannot complete or reward twice.
-- Expired contracts cannot be claimed.
-- Contract rewards are visible before acceptance.
-- The first balance pass proves contract-only play does not beat mixed play.
+- **1.3 law:** Civic Handshake works through the existing payroll and its caps. A sponsored
+  contract can never add to or take from a Case except through acts that already do (a bust is
+  still evidence). Ledger stays independent.
+- **1.2 casino:** Ace stays outside the first five. The Velvet Table, if it ships later, can never
+  touch odds, limits or payouts.
+- **1.1 businesses:** the Outfit's information and warnings read racket and raid state the game
+  already tracks.
+- **0.6 turf:** the Kings' information reads block holders the turf map already shows.
+- **Alliances:** standing is per player, not per alliance. Alliance contracts pay each
+  contributor.
 
 ---
 
-## 1.4.0-C — Faction Standing
+## Guardrails (proposed invariants)
 
-### Objective
-
-Add the consequence layer.
-
-### Scope
-
-- Seasonal faction standing per round player.
-- Tier thresholds and tier-up activity.
-- Rival standing effects at high tiers.
-- Contact Jobs can grant both contact reputation and faction standing.
-- Admin/player views show faction standing clearly.
-
-### Gate
-
-- Standing changes are event-sourced or receipt-backed enough to audit.
-- Rival effects never silently revoke previously earned permanent cosmetics.
-- Older contact reputation behavior remains pinned for older rulesets.
+1. Standing is seasonal and starts at zero every round.
+2. Every standing change has a receipt keyed on its source act, so retries never pay twice.
+3. No faction reward is an income stream, turns, combat strength, casino odds, or a way to clear
+   a Case.
+4. Every nudge is capped, small, inside an existing system, and pinned per ruleset.
+5. No warning or information reveals another player's private state.
+6. Nothing below Inner Circle costs standing elsewhere; the Inner Circle lock is previewed before
+   it applies.
+7. Exact standing and contract progress are private; only the tier from Connected up is public.
+8. Standing can't be bought, transferred, or earned from another player.
+9. Mixed play beats faction-only play (`qa:factions`).
+10. Rulesets before 1.4 have no factions and never acquire them.
 
 ---
 
-## 1.4.0-D — System Contracts
+## Stages
 
-### Objective
+### 1.4.0-A — Faction Catalog
 
-Make contracts use the real game.
+The `factions` ruleset block (key, name, identity, lane, rival), each contact's `factionKey` (or
+independent), faction identity on Jobs and the contacts page, and player-facing descriptions and
+rivalry hints. Every existing Job works exactly as before.
 
-### Scope
+**Gate:** older rulesets have no factions; every contact with Jobs has a faction or is marked
+independent; the Rules copy promises nothing not yet shipped.
 
-- Product contracts ask for product orders, shortages or risky supply.
-- Travel contracts ask for runs, convoy exposure or boss movement.
-- Turf contracts ask for holding, defending or pressuring blocks.
-- Business contracts ask for staffed fronts, racket choices or register exposure.
-- Civic contracts hook into 1.3 pressure with strict caps.
+#### Built in A
 
-### Gate
+**Status: implemented.** Ruleset `classic-og-v1.4-a` (1.4.0-A) is 1.3.0-G plus a `factions` block
+and a faction on each contact. Jobs, rewards, prices, reputation and the law are exactly 1.3.0-G's.
 
-- Contract objectives are resolved by server-side receipts or authoritative state.
-- Contract rewards do not make the underlying action strictly better than doing it for its
-  normal reason.
-- 1.3 pressure relief is capped and logged.
+- **The catalog.** The Kings, The Outfit, Road Saints MC, The Cartel Line and Civic Handshake, each
+  with a name, identity, lane, description and rivals. Every rivalry is listed on both sides:
+  Kings and Outfit against each other, and Civic Handshake against both Road Saints and the Cartel
+  Line. Civic Handshake has no contact of its own; its faces are the officials on the 1.3 payroll.
+- **Contacts.**
 
----
+  | Contact | Faction |
+  | --- | --- |
+  | Mama King, Blocks | The Kings |
+  | Tommy | The Outfit |
+  | Wheels | Road Saints MC |
+  | Pip | The Cartel Line |
+  | Vic | independent: a broker who works for none of them |
+  | Ace | independent: the casino serves everyone who pays |
+  | Ledger | independent: she never took an envelope |
 
-## 1.4.0-E — Rivalries & Introductions
+- **Validation.** `factionProblems` checks a ruleset's catalog: every contact that gives Jobs has a
+  faction or an independent reason (never both), every rivalry is two-sided, and every faction has
+  a contact or a faces note. The release ruleset has none.
+- **Jobs page.** Each contact card says who they work for (or "Independent", with the reason on
+  hover), each Job card names its faction next to its contact, and a new Factions panel lists each
+  faction's lane, identity, faces and rivals. 1.3 rounds show none of it.
+- **Rules page.** A short "Factions" section: who's who, the independents, rivals, and that
+  nothing works differently yet.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-a`.
 
-### Objective
+A invariants:
 
-Make faction choice matter without trapping new players.
+1. Every 1.3 invariant still holds.
+2. Factions change no Job, reward, price, reputation or law number.
+3. Every contact that gives Jobs has a faction or an independent reason.
+4. Every rivalry is listed on both sides.
+5. `classic-og-v1.3-g` and older rounds have no factions.
 
-### Scope
+### 1.4.0-B — Standing
 
-- Friendly, tense and rival relationships between factions.
-- Brokered introductions through The Quiet Office or specific contacts.
-- High-tier faction Jobs can close or raise the cost of rival Jobs.
-- Optional truce/introduction contracts for changing course.
+Seasonal standing per faction (a new table with receipts), tiers, tier-up activity and alerts, a
+standing panel on the Jobs page, and contact Jobs paying faction standing alongside reputation.
 
-### Gate
+**Gate:** receipts add up to stored standing; a retried Job never pays twice; older rulesets'
+contact reputation is untouched.
 
-- A player can recover from an early faction choice.
-- Rival penalties are previewed before accepting a contract.
-- No faction path is required for core game survival.
+#### Built in B
 
----
+**Status: implemented.** Ruleset `classic-og-v1.4-b` (1.4.0-B) is 1.4.0-A plus a `factionStanding`
+block and ten faction Jobs. Every 1.4.0-A Job, reward, price, contact reputation and law number is
+unchanged.
 
-## 1.4.0-F — Underworld NPC Arcs
+- **Standing.** Seasonal, per player and faction, from 0 to 500. Tiers: Unknown, Known (25),
+  Trusted (75), Connected (150), Inner Circle (300). These are first passes; G's `qa:factions`
+  pins them. A tier is recognition only until D.
+- **Only the factions a Job helps.** A one-time Job (story, side or secret) works for one
+  faction: the one it names, else its giver's. It pays standing to that faction, to any faction
+  it openly `helps`, and to the side a chosen branch backs, and to no one else. Reputation it
+  pays a contact turns into that contact's faction's standing one for one (`perContactRep: 1`)
+  only when that faction is one it helps. Siding with Pip in Taking Sides earns the Cartel Line
+  and never the Outfit; losses never cost standing. `factionProblems` rejects a Job that pays
+  another faction's contact or standing without helping them, or helps its own faction's rival.
+  Independent contacts (Vic, Ace, Ledger) pay none, and nor do the rotating boards (daily,
+  weekly, city, alliance), which wait for sponsorship in C. Store trade still pays contact
+  reputation only.
+- **Faction Jobs.** Each faction has two one-time Jobs of its own (`category: 'FACTION'`),
+  opened by a new `FACTION_STANDING_AT_LEAST` prerequisite and paying a new `FACTION_STANDING`
+  reward with modest cash, never contact reputation:
 
-### Objective
+  | Faction | Known | Trusted |
+  | --- | --- | --- |
+  | The Kings | Neighborhood Watch (Blocks): win 3 raids | Block Party (Mama King): win 2 turf pushes |
+  | The Outfit | Protection Money (Tommy): run a racket | The Vig (Tommy): collect from businesses 3 times |
+  | Road Saints MC | Clean Miles (Wheels): 2 runs home with no incident | Long Haul (Wheels): sell 150 product on runs; also helps the Cartel Line |
+  | The Cartel Line | Fresh Batch (Pip): produce 100 product | Keep It Moving (Pip): sell 300 product to Pip |
+  | Civic Handshake | Shake Hands (open to all): hire an official | Keep Them Sweet (Known): renew an official |
 
-Give factions named faces and story direction.
+  Known Jobs pay 15 standing and Trusted Jobs 25; Long Haul also pays the Cartel Line 10. Civic
+  Handshake's Jobs pay 25 standing each and nothing else, so they are never a rebate on the
+  payroll. The Factions panel lists each faction's Jobs, the tier each opens at and where you
+  are with it.
+- **How much there is.** One-time Jobs alone take the Kings to 280, the Outfit to 215, the
+  Cartel Line to 180, Road Saints to 150 and Civic Handshake to 50: past Known for every faction,
+  short of Inner Circle for all of them.
+- **Portraits.** Every contact (Mama King, Blocks, Tommy, Pip, Wheels, Vic, Ace, Ledger), every
+  trader (the Corner clerk, Tommy, Charlie, Pip) and a Civic Handshake official have a portrait
+  drawn like the hoe and thug art (`apps/web/public/portraits/`). They appear on Job cards, the
+  contact standing list, the Factions panel and each store's header.
+- **Receipts.** `PlayerFactionStanding` holds the points and the tier last read. Every change is a
+  `PlayerFactionReceipt` keyed on the act (`job:<playerQuest>:<faction>`), so a retried claim
+  never pays twice and the receipts always add up to the stored standing.
+- **Tier-up.** A rise logs `FACTION_TIER_UP` once, which reaches the feed, the bell, a toast
+  ("The Kings: Known") and the Console's progress group.
+- **Jobs page.** Each Job shows the standing it pays as a reward chip ("+10 The Kings standing"),
+  the claim result and the feed list it, and the Factions panel shows your tier, points and the
+  next tier for each faction. Standing is private to the player.
+- **Rules page.** The Factions section explains standing, the tiers, that it's seasonal and
+  private, and that it can't be bought, traded or taken.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-b`.
 
-### Scope
+B invariants:
 
-- One short one-time arc for each active faction.
-- Existing contacts get faction-flavored continuations.
-- New broker contact introduces The Quiet Office.
-- Capstones pay standing, titles, frames, accents or access, not raw seasonal power.
+1. Every A invariant still holds.
+2. Standing comes only from the player's own one-time Jobs; it is never bought, traded,
+   transferred or earned from another player.
+3. A Job pays standing only to the factions it helps: its own, the ones it openly helps, and the
+   side a chosen branch backs.
+4. Every standing change has a receipt keyed on its act; the receipts add up to the stored
+   standing.
+5. A tier rise logs once.
+6. Standing is private to the player; beyond opening faction Jobs it changes nothing in play
+   yet.
+7. `classic-og-v1.4-a` and older rounds keep no standing and no faction Jobs.
 
-### Gate
+### 1.4.0-C — Sponsored Contracts
 
-- Every arc has replay-safe receipts.
-- Capstones are impossible to farm.
-- Quest text makes faction consequences readable.
+A sponsoring faction on daily, weekly, city and alliance contracts; standing on completion,
+shown before acceptance; the board lean toward known factions.
 
----
+**Gate:** board slots, windows and existing rewards unchanged; expired contracts pay nothing;
+alliance standing splits like existing rewards.
 
-## 1.4.0-G — Rewards & Public Flavor
+#### Built in C
 
-### Objective
+**Status: implemented.** Ruleset `classic-og-v1.4-c` (1.4.0-C) is 1.4.0-B2 plus a `contractSponsors`
+block. Board slots, windows, decks, objectives, cash and favor rewards are exactly B2's.
 
-Make faction play visible and memorable.
+- **Who sponsors.** A board contract is sponsored by the faction it helps: its giver's faction
+  (Mama King and Blocks for the Kings, Tommy for the Outfit, Wheels for Road Saints, Pip for the
+  Cartel Line). Vic works for no faction but brokers board work for whoever's lane it is, and the
+  city boards have no giver, so those take the faction of their lane:
 
-### Scope
+  | Lane | Sponsor(s) |
+  | --- | --- |
+  | Heat (Vic) | Civic Handshake |
+  | Business (Vic) | The Outfit or The Kings |
+  | Boss trips (Vic) | Road Saints or Civic Handshake (the airport's customs) |
+  | City sale | The Cartel Line or Road Saints |
+  | City trip | Road Saints or Civic Handshake |
 
-- Faction achievement category or additions to existing categories.
-- Profile titles, badges, frames or accents.
-- Activity feed and Console entries for major faction moments.
-- Rules page faction chapter.
-- Public flavor that does not expose sensitive live-season progress.
+  Ace's casino work, Ledger's law work and city casino jobs have no sponsor. The ruleset validator
+  checks every lane names real factions.
+- **What it pays.** A collected contract pays its sponsor standing once, with a `CONTRACT` receipt
+  keyed on the attempt: daily 2, weekly 6, city 1, alliance 6, Season 20. Each alliance contributor
+  who meets their share and collects is paid, the way alliance rewards already split. An expired
+  contract can't be collected and pays nothing. Board contracts never pay a Job's standing on top,
+  including B2's one-time Season contracts.
+- **Shown before acceptance.** Each contract card names its sponsor ("Pip · for The Cartel Line")
+  and shows the standing chip next to its other rewards.
+- **The lean.** B2's boards are shared by everyone in the round, so the lean never changes which
+  contracts are dealt. Where a contract has two candidate sponsors, it picks one when the board is
+  dealt to the player: a faction they're Known with or above weighs twice as much
+  (`knownLean: 1`). The pick is seeded by the player and the deal, is stored on the attempt and
+  never changes afterwards. If a board would otherwise be one faction's work and an offer could go
+  another way, it does.
+- **How much there is.** Doing every contract and Job in a 28-day season comes to roughly Kings
+  370, Cartel Line 285, Road Saints 270, Outfit 265 and Civic Handshake 75, before the lean moves
+  the shared work. Inner Circle is reachable for a focused player, not for everyone at once. G's
+  `qa:factions` pins the amounts.
+- **Seed.** The local seed's current round moved to `classic-og-v1.4-c`; the current balance
+  seed is C2 below.
 
-### Gate
+#### Balanced in C2
 
-- Sensitive contract progress is sealed from rivals during live seasons.
-- Cosmetic rewards cannot be confused with competitive advantage.
-- Mobile Jobs/faction views pass the strict UI audit.
+Ruleset `classic-og-v1.4-c2` is a current-state balance pass on C. It keeps every sponsor,
+slot, objective, reward and receipt rule from C, but raises board standing to daily 3, weekly 8,
+city 2, alliance 8 and Season 24; Known sponsor lean is now 2, so a Known faction weighs three
+times an Unknown one in two-faction offers. The middle tiers move to Trusted 70 and Connected
+140 while Inner Circle stays 300, so normal contract play reaches useful faction identity sooner
+without letting one-time Jobs alone finish the ladder. The local seed now uses C2.
 
----
+C invariants:
 
-## 1.4.0-H — Balance, Admin & Release
+1. Every B and B2 invariant still holds.
+2. A contract pays standing only to its sponsor, once, and only when collected.
+3. The sponsor is shown before acceptance and never changes after the deal.
+4. The lean never changes which contracts a board deals.
+5. `classic-og-v1.4-b2` and older rounds pay no standing for board work.
 
-### Objective
+### 1.4.0-D — Faction Perks
 
-Release factions without breaking the season economy.
+The information, warnings and capped nudges in the perks table.
 
-### Scope
+**Gate:** every nudge is capped and logged where it applies; no warning reveals another player's
+private state.
 
-- Full-round simulation with street-only, faction-heavy, business-heavy, runner and mixed
-  profiles.
-- Admin view for faction standing, contract claims, suspicious completions and reward totals.
-- Exploit checks for repeatable contracts, standings, expiry and rival bypasses.
-- Release documentation and player-facing rules.
+#### Built in D
 
-### Gate
+**Status: implemented.** Ruleset `classic-og-v1.4-d` (1.4.0-D) is 1.4.0-C2 plus a `factionPerks`
+block. Every C2 Job, contract, standing amount, tier, price, odd and law number is unchanged until a
+player reaches a perk's tier.
 
-- Mixed play beats faction-only play.
-- Contract cash/product rewards remain below direct system play after costs.
-- Admin can audit every meaningful faction reward.
-- Release gate includes unit, integration, simulation and strict UI coverage.
+- **Where perks show.** Each faction's card in the Jobs page's Factions panel lists its three
+  levels, the tier each opens at, and, once open, what the faction is telling you right now.
+  Information and warnings are worked out when the page is read, only for the levels you have
+  opened. A Connected nudge says "Active" there and names itself where it applies: Tommy's and
+  Pip's shelves, Pip's counter at home and on a run, the bodyguard line on Travel, the district board on Turf (the
+  Kings) and the payroll on the Case panel (Civic Handshake).
+- **Warnings reach the bell.** Every ten minutes the alerts poller looks at up to 300 players
+  Trusted with a faction in a live round, most recently active first, and logs each warning they
+  have not had yet as a `FACTION_WARNING` activity: the bell, a toast linking to the place it is
+  about, the Activity feed and the Console's street group. Each warning has a key (a block's shield
+  and its end, a corner's supply and the day, a run's leg, a drought and its start, the crackdown
+  and its city, a Case's next stage while it stays open), and a `PlayerFactionWarning` row with
+  that key is written in the same transaction as the activity, so a warning alerts once however
+  often the sweep runs. "The crackdown is coming, but not to anywhere you hold" stays on the card.
+- **Their own alert category.** Faction warnings are the `factions` notification category: a
+  player can mute them in the bell like any other category, and switch them on for push and
+  Discord under Account → Alerts ("Faction warnings", off by default like the other optional
+  categories). The alert collector sends each `PlayerFactionWarning` once (`alertsCollectedAt`),
+  titled "Word from *faction*" with the same text and link as the bell.
+- **Pinned perks.**
+
+  | Faction | Known: information | Trusted: early warning | Connected: nudge |
+  | --- | --- | --- | --- |
+  | The Kings | the locals holding each unheld block in your city and the cities where you hold turf, weakest first | your home corners or an outpost running out of beer or product within 6 hours (at the burn rate after the nudge), and a held block's shield dropping within 6 hours | corners burn 10% less beer and product (`CORNER_UPKEEP`) |
+  | The Outfit | how many rackets run in each city and across how many crews, only where at least 3 crews run them | where and when the round's crackdown sweeps, from 24 hours before its public warning, if it lands in your city or a city where you hold a block | Tommy's guns (not his thugs) 5% cheaper (`TOMMY_WEAPONS`) |
+  | Road Saints MC | the three roads out of your city with the highest stop chance for an empty run at your Heat | a run on the road whose next leg has a 5% or higher stop chance with the trunk it carries now | bodyguard tickets 10% cheaper (`BODYGUARD_TICKETS`) |
+  | The Cartel Line | every city where Pip is low or out right now, and of what | every drought, and every swing that takes Pip out, in the next 24 hours | Pip's product 5% cheaper, at his store, his counter and his counters in other cities on a run (`PIP_PRODUCT`) |
+  | Civic Handshake | each official on your payroll: the exposure left before Internal Affairs, or when an open file's sting lands | a Case within 5 points of its next stage | each official favor adds 10% less exposure (`OFFICIAL_EXPOSURE`) |
+
+- **Two candidates changed to keep guardrail 5.** Another crew's rackets are private (only the
+  holder sees them on the turf map), so the Outfit's information is a per-city count with a
+  three-crew floor instead of naming blocks. A rival lining up a block war would mean reading
+  another crew's presence on your block, so the Kings warn about your own corners and shields
+  instead. The racket raid became the crackdown, the one raid the game schedules ahead, and
+  Road Saints warn with the stop chance, never the outcome of the seeded roll.
+- **Looking ahead.** The Cartel Line's warning is the only perk that reads the future: the market
+  schedule is a pure function of the round and the time, so `supplyCrashesAhead` lists what the
+  street wire will only report once it happens, and only what Pip actually feels (a drought on
+  something he never deals, or a swing a glut covers, is left out). The crackdown warning reads the
+  same schedule the sweep uses (`crackdownPlan`), which informants already sell at any time.
+- **Nudges.** `factionNudge` gives a nudge only at Connected or above, from the one faction that
+  pins that kind. `factionProblems` rejects a nudge over `FACTION_NUDGE_CAP_PERCENT` (10), two
+  factions sharing a kind, unknown factions, and warnings that look nowhere or too far ahead.
+  Store discounts add to relationship, racket and favor discounts and still never price a buy at
+  or below its sellback; corner upkeep is cut at the rate before rounding up; bodyguard tickets
+  round the saving down; exposure is rounded to the nearest whole, so a 5-point favor stays 5.
+- **Logged where it applies.** Every nudge that saves something writes a `PlayerFactionPerkUse`
+  row (faction, kind, percent, what it saved) keyed on the act: `store:`/`checkout:`/`product:`/`run-trade:`
+  on the action id, `trip:` on the launch, `exposure:` on the official and favor, and
+  `upkeep:<block>:<from>` on each block's settle, so a retried action or a re-run settle never
+  logs twice. Store, counter and trip results also carry it as `factionDiscount`, with the saving.
+  G's admin view reads these rows.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-d`.
+
+D invariants:
+
+1. Every C invariant still holds.
+2. Information opens at Known, warnings at Trusted and the nudge at Connected; nothing opens below.
+3. Every nudge is a whole percent of at most 10, works only inside its own system, and is logged
+   once on the act it applied to.
+4. No information or warning names or reads another player: it comes from the player's own state,
+   the round's public schedule, or counts across at least three crews.
+5. No perk touches combat, turns, casino odds, contact reputation, or how a Case is built.
+6. `classic-og-v1.4-c2` and older rounds show no perks and take no nudge.
+7. Each keyed warning reaches the bell at most once, and only while its faction is Trusted or above.
+
+### 1.4.0-E — Rivalries & Inner Circle
+
+The Inner Circle lock with its preview, Vic's introductions, and one arc with a capstone per
+first-release faction.
+
+**Gate:** the lock is previewed before it applies; capstones can't be farmed; a player can always
+reach Inner Circle with some faction.
+
+#### Built in E
+
+**Status: implemented.** Ruleset `classic-og-v1.4-e` (1.4.0-E) is 1.4.0-D plus a `factionRivalry`
+block, ten arc Jobs, five introductions and five capstone titles. Every D Job, contract, perk,
+standing amount and tier is unchanged.
+
+- **The lock.** Reaching Inner Circle with a faction locks each of its rivals' Inner Circles for the
+  season: the Kings and the Outfit lock each other, and Civic Handshake locks both Road Saints MC and
+  the Cartel Line (each of which locks only Civic Handshake). Standing with a locked faction keeps
+  counting, but `standingCap` stops it one point short of Inner Circle, and a lock never takes
+  standing away. The first Inner Circle a player reaches is never held back, so there is always one
+  open (`innerCircleLockedBy` reads only rivals already there).
+- **Previewed, then confirmed.** Any Job or board contract whose standing would take a faction to
+  Inner Circle says on its card which rivals it locks (`innerCirclePreview`), and collecting it
+  asks for confirmation first. A card for a locked faction says it stops one point short. Each
+  faction card says whether reaching Inner Circle there would lock anyone, or who has locked it.
+  The tier-up entry and the claim say which rivals were locked.
+- **Vic's introductions.** Vic, who works for no faction, has one paid one-time Job per faction,
+  open only while the player is below Known with it (`FACTION_STANDING_BELOW`): put in 10 turns of
+  street work, then pay his fee on collection (0.2% of net worth, at least $20,000) to start at
+  Known. The standing is an `INTRODUCTION` receipt and the fee a `QUEST_FEE` ledger line; a player
+  who cannot pay is refused, and one who became Known some other way is charged nothing and gets
+  nothing. It never touches Inner Circle, so it can never open a locked one. `factionProblems`
+  holds introductions to independent givers and the Known prerequisite.
+- **Arcs and capstones.** Each faction's arc continues from its Trusted Job:
+
+  | Faction | Connected Job | Inner Circle capstone | Title |
+  | --- | --- | --- | --- |
+  | The Kings | Hold the Line (Mama King): hold turf 96 hours (+15) | Crown of the Block (Blocks): win 5 turf pushes | Crown of the Block |
+  | The Outfit | The Books (Tommy): run 2 different rackets | The Commission (Tommy): collect from businesses 10 times | Seat at the Table |
+  | Road Saints MC | Iron Convoy (Wheels): 5 runs home with no incident | Every Road (Wheels): runs home from 6 cities | Full Patch |
+  | The Cartel Line | Wholesale (Pip): produce 500 product | The Pipeline (Pip): sell 1,500 product to Pip | The Pipeline |
+  | Civic Handshake | Friends in High Places: officials in 3 cities (+40) | Untouchable: renew officials 4 times | Untouchable |
+
+  Connected Jobs pay 30 standing (Kings 15, Civic Handshake 40) and $35,000 (Civic Handshake none).
+  Capstones pay 20 standing and the title, one-time, so they can't be farmed; `factionProblems`
+  rejects a capstone that pays anything but standing and cosmetics. The Kings' step is smaller
+  because their one-time Jobs already pay the most: no faction reaches Inner Circle from one-time
+  Jobs alone, which keeps it a season goal. G's `qa:factions` sizes all of these.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-e`.
+
+E invariants:
+
+1. Every D invariant still holds.
+2. Reaching Inner Circle with a faction locks exactly its rivals', for the season, and never
+   lowers anyone's standing.
+3. The step that would set off a lock says so before it is taken.
+4. Some faction's Inner Circle is always open to every player.
+5. Capstones are one-time and pay only standing and cosmetics.
+6. An introduction pays only up to Known, only below Known, and charges its fee only then.
+7. `classic-og-v1.4-d` and older rounds have no lock, introductions or capstones.
+
+### 1.4.0-F — Rewards & Public Flavor
+
+Faction titles, frames and accents; public alignment from Connected; feed and Console entries for
+tier-ups; season feats; a Rules page section.
+
+**Gate:** live standing numbers and contract progress stay private; cosmetics change nothing in
+play.
+
+#### Built in F
+
+**Status: implemented.** Ruleset `classic-og-v1.4-f` (1.4.0-F) is 1.4.0-E plus a `factionPublic`
+block and fifteen faction cosmetics. Every E Job, contract, perk, lock and number is unchanged.
+
+- **Cosmetics.** Reaching Connected with a faction awards its title and accent; reaching Inner
+  Circle, its frame. They are awarded once per account by `FactionService.grant` for every tier a
+  change crosses (a jump straight to Inner Circle awards both), kept for good, and named in the
+  tier-up entry. `factionProblems` holds every key to the cosmetics catalog.
+
+  | Faction | Connected title | Connected accent | Inner Circle frame |
+  | --- | --- | --- | --- |
+  | The Kings | Friend of the Kings | Kings Gold | Kings Crown Frame |
+  | The Outfit | Outfit Associate | Outfit Oxblood | Pinstripe Frame |
+  | Road Saints MC | Saints Prospect | Saints Chrome | Patch Frame |
+  | The Cartel Line | Line Partner | Cartel Jade | Pipeline Frame |
+  | Civic Handshake | Civic Contributor | Civic Seal | Seal Frame |
+
+  The E capstones still pay their own Inner Circle titles.
+- **Public alignment.** From Connected, a profile shows each faction's tier as a chip ("The Outfit
+  · Inner Circle"), highest first. Points, the tiers below Connected and contract progress stay
+  private. 1.4.0-E and older rounds show none.
+- **The street feed.** Reaching Inner Circle stamps `innerCircleAt` on the standing row, and the
+  Discord bot's claim posts it to the public street feed once ("Civic Handshake · Inner Circle"),
+  with the player's name and profile link and nothing about standing. Rows from rounds without
+  `factionPublic` are marked off unposted. Tier-ups already reached the player's own feed, bell,
+  toast and Console in B.
+- **Season feats** (titles only, on the profile like every feat): Many Friends (Connected with
+  three factions in a season, rare), Inner Circle (reach one, epic) and Two Crowns (two Inner
+  Circles in a season, legendary; only non-rivals can manage it). Their progress counts tiers from
+  Connected up, which profiles show anyway, so nothing is sealed.
+- **Rules page.** The Factions section explains the cosmetics, public alignment, the feed post and
+  the feats.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-f`.
+
+F invariants:
+
+1. Every E invariant still holds.
+2. Faction cosmetics change nothing in play, and each is awarded at most once per account.
+3. Nothing public shows standing points or any tier below Connected.
+4. Each Inner Circle is posted to the street feed at most once, and only on rounds that make it
+   public.
+5. `classic-og-v1.4-e` and older rounds award no faction cosmetics and show no alignment.
+
+### 1.4.0-G — Balance, Admin & Release
+
+**Status: implemented.** Ruleset `classic-og-v1.4-g` (1.4.0-G) is a release wrapper on
+1.4.0-F. It changes no play values, and pins the tier thresholds and nudge sizes through
+`qa:factions`.
+
+`qa:factions` runs a 28-day abstract whole-round simulation (street-only, faction-heavy,
+business-heavy, runner and mixed), checks mixed play against faction-only play, verifies receipt
+totals, and reports the pinned thresholds, board standing and nudge sizes. Admin → Factions shows
+standing, 24-hour receipts, receipt integrity and 7-day staff corrections; each player inspector
+also shows faction standing and can set one faction to an exact audited value. Corrections write an
+`ADMIN` standing receipt, a player-visible admin activity and a `faction.standing-adjust` audit row.
+The release gate runs `qa:factions` alongside the existing law, exploit, mobile and integration
+checks.
+
+**Gate:** mixed play beats faction-only play; every standing change is auditable; the release gate
+runs the simulation and the integration suites.
 
 ---
 
 ## Not in 1.4.0
 
-- Fully autonomous NPC factions that conquer the map on their own.
-- NPC crews that raid players without clear player-triggered contracts or events.
-- Permanent faction power that carries into future seasons.
-- Player-to-player faction markets or cash transfers.
-- Casino odds changes, free turns or direct combat stat boosts from faction standing.
-- Law immunity. Civic Handshake can reduce or redirect pressure within caps; it cannot delete
-  1.3.
+- Autonomous NPC factions that conquer the map, or NPC crews that raid players.
+- A new contract board alongside the existing four.
+- Permanent faction power that carries into the next season.
+- Buying, selling or transferring standing, or anything sold for real money.
+- Casino odds changes, turns or combat stat boosts from standing.
+- Adding to, or clearing, any player's Case through a faction.
 
 ---
 
 ## Open questions
 
-1. **1.3 surface names.** Align Civic Handshake contracts with the final 1.3 model: wanted
-   level, evidence, warrants, informants, investigations or whatever ships.
-2. **Standing math.** Decide whether faction standing uses the existing reputation table shape or
-   a new faction-specific table.
-3. **Rival effects.** Decide how much standing with one faction should reduce access to another.
-4. **Contract rotation.** Decide whether boards rotate globally by city/faction, per player, or a
-   hybrid like existing city contracts.
-5. **Existing Jobs migration.** Decide whether old contact Jobs retroactively gain faction
-   labels in the newest ruleset only, or whether only new 1.4 Jobs award faction standing.
-
+1. **Tier thresholds and nudge sizes:** first passes above, pinned by `qa:factions` in G.
+2. **Board lean:** how much a known faction tilts the offers without crowding out the others.
+3. **Later factions:** whether Harbor Ghosts, The Velvet Table and a full Quiet Office ladder ship
+   in a 1.4.x follow-up or move to a later version.

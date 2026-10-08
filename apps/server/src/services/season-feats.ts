@@ -92,6 +92,12 @@ export const SEASON_FEATS: readonly SeasonFeat[] = [
   { key: 'nothing-on-paper', title: 'Nothing on Paper', description: 'Finish a season with 2,500 turns worked and no Case anywhere ever reaching Under Investigation.', category: 'law', rarity: 'rare', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 2_500, totals.lawPeakStage < INVESTIGATION), finishedSeasonsOnly: true },
   { key: 'off-the-books', title: 'Off the Books', description: 'Finish a season with 5,000 turns worked and every Case still Quiet.', category: 'law', rarity: 'epic', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 5_000, totals.lawPeakStage === QUIET), finishedSeasonsOnly: true },
 
+  // 1.4.0-F — Factions. Titles only. Progress counts tiers from Connected up, which profiles
+  // already show, so nothing here is sealed.
+  { key: 'faction-many-friends', title: 'Many Friends', description: 'Reach Connected with three factions in one season.', category: 'reputation', rarity: 'rare', target: 3, progressLabel: 'factions at Connected', stat: 'factionsConnected' },
+  { key: 'faction-inner-circle', title: 'Inner Circle', description: 'Reach a faction’s Inner Circle.', category: 'reputation', rarity: 'epic', target: 1, progressLabel: 'Inner Circles', stat: 'factionsInnerCircle' },
+  { key: 'faction-two-crowns', title: 'Two Crowns', description: 'Reach the Inner Circle of two factions in one season.', category: 'reputation', rarity: 'legendary', target: 2, progressLabel: 'Inner Circles', stat: 'factionsInnerCircle' },
+
   { key: 'war-machine', title: 'War Machine', description: 'Win ten block wars as attacker or defender in one season.', category: 'turf', rarity: 'legendary', target: 10, progressLabel: 'block-war wins', stat: (totals) => totals.blockWarAttackWins + totals.blockWarDefenseWins },
 ];
 

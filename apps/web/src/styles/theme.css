@@ -292,6 +292,15 @@ body {
   color: #0b0c0e;
 }
 
+/* A faded accent fill still read as a live button; an off primary drops the fill instead. */
+.se-btn--primary:disabled {
+  background: rgba(255, 255, 255, 0.03);
+  border-style: dashed;
+  border-color: var(--se-line);
+  color: var(--se-text-dim);
+  opacity: 1;
+}
+
 .se-btn--block { width: 100%; }
 
 /*
@@ -528,6 +537,37 @@ body {
   --se-accent-dim: #a8435c;
   --se-accent-hover: #ec8ea4;
   --se-accent-rgb: 224, 96, 126;
+}
+/* 1.4.0-F faction accents, earned at Connected. */
+.se-site-accent--kings-gold {
+  --se-accent: #f2c14e;
+  --se-accent-dim: #b38d32;
+  --se-accent-hover: #f7d77f;
+  --se-accent-rgb: 242, 193, 78;
+}
+.se-site-accent--outfit-oxblood {
+  --se-accent: #c2410c;
+  --se-accent-dim: #8a2e09;
+  --se-accent-hover: #df6a3a;
+  --se-accent-rgb: 194, 65, 12;
+}
+.se-site-accent--saints-chrome {
+  --se-accent: #cbd5e1;
+  --se-accent-dim: #94a3b8;
+  --se-accent-hover: #e2e8f0;
+  --se-accent-rgb: 203, 213, 225;
+}
+.se-site-accent--cartel-jade {
+  --se-accent: #10b981;
+  --se-accent-dim: #0b8460;
+  --se-accent-hover: #4fd3a5;
+  --se-accent-rgb: 16, 185, 129;
+}
+.se-site-accent--civic-seal {
+  --se-accent: #818cf8;
+  --se-accent-dim: #5b63c4;
+  --se-accent-hover: #a5adfb;
+  --se-accent-rgb: 129, 140, 248;
 }
 
 /*
@@ -1531,129 +1571,11 @@ a:hover { color: var(--se-accent-hover); }
   color: var(--se-text-dim);
 }
 
-.se-gamegrid {
-  display: grid;
-  gap: 14px;
-}
-
-@media (min-width: 900px) {
-  .se-gamegrid {
-    grid-template-columns: 168px minmax(0, 1fr);
-    align-items: start;
-  }
-}
-
 .se-gamemain {
   min-width: 0;
 }
 
-/* --- game nav ------------------------------------------------------------ */
-
-.se-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px 22px;
-}
-
-.se-nav__section {
-  min-width: 140px;
-}
-
-.se-nav__title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  appearance: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: 10px;
-  line-height: 1.45;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--se-muted);
-  margin: 0 0 5px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.se-nav__title:hover,
-.se-nav__title:focus-visible {
-  color: var(--se-text);
-}
-
-.se-nav__title:focus-visible {
-  outline: 1px solid var(--se-accent);
-  outline-offset: 3px;
-}
-
-.se-nav__chevron {
-  font-family: var(--se-mono);
-  font-size: 12px;
-  letter-spacing: 0;
-  color: var(--se-accent);
-}
-
-.se-nav__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.se-nav__section--collapsed {
-  margin-bottom: 10px;
-}
-
-.se-nav__link {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 8px;
-  margin-left: -8px;
-  border-radius: 3px;
-  font-size: 13px;
-  color: var(--se-text-dim);
-  text-decoration: none;
-}
-
-a.se-nav__link:hover {
-  color: #fff;
-  background: var(--se-panel);
-}
-
-.se-nav__link--active {
-  color: var(--se-accent);
-  background: var(--se-panel);
-  box-shadow: inset 2px 0 0 var(--se-accent);
-}
-
-.se-nav__link--soon {
-  color: #4d5561;
-  cursor: default;
-}
-
-.se-nav__soon {
-  font-family: var(--se-mono);
-  font-size: 9px;
-  color: #3c434e;
-  white-space: nowrap;
-}
-
-@media (min-width: 900px) {
-  .se-nav {
-    display: block;
-    position: sticky;
-    top: 62px;
-  }
-  .se-nav__section {
-    margin-bottom: 16px;
-  }
-}
+/* Game nav and the desktop sidebar frame live in app-shell.css. */
 
 /* --- happiness ----------------------------------------------------------- */
 
@@ -2526,6 +2448,11 @@ a.se-nav__link:hover {
 .se-profile-accent--clean-slate-ice { --se-profile-accent: #a5f3fc; }
 .se-profile-accent--corner-amber { --se-profile-accent: #f58514; }
 .se-profile-accent--velvet-rose { --se-profile-accent: #e0607e; }
+.se-profile-accent--kings-gold { --se-profile-accent: #f2c14e; }
+.se-profile-accent--outfit-oxblood { --se-profile-accent: #c2410c; }
+.se-profile-accent--saints-chrome { --se-profile-accent: #cbd5e1; }
+.se-profile-accent--cartel-jade { --se-profile-accent: #10b981; }
+.se-profile-accent--civic-seal { --se-profile-accent: #818cf8; }
 
 .se-profile-frame {
   position: relative;
@@ -2675,6 +2602,81 @@ a.se-nav__link:hover {
   border-color: rgba(200, 52, 52, 0.3);
 }
 
+/* 1.4.0-F A gold crown frame with royal purple corners. */
+.se-profile-frame--kings-crown-frame {
+  border: 2px solid rgba(242, 193, 78, 0.78);
+  box-shadow: 0 0 18px rgba(242, 193, 78, 0.12), inset 0 0 0 3px rgba(138, 92, 246, 0.08);
+}
+.se-profile-frame--kings-crown-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(138, 92, 246, 0.2), transparent 16%),
+    linear-gradient(315deg, rgba(138, 92, 246, 0.2), transparent 16%);
+}
+.se-profile-frame--kings-crown-frame::after {
+  border-color: rgba(138, 92, 246, 0.3);
+}
+
+/* 1.4.0-F A charcoal pinstripe frame with an oxblood edge. */
+.se-profile-frame--outfit-pinstripe-frame {
+  border: 2px solid rgba(148, 163, 184, 0.78);
+  box-shadow: 0 0 18px rgba(148, 163, 184, 0.12), inset 0 0 0 3px rgba(194, 65, 12, 0.08);
+}
+.se-profile-frame--outfit-pinstripe-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(194, 65, 12, 0.2), transparent 16%),
+    linear-gradient(315deg, rgba(194, 65, 12, 0.2), transparent 16%);
+}
+.se-profile-frame--outfit-pinstripe-frame::after {
+  border-color: rgba(194, 65, 12, 0.3);
+}
+
+/* 1.4.0-F A chrome frame on worn leather. */
+.se-profile-frame--saints-patch-frame {
+  border: 2px solid rgba(203, 213, 225, 0.78);
+  box-shadow: 0 0 18px rgba(203, 213, 225, 0.12), inset 0 0 0 3px rgba(146, 64, 14, 0.08);
+}
+.se-profile-frame--saints-patch-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(146, 64, 14, 0.2), transparent 16%),
+    linear-gradient(315deg, rgba(146, 64, 14, 0.2), transparent 16%);
+}
+.se-profile-frame--saints-patch-frame::after {
+  border-color: rgba(146, 64, 14, 0.3);
+}
+
+/* 1.4.0-F A jade frame with brass fittings. */
+.se-profile-frame--cartel-pipeline-frame {
+  border: 2px solid rgba(16, 185, 129, 0.78);
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.12), inset 0 0 0 3px rgba(214, 181, 120, 0.08);
+}
+.se-profile-frame--cartel-pipeline-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(214, 181, 120, 0.2), transparent 16%),
+    linear-gradient(315deg, rgba(214, 181, 120, 0.2), transparent 16%);
+}
+.se-profile-frame--cartel-pipeline-frame::after {
+  border-color: rgba(214, 181, 120, 0.3);
+}
+
+/* 1.4.0-F An embossed indigo seal with a gilt edge. */
+.se-profile-frame--civic-seal-frame {
+  border: 2px solid rgba(129, 140, 248, 0.78);
+  box-shadow: 0 0 18px rgba(129, 140, 248, 0.12), inset 0 0 0 3px rgba(214, 181, 120, 0.08);
+}
+.se-profile-frame--civic-seal-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(214, 181, 120, 0.2), transparent 16%),
+    linear-gradient(315deg, rgba(214, 181, 120, 0.2), transparent 16%);
+}
+.se-profile-frame--civic-seal-frame::after {
+  border-color: rgba(214, 181, 120, 0.3);
+}
+
 /* Street Pass Season 1: a gold double frame with warm corners. */
 .se-profile-frame--street-pass-s1-frame {
   border: 2px solid rgba(240, 194, 51, 0.82);
@@ -2691,7 +2693,15 @@ a.se-nav__link:hover {
 }
 
 .se-profile-effect {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   transform-origin: center;
+}
+
+.se-profile-effect > * {
+  position: relative;
+  z-index: 1;
 }
 
 .se-profile-effect--neon-pulse {
@@ -2714,6 +2724,71 @@ a.se-nav__link:hover {
   animation: se-profile-effect-glitch 4.8s steps(1, end) infinite;
 }
 
+.se-profile-effect--ember-sparks {
+  box-shadow:
+    inset 0 -18px 42px color-mix(in srgb, #f97316 13%, transparent),
+    0 0 22px color-mix(in srgb, var(--se-profile-accent, #f97316) 16%, transparent);
+}
+
+.se-profile-effect--ember-sparks::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 82%, rgba(249, 115, 22, 0.32) 0 1px, transparent 2px),
+    radial-gradient(circle at 66% 24%, rgba(251, 191, 36, 0.24) 0 1px, transparent 2px),
+    radial-gradient(circle at 84% 70%, rgba(239, 68, 68, 0.2) 0 1px, transparent 2px);
+  background-size: 54px 54px, 78px 78px, 66px 66px;
+  animation: se-profile-effect-sparks 8s linear infinite;
+}
+
+.se-profile-effect--cash-shimmer {
+  box-shadow:
+    inset 0 0 58px color-mix(in srgb, #22c55e 10%, transparent),
+    0 0 22px color-mix(in srgb, #f1b622 14%, transparent);
+}
+
+.se-profile-effect--cash-shimmer::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    112deg,
+    transparent 0 38%,
+    rgba(241, 182, 34, 0.18) 45%,
+    rgba(74, 222, 128, 0.14) 50%,
+    transparent 58% 100%
+  );
+  background-size: 260% 100%;
+  animation: se-profile-effect-shimmer 6.4s ease-in-out infinite;
+}
+
+.se-profile-effect--sirens {
+  box-shadow:
+    inset 5px 0 0 rgba(233, 32, 72, 0.42),
+    inset -5px 0 0 rgba(104, 153, 243, 0.42),
+    0 0 24px rgba(104, 153, 243, 0.12);
+  animation: se-profile-effect-sirens 3.8s ease-in-out infinite;
+}
+
+.se-profile-effect--smoke::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: -24%;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 24% 58%, rgba(226, 232, 240, 0.09), transparent 38%),
+    radial-gradient(ellipse at 72% 34%, rgba(148, 163, 184, 0.08), transparent 36%),
+    radial-gradient(ellipse at 48% 88%, rgba(226, 232, 240, 0.06), transparent 42%);
+  filter: blur(10px);
+  animation: se-profile-effect-smoke 12s ease-in-out infinite alternate;
+}
+
 @keyframes se-profile-effect-pulse {
   0%, 100% { box-shadow: 0 0 0 color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 0%, transparent); }
   50% { box-shadow: 0 0 28px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 32%, transparent); }
@@ -2726,9 +2801,44 @@ a.se-nav__link:hover {
   94% { filter: none; transform: translate(0); }
 }
 
+@keyframes se-profile-effect-sparks {
+  from { background-position: 0 0, 0 0, 0 0; opacity: 0.72; }
+  50% { opacity: 0.42; }
+  to { background-position: 0 -108px, 26px -156px, -18px -132px; opacity: 0.72; }
+}
+
+@keyframes se-profile-effect-shimmer {
+  0%, 18% { background-position: 130% 0; opacity: 0.42; }
+  60%, 100% { background-position: -40% 0; opacity: 0.78; }
+}
+
+@keyframes se-profile-effect-sirens {
+  0%, 100% {
+    box-shadow:
+      inset 5px 0 0 rgba(233, 32, 72, 0.5),
+      inset -5px 0 0 rgba(104, 153, 243, 0.28),
+      0 0 24px rgba(233, 32, 72, 0.12);
+  }
+  50% {
+    box-shadow:
+      inset 5px 0 0 rgba(233, 32, 72, 0.28),
+      inset -5px 0 0 rgba(104, 153, 243, 0.52),
+      0 0 24px rgba(104, 153, 243, 0.16);
+  }
+}
+
+@keyframes se-profile-effect-smoke {
+  from { transform: translate3d(-4%, 2%, 0) rotate(0deg); opacity: 0.7; }
+  to { transform: translate3d(5%, -3%, 0) rotate(2deg); opacity: 0.42; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .se-profile-effect--neon-pulse,
-  .se-profile-effect--glitch {
+  .se-profile-effect--glitch,
+  .se-profile-effect--ember-sparks::after,
+  .se-profile-effect--cash-shimmer::after,
+  .se-profile-effect--sirens,
+  .se-profile-effect--smoke::after {
     animation: none;
   }
 }
@@ -3463,6 +3573,11 @@ a.se-nav__link:hover {
 .se-swatch--clean-slate-ice { --se-swatch: #a5f3fc; }
 .se-swatch--corner-amber { --se-swatch: #f58514; }
 .se-swatch--velvet-rose { --se-swatch: #e0607e; }
+.se-swatch--kings-gold { --se-swatch: #f2c14e; }
+.se-swatch--outfit-oxblood { --se-swatch: #c2410c; }
+.se-swatch--saints-chrome { --se-swatch: #cbd5e1; }
+.se-swatch--cartel-jade { --se-swatch: #10b981; }
+.se-swatch--civic-seal { --se-swatch: #818cf8; }
 .se-swatch--on {
   border-color: var(--se-swatch);
   color: var(--se-text);
@@ -4341,4 +4456,13 @@ button.se-notification-empty:hover { color: var(--se-text); }
   .se-eventtoast--levelup-motion {
     animation: none;
   }
+}
+
+
+/* Street Pass Season 1: chrome and neon profile frame. */
+.se-profile-frame--street-pass-s1-chrome-halo {
+  border: 2px solid rgba(222, 233, 241, 0.92);
+  box-shadow:
+    inset 0 0 0 2px rgba(45, 212, 191, 0.48),
+    0 0 20px rgba(167, 139, 250, 0.3);
 }

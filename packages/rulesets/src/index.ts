@@ -87,6 +87,22 @@ import { classicOgV13D } from './classic-og-v1.3-d/index.js';
 import { classicOgV13E } from './classic-og-v1.3-e/index.js';
 import { classicOgV13F } from './classic-og-v1.3-f/index.js';
 import { classicOgV13G } from './classic-og-v1.3-g/index.js';
+import { classicOgV14A } from './classic-og-v1.4-a/index.js';
+import { classicOgV14B } from './classic-og-v1.4-b/index.js';
+import { classicOgV14B2 } from './classic-og-v1.4-b2/index.js';
+import { classicOgV14C } from './classic-og-v1.4-c/index.js';
+import { classicOgV14C2 } from './classic-og-v1.4-c2/index.js';
+import { classicOgV14D } from './classic-og-v1.4-d/index.js';
+import { classicOgV14E } from './classic-og-v1.4-e/index.js';
+import { classicOgV14F } from './classic-og-v1.4-f/index.js';
+import { classicOgV14G } from './classic-og-v1.4-g/index.js';
+import { classicOgV15A } from './classic-og-v1.5-a/index.js';
+import { classicOgV15B } from './classic-og-v1.5-b/index.js';
+import { classicOgV15C } from './classic-og-v1.5-c/index.js';
+import { classicOgV15D } from './classic-og-v1.5-d/index.js';
+import { classicOgV15E } from './classic-og-v1.5-e/index.js';
+import { classicOgV15E2 } from './classic-og-v1.5-e2/index.js';
+import { classicOgV15E3 } from './classic-og-v1.5-e3/index.js';
 import type { Ruleset } from './types.js';
 
 export { classicOgV01 };
@@ -178,11 +194,28 @@ export { classicOgV13D };
 export { classicOgV13E };
 export { classicOgV13F };
 export { classicOgV13G };
+export { classicOgV14A };
+export { classicOgV14B };
+export { classicOgV14B2 };
+export { classicOgV14C };
+export { classicOgV14C2 };
+export { classicOgV14D };
+export { classicOgV14E };
+export { classicOgV14F };
+export { classicOgV14G };
+export { classicOgV15A };
+export { classicOgV15B };
+export { classicOgV15C };
+export { classicOgV15D };
+export { classicOgV15E };
+export { classicOgV15E2 };
+export { classicOgV15E3 };
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './combat-prototype.js';
 export * from './hideout-v2.js';
 export * from './quest-definitions.js';
+export * from './faction-definitions.js';
 export * from './quest-progress.js';
 export * from './quest-contacts.js';
 export * from './street-pass.js';
@@ -278,6 +311,22 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV13E.meta.id]: classicOgV13E,
   [classicOgV13F.meta.id]: classicOgV13F,
   [classicOgV13G.meta.id]: classicOgV13G,
+  [classicOgV14A.meta.id]: classicOgV14A,
+  [classicOgV14B.meta.id]: classicOgV14B,
+  [classicOgV14B2.meta.id]: classicOgV14B2,
+  [classicOgV14C.meta.id]: classicOgV14C,
+  [classicOgV14C2.meta.id]: classicOgV14C2,
+  [classicOgV14D.meta.id]: classicOgV14D,
+  [classicOgV14E.meta.id]: classicOgV14E,
+  [classicOgV14F.meta.id]: classicOgV14F,
+  [classicOgV14G.meta.id]: classicOgV14G,
+  [classicOgV15A.meta.id]: classicOgV15A,
+  [classicOgV15B.meta.id]: classicOgV15B,
+  [classicOgV15C.meta.id]: classicOgV15C,
+  [classicOgV15D.meta.id]: classicOgV15D,
+  [classicOgV15E.meta.id]: classicOgV15E,
+  [classicOgV15E2.meta.id]: classicOgV15E2,
+  [classicOgV15E3.meta.id]: classicOgV15E3,
 };
 
 export const DEFAULT_RULESET_ID = classicOgV01.meta.id;

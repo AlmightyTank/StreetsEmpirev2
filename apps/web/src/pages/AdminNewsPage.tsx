@@ -215,7 +215,7 @@ export function AdminNewsPage() {
     <GameLayout>
       <div className="se-pagehead se-admin-pagehead">
         <div>
-          <h1 className="se-title">News & Banner</h1>
+          <h1 className="se-title">News and Banners</h1>
           <p className="se-eyebrow">Admin · news reaches the game, Discord and optionally the forum</p>
         </div>
       </div>

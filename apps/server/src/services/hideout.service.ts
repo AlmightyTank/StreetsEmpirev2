@@ -760,7 +760,8 @@ export const HideoutService = {
           })
         : Promise.resolve(null),
     ]);
-    const lowRidersOwned = state.lowRiders + (awayCars._sum.lowRiders ?? 0);
+    // 1.5.0-C: a Low-Rider waiting on the garage is still owned.
+    const lowRidersOwned = state.lowRiders + state.damagedLowRiders + state.disabledLowRiders + (awayCars._sum.lowRiders ?? 0);
     const catalog = hideoutCatalog(ruleset, state, products, { turfBlocksHeld, lowRidersOwned });
     const [security, ledger] = await Promise.all([
       securityDto(prisma, ruleset, player, now),
@@ -891,7 +892,7 @@ export const HideoutService = {
             _sum: { lowRiders: true },
           }),
         ]);
-        const lowRidersOwned = current.lowRiders + (awayCars._sum.lowRiders ?? 0);
+        const lowRidersOwned = current.lowRiders + current.damagedLowRiders + current.disabledLowRiders + (awayCars._sum.lowRiders ?? 0);
         const requirements = requirementsFor(room, levelAfter, ruleset, current, { turfBlocksHeld, lowRidersOwned });
         const unmet = requirements.filter((requirement) => !requirement.met);
         if (unmet.length) {

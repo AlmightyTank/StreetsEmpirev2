@@ -117,10 +117,10 @@ export function AdminQuestContentPage() {
     <GameLayout>
       <div className="se-pagehead">
         <div>
-          <h1 className="se-title">Quest Content</h1>
+          <h1 className="se-title">Quests</h1>
           <p className="se-eyebrow">Admin · catalog switches, rotations and favor kill switches</p>
         </div>
-        <Link className="se-btn se-btn--ghost" to="/game/admin">Back to admin</Link>
+        <Link className="se-btn se-btn--ghost" to="/game/admin/rounds">Rounds</Link>
       </div>
 
       {error ? <Alert>{error}</Alert> : null}
@@ -221,6 +221,12 @@ export function AdminQuestContentPage() {
             </>
           )}
         </Panel>
+        {data?.rotations.season ? (
+          <Panel title="Season board" aside={`${data.rotations.season.keys.length}/${data.rotations.season.slots} slots`}>
+            <p>{data.rotations.season.keys.length ? data.rotations.season.keys.join(' · ') : 'No enabled season contracts.'}</p>
+            <p className="se-hint">Runs until the round ends {adminWhen(data.rotations.season.resetAt)}. Dealt once per round.</p>
+          </Panel>
+        ) : null}
       </div>
 
       <Panel title="Quest definitions" aside={data ? `${formatNumber(quests.length)} shown` : undefined} flush className="se-mb">

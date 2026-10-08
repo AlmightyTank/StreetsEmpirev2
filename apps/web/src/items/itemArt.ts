@@ -85,6 +85,11 @@ export const ITEM_ART = {
   'street-pass-s1-kingpin': { name: 'Kingpin · Season 1', shortName: 'Kingpin', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-kingpin.svg', cells: ONE },
   'street-pass-s1-badge': { name: 'Street Pass · Season 1', shortName: 'S1 Badge', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-badge.svg', cells: ONE },
   'street-pass-s1-frame': { name: 'Season 1 Frame', shortName: 'S1 Frame', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-frame.svg', cells: ONE },
+  'street-pass-s1-night-drive-theme': { name: 'Night Drive · Season 1', shortName: 'Night Drive', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-night-drive-theme.svg', cells: ONE },
+  'street-pass-s1-chrome-halo-frame': { name: 'Chrome Halo · Season 1', shortName: 'Chrome Halo', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-chrome-halo-frame.svg', cells: ONE },
+  'street-pass-s1-urban-ghost': { name: 'Urban Ghost Collection', shortName: 'Urban Ghost', category: 'COSMETIC', rarity: 'RARE', file: 'street-pass-s1-urban-ghost.svg', cells: ONE },
+  'street-pass-s1-midnight-ops': { name: 'Midnight Ops Collection', shortName: 'Midnight', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-midnight-ops.svg', cells: ONE },
+  'street-pass-s1-cartel-gold': { name: 'Cartel Gold Collection', shortName: 'Cartel Gold', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-cartel-gold.svg', cells: ONE },
 
   // Contact reputation gained or lost on a job
   REP: { name: 'Reputation', shortName: 'RP+', category: 'REPUTATION', rarity: 'RARE', file: 'rep.svg', cells: ONE },
@@ -137,6 +142,9 @@ export function rewardArtKey(reward: { kind: string; key: string | null; amount?
       return reward.key && hasItemArt(reward.key) ? reward.key : null;
     case 'CONTACT_REP':
       return (reward.amount ?? 0) < 0 ? 'REP_LOSS' : 'REP';
+    // 1.4.0-B. Faction standing reads like reputation.
+    case 'FACTION_STANDING':
+      return 'REP';
     default:
       return null;
   }

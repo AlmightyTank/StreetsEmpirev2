@@ -26,6 +26,7 @@ export function credSourceForQuest(type: QuestType): QuestCredSource {
     case 'DAILY':
       return 'dailyContract';
     case 'WEEKLY':
+    case 'SEASON':
       return 'weeklyContract';
     case 'CITY_CONTRACT':
     case 'EVENT':
@@ -61,6 +62,7 @@ export const StreetPassCredService = {
   /** Cred and permanent XP for a finished job or contract. */
   async creditQuest(tx: Db, roundPlayerId: string, ruleset: Ruleset, questType: QuestType, sourceKey: string, now = new Date()): Promise<number> {
     const questXp = questType === 'DAILY' ? 75
+      : questType === 'SEASON' ? 300
       : questType === 'WEEKLY' ? 200
         : questType === 'CITY_CONTRACT' || questType === 'EVENT' || questType === 'ALLIANCE' ? 150
           : 100;

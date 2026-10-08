@@ -1,4 +1,6 @@
-import type { RestockRule, Ruleset, RunRules, WeaponPriority } from '@streets/rulesets';
+import type { FactionTier, RestockRule, Ruleset, RunRules, WeaponPriority } from '@streets/rulesets';
+import { factionTierRank } from './factions.js';
+import { racketsFor, type RacketEffects } from './rackets.js';
 import { cityCounter, findRoutes, type CityCounter, type TravelRoute } from './cities.js';
 import { calculateNetWorthCents } from './net-worth.js';
 import { CRACK_PRODUCT } from './product-economy.js';
@@ -223,9 +225,144 @@ export function planHeadHome(ruleset: Ruleset, stops: readonly RunStopPlan[], no
 
 // --- the trunk and the wallet ------------------------------------------------------
 
-/** Units a run's Low-Riders carry. `cargoShare` (1.1.0-C, Shipment capacity) packs each one a little fuller. */
-export function runCapacity(ruleset: Ruleset, lowRiders: number, cargoShare = 0): number {
-  return Math.floor(Math.max(0, lowRiders) * (ruleset.travel?.cargoPerLowRider ?? 0) * (1 + Math.max(0, cargoShare)));
+export type VehicleLoadout = { LOW_RIDER?: number; SEDAN?: number; VAN?: number };
+
+/** Cargo units carried by a mixed run; numeric input preserves historical Low-Rider behavior. */
+export function runCapacity(ruleset: Ruleset, loadout: number | VehicleLoadout, cargoShare = 0): number {
+  const base = ruleset.travel?.cargoPerLowRider ?? 0;
+  const classCatalog = ruleset.vehicleCatalog?.classes;
+  const capacity = typeof loadout === 'number'
+    ? Math.max(0, loadout) * base
+    : Object.entries(loadout).reduce((sum, [classId, count]) => {
+        if (!count || count <= 0) return sum;
+        const vehicleClass = classCatalog?.find((entry) => entry.id === classId);
+        return sum + count * base * (vehicleClass?.cargoPercent ?? 100) / 100;
+      }, 0);
+  return Math.floor(capacity * (1 + Math.max(0, cargoShare)));
+}
+
+/** Crew seats on a mixed loadout. Classes without a custom seat count use the pinned Low-Rider baseline. */
+export function vehicleLoadoutSeats(ruleset: Ruleset, loadout: VehicleLoadout): number {
+  return Object.entries(loadout).reduce((sum, [classId, count]) => {
+    if (!count || count <= 0) return sum;
+    const vehicleClass = ruleset.vehicleCatalog?.classes.find((entry) => entry.id === classId);
+    return sum + count * (vehicleClass?.crewSeats ?? ruleset.lowRiderThugCapacity);
+  }, 0);
+}
+
+/** 1.5.0-B. One route profile's risk multiplier; 1.5.0-E moves the numbers into the ruleset. */
+export function routeProfileRisk(ruleset: Ruleset, profile: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY' | undefined): number {
+  const risk = ruleset.vehicleCatalog?.routeRisk;
+  if (profile === 'LOW_PROFILE') return risk?.LOW_PROFILE ?? 0.9;
+  if (profile === 'HIGH_VISIBILITY') return risk?.HIGH_VISIBILITY ?? 1.15;
+  return 1;
+}
+
+/** Small, capped route-risk nudge from the fleet profile; it never makes a route safe. */
+export function vehicleRiskMultiplier(ruleset: Ruleset, loadout: VehicleLoadout): number {
+  const count = Object.values(loadout).reduce((sum, value) => sum + Math.max(0, value ?? 0), 0);
+  if (!count || !ruleset.vehicleCatalog) return 1;
+  const weighted = Object.entries(loadout).reduce((sum, [classId, quantity]) => {
+    if (!quantity || quantity <= 0) return sum;
+    const profile = ruleset.vehicleCatalog!.classes.find((entry) => entry.id === classId)?.routeProfile;
+    return sum + quantity * routeProfileRisk(ruleset, profile);
+  }, 0);
+  return weighted / count;
+}
+
+// --- 1.5.0-C: vehicle condition ------------------------------------------------------
+
+export type VehicleCounts = { LOW_RIDER: number; SEDAN: number; VAN: number };
+/** The part of a run's loadout that comes home needing the garage. */
+export interface VehicleDamage { damaged: VehicleCounts; disabled: VehicleCounts }
+
+const VEHICLE_CLASSES = ['LOW_RIDER', 'SEDAN', 'VAN'] as const;
+const noVehicles = (): VehicleCounts => ({ LOW_RIDER: 0, SEDAN: 0, VAN: 0 });
+
+export function noVehicleDamage(): VehicleDamage {
+  return { damaged: noVehicles(), disabled: noVehicles() };
+}
+
+/** Keep a damage record inside its loadout: a car stolen off a run takes its dents with it. */
+export function clampVehicleDamage(loadout: VehicleCounts, damage: VehicleDamage): VehicleDamage {
+  const result = noVehicleDamage();
+  for (const key of VEHICLE_CLASSES) {
+    const owned = Math.max(0, loadout[key]);
+    result.disabled[key] = Math.min(owned, Math.max(0, damage.disabled[key]));
+    result.damaged[key] = Math.min(owned - result.disabled[key], Math.max(0, damage.damaged[key]));
+  }
+  return result;
+}
+
+/**
+ * Put `count` more of a run's vehicles out of action, in the ruleset's damage order (most
+ * visible first). Damage only finds a car still running; a disabling hit takes a running car
+ * first and a damaged one after. A run with nothing left to hit is returned unchanged.
+ */
+export function markRunVehicles(ruleset: Ruleset, loadout: VehicleCounts, damage: VehicleDamage, state: 'damaged' | 'disabled', count: number): VehicleDamage {
+  const result = clampVehicleDamage(loadout, damage);
+  const order = ruleset.vehicleCatalog?.service?.damageOrder ?? VEHICLE_CLASSES;
+  let left = Math.max(0, Math.floor(count));
+  for (const key of order) {
+    const running = loadout[key] - result.damaged[key] - result.disabled[key];
+    const hit = Math.min(left, running);
+    result[state][key] += hit;
+    left -= hit;
+  }
+  if (state === 'disabled') {
+    for (const key of order) {
+      const hit = Math.min(left, result.damaged[key]);
+      result.damaged[key] -= hit;
+      result.disabled[key] += hit;
+      left -= hit;
+    }
+  }
+  return result;
+}
+
+/** What the garage charges to put `quantity` of a class back to Ready. Null when this round has no service. */
+export function vehicleServiceCents(ruleset: Ruleset, classId: keyof VehicleCounts, kind: 'REPAIR' | 'RECOVER', quantity: number, discountPercent = 0): bigint | null {
+  const service = ruleset.vehicleCatalog?.service;
+  if (!service) return null;
+  const list = kind === 'REPAIR' ? service.repairCents[classId] : service.recoveryCents[classId];
+  const each = Math.floor(list * (100 - Math.min(100, Math.max(0, discountPercent))) / 100);
+  return BigInt(each) * BigInt(Math.max(0, Math.floor(quantity)));
+}
+
+export type VehicleDiscountSource = 'AUTO_GARAGE' | 'CHOP_SHOP' | 'ROAD_SAINTS';
+export interface VehicleServiceDiscount {
+  /** Whole percent off, after the cap. */
+  percent: number;
+  /** Each source that applies, with its own whole percent before the cap. */
+  sources: Array<{ source: VehicleDiscountSource; percent: number }>;
+}
+
+/**
+ * 1.5.0-D. What the road lane takes off a repair or a recovery: an Auto Garage on the crew's
+ * blocks (repairs), the Chop Shop's Vehicle recovery racket (recovery), and Road Saints MC
+ * standing (both). Rackets scale with their strength; the total is capped.
+ */
+export function vehicleServiceDiscount(
+  ruleset: Ruleset,
+  kind: 'REPAIR' | 'RECOVER',
+  input: { racketEffects: RacketEffects; roadSaintsTier?: FactionTier | null },
+): VehicleServiceDiscount {
+  const rules = ruleset.vehicleCatalog?.service?.specialization;
+  if (!rules) return { percent: 0, sources: [] };
+  const sources: VehicleServiceDiscount['sources'] = [];
+  if (kind === 'REPAIR') {
+    const garage = racketsFor(ruleset, 'AUTO_GARAGE').reduce((top, racket) => Math.max(top, input.racketEffects[racket] ?? 0), 0);
+    const percent = Math.round(rules.autoGarageRepairPercent * Math.min(1, garage));
+    if (percent > 0) sources.push({ source: 'AUTO_GARAGE', percent });
+  } else {
+    const percent = Math.round(rules.chopShopRecoveryPercent * Math.min(1, input.racketEffects.VEHICLE_RECOVERY ?? 0));
+    if (percent > 0) sources.push({ source: 'CHOP_SHOP', percent });
+  }
+  if (input.roadSaintsTier && factionTierRank(input.roadSaintsTier) >= factionTierRank(rules.roadSaints.tier) && rules.roadSaints.percent > 0) {
+    sources.push({ source: 'ROAD_SAINTS', percent: rules.roadSaints.percent });
+  }
+  const total = sources.reduce((sum, entry) => sum + entry.percent, 0);
+  return { percent: Math.min(rules.maxDiscountPercent, total), sources };
 }
 
 export function cargoUnits(cargo: Readonly<Record<string, number>>): number {
@@ -304,6 +441,16 @@ export function settleCityShelf(shelf: { stock: number; stockAt: Date } | null, 
   return shelf ? settled : { ...settled, changed: true };
 }
 
+/**
+ * 1.4.0-D. Pip's buy price in another city with the Cartel Line's cut, never at or below what he
+ * pays back for the same unit.
+ */
+export function cutCityBuyCents(counter: Pick<CityCounter, 'buyCents' | 'sellCents'>, cutPercent = 0): number {
+  if (cutPercent <= 0) return counter.buyCents;
+  const cut = Math.floor(counter.buyCents * (100 - Math.min(100, cutPercent)) / 100);
+  return Math.max(counter.sellCents + 1, cut);
+}
+
 export interface CityTrade {
   product: string;
   direction: 'buy' | 'sell';
@@ -337,6 +484,8 @@ export function calculateCityTrade(input: {
   shelfStock: number;
   /** 0.5.0-C. Pip's counter at today's supply; his usual one when left out. */
   counter?: CityCounter | null;
+  /** 1.4.0-D. The Cartel Line's Connected cut off Pip's buy price, in whole percent. */
+  buyCutPercent?: number;
 }): CityTrade {
   const { ruleset, city, product, direction, quantity } = input;
   const name = ruleset.products?.[product]?.name ?? product.charAt(0) + product.slice(1).toLowerCase();
@@ -347,7 +496,7 @@ export function calculateCityTrade(input: {
     throw new RunError('INVALID_QUANTITY', 'Enter a positive whole quantity.', 'quantity');
   }
   const buying = direction === 'buy';
-  const unitCents = buying ? counter.buyCents : counter.sellCents;
+  const unitCents = buying ? cutCityBuyCents(counter, input.buyCutPercent) : counter.sellCents;
   const totalCents = BigInt(unitCents) * BigInt(quantity);
   if (buying) {
     const stock = Math.max(0, input.shelfStock);

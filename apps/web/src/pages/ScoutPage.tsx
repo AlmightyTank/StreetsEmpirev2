@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import type { DistrictDto, ScoutResult } from '@streets/shared';
-import { formatCents, formatNumber } from '@streets/shared';
+import { formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
+import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -94,6 +95,8 @@ export function ScoutPage() {
           ? `You only have ${formatNumber(available)} turns.`
           : null;
 
+  const receiptLines = action.result ? scoutReceiptLines(action.result, me) : null;
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!canScout || typeof turns !== 'number') return;
@@ -112,50 +115,16 @@ export function ScoutPage() {
               Pick the block, choose how long to work it, and make sure the crew has enough cover and supply before you burn the turns.
             </p>
           </div>
-
-          <div className="se-scout-hero__readout">
-            <span>
-              <small>Turns ready</small>
-              <strong>{formatNumber(me.turns.turns)}</strong>
-            </span>
-            <span>
-              <small>Street crew</small>
-              <strong>{formatNumber(me.resources.whores)}</strong>
-            </span>
-            <span>
-              <small>Fit muscle</small>
-              <strong>{formatNumber(me.resources.fitThugs)}</strong>
-            </span>
-          </div>
         </header>
 
         {loadError ? <Alert>{loadError}</Alert> : null}
         {action.error ? <Alert>{action.error}</Alert> : null}
 
-        {action.result ? (
-          <section className="se-scout-result" aria-label="Latest scouting result">
-            <div className="se-scout-sectionhead">
-              <div>
-                <span className="se-eyebrow">Trip complete</span>
-                <h2>Latest street receipt</h2>
-              </div>
-              <span className="se-scout-sectionhead__meta">{action.result.result.district.name}</span>
-            </div>
-            <ActionResult
-              title="Scouting Results"
-              subtitle={action.result.result.district.name}
-              onDismiss={action.clear}
-              result={action.result}
-              lines={scoutReceiptLines(action.result, me)}
-            />
-          </section>
-        ) : null}
-
-        <form className="se-scout-plan" onSubmit={onSubmit}>
+        <div className="se-scout-plan">
           <section className="se-scout-plan__main">
             <div className="se-scout-sectionhead">
               <div>
-                <span className="se-eyebrow">Step 1</span>
+                <span className="se-eyebrow">Where to work</span>
                 <h2>Pick a district</h2>
               </div>
               <span className="se-scout-sectionhead__meta">
@@ -173,45 +142,6 @@ export function ScoutPage() {
               onChange={setDistrict}
               disabled={action.busy}
             />
-
-            <div className="se-scout-turns">
-              <div className="se-scout-sectionhead">
-                <div>
-                  <span className="se-eyebrow">Step 2</span>
-                  <h2>Set the shift</h2>
-                </div>
-                <span className="se-scout-sectionhead__meta">
-                  {chosenTurns > 0 ? `${formatNumber(chosenTurns)} turns` : 'Choose turns'}
-                </span>
-              </div>
-
-              <TurnSpend
-                value={turns}
-                onChange={setTurns}
-                available={available}
-                disabled={action.busy}
-                disabledReason={action.busy ? 'Your crew is still out on the last job.' : null}
-              />
-            </div>
-
-            <div className="se-scout-launch">
-              <div className="se-scout-launch__summary">
-                <span className="se-scout-launch__label">Ready to move</span>
-                <strong>
-                  {selectedDistrict
-                    ? `${selectedDistrict.name} · ${formatNumber(chosenTurns)} turn${chosenTurns === 1 ? '' : 's'}`
-                    : 'Choose a district'}
-                </strong>
-                <span>
-                  {chosenTurns > 0
-                    ? `${formatNumber(remainingTurns)} turns remain after this trip.`
-                    : `${formatNumber(available)} turns available.`}
-                </span>
-              </div>
-              <Button className="se-btn se-btn--primary se-scout-launch__button" disabledReason={scoutBlock}>
-                {action.busy ? 'Working the block...' : 'Send crew scouting'}
-              </Button>
-            </div>
           </section>
 
           <aside className="se-scout-plan__intel">
@@ -286,7 +216,7 @@ export function ScoutPage() {
               <div className="se-scout-intel__empty">District intelligence appears here.</div>
             )}
           </aside>
-        </form>
+        </div>
 
         <HeatNotice />
 
@@ -347,11 +277,10 @@ export function ScoutPage() {
                 flush
                 className="se-scout-panel"
               >
-                <div className="se-scout-metricgrid">
+                <div className="se-scout-metricgrid se-scout-metricgrid--three">
                   <ScoutMetric label="Condoms" value={formatNumber(me.resources.condoms)} />
                   <ScoutMetric label="Beer" value={formatNumber(me.resources.beer)} />
                   <ScoutMetric label="Medicine" value={formatNumber(me.resources.medicine)} />
-                  <ScoutMetric label="Cash" value={formatCents(me.resources.cashCents)} tone="accent" />
                 </div>
                 <div className="se-rows">
                   {me.products ? null : <Row label="Product" value={formatNumber(me.resources.product)} />}
@@ -387,6 +316,47 @@ export function ScoutPage() {
             </div>
           </div>
         </section>
+
+        <ActionDock
+          label="Send the crew"
+          onSubmit={onSubmit}
+          outcome={action.result ? {
+            id: action.result,
+            title: `${action.result.result.district.name} · ${formatNumber(action.result.result.turnsUsed)} turns`,
+            chips: resultChips(action.result, receiptLines!),
+            receipt: (
+              <ActionResult
+                title="Scouting Results"
+                subtitle={action.result.result.district.name}
+                result={action.result}
+                lines={receiptLines!}
+              />
+            ),
+            onDismiss: action.clear,
+          } : null}
+        >
+          <div>
+            <span className="se-dock__label">Ready to move</span>
+            <strong>
+              {selectedDistrict ? selectedDistrict.name : 'Choose a district'}
+            </strong>
+            <span>
+              {chosenTurns > 0 && chosenTurns <= available
+                ? `${formatNumber(remainingTurns)} turns left after`
+                : `${formatNumber(available)} turns available`}
+            </span>
+          </div>
+          <TurnSpend
+            value={turns}
+            onChange={setTurns}
+            available={available}
+            disabled={action.busy}
+            disabledReason={action.busy ? 'Your crew is still out on the last job.' : null}
+          />
+          <Button className="se-btn se-btn--primary" disabledReason={scoutBlock}>
+            {action.busy ? 'Working the block...' : action.result ? 'Send again' : 'Send crew scouting'}
+          </Button>
+        </ActionDock>
       </div>
     </GameLayout>
   );

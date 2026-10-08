@@ -1,9 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
-import type { AdminRoundHealthDayDto, AdminRoundHealthDto } from '@streets/shared';
+import { ADMIN_STREET_PASS_REWARD_KINDS, type AdminRoundHealthDayDto, type AdminRoundHealthDto, type AdminStreetPassRewardDto } from '@streets/shared';
 import {
   emptyStandings,
   loadRulesetForRound,
   productEconomy,
+  RulesetNotFoundError,
+  RulesetVersionMismatchError,
   restockIntervalFor,
   rulesetForCity,
   settleProductShelf,
@@ -14,6 +16,28 @@ import type { TraderKey } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 import { adminRound } from './admin-round.service.js';
 import { StockService } from './stock.service.js';
+
+/**
+ * The round's ruleset, or the reason it cannot be loaded when the code no longer
+ * ships it, so the admin page still opens and can move the round onto another one.
+ */
+function roundRuleset(round: Parameters<typeof loadRulesetForRound>[0]): { ruleset: Ruleset | null; problem: string | null } {
+  try {
+    return { ruleset: loadRulesetForRound(round), problem: null };
+  } catch (error) {
+    if (error instanceof RulesetNotFoundError || error instanceof RulesetVersionMismatchError) {
+      return { ruleset: null, problem: `${error.message} Players cannot act in this round until it moves onto a ruleset the code ships: use Change ruleset.` };
+    }
+    throw error;
+  }
+}
+
+/** A ruleset reward as the admin editor sees it: only the kinds a Street Pass can hold, without engine-only params. */
+function adminStreetPassReward(reward: { kind: string; amount?: number; key?: string }): AdminStreetPassRewardDto[] {
+  const kind = ADMIN_STREET_PASS_REWARD_KINDS.find((candidate) => candidate === reward.kind);
+  if (!kind) return [];
+  return [{ kind, ...(reward.amount !== undefined ? { amount: reward.amount } : {}), ...(reward.key ? { key: reward.key } : {}) }];
+}
 
 const DAY_MS = 86_400_000;
 const HEALTH_DAYS = 14;
@@ -140,9 +164,9 @@ export const AdminHealthService = {
     }
 
     const [total, active24h, active7d] = counts;
-    const ruleset = loadRulesetForRound(round);
+    const { ruleset, problem: rulesetProblem } = roundRuleset(round);
     let storeEconomy: AdminRoundHealthDto['storeEconomy'] = null;
-    if (ruleset.storeEconomy) {
+    if (ruleset?.storeEconomy) {
       const [marketRows, shelfPlayers, reputationRows, productShelves, specialOrders] = await Promise.all([
         prisma.highMarket.findMany({
           where: { roundId },
@@ -260,6 +284,19 @@ export const AdminHealthService = {
     }
     return {
       round: await adminRound(prisma, round),
+      rulesetProblem,
+      streetPass: ruleset?.streetPass ? {
+        name: ruleset.streetPass.name,
+        tiers: ruleset.streetPass.tiers.map((tier) => ({ tier: tier.tier, rewards: tier.rewards.flatMap(adminStreetPassReward) })),
+        catalogs: {
+          items: ['condoms', 'medicine', 'crack', 'beer', 'pistols', 'shotguns', 'tek9s', 'ak47s', 'lowRiders', 'thugs', 'whores'],
+          products: ruleset.products ? Object.keys(ruleset.products) : [],
+          favors: ruleset.favors ? Object.keys(ruleset.favors) : [],
+          contacts: ruleset.contacts ? Object.keys(ruleset.contacts) : [],
+          cosmetics: ruleset.cosmetics ? Object.keys(ruleset.cosmetics) : [],
+        },
+        editable: round.status === 'SCHEDULED',
+      } : null,
       players: { total, active24h, active7d, neverActed },
       days: [...days.values()],
       storeEconomy,

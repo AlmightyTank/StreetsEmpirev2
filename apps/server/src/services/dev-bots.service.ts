@@ -1,6 +1,6 @@
-import type { PrismaClient, Round } from '@prisma/client';
+import { Prisma, type PrismaClient, type Round } from '@prisma/client';
 import { calculateNetWorthCents, calculateThugHappiness, calculateWhoreHappiness, startingStock } from '@streets/rules-engine';
-import type { Ruleset, SeededRivalRule, StartingPlayer } from '@streets/rulesets';
+import type { NpcGangSeedProfile, Ruleset, SeededRivalRule, StartingPlayer } from '@streets/rulesets';
 
 /**
  * Local test bots, ported from prisma/seed.ts so the admin panel can add and
@@ -17,6 +17,7 @@ export const DEV_TEST_RIVALS = [
     publicPimpId: 1000,
     note: 'Even starter target for cash raids and basic reports.',
     startingPlayer: { cashCents: 3_000_000, whores: 12, thugs: 10, pistols: 10, beer: 10, crack: 180, condoms: 180, medicine: 2 },
+    npcGang: { archetype: 'balanced-street-crew', tier: 'SCRUB', aggression: 35, ambition: 45, discipline: 45 },
   },
   {
     slug: 'cashbox-carlo',
@@ -24,6 +25,7 @@ export const DEV_TEST_RIVALS = [
     publicPimpId: 1001,
     note: 'Cash-heavy target with enough stash to make recon and loot worth testing.',
     startingPlayer: { cashCents: 8_000_000, whores: 28, thugs: 8, pistols: 8, beer: 8, crack: 700, condoms: 500, medicine: 4 },
+    npcGang: { archetype: 'stash-builder', tier: 'SCRUB', aggression: 25, ambition: 70, discipline: 55 },
   },
   {
     slug: 'iron-maya',
@@ -31,6 +33,7 @@ export const DEV_TEST_RIVALS = [
     publicPimpId: 1002,
     note: 'Stronger defender with rides for testing drive-bys and steal-a-ride.',
     startingPlayer: { cashCents: 4_000_000, whores: 20, thugs: 16, pistols: 16, shotguns: 5, beer: 16, crack: 400, condoms: 300, medicine: 8, lowRiders: 2 },
+    npcGang: { archetype: 'muscle-crew', tier: 'STREET', aggression: 60, ambition: 50, discipline: 65 },
   },
   {
     slug: 'low-morale-lou',
@@ -38,8 +41,17 @@ export const DEV_TEST_RIVALS = [
     publicPimpId: 1003,
     note: 'Unhappy crew for lure testing: no beer, no guns, low payout and thin shelves.',
     startingPlayer: { cashCents: 2_500_000, whores: 20, thugs: 17, pistols: 0, beer: 0, crack: 20, condoms: 10, payoutPercent: 10, medicine: 1, lowRiders: 1 },
+    npcGang: { archetype: 'desperate-locals', tier: 'SCRUB', aggression: 45, ambition: 35, discipline: 20 },
   },
 ] as const satisfies readonly SeededRivalRule[];
+
+const DEFAULT_NPC_GANG_PROFILE: NpcGangSeedProfile = {
+  archetype: 'local-rivals',
+  tier: 'SCRUB',
+  aggression: 35,
+  ambition: 40,
+  discipline: 40,
+};
 
 export function isLocalDatabaseUrl(url: string | undefined): boolean {
   if (!url) return false;
@@ -83,6 +95,15 @@ function resourceSeed(start: StartingPlayer) {
     payoutPercent: start.payoutPercent,
     cashCents: BigInt(start.cashCents),
   };
+}
+
+function npcGangProfile(rival: SeededRivalRule): NpcGangSeedProfile {
+  return rival.npcGang ?? DEFAULT_NPC_GANG_PROFILE;
+}
+
+function firstNpcActionAt(now: Date, index: number): Date {
+  // Spread seeded crews out so the first scheduler pass never tries to move all of them at once.
+  return new Date(now.getTime() + (30 + index * 7) * 60_000);
 }
 
 async function refreshRoundRanks(prisma: PrismaClient, roundId: string): Promise<void> {
@@ -145,7 +166,7 @@ export async function seedDevBots(
     _max: { publicPimpId: true },
   }))._max.publicPimpId ?? (ruleset.round.publicPimpIdStart - 1)) + 1;
 
-  for (const rival of rivals) {
+  for (const [index, rival] of rivals.entries()) {
     const username = `${DEV_BOT_USERNAME_PREFIX}${rival.slug}`;
     const email = `${username}${DEV_BOT_EMAIL_DOMAIN}`;
     const account = await prisma.account.upsert({
@@ -181,7 +202,7 @@ export async function seedDevBots(
     const netWorthCents = calculateNetWorthCents(resources, ruleset);
     const stock = startingStock(ruleset, now);
 
-    await prisma.roundPlayer.upsert({
+    const roundPlayer = await prisma.roundPlayer.upsert({
       where: { roundId_accountId: { roundId: round.id, accountId: account.id } },
       update: {
         publicPimpId,
@@ -214,6 +235,40 @@ export async function seedDevBots(
         thugHappiness,
         netWorthCents,
         ...stock,
+      },
+    });
+
+    const profile = npcGangProfile(rival);
+    const memory = {
+      source: 'dev-bot',
+      slug: rival.slug,
+      note: rival.note,
+      phase: 'foundation',
+    } satisfies Prisma.InputJsonObject;
+    await prisma.npcGang.upsert({
+      where: { roundPlayerId: roundPlayer.id },
+      update: {
+        archetype: profile.archetype,
+        tier: profile.tier,
+        homeCityId: city.id,
+        aggression: profile.aggression,
+        ambition: profile.ambition,
+        discipline: profile.discipline,
+        nextActionAt: firstNpcActionAt(now, index),
+        lastActionAt: null,
+        dormantUntil: null,
+        memory,
+      },
+      create: {
+        roundPlayerId: roundPlayer.id,
+        archetype: profile.archetype,
+        tier: profile.tier,
+        homeCityId: city.id,
+        aggression: profile.aggression,
+        ambition: profile.ambition,
+        discipline: profile.discipline,
+        nextActionAt: firstNpcActionAt(now, index),
+        memory,
       },
     });
   }

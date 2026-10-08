@@ -6,6 +6,7 @@ import {
   armEscorts,
   bustChance,
   calculateCityTrade,
+  cutCityBuyCents,
   cargoUnits,
   cityEventAt,
   driveMs,
@@ -23,6 +24,10 @@ import {
   routeHours,
   rulesetForCity,
   runCapacity,
+  vehicleLoadoutSeats,
+  routeProfileRisk,
+  vehicleRiskMultiplier,
+  vehicleServiceCents,
   racketCargoShare,
   readRacketEffects,
   runPosition,
@@ -36,16 +41,23 @@ import {
   type RunStopPlan,
 } from '@streets/rules-engine';
 import {
+  formatCents,
   runDriveOnSchema,
   runHeadHomeSchema,
   runLaunchSchema,
   runTradeSchema,
+  vehiclePurchaseSchema,
+  vehicleServiceSchema,
   type GameActionResult,
   type RunDto,
   type RunLaunchResult,
   type RunMoveResult,
   type RunReceiptDto,
   type RunTradeDto,
+  type VehiclePurchaseInput,
+  type VehiclePurchaseResult,
+  type VehicleServiceInput,
+  type VehicleServiceResult,
   type RunTradeResult,
   type TravelDto,
   type TravelRoutesDto,
@@ -60,11 +72,14 @@ import { RelocationService } from './relocation.service.js';
 import { BossTripService } from './boss-trip.service.js';
 import { bossAway } from './boss-trip-settle.service.js';
 import { ActivityService } from './activity.service.js';
+import { FactionService } from './faction.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { HighMarketService } from './high-market.service.js';
 import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
+import { VEHICLE_FIELDS, damageRunVehicles, hasVehicleDamage, readVehicleDamage, readVehicleLoadout, vehiclePurchaseCents, vehicleServiceDiscounts, type VehicleLoadout } from './vehicle-fleet.service.js';
 import {
   RUN_INCLUDE,
   awayWorth,
@@ -90,6 +105,8 @@ function requireRuns(ruleset: Ruleset): void {
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 const productName = (ruleset: Ruleset, key: string) => ruleset.products?.[key]?.name ?? (key === CRACK ? 'Crack' : key);
+
+const loadoutTotal = (loadout: VehicleLoadout) => loadout.LOW_RIDER + loadout.SEDAN + loadout.VAN;
 
 async function activeRuns(db: Db | PrismaClient, roundPlayerId: string): Promise<LoadedRun[]> {
   return db.run.findMany({
@@ -159,6 +176,7 @@ function stopsDto(ruleset: Ruleset, stops: readonly RunStopPlan[]): RunDto['stop
 /** Pip's counter and the high market where a run is, with the player's own shelf there. */
 async function liveCounter(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, seed: string, city: string, now: Date): Promise<NonNullable<RunDto['counter']>> {
   const shelves = await db.cityShelf.findMany({ where: { roundPlayerId, city } });
+  const nudge = await FactionService.nudge(db as Db, roundPlayerId, ruleset, 'PIP_PRODUCT');
   const pushes = await HighMarketService.pushes(db, ruleset, seed, city, now);
   const event = cityEventAt(ruleset, seed, city, now);
   return {
@@ -170,7 +188,10 @@ async function liveCounter(db: Db | PrismaClient, roundPlayerId: string, ruleset
       const counter = settled.counter;
       const market = marketPrice(ruleset, seed, city, key, pushes.get(key) ?? 0, now);
       if (!counter) return { key, supply: null, buyCents: null, sellCents: null, stock: 0, nextAt: null, market };
-      return { key, supply: counter.supply, buyCents: counter.buyCents, sellCents: counter.sellCents, stock: settled.stock, nextAt: settled.nextAt?.toISOString() ?? null, market };
+      return {
+        key, supply: counter.supply, buyCents: cutCityBuyCents(counter, nudge?.percent), sellCents: counter.sellCents, stock: settled.stock, nextAt: settled.nextAt?.toISOString() ?? null, market,
+        ...(nudge ? { factionDiscountPercent: nudge.percent } : {}),
+      };
     }),
   };
 }
@@ -179,6 +200,17 @@ async function liveCounter(db: Db | PrismaClient, roundPlayerId: string, ruleset
 async function cargoShareFor(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<number> {
   const player = await db.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { racketEffects: true } });
   return player ? racketCargoShare(ruleset, readRacketEffects(player.racketEffects)) : 0;
+}
+
+/** 1.5.0-E2. Whether Charlie's shelf carries this class, which retires the garage purchase. */
+function charlieSells(ruleset: Ruleset, classId: 'LOW_RIDER' | 'SEDAN' | 'VAN'): boolean {
+  return Object.values(ruleset.stores.CHARLIE?.items ?? {}).some((item) => item.vehicleClass === classId);
+}
+
+/** 1.5.0-C. A run's dents, when it has any. */
+function damageDto(run: { vehicleLoadout: Prisma.JsonValue; vehicleDamage: Prisma.JsonValue; lowRiders: number }): Pick<RunDto, 'vehicleDamage'> {
+  const damage = readVehicleDamage(run.vehicleDamage, readVehicleLoadout(run.vehicleLoadout, run.lowRiders));
+  return hasVehicleDamage(damage) ? { vehicleDamage: damage } : {};
 }
 
 async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, seed: string, run: LoadedRun, now: Date): Promise<RunDto | null> {
@@ -191,12 +223,14 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
     id: run.id,
     launchedAt: run.launchedAt.toISOString(),
     lowRiders: run.lowRiders,
+    vehicleLoadout: readVehicleLoadout(run.vehicleLoadout, run.lowRiders),
+    ...damageDto(run),
     escortThugs: run.escortThugs,
     cashCents: Number(run.cashCents),
     startCashCents: Number(run.startCashCents),
     beer: run.beer,
     startBeer: run.startBeer,
-    capacity: runCapacity(ruleset, run.lowRiders, await cargoShareFor(db, roundPlayerId, ruleset)),
+    capacity: runCapacity(ruleset, readVehicleLoadout(run.vehicleLoadout, run.lowRiders), await cargoShareFor(db, roundPlayerId, ruleset)),
     cargo: run.cargo.map((row) => ({ key: row.productKey, quantity: row.quantity, startQuantity: row.startQuantity })),
     guns: { PISTOL: run.pistols, SHOTGUN: run.shotguns, TEK9: run.tek9s, AK47: run.ak47s },
     bossAboard: run.bossAboard,
@@ -240,6 +274,8 @@ async function lastRunDto(db: Db | PrismaClient, roundPlayerId: string, ruleset:
     returnedAt: run.returnedAt.toISOString(),
     cities: visited.map((slug) => ({ slug, name: cityName(ruleset, slug) })),
     lowRiders: run.lowRiders,
+    vehicleLoadout: readVehicleLoadout(run.vehicleLoadout, run.lowRiders),
+    ...damageDto(run),
     escortThugs: run.escortThugs,
     startCashCents: Number(run.startCashCents),
     cashCents: Number(run.cashCents),
@@ -384,10 +420,70 @@ export const TravelService = {
         ? { ...city, counter: { ...city.counter, products: city.counter.products.map((entry) => ({ ...entry, market: marketPrice(ruleset, seed, player.city.slug, entry.key, homePushes.get(entry.key) ?? 0, now) })) } }
         : city))
       : map.cities;
+    // 1.5.0-E2: classes Charlie sells, and the job each still waits for.
+    const lockedVehicles = await PermanentUnlockService.lockedVehicles(prisma, roundPlayerId, ruleset);
+    const charlieLock = (classId: 'LOW_RIDER' | 'SEDAN' | 'VAN') => {
+      if (classId === 'LOW_RIDER' || !charlieSells(ruleset, classId)) return null;
+      const unlock = lockedVehicles.get(classId)
+        ?? Object.values(ruleset.permanentUnlocks ?? {}).find((definition) => definition.effect.kind === 'VEHICLE_PURCHASE_ACCESS' && definition.effect.classId === classId);
+      return unlock
+        ? { unlocked: !lockedVehicles.has(classId), unlockName: unlock.name, quest: PermanentUnlockService.questFor(ruleset, unlock.key) }
+        : { unlocked: true, unlockName: '', quest: null };
+    };
+    // 1.5.0-D: the road lane's garage discounts for this crew.
+    const discounts = ruleset.vehicleCatalog?.service?.specialization
+      ? await vehicleServiceDiscounts(prisma, roundPlayerId, ruleset, player.racketEffects)
+      : null;
     return {
       ...map,
       cities,
       runsEnabled: Boolean(runRules(ruleset)),
+      ...(ruleset.vehicleCatalog ? {
+        vehicleFleet: ruleset.vehicleCatalog.classes.map((vehicleClass) => {
+          const listRepair = ruleset.vehicleCatalog?.service?.repairCents[vehicleClass.id];
+          const listRecovery = ruleset.vehicleCatalog?.service?.recoveryCents[vehicleClass.id];
+          const away = active.reduce((sum, run) => sum + readVehicleLoadout(run.vehicleLoadout, run.lowRiders)[vehicleClass.id], 0);
+          const home = player[vehicleClass.legacyResource];
+          const service = ruleset.vehicleCatalog?.service;
+          const damaged = player[VEHICLE_FIELDS[vehicleClass.id].damaged];
+          const disabled = player[VEHICLE_FIELDS[vehicleClass.id].disabled];
+          return {
+            classId: vehicleClass.id,
+            name: vehicleClass.name,
+            description: vehicleClass.description,
+            home,
+            away,
+            total: home + away + damaged + disabled,
+            cargoPercent: vehicleClass.cargoPercent,
+            crewSeats: vehicleClass.crewSeats,
+            purchasePriceCents: vehicleClass.purchasePriceCents,
+            charlie: charlieLock(vehicleClass.id),
+            buyCents: vehicleClass.purchasePriceCents === null || vehicleClass.purchasePriceCents === undefined || charlieSells(ruleset, vehicleClass.id)
+              ? null
+              : vehiclePurchaseCents(ruleset, vehicleClass.id, vehicleClass.purchasePriceCents, player.racketEffects).cents,
+            routeProfile: vehicleClass.routeProfile,
+            routeRiskPercent: Math.round((routeProfileRisk(ruleset, vehicleClass.routeProfile) - 1) * 100),
+            ...(service && listRepair !== undefined && listRecovery !== undefined ? {
+              damaged,
+              disabled,
+              repairCents: Number(vehicleServiceCents(ruleset, vehicleClass.id, 'REPAIR', 1, discounts?.REPAIR.percent ?? 0)),
+              recoveryCents: Number(vehicleServiceCents(ruleset, vehicleClass.id, 'RECOVER', 1, discounts?.RECOVER.percent ?? 0)),
+              ...(discounts?.REPAIR.percent ? { listRepairCents: listRepair } : {}),
+              ...(discounts?.RECOVER.percent ? { listRecoveryCents: listRecovery } : {}),
+            } : {}),
+          };
+        }),
+        ...(ruleset.vehicleCatalog.service ? {
+          vehicleService: {
+            damagedByBust: ruleset.vehicleCatalog.service.damage.bust,
+            damagedByConvoyLoss: ruleset.vehicleCatalog.service.damage.convoyLoss,
+            disabledByArrest: ruleset.vehicleCatalog.service.disable.arrest,
+            damageOrder: [...ruleset.vehicleCatalog.service.damageOrder],
+            ...(discounts ? { discounts } : {}),
+          },
+        } : {}),
+      } : {}),
+      lockedProducts: [...(await PermanentUnlockService.lockedProducts(prisma, roundPlayerId, base))].map(([key, unlock]) => ({ key, unlockName: unlock.name, quest: PermanentUnlockService.questFor(base, unlock.key) })),
       rules: {
         cargoPerLowRider: travel?.cargoPerLowRider ?? 0,
         thugsPerLowRider: ruleset.lowRiderThugCapacity,
@@ -402,6 +498,7 @@ export const TravelService = {
         cashCents: Number(player.cashCents),
         beer: player.beer,
         lowRiders: player.lowRiders,
+        vehicles: { LOW_RIDER: player.lowRiders, SEDAN: player.sedans, VAN: player.vans },
         fitThugs: fitThugs(player),
         turns: player.turns,
         products: Object.entries(inventory).map(([key, quantity]) => ({ key, quantity })),
@@ -413,6 +510,79 @@ export const TravelService = {
       relocation: await RelocationService.page(prisma, player, base, settled.round.endsAt, player.heat, now),
       trips: await BossTripService.page(prisma, player, base, settled.round.endsAt, now),
     };
+  },
+
+  /** Buy a class vehicle from the 1.5.0 garage catalog. */
+  purchaseVehicle(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<VehiclePurchaseResult>> {
+    const input: VehiclePurchaseInput = vehiclePurchaseSchema.parse(rawInput);
+    return ActionService.run<VehiclePurchaseResult>(prisma, roundPlayerId, {
+      action: 'VEHICLE_PURCHASE',
+      actionId: input.actionId,
+      execute: async ({ current, ruleset, player }) => {
+        const vehicleClass = ruleset.vehicleCatalog?.classes.find((entry) => entry.id === input.classId);
+        // 1.5.0-E2: from Charlie's Fleet on, Sedans and Vans are bought over Charlie's counter.
+        if (charlieSells(ruleset, input.classId)) {
+          throw AppError.conflict('BUY_AT_CHARLIE', `Charlie sells ${vehicleClass?.name ?? 'those'}s now. Buy them at Charlie's Chop Shop.`);
+        }
+        if (!vehicleClass || vehicleClass.purchasePriceCents === null || vehicleClass.purchasePriceCents === undefined) {
+          throw AppError.conflict('VEHICLE_UNAVAILABLE', 'That vehicle is not available in this round.');
+        }
+        // 1.5.0-D: Stolen Low-Riders takes its cut off Sedans and Vans too.
+        const each = vehiclePurchaseCents(ruleset, input.classId, vehicleClass.purchasePriceCents, player.racketEffects);
+        const price = BigInt(each.cents) * BigInt(input.quantity);
+        if (current.cashCents < price) {
+          throw AppError.badRequest('NOT_ENOUGH_CASH', `You need ${formatCents(Number(price))} for that order.`, { quantity: 'Not enough cash.' });
+        }
+        const field = input.classId === 'SEDAN' ? 'sedans' : 'vans';
+        const homeCount = current[field] + input.quantity;
+        return {
+          next: { ...current, cashCents: current.cashCents - price, [field]: homeCount },
+          result: { classId: input.classId, name: vehicleClass.name, quantity: input.quantity, paidCents: Number(price), homeCount },
+          ledger: [{ source: 'STORE_BUY', label: `Charlie’s garage · ${vehicleClass.name} × ${input.quantity}`, amountCents: -price }],
+        };
+      },
+    });
+  },
+
+  /**
+   * 1.5.0-C. The garage puts Damaged vehicles (a repair) or Disabled ones (a recovery)
+   * back to Ready at the round's listed price per vehicle. Instant, and never a roll.
+   */
+  serviceVehicles(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<VehicleServiceResult>> {
+    const input: VehicleServiceInput = vehicleServiceSchema.parse(rawInput);
+    return ActionService.run<VehicleServiceResult>(prisma, roundPlayerId, {
+      action: 'VEHICLE_SERVICE',
+      actionId: input.actionId,
+      execute: async ({ tx, current, ruleset, player }) => {
+        const vehicleClass = ruleset.vehicleCatalog?.classes.find((entry) => entry.id === input.classId);
+        // 1.5.0-D: the road lane's cut, read as the action runs, never from the client.
+        const discount = ruleset.vehicleCatalog?.service?.specialization
+          ? (await vehicleServiceDiscounts(tx, roundPlayerId, ruleset, player.racketEffects))[input.kind].percent
+          : 0;
+        const price = vehicleServiceCents(ruleset, input.classId, input.kind, input.quantity, discount);
+        if (!vehicleClass || price === null) {
+          throw AppError.conflict('VEHICLE_SERVICE_UNAVAILABLE', 'The garage does not service vehicles in this round.');
+        }
+        const fields = VEHICLE_FIELDS[input.classId];
+        const from = input.kind === 'REPAIR' ? fields.damaged : fields.disabled;
+        const waiting = current[from];
+        const plural = (count: number) => `${vehicleClass.name}${count === 1 ? '' : 's'}`;
+        if (input.quantity > waiting) {
+          const state = input.kind === 'REPAIR' ? 'damaged' : 'disabled';
+          throw AppError.badRequest('NOT_ENOUGH_VEHICLES', `You have ${waiting} ${state} ${plural(waiting)}.`, { quantity: `At most ${waiting}.` });
+        }
+        if (current.cashCents < price) {
+          throw AppError.badRequest('NOT_ENOUGH_CASH', `You need ${formatCents(Number(price))} at home for that.`, { quantity: 'Not enough cash.' });
+        }
+        const readyCount = current[fields.ready] + input.quantity;
+        const verb = input.kind === 'REPAIR' ? 'repair' : 'recovery';
+        return {
+          next: { ...current, cashCents: current.cashCents - price, [from]: waiting - input.quantity, [fields.ready]: readyCount },
+          result: { classId: input.classId, name: vehicleClass.name, kind: input.kind, quantity: input.quantity, paidCents: Number(price), readyCount, ...(discount ? { discountPercent: discount } : {}) },
+          ledger: [{ source: 'VEHICLE_SERVICE', label: `Garage ${verb} · ${vehicleClass.name} × ${input.quantity}`, amountCents: -price }],
+        };
+      },
+    });
   },
 
   /**
@@ -462,6 +632,23 @@ export const TravelService = {
       actionId: input.actionId,
       execute: async ({ tx, current, ruleset, player, now }) => {
         requireRuns(ruleset);
+        const loadout: VehicleLoadout = input.vehicleLoadout
+          ? { LOW_RIDER: input.vehicleLoadout.LOW_RIDER ?? 0, SEDAN: input.vehicleLoadout.SEDAN ?? 0, VAN: input.vehicleLoadout.VAN ?? 0 }
+          : { LOW_RIDER: input.lowRiders ?? 0, SEDAN: 0, VAN: 0 };
+        const vehicleCount = loadoutTotal(loadout);
+        if (vehicleCount < 1) throw AppError.badRequest('NO_VEHICLES_SELECTED', 'Choose at least one vehicle for this run.');
+        for (const vehicleClass of ['LOW_RIDER', 'SEDAN', 'VAN'] as const) {
+          if (loadout[vehicleClass] > 0 && !ruleset.vehicleCatalog?.classes.some((entry) => entry.id === vehicleClass)) {
+            throw AppError.conflict('VEHICLE_CLASS_UNAVAILABLE', `${vehicleClass.replace('_', ' ')}s are not available in this round.`);
+          }
+        }
+        const owned: VehicleLoadout = { LOW_RIDER: current.lowRiders, SEDAN: current.sedans, VAN: current.vans };
+        for (const vehicleClass of ['LOW_RIDER', 'SEDAN', 'VAN'] as const) {
+          if (loadout[vehicleClass] > owned[vehicleClass]) {
+            const label = vehicleClass === 'LOW_RIDER' ? 'Low-Rider' : vehicleClass === 'SEDAN' ? 'Sedan' : 'Van';
+            throw AppError.badRequest('NOT_ENOUGH_VEHICLES', `You have ${owned[vehicleClass]} ${label}${owned[vehicleClass] === 1 ? '' : 's'} ready at home.`, { vehicleLoadout: `At most ${owned[vehicleClass]} ${label}${owned[vehicleClass] === 1 ? '' : 's'}.` });
+          }
+        }
         const activeCount = await tx.run.count({ where: { roundPlayerId, status: 'ACTIVE' } });
         const limit = hideoutGarageRunLimit(ruleset, player);
         if (activeCount >= limit) {
@@ -482,13 +669,10 @@ export const TravelService = {
         } catch (error) { refuse(error); }
         assertTurns(current.turns, plan.turns);
 
-        if (input.lowRiders > current.lowRiders) {
-          throw AppError.badRequest('NOT_ENOUGH_LOW_RIDERS', `You have ${current.lowRiders} Low-Rider${current.lowRiders === 1 ? '' : 's'} at home.`, { lowRiders: `At most ${current.lowRiders}.` });
-        }
-        const seats = input.lowRiders * ruleset.lowRiderThugCapacity;
+        const seats = vehicleLoadoutSeats(ruleset, loadout);
         const fit = fitThugs(current);
         if (input.escortThugs > Math.min(fit, seats)) {
-          const why = input.escortThugs > seats ? `${input.lowRiders} Low-Rider${input.lowRiders === 1 ? '' : 's'} seat ${seats} thugs.` : `You have ${fit} fit thugs at home.`;
+          const why = input.escortThugs > seats ? `This vehicle loadout seats ${seats} thugs.` : `You have ${fit} fit thugs at home.`;
           throw AppError.badRequest('TOO_MANY_ESCORTS', why, { escortThugs: why });
         }
         const cashCents = BigInt(input.cashCents);
@@ -540,9 +724,9 @@ export const TravelService = {
           }
         }
 
-        const capacity = runCapacity(ruleset, input.lowRiders, racketCargoShare(ruleset, readRacketEffects(player.racketEffects)));
+        const capacity = runCapacity(ruleset, loadout, racketCargoShare(ruleset, readRacketEffects(player.racketEffects)));
         if (cargoUnits(cargo) + input.beer > capacity) {
-          throw AppError.badRequest('TRUNK_FULL', `${input.lowRiders} Low-Rider${input.lowRiders === 1 ? '' : 's'} carry ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
+          throw AppError.badRequest('TRUNK_FULL', `This vehicle loadout carries ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
         }
 
         const openRoad = await SingleUseFavorService.matching(
@@ -563,7 +747,8 @@ export const TravelService = {
           data: {
             roundPlayerId,
             homeCity: player.city.slug,
-            lowRiders: input.lowRiders,
+            lowRiders: vehicleCount,
+            vehicleLoadout: loadout as unknown as Prisma.InputJsonValue,
             escortThugs: input.escortThugs,
             ...guns,
             cashCents,
@@ -596,7 +781,7 @@ export const TravelService = {
           leaveAt: out!.leaveAt!.toISOString(),
           backAt: home!.arriveAt.toISOString(),
           turns: plan.turns,
-          lowRiders: input.lowRiders,
+          lowRiders: vehicleCount,
           escortThugs: input.escortThugs,
           cashCents: input.cashCents,
           beer: input.beer,
@@ -611,7 +796,9 @@ export const TravelService = {
             turns: current.turns - plan.turns,
             cashCents: current.cashCents - cashCents - marketCents,
             beer: current.beer - input.beer,
-            lowRiders: current.lowRiders - input.lowRiders,
+            lowRiders: current.lowRiders - loadout.LOW_RIDER,
+            sedans: current.sedans - loadout.SEDAN,
+            vans: current.vans - loadout.VAN,
             thugs: current.thugs - input.escortThugs,
             crack: current.crack - (fromHome[CRACK] ?? 0),
             pistols: current.pistols - guns.pistols,
@@ -619,7 +806,7 @@ export const TravelService = {
             tek9s: current.tek9s - guns.tek9s,
             ak47s: current.ak47s - guns.ak47s,
             awayNetWorthCents: current.awayNetWorthCents
-              + awayWorth(ruleset, { cashCents, beer: input.beer, lowRiders: input.lowRiders, escortThugs: input.escortThugs, ...guns }, cargo),
+              + awayWorth(ruleset, { cashCents, beer: input.beer, lowRiders: vehicleCount, escortThugs: input.escortThugs, ...guns }, cargo),
           },
           result,
           ledger: marketTrades.map((trade) => ({
@@ -666,11 +853,15 @@ export const TravelService = {
         const name = productName(base, input.product);
         if (!productKeys(base).includes(input.product)) throw AppError.badRequest('UNKNOWN_PRODUCT', 'That product is not part of this round.', { product: 'Pick a product.' });
         const cargo = cargoOf(run);
-        const capacity = runCapacity(base, run.lowRiders, racketCargoShare(base, readRacketEffects(player.racketEffects)));
+        const capacity = runCapacity(base, readVehicleLoadout(run.vehicleLoadout, run.lowRiders), racketCargoShare(base, readRacketEffects(player.racketEffects)));
         const buying = input.direction === 'buy';
+        // Pip sells a locked product in no city, not just at home. The high market sells to anyone,
+        // at whatever the market is asking, above or below Pip's price.
+        if (buying && input.venue === 'pip') await PermanentUnlockService.assertCanBuyProduct(tx, roundPlayerId, base, input.product);
         let unitCents: number;
         let totalCents: bigint;
         let shelfStock = 0;
+        let factionDiscount: RunTradeResult['factionDiscount'] = undefined;
 
         if (input.venue === 'market') {
           const rules = base.travel?.market;
@@ -699,13 +890,21 @@ export const TravelService = {
         } else {
           const shelfRow = await tx.cityShelf.findUnique({ where: { roundPlayerId_city_productKey: { roundPlayerId, city, productKey: input.product } } });
           const shelf = settleLiveShelf(shelfRow, base, seed, city, input.product, now);
+          // 1.4.0-D: Connected with the Cartel Line, Pip shades his price in every city.
+          const nudge = buying ? await FactionService.nudge(tx, roundPlayerId, base, 'PIP_PRODUCT') : null;
           let trade;
           try {
             trade = calculateCityTrade({
               ruleset: base, city, product: input.product, direction: input.direction, quantity: input.quantity, counter: shelf.counter,
               runCashCents: run.cashCents, held: cargo[input.product] ?? 0, trunkUnits: cargoUnits(cargo), capacity, shelfStock: shelf.stock,
+              buyCutPercent: nudge?.percent ?? 0,
             });
           } catch (error) { refuse(error); }
+          const savedCents = nudge && shelf.counter ? (shelf.counter.buyCents - trade.unitCents) * trade.quantity : 0;
+          if (nudge && savedCents > 0) {
+            await FactionService.logNudge(tx, roundPlayerId, nudge, 'PIP_PRODUCT', `run-trade:${input.actionId ?? now.toISOString()}`, { cents: savedCents }, now);
+            factionDiscount = { factionKey: nudge.factionKey, factionName: base.factions?.[nudge.factionKey]?.name ?? nudge.factionKey, percent: nudge.percent, savedCents };
+          }
           if (shelf.counter) {
             // A sale never touches the shelf, but settling it is still kept, or a parked clock is lost.
             shelfStock = shelf.stock - trade.stockTaken;
@@ -735,7 +934,7 @@ export const TravelService = {
         const town = rulesetForCity(base, city);
         let traded = await requireActiveRun(tx, roundPlayerId, input.runId);
         const roll = town.heat
-          ? resolveRunTrouble({ heat: current.heat, cashCents: traded.cashCents, cargo: cargoOf(traded), ruleset: town, bustChance: bustChance(current.heat, town), rng: rng ?? Math.random })
+          ? resolveRunTrouble({ heat: current.heat, cashCents: traded.cashCents, cargo: cargoOf(traded), ruleset: town, bustChance: bustChance(current.heat, town), riskMultiplier: vehicleRiskMultiplier(base, readVehicleLoadout(traded.vehicleLoadout, traded.lowRiders)), rng: rng ?? Math.random })
           : null;
         const added = !buying ? saleHeat(base, city, totalCents) : 0;
         const heatAfter = town.heat ? addHeat(roll?.kind ? roll.heatAfter : current.heat, added, town.heat) : current.heat;
@@ -753,6 +952,13 @@ export const TravelService = {
             data: { runId: run.id, kind: roll.kind, city, road: null, seized, fineCents: roll.fineCents, at: now },
           });
           trouble = toIncidentDto(base, incident);
+          // 1.5.0-C: a search tears a car apart; an arrest leaves one in the impound lot.
+          const service = base.vehicleCatalog?.service;
+          if (service) {
+            traded = roll.kind === 'ARREST'
+              ? await damageRunVehicles(tx, base, traded, 'disabled', service.disable.arrest)
+              : await damageRunVehicles(tx, base, traded, 'damaged', service.damage.bust);
+          }
           await LawService.notePoliceLoss(tx, roundPlayerId, base, seizedValueCents(roll.seized, base) + roll.fineCents, now);
           await ActivityService.log(tx, roundPlayerId, 'RUN_INCIDENT', { runId: run.id, ...trouble } as unknown as Prisma.InputJsonValue);
           // An arrest ends the trip: the crew is let go with the empty car and drives home.
@@ -786,6 +992,7 @@ export const TravelService = {
             trunkUnits: cargoUnits(nextCargo),
             capacity,
             shelfStock,
+            ...(factionDiscount ? { factionDiscount } : {}),
             heat: town.heat ? { before: current.heat, added, after: heatAfter } : null,
             trouble,
           },

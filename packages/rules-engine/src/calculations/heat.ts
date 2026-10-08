@@ -39,12 +39,12 @@ export function heatTakeMultiplier(heat: number, ruleset: Ruleset): number {
 }
 
 /** Chance a trip is busted at this Heat. */
-export function bustChance(heat: number, ruleset: Ruleset): number {
+export function bustChance(heat: number, ruleset: Ruleset, riskMultiplier = 1): number {
   const rules = ruleset.heat;
   if (!rules || heat < rules.bust.startsAt) return 0;
   const span = rules.max - rules.bust.startsAt;
-  if (span <= 0) return rules.bust.chanceAtMax;
-  return rules.bust.chanceAtMax * clamp((heat - rules.bust.startsAt) / span, 0, 1);
+  const base = span <= 0 ? rules.bust.chanceAtMax : rules.bust.chanceAtMax * clamp((heat - rules.bust.startsAt) / span, 0, 1);
+  return clamp(base * Math.max(0, riskMultiplier), 0, 1);
 }
 
 export interface BustOutcome {

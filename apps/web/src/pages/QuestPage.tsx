@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   formatCents,
   formatNumber,
+  type FactionPerksDto,
   type PlayerQuestDto,
   type QuestPageDto,
 } from '@streets/shared';
@@ -12,18 +13,21 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { ItemTile } from '../components/ItemTile.js';
+import { questHref } from '../components/QuestLink.js';
 import { RewardChip } from '../components/RewardChip.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { Portrait } from '../components/Portrait.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 import { confirmAction } from '../stores/confirm.js';
 
-type Tab = 'available' | 'active' | 'ready' | 'tracked' | 'daily' | 'weekly' | 'city' | 'alliance' | 'events' | 'completed';
-const SLOTLESS_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT'] as const;
+type Tab = 'available' | 'active' | 'ready' | 'tracked' | 'daily' | 'weekly' | 'city' | 'season' | 'alliance' | 'events' | 'completed';
+const BOARD_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
 
-function isSlotlessQuest(quest: PlayerQuestDto): boolean {
-  return SLOTLESS_QUEST_TYPES.includes(quest.type as typeof SLOTLESS_QUEST_TYPES[number])
+/** City, alliance, season and community work: shared boards, not personal jobs, and never abandoned. */
+function isBoardQuest(quest: PlayerQuestDto): boolean {
+  return BOARD_QUEST_TYPES.includes(quest.type as typeof BOARD_QUEST_TYPES[number])
     || quest.category === 'CITY_CONTRACT';
 }
 
@@ -32,6 +36,7 @@ function tabFromSearch(search: string): Tab {
   return requested === 'daily'
     || requested === 'weekly'
     || requested === 'city'
+    || requested === 'season'
     || requested === 'alliance'
     || requested === 'events'
     || requested === 'active'
@@ -62,6 +67,7 @@ function tabForQuest(quest: PlayerQuestDto): Tab {
   if (quest.type === 'DAILY') return 'daily';
   if (quest.type === 'WEEKLY') return 'weekly';
   if (quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT') return 'city';
+  if (quest.type === 'SEASON') return 'season';
   if (quest.type === 'ALLIANCE') return 'alliance';
   if (quest.type === 'EVENT') return 'events';
   return 'available';
@@ -79,13 +85,26 @@ function statusLabel(quest: PlayerQuestDto): string {
   }
 }
 
+const BOARD_TYPES: ReadonlySet<string> = new Set(['DAILY', 'WEEKLY', 'CITY_CONTRACT', 'SEASON', 'ALLIANCE']);
+
+/** Who the work is for: the contact and their faction, or a board contract's sponsor (1.4.0-C). */
+function questByline(quest: PlayerQuestDto): string {
+  if (BOARD_TYPES.has(quest.type) && quest.factionStandings.length && quest.factionName) {
+    return `${quest.contactName ? `${quest.contactName} · ` : ''}for ${quest.factionName}`;
+  }
+  const who = quest.contactName ?? quest.factionName ?? 'StreetsEmpire';
+  return quest.contactName && quest.factionName ? `${who} · ${quest.factionName}` : who;
+}
+
 function questKindLabel(quest: PlayerQuestDto): string {
   if (quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT') return 'City contract';
   if (quest.type === 'ALLIANCE') return 'Alliance contract';
   if (quest.type === 'EVENT') return 'Community event';
   if (quest.type === 'DAILY') return 'Daily contract';
   if (quest.type === 'WEEKLY') return 'Weekly contract';
+  if (quest.type === 'SEASON') return 'Season contract';
   if (quest.type === 'SECRET') return 'Secret job';
+  if (quest.factionJob) return 'Faction job';
   if (quest.type === 'SIDE') return 'Side job';
   if (quest.type === 'STORY') return 'Story';
   return quest.type;
@@ -138,35 +157,6 @@ function timeRemaining(expiresAt: string, nowMs: number): string {
   const days = Math.floor(hours / 24);
   const leftoverHours = hours % 24;
   return days + 'd ' + leftoverHours + 'h left';
-}
-
-function QuestMetric({
-  label,
-  value,
-  detail,
-  tone,
-  onClick,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  tone?: 'good' | 'warn' | 'accent';
-  onClick?: () => void;
-}) {
-  const className = `se-quests-metric${tone ? ` se-quests-metric--${tone}` : ''}${onClick ? ' se-quests-metric--button' : ''}`;
-  const body = (
-    <>
-      <span className="se-quests-metric__label">{label}</span>
-      <strong className="se-quests-metric__value">{value}</strong>
-      {detail ? <span className="se-quests-metric__detail">{detail}</span> : null}
-    </>
-  );
-
-  return onClick ? (
-    <button type="button" className={className} onClick={onClick}>{body}</button>
-  ) : (
-    <div className={className}>{body}</div>
-  );
 }
 
 function ProgressLine({
@@ -238,13 +228,26 @@ function QuestCard({
       title={quest.title}
       aside={(
         <div className="se-quest-card__meta">
-          <span className="se-quest-kind">{quest.contactName ?? 'StreetsEmpire'} · {questKindLabel(quest)}</span>
+          <Portrait who={quest.contactKey ?? quest.factionKey} size="sm" />
+          <span className="se-quest-kind">{questByline(quest)} · {questKindLabel(quest)}</span>
           {quest.isTracked ? <span className="se-quest-status se-quest-status--tracked">Tracked</span> : null}
           <span className={'se-quest-status se-quest-status--' + statusTone(quest.status)}>{statusLabel(quest)}</span>
         </div>
       )}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
+      {quest.status === 'LOCKED' && quest.requires?.length ? (
+        <div className="se-quest-card__requires">
+          <span className="se-eyebrow">Opens after</span>
+          <ul>
+            {quest.requires.map((requirement) => (
+              <li key={requirement.label}>
+                {requirement.questKey ? <Link className="se-golink" to={questHref(requirement.questKey)}>{requirement.label}</Link> : requirement.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {quest.story ? (
         <div className="se-quest-story">
           <div className="se-quest-story__quote">
@@ -307,15 +310,30 @@ function QuestCard({
         ))}
       </div>
 
-      {quest.rewards.length ? (
+      {quest.rewards.length || quest.factionStandings.length ? (
         <div className="se-quest-reward-block">
           <p className="se-eyebrow">{quest.branchChoices.length ? 'Shared rewards' : 'Rewards'}</p>
           <div className="se-quest-rewards">
             {quest.rewards.map((reward, index) => (
               <RewardChip key={reward.kind + ':' + (reward.key ?? index)} reward={reward} />
             ))}
+            {quest.factionStandings.map((standing) => (
+              <RewardChip key={'standing:' + standing.factionKey} reward={{ kind: 'FACTION_STANDING', key: standing.factionKey, amount: standing.amount, label: quest.introduces ? `Starts you at Known with ${standing.factionName}` : standing.label }} />
+            ))}
           </div>
+          {quest.factionStandings.map((standing) => standing.locks?.length ? (
+            <p key={'locks:' + standing.factionKey} className="se-hint se-warn">
+              This takes you to {standing.factionName}&rsquo;s Inner Circle, which locks {standing.locks.join(' and ')}&rsquo;s Inner Circle for the rest of the season.
+            </p>
+          ) : standing.heldShortBy ? (
+            <p key={'short:' + standing.factionKey} className="se-hint">
+              You are in {standing.heldShortBy}&rsquo;s Inner Circle, so {standing.factionName} stops one point short of theirs.
+            </p>
+          ) : null)}
         </div>
+      ) : null}
+      {quest.feeCents ? (
+        <p className="se-hint">{quest.contactName ?? 'They'} wants {formatCents(quest.feeCents)} when you collect{quest.introduces ? `, and only if you are still a stranger to ${quest.introduces.factionName}` : ''}.</p>
       ) : null}
 
       {quest.status === 'READY_TO_TURN_IN' && quest.branchChoices.length ? (
@@ -357,9 +375,7 @@ function QuestCard({
         {quest.status === 'AVAILABLE' ? (
           <Button
             className="se-btn se-btn--primary"
-            disabledReason={busy ?? (!isSlotlessQuest(quest) && page.counts.active >= page.activeLimit
-              ? 'You already have ' + page.activeLimit + ' active jobs.'
-              : null)}
+            disabledReason={busy}
             onClick={() => onAccept(quest.key)}
           >
             Accept job
@@ -383,7 +399,7 @@ function QuestCard({
             >
               {quest.isTracked ? 'Stop tracking' : 'Track job'}
             </Button>
-            {!isSlotlessQuest(quest) ? (
+            {!isBoardQuest(quest) ? (
               <Button className="se-btn se-btn--ghost" disabledReason={busy} onClick={() => onAbandon(quest.key)}>
                 Abandon
               </Button>
@@ -554,6 +570,14 @@ export function QuestPage() {
     [page, nowMs],
   );
 
+  const seasonToday = useMemo(
+    () => page?.quests.filter((quest) =>
+      quest.type === 'SEASON'
+      && ['AVAILABLE', 'ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)
+    ) ?? [],
+    [page],
+  );
+
   const allianceToday = useMemo(
     () => page?.quests.filter((quest) =>
       quest.type === 'ALLIANCE'
@@ -581,6 +605,7 @@ export function QuestPage() {
       quest.status === 'AVAILABLE'
       && quest.type !== 'DAILY'
       && quest.type !== 'WEEKLY'
+      && quest.type !== 'SEASON'
       && quest.type !== 'ALLIANCE'
       && quest.type !== 'CITY_CONTRACT'
       && quest.type !== 'EVENT'
@@ -609,27 +634,35 @@ export function QuestPage() {
     if (tab === 'daily') return dailyToday;
     if (tab === 'weekly') return weeklyToday;
     if (tab === 'city') return cityToday;
+    if (tab === 'season') return seasonToday;
     if (tab === 'alliance') return allianceToday;
     if (tab === 'events') return eventToday;
     if (tab === 'active') return page.quests.filter((quest) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status));
     if (tab === 'ready') return readyToday;
     if (tab === 'tracked') return trackedToday;
     if (tab === 'completed') return page.quests.filter((quest) => ['COMPLETED', 'FAILED', 'EXPIRED'].includes(quest.status));
-    return page.quests.filter((quest) =>
+    // 1.5.0-E2: a locked shelf links to the Job that opens it. That Job may still be locked
+    // itself, so it is pinned at the top of the list with what it waits for.
+    const focusKey = focusedQuestKey(location.search, location.hash);
+    const pinned = focusKey ? page.quests.find((quest) => quest.key === focusKey && quest.status === 'LOCKED') : undefined;
+    return [...(pinned ? [pinned] : []), ...page.quests.filter((quest) =>
       quest.status === 'AVAILABLE'
       && quest.type !== 'DAILY'
       && quest.type !== 'WEEKLY'
+      && quest.type !== 'SEASON'
       && quest.type !== 'ALLIANCE'
       && quest.type !== 'CITY_CONTRACT'
       && quest.type !== 'EVENT'
       && quest.category !== 'CITY_CONTRACT'
-    );
-  }, [page, tab, dailyToday, weeklyToday, cityToday, allianceToday, eventToday, readyToday, trackedToday]);
+    )];
+  }, [page, tab, dailyToday, weeklyToday, cityToday, seasonToday, allianceToday, eventToday, readyToday, trackedToday, location.search, location.hash]);
 
   const sortedShown = useMemo(
     () => [...shown].sort((left, right) => {
+      // A locked Job only reaches a list when a link pinned it there, so it leads.
       const weight = (quest: PlayerQuestDto) =>
-        quest.status === 'READY_TO_TURN_IN' ? 0
+        quest.status === 'LOCKED' ? -1
+          : quest.status === 'READY_TO_TURN_IN' ? 0
           : quest.isTracked ? 1
             : quest.status === 'ACTIVE' ? 2
               : quest.status === 'AVAILABLE' ? 3
@@ -678,6 +711,16 @@ export function QuestPage() {
   }
 
   async function claim(key: string, branchKey?: string, branchTitle?: string) {
+    // 1.4.0-E: reaching one faction's Inner Circle locks its rivals'. Ask before it happens.
+    const locking = page?.quests.find((quest) => quest.key === key)?.factionStandings.filter((standing) => standing.locks?.length) ?? [];
+    if (locking.length) {
+      const confirmed = await confirmAction({
+        title: `Join ${locking.map((standing) => standing.factionName).join(' and ')}'s Inner Circle?`,
+        body: locking.map((standing) => `This locks ${standing.locks!.join(' and ')}'s Inner Circle for the rest of the season. Standing with them keeps counting, one point short of it.`).join(' '),
+        confirmLabel: 'Collect and join',
+      });
+      if (!confirmed) return;
+    }
     if (branchKey) {
       const confirmed = await confirmAction({
         title: `Choose "${branchTitle ?? branchKey}"?`,
@@ -691,10 +734,12 @@ export function QuestPage() {
     setNotice(null);
     try {
       const result = await questsApi.claim(key, crypto.randomUUID(), branchKey);
+      const locked = result.result.standingChanges.flatMap((change) => change.locked ?? []);
       setNotice(
         result.result.title
         + ' complete — payment collected.'
-        + (result.result.chosenBranch ? ' Choice locked: ' + (branchTitle ?? result.result.chosenBranch) + '.' : ''),
+        + (result.result.chosenBranch ? ' Choice locked: ' + (branchTitle ?? result.result.chosenBranch) + '.' : '')
+        + (locked.length ? ' Inner Circle locked for the season: ' + locked.join(', ') + '.' : ''),
       );
       window.dispatchEvent(new Event('streets:quests-changed'));
       await Promise.all([load(), refreshSnapshot()]);
@@ -780,9 +825,10 @@ export function QuestPage() {
                 <small>Ready</small>
                 <strong>{page ? formatNumber(page.counts.ready) : '—'}</strong>
               </span>
-              <span>
-                <small>Active</small>
-                <strong>{page ? `${formatNumber(page.counts.active)} / ${formatNumber(page.activeLimit)}` : '—'}</strong>
+              {/* Personal jobs only: city, alliance, season and community work runs alongside them. */}
+              <span title="Jobs you took from contacts. City, alliance, season and community work is not counted here.">
+                <small>Personal jobs</small>
+                <strong>{page ? formatNumber(page.counts.active) : '—'}</strong>
               </span>
               <span>
                 <small>Tracked</small>
@@ -807,70 +853,26 @@ export function QuestPage() {
                   <span className="se-eyebrow">Contract board</span>
                   <h2>Choose your work</h2>
                 </div>
-                <p>Ready jobs stay visible from their own queue, while rotating boards keep their server-authoritative reset clocks.</p>
+                <p>Take on as many jobs as you can handle. Board resets are listed beside the jobs.</p>
               </div>
 
-              <div className="se-quests-quick">
-                <QuestMetric
-                  label="Ready to collect"
-                  value={formatNumber(page.counts.ready)}
-                  detail="finished jobs waiting on payment"
-                  tone={page.counts.ready > 0 ? 'accent' : undefined}
-                  onClick={() => selectTab('ready')}
+              <label className="se-checkrow se-checkrow--toggle se-quests-autoaccept">
+                <input
+                  type="checkbox"
+                  checked={page.autoAccept ?? true}
+                  disabled={busy !== null}
+                  onChange={(event) => {
+                    const enabled = event.target.checked;
+                    void mutate('auto-accept', () => questsApi.setAutoAccept(enabled), enabled
+                      ? 'Auto-accept is on. New daily, weekly and city work starts by itself.'
+                      : 'Auto-accept is off. Accept board work yourself.');
+                  }}
                 />
-                <QuestMetric
-                  label="Personal active"
-                  value={`${formatNumber(page.counts.active)} / ${formatNumber(page.activeLimit)}`}
-                  detail="city, alliance and community boards do not use slots"
-                  tone={page.counts.active >= page.activeLimit ? 'warn' : undefined}
-                  onClick={() => selectTab('active')}
-                />
-                <QuestMetric
-                  label="Tracked"
-                  value={`${formatNumber(trackedToday.length)} / ${formatNumber(page.trackedLimit)}`}
-                  detail="pinned into your game HUD"
-                  onClick={() => selectTab('tracked')}
-                />
-                <QuestMetric
-                  label="Stored favors"
-                  value={formatNumber(page.favors.reduce((sum, favor) => sum + favor.quantity, 0))}
-                  detail={liveFavors.length || page.armedFavors.length ? `${liveFavors.length} active · ${page.armedFavors.length} armed` : 'none active or armed'}
-                  tone={liveFavors.length || page.armedFavors.length ? 'good' : undefined}
-                />
-                {page.dailyContracts.enabled ? (
-                  <QuestMetric
-                    label="Daily contracts"
-                    value={`${formatNumber(dailyToday.length)} / ${formatNumber(page.dailyContracts.slots)}`}
-                    detail={page.dailyContracts.resetAt ? 'resets ' + timeRemaining(page.dailyContracts.resetAt, nowMs) : 'rotating board'}
-                    onClick={() => selectTab('daily')}
-                  />
-                ) : null}
-                {page.weeklyContracts.enabled ? (
-                  <QuestMetric
-                    label="Weekly contracts"
-                    value={`${formatNumber(weeklyToday.length)} / ${formatNumber(page.weeklyContracts.slots)}`}
-                    detail={page.weeklyContracts.resetAt ? 'resets ' + timeRemaining(page.weeklyContracts.resetAt, nowMs) : 'rotating board'}
-                    onClick={() => selectTab('weekly')}
-                  />
-                ) : null}
-                {page.cityContracts.enabled ? (
-                  <QuestMetric
-                    label="City contracts"
-                    value={`${formatNumber(cityToday.length)} / ${formatNumber(page.cityContracts.slots)}`}
-                    detail={page.cityContracts.resetAt ? 'refreshes ' + timeRemaining(page.cityContracts.resetAt, nowMs) : 'market board'}
-                    onClick={() => selectTab('city')}
-                  />
-                ) : null}
-                {eventToday.length ? (
-                  <QuestMetric
-                    label="Community events"
-                    value={formatNumber(eventToday.length)}
-                    detail="shared round work"
-                    tone="good"
-                    onClick={() => selectTab('events')}
-                  />
-                ) : null}
-              </div>
+                <span>
+                  <strong>Auto-accept board work</strong>
+                  <small>Daily, weekly and city contracts start as soon as they appear. Community events always start on their own. A job you abandon stays off until you take it again.</small>
+                </span>
+              </label>
 
               <div className="se-quests-tabs" role="tablist" aria-label="Quest view">
                 {([
@@ -881,6 +883,7 @@ export function QuestPage() {
                   ...(page.dailyContracts.enabled ? [['daily', 'Daily', dailyToday.length] as const] : []),
                   ...(page.weeklyContracts.enabled ? [['weekly', 'Weekly', weeklyToday.length] as const] : []),
                   ...(page.cityContracts.enabled ? [['city', 'City', cityToday.length] as const] : []),
+                  ...(page.seasonContracts?.enabled ? [['season', 'Season', seasonToday.length] as const] : []),
                   ...(allianceToday.length ? [['alliance', 'Alliance', allianceToday.length] as const] : []),
                   ...(eventToday.length ? [['events', 'Community', eventToday.length] as const] : []),
                   ['completed', 'Completed', page.counts.completed],
@@ -913,6 +916,7 @@ export function QuestPage() {
                               : tab === 'daily' ? 'Daily contracts'
                                 : tab === 'weekly' ? 'Weekly contracts'
                                   : tab === 'city' ? 'City contracts'
+                                  : tab === 'season' ? 'Season contracts'
                                     : tab === 'alliance' ? 'Alliance contracts'
                                       : tab === 'events' ? 'Community events'
                                         : 'Completed jobs'
@@ -924,12 +928,14 @@ export function QuestPage() {
                 {(tab === 'daily' && page.dailyContracts.resetAt)
                   || (tab === 'weekly' && page.weeklyContracts.resetAt)
                   || (tab === 'city' && page.cityContracts.resetAt)
+                  || (tab === 'season' && page.seasonContracts?.resetAt)
                   ? (
                     <div className="se-quests-boardclock">
                       <span>{
                         tab === 'daily' ? 'Daily board resets'
                           : tab === 'weekly' ? 'Weekly board resets'
-                            : 'City board refreshes'
+                            : tab === 'season' ? 'Season ends'
+                              : 'City board refreshes'
                       }</span>
                       <strong>{
                         timeRemaining(
@@ -937,7 +943,9 @@ export function QuestPage() {
                             ? page.dailyContracts.resetAt!
                             : tab === 'weekly'
                               ? page.weeklyContracts.resetAt!
-                              : page.cityContracts.resetAt!,
+                              : tab === 'season'
+                                ? page.seasonContracts!.resetAt!
+                                : page.cityContracts.resetAt!,
                           nowMs,
                         )
                       }</strong>
@@ -994,6 +1002,13 @@ export function QuestPage() {
                         {page.cityContracts.resetAt ? <small>{timeRemaining(page.cityContracts.resetAt, nowMs)}</small> : null}
                       </button>
                     ) : null}
+                    {page.seasonContracts?.enabled ? (
+                      <button type="button" onClick={() => selectTab('season')}>
+                        <span>Season board</span>
+                        <strong>{formatNumber(seasonToday.length)} / {formatNumber(page.seasonContracts.slots)}</strong>
+                        {page.seasonContracts.resetAt ? <small>{timeRemaining(page.seasonContracts.resetAt, nowMs)}</small> : null}
+                      </button>
+                    ) : null}
                     {allianceToday.length ? (
                       <button type="button" onClick={() => selectTab('alliance')}>
                         <span>Alliance</span>
@@ -1015,16 +1030,71 @@ export function QuestPage() {
                   <Panel title="Contact standing" className="se-quests-panel">
                     <div className="se-quests-contacts">
                       {page.contacts.map((contact) => (
-                        <div key={contact.key}>
+                        <div key={contact.key} className="se-quests-contact">
+                          <Portrait who={contact.key} label={contact.name} />
                           <span>{contact.name}</span>
                           <strong>{contact.standing}</strong>
                           <small>{contact.role} · {formatNumber(contact.points)} rep</small>
+                          {contact.faction ? <small>Works for {contact.faction.name}</small> : contact.independent ? <small title={contact.independent}>Independent</small> : null}
                           <small>{contact.nextStandingAt === null ? 'Max standing' : `Next standing at ${formatNumber(contact.nextStandingAt)} rep`} · {formatNumber(page.quests.filter((quest) => quest.contactKey === contact.key && quest.status !== 'LOCKED').length)} jobs open</small>
                         </div>
                       ))}
                     </div>
                   </Panel>
                 </div>
+
+                {page.factions?.length ? (
+                  <div id="factions">
+                    <Panel title="Factions" className="se-quests-panel">
+                      <p className="se-hint">The organizations behind your contacts: who works for whom, and who they are up against.{page.factions.some((faction) => faction.standing) ? ' A one-time Job earns standing with the faction it works for, and only the factions it helps; only you can see it. Each faction also has Jobs of its own that open as your standing grows.' : ''}{page.quests.some((quest) => BOARD_TYPES.has(quest.type) && quest.factionStandings.length) ? ' Board contracts are sponsored too: a finished contract pays its sponsor standing, and when work could go to two factions it leans toward one you are Known with.' : ''}{page.factions.some((faction) => faction.perks) ? ' Standing also opens perks: a faction\'s word on its lane at Known, early warnings at Trusted, and one small saving at Connected.' : ''}</p>
+                      <div className="se-quests-contacts">
+                        {page.factions.map((faction) => (
+                          <div key={faction.key}>
+                            <span className="se-faction-faces">
+                              {faction.faces.length
+                                ? faction.faces.map((face) => <Portrait key={face.key} who={face.key} size="sm" label={face.name} />)
+                                : <Portrait who={faction.key} size="sm" />}
+                            </span>
+                            <span>{faction.lane}</span>
+                            <strong>{faction.name}{faction.standing ? ` · ${faction.standing.tierName}` : ''}</strong>
+                            {faction.standing ? (
+                              <small>
+                                {formatNumber(faction.standing.points)} standing · {faction.standing.next ? `${faction.standing.next.tierName} at ${formatNumber(faction.standing.next.startsAt)}` : 'Top tier'}
+                              </small>
+                            ) : null}
+                            <small>{faction.identity}</small>
+                            <small>{faction.description}</small>
+                            <small>{faction.faces.length ? `Faces: ${faction.faces.map((face) => face.name).join(', ')}` : faction.facesNote ?? ''}</small>
+                            {faction.rivals.length ? <small>Rival{faction.rivals.length === 1 ? '' : 's'}: {faction.rivals.map((rival) => rival.name).join(', ')}</small> : null}
+                            {faction.standing && faction.jobs.length ? (
+                              <ul className="se-faction-jobs">
+                                {faction.jobs.map((job) => (
+                                  <li key={job.key} className={job.status === 'LOCKED' ? 'is-locked' : job.status === 'COMPLETED' ? 'is-done' : 'is-open'}>
+                                    {job.status === 'LOCKED' ? job.title : <a href={`#quest-${job.key}`}>{job.title}</a>}
+                                    <span>{job.status === 'COMPLETED' ? 'Done' : job.status === 'LOCKED' ? (job.tierName ? `Opens at ${job.tierName}` : 'Locked') : 'Open'}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                            {faction.innerCircle?.lockedBy ? (
+                              <small className="se-warn">Inner Circle locked this season: you are in {faction.innerCircle.lockedBy.name}&rsquo;s.</small>
+                            ) : faction.innerCircle?.wouldLock.length ? (
+                              <small>Reaching Inner Circle here locks {faction.innerCircle.wouldLock.map((rival) => rival.name).join(' and ')}&rsquo;s.</small>
+                            ) : null}
+                            {faction.innerCircle?.introduction && faction.innerCircle.introduction.status !== 'COMPLETED' ? (
+                              <small>
+                                {faction.innerCircle.introduction.status === 'LOCKED'
+                                  ? 'Vic can introduce you once you are not already known here.'
+                                  : <>Vic can introduce you: <a href={`#quest-${faction.innerCircle.introduction.key}`}>{faction.innerCircle.introduction.title}</a></>}
+                              </small>
+                            ) : null}
+                            {faction.perks ? <FactionPerks perks={faction.perks} /> : null}
+                          </div>
+                        ))}
+                      </div>
+                    </Panel>
+                  </div>
+                ) : null}
               </aside>
             </section>
 
@@ -1170,5 +1240,31 @@ export function QuestPage() {
         ) : null}
       </div>
     </GameLayout>
+  );
+}
+
+/** 1.4.0-D. What standing opens with a faction, and what it is telling you right now. */
+function FactionPerks({ perks }: { perks: FactionPerksDto }) {
+  const levels = [
+    { key: 'information', level: perks.information, empty: 'Nothing to tell you right now.' },
+    { key: 'warnings', level: perks.warnings, empty: 'Nothing to warn you about.' },
+    ...(perks.nudge ? [{ key: 'nudge', level: perks.nudge, empty: '' }] : []),
+  ];
+  return (
+    <ul className="se-faction-perks">
+      {levels.map(({ key, level, empty }) => (
+        <li key={key} className={level.open ? 'is-open' : 'is-locked'}>
+          <div className="se-faction-perks__head">
+            <span>{level.title}</span>
+            <span>{level.open ? (key === 'nudge' ? 'Active' : level.tierName) : `Opens at ${level.tierName}`}</span>
+          </div>
+          {level.open && key !== 'nudge' ? (
+            level.lines.length
+              ? <ul>{level.lines.map((line) => <li key={line}>{line}</li>)}</ul>
+              : <p>{empty}</p>
+          ) : null}
+        </li>
+      ))}
+    </ul>
   );
 }

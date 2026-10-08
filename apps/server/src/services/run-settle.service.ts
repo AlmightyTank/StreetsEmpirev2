@@ -18,6 +18,7 @@ import {
   type RunStopPlan,
   racketRunStopCut,
   readRacketEffects,
+  vehicleRiskMultiplier,
 } from '@streets/rules-engine';
 import type { MarketPriceDto, RunIncidentDto, SupplyLevelDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
@@ -28,6 +29,7 @@ import { HighMarketService } from './high-market.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { CRACK, productKeys } from './product-inventory.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
+import { hasVehicleDamage, readVehicleDamage, readVehicleLoadout, vehicleDamageJson } from './vehicle-fleet.service.js';
 
 export const RUN_INCLUDE = {
   stops: { orderBy: { order: 'asc' } },
@@ -196,6 +198,7 @@ async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, ru
       heat: player.heat,
       rng: seededRng(hashParts(run.id, 'road-stop', checks)),
       stopCut,
+      riskMultiplier: vehicleRiskMultiplier(ruleset, readVehicleLoadout(current.vehicleLoadout, current.lowRiders)),
     });
     checks++;
     if (!stopped.stopped) continue;
@@ -316,6 +319,10 @@ export async function refundHotelAfter(tx: Db, roundPlayerId: string, ruleset: R
  */
 async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: LoadedRun, stops: readonly RunStopPlan[]): Promise<void> {
   const cargo = cargoOf(run);
+  const vehicles = readVehicleLoadout(run.vehicleLoadout, run.lowRiders);
+  // 1.5.0-C: cars the road dented or the police kept come home to the garage, not the lot.
+  const damage = readVehicleDamage(run.vehicleDamage, vehicles);
+  const ready = (key: keyof typeof vehicles) => vehicles[key] - damage.damaged[key] - damage.disabled[key];
   const returnedAt = stops[stops.length - 1]!.arriveAt;
   for (const [key, quantity] of Object.entries(cargo)) {
     if (quantity <= 0 || key === CRACK) continue;
@@ -332,7 +339,15 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     data: {
       cashCents: { increment: run.cashCents },
       beer: { increment: run.beer },
-      lowRiders: { increment: run.lowRiders },
+      lowRiders: { increment: ready('LOW_RIDER') },
+      sedans: { increment: ready('SEDAN') },
+      vans: { increment: ready('VAN') },
+      damagedLowRiders: { increment: damage.damaged.LOW_RIDER },
+      damagedSedans: { increment: damage.damaged.SEDAN },
+      damagedVans: { increment: damage.damaged.VAN },
+      disabledLowRiders: { increment: damage.disabled.LOW_RIDER },
+      disabledSedans: { increment: damage.disabled.SEDAN },
+      disabledVans: { increment: damage.disabled.VAN },
       thugs: { increment: run.escortThugs },
       // 0.5.0-E: the escorts' guns come home with them.
       pistols: { increment: run.pistols },
@@ -358,6 +373,7 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     cargoOut: Object.fromEntries(run.cargo.map((row) => [row.productKey, row.startQuantity])),
     cargoBack: cargo,
     lowRiders: run.lowRiders,
+    ...(hasVehicleDamage(damage) ? { vehicleDamage: vehicleDamageJson(damage) } : {}),
     escortThugs: run.escortThugs,
     turnsSpent: run.turnsSpent,
     ...(run.bossAboard ? { bossAboard: true, hotelCents: Number(run.hotelCents) } : {}),

@@ -29,7 +29,43 @@
 .se-profile-hover-card[data-accent="open-road-blue"] { --se-hover-accent: #5eafe2; }
 .se-profile-hover-card[data-accent="clean-slate-ice"] { --se-hover-accent: #9ed9e8; }
 .se-profile-hover-card[data-accent="corner-amber"] { --se-hover-accent: #e6a344; }
+
+/* Slice F: the owner's site theme tints the card. The theme class on the card
+   supplies its tokens; an accent the owner picked still wins over the theme's. */
+.se-profile-hover-card:not([data-theme="none"]) {
+  --se-hover-bg: var(--se-bg);
+  --se-hover-panel: var(--se-panel-hi);
+  --se-hover-line: var(--se-line);
+  --se-hover-text: var(--se-text);
+  --se-hover-muted: var(--se-text-dim);
+  background-color: var(--se-hover-bg);
+}
+.se-profile-hover-card:not([data-theme="none"])[data-accent="default"] { --se-hover-accent: var(--se-accent); }
+
+.se-profile-hover-card__look {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 16px 0;
+}
+/* Four tiles (two wide) fit one row of the 330px card. */
+.se-profile-hover-card__look .se-item-tile { --se-item-cell: 44px; }
+/* Themed cards draw the banner from the theme; an uploaded banner (inline style) still wins. */
+.se-profile-hover-card:not([data-theme="none"]) .se-profile-hover-card__banner {
+  background:
+    radial-gradient(ellipse at 72% 115%, color-mix(in srgb, var(--se-hover-accent) 48%, transparent), transparent 46%),
+    linear-gradient(128deg, var(--se-bg), var(--se-panel-hi) 56%, var(--se-bg));
+}
+.se-profile-hover-card:not([data-theme="none"]) .se-profile-hover-card__banner::before,
+.se-profile-hover-card:not([data-theme="none"]) .se-profile-hover-card__banner::after {
+  background: color-mix(in srgb, var(--se-bg) 82%, transparent);
+}
 .se-profile-hover-card[data-accent="velvet-rose"] { --se-hover-accent: #dc82a9; }
+.se-profile-hover-card[data-accent="kings-gold"] { --se-hover-accent: #e9c46a; }
+.se-profile-hover-card[data-accent="outfit-oxblood"] { --se-hover-accent: #d0683f; }
+.se-profile-hover-card[data-accent="saints-chrome"] { --se-hover-accent: #c3cbd6; }
+.se-profile-hover-card[data-accent="cartel-jade"] { --se-hover-accent: #3fbf93; }
+.se-profile-hover-card[data-accent="civic-seal"] { --se-hover-accent: #9aa1ee; }
 .se-profile-hover-card__banner {
   position: relative;
   display: flex;
@@ -352,4 +388,199 @@
     animation: none !important;
     transition: none !important;
   }
+}
+
+
+/* Discord-inspired profile cosmetics, scoped to the shared in-game hover card. */
+.se-profile-hover-card.se-profile-effect--neon-pulse {
+  border-color: color-mix(in srgb, var(--se-hover-accent) 78%, white);
+  animation:
+    se-profile-hover-in 140ms ease-out both,
+    se-profile-hover-neon 3.2s ease-in-out infinite;
+}
+.se-profile-hover-card.se-profile-effect--neon-pulse .se-profile-hover-card__avatar {
+  box-shadow:
+    0 0 0 3px var(--se-hover-accent),
+    0 0 18px color-mix(in srgb, var(--se-hover-accent) 76%, transparent);
+  animation: se-profile-frame-pulse 3.2s ease-in-out infinite;
+}
+.se-profile-hover-card.se-profile-effect--neon-pulse .se-profile-hover-card__banner {
+  background-image:
+    radial-gradient(ellipse at 72% 115%, color-mix(in srgb, var(--se-hover-accent) 58%, transparent), transparent 46%),
+    linear-gradient(128deg, #161d17, #273426 56%, #141b15);
+}
+.se-profile-hover-card.se-profile-effect--scanlines::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    color-mix(in srgb, var(--se-hover-accent) 12%, transparent) 4px
+  );
+  opacity: .24;
+  pointer-events: none;
+}
+.se-profile-hover-card.se-profile-effect--spotlight::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    112deg,
+    transparent 34%,
+    color-mix(in srgb, var(--se-hover-accent) 10%, transparent) 48%,
+    color-mix(in srgb, white 10%, transparent) 51%,
+    transparent 64%
+  );
+  background-size: 240% 100%;
+  animation: se-profile-hover-spotlight 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+.se-profile-hover-card.se-profile-effect--glitch {
+  border-color: color-mix(in srgb, var(--se-hover-accent) 68%, #cb7289);
+}
+.se-profile-hover-card.se-profile-effect--glitch .se-profile-hover-card__banner > span {
+  animation: se-profile-hover-glitch 4.8s steps(1, end) infinite;
+  text-shadow:
+    1px 0 color-mix(in srgb, var(--se-hover-accent) 70%, #e86a93),
+    -1px 0 color-mix(in srgb, #58d7ec 72%, transparent);
+}
+.se-profile-hover-card.se-profile-effect--glitch .se-profile-hover-card__avatar {
+  box-shadow:
+    2px 0 color-mix(in srgb, var(--se-hover-accent) 72%, #e86a93),
+    -2px 0 color-mix(in srgb, #58d7ec 62%, transparent),
+    0 0 18px color-mix(in srgb, var(--se-hover-accent) 48%, transparent);
+}
+.se-profile-hover-card.se-profile-effect--ember-sparks {
+  border-color: color-mix(in srgb, #f97316 48%, var(--se-hover-accent));
+  box-shadow:
+    0 18px 54px #000b,
+    inset 0 -20px 42px rgba(249, 115, 22, 0.12);
+}
+.se-profile-hover-card.se-profile-effect--ember-sparks::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 18% 82%, rgba(249, 115, 22, 0.36) 0 1px, transparent 2px),
+    radial-gradient(circle at 66% 24%, rgba(251, 191, 36, 0.26) 0 1px, transparent 2px),
+    radial-gradient(circle at 84% 70%, rgba(239, 68, 68, 0.2) 0 1px, transparent 2px);
+  background-size: 46px 46px, 72px 72px, 58px 58px;
+  animation: se-profile-hover-sparks 8s linear infinite;
+  pointer-events: none;
+}
+.se-profile-hover-card.se-profile-effect--cash-shimmer {
+  border-color: color-mix(in srgb, #f1b622 52%, #22c55e);
+}
+.se-profile-hover-card.se-profile-effect--cash-shimmer::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    112deg,
+    transparent 0 36%,
+    rgba(241, 182, 34, 0.18) 45%,
+    rgba(74, 222, 128, 0.14) 50%,
+    transparent 60% 100%
+  );
+  background-size: 260% 100%;
+  animation: se-profile-hover-shimmer 6.4s ease-in-out infinite;
+  pointer-events: none;
+}
+.se-profile-hover-card.se-profile-effect--sirens {
+  border-color: color-mix(in srgb, #6899f3 54%, #e92048);
+  animation:
+    se-profile-hover-in 140ms ease-out both,
+    se-profile-hover-sirens 3.8s ease-in-out infinite;
+}
+.se-profile-hover-card.se-profile-effect--smoke::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: -24%;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse at 24% 58%, rgba(226, 232, 240, 0.1), transparent 38%),
+    radial-gradient(ellipse at 72% 34%, rgba(148, 163, 184, 0.08), transparent 36%),
+    radial-gradient(ellipse at 48% 88%, rgba(226, 232, 240, 0.06), transparent 42%);
+  filter: blur(10px);
+  animation: se-profile-hover-smoke 12s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes se-profile-hover-neon {
+  0%, 100% {
+    box-shadow:
+      0 18px 54px #000b,
+      0 0 18px color-mix(in srgb, var(--se-hover-accent) 20%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 18px 54px #000b,
+      0 0 32px color-mix(in srgb, var(--se-hover-accent) 40%, transparent);
+  }
+}
+@keyframes se-profile-hover-spotlight {
+  0%, 20% { background-position: 130% 0; }
+  75%, 100% { background-position: -30% 0; }
+}
+@keyframes se-profile-hover-glitch {
+  0%, 93%, 100% { transform: translateX(0); filter: none; }
+  94% { transform: translateX(1px); filter: brightness(1.25); }
+  96% { transform: translateX(-1px); filter: saturate(1.35); }
+  98% { transform: translateX(0); filter: none; }
+}
+@keyframes se-profile-hover-sparks {
+  from { background-position: 0 0, 0 0, 0 0; opacity: 0.74; }
+  50% { opacity: 0.44; }
+  to { background-position: 0 -92px, 22px -144px, -14px -116px; opacity: 0.74; }
+}
+@keyframes se-profile-hover-shimmer {
+  0%, 18% { background-position: 130% 0; opacity: 0.42; }
+  60%, 100% { background-position: -40% 0; opacity: 0.78; }
+}
+@keyframes se-profile-hover-sirens {
+  0%, 100% {
+    box-shadow:
+      0 18px 54px #000b,
+      inset 5px 0 0 rgba(233, 32, 72, 0.5),
+      inset -5px 0 0 rgba(104, 153, 243, 0.28);
+  }
+  50% {
+    box-shadow:
+      0 18px 54px #000b,
+      inset 5px 0 0 rgba(233, 32, 72, 0.28),
+      inset -5px 0 0 rgba(104, 153, 243, 0.52);
+  }
+}
+@keyframes se-profile-hover-smoke {
+  from { transform: translate3d(-4%, 2%, 0) rotate(0deg); opacity: 0.68; }
+  to { transform: translate3d(5%, -3%, 0) rotate(2deg); opacity: 0.4; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .se-profile-hover-card.se-profile-effect--neon-pulse,
+  .se-profile-hover-card.se-profile-effect--neon-pulse .se-profile-hover-card__avatar,
+  .se-profile-hover-card.se-profile-effect--spotlight::after,
+  .se-profile-hover-card.se-profile-effect--glitch .se-profile-hover-card__banner > span,
+  .se-profile-hover-card.se-profile-effect--ember-sparks::after,
+  .se-profile-hover-card.se-profile-effect--cash-shimmer::after,
+  .se-profile-hover-card.se-profile-effect--sirens,
+  .se-profile-hover-card.se-profile-effect--smoke::after {
+    animation: none !important;
+  }
+}
+
+.se-profile-hover-card[data-frame="street-pass-s1-chrome-halo"] .se-profile-hover-card__avatar {
+  box-shadow:
+    0 0 0 2px #d9e5ee,
+    0 0 0 5px rgba(45, 212, 191, 0.58),
+    0 0 22px rgba(167, 139, 250, 0.55);
 }

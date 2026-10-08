@@ -6,6 +6,8 @@ import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AdminAllianceBalancePanel } from '../components/AdminAllianceBalancePanel.js';
 import { AdminAlliancesPanel } from '../components/AdminAlliancesPanel.js';
+import { AdminRulesetChangePanel } from '../components/AdminRulesetChangePanel.js';
+import { AdminStreetPassEditor } from '../components/AdminStreetPassEditor.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
@@ -99,12 +101,14 @@ export function AdminRoundPage() {
       <div className="se-pagehead">
         <div>
           <h1 className="se-title">{round.name}</h1>
-          <p className="se-eyebrow"><Link to="/game/admin">Rounds</Link> · {round.status} · {round.rulesetVersion} · {round.slug}</p>
+          <p className="se-eyebrow"><Link to="/game/admin/rounds">Rounds</Link> · {round.status} · {round.rulesetVersion} · {round.slug}</p>
         </div>
       </div>
 
       {error ? <Alert>{error}</Alert> : null}
+      {health.rulesetProblem ? <Alert tone="warning">{health.rulesetProblem}</Alert> : null}
       {notice ? <p className="se-admin-notice" role="status">{notice}</p> : null}
+      {health.streetPass ? <AdminStreetPassEditor roundId={round.id} pass={health.streetPass} onSaved={load} /> : null}
 
       <div className="se-stats se-mb">
         <Stat label="Players" value={formatNumber(players.total)} />
@@ -235,6 +239,8 @@ export function AdminRoundPage() {
           </p>
         </Panel>
       </div>
+
+      <AdminRulesetChangePanel roundId={round.id} onChanged={load} />
 
       {health.storeEconomy ? (
         <Panel title="Store economy" aside="0.8.0-H operator view" flush className="se-mt">

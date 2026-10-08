@@ -166,6 +166,8 @@ export interface PayrollDto {
   roles: Array<{ role: OfficialRoleDto; weekCents: number }>;
   cities: Array<{ slug: string; name: string }>;
   officials: OfficialDto[];
+  /** 1.4.0-D. Civic Handshake's Connected cut in the exposure every favor adds. */
+  exposureDiscount?: { factionKey: string; factionName: string; percent: number };
 }
 
 /** 1.3.0-D. A tip from an informant. */

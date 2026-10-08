@@ -19,7 +19,10 @@ export type ResourceField =
   | 'shotguns'
   | 'tek9s'
   | 'ak47s'
-  | 'lowRiders';
+  | 'lowRiders'
+  /** 1.5.0-E2. Sedans and Vans sold over Charlie's counter. */
+  | 'sedans'
+  | 'vans';
 
 export type DistrictKey =
   | 'CASINO'
@@ -134,7 +137,9 @@ export type QuestType =
   | 'SECRET'
   | 'ALLIANCE'
   | 'CITY_CONTRACT'
-  | 'EVENT';
+  | 'EVENT'
+  /** 1.4.0-B2. Round-long board goals, dealt per round; one attempt each. */
+  | 'SEASON';
 
 export type QuestDifficulty =
   | 'STREET_JOB'
@@ -157,7 +162,11 @@ export interface SeasonalEventWindow {
 export type QuestPrerequisiteKind =
   | 'QUEST_COMPLETED'
   | 'CONTACT_REP_AT_LEAST'
-  | 'BRANCH_CHOSEN';
+  | 'BRANCH_CHOSEN'
+  /** 1.4.0-B. params: { factionKey, tier } — the player's standing with the faction is at that tier or above. */
+  | 'FACTION_STANDING_AT_LEAST'
+  /** 1.4.0-E. params: { factionKey, tier } — the player's standing with the faction is below that tier. */
+  | 'FACTION_STANDING_BELOW';
 
 export interface QuestPrerequisiteDefinition {
   readonly kind: QuestPrerequisiteKind;
@@ -230,7 +239,12 @@ export type QuestRewardKind =
   | 'FAVOR_ITEM'
   | 'COSMETIC_UNLOCK'
   /** Street Pass. Any product in the round's catalog, keyed by product key (WEED, METH...). */
-  | 'PRODUCT';
+  | 'PRODUCT'
+  /**
+   * 1.4.0-B. Standing with the faction keyed by `key`. One-time Jobs only, and only for a faction
+   * the Job works for or helps; paid by the Job claim with a receipt, never by grantRewards.
+   */
+  | 'FACTION_STANDING';
 
 export interface QuestRewardDefinition {
   readonly kind: QuestRewardKind;
@@ -288,6 +302,50 @@ export interface ContactDefinition {
   readonly shortName: string;
   readonly role: string;
   readonly description: string;
+  /**
+   * 1.4.0-A. The faction this contact works for. Absent before 1.4, and on a contact who
+   * belongs to none (then `independent` says why).
+   */
+  readonly factionKey?: FactionKey;
+  /** 1.4.0-A. Why a contact belongs to no faction, shown to players. */
+  readonly independent?: string;
+}
+
+/** 1.4.0-A. The underworld factions a round can have. */
+export type FactionKey = 'KINGS' | 'OUTFIT' | 'ROAD_SAINTS' | 'CARTEL_LINE' | 'CIVIC_HANDSHAKE';
+
+export interface FactionDefinition {
+  readonly key: FactionKey;
+  readonly name: string;
+  readonly shortName: string;
+  /** Who they are, in a line. */
+  readonly identity: string;
+  /** The part of the game they live in. */
+  readonly lane: string;
+  readonly description: string;
+  /** Factions this one is set against. Every rivalry is listed on both sides. */
+  readonly rivals: readonly FactionKey[];
+  /** Faces with no contact of their own, e.g. Civic Handshake's payroll officials. */
+  readonly facesNote?: string;
+}
+
+export type FactionCatalog = Readonly<Partial<Record<FactionKey, FactionDefinition>>>;
+
+/** 1.4.0-B. The standing tiers above Unknown, lowest first. */
+export type FactionTier = 'UNKNOWN' | 'KNOWN' | 'TRUSTED' | 'CONNECTED' | 'INNER_CIRCLE';
+
+/**
+ * 1.4.0-B. Seasonal standing with each faction. It starts at zero every round and only ever
+ * comes from the player's own Jobs: a one-time Job that pays a contact reputation also pays
+ * that contact's faction `perContactRep` standing for each point.
+ */
+export interface FactionStandingRules {
+  /** Standing at which each tier above Unknown starts. Ascending. */
+  readonly tiers: { readonly known: number; readonly trusted: number; readonly connected: number; readonly innerCircle: number };
+  /** The most standing a player can hold with one faction. */
+  readonly max: number;
+  /** Standing per point of contact reputation a one-time Job pays. */
+  readonly perContactRep: number;
 }
 
 /** Contacts present in a round. Later contacts (Ace, 1.2.0-F) are absent from older catalogs. */
@@ -305,19 +363,28 @@ export type PermanentUnlockEffect =
   | {
       readonly kind: 'PRODUCT_PURCHASE_ACCESS';
       readonly productKey: string;
+    }
+  | {
+      /** 1.5.0-E2. Charlie sells this vehicle class. */
+      readonly kind: 'VEHICLE_PURCHASE_ACCESS';
+      readonly classId: 'SEDAN' | 'VAN';
     };
 
 export interface PermanentUnlockDefinition {
   readonly key: string;
   readonly name: string;
   readonly description: string;
-  readonly category: 'WEAPON' | 'PRODUCT' | 'TRAVEL';
+  readonly category: 'WEAPON' | 'PRODUCT' | 'TRAVEL' | 'VEHICLE';
   readonly effect: PermanentUnlockEffect;
 }
 
 export type PermanentUnlockCatalog = Readonly<Record<string, PermanentUnlockDefinition>>;
 
-export type QuestCosmeticKind = 'TITLE_BADGE' | 'PROFILE_FRAME' | 'ACCENT' | 'SITE_THEME' | 'HIDEOUT_DECOR';
+/**
+ * `ITEM_COLLECTION` unlocks one authored art collection (its `styleKey` is the
+ * collection key, e.g. 'cartel-gold') for every customizable item and crew type.
+ */
+export type QuestCosmeticKind = 'TITLE_BADGE' | 'PROFILE_FRAME' | 'ACCENT' | 'SITE_THEME' | 'HIDEOUT_DECOR' | 'ITEM_COLLECTION';
 export type QuestCosmeticRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface QuestCosmeticDefinition {
@@ -481,14 +548,197 @@ export interface QuestDefinition {
   readonly availability: QuestDataObject & {
     readonly seasonalEvent?: SeasonalEventWindow;
   };
+  /**
+   * 1.4.0-B. The faction this Job works for, when it has no giver (Civic Handshake) or to say so
+   * outright. A giver who works for a faction always works for that one.
+   */
+  readonly factionKey?: FactionKey;
+  /**
+   * 1.4.0-B. Other factions this Job openly helps; they earn standing from it too. A Job pays
+   * standing only to the faction it works for, these, and the side a branch picks.
+   */
+  readonly helps?: readonly FactionKey[];
+  /**
+   * 1.4.0-E. Vic's introductions: a broker's Job that starts the player at Known with this
+   * faction. Paid by the claim (never a standing reward), only from an independent giver, and
+   * only while the player is below Known with it.
+   */
+  readonly introduces?: FactionKey;
+  /**
+   * 1.4.0-E. Cash the claim takes, like a bribe: a share of net worth with a floor. The claim is
+   * refused when the player cannot pay it.
+   */
+  readonly fee?: { readonly netWorthShare: number; readonly minCents: number };
 }
 
 export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;
+
+/** 1.4.0-C. The boards whose contracts a faction can sponsor. */
+export type SponsoredBoard = 'DAILY' | 'WEEKLY' | 'CITY_CONTRACT' | 'SEASON' | 'ALLIANCE';
+
+/**
+ * 1.4.0-C. Sponsored contracts. Every board contract is sponsored by the faction it helps: its
+ * giver's faction, or, when the giver works for no faction (or there is none), the faction whose
+ * lane the work is in. A completed contract pays its sponsor standing; nothing else changes.
+ */
+export interface ContractSponsorRules {
+  /** Standing a completed contract pays its sponsor, by board. A board left out pays none. */
+  readonly standing: Readonly<Partial<Record<SponsoredBoard, number>>>;
+  /**
+   * Who may sponsor work whose giver has no faction, by contract category. City contracts use
+   * CITY_SELL, CITY_TRIP and CITY_CASINO by kind. A category left out has no sponsor (Ace's
+   * casino work, Ledger's law work). With two candidates, the board leans one way per player.
+   */
+  readonly lanes: Readonly<Record<string, readonly FactionKey[]>>;
+  /**
+   * The lean: extra weight for a candidate the player is Known with or above (1 makes it twice
+   * as likely). The board itself never changes; only which candidate sponsors it.
+   */
+  readonly knownLean: number;
+}
+
+/**
+ * 1.4.0-D. The one small price or cost a faction shades for a player Connected with it, each
+ * inside a system that already exists:
+ * - CORNER_UPKEEP: the beer and product a held corner burns (The Kings).
+ * - TOMMY_WEAPONS: what Tommy charges for guns (The Outfit).
+ * - BODYGUARD_TICKETS: the plane tickets for bodyguards flying with the boss (Road Saints MC).
+ * - PIP_PRODUCT: what Pip charges for product, at his store and his counter (The Cartel Line).
+ * - OFFICIAL_EXPOSURE: the Internal Affairs exposure each official's favor adds (Civic Handshake).
+ */
+export type FactionNudgeKind = 'CORNER_UPKEEP' | 'TOMMY_WEAPONS' | 'BODYGUARD_TICKETS' | 'PIP_PRODUCT' | 'OFFICIAL_EXPOSURE';
+
+/**
+ * 1.4.0-D. Faction perks. Known with a faction brings its information, Trusted its early
+ * warnings, and Connected its nudge: a small whole percentage off one thing, capped by the
+ * validator. Every warning reads the player's own state or the round's public schedule, never
+ * another player's.
+ */
+export interface FactionPerkRules {
+  /** Each faction's Connected nudge. A faction left out has none. */
+  readonly nudges: Readonly<Partial<Record<FactionKey, { readonly kind: FactionNudgeKind; readonly percent: number }>>>;
+  readonly warnings: {
+    /** The Kings: hours ahead they warn a corner will run dry, or a held block's shield ends. */
+    readonly cornerLeadHours: number;
+    /** The Outfit: hours before the crackdown's public warning they say where it lands. */
+    readonly sweepLeadHours: number;
+    /** Road Saints MC: a run's next road is hot at or above this stop chance (0..1). */
+    readonly hotRoadChance: number;
+    /** The Cartel Line: hours ahead they hear of a drought, or of Pip running out. */
+    readonly supplyLeadHours: number;
+    /** Civic Handshake: Case points short of the next stage at which they warn. */
+    readonly stageLeadPoints: number;
+  };
+}
+
+/**
+ * 1.4.0-E. Rivalries at the top. Reaching Inner Circle with a faction locks every one of its
+ * rivals' Inner Circles for the season: standing with a locked faction keeps climbing, but stops
+ * one point short of Inner Circle. Nothing below Inner Circle costs standing anywhere.
+ */
+export interface FactionRivalryRules {
+  readonly innerCircleLock: true;
+}
+
+/**
+ * 1.4.0-F. What standing shows the world. Reaching a tier awards that faction's cosmetics once
+ * per account; from `publicFrom` a profile shows the tier (never the points); reaching
+ * `feedFrom` is posted to the public street feed. Cosmetics never change anything in play.
+ */
+export interface FactionPublicRules {
+  /** Cosmetic keys awarded on reaching each tier, per faction. Every key is in `cosmetics`. */
+  readonly rewards: Readonly<Partial<Record<'CONNECTED' | 'INNER_CIRCLE', Readonly<Partial<Record<FactionKey, readonly string[]>>>>>>;
+  readonly publicFrom: 'CONNECTED' | 'INNER_CIRCLE';
+  readonly feedFrom: 'INNER_CIRCLE';
+}
+
+/** 1.4.0-B2 contract board rotation. */
+export interface ContractRotationRules {
+  /**
+   * Daily and weekly boards deal from a shuffled deck seeded by the round, so each
+   * round gets its own order, every contract is dealt once per pass through the
+   * pool, and none comes back within about half the pool.
+   */
+  readonly perRoundDeck: boolean;
+  /**
+   * City boards never post two orders in the same city, and avoid the cities the
+   * previous 12-hour board posted whenever another city has an order.
+   */
+  readonly freshCityBoards: boolean;
+  /**
+   * City boards add a third slot: a city job (fly in and back, or play that city's
+   * casino) in a city the market orders did not pick. Needs a CITY_JOB template.
+   */
+  readonly cityJobs?: boolean;
+}
 
 export interface RulesetMeta {
   readonly id: string;
   readonly version: string;
   readonly name: string;
+}
+
+/** 1.5.0-A. Player-facing vehicle identities; A maps the legacy counter without changing play. */
+export interface VehicleClassDefinition {
+  readonly id: 'LOW_RIDER' | 'SEDAN' | 'VAN';
+  readonly name: string;
+  readonly description: string;
+  /** Legacy aggregate field used until class-based ownership ships in a later slice. */
+  readonly legacyResource: 'lowRiders' | 'sedans' | 'vans';
+  /** 1.5.0-B. Capacity and purchase terms are pinned to the round. */
+  readonly cargoPercent?: number;
+  readonly crewSeats?: number | null;
+  readonly purchasePriceCents?: number | null;
+  readonly routeProfile?: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
+}
+
+export type VehicleClassId = VehicleClassDefinition['id'];
+
+/**
+ * 1.5.0-C. Garage service. Road trouble leaves vehicles Damaged or Disabled instead of
+ * destroying them; either state keeps the vehicle out of runs and drive-bys until the
+ * garage puts it back to Ready for the listed price.
+ */
+export interface VehicleServiceRules {
+  /** Cash to repair one Damaged vehicle, by class. */
+  readonly repairCents: Readonly<Record<VehicleClassId, number>>;
+  /** Cash to recover one Disabled (impounded or wrecked) vehicle, by class. */
+  readonly recoveryCents: Readonly<Record<VehicleClassId, number>>;
+  /** Vehicles damaged by a bust in town and by a convoy hit the run loses. */
+  readonly damage: { readonly bust: number; readonly convoyLoss: number };
+  /** Vehicles impounded by an arrest. */
+  readonly disable: { readonly arrest: number };
+  /** Which of a run's vehicles take trouble first: the most visible one leads. */
+  readonly damageOrder: readonly VehicleClassId[];
+  /** 1.5.0-D. The road lane services the fleet for less. Absent: list prices for everyone. */
+  readonly specialization?: VehicleSpecializationRules;
+}
+
+/**
+ * 1.5.0-D. Road specialization. The road-lane businesses and Road Saints MC make keeping a
+ * fleet running cheaper; none of them unlocks a vehicle or changes what one does on the road,
+ * so no faction or business is the only way to field a fleet.
+ */
+export interface VehicleSpecializationRules {
+  /** Percent off repairs at full strength of the crew's strongest running Auto Garage racket. */
+  readonly autoGarageRepairPercent: number;
+  /** Percent off recovery at full strength of the Chop Shop's Vehicle recovery racket. */
+  readonly chopShopRecoveryPercent: number;
+  /** Percent off every repair and recovery with Road Saints MC at `tier` or above. */
+  readonly roadSaints: { readonly tier: FactionTier; readonly percent: number };
+  /** The most every source together takes off one service. */
+  readonly maxDiscountPercent: number;
+}
+
+export interface VehicleCatalog {
+  readonly classes: readonly VehicleClassDefinition[];
+  /** 1.5.0-C. Absent: vehicles are never damaged and the garage has nothing to service. */
+  readonly service?: VehicleServiceRules;
+  /**
+   * 1.5.0-E. Route-risk multiplier for each non-normal route profile. Absent: 1.5.0-B's
+   * 0.9 for a low-profile car and 1.15 for a highly visible one.
+   */
+  readonly routeRisk?: { readonly LOW_PROFILE: number; readonly HIGH_VISIBILITY: number };
 }
 
 // --- round ------------------------------------------------------------------
@@ -518,6 +768,7 @@ export interface SeededRivalRule {
   readonly publicPimpId: number;
   readonly note: string;
   readonly startingPlayer: Partial<StartingPlayer>;
+  readonly npcGang?: NpcGangSeedProfile;
 }
 
 export interface RoundRules {
@@ -526,6 +777,127 @@ export interface RoundRules {
   readonly startingCitySlug: string;
   readonly startingPlayer: StartingPlayer;
   readonly seededRivals?: readonly SeededRivalRule[];
+}
+
+export type NpcGangTier = 'SCRUB' | 'STREET' | 'VETERAN' | 'KINGPIN';
+
+export interface NpcGangSeedProfile {
+  readonly archetype: string;
+  readonly tier: NpcGangTier;
+  /** How likely this crew is to pick violent moves once the scheduler is live. */
+  readonly aggression: number;
+  /** How strongly this crew prefers growth moves like product, turf and rides. */
+  readonly ambition: number;
+  /** How likely this crew is to wait, restock or lay low instead of forcing a bad move. */
+  readonly discipline: number;
+}
+
+export interface NpcGangRules {
+  readonly enabled: boolean;
+  readonly tickMinutes: number;
+  readonly maxActionsPerTick: number;
+  readonly maxPerCity: number;
+  /**
+   * Phase I. How long a gang remembers a human who hit it, and how long one NPC
+   * hit keeps every other NPC off that player (the anti-dogpile window).
+   */
+  readonly retaliationHours: number;
+  /** Phase I. Aggression a valid grudge adds when gating and weighting attack moves. */
+  readonly revengeAggressionBoost: number;
+  /** Phase I. Flat weight a valid grudge adds to raid, drive-by and special-raid intents. */
+  readonly revengeIntentBonus: number;
+  /** Phase J. How NPC gangs hold blocks through the same turf actions players use. */
+  readonly turf: NpcGangTurfRules;
+  /** Phase K. When stronger gangs pack up and relocate to another city. */
+  readonly migration: NpcGangMigrationRules;
+  /** Phase L. How fights heat a gang up, cool it down or send it to ground. */
+  readonly escalation: NpcGangEscalationRules;
+}
+
+/**
+ * Phase L. Momentum is rebuilt each tick from the gang's own fights since it last woke,
+ * each one fading on `halfLifeHours`. It runs from -`maxMomentum` (beaten) to
+ * +`maxMomentum` (on a run) and shifts aggression and pacing; deep enough in the hole,
+ * or hit by too many humans, the gang goes dormant and comes back on a clean slate.
+ */
+export interface NpcGangEscalationRules {
+  readonly enabled: boolean;
+  readonly windowHours: number;
+  readonly halfLifeHours: number;
+  /** Momentum per fight, before fading. A profitable win adds `profitBonus` on top. */
+  readonly attackWin: number;
+  readonly profitBonus: number;
+  readonly attackLoss: number;
+  readonly defendWin: number;
+  readonly defendLoss: number;
+  /** Momentum lost per consecutive blocked move. */
+  readonly blockedPenalty: number;
+  readonly maxMomentum: number;
+  /** Aggression shifted per point of momentum, capped at `maxAggressionShift` either way. */
+  readonly aggressionPerPoint: number;
+  readonly maxAggressionShift: number;
+  /** Largest share pacing speeds up (hot) or slows down (cooled), e.g. 0.25. */
+  readonly maxPaceShift: number;
+  /** Momentum at or above which a gang reads as hot, and at or below which it reads as cooled. */
+  readonly hotAt: number;
+  readonly coolAt: number;
+  /** At or below this momentum a gang goes dormant. */
+  readonly dormantBelow: number;
+  /** Human hits on the gang inside `overTargetedHours` that send it to ground, win or lose. */
+  readonly overTargetedHits: number;
+  readonly overTargetedHours: number;
+  readonly dormantMinHours: number;
+  readonly dormantMaxHours: number;
+}
+
+/**
+ * Phase K. NPC migration is an ordinary relocation: fee, time on the road, cooldown and
+ * the round-end cutoff all apply, and a gang cannot leave while someone it hit can still
+ * hit back. A gang that decides to move goes quiet first, so the move is readable.
+ */
+export interface NpcGangMigrationRules {
+  readonly enabled: boolean;
+  /** Only these tiers ever move house. */
+  readonly tiers: readonly NpcGangTier[];
+  /** How often a settled gang reconsiders its city. */
+  readonly evaluateEveryHours: number;
+  /** Hours a gang stays after arriving (or being seeded) before it reconsiders. */
+  readonly minStayHours: number;
+  /** A human counts toward a city's population if active inside this many hours. */
+  readonly activeHumanHours: number;
+  /** A city with fewer active humans than this is too quiet to stay in or move to. */
+  readonly quietBelowHumans: number;
+  /** One NPC gang per this many active humans, at least one and at most `maxPerCity`. */
+  readonly humansPerGang: number;
+  /** Lost fights inside the turf loss window that make a city too hostile. */
+  readonly hostileLosses: number;
+  /** A richer city must have at least this many more active humans to be worth the move. */
+  readonly betterByHumans: number;
+  /** A gang that has not managed to leave within this many hours drops the plan. */
+  readonly packingHours: number;
+}
+
+/**
+ * Phase J. NPC turf is ordinary turf: presence from Scout turns, a claim fight
+ * against the locals, posted corner crews with upkeep. NPCs only take blocks
+ * the locals hold; they never push a block a human crew holds.
+ */
+export interface NpcGangTurfRules {
+  readonly enabled: boolean;
+  /** Gangs below this ambition never go looking for a block; they still defend one they hold. */
+  readonly minAmbition: number;
+  readonly maxBlocksPerGang: number;
+  /** All NPC gangs together, so every city keeps blocks for human crews. */
+  readonly maxNpcBlocksPerCity: number;
+  /** Reinforce while the corner is below this multiple of its minimum. */
+  readonly reinforceBelowMinimum: number;
+  /** Hours of corner beer the gang tries to keep at home. */
+  readonly supplyHours: number;
+  /** Lost fights inside `lossWindowHours` that make a gang give its block up. */
+  readonly abandonAfterLosses: number;
+  readonly lossWindowHours: number;
+  /** Raid weight added while human crews are working the gang's block. */
+  readonly pressureIntentBonus: number;
 }
 
 // --- turns ------------------------------------------------------------------
@@ -761,6 +1133,11 @@ export interface Weapon {
 
 export interface StoreItem {
   readonly unlockKey?: WeaponUnlockKey;
+  /**
+   * 1.5.0-E2. A vehicle class on the shelf. When the round has a VEHICLE_PURCHASE_ACCESS unlock
+   * for the class, buying it waits for that unlock; selling and owning never do.
+   */
+  readonly vehicleClass?: 'SEDAN' | 'VAN';
   readonly name: string;
   readonly field: ResourceField;
   readonly buyCents: number;
@@ -2578,6 +2955,27 @@ export interface Ruleset {
   readonly questDefinitions?: QuestDefinitionCatalog;
   /** Named quest contacts and their relationship tracks. */
   readonly contacts?: ContactCatalog;
+  /** 1.4.0-A. The underworld factions behind the contacts. Absent before 1.4. */
+  readonly factions?: FactionCatalog;
+  /** Server-run street crews: identity, scheduler pacing and NPC action limits. */
+  readonly npcGangs?: NpcGangRules;
+  /** 1.5.0-A. Catalog only; no class-specific balance or dispatch behavior yet. */
+  readonly vehicleCatalog?: VehicleCatalog;
+  /** 1.4.0-B. Seasonal faction standing. Absent: factions are identity only. */
+  readonly factionStanding?: FactionStandingRules;
+  /**
+   * 1.4.0-B2. How the daily, weekly and city contract boards rotate. Absent means
+   * the original shared rotation: every round on the ruleset sees the same board.
+   */
+  readonly contractRotation?: ContractRotationRules;
+  /** 1.4.0-C. Board contracts carry a sponsoring faction and pay it standing. */
+  readonly contractSponsors?: ContractSponsorRules;
+  /** 1.4.0-D. Information, warnings and a capped nudge per faction, by standing tier. */
+  readonly factionPerks?: FactionPerkRules;
+  /** 1.4.0-E. The Inner Circle rival lock. Absent: every faction's Inner Circle stays open. */
+  readonly factionRivalry?: FactionRivalryRules;
+  /** 1.4.0-F. Faction cosmetics, public alignment and the street feed. Absent: standing stays private. */
+  readonly factionPublic?: FactionPublicRules;
   /** Permanent per-round capabilities earned through Jobs. */
   readonly permanentUnlocks?: PermanentUnlockCatalog;
   /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */

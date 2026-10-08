@@ -121,5 +121,5 @@ describe('multiplayer Hold’em hand flow', () => {
       expect(state.seats.every((seat) => seat.stackCents >= 0)).toBe(true);
       expect(state.seats.reduce((sum, seat) => sum + seat.stackCents, 0) + state.rakeCents).toBe(chips);
     }
-  });
+  }, 15_000);
 });

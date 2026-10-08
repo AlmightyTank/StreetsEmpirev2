@@ -3,11 +3,14 @@ import { Link, Navigate, NavLink, useParams } from 'react-router-dom';
 import { formatCents, formatNumber, type ProductsDto, type StoreCheckoutLineInput, type StoreCheckoutResult, type StoreDto, type StoreItemDto, type StoreMarketContextDto, type StoreRestockDto, type StoresDto, type StoreSpecialOrderResult, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { storesApi } from '../api/stores.js';
-import { ActionResult } from '../components/ActionResult.js';
+import { ActionDock, resultChips } from '../components/ActionDock.js';
+import { ActionResult, type ResultLine } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
+import { Portrait } from '../components/Portrait.js';
 import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
 import { ProductCounter } from '../components/ProductCounter.js';
+import { QuestLockNote } from '../components/QuestLink.js';
 import { ShelfArt } from '../components/ItemTile.js';
 import { QuantitySteps } from '../components/QuantitySteps.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -140,7 +143,9 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
   const [direction, setDirection] = useState<'buy' | 'sell'>('buy');
   const buying = direction === 'buy';
   const favor = item.unlock;
-  const locked = favor !== null && !favor.unlocked;
+  // 1.5.0-E2: a job-opened shelf (a weapon rack or one of Charlie's vehicles) says which job.
+  const questLock = item.questLock ?? null;
+  const locked = (favor !== null && !favor.unlocked) || (questLock !== null && !questLock.unlocked);
   const purchaseLocked = buying && locked;
   const unitCents = buying ? item.buyCents : item.sellCents;
   const max = buying
@@ -219,6 +224,11 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
           Relationship perk — {relationshipSummary(item)}.
         </p>
       ) : null}
+      {item.factionDiscount ? (
+        <p className="se-hint se-good">
+          {item.factionDiscount.factionName} perk — {formatNumber(item.factionDiscount.percent)}% off buying.
+        </p>
+      ) : null}
       {item.restock ? (
         <RestockLine restock={item.restock} name={item.name} keeper={keeper} onArrival={onRestock} />
       ) : null}
@@ -238,14 +248,18 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
           </Button>
         </div>
       ) : null}
-      {favor ? (
-        favor.unlocked ? <p className="se-hint se-good">Purchasing access earned for this round.</p> : (
+      {favor || questLock ? (
+        !locked ? <p className="se-hint se-good">Purchasing access earned for this round.</p> : (
           <div className="se-store-favor">
             <h3 className="se-store-favor__title">Quest locked</h3>
-            <p className="se-hint">
-              Tommy has not opened this part of the rack to you yet. Weapon access is earned through
-              {' '}<Link to="/game/quests">underworld jobs</Link>, not passive reputation.
-            </p>
+            {questLock ? (
+              <QuestLockNote unlockName={questLock.unlockName} quest={questLock.quest} after={owned > 0 ? `You can still use the ${item.name}s you own.` : undefined} />
+            ) : (
+              <p className="se-hint">
+                {keeper} has not opened this to you yet. Access is earned through
+                {' '}<Link to="/game/quests">underworld jobs</Link>, not passive reputation.
+              </p>
+            )}
           </div>
         )
       ) : null}
@@ -331,21 +345,6 @@ const STORE_DETAILS: Record<string, { label: string; lane: string; note: string 
     note: 'Buy and sell product here. Some harder shelves require job-earned purchase access.',
   },
 };
-
-function StoreMetric({ label, value, detail, tone }: {
-  label: string;
-  value: string;
-  detail?: string;
-  tone?: 'good' | 'warn' | 'accent';
-}) {
-  return (
-    <div className={`se-stores-metric${tone ? ` se-stores-metric--${tone}` : ''}`}>
-      <span className="se-stores-metric__label">{label}</span>
-      <strong className="se-stores-metric__value">{value}</strong>
-      {detail ? <span className="se-stores-metric__detail">{detail}</span> : null}
-    </div>
-  );
-}
 
 const LAST_STORE_KEY = 'streets.lastStore.v1';
 
@@ -444,7 +443,11 @@ function StoreView({
             : await storesApi.trade({ ...command.order, actionId });
         clearPendingAction(pendingStorage, pendingKey);
         setRetryOrder(null);
-        if (command.kind === 'checkout') onClearBasket();
+        if (command.kind === 'checkout') {
+          onClearBasket();
+          // A basket can carry Pip's products, whose shelves live on their own page.
+          loadProducts();
+        }
         return result;
       } catch (error) {
         // Network/5xx failures are ambiguous: the server may have committed
@@ -482,6 +485,39 @@ function StoreView({
   const receipt = action.result && 'direction' in action.result.result ? action.result.result : null;
   const checkoutReceipt = action.result && 'lines' in action.result.result ? action.result.result : null;
   const specialOrderReceipt = action.result && 'stockArrivesAt' in action.result.result ? action.result.result : null;
+  // Every counter action reports into the dock, so a buy at the top shelf and
+  // a basket checkout both answer at the same spot under the thumb.
+  const outcome = !action.result ? null : receipt ? {
+    title: `${receipt.direction === 'buy' ? 'Bought' : 'Sold'} ${receipt.itemName}`,
+    subtitle: receipt.storeName,
+    lines: [
+      { label: receipt.itemName, delta: receipt.quantityChange, remaining: receipt.field ? action.result.after.resources[receipt.field] : receipt.quantityAfter },
+      { label: 'Price each', value: formatCents(receipt.unitCents) },
+      { label: receipt.direction === 'buy' ? 'Paid' : 'Received', delta: receipt.cashChangeCents, money: true },
+      { label: 'Turns used', value: '0' },
+    ] as ResultLine[],
+  } : checkoutReceipt ? {
+    title: `Checkout · ${formatNumber(checkoutReceipt.itemCount)} items`,
+    subtitle: `${formatNumber(checkoutReceipt.itemCount)} items across ${formatNumber(checkoutReceipt.lineCount)} lines`,
+    lines: [
+      ...checkoutReceipt.lines.map((line) => ({
+        label: `${line.direction === 'buy' ? 'Bought' : 'Sold'} ${line.itemName}`,
+        detail: line.storeName,
+        delta: line.quantityChange,
+        remaining: line.field ? action.result!.after.resources[line.field] : line.quantityAfter,
+      })),
+      { label: checkoutReceipt.cashChangeCents < 0 ? 'Paid' : 'Received', delta: checkoutReceipt.cashChangeCents, money: true },
+      { label: 'Turns used', value: '0' },
+    ] as ResultLine[],
+  } : specialOrderReceipt ? {
+    title: `${specialOrderReceipt.itemName} ordered · due ${formatClockTime(specialOrderReceipt.stockArrivesAt)}`,
+    subtitle: `Delivery due in about ${formatNumber(specialOrderReceipt.waitMinutes)} minutes`,
+    lines: [
+      { label: 'Sourcing fee', delta: specialOrderReceipt.cashChangeCents, money: true },
+      { label: 'Incoming stock', value: formatClockTime(specialOrderReceipt.stockArrivesAt) },
+      { label: 'Turns used', value: '0' },
+    ] as ResultLine[],
+  } : null;
   const details = store ? STORE_DETAILS[store.key] ?? {
     label: 'Street market',
     lane: 'Open counter',
@@ -507,28 +543,26 @@ function StoreView({
       <div className="se-stores">
         <header className={`se-stores-hero se-stores-hero--${store?.key.toLowerCase() ?? 'loading'}`}>
           <div className="se-stores-hero__copy">
+            {store ? <Portrait who={store.key} size="lg" label={store.name} /> : null}
             <span className="se-eyebrow">{details?.label ?? 'Street market'} · {me.city.name}</span>
             <h1>{store?.name ?? 'Stores'}</h1>
             <p>{store?.blurb ?? 'Loading the shelves and today’s prices.'}</p>
           </div>
 
           <div className="se-stores-hero__side">
+            {/* Cash is in the top bar and standing and restock are on the clerk card; the hero counts the shelves. */}
             <div className="se-stores-hero__readout">
-              <span>
-                <small>Cash</small>
-                <strong>{formatCents(me.resources.cashCents)}</strong>
-              </span>
-              <span>
-                <small>Standing</small>
-                <strong>{store?.standing ?? '—'}</strong>
-              </span>
               <span>
                 <small>Shelves</small>
                 <strong>{store ? formatNumber(totalShelves) : '—'}</strong>
               </span>
-              <span>
-                <small>Restock boost</small>
-                <strong>{store ? `${formatNumber(store.restockSpeedup)}%` : '—'}</strong>
+              <span className={soldOutShelves > 0 ? 'se-stores-hero__warn' : undefined}>
+                <small>Sold out</small>
+                <strong>{store ? formatNumber(soldOutShelves) : '—'}</strong>
+              </span>
+              <span className={lockedShelves > 0 ? 'se-stores-hero__warn' : undefined}>
+                <small>Locked</small>
+                <strong>{store ? formatNumber(lockedShelves) : '—'}</strong>
               </span>
             </div>
           </div>
@@ -564,118 +598,16 @@ function StoreView({
         {!catalog && !loadError ? <div className="se-stores-loading" role="status">Loading the shelves...</div> : null}
         {catalog && !store ? <Alert>That store is not open. <Link to="/game/stores/corner">Visit the Corner Store</Link>.</Alert> : null}
 
-        {action.result && receipt ? (
-          <section className="se-stores-receipt" aria-live="polite">
-            <div className="se-stores-sectionhead">
-              <div>
-                <span className="se-eyebrow">Transaction complete</span>
-                <h2>{receipt.direction === 'buy' ? 'Purchase receipt' : 'Sale receipt'}</h2>
-              </div>
-              <span className="se-stores-sectionhead__meta">{receipt.storeName}</span>
-            </div>
-            <ActionResult
-              title={receipt.direction === 'buy' ? 'Purchase complete' : 'Sale complete'}
-              subtitle={receipt.storeName}
-              result={action.result}
-              onDismiss={action.clear}
-              lines={[
-                { label: receipt.itemName, delta: receipt.quantityChange, remaining: action.result.after.resources[receipt.field] },
-                { label: 'Price each', value: formatCents(receipt.unitCents) },
-                { label: receipt.direction === 'buy' ? 'Paid' : 'Received', delta: receipt.cashChangeCents, money: true },
-                { label: 'Turns used', value: '0' },
-              ]}
-            />
-          </section>
-        ) : null}
-
-        {action.result && checkoutReceipt ? (
-          <section className="se-stores-receipt" aria-live="polite">
-            <div className="se-stores-sectionhead">
-              <div>
-                <span className="se-eyebrow">Checkout complete</span>
-                <h2>Basket receipt</h2>
-              </div>
-              <span className="se-stores-sectionhead__meta">{formatNumber(checkoutReceipt.lineCount)} lines</span>
-            </div>
-            <ActionResult
-              title="Checkout complete"
-              subtitle={`${formatNumber(checkoutReceipt.itemCount)} items across ${formatNumber(checkoutReceipt.lineCount)} lines`}
-              result={action.result}
-              onDismiss={action.clear}
-              lines={[
-                ...checkoutReceipt.lines.map((line) => ({
-                  label: `${line.direction === 'buy' ? 'Bought' : 'Sold'} ${line.itemName}`,
-                  detail: line.storeName,
-                  delta: line.quantityChange,
-                  remaining: action.result!.after.resources[line.field],
-                })),
-                { label: checkoutReceipt.cashChangeCents < 0 ? 'Paid' : 'Received', delta: checkoutReceipt.cashChangeCents, money: true },
-                { label: 'Turns used', value: '0' },
-              ]}
-            />
-          </section>
-        ) : null}
-
-        {action.result && specialOrderReceipt ? (
-          <section className="se-stores-receipt" aria-live="polite">
-            <div className="se-stores-sectionhead">
-              <div>
-                <span className="se-eyebrow">Special order placed</span>
-                <h2>{specialOrderReceipt.itemName} sourced</h2>
-              </div>
-              <span className="se-stores-sectionhead__meta">{specialOrderReceipt.storeName}</span>
-            </div>
-            <ActionResult
-              title="Special order placed"
-              subtitle={`Delivery due in about ${formatNumber(specialOrderReceipt.waitMinutes)} minutes`}
-              result={action.result}
-              onDismiss={action.clear}
-              lines={[
-                { label: 'Sourcing fee', delta: specialOrderReceipt.cashChangeCents, money: true },
-                { label: 'Incoming stock', value: formatClockTime(specialOrderReceipt.stockArrivesAt) },
-                { label: 'Turns used', value: '0' },
-              ]}
-            />
-          </section>
-        ) : null}
-
         {store && catalog ? (
           <>
-            <section className="se-stores-overview">
-              <div className="se-stores-sectionhead">
-                <div>
-                  <span className="se-eyebrow">{details?.lane}</span>
-                  <h2>Today&rsquo;s counter</h2>
-                </div>
-                <p>{details?.note}</p>
-              </div>
-
-              <div className="se-stores-summary">
-                <StoreMetric label="Wallet" value={formatCents(me.resources.cashCents)} detail="available cash" tone="accent" />
-                <StoreMetric label="Net worth" value={formatCents(me.netWorthCents)} detail="whole operation" />
-                <StoreMetric
-                  label="Sold out"
-                  value={formatNumber(soldOutShelves)}
-                  detail={soldOutShelves === 1 ? 'shelf waiting' : 'shelves waiting'}
-                  tone={soldOutShelves > 0 ? 'warn' : 'good'}
-                />
-                <StoreMetric
-                  label="Locked"
-                  value={formatNumber(lockedShelves)}
-                  detail={lockedShelves === 1 ? 'purchase gate' : 'purchase gates'}
-                  tone={lockedShelves > 0 ? 'warn' : 'good'}
-                />
-              </div>
-            </section>
-
             <section className="se-stores-market">
               <div className="se-stores-market__main">
                 <div className="se-stores-sectionhead">
                   <div>
-                    <span className="se-eyebrow">Inventory</span>
+                    <span className="se-eyebrow">{details?.lane ?? 'Inventory'}</span>
                     <h2>Shop the shelves</h2>
                   </div>
-                  <span className="se-stores-sectionhead__meta">{formatNumber(totalShelves)} listings</span>
+                  <p>{details?.note}</p>
                 </div>
 
                 <div className={`se-store-items se-stores-shelves${store.key === 'PIP' && catalog.productCounter ? ' se-store-items--pair' : ''}`}>
@@ -705,6 +637,8 @@ function StoreView({
                       bulkHelpers={catalog.bulkHelpers}
                       blocked={counterBlock}
                       onDone={loadProducts}
+                      storeName={store.name}
+                      onAddToBasket={onAddToBasket}
                     />
                   ))}
                 </div>
@@ -755,17 +689,6 @@ function StoreView({
                         <span>{basketTotalCents < 0 ? 'Estimated due' : 'Estimated payout'}</span>
                         <strong>{formatCents(Math.abs(basketTotalCents))}</strong>
                       </div>
-                      <Button
-                        type="button"
-                        className="se-btn se-btn--primary se-btn--block"
-                        disabledReason={basketDisabled}
-                        onClick={() => void execute({
-                          kind: 'checkout',
-                          lines: basket.map(({ store, item, direction, quantity }) => ({ store, item, direction, quantity })),
-                        })}
-                      >
-                        Checkout basket
-                      </Button>
                     </>
                   )}
                 </div>
@@ -911,6 +834,61 @@ function StoreView({
               </aside>
             </section>
           </>
+        ) : null}
+
+        {basket.length > 0 || outcome ? (
+          <ActionDock
+            label="Checkout"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (basketDisabled) return;
+              void execute({
+                kind: 'checkout',
+                lines: basket.map(({ store, item, direction, quantity }) => ({ store, item, direction, quantity })),
+              });
+            }}
+            outcome={outcome && action.result ? {
+              id: action.result,
+              title: outcome.title,
+              chips: resultChips(action.result, outcome.lines),
+              receipt: (
+                <ActionResult
+                  title={outcome.title}
+                  subtitle={outcome.subtitle}
+                  result={action.result}
+                  lines={outcome.lines}
+                />
+              ),
+              onDismiss: action.clear,
+            } : null}
+          >
+            <div>
+              <span className="se-dock__label">Order basket</span>
+              <strong>
+                {basket.length === 0
+                  ? 'Basket is empty'
+                  : `${formatNumber(basket.length)} line${basket.length === 1 ? '' : 's'} · ${basketTotalCents < 0 ? 'due' : 'payout'} ${formatCents(Math.abs(basketTotalCents))}`}
+              </strong>
+              <span>
+                {basket.length === 0
+                  ? 'Add items from any store to check out together.'
+                  : basket.map((line) => `${line.direction === 'buy' ? '' : 'sell '}${formatNumber(line.quantity)} ${line.itemName}`).join(' · ')}
+              </span>
+            </div>
+            {basket.length > 0 ? (
+              <Button
+                type="button"
+                className="se-btn se-btn--ghost se-btn--sm"
+                disabledReason={action.busy ? 'Your last order is still going through.' : null}
+                onClick={onClearBasket}
+              >
+                Clear
+              </Button>
+            ) : null}
+            <Button className="se-btn se-btn--primary" disabledReason={basketDisabled}>
+              {action.busy ? 'Ringing it up...' : 'Checkout basket'}
+            </Button>
+          </ActionDock>
         ) : null}
       </div>
     </GameLayout>

@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { APP_VERSION, formatCents, formatCentsCompact } from '@streets/shared';
 import { rulesets } from '@streets/rulesets';
@@ -12,6 +12,7 @@ import { UpdateBanner } from '../components/UpdateBanner.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.js';
 import { useScrollableRegions } from '../hooks/useScrollableRegions.js';
 import { SiteThemeDecor } from '../components/SiteThemeDecor.js';
+import { usePageTheme } from '../stores/pageTheme.js';
 import { useSession } from '../stores/session.js';
 import { formatWhen } from '../utils/time.js';
 
@@ -33,6 +34,7 @@ function routeIdentity(pathname: string): string {
   if (path === '/game/produce') return 'produce';
   if (path.startsWith('/game/stores/')) return 'store-detail';
   if (path === '/game/stores') return 'stores';
+  if (path === '/game/casino' || path.startsWith('/game/casino/')) return 'casino';
   if (path === '/game/travel') return 'travel';
   if (path === '/game/turf') return 'turf';
   if (path === '/game/rankings') return 'rankings';
@@ -169,6 +171,9 @@ function StatusBar() {
           {me.turns.turns}
           <span className="se-muted">/{me.turns.turnCap}</span>
         </span>
+        <span className={`se-statusbar__meter${me.turns.turns >= me.turns.turnCap ? ' se-statusbar__meter--full' : ''}`} aria-hidden="true">
+          <span style={{ width: `${me.turns.turnCap > 0 ? Math.min(100, (me.turns.turns / me.turns.turnCap) * 100) : 0}%` }} />
+        </span>
       </Link>
       {heat ? (
         <Link className="se-statusbar__item" to="/game#heat" title={heatTitle}>
@@ -238,16 +243,83 @@ function Footer() {
   );
 }
 
-export function Shell({ children, narrow, tabbar }: {
+const RAIL_STORAGE_KEY = 'streets.sidebar.rail.v1';
+
+function readRail(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(RAIL_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+const SidebarRailContext = createContext(false);
+
+/** True while the desktop sidebar is collapsed to icons, so nav links can carry tooltips. */
+export function useSidebarRail(): boolean {
+  return useContext(SidebarRailContext);
+}
+
+/**
+ * Desktop game frame: the sidebar and the content column. The player can fold
+ * the sidebar to an icon rail; that choice is per browser, like the phone tabs.
+ */
+function SidebarFrame({ sidebar, children }: { sidebar: ReactNode; children: ReactNode }) {
+  const [rail, setRail] = useState(readRail);
+
+  function toggle() {
+    const next = !rail;
+    setRail(next);
+    try {
+      window.localStorage.setItem(RAIL_STORAGE_KEY, next ? '1' : '0');
+    } catch {
+      // Private browsing: the rail still folds, it just forgets on reload.
+    }
+  }
+
+  return (
+    <SidebarRailContext.Provider value={rail}>
+      <div className={`se-frame${rail ? ' se-frame--rail' : ''}`}>
+        <aside id="se-sidebar" className="se-sidebar" aria-label="Game menu">
+          <div className="se-sidebar__brand">
+            <Brand />
+            <button
+              type="button"
+              className="se-sidebar__toggle"
+              onClick={toggle}
+              aria-controls="se-sidebar"
+              aria-expanded={!rail}
+              aria-label={rail ? 'Expand menu' : 'Collapse menu to icons'}
+              title={rail ? 'Expand menu' : 'Collapse menu to icons'}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"
+                fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d={rail ? 'M10 7l5 5-5 5M4 4v16' : 'M14 7l-5 5 5 5M20 4v16'} />
+              </svg>
+            </button>
+          </div>
+          {sidebar}
+        </aside>
+        <div className="se-frame__main">{children}</div>
+      </div>
+    </SidebarRailContext.Provider>
+  );
+}
+
+export function Shell({ children, narrow, tabbar, sidebar }: {
   children: ReactNode;
   narrow?: boolean;
   /** Phone game navigation, fixed to the bottom of the screen. */
   tabbar?: ReactNode;
+  /** Desktop game menu. Turns the page into a full-height sidebar and content frame. */
+  sidebar?: ReactNode;
 }) {
   useScrollableRegions();
   const account = useSession((s) => s.account);
   const me = useSession((s) => s.me);
   const settings = useSession((s) => s.profileSettings);
+  const pageTheme = usePageTheme((s) => s.themeKey);
   const logout = useSession((s) => s.logout);
   const navigate = useNavigate();
   const location = useLocation();
@@ -258,25 +330,8 @@ export function Shell({ children, narrow, tabbar }: {
     navigate('/');
   }
 
-  return (
-    <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${settings.activeSiteThemeKey ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}`}>
-      {/* 1.0.0-G: the first Tab stop jumps past the header and navigation. */}
-      <a
-        className="se-skiplink"
-        href="#main-content"
-        onClick={(event) => {
-          event.preventDefault();
-          const main = document.getElementById('main-content');
-          main?.focus();
-          main?.scrollIntoView();
-        }}
-      >
-        Skip to content
-      </a>
-      <EnvironmentRibbon />
-      <InstallBanner />
-      <SiteThemeDecor themeKey={settings.activeSiteThemeKey} />
-
+  const page = (
+    <>
       <header className="se-topbar">
         <Brand />
 
@@ -315,6 +370,29 @@ export function Shell({ children, narrow, tabbar }: {
       <main id="main-content" tabIndex={-1} className={narrow ? 'se-authshell' : 'se-shell'}>{children}</main>
 
       <Footer />
+    </>
+  );
+
+  return (
+    <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${pageTheme ? 'none' : settings.activeSiteThemeKey ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}${sidebar ? ' se-app--sidebar' : ''}`}>
+      {/* 1.0.0-G: the first Tab stop jumps past the header and navigation. */}
+      <a
+        className="se-skiplink"
+        href="#main-content"
+        onClick={(event) => {
+          event.preventDefault();
+          const main = document.getElementById('main-content');
+          main?.focus();
+          main?.scrollIntoView();
+        }}
+      >
+        Skip to content
+      </a>
+      <EnvironmentRibbon />
+      <InstallBanner />
+      <SiteThemeDecor themeKey={pageTheme ?? settings.activeSiteThemeKey} />
+
+      {sidebar ? <SidebarFrame sidebar={sidebar}>{page}</SidebarFrame> : page}
       <ConfirmDialog />
       {tabbar}
     </div>
