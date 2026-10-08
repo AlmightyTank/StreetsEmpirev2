@@ -10,6 +10,8 @@ export interface NetWorthInput {
   whores: number;
   thugs: number;
   lowRiders: number;
+  sedans?: number;
+  vans?: number;
   medicine: number;
   crack: number;
   condoms: number;

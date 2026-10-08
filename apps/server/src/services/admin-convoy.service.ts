@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import { lockRoundPlayer } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { addLowRiders, readVehicleLoadout, trimVehicleLoadout, vehicleLoadoutJson } from './vehicle-fleet.service.js';
 import { ActivityService } from './activity.service.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { PlayerStateService } from './player-state.service.js';
@@ -64,8 +65,9 @@ export const AdminConvoyService = {
           held[key] = (held[key] ?? 0) - units;
           await tx.runCargo.update({ where: { runId_productKey: { runId: attackerRun.id, productKey: key } }, data: { quantity: held[key] } });
         }
+        const nextLoadout = trimVehicleLoadout(readVehicleLoadout(attackerRun.vehicleLoadout, attackerRun.lowRiders), attackerRun.lowRiders - cars);
         const next = { ...attackerRun, cashCents: attackerRun.cashCents - cash, lowRiders: attackerRun.lowRiders - cars };
-        await tx.run.update({ where: { id: attackerRun.id }, data: { cashCents: next.cashCents, lowRiders: next.lowRiders } });
+        await tx.run.update({ where: { id: attackerRun.id }, data: { cashCents: next.cashCents, lowRiders: next.lowRiders, vehicleLoadout: vehicleLoadoutJson(nextLoadout) } });
         await tx.roundPlayer.update({ where: { id: attacker.id }, data: { awayNetWorthCents: awayWorth(ruleset, next, held) } });
       } else {
         const rows = Object.fromEntries(Object.entries(cargo).filter(([key, units]) => key !== CRACK && units > 0).map(([key, units]) => [key, -units]));
@@ -82,8 +84,9 @@ export const AdminConvoyService = {
           held[key] = (held[key] ?? 0) + units;
           await tx.runCargo.upsert({ where: { runId_productKey: { runId: run.id, productKey: key } }, create: { runId: run.id, productKey: key, quantity: units, startQuantity: 0 }, update: { quantity: { increment: units } } });
         }
+        const nextLoadout = addLowRiders(readVehicleLoadout(run.vehicleLoadout, run.lowRiders), cars);
         const next = { ...run, cashCents: run.cashCents + cash, lowRiders: run.lowRiders + cars };
-        await tx.run.update({ where: { id: run.id }, data: { cashCents: next.cashCents, lowRiders: next.lowRiders } });
+        await tx.run.update({ where: { id: run.id }, data: { cashCents: next.cashCents, lowRiders: next.lowRiders, vehicleLoadout: vehicleLoadoutJson(nextLoadout) } });
         await tx.roundPlayer.update({ where: { id: tail.ownerId }, data: { awayNetWorthCents: awayWorth(ruleset, next, held) } });
       } else {
         const rows = Object.fromEntries(Object.entries(cargo).filter(([key, units]) => key !== CRACK && units > 0));

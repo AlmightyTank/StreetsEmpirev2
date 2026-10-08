@@ -101,7 +101,9 @@ export const travelRoutesSchema = z.object({ to: citySlug, runId: runId.optional
 export const runLaunchSchema = z.object({
   to: citySlug,
   route: z.number().int().min(0).max(9),
-  lowRiders: z.number({ invalid_type_error: 'Say how many Low-Riders go.' }).int().min(1, 'A run needs at least one Low-Rider.').safe(),
+  lowRiders: z.number({ invalid_type_error: 'Say how many Low-Riders go.' }).int().min(0).safe().optional(),
+  /** 1.5.0-B. Mixed vehicle class counts assigned to this run. */
+  vehicleLoadout: z.object({ LOW_RIDER: unitCount('Low-Riders').optional(), SEDAN: unitCount('Sedans').optional(), VAN: unitCount('Vans').optional() }).strict().optional(),
   escortThugs: unitCount('escorts'),
   cashCents: wholeCount('cash'),
   /** 0.6.0-D. Beer rides as real cargo so a run can supply an outpost. */
@@ -116,6 +118,14 @@ export const runLaunchSchema = z.object({
   actionId: actionIdSchema,
 }).strict();
 export type RunLaunchInput = z.infer<typeof runLaunchSchema>;
+
+/** 1.5.0-B. Buy a class vehicle through Charlie's garage inventory. */
+export const vehiclePurchaseSchema = z.object({
+  classId: z.enum(['SEDAN', 'VAN']),
+  quantity: z.number().int().min(1).max(10),
+  actionId: actionIdSchema,
+}).strict();
+export type VehiclePurchaseInput = z.infer<typeof vehiclePurchaseSchema>;
 
 export const runTradeSchema = z.object({
   runId: runId.optional(),

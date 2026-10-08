@@ -695,8 +695,17 @@ export function HideoutPage() {
                     <Panel title="Garage" aside="Logistics" className="se-hideout-panel">
                       <div className="se-hideout-panelstats">
                         <Metric label="Run slots" value={`${formatNumber(activeRuns)} / ${formatNumber(hideout.garage.runLimit)}`} tone="accent" />
-                        <Metric label="Low-Riders home" art="LOW_RIDER" value={formatNumber(lowRidersHome)} />
-                        <Metric label="Low-Riders away" art="LOW_RIDER" value={formatNumber(lowRidersAway)} />
+                        {travel?.vehicleFleet?.length ? travel.vehicleFleet.map((vehicle) => (
+                          <Metric
+                            key={vehicle.classId}
+                            label={`${vehicle.name} fleet`}
+                            art="LOW_RIDER"
+                            value={`${formatNumber(vehicle.home)} home · ${formatNumber(vehicle.away)} away`}
+                          />
+                        )) : <>
+                          <Metric label="Low-Riders home" art="LOW_RIDER" value={formatNumber(lowRidersHome)} />
+                          <Metric label="Low-Riders away" art="LOW_RIDER" value={formatNumber(lowRidersAway)} />
+                        </>}
                         <Metric label="Escorts away" value={formatNumber(escortsAway)} />
                       </div>
                       {garageRuns.length ? (
@@ -735,7 +744,9 @@ export function HideoutPage() {
                         ) : null}
                       </div>
                       <div className="se-hideout-note">
-                        Garage bonuses stay logistical. Route time, police risk, and local markets are unchanged.
+                        {travel?.vehicleFleet?.length
+                          ? `${travel.vehicleFleet.map((vehicle) => `${vehicle.name}: ${vehicle.description}`).join(' ')} Vehicle classes are inventory labels in this release; travel rules are unchanged.`
+                          : 'Garage bonuses stay logistical. Route time, police risk, and local markets are unchanged.'}
                       </div>
                     </Panel>
                   ) : null}

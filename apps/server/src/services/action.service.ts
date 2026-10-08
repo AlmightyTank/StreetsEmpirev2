@@ -73,6 +73,8 @@ export interface PlayerState {
   ak47s: number;
 
   lowRiders: number;
+  sedans: number;
+  vans: number;
 
   /** Weapon access, earned with reputation and never revoked. */
   shotgunUnlocked: boolean;
@@ -223,6 +225,8 @@ export function toState(player: RoundPlayer): PlayerState {
     tek9s: player.tek9s,
     ak47s: player.ak47s,
     lowRiders: player.lowRiders,
+    sedans: player.sedans,
+    vans: player.vans,
     shotgunUnlocked: player.shotgunUnlocked,
     tek9Unlocked: player.tek9Unlocked,
     ak47Unlocked: player.ak47Unlocked,

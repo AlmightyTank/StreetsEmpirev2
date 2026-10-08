@@ -34,6 +34,7 @@ import {
   readRacketEffects,
 } from '@streets/rules-engine';
 import type { WeaponKey } from '@streets/rulesets';
+import { addLowRiders, readVehicleLoadout, trimVehicleLoadout, vehicleLoadoutJson } from './vehicle-fleet.service.js';
 import {
   convoyBackupSchema,
   convoyCallSchema,
@@ -566,8 +567,9 @@ export const ConvoyService = {
         const recovered = racketVehicleRecovery(ruleset, readRacketEffects(owner.racketEffects));
         if (escortDown && run.lowRiders > 1 && rng() < rules.loot.lowRiderChance * (1 - recovered)) {
           lowRider = 1;
-          run = { ...run, lowRiders: run.lowRiders - 1 };
-          await tx.run.update({ where: { id: run.id }, data: { lowRiders: run.lowRiders } });
+          const vehicles = trimVehicleLoadout(readVehicleLoadout(run.vehicleLoadout, run.lowRiders), run.lowRiders - 1);
+          run = { ...run, lowRiders: run.lowRiders - 1, vehicleLoadout: vehicleLoadoutJson(vehicles) as Prisma.JsonValue };
+          await tx.run.update({ where: { id: run.id }, data: { lowRiders: run.lowRiders, vehicleLoadout: vehicleLoadoutJson(vehicles) } });
           await tx.roundPlayer.update({ where: { id: ownerId }, data: { awayNetWorthCents: await totalAwayWorth(tx, ownerId, ruleset) } });
         }
       }
@@ -648,7 +650,7 @@ export const ConvoyService = {
       if (attackerRun?.status === 'ACTIVE') {
         // A run's escorts hit it: the haul goes in its own trunk and wallet, as far as the trunk holds.
         const held = cargoOf(attackerRun);
-        let room = Math.max(0, runCapacity(ruleset, attackerRun.lowRiders) - cargoUnits(held));
+        let room = Math.max(0, runCapacity(ruleset, readVehicleLoadout(attackerRun.vehicleLoadout, attackerRun.lowRiders)) - cargoUnits(held));
         for (const [key, units] of Object.entries(cargo)) {
           const fits = Math.min(units, room);
           room -= fits;
@@ -658,7 +660,8 @@ export const ConvoyService = {
         }
         const woundedEscorts = Math.min(attackerRun.escortThugs, attackerRun.woundedEscorts + result.attackerWounds);
         const cashCents = attackerRun.cashCents + cash;
-        await tx.run.update({ where: { id: attackerRun.id }, data: { cashCents, woundedEscorts, lowRiders: attackerRun.lowRiders + result.lowRider } });
+        const loadout = addLowRiders(readVehicleLoadout(attackerRun.vehicleLoadout, attackerRun.lowRiders), result.lowRider);
+        await tx.run.update({ where: { id: attackerRun.id }, data: { cashCents, woundedEscorts, lowRiders: attackerRun.lowRiders + result.lowRider, vehicleLoadout: vehicleLoadoutJson(loadout) } });
         await tx.roundPlayer.update({ where: { id: playerId }, data: { awayNetWorthCents: await totalAwayWorth(tx, playerId, ruleset) } });
       } else {
         // From home, or a run that has since come home: the squad, the haul and its wounds come home.

@@ -223,9 +223,42 @@ export function planHeadHome(ruleset: Ruleset, stops: readonly RunStopPlan[], no
 
 // --- the trunk and the wallet ------------------------------------------------------
 
-/** Units a run's Low-Riders carry. `cargoShare` (1.1.0-C, Shipment capacity) packs each one a little fuller. */
-export function runCapacity(ruleset: Ruleset, lowRiders: number, cargoShare = 0): number {
-  return Math.floor(Math.max(0, lowRiders) * (ruleset.travel?.cargoPerLowRider ?? 0) * (1 + Math.max(0, cargoShare)));
+export type VehicleLoadout = { LOW_RIDER?: number; SEDAN?: number; VAN?: number };
+
+/** Cargo units carried by a mixed run; numeric input preserves historical Low-Rider behavior. */
+export function runCapacity(ruleset: Ruleset, loadout: number | VehicleLoadout, cargoShare = 0): number {
+  const base = ruleset.travel?.cargoPerLowRider ?? 0;
+  const classCatalog = ruleset.vehicleCatalog?.classes;
+  const capacity = typeof loadout === 'number'
+    ? Math.max(0, loadout) * base
+    : Object.entries(loadout).reduce((sum, [classId, count]) => {
+        if (!count || count <= 0) return sum;
+        const vehicleClass = classCatalog?.find((entry) => entry.id === classId);
+        return sum + count * base * (vehicleClass?.cargoPercent ?? 100) / 100;
+      }, 0);
+  return Math.floor(capacity * (1 + Math.max(0, cargoShare)));
+}
+
+/** Crew seats on a mixed loadout. Classes without a custom seat count use the pinned Low-Rider baseline. */
+export function vehicleLoadoutSeats(ruleset: Ruleset, loadout: VehicleLoadout): number {
+  return Object.entries(loadout).reduce((sum, [classId, count]) => {
+    if (!count || count <= 0) return sum;
+    const vehicleClass = ruleset.vehicleCatalog?.classes.find((entry) => entry.id === classId);
+    return sum + count * (vehicleClass?.crewSeats ?? ruleset.lowRiderThugCapacity);
+  }, 0);
+}
+
+/** Small, capped route-risk nudge from the fleet profile; it never makes a route safe. */
+export function vehicleRiskMultiplier(ruleset: Ruleset, loadout: VehicleLoadout): number {
+  const count = Object.values(loadout).reduce((sum, value) => sum + Math.max(0, value ?? 0), 0);
+  if (!count || !ruleset.vehicleCatalog) return 1;
+  const weighted = Object.entries(loadout).reduce((sum, [classId, quantity]) => {
+    if (!quantity || quantity <= 0) return sum;
+    const profile = ruleset.vehicleCatalog!.classes.find((entry) => entry.id === classId)?.routeProfile;
+    const factor = profile === 'LOW_PROFILE' ? 0.9 : profile === 'HIGH_VISIBILITY' ? 1.15 : 1;
+    return sum + quantity * factor;
+  }, 0);
+  return weighted / count;
 }
 
 export function cargoUnits(cargo: Readonly<Record<string, number>>): number {

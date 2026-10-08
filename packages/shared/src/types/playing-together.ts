@@ -789,6 +789,8 @@ export interface RunDto {
   id: string;
   launchedAt: string;
   lowRiders: number;
+  /** 1.5.0-B. Vehicle composition, preserved for the return trip. */
+  vehicleLoadout?: { LOW_RIDER: number; SEDAN: number; VAN: number };
   escortThugs: number;
   cashCents: number;
   startCashCents: number;
@@ -872,6 +874,7 @@ export interface RunReceiptDto {
   returnedAt: string;
   cities: Array<{ slug: string; name: string }>;
   lowRiders: number;
+  vehicleLoadout?: { LOW_RIDER: number; SEDAN: number; VAN: number };
   escortThugs: number;
   startCashCents: number;
   cashCents: number;
@@ -888,6 +891,19 @@ export interface RunReceiptDto {
 
 /** 0.5.0-B. GET /api/game/travel: the map, what the crew knows, and the run. */
 export interface TravelDto extends CitiesDto {
+  /** 1.5.0-A. Legacy vehicle counts mapped onto stable class identities. */
+  vehicleFleet?: Array<{
+    classId: 'LOW_RIDER' | 'SEDAN' | 'VAN';
+    name: string;
+    description: string;
+    home: number;
+    away: number;
+    total: number;
+    cargoPercent?: number;
+    crewSeats?: number | null;
+    purchasePriceCents?: number | null;
+    routeProfile?: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
+  }>;
   runsEnabled: boolean;
   /** Products Pip will not sell this player yet, in any city, and the unlock each needs. The high markets still sell them. */
   lockedProducts?: Array<{ key: string; unlockName: string }>;
@@ -913,6 +929,7 @@ export interface TravelDto extends CitiesDto {
     cashCents: number;
     beer: number;
     lowRiders: number;
+    vehicles?: { LOW_RIDER: number; SEDAN: number; VAN: number };
     fitThugs: number;
     turns: number;
     products: Array<{ key: string; quantity: number }>;
@@ -928,6 +945,15 @@ export interface TravelDto extends CitiesDto {
   relocation: RelocationDto | null;
   /** Trips A. The boss travels. Null on rounds without trips. */
   trips: TripPanelDto | null;
+}
+
+/** 1.5.0-B. Outcome of buying a Sedan or Van for the home garage. */
+export interface VehiclePurchaseResult {
+  classId: 'SEDAN' | 'VAN';
+  name: string;
+  quantity: number;
+  paidCents: number;
+  homeCount: number;
 }
 
 /** Trips A. Where the boss is along a trip. */

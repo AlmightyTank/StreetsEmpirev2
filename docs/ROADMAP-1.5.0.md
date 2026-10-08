@@ -2,7 +2,7 @@
 
 ## Brainstorm
 
-**Status:** Design draft. No 1.5.0 slices are implemented or committed. The first pass below is a proposal; the open decisions remain open until the scope is approved.
+**Status:** 1.5.0-A and B are implemented on beta as `classic-og-v1.5-a` and `classic-og-v1.5-b`. The remaining slices are proposals.
 
 **Target base:** StreetsEmpire v1.4.0, after its release ruleset is pinned.  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Low-Riders into a useful fleet.  
@@ -68,17 +68,32 @@ Each slice should have its own release gate and pinned ruleset, following the ea
 
 | Slice | Status | Proposal |
 | --- | --- | --- |
-| **1.5.0-A — Fleet Foundation** | Proposed | Add explicit vehicle inventory and class identity. Existing vehicle counts map to Low-Riders; older rulesets continue unchanged. No balance change in A. |
-| **1.5.0-B — Vehicle Classes & Run Loadouts** | Proposed | Add the first three classes and let players assign them to a run. Show available capacity and what must be loaded before the player commits. Keep the run's cash and product physically with the vehicles. |
-| **1.5.0-C — Garage Service & Recovery** | Proposed | Give the garage a clear purpose for checking, repairing and recovering vehicles after a run. Preview costs and consequences before committing. Prefer damage and repair over surprise permanent loss. |
+| **1.5.0-A — Fleet Foundation** | Built | `classic-og-v1.5-a` adds the stable `LOW_RIDER` class identity and exposes existing home/away counts in the Hideout Garage. Older rulesets and all travel values remain unchanged. |
+| **1.5.0-B — Vehicle Classes & Run Loadouts** | Built | `classic-og-v1.5-b` adds Sedan and Van ownership, predictable garage purchase prices, mixed run loadouts, class-specific cargo and seating capacity, and visible route profiles before dispatch. |
+| **1.5.0-C — Garage Service, Recovery & Class Art** | Proposed | Give the garage a clear purpose for checking, repairing and recovering vehicles after a run. Add distinct Low-Rider, Sedan and Van artwork to the garage and run loadout, with costs and consequences previewed before committing. Prefer damage and repair over surprise permanent loss. |
 | **1.5.0-D — Road Specialization** | Proposed | If simulation supports it, connect the existing Auto Garage, Chop Shop and Road Saints lane to vehicle access, service or a limited specialization. Avoid faction-exclusive vehicles that create a must-pick advantage. |
 | **1.5.0-E — Balance, Admin & Release** | Proposed | Simulate route value, vehicle use, repairs and losses; add admin visibility and audited corrections where needed; complete mobile, exploit and historical-ruleset checks. |
+| **1.5.0-F — Vehicle Cosmetics** | Proposed | After the base class silhouettes and garage presentation are settled, add optional player-selected vehicle looks. Cosmetics remain presentation-only and do not change vehicle stats or route outcomes. |
 
 ---
 
 ## Recommended first release
 
 Start with **Low-Rider, Sedan and Van**, class-based run loadouts, and a straightforward garage inventory. Defer upgrades and insurance until the class choices are fun and balanced on their own. This gives 1.5 a clear playable loop before adding more economy or collection systems.
+
+### 1.5.0-A — Fleet Foundation
+
+**Status: implemented on beta.** `classic-og-v1.5-a` wraps `classic-og-v1.4-g` with a catalog entry for the existing Low-Rider. The travel response maps the legacy home count and active-run counts to that class, and the Hideout Garage shows the fleet summary. This slice adds no vehicle purchase, dispatch, risk, capacity, price, or repair changes. Existing rounds remain pinned to their original rulesets.
+
+### 1.5.0-B — Vehicle Classes & Run Loadouts
+
+**Status: implemented on beta.** `classic-og-v1.5-b` adds the Sedan and Van classes. Sedans carry 65% of baseline cargo, seat four crew, cost $3,500, and reduce route exposure by 10%; Vans carry 150% of baseline cargo, use the round’s normal crew capacity, cost $8,500, and raise exposure by 15%. Neither class removes police, Heat, road-stop or convoy risk. Players can buy them from the travel garage, choose a mixed loadout, and see class capacities and route profiles before committing. Runs store the class breakdown and restore the surviving vehicles on return. The legacy `lowRiders` request field remains supported for clients that only dispatch Low-Riders.
+
+### Vehicle artwork schedule
+
+Create and integrate the distinct base-class illustrations in **1.5.0-C**, when the garage service and run-loadout presentation are being built. The recent sedan/van concept image is a direction reference; production artwork should be individual vehicle assets that fit the existing item-tile presentation. Keep the silhouettes readable and give the Sedan a discreet, low-profile treatment and the Van a larger, cargo-focused treatment.
+
+The repository's `scripts/art/render-cosmetic-art.mjs` script renders authored SVG masters from `apps/web/art/cosmetics/` into lossless WebP files under `apps/web/public/items/cosmetics/`. For example, `node scripts/art/render-cosmetic-art.mjs rides` rebuilds the ride cosmetic files. It is an export step, not an image generator; base vehicle artwork will need its own registry/runtime paths, while optional cosmetic variants belong in **1.5.0-F**.
 
 ---
 

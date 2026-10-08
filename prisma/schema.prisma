@@ -1170,6 +1170,9 @@ model RoundPlayer {
   thugStockAt     DateTime @default(now())
 
   lowRiders Int @default(0)
+  /// 1.5.0-B. Separate vehicle classes; Low-Riders remain in the legacy field.
+  sedans Int @default(0)
+  vans   Int @default(0)
 
   /// 0.9.0-F. Largest whores + thugs this crew has had this round. Profile history
   /// only; raised on every action and settle, never lowered.
@@ -1526,6 +1529,8 @@ model Run {
   /// City slug the run left from and returns to.
   homeCity       String
   lowRiders      Int
+  /// 1.5.0-B. Class composition for this run; old runs default to Low-Riders.
+  vehicleLoadout Json @default("{\"LOW_RIDER\":1}")
   escortThugs    Int
   /// The run's wallet, integer cents. Never below zero.
   cashCents      BigInt

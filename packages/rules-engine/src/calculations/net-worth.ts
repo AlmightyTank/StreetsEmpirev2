@@ -25,6 +25,8 @@ export function calculateNetWorthCents(
     BigInt(player.whores) * BigInt(v.perWhoreCents) +
     BigInt(player.thugs) * BigInt(v.perThugCents) +
     BigInt(player.lowRiders) * BigInt(v.perLowRiderCents) +
+    BigInt(player.sedans ?? 0) * BigInt(v.perLowRiderCents) +
+    BigInt(player.vans ?? 0) * BigInt(v.perLowRiderCents) +
     BigInt(player.medicine) * BigInt(v.perMedicineCents) +
     BigInt(player.crack) * BigInt(v.perCrackCents) +
     BigInt(player.condoms) * BigInt(v.perCondomCents) +

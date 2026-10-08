@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { GameActionResult, MarketPriceDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunOutpostEstablishResult, RunOutpostTransferResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto } from '@streets/shared';
+import type { GameActionResult, MarketPriceDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunOutpostEstablishResult, RunOutpostTransferResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto, VehiclePurchaseResult } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -73,9 +73,14 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   onDone: () => void;
 }) {
   const launch = useGameAction<RunLaunchResult>();
+  const purchase = useGameAction<VehiclePurchaseResult>();
   const { home, rules } = data;
   const [route, setRoute] = useState(0);
-  const [lowRiders, setLowRiders] = useState<number | ''>(Math.min(1, home.lowRiders));
+  const [vehicleLoadout, setVehicleLoadout] = useState<{ LOW_RIDER: number | ''; SEDAN: number | ''; VAN: number | '' }>({
+    LOW_RIDER: Math.min(1, home.vehicles?.LOW_RIDER ?? home.lowRiders),
+    SEDAN: 0,
+    VAN: 0,
+  });
   const [escorts, setEscorts] = useState<number | ''>(0);
   const [cash, setCash] = useState<number | ''>(0);
   const [beer, setBeer] = useState<number | ''>(0);
@@ -89,18 +94,16 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   const { routes, error: routeError } = useRoutes(destination ? to : '', data.home.turns);
   useEffect(() => { setRoute(0); }, [to]);
 
-  if (home.lowRiders === 0) {
-    return (
-      <Panel title="Load up a run">
-        <p className="se-dim">A run needs at least one Low-Rider, and you have none at home.</p>
-        <p className="se-hint">Each one carries {formatNumber(rules.cargoPerLowRider)} units of product and seats {rules.thugsPerLowRider} thugs. <Link className="se-golink" to="/game/stores/charlie">Charlie&rsquo;s</Link></p>
-      </Panel>
-    );
-  }
-
-  const cars = typeof lowRiders === 'number' ? lowRiders : 0;
-  const capacity = cars * rules.cargoPerLowRider;
-  const seats = cars * rules.thugsPerLowRider;
+  const selected: Record<'LOW_RIDER' | 'SEDAN' | 'VAN', number> = {
+    LOW_RIDER: typeof vehicleLoadout.LOW_RIDER === 'number' ? vehicleLoadout.LOW_RIDER : 0,
+    SEDAN: typeof vehicleLoadout.SEDAN === 'number' ? vehicleLoadout.SEDAN : 0,
+    VAN: typeof vehicleLoadout.VAN === 'number' ? vehicleLoadout.VAN : 0,
+  };
+  const totalVehicles = selected.LOW_RIDER + selected.SEDAN + selected.VAN;
+  const owned = home.vehicles ?? { LOW_RIDER: home.lowRiders, SEDAN: 0, VAN: 0 };
+  const vehicleSpec = (classId: 'LOW_RIDER' | 'SEDAN' | 'VAN') => data.vehicleFleet?.find((vehicle) => vehicle.classId === classId);
+  const capacity = Math.floor((['LOW_RIDER', 'SEDAN', 'VAN'] as const).reduce((sum, classId) => sum + selected[classId] * rules.cargoPerLowRider * (vehicleSpec(classId)?.cargoPercent ?? 100) / 100, 0));
+  const seats = (['LOW_RIDER', 'SEDAN', 'VAN'] as const).reduce((sum, classId) => sum + selected[classId] * (vehicleSpec(classId)?.crewSeats ?? rules.thugsPerLowRider), 0);
   const units = (from: Record<string, number | ''>) => Object.values(from).reduce<number>((sum, count) => sum + (typeof count === 'number' ? count : 0), 0);
   const held = home.products;
   const hasProduct = held.some((product) => product.quantity > 0);
@@ -123,11 +126,12 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   const block = launch.busy ? 'The crew is loading up.'
     : !destination ? 'Pick a city on the map or in the list.'
       : !chosen ? (routeError ?? 'Planning the drive...')
-        : cars < 1 || cars > home.lowRiders ? `Send between 1 and ${home.lowRiders} Low-Riders.`
+        : totalVehicles < 1 ? 'Choose at least one vehicle for this run.'
+          : (['LOW_RIDER', 'SEDAN', 'VAN'] as const).some((classId) => selected[classId] > owned[classId]) ? 'You do not have that many vehicles ready at home.'
           : (typeof escorts === 'number' ? escorts : 0) > Math.min(home.fitThugs, seats) ? `Send at most ${Math.min(home.fitThugs, seats)} escorts: ${seats} seats, ${home.fitThugs} fit thugs at home.`
             : cashCents + marketCents > home.cashCents ? `You have ${formatCents(home.cashCents)} at home, and that is ${formatCents(cashCents + marketCents)} with what the market comes to.`
               : beerUnits > home.beer ? `You only have ${formatNumber(home.beer)} beer at home.`
-              : loaded > capacity ? `${cars} Low-Rider${cars === 1 ? '' : 's'} carry ${formatNumber(capacity)} units, and that is ${formatNumber(loaded)}.`
+              : loaded > capacity ? `This loadout carries ${formatNumber(capacity)} units, and that is ${formatNumber(loaded)}.`
                 : held.some((product) => (typeof cargo[product.key] === 'number' ? cargo[product.key] as number : 0) > product.quantity) ? 'You cannot load more than you have.'
                   : chosen.turns > home.turns ? `The drive costs ${chosen.turns} turns and you have ${home.turns}.`
                     : null;
@@ -138,10 +142,15 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     const load = Object.fromEntries(Object.entries(cargo).filter(([, count]) => typeof count === 'number' && count > 0)) as Record<string, number>;
     const quotes = Object.fromEntries(wholesale.filter((entry) => bought[entry.key]).map((entry) => [entry.key, entry.market.buyCents]));
     await launch.run((actionId): Promise<GameActionResult<RunLaunchResult>> => api.post('/game/travel/launch', {
-      to, route, lowRiders: cars, escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, beer: beerUnits, cargo: load, market: bought, marketQuotes: quotes,
+      to, route, lowRiders: selected.LOW_RIDER, vehicleLoadout: selected, escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, beer: beerUnits, cargo: load, market: bought, marketQuotes: quotes,
       ...(riding ? { rideAlong: true } : {}), actionId,
     }));
     setRideAlong(false);
+    onDone();
+  }
+
+  async function buyVehicle(classId: 'SEDAN' | 'VAN') {
+    await purchase.run((actionId): Promise<GameActionResult<VehiclePurchaseResult>> => api.post('/game/travel/vehicles/purchase', { classId, quantity: 1, actionId }));
     onDone();
   }
 
@@ -161,12 +170,36 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
           <RoutePicker routes={routes} value={route} onChange={setRoute} name="launch-route" costLabel={(turns) => `${turns} turns there and back`} />
         ) : null}
 
-        <div className="se-launch__grid">
-          <div className="se-field">
-            <label className="se-label" htmlFor="run-cars">Low-Riders <span className="se-muted">of {home.lowRiders}</span></label>
-            <input id="run-cars" className="se-input" type="number" inputMode="numeric" min={1} max={home.lowRiders} value={lowRiders}
-              onChange={(event) => setLowRiders(whole(event.target.value))} />
+        {data.vehicleFleet?.some((vehicle) => vehicle.purchasePriceCents !== null && vehicle.purchasePriceCents !== undefined) ? (
+          <div className="se-rows se-mt">
+            {data.vehicleFleet.filter((vehicle) => vehicle.purchasePriceCents !== null && vehicle.purchasePriceCents !== undefined).map((vehicle) => (
+              <div className="se-row" key={`buy-${vehicle.classId}`}>
+                <span className="se-row__label">Buy a {vehicle.name} <span className="se-muted">{formatCents(vehicle.purchasePriceCents!)}</span></span>
+                <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={purchase.busy || home.cashCents < vehicle.purchasePriceCents!}
+                  onClick={() => void buyVehicle(vehicle.classId as 'SEDAN' | 'VAN')}>Buy one</button>
+              </div>
+            ))}
+            {purchase.error ? <Alert>{purchase.error}</Alert> : null}
           </div>
+        ) : null}
+        {owned.LOW_RIDER === 0 && !data.vehicleFleet?.some((vehicle) => vehicle.purchasePriceCents !== null && vehicle.purchasePriceCents !== undefined) ? (
+          <p className="se-hint">A run needs at least one Low-Rider. <Link className="se-golink" to="/game/stores/charlie">Buy one from Charlie</Link>.</p>
+        ) : null}
+
+        <div className="se-launch__grid">
+          {(['LOW_RIDER', 'SEDAN', 'VAN'] as const).filter((classId) => vehicleSpec(classId) || classId === 'LOW_RIDER').map((classId) => {
+            const spec = vehicleSpec(classId);
+            const name = spec?.name ?? 'Low-Rider';
+            const key = classId.toLowerCase().replace('_', '-');
+            return (
+              <div className="se-field" key={classId}>
+                <label className="se-label" htmlFor={`run-${key}`}>{name} <span className="se-muted">of {owned[classId]}</span></label>
+                <input id={`run-${key}`} className="se-input" type="number" inputMode="numeric" min={0} max={owned[classId]} value={vehicleLoadout[classId]}
+                  onChange={(event) => setVehicleLoadout({ ...vehicleLoadout, [classId]: whole(event.target.value) })} />
+                {spec ? <span className="se-hint">{spec.cargoPercent ?? 100}% cargo · {spec.crewSeats ?? rules.thugsPerLowRider} seats · {spec.routeProfile === 'LOW_PROFILE' ? '10% lower route risk' : spec.routeProfile === 'HIGH_VISIBILITY' ? '15% higher route risk' : 'normal route risk'}</span> : null}
+              </div>
+            );
+          })}
           <div className="se-field">
             <label className="se-label" htmlFor="run-escorts">Escorts <span className="se-muted">of {Math.min(home.fitThugs, seats)}</span></label>
             <input id="run-escorts" className="se-input" type="number" inputMode="numeric" min={0} max={Math.min(home.fitThugs, seats)} value={escorts}
@@ -186,7 +219,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
               onChange={(event) => setBeer(whole(event.target.value))} />
           </div>
         </div>
-        <p className="se-hint">The run spends only the cash it carries. Beer takes trunk space too, so an outpost has to be supplied by a real load. Escorts ride armed with the best guns from home, one each, and are away while it is out: they don&rsquo;t defend, cover the street or cook. A bust or an arrest takes their guns.</p>
+        <p className="se-hint">{totalVehicles} vehicle{totalVehicles === 1 ? '' : 's'} · {formatNumber(seats)} crew seats · {formatNumber(capacity)} cargo units. The run spends only the cash it carries. Beer takes trunk space too. Escorts ride armed with the best guns from home, one each, and are away while it is out: they don&rsquo;t defend, cover the street or cook. A bust or an arrest takes their guns.</p>
 
         {ride && data.trips ? (
           <div className="se-field se-mt">
@@ -682,7 +715,7 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
       : `On the road to ${run.position.cityName}: there in ${formatDuration(msRemaining)}`;
 
   return (
-    <Panel title="Your run" aside={`${run.lowRiders} Low-Rider${run.lowRiders === 1 ? '' : 's'}${run.escortThugs ? ` · ${run.escortThugs} escorts` : ''}`}>
+    <Panel title="Your run" aside={`${Object.entries(run.vehicleLoadout ?? { LOW_RIDER: run.lowRiders, SEDAN: 0, VAN: 0 }).filter(([, count]) => count > 0).map(([key, count]) => `${count} ${key === 'LOW_RIDER' ? 'Low-Rider' : key === 'SEDAN' ? 'Sedan' : 'Van'}${count === 1 ? '' : 's'}`).join(' · ')}${run.escortThugs ? ` · ${run.escortThugs} escorts` : ''}`}>
       <p className={`se-run__headline${inTown ? ' se-run__headline--town' : ''}`}>{headline}</p>
       <ol className="se-run__trip">
         {tripNodes(run).map((node, index) => {
@@ -790,6 +823,7 @@ export function ReceiptPanel({ receipt, products }: { receipt: RunReceiptDto; pr
     <Panel title="Last run" aside={`Back ${formatWeekdayTime(receipt.returnedAt)}`}>
       <div className="se-rows">
         <Row label="Went to" value={receipt.cities.map((city) => city.name).join(', ') || 'Nowhere'} />
+        {receipt.vehicleLoadout ? <Row label="Vehicles" value={Object.entries(receipt.vehicleLoadout).filter(([, count]) => count > 0).map(([key, count]) => `${count} ${key === 'LOW_RIDER' ? 'Low-Rider' : key === 'SEDAN' ? 'Sedan' : 'Van'}${count === 1 ? '' : 's'}`).join(' · ') || 'None'} /> : null}
         <Row label="Cash" value={<span className="se-num">{formatCents(receipt.startCashCents)} → {formatCents(receipt.cashCents)} <span className={cashChange >= 0 ? 'se-good' : 'se-bad'}>({cashChange >= 0 ? '+' : ''}{formatCents(cashChange)})</span></span>} strong />
         {receipt.startBeer > 0 || receipt.beer > 0 ? <Row label="Beer" value={<span className="se-num">{formatNumber(receipt.startBeer)} → {formatNumber(receipt.beer)}</span>} /> : null}
         {moved.map((entry) => (

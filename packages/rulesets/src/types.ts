@@ -670,6 +670,24 @@ export interface RulesetMeta {
   readonly name: string;
 }
 
+/** 1.5.0-A. Player-facing vehicle identities; A maps the legacy counter without changing play. */
+export interface VehicleClassDefinition {
+  readonly id: 'LOW_RIDER' | 'SEDAN' | 'VAN';
+  readonly name: string;
+  readonly description: string;
+  /** Legacy aggregate field used until class-based ownership ships in a later slice. */
+  readonly legacyResource: 'lowRiders' | 'sedans' | 'vans';
+  /** 1.5.0-B. Capacity and purchase terms are pinned to the round. */
+  readonly cargoPercent?: number;
+  readonly crewSeats?: number | null;
+  readonly purchasePriceCents?: number | null;
+  readonly routeProfile?: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
+}
+
+export interface VehicleCatalog {
+  readonly classes: readonly VehicleClassDefinition[];
+}
+
 // --- round ------------------------------------------------------------------
 
 export interface StartingPlayer {
@@ -2759,6 +2777,8 @@ export interface Ruleset {
   readonly contacts?: ContactCatalog;
   /** 1.4.0-A. The underworld factions behind the contacts. Absent before 1.4. */
   readonly factions?: FactionCatalog;
+  /** 1.5.0-A. Catalog only; no class-specific balance or dispatch behavior yet. */
+  readonly vehicleCatalog?: VehicleCatalog;
   /** 1.4.0-B. Seasonal faction standing. Absent: factions are identity only. */
   readonly factionStanding?: FactionStandingRules;
   /**

@@ -24,6 +24,8 @@ import {
   routeHours,
   rulesetForCity,
   runCapacity,
+  vehicleLoadoutSeats,
+  vehicleRiskMultiplier,
   racketCargoShare,
   readRacketEffects,
   runPosition,
@@ -37,16 +39,20 @@ import {
   type RunStopPlan,
 } from '@streets/rules-engine';
 import {
+  formatCents,
   runDriveOnSchema,
   runHeadHomeSchema,
   runLaunchSchema,
   runTradeSchema,
+  vehiclePurchaseSchema,
   type GameActionResult,
   type RunDto,
   type RunLaunchResult,
   type RunMoveResult,
   type RunReceiptDto,
   type RunTradeDto,
+  type VehiclePurchaseInput,
+  type VehiclePurchaseResult,
   type RunTradeResult,
   type TravelDto,
   type TravelRoutesDto,
@@ -68,6 +74,7 @@ import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
+import { readVehicleLoadout, type VehicleLoadout } from './vehicle-fleet.service.js';
 import {
   RUN_INCLUDE,
   awayWorth,
@@ -93,6 +100,8 @@ function requireRuns(ruleset: Ruleset): void {
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 const productName = (ruleset: Ruleset, key: string) => ruleset.products?.[key]?.name ?? (key === CRACK ? 'Crack' : key);
+
+const loadoutTotal = (loadout: VehicleLoadout) => loadout.LOW_RIDER + loadout.SEDAN + loadout.VAN;
 
 async function activeRuns(db: Db | PrismaClient, roundPlayerId: string): Promise<LoadedRun[]> {
   return db.run.findMany({
@@ -198,12 +207,13 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
     id: run.id,
     launchedAt: run.launchedAt.toISOString(),
     lowRiders: run.lowRiders,
+    vehicleLoadout: readVehicleLoadout(run.vehicleLoadout, run.lowRiders),
     escortThugs: run.escortThugs,
     cashCents: Number(run.cashCents),
     startCashCents: Number(run.startCashCents),
     beer: run.beer,
     startBeer: run.startBeer,
-    capacity: runCapacity(ruleset, run.lowRiders, await cargoShareFor(db, roundPlayerId, ruleset)),
+    capacity: runCapacity(ruleset, readVehicleLoadout(run.vehicleLoadout, run.lowRiders), await cargoShareFor(db, roundPlayerId, ruleset)),
     cargo: run.cargo.map((row) => ({ key: row.productKey, quantity: row.quantity, startQuantity: row.startQuantity })),
     guns: { PISTOL: run.pistols, SHOTGUN: run.shotguns, TEK9: run.tek9s, AK47: run.ak47s },
     bossAboard: run.bossAboard,
@@ -247,6 +257,7 @@ async function lastRunDto(db: Db | PrismaClient, roundPlayerId: string, ruleset:
     returnedAt: run.returnedAt.toISOString(),
     cities: visited.map((slug) => ({ slug, name: cityName(ruleset, slug) })),
     lowRiders: run.lowRiders,
+    vehicleLoadout: readVehicleLoadout(run.vehicleLoadout, run.lowRiders),
     escortThugs: run.escortThugs,
     startCashCents: Number(run.startCashCents),
     cashCents: Number(run.cashCents),
@@ -395,6 +406,24 @@ export const TravelService = {
       ...map,
       cities,
       runsEnabled: Boolean(runRules(ruleset)),
+      ...(ruleset.vehicleCatalog ? {
+        vehicleFleet: ruleset.vehicleCatalog.classes.map((vehicleClass) => {
+          const away = active.reduce((sum, run) => sum + readVehicleLoadout(run.vehicleLoadout, run.lowRiders)[vehicleClass.id], 0);
+          const home = player[vehicleClass.legacyResource];
+          return {
+            classId: vehicleClass.id,
+            name: vehicleClass.name,
+            description: vehicleClass.description,
+            home,
+            away,
+            total: home + away,
+            cargoPercent: vehicleClass.cargoPercent,
+            crewSeats: vehicleClass.crewSeats,
+            purchasePriceCents: vehicleClass.purchasePriceCents,
+            routeProfile: vehicleClass.routeProfile,
+          };
+        }),
+      } : {}),
       lockedProducts: [...(await PermanentUnlockService.lockedProducts(prisma, roundPlayerId, base))].map(([key, unlock]) => ({ key, unlockName: unlock.name })),
       rules: {
         cargoPerLowRider: travel?.cargoPerLowRider ?? 0,
@@ -410,6 +439,7 @@ export const TravelService = {
         cashCents: Number(player.cashCents),
         beer: player.beer,
         lowRiders: player.lowRiders,
+        vehicles: { LOW_RIDER: player.lowRiders, SEDAN: player.sedans, VAN: player.vans },
         fitThugs: fitThugs(player),
         turns: player.turns,
         products: Object.entries(inventory).map(([key, quantity]) => ({ key, quantity })),
@@ -421,6 +451,32 @@ export const TravelService = {
       relocation: await RelocationService.page(prisma, player, base, settled.round.endsAt, player.heat, now),
       trips: await BossTripService.page(prisma, player, base, settled.round.endsAt, now),
     };
+  },
+
+  /** Buy a class vehicle from the 1.5.0 garage catalog. */
+  purchaseVehicle(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<VehiclePurchaseResult>> {
+    const input: VehiclePurchaseInput = vehiclePurchaseSchema.parse(rawInput);
+    return ActionService.run<VehiclePurchaseResult>(prisma, roundPlayerId, {
+      action: 'VEHICLE_PURCHASE',
+      actionId: input.actionId,
+      execute: async ({ current, ruleset }) => {
+        const vehicleClass = ruleset.vehicleCatalog?.classes.find((entry) => entry.id === input.classId);
+        if (!vehicleClass || vehicleClass.purchasePriceCents === null || vehicleClass.purchasePriceCents === undefined) {
+          throw AppError.conflict('VEHICLE_UNAVAILABLE', 'That vehicle is not available in this round.');
+        }
+        const price = BigInt(vehicleClass.purchasePriceCents) * BigInt(input.quantity);
+        if (current.cashCents < price) {
+          throw AppError.badRequest('NOT_ENOUGH_CASH', `You need ${formatCents(Number(price))} for that order.`, { quantity: 'Not enough cash.' });
+        }
+        const field = input.classId === 'SEDAN' ? 'sedans' : 'vans';
+        const homeCount = current[field] + input.quantity;
+        return {
+          next: { ...current, cashCents: current.cashCents - price, [field]: homeCount },
+          result: { classId: input.classId, name: vehicleClass.name, quantity: input.quantity, paidCents: Number(price), homeCount },
+          ledger: [{ source: 'STORE_BUY', label: `Charlie’s garage · ${vehicleClass.name} × ${input.quantity}`, amountCents: -price }],
+        };
+      },
+    });
   },
 
   /**
@@ -470,6 +526,23 @@ export const TravelService = {
       actionId: input.actionId,
       execute: async ({ tx, current, ruleset, player, now }) => {
         requireRuns(ruleset);
+        const loadout: VehicleLoadout = input.vehicleLoadout
+          ? { LOW_RIDER: input.vehicleLoadout.LOW_RIDER ?? 0, SEDAN: input.vehicleLoadout.SEDAN ?? 0, VAN: input.vehicleLoadout.VAN ?? 0 }
+          : { LOW_RIDER: input.lowRiders ?? 0, SEDAN: 0, VAN: 0 };
+        const vehicleCount = loadoutTotal(loadout);
+        if (vehicleCount < 1) throw AppError.badRequest('NO_VEHICLES_SELECTED', 'Choose at least one vehicle for this run.');
+        for (const vehicleClass of ['LOW_RIDER', 'SEDAN', 'VAN'] as const) {
+          if (loadout[vehicleClass] > 0 && !ruleset.vehicleCatalog?.classes.some((entry) => entry.id === vehicleClass)) {
+            throw AppError.conflict('VEHICLE_CLASS_UNAVAILABLE', `${vehicleClass.replace('_', ' ')}s are not available in this round.`);
+          }
+        }
+        const owned: VehicleLoadout = { LOW_RIDER: current.lowRiders, SEDAN: current.sedans, VAN: current.vans };
+        for (const vehicleClass of ['LOW_RIDER', 'SEDAN', 'VAN'] as const) {
+          if (loadout[vehicleClass] > owned[vehicleClass]) {
+            const label = vehicleClass === 'LOW_RIDER' ? 'Low-Rider' : vehicleClass === 'SEDAN' ? 'Sedan' : 'Van';
+            throw AppError.badRequest('NOT_ENOUGH_VEHICLES', `You have ${owned[vehicleClass]} ${label}${owned[vehicleClass] === 1 ? '' : 's'} ready at home.`, { vehicleLoadout: `At most ${owned[vehicleClass]} ${label}${owned[vehicleClass] === 1 ? '' : 's'}.` });
+          }
+        }
         const activeCount = await tx.run.count({ where: { roundPlayerId, status: 'ACTIVE' } });
         const limit = hideoutGarageRunLimit(ruleset, player);
         if (activeCount >= limit) {
@@ -490,13 +563,10 @@ export const TravelService = {
         } catch (error) { refuse(error); }
         assertTurns(current.turns, plan.turns);
 
-        if (input.lowRiders > current.lowRiders) {
-          throw AppError.badRequest('NOT_ENOUGH_LOW_RIDERS', `You have ${current.lowRiders} Low-Rider${current.lowRiders === 1 ? '' : 's'} at home.`, { lowRiders: `At most ${current.lowRiders}.` });
-        }
-        const seats = input.lowRiders * ruleset.lowRiderThugCapacity;
+        const seats = vehicleLoadoutSeats(ruleset, loadout);
         const fit = fitThugs(current);
         if (input.escortThugs > Math.min(fit, seats)) {
-          const why = input.escortThugs > seats ? `${input.lowRiders} Low-Rider${input.lowRiders === 1 ? '' : 's'} seat ${seats} thugs.` : `You have ${fit} fit thugs at home.`;
+          const why = input.escortThugs > seats ? `This vehicle loadout seats ${seats} thugs.` : `You have ${fit} fit thugs at home.`;
           throw AppError.badRequest('TOO_MANY_ESCORTS', why, { escortThugs: why });
         }
         const cashCents = BigInt(input.cashCents);
@@ -548,9 +618,9 @@ export const TravelService = {
           }
         }
 
-        const capacity = runCapacity(ruleset, input.lowRiders, racketCargoShare(ruleset, readRacketEffects(player.racketEffects)));
+        const capacity = runCapacity(ruleset, loadout, racketCargoShare(ruleset, readRacketEffects(player.racketEffects)));
         if (cargoUnits(cargo) + input.beer > capacity) {
-          throw AppError.badRequest('TRUNK_FULL', `${input.lowRiders} Low-Rider${input.lowRiders === 1 ? '' : 's'} carry ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
+          throw AppError.badRequest('TRUNK_FULL', `This vehicle loadout carries ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
         }
 
         const openRoad = await SingleUseFavorService.matching(
@@ -571,7 +641,8 @@ export const TravelService = {
           data: {
             roundPlayerId,
             homeCity: player.city.slug,
-            lowRiders: input.lowRiders,
+            lowRiders: vehicleCount,
+            vehicleLoadout: loadout as unknown as Prisma.InputJsonValue,
             escortThugs: input.escortThugs,
             ...guns,
             cashCents,
@@ -604,7 +675,7 @@ export const TravelService = {
           leaveAt: out!.leaveAt!.toISOString(),
           backAt: home!.arriveAt.toISOString(),
           turns: plan.turns,
-          lowRiders: input.lowRiders,
+          lowRiders: vehicleCount,
           escortThugs: input.escortThugs,
           cashCents: input.cashCents,
           beer: input.beer,
@@ -619,7 +690,9 @@ export const TravelService = {
             turns: current.turns - plan.turns,
             cashCents: current.cashCents - cashCents - marketCents,
             beer: current.beer - input.beer,
-            lowRiders: current.lowRiders - input.lowRiders,
+            lowRiders: current.lowRiders - loadout.LOW_RIDER,
+            sedans: current.sedans - loadout.SEDAN,
+            vans: current.vans - loadout.VAN,
             thugs: current.thugs - input.escortThugs,
             crack: current.crack - (fromHome[CRACK] ?? 0),
             pistols: current.pistols - guns.pistols,
@@ -627,7 +700,7 @@ export const TravelService = {
             tek9s: current.tek9s - guns.tek9s,
             ak47s: current.ak47s - guns.ak47s,
             awayNetWorthCents: current.awayNetWorthCents
-              + awayWorth(ruleset, { cashCents, beer: input.beer, lowRiders: input.lowRiders, escortThugs: input.escortThugs, ...guns }, cargo),
+              + awayWorth(ruleset, { cashCents, beer: input.beer, lowRiders: vehicleCount, escortThugs: input.escortThugs, ...guns }, cargo),
           },
           result,
           ledger: marketTrades.map((trade) => ({
@@ -674,7 +747,7 @@ export const TravelService = {
         const name = productName(base, input.product);
         if (!productKeys(base).includes(input.product)) throw AppError.badRequest('UNKNOWN_PRODUCT', 'That product is not part of this round.', { product: 'Pick a product.' });
         const cargo = cargoOf(run);
-        const capacity = runCapacity(base, run.lowRiders, racketCargoShare(base, readRacketEffects(player.racketEffects)));
+        const capacity = runCapacity(base, readVehicleLoadout(run.vehicleLoadout, run.lowRiders), racketCargoShare(base, readRacketEffects(player.racketEffects)));
         const buying = input.direction === 'buy';
         // Pip sells a locked product in no city, not just at home. The high market sells to anyone,
         // at whatever the market is asking, above or below Pip's price.
@@ -755,7 +828,7 @@ export const TravelService = {
         const town = rulesetForCity(base, city);
         let traded = await requireActiveRun(tx, roundPlayerId, input.runId);
         const roll = town.heat
-          ? resolveRunTrouble({ heat: current.heat, cashCents: traded.cashCents, cargo: cargoOf(traded), ruleset: town, bustChance: bustChance(current.heat, town), rng: rng ?? Math.random })
+          ? resolveRunTrouble({ heat: current.heat, cashCents: traded.cashCents, cargo: cargoOf(traded), ruleset: town, bustChance: bustChance(current.heat, town), riskMultiplier: vehicleRiskMultiplier(base, readVehicleLoadout(traded.vehicleLoadout, traded.lowRiders)), rng: rng ?? Math.random })
           : null;
         const added = !buying ? saleHeat(base, city, totalCents) : 0;
         const heatAfter = town.heat ? addHeat(roll?.kind ? roll.heatAfter : current.heat, added, town.heat) : current.heat;
