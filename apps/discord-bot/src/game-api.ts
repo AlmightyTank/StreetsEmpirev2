@@ -502,7 +502,8 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     setAlert: (discordId: string, type: AlertType, enabled: boolean) =>
       call(alertSettingsSchema, '/api/internal/discord/alerts', { method: 'PUT', body: { discordId, type, enabled } }),
     /** Battles, round events, rank drops and full turns, each handed out once. */
-    claimAlerts: () => call(alertsClaimSchema, '/api/internal/discord/alerts/claim', { method: 'POST' }),
+    /** `feed: false` leaves raid-feed events on the server until the bot can post them. */
+    claimAlerts: (options?: { feed: boolean }) => call(alertsClaimSchema, '/api/internal/discord/alerts/claim', { method: 'POST', body: options }),
     alliances: () => call(alliancesSchema, '/api/internal/discord/alliances'),
     /** Admin-requested role resyncs, each handed out once. */
     claimResync: () => call(resyncClaimSchema, '/api/internal/discord/resync/claim', { method: 'POST' }),
