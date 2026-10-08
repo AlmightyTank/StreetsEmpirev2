@@ -213,7 +213,7 @@
 .se-slots__rules summary { color: var(--se-muted); font-size: .75rem; font-weight: 700; cursor: pointer; }
 .se-slots__rules[open] summary { margin-bottom: .3rem; }
 
-.se-slots__stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(17.5rem, .46fr); gap: 1rem; align-items: start; }
+.se-slots__stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; align-items: start; }
 .se-slots__copy { min-width: 0; }
 .se-slots__copy h3 { margin: 0 0 .35rem; }
 .se-slots__title-row { display: flex; justify-content: space-between; gap: .8rem; align-items: start; }
@@ -235,7 +235,10 @@
 
 .se-slots__cabinet {
   --se-slot-gold: #e5bd62;
-  grid-column: 1;
+  /* Cap each reel at ~6.5rem so desktop doesn't blow the cabinet up to the panel width. */
+  width: 100%;
+  max-width: calc(var(--se-slot-reels, 5) * 6.5rem + 4rem);
+  justify-self: center;
   display: grid;
   gap: .6rem;
   position: relative;
@@ -272,7 +275,7 @@
 }
 .se-slots__cabinet-brand { color: #ffe4a0; font-size: .68rem; font-weight: 950; letter-spacing: .2em; }
 .se-slots__cabinet-brand strong { color: #68df92; }
-.se-slots__cabinet-name { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(1.3rem, 3vw, 2rem); font-weight: 950; letter-spacing: .055em; line-height: 1.1; text-transform: uppercase; }
+.se-slots__cabinet-name { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(1.3rem, 3vw, 1.6rem); font-weight: 950; letter-spacing: .055em; line-height: 1.1; text-transform: uppercase; }
 .se-slots__cabinet-prize { color: #ffe48d; font-size: .7rem; font-weight: 900; letter-spacing: .12em; }
 .se-slots__cabinet.is-neon-sevens .se-slots__cabinet-marquee { background: radial-gradient(ellipse at 50% 5%, rgb(255 255 255 / .2), transparent 60%), linear-gradient(180deg, #56218a, #24103f 78%, #160b27); }
 .se-slots__cabinet.is-neon-sevens { --se-slot-gold: #d29aff; }
@@ -309,7 +312,7 @@
   transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 .se-slots__reel::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgb(44 25 5 / .28), transparent 20%, transparent 80%, rgb(44 25 5 / .28)); }
-.se-slots__reel > span { max-width: 100%; overflow: hidden; text-overflow: clip; font-size: clamp(1.45rem, 5.5vw, 3.5rem); font-weight: 800; line-height: 1; filter: drop-shadow(0 2px 1px rgb(0 0 0 / .14)); }
+.se-slots__reel > span { max-width: 100%; overflow: hidden; text-overflow: clip; font-size: clamp(1.45rem, 5.5vw, 3rem); font-weight: 800; line-height: 1; filter: drop-shadow(0 2px 1px rgb(0 0 0 / .14)); }
 .se-slots__cabinet-footer {
   display: flex;
   justify-content: center;
@@ -331,7 +334,7 @@
 .se-slots__reel.is-winning { border-color: var(--se-accent); box-shadow: inset 0 0 0 2px var(--se-accent), 0 0 15px color-mix(in srgb, var(--se-accent) 38%, transparent); transform: translateY(-1px); animation: se-winning-cell .72s ease-in-out infinite alternate; }
 .se-slots__reel.is-anticipating { border-color: color-mix(in srgb, var(--se-accent) 60%, #fff); box-shadow: 0 0 18px color-mix(in srgb, var(--se-accent) 32%, transparent); animation: se-anticipation .3s ease-in-out infinite alternate; }
 .se-slots__strip-track { position: absolute; inset: -220% 0; display: grid; align-content: space-around; justify-items: center; filter: blur(.6px); animation: se-strip-spin .23s linear infinite; }
-.se-slots__strip-track span { display: grid; place-items: center; min-height: 2.2rem; font-size: clamp(1.35rem, 5vw, 3rem); font-weight: 800; opacity: .88; }
+.se-slots__strip-track span { display: grid; place-items: center; min-height: 2.2rem; font-size: clamp(1.35rem, 5vw, 2.75rem); font-weight: 800; opacity: .88; }
 .se-slots__reel:nth-child(3n + 2) .se-slots__strip-track { animation-duration: .19s; }
 .se-slots__reel:nth-child(3n) .se-slots__strip-track { animation-duration: .27s; }
 
@@ -428,10 +431,6 @@
 }
 
 @media (max-width: 900px) {
-  .se-slots__stage { grid-template-columns: 1fr; }
-  .se-slots__cabinet {
-    grid-column: 1;
-  }
   .se-slots__title-row { align-items: center; }
   .se-slots__paylines { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }

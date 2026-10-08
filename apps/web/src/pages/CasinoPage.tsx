@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto, type CasinoTournamentPageDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
@@ -833,7 +833,10 @@ export function CasinoPage() {
                           </div>
                         ) : null}
 
-                        <div className={'se-slots__cabinet is-' + cabinetTone + (outcomeVisible && result ? ' is-' + result.winTier.toLowerCase() : '')}>
+                        <div
+                          className={'se-slots__cabinet is-' + cabinetTone + (outcomeVisible && result ? ' is-' + result.winTier.toLowerCase() : '')}
+                          style={{ '--se-slot-reels': machine.reels } as CSSProperties}
+                        >
                           <div className="se-slots__cabinet-marquee">
                             <span className="se-slots__cabinet-brand">STREETS <strong>EMPIRE</strong></span>
                             <strong className="se-slots__cabinet-name">{machine.name}</strong>
