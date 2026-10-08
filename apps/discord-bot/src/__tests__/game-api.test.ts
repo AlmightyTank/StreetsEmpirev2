@@ -144,6 +144,8 @@ describe('createGameApi', () => {
     expect((await api.setAlert('123456789012345678', 'turns', true)).current).toEqual({ turns: 5, cap: 144, nationalRank: 7 });
     // A server from before 0.9.0-G sends no notices; the bot treats that as none.
     expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], notices: [], battles: [], turf: [], blockWars: [], territory: [], crackdowns: [], rounds: [] });
+    // A raid feed the bot can't post in leaves its events on the server.
+    await api.claimAlerts({ feed: false });
     expect(calls).toEqual([
       { path: '/api/internal/discord/badges?name=Big+Daddy', method: 'GET', body: undefined, contentType: undefined },
       // No body, so no JSON content type for Fastify to reject as empty.
@@ -152,6 +154,7 @@ describe('createGameApi', () => {
       { path: '/api/internal/discord/news/status', method: 'POST', body: '{"channel":null,"problem":"the bot needs SendMessages in #news."}', contentType: 'application/json' },
       { path: '/api/internal/discord/alerts', method: 'PUT', body: '{"discordId":"123456789012345678","type":"turns","enabled":true}', contentType: 'application/json' },
       { path: '/api/internal/discord/alerts/claim', method: 'POST', body: undefined, contentType: undefined },
+      { path: '/api/internal/discord/alerts/claim', method: 'POST', body: '{"feed":false}', contentType: 'application/json' },
     ]);
   });
 });
