@@ -26,6 +26,7 @@ import { activityGroup, activityGroupLabel, describeActivity } from '../componen
 import { AllianceWire } from '../components/AllianceWire.js';
 import { gameEventToastFor } from '../components/GameEventToasts.js';
 import { Panel } from '../components/Panel.js';
+import { PendingEncountersPanel } from '../components/PendingEncountersPanel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
@@ -69,6 +70,7 @@ function subjectForReply(subject: string): string {
 export function ConsolePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const crackWord = useSession((s) => s.me?.products) ? 'crack' : 'product';
+  const pendingEncounters = useSession((s) => s.me?.pendingEncounters ?? []);
   const [view, setView] = useState<ConsoleView>(() => {
     const requested = searchParams.get('view');
     if (requested === 'inbox' || requested === 'sent') return 'threads';
@@ -629,6 +631,7 @@ export function ConsolePage() {
 
         {error ? <Alert>{error}</Alert> : null}
         {notice ? <Alert tone="info">{notice}</Alert> : null}
+        <PendingEncountersPanel encounters={pendingEncounters} />
 
         <section className="se-console-bar">
           <div className="se-console-tabs" role="tablist" aria-label="Console folders">

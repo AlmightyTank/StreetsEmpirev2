@@ -14,6 +14,7 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { HeatPanel, heatTone } from '../components/HeatPanel.js';
 import { CasePanel } from '../components/CasePanel.js';
+import { PendingEncountersPanel } from '../components/PendingEncountersPanel.js';
 import { formatClockTime, formatDate, formatDuration, formatWhen } from '../utils/time.js';
 import { GettingStarted } from '../components/onboarding/GettingStarted.js';
 
@@ -399,6 +400,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         {error ? <Alert>{error}</Alert> : null}
 
         <GettingStarted />
+        <PendingEncountersPanel encounters={me.pendingEncounters} />
 
         <section className="se-dashboard-command">
           <div className="se-dashboard-command__column se-dashboard-command__column--left">

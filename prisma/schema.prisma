@@ -1241,6 +1241,7 @@ model RoundPlayer {
   officials               PlayerOfficial[]
   tips                    PlayerTip[]
   npcGang                 NpcGang?
+  randomEncounters        RandomEncounter[]
   casinoFreeSpinBonus     CasinoFreeSpinBonus?
   casinoBlackjackShoes    CasinoBlackjackShoe[]
   casinoBlackjackHands    CasinoBlackjackHand[]
@@ -2727,6 +2728,38 @@ model PlayerActivity {
   createdAt DateTime @default(now())
 
   @@index([roundPlayerId, createdAt(sort: Desc)])
+}
+
+/// 1.6.0-F. Durable action-triggered street situations.
+model RandomEncounter {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// SCOUT, PRODUCE, TRAVEL, etc.
+  trigger String
+  key     String
+  title   String
+  text    String
+  tone    String
+  status  String @default("RESOLVED")
+
+  effects Json @default("{}")
+  choices Json @default("[]")
+
+  selectedChoice String?
+  result         Json?
+
+  sourceActivityId String?
+  resolvedAt       DateTime?
+  expiresAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([roundPlayerId, status, createdAt(sort: Desc)])
+  @@index([roundPlayerId, trigger, createdAt(sort: Desc)])
+  @@index([expiresAt, status])
 }
 
 /// Durable in-game notification receipt for a toast-worthy activity.

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { GameActionResult, MarketPriceDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunOutpostEstablishResult, RunOutpostTransferResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto, VehicleDamageDto } from '@streets/shared';
+import type { GameActionResult, MarketPriceDto, RandomEncounterDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunOutpostEstablishResult, RunOutpostTransferResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto, VehicleDamageDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -19,6 +19,20 @@ import { SUPPLY_WORD, minutesText, unitPrice } from './CityMap.js';
 type Products = TravelDto['products'];
 const nameOf = (products: Products, key: string) => products.find((product) => product.key === key)?.name ?? key;
 const clock = (iso: string) => formatClockTime(iso);
+
+function encounterSummary(encounter: RandomEncounterDto | undefined): string | null {
+  if (!encounter) return null;
+  const effects = encounter.effects;
+  const details = [
+    effects.cashCents ? `${effects.cashCents > 0 ? '+' : '-'}${formatCents(Math.abs(effects.cashCents))}` : null,
+    effects.heat ? `${effects.heat > 0 ? '+' : '-'}${formatNumber(Math.abs(effects.heat))} Heat` : null,
+    effects.condoms ? `${effects.condoms > 0 ? '+' : '-'}${formatNumber(Math.abs(effects.condoms))} Condoms` : null,
+    effects.medicine ? `${effects.medicine > 0 ? '+' : '-'}${formatNumber(Math.abs(effects.medicine))} Medicine` : null,
+    effects.crack ? `${effects.crack > 0 ? '+' : '-'}${formatNumber(Math.abs(effects.crack))} Product` : null,
+    effects.beer ? `${effects.beer > 0 ? '+' : '-'}${formatNumber(Math.abs(effects.beer))} Beer` : null,
+  ].filter((part): part is string => Boolean(part));
+  return `${encounter.title}: ${encounter.text}${details.length ? ` ${details.join(' · ')}` : ''}`;
+}
 
 /** Whole numbers only; an empty box is null so the field can be cleared while typing. */
 function whole(value: string): number | '' {
@@ -292,6 +306,11 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
         ) : null}
       </form>
       {launch.error ? <Alert>{launch.error}</Alert> : null}
+      {encounterSummary(launch.result?.result.encounter) ? (
+        <p className={`se-hint ${launch.result!.result.encounter!.tone === 'bad' ? 'se-bad' : launch.result!.result.encounter!.tone === 'good' ? 'se-good' : 'se-warn'}`}>
+          {encounterSummary(launch.result!.result.encounter)}
+        </p>
+      ) : null}
     </Panel>
   );
 }
@@ -714,6 +733,11 @@ function MoveOn({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: (
         </Button>
       </div>
       {move.error ? <Alert>{move.error}</Alert> : null}
+      {encounterSummary(move.result?.result.encounter) ? (
+        <p className={`se-hint ${move.result!.result.encounter!.tone === 'bad' ? 'se-bad' : move.result!.result.encounter!.tone === 'good' ? 'se-good' : 'se-warn'}`}>
+          {encounterSummary(move.result!.result.encounter)}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -733,6 +757,11 @@ function PickupHeadHome({ run, onDone }: { run: RunDto; onDone: () => void }) {
         Head home now
       </Button>
       {move.error ? <Alert>{move.error}</Alert> : null}
+      {encounterSummary(move.result?.result.encounter) ? (
+        <p className={`se-hint ${move.result!.result.encounter!.tone === 'bad' ? 'se-bad' : move.result!.result.encounter!.tone === 'good' ? 'se-good' : 'se-warn'}`}>
+          {encounterSummary(move.result!.result.encounter)}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import type { AllianceTagDto } from './alliance.js';
-import type { QuestLinkDto, QuestLockDto } from './api.js';
+import type { QuestLinkDto, QuestLockDto, RandomEncounterDto } from './api.js';
 
 /** 0.3.0-D. Limits that keep the wire and the rolodex small. Not balance, so they live here. */
 export const WIRE_POST_MAX = 280;
@@ -1300,6 +1300,8 @@ export interface RunLaunchResult {
   marketCents: number;
   /** Trips B. The boss rides with it. */
   bossAboard: boolean;
+  /** 1.6.0-F. Action-triggered road color and consequences. */
+  encounter?: RandomEncounterDto;
 }
 
 export interface RunOutpostEstablishResult {
@@ -1363,6 +1365,8 @@ export interface RunMoveResult {
   /** When it gets there; for heading home, when it is back. */
   arriveAt: string;
   turns: number;
+  /** 1.6.0-F. Action-triggered road color and consequences. */
+  encounter?: RandomEncounterDto;
 }
 
 // --- 0.5.0-E convoys --------------------------------------------------------------

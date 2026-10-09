@@ -529,13 +529,14 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'RUN_LAUNCHED': {
       // 1.6.0-C: a pickup is a run sent for one load of a paid order.
       const supply = p.supplyPickup && typeof p.supplyPickup === 'object' ? p.supplyPickup as Record<string, unknown> : null;
+      const encounter = p.encounter && typeof p.encounter === 'object' ? p.encounter as Record<string, unknown> : null;
       return {
         text: supply?.shipment
           ? `Shipped ${formatNumber(num(supply.quantity))} ${str(supply.product, 'units')} out of ${str(supply.supplier, 'your storage')}${supply.destination ? `, bound for your ${str(supply.destination)} warehouse` : ', bound for home'}.`
           : supply
           ? `Sent a pickup to ${str(supply.supplier, 'a supplier')} in ${str(p.cityName, 'another city')} for ${formatNumber(num(supply.quantity))} ${str(supply.product, 'units')}${supply.destination ? `, bound for your ${str(supply.destination)} warehouse` : ''}.`
           : p.bossAboard ? `The boss rode out with a run to ${str(p.cityName, 'another city')}.` : `Sent a run to ${str(p.cityName, 'another city')}.`,
-        detail: `${formatNumber(num(p.turns))} turns`,
+        detail: [`${formatNumber(num(p.turns))} turns`, encounter?.title ? str(encounter.title) : null].filter(Boolean).join(' · '),
       };
     }
 

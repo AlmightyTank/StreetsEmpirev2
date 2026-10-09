@@ -55,6 +55,9 @@ function routeIdentity(pathname: string): string {
 const TURN_ACTION_PAGES = ['/game/scout', '/game/produce', '/game/combat'] as const;
 const LAST_TURN_ACTION_KEY = 'streets.lastTurnActionPage';
 const LATEST_RULESET_VERSION = Object.values(rulesets).at(-1)?.meta.version ?? '0.1.0';
+const PUBLIC_SITE_ORIGIN = 'https://streetsempire.dev';
+const BETA_GAME_ORIGIN = 'https://beta.streetsempire.dev';
+const FORUM_ORIGIN = 'https://forum.streetsempire.dev';
 
 /** 1.0.0-A. App version, ruleset, environment and season in one line. */
 function buildLine(platform: ReturnType<typeof useSession.getState>['platform'], rulesetVersion: string): string {
@@ -79,6 +82,17 @@ function Brand() {
       </span>
       <span className="se-brand__ver">v{platform?.app.version ?? APP_VERSION}</span>
       {label ? <span className={`se-env-badge se-env-badge--${platform!.environment}`}>{label}</span> : null}
+    </Link>
+  );
+}
+
+function FooterLogo() {
+  return (
+    <Link className="se-footer-brand" to="/" aria-label="StreetsEmpire home">
+      <span className="se-footer-brand__mark" aria-hidden="true">
+        <img src="/icons/icon-maskable-512.png" alt="" />
+      </span>
+      <span>STREETSEMPIRE</span>
     </Link>
   );
 }
@@ -203,42 +217,66 @@ function Footer() {
   const me = useSession((s) => s.me);
   const platform = useSession((s) => s.platform);
   const rulesetVersion = useSession((s) => s.round?.rulesetVersion ?? LATEST_RULESET_VERSION);
-  const location = useLocation();
 
   return (
     <footer className="se-footer">
       <div className="se-footer__inner">
         <div className="se-footer__brand">
-          <Brand />
+          <FooterLogo />
           <p>
-            Free browser crime strategy with turn clocks, crew management,
-            raids, rankings and fair seasonal resets.
+            Build a crew, control turf and compete through seasons that reset
+            power but preserve history.
           </p>
         </div>
 
-        <nav className="se-footer__links" aria-label="Footer">
-          <Link to="/game/status">Status</Link>
-          <Link to="/game/rules">Rules</Link>
-          <Link to="/game/news">News</Link>
-          <Link to="/game/hall-of-fame">Hall of Fame</Link>
-          <a href="https://forum.streetsempire.dev">Forum</a>
-          <a href="https://streetsempire.dev/privacy">Privacy</a>
-          <a href="https://streetsempire.dev/terms">Terms</a>
-          {account ? (
-            <>
-              <Link to={me ? '/game' : '/join'}>{me ? 'Dashboard' : 'Join a season'}</Link>
-              <Link to="/account">Account</Link>
-              <Link to={`/game/report-bug?from=${encodeURIComponent(location.pathname)}`}>Report a bug</Link>
-            </>
-          ) : (
-            <>
-              <Link to="/register">Register</Link>
-              <Link to="/login">Log in</Link>
-            </>
-          )}
-        </nav>
+        <div className="se-footer__group">
+          <h2>Explore</h2>
+          <nav aria-label="Explore StreetsEmpire">
+            <Link to="/game/hall-of-fame">Hall of Fame</Link>
+            <Link to="/game/alliance#alliance-rankings">Alliances</Link>
+            <a href={`${PUBLIC_SITE_ORIGIN}/stats`}>Statistics</a>
+            <a href={`${PUBLIC_SITE_ORIGIN}/roadmap`}>Roadmap</a>
+          </nav>
+        </div>
+
+        <div className="se-footer__group">
+          <h2>Project</h2>
+          <nav aria-label="Project links">
+            <a href={`${PUBLIC_SITE_ORIGIN}/about`}>About</a>
+            <a href={`${PUBLIC_SITE_ORIGIN}/beta`}>Beta</a>
+            <Link to="/game/status">Status</Link>
+            <a href={`${PUBLIC_SITE_ORIGIN}/support`}>Support</a>
+            <a href={`${PUBLIC_SITE_ORIGIN}/privacy`}>Privacy</a>
+            <a href={`${PUBLIC_SITE_ORIGIN}/terms`}>Terms</a>
+          </nav>
+        </div>
+
+        <div className="se-footer__group">
+          <h2>Play</h2>
+          <nav aria-label="Game destinations">
+            <Link to={me ? '/game' : account ? '/join' : '/login'}>{me ? 'Live Game' : account ? 'Join a Season' : 'Live Game'}</Link>
+            <a href={BETA_GAME_ORIGIN}>Beta Game</a>
+            <a href={FORUM_ORIGIN}>Forum</a>
+          </nav>
+        </div>
+
+        <div className="se-footer__group">
+          <h2>Social</h2>
+          <nav aria-label="Social links">
+            <a href={`${PUBLIC_SITE_ORIGIN}/community`}>Community</a>
+            <a href={FORUM_ORIGIN}>Forum</a>
+            <Link to="/game/news">News</Link>
+            <a href={`${PUBLIC_SITE_ORIGIN}/support`}>Support</a>
+          </nav>
+        </div>
       </div>
-      <p className="se-footer__build">{buildLine(platform, rulesetVersion)}</p>
+
+      <div className="se-footer__bottom">
+        <span>StreetsEmpire</span>
+        <span className="se-footer__build" title={buildLine(platform, rulesetVersion)}>
+          {buildLine(platform, rulesetVersion)}
+        </span>
+      </div>
     </footer>
   );
 }

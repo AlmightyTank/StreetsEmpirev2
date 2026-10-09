@@ -70,6 +70,11 @@ export function AdminNpcTelemetryPanel() {
             <Row label="Taken from humans" value={`${formatCents(data.drain.cashFromHumansCents)} · ${formatNumber(data.drain.productFromHumans)} product`} />
             <Row label="Taken from NPCs" value={`${formatCents(data.drain.cashFromNpcsCents)} · ${formatNumber(data.drain.productFromNpcs)} product`} />
             <Row label="Bounties paid" value={`${formatNumber(data.drain.bounties)} · ${formatCents(data.drain.bountiesCents)}`} />
+            <Row label="Encounters" value={`${formatNumber(data.encounters.total)} · ${formatNumber(data.encounters.pending)} pending`} strong
+              tooltip="Action-triggered random encounters in this window." />
+            <Row label="Encounters per active human per day" value={data.encounters.perActiveHumanPerDay === null ? '-' : String(data.encounters.perActiveHumanPerDay)} />
+            <Row label="Encounter cash · heat" value={`${formatCents(data.encounters.impact.cashCents)} · ${formatNumber(data.encounters.impact.heat)}`} />
+            <Row label="Encounter supplies" value={`${formatNumber(data.encounters.impact.crack)} product · ${formatNumber(data.encounters.impact.condoms)} condoms · ${formatNumber(data.encounters.impact.beer)} beer`} />
             <Row label="Blocked · lay low" value={`${percent(data.rates.blocked)} · ${percent(data.rates.layLow)} of moves`} strong={(data.rates.blocked ?? 0) > 0.2}
               tooltip="A high blocked share means the scheduler keeps trying moves the world will not allow." />
             <Row label="Dogpile skips" value={`${formatNumber(data.skips.DOGPILE ?? 0)} · ${percent(data.rates.dogpileSkips)} of attempts`}
@@ -84,6 +89,7 @@ export function AdminNpcTelemetryPanel() {
           ) : null}
           {data.byTier.length ? <p className="se-hint se-mt">By tier: {data.byTier.map((row) => `${row.tier} ${formatNumber(row.hits)} (${percent(row.winRate)})`).join(' · ')}</p> : null}
           {data.byPersonality.length ? <p className="se-hint">By style: {data.byPersonality.map((row) => `${row.personality} ${formatNumber(row.hits)} (${percent(row.winRate)})`).join(' · ')}</p> : null}
+          <Counts title="Encounters by trigger" counts={data.encounters.byTrigger} />
           <Counts title="Hits by kind" counts={data.hits.byKind} />
           <Counts title="Moves" counts={data.outcomes} />
           <Counts title="Blocked by reason" counts={data.blocked} />

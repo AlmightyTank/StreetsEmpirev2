@@ -27,6 +27,7 @@ function report(value: Prisma.JsonValue): { won: boolean | null; cash: number; c
 }
 
 type Tally = { hits: number; won: number };
+type EncounterImpact = AdminNpcTelemetryDto['encounters']['impact'];
 
 function bump(map: Map<string, Tally & { cash: number }>, key: string, won: boolean, cash = 0): void {
   const row = map.get(key) ?? { hits: 0, won: 0, cash: 0 };
@@ -34,6 +35,31 @@ function bump(map: Map<string, Tally & { cash: number }>, key: string, won: bool
   row.won += won ? 1 : 0;
   row.cash += cash;
   map.set(key, row);
+}
+
+function encounterEffects(value: Prisma.JsonValue): EncounterImpact {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { cashCents: 0, heat: 0, condoms: 0, medicine: 0, crack: 0, beer: 0 };
+  }
+  return {
+    cashCents: typeof value.cashCents === 'number' ? value.cashCents : 0,
+    heat: typeof value.heat === 'number' ? value.heat : 0,
+    condoms: typeof value.condoms === 'number' ? value.condoms : 0,
+    medicine: typeof value.medicine === 'number' ? value.medicine : 0,
+    crack: typeof value.crack === 'number' ? value.crack : 0,
+    beer: typeof value.beer === 'number' ? value.beer : 0,
+  };
+}
+
+function addImpact(left: EncounterImpact, right: EncounterImpact): EncounterImpact {
+  return {
+    cashCents: left.cashCents + right.cashCents,
+    heat: left.heat + right.heat,
+    condoms: left.condoms + right.condoms,
+    medicine: left.medicine + right.medicine,
+    crack: left.crack + right.crack,
+    beer: left.beer + right.beer,
+  };
 }
 
 function windowStart(window: AdminNpcTelemetryWindow, now: Date, roundStart: Date | null): Date {
@@ -50,7 +76,7 @@ export const NpcGangTelemetryService = {
     const inRound = round ? { roundId: round.id } : { roundId: '' };
     const gangRules = round ? npcRules(loadRulesetForRound(round)) : null;
 
-    const [npcHits, humanHits, activeHumans, gangs, bounties] = await Promise.all([
+    const [npcHits, humanHits, activeHumans, gangs, bounties, encounters] = await Promise.all([
       prisma.raidBattle.findMany({
         where: { createdAt: { gte: from }, voidedAt: null, attacker: { ...inRound, npcGang: { isNot: null } }, defender: { npcGang: { is: null } } },
         select: { kind: true, attackerReport: true, attacker: { select: { city: { select: { name: true } }, npcGang: { select: { tier: true, archetype: true } } } } },
@@ -69,6 +95,12 @@ export const NpcGangTelemetryService = {
         where: { source: NPC_BOUNTY_SOURCE, createdAt: { gte: from }, roundPlayer: inRound },
         _count: { _all: true },
         _sum: { amountCents: true },
+      }),
+      prisma.randomEncounter.findMany({
+        where: { createdAt: { gte: from }, roundPlayer: inRound },
+        select: { trigger: true, status: true, effects: true },
+        orderBy: { createdAt: 'desc' },
+        take: 5_000,
       }),
     ]);
 
@@ -111,6 +143,18 @@ export const NpcGangTelemetryService = {
     const dogpile = counters.skips.DOGPILE ?? 0;
     const table = (map: Map<string, Tally & { cash: number }>) => [...map.entries()]
       .sort((left, right) => right[1].hits - left[1].hits || left[0].localeCompare(right[0]));
+    const encountersByTrigger: Record<string, number> = {};
+    let encounterImpact: EncounterImpact = { cashCents: 0, heat: 0, condoms: 0, medicine: 0, crack: 0, beer: 0 };
+    let pendingEncounters = 0;
+    let expiredEncounters = 0;
+    let resolvedEncounters = 0;
+    for (const encounter of encounters) {
+      encountersByTrigger[encounter.trigger] = (encountersByTrigger[encounter.trigger] ?? 0) + 1;
+      if (encounter.status === 'PENDING') pendingEncounters += 1;
+      else if (encounter.status === 'EXPIRED') expiredEncounters += 1;
+      else resolvedEncounters += 1;
+      encounterImpact = addImpact(encounterImpact, encounterEffects(encounter.effects));
+    }
 
     return {
       window,
@@ -135,6 +179,15 @@ export const NpcGangTelemetryService = {
         productFromNpcs,
         bounties: bounties._count._all,
         bountiesCents: Number(bounties._sum.amountCents ?? 0n),
+      },
+      encounters: {
+        total: encounters.length,
+        resolved: resolvedEncounters,
+        pending: pendingEncounters,
+        expired: expiredEncounters,
+        perActiveHumanPerDay: activeHumans > 0 ? Math.round((encounters.length / activeHumans / days) * 1000) / 1000 : null,
+        byTrigger: encountersByTrigger,
+        impact: encounterImpact,
       },
       byCity: table(byCity).map(([city, row]) => ({ city, hits: row.hits, won: row.won, winRate: rate(row.won, row.hits), cashFromHumansCents: row.cash })),
       byTier: table(byTier).map(([tier, row]) => ({ tier, hits: row.hits, won: row.won, winRate: rate(row.won, row.hits) })),

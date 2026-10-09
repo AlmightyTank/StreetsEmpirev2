@@ -9,6 +9,7 @@ import {
   questAutoAcceptSchema,
   questClaimSchema,
   questTrackSchema,
+  randomEncounterChoiceSchema,
   scoutSchema,
   storeTradeSchema,
   storeCheckoutSchema,
@@ -50,6 +51,8 @@ import { SupplyPropertyService } from '../services/supply-property.service.js';
 import { SupplyLedgerService } from '../services/supply-ledger.service.js';
 import { DealerStaffService } from '../services/dealer-staff.service.js';
 import { DealerCrewService } from '../services/dealer-crew.service.js';
+import { RandomEncounterChoiceService } from '../services/random-encounter-choice.service.js';
+import { RandomEncounterService } from '../services/random-encounter.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
 
@@ -99,11 +102,12 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       markActive: !isBackground,
     });
 
-    const [playerCount, recentActivity, streetPass, law] = await Promise.all([
+    const [playerCount, recentActivity, streetPass, law, pendingEncounters] = await Promise.all([
       RoundService.playerCount(fastify.prisma, round.id),
       ActivityService.recent(fastify.prisma, existing.id, RECENT_ACTIVITY_LIMIT),
       StreetPassService.summary(fastify.prisma, existing.id, settled.ruleset),
       LawService.summary(fastify.prisma, existing.id, settled.ruleset),
+      RandomEncounterService.pendingForPlayer(fastify.prisma, existing.id),
     ]);
 
     const snapshot = toGameSnapshotDto({
@@ -117,6 +121,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       moving: settled.moving,
       convoyAlert: settled.convoyAlert,
       turf: settled.turf,
+      pendingEncounters,
       recentActivity,
     });
     const experience = await PlayerExperienceService.view(fastify.prisma, settled.player.accountId);
@@ -366,6 +371,13 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return ScoutService.scout(fastify.prisma, player.id, body);
   });
 
+  fastify.post('/encounters/:id/resolve', { preHandler: fastify.requireAuth }, async (request) => {
+    const { id } = parseBody(z.object({ id: z.string().trim().min(1).max(80) }).strict(), request.params);
+    const body = parseBody(randomEncounterChoiceSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+
+    return RandomEncounterChoiceService.resolve(fastify.prisma, player.id, id, body);
+  });
 
   /** Section 29. */
   fastify.post(

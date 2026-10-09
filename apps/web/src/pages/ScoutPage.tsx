@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate } from 'react-router-dom';
-import type { DistrictDto, ScoutResult } from '@streets/shared';
+import type { DistrictDto, RandomEncounterChoiceResult, ScoutResult } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
 import { ActionDock, resultChips } from '../components/ActionDock.js';
@@ -46,6 +46,7 @@ function coverageTone(district: DistrictDto | undefined): 'good' | 'warn' | 'bad
 export function ScoutPage() {
   const me = useSession((s) => s.me);
   const action = useGameAction<ScoutResult>();
+  const encounterAction = useGameAction<RandomEncounterChoiceResult>();
 
   const [districts, setDistricts] = useState<DistrictDto[]>([]);
   // The block and the turns come back next time; a block that is gone falls back below.
@@ -98,12 +99,20 @@ export function ScoutPage() {
           : null;
 
   const receiptLines = action.result ? scoutReceiptLines(action.result, me) : null;
+  const pendingEncounter = action.result?.result.encounter?.status === 'PENDING' && action.result.result.encounter.id && action.result.result.encounter.choices?.length
+    ? action.result.result.encounter
+    : null;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!canScout || typeof turns !== 'number') return;
 
     await action.run((actionId) => actionsApi.scout({ district, turns, actionId }));
+  }
+
+  async function resolveEncounter(choice: string) {
+    if (!pendingEncounter?.id) return;
+    await encounterAction.run((actionId) => actionsApi.resolveEncounter(pendingEncounter.id!, { choice, actionId }));
   }
 
   return (
@@ -327,12 +336,40 @@ export function ScoutPage() {
             title: `${action.result.result.district.name} · ${formatNumber(action.result.result.turnsUsed)} turns`,
             chips: resultChips(action.result, receiptLines!),
             receipt: (
-              <ActionResult
-                title="Scouting Results"
-                subtitle={action.result.result.district.name}
-                result={action.result}
-                lines={receiptLines!}
-              />
+              <>
+                <ActionResult
+                  title="Scouting Results"
+                  subtitle={action.result.result.district.name}
+                  result={action.result}
+                  lines={receiptLines!}
+                />
+                {pendingEncounter ? (
+                  <Panel title={pendingEncounter.title} className="se-scout-panel">
+                    <p className="se-scout-copy">{pendingEncounter.text}</p>
+                    {encounterAction.error ? <Alert>{encounterAction.error}</Alert> : null}
+                    {encounterAction.result ? (
+                      <div className="se-scout-intel__note se-scout-intel__note--good">
+                        <strong>{encounterAction.result.result.choiceLabel}</strong>
+                        <span>{encounterAction.result.result.text}</span>
+                      </div>
+                    ) : (
+                      <div className="se-actions">
+                        {pendingEncounter.choices!.map((choice) => (
+                          <Button
+                            key={choice.key}
+                            type="button"
+                            className="se-btn se-btn--secondary"
+                            onClick={() => void resolveEncounter(choice.key)}
+                            disabledReason={encounterAction.busy ? 'Working that response...' : null}
+                          >
+                            {choice.label}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </Panel>
+                ) : null}
+              </>
             ),
             onDismiss: action.clear,
           } : null}

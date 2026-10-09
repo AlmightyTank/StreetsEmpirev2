@@ -53,6 +53,11 @@ export const produceCrackSchema = z.object({
   actionId: actionIdSchema,
 });
 
+export const randomEncounterChoiceSchema = z.object({
+  choice: z.string().trim().min(1, 'Pick a response.').max(64, 'Pick a response.'),
+  actionId: actionIdSchema,
+}).strict();
+
 /** Section 31. Bounds live in the ruleset; this only checks the shape. */
 export const payoutSchema = z.object({
   percent: z
@@ -63,6 +68,7 @@ export const payoutSchema = z.object({
 
 export type JoinRoundInput = z.infer<typeof joinRoundSchema>;
 export type ScoutInput = z.infer<typeof scoutSchema>;
+export type RandomEncounterChoiceInput = z.infer<typeof randomEncounterChoiceSchema>;
 
 const turfMoveSchema = z.object({
   district: z.string().trim().min(1, 'Pick a turf block.'),

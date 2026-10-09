@@ -71,8 +71,8 @@ button.se-tip[aria-expanded='true'] {
   .se-pageguide__toggle { min-height: 40px; }
   .se-linkbtn { min-height: 32px; }
   .se-auth-help a { display: inline-block; padding: 10px 0; }
-  .se-footer__links { gap: 4px 8px; }
-  .se-footer__links a { display: inline-flex; align-items: center; min-height: 36px; padding: 0 6px; font-size: 11px; }
+  .se-footer__group nav { gap: 4px; }
+  .se-footer__group a { display: inline-flex; align-items: center; min-height: 36px; font-size: 13px; }
   input[type='checkbox'], input[type='radio'] { width: 24px; height: 24px; accent-color: var(--se-accent); }
 }
 

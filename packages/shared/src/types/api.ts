@@ -756,6 +756,8 @@ export interface RoundPlayerDto {
   convoyAlert: { kind: 'tailed' | 'call'; cityName: string; landsAt: string } | null;
   /** 0.6.0-B. Home turf and today's house-minted street tax. */
   turf: TurfSummaryDto | null;
+  /** Open street situations that are waiting on a player choice. */
+  pendingEncounters: RandomEncounterDto[];
   /** Street Pass summary for the nav badge. Absent or null on rounds without a pass. */
   streetPass?: { tier: number; tierCount: number; claimable: number } | null;
   /** 1.3.0-A. The worst Case the player has anywhere. Absent or null on rounds without the law. */
@@ -965,6 +967,49 @@ export interface FoundProductDto {
   quantity: number;
 }
 
+export type RandomEncounterToneDto = 'good' | 'warn' | 'bad' | 'neutral';
+
+export interface RandomEncounterDto {
+  id?: string;
+  key: string;
+  title: string;
+  text: string;
+  tone: RandomEncounterToneDto;
+  effects: {
+    cashCents?: number;
+    heat?: number;
+    condoms?: number;
+    medicine?: number;
+    crack?: number;
+    beer?: number;
+  };
+  choices?: Array<{
+    key: string;
+    label: string;
+    text: string;
+    effects: {
+      cashCents?: number;
+      heat?: number;
+      condoms?: number;
+      medicine?: number;
+      crack?: number;
+      beer?: number;
+    };
+  }>;
+  status?: 'PENDING' | 'RESOLVED';
+}
+
+export interface RandomEncounterChoiceResult {
+  encounterId: string;
+  encounterKey: string;
+  title: string;
+  choice: string;
+  choiceLabel: string;
+  text: string;
+  cashCents: number;
+  effects: RandomEncounterDto['effects'];
+}
+
 export interface ScoutResult {
   district: DistrictDto;
   /** 0.6.0-B. Hold bonus or street tax applied to this trip. */
@@ -1017,6 +1062,9 @@ export interface ScoutResult {
   coveredWhores: number;
   armedThugs: number;
   unarmedThugs: number;
+
+  /** 1.6.0-F. Action-triggered street color and consequences. */
+  encounter?: RandomEncounterDto;
 
   turnsUsed: number;
   turnsRemaining: number;
@@ -1080,6 +1128,9 @@ export interface ProduceCrackResult {
   medicineUsed: number;
   /** Untreated, and gone. */
   lostToInfection: number;
+
+  /** 1.6.0-F. Action-triggered street color and consequences. */
+  encounter?: RandomEncounterDto;
 
   turnsUsed: number;
   turnsRemaining: number;

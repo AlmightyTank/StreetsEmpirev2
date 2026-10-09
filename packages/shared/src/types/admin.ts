@@ -1336,6 +1336,22 @@ export interface AdminNpcTelemetryDto {
     bounties: number;
     bountiesCents: number;
   };
+  encounters: {
+    total: number;
+    resolved: number;
+    pending: number;
+    expired: number;
+    perActiveHumanPerDay: number | null;
+    byTrigger: Record<string, number>;
+    impact: {
+      cashCents: number;
+      heat: number;
+      condoms: number;
+      medicine: number;
+      crack: number;
+      beer: number;
+    };
+  };
   byCity: Array<{ city: string; hits: number; won: number; winRate: number | null; cashFromHumansCents: number }>;
   byTier: Array<{ tier: string; hits: number; won: number; winRate: number | null }>;
   byPersonality: Array<{ personality: string; hits: number; won: number; winRate: number | null }>;

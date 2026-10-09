@@ -15,6 +15,7 @@ import {
 import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMovements } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
+import { encounterActivityPayload, RandomEncounterService } from './random-encounter.service.js';
 
 export interface ProduceInput {
   turns: number;
@@ -206,7 +207,17 @@ export const ProductionService = {
           // 0.4.0-D: some cooks draw attention of their own.
           extraHeat: productProduced * recipe.heatPerUnit,
         });
-        const next = trip.next;
+        let next = trip.next;
+        const encounter = await RandomEncounterService.produce({
+          tx,
+          roundPlayerId,
+          next,
+          ruleset,
+          turns: input.turns,
+          now,
+          rng,
+        });
+        next = encounter.next;
 
         const result: ProduceCrackResult = {
           ...(supply ? { supply: toPlanDto(supply, ruleset) } : {}),
@@ -250,6 +261,7 @@ export const ProductionService = {
           condomsMissing: outcome.shortages.condoms,
           beerMissing: outcome.shortages.beer,
 
+          ...(encounter.encounter ? { encounter: encounter.encounter } : {}),
 
           turnsUsed: input.turns,
           turnsRemaining: next.turns,
@@ -316,6 +328,7 @@ export const ProductionService = {
               infected: outcome.infections.infected,
               lostToInfection: outcome.infections.lost,
               ...(trip.heat ? { heat: trip.heat.after, heatAdded: trip.heat.added, busted: trip.heat.busted, fineCents: trip.heat.fineCents } : {}),
+              ...(encounter.encounter ? { encounter: encounterActivityPayload(encounter.encounter) } : {}),
             },
           },
           // 1.3.0-A/B: the Heat the trip drew, and any bust or arrest, build the Case at home.

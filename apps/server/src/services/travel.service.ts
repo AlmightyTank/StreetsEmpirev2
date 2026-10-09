@@ -81,6 +81,7 @@ import { CRACK, ProductInventoryService, productKeys } from './product-inventory
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
 import { VEHICLE_FIELDS, damageRunVehicles, hasVehicleDamage, readVehicleDamage, readVehicleLoadout, vehiclePurchaseCents, vehicleServiceDiscounts, type VehicleLoadout } from './vehicle-fleet.service.js';
+import { encounterActivityPayload, RandomEncounterService } from './random-encounter.service.js';
 import {
   RUN_INCLUDE,
   awayWorth,
@@ -786,7 +787,7 @@ export const TravelService = {
         if (openRoad) await SingleUseFavorService.consume(tx, openRoad.id);
 
         const [out, home] = plan.stops;
-        const result: RunLaunchResult = {
+        const baseResult: RunLaunchResult = {
           runId: run.id,
           city: input.to,
           cityName: cityName(ruleset, input.to),
@@ -804,24 +805,38 @@ export const TravelService = {
           marketCents: Number(marketCents),
           bossAboard: Boolean(rideAlong),
         };
+        const baseNext = {
+          ...current,
+          turns: current.turns - plan.turns,
+          cashCents: current.cashCents - cashCents - marketCents,
+          beer: current.beer - input.beer,
+          lowRiders: current.lowRiders - loadout.LOW_RIDER,
+          sedans: current.sedans - loadout.SEDAN,
+          vans: current.vans - loadout.VAN,
+          thugs: current.thugs - input.escortThugs,
+          crack: current.crack - (fromHome[CRACK] ?? 0),
+          pistols: current.pistols - guns.pistols,
+          shotguns: current.shotguns - guns.shotguns,
+          tek9s: current.tek9s - guns.tek9s,
+          ak47s: current.ak47s - guns.ak47s,
+          awayNetWorthCents: current.awayNetWorthCents
+            + awayWorth(ruleset, { cashCents, beer: input.beer, lowRiders: vehicleCount, escortThugs: input.escortThugs, ...guns }, cargo),
+        };
+        const encounter = await RandomEncounterService.travel({
+          tx,
+          roundPlayerId,
+          next: baseNext,
+          ruleset,
+          turns: plan.turns,
+          now,
+        });
+        const result: RunLaunchResult = {
+          ...baseResult,
+          ...(encounter.encounter ? { encounter: encounter.encounter } : {}),
+        };
+        const { encounter: _activityEncounter, ...activityResult } = baseResult;
         return {
-          next: {
-            ...current,
-            turns: current.turns - plan.turns,
-            cashCents: current.cashCents - cashCents - marketCents,
-            beer: current.beer - input.beer,
-            lowRiders: current.lowRiders - loadout.LOW_RIDER,
-            sedans: current.sedans - loadout.SEDAN,
-            vans: current.vans - loadout.VAN,
-            thugs: current.thugs - input.escortThugs,
-            crack: current.crack - (fromHome[CRACK] ?? 0),
-            pistols: current.pistols - guns.pistols,
-            shotguns: current.shotguns - guns.shotguns,
-            tek9s: current.tek9s - guns.tek9s,
-            ak47s: current.ak47s - guns.ak47s,
-            awayNetWorthCents: current.awayNetWorthCents
-              + awayWorth(ruleset, { cashCents, beer: input.beer, lowRiders: vehicleCount, escortThugs: input.escortThugs, ...guns }, cargo),
-          },
+          next: encounter.next,
           result,
           ledger: marketTrades.map((trade) => ({
             source: 'RUN_LAUNCH',
@@ -831,9 +846,10 @@ export const TravelService = {
           activity: {
             type: 'RUN_LAUNCHED',
             payload: {
-              ...result,
+              ...activityResult,
               cities: [cityName(ruleset, input.to)],
               ...(openRoad ? { favorKey: openRoad.key } : {}),
+              ...(encounter.encounter ? { encounter: encounterActivityPayload(encounter.encounter) } : {}),
             },
           },
         };
@@ -1066,9 +1082,23 @@ export const TravelService = {
         await writeStops(tx, run.id, plan.stops);
         await tx.run.update({ where: { id: run.id }, data: { turnsSpent: run.turnsSpent + plan.turns } });
         const next = plan.stops[plan.stops.length - 2]!;
-        return {
+        const encounter = await RandomEncounterService.travel({
+          tx,
+          roundPlayerId,
           next: { ...current, turns: current.turns - plan.turns },
-          result: { city: input.to, cityName: cityName(ruleset, input.to), arriveAt: next.arriveAt.toISOString(), turns: plan.turns },
+          ruleset,
+          turns: plan.turns,
+          now,
+        });
+        return {
+          next: encounter.next,
+          result: {
+            city: input.to,
+            cityName: cityName(ruleset, input.to),
+            arriveAt: next.arriveAt.toISOString(),
+            turns: plan.turns,
+            ...(encounter.encounter ? { encounter: encounter.encounter } : {}),
+          },
         };
       },
     });
@@ -1090,9 +1120,23 @@ export const TravelService = {
         } catch (error) { refuse(error); }
         await writeStops(tx, run.id, stops);
         const home = stops[stops.length - 1]!;
-        return {
+        const encounter = await RandomEncounterService.travel({
+          tx,
+          roundPlayerId,
           next: current,
-          result: { city: home.city, cityName: cityName(ruleset, home.city), arriveAt: home.arriveAt.toISOString(), turns: 0 },
+          ruleset,
+          turns: 0,
+          now,
+        });
+        return {
+          next: encounter.next,
+          result: {
+            city: home.city,
+            cityName: cityName(ruleset, home.city),
+            arriveAt: home.arriveAt.toISOString(),
+            turns: 0,
+            ...(encounter.encounter ? { encounter: encounter.encounter } : {}),
+          },
         };
       },
     });

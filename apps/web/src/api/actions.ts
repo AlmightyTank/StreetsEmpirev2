@@ -4,6 +4,7 @@ import type {
   PayoutResult,
   ProduceCrackResult,
   ProductTypeDto,
+  RandomEncounterChoiceResult,
   ScoutResult,
 } from '@streets/shared';
 import { api } from './client.js';
@@ -17,6 +18,9 @@ export const actionsApi = {
 
   produceCrack: (input: { turns: number; productType: ProductTypeDto; actionId: string }) =>
     api.post<GameActionResult<ProduceCrackResult>>('/game/produce-crack', input),
+
+  resolveEncounter: (id: string, input: { choice: string; actionId: string }) =>
+    api.post<GameActionResult<RandomEncounterChoiceResult>>(`/game/encounters/${encodeURIComponent(id)}/resolve`, input),
 
   setPayout: (input: { percent: number; actionId: string }) =>
     api.put<GameActionResult<PayoutResult>>('/game/payout', input),

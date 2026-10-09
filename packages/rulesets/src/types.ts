@@ -892,6 +892,84 @@ export interface NpcGangRules {
   readonly progression: NpcGangProgressionRules;
 }
 
+export type NpcGangRuleOverrides = Partial<Omit<NpcGangRules, 'turf' | 'migration' | 'escalation' | 'rewards' | 'spawn' | 'progression'>> & {
+  readonly turf?: Partial<NpcGangTurfRules>;
+  readonly migration?: Partial<NpcGangMigrationRules>;
+  readonly escalation?: Partial<NpcGangEscalationRules>;
+  readonly rewards?: Partial<Omit<NpcGangRewardRules, 'bountyCents'>> & {
+    readonly bountyCents?: Partial<Record<NpcGangTier, number>>;
+  };
+  readonly spawn?: Partial<NpcGangSpawnRules>;
+  readonly progression?: Partial<Omit<NpcGangProgressionRules, 'netWorthMultiple'>> & {
+    readonly netWorthMultiple?: Partial<Record<Exclude<NpcGangTier, 'SCRUB'>, number>>;
+  };
+};
+
+export type RandomEncounterTrigger = 'SCOUT' | 'TRAVEL' | 'PRODUCE' | 'STORE' | 'TURF' | 'COMBAT';
+
+export type RandomEncounterTone = 'good' | 'warn' | 'bad' | 'neutral';
+
+export interface RandomEncounterCashEffectRules {
+  readonly minCents: number;
+  readonly maxCents: number;
+}
+
+export interface RandomEncounterNumberEffectRules {
+  readonly min: number;
+  readonly max: number;
+}
+
+export interface RandomEncounterSupplyEffectRules {
+  readonly condoms?: RandomEncounterNumberEffectRules;
+  readonly medicine?: RandomEncounterNumberEffectRules;
+  readonly crack?: RandomEncounterNumberEffectRules;
+  readonly beer?: RandomEncounterNumberEffectRules;
+}
+
+export interface RandomEncounterChoiceRules {
+  readonly key: string;
+  readonly label: string;
+  readonly text: string;
+  readonly cash?: RandomEncounterCashEffectRules;
+  readonly heat?: RandomEncounterNumberEffectRules;
+  readonly supplies?: RandomEncounterSupplyEffectRules;
+}
+
+export interface RandomEncounterEntryRules {
+  readonly key: string;
+  readonly title: string;
+  readonly text: string;
+  readonly tone: RandomEncounterTone;
+  readonly weight: number;
+  readonly cash?: RandomEncounterCashEffectRules;
+  readonly heat?: RandomEncounterNumberEffectRules;
+  readonly supplies?: RandomEncounterSupplyEffectRules;
+  readonly choices?: readonly RandomEncounterChoiceRules[];
+  readonly districts?: readonly DistrictKey[];
+}
+
+export interface RandomEncounterTriggerRules {
+  readonly enabled: boolean;
+  /** Chance per eligible action, 0..1. */
+  readonly chance: number;
+  /** Minimum time before another encounter of this trigger can appear for the same player. */
+  readonly cooldownMinutes?: number;
+  /** Minimum time before this exact encounter key can repeat for the same player. */
+  readonly perKeyCooldownMinutes?: number;
+  readonly minTurns?: number;
+  readonly entries: readonly RandomEncounterEntryRules[];
+}
+
+/**
+ * Short-lived street events that attach to ordinary player actions. These are the
+ * lighter replacement path for autonomous NPC pressure: the street reacts when a
+ * player does something, rather than persistent crews acting off-screen.
+ */
+export interface RandomEncounterRules {
+  readonly enabled: boolean;
+  readonly triggers: Readonly<Partial<Record<RandomEncounterTrigger, RandomEncounterTriggerRules>>>;
+}
+
 /**
  * Phase N. Bounties are minted by the house, not taken from the gang, so they are capped
  * hard: only a crew that has hit a human recently is wanted, each player collects a few a
@@ -3061,7 +3139,9 @@ export interface Ruleset {
   /** 1.4.0-A. The underworld factions behind the contacts. Absent before 1.4. */
   readonly factions?: FactionCatalog;
   /** Server-run street crews: identity, scheduler pacing and NPC action limits. */
-  readonly npcGangs?: NpcGangRules;
+  readonly npcGangs?: NpcGangRuleOverrides;
+  /** Short-lived action-triggered street events. */
+  readonly randomEncounters?: RandomEncounterRules;
   /** 1.5.0-A. Catalog only; no class-specific balance or dispatch behavior yet. */
   readonly vehicleCatalog?: VehicleCatalog;
   /** 1.6.0-A. Presence gates the supply-network foundation to pinned 1.6 rounds. */
