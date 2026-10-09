@@ -31,7 +31,7 @@ Slices **A–F** deliver a complete loop on the existing map. Slices **G–H** e
 
 Each slice should have its own release gate and pinned ruleset, following the project's established release pattern. Names and exact ruleset identifiers can be finalized during implementation.
 
-**Beta progress:** Slices A through D are implemented on the beta branch. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Slice D adds warehouses and safehouses with upkeep, and pickups that deliver to any warehouse. Dealer establishment and sales remain Slices E–F.
+**Beta progress:** Slices A through E are implemented on the beta branch. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Slice D adds warehouses and safehouses with upkeep, and pickups that deliver to any warehouse. Slice E adds dealer crews: set up, staffed, stocked and priced, with their expected pace shown. Sales and payouts remain Slice F.
 
 ## Proposed slices
 
@@ -135,6 +135,8 @@ Give locations a practical job in the supply network.
 
 ### 1.6.0-E — Dealer Crews
 
+**Status: Implemented on the beta branch (`classic-og-v1.6-e`).**
+
 Let players build and manage a small distribution network.
 
 - Assign crews to eligible districts in cities where the player has a valid local foothold.
@@ -145,6 +147,18 @@ Let players build and manage a small distribution network.
 - Track experience per assigned thug, with a simple tier rather than a deep character tree. Releasing a dealer frees that thug for other work and preserves his dealer experience if he is hired again.
 
 **Gate:** Dealer crews can only be assigned stock from a warehouse in the same city, and their inventory never exceeds their capacity.
+
+**As built:**
+
+- **Setup:** up to three crews, one per district per city, wherever the player has a foothold (home, or a city with a paid-up safehouse). Setting a crew up costs 4 turns and posts 1–6 dealers from the fit thugs at home. Released dealers come back first, most experienced first. A safehouse cannot close while crews in its city need it.
+- **One product at a time:** this answers the open decisions. Switching product needs an empty crew; price changes are free, within 70%–200% of the street price.
+- **Street price:** Pip's reference price for the product, times the city's price lean, times 1.6.
+- **Capacity:** 400 units per dealer. Stock comes only from storage in the crew's city and goes back there. A load never exceeds capacity, and a dealer cannot be released if the rest could not carry what the crew holds.
+- **Pace:** dealers × 12 units an hour × tier bonus × district traffic × city demand × (street price ÷ asking price)^1.6. The page shows units an hour, hours to sell out, gross, the dealers' blended cut, wages ($15 per dealer-hour) and net. Sales, cuts, wages and experience are recorded from Slice F; a paused crew neither sells nor pays wages.
+- **Tiers:** Rookie (0 xp, 20% cut), Regular (1,000 xp, 23% cut, +15% pace), Veteran (4,000 xp, 26% cut, +30% pace), Connect (12,000 xp, 30% cut, +50% pace).
+- **Pause, move, close:** pause or resume any time. A paused crew can move to a free district in its city for 4 turns. Closing needs an empty crew and releases its dealers, who keep their experience.
+- **Turf:** crews use the five district archetypes for foot traffic only. Holding, or a rival holding, the block makes no difference yet.
+- Gate coverage: `SUPPLY_INTEGRATION=1` runs `dealer-crews.integration.test.ts`.
 
 ### 1.6.0-F — Sales, Restocking & Ledger
 

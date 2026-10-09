@@ -3136,6 +3136,47 @@ export interface SupplyNetworkRules {
   readonly pickups?: SupplyPickupRules;
   /** 1.6.0-D. Warehouses and safehouses players buy in cities. Absent: only the home stash. */
   readonly properties?: SupplyPropertyRules;
+  /** 1.6.0-E. Dealer crews that sell stored supply in a district. Absent: no crews. */
+  readonly dealers?: DealerRules;
+}
+
+/**
+ * 1.6.0-E. A dealer crew is a few of the player's thugs posted in one district of a city
+ * where the player has a foothold, selling one product from that city's storage at a price
+ * the player sets. The pace and cut here are what 1.6.0-F's sales run on.
+ */
+export interface DealerRules {
+  /** Crews a player can run at once, working or paused. */
+  readonly maxCrews: number;
+  readonly maxDealersPerCrew: number;
+  /** Units each dealer holds. A crew's capacity is this times its dealers. */
+  readonly unitsPerDealer: number;
+  /** Units a new dealer moves an hour at the street price, in a district of traffic 1, where demand is 1. */
+  readonly unitsPerDealerHour: number;
+  /** Wages and rent per dealer for each hour a crew is working. Taken from sales from 1.6.0-F. */
+  readonly operatingCentsPerDealerHour: number;
+  /** The street price is Pip's price for the product, times the city's lean, times this. */
+  readonly streetPriceMultiplier: number;
+  /** What a crew may ask, as shares of the street price. */
+  readonly priceRange: { readonly min: number; readonly max: number };
+  /** How hard price bends the pace: pace × (street ÷ price) ^ this. */
+  readonly priceElasticity: number;
+  /** Foot traffic in each district archetype. */
+  readonly districtTraffic: Readonly<Record<DistrictKey, number>>;
+  /** Turns to set a crew up in a district, or move it to another. */
+  readonly setupTurns: number;
+  /** Experience tiers, lowest first; the first must start at 0. */
+  readonly tiers: readonly DealerTierRules[];
+}
+
+export interface DealerTierRules {
+  readonly key: string;
+  readonly name: string;
+  readonly minExperience: number;
+  /** The dealer's share of what he sells, in percent. */
+  readonly cutPercent: number;
+  /** Extra pace over a new dealer, as a share. */
+  readonly paceBonus: number;
 }
 
 /**

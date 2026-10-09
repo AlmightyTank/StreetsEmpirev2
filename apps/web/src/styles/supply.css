@@ -139,6 +139,28 @@
   width: 100%;
 }
 
+/* 1.6.0-E: dealer crews. */
+.se-dealers__crew {
+  display: grid;
+  gap: 10px;
+}
+
+.se-dealers__staff {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-dealers__staff li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
 /* 1.6.0-D: storage and properties. */
 .se-supply__storage {
   display: grid;

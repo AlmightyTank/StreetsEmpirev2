@@ -53,6 +53,7 @@ import { StatusPage } from './pages/StatusPage.js';
 import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
 import { StorePage, StoresIndexPage } from './pages/StorePage.js';
 import { SupplyPage } from './pages/SupplyPage.js';
+import { DealersPage } from './pages/DealersPage.js';
 import { TravelPage } from './pages/TravelPage.js';
 import { CasinoPage } from './pages/CasinoPage.js';
 import { TurfPage } from './pages/TurfPage.js';
@@ -170,6 +171,7 @@ export function App() {
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
         <Route path="supply" element={<Protected><LiveRound><SupplyPage /></LiveRound></Protected>} />
+        <Route path="dealers" element={<Protected><LiveRound><DealersPage /></LiveRound></Protected>} />
         <Route path="casino" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
         <Route path="casino/:game" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
 

@@ -1753,8 +1753,12 @@ model DealerCrew {
   citySlug           String
   districtKey        String
   status             DealerCrewStatus @default(ACTIVE)
+  /// 1.6.0-E. Units each of its dealers holds, summed: zero with nobody posted.
   capacityUnits      Int
   operatingCostCents BigInt           @default(0)
+  /// 1.6.0-E. The one product it sells, and the price it asks a unit.
+  productKey         String?
+  priceCents         Int?
   staff              DealerStaff[]
   inventory          DealerStock[]
   sales              DealerSale[]

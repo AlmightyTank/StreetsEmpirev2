@@ -262,6 +262,44 @@ export const supplyPropertyCloseSchema = z.object({
   actionId: actionIdSchema,
 }).strict();
 
+const districtKeySchema = z.enum(['CASINO', 'WINO_SLUMS', 'LOW_RENT', 'NIGHTCLUB', 'URBAN_GHETTO']);
+
+/** 1.6.0-E. Set a dealer crew up in a district, with this many dealers from the crew at home. */
+export const dealerCrewEstablishSchema = z.object({
+  citySlug: z.string().trim().min(1).max(64),
+  districtKey: districtKeySchema,
+  dealers: z.number().int().min(1).max(50),
+  actionId: actionIdSchema,
+}).strict();
+
+/** 1.6.0-E. What a crew sells and asks. A new product needs an empty crew. */
+export const dealerCrewOfferSchema = z.object({
+  productKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.').optional(),
+  priceCents: z.number().int().positive().max(100_000_000).optional(),
+  actionId: actionIdSchema,
+}).strict();
+
+/** 1.6.0-E. Move stock between a crew and a warehouse in its city. */
+export const dealerCrewStockSchema = z.object({
+  warehouseId: z.string().trim().min(1).max(64),
+  direction: z.enum(['LOAD', 'RETURN']),
+  quantity: z.number().int().positive().max(MAX_ORDER_QUANTITY),
+  actionId: actionIdSchema,
+}).strict();
+
+/** 1.6.0-E. Pause, resume, move or close a crew. */
+export const dealerCrewManageSchema = z.object({
+  action: z.enum(['PAUSE', 'RESUME', 'MOVE', 'CLOSE']),
+  /** Where it moves to, for MOVE. */
+  districtKey: districtKeySchema.optional(),
+  actionId: actionIdSchema,
+}).strict();
+
+export type DealerCrewEstablishInput = z.infer<typeof dealerCrewEstablishSchema>;
+export type DealerCrewOfferInput = z.infer<typeof dealerCrewOfferSchema>;
+export type DealerCrewStockInput = z.infer<typeof dealerCrewStockSchema>;
+export type DealerCrewManageInput = z.infer<typeof dealerCrewManageSchema>;
+
 export type SupplyPropertyBuyInput = z.infer<typeof supplyPropertyBuySchema>;
 export type SupplyPropertyCloseInput = z.infer<typeof supplyPropertyCloseSchema>;
 

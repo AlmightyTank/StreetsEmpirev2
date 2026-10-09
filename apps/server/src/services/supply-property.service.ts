@@ -169,6 +169,9 @@ export const SupplyPropertyService = {
           if (row.citySlug !== player.city.slug) {
             const warehouse = await tx.supplyWarehouse.count({ where: { roundPlayerId, citySlug: row.citySlug, isActive: true, kind: 'WAREHOUSE' } });
             if (warehouse > 0) throw AppError.conflict('SAFEHOUSE_IN_USE', `Your warehouse in ${cityName(ruleset, row.citySlug)} needs this safehouse. Close the warehouse first.`);
+            // 1.6.0-E: and so do dealer crews there.
+            const crews = await tx.dealerCrew.count({ where: { roundPlayerId, citySlug: row.citySlug, status: { in: ['ACTIVE', 'PAUSED'] } } });
+            if (crews > 0) throw AppError.conflict('SAFEHOUSE_IN_USE', `Your dealer crews in ${cityName(ruleset, row.citySlug)} need this safehouse. Close them first.`);
           }
           await tx.supplySafehouse.update({ where: { id: row.id }, data: { isActive: false } });
           citySlug = row.citySlug;

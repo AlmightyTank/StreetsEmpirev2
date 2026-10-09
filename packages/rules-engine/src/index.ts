@@ -36,6 +36,7 @@ export * from './calculations/poker.js';
 export * from './calculations/poker-table.js';
 export * from './calculations/poker-multiplayer.js';
 export * from './calculations/supply-network.js';
+export * from './calculations/dealers.js';
 export * from './calculations/casino-status.js';
 export * from './simulations/combat.js';
 export * from './rng.js';

@@ -48,6 +48,7 @@ import { SupplyOrderService } from '../services/supply-order.service.js';
 import { SupplyPickupService } from '../services/supply-pickup.service.js';
 import { SupplyPropertyService } from '../services/supply-property.service.js';
 import { DealerStaffService } from '../services/dealer-staff.service.js';
+import { DealerCrewService } from '../services/dealer-crew.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
 
@@ -196,6 +197,31 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     return SupplyOrderService.place(fastify.prisma, player.id, body);
   });
+
+  // 1.6.0-E: dealer crews.
+  fastify.get('/dealers', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    return DealerCrewService.page(fastify.prisma, settled.ruleset, settled.player, now);
+  });
+
+  fastify.post('/dealers', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return DealerCrewService.establish(fastify.prisma, player.id, request.body);
+  });
+
+  for (const [path, run] of [
+    ['offer', DealerCrewService.offer],
+    ['stock', DealerCrewService.stock],
+    ['manage', DealerCrewService.manage],
+  ] as const) {
+    fastify.post(`/dealers/:crewId/${path}`, { preHandler: fastify.requireAuth }, async (request) => {
+      const { crewId } = parseBody(z.object({ crewId: z.string().trim().min(1).max(64) }).strict(), request.params);
+      const { player } = await requirePlayer(request.auth!.account.id);
+      return run(fastify.prisma, player.id, crewId, request.body);
+    });
+  }
 
   fastify.post('/supply/dealer-crews/:crewId/staff', { preHandler: fastify.requireAuth }, async (request) => {
     const { crewId } = parseBody(z.object({ crewId: z.string().trim().min(1).max(64) }).strict(), request.params);

@@ -572,6 +572,84 @@ export interface DealerStaffActionResult {
   replayed: boolean;
 }
 
+export type DemandWordDto = 'STRONG' | 'STEADY' | 'MODEST' | 'THIN';
+
+/** 1.6.0-E. One dealer's career: his experience, the tier it earns him, and his cut. */
+export interface DealerCareerDto {
+  id: string;
+  crewId: string | null;
+  experiencePoints: number;
+  tierKey: string;
+  tierName: string;
+  cutPercent: number;
+  /** Experience to the next tier, or null at the top. */
+  nextTierAt: number | null;
+}
+
+/** 1.6.0-E. A crew, its offering and what it is expected to do. */
+export interface DealerCrewDto {
+  id: string;
+  citySlug: string;
+  cityName: string;
+  districtKey: string;
+  districtName: string;
+  status: 'ACTIVE' | 'PAUSED';
+  /** False when the safehouse it relies on is gone or behind. */
+  foothold: boolean;
+  productKey: string | null;
+  productName: string | null;
+  priceCents: number | null;
+  streetPriceCents: number | null;
+  priceRange: { minCents: number; maxCents: number } | null;
+  demand: DemandWordDto | null;
+  /** The district's foot traffic, 1 ordinary. */
+  traffic: number;
+  capacityUnits: number;
+  inventoryUnits: number;
+  dealers: DealerCareerDto[];
+  /** What it would do now, at this price, with this stock. Sales themselves begin in 1.6.0-F. */
+  pace: {
+    unitsPerHour: number;
+    cutPercent: number;
+    operatingCentsPerHour: number;
+    grossCentsPerHour: number;
+    /** After the dealers' cut and operating costs. */
+    netCentsPerHour: number;
+    /** Until the stock it holds runs out; null when it is not selling. */
+    hoursToSellOut: number | null;
+  };
+  /** Storage in its city it can be stocked from, with what each holds of its product. */
+  warehouses: Array<{ id: string; name: string; available: number; roomUnits: number }>;
+  /** What it could sell in this city. */
+  products: Array<{ key: string; name: string; streetPriceCents: number; demand: DemandWordDto; stored: number }>;
+}
+
+export interface DealerPageDto {
+  enabled: boolean;
+  rules: {
+    maxCrews: number;
+    maxDealersPerCrew: number;
+    unitsPerDealer: number;
+    setupTurns: number;
+    operatingCentsPerDealerHour: number;
+    priceRange: { min: number; max: number };
+    tiers: Array<{ key: string; name: string; minExperience: number; cutPercent: number; paceBonus: number }>;
+  } | null;
+  turns: number;
+  fitThugs: number;
+  dealerThugs: number;
+  /** Cities with a foothold, and their districts. */
+  cities: Array<{ citySlug: string; cityName: string; isHome: boolean; districts: Array<{ key: string; name: string; traffic: number; taken: boolean }> }>;
+  crews: DealerCrewDto[];
+  /** Released dealers, who come back with their experience when a crew needs hands. */
+  careers: DealerCareerDto[];
+}
+
+export interface DealerCrewActionResult {
+  crew: DealerCrewDto | null;
+  message: string;
+}
+
 /** One line of the happiness sum, so a low number can explain itself. */
 export interface HappinessTermDto {
   key: string;

@@ -4,6 +4,7 @@ import { classicOgV16A } from '../classic-og-v1.6-a/index.js';
 import { classicOgV16B } from '../classic-og-v1.6-b/index.js';
 import { classicOgV16C } from '../classic-og-v1.6-c/index.js';
 import { classicOgV16D } from '../classic-og-v1.6-d/index.js';
+import { classicOgV16E } from '../classic-og-v1.6-e/index.js';
 import { rulesets } from '../index.js';
 import type { Ruleset } from '../types.js';
 
@@ -90,5 +91,19 @@ describe('1.6.0-A supply foundation ruleset', () => {
     const { meta: _baseMeta, supplyNetwork: _baseNetwork2, ...base } = classicOgV16C;
     expect(rest).toEqual(base);
     expect(rulesets[classicOgV16D.meta.id]).toBe(classicOgV16D);
+  });
+
+  it('pins dealer crews to E and changes nothing else from D', () => {
+    expect(classicOgV16E.meta).toEqual({ id: 'classic-og-v1.6-e', version: '1.6.0-E', name: 'Classic OG - Dealer Crews' });
+    expect((classicOgV16D as Ruleset).supplyNetwork?.dealers).toBeUndefined();
+    const { dealers, ...network } = classicOgV16E.supplyNetwork;
+    expect(network).toEqual(classicOgV16D.supplyNetwork);
+    expect(Object.keys(dealers.districtTraffic).sort()).toEqual(Object.keys(classicOgV16E.districts).sort());
+    expect(dealers.priceRange.min).toBeLessThan(1);
+    expect(dealers.priceRange.max).toBeGreaterThan(1);
+    const { meta: _meta, supplyNetwork: _network, ...rest } = classicOgV16E;
+    const { meta: _baseMeta, supplyNetwork: _baseNetwork, ...base } = classicOgV16D;
+    expect(rest).toEqual(base);
+    expect(rulesets[classicOgV16E.meta.id]).toBe(classicOgV16E);
   });
 });
