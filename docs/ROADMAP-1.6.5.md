@@ -31,7 +31,7 @@ Slices **A–B** establish the debt model and readable loan offers. Slices **C�
 
 Every slice should have a release gate and a pinned ruleset, following the existing StreetsEmpire release pattern. Exact offer amounts, fees, due intervals, debt ceilings, and collection effects are balance values to set through simulation before release.
 
-**Beta progress:** Slice A is implemented on the beta branch: the pinned `classic-og-v1.6.5-a` ruleset, server-owned loan, installment, payment, fee and journal records, one per-round debt ceiling and a separate fee cap read from the ruleset, retry-safe acceptance, repayment, scheduled settlement with partial collection, late-fee assessment, pro-rata early payoff, loan ledger categories, and debt netted out of net worth. Slice B adds the Loan Shark page with three fixed offer tiers, full quotes before acceptance, retry-safe acceptance over the API, active loans, next due dates, payoff amounts and history. Slice C lets loans stack under the one ceiling at escalating prices: fees rise with debt utilization and missed installments, every quote shows its breakdown, and a loan is never taken at a price the player was not shown. Slice D adds payments from the page (overdue, next installment, payoff or any amount) with a server preview before confirmation, receipts for automatic and manual payments, what is overdue on every loan, and loan events in the activity feed, with missed installments on the bell. Slice E pauses borrowing while a player is behind, garnishes a capped share of income in collections, and brings players back through an on-time streak.
+**Beta progress:** Slice A is implemented on the beta branch: the pinned `classic-og-v1.6.5-a` ruleset, server-owned loan, installment, payment, fee and journal records, one per-round debt ceiling and a separate fee cap read from the ruleset, retry-safe acceptance, repayment, scheduled settlement with partial collection, late-fee assessment, pro-rata early payoff, loan ledger categories, and debt netted out of net worth. Slice B adds the Loan Shark page with three fixed offer tiers, full quotes before acceptance, retry-safe acceptance over the API, active loans, next due dates, payoff amounts and history. Slice C lets loans stack under the one ceiling at escalating prices: fees rise with debt utilization and missed installments, every quote shows its breakdown, and a loan is never taken at a price the player was not shown. Slice D adds payments from the page (overdue, next installment, payoff or any amount) with a server preview before confirmation, receipts for automatic and manual payments, what is overdue on every loan, and loan events in the activity feed, with missed installments on the bell. Slice E pauses borrowing while a player is behind, garnishes a capped share of income in collections, and brings players back through an on-time streak. Slice F adds the admin Loan Shark page (a round overview and per-player inspection, every borrower reconciled), two audited corrections that never create cash or erase history, and loan checks in the reconciliation and the exploit audit.
 
 ## Proposed slices
 
@@ -261,6 +261,8 @@ Make a deep debt hole matter while ensuring players can climb out.
 
 ### 1.6.5-F — Admin, Ledger & Exploit Review
 
+**Status: Implemented on the beta branch.**
+
 Provide tools to inspect and safely operate the system.
 
 - Add an admin overview of debt totals, active loans, delinquency, collection states, and assessed fees by round.
@@ -270,6 +272,44 @@ Provide tools to inspect and safely operate the system.
 - Keep admin corrections from silently creating cash, clearing debt, or erasing delinquency history.
 
 **Gate:** Admins can identify the source of a balance, trace every change, and correct a verified error without altering historical records invisibly.
+
+**As built:**
+
+- **No new ruleset.** F adds tools, not rules: rounds keep the ruleset they started on.
+- **Round overview** (`GET /api/admin/rounds/:roundId/loans`, the admin **Loan Shark** page):
+  - totals: borrowers, loans by status, outstanding debt, principal advanced, late fees assessed and waived, contract fees waived on early payoff, paid by kind (scheduled, manual, collection), and garnished in the last 24 hours;
+  - how many borrowers are in each standing, and the round's limits;
+  - every borrower (up to 500, by debt) with debt, ceiling use, fees, standing, active and delinquent loans, missed installments, what is overdue, and how many problems reconciliation found;
+  - the latest 100 journal entries across the round.
+- **Player inspection** (`GET /api/admin/players/:roundPlayerId/loans`): the account summary, every contract with its schedule and ruleset, every payment receipt split into late fees, contract fee and principal, every fee with what was waived, the full journal, the player's loan ledger lines, and the reconciliation. It is marked frozen once the round has finished.
+- **Corrections** (`POST /api/admin/players/:roundPlayerId/loans/correct`), for verified errors only:
+
+  | Correction | What it does |
+  | --- | --- |
+  | **Waive late fee** | Forgives what is still unpaid of one late fee, never more than the loan owes in late fees. |
+  | **Excuse miss** | Reschedules one missed installment one interval from now, keeps its original due time, and waives its late fee. The excused miss no longer counts toward pricing or the standing, and when nothing else is missed the player is clear straight away, with no recovery streak. |
+
+  Each correction:
+  - needs a reason, and refuses an admin's own player, finished rounds, rounds without the loan shark, the wrong state (`LOAN_NOT_MISSED`), and a waiver with nothing left (`LOAN_CORRECTION_UNCHANGED`);
+  - settles the player first, under their lock, so it starts from the true state;
+  - never creates cash and never deletes anything: a waived fee stays assessed and on record with what was waived, the miss and its fee stay in the journal, and the debt only falls by the amount waived;
+  - writes a `CORRECTED` journal entry with the reason and the staff member, and an admin audit record with before and after;
+  - answers with the reconciliation afterwards.
+- **Reconciliation** (`reconcileLoans`, run for every borrower in the overview, for the player, and after each correction) now also checks:
+  - exactly one acceptance per loan, and one loan advance per loan;
+  - every payment journaled exactly once;
+  - no more late fees for an installment than it has misses, and every miss with its fee;
+  - waived fees matching the fee records;
+  - the standing agreeing with the missed installments still owed.
+- **Exploit audit.** `scripts/ops/exploit-audit.ts` has a loan shark section that checks the whole database for: debt that differs from loan balances, advances that differ from loans, duplicated acceptances, payments journaled other than once, more late fees than misses, and standings out of step with misses.
+- **Schema.** Late fees can be waived (`Loan.lateFeesWaivedCents`, `LoanFee.waivedCents`), with checks that a waiver never exceeds its fee and paid plus waived never exceeds assessed. An installment records when it was excused and its original due time. Settlement keys include the excuse, so a rescheduled installment can be collected or missed again exactly once.
+- **Tests.** An integration suite (`LOAN_INTEGRATION=1`) covers:
+  - the report, player detail and corrections limited to staff;
+  - the overview and player detail;
+  - the reconciliation catching a duplicated advance, a second late fee for one miss, debt changed outside the ledger, and a dodged standing;
+  - waiving a fee, with no cash created, history kept and the audit record written;
+  - excusing a miss, restoring the standing, and the rescheduled installment being collected once;
+  - refusals for unknown targets, the wrong state, an admin's own player, and finished rounds.
 
 ### 1.6.5-G — Balance, Mobile & Release
 

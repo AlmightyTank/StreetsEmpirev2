@@ -1937,6 +1937,8 @@ enum LoanEventKind {
   FEE_ASSESSED
   PAID_OFF
   COLLECTION_CHANGED
+  /// 1.6.5-F. An audited staff correction: a late fee waived, or a missed installment excused.
+  CORRECTED
 }
 
 /// 1.6.5-A. One accepted loan shark contract: the terms quoted, pinned to the ruleset it
@@ -1966,6 +1968,8 @@ model Loan {
   lateFeeCapCents        BigInt
   lateFeesAssessedCents  BigInt @default(0)
   lateFeesPaidCents      BigInt @default(0)
+  /// 1.6.5-F. Late fees forgiven by an audited staff correction. Still counted as assessed.
+  lateFeesWaivedCents    BigInt @default(0)
 
   installmentCount         Int
   installmentIntervalHours Int
@@ -2008,6 +2012,10 @@ model LoanInstallment {
   /// When the server found it unpaid at its due time. Kept after it is paid, for history.
   missedAt               DateTime?
   paidAt                 DateTime?
+  /// 1.6.5-F. A miss excused by staff: rescheduled, its late fee waived. The first due time and
+  /// the miss stay on record; each excusal starts a new generation of settle keys.
+  excusedAt              DateTime?
+  originalDueAt          DateTime?
   fees                   LoanFee[]
 
   createdAt DateTime @default(now())
@@ -2056,10 +2064,14 @@ model LoanFee {
   /// What was charged after the caps; the fixed fee it was cut down from.
   amountCents   BigInt
   quotedCents   BigInt
+  /// 1.6.5-F. How much of it staff waived, and when. The fee itself stays on record.
+  waivedCents   BigInt           @default(0)
+  waivedAt      DateTime?
   createdAt     DateTime         @default(now())
 
+  /// Once per miss: the key carries the installment and, after an excusal, its generation.
   @@unique([roundPlayerId, requestKey])
-  @@unique([installmentId, kind])
+  @@index([installmentId, kind])
   @@index([loanId, createdAt])
 }
 

@@ -72,8 +72,13 @@ export interface LoanRepayInput {
 }
 
 /** 1.6.5-C. Installments missed this round, paid since or not: the loan shark's memory. */
-export function countMissedInstallments(db: Db, roundPlayerId: string): Promise<number> {
-  return db.loanInstallment.count({ where: { roundPlayerId, missedAt: { not: null } } });
+export async function countMissedInstallments(db: Db | PrismaClient, roundPlayerId: string): Promise<number> {
+  // 1.6.5-F: every miss on record, less those staff excused as their error, not the player's.
+  const [missed, excused] = await Promise.all([
+    db.loanEvent.count({ where: { roundPlayerId, kind: 'INSTALLMENT_MISSED' } }),
+    db.loanEvent.count({ where: { roundPlayerId, kind: 'CORRECTED', metadata: { path: ['correction'], equals: 'EXCUSE_MISS' } } }),
+  ]);
+  return Math.max(0, missed - excused);
 }
 
 /** Keys are namespaced in the journal, so a client key is kept well inside the column. */

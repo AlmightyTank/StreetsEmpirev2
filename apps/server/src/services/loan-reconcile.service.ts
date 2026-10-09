@@ -12,19 +12,29 @@ import { LOAN_LEDGER, loanOutstanding } from './loan-ledger.service.js';
  * - Each loan's paid and waived columns are its receipts, summed; its installments sum to its terms.
  * - Assessed fees are the fee records, summed, per loan and for the player.
  * - The cash ledger carries every advance and every payment exactly once.
+ *
+ * 1.6.5-F exploit checks, each a way money could be duplicated or a limit dodged:
+ * - every loan was accepted once (one ACCEPTED entry, one advance in the ledger);
+ * - every payment is journaled once;
+ * - every miss was charged at most one late fee, and every late fee has its miss;
+ * - waived late fees match their fee records;
+ * - the player's standing agrees with whether anything is missed and still owing.
  */
 export async function reconcileLoans(db: Db, roundPlayerId: string, ruleset: Ruleset): Promise<string[]> {
   const problems: string[] = [];
-  const [player, loans, payments, fees, ledger] = await Promise.all([
+  const [player, loans, payments, fees, ledger, events, proceedsLines] = await Promise.all([
     db.roundPlayer.findUniqueOrThrow({
       where: { id: roundPlayerId },
-      select: { loanDebtCents: true, loanFeesAssessedCents: true },
+      select: { loanDebtCents: true, loanFeesAssessedCents: true, loanCollectionState: true },
     }),
     db.loan.findMany({ where: { roundPlayerId }, include: { installments: true } }),
     db.loanPayment.findMany({ where: { roundPlayerId } }),
     db.loanFee.findMany({ where: { roundPlayerId } }),
     db.economyLedgerEntry.groupBy({ by: ['source'], where: { roundPlayerId, source: { startsWith: 'LOAN_' } }, _sum: { amountCents: true } }),
+    db.loanEvent.findMany({ where: { roundPlayerId }, select: { kind: true, loanId: true, metadata: true } }),
+    db.economyLedgerEntry.count({ where: { roundPlayerId, source: LOAN_LEDGER.PROCEEDS } }),
   ]);
+  const meta = (value: unknown, key: string): unknown => (value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined);
 
   const owed = loans.reduce((sum, loan) => sum + loanOutstanding(loan), 0n);
   if (owed !== player.loanDebtCents) problems.push(`debt ${player.loanDebtCents} is not the loans' outstanding ${owed}`);
@@ -54,7 +64,30 @@ export async function reconcileLoans(db: Db, roundPlayerId: string, ruleset: Rul
     if (scheduled.principal !== loan.principalCents || scheduled.fee !== loan.contractFeeCents) problems.push(`loan ${loan.id}: installments do not sum to its terms`);
     if (scheduled.principalPaid !== loan.principalPaidCents || scheduled.feePaid !== loan.contractFeePaidCents || scheduled.feeWaived !== loan.contractFeeWaivedCents) problems.push(`loan ${loan.id}: installment payments do not sum to the loan's`);
     if ((loan.status === 'PAID_OFF') !== (loanOutstanding(loan) === 0n)) problems.push(`loan ${loan.id}: status ${loan.status} disagrees with its balance`);
+
+    // 1.6.5-F exploit checks.
+    const waived = fees.filter((fee) => fee.loanId === loan.id).reduce((total, fee) => total + fee.waivedCents, 0n);
+    if (waived !== loan.lateFeesWaivedCents) problems.push(`loan ${loan.id}: late fees waived do not match its fee records`);
+    const accepted = events.filter((event) => event.kind === 'ACCEPTED' && event.loanId === loan.id).length;
+    if (accepted !== 1) problems.push(`duplicate: loan ${loan.id} was accepted ${accepted} times in the journal`);
+    for (const payment of mine) {
+      const journaled = events.filter((event) => event.kind === 'PAYMENT' && meta(event.metadata, 'paymentId') === payment.id).length;
+      if (journaled !== 1) problems.push(`duplicate: payment ${payment.id} is journaled ${journaled} times`);
+    }
+    for (const row of loan.installments) {
+      const misses = events.filter((event) => event.kind === 'INSTALLMENT_MISSED' && event.loanId === loan.id && meta(event.metadata, 'sequence') === row.sequence).length;
+      const lateFees = fees.filter((fee) => fee.installmentId === row.id && fee.kind === 'LATE').length;
+      if (lateFees > misses) problems.push(`duplicate: installment ${row.sequence} of loan ${loan.id} has ${lateFees} late fees for ${misses} misses`);
+      if (row.missedAt && misses === 0) problems.push(`loan ${loan.id}: installment ${row.sequence} is marked missed with no miss on record`);
+      if (row.status === 'MISSED' && lateFees === 0) problems.push(`loan ${loan.id}: installment ${row.sequence} was missed without a late fee assessment`);
+    }
   }
+
+  // A standing that disagrees with the loans is how a delinquency could be dodged.
+  const missedOwing = loans.some((loan) => loan.installments.some((row) => row.status === 'MISSED'));
+  const behind = player.loanCollectionState === 'DELINQUENT' || player.loanCollectionState === 'COLLECTIONS';
+  if (missedOwing !== behind) problems.push(`standing ${player.loanCollectionState} disagrees with ${missedOwing ? 'missed installments still owing' : 'nothing missed'}`);
+  if (proceedsLines !== loans.length) problems.push(`duplicate: ${proceedsLines} advances in the ledger for ${loans.length} loans`);
 
   const bySource = new Map(ledger.map((row) => [row.source, row._sum.amountCents ?? 0n]));
   const proceeds = loans.reduce((sum, loan) => sum + loan.principalCents, 0n);

@@ -9,6 +9,8 @@ export type LoanPaymentKind = 'SCHEDULED' | 'MANUAL' | 'COLLECTION';
 export type LoanCollectionState = 'CLEAR' | 'DELINQUENT' | 'COLLECTIONS' | 'RECOVERING';
 
 export interface LoanInstallmentDto {
+  /** 1.6.5-F. For staff tools. */
+  id: string;
   sequence: number;
   dueAt: string;
   amountCents: number;
@@ -143,7 +145,7 @@ export interface LoanOfferDto {
   unavailableReason: string | null;
 }
 
-export type LoanEventKind = 'ACCEPTED' | 'PAYMENT' | 'INSTALLMENT_MISSED' | 'FEE_ASSESSED' | 'PAID_OFF' | 'COLLECTION_CHANGED';
+export type LoanEventKind = 'ACCEPTED' | 'PAYMENT' | 'INSTALLMENT_MISSED' | 'FEE_ASSESSED' | 'PAID_OFF' | 'COLLECTION_CHANGED' | 'CORRECTED';
 
 /** 1.6.5-B. One line of loan history. */
 export interface LoanHistoryDto {

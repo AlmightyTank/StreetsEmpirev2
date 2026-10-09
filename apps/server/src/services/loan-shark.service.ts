@@ -86,6 +86,10 @@ export function loanHistoryLabel(event: Pick<LoanEvent, 'kind' | 'metadata'>, of
       if (to === 'RECOVERING') return 'Overdue cleared · recovering';
       return 'Marked delinquent';
     }
+    case 'CORRECTED':
+      return stringAt(meta, 'correction') === 'EXCUSE_MISS'
+        ? `Missed installment excused by staff · ${name}`
+        : `Late fee waived by staff · ${name}`;
   }
 }
 

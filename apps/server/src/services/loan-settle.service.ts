@@ -6,6 +6,7 @@ import { garnishIncome } from './loan-collections.service.js';
 import {
   applyLoanPayment,
   installmentDue,
+  installmentGeneration,
   lateFeesDueCents,
   loadLoan,
   loanFeeBudget,
@@ -66,7 +67,8 @@ export const LoanSettleService = {
 
       const through = loan.installments.filter((row) => row.sequence <= installment.sequence);
       const dueNow = loanPayoffCents(lateFeesDueCents(loan), through.map(installmentDue), loanFeeBudget(loan, now));
-      const key = `scheduled:${installment.id}`;
+      const generation = installmentGeneration(installment);
+      const key = `scheduled:${generation}`;
 
       if (dueNow === 0n) {
         await tx.loanInstallment.update({ where: { id: installment.id }, data: { status: 'PAID', paidAt: installment.dueAt } });
@@ -105,7 +107,7 @@ export const LoanSettleService = {
         loanId: loan.id,
         kind: 'INSTALLMENT_MISSED',
         debtAfterCents: debt,
-        requestKey: `missed:${installment.id}`,
+        requestKey: `missed:${generation}`,
         metadata: { sequence: installment.sequence, dueCents: Number(dueNow), collectedCents: Number(collect), shortCents: Number(dueNow - collect) },
         at: now,
       });
@@ -122,7 +124,7 @@ export const LoanSettleService = {
           roundPlayerId,
           installmentId: installment.id,
           kind: 'LATE',
-          requestKey: `late:${installment.id}`,
+          requestKey: `late:${generation}`,
           amountCents: charge,
           quotedCents: loan.lateFeeCents,
           createdAt: now,
@@ -140,7 +142,7 @@ export const LoanSettleService = {
         kind: 'FEE_ASSESSED',
         debtDeltaCents: charge,
         debtAfterCents: debt,
-        requestKey: `late:${installment.id}:fee`,
+        requestKey: `late:${generation}:fee`,
         metadata: { sequence: installment.sequence, quotedCents: Number(loan.lateFeeCents), capped: charge < loan.lateFeeCents },
         at: now,
       });

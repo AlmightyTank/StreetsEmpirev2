@@ -49,7 +49,16 @@ export function installmentDue(row: LoanInstallment): InstallmentDue {
 }
 
 export function lateFeesDueCents(loan: Loan): bigint {
-  return loan.lateFeesAssessedCents - loan.lateFeesPaidCents;
+  return loan.lateFeesAssessedCents - loan.lateFeesPaidCents - loan.lateFeesWaivedCents;
+}
+
+/**
+ * 1.6.5-F. The settle keys for one installment. An excusal reschedules it, and each excusal
+ * starts a new generation, so a re-scheduled installment can be collected or missed again
+ * once, and never twice in the same generation.
+ */
+export function installmentGeneration(row: Pick<LoanInstallment, 'id' | 'excusedAt'>): string {
+  return row.excusedAt ? `${row.id}:${row.excusedAt.getTime()}` : row.id;
 }
 
 /** Everything a loan still owes on its full schedule, the whole contract fee included. */
@@ -155,6 +164,7 @@ export function loanDto(loan: LoanWithInstallments, at: Date): LoanDto {
     installments: [...loan.installments].sort((a, b) => a.sequence - b.sequence).map((row) => {
       const due = installmentDue(row);
       return {
+        id: row.id,
         sequence: row.sequence,
         dueAt: row.dueAt.toISOString(),
         amountCents: Number(row.principalCents + row.contractFeeCents),
@@ -438,6 +448,11 @@ export async function refreshCollectionState(db: Db, input: {
   onTimeCleared: number;
   requestKey: string;
   at: Date;
+  /**
+   * 1.6.5-F. A staff correction (an excused miss) that leaves nothing missed restores the
+   * player to good standing outright: the miss was the server's error, not theirs.
+   */
+  skipRecovery?: boolean;
 }): Promise<LoanStandingRow> {
   const missedOutstanding = await db.loanInstallment.count({ where: { roundPlayerId: input.roundPlayerId, status: 'MISSED' } });
   const before = input.current;
@@ -450,6 +465,10 @@ export async function refreshCollectionState(db: Db, input: {
       onTimeCleared: input.onTimeCleared,
     })
     : { state: missedOutstanding > 0 ? 'DELINQUENT' as const : 'CLEAR' as const, recoveryNeeded: 0 };
+  if (input.skipRecovery && next.state === 'RECOVERING') {
+    next.state = 'CLEAR';
+    next.recoveryNeeded = 0;
+  }
   const result: LoanStandingRow = {
     loanCollectionState: next.state,
     loanRecoveryNeeded: next.recoveryNeeded,

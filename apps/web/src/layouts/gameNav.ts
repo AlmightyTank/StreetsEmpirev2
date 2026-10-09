@@ -110,6 +110,7 @@ export const ADMIN_SECTION: NavSection = {
     { key: 'admin-bugs', label: 'Bug Reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin' },
     { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy', icon: 'admin' },
     { key: 'admin-supply', label: 'Supply Operations', to: '/game/admin/supply', icon: 'admin' },
+    { key: 'admin-loans', label: 'Loan Shark', short: 'Loans', to: '/game/admin/loans', icon: 'admin' },
     { key: 'admin-casino', label: 'Casino', to: '/game/admin/casino', icon: 'admin' },
     { key: 'admin-combat', label: 'Combat and Exploits', short: 'Combat', to: '/game/admin/combat', icon: 'admin' },
     { key: 'admin-turf', label: 'Turf', to: '/game/admin/turf', icon: 'admin' },
