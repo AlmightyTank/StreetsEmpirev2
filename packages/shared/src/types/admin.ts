@@ -1169,6 +1169,16 @@ export interface AdminShipmentsDto {
   delivered: Array<{ player: AdminPlayerRefDto; store: string; item: string; dueAt: string; deliveredAt: string | null }>;
 }
 
+/** 1.6.0-I. One reconciliation mismatch, for operators. */
+export interface SupplyProblemDto {
+  code: string;
+  severity: 'ERROR' | 'WARN';
+  roundPlayerId: string | null;
+  player: string | null;
+  subject: string;
+  detail: string;
+}
+
 /** 1.6.0-A. Read-only supply, warehouse, dealer-career, and movement state for operators. */
 export interface AdminSupplyDto {
   roundId: string;
@@ -1177,10 +1187,30 @@ export interface AdminSupplyDto {
   totals: { orders: number; openOrders: number; supplierUnitsAvailable: number; warehouses: number; warehouseUnits: number; dealerCrews: number; assignedDealers: number; dealerStockUnits: number; sales: number; salesGrossCents: number; cashLedgerEntries: number; cashLedgerDeltaCents: number; supplyMovements: number };
   orders: Array<{ id: string; player: AdminPlayerRefDto; supplier: string; city: string; product: string; quantityOrdered: number; quantityCollected: number; quantityRemaining: number; unitCostCents: number; totalPaidCents: number; status: string; placedAt: string }>;
   supplierStock: Array<{ supplier: string; city: string; product: string; available: number }>;
-  warehouses: Array<{ id: string; player: AdminPlayerRefDto; city: string; name: string; capacity: number; stockUnits: number; stock: Array<{ product: string; quantity: number }> }>;
-  dealerCrews: Array<{ id: string; player: AdminPlayerRefDto; city: string; district: string; status: string; staff: Array<{ id: string; experiencePoints: number; active: boolean; assignedAt: string; releasedAt: string | null }>; stock: Array<{ product: string; quantity: number }>; salesCount: number; grossCents: number }>;
+  warehouses: Array<{ id: string; player: AdminPlayerRefDto; city: string; name: string; capacity: number; stockUnits: number; stock: Array<{ productKey: string; product: string; quantity: number }> }>;
+  dealerCrews: Array<{ id: string; player: AdminPlayerRefDto; city: string; district: string; status: string; staff: Array<{ id: string; experiencePoints: number; active: boolean; assignedAt: string; releasedAt: string | null }>; capacity: number; productKey: string | null; stock: Array<{ productKey: string; product: string; quantity: number }>; salesCount: number; grossCents: number }>;
   ledger: Array<{ id: string; player: AdminPlayerRefDto; source: string; label: string; amountCents: number; at: string }>;
   recentMovements: Array<{ id: string; player: AdminPlayerRefDto; kind: string; product: string; quantityDelta: number; fromLocation: string | null; toLocation: string | null; requestKey: string; at: string }>;
+  /** 1.6.0-I. Pickups, shipments and lane loads, by state. */
+  shipmentStates: Array<{ kind: 'PICKUP' | 'SHIPMENT' | 'LANE'; status: string; count: number; units: number }>;
+  shipments: Array<{ id: string; player: AdminPlayerRefDto; kind: 'PICKUP' | 'SHIPMENT' | 'LANE'; route: string; from: string; to: string; product: string; quantity: number; delivered: number; status: string; dueAt: string | null }>;
+  /** 1.6.0-I. Every unit by where it is: at suppliers, on the road, stored and with crews, by city. */
+  stockByCity: Array<{ city: string; product: string; stored: number; withCrews: number; inbound: number }>;
+  /** 1.6.0-I. What each crew sold, kept, paid and cost. */
+  dealerEconomics: Array<{ crewId: string; player: AdminPlayerRefDto; city: string; district: string; status: string; dealers: number; unitsSold: number; grossCents: number; cutCents: number; netCents: number; wagesCents: number }>;
+  /** 1.6.0-I. Reconciliation mismatches; empty when everything adds up. */
+  problems: SupplyProblemDto[];
+  /** 1.6.0-I. The products the network carries, for the correction form. */
+  products: Array<{ key: string; name: string }>;
+}
+
+/** 1.6.0-I. What an audited stock correction did, and how the player reconciles after it. */
+export interface AdminSupplyCorrectionResult {
+  before: number;
+  after: number;
+  delta: number;
+  auditId: string | null;
+  problems: SupplyProblemDto[];
 }
 
 /** 1.0.0-E. One player's shelves, settled as the store would show them now. */

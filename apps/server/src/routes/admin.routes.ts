@@ -40,6 +40,7 @@ import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
 import { AdminSupplyService } from '../services/admin-supply.service.js';
+import { AdminSupplyCorrectionService } from '../services/admin-supply-correction.service.js';
 import { AdminCasinoService } from '../services/admin-casino.service.js';
 import { AdminFactionService } from '../services/admin-faction.service.js';
 import { ADMIN_VEHICLE_MAX, AdminVehicleService } from '../services/admin-vehicle.service.js';
@@ -170,6 +171,14 @@ const supportFavorSchema = z.object({
 }).strict();
 
 // 1.3.0-G: set one city's Case to an exact value, with a reason.
+const supplyAdjustSchema = z.object({
+  target: z.enum(['WAREHOUSE', 'CREW']),
+  targetId: z.string().trim().min(1).max(64),
+  productKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/),
+  quantity: z.number().int().min(0).max(10_000_000),
+  reason: z.string().trim().min(3).max(500),
+}).strict();
+
 const lawAdjustSchema = z.object({
   reason,
   citySlug: z.string().trim().min(1).max(64).regex(/^[a-z0-9-]+$/),
@@ -866,6 +875,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/players/:roundPlayerId/law', async (request) => {
     const { roundPlayerId } = parseBody(playerParams, request.params);
     return AdminLawService.player(fastify.prisma, roundPlayerId);
+  });
+
+  /** 1.6.0-I: an audited correction to one warehouse's or crew's stock, written to the movement ledger. */
+  fastify.post('/players/:roundPlayerId/supply/adjust', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    const body = parseBody(supplyAdjustSchema, request.body ?? {});
+    return AdminSupplyCorrectionService.adjust(fastify.prisma, request.auth!.account, roundPlayerId, body);
   });
 
   /** 1.3.0-G: an audited correction to one city's Case. */

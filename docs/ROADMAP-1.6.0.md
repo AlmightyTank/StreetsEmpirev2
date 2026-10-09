@@ -31,7 +31,7 @@ Slices **A–F** deliver a complete loop on the existing map. Slices **G–H** e
 
 Each slice should have its own release gate and pinned ruleset, following the project's established release pattern. Names and exact ruleset identifiers can be finalized during implementation.
 
-**Beta progress:** Slices A through H are implemented on the beta branch: the core loop, Chicago, Tulsa and Dallas, and international lanes. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Slice D adds warehouses and safehouses with upkeep, and pickups that deliver to any warehouse. Slice E adds dealer crews: set up, staffed, stocked and priced, with their expected pace shown. Slice F makes crews sell, pays out, ships stock between cities, and adds the supply ledger and history. Slice G adds Chicago, Tulsa and Dallas. Slice H adds suppliers abroad on route cards. The balance pass remains Slice I.
+**Beta progress:** Slices A through I are implemented on the beta branch: the core loop, Chicago, Tulsa and Dallas, and international lanes. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Slice D adds warehouses and safehouses with upkeep, and pickups that deliver to any warehouse. Slice E adds dealer crews: set up, staffed, stocked and priced, with their expected pace shown. Slice F makes crews sell, pays out, ships stock between cities, and adds the supply ledger and history. Slice G adds Chicago, Tulsa and Dallas. Slice H adds suppliers abroad on route cards. Slice I adds the season simulation, reconciliation, admin supply views with audited corrections, and the release gates.
 
 ## Proposed slices
 
@@ -269,6 +269,60 @@ Prove the economic loop and provide tools to operate it safely.
 - Large orders can be collected in partial trips without loss or duplication.
 - No route, property, city, or dealer configuration is a must-pick in every tested scenario.
 - All new market, route, property, and dealer behavior is pinned to the 1.6 ruleset.
+
+**As built:**
+
+- **No new ruleset.** The season simulation passed on `classic-og-v1.6-h` as it stands, so I is tools and checks only. Its one schema change is a `CORRECTED` movement kind.
+- **Season simulation:** `npm run qa:supply-season` plays a seven-day week four ways from New York and Los Angeles, with a $150,000 and a $1.5M bankroll:
+  - a home crew on depot pickups;
+  - a crew in the dearest market;
+  - a crew in Tulsa on Dallas pickups;
+  - a home crew on Monterrey freight.
+
+  Each strategy runs its own books: units ordered = sold + lost + held, and cash = bankroll − spent + income. Every scenario reconciles. [SUPPLY-SEASON-1.6.0-I.md](SUPPLY-SEASON-1.6.0-I.md) is the run.
+  - The Tulsa hub wins on a small bankroll.
+  - San Francisco wins once the property is affordable.
+  - Home crews earn the least but never lose.
+  - Freight is marginal over one week: its 36h transit and searches cost it, and it pays on bigger, longer horizons.
+
+  No strategy wins everywhere or loses everywhere. The three-open-order limit never bound in the simulation, so it stays.
+- **Reconciliation** (`SupplyReconcileService`, read-only) checks every player with supply records against the movement and cash ledgers:
+  - Orders collected what their loaded pickups carried.
+  - Finished pickups stored what they delivered, and none delivered more than its load.
+  - Nothing is stuck on a run that came home.
+  - Each warehouse and crew holds what the ledger moved in, less what it moved out.
+  - Nothing is over capacity.
+  - Sale receipts match SOLD movements, and the cash ledger paid exactly the receipts' net.
+  - Posted dealers match the thugs set aside.
+  - Each supplier's stock is its round allowance less what was ordered.
+- **Exploit checks** come from the reconciliation, plus the retry tests:
+  - Duplicated orders: an order replayed with the same key.
+  - Pickup overage: an over-claim is refused, and the reconciliation flags any overage.
+  - Warehouse overflow: flagged as a warning.
+  - Double allocation: a crew stock action sent twice.
+  - Overselling: receipts are checked against movements.
+  - Duplicate payouts: ten hours of sales settled three times pays once.
+- **Admin › Supply Operations** now shows:
+  - the reconciliation (clean, or each problem with its player and detail);
+  - pickups, shipments and lane loads by state;
+  - stock by city (stored, with crews, inbound);
+  - crew economics (dealers, sold, gross, crew cut, net, wages).
+- **Audited correction:** `POST /admin/players/:id/supply/adjust` and the page's Correct stock form set what a warehouse or crew actually holds, with a reason.
+  - A `CORRECTED` movement moves the ledger from what it said to the counted figure, so the place reconciles afterwards even when the mismatch came from outside the ledger.
+  - The audit log keeps the old stock, the ledger figure and the new count.
+  - Finished rounds are frozen, staff can't correct their own player, and a crew holds only its product within its room.
+- **Shipments returned at home** now write a RETURNED movement, so a cancelled shipment reconciles.
+- **Mobile:** Bulk Orders, Dealer Crews and Supply Operations were checked at 375px with no horizontal overflow.
+- **Historical rulesets:** `supply-history.test.ts` shows that every ruleset before 1.6 has no supply network, dealers or lanes. The 1.6 slices add their pieces in order (suppliers B, pickups C, properties D, dealers E, sales and shipments F, lanes H) and never remove one.
+- **Gate coverage:** `SUPPLY_INTEGRATION=1` runs `supply-release.integration.test.ts`. It plays the full loop with every retry:
+  - order;
+  - two pickup trips;
+  - a Detroit warehouse and a shipment;
+  - a crew;
+  - sales settled three times;
+  - an air lane landing.
+
+  It then requires a clean round reconciliation, cash equal to start plus the economy ledger, and admin crew economics matching the receipts. A second test tampers with stock and corrects it.
 
 ## Open decisions
 

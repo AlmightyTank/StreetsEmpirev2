@@ -99,6 +99,7 @@ export const SupplyLedgerService = {
         : row.kind === 'PICKED_UP' ? (row.toLocation?.startsWith('shipment:') ? `Shipped ${units} out of ${place(row.fromLocation)}.` : row.toLocation?.startsWith('lane:') ? `Sent ${units} on a lane from abroad.` : `Loaded ${units} at the supplier.`)
           : row.kind === 'STORED' ? `Stored ${units} in ${place(row.toLocation)}.`
             : row.kind === 'ASSIGNED_TO_DEALER' ? `Stocked ${place(row.toLocation)} with ${units} from ${place(row.fromLocation)}.`
+              : row.kind === 'CORRECTED' ? `Staff corrected ${place(row.warehouseId ? `warehouse:${row.warehouseId}` : `crew:${row.dealerCrewId}`)} by ${row.quantityDelta > 0 ? '+' : ''}${count(row.quantityDelta)} ${name}.`
               : row.kind === 'RETURNED' ? `${capital(place(row.fromLocation))} returned ${units} to ${place(row.toLocation)}.`
                 : `${capital(place(row.fromLocation))} sold ${units}.`;
       return { at: row.createdAt.toISOString(), kind: row.kind, productName: name, units: row.quantityDelta, text };

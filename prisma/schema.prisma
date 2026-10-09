@@ -1600,6 +1600,8 @@ enum SupplyMovementKind {
   ASSIGNED_TO_DEALER
   SOLD
   RETURNED
+  /// 1.6.0-I. An audited staff correction: quantityDelta is signed.
+  CORRECTED
 }
 
 /// 1.6.0-A. Prepaid bulk stock reserved from a ruleset-defined supplier.

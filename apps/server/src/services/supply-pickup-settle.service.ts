@@ -212,6 +212,14 @@ export async function deliverSupplyPickups(
           create: { warehouseId: pickup.sourceWarehouseId, productKey: pickup.productKey, quantity: pickup.quantity },
           update: { quantity: { increment: pickup.quantity } },
         });
+        // 1.6.0-I: the units going back are a movement like any other, so storage reconciles.
+        await tx.supplyMovement.create({
+          data: {
+            roundPlayerId, kind: 'RETURNED', productKey: pickup.productKey, quantityDelta: pickup.quantity,
+            fromLocation: `shipment:${pickup.id}`, toLocation: `warehouse:${pickup.sourceWarehouseId}`, pickupId: pickup.id, warehouseId: pickup.sourceWarehouseId,
+            requestKey: `pickup:${pickup.id}:RETURNED`, createdAt: returnedAt,
+          },
+        });
       }
       await tx.supplyPickup.update({ where: { id: pickup.id }, data: { status: 'CANCELLED' } });
       continue;

@@ -14,6 +14,7 @@ import type {
   AdminLawPlayerDto,
   AdminMarketsDto,
   AdminSupplyDto,
+  AdminSupplyCorrectionResult,
   AdminPlayerStoresDto,
   AdminRoundBattlesDto,
   AdminShipmentsDto,
@@ -218,6 +219,9 @@ export const adminApi = {
   // 1.0.0-E: economy, fights, exploit flags and turf.
   markets: (roundId: string) => api.get<AdminMarketsDto>(roundPath(roundId, 'markets')),
   supply: (roundId: string) => api.get<AdminSupplyDto>(roundPath(roundId, 'supply')),
+  /** 1.6.0-I. Set one warehouse's or crew's stock to a counted figure, audited. */
+  adjustPlayerSupply: (roundPlayerId: string, input: { target: 'WAREHOUSE' | 'CREW'; targetId: string; productKey: string; quantity: number; reason: string }) =>
+    api.post<AdminSupplyCorrectionResult>(`/admin/players/${enc(roundPlayerId)}/supply/adjust`, input),
   casino: (roundId: string) => api.get<AdminCasinoDto>(roundPath(roundId, 'casino')),
   // 1.4.0-G: faction standing health and audited correction.
   factions: (roundId: string) => api.get<AdminFactionRoundDto>(roundPath(roundId, 'factions')),
