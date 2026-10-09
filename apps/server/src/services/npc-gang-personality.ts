@@ -48,6 +48,7 @@ export interface NpcTargetTraits {
   woundedThugs: number;
   postedThugs: number;
   businessThugs: number;
+  dealerThugs?: number;
   lowRiders: number;
   crack: number;
   whoreHappiness: number;
@@ -62,7 +63,7 @@ export interface NpcTargetTraits {
 export function orderByTargeting<T extends NpcTargetTraits>(targets: readonly T[], targeting: NpcGangTargeting): T[] {
   const ranked = targets.map((target, index) => ({ target, index }));
   const score = (target: T): number => {
-    if (targeting === 'WEAKEST') return -(target.thugs - target.woundedThugs - target.postedThugs - target.businessThugs);
+    if (targeting === 'WEAKEST') return -(target.thugs - target.woundedThugs - target.postedThugs - target.businessThugs - (target.dealerThugs ?? 0));
     if (targeting === 'RIDES') return target.lowRiders;
     if (targeting === 'PRODUCT') return target.crack;
     if (targeting === 'DISTRACTED') {

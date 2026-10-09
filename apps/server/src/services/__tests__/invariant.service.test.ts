@@ -86,6 +86,13 @@ describe('assertPlayerState', () => {
     expect(() => assertPlayerState({ ...state, businessThugs: -1 }, classicOgV01)).toThrow(/businessThugs must be/);
   });
 
+  it('counts dealer staff as assigned crew unavailable for other work', () => {
+    const state = valid();
+    expect(() => assertPlayerState({ ...state, dealerThugs: 3 }, classicOgV01)).not.toThrow();
+    expect(() => assertPlayerState({ ...state, dealerThugs: 11 }, classicOgV01)).toThrow(/dealerThugs cannot exceed total thugs/);
+    expect(() => assertPlayerState({ ...state, dealerThugs: -1 }, classicOgV01)).toThrow(/dealerThugs must be/);
+  });
+
   it('rejects a payout outside the ruleset', () => {
     expect(() => assertPlayerState({ ...valid(), payoutPercent: 0 }, classicOgV01)).toThrow();
     expect(() =>

@@ -44,6 +44,7 @@ export const SECTIONS: NavSection[] = [
       { key: 'produce', label: 'Produce', to: '/game/produce', icon: 'produce' },
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
+      { key: 'supply', label: 'Bulk Orders', short: 'Supply', to: '/game/supply', icon: 'stores' },
       { key: 'casino', label: 'Casino', to: '/game/casino', icon: 'casino', prefix: '/game/casino/' },
       { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },
       { key: 'travel', label: 'Travel', to: '/game/travel', icon: 'cities' },
@@ -106,6 +107,7 @@ export const ADMIN_SECTION: NavSection = {
     { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports', icon: 'admin' },
     { key: 'admin-bugs', label: 'Bug Reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin' },
     { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy', icon: 'admin' },
+    { key: 'admin-supply', label: 'Supply Operations', to: '/game/admin/supply', icon: 'admin' },
     { key: 'admin-casino', label: 'Casino', to: '/game/admin/casino', icon: 'admin' },
     { key: 'admin-combat', label: 'Combat and Exploits', short: 'Combat', to: '/game/admin/combat', icon: 'admin' },
     { key: 'admin-turf', label: 'Turf', to: '/game/admin/turf', icon: 'admin' },
@@ -128,7 +130,7 @@ export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSectio
     {
       id: 'new-player-core',
       title: 'Start Here',
-      pages: pickPages(pages, ['dashboard', 'scout', 'stores', 'produce', 'raids', 'quests']),
+      pages: pickPages(pages, ['dashboard', 'scout', 'stores', 'supply', 'produce', 'raids', 'quests']),
     },
     {
       id: 'new-player-next',

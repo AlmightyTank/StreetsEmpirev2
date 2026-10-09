@@ -37,6 +37,7 @@ describe('new player navigation model', () => {
       'dashboard',
       'scout',
       'stores',
+      'supply',
       'produce',
       'raids',
       'quests',

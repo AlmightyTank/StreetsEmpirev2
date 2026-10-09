@@ -23,6 +23,7 @@ const resources = {
   woundedThugs: 0,
   postedThugs: 0,
   businessThugs: 0,
+  dealerThugs: 0,
   businessWhores: 0,
   armedThugs: 6,
   unarmedThugs: 2,

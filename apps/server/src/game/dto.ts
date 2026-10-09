@@ -182,6 +182,7 @@ export function toRoundPlayerDto(
       woundedThugs: player.woundedThugs,
       postedThugs: player.postedThugs,
       businessThugs: player.businessThugs,
+      dealerThugs: player.dealerThugs,
       businessWhores: player.businessWhores,
       armedThugs: armedThugsForDto(player),
       unarmedThugs: Math.max(0, fitThugs(player) - armedThugsForDto(player)),

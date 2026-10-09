@@ -13,6 +13,7 @@ import type {
   AdminLawDto,
   AdminLawPlayerDto,
   AdminMarketsDto,
+  AdminSupplyDto,
   AdminPlayerStoresDto,
   AdminRoundBattlesDto,
   AdminShipmentsDto,
@@ -216,6 +217,7 @@ export const adminApi = {
   auditExportUrl: (filters: AdminAuditFilters = {}) => `/api/admin/audit/export${queryString({ ...filters, before: undefined })}`,
   // 1.0.0-E: economy, fights, exploit flags and turf.
   markets: (roundId: string) => api.get<AdminMarketsDto>(roundPath(roundId, 'markets')),
+  supply: (roundId: string) => api.get<AdminSupplyDto>(roundPath(roundId, 'supply')),
   casino: (roundId: string) => api.get<AdminCasinoDto>(roundPath(roundId, 'casino')),
   // 1.4.0-G: faction standing health and audited correction.
   factions: (roundId: string) => api.get<AdminFactionRoundDto>(roundPath(roundId, 'factions')),

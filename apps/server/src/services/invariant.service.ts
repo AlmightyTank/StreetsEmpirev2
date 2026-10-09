@@ -12,6 +12,7 @@ export interface InvariantPlayerState {
   busyThugs: number;
   postedThugs: number;
   businessThugs?: number;
+  dealerThugs?: number;
   businessWhores?: number;
   condoms: number;
   medicine: number;
@@ -62,6 +63,7 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
   'woundedThugs',
   'busyThugs',
   'postedThugs',
+  'dealerThugs',
   'condoms',
   'medicine',
   'crack',
@@ -105,7 +107,7 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
 ];
 
 const OPTIONAL_COUNTS: ReadonlySet<keyof InvariantPlayerState> = new Set([
-  'sedans', 'vans', 'damagedLowRiders', 'damagedSedans', 'damagedVans', 'disabledLowRiders', 'disabledSedans', 'disabledVans',
+  'sedans', 'vans', 'damagedLowRiders', 'damagedSedans', 'damagedVans', 'disabledLowRiders', 'disabledSedans', 'disabledVans', 'dealerThugs',
 ]);
 
 function invalid(message: string): never {
@@ -152,14 +154,18 @@ export function assertPlayerState(
     invalid(`${phase}.woundedThugs cannot exceed total thugs`);
   }
 
-  if (state.woundedThugs + state.busyThugs + state.postedThugs + (state.businessThugs ?? 0) > state.thugs) {
-    invalid(`${phase}.woundedThugs plus busyThugs plus postedThugs plus businessThugs cannot exceed total thugs`);
-  }
   const businessThugs = state.businessThugs ?? 0;
   const businessWhores = state.businessWhores ?? 0;
+  const dealerThugs = state.dealerThugs ?? 0;
+  if (businessThugs > state.thugs) invalid(`${phase}.businessThugs cannot exceed total thugs`);
+  if (dealerThugs > state.thugs) invalid(`${phase}.dealerThugs cannot exceed total thugs`);
   if (!Number.isSafeInteger(businessThugs) || businessThugs < 0) invalid(`${phase}.businessThugs must be a non-negative safe integer`);
   if (!Number.isSafeInteger(businessWhores) || businessWhores < 0) invalid(`${phase}.businessWhores must be a non-negative safe integer`);
+  if (!Number.isSafeInteger(dealerThugs) || dealerThugs < 0) invalid(`${phase}.dealerThugs must be a non-negative safe integer`);
   if (businessWhores > state.whores) invalid(`${phase}.businessWhores cannot exceed total whores`);
+  if (state.woundedThugs + state.busyThugs + state.postedThugs + businessThugs + dealerThugs > state.thugs) {
+    invalid(`${phase}.woundedThugs plus busyThugs plus postedThugs plus businessThugs plus dealerThugs cannot exceed total thugs`);
+  }
 
   const hideout = ruleset.hideout;
   if (hideout) {

@@ -106,6 +106,8 @@ export interface PlayerState {
   postedThugs: number;
   /** 1.1.0-B. Thugs and girls working a business: counted, never fit or working at home. */
   businessThugs: number;
+  /** 1.6.0-A. Thugs assigned to dealer crews: counted, never available at home. */
+  dealerThugs: number;
   businessWhores: number;
 
   /** Quest progress that is per-player rather than per-trader. */
@@ -250,6 +252,7 @@ export function toState(player: RoundPlayer): PlayerState {
     busyThugs: player.busyThugs,
     postedThugs: player.postedThugs,
     businessThugs: player.businessThugs,
+    dealerThugs: player.dealerThugs,
     businessWhores: player.businessWhores,
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
@@ -283,8 +286,8 @@ export function toState(player: RoundPlayer): PlayerState {
 }
 
 /** Thugs who can do something at home: not wounded, busy elsewhere, posted on a corner, or working a business. */
-export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number; postedThugs?: number; businessThugs?: number }): number {
-  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0) - (player.postedThugs ?? 0) - (player.businessThugs ?? 0));
+export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number; postedThugs?: number; businessThugs?: number; dealerThugs?: number }): number {
+  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0) - (player.postedThugs ?? 0) - (player.businessThugs ?? 0) - (player.dealerThugs ?? 0));
 }
 
 /** 1.1.0-B. Girls who work the street or a Produce shift: everyone not working a business. */
@@ -315,6 +318,7 @@ function toSnapshot(
       woundedThugs: state.woundedThugs,
       postedThugs: state.postedThugs,
       businessThugs: state.businessThugs,
+      dealerThugs: state.dealerThugs,
       businessWhores: state.businessWhores,
       armedThugs: armedThugsForSnapshot(state),
       unarmedThugs: Math.max(0, fitThugs(state) - armedThugsForSnapshot(state)),

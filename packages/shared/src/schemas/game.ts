@@ -216,6 +216,30 @@ export const storeSpecialOrderSchema = z.object({
 
 export type StoreSpecialOrderInput = z.infer<typeof storeSpecialOrderSchema>;
 
+/** 1.6.0-B. A prepaid wholesale order held at its supplier for later pickup. */
+export const supplyOrderSchema = z.object({
+  supplierKey: z.string().trim().min(1).max(64),
+  productKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int().positive().max(MAX_ORDER_QUANTITY),
+  /** Durable order idempotency key; unlike actionId it remains unique beyond the action cache window. */
+  requestKey: actionIdSchema,
+  actionId: actionIdSchema,
+}).strict();
+
+export type SupplyOrderInput = z.infer<typeof supplyOrderSchema>;
+
+/** 1.6.0-A. Hire a fresh dealer career or reassign a previously released one. */
+export const dealerStaffAssignSchema = z.object({
+  staffId: z.string().trim().min(1).max(64).optional(),
+  actionId: actionIdSchema,
+}).strict();
+
+/** 1.6.0-A. Release one named dealer career back to the available thug pool. */
+export const dealerStaffReleaseSchema = z.object({ actionId: actionIdSchema }).strict();
+
+export type DealerStaffAssignInput = z.infer<typeof dealerStaffAssignSchema>;
+export type DealerStaffReleaseInput = z.infer<typeof dealerStaffReleaseSchema>;
+
 /** 0.4.0-D. Pip's counter for a non-crack product. */
 export const productTradeSchema = z.object({
   product: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),

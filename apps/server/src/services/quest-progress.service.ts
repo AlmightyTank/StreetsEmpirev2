@@ -127,6 +127,7 @@ async function playerState(db: Db, roundPlayerId: string): Promise<QuestDataObje
       busyThugs: true,
       postedThugs: true,
       businessThugs: true,
+      dealerThugs: true,
       condoms: true,
       medicine: true,
       crack: true,
@@ -154,7 +155,7 @@ async function playerState(db: Db, roundPlayerId: string): Promise<QuestDataObje
   // 1.2.0-F. Round-to-date rated theo, for casino status Jobs (cents x bps basis / 10,000).
   const casino = await db.casinoRating.aggregate({ where: { roundPlayerId }, _sum: { theoBasis: true } });
 
-  const fitThugs = Math.max(0, row.thugs - row.woundedThugs - row.busyThugs - row.postedThugs - row.businessThugs);
+  const fitThugs = Math.max(0, row.thugs - row.woundedThugs - row.busyThugs - row.postedThugs - row.businessThugs - row.dealerThugs);
   const weapons = row.pistols + row.shotguns + row.tek9s + row.ak47s;
 
   return {

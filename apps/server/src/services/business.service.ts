@@ -200,7 +200,7 @@ export const BusinessService = {
       where: { id: roundPlayerId },
       select: {
         cityId: true, thugs: true, whores: true, woundedThugs: true, busyThugs: true, postedThugs: true,
-        businessThugs: true, businessWhores: true, beer: true, crack: true, thugHappiness: true, whoreHappiness: true,
+        businessThugs: true, dealerThugs: true, businessWhores: true, beer: true, crack: true, thugHappiness: true, whoreHappiness: true,
         heat: true, netWorthCents: true, outpostNetWorthCents: true, turns: true, lastTurnCalculationAt: true,
         racketEffects: true, launderedDay: true, launderedHeatToday: true, launderedHeatRound: true,
         launderedCaseDay: true, launderedCaseToday: true,
@@ -540,7 +540,7 @@ export const BusinessService = {
 
     // Auto-staffing: replace anyone who walked off or was lured, from the fit crew (or the
     // girls working the street), up to each business's target, as far as the crew allows.
-    let fitThugs = Math.max(0, thugs - player.woundedThugs - player.busyThugs - player.postedThugs - businessThugs);
+    let fitThugs = Math.max(0, thugs - player.woundedThugs - player.busyThugs - player.postedThugs - businessThugs - player.dealerThugs);
     let freeGirls = Math.max(0, whores - businessWhores);
     for (const entry of kept) {
       if (!entry.auto || entry.staff >= entry.want) continue;
@@ -555,7 +555,7 @@ export const BusinessService = {
 
     // Anything else that took the crew's people since (an admin change, a path that does not
     // know about businesses) cannot leave more staff than crew: shed the difference.
-    const thugRoom = Math.max(0, thugs - player.woundedThugs - player.busyThugs - player.postedThugs);
+    const thugRoom = Math.max(0, thugs - player.woundedThugs - player.busyThugs - player.postedThugs - player.dealerThugs);
     const shed = { thugs: Math.max(0, businessThugs - thugRoom), whores: Math.max(0, businessWhores - whores) };
     if (shed.thugs > 0 || shed.whores > 0) {
       await BusinessService.loseStaff(tx, roundPlayerId, ruleset, shed, now);

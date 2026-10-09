@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import {
   payoutSchema,
@@ -12,6 +13,9 @@ import {
   storeTradeSchema,
   storeCheckoutSchema,
   storeSpecialOrderSchema,
+  supplyOrderSchema,
+  dealerStaffAssignSchema,
+  dealerStaffReleaseSchema,
   hideoutUpgradeSchema,
   hideoutSpecializationSchema,
   hideoutWeaponPrioritySchema,
@@ -40,6 +44,8 @@ import { onboardingActionSchema } from '@streets/shared';
 import { OnboardingService } from '../services/onboarding.service.js';
 import { PlayerExperienceService } from '../services/player-experience.service.js';
 import { LawService } from '../services/law.service.js';
+import { SupplyOrderService } from '../services/supply-order.service.js';
+import { DealerStaffService } from '../services/dealer-staff.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
 
@@ -157,6 +163,31 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(storeSpecialOrderSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
     return StoreService.specialOrder(fastify.prisma, player.id, body);
+  });
+
+  fastify.get('/supply', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return SupplyOrderService.page(fastify.prisma, round, player);
+  });
+
+  fastify.post('/supply/orders', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(supplyOrderSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return SupplyOrderService.place(fastify.prisma, player.id, body);
+  });
+
+  fastify.post('/supply/dealer-crews/:crewId/staff', { preHandler: fastify.requireAuth }, async (request) => {
+    const { crewId } = parseBody(z.object({ crewId: z.string().trim().min(1).max(64) }).strict(), request.params);
+    const body = parseBody(dealerStaffAssignSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return DealerStaffService.assign(fastify.prisma, player.id, crewId, body);
+  });
+
+  fastify.post('/supply/dealer-staff/:staffId/release', { preHandler: fastify.requireAuth }, async (request) => {
+    const { staffId } = parseBody(z.object({ staffId: z.string().trim().min(1).max(64) }).strict(), request.params);
+    const body = parseBody(dealerStaffReleaseSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return DealerStaffService.release(fastify.prisma, player.id, staffId, body);
   });
 
   fastify.get('/hideout', { preHandler: fastify.requireAuth }, async (request) => {

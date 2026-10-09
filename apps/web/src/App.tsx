@@ -7,6 +7,7 @@ import { AdminAuditPage } from './pages/AdminAuditPage.js';
 import { AdminReportsPage } from './pages/AdminReportsPage.js';
 import { AdminBugReportsPage } from './pages/AdminBugReportsPage.js';
 import { AdminEconomyPage } from './pages/AdminEconomyPage.js';
+import { AdminSupplyPage } from './pages/AdminSupplyPage.js';
 import { AdminCasinoPage } from './pages/AdminCasinoPage.js';
 import { AdminFactionsPage } from './pages/AdminFactionsPage.js';
 import { AdminVehiclesPage } from './pages/AdminVehiclesPage.js';
@@ -51,6 +52,7 @@ import { ScoutPage } from './pages/ScoutPage.js';
 import { StatusPage } from './pages/StatusPage.js';
 import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
 import { StorePage, StoresIndexPage } from './pages/StorePage.js';
+import { SupplyPage } from './pages/SupplyPage.js';
 import { TravelPage } from './pages/TravelPage.js';
 import { CasinoPage } from './pages/CasinoPage.js';
 import { TurfPage } from './pages/TurfPage.js';
@@ -167,6 +169,7 @@ export function App() {
         <Route path="street-pass" element={<Protected><LiveRound><StreetPassPage /></LiveRound></Protected>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
+        <Route path="supply" element={<Protected><LiveRound><SupplyPage /></LiveRound></Protected>} />
         <Route path="casino" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
         <Route path="casino/:game" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
 
@@ -209,6 +212,7 @@ export function App() {
         <Route path="admin/reports" element={admin(<AdminReportsPage />)} />
         <Route path="admin/bugs" element={admin(<AdminBugReportsPage />)} />
         <Route path="admin/economy" element={admin(<AdminEconomyPage />)} />
+        <Route path="admin/supply" element={admin(<AdminSupplyPage />)} />
         <Route path="admin/casino" element={admin(<AdminCasinoPage />)} />
         <Route path="admin/factions" element={admin(<AdminFactionsPage />)} />
         <Route path="admin/vehicles" element={admin(<AdminVehiclesPage />)} />
