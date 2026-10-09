@@ -263,6 +263,9 @@ function Footer() {
         <div className="se-footer__group">
           <h2>Social</h2>
           <nav aria-label="Social links">
+            <a href="https://discord.gg/V3HYNcMv5H">Discord</a>
+            <a href="https://www.facebook.com/StreetsEmpireHQ">Facebook</a>
+            <a href="https://x.com/StreetsEmpireHQ">X</a>
             <a href={`${PUBLIC_SITE_ORIGIN}/community`}>Community</a>
             <a href={FORUM_ORIGIN}>Forum</a>
             <Link to="/game/news">News</Link>
