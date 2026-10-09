@@ -15,7 +15,7 @@ const sections = [
   { to: '/cities', eyebrow: 'World', title: 'Cities', body: 'Explore the cities, their districts and the public face of each local economy.' },
   { to: '/turf', eyebrow: 'Control', title: 'Turf', body: 'See district control, city power and the public history of the fight for territory.' },
   { to: '/hall-of-fame', eyebrow: 'Legacy', title: 'Hall of Fame', body: 'Celebrate season champions, long-running records and the strongest careers in game history.' },
-  { to: '/guide', eyebrow: 'Learn', title: 'How to Play', body: 'Learn the core StreetsEmpire systems from your first turns through combat, travel and turf.' },
+  { to: '/guide', eyebrow: 'Learn', title: 'How to Play', body: 'Learn every StreetsEmpire system, from your first turns to businesses, the law, factions, vehicles and the casino.' },
 ] as const;
 
 export function HomePage() {
@@ -53,9 +53,10 @@ export function HomePage() {
             <p className="site-kicker">Seasonal street strategy</p>
             <h1>Build your crew. Control the streets. Build an empire.</h1>
             <p className="site-lead">
-              StreetsEmpire is a competitive browser strategy game where every season
-              starts fresh, every turn matters and public history keeps the best players
-              on the record.
+              StreetsEmpire is a competitive browser strategy game. Build a crew, run
+              fronts and rackets, fight block wars, deal with the factions and stay ahead
+              of the law. Every season starts fresh, every turn matters and public history
+              keeps the best players on the record.
             </p>
             <div className="site-hero__actions">
               <a className="btn btn-primary btn-lg" href="https://play.streetsempire.dev">
