@@ -3146,6 +3146,8 @@ export interface Ruleset {
   readonly vehicleCatalog?: VehicleCatalog;
   /** 1.6.0-A. Presence gates the supply-network foundation to pinned 1.6 rounds. */
   readonly supplyNetwork?: SupplyNetworkRules;
+  /** 1.6.5-A. The loan shark's debt rules. Absent: no loans, and debt never touches the round. */
+  readonly loanShark?: LoanSharkRules;
   /** 1.4.0-B. Seasonal faction standing. Absent: factions are identity only. */
   readonly factionStanding?: FactionStandingRules;
   /**
@@ -3204,6 +3206,36 @@ export interface Ruleset {
   /** 1.3.0-A. Absent before the law keeps a Case. Never changes how `heat` behaves. */
   readonly law?: LawRules;
   readonly evidence: EvidenceRules;
+}
+
+/**
+ * 1.6.5-A. Game-cash loans from an NPC loan shark. Every value is integer cents or whole
+ * hours on the server clock. The limits are hard: no sequence of loans, missed payments or
+ * retries can take a player past them.
+ *
+ * - A loan's quoted obligation (principal plus its fixed contract fee) is reserved against
+ *   `debtCeilingCents` in full when it is accepted, so parallel loans cannot overrun it.
+ * - Late fees are the only debt that can grow after acceptance. Each missed installment is
+ *   charged `lateFeeCents` once, capped by the loan's `lateFeeCapPerLoanCents`, the player's
+ *   round-wide `feeCapCents`, and whatever room is left under the ceiling. Nothing compounds.
+ * - Repayments only ever come out of the player's cash; proceeds never pay another loan.
+ */
+export interface LoanSharkRules {
+  readonly enabled: boolean;
+  /** Most a player can owe in one round: every loan's unpaid obligation plus unpaid late fees. */
+  readonly debtCeilingCents: number;
+  /** Most late fees that can ever be assessed against one player in one round. */
+  readonly feeCapCents: number;
+  /** Most late fees one loan can ever be assessed. */
+  readonly lateFeeCapPerLoanCents: number;
+  /** The fixed fee for one missed installment, assessed once. */
+  readonly lateFeeCents: number;
+  /** Hours between installments; the first falls due one interval after acceptance. */
+  readonly installmentIntervalHours: number;
+  /** Most installments one contract can be split into. */
+  readonly maxInstallments: number;
+  /** Largest contract fee a quote may carry, as a whole percent of its principal. */
+  readonly maxContractFeePercent: number;
 }
 
 export interface SupplyNetworkRules {

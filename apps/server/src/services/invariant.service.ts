@@ -4,6 +4,8 @@ export interface InvariantPlayerState {
   cashCents: bigint;
   postedNetWorthCents?: bigint;
   outpostNetWorthCents?: bigint;
+  /** 1.6.5-A. Owed to the loan shark. */
+  loanDebtCents?: bigint;
   turns: number;
   payoutPercent: number;
   whores: number;
@@ -132,6 +134,11 @@ export function assertPlayerState(
   if (state.cashCents < 0n) invalid(`${phase}.cashCents is negative`);
   if ((state.postedNetWorthCents ?? 0n) < 0n) invalid(`${phase}.postedNetWorthCents is negative`);
   if ((state.outpostNetWorthCents ?? 0n) < 0n) invalid(`${phase}.outpostNetWorthCents is negative`);
+  const loanDebt = state.loanDebtCents ?? 0n;
+  if (loanDebt < 0n) invalid(`${phase}.loanDebtCents is negative`);
+  if (ruleset.loanShark && loanDebt > BigInt(ruleset.loanShark.debtCeilingCents)) {
+    invalid(`${phase}.loanDebtCents is above the ruleset debt ceiling`);
+  }
 
   for (const field of WHOLE_NON_NEGATIVE) {
     // 1.5.0-B/C vehicle counts are optional on the type: absent is none.

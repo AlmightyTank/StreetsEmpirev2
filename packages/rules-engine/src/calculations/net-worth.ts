@@ -1,6 +1,7 @@
 import { classicOgV01, type Ruleset } from '@streets/rulesets';
 import type { NetWorthInput } from '../types.js';
 import { productNetWorthCents } from './product-economy.js';
+import { weightedDebtCents } from './loans.js';
 
 /**
  * Section 16. Integer cents only - money never touches a float.
@@ -20,7 +21,7 @@ export function calculateNetWorthCents(
   const cash = (BigInt(player.cashCents) * BigInt(v.cashWeightPercent)) / 100n;
   const casinoCash = (BigInt(player.casinoNetWorthCents ?? 0) * BigInt(v.cashWeightPercent)) / 100n;
 
-  return (
+  const assets = (
     cash +
     BigInt(player.whores) * BigInt(v.perWhoreCents) +
     BigInt(player.thugs) * BigInt(v.perThugCents) +
@@ -48,6 +49,10 @@ export function calculateNetWorthCents(
     // 1.2.0-A: casino chips/bankroll are cash-equivalents, so cage transfers cannot mint ranking value.
     casinoCash
   );
+  // 1.6.5-A: what is owed comes back off, so borrowing never buys rank. Never below zero.
+  const debt = weightedDebtCents(player.loanDebtCents ?? 0, v.cashWeightPercent);
+  if (debt === 0n) return assets;
+  return assets > debt ? assets - debt : 0n;
 }
 
 /** 1.5.0-C. Every vehicle at home that the garage still has to repair or recover. */

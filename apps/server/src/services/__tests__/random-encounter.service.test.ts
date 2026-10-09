@@ -42,6 +42,7 @@ const state: PlayerState = {
   awayNetWorthCents: 0n,
   postedNetWorthCents: 0n,
   outpostNetWorthCents: 0n,
+  loanDebtCents: 0n,
   busyThugs: 0,
   postedThugs: 0,
   businessThugs: 0,

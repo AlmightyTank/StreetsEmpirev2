@@ -1225,6 +1225,16 @@ model RoundPlayer {
   businessWhores          Int                      @default(0)
   /// 1.6.0-A. Thugs assigned to dealer crews. Still owned, but unavailable for other work.
   dealerThugs             Int                      @default(0)
+  /// 1.6.5-A. What the player owes the loan shark: every loan's unpaid obligation plus unpaid
+  /// late fees. Never above `loanDebtCeilingCents`; comes off net worth at the cash weight.
+  loanDebtCents           BigInt                   @default(0)
+  /// 1.6.5-A. This round's debt ceiling and late-fee cap, fixed from the ruleset when the
+  /// player first borrows. Zero until then, which holds the debt at zero too.
+  loanDebtCeilingCents    BigInt                   @default(0)
+  loanFeeCapCents         BigInt                   @default(0)
+  /// 1.6.5-A. Every late fee ever assessed this round, paid or not. Never above the cap.
+  loanFeesAssessedCents   BigInt                   @default(0)
+  loanCollectionState     LoanCollectionState      @default(CLEAR)
   /// 1.2.0-A. City chip wallets, open bankroll sessions and immutable casino receipts.
   casinoWallets           CasinoWallet[]
   casinoSessions          CasinoSession[]
@@ -1371,6 +1381,12 @@ model RoundPlayer {
   dealerCrews           DealerCrew[]
   dealerStaff           DealerStaff[]
   supplyMovements       SupplyMovement[]
+  /// 1.6.5-A. Loan shark contracts and their history, scoped to this round's player.
+  loans                 Loan[]
+  loanInstallments      LoanInstallment[]
+  loanPayments          LoanPayment[]
+  loanFees              LoanFee[]
+  loanEvents            LoanEvent[]
   /// 0.5.0-B. Runs out of town, Pip's shelves in other cities, and what the crew saw there.
   runs                  Run[]
   cityShelves           CityShelf[]
@@ -1870,6 +1886,194 @@ model SupplyMovement {
   @@index([pickupId, createdAt])
   @@index([warehouseId, createdAt])
   @@index([dealerCrewId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Loan shark (1.6.5)
+// ---------------------------------------------------------------------------
+
+enum LoanStatus {
+  ACTIVE
+  /// An installment passed its due time unpaid and still has something owing.
+  DELINQUENT
+  PAID_OFF
+}
+
+enum LoanInstallmentStatus {
+  SCHEDULED
+  PAID
+  /// Passed its due time unpaid. Stays owed; becomes PAID once it is paid off.
+  MISSED
+}
+
+enum LoanPaymentKind {
+  /// Collected by the server when an installment fell due.
+  SCHEDULED
+  /// Paid by the player, early, partly or in full.
+  MANUAL
+  /// 1.6.5-E. Taken under collection pressure.
+  COLLECTION
+}
+
+enum LoanFeeKind {
+  LATE
+  /// 1.6.5-E. Reserved for a bounded collection consequence.
+  COLLECTION
+}
+
+enum LoanCollectionState {
+  CLEAR
+  DELINQUENT
+  /// 1.6.5-E. Past the configured delinquency threshold.
+  COLLECTIONS
+}
+
+enum LoanEventKind {
+  ACCEPTED
+  PAYMENT
+  INSTALLMENT_MISSED
+  FEE_ASSESSED
+  PAID_OFF
+  COLLECTION_CHANGED
+}
+
+/// 1.6.5-A. One accepted loan shark contract: the terms quoted, pinned to the ruleset it
+/// was accepted under, and what has been paid against them. Cash is integer cents.
+/// Outstanding = (principal - principalPaid) + (contractFee - contractFeePaid)
+///             + (lateFeesAssessed - lateFeesPaid).
+model Loan {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// Which quote this was. 1.6.5-B names the offer tiers.
+  offerKey       String
+  rulesetId      String
+  rulesetVersion String
+
+  principalCents        BigInt
+  contractFeeCents      BigInt
+  /// Principal plus contract fee: reserved against the debt ceiling at acceptance.
+  obligationCents       BigInt
+  principalPaidCents    BigInt @default(0)
+  contractFeePaidCents  BigInt @default(0)
+  /// The fixed fee for one missed installment, and the most this loan can ever be charged.
+  lateFeeCents          BigInt
+  lateFeeCapCents       BigInt
+  lateFeesAssessedCents BigInt @default(0)
+  lateFeesPaidCents     BigInt @default(0)
+
+  installmentCount         Int
+  installmentIntervalHours Int
+  status                   LoanStatus @default(ACTIVE)
+  /// Durable idempotency key for acceptance, independent of the short-lived action cache.
+  requestKey               String     @db.VarChar(128)
+  acceptedAt               DateTime
+  paidOffAt                DateTime?
+
+  installments LoanInstallment[]
+  payments     LoanPayment[]
+  fees         LoanFee[]
+  events       LoanEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, requestKey])
+  @@index([roundPlayerId, status, acceptedAt])
+}
+
+/// 1.6.5-A. One scheduled installment: its share of the principal and contract fee, due on
+/// the server clock. Late fees belong to the loan, not to an installment.
+model LoanInstallment {
+  id            String      @id @default(cuid())
+  loanId        String
+  loan          Loan        @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  sequence             Int
+  dueAt                DateTime
+  principalCents       BigInt
+  contractFeeCents     BigInt
+  principalPaidCents   BigInt                @default(0)
+  contractFeePaidCents BigInt                @default(0)
+  status               LoanInstallmentStatus @default(SCHEDULED)
+  /// When the server found it unpaid at its due time. Kept after it is paid, for history.
+  missedAt             DateTime?
+  paidAt               DateTime?
+  fees                 LoanFee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([loanId, sequence])
+  @@index([roundPlayerId, status, dueAt])
+}
+
+/// 1.6.5-A. Immutable receipt for cash paid to the loan shark, split the way it was applied.
+model LoanPayment {
+  id               String          @id @default(cuid())
+  loanId           String
+  loan             Loan            @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  roundPlayerId    String
+  roundPlayer      RoundPlayer     @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  kind             LoanPaymentKind
+  /// A manual payment's request key, or the installment a scheduled payment settled.
+  requestKey       String          @db.VarChar(128)
+  amountCents      BigInt
+  lateFeeCents     BigInt
+  contractFeeCents BigInt
+  principalCents   BigInt
+  /// The player's total debt once this payment landed.
+  debtAfterCents   BigInt
+  createdAt        DateTime        @default(now())
+
+  @@unique([roundPlayerId, requestKey])
+  @@index([loanId, createdAt])
+}
+
+/// 1.6.5-A. Immutable record of a fee added to a loan's balance. One per missed installment
+/// and kind; an assessment the caps cut to zero is still recorded, so it is never retried.
+model LoanFee {
+  id            String           @id @default(cuid())
+  loanId        String
+  loan          Loan             @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer      @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  installmentId String?
+  installment   LoanInstallment? @relation(fields: [installmentId], references: [id], onDelete: SetNull)
+  kind          LoanFeeKind
+  requestKey    String           @db.VarChar(128)
+  /// What was charged after the caps; the fixed fee it was cut down from.
+  amountCents   BigInt
+  quotedCents   BigInt
+  createdAt     DateTime         @default(now())
+
+  @@unique([roundPlayerId, requestKey])
+  @@unique([installmentId, kind])
+  @@index([loanId, createdAt])
+}
+
+/// 1.6.5-A. The loan journal: acceptance, payments, missed installments, fees, payoff and
+/// collection changes, each with the player's debt after it. Immutable.
+model LoanEvent {
+  id             String        @id @default(cuid())
+  roundPlayerId  String
+  roundPlayer    RoundPlayer   @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  loanId         String?
+  loan           Loan?         @relation(fields: [loanId], references: [id], onDelete: SetNull)
+  kind           LoanEventKind
+  /// Signed change to the player's debt: up for an acceptance or fee, down for a payment.
+  debtDeltaCents BigInt        @default(0)
+  debtAfterCents BigInt
+  requestKey     String        @db.VarChar(128)
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+
+  @@unique([roundPlayerId, requestKey])
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+  @@index([loanId, createdAt])
 }
 
 /// 0.5.0-B. A run: Low-Riders, escorts, cash and product out on the road. What it took is

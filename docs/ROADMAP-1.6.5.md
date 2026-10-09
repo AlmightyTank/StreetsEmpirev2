@@ -31,7 +31,7 @@ Slices **A–B** establish the debt model and readable loan offers. Slices **C�
 
 Every slice should have a release gate and a pinned ruleset, following the existing StreetsEmpire release pattern. Exact offer amounts, fees, due intervals, debt ceilings, and collection effects are balance values to set through simulation before release.
 
-**Beta progress:** Proposed roadmap only. No 1.6.5 slices are marked implemented.
+**Beta progress:** Slice A is implemented on the beta branch: the pinned `classic-og-v1.6.5-a` ruleset, server-owned loan, installment, payment, fee and journal records, one per-round debt ceiling and a separate fee cap enforced in code and in the database, retry-safe acceptance, repayment, scheduled settlement and late-fee assessment, loan ledger categories, and debt netted out of net worth. Nobody can borrow yet: 1.6.5-B adds the offers and the page.
 
 ## Proposed slices
 
@@ -49,6 +49,8 @@ Every slice should have a release gate and a pinned ruleset, following the exist
 
 ### 1.6.5-A — Debt Foundation
 
+**Status: Implemented on the beta branch as the debt foundation. No offers or player page yet.**
+
 Establish the authoritative debt lifecycle before adding borrowing.
 
 - Define loan offers, accepted loans, scheduled installments, repayments, assessed fees, collection state, and payoff history.
@@ -61,6 +63,21 @@ Establish the authoritative debt lifecycle before adding borrowing.
 - Pin the system behind a new ruleset. Existing rounds do not receive new loan behavior.
 
 **Gate:** Tests prove that the total obligation never exceeds the debt ceiling, fees never exceed the fee cap, retries cannot duplicate a loan or payment, and historical rulesets remain unchanged.
+
+**As built:**
+
+- **Ruleset.** `classic-og-v1.6.5-a` is 1.6.0-H plus a `loanShark` block, and is now the ruleset new rounds start on. Every earlier ruleset has no `loanShark`, so no loan path, settle or net-worth change reaches it. Opening values, all for 1.6.5-G to tune: a $150,000 debt ceiling, a $15,000 round fee cap, a $7,500 late-fee cap a loan, a $2,500 fee per missed installment, installments every 12 hours, at most 4 installments, and contract fees of at most 40% of the principal.
+- **Records.** `Loan` holds the quoted terms, the ruleset it was accepted under, and what has been paid against principal, contract fee and late fees. `LoanInstallment` holds each installment's share and due time. `LoanPayment` is the immutable receipt for each payment, split the way it was applied. `LoanFee` records every assessed fee. `LoanEvent` is the journal: acceptance, payment, missed installment, fee, payoff and collection change, each with the debt after it. The player's `loanDebtCents`, round limits, assessed fees and collection state live on `RoundPlayer`.
+- **Ceiling and fee cap.** A loan's whole obligation (principal plus contract fee) is reserved against the ceiling at acceptance, or the loan is refused. The ceiling and fee cap are fixed for the player the first time they borrow in a round. Database checks hold debt between zero and the ceiling, fees between zero and the cap, and each loan's late fees under its own cap, whatever path writes them.
+- **Late fees.** A missed installment is charged the loan's fixed late fee once, cut down to the loan's cap, the player's fee cap and the room left under the ceiling. Once any of these is full, the balance stops growing. Fees never earn fees.
+- **Settlement.** Installments are settled lazily, under the player's lock, in the action pipeline, by the server clock only. When an installment falls due, the server collects what the loan has due through it: unpaid late fees, any earlier missed installment, and this one. It collects only when cash covers all of it. Otherwise the installment is marked missed at its due time, the loan and player become delinquent, and a missed installment stays owed until a later payment covers it.
+- **Payments.** Payments are applied in a fixed order: unpaid late fees first, then installments oldest first, with each installment's contract-fee share before its principal. A request for more than is owed pays exactly the balance. Payments only ever come from the player's cash, and there is no path from one loan's proceeds to another loan.
+- **Retries.** Acceptance and manual payments are replayed by the action id and by a durable request key, and a reused key with different terms is refused. Scheduled payments and late fees are keyed by installment, so a second settle finds nothing to do.
+- **Ledger.** `LOAN_PROCEEDS` (loan shark → cash), and `LOAN_PRINCIPAL`, `LOAN_CONTRACT_FEE` and `LOAN_LATE_FEE` (cash → loan shark), with `LOAN_COLLECTION` reserved for 1.6.5-E. Loan proceeds never count toward an earning Job.
+- **Net worth.** Debt comes off net worth at the cash weight, rounded up, and net worth never goes below zero, so borrowing cannot buy rank.
+- **Reconciliation.** `reconcileLoans` proves that a player's debt equals their loans' balances, that receipts, installments, fees and the cash ledger agree, and that every limit holds. 1.6.5-F will expose it to admins.
+- **Server API for 1.6.5-B.** `LoanService.accept` takes server-quoted terms, and `LoanService.repay` takes a cash payment. Neither has a route yet.
+- **Tests.** Unit tests cover quotes, schedules, stacking, fee caps, payment order and net worth. A PostgreSQL suite (`LOAN_INTEGRATION=1`) covers replays, parallel acceptance at the ceiling, scheduled collection, a missed installment and recovery, fees at every cap, partial, early and full payoff, settlement in the action pipeline, and a pre-1.6.5 round.
 
 ### 1.6.5-B — Loan Offers & Acceptance
 
