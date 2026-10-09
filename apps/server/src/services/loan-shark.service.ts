@@ -9,10 +9,11 @@ import {
   loanPayoffCents,
   loanSharkRules,
   priceLoanOffer,
+  loanStandingRefusal,
   debtUtilizationPercent,
   type Ruleset,
 } from '@streets/rules-engine';
-import type { LoanCreditDto, LoanHistoryDto, LoanOfferDto, LoanReceiptDto, LoanSharkPageDto } from '@streets/shared';
+import type { LoanCollectionsDto, LoanCreditDto, LoanHistoryDto, LoanOfferDto, LoanReceiptDto, LoanSharkPageDto } from '@streets/shared';
 import { countMissedInstallments } from './loan.service.js';
 import { installmentDue, lateFeesDueCents, loanAccountDto, loanDto, loanFeeBudget } from './loan-ledger.service.js';
 
@@ -25,6 +26,21 @@ import { installmentDue, lateFeesDueCents, loanAccountDto, loanDto, loanFeeBudge
 
 const HISTORY_LIMIT = 25;
 const CLOSED_LIMIT = 10;
+
+/** 1.6.5-E. Garnishable income, in a player's words. */
+const GARNISH_SOURCE_WORDS: Record<string, string> = {
+  SCOUT: 'street work',
+  STORE_SELL: 'store sales',
+  DEALER_SALES: 'dealer sales',
+  BUSINESS_INCOME: 'business income',
+  TURF_TAX: 'turf tax',
+  RACKETS: 'rackets',
+  RUN_SALE: 'run sales',
+  RUN_TRADE: 'run sales',
+  RAID: 'raid winnings',
+  CONVOY_ATTACK: 'convoy hits',
+  BOSS_HIT_ATTACK: 'boss hits',
+};
 const RECEIPT_LIMIT = 20;
 
 const money = (cents: bigint | number): string => `$${(Number(cents) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
@@ -50,7 +66,8 @@ export function loanHistoryLabel(event: Pick<LoanEvent, 'kind' | 'metadata'>, of
       return `Borrowed ${money(numberAt(meta, 'principalCents') ?? 0)} · ${name}`;
     case 'PAYMENT': {
       const waived = numberAt(meta, 'contractFeeWaivedCents') ?? 0;
-      const base = stringAt(meta, 'kind') === 'SCHEDULED' ? 'Installment collected' : 'Payment';
+      const kind = stringAt(meta, 'kind');
+      const base = kind === 'SCHEDULED' ? 'Installment collected' : kind === 'COLLECTION' ? 'Garnished from income' : 'Payment';
       return waived > 0 ? `${base} · ${name} · ${money(waived)} of unearned fee waived` : `${base} · ${name}`;
     }
     case 'INSTALLMENT_MISSED': {
@@ -66,6 +83,7 @@ export function loanHistoryLabel(event: Pick<LoanEvent, 'kind' | 'metadata'>, of
       const to = stringAt(meta, 'to');
       if (to === 'CLEAR') return 'Back in good standing';
       if (to === 'COLLECTIONS') return 'Sent to collections';
+      if (to === 'RECOVERING') return 'Overdue cleared · recovering';
       return 'Marked delinquent';
     }
   }
@@ -75,7 +93,7 @@ export const LoanSharkService = {
   async page(prisma: PrismaClient, ruleset: Ruleset, player: RoundPlayer, now: Date): Promise<LoanSharkPageDto> {
     const rules = loanSharkRules(ruleset);
     const base = { cashCents: Number(player.cashCents), netWorthCents: Number(player.netWorthCents) };
-    if (!rules) return { enabled: false, account: null, credit: null, ...base, offers: [], activeLoans: [], closedLoans: [], history: [], overdueCents: 0, receipts: [] };
+    if (!rules) return { enabled: false, account: null, credit: null, ...base, offers: [], activeLoans: [], closedLoans: [], history: [], overdueCents: 0, receipts: [], payoffTotalCents: 0, collections: null };
 
     const [loans, events, missedInstallments, payments] = await Promise.all([
       prisma.loan.findMany({
@@ -107,7 +125,9 @@ export const LoanSharkService = {
       const terms = loanOfferTerms(offer, priced.contractFeeCents);
       const obligation = terms.principalCents + terms.contractFeeCents;
       const schedule = buildInstallmentSchedule(terms, rules.installmentIntervalHours, now);
-      const refused = loanOfferRefusal(rules, offer, { position, netWorthCents: player.netWorthCents, contractFeeCents: priced.contractFeeCents });
+      // 1.6.5-E: standing first, so a paused player is told why before anything else.
+      const refused = loanStandingRefusal(rules, player.loanCollectionState, player.loanRecoveryNeeded)
+        ?? loanOfferRefusal(rules, offer, { position, netWorthCents: player.netWorthCents, contractFeeCents: priced.contractFeeCents });
       const debtAfter = position.debtCents + obligation;
       return {
         key: offer.key,
@@ -212,9 +232,30 @@ export const LoanSharkService = {
       createdAt: row.createdAt.toISOString(),
     }));
 
+    let collections: LoanCollectionsDto | null = null;
+    if (rules.collections) {
+      const [missed, taken] = await Promise.all([
+        prisma.loanInstallment.count({ where: { roundPlayerId: player.id, status: 'MISSED' } }),
+        prisma.loanPayment.aggregate({ where: { roundPlayerId: player.id, kind: 'COLLECTION', createdAt: { gt: new Date(now.getTime() - 86_400_000) } }, _sum: { amountCents: true } }),
+      ]);
+      const garnished = Number(taken._sum.amountCents ?? 0n);
+      collections = {
+        missedInstallments: missed,
+        missedInstallmentsThreshold: rules.collections.missedInstallmentsThreshold,
+        garnishPercent: rules.collections.garnishPercent,
+        garnishCapPerDayCents: rules.collections.garnishCapPerDayCents,
+        garnishedLast24hCents: garnished,
+        garnishRoomCents: Math.max(0, rules.collections.garnishCapPerDayCents - garnished),
+        garnishSources: [...new Set(rules.collections.garnishSources.map((source) => GARNISH_SOURCE_WORDS[source] ?? source.toLowerCase().replaceAll('_', ' ')))],
+        recoveryOnTimeInstallments: rules.collections.recoveryOnTimeInstallments,
+      };
+    }
+
     return {
       enabled: true,
       account: loanAccountDto(rules, player),
+      payoffTotalCents: activeLoans.reduce((sum, loan) => sum + loan.payoffCents, 0),
+      collections,
       credit,
       overdueCents: activeLoans.reduce((sum, loan) => sum + loan.overdueCents, 0),
       receipts,

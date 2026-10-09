@@ -311,6 +311,13 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'OFFICIAL_STUNG':
       return { title: 'Your official was stung', detail, tone: 'bad', href: '/game#case' };
 
+    case 'LOAN_COLLECTIONS':
+      return p.to === 'COLLECTIONS'
+        ? { title: 'You are in collections', detail, tone: 'bad', href: '/game/loans' }
+        : p.to === 'RECOVERING'
+          ? { title: 'Out of collections', detail, tone: 'warn', href: '/game/loans' }
+          : { title: 'Back in good standing', detail, tone: 'good', href: '/game/loans' };
+
     case 'LOAN_INSTALLMENT_MISSED':
       return { title: 'Loan installment missed', detail, tone: 'bad', href: '/game/loans' };
 

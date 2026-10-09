@@ -19,7 +19,7 @@ export function loanSharkRules(ruleset: Ruleset): LoanSharkRules | undefined {
   return ruleset.loanShark?.enabled ? ruleset.loanShark : undefined;
 }
 
-export type LoanRefusalCode = 'LOAN_TERMS_INVALID' | 'LOAN_DEBT_CEILING' | 'LOAN_NOT_ELIGIBLE' | 'LOAN_QUOTE_CHANGED';
+export type LoanRefusalCode = 'LOAN_TERMS_INVALID' | 'LOAN_DEBT_CEILING' | 'LOAN_NOT_ELIGIBLE' | 'LOAN_QUOTE_CHANGED' | 'LOAN_PAUSED';
 
 /** A refusal a player can act on, as opposed to a RangeError, which is a server bug. */
 export class LoanError extends Error {
@@ -423,4 +423,91 @@ export function loanOfferRefusal(
     throw error;
   }
   return null;
+}
+
+export type LoanStanding = 'CLEAR' | 'DELINQUENT' | 'COLLECTIONS' | 'RECOVERING';
+
+export interface LoanStandingResult {
+  state: LoanStanding;
+  /** Installments still to be paid on time before recovery ends; zero outside recovery. */
+  recoveryNeeded: number;
+}
+
+/**
+ * 1.6.5-E. A player's standing with the loan shark after something changed: an installment
+ * missed or paid, or debt cleared. Deterministic.
+ *
+ * - Any missed installment still owing: delinquent, or in collections once there are enough
+ *   of them. Collections lasts until everything overdue is cleared, even below the threshold.
+ * - Overdue cleared after delinquency or collections: recovering, needing the configured
+ *   number of on-time installments, unless nothing is owed at all, which clears it outright.
+ * - On-time installments paid while recovering count down; at zero the player is clear.
+ *
+ * Without collections rules (1.6.5-A to D), delinquency simply clears with what is overdue.
+ */
+export function nextLoanStanding(rules: LoanSharkRules, input: {
+  current: LoanStanding;
+  recoveryNeeded: number;
+  /** Missed installments with something still owing, across every loan. */
+  missedOutstanding: number;
+  owesAnything: boolean;
+  /** Installments this change paid on or before their due time, never missed. */
+  onTimeCleared: number;
+}): LoanStandingResult {
+  const collections = rules.collections;
+  if (!collections) {
+    if (input.missedOutstanding <= 0) return { state: 'CLEAR', recoveryNeeded: 0 };
+    return { state: input.current === 'COLLECTIONS' ? 'COLLECTIONS' : 'DELINQUENT', recoveryNeeded: 0 };
+  }
+  if (input.missedOutstanding > 0) {
+    const deep = input.current === 'COLLECTIONS' || input.missedOutstanding >= collections.missedInstallmentsThreshold;
+    return { state: deep ? 'COLLECTIONS' : 'DELINQUENT', recoveryNeeded: 0 };
+  }
+  if (!input.owesAnything) return { state: 'CLEAR', recoveryNeeded: 0 };
+  if (input.current === 'DELINQUENT' || input.current === 'COLLECTIONS') {
+    return collections.recoveryOnTimeInstallments > 0
+      ? { state: 'RECOVERING', recoveryNeeded: collections.recoveryOnTimeInstallments }
+      : { state: 'CLEAR', recoveryNeeded: 0 };
+  }
+  if (input.current === 'RECOVERING') {
+    const left = Math.max(0, input.recoveryNeeded - Math.max(0, input.onTimeCleared));
+    return left > 0 ? { state: 'RECOVERING', recoveryNeeded: left } : { state: 'CLEAR', recoveryNeeded: 0 };
+  }
+  return { state: 'CLEAR', recoveryNeeded: 0 };
+}
+
+/**
+ * 1.6.5-E. Why a player cannot borrow because of their standing, or null when they can. Before
+ * collections rules, standing never blocks a loan.
+ */
+export function loanStandingRefusal(rules: LoanSharkRules, standing: LoanStanding, recoveryNeeded: number): { code: LoanRefusalCode; message: string } | null {
+  if (!rules.collections || standing === 'CLEAR') return null;
+  switch (standing) {
+    case 'DELINQUENT':
+      return { code: 'LOAN_PAUSED', message: 'You are behind on a loan. The loan shark will not lend again until everything overdue is paid.' };
+    case 'COLLECTIONS':
+      return { code: 'LOAN_PAUSED', message: 'You are in collections. No new loans until everything overdue is paid and you have shown you can pay on time.' };
+    case 'RECOVERING':
+      return {
+        code: 'LOAN_PAUSED',
+        message: `You are back on track. Pay ${recoveryNeeded} more installment${recoveryNeeded === 1 ? '' : 's'} on time, or clear what you owe, and the loan shark will lend again.`,
+      };
+  }
+}
+
+/**
+ * 1.6.5-E. What collections takes from new income: a share of it, never more than the day's
+ * cap has left, what is overdue, or the cash on hand. Never negative.
+ */
+export function garnishCents(rules: LoanSharkRules, input: {
+  incomeCents: bigint;
+  garnishedLast24hCents: bigint;
+  overdueCents: bigint;
+  cashCents: bigint;
+}): bigint {
+  const collections = rules.collections;
+  if (!collections || input.incomeCents <= 0n) return 0n;
+  const share = (input.incomeCents * BigInt(collections.garnishPercent)) / 100n;
+  const capLeft = BigInt(collections.garnishCapPerDayCents) - input.garnishedLast24hCents;
+  return maxBig(0n, minBig(share, capLeft, input.overdueCents, input.cashCents));
 }

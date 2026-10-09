@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV16H, classicOgV165A, classicOgV165B, classicOgV165C, type LoanSharkRules, type Ruleset } from '@streets/rulesets';
+import { classicOgV16H, classicOgV165A, classicOgV165B, classicOgV165C, classicOgV165E, type LoanSharkRules, type Ruleset } from '@streets/rulesets';
 import {
   LoanError,
   allocateLoanPayment,
@@ -12,6 +12,9 @@ import {
   debtRoomCents,
   lateFeeChargeCents,
   loanOfferRefusal,
+  nextLoanStanding,
+  loanStandingRefusal,
+  garnishCents,
   priceLoanOffer,
   debtUtilizationPercent,
   loanOfferTerms,
@@ -318,5 +321,53 @@ describe('1.6.5-C escalating terms', () => {
     const position = { ...fresh(), debtCents: BigInt(c.debtCeilingCents) - BigInt(quick.principalCents) - fee + 1n };
     expect(loanOfferRefusal(c, quick, { position, netWorthCents: 0n, contractFeeCents: fee })).toMatchObject({ code: 'LOAN_DEBT_CEILING' });
     expect(loanOfferRefusal(c, quick, { position: { ...position, debtCents: position.debtCents - 1n }, netWorthCents: 0n, contractFeeCents: fee })).toBeNull();
+  });
+});
+
+describe('1.6.5-E standing and collections', () => {
+  const e = classicOgV165E.loanShark;
+  const base = { recoveryNeeded: 0, missedOutstanding: 0, owesAnything: true, onTimeCleared: 0 };
+
+  it('goes delinquent on a miss and into collections at the threshold, and stays there until cleared', () => {
+    expect(nextLoanStanding(e, { ...base, current: 'CLEAR', missedOutstanding: 1 })).toEqual({ state: 'DELINQUENT', recoveryNeeded: 0 });
+    expect(nextLoanStanding(e, { ...base, current: 'DELINQUENT', missedOutstanding: 2 })).toEqual({ state: 'COLLECTIONS', recoveryNeeded: 0 });
+    expect(nextLoanStanding(e, { ...base, current: 'COLLECTIONS', missedOutstanding: 1 })).toEqual({ state: 'COLLECTIONS', recoveryNeeded: 0 });
+  });
+
+  it('recovers through on-time installments, or at once when nothing is owed', () => {
+    expect(nextLoanStanding(e, { ...base, current: 'COLLECTIONS' })).toEqual({ state: 'RECOVERING', recoveryNeeded: 2 });
+    expect(nextLoanStanding(e, { ...base, current: 'DELINQUENT' })).toEqual({ state: 'RECOVERING', recoveryNeeded: 2 });
+    expect(nextLoanStanding(e, { ...base, current: 'RECOVERING', recoveryNeeded: 2, onTimeCleared: 1 })).toEqual({ state: 'RECOVERING', recoveryNeeded: 1 });
+    expect(nextLoanStanding(e, { ...base, current: 'RECOVERING', recoveryNeeded: 1, onTimeCleared: 3 })).toEqual({ state: 'CLEAR', recoveryNeeded: 0 });
+    expect(nextLoanStanding(e, { ...base, current: 'COLLECTIONS', owesAnything: false })).toEqual({ state: 'CLEAR', recoveryNeeded: 0 });
+    expect(nextLoanStanding(e, { ...base, current: 'RECOVERING', recoveryNeeded: 2, owesAnything: false })).toEqual({ state: 'CLEAR', recoveryNeeded: 0 });
+    // A miss during recovery starts over.
+    expect(nextLoanStanding(e, { ...base, current: 'RECOVERING', recoveryNeeded: 1, missedOutstanding: 1 })).toEqual({ state: 'DELINQUENT', recoveryNeeded: 0 });
+  });
+
+  it('keeps the earlier rounds\' simple delinquency without collections rules', () => {
+    const c = classicOgV165C.loanShark;
+    expect(nextLoanStanding(c, { ...base, current: 'CLEAR', missedOutstanding: 5 })).toEqual({ state: 'DELINQUENT', recoveryNeeded: 0 });
+    expect(nextLoanStanding(c, { ...base, current: 'DELINQUENT' })).toEqual({ state: 'CLEAR', recoveryNeeded: 0 });
+    expect(loanStandingRefusal(c, 'DELINQUENT', 0)).toBeNull();
+  });
+
+  it('pauses new loans until the player is clear, and says what is left', () => {
+    expect(loanStandingRefusal(e, 'CLEAR', 0)).toBeNull();
+    expect(loanStandingRefusal(e, 'DELINQUENT', 0)).toMatchObject({ code: 'LOAN_PAUSED' });
+    expect(loanStandingRefusal(e, 'COLLECTIONS', 0)).toMatchObject({ code: 'LOAN_PAUSED' });
+    expect(loanStandingRefusal(e, 'RECOVERING', 1)?.message).toContain('Pay 1 more installment on time');
+  });
+
+  it('garnishes a share of income, never past the day cap, what is overdue, or the cash on hand', () => {
+    const at = { incomeCents: 1_000_000n, garnishedLast24hCents: 0n, overdueCents: 10_000_000n, cashCents: 10_000_000n };
+    expect(garnishCents(e, at)).toBe(250_000n);
+    expect(garnishCents(e, { ...at, incomeCents: 100_000_000n })).toBe(BigInt(e.collections.garnishCapPerDayCents));
+    expect(garnishCents(e, { ...at, garnishedLast24hCents: BigInt(e.collections.garnishCapPerDayCents) - 10n })).toBe(10n);
+    expect(garnishCents(e, { ...at, garnishedLast24hCents: BigInt(e.collections.garnishCapPerDayCents) + 10n })).toBe(0n);
+    expect(garnishCents(e, { ...at, overdueCents: 7n })).toBe(7n);
+    expect(garnishCents(e, { ...at, cashCents: 3n })).toBe(3n);
+    expect(garnishCents(e, { ...at, incomeCents: 0n })).toBe(0n);
+    expect(garnishCents(classicOgV165C.loanShark, at)).toBe(0n);
   });
 });

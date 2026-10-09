@@ -3244,6 +3244,35 @@ export interface LoanSharkRules {
   readonly offers?: readonly LoanOfferRules[];
   /** 1.6.5-C. Escalating terms. Absent: every offer costs its listed fee. */
   readonly pricing?: LoanPricingRules;
+  /**
+   * 1.6.5-E. Collection pressure and recovery. Absent: delinquency only marks the player,
+   * and clearing it clears it.
+   */
+  readonly collections?: LoanCollectionsRules;
+}
+
+/**
+ * 1.6.5-E. What happens to a player who falls behind, and how they climb back.
+ *
+ * - Any missed installment still owing makes the player delinquent: no new loans.
+ * - Enough of them at once puts the player in collections. While in collections, a share of
+ *   each eligible income line earned since is garnished toward what is overdue, never more
+ *   than a capped amount a day, never more than is overdue, never more than the cash on hand.
+ *   Nothing is added to the debt by collections; it only takes payments.
+ * - Clearing everything overdue ends delinquency or collections and starts recovery: new
+ *   loans unlock after enough installments are paid on time, or as soon as nothing is owed.
+ */
+export interface LoanCollectionsRules {
+  /** Missed installments still owing, across every loan, that put a player in collections. */
+  readonly missedInstallmentsThreshold: number;
+  /** Whole percent of each eligible income line garnished while in collections. */
+  readonly garnishPercent: number;
+  /** Most garnished in any rolling 24 hours. */
+  readonly garnishCapPerDayCents: number;
+  /** Economy ledger sources that count as income the shark can garnish. Only positive lines. */
+  readonly garnishSources: readonly string[];
+  /** Installments paid on time, after clearing what was overdue, before new loans unlock. */
+  readonly recoveryOnTimeInstallments: number;
 }
 
 /**

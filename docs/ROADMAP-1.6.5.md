@@ -31,7 +31,7 @@ Slices **A–B** establish the debt model and readable loan offers. Slices **C�
 
 Every slice should have a release gate and a pinned ruleset, following the existing StreetsEmpire release pattern. Exact offer amounts, fees, due intervals, debt ceilings, and collection effects are balance values to set through simulation before release.
 
-**Beta progress:** Slice A is implemented on the beta branch: the pinned `classic-og-v1.6.5-a` ruleset, server-owned loan, installment, payment, fee and journal records, one per-round debt ceiling and a separate fee cap read from the ruleset, retry-safe acceptance, repayment, scheduled settlement with partial collection, late-fee assessment, pro-rata early payoff, loan ledger categories, and debt netted out of net worth. Slice B adds the Loan Shark page with three fixed offer tiers, full quotes before acceptance, retry-safe acceptance over the API, active loans, next due dates, payoff amounts and history. Slice C lets loans stack under the one ceiling at escalating prices: fees rise with debt utilization and missed installments, every quote shows its breakdown, and a loan is never taken at a price the player was not shown. Slice D adds payments from the page (overdue, next installment, payoff or any amount) with a server preview before confirmation, receipts for automatic and manual payments, what is overdue on every loan, and loan events in the activity feed, with missed installments on the bell.
+**Beta progress:** Slice A is implemented on the beta branch: the pinned `classic-og-v1.6.5-a` ruleset, server-owned loan, installment, payment, fee and journal records, one per-round debt ceiling and a separate fee cap read from the ruleset, retry-safe acceptance, repayment, scheduled settlement with partial collection, late-fee assessment, pro-rata early payoff, loan ledger categories, and debt netted out of net worth. Slice B adds the Loan Shark page with three fixed offer tiers, full quotes before acceptance, retry-safe acceptance over the API, active loans, next due dates, payoff amounts and history. Slice C lets loans stack under the one ceiling at escalating prices: fees rise with debt utilization and missed installments, every quote shows its breakdown, and a loan is never taken at a price the player was not shown. Slice D adds payments from the page (overdue, next installment, payoff or any amount) with a server preview before confirmation, receipts for automatic and manual payments, what is overdue on every loan, and loan events in the activity feed, with missed installments on the bell. Slice E pauses borrowing while a player is behind, garnishes a capped share of income in collections, and brings players back through an on-time streak.
 
 ## Proposed slices
 
@@ -207,6 +207,8 @@ Make payments predictable and missed payments consequential.
 
 ### 1.6.5-E — Collection Pressure & Recovery
 
+**Status: Implemented on the beta branch.**
+
 Make a deep debt hole matter while ensuring players can climb out.
 
 - Enter a collection state after the configured delinquency threshold, with a clear warning and explanation of what changes.
@@ -218,6 +220,44 @@ Make a deep debt hole matter while ensuring players can climb out.
 - Show the balance at the ceiling as a finite, actionable payoff target.
 
 **Gate:** A heavily indebted player faces meaningful restrictions, can see a clear path to reduce them, and can recover through play and repayment without an infinite balance or permanent lockout.
+
+**As built:**
+
+- **Ruleset.** `classic-og-v1.6.5-e` is 1.6.5-C plus `loanShark.collections`, and is now the ruleset new rounds start on. There is no `classic-og-v1.6.5-d`: D added no rule values. Opening values (BALANCE_APPROXIMATION, for 1.6.5-G):
+  - collections from 2 missed installments still owing;
+  - 25% of eligible income garnished, at most $25,000 in any 24 hours;
+  - recovery after 2 on-time installments.
+- **Standings.** Four standings, worked out by `nextLoanStanding`:
+
+  | Standing | When | What changes |
+  | --- | --- | --- |
+  | **Clear** | Nothing overdue, recovery done. | Nothing. |
+  | **Delinquent** | Any missed installment still owing. | No new loans. |
+  | **Collections** | At least 2 missed installments owing at once. Lasts until everything overdue is paid, even after it drops below the threshold. | No new loans, and income is garnished. |
+  | **Recovering** | Everything overdue has been paid. | No new loans until 2 installments are paid on time or early, or until nothing is owed at all. A new miss during recovery starts over. |
+
+  Every change is journaled. Going into collections, out of it, and clearing recovery are feed entries that reach the bell and raise a toast.
+- **Garnishing.** Eligible income is every positive economy-ledger line from the ruleset's garnish sources, earned since the player went into collections:
+  - **Sources:** street work, store and dealer sales, business, turf and racket income, run sales, and raid, convoy and boss-hit winnings. Never borrowed cash, admin grants or transfers.
+  - **How much:** 25% of it, capped by the day's room, by what is overdue and by the cash on hand.
+  - **Where it goes:** to overdue loans oldest first, as a `COLLECTION` payment (late fees, then missed installments). It never prepays future installments, adds nothing to the debt, and is recorded on the receipt, the `LOAN_COLLECTION` ledger line and a feed entry.
+  - **Each line once.** Every income line is considered once (`EconomyLedgerEntry.loanCollectedAt`), whether or not anything was taken from it, so income above the day's cap is never taken later.
+  - **When.** Garnishing runs in the settle on every action and page load, and on the alerts poller within a minute of the income being earned.
+- **Bounded and finite.** Late fees still stop at the fee caps and the ceiling. Collections only ever takes payments. The page shows the total payoff for every loan as a finite target, and players can pay at any time.
+- **No lockout.** Recovery needs no admin, reset or new round: paying what is overdue ends collections at once, and either on-time installments or paying everything off restores borrowing.
+- **Page.** One notice per standing explains what changes and the way out, with the threshold, the share, the cap, what was garnished in the last 24 hours, what is overdue, and how many on-time installments are still needed. Every offer is shown unavailable with the same reason the server refuses with (`LOAN_PAUSED`). "What you owe" adds the total payoff, the garnish against its cap, and installments still needed.
+- **Earlier rounds.** 1.6.5-A to D keep plain delinquency: no pause, no collections, no garnish.
+- **Tests.**
+  - Engine tests for standings, refusals and garnish bounds; ruleset tests; web tests for the notice, feed and toasts.
+  - An integration suite (`LOAN_INTEGRATION=1`) covers:
+    - the pause and its reason;
+    - going into collections, with the bell;
+    - garnishing new income once, never older income or ineligible lines, at the share and the day cap;
+    - never garnishing more than is overdue, and leaving collections at once when it is cleared;
+    - recovery through on-time installments, with the next loan priced with its history;
+    - a miss during recovery starting over;
+    - the poller garnishing while the player is away;
+    - 1.6.5-C rounds unchanged.
 
 ### 1.6.5-F — Admin, Ledger & Exploit Review
 
@@ -258,7 +298,7 @@ Prove that the debt system adds tension without overwhelming the economy.
 
 - Which game-clock interval should installments use: hours, days, or a small number of scheduled checkpoints?
 - Should accepted-loan fees be included in the amount reserved immediately, or should the offer show principal plus a fixed payoff fee due on repayment?
-- Which bounded collection consequence best fits StreetsEmpire: temporary contract restrictions, a capped deduction from eligible proceeds, or another non-permanent pressure?
+- ~~Which bounded collection consequence best fits StreetsEmpire?~~ Decided in 1.6.5-E: a capped share of eligible income is garnished while in collections, on top of pausing new loans. Recovery is an on-time streak, or paying everything off.
 - What should the opening debt ceiling, fee cap, offer tiers, and delinquency threshold be after simulation?
 - Should loan availability be immediate, or unlocked by a first-round milestone so new players understand the regular economy first?
 

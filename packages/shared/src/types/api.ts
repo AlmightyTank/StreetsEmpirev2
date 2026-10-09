@@ -104,6 +104,8 @@ export type ActivityType =
   | 'LOAN_TAKEN'
   | 'LOAN_PAYMENT'
   | 'LOAN_INSTALLMENT_MISSED'
+  /** 1.6.5-E. Into collections, or out of it into recovery or good standing. */
+  | 'LOAN_COLLECTIONS'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'

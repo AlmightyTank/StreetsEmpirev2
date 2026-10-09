@@ -73,7 +73,50 @@ const STANDING: Record<string, string> = {
   CLEAR: 'In good standing',
   DELINQUENT: 'Delinquent',
   COLLECTIONS: 'In collections',
+  RECOVERING: 'Recovering',
 };
+
+function list(words: readonly string[]): string {
+  if (words.length <= 1) return words[0] ?? '';
+  return `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
+}
+
+/**
+ * 1.6.5-E. Where the player stands, what that changes, and the way back, in one notice. Before
+ * collections rules (1.6.5-D rounds) a player who is behind gets the plain overdue warning.
+ */
+export function standingNotice(data: Pick<LoanSharkPageDto, 'account' | 'collections' | 'overdueCents' | 'payoffTotalCents'>): { tone: 'warning' | 'error' | 'info'; text: string } | null {
+  const account = data.account;
+  if (!account) return null;
+  const overdue = formatCents(data.overdueCents);
+  const c = data.collections;
+  if (!c) {
+    return data.overdueCents > 0
+      ? { tone: 'warning', text: `You are behind: ${overdue} is overdue. Late fees have been added and new loans cost more while installments are missed. Pay what is overdue below to get back in good standing; it goes to late fees first, then your oldest missed installment.` }
+      : null;
+  }
+  const garnish = `${c.garnishPercent}% of what you earn from ${list(c.garnishSources)}, up to ${formatCents(c.garnishCapPerDayCents)} a day`;
+  const recovery = `then pay ${c.recoveryOnTimeInstallments} installment${c.recoveryOnTimeInstallments === 1 ? '' : 's'} on time (or pay off everything) to borrow again`;
+  switch (account.collectionState) {
+    case 'DELINQUENT':
+      return {
+        tone: 'warning',
+        text: `You are behind: ${overdue} is overdue, and the loan shark will not lend again until it is paid. Miss ${c.missedInstallmentsThreshold} installments at once (you have missed ${c.missedInstallments}) and you go to collections: ${garnish}. Pay what is overdue below, ${recovery}.`,
+      };
+    case 'COLLECTIONS':
+      return {
+        tone: 'error',
+        text: `You are in collections. The loan shark takes ${garnish} (${formatCents(c.garnishedLast24hCents)} in the last 24 hours), straight toward what is overdue. No new loans. Nothing is added to what you owe by collections, and it stops the moment everything overdue (${overdue}) is paid; ${recovery}.`,
+      };
+    case 'RECOVERING':
+      return {
+        tone: 'info',
+        text: `Overdue cleared, and nothing more is being garnished. Pay ${account.recoveryNeeded} more installment${account.recoveryNeeded === 1 ? '' : 's'} on time, or pay off everything (${formatCents(data.payoffTotalCents)}), and the loan shark will lend again.`,
+      };
+    default:
+      return null;
+  }
+}
 
 export function surchargeSummary(offer: Pick<LoanOfferDto, 'pricing'>): string {
   const parts: string[] = [];
@@ -240,11 +283,10 @@ export function LoanSharkPage() {
           />
         ) : null}
 
-        {data?.enabled && data.overdueCents > 0 ? (
-          <Alert tone="warning">
-            You are behind: {formatCents(data.overdueCents)} is overdue. Late fees have been added and new loans cost more while installments are missed. Pay what is overdue below to get back in good standing; it goes to late fees first, then your oldest missed installment.
-          </Alert>
-        ) : null}
+        {data?.enabled ? (() => {
+          const notice = standingNotice(data);
+          return notice ? <Alert tone={notice.tone}>{notice.text}</Alert> : null;
+        })() : null}
 
         {data?.enabled && account ? (
           <div className="se-supply__grid">
@@ -257,6 +299,9 @@ export function LoanSharkPage() {
               <Row label="Room left" value={formatCents(account.availableCents)} />
               <Row label="Late fees charged this round" value={`${formatCents(account.feesAssessedCents)} of ${formatCents(account.feeCapCents)} max`} />
               <Row label="Cash on hand" value={formatCents(cashCents)} />
+              {data.payoffTotalCents > 0 ? <Row label="Pay off everything now" value={formatCents(data.payoffTotalCents)} strong /> : null}
+              {data.collections && account.collectionState === 'RECOVERING' ? <Row label="On-time installments still needed" value={String(account.recoveryNeeded)} /> : null}
+              {data.collections && account.collectionState === 'COLLECTIONS' ? <Row label="Garnished, last 24 hours" value={`${formatCents(data.collections.garnishedLast24hCents)} of ${formatCents(data.collections.garnishCapPerDayCents)} max`} /> : null}
               {data.credit ? (
                 <>
                   <Row label="How the shark sees you" value={`${data.credit.tierLabel ?? 'Clean'}${data.credit.tierSurchargePercent ? ` · +${data.credit.tierSurchargePercent}% on new loans` : ''}`} />

@@ -6,7 +6,7 @@
 export type LoanStatus = 'ACTIVE' | 'DELINQUENT' | 'PAID_OFF';
 export type LoanInstallmentStatus = 'SCHEDULED' | 'PAID' | 'MISSED';
 export type LoanPaymentKind = 'SCHEDULED' | 'MANUAL' | 'COLLECTION';
-export type LoanCollectionState = 'CLEAR' | 'DELINQUENT' | 'COLLECTIONS';
+export type LoanCollectionState = 'CLEAR' | 'DELINQUENT' | 'COLLECTIONS' | 'RECOVERING';
 
 export interface LoanInstallmentDto {
   sequence: number;
@@ -54,6 +54,8 @@ export interface LoanAccountDto {
   feesAssessedCents: number;
   feeCapCents: number;
   collectionState: LoanCollectionState;
+  /** 1.6.5-E. While recovering: installments still to pay on time before new loans unlock. */
+  recoveryNeeded: number;
 }
 
 export interface LoanAcceptResult {
@@ -173,6 +175,25 @@ export interface LoanSharkPageDto {
   /** 1.6.5-D. Overdue across every loan, and recent payment receipts, newest first. */
   overdueCents: number;
   receipts: LoanReceiptDto[];
+  /** 1.6.5-E. Pays off every loan right now: a finite target, however deep the hole. */
+  payoffTotalCents: number;
+  /** 1.6.5-E. Present where falling behind has consequences. */
+  collections: LoanCollectionsDto | null;
+}
+
+/** 1.6.5-E. The collection rules and where the player stands against them. */
+export interface LoanCollectionsDto {
+  /** Missed installments still owing, and how many put a player in collections. */
+  missedInstallments: number;
+  missedInstallmentsThreshold: number;
+  garnishPercent: number;
+  garnishCapPerDayCents: number;
+  /** Garnished in the last 24 hours, and what the cap has left. */
+  garnishedLast24hCents: number;
+  garnishRoomCents: number;
+  /** Player-facing names for the income that can be garnished. */
+  garnishSources: string[];
+  recoveryOnTimeInstallments: number;
 }
 
 /** 1.6.5-D. What a payment would do, before it is made. */

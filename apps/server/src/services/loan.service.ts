@@ -6,6 +6,7 @@ import {
   loanOfferTerms,
   loanOffers,
   priceLoanOffer,
+  loanStandingRefusal,
   loanSharkRules,
   quoteLoan,
   type LoanTerms,
@@ -106,6 +107,7 @@ export const LoanService = {
           loanDebtCents: current.loanDebtCents,
           loanFeesAssessedCents: player.loanFeesAssessedCents,
           loanCollectionState: player.loanCollectionState,
+          loanRecoveryNeeded: player.loanRecoveryNeeded,
         };
 
         const prior = await tx.loan.findUnique({
@@ -226,6 +228,9 @@ export const LoanService = {
       terms: async (rules, { tx, current, player, netWorthCents }) => {
         const offer = loanOffers(rules).find((row) => row.key === input.offerKey);
         if (!offer) throw AppError.notFound('LOAN_OFFER_NOT_FOUND', 'The loan shark is not offering that.');
+        // 1.6.5-E: no new loans while delinquent, in collections or recovering.
+        const paused = loanStandingRefusal(rules, player.loanCollectionState, player.loanRecoveryNeeded);
+        if (paused) throw AppError.conflict(paused.code, paused.message);
         const position = { debtCents: current.loanDebtCents, feesAssessedCents: player.loanFeesAssessedCents, ...debtLimits(rules) };
         const missedInstallments = await countMissedInstallments(tx, roundPlayerId);
         const priced = priceLoanOffer(rules, offer, { position, missedInstallments });
@@ -274,6 +279,7 @@ export const LoanService = {
           loanDebtCents: current.loanDebtCents,
           loanFeesAssessedCents: player.loanFeesAssessedCents,
           loanCollectionState: player.loanCollectionState,
+          loanRecoveryNeeded: player.loanRecoveryNeeded,
         };
 
         const prior = await tx.loanPayment.findUnique({
@@ -325,13 +331,17 @@ export const LoanService = {
         });
         const debtAfterCents = current.loanDebtCents - applied.debtReductionCents;
         account.loanDebtCents = debtAfterCents;
-        account.loanCollectionState = await refreshCollectionState(tx, {
+        const standing = await refreshCollectionState(tx, {
           roundPlayerId,
-          current: player.loanCollectionState,
+          rules,
+          current: player,
           debtAfterCents,
+          onTimeCleared: applied.onTimeCleared,
           requestKey: paymentKey,
           at: now,
         });
+        account.loanCollectionState = standing.loanCollectionState;
+        account.loanRecoveryNeeded = standing.loanRecoveryNeeded;
 
         return {
           next: { ...current, cashCents: current.cashCents - applied.allocation.appliedCents, loanDebtCents: debtAfterCents },

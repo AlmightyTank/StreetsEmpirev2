@@ -1,9 +1,11 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
+import { rulesets, type Ruleset } from '@streets/rulesets';
 import { PlayerStateService } from './player-state.service.js';
 
 /**
  * 1.6.5-D. Money that falls due on the clock, settled on time even when its owner is away:
- * loan installments (1.6.5-A) and property upkeep (1.6.0-D). The alerts poller runs this
+ * loan installments (1.6.5-A), property upkeep (1.6.0-D), and (1.6.5-E) income garnished
+ * from players in collections. The alerts poller runs this
  * every minute, so an installment is collected (or missed, and the bell told) at its due
  * time from the cash on hand then, not whenever the player next looks.
  *
@@ -13,6 +15,9 @@ import { PlayerStateService } from './player-state.service.js';
  */
 
 const SWEEP_LIMIT = 200;
+
+/** 1.6.5-E. Every income source any ruleset garnishes; the settle applies the round's own list. */
+const GARNISH_SOURCES = [...new Set((Object.values(rulesets) as Ruleset[]).flatMap((ruleset) => ruleset.loanShark?.collections?.garnishSources ?? []))];
 
 export const DueSettleService = {
   /** Players with a loan installment past its due time that has not been settled yet. */
@@ -56,6 +61,28 @@ export const DueSettleService = {
   },
 
   /**
+   * 1.6.5-E. Players in collections with garnishable income not yet considered, so income is
+   * garnished within a minute of being earned whether or not the player comes back.
+   */
+  async collectionsOwners(prisma: PrismaClient, now: Date, limit = SWEEP_LIMIT): Promise<string[]> {
+    if (!GARNISH_SOURCES.length) return [];
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT p.id FROM "RoundPlayer" p
+      JOIN "Round" r ON r.id = p."roundId"
+      WHERE p."loanCollectionState" = 'COLLECTIONS' AND p."loanCollectionsSince" IS NOT NULL
+        AND r.status = 'ACTIVE' AND r."endsAt" > ${now} AND r."pausedAt" IS NULL
+        AND EXISTS (
+          SELECT 1 FROM "EconomyLedgerEntry" e
+          WHERE e."roundPlayerId" = p.id AND e."loanCollectedAt" IS NULL AND e."amountCents" > 0
+            AND e."createdAt" >= p."loanCollectionsSince" AND e.source IN (${Prisma.join(GARNISH_SOURCES)})
+        )
+      ORDER BY p.id
+      LIMIT ${limit}
+    `);
+    return rows.map((row) => row.id);
+  },
+
+  /**
    * Settle every owner with something due. One owner's failure is reported and skipped,
    * never allowed to stop the others or the rest of the alerts tick.
    */
@@ -64,7 +91,11 @@ export const DueSettleService = {
     now: Date = new Date(),
     onError?: (roundPlayerId: string, error: unknown) => void,
   ): Promise<{ settled: number; failed: number }> {
-    const owners = [...new Set([...await DueSettleService.loanOwners(prisma, now), ...await DueSettleService.upkeepOwners(prisma, now)])];
+    const owners = [...new Set([
+      ...await DueSettleService.loanOwners(prisma, now),
+      ...await DueSettleService.upkeepOwners(prisma, now),
+      ...await DueSettleService.collectionsOwners(prisma, now),
+    ])];
     let failed = 0;
     for (const ownerId of owners) {
       try {

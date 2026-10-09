@@ -3,6 +3,7 @@ import { classicOgV16H } from '../classic-og-v1.6-h/index.js';
 import { classicOgV165A } from '../classic-og-v1.6.5-a/index.js';
 import { classicOgV165B } from '../classic-og-v1.6.5-b/index.js';
 import { classicOgV165C } from '../classic-og-v1.6.5-c/index.js';
+import { classicOgV165E } from '../classic-og-v1.6.5-e/index.js';
 import { hideoutV2For } from '../hideout-v2.js';
 import { rulesets } from '../index.js';
 import type { Ruleset } from '../types.js';
@@ -84,10 +85,10 @@ describe('1.6.5-B loan offers ruleset', () => {
 describe('1.6.5-C escalating terms ruleset', () => {
   const rules = classicOgV165C.loanShark;
 
-  it('is the ruleset new rounds start on, and adds only pricing and a higher fee cap to 1.6.5-B', () => {
+  it('adds only pricing and a higher fee cap to 1.6.5-B', () => {
     expect(classicOgV165C.meta).toEqual({ id: 'classic-og-v1.6.5-c', version: '1.6.5-C', name: 'Classic OG - Escalating Loans' });
     expect(rulesets[classicOgV165C.meta.id]).toBe(classicOgV165C);
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV165C);
+    expect((rules as { collections?: unknown }).collections).toBeUndefined();
     const { pricing: _pricing, maxContractFeePercent, ...limits } = rules;
     const { maxContractFeePercent: baseMax, ...baseLimits } = classicOgV165B.loanShark;
     expect(limits).toEqual(baseLimits);
@@ -111,5 +112,34 @@ describe('1.6.5-C escalating terms ruleset', () => {
     expect(rules.pricing.maxHistorySurchargePercent).toBeGreaterThanOrEqual(rules.pricing.missedInstallmentSurchargePercent);
     // Every listed fee is still valid under the cap.
     for (const offer of rules.offers) expect(offer.contractFeeCents * 100).toBeLessThanOrEqual(offer.principalCents * rules.maxContractFeePercent);
+  });
+});
+
+describe('1.6.5-E collections ruleset', () => {
+  const rules = classicOgV165E.loanShark;
+
+  it('is the ruleset new rounds start on, and adds only collections to 1.6.5-C', () => {
+    expect(classicOgV165E.meta).toEqual({ id: 'classic-og-v1.6.5-e', version: '1.6.5-E', name: 'Classic OG - Loan Collections' });
+    expect(rulesets[classicOgV165E.meta.id]).toBe(classicOgV165E);
+    expect(Object.values(rulesets).at(-1)).toBe(classicOgV165E);
+    const { collections: _collections, ...rest } = rules;
+    expect(rest).toEqual(classicOgV165C.loanShark);
+    const { meta: _meta, loanShark: _loanShark, ...others } = classicOgV165E;
+    const { meta: _baseMeta, loanShark: _baseLoanShark, ...base } = classicOgV165C;
+    expect(others).toEqual(base);
+    expect(hideoutV2For(classicOgV165E)).toBe(hideoutV2For(classicOgV165C));
+  });
+
+  it('keeps collections bounded and recoverable', () => {
+    const c = rules.collections;
+    expect(c.missedInstallmentsThreshold).toBeGreaterThanOrEqual(1);
+    expect(c.garnishPercent).toBeGreaterThan(0);
+    expect(c.garnishPercent).toBeLessThan(100);
+    expect(c.garnishCapPerDayCents).toBeGreaterThan(0);
+    expect(c.recoveryOnTimeInstallments).toBeGreaterThanOrEqual(1);
+    expect(c.recoveryOnTimeInstallments).toBeLessThanOrEqual(rules.maxInstallments);
+    // Borrowed cash, transfers and repayments are never income to garnish.
+    for (const source of c.garnishSources) expect(source).not.toMatch(/^LOAN_|ADMIN|CASINO|TRANSFER/);
+    expect(c.garnishSources).toContain('DEALER_SALES');
   });
 });

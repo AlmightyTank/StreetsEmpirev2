@@ -2,6 +2,7 @@ import { debtLimits, lateFeeChargeCents, loanPayoffCents, loanSharkRules, type R
 import type { Db } from '../utils/db.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 import { ActivityService } from './activity.service.js';
+import { garnishIncome } from './loan-collections.service.js';
 import {
   applyLoanPayment,
   installmentDue,
@@ -25,6 +26,9 @@ import {
  * is missed, and the loan's fixed late fee is assessed once, cut down to the loan's cap and
  * the ruleset's fee cap and debt ceiling. A missed installment stays owed and is collected
  * with the next one, or by any payment the player makes.
+ *
+ * 1.6.5-E. Then the player's standing is refreshed, and a player in collections has a capped
+ * share of new income garnished toward what is overdue (see `garnishIncome`).
  */
 export const LoanSettleService = {
   /** Settle everything due by `now`. Returns the cash left, or null when nothing was due. */
@@ -36,17 +40,22 @@ export const LoanSettleService = {
       orderBy: [{ dueAt: 'asc' }, { sequence: 'asc' }, { id: 'asc' }],
       select: { id: true, loanId: true },
     });
-    if (!due.length) return null;
-
     const player = await tx.roundPlayer.findUniqueOrThrow({
       where: { id: roundPlayerId },
-      select: { cashCents: true, loanDebtCents: true, loanFeesAssessedCents: true, loanCollectionState: true },
+      select: {
+        cashCents: true, loanDebtCents: true, loanFeesAssessedCents: true,
+        loanCollectionState: true, loanRecoveryNeeded: true, loanCollectionsSince: true,
+      },
     });
+    // 1.6.5-E: a player in collections is settled for garnishing even with nothing due.
+    const inCollections = Boolean(rules.collections) && player.loanCollectionState === 'COLLECTIONS';
+    if (!due.length && !inCollections) return null;
     const limits = debtLimits(rules);
     let cash = player.cashCents;
     let debt = player.loanDebtCents;
     let feesAssessed = player.loanFeesAssessedCents;
     const ledger: EconomyLedgerWrite[] = [];
+    let onTimeCleared = 0;
 
     for (const next of due) {
       let loan = await loadLoan(tx, next.loanId);
@@ -79,6 +88,7 @@ export const LoanSettleService = {
         cash -= applied.allocation.appliedCents;
         debt -= applied.debtReductionCents;
         ledger.push(...applied.ledger);
+        onTimeCleared += applied.onTimeCleared;
         await ActivityService.log(tx, roundPlayerId, 'LOAN_PAYMENT', loanPaymentActivity(loan, rules, 'SCHEDULED', applied.allocation, debt));
         loan = applied.loan;
       }
@@ -147,18 +157,45 @@ export const LoanSettleService = {
       });
     }
 
-    await tx.roundPlayer.update({
-      where: { id: roundPlayerId },
-      data: { cashCents: cash, loanDebtCents: debt, loanFeesAssessedCents: feesAssessed },
-    });
-    await refreshCollectionState(tx, {
+    if (due.length) {
+      await tx.roundPlayer.update({
+        where: { id: roundPlayerId },
+        data: { cashCents: cash, loanDebtCents: debt, loanFeesAssessedCents: feesAssessed },
+      });
+    }
+    let standing = await refreshCollectionState(tx, {
       roundPlayerId,
-      current: player.loanCollectionState,
+      rules,
+      current: player,
       debtAfterCents: debt,
-      requestKey: `settle:${due.at(-1)!.id}:${now.getTime()}`,
+      onTimeCleared,
+      requestKey: `settle:${due.at(-1)?.id ?? 'collections'}:${now.getTime()}`,
       at: now,
     });
+
+    // 1.6.5-E: in collections, a capped share of new income goes to what is overdue.
+    let garnished = false;
+    if (standing.loanCollectionState === 'COLLECTIONS') {
+      const taken = await garnishIncome(tx, { roundPlayerId, rules, since: standing.loanCollectionsSince, cashCents: cash, debtCents: debt, at: now });
+      if (taken && taken.takenCents > 0n) {
+        garnished = true;
+        cash -= taken.takenCents;
+        debt -= taken.debtReductionCents;
+        ledger.push(...taken.ledger);
+        await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { cashCents: cash, loanDebtCents: debt } });
+        standing = await refreshCollectionState(tx, {
+          roundPlayerId,
+          rules,
+          current: standing,
+          debtAfterCents: debt,
+          onTimeCleared: 0,
+          requestKey: `garnish:${roundPlayerId}:${now.getTime()}`,
+          at: now,
+        });
+      }
+    }
+
     if (ledger.length) await EconomyLedgerService.record(tx, roundPlayerId, ledger, now);
-    return cash;
+    return due.length || garnished ? cash : null;
   },
 };

@@ -166,7 +166,7 @@ export const PlayerStateService = {
     if (await LoanSettleService.settle(tx, roundPlayerId, ruleset, now) !== null) {
       const loans = await tx.roundPlayer.findUniqueOrThrow({
         where: { id: roundPlayerId },
-        select: { cashCents: true, loanDebtCents: true, loanFeesAssessedCents: true, loanCollectionState: true },
+        select: { cashCents: true, loanDebtCents: true, loanFeesAssessedCents: true, loanCollectionState: true, loanRecoveryNeeded: true, loanCollectionsSince: true },
       });
       rest = { ...rest, ...loans };
     }

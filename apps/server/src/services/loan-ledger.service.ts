@@ -4,12 +4,14 @@ import {
   contractFeeBudgetCents,
   contractFeeEarnedCents,
   loanPayoffCents,
+  nextLoanStanding,
   type InstallmentDue,
   type LoanPaymentAllocation,
 } from '@streets/rules-engine';
 import type { LoanSharkRules } from '@streets/rulesets';
 import type { LoanAccountDto, LoanCollectionState, LoanDto, LoanPaymentPreviewDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
+import { ActivityService } from './activity.service.js';
 import type { EconomyLedgerWrite } from './economy-ledger.service.js';
 
 /**
@@ -174,6 +176,7 @@ export function loanAccountDto(rules: LoanSharkRules, account: {
   loanDebtCents: bigint;
   loanFeesAssessedCents: bigint;
   loanCollectionState: LoanCollectionState;
+  loanRecoveryNeeded?: number;
 }): LoanAccountDto {
   const room = BigInt(rules.debtCeilingCents) - account.loanDebtCents;
   return {
@@ -183,6 +186,7 @@ export function loanAccountDto(rules: LoanSharkRules, account: {
     feesAssessedCents: Number(account.loanFeesAssessedCents),
     feeCapCents: rules.feeCapCents,
     collectionState: account.loanCollectionState,
+    recoveryNeeded: account.loanRecoveryNeeded ?? 0,
   };
 }
 
@@ -284,6 +288,8 @@ export async function writeLoanEvent(db: Db, data: {
 export interface AppliedLoanPayment {
   paymentId: string;
   allocation: LoanPaymentAllocation;
+  /** 1.6.5-E. Installments this payment cleared that were never missed: paid on time or early. */
+  onTimeCleared: number;
   /** Cash taken plus fee waived: what comes off the player's debt. */
   debtReductionCents: bigint;
   loan: LoanWithInstallments;
@@ -332,6 +338,7 @@ export async function applyLoanPayment(db: Db, input: {
 
   const bySequence = new Map(allocation.installments.map((row) => [row.sequence, row]));
   const installments: LoanInstallment[] = [];
+  let onTimeCleared = 0;
   for (const row of loan.installments) {
     const paid = bySequence.get(row.sequence);
     if (!paid || (paid.contractFeeCents === 0n && paid.principalCents === 0n && paid.contractFeeWaivedCents === 0n && !paid.cleared)) {
@@ -339,6 +346,7 @@ export async function applyLoanPayment(db: Db, input: {
       continue;
     }
     const cleared = paid.cleared && row.status !== 'PAID';
+    if (cleared && row.status === 'SCHEDULED' && row.missedAt === null) onTimeCleared += 1;
     installments.push(await db.loanInstallment.update({
       where: { id: row.id },
       data: {
@@ -396,35 +404,86 @@ export async function applyLoanPayment(db: Db, input: {
   return {
     paymentId: payment.id,
     allocation,
+    onTimeCleared,
     debtReductionCents,
     loan: { ...updated, installments },
     ledger: loanPaymentLedger(input.kind, allocation, { loanId: loan.id, paymentId: payment.id, offerKey: loan.offerKey }),
   };
 }
 
+/** Where a player stands with the loan shark, as stored. */
+export interface LoanStandingRow {
+  loanCollectionState: LoanCollectionState;
+  loanRecoveryNeeded: number;
+  loanCollectionsSince: Date | null;
+}
+
+const STANDING_WORDS: Record<LoanCollectionState, string> = {
+  CLEAR: 'in good standing',
+  DELINQUENT: 'delinquent',
+  COLLECTIONS: 'in collections',
+  RECOVERING: 'recovering',
+};
+
 /**
- * The player's collection state from their loans: delinquent while any loan is. 1.6.5-E
- * decides when delinquency becomes collections; clearing every missed installment always
- * clears both. Writes the change and journals it; returns the state either way.
+ * The player's standing after a change to their loans (1.6.5-E: see `nextLoanStanding`).
+ * Writes it, journals any change, and tells the feed (and the bell) when the player goes
+ * into collections, out of it, or clears recovery. Returns the standing either way.
  */
 export async function refreshCollectionState(db: Db, input: {
   roundPlayerId: string;
-  current: LoanCollectionState;
+  rules: LoanSharkRules | undefined;
+  current: LoanStandingRow;
   debtAfterCents: bigint;
+  onTimeCleared: number;
   requestKey: string;
   at: Date;
-}): Promise<LoanCollectionState> {
-  const delinquent = await db.loan.count({ where: { roundPlayerId: input.roundPlayerId, status: 'DELINQUENT' } });
-  const next: LoanCollectionState = delinquent === 0 ? 'CLEAR' : input.current === 'COLLECTIONS' ? 'COLLECTIONS' : 'DELINQUENT';
-  if (next === input.current) return next;
-  await db.roundPlayer.update({ where: { id: input.roundPlayerId }, data: { loanCollectionState: next } });
+}): Promise<LoanStandingRow> {
+  const missedOutstanding = await db.loanInstallment.count({ where: { roundPlayerId: input.roundPlayerId, status: 'MISSED' } });
+  const before = input.current;
+  const next = input.rules
+    ? nextLoanStanding(input.rules, {
+      current: before.loanCollectionState,
+      recoveryNeeded: before.loanRecoveryNeeded,
+      missedOutstanding,
+      owesAnything: input.debtAfterCents > 0n,
+      onTimeCleared: input.onTimeCleared,
+    })
+    : { state: missedOutstanding > 0 ? 'DELINQUENT' as const : 'CLEAR' as const, recoveryNeeded: 0 };
+  const result: LoanStandingRow = {
+    loanCollectionState: next.state,
+    loanRecoveryNeeded: next.recoveryNeeded,
+    // Only income earned after going into collections is ever garnished.
+    loanCollectionsSince: next.state === 'COLLECTIONS' ? before.loanCollectionsSince ?? input.at : null,
+  };
+  const changed = result.loanCollectionState !== before.loanCollectionState;
+  if (!changed && result.loanRecoveryNeeded === before.loanRecoveryNeeded && result.loanCollectionsSince?.getTime() === before.loanCollectionsSince?.getTime()) {
+    return result;
+  }
+  await db.roundPlayer.update({ where: { id: input.roundPlayerId }, data: result });
+  if (!changed) return result;
   await writeLoanEvent(db, {
     roundPlayerId: input.roundPlayerId,
     kind: 'COLLECTION_CHANGED',
     debtAfterCents: input.debtAfterCents,
     requestKey: `${input.requestKey}:collection`,
-    metadata: { from: input.current, to: next, delinquentLoans: delinquent },
+    metadata: { from: before.loanCollectionState, to: result.loanCollectionState, missedInstallments: missedOutstanding, recoveryNeeded: result.loanRecoveryNeeded },
     at: input.at,
   });
-  return next;
+  // Going into collections, out of it, and clearing recovery reach the feed and the bell.
+  const into = result.loanCollectionState === 'COLLECTIONS';
+  const out = before.loanCollectionState === 'COLLECTIONS' || before.loanCollectionState === 'RECOVERING';
+  if (input.rules?.collections && (into || out)) {
+    await ActivityService.log(db, input.roundPlayerId, 'LOAN_COLLECTIONS', {
+      from: before.loanCollectionState,
+      to: result.loanCollectionState,
+      fromLabel: STANDING_WORDS[before.loanCollectionState],
+      toLabel: STANDING_WORDS[result.loanCollectionState],
+      missedInstallments: missedOutstanding,
+      recoveryNeeded: result.loanRecoveryNeeded,
+      garnishPercent: input.rules.collections.garnishPercent,
+      debtAfterCents: Number(input.debtAfterCents),
+    });
+  }
+  return result;
 }

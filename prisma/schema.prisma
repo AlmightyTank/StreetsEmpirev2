@@ -1231,6 +1231,10 @@ model RoundPlayer {
   /// 1.6.5-A. Every late fee ever assessed this round, paid or not. Held under the ruleset's fee cap.
   loanFeesAssessedCents   BigInt                   @default(0)
   loanCollectionState     LoanCollectionState      @default(CLEAR)
+  /// 1.6.5-E. While RECOVERING: installments still to be paid on time before new loans unlock.
+  loanRecoveryNeeded      Int                      @default(0)
+  /// 1.6.5-E. When the player went into collections: only income earned since is garnished.
+  loanCollectionsSince    DateTime?
   /// 1.2.0-A. City chip wallets, open bankroll sessions and immutable casino receipts.
   casinoWallets           CasinoWallet[]
   casinoSessions          CasinoSession[]
@@ -1922,6 +1926,8 @@ enum LoanCollectionState {
   DELINQUENT
   /// 1.6.5-E. Past the configured delinquency threshold.
   COLLECTIONS
+  /// 1.6.5-E. Overdue cleared; new loans unlock after enough on-time installments.
+  RECOVERING
 }
 
 enum LoanEventKind {
@@ -2846,6 +2852,8 @@ enum ActivityType {
   LOAN_TAKEN
   LOAN_PAYMENT
   LOAN_INSTALLMENT_MISSED
+  /// 1.6.5-E. Into collections, or out of it into recovery or good standing.
+  LOAN_COLLECTIONS
 }
 
 enum BattleKind {
@@ -3023,10 +3031,13 @@ model EconomyLedgerEntry {
   roundPlayerId String
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
-  source      String
-  label       String
-  amountCents BigInt
-  metadata    Json?
+  source          String
+  label           String
+  amountCents     BigInt
+  metadata        Json?
+  /// 1.6.5-E. When this income line was considered for a loan collection garnish (taken from
+  /// or not). Set once, so no income is ever garnished twice.
+  loanCollectedAt DateTime?
 
   createdAt DateTime @default(now())
 

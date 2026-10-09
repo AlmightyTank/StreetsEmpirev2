@@ -55,3 +55,22 @@ describe('1.6.5-D loan activity', () => {
     expect(gameEventToastFor(activity('LOAN_PAYMENT', { kind: 'SCHEDULED' }), 'crack')).toBeNull();
   });
 });
+
+describe('1.6.5-E collections', () => {
+  it('describes garnishes and standing changes in the feed', () => {
+    expect(describeActivity(activity('LOAN_PAYMENT', { kind: 'COLLECTION', offerName: 'Heavy Bankroll', paidCents: 1_000_000, incomeCents: 4_000_000, garnishPercent: 25, lateFeeCents: 250_000, debtAfterCents: 9_000_000 }), 'crack')).toEqual({
+      text: 'The loan shark garnished $10,000 of your income toward your overdue Heavy Bankroll.',
+      detail: '25% of $40,000 earned · $2,500 late fees · you owe $90,000',
+    });
+    expect(describeActivity(activity('LOAN_COLLECTIONS', { to: 'COLLECTIONS', missedInstallments: 2, garnishPercent: 25, debtAfterCents: 100_000 }), 'crack').text)
+      .toBe('You are in collections: 2 missed installments.');
+    expect(describeActivity(activity('LOAN_COLLECTIONS', { to: 'RECOVERING', recoveryNeeded: 2 }), 'crack').detail).toBe('Pay 2 installments on time to borrow again');
+    expect(describeActivity(activity('LOAN_COLLECTIONS', { to: 'CLEAR' }), 'crack').text).toBe('Back in good standing with the loan shark.');
+  });
+
+  it('raises a toast for each standing change', () => {
+    expect(gameEventToastFor(activity('LOAN_COLLECTIONS', { to: 'COLLECTIONS' }), 'crack')).toMatchObject({ title: 'You are in collections', tone: 'bad', href: '/game/loans' });
+    expect(gameEventToastFor(activity('LOAN_COLLECTIONS', { to: 'RECOVERING' }), 'crack')).toMatchObject({ title: 'Out of collections', tone: 'warn' });
+    expect(gameEventToastFor(activity('LOAN_COLLECTIONS', { to: 'CLEAR' }), 'crack')).toMatchObject({ title: 'Back in good standing', tone: 'good' });
+  });
+});
