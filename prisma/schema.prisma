@@ -2632,6 +2632,8 @@ enum ActivityType {
   CASE_FOLLOWED
   FACTION_TIER_UP
   FACTION_WARNING
+  /// 1.6.0-H. A lane shipment landed: clean, partly searched, or seized.
+  SUPPLY_LANE_ARRIVED
 }
 
 enum BattleKind {

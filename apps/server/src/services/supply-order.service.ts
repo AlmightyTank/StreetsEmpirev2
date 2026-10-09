@@ -43,13 +43,15 @@ function offerRules(supplier: SupplySupplierRules, productKey: string): SupplyOf
 
 export function supplyOrderDto(ruleset: Ruleset, row: SupplyOrderRow): SupplyOrderDto {
   const supplier = supplierRules(ruleset, row.supplierKey);
-  const supplierName = supplier?.name ?? row.supplierKey;
+  // 1.6.0-H: a supplier abroad has an origin, not a city on the map.
+  const abroad = supplier ? undefined : ruleset.supplyNetwork?.lanes?.suppliers.find((entry) => entry.key === row.supplierKey);
+  const supplierName = supplier?.name ?? abroad?.name ?? row.supplierKey;
   return {
     id: row.id,
     supplierKey: row.supplierKey,
     supplierName,
     supplierCitySlug: row.supplierCitySlug,
-    supplierCityName: cityName(ruleset, row.supplierCitySlug),
+    supplierCityName: abroad ? abroad.origin : cityName(ruleset, row.supplierCitySlug),
     productKey: row.productKey,
     productName: productName(ruleset, row.productKey),
     quantityOrdered: row.quantityOrdered,

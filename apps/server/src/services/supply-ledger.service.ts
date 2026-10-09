@@ -20,7 +20,7 @@ export const SupplyLedgerService = {
     const [ledger, sales, orders, transit, stored, crews] = await Promise.all([
       db.economyLedgerEntry.groupBy({
         by: ['source'],
-        where: { roundPlayerId, source: { in: ['SUPPLY_ORDER', 'SUPPLY_PROPERTY', 'SUPPLY_UPKEEP', 'DEALER_SALES', 'DEALER_WAGES'] } },
+        where: { roundPlayerId, source: { in: ['SUPPLY_ORDER', 'SUPPLY_LANE_FEE', 'SUPPLY_PROPERTY', 'SUPPLY_UPKEEP', 'DEALER_SALES', 'DEALER_WAGES'] } },
         _sum: { amountCents: true },
       }),
       db.dealerSale.aggregate({ where: { dealerCrew: { roundPlayerId } }, _sum: { quantity: true, grossCents: true, crewCutCents: true } }),
@@ -35,15 +35,17 @@ export const SupplyLedgerService = {
     const property = -sum('SUPPLY_PROPERTY');
     const upkeep = -sum('SUPPLY_UPKEEP');
     const wages = -sum('DEALER_WAGES');
+    const laneFees = -sum('SUPPLY_LANE_FEE');
     const salesNet = sum('DEALER_SALES');
     return {
       wholesaleCents: wholesale,
       propertyCents: property,
       upkeepCents: upkeep,
+      laneFeesCents: laneFees,
       grossSalesCents: Number(sales._sum.grossCents ?? 0n),
       dealerCutCents: Number(sales._sum.crewCutCents ?? 0n),
       wagesCents: wages,
-      netCents: salesNet - wages - wholesale - property - upkeep,
+      netCents: salesNet - wages - wholesale - laneFees - property - upkeep,
       unitsSold: sales._sum.quantity ?? 0,
       stock: {
         // Units promised to a pickup still driving out are still at the supplier.
@@ -56,7 +58,11 @@ export const SupplyLedgerService = {
   },
 
   async history(db: PrismaClient, ruleset: Ruleset, roundPlayerId: string, take = 40): Promise<SupplyHistoryItemDto[]> {
-    const rows = await db.supplyMovement.findMany({ where: { roundPlayerId }, orderBy: { createdAt: 'desc' }, take });
+    const [rows, lanes] = await Promise.all([
+      db.supplyMovement.findMany({ where: { roundPlayerId }, orderBy: { createdAt: 'desc' }, take }),
+      // 1.6.0-H: how each lane load landed, searched or not; a seizure stores nothing to list.
+      db.supplyPickup.findMany({ where: { roundPlayerId, routeKey: { startsWith: 'lane:' }, status: { in: ['DELIVERED', 'FAILED'] } }, orderBy: { deliveredAt: 'desc' }, take }),
+    ]);
     const places = [...rows.map((row) => row.fromLocation), ...rows.map((row) => row.toLocation)];
     const ids = (prefix: string) => [...new Set(places.filter((value): value is string => Boolean(value?.startsWith(prefix))).map((value) => value.slice(prefix.length)))];
     const [warehouses, crews] = await Promise.all([
@@ -77,16 +83,26 @@ export const SupplyLedgerService = {
       }
       return 'storage';
     };
-    return rows.map((row) => {
+    const landings: SupplyHistoryItemDto[] = lanes.map((row) => {
+      const name = productName(ruleset, row.productKey);
+      const route = ruleset.supplyNetwork?.lanes?.routes[row.routeKey.slice(5) as 'FREIGHT']?.name ?? 'Lane';
+      const lost = row.quantity - row.deliveredQuantity;
+      const text = lost === 0 ? `${route} load of ${count(row.quantity)} ${name} landed clean in ${city(row.destinationCitySlug)}.`
+        : row.deliveredQuantity === 0 ? `${route} load of ${count(row.quantity)} ${name} was seized in ${city(row.destinationCitySlug)}.`
+          : `${route} load searched in ${city(row.destinationCitySlug)}: ${count(lost)} ${name} seized, ${count(row.deliveredQuantity)} stored.`;
+      return { at: (row.deliveredAt ?? row.updatedAt).toISOString(), kind: 'LANE' as const, productName: name, units: row.deliveredQuantity, text };
+    });
+    const moved: SupplyHistoryItemDto[] = rows.filter((row) => !row.fromLocation?.startsWith('lane:')).map((row) => {
       const name = productName(ruleset, row.productKey);
       const units = `${count(row.quantityDelta)} ${name}`;
       const text = row.kind === 'ORDERED' ? `Ordered ${units}.`
-        : row.kind === 'PICKED_UP' ? (row.toLocation?.startsWith('shipment:') ? `Shipped ${units} out of ${place(row.fromLocation)}.` : `Loaded ${units} at the supplier.`)
+        : row.kind === 'PICKED_UP' ? (row.toLocation?.startsWith('shipment:') ? `Shipped ${units} out of ${place(row.fromLocation)}.` : row.toLocation?.startsWith('lane:') ? `Sent ${units} on a lane from abroad.` : `Loaded ${units} at the supplier.`)
           : row.kind === 'STORED' ? `Stored ${units} in ${place(row.toLocation)}.`
             : row.kind === 'ASSIGNED_TO_DEALER' ? `Stocked ${place(row.toLocation)} with ${units} from ${place(row.fromLocation)}.`
               : row.kind === 'RETURNED' ? `${capital(place(row.fromLocation))} returned ${units} to ${place(row.toLocation)}.`
                 : `${capital(place(row.fromLocation))} sold ${units}.`;
       return { at: row.createdAt.toISOString(), kind: row.kind, productName: name, units: row.quantityDelta, text };
     });
+    return [...moved, ...landings].sort((a, b) => b.at.localeCompare(a.at)).slice(0, take);
   },
 };

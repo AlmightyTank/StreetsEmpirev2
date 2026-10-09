@@ -8,7 +8,7 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { PickupList, PickupPlanner, PropertiesPanel, StoragePanel } from '../components/SupplyPickupPanels.js';
-import { HistoryPanel, LedgerPanel, ShipmentPlanner } from '../components/SupplyNetworkPanels.js';
+import { HistoryPanel, LanePlanner, LedgerPanel, ShipmentPlanner } from '../components/SupplyNetworkPanels.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -250,6 +250,7 @@ export function SupplyPage() {
                   <StoragePanel plan={data.pickups} />
                   <PickupList pickups={data.pickups.pickups} />
                 </div>
+                {data.pickups.lanes ? <LanePlanner lanes={data.pickups.lanes} onDone={() => setReload((value) => value + 1)} /> : null}
                 {data.pickups.shipmentLanes ? <ShipmentPlanner plan={data.pickups} onDone={() => setReload((value) => value + 1)} /> : null}
                 {data.ledger ? <LedgerPanel ledger={data.ledger} /> : null}
                 <PropertiesPanel plan={data.pickups} onDone={() => setReload((value) => value + 1)} />

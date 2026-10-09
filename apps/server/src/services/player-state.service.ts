@@ -20,6 +20,7 @@ import { TurfService } from './turf.service.js';
 import { BusinessService } from './business.service.js';
 import { SupplyPropertySettleService } from './supply-property-settle.service.js';
 import { DealerSalesSettleService } from './dealer-sales-settle.service.js';
+import { SupplyLaneSettleService } from './supply-lane-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { pokerCommittedCents } from './casino-poker-committed.js';
 import { LawWarrantService } from './law-warrant.service.js';
@@ -152,6 +153,8 @@ export const PlayerStateService = {
         businessWhores: businessSettlement.businessWhores,
       };
     }
+    // 1.6.0-H: lane loads that have landed, searched or not.
+    await SupplyLaneSettleService.settle(tx, roundPlayerId, ruleset, now);
     // 1.6.0-F: dealer sales pay in, before upkeep comes out.
     const salesCash = await DealerSalesSettleService.settle(tx, roundPlayerId, ruleset, now);
     if (salesCash !== null) rest = { ...rest, cashCents: salesCash };

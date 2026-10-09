@@ -558,6 +558,17 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       };
     }
 
+    case 'SUPPLY_LANE_ARRIVED': {
+      // 1.6.0-H: how a lane load landed.
+      const load = `${str(p.routeName, 'Lane')} load of ${formatNumber(num(p.quantity))} ${str(p.product, 'product')} from ${str(p.supplier, 'abroad')}`;
+      return {
+        text: str(p.outcome) === 'CLEAN' ? `${load} landed clean in ${str(p.cityName, 'town')}.`
+          : str(p.outcome) === 'SEIZED' ? `${load} was seized in ${str(p.cityName, 'town')}.`
+            : `${load} was searched in ${str(p.cityName, 'town')}.`,
+        detail: str(p.outcome) === 'CLEAN' ? `${formatNumber(num(p.delivered))} stored` : `${formatNumber(num(p.delivered))} stored · ${formatNumber(num(p.lost))} seized`,
+      };
+    }
+
     case 'RUN_INCIDENT':
       return {
         text: str(p.kind) === 'STOP' ? `Police stopped your run on ${str(p.road, 'the road')}.`
@@ -776,6 +787,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     CASE_FOLLOWED: 'Federal case',
     FACTION_TIER_UP: 'Faction',
     FACTION_WARNING: 'Faction word',
+    SUPPLY_LANE_ARRIVED: 'Lane landed',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();

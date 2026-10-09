@@ -35,6 +35,7 @@ import { TurfService } from './turf.service.js';
 import { BusinessService } from './business.service.js';
 import { SupplyPropertySettleService } from './supply-property-settle.service.js';
 import { DealerSalesSettleService } from './dealer-sales-settle.service.js';
+import { SupplyLaneSettleService } from './supply-lane-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
@@ -442,6 +443,8 @@ export const ActionService = {
       const turfSettlement = await TurfService.settlePlayer(tx, roundPlayerId, ruleset, now);
       // 1.1.0-B: and business supply, income and any staff coming home from a lost block.
       const businessSettlement = await BusinessService.settlePlayer(tx, roundPlayerId, ruleset, now);
+      // 1.6.0-H: lane loads that have landed are in storage before anything reads it.
+      await SupplyLaneSettleService.settle(tx, roundPlayerId, ruleset, now);
       // 1.6.0-F: dealer sales first, so their takings can meet the upkeep after.
       const salesCash = await DealerSalesSettleService.settle(tx, roundPlayerId, ruleset, now);
       // 1.6.0-D: and property upkeep that has fallen due.

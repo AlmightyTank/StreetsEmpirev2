@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { SupplyHistoryItemDto, SupplyLedgerDto, SupplyPickupPlanningDto, SupplyShipmentResult, SupplyVehicleClassId } from '@streets/shared';
+import type { SupplyHistoryItemDto, SupplyLanesDto, SupplyLaneResult, SupplyLedgerDto, SupplyPickupPlanningDto, SupplyShipmentResult, SupplyVehicleClassId } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { supplyApi } from '../api/supply.js';
 import { useGameAction } from '../hooks/useGameAction.js';
@@ -159,6 +159,105 @@ export function ShipmentPlanner({ plan, onDone }: { plan: SupplyPickupPlanningDt
   );
 }
 
+/** 1.6.0-H. Buy abroad and ship by route card to storage in one of the card's landing cities. */
+export function LanePlanner({ lanes, onDone }: { lanes: SupplyLanesDto; onDone: () => void }) {
+  const action = useGameAction<SupplyLaneResult>();
+  const [supplierKey, setSupplierKey] = useState(lanes.suppliers[0]?.key ?? '');
+  const supplier = lanes.suppliers.find((entry) => entry.key === supplierKey) ?? lanes.suppliers[0] ?? null;
+  const [productKey, setProductKey] = useState('');
+  const offer = supplier?.offers.find((entry) => entry.productKey === productKey) ?? supplier?.offers[0] ?? null;
+  const cards = lanes.routes.filter((route) => supplier?.routes.includes(route.key));
+  const [routeKey, setRouteKey] = useState('');
+  const route = cards.find((entry) => entry.key === routeKey) ?? cards[0] ?? null;
+  const landings = route?.entries.flatMap((entry) => entry.storage.map((storage) => ({ ...storage, citySlug: entry.citySlug, cityName: entry.cityName, risk: entry.risk }))) ?? [];
+  const [landingKey, setLandingKey] = useState('');
+  const landing = landings.find((entry) => entry.key === landingKey) ?? landings[0] ?? null;
+  const [quantity, setQuantity] = useState<number | ''>('');
+  const requestKey = useRef(newActionId());
+  const change = (update: () => void) => { requestKey.current = newActionId(); action.clear(); update(); };
+  const units = typeof quantity === 'number' ? quantity : 0;
+  const goods = (offer?.unitCostCents ?? 0) * units;
+  const fee = route ? route.baseFeeCents + route.feeCentsPerUnit * units : 0;
+  const most = Math.max(0, Math.min(offer?.maxOrderQuantity ?? 0, offer?.availableQuantity ?? 0, route?.capacityUnits ?? 0, landing?.roomUnits ?? 0));
+  const block = action.busy ? 'Sending.'
+    : !supplier || !offer || !route ? 'Pick a supplier, a product and a card.'
+      : !landing ? `You have no storage that takes deliveries where ${route.name} lands: ${route.entries.map((entry) => entry.cityName).join(', ')}.`
+        : lanes.inTransit >= lanes.maxInTransit ? `You have ${lanes.maxInTransit} lane loads on the way, the most allowed.`
+          : units < offer.minOrderQuantity ? `Order at least ${formatNumber(offer.minOrderQuantity)}.`
+            : units > offer.maxOrderQuantity ? `Order at most ${formatNumber(offer.maxOrderQuantity)}.`
+              : units > route.capacityUnits ? `${route.name} carries ${formatNumber(route.capacityUnits)} a load.`
+                : units > offer.availableQuantity ? `${supplier.name} has ${formatNumber(offer.availableQuantity)} left this round.`
+                  : units > landing.roomUnits ? `${formatNumber(units - landing.roomUnits)} would not fit in the ${landing.name.toLowerCase()} in ${landing.cityName}.`
+                    : null;
+
+  return (
+    <Panel title="International lanes" aside={`${lanes.inTransit}/${lanes.maxInTransit} on the way`}>
+      {action.error ? <Alert>{action.error}</Alert> : null}
+      {action.result ? <Alert tone="info">{action.result.result.replayed ? 'That load was already sent.' : `Paid ${money(action.result.result.chargedCents)}. ${formatNumber(action.result.result.pickup.quantity)} ${action.result.result.pickup.productName} lands in ${action.result.result.pickup.destinationCityName} around ${action.result.result.pickup.expectedArrivalAt ? formatWeekdayTime(action.result.result.pickup.expectedArrivalAt) : 'soon'}.`}</Alert> : null}
+      <p className="se-hint">Cheaper abroad, in bigger lots, but you pay for the goods and the route card up front and the load can be searched when it lands. Busier police where it lands mean more searches, and a search adds to your Case there.</p>
+      <div className="se-supply__form">
+        <div className="se-launch__grid">
+          <div className="se-field">
+            <label htmlFor="lane-supplier">Supplier</label>
+            <select id="lane-supplier" className="se-input" value={supplier?.key ?? ''} onChange={(event) => change(() => setSupplierKey(event.target.value))}>
+              {lanes.suppliers.map((entry) => <option key={entry.key} value={entry.key}>{entry.name} · {entry.origin}</option>)}
+            </select>
+          </div>
+          <div className="se-field">
+            <label htmlFor="lane-product">Product</label>
+            <select id="lane-product" className="se-input" value={offer?.productKey ?? ''} onChange={(event) => change(() => setProductKey(event.target.value))}>
+              {supplier?.offers.map((entry) => <option key={entry.productKey} value={entry.productKey}>{entry.productName} · {money(entry.unitCostCents)} a unit</option>)}
+            </select>
+          </div>
+        </div>
+        {supplier ? <p className="se-supply__description">{supplier.description}</p> : null}
+        <div className="se-routes" role="radiogroup" aria-label="Route card">
+          {cards.map((card) => (
+            <label key={card.key} className={`se-routes__route${card.key === route?.key ? ' se-routes__route--on' : ''}`}>
+              <input type="radio" name="lane-route" checked={card.key === route?.key} onChange={() => change(() => setRouteKey(card.key))} />
+              <span className="se-routes__way"><strong>{card.name}</strong> · {card.description}</span>
+              <span className="se-routes__meta se-num">{formatNumber(card.capacityUnits)} a load · {card.transitHours}h · {money(card.baseFeeCents)} + {money(card.feeCentsPerUnit)} a unit</span>
+            </label>
+          ))}
+        </div>
+        <div className="se-launch__grid">
+          <div className="se-field">
+            <label htmlFor="lane-landing">Lands at</label>
+            <select id="lane-landing" className="se-input" value={landing?.key ?? ''} onChange={(event) => change(() => setLandingKey(event.target.value))} disabled={!landings.length}>
+              {landings.map((entry) => <option key={entry.key} value={entry.key}>{entry.name} · {entry.cityName} · {entry.risk.toLowerCase()} risk · {formatNumber(entry.roomUnits)} room</option>)}
+            </select>
+            {route ? <small className="se-muted">{route.name} lands in {route.entries.map((entry) => `${entry.cityName} (${entry.risk.toLowerCase()})`).join(', ')}.</small> : null}
+          </div>
+          <div className="se-field">
+            <label htmlFor="lane-units">Units <span className="se-muted">up to {formatNumber(most)}</span></label>
+            <input id="lane-units" className="se-input" type="number" inputMode="numeric" min={offer?.minOrderQuantity ?? 1} max={most} value={quantity}
+              onChange={(event) => change(() => setQuantity(event.target.value === '' ? '' : Math.max(0, Math.floor(Number(event.target.value)) || 0)))} />
+            {offer ? <small className="se-muted">{formatNumber(offer.minOrderQuantity)}–{formatNumber(offer.maxOrderQuantity)} an order · {formatNumber(offer.availableQuantity)} left this round</small> : null}
+          </div>
+        </div>
+        {route && units > 0 ? (
+          <div className="se-supply__quote">
+            <Row label="Goods" value={money(goods)} />
+            <Row label={`${route.name} fee`} value={money(fee)} />
+            <Row label="Paid now" value={money(goods + fee)} strong />
+            <Row label="A unit, all in" value={`$${((goods + fee) / units / 100).toFixed(2)}`} />
+            <Row label="Lands" value={`in ${route.transitHours}h${landing ? ` at the ${landing.name.toLowerCase()} in ${landing.cityName}` : ''}`} />
+            {landing ? <Row label="Search risk there" value={landing.risk.toLowerCase()} tooltip="A search can take part of the load, or all of it. What is taken is gone, and it adds to your Case in that city." /> : null}
+          </div>
+        ) : null}
+        <Button className="se-btn se-btn--primary se-btn--block" disabledReason={block}
+          onClick={async () => {
+            await action.run((actionId) => supplyApi.shipLane({ supplierKey: supplier!.key, productKey: offer!.productKey, quantity: units, route: route!.key, warehouseKey: landing!.key, requestKey: requestKey.current, actionId }));
+            requestKey.current = newActionId();
+            onDone();
+          }}>
+          Pay and ship · {money(goods + fee)}
+        </Button>
+      </div>
+    </Panel>
+  );
+}
+
 /** What the supply network cost and made this round, and where every unit is. */
 export function LedgerPanel({ ledger }: { ledger: SupplyLedgerDto }) {
   const held = ledger.stock.awaitingPickup + ledger.stock.inTransit + ledger.stock.stored + ledger.stock.withCrews;
@@ -169,6 +268,7 @@ export function LedgerPanel({ ledger }: { ledger: SupplyLedgerDto }) {
         <Row label="Dealers' cut" value={money(-ledger.dealerCutCents)} />
         <Row label="Dealer wages" value={money(-ledger.wagesCents)} />
         <Row label="Wholesale orders" value={money(-ledger.wholesaleCents)} />
+        {ledger.laneFeesCents ? <Row label="Lane fees" value={money(-ledger.laneFeesCents)} /> : null}
         <Row label="Properties" value={money(-ledger.propertyCents)} />
         <Row label="Upkeep" value={money(-ledger.upkeepCents)} />
         <Row label="Net" strong value={<span className={ledger.netCents >= 0 ? 'se-good' : 'se-bad'}>{money(ledger.netCents)}</span>}

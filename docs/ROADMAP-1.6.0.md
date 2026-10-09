@@ -31,7 +31,7 @@ Slices **A–F** deliver a complete loop on the existing map. Slices **G–H** e
 
 Each slice should have its own release gate and pinned ruleset, following the project's established release pattern. Names and exact ruleset identifiers can be finalized during implementation.
 
-**Beta progress:** Slices A through G are implemented on the beta branch: the core loop, and Chicago, Tulsa and Dallas on the map. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Slice D adds warehouses and safehouses with upkeep, and pickups that deliver to any warehouse. Slice E adds dealer crews: set up, staffed, stocked and priced, with their expected pace shown. Slice F makes crews sell, pays out, ships stock between cities, and adds the supply ledger and history. Slice G adds Chicago, Tulsa and Dallas. International lanes and the balance pass remain Slices H–I.
+**Beta progress:** Slices A through H are implemented on the beta branch: the core loop, Chicago, Tulsa and Dallas, and international lanes. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Slice D adds warehouses and safehouses with upkeep, and pickups that deliver to any warehouse. Slice E adds dealer crews: set up, staffed, stocked and priced, with their expected pace shown. Slice F makes crews sell, pays out, ships stock between cities, and adds the supply ledger and history. Slice G adds Chicago, Tulsa and Dallas. Slice H adds suppliers abroad on route cards. The balance pass remains Slice I.
 
 ## Proposed slices
 
@@ -214,6 +214,8 @@ Add the proposed cities after the basic loop works on the existing map.
 
 ### 1.6.0-H — International Supply Lanes
 
+**Status: Implemented on the beta branch (`classic-og-v1.6-h`).**
+
 Broaden the network only after domestic procurement and sales are balanced.
 
 - Represent supply access with fictionalized route cards such as **Freight**, **Overland**, **Air**, and **Northern Supply**.
@@ -223,6 +225,30 @@ Broaden the network only after domestic procurement and sales are balanced.
 - Add city and supplier content only when it introduces a distinct market or strategic option.
 
 **Gate:** No single supplier or route is optimal across order size, price, travel time, and risk; each failure outcome is communicated and recorded clearly.
+
+**As built:**
+
+- **Contracts, not drives:** a lane order pays for the goods and a route card up front and lands at the player's storage in one of the card's entry cities when its transit time is up. No run and no vehicles; up to two lane loads on the way at once.
+- **Route cards** (abstract; no real-world method is modelled):
+  - **Freight:** 20,000 a load, $20,000 + $2 a unit, 36h, into Los Angeles, Miami Beach, New York or Seattle.
+  - **Overland:** 6,000 a load, $5,000 + $3 a unit, 12h, into Dallas or Los Angeles, and searched most often.
+  - **Air:** 1,000 a load, $10,000 + $15 a unit, 3h, into seven cities, and searched least.
+  - **Northern Supply:** 8,000 a load, $8,000 + $3 a unit, 18h, into Detroit, Seattle or Chicago.
+- **Suppliers abroad** (cheaper than the depots, in bigger lots, from finite round-wide stock):
+  - **Monterrey Connection:** cocaine, meth and heroin, on Overland, Freight or Air.
+  - **Mexico City Contact:** the cheapest cocaine and heroin, Freight or Air only, lots of 2,000+.
+  - **Northern Contact:** weed and ecstasy, on Northern Supply or Air.
+  - A Canadian city stays an open map decision; the northern source is an unnamed contact until then.
+- **Arrivals:** each card's search odds are scaled by the landing city's police pressure, capped so no lane is certain to fail and none is safe. An arrival lands clean, partly searched (15–60% taken, by card) or seized. It is rolled once, seeded by the shipment, so reading again never changes it.
+- **Recording every outcome:** each arrival is written to the shipment (delivered and lost), the movement ledger, the supply history, the feed and the notification bell, as a toast that is good, warning or bad by outcome. A search adds evidence to the landing city's Case: a seizure 2–3 points, like an arrest; a partial search half, at least 1.
+- **Money and room:** goods are SUPPLY_ORDER and the card is SUPPLY_LANE_FEE on the economy ledger; the supply ledger shows lane fees. Loads on the way hold room at the landing warehouse, so a lane can't overfill it.
+- **Simulation:** `npm run qa:supply-lanes` compares every supplier, card and order size by landed cost a unit (goods and fees over what is expected to arrive), transit and risk; [SUPPLY-LANES-1.6.0-H.md](SUPPLY-LANES-1.6.0-H.md) is the run. It passes the gate:
+  - Depots win small orders.
+  - Lanes win big ones.
+  - Freight is the only card for 20,000 units.
+  - Air is fastest; Overland is cheapest mid-size and searched most.
+  - More than one supplier wins somewhere.
+- Gate coverage: `SUPPLY_INTEGRATION=1` runs `supply-lanes.integration.test.ts`.
 
 ### 1.6.0-I — Balance, Admin & Release
 

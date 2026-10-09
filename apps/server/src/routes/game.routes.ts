@@ -49,6 +49,7 @@ import { SupplyOrderService } from '../services/supply-order.service.js';
 import { SupplyPickupService } from '../services/supply-pickup.service.js';
 import { SupplyPropertyService } from '../services/supply-property.service.js';
 import { SupplyLedgerService } from '../services/supply-ledger.service.js';
+import { SupplyLaneService } from '../services/supply-lane.service.js';
 import { DealerStaffService } from '../services/dealer-staff.service.js';
 import { DealerCrewService } from '../services/dealer-crew.service.js';
 import { RandomEncounterChoiceService } from '../services/random-encounter-choice.service.js';
@@ -192,6 +193,11 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/supply/pickups', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     return SupplyPickupService.dispatch(fastify.prisma, player.id, request.body);
+  });
+
+  fastify.post('/supply/lanes', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return SupplyLaneService.ship(fastify.prisma, player.id, request.body);
   });
 
   fastify.post('/supply/shipments', { preHandler: fastify.requireAuth }, async (request) => {

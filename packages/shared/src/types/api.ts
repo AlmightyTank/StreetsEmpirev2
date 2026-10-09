@@ -98,6 +98,8 @@ export type ActivityType =
   | 'FACTION_TIER_UP'
   /** 1.4.0-D. An early warning from a faction the player is Trusted with. */
   | 'FACTION_WARNING'
+  /** 1.6.0-H. A lane shipment landed: clean, partly searched, or seized. */
+  | 'SUPPLY_LANE_ARRIVED'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'
@@ -398,6 +400,8 @@ export interface SupplyLedgerDto {
   wholesaleCents: number;
   propertyCents: number;
   upkeepCents: number;
+  /** 1.6.0-H. What route cards cost. */
+  laneFeesCents: number;
   grossSalesCents: number;
   dealerCutCents: number;
   wagesCents: number;
@@ -409,7 +413,8 @@ export interface SupplyLedgerDto {
 
 export interface SupplyHistoryItemDto {
   at: string;
-  kind: 'ORDERED' | 'PICKED_UP' | 'STORED' | 'ASSIGNED_TO_DEALER' | 'SOLD' | 'RETURNED';
+  /** LANE: 1.6.0-H, a lane shipment landing, searched or not. */
+  kind: 'ORDERED' | 'PICKED_UP' | 'STORED' | 'ASSIGNED_TO_DEALER' | 'SOLD' | 'RETURNED' | 'LANE';
   productName: string;
   units: number;
   text: string;
@@ -427,6 +432,8 @@ export interface SupplyPickupDto {
   orderId: string | null;
   /** 1.6.0-F. A shipment moves the player's own stock between warehouses. */
   shipment: boolean;
+  /** 1.6.0-H. A contracted lane from abroad, and how it landed once it has. */
+  lane: { route: SupplyLaneRouteKeyDto; routeName: string; outcome: 'CLEAN' | 'PARTIAL' | 'SEIZED' | null } | null;
   runId: string | null;
   productKey: string;
   productName: string;
@@ -565,11 +572,53 @@ export interface SupplyPickupPlanningDto {
   storage: SupplyStashDto[];
   /** 1.6.0-D. Null before properties open. */
   properties: SupplyPropertyMarketDto | null;
+  /** 1.6.0-H. Suppliers abroad and the route cards to them. Null before lanes open. */
+  lanes: SupplyLanesDto | null;
   /** 1.6.0-F. Ways stock can be shipped between storage in different cities. Null before shipments open. */
   shipmentLanes: Array<{ from: string; to: string; routes: SupplyRouteOptionDto[] }> | null;
   orders: SupplyPickupOrderPlanDto[];
   /** Active pickups first, then the most recent finished ones. */
   pickups: SupplyPickupDto[];
+}
+
+export type SupplyLaneRouteKeyDto = 'FREIGHT' | 'OVERLAND' | 'AIR' | 'NORTHERN';
+export type SupplyLaneRiskDto = 'LOW' | 'MODERATE' | 'HIGH';
+
+/** 1.6.0-H. A route card: what it carries, costs and takes, and how it looks in each city it lands in. */
+export interface SupplyLaneRouteDto {
+  key: SupplyLaneRouteKeyDto;
+  name: string;
+  description: string;
+  capacityUnits: number;
+  baseFeeCents: number;
+  feeCentsPerUnit: number;
+  transitHours: number;
+  /** Where it lands, the chance of a search there in words, and the player's storage that can take it. */
+  entries: Array<{ citySlug: string; cityName: string; risk: SupplyLaneRiskDto; storage: Array<{ key: string; name: string; roomUnits: number }> }>;
+}
+
+export interface SupplyLaneSupplierDto {
+  key: string;
+  name: string;
+  origin: string;
+  description: string;
+  routes: SupplyLaneRouteKeyDto[];
+  offers: SupplyOfferDto[];
+}
+
+export interface SupplyLanesDto {
+  maxInTransit: number;
+  inTransit: number;
+  routes: SupplyLaneRouteDto[];
+  suppliers: SupplyLaneSupplierDto[];
+}
+
+export interface SupplyLaneResult {
+  pickup: SupplyPickupDto;
+  goodsCents: number;
+  feeCents: number;
+  chargedCents: number;
+  replayed: boolean;
 }
 
 export interface SupplyShipmentResult {

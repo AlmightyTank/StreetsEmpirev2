@@ -269,6 +269,20 @@ export const supplyShipmentSchema = z.object({
 
 export type SupplyShipmentInput = z.input<typeof supplyShipmentSchema>;
 
+/** 1.6.0-H. Buy abroad and ship by route card to a warehouse in one of its entry cities. */
+export const supplyLaneOrderSchema = z.object({
+  supplierKey: z.string().trim().min(1).max(64),
+  productKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int().positive().max(MAX_ORDER_QUANTITY),
+  route: z.enum(['FREIGHT', 'OVERLAND', 'AIR', 'NORTHERN']),
+  /** A warehouse id, or `stash` for the home stash. */
+  warehouseKey: z.string().trim().min(1).max(64),
+  requestKey: actionIdSchema,
+  actionId: actionIdSchema,
+}).strict();
+
+export type SupplyLaneOrderInput = z.infer<typeof supplyLaneOrderSchema>;
+
 /** 1.6.0-D. Buy a warehouse or a safehouse in a city. */
 export const supplyPropertyBuySchema = z.object({
   kind: z.enum(['WAREHOUSE', 'SAFEHOUSE']),

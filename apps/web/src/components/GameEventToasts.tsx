@@ -311,6 +311,14 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'OFFICIAL_STUNG':
       return { title: 'Your official was stung', detail, tone: 'bad', href: '/game#case' };
 
+    case 'SUPPLY_LANE_ARRIVED':
+      return {
+        title: p.outcome === 'CLEAN' ? 'Lane load landed' : p.outcome === 'SEIZED' ? 'Lane load seized' : 'Lane load searched',
+        detail,
+        tone: p.outcome === 'CLEAN' ? 'good' : p.outcome === 'SEIZED' ? 'bad' : 'warn',
+        href: '/game/supply',
+      };
+
     case 'FACTION_WARNING':
       return { title: `Word from ${String(p.factionName ?? 'a faction')}`, detail, tone: 'warn', href: typeof p.href === 'string' && p.href.startsWith('/game') ? p.href : '/game/quests#factions' };
 

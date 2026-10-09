@@ -47,6 +47,8 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'FACTION_TIER_UP',
   // 1.4.0-D. An early warning from a faction the player is Trusted with.
   'FACTION_WARNING',
+  // 1.6.0-H. A lane load landed, and whether it was searched.
+  'SUPPLY_LANE_ARRIVED',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {

@@ -3218,6 +3218,57 @@ export interface SupplyNetworkRules {
   readonly properties?: SupplyPropertyRules;
   /** 1.6.0-E. Dealer crews that sell stored supply in a district. Absent: no crews. */
   readonly dealers?: DealerRules;
+  /** 1.6.0-H. Suppliers abroad, reached by contracted route cards. Absent: domestic supply only. */
+  readonly lanes?: SupplyLanesRules;
+}
+
+export type SupplyLaneRouteKey = 'FREIGHT' | 'OVERLAND' | 'AIR' | 'NORTHERN';
+
+/**
+ * 1.6.0-H. International supply is a contract, not a drive: the player pays for the goods and
+ * a route card up front, and the load arrives at a warehouse in one of the card's entry cities
+ * after the card's transit time. Each card trades capacity, cost, time and risk. Every card can
+ * be searched on arrival, more often where the police lean harder; nothing makes a lane safe.
+ */
+export interface SupplyLanesRules {
+  /** Lane shipments a player can have on the way at once. */
+  readonly maxInTransit: number;
+  readonly routes: Readonly<Record<SupplyLaneRouteKey, SupplyLaneRouteRules>>;
+  readonly suppliers: readonly SupplyLaneSupplierRules[];
+}
+
+export interface SupplyLaneRouteRules {
+  readonly name: string;
+  /** What the card is, in game terms. Never how it is done. */
+  readonly description: string;
+  /** Where loads on this card can be received. */
+  readonly entryCities: readonly string[];
+  /** The most one shipment can carry. */
+  readonly capacityUnits: number;
+  /** What the card costs: a flat fee and a fee per unit. */
+  readonly baseFeeCents: number;
+  readonly feeCentsPerUnit: number;
+  readonly transitHours: number;
+  /** Chances on arrival at police pressure 1; the entry city's pressure scales both. */
+  readonly risk: {
+    readonly seizeChance: number;
+    readonly partialChance: number;
+    /** Share of the load a partial search takes, rolled in this range. */
+    readonly partialShare: { readonly min: number; readonly max: number };
+    /** Case evidence a seizure leaves in the entry city (a bust is 1, an arrest 3); a partial search leaves half, at least 1. */
+    readonly casePoints: number;
+  };
+}
+
+export interface SupplyLaneSupplierRules {
+  readonly key: string;
+  readonly name: string;
+  /** Where it is, in words. Never a playable city. */
+  readonly origin: string;
+  readonly description: string;
+  /** The route cards it ships on. */
+  readonly routes: readonly SupplyLaneRouteKey[];
+  readonly offers: Readonly<Record<string, SupplyOfferRules>>;
 }
 
 /**

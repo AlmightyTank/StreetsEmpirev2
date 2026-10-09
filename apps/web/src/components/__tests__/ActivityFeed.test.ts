@@ -164,6 +164,12 @@ describe('describeActivity', () => {
       cityName: 'New York City', turns: 10,
       supplyPickup: { shipment: true, supplier: 'your New York City storage', product: 'Cocaine', quantity: 1000, destination: 'Detroit' },
     }, 'RUN_LAUNCHED'), 'crack').text).toBe('Shipped 1,000 Cocaine out of your New York City storage, bound for your Detroit warehouse.');
+    expect(describeActivity(activity({
+      routeName: 'Overland', quantity: 4000, product: 'Cocaine', supplier: 'Monterrey Connection', outcome: 'PARTIAL', delivered: 3000, lost: 1000, cityName: 'Dallas',
+    }, 'SUPPLY_LANE_ARRIVED'), 'crack')).toEqual({
+      text: 'Overland load of 4,000 Cocaine from Monterrey Connection was searched in Dallas.',
+      detail: '3,000 stored · 1,000 seized',
+    });
     // An ordinary run reads as before.
     expect(describeActivity(activity({ cityName: 'Detroit', turns: 10 }, 'RUN_LAUNCHED'), 'crack').text).toBe('Sent a run to Detroit.');
   });

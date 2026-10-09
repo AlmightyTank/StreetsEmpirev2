@@ -28,6 +28,7 @@ import {
   type SupplyPickupOrderPlanDto,
   type SupplyPickupPlanningDto,
   type SupplyRouteOptionDto,
+  type SupplyLaneRouteKeyDto,
   type SupplyStashDto,
   type SupplyVehicleClassId,
 } from '@streets/shared';
@@ -40,6 +41,7 @@ import { HOME_STASH_NAME, homeStash, loadPickupOntoRun } from './supply-pickup-s
 import { propertyBehind } from './supply-property-settle.service.js';
 import { SupplyPropertyService } from './supply-property.service.js';
 import { supplyOrderDto } from './supply-order.service.js';
+import { LANE_PREFIX, SupplyLaneService } from './supply-lane.service.js';
 
 /**
  * 1.6.0-C/D. Collecting a paid order in vehicle loads. A pickup is a run that drives to the
@@ -61,7 +63,8 @@ const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.nam
 const productName = (ruleset: Ruleset, key: string) => (key === 'CRACK'
   ? ruleset.stores.PIP.items.CRACK?.name ?? 'Crack'
   : ruleset.products?.[key]?.name ?? key);
-const supplierName = (ruleset: Ruleset, key: string) => ruleset.supplyNetwork?.suppliers?.find((supplier) => supplier.key === key)?.name ?? key;
+const supplierName = (ruleset: Ruleset, key: string) => ruleset.supplyNetwork?.suppliers?.find((supplier) => supplier.key === key)?.name
+  ?? ruleset.supplyNetwork?.lanes?.suppliers.find((supplier) => supplier.key === key)?.name ?? key;
 const className = (ruleset: Ruleset, classId: SupplyVehicleClassId) => ruleset.vehicleCatalog?.classes.find((entry) => entry.id === classId)?.name
   ?? (classId === 'LOW_RIDER' ? 'Low-Rider' : classId === 'SEDAN' ? 'Sedan' : 'Van');
 
@@ -77,8 +80,11 @@ function readLoadout(value: Prisma.JsonValue): Loadout {
 type PickupRow = SupplyPickup & { order: Pick<SupplyOrder, 'supplierKey'> | null; warehouse: Pick<SupplyWarehouse, 'name'> | null };
 const PICKUP_INCLUDE = { order: { select: { supplierKey: true } }, warehouse: { select: { name: true } } } as const;
 
-function pickupDto(ruleset: Ruleset, row: PickupRow): SupplyPickupDto {
+export function pickupDto(ruleset: Ruleset, row: PickupRow): SupplyPickupDto {
   const finished = row.status === 'DELIVERED' || row.status === 'FAILED';
+  // 1.6.0-H: a lane load comes from abroad on a route card, and lands one of three ways.
+  const laneKey = row.routeKey.startsWith(LANE_PREFIX) ? row.routeKey.slice(LANE_PREFIX.length) as SupplyLaneRouteKeyDto : null;
+  const laneSupplier = laneKey ? ruleset.supplyNetwork?.lanes?.suppliers.find((supplier) => supplier.key === row.order?.supplierKey) : undefined;
   return {
     id: row.id,
     orderId: row.orderId,
@@ -89,7 +95,7 @@ function pickupDto(ruleset: Ruleset, row: PickupRow): SupplyPickupDto {
     // 1.6.0-F: a shipment comes from the player's own storage.
     supplierName: row.order ? supplierName(ruleset, row.order.supplierKey) : `Your ${cityName(ruleset, row.originCitySlug)} storage`,
     originCitySlug: row.originCitySlug,
-    originCityName: cityName(ruleset, row.originCitySlug),
+    originCityName: laneKey ? laneSupplier?.origin ?? 'Abroad' : cityName(ruleset, row.originCitySlug),
     destinationCitySlug: row.destinationCitySlug,
     destinationCityName: cityName(ruleset, row.destinationCitySlug),
     warehouseName: row.warehouse?.name ?? HOME_STASH_NAME,
@@ -103,6 +109,11 @@ function pickupDto(ruleset: Ruleset, row: PickupRow): SupplyPickupDto {
     loadedAt: row.loadedAt?.toISOString() ?? null,
     expectedArrivalAt: row.expectedArrivalAt?.toISOString() ?? null,
     deliveredAt: row.deliveredAt?.toISOString() ?? null,
+    lane: laneKey ? {
+      route: laneKey,
+      routeName: ruleset.supplyNetwork?.lanes?.routes[laneKey]?.name ?? laneKey,
+      outcome: !finished ? null : row.deliveredQuantity === row.quantity ? 'CLEAN' : row.deliveredQuantity === 0 ? 'SEIZED' : 'PARTIAL',
+    } : null,
   };
 }
 
@@ -263,6 +274,7 @@ export const SupplyPickupService = {
       stash: storage[0]!,
       storage,
       properties,
+      lanes: await SupplyLaneService.planning(db, ruleset, player.roundId, player.id, storage, home),
       shipmentLanes,
       orders: plans,
       pickups: [...active, ...done].map((row) => pickupDto(ruleset, row)),

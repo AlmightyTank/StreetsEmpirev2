@@ -99,6 +99,16 @@ export function pickupStatusLabel(pickup: Pick<SupplyPickupDto, 'status' | 'load
   }
 }
 
+/** 1.6.0-H. A lane load in words: on the way, or how it landed. */
+export function laneStatusLabel(pickup: SupplyPickupDto): string {
+  switch (pickup.lane?.outcome) {
+    case 'CLEAN': return 'Landed clean';
+    case 'PARTIAL': return `Searched: ${formatNumber(pickup.lostQuantity)} seized`;
+    case 'SEIZED': return 'Seized on arrival';
+    default: return 'On the way';
+  }
+}
+
 /** Plan and send one load. `orders` are the player's paid orders; the plan is the server's. */
 export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlanningDto; orders: SupplyOrderDto[]; onDone: () => void }) {
   const [restored] = useState(readPendingPickup);
@@ -439,9 +449,9 @@ export function PickupList({ pickups }: { pickups: SupplyPickupDto[] }) {
             return (
               <div className="se-supply__history-row" key={row.id}>
                 <div>
-                  <strong>{formatNumber(row.quantity)} {row.productName} · {row.shipment ? `shipment from ${row.originCityName}` : row.supplierName}</strong>
+                  <strong>{formatNumber(row.quantity)} {row.productName} · {row.lane ? `${row.lane.routeName} from ${row.originCityName}` : row.shipment ? `shipment from ${row.originCityName}` : row.supplierName}</strong>
                   <span>
-                    {pickupStatusLabel(row)}
+                    {row.lane ? laneStatusLabel(row) : pickupStatusLabel(row)}
                     {active && row.expectedArrivalAt ? ` · home ${formatWeekdayTime(row.expectedArrivalAt)}` : ''}
                     {!active && row.lostQuantity > 0 ? ` · ${formatNumber(row.lostQuantity)} lost on the road` : ''}
                     {` · to ${row.warehouseName === 'Home stash' ? 'home stash' : `${row.destinationCityName} warehouse`}`}
