@@ -16,6 +16,7 @@ import {
   storeSpecialOrderSchema,
   supplyOrderSchema,
   loanAcceptSchema,
+  loanPaymentSchema,
   dealerStaffAssignSchema,
   dealerStaffReleaseSchema,
   hideoutUpgradeSchema,
@@ -49,6 +50,7 @@ import { LawService } from '../services/law.service.js';
 import { SupplyOrderService } from '../services/supply-order.service.js';
 import { LoanService } from '../services/loan.service.js';
 import { LoanSharkService } from '../services/loan-shark.service.js';
+import { loadLoan, loanPaymentPreview } from '../services/loan-ledger.service.js';
 import { SupplyPickupService } from '../services/supply-pickup.service.js';
 import { SupplyPropertyService } from '../services/supply-property.service.js';
 import { SupplyLedgerService } from '../services/supply-ledger.service.js';
@@ -236,6 +238,27 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(loanAcceptSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
     return LoanService.acceptOffer(fastify.prisma, player.id, body);
+  });
+
+  // 1.6.5-D: what a payment would do, then the payment itself. Payments only ever spend cash.
+  const loanParams = z.object({ loanId: z.string().trim().min(1).max(64) }).strict();
+  fastify.get('/loans/:loanId/preview', { preHandler: fastify.requireAuth }, async (request) => {
+    const { loanId } = parseBody(loanParams, request.params);
+    const { amountCents } = parseBody(z.object({ amountCents: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER) }).strict(), request.query);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    // Settled first, so anything due is collected and the preview starts where a payment would.
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    const loan = await loadLoan(fastify.prisma, loanId);
+    if (!loan || loan.roundPlayerId !== player.id) throw AppError.notFound('LOAN_NOT_FOUND', 'That loan is not yours.');
+    return loanPaymentPreview(loan, BigInt(amountCents), now, { debtCents: settled.player.loanDebtCents, cashCents: settled.player.cashCents });
+  });
+
+  fastify.post('/loans/:loanId/pay', { preHandler: fastify.requireAuth }, async (request) => {
+    const { loanId } = parseBody(loanParams, request.params);
+    const body = parseBody(loanPaymentSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return LoanService.repay(fastify.prisma, player.id, { loanId, requestKey: body.requestKey, actionId: body.actionId, amountCents: BigInt(body.amountCents) });
   });
 
   // 1.6.0-E: dealer crews.

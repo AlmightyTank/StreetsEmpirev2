@@ -38,6 +38,8 @@ export interface LoanDto {
   outstandingCents: number;
   /** What pays it off right now: unpaid principal and late fees, and only the fee earned so far. */
   payoffCents: number;
+  /** 1.6.5-D. Unpaid late fees plus whatever is owed on installments already past due. */
+  overdueCents: number;
   installments: LoanInstallmentDto[];
   acceptedAt: string;
   paidOffAt: string | null;
@@ -168,4 +170,47 @@ export interface LoanSharkPageDto {
   /** Paid-off loans, newest first. */
   closedLoans: Array<LoanDto & { offerName: string }>;
   history: LoanHistoryDto[];
+  /** 1.6.5-D. Overdue across every loan, and recent payment receipts, newest first. */
+  overdueCents: number;
+  receipts: LoanReceiptDto[];
+}
+
+/** 1.6.5-D. What a payment would do, before it is made. */
+export interface LoanPaymentPreviewDto {
+  loanId: string;
+  requestedCents: number;
+  /** What the payment would actually take: never more than the payoff amount. */
+  paidCents: number;
+  lateFeeCents: number;
+  contractFeeCents: number;
+  principalCents: number;
+  /** Unearned fee forgiven if this pays the loan off early. */
+  contractFeeWaivedCents: number;
+  paysOff: boolean;
+  /** Clears every late fee and missed installment on this loan. */
+  clearsOverdue: boolean;
+  statusAfter: LoanStatus;
+  debtAfterCents: number;
+  cashAfterCents: number;
+  enoughCash: boolean;
+  /** Pays it off right now. */
+  payoffCents: number;
+  /** The most a payoff confirmed in the next few minutes can cost, as the fee keeps earning. */
+  payoffHoldCents: number;
+  overdueCents: number;
+}
+
+/** 1.6.5-D. One payment receipt: automatic or manual, and how it was applied. */
+export interface LoanReceiptDto {
+  id: string;
+  loanId: string;
+  offerName: string;
+  kind: LoanPaymentKind;
+  paidCents: number;
+  lateFeeCents: number;
+  contractFeeCents: number;
+  principalCents: number;
+  contractFeeWaivedCents: number;
+  debtAfterCents: number;
+  createdAt: string;
 }

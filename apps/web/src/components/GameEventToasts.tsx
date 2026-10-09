@@ -311,6 +311,9 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'OFFICIAL_STUNG':
       return { title: 'Your official was stung', detail, tone: 'bad', href: '/game#case' };
 
+    case 'LOAN_INSTALLMENT_MISSED':
+      return { title: 'Loan installment missed', detail, tone: 'bad', href: '/game/loans' };
+
     case 'SUPPLY_LANE_ARRIVED':
       return {
         title: p.outcome === 'CLEAN' ? 'Lane load landed' : p.outcome === 'SEIZED' ? 'Lane load seized' : 'Lane load searched',

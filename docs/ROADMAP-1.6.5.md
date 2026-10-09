@@ -31,7 +31,7 @@ Slices **A–B** establish the debt model and readable loan offers. Slices **C�
 
 Every slice should have a release gate and a pinned ruleset, following the existing StreetsEmpire release pattern. Exact offer amounts, fees, due intervals, debt ceilings, and collection effects are balance values to set through simulation before release.
 
-**Beta progress:** Slice A is implemented on the beta branch: the pinned `classic-og-v1.6.5-a` ruleset, server-owned loan, installment, payment, fee and journal records, one per-round debt ceiling and a separate fee cap read from the ruleset, retry-safe acceptance, repayment, scheduled settlement with partial collection, late-fee assessment, pro-rata early payoff, loan ledger categories, and debt netted out of net worth. Slice B adds the Loan Shark page with three fixed offer tiers, full quotes before acceptance, retry-safe acceptance over the API, active loans, next due dates, payoff amounts and history. Slice C lets loans stack under the one ceiling at escalating prices: fees rise with debt utilization and missed installments, every quote shows its breakdown, and a loan is never taken at a price the player was not shown.
+**Beta progress:** Slice A is implemented on the beta branch: the pinned `classic-og-v1.6.5-a` ruleset, server-owned loan, installment, payment, fee and journal records, one per-round debt ceiling and a separate fee cap read from the ruleset, retry-safe acceptance, repayment, scheduled settlement with partial collection, late-fee assessment, pro-rata early payoff, loan ledger categories, and debt netted out of net worth. Slice B adds the Loan Shark page with three fixed offer tiers, full quotes before acceptance, retry-safe acceptance over the API, active loans, next due dates, payoff amounts and history. Slice C lets loans stack under the one ceiling at escalating prices: fees rise with debt utilization and missed installments, every quote shows its breakdown, and a loan is never taken at a price the player was not shown. Slice D adds payments from the page (overdue, next installment, payoff or any amount) with a server preview before confirmation, receipts for automatic and manual payments, what is overdue on every loan, and loan events in the activity feed, with missed installments on the bell.
 
 ## Proposed slices
 
@@ -162,6 +162,8 @@ Allow players to stack loans without making the system unlimited.
 
 ### 1.6.5-D — Repayment & Delinquency
 
+**Status: Implemented on the beta branch.**
+
 Make payments predictable and missed payments consequential.
 
 - Show each installment's amount and due time, the amount currently due, and the total payoff amount.
@@ -173,6 +175,31 @@ Make payments predictable and missed payments consequential.
 - Keep delinquency status and the next action visible in the loan page and activity history.
 
 **Gate:** A loan can be paid early, partially, or on schedule; a missed payment is recorded once; no settlement can charge more than the outstanding amount; and all cash movements reconcile.
+
+**As built:**
+
+- **No new ruleset.** Payments are available wherever the loan shark is (1.6.5-A onward), since any round with loans needs a way to pay them. Nothing about what a loan costs changes, and like 1.6.0-I this slice adds no rule values.
+- **What is owed, where.** Each active loan shows:
+  - every installment with its amount, due time and status;
+  - what is **overdue now**: unpaid late fees plus whatever is still owed on installments already past due;
+  - what will be collected at the next due time, including anything overdue;
+  - the payoff amount right now.
+
+  The page totals what is overdue across loans and, while anything is, shows a warning that says what it costs and how to clear it.
+- **Paying.** Each active loan has a payment panel:
+  - **Choices:** pay overdue, everything due by the next date, pay off, or any amount in dollars.
+  - **Preview first.** `GET /api/game/loans/:loanId/preview?amountCents=` settles the player, then returns exactly what the payment would do: the split (late fees, contract fee, principal), any unearned fee waived, whether it clears what is overdue or pays the loan off, the loan's state after, and the player's debt and cash after.
+  - **Pay.** `POST /api/game/loans/:loanId/pay` applies the same allocation to the loan as it stands when the payment lands, takes no more than the payoff amount, and never more cash than the player has. Retry-safe like acceptance: an unconfirmed payment keeps its key across reloads and locks the panel until the result is known.
+- **Payoff while the fee earns.** The contract fee keeps earning by the second (pro-rata), so a payoff preview also returns `payoffHoldCents`: the payoff ten minutes from now. A payoff request names that as its most; the server takes only the payoff at the moment it lands, so a payoff confirmed within the hold never costs more than the player was shown.
+- **Receipts.** Every payment, scheduled, manual or (from 1.6.5-E) collection, appears on the page as a receipt: what it took, how it was applied, any fee waived, and the debt after. A manual payment's result is shown as a receipt too, and stays on screen when the payoff takes the loan off the list.
+- **Activity history and the bell.** New activity types `LOAN_TAKEN`, `LOAN_PAYMENT` (scheduled or manual) and `LOAN_INSTALLMENT_MISSED`. A missed installment also reaches the bell and raises a toast that links to the Loan Shark, so a player who is away hears about it; it is a system alert and cannot be muted. Loan activity never carries a `cashCents` field, so neither borrowing nor paying counts toward a Job that rewards earning.
+- **Delinquency.** As in 1.6.5-A: an installment is missed only once its due time has passed, recorded once with one capped late fee. Clearing everything overdue returns the loan to active and the player to good standing.
+- **Tests.** Web tests for amount parsing, request amounts, feed text and the toast. An HTTP suite (`LOAN_INTEGRATION=1`) covers:
+  - a partial payment that matches its preview and receipt, and is charged once on retry;
+  - a pro-rata early payoff within its hold;
+  - an on-schedule collection with receipt and feed entry;
+  - a partly collected missed installment recorded once, on the bell, cleared by paying exactly what is overdue;
+  - refusals for more cash than the player has, bad amounts and unknown loans, and a huge request that takes only the payoff.
 
 ### 1.6.5-E — Collection Pressure & Recovery
 

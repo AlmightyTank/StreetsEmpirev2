@@ -18,6 +18,8 @@ import {
   loadLoan,
   loanAccountDto,
   loanDto,
+  loanOfferName,
+  loanPaymentActivity,
   loanPayoff,
   proceedsLedger,
   refreshCollectionState,
@@ -187,6 +189,19 @@ export const LoanService = {
           next: { ...current, cashCents: current.cashCents + quote.principalCents, loanDebtCents: quote.debtAfterCents },
           result: { loan: loanDto(loan, now), account: loanAccountDto(rules, account), creditedCents: Number(quote.principalCents), replayed: false },
           ledger: [proceedsLedger(loan)],
+          activity: {
+            type: 'LOAN_TAKEN' as const,
+            payload: {
+              loanId: loan.id,
+              offerName: loanOfferName(rules, input.offerKey),
+              principalCents: Number(quote.principalCents),
+              contractFeeCents: Number(quote.contractFeeCents),
+              obligationCents: Number(quote.obligationCents),
+              installments: quote.installments.length,
+              firstDueAt: quote.installments[0]?.dueAt.toISOString() ?? null,
+              debtAfterCents: Number(quote.debtAfterCents),
+            },
+          },
           // Borrowed cash is not earned cash: nothing here may count toward an earning Job.
           questProgress: { type: 'LOAN_ACCEPTED', payload: { loanId: loan.id, offerKey: input.offerKey, installments: quote.installments.length } },
         };
@@ -332,6 +347,7 @@ export const LoanService = {
             replayed: false,
           },
           ledger: applied.ledger,
+          activity: { type: 'LOAN_PAYMENT' as const, payload: loanPaymentActivity(loan, rules, 'MANUAL', applied.allocation, debtAfterCents) },
           questProgress: { type: 'LOAN_PAYMENT', payload: { loanId: loan.id, paidOff: applied.allocation.paidOff } },
         };
       },

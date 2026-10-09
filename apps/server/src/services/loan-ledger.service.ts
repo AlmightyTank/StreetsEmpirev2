@@ -1,4 +1,4 @@
-import type { Loan, LoanInstallment, LoanPaymentKind, LoanStatus, Prisma } from '@prisma/client';
+import type { Loan, LoanInstallment, LoanPaymentKind, LoanStatus, Prisma, PrismaClient } from '@prisma/client';
 import {
   allocateLoanPayment,
   contractFeeBudgetCents,
@@ -8,7 +8,7 @@ import {
   type LoanPaymentAllocation,
 } from '@streets/rules-engine';
 import type { LoanSharkRules } from '@streets/rulesets';
-import type { LoanAccountDto, LoanCollectionState, LoanDto } from '@streets/shared';
+import type { LoanAccountDto, LoanCollectionState, LoanDto, LoanPaymentPreviewDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import type { EconomyLedgerWrite } from './economy-ledger.service.js';
 
@@ -73,6 +73,68 @@ export function loanPayoff(loan: LoanWithInstallments, at: Date): bigint {
   return loanPayoffCents(lateFeesDueCents(loan), loan.installments.map(installmentDue), loanFeeBudget(loan, at));
 }
 
+/**
+ * 1.6.5-D. What is overdue on a loan at `at`: its unpaid late fees and whatever is still owed
+ * on every installment whose due time has passed. Paying this much, in the documented order,
+ * clears every missed installment and brings the loan current.
+ */
+export function loanOverdue(loan: LoanWithInstallments, at: Date): bigint {
+  return loan.installments.reduce((sum, row) => {
+    if (row.status === 'PAID' || row.dueAt.getTime() > at.getTime()) return sum;
+    const owed = installmentDue(row);
+    return sum + owed.contractFeeDueCents + owed.principalDueCents;
+  }, lateFeesDueCents(loan));
+}
+
+/** How long a payoff quote is held: a payoff confirmed within this window never costs more. */
+export const PAYOFF_HOLD_MS = 10 * 60_000;
+
+/**
+ * 1.6.5-D. Exactly what a payment of `amountCents` would do to a loan at `at`, without doing
+ * it: the split, any fee waived, the loan's state after, and the player's debt and cash after.
+ * The payment itself applies the same allocation, against the loan as it stands when it lands.
+ */
+export function loanPaymentPreview(
+  loan: LoanWithInstallments,
+  amountCents: bigint,
+  at: Date,
+  account: { debtCents: bigint; cashCents: bigint },
+): LoanPaymentPreviewDto {
+  const payoff = loanPayoff(loan, at);
+  const overdue = loanOverdue(loan, at);
+  const base = {
+    loanId: loan.id,
+    requestedCents: Number(amountCents),
+    payoffCents: Number(payoff),
+    payoffHoldCents: Number(loanPayoff(loan, new Date(at.getTime() + PAYOFF_HOLD_MS))),
+    overdueCents: Number(overdue),
+  };
+  if (amountCents <= 0n || payoff === 0n) {
+    return {
+      ...base, paidCents: 0, lateFeeCents: 0, contractFeeCents: 0, principalCents: 0, contractFeeWaivedCents: 0,
+      paysOff: payoff === 0n, clearsOverdue: overdue === 0n, statusAfter: loan.status,
+      debtAfterCents: Number(account.debtCents), cashAfterCents: Number(account.cashCents), enoughCash: true,
+    };
+  }
+  const allocation = allocateLoanPayment(amountCents, lateFeesDueCents(loan), loan.installments.map(installmentDue), loanFeeBudget(loan, at));
+  const cleared = new Set(allocation.installments.filter((row) => row.cleared).map((row) => row.sequence));
+  const stillMissed = loan.installments.some((row) => row.status === 'MISSED' && !cleared.has(row.sequence));
+  return {
+    ...base,
+    paidCents: Number(allocation.appliedCents),
+    lateFeeCents: Number(allocation.lateFeeCents),
+    contractFeeCents: Number(allocation.contractFeeCents),
+    principalCents: Number(allocation.principalCents),
+    contractFeeWaivedCents: Number(allocation.contractFeeWaivedCents),
+    paysOff: allocation.paidOff,
+    clearsOverdue: allocation.appliedCents >= overdue,
+    statusAfter: allocation.paidOff ? 'PAID_OFF' : stillMissed ? 'DELINQUENT' : 'ACTIVE',
+    debtAfterCents: Number(account.debtCents - allocation.appliedCents - allocation.contractFeeWaivedCents),
+    cashAfterCents: Number(account.cashCents - allocation.appliedCents),
+    enoughCash: allocation.appliedCents <= account.cashCents,
+  };
+}
+
 export function loanDto(loan: LoanWithInstallments, at: Date): LoanDto {
   return {
     id: loan.id,
@@ -87,6 +149,7 @@ export function loanDto(loan: LoanWithInstallments, at: Date): LoanDto {
     contractFeeWaivedCents: Number(loan.contractFeeWaivedCents),
     outstandingCents: Number(loanOutstanding(loan)),
     payoffCents: Number(loanPayoff(loan, at)),
+    overdueCents: Number(loanOverdue(loan, at)),
     installments: [...loan.installments].sort((a, b) => a.sequence - b.sequence).map((row) => {
       const due = installmentDue(row);
       return {
@@ -123,7 +186,7 @@ export function loanAccountDto(rules: LoanSharkRules, account: {
   };
 }
 
-export function loadLoan(db: Db, loanId: string): Promise<LoanWithInstallments | null> {
+export function loadLoan(db: Db | PrismaClient, loanId: string): Promise<LoanWithInstallments | null> {
   return db.loan.findUnique({ where: { id: loanId }, include: { installments: { orderBy: { sequence: 'asc' } } } });
 }
 
@@ -131,6 +194,30 @@ export function loadLoan(db: Db, loanId: string): Promise<LoanWithInstallments |
 function loanStatusFor(outstanding: bigint, installments: readonly LoanInstallment[]): LoanStatus {
   if (outstanding === 0n) return 'PAID_OFF';
   return installments.some((row) => row.status === 'MISSED') ? 'DELINQUENT' : 'ACTIVE';
+}
+
+/** 1.6.5-D. A loan's offer by name, for history and the activity feed. */
+export function loanOfferName(rules: LoanSharkRules | undefined, offerKey: string): string {
+  return rules?.offers?.find((offer) => offer.key === offerKey)?.name ?? 'Loan';
+}
+
+/**
+ * 1.6.5-D. The activity-feed payload for a payment. Deliberately no `cashCents` key: paying
+ * the loan shark is not earning, and no Job may count it as such.
+ */
+export function loanPaymentActivity(loan: Pick<Loan, 'id' | 'offerKey'>, rules: LoanSharkRules | undefined, kind: LoanPaymentKind, allocation: LoanPaymentAllocation, debtAfterCents: bigint): Prisma.InputJsonValue {
+  return {
+    loanId: loan.id,
+    offerName: loanOfferName(rules, loan.offerKey),
+    kind,
+    paidCents: Number(allocation.appliedCents),
+    lateFeeCents: Number(allocation.lateFeeCents),
+    contractFeeCents: Number(allocation.contractFeeCents),
+    principalCents: Number(allocation.principalCents),
+    contractFeeWaivedCents: Number(allocation.contractFeeWaivedCents),
+    paidOff: allocation.paidOff,
+    debtAfterCents: Number(debtAfterCents),
+  };
 }
 
 /** The cash lines a payment writes: one per thing it settled, or one collection line. */

@@ -433,3 +433,12 @@ export const loanAcceptSchema = z.object({
   actionId: actionIdSchema,
 }).strict();
 export type LoanAcceptInputDto = z.infer<typeof loanAcceptSchema>;
+
+/** 1.6.5-D. A payment from cash toward one loan: partial, overdue or a payoff. */
+export const loanPaymentSchema = z.object({
+  /** At most this much. A payoff request may name more than the payoff; only the payoff is taken. */
+  amountCents: z.number({ invalid_type_error: 'Enter an amount.' }).int('Whole cents only.').positive('Pay at least one cent.').max(Number.MAX_SAFE_INTEGER),
+  requestKey: actionIdSchema,
+  actionId: actionIdSchema,
+}).strict();
+export type LoanPaymentInputDto = z.infer<typeof loanPaymentSchema>;

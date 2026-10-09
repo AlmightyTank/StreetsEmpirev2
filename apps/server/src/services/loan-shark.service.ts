@@ -12,7 +12,7 @@ import {
   debtUtilizationPercent,
   type Ruleset,
 } from '@streets/rules-engine';
-import type { LoanCreditDto, LoanHistoryDto, LoanOfferDto, LoanSharkPageDto } from '@streets/shared';
+import type { LoanCreditDto, LoanHistoryDto, LoanOfferDto, LoanReceiptDto, LoanSharkPageDto } from '@streets/shared';
 import { countMissedInstallments } from './loan.service.js';
 import { installmentDue, lateFeesDueCents, loanAccountDto, loanDto, loanFeeBudget } from './loan-ledger.service.js';
 
@@ -25,6 +25,7 @@ import { installmentDue, lateFeesDueCents, loanAccountDto, loanDto, loanFeeBudge
 
 const HISTORY_LIMIT = 25;
 const CLOSED_LIMIT = 10;
+const RECEIPT_LIMIT = 20;
 
 const money = (cents: bigint | number): string => `$${(Number(cents) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 
@@ -74,9 +75,9 @@ export const LoanSharkService = {
   async page(prisma: PrismaClient, ruleset: Ruleset, player: RoundPlayer, now: Date): Promise<LoanSharkPageDto> {
     const rules = loanSharkRules(ruleset);
     const base = { cashCents: Number(player.cashCents), netWorthCents: Number(player.netWorthCents) };
-    if (!rules) return { enabled: false, account: null, credit: null, ...base, offers: [], activeLoans: [], closedLoans: [], history: [] };
+    if (!rules) return { enabled: false, account: null, credit: null, ...base, offers: [], activeLoans: [], closedLoans: [], history: [], overdueCents: 0, receipts: [] };
 
-    const [loans, events, missedInstallments] = await Promise.all([
+    const [loans, events, missedInstallments, payments] = await Promise.all([
       prisma.loan.findMany({
         where: { roundPlayerId: player.id },
         include: { installments: { orderBy: { sequence: 'asc' } } },
@@ -88,6 +89,11 @@ export const LoanSharkService = {
         take: HISTORY_LIMIT,
       }),
       countMissedInstallments(prisma, player.id),
+      prisma.loanPayment.findMany({
+        where: { roundPlayerId: player.id },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: RECEIPT_LIMIT,
+      }),
     ]);
 
     const catalog = loanOffers(rules);
@@ -192,10 +198,26 @@ export const LoanSharkService = {
       };
     }
 
+    const receipts: LoanReceiptDto[] = payments.map((row) => ({
+      id: row.id,
+      loanId: row.loanId,
+      offerName: loanOffer.get(row.loanId) ?? 'Loan',
+      kind: row.kind,
+      paidCents: Number(row.amountCents),
+      lateFeeCents: Number(row.lateFeeCents),
+      contractFeeCents: Number(row.contractFeeCents),
+      principalCents: Number(row.principalCents),
+      contractFeeWaivedCents: Number(row.contractFeeWaivedCents),
+      debtAfterCents: Number(row.debtAfterCents),
+      createdAt: row.createdAt.toISOString(),
+    }));
+
     return {
       enabled: true,
       account: loanAccountDto(rules, player),
       credit,
+      overdueCents: activeLoans.reduce((sum, loan) => sum + loan.overdueCents, 0),
+      receipts,
       ...base,
       offers,
       activeLoans,

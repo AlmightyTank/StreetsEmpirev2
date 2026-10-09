@@ -1,12 +1,15 @@
 import { debtLimits, lateFeeChargeCents, loanPayoffCents, loanSharkRules, type Ruleset } from '@streets/rules-engine';
 import type { Db } from '../utils/db.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
+import { ActivityService } from './activity.service.js';
 import {
   applyLoanPayment,
   installmentDue,
   lateFeesDueCents,
   loadLoan,
   loanFeeBudget,
+  loanOfferName,
+  loanPaymentActivity,
   refreshCollectionState,
   writeLoanEvent,
 } from './loan-ledger.service.js';
@@ -76,6 +79,7 @@ export const LoanSettleService = {
         cash -= applied.allocation.appliedCents;
         debt -= applied.debtReductionCents;
         ledger.push(...applied.ledger);
+        await ActivityService.log(tx, roundPlayerId, 'LOAN_PAYMENT', loanPaymentActivity(loan, rules, 'SCHEDULED', applied.allocation, debt));
         loan = applied.loan;
       }
       if (collect === dueNow) continue;
@@ -129,6 +133,17 @@ export const LoanSettleService = {
         requestKey: `late:${installment.id}:fee`,
         metadata: { sequence: installment.sequence, quotedCents: Number(loan.lateFeeCents), capped: charge < loan.lateFeeCents },
         at: now,
+      });
+      // 1.6.5-D: the feed and the bell, so a player who is away hears about it.
+      await ActivityService.log(tx, roundPlayerId, 'LOAN_INSTALLMENT_MISSED', {
+        loanId: loan.id,
+        offerName: loanOfferName(rules, loan.offerKey),
+        sequence: installment.sequence,
+        dueCents: Number(dueNow),
+        collectedCents: Number(collect),
+        shortCents: Number(dueNow - collect),
+        lateFeeCents: Number(charge),
+        debtAfterCents: Number(debt),
       });
     }
 

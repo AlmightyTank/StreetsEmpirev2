@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { LoanAcceptResult, LoanOfferDto, LoanSharkPageDto } from '@streets/shared';
+import type { GameActionResult, LoanAcceptResult, LoanOfferDto, LoanPaymentResult, LoanSharkPageDto } from '@streets/shared';
 import { formatCents } from '@streets/shared';
 import { loansApi } from '../api/loans.js';
 import { ApiError } from '../api/client.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { LoanPaymentPanel } from '../components/LoanPaymentPanel.js';
 import { Panel, Row } from '../components/Panel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -118,6 +119,12 @@ export function LoanSharkPage() {
   const [selectedKey, setSelectedKey] = useState<string | null>(restored?.offerKey ?? null);
   const [uncertain, setUncertain] = useState(Boolean(restored));
   const reviewRef = useRef<HTMLDivElement | null>(null);
+  const [paid, setPaid] = useState<{ result: GameActionResult<LoanPaymentResult>; offerName: string } | null>(null);
+  const refresh = useCallback(() => setReload((value) => value + 1), []);
+  const onPaid = useCallback((result: GameActionResult<LoanPaymentResult>, offerName: string) => {
+    setPaid({ result, offerName });
+    setReload((value) => value + 1);
+  }, []);
 
   const load = useCallback(() => {
     let active = true;
@@ -215,6 +222,30 @@ export function LoanSharkPage() {
           />
         ) : null}
 
+        {paid ? (
+          <ActionResult
+            title={paid.result.result.replayed ? 'Payment already made' : paid.result.result.loan.status === 'PAID_OFF' ? 'Loan paid off' : 'Payment made'}
+            subtitle={`${paid.offerName} · receipt`}
+            result={paid.result}
+            onDismiss={() => setPaid(null)}
+            lines={[
+              { label: 'Paid from cash', delta: -paid.result.result.paidCents, money: true, invert: true },
+              ...(paid.result.result.lateFeeCents ? [{ label: 'Late fees', value: formatCents(paid.result.result.lateFeeCents) }] : []),
+              ...(paid.result.result.contractFeeCents ? [{ label: 'Contract fee', value: formatCents(paid.result.result.contractFeeCents) }] : []),
+              ...(paid.result.result.principalCents ? [{ label: 'Principal', value: formatCents(paid.result.result.principalCents) }] : []),
+              ...(paid.result.result.contractFeeWaivedCents ? [{ label: 'Unearned fee waived', value: formatCents(paid.result.result.contractFeeWaivedCents) }] : []),
+              { label: 'You now owe', value: formatCents(paid.result.result.account.debtCents) },
+              { label: 'Standing', value: STANDING[paid.result.result.account.collectionState] ?? paid.result.result.account.collectionState },
+            ]}
+          />
+        ) : null}
+
+        {data?.enabled && data.overdueCents > 0 ? (
+          <Alert tone="warning">
+            You are behind: {formatCents(data.overdueCents)} is overdue. Late fees have been added and new loans cost more while installments are missed. Pay what is overdue below to get back in good standing; it goes to late fees first, then your oldest missed installment.
+          </Alert>
+        ) : null}
+
         {data?.enabled && account ? (
           <div className="se-supply__grid">
             <Panel title="What you owe" aside={STANDING[account.collectionState] ?? account.collectionState} className="se-loans__account">
@@ -297,7 +328,8 @@ export function LoanSharkPage() {
                       </div>
                       <Row label="Still owed on schedule" value={formatCents(loan.outstandingCents)} strong />
                       <Row label="Pay off now for" value={formatCents(loan.payoffCents)} />
-                      {loan.nextDueAt ? <Row label={`Next due ${when(loan.nextDueAt)}`} value={formatCents(loan.nextDueCents)} /> : null}
+                      {loan.overdueCents > 0 ? <Row label="Overdue now" value={formatCents(loan.overdueCents)} strong /> : null}
+                      {loan.nextDueAt ? <Row label={`${loan.overdueCents > 0 ? 'Collected, with what is overdue,' : 'Next due'} ${when(loan.nextDueAt)}`} value={formatCents(loan.nextDueCents)} /> : null}
                       {loan.lateFeesAssessedCents > 0 ? <Row label="Late fees charged" value={`${formatCents(loan.lateFeesAssessedCents)} of ${formatCents(loan.lateFeeCapCents)} max`} /> : null}
                       <ol className="se-loans__schedule">
                         {loan.installments.map((row) => (
@@ -307,7 +339,33 @@ export function LoanSharkPage() {
                           </li>
                         ))}
                       </ol>
+                      <LoanPaymentPanel loan={loan} cashCents={cashCents} onPaid={onPaid} onRefused={refresh} />
                     </article>
+                  ))}
+                </div>
+              )}
+            </Panel>
+
+            <Panel title="Receipts" aside={`${data.receipts.length} recent`}>
+              {data.receipts.length === 0 ? <p className="se-muted">Every payment, automatic or yours, gets a receipt here.</p> : (
+                <div className="se-supply__history">
+                  {data.receipts.map((row) => (
+                    <div className="se-supply__history-row" key={row.id}>
+                      <div>
+                        <strong>{row.kind === 'SCHEDULED' ? 'Installment collected' : row.kind === 'COLLECTION' ? 'Collection' : 'Payment'} · {row.offerName}</strong>
+                        <span>
+                          {[
+                            when(row.createdAt),
+                            row.lateFeeCents ? `${formatCents(row.lateFeeCents)} late fees` : null,
+                            row.contractFeeCents ? `${formatCents(row.contractFeeCents)} fee` : null,
+                            row.principalCents ? `${formatCents(row.principalCents)} principal` : null,
+                            row.contractFeeWaivedCents ? `${formatCents(row.contractFeeWaivedCents)} waived` : null,
+                            `owed after: ${formatCents(row.debtAfterCents)}`,
+                          ].filter(Boolean).join(' · ')}
+                        </span>
+                      </div>
+                      <strong>−{formatCents(row.paidCents)}</strong>
+                    </div>
                   ))}
                 </div>
               )}
