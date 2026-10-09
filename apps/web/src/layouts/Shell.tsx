@@ -235,6 +235,7 @@ function Footer() {
             <Link to="/game/hall-of-fame">Hall of Fame</Link>
             <Link to="/game/alliance#alliance-rankings">Alliances</Link>
             <a href={`${PUBLIC_SITE_ORIGIN}/stats`}>Statistics</a>
+            <Link to="/game/news">News</Link>
             <a href={`${PUBLIC_SITE_ORIGIN}/roadmap`}>Roadmap</a>
           </nav>
         </div>
@@ -243,6 +244,7 @@ function Footer() {
           <h2>Project</h2>
           <nav aria-label="Project links">
             <a href={`${PUBLIC_SITE_ORIGIN}/about`}>About</a>
+            <a href={`${PUBLIC_SITE_ORIGIN}/community`}>Community</a>
             <a href={`${PUBLIC_SITE_ORIGIN}/beta`}>Beta</a>
             <Link to="/game/status">Status</Link>
             <a href={`${PUBLIC_SITE_ORIGIN}/support`}>Support</a>
@@ -266,10 +268,6 @@ function Footer() {
             <a href="https://discord.gg/V3HYNcMv5H">Discord</a>
             <a href="https://www.facebook.com/StreetsEmpireHQ">Facebook</a>
             <a href="https://x.com/StreetsEmpireHQ">X</a>
-            <a href={`${PUBLIC_SITE_ORIGIN}/community`}>Community</a>
-            <a href={FORUM_ORIGIN}>Forum</a>
-            <Link to="/game/news">News</Link>
-            <a href={`${PUBLIC_SITE_ORIGIN}/support`}>Support</a>
           </nav>
         </div>
       </div>
