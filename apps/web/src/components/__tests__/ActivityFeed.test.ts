@@ -160,6 +160,10 @@ describe('describeActivity', () => {
       cityName: 'Detroit', turns: 17,
       supplyPickup: { supplier: 'Great Lakes Depot', product: 'Weed', quantity: 1125, destination: 'Atlanta' },
     }, 'RUN_LAUNCHED'), 'crack').text).toBe('Sent a pickup to Great Lakes Depot in Detroit for 1,125 Weed, bound for your Atlanta warehouse.');
+    expect(describeActivity(activity({
+      cityName: 'New York City', turns: 10,
+      supplyPickup: { shipment: true, supplier: 'your New York City storage', product: 'Cocaine', quantity: 1000, destination: 'Detroit' },
+    }, 'RUN_LAUNCHED'), 'crack').text).toBe('Shipped 1,000 Cocaine out of your New York City storage, bound for your Detroit warehouse.');
     // An ordinary run reads as before.
     expect(describeActivity(activity({ cityName: 'Detroit', turns: 10 }, 'RUN_LAUNCHED'), 'crack').text).toBe('Sent a run to Detroit.');
   });

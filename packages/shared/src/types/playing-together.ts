@@ -848,7 +848,8 @@ export interface RunDto {
 /** 1.6.0-C. The supply load a pickup run is sent for, and (home) what it delivered. */
 export interface RunSupplyPickupDto {
   id: string;
-  orderId: string;
+  /** Null for a 1.6.0-F shipment between warehouses. */
+  orderId: string | null;
   productKey: string;
   productName: string;
   supplierName: string;

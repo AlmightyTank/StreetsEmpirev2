@@ -248,6 +248,21 @@ export const supplyPickupSchema = z.object({
 
 export type SupplyPickupInput = z.input<typeof supplyPickupSchema>;
 
+/** 1.6.0-F. Ship stock from one of the player's warehouses to another, by run. */
+export const supplyShipmentSchema = z.object({
+  sourceWarehouseId: z.string().trim().min(1).max(64),
+  destinationWarehouseId: z.string().trim().min(1).max(64),
+  productKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int().positive().max(MAX_ORDER_QUANTITY),
+  vehicleLoadout: z.object({ LOW_RIDER: pickupCount('Low-Riders').optional(), SEDAN: pickupCount('Sedans').optional(), VAN: pickupCount('Vans').optional() }).strict(),
+  escortThugs: pickupCount('escorts').default(0),
+  route: z.number().int().min(0).max(9).default(0),
+  requestKey: actionIdSchema,
+  actionId: actionIdSchema,
+}).strict();
+
+export type SupplyShipmentInput = z.input<typeof supplyShipmentSchema>;
+
 /** 1.6.0-D. Buy a warehouse or a safehouse in a city. */
 export const supplyPropertyBuySchema = z.object({
   kind: z.enum(['WAREHOUSE', 'SAFEHOUSE']),

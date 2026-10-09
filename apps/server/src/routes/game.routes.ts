@@ -47,6 +47,7 @@ import { LawService } from '../services/law.service.js';
 import { SupplyOrderService } from '../services/supply-order.service.js';
 import { SupplyPickupService } from '../services/supply-pickup.service.js';
 import { SupplyPropertyService } from '../services/supply-property.service.js';
+import { SupplyLedgerService } from '../services/supply-ledger.service.js';
 import { DealerStaffService } from '../services/dealer-staff.service.js';
 import { DealerCrewService } from '../services/dealer-crew.service.js';
 
@@ -174,12 +175,23 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const now = new Date();
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
     const page = await SupplyOrderService.page(fastify.prisma, settled.round, settled.player);
-    return { ...page, pickups: page.enabled ? await SupplyPickupService.planning(fastify.prisma, settled.ruleset, settled.player, now) : null };
+    if (!page.enabled) return { ...page, pickups: null, ledger: null, history: [] };
+    const [pickups, ledger, history] = await Promise.all([
+      SupplyPickupService.planning(fastify.prisma, settled.ruleset, settled.player, now),
+      SupplyLedgerService.ledger(fastify.prisma, settled.player.id),
+      SupplyLedgerService.history(fastify.prisma, settled.ruleset, settled.player.id),
+    ]);
+    return { ...page, pickups, ledger, history };
   });
 
   fastify.post('/supply/pickups', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     return SupplyPickupService.dispatch(fastify.prisma, player.id, request.body);
+  });
+
+  fastify.post('/supply/shipments', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return SupplyPickupService.ship(fastify.prisma, player.id, request.body);
   });
 
   fastify.post('/supply/properties', { preHandler: fastify.requireAuth }, async (request) => {

@@ -32,14 +32,24 @@ export async function homeStash(tx: Db, roundPlayerId: string, citySlug: string,
   });
 }
 
-type PickupWithOrder = SupplyPickup & { order: SupplyOrder };
+type PickupWithOrder = SupplyPickup & { order: SupplyOrder | null };
 
 /**
  * Put one pickup's load on its run: the order counts the units as collected from here on,
- * whether or not they make it to storage. `at` is when the load went on.
+ * whether or not they make it to storage. A shipment's units already left their warehouse
+ * at dispatch, so they simply go aboard. `at` is when the load went on.
  */
 export async function loadPickupOntoRun(tx: Db, roundPlayerId: string, runId: string, pickup: PickupWithOrder, at: Date): Promise<number> {
   const { order } = pickup;
+  if (!order) {
+    await tx.runCargo.upsert({
+      where: { runId_productKey: { runId, productKey: pickup.productKey } },
+      create: { runId, productKey: pickup.productKey, quantity: pickup.quantity, startQuantity: 0 },
+      update: { quantity: { increment: pickup.quantity } },
+    });
+    await tx.supplyPickup.update({ where: { id: pickup.id }, data: { status: 'IN_TRANSIT', loadedAt: at } });
+    return pickup.quantity;
+  }
   const load = Math.min(pickup.quantity, order.quantityOrdered - order.quantityCollected);
   if (order.status === 'CANCELLED' || load <= 0) {
     await tx.supplyPickup.update({ where: { id: pickup.id }, data: { status: 'CANCELLED' } });
@@ -88,13 +98,13 @@ async function credit(
   tx: Db,
   roundPlayerId: string,
   ruleset: Ruleset,
-  pickup: SupplyPickup & { order: Pick<SupplyOrder, 'id' | 'productKey'> },
+  pickup: SupplyPickup,
   runId: string,
   warehouseId: string,
   arrived: number,
   at: Date,
 ): Promise<SupplyDelivery & { extra: number }> {
-  const key = pickup.order.productKey;
+  const key = pickup.productKey;
   const outcome = settleSupplyPickup(pickup.quantity, arrived);
   if (outcome.delivered > 0) {
     await tx.supplyStock.upsert({
@@ -110,7 +120,7 @@ async function credit(
         quantityDelta: outcome.delivered,
         fromLocation: `run:${runId}`,
         toLocation: `warehouse:${warehouseId}`,
-        orderId: pickup.order.id,
+        orderId: pickup.orderId,
         pickupId: pickup.id,
         warehouseId,
         requestKey: `pickup:${pickup.id}:STORED`,
@@ -156,11 +166,10 @@ export async function settleSupplyStops(
     if (stop.city !== current.homeCity) {
       const arriving = await tx.supplyPickup.findMany({
         where: { runId: run.id, status: 'IN_TRANSIT', destinationCitySlug: stop.city },
-        include: { order: { select: { id: true, productKey: true } } },
         orderBy: { createdAt: 'asc' },
       });
       for (const pickup of arriving) {
-        const cargo = await tx.runCargo.findUnique({ where: { runId_productKey: { runId: run.id, productKey: pickup.order.productKey } } });
+        const cargo = await tx.runCargo.findUnique({ where: { runId_productKey: { runId: run.id, productKey: pickup.productKey } } });
         const warehouseId = pickup.warehouseId ?? (await homeStash(tx, roundPlayerId, current.homeCity, Math.max(1, ruleset.supplyNetwork?.pickups?.homeStashUnits ?? pickup.quantity))).id;
         const done = await credit(tx, roundPlayerId, ruleset, pickup, run.id, warehouseId, cargo?.quantity ?? 0, stop.arriveAt);
         if (cargo) await tx.runCargo.update({ where: { id: cargo.id }, data: { quantity: done.extra } });
@@ -189,14 +198,21 @@ export async function deliverSupplyPickups(
 ): Promise<{ cargo: Record<string, number>; deliveries: SupplyDelivery[] }> {
   const pickups = await tx.supplyPickup.findMany({
     where: { runId: run.id, status: { in: ['PLANNED', 'IN_TRANSIT'] } },
-    include: { order: { select: { id: true, productKey: true } } },
     orderBy: { createdAt: 'asc' },
   });
   const rest = { ...cargo };
   const deliveries: SupplyDelivery[] = [];
   for (const pickup of pickups) {
-    // Never loaded: nothing was collected, so nothing comes off the order either.
+    // Never loaded: nothing was collected, so nothing comes off the order either; a shipment's
+    // units go back where they came from.
     if (pickup.status === 'PLANNED') {
+      if (pickup.sourceWarehouseId) {
+        await tx.supplyStock.upsert({
+          where: { warehouseId_productKey: { warehouseId: pickup.sourceWarehouseId, productKey: pickup.productKey } },
+          create: { warehouseId: pickup.sourceWarehouseId, productKey: pickup.productKey, quantity: pickup.quantity },
+          update: { quantity: { increment: pickup.quantity } },
+        });
+      }
       await tx.supplyPickup.update({ where: { id: pickup.id }, data: { status: 'CANCELLED' } });
       continue;
     }
@@ -204,7 +220,7 @@ export async function deliverSupplyPickups(
     const warehouseId = pickup.warehouseId && pickup.destinationCitySlug === run.homeCity
       ? pickup.warehouseId
       : (await homeStash(tx, roundPlayerId, run.homeCity, capacity)).id;
-    const key = pickup.order.productKey;
+    const key = pickup.productKey;
     const { extra, ...delivery } = await credit(tx, roundPlayerId, ruleset, pickup, run.id, warehouseId, rest[key] ?? 0, returnedAt);
     rest[key] = extra;
     deliveries.push(delivery);
@@ -220,9 +236,9 @@ export async function supplyLoadsByRun(db: Db, runIds: readonly string[]): Promi
   if (!runIds.length) return new Map();
   const rows = await db.supplyPickup.findMany({
     where: { runId: { in: [...runIds] }, status: 'IN_TRANSIT' },
-    select: { runId: true, quantity: true, order: { select: { productKey: true } } },
+    select: { runId: true, quantity: true, productKey: true },
   });
-  return new Map(rows.flatMap((row) => (row.runId ? [[row.runId, { productKey: row.order.productKey, quantity: row.quantity }] as const] : [])));
+  return new Map(rows.flatMap((row) => (row.runId ? [[row.runId, { productKey: row.productKey, quantity: row.quantity }] as const] : [])));
 }
 
 /** A trunk without its supply load, for away net worth. */
@@ -236,16 +252,19 @@ export async function runSupplyPickups(db: Db, ruleset: Ruleset, runIds: readonl
   if (!runIds.length || !ruleset.supplyNetwork?.pickups) return new Map();
   const rows = await db.supplyPickup.findMany({
     where: { runId: { in: [...runIds] } },
-    include: { order: { select: { productKey: true, supplierKey: true } } },
+    include: { order: { select: { supplierKey: true } } },
     orderBy: { createdAt: 'asc' },
   });
   const suppliers = ruleset.supplyNetwork.suppliers ?? [];
   return new Map(rows.flatMap((row) => (row.runId ? [[row.runId, {
     id: row.id,
     orderId: row.orderId,
-    productKey: row.order.productKey,
-    productName: productName(ruleset, row.order.productKey),
-    supplierName: suppliers.find((supplier) => supplier.key === row.order.supplierKey)?.name ?? row.order.supplierKey,
+    productKey: row.productKey,
+    productName: productName(ruleset, row.productKey),
+    // 1.6.0-F: a shipment's source is the player's own storage.
+    supplierName: row.order
+      ? suppliers.find((supplier) => supplier.key === row.order!.supplierKey)?.name ?? row.order.supplierKey
+      : `your ${cityName(ruleset, row.originCitySlug)} storage`,
     quantity: row.quantity,
     status: row.status,
     deliveredQuantity: row.deliveredQuantity,

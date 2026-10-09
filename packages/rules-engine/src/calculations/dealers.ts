@@ -56,6 +56,8 @@ export interface DealerPaceInput {
   dealers: readonly number[];
   priceCents: number;
   streetPriceCents: number;
+  /** 1.6.0-F. The city's police pressure, 1 ordinary; bends pace by the ruleset's weight. */
+  pressure?: number;
 }
 
 export interface DealerPace {
@@ -81,8 +83,9 @@ export function dealerPace(input: DealerPaceInput): DealerPace {
   }
   const crew = tiers.reduce((sum, tier) => sum + rules.unitsPerDealerHour * (1 + tier.paceBonus), 0);
   const price = (input.streetPriceCents / input.priceCents) ** rules.priceElasticity;
+  const police = rules.pressureWeight && input.pressure && input.pressure > 0 ? input.pressure ** -rules.pressureWeight : 1;
   return {
-    unitsPerHour: crew * (rules.districtTraffic[input.district] ?? 1) * input.demand * price,
+    unitsPerHour: crew * (rules.districtTraffic[input.district] ?? 1) * input.demand * price * police,
     cutPercent: average(tiers.map((tier) => tier.cutPercent)),
     operatingCentsPerHour,
   };
@@ -90,4 +93,49 @@ export function dealerPace(input: DealerPaceInput): DealerPace {
 
 function average(values: readonly number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+/** 1.6.0-F. A city's police pressure, 1 where the ruleset says nothing. */
+export function dealerPressure(ruleset: Ruleset, citySlug: string): number {
+  return ruleset.cities?.[citySlug]?.policePressure ?? 1;
+}
+
+export interface DealerSalesBatch {
+  /** Units sold, never more than the crew held. */
+  sold: number;
+  /** The fraction of a unit carried to the next batch, so slow crews still sell over time. */
+  carry: number;
+  grossCents: number;
+  /** The dealers' share, rounded down. */
+  cutCents: number;
+  /** Wages for the hours worked, whether or not anything sold. */
+  operatingCents: number;
+}
+
+/**
+ * 1.6.0-F. One batch of a working crew's sales over `hours` of server time, at a pace that
+ * held for all of it. Stock runs out rather than going negative; whatever is left of a
+ * unit waits in `carry`. Wages are owed for every hour worked.
+ */
+export function settleDealerSales(input: { pace: DealerPace; priceCents: number; inventory: number; hours: number; carry: number }): DealerSalesBatch {
+  if (!Number.isSafeInteger(input.inventory) || input.inventory < 0) throw new RangeError('inventory must be a non-negative safe integer.');
+  if (!(input.hours >= 0)) throw new RangeError('hours must be non-negative.');
+  const want = input.pace.unitsPerHour * input.hours + Math.max(0, input.carry);
+  const sold = Math.min(input.inventory, Math.floor(want + 1e-9));
+  const grossCents = sold * input.priceCents;
+  return {
+    sold,
+    carry: sold < input.inventory ? Math.max(0, want - sold) : 0,
+    grossCents,
+    cutCents: Math.floor(grossCents * input.pace.cutPercent / 100),
+    operatingCents: Math.round(input.pace.operatingCentsPerHour * input.hours),
+  };
+}
+
+/** 1.6.0-F. Experience for a batch, shared evenly across the dealers who sold it; the remainder goes to the first. */
+export function dealerExperienceShares(sold: number, dealers: number, perUnit: number): number[] {
+  if (dealers <= 0) return [];
+  const total = Math.floor(sold * perUnit);
+  const each = Math.floor(total / dealers);
+  return Array.from({ length: dealers }, (_, index) => each + (index === 0 ? total - each * dealers : 0));
 }

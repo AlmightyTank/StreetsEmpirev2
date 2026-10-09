@@ -2,6 +2,7 @@ import type { City, DealerCrew, DealerStaff, DealerStock, PrismaClient, RoundPla
 import {
   dealerDemand,
   dealerPace,
+  dealerPressure,
   dealerPriceRange,
   dealerRules,
   dealerStreetPriceCents,
@@ -92,10 +93,28 @@ export async function crewDto(db: Db | PrismaClient, ruleset: Ruleset, rules: De
     dealers: crew.staff.map((row) => row.experiencePoints),
     priceCents: crew.priceCents ?? 0,
     streetPriceCents: street ?? 0,
+    pressure: dealerPressure(ruleset, city),
   });
   const selling = crew.status === 'ACTIVE' && inventory > 0 && pace.unitsPerHour > 0;
   const gross = selling ? pace.unitsPerHour * (crew.priceCents ?? 0) : 0;
   const storage = await cityStorage(db, crew.roundPlayerId, city);
+  // 1.6.0-F: what it has sold, from its receipts and the wages on the ledger.
+  let sales: DealerCrewDto['sales'] = null;
+  if (rules.sales) {
+    const [totals, recent, wages] = await Promise.all([
+      db.dealerSale.aggregate({ where: { dealerCrewId: crew.id }, _sum: { quantity: true, grossCents: true, crewCutCents: true, netCents: true } }),
+      db.dealerSale.findMany({ where: { dealerCrewId: crew.id }, orderBy: { createdAt: 'desc' }, take: 5 }),
+      db.economyLedgerEntry.aggregate({ where: { roundPlayerId: crew.roundPlayerId, source: 'DEALER_WAGES', metadata: { path: ['crewId'], equals: crew.id } }, _sum: { amountCents: true } }),
+    ]);
+    sales = {
+      units: totals._sum.quantity ?? 0,
+      grossCents: Number(totals._sum.grossCents ?? 0n),
+      cutCents: Number(totals._sum.crewCutCents ?? 0n),
+      netCents: Number(totals._sum.netCents ?? 0n),
+      wagesCents: -Number(wages._sum.amountCents ?? 0n),
+      recent: recent.map((row) => ({ at: row.createdAt.toISOString(), units: row.quantity, priceCents: row.unitPriceCents, netCents: Number(row.netCents) })),
+    };
+  }
   return {
     id: crew.id,
     citySlug: city,
@@ -130,6 +149,7 @@ export async function crewDto(db: Db | PrismaClient, ruleset: Ruleset, rules: De
       demand: demandWord(dealerDemand(ruleset, city, key)),
       stored: storage.reduce((sum, entry) => sum + (entry.stock[key] ?? 0), 0),
     })),
+    sales,
   };
 }
 
@@ -184,6 +204,8 @@ export const DealerCrewService = {
         operatingCentsPerDealerHour: rules.operatingCentsPerDealerHour,
         priceRange: { ...rules.priceRange },
         tiers: rules.tiers.map((tier) => ({ ...tier })),
+        selling: Boolean(rules.sales),
+        salesIntervalMinutes: rules.sales?.intervalMinutes ?? null,
       },
       turns: player.turns,
       fitThugs: fitThugs(player),
@@ -224,7 +246,7 @@ export const DealerCrewService = {
         assertTurns(current.turns, rules.setupTurns);
         await assertStaffInSync(tx, roundPlayerId, current);
 
-        const crewData = { status: 'ACTIVE' as const, capacityUnits: input.dealers * rules.unitsPerDealer, productKey: null, priceCents: null };
+        const crewData = { status: 'ACTIVE' as const, capacityUnits: input.dealers * rules.unitsPerDealer, productKey: null, priceCents: null, salesSettledAt: now, salesCarry: 0 };
         const crew = existing
           ? await tx.dealerCrew.update({ where: { id: existing.id }, data: crewData })
           : await tx.dealerCrew.create({ data: { roundPlayerId, citySlug: input.citySlug, districtKey: input.districtKey, ...crewData } });
@@ -366,7 +388,8 @@ export const DealerCrewService = {
         if (input.action === 'PAUSE' || input.action === 'RESUME') {
           const status = input.action === 'PAUSE' ? 'PAUSED' : 'ACTIVE';
           if (crew.status === status) throw AppError.conflict('DEALER_CREW_UNCHANGED', `The crew is already ${status === 'PAUSED' ? 'paused' : 'working'}.`);
-          await tx.dealerCrew.update({ where: { id: crew.id }, data: { status } });
+          // 1.6.0-F: a resumed crew's clock starts now; paused hours neither sell nor cost.
+          await tx.dealerCrew.update({ where: { id: crew.id }, data: status === 'ACTIVE' ? { status, salesSettledAt: now } : { status } });
           return { next: current, result: await result(tx, ruleset, rules, roundPlayerId, home, crew.id, now, `The crew in ${where} is ${status === 'PAUSED' ? 'paused' : 'back to work'}.`), ledger: [] };
         }
         if (input.action === 'MOVE') {

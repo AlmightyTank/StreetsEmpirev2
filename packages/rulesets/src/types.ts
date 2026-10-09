@@ -3167,6 +3167,19 @@ export interface DealerRules {
   readonly setupTurns: number;
   /** Experience tiers, lowest first; the first must start at 0. */
   readonly tiers: readonly DealerTierRules[];
+  /** 1.6.0-F. How much a city's police pressure slows a crew: pace × pressure ^ -this. Absent: none. */
+  readonly pressureWeight?: number;
+  /** 1.6.0-F. Crews sell. Absent: crews hold stock and only show their pace. */
+  readonly sales?: DealerSalesRules;
+}
+
+/** 1.6.0-F. Sales settle lazily, in whole intervals of server time, like upkeep. */
+export interface DealerSalesRules {
+  readonly intervalMinutes: number;
+  /** Intervals settled in one batch at most; a longer absence settles in several. */
+  readonly maxBatchIntervals: number;
+  /** Experience each unit sold earns, shared across the crew's dealers. */
+  readonly experiencePerUnit: number;
 }
 
 export interface DealerTierRules {
@@ -3209,6 +3222,8 @@ export interface SupplyPickupRules {
   readonly homeStashUnits: number;
   /** Turns a pickup from a supplier in the player's own city costs: no road, straight to the stash. */
   readonly localPickupTurns: number;
+  /** 1.6.0-F. Stock moves between warehouses by run, like a pickup. Absent: it stays where it landed. */
+  readonly shipments?: boolean;
 }
 
 export interface SupplySupplierRules {

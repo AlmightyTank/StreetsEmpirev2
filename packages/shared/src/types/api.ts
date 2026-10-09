@@ -387,6 +387,32 @@ export interface SupplyPageDto {
   orders: SupplyOrderDto[];
   /** 1.6.0-C. Collecting orders in vehicle loads. Null before pickups open. */
   pickups?: SupplyPickupPlanningDto | null;
+  /** 1.6.0-F. The network's money and stock, this round. */
+  ledger?: SupplyLedgerDto | null;
+  /** 1.6.0-F. What moved, newest first. */
+  history?: SupplyHistoryItemDto[];
+}
+
+/** 1.6.0-F. Every cent the supply network took and made, and where every unit is. */
+export interface SupplyLedgerDto {
+  wholesaleCents: number;
+  propertyCents: number;
+  upkeepCents: number;
+  grossSalesCents: number;
+  dealerCutCents: number;
+  wagesCents: number;
+  /** What sales paid in after the cut, less wages, wholesale, properties and upkeep. */
+  netCents: number;
+  unitsSold: number;
+  stock: { awaitingPickup: number; inTransit: number; stored: number; withCrews: number };
+}
+
+export interface SupplyHistoryItemDto {
+  at: string;
+  kind: 'ORDERED' | 'PICKED_UP' | 'STORED' | 'ASSIGNED_TO_DEALER' | 'SOLD' | 'RETURNED';
+  productName: string;
+  units: number;
+  text: string;
 }
 
 export type SupplyPickupStatusDto = 'PLANNED' | 'IN_TRANSIT' | 'DELIVERED' | 'FAILED' | 'CANCELLED';
@@ -397,7 +423,10 @@ export type SupplyVehicleClassId = 'LOW_RIDER' | 'SEDAN' | 'VAN';
 /** 1.6.0-C. One load of a paid order: driving out, riding home, or done. */
 export interface SupplyPickupDto {
   id: string;
-  orderId: string;
+  /** Null for a 1.6.0-F shipment between warehouses. */
+  orderId: string | null;
+  /** 1.6.0-F. A shipment moves the player's own stock between warehouses. */
+  shipment: boolean;
   runId: string | null;
   productKey: string;
   productName: string;
@@ -536,9 +565,18 @@ export interface SupplyPickupPlanningDto {
   storage: SupplyStashDto[];
   /** 1.6.0-D. Null before properties open. */
   properties: SupplyPropertyMarketDto | null;
+  /** 1.6.0-F. Ways stock can be shipped between storage in different cities. Null before shipments open. */
+  shipmentLanes: Array<{ from: string; to: string; routes: SupplyRouteOptionDto[] }> | null;
   orders: SupplyPickupOrderPlanDto[];
   /** Active pickups first, then the most recent finished ones. */
   pickups: SupplyPickupDto[];
+}
+
+export interface SupplyShipmentResult {
+  pickup: SupplyPickupDto;
+  turns: number;
+  risk: SupplyRouteRiskDto | null;
+  replayed: boolean;
 }
 
 export interface SupplyPickupDispatchResult {
@@ -622,6 +660,15 @@ export interface DealerCrewDto {
   warehouses: Array<{ id: string; name: string; available: number; roomUnits: number }>;
   /** What it could sell in this city. */
   products: Array<{ key: string; name: string; streetPriceCents: number; demand: DemandWordDto; stored: number }>;
+  /** 1.6.0-F. What it has sold this round, and its latest batches. Null before sales open. */
+  sales: {
+    units: number;
+    grossCents: number;
+    cutCents: number;
+    netCents: number;
+    wagesCents: number;
+    recent: Array<{ at: string; units: number; priceCents: number; netCents: number }>;
+  } | null;
 }
 
 export interface DealerPageDto {
@@ -634,6 +681,9 @@ export interface DealerPageDto {
     operatingCentsPerDealerHour: number;
     priceRange: { min: number; max: number };
     tiers: Array<{ key: string; name: string; minExperience: number; cutPercent: number; paceBonus: number }>;
+    /** 1.6.0-F. Crews sell on the server's clock. */
+    selling: boolean;
+    salesIntervalMinutes: number | null;
   } | null;
   turns: number;
   fitThugs: number;

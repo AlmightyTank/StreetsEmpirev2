@@ -5,6 +5,7 @@ import { classicOgV16B } from '../classic-og-v1.6-b/index.js';
 import { classicOgV16C } from '../classic-og-v1.6-c/index.js';
 import { classicOgV16D } from '../classic-og-v1.6-d/index.js';
 import { classicOgV16E } from '../classic-og-v1.6-e/index.js';
+import { classicOgV16F } from '../classic-og-v1.6-f/index.js';
 import { rulesets } from '../index.js';
 import type { Ruleset } from '../types.js';
 
@@ -105,5 +106,25 @@ describe('1.6.0-A supply foundation ruleset', () => {
     const { meta: _baseMeta, supplyNetwork: _baseNetwork, ...base } = classicOgV16D;
     expect(rest).toEqual(base);
     expect(rulesets[classicOgV16E.meta.id]).toBe(classicOgV16E);
+  });
+
+  it('pins sales and shipments to F and changes nothing else from E', () => {
+    expect(classicOgV16F.meta).toEqual({ id: 'classic-og-v1.6-f', version: '1.6.0-F', name: 'Classic OG - Dealer Sales' });
+    expect((classicOgV16E as Ruleset).supplyNetwork?.dealers?.sales).toBeUndefined();
+    expect((classicOgV16E as Ruleset).supplyNetwork?.pickups?.shipments).toBeUndefined();
+    const { dealers, pickups, ...network } = classicOgV16F.supplyNetwork;
+    const { dealers: baseDealers, pickups: basePickups, ...baseNetwork } = classicOgV16E.supplyNetwork;
+    expect(network).toEqual(baseNetwork);
+    const { sales, pressureWeight, ...dealerRest } = dealers;
+    expect(dealerRest).toEqual(baseDealers);
+    expect(sales.intervalMinutes).toBeGreaterThan(0);
+    expect(pressureWeight).toBeGreaterThan(0);
+    const { shipments, ...pickupRest } = pickups;
+    expect(shipments).toBe(true);
+    expect(pickupRest).toEqual(basePickups);
+    const { meta: _meta, supplyNetwork: _network, ...rest } = classicOgV16F;
+    const { meta: _baseMeta, supplyNetwork: _baseNetwork, ...base } = classicOgV16E;
+    expect(rest).toEqual(base);
+    expect(rulesets[classicOgV16F.meta.id]).toBe(classicOgV16F);
   });
 });

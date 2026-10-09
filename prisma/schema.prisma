@@ -1364,6 +1364,7 @@ model RoundPlayer {
   productShelves        ProductShelf[]
   /// 1.6.0-A. Supply network records, scoped to this round's player.
   supplyOrders          SupplyOrder[]
+  supplyPickups         SupplyPickup[]
   supplyWarehouses      SupplyWarehouse[]
   supplySafehouses      SupplySafehouse[]
   dealerCrews           DealerCrew[]
@@ -1646,11 +1647,19 @@ model SupplySupplierStock {
 
 /// 1.6.0-A. One vehicle-sized pickup batch from a prepaid order.
 model SupplyPickup {
-  id      String      @id @default(cuid())
-  orderId String
-  order   SupplyOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  runId   String?
-  run     Run?        @relation(fields: [runId], references: [id], onDelete: SetNull)
+  id                String           @id @default(cuid())
+  /// The paid order a pickup collects. 1.6.0-F: null for a shipment between warehouses.
+  orderId           String?
+  order             SupplyOrder?     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// 1.6.0-F. Whose load it is, and what it carries.
+  roundPlayerId     String
+  roundPlayer       RoundPlayer      @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  productKey        String
+  /// 1.6.0-F. A shipment's source warehouse. Its units leave that warehouse at dispatch.
+  sourceWarehouseId String?
+  sourceWarehouse   SupplyWarehouse? @relation("ShipmentSource", fields: [sourceWarehouseId], references: [id], onDelete: SetNull)
+  runId             String?
+  run               Run?             @relation(fields: [runId], references: [id], onDelete: SetNull)
 
   routeKey            String
   originCitySlug      String
@@ -1668,14 +1677,16 @@ model SupplyPickup {
   deliveredQuantity   Int                @default(0)
   /// 1.6.0-C. Where the load is headed: held against the warehouse's room until it lands.
   warehouseId         String?
-  warehouse           SupplyWarehouse?   @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  warehouse           SupplyWarehouse?   @relation("PickupDestination", fields: [warehouseId], references: [id], onDelete: SetNull)
   movements           SupplyMovement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([orderId, requestKey])
+  @@unique([sourceWarehouseId, requestKey])
   @@index([orderId, status])
+  @@index([roundPlayerId, createdAt])
   @@index([runId])
   @@index([warehouseId, status])
 }
@@ -1721,7 +1732,8 @@ model SupplyWarehouse {
   purchasedCents BigInt              @default(0)
   stock          SupplyStock[]
   movements      SupplyMovement[]
-  pickups        SupplyPickup[]
+  pickups        SupplyPickup[]      @relation("PickupDestination")
+  shipmentsOut   SupplyPickup[]      @relation("ShipmentSource")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1759,6 +1771,10 @@ model DealerCrew {
   /// 1.6.0-E. The one product it sells, and the price it asks a unit.
   productKey         String?
   priceCents         Int?
+  /// 1.6.0-F. Sales are settled up to here, in whole intervals; null while it has never worked.
+  salesSettledAt     DateTime?
+  /// 1.6.0-F. The part of a unit sold but not yet whole, carried to the next batch.
+  salesCarry         Float            @default(0)
   staff              DealerStaff[]
   inventory          DealerStock[]
   sales              DealerSale[]

@@ -139,9 +139,22 @@ function CrewCard({ crew, data, onDone }: { crew: DealerCrewDto; data: DealerPag
           {crew.demand ? <Row label="The street" value={`${DEMAND_WORDS[crew.demand]} · ${trafficWord(crew.traffic)} foot traffic · street price ${price(crew.streetPriceCents ?? 0)}`} /> : null}
           <Row label="Holding" value={`${formatNumber(crew.inventoryUnits)} of ${formatNumber(crew.capacityUnits)}`} />
           <Row label="Would sell" value={crew.pace.unitsPerHour > 0 ? `${crew.pace.unitsPerHour.toFixed(1)} an hour · out in ${hoursText(crew.pace.hoursToSellOut ?? 0)}` : paused ? 'Nothing: paused' : 'Nothing: needs a product, a price and stock'} />
-          <Row label="An hour" tooltip="Gross at this price, less the dealers' cut and wages. Sales and payouts open in the next update."
+          <Row label="An hour" tooltip={rules.selling ? 'Gross at this price, less the dealers\u2019 cut and wages. Wages are owed every hour the crew works, even with nothing to sell: pause an empty crew.' : 'Gross at this price, less the dealers\u2019 cut and wages. Sales and payouts open in the next update.'}
             value={`${money(crew.pace.grossCentsPerHour)} gross · ${crew.pace.cutPercent.toFixed(0)}% cut · ${money(crew.pace.operatingCentsPerHour)} wages · ${money(crew.pace.netCentsPerHour)} net`} />
+          {crew.sales ? (
+            <Row label="Sold so far" value={`${formatNumber(crew.sales.units)} units · ${money(crew.sales.netCents)} after cut · ${money(crew.sales.wagesCents)} wages`} />
+          ) : null}
         </div>
+        {crew.sales?.recent.length ? (
+          <ul className="se-run__trades">
+            {crew.sales.recent.map((sale) => (
+              <li key={sale.at}>
+                <span>Sold {formatNumber(sale.units)} at {price(sale.priceCents)}</span>
+                <span className="se-num se-good">+{money(sale.netCents)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
 
         <h3 className="se-city__heading">Dealers</h3>
         <ul className="se-dealers__staff">
@@ -249,7 +262,9 @@ export function DealersPage() {
         <header className="se-supply__hero">
           <span className="se-eyebrow">Supply network</span>
           <h1>Dealer Crews</h1>
-          <p>Post dealers in a district where you have a foothold, stock them from storage in that city, and set the price. Sales and payouts open in the next update; until then crews hold stock and show what they would sell.</p>
+          <p>{data?.rules?.selling
+            ? 'Post dealers in a district where you have a foothold, stock them from storage in that city, and set the price. Working crews sell every hour on their own; the takings land in your cash after the dealers\u2019 cut and wages.'
+            : 'Post dealers in a district where you have a foothold, stock them from storage in that city, and set the price. Sales and payouts open in the next update; until then crews hold stock and show what they would sell.'}</p>
         </header>
         {error ? <Alert>{error}</Alert> : null}
         {data && !data.enabled ? <Alert tone="info">Dealer crews are not available in this season.</Alert> : null}
@@ -262,7 +277,7 @@ export function DealersPage() {
                   <Row key={tier.key} label={tier.name} value={`${formatNumber(tier.minExperience)}+ xp · ${tier.cutPercent}% cut · ${tier.paceBonus ? `+${Math.round(tier.paceBonus * 100)}% pace` : 'base pace'}`} />
                 ))}
               </div>
-              <p className="se-hint">Dealers earn experience from what they sell. Released dealers keep it and come back first when a crew needs hands{data.careers.length ? `: ${data.careers.length} waiting` : ''}.</p>
+              <p className="se-hint">Dealers earn {data.rules.selling ? 'a point of experience for every unit they sell' : 'experience from what they sell'}. Released dealers keep it and come back first when a crew needs hands{data.careers.length ? `: ${data.careers.length} waiting` : ''}.{data.rules.selling ? ' A crew that cannot meet its wages from its takings or your cash walks off the corner and pauses until you resume it.' : ''}</p>
             </Panel>
             {data.crews.map((crew) => <CrewCard key={crew.id} crew={crew} data={data} onDone={done} />)}
           </div>

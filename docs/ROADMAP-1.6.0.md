@@ -31,7 +31,7 @@ Slices **A–F** deliver a complete loop on the existing map. Slices **G–H** e
 
 Each slice should have its own release gate and pinned ruleset, following the project's established release pattern. Names and exact ruleset identifiers can be finalized during implementation.
 
-**Beta progress:** Slices A through E are implemented on the beta branch. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Slice D adds warehouses and safehouses with upkeep, and pickups that deliver to any warehouse. Slice E adds dealer crews: set up, staffed, stocked and priced, with their expected pace shown. Sales and payouts remain Slice F.
+**Beta progress:** Slices A through F are implemented on the beta branch, completing the core loop. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Slice D adds warehouses and safehouses with upkeep, and pickups that deliver to any warehouse. Slice E adds dealer crews: set up, staffed, stocked and priced, with their expected pace shown. Slice F makes crews sell, pays out, ships stock between cities, and adds the supply ledger and history. New cities, international lanes and the balance pass remain Slices G–I.
 
 ## Proposed slices
 
@@ -162,6 +162,8 @@ Let players build and manage a small distribution network.
 
 ### 1.6.0-F — Sales, Restocking & Ledger
 
+**Status: Implemented on the beta branch (`classic-og-v1.6-f`).**
+
 Make the business cycle understandable and sustainable.
 
 - Resolve sales in bounded server-side intervals using available stock, local demand, chosen price, crew capacity, and city pressure.
@@ -175,6 +177,17 @@ Make the business cycle understandable and sustainable.
 - Do not guarantee that a bulk order will be profitable; purchases tie up cash and sales depend on market conditions.
 
 **Gate:** Repeated sale ticks cannot oversell stock, create cash from no stock, or use client time as the source of truth.
+
+**As built:**
+
+- **Sales clock:** working crews sell lazily, settled under the player's lock before anything reads cash, in whole hours of server time since the crew was last settled. A part hour waits. Batches run up to 24 hours at one pace, so experience earned in one batch speeds the next. Each batch is keyed by its start time, so settling again never sells twice.
+- **Each batch:** it sells the pace times the hours, plus a carried fraction, never more than the crew holds. It takes exactly that from the crew's stock and writes a sale receipt and a SOLD movement. Each dealer gets 1 xp per unit, shared evenly.
+- **Payouts:** the player is paid gross less the dealers' cut, then wages ($15 per dealer-hour) come out. Wages are owed every hour a crew works, even with nothing to sell, so pause an empty crew. If neither the takings nor cash can cover wages, the crew walks off and pauses; cash never goes below zero.
+- **City pressure:** pace is scaled by police pressure ^ −0.5, about 79% in San Francisco and 129% in Atlanta. Sales report their cash as currency evidence to the Case in that city, as run trades do.
+- **Shipments:** move stock between warehouses in different cities: a run drives to the source, loads, unloads at the destination and goes home. The units leave the source at dispatch, so nothing else can claim them, and only what arrives is stored. Restocking a crew elsewhere therefore takes a shipment and the cars for it.
+- **Supply page:** a ledger for the round (sales, dealers' cut, wages, wholesale, properties, upkeep, net) with unsold stock by place (at suppliers, on the road, in storage, with crews), and a plain-words history of every order, pickup, delivery, restock, return, shipment and sale.
+- **Profit is not guaranteed:** unsold stock is paid for but not counted as earned.
+- Gate coverage: `SUPPLY_INTEGRATION=1` runs `dealer-sales.integration.test.ts`.
 
 ### 1.6.0-G — Chicago, Tulsa & Dallas
 

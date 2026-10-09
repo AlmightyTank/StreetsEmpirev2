@@ -439,7 +439,7 @@ export function PickupList({ pickups }: { pickups: SupplyPickupDto[] }) {
             return (
               <div className="se-supply__history-row" key={row.id}>
                 <div>
-                  <strong>{formatNumber(row.quantity)} {row.productName} · {row.supplierName}</strong>
+                  <strong>{formatNumber(row.quantity)} {row.productName} · {row.shipment ? `shipment from ${row.originCityName}` : row.supplierName}</strong>
                   <span>
                     {pickupStatusLabel(row)}
                     {active && row.expectedArrivalAt ? ` · home ${formatWeekdayTime(row.expectedArrivalAt)}` : ''}

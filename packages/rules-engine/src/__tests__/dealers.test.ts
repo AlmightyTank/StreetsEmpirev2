@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV16D, classicOgV16E } from '@streets/rulesets';
-import { dealerPace, dealerPriceRange, dealerRules, dealerStreetPriceCents, dealerTier, demandWord } from '../calculations/dealers.js';
+import { classicOgV16D, classicOgV16E, classicOgV16F } from '@streets/rulesets';
+import { dealerExperienceShares, dealerPace, dealerPressure, dealerPriceRange, dealerRules, dealerStreetPriceCents, dealerTier, demandWord, settleDealerSales } from '../calculations/dealers.js';
 
 describe('1.6.0-E dealer crews', () => {
   const ruleset = classicOgV16E;
@@ -55,5 +55,39 @@ describe('1.6.0-E dealer crews', () => {
     for (const city of Object.keys(ruleset.cities)) {
       for (const product of products) expect(dealerStreetPriceCents(ruleset, rules, city, product)).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('1.6.0-F dealer sales', () => {
+  const rules = dealerRules(classicOgV16F)!;
+  const pace = { unitsPerHour: 10.4, cutPercent: 25, operatingCentsPerHour: 3_000 };
+
+  it('slows crews in police-heavy cities only from F', () => {
+    const base = { demand: 1, district: 'URBAN_GHETTO' as const, dealers: [0], priceCents: 100, streetPriceCents: 100 };
+    expect(dealerPace({ ...base, rules: dealerRules(classicOgV16E)!, pressure: 1.6 }).unitsPerHour).toBe(12);
+    expect(dealerPace({ ...base, rules, pressure: 1.6 }).unitsPerHour).toBeCloseTo(12 / Math.sqrt(1.6));
+    expect(dealerPace({ ...base, rules, pressure: 0.6 }).unitsPerHour).toBeGreaterThan(12);
+    expect(dealerPressure(classicOgV16F, 'san-francisco')).toBe(1.6);
+  });
+
+  it('sells whole units over the hours worked, carrying the fraction, and owes wages regardless', () => {
+    const first = settleDealerSales({ pace, priceCents: 5_000, inventory: 1_000, hours: 3, carry: 0 });
+    expect(first).toEqual({ sold: 31, carry: expect.closeTo(0.2, 6), grossCents: 155_000, cutCents: 38_750, operatingCents: 9_000 });
+    // The carried fraction makes up a unit later: never lost.
+    const second = settleDealerSales({ pace, priceCents: 5_000, inventory: 969, hours: 1, carry: first.carry });
+    expect(second.sold).toBe(10);
+    expect(second.carry).toBeCloseTo(0.6);
+  });
+
+  it('never sells more than the crew holds, and sells nothing from nothing', () => {
+    expect(settleDealerSales({ pace, priceCents: 5_000, inventory: 7, hours: 24, carry: 0 })).toMatchObject({ sold: 7, carry: 0, grossCents: 35_000, operatingCents: 72_000 });
+    expect(settleDealerSales({ pace, priceCents: 5_000, inventory: 0, hours: 5, carry: 0.9 })).toMatchObject({ sold: 0, grossCents: 0, cutCents: 0, operatingCents: 15_000 });
+    expect(() => settleDealerSales({ pace, priceCents: 5_000, inventory: -1, hours: 1, carry: 0 })).toThrow();
+  });
+
+  it('shares experience across the dealers who sold it', () => {
+    expect(dealerExperienceShares(31, 3, 1)).toEqual([11, 10, 10]);
+    expect(dealerExperienceShares(0, 3, 1)).toEqual([0, 0, 0]);
+    expect(dealerExperienceShares(10, 0, 1)).toEqual([]);
   });
 });
