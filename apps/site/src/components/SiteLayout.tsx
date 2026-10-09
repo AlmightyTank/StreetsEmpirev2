@@ -23,7 +23,7 @@ const exploreLinks = [
 const pageMeta = (pathname: string): { title: string; description: string; noindex?: boolean } => {
   const segment = pathname.split('/').filter(Boolean)[0] ?? '';
   const map: Record<string, { title: string; description: string; noindex?: boolean }> = {
-    game: { title: 'The Game', description: 'Learn how StreetsEmpire seasons, economy, combat, travel, turf and alliances fit together.' },
+    game: { title: 'The Game', description: 'Learn how StreetsEmpire seasons, economy, combat, travel, turf, businesses, the law, factions and the casino fit together.' },
     guide: { title: 'How to Play', description: 'Player guides for StreetsEmpire systems from first turns through city control.' },
     cities: { title: 'Cities', description: 'Explore StreetsEmpire cities, districts, public economy and current turf control.' },
     turf: { title: 'Turf', description: 'Follow current district control and recent public turf captures in StreetsEmpire.' },
@@ -34,7 +34,7 @@ const pageMeta = (pathname: string): { title: string; description: string; noind
     alliances: { title: 'Alliances', description: 'Current StreetsEmpire alliance standings, rosters and turf presence.' },
     stats: { title: 'Statistics', description: 'Current and all-time public StreetsEmpire game statistics.' },
     news: { title: 'News', description: 'Official StreetsEmpire announcements, season updates and release news.' },
-    roadmap: { title: 'Roadmap', description: 'The public StreetsEmpire development roadmap toward 1.0 and beyond.' },
+    roadmap: { title: 'Roadmap', description: 'What is live in StreetsEmpire, what is on the beta server and what is planned next.' },
     community: { title: 'Community', description: 'Find the StreetsEmpire forum, public competition pages and community resources.' },
     beta: { title: 'Beta', description: 'Information about the separate StreetsEmpire beta testing environment.', noindex: true },
     status: { title: 'Status', description: 'Current StreetsEmpire public API and database service health.' },
