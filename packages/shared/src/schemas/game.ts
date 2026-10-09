@@ -239,12 +239,31 @@ export const supplyPickupSchema = z.object({
   escortThugs: pickupCount('escorts').default(0),
   /** Which of the ways to the supplier. Ignored for a supplier in the player's own city. */
   route: z.number().int().min(0).max(9).default(0),
+  /** 1.6.0-D. The warehouse the load goes to. Absent: the home stash. */
+  warehouseId: z.string().trim().min(1).max(64).optional(),
   /** Durable pickup idempotency key, like an order's. */
   requestKey: actionIdSchema,
   actionId: actionIdSchema,
 }).strict();
 
 export type SupplyPickupInput = z.input<typeof supplyPickupSchema>;
+
+/** 1.6.0-D. Buy a warehouse or a safehouse in a city. */
+export const supplyPropertyBuySchema = z.object({
+  kind: z.enum(['WAREHOUSE', 'SAFEHOUSE']),
+  citySlug: z.string().trim().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+
+/** 1.6.0-D. Give up a property. A warehouse must be empty with nothing on the way. */
+export const supplyPropertyCloseSchema = z.object({
+  kind: z.enum(['WAREHOUSE', 'SAFEHOUSE']),
+  propertyId: z.string().trim().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+
+export type SupplyPropertyBuyInput = z.infer<typeof supplyPropertyBuySchema>;
+export type SupplyPropertyCloseInput = z.infer<typeof supplyPropertyCloseSchema>;
 
 /** 1.6.0-A. Hire a fresh dealer career or reassign a previously released one. */
 export const dealerStaffAssignSchema = z.object({

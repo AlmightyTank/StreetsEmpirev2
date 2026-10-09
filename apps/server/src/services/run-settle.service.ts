@@ -30,7 +30,7 @@ import { EconomyLedgerService } from './economy-ledger.service.js';
 import { CRACK, productKeys } from './product-inventory.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
 import { hasVehicleDamage, readVehicleDamage, readVehicleLoadout, vehicleDamageJson } from './vehicle-fleet.service.js';
-import { deliverSupplyPickups, loadSupplyPickups, supplyLoadsByRun, withoutSupplyLoad } from './supply-pickup-settle.service.js';
+import { deliverSupplyPickups, settleSupplyStops, supplyLoadsByRun, withoutSupplyLoad } from './supply-pickup-settle.service.js';
 
 export const RUN_INCLUDE = {
   stops: { orderBy: { order: 'asc' } },
@@ -414,10 +414,10 @@ export const RunSettleService = {
     const ruleset = loadRulesetForRound(round);
     for (const active of loaded) {
       const planned = toStopPlans(active.stops);
-      // 1.6.0-C: a pickup run drives out empty and loads at the supplier, so the road out
-      // is rolled before the load goes on and the road home after.
+      // 1.6.0-C/D: a pickup run loads at the supplier and unloads at its warehouse, so each
+      // leg is rolled on what the trunk held when it drove it.
       const supplied = ruleset.supplyNetwork?.pickups
-        ? await loadSupplyPickups(tx, roundPlayerId, await rollRoadStops(tx, roundPlayerId, ruleset, active, planned, now, 1), planned, now)
+        ? await settleSupplyStops(tx, roundPlayerId, ruleset, active, planned, now, (run, legs) => rollRoadStops(tx, roundPlayerId, ruleset, run, planned, now, legs))
         : active;
       // Road stops on the way in come first; then (Trips B) the hotel, which can send
       // the run home early; then any leg that re-timing has already driven.

@@ -31,7 +31,7 @@ Slices **A–F** deliver a complete loop on the existing map. Slices **G–H** e
 
 Each slice should have its own release gate and pinned ruleset, following the project's established release pattern. Names and exact ruleset identifiers can be finalized during implementation.
 
-**Beta progress:** Slices A, B and C are implemented on the beta branch. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Properties remain Slice D; dealer establishment and sales remain Slices E–F.
+**Beta progress:** Slices A through D are implemented on the beta branch. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Slice D adds warehouses and safehouses with upkeep, and pickups that deliver to any warehouse. Dealer establishment and sales remain Slices E–F.
 
 ## Proposed slices
 
@@ -109,6 +109,8 @@ Use the existing vehicle and run systems to collect an order over multiple trips
 
 ### 1.6.0-D — Properties & Local Storage
 
+**Status: Implemented on the beta branch (`classic-og-v1.6-d`).**
+
 Give locations a practical job in the supply network.
 
 - Add warehouses with finite capacity for product waiting to be assigned or shipped onward.
@@ -119,6 +121,17 @@ Give locations a practical job in the supply network.
 - Start with a modest number of locations per player; tune limits with simulation.
 
 **Gate:** A player cannot overfill a warehouse, allocate the same stock twice, or bypass vehicle capacity by transferring stock between distant cities instantly.
+
+**As built:**
+
+- **Warehouses:** one per city, up to three per player, besides the free home stash (12,000 units in D, down from 30,000 in C, so one full-size order fits at home). Each city sets its own price, daily upkeep and capacity: Detroit is big and cheap but far from the west, San Francisco small and dear, Las Vegas cheap staging four hours from Los Angeles.
+- **Safehouses:** one per city, up to three, never in the home city. A safehouse is a foothold: a warehouse outside the home city needs a paid-up one there. Dealer crews (Slice E) can use the same footholds. This answers the open decision provisionally: dealers need a foothold, and home always counts as one.
+- **Upkeep:** the price pays the first day, then upkeep is charged from cash every 24 hours, settled lazily like corner and business upkeep. A property the cash cannot cover falls behind. A warehouse that is behind keeps its stock but takes no new deliveries, and a safehouse that is behind stops counting as a foothold. Both catch up automatically once there is cash. Nothing is seized or destroyed.
+- **Closing:** gives a property up with no refund. A warehouse must be empty with nothing on the way to it, and a safehouse cannot close while a warehouse in its city needs it.
+- **Delivery anywhere:** a pickup chooses its warehouse. The run drives home → supplier → warehouse city → home and unloads at the warehouse stop. If the supplier is local and the warehouse is not, the load goes on as the run leaves. If the warehouse is in the supplier's city, the load comes straight off at that stop. A pickup run cannot head home before it unloads, so stock never jumps between cities.
+- **Room:** each warehouse shows stored units, room held for loads on the way, and free room. A dispatch that would not fit is refused, saying how many units would not fit.
+- **Deferred:** moving stock between warehouses is Slice F's shipment work.
+- Gate coverage: `SUPPLY_INTEGRATION=1` runs `supply-properties.integration.test.ts`.
 
 ### 1.6.0-E — Dealer Crews
 

@@ -18,6 +18,7 @@ import { RunSettleService, runSummary } from './run-settle.service.js';
 import type { RoundPlayerDto } from '@streets/shared';
 import { TurfService } from './turf.service.js';
 import { BusinessService } from './business.service.js';
+import { SupplyPropertySettleService } from './supply-property-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { pokerCommittedCents } from './casino-poker-committed.js';
 import { LawWarrantService } from './law-warrant.service.js';
@@ -150,6 +151,9 @@ export const PlayerStateService = {
         businessWhores: businessSettlement.businessWhores,
       };
     }
+    // 1.6.0-D: property upkeep that has fallen due comes out of cash.
+    const upkeepCash = await SupplyPropertySettleService.settleUpkeep(tx, roundPlayerId, ruleset, now);
+    if (upkeepCash !== null) rest = { ...rest, cashCents: upkeepCash };
     // 1.3.0-C: a warrant that is due is served here too, so it lands for players who are away.
     if (await LawWarrantService.serveDue(tx, roundPlayerId, now)) {
       const reloaded = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, include: { city: true, alliance: ALLIANCE_TAG } });

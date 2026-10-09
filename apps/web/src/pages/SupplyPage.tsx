@@ -7,7 +7,7 @@ import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
-import { PickupList, PickupPlanner, StashPanel } from '../components/SupplyPickupPanels.js';
+import { PickupList, PickupPlanner, PropertiesPanel, StoragePanel } from '../components/SupplyPickupPanels.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -246,9 +246,10 @@ export function SupplyPage() {
               <>
                 <PickupPlanner plan={data.pickups} orders={data.orders} onDone={() => setReload((value) => value + 1)} />
                 <div className="se-supply__stack">
-                  <StashPanel plan={data.pickups} />
+                  <StoragePanel plan={data.pickups} />
                   <PickupList pickups={data.pickups.pickups} />
                 </div>
+                <PropertiesPanel plan={data.pickups} onDone={() => setReload((value) => value + 1)} />
               </>
             ) : null}
 

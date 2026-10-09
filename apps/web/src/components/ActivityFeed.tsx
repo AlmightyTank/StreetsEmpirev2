@@ -531,7 +531,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       const supply = p.supplyPickup && typeof p.supplyPickup === 'object' ? p.supplyPickup as Record<string, unknown> : null;
       return {
         text: supply
-          ? `Sent a pickup to ${str(supply.supplier, 'a supplier')} in ${str(p.cityName, 'another city')} for ${formatNumber(num(supply.quantity))} ${str(supply.product, 'units')}.`
+          ? `Sent a pickup to ${str(supply.supplier, 'a supplier')} in ${str(p.cityName, 'another city')} for ${formatNumber(num(supply.quantity))} ${str(supply.product, 'units')}${supply.destination ? `, bound for your ${str(supply.destination)} warehouse` : ''}.`
           : p.bossAboard ? `The boss rode out with a run to ${str(p.cityName, 'another city')}.` : `Sent a run to ${str(p.cityName, 'another city')}.`,
         detail: `${formatNumber(num(p.turns))} turns`,
       };

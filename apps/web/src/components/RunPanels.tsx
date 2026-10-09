@@ -721,9 +721,10 @@ function MoveOn({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: (
 /** 1.6.0-C. A pickup run only goes to the supplier and home: leaving early is all it can do. */
 function PickupHeadHome({ run, onDone }: { run: RunDto; onDone: () => void }) {
   const move = useGameAction<RunMoveResult>();
+  const stored = run.supplyPickup && run.supplyPickup.status !== 'IN_TRANSIT';
   return (
     <div className="se-moveon">
-      <p className="se-hint">The load is aboard. A pickup run cannot trade or drive on; it leaves when the window closes, or now.</p>
+      <p className="se-hint">{stored ? 'The load is stored.' : 'The load is aboard.'} A pickup run cannot trade or drive on; it leaves when the window closes, or now.</p>
       <Button type="button" className="se-btn" disabledReason={move.busy ? 'On the move.' : null}
         onClick={async () => {
           await move.run((actionId): Promise<GameActionResult<RunMoveResult>> => api.post('/game/travel/head-home', { runId: run.id, actionId }));
@@ -743,8 +744,14 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
   const stop = run.stops[run.position.stopIndex]!;
   const trunk = run.cargo.reduce((sum, entry) => sum + entry.quantity, 0);
   const pickup = run.supplyPickup ?? null;
+  const homeSlug = run.stops[run.stops.length - 1]!.city;
+  // 1.6.0-D: a load bound for a warehouse elsewhere comes off there before the run may cut for home.
+  const unloading = Boolean(pickup && pickup.destinationCitySlug !== homeSlug && run.position.city === pickup.destinationCitySlug);
+  const mayHeadHome = Boolean(pickup && pickup.status !== 'PLANNED' && (pickup.status !== 'IN_TRANSIT' || pickup.destinationCitySlug === homeSlug));
   const headline = inTown
-    ? pickup ? `At ${pickup.supplierName} in ${run.position.cityName}: leaves in ${formatDuration(msRemaining)}` : `In ${run.position.cityName}: ${formatDuration(msRemaining)} left to trade`
+    ? pickup
+      ? unloading ? `Unloading at your ${pickup.destinationCityName} warehouse: leaves in ${formatDuration(msRemaining)}` : `At ${pickup.supplierName} in ${run.position.cityName}: leaves in ${formatDuration(msRemaining)}`
+      : `In ${run.position.cityName}: ${formatDuration(msRemaining)} left to trade`
     : stop.isHome
       ? `Heading home: back in ${formatDuration(msRemaining)}`
       : `On the road to ${run.position.cityName}: there in ${formatDuration(msRemaining)}`;
@@ -784,7 +791,9 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
           <Row label="Supply load" strong tooltip="Road stops and convoy hits can take part of it. What is still aboard at home goes into your stash."
             value={pickup.status === 'PLANNED'
               ? `${formatNumber(pickup.quantity)} ${pickup.productName} waiting at ${pickup.supplierName}`
-              : `${formatNumber(pickup.quantity)} ${pickup.productName} loaded`} />
+              : pickup.status === 'IN_TRANSIT'
+                ? `${formatNumber(pickup.quantity)} ${pickup.productName} loaded${pickup.destinationCitySlug !== homeSlug ? `, for ${pickup.destinationCityName}` : ''}`
+                : `${formatNumber(pickup.deliveredQuantity)} ${pickup.productName} stored in ${pickup.destinationCityName}`} />
         ) : (
           <Row label="Cash in the car" value={formatCents(run.cashCents)} strong tooltip="What the run can spend. Home cash never reaches it." />
         )}
@@ -808,10 +817,12 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
         <Row label="Back home" value={clock(run.stops[run.stops.length - 1]!.arriveAt)} />
       </div>
 
-      {inTown && pickup ? (
+      {inTown && pickup && mayHeadHome ? (
         <PickupHeadHome run={run} onDone={onDone} />
+      ) : inTown && pickup ? (
+        <p className="se-hint">{pickup.status === 'PLANNED' ? 'Loading.' : `The load comes off in ${pickup.destinationCityName} first.`} A pickup run cannot trade or drive on; it moves on when the window closes.</p>
       ) : pickup ? (
-        <p className="se-hint">{pickup.status === 'PLANNED' ? 'Driving out empty. It loads when it reaches the supplier.' : 'Heading home with the load. It goes into your stash when it arrives.'} Track every pickup on the <Link to="/game/supply">Supply</Link> page.</p>
+        <p className="se-hint">{pickup.status === 'PLANNED' ? 'Driving out empty. It loads when it reaches the supplier.' : pickup.status === 'IN_TRANSIT' ? `Carrying the load to ${pickup.destinationCitySlug === homeSlug ? 'the stash at home' : `your ${pickup.destinationCityName} warehouse`}.` : 'The load is stored; the run is heading home.'} Track every pickup on the <Link to="/game/supply">Supply</Link> page.</p>
       ) : inTown ? (
         <>
           <TownCounter run={run} data={data} onDone={onDone} />

@@ -33,6 +33,7 @@ import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { RunSettleService } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
 import { BusinessService } from './business.service.js';
+import { SupplyPropertySettleService } from './supply-property-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
@@ -440,10 +441,12 @@ export const ActionService = {
       const turfSettlement = await TurfService.settlePlayer(tx, roundPlayerId, ruleset, now);
       // 1.1.0-B: and business supply, income and any staff coming home from a lost block.
       const businessSettlement = await BusinessService.settlePlayer(tx, roundPlayerId, ruleset, now);
+      // 1.6.0-D: and property upkeep that has fallen due.
+      const upkeepCash = await SupplyPropertySettleService.settleUpkeep(tx, roundPlayerId, ruleset, now);
       // 1.3.0-C: and any warrant that is due is served before the action reads the player. A
       // personal warrant's lock-up takes hold from the next action.
       const warrantServed = await LawWarrantService.serveDue(tx, roundPlayerId, now);
-      if (turfSettlement || businessSettlement || warrantServed) {
+      if (turfSettlement || businessSettlement || warrantServed || upkeepCash !== null) {
         player = await tx.roundPlayer.findUniqueOrThrow({
           where: { id: roundPlayerId },
           include: { city: true },

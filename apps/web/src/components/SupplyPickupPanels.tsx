@@ -5,10 +5,11 @@ import type {
   SupplyPickupDispatchResult,
   SupplyPickupDto,
   SupplyPickupPlanningDto,
+  SupplyPropertyActionResult,
   SupplyRouteRiskDto,
   SupplyVehicleClassId,
 } from '@streets/shared';
-import { formatNumber } from '@streets/shared';
+import { formatCents, formatNumber } from '@streets/shared';
 import { supplyApi } from '../api/supply.js';
 import { ApiError } from '../api/client.js';
 import { useGameAction } from '../hooks/useGameAction.js';
@@ -38,6 +39,8 @@ interface PendingPickupIntent {
   vehicleLoadout: Record<SupplyVehicleClassId, number>;
   escortThugs: number;
   route: number;
+  /** 1.6.0-D. The storage key it goes to. */
+  destination: string;
 }
 
 function readPendingPickup(): PendingPickupIntent | null {
@@ -55,6 +58,7 @@ function readPendingPickup(): PendingPickupIntent | null {
       vehicleLoadout: { LOW_RIDER: Number(value.vehicleLoadout.LOW_RIDER) || 0, SEDAN: Number(value.vehicleLoadout.SEDAN) || 0, VAN: Number(value.vehicleLoadout.VAN) || 0 },
       escortThugs: Number(value.escortThugs) || 0,
       route: Number(value.route) || 0,
+      destination: typeof value.destination === 'string' ? value.destination : 'stash',
     };
   } catch {
     return null;
@@ -108,6 +112,7 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
   const [escorts, setEscorts] = useState<number | ''>(restored?.escortThugs ?? 0);
   const [route, setRoute] = useState(restored?.route ?? 0);
   const [quantity, setQuantity] = useState<number | ''>(restored?.quantity ?? '');
+  const [destinationKey, setDestinationKey] = useState(restored?.destination ?? plan.stash.key);
 
   // A plan that no longer offers the picked order (collected, or loads already promised) moves on.
   useEffect(() => {
@@ -117,8 +122,18 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
 
   const orderPlan = plan.orders.find((entry) => entry.orderId === orderId) ?? null;
   const order = orders.find((entry) => entry.id === orderId) ?? null;
-  const chosenRoute = orderPlan && !orderPlan.local ? orderPlan.routes.find((entry) => entry.index === route) ?? orderPlan.routes[0] ?? null : null;
-  useEffect(() => { if (orderPlan && !orderPlan.local && !orderPlan.routes.some((entry) => entry.index === route)) setRoute(orderPlan.routes[0]?.index ?? 0); }, [orderPlan, route]);
+  // 1.6.0-D: where the load goes, and the ways there from this supplier.
+  const destinationPlan = orderPlan?.destinations.find((entry) => entry.key === destinationKey) ?? orderPlan?.destinations[0] ?? null;
+  const target = plan.storage.find((entry) => entry.key === destinationPlan?.key) ?? plan.stash;
+  useEffect(() => {
+    if (uncertain || action.busy || !orderPlan) return;
+    if (!orderPlan.destinations.some((entry) => entry.key === destinationKey)) setDestinationKey(orderPlan.destinations[0]?.key ?? plan.stash.key);
+  }, [orderPlan, destinationKey, uncertain, action.busy, plan.stash.key]);
+  const routes = destinationPlan?.routes ?? [];
+  const local = Boolean(destinationPlan?.local);
+  const chosenRoute = !local ? routes.find((entry) => entry.index === route) ?? routes[0] ?? null : null;
+  useEffect(() => { if (!local && routes.length && !routes.some((entry) => entry.index === route)) setRoute(routes[0]?.index ?? 0); }, [local, routes, route]);
+  const targetName = target.kind === 'STASH' ? target.name.toLowerCase() : `${target.cityName} warehouse`;
 
   const spec = (classId: SupplyVehicleClassId) => plan.vehicles.find((vehicle) => vehicle.classId === classId);
   const selected = Object.fromEntries(CLASSES.map((classId) => [classId, count(vehicles[classId])])) as Record<SupplyVehicleClassId, number>;
@@ -131,10 +146,9 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
     : 0;
   const escortMax = Math.min(plan.fitThugs, seats);
   const available = orderPlan?.availableQuantity ?? 0;
-  const most = Math.max(0, Math.min(available, capacity, plan.stash.roomUnits));
+  const most = Math.max(0, Math.min(available, capacity, target.roomUnits));
   const load = count(quantity);
-  const turns = orderPlan?.local ? plan.localPickupTurns : chosenRoute?.turns ?? 0;
-  const local = Boolean(orderPlan?.local);
+  const turns = local ? plan.localPickupTurns : chosenRoute?.turns ?? 0;
 
   function changed(update: () => void) {
     if (uncertain || action.busy) return;
@@ -154,14 +168,14 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
                 : load < 1 ? 'Enter how many units to collect.'
                   : load > available ? `Only ${formatNumber(available)} units of this order are left to send for.`
                     : load > capacity ? `These vehicles carry ${formatNumber(capacity)} units.`
-                      : load > plan.stash.roomUnits ? `The ${plan.stash.name.toLowerCase()} has room for ${formatNumber(plan.stash.roomUnits)} more units.`
+                      : load > target.roomUnits ? `Your ${targetName} has room for ${formatNumber(target.roomUnits)} more: ${formatNumber(load - target.roomUnits)} would not fit.`
                         : turns > plan.turns ? `This pickup costs ${turns} turns and you have ${plan.turns}.`
                           : null;
 
   async function dispatch() {
     if (!orderPlan) return;
     const fresh: PendingPickupIntent = {
-      requestKey: newActionId(), actionId: null, orderId, quantity: load, vehicleLoadout: selected, escortThugs: local ? 0 : count(escorts), route: chosenRoute?.index ?? 0,
+      requestKey: newActionId(), actionId: null, orderId, quantity: load, vehicleLoadout: selected, escortThugs: local ? 0 : count(escorts), route: chosenRoute?.index ?? 0, destination: target.key,
     };
     const intent = uncertain && pending.current ? pending.current : fresh;
     if (!uncertain && block) return;
@@ -173,6 +187,7 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
       try {
         const outcome = await supplyApi.dispatchPickup({
           orderId: intent.orderId, quantity: intent.quantity, vehicleLoadout: intent.vehicleLoadout, escortThugs: intent.escortThugs, route: intent.route, requestKey: intent.requestKey, actionId,
+          ...(intent.destination !== 'stash' ? { warehouseId: intent.destination } : {}),
         });
         pending.current = null;
         savePending(null);
@@ -200,14 +215,14 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
       {action.error ? <Alert>{action.error}</Alert> : null}
       {sent && action.result ? (
         <ActionResult
-          title={sent.replayed ? 'Pickup already sent' : sent.pickup.local ? 'Loaded into the stash' : 'Pickup on the road'}
+          title={sent.replayed ? 'Pickup already sent' : sent.pickup.local ? `Loaded into the ${sent.pickup.warehouseName.toLowerCase()}` : 'Pickup on the road'}
           subtitle={`${formatNumber(sent.pickup.quantity)} ${sent.pickup.productName} · ${sent.pickup.supplierName}`}
           result={action.result}
           onDismiss={action.clear}
           lines={[
             sent.pickup.local
               ? { label: 'Stored', value: formatNumber(sent.pickup.deliveredQuantity) }
-              : { label: 'Home around', value: sent.pickup.expectedArrivalAt ? formatWeekdayTime(sent.pickup.expectedArrivalAt) : '—' },
+              : { label: `At the ${sent.pickup.warehouseName.toLowerCase()} around`, value: sent.pickup.expectedArrivalAt ? formatWeekdayTime(sent.pickup.expectedArrivalAt) : '—' },
             ...(sent.risk ? [{ label: 'The road', value: RISK_WORDS[sent.risk] }] : []),
           ]}
         />
@@ -230,14 +245,30 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
             {orderPlan && orderPlan.reservedQuantity > 0 ? <small className="se-muted">{formatNumber(orderPlan.reservedQuantity)} more are promised to a pickup still driving out.</small> : null}
           </div>
 
+          {orderPlan && orderPlan.destinations.length > 1 ? (
+            <div className="se-field">
+              <label htmlFor="pickup-destination">Deliver to</label>
+              <select id="pickup-destination" className="se-input" value={target.key} disabled={uncertain || action.busy} onChange={(event) => changed(() => setDestinationKey(event.target.value))}>
+                {orderPlan.destinations.map((entry) => {
+                  const place = plan.storage.find((candidate) => candidate.key === entry.key);
+                  return place ? <option key={entry.key} value={entry.key}>{place.kind === 'STASH' ? place.name : `Warehouse · ${place.cityName}`} · {formatNumber(place.roomUnits)} room</option> : null;
+                })}
+              </select>
+            </div>
+          ) : null}
+
           {local ? (
-            <p className="se-supply__description">The supplier is in {plan.homeCityName}. Loads go straight off the dock into your {plan.stash.name.toLowerCase()}: no road, {plan.localPickupTurns} turn{plan.localPickupTurns === 1 ? '' : 's'}, and the vehicles stay home.</p>
+            <p className="se-supply__description">The supplier is in {plan.homeCityName}. Loads go straight off the dock into your {targetName}: no road, {plan.localPickupTurns} turn{plan.localPickupTurns === 1 ? '' : 's'}, and the vehicles stay home.</p>
           ) : orderPlan ? (
             <div className="se-routes" role="radiogroup" aria-label="Route to the supplier">
-              {orderPlan.routes.map((entry) => (
+              {routes.map((entry) => (
                 <label key={entry.index} className={`se-routes__route${entry.index === chosenRoute?.index ? ' se-routes__route--on' : ''}`}>
                   <input type="radio" name="pickup-route" checked={entry.index === chosenRoute?.index} disabled={uncertain || action.busy} onChange={() => changed(() => setRoute(entry.index))} />
-                  <span className="se-routes__way">{entry.cities.length > 2 ? <>Through {entry.cities.slice(1, -1).map((city) => city.name).join(', ')}</> : 'Direct'}</span>
+                  <span className="se-routes__way">
+                    {entry.stops.length > 2 ? <>{entry.stops.slice(0, -1).map((city) => city.name).join(' → ')} → home</> : null}
+                    {entry.stops.length > 2 && entry.cities.length > 2 ? ' · ' : null}
+                    {entry.cities.length > 2 ? <>through {entry.cities.slice(1, -1).map((city) => city.name).join(', ')}</> : entry.stops.length > 2 ? null : 'Direct'}
+                  </span>
                   <span className="se-routes__meta se-num">{minutesText(entry.gameMinutes)} out · {entry.turns} turns · {RISK_WORDS[entry.risk].toLowerCase()}</span>
                 </label>
               ))}
@@ -270,17 +301,20 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
                 disabled={uncertain || action.busy} onChange={(event) => changed(() => setQuantity(whole(event.target.value)))} />
               <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={uncertain || action.busy || most < 1} onClick={() => changed(() => setQuantity(most))}>Max</button>
             </div>
-            <small className="se-muted">Up to {formatNumber(most)}: the least of what is left on the order, what the vehicles carry, and the room at home.</small>
+            <small className="se-muted">Up to {formatNumber(most)}: the least of what is left on the order, what the vehicles carry, and the room where it goes.</small>
           </div>
 
           <div className="se-supply__quote">
             <Row label="Vehicles" value={fleetSize ? `${formatNumber(fleetSize)} · ${formatNumber(capacity)} units of cargo` : 'None picked'} />
             <Row label="This load" value={`${formatNumber(load)} of ${formatNumber(available)} left`} strong />
             <Row label="Left on the order after" value={formatNumber(Math.max(0, available - load))} />
-            <Row label={`${plan.stash.name} room after`} value={`${formatNumber(Math.max(0, plan.stash.roomUnits - load))} of ${formatNumber(plan.stash.capacityUnits)}`} />
+            <Row label={`${target.kind === 'STASH' ? target.name : `${target.cityName} warehouse`} room after`}
+              value={load > target.roomUnits
+                ? <span className="se-bad">{formatNumber(load - target.roomUnits)} would not fit</span>
+                : `${formatNumber(target.roomUnits - load)} of ${formatNumber(target.capacityUnits)}`} />
             {chosenRoute ? (
               <>
-                <Row label="At the supplier" value={`${formatClockTime(chosenRoute.arriveAt)} · ${minutesText(chosenRoute.gameMinutes)}`} />
+                <Row label={order && chosenRoute.stops[0]?.slug === order.supplierCitySlug ? 'At the supplier' : `At ${chosenRoute.stops[0]?.name ?? 'the warehouse'}`} value={`${formatClockTime(chosenRoute.arriveAt)} · ${minutesText(chosenRoute.gameMinutes)}`} />
                 <Row label="Back home" value={`${formatWeekdayTime(chosenRoute.backAt)} · ${minutesText(chosenRoute.roundTripMinutes)} round trip`} />
                 <Row label="The road" value={`${RISK_WORDS[chosenRoute.risk]}${fleetRisk ? ` · fleet ${fleetRisk > 0 ? `${fleetRisk}% more noticed` : `${-fleetRisk}% quieter`}` : ''}`}
                   tooltip="Road stops, busts on the way and convoy hits can take part of the load. What is lost is gone: the order counts it as collected." />
@@ -290,12 +324,12 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
             <p>
               {local
                 ? 'Loaded and stored at once.'
-                : `The run drives out empty, loads at the supplier and spends up to ${minutesText(plan.townWindowMinutes)} there, then drives home. It cannot trade on the way. Whatever is still in the trunk when it gets home goes into your ${plan.stash.name.toLowerCase()}; the rest of the order waits for the next trip.`}
+                : `The run loads at the supplier, ${target.citySlug === plan.homeCitySlug ? 'drives home' : `drives on to ${target.cityName}`} and unloads into your ${targetName}, waiting up to ${minutesText(plan.townWindowMinutes)} at each stop. It cannot trade on the way. Only what is still aboard when it arrives is stored; the rest of the order waits for the next trip.`}
             </p>
           </div>
 
           <Button className="se-btn se-btn--primary se-btn--block" onClick={() => void dispatch()} disabled={action.busy} disabledReason={block}>
-            {action.busy ? 'Sending…' : uncertain ? 'Retry pickup check' : local ? `Load ${formatNumber(load)} into the stash` : `Send the pickup · ${formatNumber(turns)} turns`}
+            {action.busy ? 'Sending…' : uncertain ? 'Retry pickup check' : local ? `Load ${formatNumber(load)} into the ${targetName}` : `Send the pickup · ${formatNumber(turns)} turns`}
           </Button>
         </div>
       )}
@@ -303,22 +337,93 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
   );
 }
 
-/** What is in the stash, and what is on its way there. */
-export function StashPanel({ plan }: { plan: SupplyPickupPlanningDto }) {
-  const { stash } = plan;
-  const used = stash.storedUnits + stash.inboundUnits;
+/** 1.6.0-D. Every place supply is stored: stored, held for loads on the way, and free room. */
+export function StoragePanel({ plan }: { plan: SupplyPickupPlanningDto }) {
+  const total = plan.storage.reduce((sum, entry) => sum + entry.storedUnits, 0);
   return (
-    <Panel title={`${stash.name} · ${stash.cityName}`} aside={`${formatNumber(used)} / ${formatNumber(stash.capacityUnits)}`}>
-      <div className="se-meter" aria-label={`${formatNumber(used)} of ${formatNumber(stash.capacityUnits)} units used`}>
-        <div className="se-meter__fill" style={{ width: `${stash.capacityUnits ? Math.min(100, (used / stash.capacityUnits) * 100) : 0}%` }} />
+    <Panel title="Storage" aside={`${formatNumber(total)} units stored`}>
+      <div className="se-supply__storage">
+        {plan.storage.map((entry) => {
+          const used = entry.storedUnits + entry.inboundUnits;
+          return (
+            <article className="se-supply__order" key={entry.key}>
+              <div className="se-supply__order-head">
+                <div><strong>{entry.kind === 'STASH' ? entry.name : 'Warehouse'}</strong><span>{entry.cityName}{entry.upkeepCents ? ` · ${formatCents(entry.upkeepCents)} upkeep a day` : ' · free'}</span></div>
+                {entry.behind ? <span className="se-supply__status se-bad">Behind on upkeep</span> : null}
+              </div>
+              <div className="se-meter" aria-label={`${formatNumber(used)} of ${formatNumber(entry.capacityUnits)} units used`}>
+                <div className="se-meter__fill" style={{ width: `${entry.capacityUnits ? Math.min(100, (used / entry.capacityUnits) * 100) : 0}%` }} />
+              </div>
+              <Row label="Stored" value={formatNumber(entry.storedUnits)} strong />
+              <Row label="Held for loads on the way" value={formatNumber(entry.inboundUnits)} tooltip="Loads still on the road hold their room until they land." />
+              <Row label="Free room" value={`${formatNumber(entry.roomUnits)} of ${formatNumber(entry.capacityUnits)}`} />
+              {entry.stock.map((row) => <Row key={row.productKey} label={row.productName} value={formatNumber(row.quantity)} />)}
+              {entry.behind ? <small className="se-muted">Takes no new deliveries until its upkeep is paid. It pays itself as soon as you have the cash.</small> : null}
+            </article>
+          );
+        })}
       </div>
-      <div className="se-rows se-mt">
-        <Row label="Stored" value={formatNumber(stash.storedUnits)} strong />
-        <Row label="On the way" value={formatNumber(stash.inboundUnits)} tooltip="Loads still on the road hold their room until they land." />
-        <Row label="Room" value={formatNumber(stash.roomUnits)} />
-        {stash.stock.map((row) => <Row key={row.productKey} label={row.productName} value={formatNumber(row.quantity)} />)}
+      <p className="se-hint">Stored supply is not carried stock and is not counted in net worth. Moving it between cities takes a run.</p>
+    </Panel>
+  );
+}
+
+/** 1.6.0-D. Buy and give up warehouses and safehouses, city by city. */
+export function PropertiesPanel({ plan, onDone }: { plan: SupplyPickupPlanningDto; onDone: () => void }) {
+  const action = useGameAction<SupplyPropertyActionResult>();
+  const market = plan.properties;
+  if (!market) return null;
+  const period = market.upkeepPeriodHours === 24 ? 'a day' : `every ${market.upkeepPeriodHours}h`;
+
+  async function buy(kind: 'WAREHOUSE' | 'SAFEHOUSE', citySlug: string) {
+    await action.run((actionId) => supplyApi.buyProperty({ kind, citySlug, actionId }));
+    onDone();
+  }
+  async function close(kind: 'WAREHOUSE' | 'SAFEHOUSE', propertyId: string) {
+    await action.run((actionId) => supplyApi.closeProperty({ kind, propertyId, actionId }));
+    onDone();
+  }
+
+  return (
+    <Panel title="Properties" aside={`${market.ownedWarehouses}/${market.maxWarehouses} warehouses · ${market.ownedSafehouses}/${market.maxSafehouses} safehouses`} className="se-supply__history-panel">
+      {action.error ? <Alert>{action.error}</Alert> : null}
+      {action.result ? (
+        <Alert tone="info">
+          {action.result.result.action === 'BOUGHT'
+            ? `Bought a ${action.result.result.kind === 'WAREHOUSE' ? 'warehouse' : 'safehouse'} in ${action.result.result.cityName} for ${formatCents(action.result.result.chargedCents)}.`
+            : `Closed your ${action.result.result.kind === 'WAREHOUSE' ? 'warehouse' : 'safehouse'} in ${action.result.result.cityName}.`}
+        </Alert>
+      ) : null}
+      <p className="se-hint">
+        A warehouse stores supply in its city. Away from home it needs a safehouse there first: a foothold, which dealer crews will need too.
+        Neither makes product or money. The price covers the first day; upkeep is then paid from cash {period}. A property you cannot pay for falls behind and stops taking deliveries until you can.
+      </p>
+      <div className="se-supply__properties">
+        {market.cities.map((city) => (
+          <article className="se-supply__order" key={city.citySlug}>
+            <div className="se-supply__order-head">
+              <div><strong>{city.cityName}</strong><span>{city.isHome ? 'Home' : city.foothold ? 'Foothold' : 'No foothold'}</span></div>
+            </div>
+            <Row label="Warehouse" value={`${formatNumber(city.warehouse.capacityUnits)} units · ${formatCents(city.warehouse.costCents)} + ${formatCents(city.warehouse.upkeepCents)} ${period}`} />
+            {city.warehouse.ownedId ? (
+              <Button className="se-btn se-btn--ghost se-btn--sm" disabled={action.busy} onClick={() => void close('WAREHOUSE', city.warehouse.ownedId!)}>Close warehouse</Button>
+            ) : (
+              <Button className="se-btn se-btn--sm" disabled={action.busy} disabledReason={city.warehouse.blockedReason} onClick={() => void buy('WAREHOUSE', city.citySlug)}>Buy warehouse</Button>
+            )}
+            {city.safehouse ? (
+              <>
+                <Row label="Safehouse" value={`${formatCents(city.safehouse.costCents)} + ${formatCents(city.safehouse.upkeepCents)} ${period}`} />
+                {city.safehouse.behind ? <small className="se-bad">Behind on upkeep: not a foothold until it is paid.</small> : null}
+                {city.safehouse.ownedId ? (
+                  <Button className="se-btn se-btn--ghost se-btn--sm" disabled={action.busy} onClick={() => void close('SAFEHOUSE', city.safehouse!.ownedId!)}>Close safehouse</Button>
+                ) : (
+                  <Button className="se-btn se-btn--sm" disabled={action.busy} disabledReason={city.safehouse.blockedReason} onClick={() => void buy('SAFEHOUSE', city.citySlug)}>Buy safehouse</Button>
+                )}
+              </>
+            ) : null}
+          </article>
+        ))}
       </div>
-      <p className="se-hint">Delivered supply waits here. It is not carried stock, and it is not counted in net worth.</p>
     </Panel>
   );
 }
@@ -339,6 +444,7 @@ export function PickupList({ pickups }: { pickups: SupplyPickupDto[] }) {
                     {pickupStatusLabel(row)}
                     {active && row.expectedArrivalAt ? ` · home ${formatWeekdayTime(row.expectedArrivalAt)}` : ''}
                     {!active && row.lostQuantity > 0 ? ` · ${formatNumber(row.lostQuantity)} lost on the road` : ''}
+                    {` · to ${row.warehouseName === 'Home stash' ? 'home stash' : `${row.destinationCityName} warehouse`}`}
                     {row.local ? ' · local' : ''}
                   </span>
                 </div>

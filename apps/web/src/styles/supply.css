@@ -139,6 +139,18 @@
   width: 100%;
 }
 
+/* 1.6.0-D: storage and properties. */
+.se-supply__storage {
+  display: grid;
+  gap: 10px;
+}
+
+.se-supply__properties {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+}
+
 @media (max-width: 760px) {
   .se-supply__grid {
     grid-template-columns: minmax(0, 1fr);

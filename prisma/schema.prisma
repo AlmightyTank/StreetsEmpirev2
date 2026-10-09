@@ -1365,6 +1365,7 @@ model RoundPlayer {
   /// 1.6.0-A. Supply network records, scoped to this round's player.
   supplyOrders          SupplyOrder[]
   supplyWarehouses      SupplyWarehouse[]
+  supplySafehouses      SupplySafehouse[]
   dealerCrews           DealerCrew[]
   dealerStaff           DealerStaff[]
   supplyMovements       SupplyMovement[]
@@ -1679,18 +1680,48 @@ model SupplyPickup {
   @@index([warehouseId, status])
 }
 
-/// 1.6.0-A. A bounded storage location in one ruleset city. Acquisition is added later.
+enum SupplyWarehouseKind {
+  STASH
+  WAREHOUSE
+}
+
+/// 1.6.0-D. A foothold in a city: what a warehouse away from home, and later a dealer crew, needs.
+model SupplySafehouse {
+  id             String      @id @default(cuid())
+  roundPlayerId  String
+  roundPlayer    RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  citySlug       String
+  isActive       Boolean     @default(true)
+  upkeepCents    BigInt
+  paidThrough    DateTime
+  purchasedCents BigInt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, citySlug])
+  @@index([roundPlayerId, isActive])
+}
+
+/// 1.6.0-A. A bounded storage location in one ruleset city. 1.6.0-D: bought, or the free home stash.
 model SupplyWarehouse {
-  id            String           @id @default(cuid())
-  roundPlayerId String
-  roundPlayer   RoundPlayer      @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
-  citySlug      String
-  name          String
-  capacityUnits Int
-  isActive      Boolean          @default(true)
-  stock         SupplyStock[]
-  movements     SupplyMovement[]
-  pickups       SupplyPickup[]
+  id             String              @id @default(cuid())
+  roundPlayerId  String
+  roundPlayer    RoundPlayer         @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  citySlug       String
+  name           String
+  capacityUnits  Int
+  isActive       Boolean             @default(true)
+  /// 1.6.0-D. The free home stash, or a warehouse the player bought.
+  kind           SupplyWarehouseKind @default(WAREHOUSE)
+  /// 1.6.0-D. Upkeep each period, and how far it is paid. Null: no upkeep (the stash).
+  upkeepCents    BigInt              @default(0)
+  paidThrough    DateTime?
+  /// 1.6.0-D. What the player paid for it.
+  purchasedCents BigInt              @default(0)
+  stock          SupplyStock[]
+  movements      SupplyMovement[]
+  pickups        SupplyPickup[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

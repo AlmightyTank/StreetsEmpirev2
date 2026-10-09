@@ -1,3 +1,7 @@
+import type { Ruleset } from '@streets/rulesets';
+import { findRoutes, type TravelRoute } from './cities.js';
+import { RunError, driveMs, driveTurns, planLaunch, runRules, type RunStopPlan } from './runs.js';
+
 export type SupplyOrderStatus = 'OPEN' | 'PARTIALLY_COLLECTED' | 'FULFILLED';
 
 export interface SupplyPickupPlanInput {
@@ -108,4 +112,97 @@ export function supplyRouteRisk(police: number, vehicleRiskMultiplier = 1): Supp
   if (pressure >= 1.4) return 'HEAVY';
   if (pressure >= 1.1) return 'WATCHED';
   return 'QUIET';
+}
+
+export interface SupplyRunPlan {
+  /** Every stop: the supplier, then the destination if it is neither there nor home, then home. */
+  stops: RunStopPlan[];
+  /** Index of the stop where the load goes on; -1 when it is loaded at home as the run leaves. */
+  loadStop: number;
+  /** Index of the stop where the load comes off; the last stop when it is delivered home. */
+  unloadStop: number;
+  /** Every leg, paid at dispatch. */
+  turns: number;
+  /** The first leg, as the player picked it. */
+  route: TravelRoute;
+  /** The worst police leaning on any road the run will drive. */
+  police: number;
+}
+
+/**
+ * 1.6.0-D. A supply run from home: out to where the load is, on to where it goes, and home.
+ * Only the first leg is the player's pick; the rest take the shortest road, as a run moving
+ * on does. Stops keep the town window, so loading and unloading happen on the clock like a
+ * trade would. Throws `RunError` like any run plan. Not for a load that never leaves home.
+ */
+export function planSupplyRun(ruleset: Ruleset, input: { home: string; origin: string; destination: string; routeIndex: number; now: Date }): SupplyRunPlan {
+  const { home, origin, destination, now } = input;
+  if (origin === home && destination === home) throw new RunError('ALREADY_HOME', 'That load never leaves home.', 'to');
+  // Loaded at home as the run leaves: one trip out to the destination and back.
+  const first = origin === home ? destination : origin;
+  const launch = planLaunch(ruleset, { home, to: first, routeIndex: input.routeIndex, now });
+  const out = launch.stops[0]!;
+  const roads = [launch.route.police];
+  let stops = launch.stops;
+  if (origin !== home && destination !== home && destination !== origin) {
+    const onward = findRoutes(ruleset, origin, destination)[0];
+    const back = findRoutes(ruleset, destination, home)[0];
+    if (!onward || !back) throw new RunError('NO_ROAD', 'There is no road between those cities.', 'to');
+    const window = (runRules(ruleset)?.townWindowMinutes ?? 0) * 60_000;
+    const arriveAt = new Date(out.leaveAt!.getTime() + driveMs(ruleset, onward.driveHours));
+    const leaveAt = new Date(arriveAt.getTime() + window);
+    stops = [
+      out,
+      { city: destination, route: onward.cities, departAt: out.leaveAt!, arriveAt, leaveAt },
+      { city: home, route: back.cities, departAt: leaveAt, arriveAt: new Date(leaveAt.getTime() + driveMs(ruleset, back.driveHours)), leaveAt: null },
+    ];
+    roads.push(onward.police, back.police);
+    const outHours = launch.route.driveHours;
+    return {
+      stops,
+      loadStop: 0,
+      unloadStop: 1,
+      turns: driveTurns(ruleset, outHours + onward.driveHours + back.driveHours),
+      route: launch.route,
+      police: Math.max(...roads),
+    };
+  }
+  const back = findRoutes(ruleset, first, home)[0];
+  if (back) roads.push(back.police);
+  return {
+    stops,
+    loadStop: origin === home ? -1 : 0,
+    unloadStop: destination === home ? stops.length - 1 : 0,
+    turns: launch.turns,
+    route: launch.route,
+    police: Math.max(...roads),
+  };
+}
+
+export interface PropertyUpkeep {
+  /** Periods paid now. */
+  periods: number;
+  chargeCents: bigint;
+  /** Paid up to here. Still in the past when the cash ran out. */
+  paidThrough: Date;
+  /** Periods that fell due and could not be paid. */
+  behind: number;
+}
+
+/**
+ * 1.6.0-D. Upkeep falls due one period at a time and is paid from cash in order. A
+ * property the cash cannot cover stays behind until it can; nothing is taken from it.
+ */
+export function settlePropertyUpkeep(input: { paidThrough: Date; now: Date; upkeepCents: bigint; periodHours: number; cashCents: bigint }): PropertyUpkeep {
+  const period = input.periodHours * 3_600_000;
+  if (!(period > 0)) throw new RangeError('periodHours must be positive.');
+  const due = input.now.getTime() < input.paidThrough.getTime() ? 0 : Math.floor((input.now.getTime() - input.paidThrough.getTime()) / period) + 1;
+  const affordable = input.upkeepCents <= 0n ? due : Number(input.cashCents > 0n ? input.cashCents / input.upkeepCents : 0n);
+  const periods = Math.min(due, affordable);
+  return {
+    periods,
+    chargeCents: input.upkeepCents * BigInt(periods),
+    paidThrough: new Date(input.paidThrough.getTime() + periods * period),
+    behind: due - periods,
+  };
 }

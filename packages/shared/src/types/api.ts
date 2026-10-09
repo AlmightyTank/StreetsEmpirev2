@@ -404,7 +404,10 @@ export interface SupplyPickupDto {
   supplierName: string;
   originCitySlug: string;
   originCityName: string;
+  destinationCitySlug: string;
   destinationCityName: string;
+  /** 1.6.0-D. The warehouse it goes to. */
+  warehouseName: string;
   /** Loaded, or to be loaded at the supplier. */
   quantity: number;
   /** In storage once the pickup is home. */
@@ -425,6 +428,8 @@ export interface SupplyPickupDto {
 export interface SupplyRouteOptionDto {
   index: number;
   cities: Array<{ slug: string; name: string }>;
+  /** 1.6.0-D. Every stop in order, home last: the supplier, and the warehouse when it is elsewhere. */
+  stops: Array<{ slug: string; name: string }>;
   /** Out to the supplier. */
   gameMinutes: number;
   /** Out, the loading window and home again. */
@@ -443,11 +448,18 @@ export interface SupplyPickupOrderPlanDto {
   availableQuantity: number;
   /** Promised to pickups still driving out. */
   reservedQuantity: number;
+  /** Ways to bring a load home to the home stash. */
   routes: SupplyRouteOptionDto[];
+  /** 1.6.0-D. Every storage it can go to, by `SupplyStashDto.key`, with the ways there. */
+  destinations: Array<{ key: string; local: boolean; routes: SupplyRouteOptionDto[] }>;
 }
 
-/** 1.6.0-C. Where pickups land until 1.6.0-D adds warehouses. */
+/** 1.6.0-C. Where pickups land: the home stash, and from 1.6.0-D bought warehouses. */
 export interface SupplyStashDto {
+  /** The warehouse id, or `stash` for a home stash nothing has landed in yet. */
+  key: string;
+  /** 1.6.0-D. */
+  kind: 'STASH' | 'WAREHOUSE';
   name: string;
   citySlug: string;
   cityName: string;
@@ -457,6 +469,41 @@ export interface SupplyStashDto {
   inboundUnits: number;
   roomUnits: number;
   stock: Array<{ productKey: string; productName: string; quantity: number }>;
+  /** 1.6.0-D. Upkeep each period, and how far it is paid. Zero and null for the stash. */
+  upkeepCents: number;
+  paidThrough: string | null;
+  /** Upkeep fell due and cash could not cover it: no new deliveries until it is paid. */
+  behind: boolean;
+}
+
+/** 1.6.0-D. What each city sells, and what the player holds there. */
+export interface SupplyPropertyMarketDto {
+  maxWarehouses: number;
+  ownedWarehouses: number;
+  maxSafehouses: number;
+  ownedSafehouses: number;
+  upkeepPeriodHours: number;
+  cities: SupplyPropertyCityDto[];
+}
+
+export interface SupplyPropertyCityDto {
+  citySlug: string;
+  cityName: string;
+  isHome: boolean;
+  /** Home, or a safehouse that is paid up: a warehouse can be bought here. */
+  foothold: boolean;
+  warehouse: { costCents: number; upkeepCents: number; capacityUnits: number; ownedId: string | null; blockedReason: string | null };
+  /** Null at home: the home city needs no safehouse. */
+  safehouse: { costCents: number; upkeepCents: number; ownedId: string | null; paidThrough: string | null; behind: boolean; blockedReason: string | null } | null;
+}
+
+export interface SupplyPropertyActionResult {
+  kind: 'WAREHOUSE' | 'SAFEHOUSE';
+  action: 'BOUGHT' | 'CLOSED';
+  propertyId: string;
+  citySlug: string;
+  cityName: string;
+  chargedCents: number;
 }
 
 export interface SupplyPickupVehicleDto {
@@ -483,7 +530,12 @@ export interface SupplyPickupPlanningDto {
   localPickupTurns: number;
   townWindowMinutes: number;
   vehicles: SupplyPickupVehicleDto[];
+  /** The home stash. */
   stash: SupplyStashDto;
+  /** 1.6.0-D. Every place a load can go, the home stash first. */
+  storage: SupplyStashDto[];
+  /** 1.6.0-D. Null before properties open. */
+  properties: SupplyPropertyMarketDto | null;
   orders: SupplyPickupOrderPlanDto[];
   /** Active pickups first, then the most recent finished ones. */
   pickups: SupplyPickupDto[];

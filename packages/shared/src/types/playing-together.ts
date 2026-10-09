@@ -855,6 +855,9 @@ export interface RunSupplyPickupDto {
   quantity: number;
   status: 'PLANNED' | 'IN_TRANSIT' | 'DELIVERED' | 'FAILED' | 'CANCELLED';
   deliveredQuantity: number;
+  /** 1.6.0-D. Where the load comes off: home, or a warehouse on the way. */
+  destinationCitySlug: string;
+  destinationCityName: string;
 }
 
 /** 0.5.0-C. What went wrong on a run. */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV16C } from '@streets/rulesets';
-import { planSupplyPickup, settleSupplyPickup, supplyOrderStatus, supplyRouteRisk } from '../calculations/supply-network.js';
-import { runCapacity } from '../calculations/runs.js';
+import { classicOgV16C, classicOgV16D } from '@streets/rulesets';
+import { planSupplyPickup, planSupplyRun, settlePropertyUpkeep, settleSupplyPickup, supplyOrderStatus, supplyRouteRisk } from '../calculations/supply-network.js';
+import { planLaunch, runCapacity } from '../calculations/runs.js';
 
 describe('1.6.0-A supply foundation invariants', () => {
   it('keeps an order open, partial, or fulfilled according to collected quantity', () => {
@@ -61,5 +61,61 @@ describe('1.6.0-C multi-trip pickups', () => {
     expect(supplyRouteRisk(1, 1.15)).toBe('WATCHED');
     expect(supplyRouteRisk(1.3, 0.9)).toBe('WATCHED');
     expect(supplyRouteRisk(1.5)).toBe('HEAVY');
+  });
+});
+
+describe('1.6.0-D supply runs and property upkeep', () => {
+  const ruleset = classicOgV16D;
+  const now = new Date('2026-10-09T12:00:00Z');
+  const home = 'new-york-city';
+
+  it('is an ordinary run when the load comes home', () => {
+    const plan = planSupplyRun(ruleset, { home, origin: 'detroit', destination: home, routeIndex: 0, now });
+    const launch = planLaunch(ruleset, { home, to: 'detroit', routeIndex: 0, now });
+    expect(plan).toMatchObject({ loadStop: 0, unloadStop: 1, turns: launch.turns });
+    expect(plan.stops).toEqual(launch.stops);
+  });
+
+  it('drives the load on to a warehouse in a third city before heading home', () => {
+    const plan = planSupplyRun(ruleset, { home, origin: 'detroit', destination: 'atlanta', routeIndex: 0, now });
+    expect(plan.stops.map((stop) => stop.city)).toEqual(['detroit', 'atlanta', home]);
+    expect(plan).toMatchObject({ loadStop: 0, unloadStop: 1 });
+    // New York to Detroit 10h, Detroit to Atlanta 11h, Atlanta home 13h: 34 drive hours.
+    expect(plan.turns).toBe(17);
+    expect(plan.stops[1]!.departAt).toEqual(plan.stops[0]!.leaveAt);
+    expect(plan.stops[2]!.departAt).toEqual(plan.stops[1]!.leaveAt);
+  });
+
+  it('loads and unloads at one stop when the warehouse is in the supplier city', () => {
+    const plan = planSupplyRun(ruleset, { home, origin: 'detroit', destination: 'detroit', routeIndex: 0, now });
+    expect(plan.stops.map((stop) => stop.city)).toEqual(['detroit', home]);
+    expect(plan).toMatchObject({ loadStop: 0, unloadStop: 0 });
+  });
+
+  it('loads at home as it leaves when the supplier is local and the warehouse is not', () => {
+    const plan = planSupplyRun(ruleset, { home: 'detroit', origin: 'detroit', destination: 'atlanta', routeIndex: 0, now });
+    expect(plan.stops.map((stop) => stop.city)).toEqual(['atlanta', 'detroit']);
+    expect(plan).toMatchObject({ loadStop: -1, unloadStop: 0 });
+    expect(() => planSupplyRun(ruleset, { home, origin: home, destination: home, routeIndex: 0, now })).toThrow(/never leaves home/);
+  });
+
+  it('reports the worst road on the whole trip', () => {
+    // Miami Beach to New York is I-95, the most watched road on the map.
+    const plan = planSupplyRun(ruleset, { home, origin: 'detroit', destination: 'miami-beach', routeIndex: 0, now });
+    expect(plan.police).toBeGreaterThanOrEqual(1.8);
+  });
+
+  it('pays upkeep period by period, and falls behind only for what cash cannot cover', () => {
+    const day = 24 * 3_600_000;
+    const paidThrough = new Date(now.getTime() - 2.5 * day);
+    expect(settlePropertyUpkeep({ paidThrough: new Date(now.getTime() + 1), now, upkeepCents: 100n, periodHours: 24, cashCents: 1_000n }))
+      .toMatchObject({ periods: 0, chargeCents: 0n, behind: 0 });
+    // 2.5 days past: three periods have started.
+    expect(settlePropertyUpkeep({ paidThrough, now, upkeepCents: 100n, periodHours: 24, cashCents: 1_000n }))
+      .toEqual({ periods: 3, chargeCents: 300n, paidThrough: new Date(paidThrough.getTime() + 3 * day), behind: 0 });
+    expect(settlePropertyUpkeep({ paidThrough, now, upkeepCents: 100n, periodHours: 24, cashCents: 250n }))
+      .toEqual({ periods: 2, chargeCents: 200n, paidThrough: new Date(paidThrough.getTime() + 2 * day), behind: 1 });
+    expect(settlePropertyUpkeep({ paidThrough, now, upkeepCents: 100n, periodHours: 24, cashCents: 0n }))
+      .toMatchObject({ periods: 0, behind: 3, paidThrough });
   });
 });

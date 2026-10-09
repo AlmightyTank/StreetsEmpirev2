@@ -93,7 +93,7 @@ import {
   toStopPlans,
   type LoadedRun,
 } from './run-settle.service.js';
-import { assertNotSupplyRun, runSupplyPickups } from './supply-pickup-settle.service.js';
+import { assertNotSupplyRun, assertSupplyRunMayHeadHome, runSupplyPickups } from './supply-pickup-settle.service.js';
 
 /** Engine refusals become player-facing errors, pointing at the field that caused them. */
 function refuse(error: unknown): never {
@@ -646,9 +646,21 @@ export const TravelService = {
           : { LOW_RIDER: input.lowRiders ?? 0, SEDAN: 0, VAN: 0 };
         const vehicleCount = loadoutTotal(loadout);
         if (vehicleCount < 1) throw AppError.badRequest('NO_VEHICLES_SELECTED', 'Choose at least one vehicle for this run.');
+        // The run limit first: with every slot out, the car count is not the reason it cannot go.
+        const activeCount = await tx.run.count({ where: { roundPlayerId, status: 'ACTIVE' } });
+        const limit = hideoutGarageRunLimit(ruleset, player);
+        if (activeCount >= limit) {
+          throw AppError.conflict('RUN_LIMIT', limit === 1
+            ? 'You already have a run out. Build the Garage or wait for it to come home.'
+            : `Your Garage supports ${limit} active runs, and they are already out.`);
+        }
         for (const vehicleClass of ['LOW_RIDER', 'SEDAN', 'VAN'] as const) {
-          if (loadout[vehicleClass] > 0 && !ruleset.vehicleCatalog?.classes.some((entry) => entry.id === vehicleClass)) {
-            throw AppError.conflict('VEHICLE_CLASS_UNAVAILABLE', `${vehicleClass.replace('_', ' ')}s are not available in this round.`);
+          // Rounds pinned before 1.5.0-B have no catalog: Low-Riders are their only car, as they always were.
+          const known = ruleset.vehicleCatalog
+            ? ruleset.vehicleCatalog.classes.some((entry) => entry.id === vehicleClass)
+            : vehicleClass === 'LOW_RIDER';
+          if (loadout[vehicleClass] > 0 && !known) {
+            throw AppError.conflict('VEHICLE_CLASS_UNAVAILABLE', `${vehicleClass === 'SEDAN' ? 'Sedans' : vehicleClass === 'VAN' ? 'Vans' : 'Low-Riders'} are not available in this round.`);
           }
         }
         const owned: VehicleLoadout = { LOW_RIDER: current.lowRiders, SEDAN: current.sedans, VAN: current.vans };
@@ -657,13 +669,6 @@ export const TravelService = {
             const label = vehicleClass === 'LOW_RIDER' ? 'Low-Rider' : vehicleClass === 'SEDAN' ? 'Sedan' : 'Van';
             throw AppError.badRequest('NOT_ENOUGH_VEHICLES', `You have ${owned[vehicleClass]} ${label}${owned[vehicleClass] === 1 ? '' : 's'} ready at home.`, { vehicleLoadout: `At most ${owned[vehicleClass]} ${label}${owned[vehicleClass] === 1 ? '' : 's'}.` });
           }
-        }
-        const activeCount = await tx.run.count({ where: { roundPlayerId, status: 'ACTIVE' } });
-        const limit = hideoutGarageRunLimit(ruleset, player);
-        if (activeCount >= limit) {
-          throw AppError.conflict('RUN_LIMIT', limit === 1
-            ? 'You already have a run out. Build the Garage or wait for it to come home.'
-            : `Your Garage supports ${limit} active runs, and they are already out.`);
         }
         // Trips B: the boss can ride along, if they are home and the round allows it.
         const rideAlong = input.rideAlong ? tripRules(ruleset)?.rideAlong : undefined;
@@ -1078,6 +1083,7 @@ export const TravelService = {
       execute: async ({ tx, current, ruleset, now }) => {
         requireRuns(ruleset);
         const run = await requireActiveRun(tx, roundPlayerId, input.runId);
+        await assertSupplyRunMayHeadHome(tx, run);
         let stops;
         try {
           stops = planHeadHome(ruleset, toStopPlans(run.stops), now);

@@ -46,6 +46,7 @@ import { PlayerExperienceService } from '../services/player-experience.service.j
 import { LawService } from '../services/law.service.js';
 import { SupplyOrderService } from '../services/supply-order.service.js';
 import { SupplyPickupService } from '../services/supply-pickup.service.js';
+import { SupplyPropertyService } from '../services/supply-property.service.js';
 import { DealerStaffService } from '../services/dealer-staff.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
@@ -178,6 +179,16 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/supply/pickups', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     return SupplyPickupService.dispatch(fastify.prisma, player.id, request.body);
+  });
+
+  fastify.post('/supply/properties', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return SupplyPropertyService.buy(fastify.prisma, player.id, request.body);
+  });
+
+  fastify.post('/supply/properties/close', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return SupplyPropertyService.close(fastify.prisma, player.id, request.body);
   });
 
   fastify.post('/supply/orders', { preHandler: fastify.requireAuth }, async (request) => {

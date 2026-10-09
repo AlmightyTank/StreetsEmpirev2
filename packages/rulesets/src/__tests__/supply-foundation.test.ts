@@ -3,6 +3,7 @@ import { classicOgV15E3 } from '../classic-og-v1.5-e3/index.js';
 import { classicOgV16A } from '../classic-og-v1.6-a/index.js';
 import { classicOgV16B } from '../classic-og-v1.6-b/index.js';
 import { classicOgV16C } from '../classic-og-v1.6-c/index.js';
+import { classicOgV16D } from '../classic-og-v1.6-d/index.js';
 import { rulesets } from '../index.js';
 import type { Ruleset } from '../types.js';
 
@@ -58,5 +59,36 @@ describe('1.6.0-A supply foundation ruleset', () => {
     const { meta: _baseMeta, supplyNetwork: _baseNetwork, ...base } = classicOgV16B;
     expect(rest).toEqual(base);
     expect(rulesets[classicOgV16C.meta.id]).toBe(classicOgV16C);
+  });
+
+  it('pins properties to D, prices every city, and lets no city win on everything', () => {
+    expect(classicOgV16D.meta).toEqual({ id: 'classic-og-v1.6-d', version: '1.6.0-D', name: 'Classic OG - Supply Properties' });
+    expect((classicOgV16C as Ruleset).supplyNetwork?.properties).toBeUndefined();
+    const { properties, pickups, ...network } = classicOgV16D.supplyNetwork;
+    const { pickups: basePickups, ...baseNetwork } = classicOgV16C.supplyNetwork;
+    expect(network).toEqual(baseNetwork);
+    expect(pickups.localPickupTurns).toBe(basePickups.localPickupTurns);
+    // The home stash still takes one full-size order.
+    const biggest = Math.max(...classicOgV16D.supplyNetwork.suppliers.flatMap((supplier) => Object.values(supplier.offers).map((offer) => offer.maxOrderQuantity)));
+    expect(pickups.homeStashUnits).toBeGreaterThanOrEqual(biggest);
+    expect(Object.keys(properties.cities).sort()).toEqual(Object.keys(classicOgV16D.cities).sort());
+
+    const rows = Object.entries(properties.cities);
+    for (const [, city] of rows) {
+      expect(city.warehouse.capacityUnits).toBeGreaterThan(pickups.homeStashUnits);
+      expect(city.warehouse.upkeepCents).toBeGreaterThan(0);
+      expect(city.safehouse.upkeepCents).toBeGreaterThan(0);
+      expect(city.safehouse.costCents).toBeLessThan(city.warehouse.costCents);
+    }
+    // No city is both the cheapest per unit of room and the biggest.
+    const perUnit = (city: (typeof rows)[number][1]) => city.warehouse.costCents / city.warehouse.capacityUnits;
+    const cheapest = rows.reduce((best, row) => (perUnit(row[1]) < perUnit(best[1]) ? row : best));
+    const biggestCity = rows.reduce((best, row) => (row[1].warehouse.capacityUnits > best[1].warehouse.capacityUnits ? row : best));
+    expect(cheapest[0]).not.toBe(biggestCity[0]);
+
+    const { meta: _meta, supplyNetwork: _network, ...rest } = classicOgV16D;
+    const { meta: _baseMeta, supplyNetwork: _baseNetwork2, ...base } = classicOgV16C;
+    expect(rest).toEqual(base);
+    expect(rulesets[classicOgV16D.meta.id]).toBe(classicOgV16D);
   });
 });

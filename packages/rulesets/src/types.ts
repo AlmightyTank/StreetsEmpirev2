@@ -3134,6 +3134,29 @@ export interface SupplyNetworkRules {
   readonly suppliers?: readonly SupplySupplierRules[];
   /** 1.6.0-C. Collecting paid orders in vehicle loads. Absent: orders wait at their supplier. */
   readonly pickups?: SupplyPickupRules;
+  /** 1.6.0-D. Warehouses and safehouses players buy in cities. Absent: only the home stash. */
+  readonly properties?: SupplyPropertyRules;
+}
+
+/**
+ * 1.6.0-D. Properties give the network places to be. A warehouse holds supply in a city; a
+ * safehouse is a foothold there. Neither makes product or money: both cost a price up front
+ * and upkeep every period after.
+ */
+export interface SupplyPropertyRules {
+  /** Warehouses a player can hold at once, besides the home stash. */
+  readonly maxWarehouses: number;
+  /** Safehouses a player can hold at once. The home city never needs one. */
+  readonly maxSafehouses: number;
+  /** How often upkeep falls due. The purchase pays the first period. */
+  readonly upkeepPeriodHours: number;
+  /** What each city charges. A city missing here sells neither. */
+  readonly cities: Readonly<Record<string, SupplyCityPropertyRules>>;
+}
+
+export interface SupplyCityPropertyRules {
+  readonly warehouse: { readonly costCents: number; readonly upkeepCents: number; readonly capacityUnits: number };
+  readonly safehouse: { readonly costCents: number; readonly upkeepCents: number };
 }
 
 /**
