@@ -228,6 +228,24 @@ export const supplyOrderSchema = z.object({
 
 export type SupplyOrderInput = z.infer<typeof supplyOrderSchema>;
 
+const pickupCount = (what: string) => z.number({ invalid_type_error: `Say how many ${what}.` })
+  .int(`${what} must be a whole number.`).min(0, `${what} cannot be negative.`).max(MAX_ORDER_QUANTITY, 'That is too many.');
+
+/** 1.6.0-C. Send vehicles to collect one load of a paid order. */
+export const supplyPickupSchema = z.object({
+  orderId: z.string().trim().min(1).max(64),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int().positive().max(MAX_ORDER_QUANTITY),
+  vehicleLoadout: z.object({ LOW_RIDER: pickupCount('Low-Riders').optional(), SEDAN: pickupCount('Sedans').optional(), VAN: pickupCount('Vans').optional() }).strict(),
+  escortThugs: pickupCount('escorts').default(0),
+  /** Which of the ways to the supplier. Ignored for a supplier in the player's own city. */
+  route: z.number().int().min(0).max(9).default(0),
+  /** Durable pickup idempotency key, like an order's. */
+  requestKey: actionIdSchema,
+  actionId: actionIdSchema,
+}).strict();
+
+export type SupplyPickupInput = z.input<typeof supplyPickupSchema>;
+
 /** 1.6.0-A. Hire a fresh dealer career or reassign a previously released one. */
 export const dealerStaffAssignSchema = z.object({
   staffId: z.string().trim().min(1).max(64).optional(),

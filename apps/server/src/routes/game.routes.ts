@@ -45,6 +45,7 @@ import { OnboardingService } from '../services/onboarding.service.js';
 import { PlayerExperienceService } from '../services/player-experience.service.js';
 import { LawService } from '../services/law.service.js';
 import { SupplyOrderService } from '../services/supply-order.service.js';
+import { SupplyPickupService } from '../services/supply-pickup.service.js';
 import { DealerStaffService } from '../services/dealer-staff.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
@@ -166,8 +167,17 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get('/supply', { preHandler: fastify.requireAuth }, async (request) => {
-    const { round, player } = await requirePlayer(request.auth!.account.id);
-    return SupplyOrderService.page(fastify.prisma, round, player);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    // 1.6.0-C: settled first, so a pickup run that is due home has delivered.
+    const now = new Date();
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    const page = await SupplyOrderService.page(fastify.prisma, settled.round, settled.player);
+    return { ...page, pickups: page.enabled ? await SupplyPickupService.planning(fastify.prisma, settled.ruleset, settled.player, now) : null };
+  });
+
+  fastify.post('/supply/pickups', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return SupplyPickupService.dispatch(fastify.prisma, player.id, request.body);
   });
 
   fastify.post('/supply/orders', { preHandler: fastify.requireAuth }, async (request) => {

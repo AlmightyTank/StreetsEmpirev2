@@ -122,6 +122,23 @@
   font-size: 12px;
 }
 
+/* 1.6.0-C: pickups. */
+.se-supply__stack {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.se-supply__fleet {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.se-supply__fleet .se-input {
+  width: 100%;
+}
+
 @media (max-width: 760px) {
   .se-supply__grid {
     grid-template-columns: minmax(0, 1fr);

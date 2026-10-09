@@ -31,7 +31,7 @@ Slices **A–F** deliver a complete loop on the existing map. Slices **G–H** e
 
 Each slice should have its own release gate and pinned ruleset, following the project's established release pattern. Names and exact ruleset identifiers can be finalized during implementation.
 
-**Beta progress:** Slices A and B are implemented on the beta branch. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Pickup and delivery remain Slice C; dealer establishment and sales remain Slices E–F.
+**Beta progress:** Slices A, B and C are implemented on the beta branch. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Properties remain Slice D; dealer establishment and sales remain Slices E–F.
 
 ## Proposed slices
 
@@ -84,6 +84,8 @@ Let players plan purchases larger than a single run.
 
 ### 1.6.0-C — Multi-Trip Pickup Routes
 
+**Status: Implemented on the beta branch (`classic-og-v1.6-c`).**
+
 Use the existing vehicle and run systems to collect an order over multiple trips.
 
 - Let players choose a pickup amount up to the selected fleet's combined cargo capacity.
@@ -95,6 +97,15 @@ Use the existing vehicle and run systems to collect an order over multiple trips
 - If the existing travel rules allow only one active run per player, preserve that limit for the first pass; repeated trips still collect the same order over time.
 
 **Gate:** One order can be completed across multiple trips; mixed vehicle capacity is counted once; a failed, interrupted, or retried action cannot duplicate stock or charge.
+
+**As built:**
+
+- A pickup is a dedicated run: it drives out empty, loads at the supplier when it arrives, and drives home. It counts toward the run limit and costs the route's turns, but it cannot trade, drive on, or service outposts. Escorts ride armed as on any run.
+- Units are reserved on the order at dispatch, collected from the order when the run reaches the supplier, and credited to storage when the run gets home. Only the quantity still in the trunk at home counts as delivered, never more than was loaded.
+- **Losses are real.** Units lost to road stops or convoy hits count as collected and do not return to the order. Returning them would let convoy loot duplicate stock: the attacker keeps the units while the order would offer them again.
+- **Home stash.** Until Slice D adds warehouses, deliveries land in one stash per player in their home city (30,000 units, enough for three maximum-size orders). Loads on the road hold their room, so a dispatch that would overfill it is refused. Stored supply is not carried stock and is not counted in net worth.
+- A supplier in the player's own city is collected locally: one turn, no road, straight into the stash, and the vehicles stay home.
+- Gate coverage: `SUPPLY_INTEGRATION=1` runs `supply-pickup.integration.test.ts`.
 
 ### 1.6.0-D — Properties & Local Storage
 

@@ -841,6 +841,20 @@ export interface RunDto {
   trades: RunTradeDto[];
   /** 0.5.0-C. Stops, busts and arrests so far. */
   incidents: RunIncidentDto[];
+  /** 1.6.0-C. This run is collecting a supply order: it only drives there and home. */
+  supplyPickup?: RunSupplyPickupDto;
+}
+
+/** 1.6.0-C. The supply load a pickup run is sent for, and (home) what it delivered. */
+export interface RunSupplyPickupDto {
+  id: string;
+  orderId: string;
+  productKey: string;
+  productName: string;
+  supplierName: string;
+  quantity: number;
+  status: 'PLANNED' | 'IN_TRANSIT' | 'DELIVERED' | 'FAILED' | 'CANCELLED';
+  deliveredQuantity: number;
 }
 
 /** 0.5.0-C. What went wrong on a run. */
@@ -892,6 +906,8 @@ export interface RunReceiptDto {
   hotelCents: number;
   trades: RunTradeDto[];
   incidents: RunIncidentDto[];
+  /** 1.6.0-C. The supply load, when this was a pickup run. */
+  supplyPickup?: RunSupplyPickupDto;
 }
 
 /** 0.5.0-B. GET /api/game/travel: the map, what the crew knows, and the run. */

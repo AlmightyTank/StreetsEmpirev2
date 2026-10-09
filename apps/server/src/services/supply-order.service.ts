@@ -41,7 +41,7 @@ function offerRules(supplier: SupplySupplierRules, productKey: string): SupplyOf
   return supplier.offers[productKey];
 }
 
-function orderDto(ruleset: Ruleset, row: SupplyOrderRow): SupplyOrderDto {
+export function supplyOrderDto(ruleset: Ruleset, row: SupplyOrderRow): SupplyOrderDto {
   const supplier = supplierRules(ruleset, row.supplierKey);
   const supplierName = supplier?.name ?? row.supplierKey;
   return {
@@ -109,7 +109,7 @@ export const SupplyOrderService = {
       maxOpenOrders: config.maxOpenOrders ?? 1,
       openOrderCount,
       suppliers: supplierDtos,
-      orders: orders.map((row) => orderDto(ruleset, row)),
+      orders: orders.map((row) => supplyOrderDto(ruleset, row)),
     };
   },
 
@@ -135,7 +135,7 @@ export const SupplyOrderService = {
           }
           return {
             next: current,
-            result: { order: orderDto(ruleset, prior), chargedCents: Number(prior.totalPaidCents), replayed: true },
+            result: { order: supplyOrderDto(ruleset, prior), chargedCents: Number(prior.totalPaidCents), replayed: true },
             ledger: [],
           };
         }
@@ -209,7 +209,7 @@ export const SupplyOrderService = {
         const product = productName(ruleset, input.productKey);
         return {
           next: { ...current, cashCents: current.cashCents - totalPaidCents },
-          result: { order: orderDto(ruleset, order), chargedCents: Number(totalPaidCents), replayed: false },
+          result: { order: supplyOrderDto(ruleset, order), chargedCents: Number(totalPaidCents), replayed: false },
           ledger: [{
             source: 'SUPPLY_ORDER',
             label: `${supplier.name} · prepaid ${product} order`,

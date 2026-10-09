@@ -718,20 +718,39 @@ function MoveOn({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: (
   );
 }
 
+/** 1.6.0-C. A pickup run only goes to the supplier and home: leaving early is all it can do. */
+function PickupHeadHome({ run, onDone }: { run: RunDto; onDone: () => void }) {
+  const move = useGameAction<RunMoveResult>();
+  return (
+    <div className="se-moveon">
+      <p className="se-hint">The load is aboard. A pickup run cannot trade or drive on; it leaves when the window closes, or now.</p>
+      <Button type="button" className="se-btn" disabledReason={move.busy ? 'On the move.' : null}
+        onClick={async () => {
+          await move.run((actionId): Promise<GameActionResult<RunMoveResult>> => api.post('/game/travel/head-home', { runId: run.id, actionId }));
+          onDone();
+        }}>
+        Head home now
+      </Button>
+      {move.error ? <Alert>{move.error}</Alert> : null}
+    </div>
+  );
+}
+
 /** The whole trip as a line of stops, the run's place on it, and what it carries. */
 export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: () => void }) {
   const { msRemaining } = useCountdown(run.position.until, onDone);
   const inTown = run.position.phase === 'town';
   const stop = run.stops[run.position.stopIndex]!;
   const trunk = run.cargo.reduce((sum, entry) => sum + entry.quantity, 0);
+  const pickup = run.supplyPickup ?? null;
   const headline = inTown
-    ? `In ${run.position.cityName}: ${formatDuration(msRemaining)} left to trade`
+    ? pickup ? `At ${pickup.supplierName} in ${run.position.cityName}: leaves in ${formatDuration(msRemaining)}` : `In ${run.position.cityName}: ${formatDuration(msRemaining)} left to trade`
     : stop.isHome
       ? `Heading home: back in ${formatDuration(msRemaining)}`
       : `On the road to ${run.position.cityName}: there in ${formatDuration(msRemaining)}`;
 
   return (
-    <Panel title="Your run" aside={`${vehicleCountsText(run.vehicleLoadout ?? { LOW_RIDER: run.lowRiders, SEDAN: 0, VAN: 0 })}${run.escortThugs ? ` · ${run.escortThugs} escorts` : ''}`}>
+    <Panel title={pickup ? 'Supply pickup' : 'Your run'} aside={`${vehicleCountsText(run.vehicleLoadout ?? { LOW_RIDER: run.lowRiders, SEDAN: 0, VAN: 0 })}${run.escortThugs ? ` · ${run.escortThugs} escorts` : ''}`}>
       <p className={`se-run__headline${inTown ? ' se-run__headline--town' : ''}`}>{headline}</p>
       {run.vehicleDamage ? <p className="se-hint se-warn">{damageText(run.vehicleDamage, false)}</p> : null}
       <ol className="se-run__trip">
@@ -761,7 +780,14 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
       ) : null}
 
       <div className="se-rows se-mt">
-        <Row label="Cash in the car" value={formatCents(run.cashCents)} strong tooltip="What the run can spend. Home cash never reaches it." />
+        {pickup ? (
+          <Row label="Supply load" strong tooltip="Road stops and convoy hits can take part of it. What is still aboard at home goes into your stash."
+            value={pickup.status === 'PLANNED'
+              ? `${formatNumber(pickup.quantity)} ${pickup.productName} waiting at ${pickup.supplierName}`
+              : `${formatNumber(pickup.quantity)} ${pickup.productName} loaded`} />
+        ) : (
+          <Row label="Cash in the car" value={formatCents(run.cashCents)} strong tooltip="What the run can spend. Home cash never reaches it." />
+        )}
         {run.bossAboard && run.hotel ? (
           <>
             <Row label="The boss" value="Riding along"
@@ -782,7 +808,11 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
         <Row label="Back home" value={clock(run.stops[run.stops.length - 1]!.arriveAt)} />
       </div>
 
-      {inTown ? (
+      {inTown && pickup ? (
+        <PickupHeadHome run={run} onDone={onDone} />
+      ) : pickup ? (
+        <p className="se-hint">{pickup.status === 'PLANNED' ? 'Driving out empty. It loads when it reaches the supplier.' : 'Heading home with the load. It goes into your stash when it arrives.'} Track every pickup on the <Link to="/game/supply">Supply</Link> page.</p>
+      ) : inTown ? (
         <>
           <TownCounter run={run} data={data} onDone={onDone} />
           {data.rules.outposts && !stop.isHome ? (
@@ -848,10 +878,14 @@ export function ReceiptPanel({ receipt, products }: { receipt: RunReceiptDto; pr
           <Row key={entry.key} label={nameOf(products, entry.key)} value={<span className="se-num">{formatNumber(entry.startQuantity)} → {formatNumber(entry.quantity)}</span>} />
         ))}
         {receipt.bossAboard ? <Row label="Boss's hotel" value={formatCents(receipt.hotelCents)} tooltip="The boss rode along; this came out of the cash in the car." /> : null}
+        {receipt.supplyPickup ? (
+          <Row label="Supply delivered" strong
+            value={<span className={`se-num${receipt.supplyPickup.status === 'FAILED' ? ' se-bad' : ''}`}>{formatNumber(receipt.supplyPickup.deliveredQuantity)} of {formatNumber(receipt.supplyPickup.quantity)} {receipt.supplyPickup.productName}</span>} />
+        ) : null}
         <Row label="Turns" value={formatNumber(receipt.turnsSpent)} />
       </div>
       <IncidentList incidents={receipt.incidents} products={products} />
-      {receipt.trades.length ? <TradeList trades={receipt.trades} products={products} /> : <p className="se-hint">No trades: the crew only looked.</p>}
+      {receipt.trades.length ? <TradeList trades={receipt.trades} products={products} /> : <p className="se-hint">{receipt.supplyPickup ? `A pickup from ${receipt.supplyPickup.supplierName}: it does not trade.` : 'No trades: the crew only looked.'}</p>}
     </Panel>
   );
 }

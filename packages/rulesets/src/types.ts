@@ -3132,6 +3132,19 @@ export interface SupplyNetworkRules {
   readonly maxOpenOrders?: number;
   /** 1.6.0-B. Round-wide offers and source stock, pinned to this ruleset. */
   readonly suppliers?: readonly SupplySupplierRules[];
+  /** 1.6.0-C. Collecting paid orders in vehicle loads. Absent: orders wait at their supplier. */
+  readonly pickups?: SupplyPickupRules;
+}
+
+/**
+ * 1.6.0-C. A pickup is a run that drives to the supplier, loads part of a paid order, and
+ * brings it home through the road's usual risks. Delivered units land in the home stash.
+ */
+export interface SupplyPickupRules {
+  /** Units the home stash holds, counting loads still on the road. 1.6.0-D adds warehouses. */
+  readonly homeStashUnits: number;
+  /** Turns a pickup from a supplier in the player's own city costs: no road, straight to the stash. */
+  readonly localPickupTurns: number;
 }
 
 export interface SupplySupplierRules {

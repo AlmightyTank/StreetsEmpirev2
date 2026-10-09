@@ -385,6 +385,117 @@ export interface SupplyPageDto {
   openOrderCount: number;
   suppliers: SupplySupplierDto[];
   orders: SupplyOrderDto[];
+  /** 1.6.0-C. Collecting orders in vehicle loads. Null before pickups open. */
+  pickups?: SupplyPickupPlanningDto | null;
+}
+
+export type SupplyPickupStatusDto = 'PLANNED' | 'IN_TRANSIT' | 'DELIVERED' | 'FAILED' | 'CANCELLED';
+/** 1.6.0-C. A road's police pressure in words. Never a chance. */
+export type SupplyRouteRiskDto = 'QUIET' | 'WATCHED' | 'HEAVY';
+export type SupplyVehicleClassId = 'LOW_RIDER' | 'SEDAN' | 'VAN';
+
+/** 1.6.0-C. One load of a paid order: driving out, riding home, or done. */
+export interface SupplyPickupDto {
+  id: string;
+  orderId: string;
+  runId: string | null;
+  productKey: string;
+  productName: string;
+  supplierName: string;
+  originCitySlug: string;
+  originCityName: string;
+  destinationCityName: string;
+  /** Loaded, or to be loaded at the supplier. */
+  quantity: number;
+  /** In storage once the pickup is home. */
+  deliveredQuantity: number;
+  /** Lost on the road: only known once the pickup is home. */
+  lostQuantity: number;
+  vehicleLoadout: Record<SupplyVehicleClassId, number>;
+  status: SupplyPickupStatusDto;
+  /** From a supplier in the player's own city: no road, straight into storage. */
+  local: boolean;
+  dispatchedAt: string | null;
+  loadedAt: string | null;
+  expectedArrivalAt: string | null;
+  deliveredAt: string | null;
+}
+
+/** 1.6.0-C. One way to a supplier, as it would go if the pickup left now. */
+export interface SupplyRouteOptionDto {
+  index: number;
+  cities: Array<{ slug: string; name: string }>;
+  /** Out to the supplier. */
+  gameMinutes: number;
+  /** Out, the loading window and home again. */
+  roundTripMinutes: number;
+  turns: number;
+  police: number;
+  risk: SupplyRouteRiskDto;
+  arriveAt: string;
+  backAt: string;
+}
+
+export interface SupplyPickupOrderPlanDto {
+  orderId: string;
+  local: boolean;
+  /** Neither loaded nor promised to a pickup still driving out. */
+  availableQuantity: number;
+  /** Promised to pickups still driving out. */
+  reservedQuantity: number;
+  routes: SupplyRouteOptionDto[];
+}
+
+/** 1.6.0-C. Where pickups land until 1.6.0-D adds warehouses. */
+export interface SupplyStashDto {
+  name: string;
+  citySlug: string;
+  cityName: string;
+  capacityUnits: number;
+  storedUnits: number;
+  /** Loads on their way here, already holding room. */
+  inboundUnits: number;
+  roomUnits: number;
+  stock: Array<{ productKey: string; productName: string; quantity: number }>;
+}
+
+export interface SupplyPickupVehicleDto {
+  classId: SupplyVehicleClassId;
+  name: string;
+  /** Ready at home. Damaged, disabled and away vehicles cannot go. */
+  ready: number;
+  /** Cargo per vehicle, before the round's cargo bonus. Fractional for some classes. */
+  cargoUnits: number;
+  crewSeats: number;
+  routeProfile: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
+  routeRiskPercent: number;
+}
+
+export interface SupplyPickupPlanningDto {
+  homeCitySlug: string;
+  homeCityName: string;
+  turns: number;
+  fitThugs: number;
+  runLimit: number;
+  activeRuns: number;
+  /** Extra cargo share from rackets; capacity is floor(sum of vehicle cargo × (1 + this)). */
+  cargoShare: number;
+  localPickupTurns: number;
+  townWindowMinutes: number;
+  vehicles: SupplyPickupVehicleDto[];
+  stash: SupplyStashDto;
+  orders: SupplyPickupOrderPlanDto[];
+  /** Active pickups first, then the most recent finished ones. */
+  pickups: SupplyPickupDto[];
+}
+
+export interface SupplyPickupDispatchResult {
+  pickup: SupplyPickupDto;
+  order: SupplyOrderDto;
+  turns: number;
+  capacityUnits: number;
+  risk: SupplyRouteRiskDto | null;
+  replayed: boolean;
 }
 
 export interface SupplyOrderPlacementResult {

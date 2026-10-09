@@ -1660,7 +1660,14 @@ model SupplyPickup {
   requestKey          String             @db.VarChar(128)
   dispatchedAt        DateTime?
   expectedArrivalAt   DateTime?
+  /// 1.6.0-C. When the load came off the supplier's dock and onto the run.
+  loadedAt            DateTime?
   deliveredAt         DateTime?
+  /// 1.6.0-C. What made it into storage; `quantity` less this was lost on the road.
+  deliveredQuantity   Int                @default(0)
+  /// 1.6.0-C. Where the load is headed: held against the warehouse's room until it lands.
+  warehouseId         String?
+  warehouse           SupplyWarehouse?   @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
   movements           SupplyMovement[]
 
   createdAt DateTime @default(now())
@@ -1669,6 +1676,7 @@ model SupplyPickup {
   @@unique([orderId, requestKey])
   @@index([orderId, status])
   @@index([runId])
+  @@index([warehouseId, status])
 }
 
 /// 1.6.0-A. A bounded storage location in one ruleset city. Acquisition is added later.
@@ -1682,6 +1690,7 @@ model SupplyWarehouse {
   isActive      Boolean          @default(true)
   stock         SupplyStock[]
   movements     SupplyMovement[]
+  pickups       SupplyPickup[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

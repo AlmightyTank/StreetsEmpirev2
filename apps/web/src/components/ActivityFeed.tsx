@@ -526,13 +526,26 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: 'It is on the shelf now.',
       };
 
-    case 'RUN_LAUNCHED':
+    case 'RUN_LAUNCHED': {
+      // 1.6.0-C: a pickup is a run sent for one load of a paid order.
+      const supply = p.supplyPickup && typeof p.supplyPickup === 'object' ? p.supplyPickup as Record<string, unknown> : null;
       return {
-        text: p.bossAboard ? `The boss rode out with a run to ${str(p.cityName, 'another city')}.` : `Sent a run to ${str(p.cityName, 'another city')}.`,
+        text: supply
+          ? `Sent a pickup to ${str(supply.supplier, 'a supplier')} in ${str(p.cityName, 'another city')} for ${formatNumber(num(supply.quantity))} ${str(supply.product, 'units')}.`
+          : p.bossAboard ? `The boss rode out with a run to ${str(p.cityName, 'another city')}.` : `Sent a run to ${str(p.cityName, 'another city')}.`,
         detail: `${formatNumber(num(p.turns))} turns`,
       };
+    }
 
-    case 'RUN_RETURNED':
+    case 'RUN_RETURNED': {
+      // 1.6.0-C: a pickup's load went into the stash.
+      const loads = Array.isArray(p.supplyPickups) ? (p.supplyPickups as Array<Record<string, unknown>>) : [];
+      if (loads.length) {
+        return {
+          text: `Your pickup came home from ${Array.isArray(p.cities) ? (p.cities as unknown[]).map(String).join(', ') : 'the road'}.`,
+          detail: loads.map((load) => `${formatNumber(num(load.delivered))} ${str(load.productName, 'units')} stored${num(load.lost) ? ` · ${formatNumber(num(load.lost))} lost` : ''}`).join(' · '),
+        };
+      }
       return {
         text: `${p.bossAboard ? 'The boss and your run came' : 'Your run came'} home from ${Array.isArray(p.cities) ? (p.cities as unknown[]).map(String).join(', ') : 'the road'}.`,
         detail: [
@@ -540,6 +553,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           p.bossAboard && num(p.hotelCents) ? `${formatCents(num(p.hotelCents))} hotel` : null,
         ].filter(Boolean).join(' · '),
       };
+    }
 
     case 'RUN_INCIDENT':
       return {

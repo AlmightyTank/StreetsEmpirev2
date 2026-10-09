@@ -53,6 +53,7 @@ import {
   type RunLaunchResult,
   type RunMoveResult,
   type RunReceiptDto,
+  type RunSupplyPickupDto,
   type RunTradeDto,
   type VehiclePurchaseInput,
   type VehiclePurchaseResult,
@@ -92,6 +93,7 @@ import {
   toStopPlans,
   type LoadedRun,
 } from './run-settle.service.js';
+import { assertNotSupplyRun, runSupplyPickups } from './supply-pickup-settle.service.js';
 
 /** Engine refusals become player-facing errors, pointing at the field that caused them. */
 function refuse(error: unknown): never {
@@ -213,7 +215,7 @@ function damageDto(run: { vehicleLoadout: Prisma.JsonValue; vehicleDamage: Prism
   return hasVehicleDamage(damage) ? { vehicleDamage: damage } : {};
 }
 
-async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, seed: string, run: LoadedRun, now: Date): Promise<RunDto | null> {
+async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, seed: string, run: LoadedRun, now: Date, supplyPickup?: RunSupplyPickupDto): Promise<RunDto | null> {
   const stops = toStopPlans(run.stops);
   const position = runPosition(ruleset, stops, now);
   if (position.phase === 'home') return null;
@@ -254,9 +256,11 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
       road: position.road,
       until: position.until.toISOString(),
     },
-    counter: position.phase === 'town' ? await liveCounter(db, roundPlayerId, ruleset, seed, position.city, now) : null,
+    // 1.6.0-C: a pickup run never trades, so it has no counter to show.
+    counter: position.phase === 'town' && !supplyPickup ? await liveCounter(db, roundPlayerId, ruleset, seed, position.city, now) : null,
     trades: trades.map((trade) => toTradeDto(ruleset, trade)),
     incidents: incidents.map((incident) => toIncidentDto(ruleset, incident)),
+    ...(supplyPickup ? { supplyPickup } : {}),
   };
 }
 
@@ -268,6 +272,9 @@ async function lastRunDto(db: Db | PrismaClient, roundPlayerId: string, ruleset:
   });
   if (!run || !run.returnedAt) return null;
   const visited = [...new Set(run.stops.slice(0, -1).map((stop) => stop.city))];
+  // 1.6.0-C: the supply load is shown on its own, not as trunk product.
+  const supplyPickup = (await runSupplyPickups(db as Db, ruleset, [run.id])).get(run.id);
+  const loaded = (key: string) => (supplyPickup && supplyPickup.productKey === key && supplyPickup.status !== 'CANCELLED' && supplyPickup.status !== 'PLANNED' ? supplyPickup.quantity : 0);
   return {
     id: run.id,
     launchedAt: run.launchedAt.toISOString(),
@@ -281,12 +288,13 @@ async function lastRunDto(db: Db | PrismaClient, roundPlayerId: string, ruleset:
     cashCents: Number(run.cashCents),
     startBeer: run.startBeer,
     beer: run.beer,
-    cargo: run.cargo.map((row) => ({ key: row.productKey, startQuantity: row.startQuantity, quantity: row.quantity })),
+    cargo: run.cargo.map((row) => ({ key: row.productKey, startQuantity: row.startQuantity, quantity: Math.max(0, row.quantity - loaded(row.productKey)) })),
     turnsSpent: run.turnsSpent,
     bossAboard: run.bossAboard,
     hotelCents: Number(run.hotelCents),
     trades: run.trades.map((trade) => toTradeDto(ruleset, trade)),
     incidents: run.incidents.map((incident) => toIncidentDto(ruleset, incident)),
+    ...(supplyPickup ? { supplyPickup } : {}),
   };
 }
 
@@ -407,7 +415,8 @@ export const TravelService = {
     const map = await CitiesService.page(prisma, roundPlayerId, now);
     const inventory = await ProductInventoryService.read(prisma, roundPlayerId, ruleset);
     const active = await activeRuns(prisma, roundPlayerId);
-    const runDtos = (await Promise.all(active.map((run) => runDto(prisma, roundPlayerId, base, player.roundId, run, now))))
+    const pickups = await runSupplyPickups(prisma, base, active.map((run) => run.id));
+    const runDtos = (await Promise.all(active.map((run) => runDto(prisma, roundPlayerId, base, player.roundId, run, now, pickups.get(run.id)))))
       .filter((run): run is RunDto => Boolean(run));
     const limit = hideoutGarageRunLimit(ruleset, player);
     const travel = ruleset.travel;
@@ -844,6 +853,7 @@ export const TravelService = {
         requireRuns(base);
         const seed = round.id;
         const run = await requireActiveRun(tx, roundPlayerId, input.runId);
+        await assertNotSupplyRun(tx, run.id);
         const stops = toStopPlans(run.stops);
         const position = runPosition(base, stops, now);
         if (position.phase !== 'town') {
@@ -1040,6 +1050,7 @@ export const TravelService = {
       execute: async ({ tx, current, ruleset, now }) => {
         requireRuns(ruleset);
         const run = await requireActiveRun(tx, roundPlayerId, input.runId);
+        await assertNotSupplyRun(tx, run.id);
         let plan;
         try {
           // Trips B: with the boss aboard, the next town holds the run until the player leaves.

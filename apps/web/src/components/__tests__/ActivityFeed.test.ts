@@ -141,4 +141,23 @@ describe('describeActivity', () => {
     });
   });
 
+  it('names a supply pickup as a pickup, and says what it stored and lost', () => {
+    expect(describeActivity(activity({
+      cityName: 'Detroit', turns: 10,
+      supplyPickup: { supplier: 'Great Lakes Depot', product: 'Weed', quantity: 1612 },
+    }, 'RUN_LAUNCHED'), 'crack')).toEqual({
+      text: 'Sent a pickup to Great Lakes Depot in Detroit for 1,612 Weed.',
+      detail: '10 turns',
+    });
+    expect(describeActivity(activity({
+      cities: ['Detroit'], startCashCents: 0, cashCents: 0,
+      supplyPickups: [{ productName: 'Weed', delivered: 1400, lost: 212 }],
+    }, 'RUN_RETURNED'), 'crack')).toEqual({
+      text: 'Your pickup came home from Detroit.',
+      detail: '1,400 Weed stored · 212 lost',
+    });
+    // An ordinary run reads as before.
+    expect(describeActivity(activity({ cityName: 'Detroit', turns: 10 }, 'RUN_LAUNCHED'), 'crack').text).toBe('Sent a run to Detroit.');
+  });
+
 });
