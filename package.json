@@ -33,6 +33,7 @@
     "qa:vehicles": "node --import tsx scripts/qa/vehicle-sim.mjs",
     "qa:street-pass": "tsx scripts/qa/street-pass-sim.ts",
     "qa:npc-gangs": "tsx scripts/qa/npc-gang-sim.ts",
+    "qa:supply-cities": "tsx scripts/qa/supply-cities-sim.ts",
     "qa:turf": "node --import tsx scripts/qa/turf-sim.mjs",
     "qa:season": "node --import tsx scripts/qa/season-sim.mjs",
     "qa:business": "node --import tsx scripts/qa/business-sim.mjs",

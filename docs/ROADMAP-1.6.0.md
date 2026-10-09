@@ -31,7 +31,7 @@ Slices **A–F** deliver a complete loop on the existing map. Slices **G–H** e
 
 Each slice should have its own release gate and pinned ruleset, following the project's established release pattern. Names and exact ruleset identifiers can be finalized during implementation.
 
-**Beta progress:** Slices A through F are implemented on the beta branch, completing the core loop. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Slice D adds warehouses and safehouses with upkeep, and pickups that deliver to any warehouse. Slice E adds dealer crews: set up, staffed, stocked and priced, with their expected pace shown. Slice F makes crews sell, pays out, ships stock between cities, and adds the supply ledger and history. New cities, international lanes and the balance pass remain Slices G–I.
+**Beta progress:** Slices A through G are implemented on the beta branch: the core loop, and Chicago, Tulsa and Dallas on the map. Slice A adds the pinned supply foundation, thug availability accounting, dealer career assignment and release with experience preserved, and admin supply visibility. Slice B adds ruleset-pinned suppliers in Los Angeles and Detroit, round-wide finite offer stock, a three-open-order player limit, upfront payment, and durable retry-safe order placement. Slice C adds multi-trip pickups that ride the existing run system and land in a home stash. Slice D adds warehouses and safehouses with upkeep, and pickups that deliver to any warehouse. Slice E adds dealer crews: set up, staffed, stocked and priced, with their expected pace shown. Slice F makes crews sell, pays out, ships stock between cities, and adds the supply ledger and history. Slice G adds Chicago, Tulsa and Dallas. International lanes and the balance pass remain Slices H–I.
 
 ## Proposed slices
 
@@ -191,6 +191,8 @@ Make the business cycle understandable and sustainable.
 
 ### 1.6.0-G — Chicago, Tulsa & Dallas
 
+**Status: Implemented on the beta branch (`classic-og-v1.6-g`).**
+
 Add the proposed cities after the basic loop works on the existing map.
 
 - Connect the cities to a readable travel network; do not make Tulsa a filler stop.
@@ -200,6 +202,15 @@ Add the proposed cities after the basic loop works on the existing map.
 - Keep existing cities valuable for some products, routes, or play styles.
 
 **Gate:** Simulations show multiple viable city and route choices, and each new city adds a reason to travel there.
+
+**As built:**
+
+- **The cities:** each new city appears in every city-keyed record: product leans and demand, Heat, districts and their names, hotel prices, turf locals, a business signature, a casino venue, law speeds and property prices. The eight existing cities keep every number they had.
+- **Chicago, the contested market:** the deepest market after New York, with crack, weed and heroin dear and heroin in short supply. Tough locals, police pressure 1.2, fast files that cool slowly, and a Bar signature. I-94 from Detroit (4.5h), I-80/I-90 to New York (12.5h), and I-44 to Tulsa (10.5h).
+- **Tulsa, the junction:** Pip's cheapest meth, the cheapest warehouse room on the map, quiet roads (police 0.7), and a slow law that goes cold fast. Its market is thin, so it is where stock is staged rather than sold. Roads run to Chicago, Dallas (US-75, 4h), Las Vegas (I-40, 19h) and Atlanta (12.5h).
+- **Dallas, the southern hub:** Pip's cheapest cocaine, a new supplier (Southern Crossing: weed, cocaine and meth, the cheapest prices in the smallest lots), the biggest warehouses, and ecstasy and meth that both pay. I-20 east to Atlanta (11.5h) and west to Los Angeles (20h) on the watched border road.
+- **Map:** city rows come from a migration; the travel map places each city where it really is.
+- **Simulation:** `npm run qa:supply-cities` ranks every product's markets by what a full crew nets an hour and how far the cheapest supplier is; [SUPPLY-CITIES-1.6.0-G.md](SUPPLY-CITIES-1.6.0-G.md) is the run. It passes the gate: no city is the best market for everything, every product has a second market making at least half what the best does, and each new city has a reason to drive there. Chicago is the second weed market and Dallas the second meth market; before G, Los Angeles and Atlanta stood alone.
 
 ### 1.6.0-H — International Supply Lanes
 
