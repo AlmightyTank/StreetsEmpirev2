@@ -49,11 +49,20 @@ describe('new player navigation model', () => {
     const next = sections.find((section) => section.id === 'new-player-next');
     expect(next?.defaultOpen).toBe(false);
     expect(next?.pages.map((item) => item.key)).toEqual([
+      'dealers',
       'hideout',
       'travel',
       'turf',
       'casino',
       'street-pass',
     ]);
+  });
+
+  it('keeps every full-menu page reachable', () => {
+    const shown = new Set(newPlayerSectionsFor(SECTIONS).flatMap((section) => section.pages.map((item) => item.key)));
+    // XP Progress opens from the level badge in the season bar.
+    const missing = SECTIONS.flatMap((section) => section.pages.map((item) => item.key))
+      .filter((key) => key !== 'xp-progress' && !shown.has(key));
+    expect(missing).toEqual([]);
   });
 });

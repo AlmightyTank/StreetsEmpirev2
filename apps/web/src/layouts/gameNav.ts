@@ -137,7 +137,7 @@ export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSectio
       id: 'new-player-next',
       title: 'Next Steps',
       defaultOpen: false,
-      pages: pickPages(pages, ['hideout', 'travel', 'turf', 'casino', 'street-pass']),
+      pages: pickPages(pages, ['dealers', 'hideout', 'travel', 'turf', 'casino', 'street-pass']),
     },
     {
       id: 'new-player-people',
