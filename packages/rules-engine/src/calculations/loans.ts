@@ -1,4 +1,4 @@
-import type { LoanSharkRules, Ruleset } from '@streets/rulesets';
+import type { LoanOfferRules, LoanSharkRules, Ruleset } from '@streets/rulesets';
 
 /**
  * 1.6.5-A. The loan shark's debt, as pure integer-cent arithmetic: what a quote reserves
@@ -19,7 +19,7 @@ export function loanSharkRules(ruleset: Ruleset): LoanSharkRules | undefined {
   return ruleset.loanShark?.enabled ? ruleset.loanShark : undefined;
 }
 
-export type LoanRefusalCode = 'LOAN_TERMS_INVALID' | 'LOAN_DEBT_CEILING';
+export type LoanRefusalCode = 'LOAN_TERMS_INVALID' | 'LOAN_DEBT_CEILING' | 'LOAN_NOT_ELIGIBLE';
 
 /** A refusal a player can act on, as opposed to a RangeError, which is a server bug. */
 export class LoanError extends Error {
@@ -308,4 +308,51 @@ export function weightedDebtCents(debtCents: bigint | number, cashWeightPercent:
   const debt = BigInt(debtCents);
   if (debt <= 0n) return 0n;
   return (debt * BigInt(cashWeightPercent) + 99n) / 100n;
+}
+
+const dollars = (cents: bigint | number): string => `$${(Number(cents) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+
+/** 1.6.5-B. The fixed offers a ruleset puts on the Loan Shark page, in display order. */
+export function loanOffers(rules: LoanSharkRules): readonly LoanOfferRules[] {
+  return rules.offers ?? [];
+}
+
+export function loanOfferTerms(offer: LoanOfferRules): LoanTerms {
+  return {
+    principalCents: BigInt(offer.principalCents),
+    contractFeeCents: BigInt(offer.contractFeeCents),
+    installmentCount: offer.installmentCount,
+  };
+}
+
+/**
+ * 1.6.5-B. Why a player cannot take an offer right now, in words they can act on, or null
+ * when they can. Deterministic: the same debt and net worth always give the same answer.
+ * Checked in order: who the offer is open to, then room under the ceiling.
+ */
+export function loanOfferRefusal(
+  rules: LoanSharkRules,
+  offer: LoanOfferRules,
+  input: { position: DebtPosition; netWorthCents: bigint },
+): { code: LoanRefusalCode; message: string } | null {
+  if (offer.minNetWorthCents !== undefined && input.netWorthCents < BigInt(offer.minNetWorthCents)) {
+    return { code: 'LOAN_NOT_ELIGIBLE', message: `The loan shark only fronts ${offer.name} to a boss worth ${dollars(offer.minNetWorthCents)} or more.` };
+  }
+  const obligation = BigInt(offer.principalCents) + BigInt(offer.contractFeeCents);
+  const room = debtRoomCents(input.position);
+  if (obligation > room) {
+    return {
+      code: 'LOAN_DEBT_CEILING',
+      message: room === 0n
+        ? `You owe the loan shark as much as he will let you (${dollars(input.position.ceilingCents)}). Pay some back first.`
+        : `This would take what you owe past ${dollars(input.position.ceilingCents)}. You have ${dollars(room)} of room left.`,
+    };
+  }
+  try {
+    validateLoanTerms(rules, loanOfferTerms(offer));
+  } catch (error) {
+    if (error instanceof LoanError) return { code: error.code, message: error.message };
+    throw error;
+  }
+  return null;
 }

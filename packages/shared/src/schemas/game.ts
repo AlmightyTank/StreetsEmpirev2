@@ -422,3 +422,12 @@ export const combatReconSchema = z.object({
   actionId: actionIdSchema,
 }).strict();
 export type CombatReconInputDto = z.infer<typeof combatReconSchema>;
+
+/** 1.6.5-B. Accept one of the loan shark's fixed offers. The server resolves its terms. */
+export const loanAcceptSchema = z.object({
+  offerKey: z.string().trim().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick an offer.'),
+  /** Durable acceptance key: the same key always answers with the same loan. */
+  requestKey: actionIdSchema,
+  actionId: actionIdSchema,
+}).strict();
+export type LoanAcceptInputDto = z.infer<typeof loanAcceptSchema>;

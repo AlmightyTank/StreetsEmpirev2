@@ -1,7 +1,17 @@
 import type { PrismaClient } from '@prisma/client';
-import { LoanError, debtLimits, loanSharkRules, quoteLoan, type LoanTerms } from '@streets/rules-engine';
+import {
+  LoanError,
+  debtLimits,
+  loanOfferRefusal,
+  loanOfferTerms,
+  loanOffers,
+  loanSharkRules,
+  quoteLoan,
+  type LoanTerms,
+} from '@streets/rules-engine';
+import type { LoanSharkRules } from '@streets/rulesets';
 import type { LoanAcceptResult, LoanPaymentResult } from '@streets/shared';
-import { ActionService } from './action.service.js';
+import { ActionService, type ActionContext } from './action.service.js';
 import {
   applyLoanPayment,
   loadLoan,
@@ -20,15 +30,25 @@ import { AppError } from '../utils/errors.js';
  * replay-guarded before anything is read, and every write commits or none does.
  *
  * Acceptance takes terms the server has already quoted. Callers never pass a client's
- * numbers through: 1.6.5-B resolves an offer tier to its terms on the server.
+ * numbers through: 1.6.5-B's `acceptOffer` resolves an offer tier to its terms on the
+ * server, inside the transaction, after the replay check.
  */
+
+/** Terms as given, or resolved under the player's lock (and free to refuse). */
+type LoanTermsSource = LoanTerms | ((rules: LoanSharkRules, context: ActionContext) => LoanTerms);
 
 export interface LoanAcceptInput {
   actionId?: string;
   /** Durable key: the same key always answers with the same loan. */
   requestKey: string;
   offerKey: string;
-  terms: LoanTerms;
+  terms: LoanTermsSource;
+}
+
+export interface LoanOfferAcceptInput {
+  actionId?: string;
+  requestKey: string;
+  offerKey: string;
 }
 
 export interface LoanRepayInput {
@@ -59,7 +79,8 @@ export const LoanService = {
       action: 'LOAN_ACCEPT',
       idempotencyScope: 'LOAN_ACCEPT',
       actionId: input.actionId,
-      execute: async ({ tx, current, player, round, ruleset, now }) => {
+      execute: async (context) => {
+        const { tx, current, player, round, ruleset, now } = context;
         const rules = loanSharkRules(ruleset);
         if (!rules) throw AppError.notFound('LOAN_SHARK_CLOSED', 'Nobody is lending in this round.');
         assertRequestKey(input.requestKey);
@@ -75,10 +96,11 @@ export const LoanService = {
           include: { installments: { orderBy: { sequence: 'asc' } } },
         });
         if (prior) {
-          if (prior.offerKey !== input.offerKey
-            || prior.principalCents !== input.terms.principalCents
-            || prior.contractFeeCents !== input.terms.contractFeeCents
-            || prior.installmentCount !== input.terms.installmentCount) {
+          const given = typeof input.terms === 'function' ? null : input.terms;
+          if (prior.offerKey !== input.offerKey || (given && (
+            prior.principalCents !== given.principalCents
+            || prior.contractFeeCents !== given.contractFeeCents
+            || prior.installmentCount !== given.installmentCount))) {
             throw AppError.conflict('LOAN_REQUEST_KEY_REUSED', 'That loan request was already used for a different loan.');
           }
           return {
@@ -88,10 +110,11 @@ export const LoanService = {
           };
         }
 
+        const terms = typeof input.terms === 'function' ? input.terms(rules, context) : input.terms;
         // The limits are whatever the round's ruleset sets now, never a per-player snapshot.
         let quote;
         try {
-          quote = quoteLoan(rules, input.terms, {
+          quote = quoteLoan(rules, terms, {
             debtCents: account.loanDebtCents,
             feesAssessedCents: account.loanFeesAssessedCents,
             ...debtLimits(rules),
@@ -151,6 +174,28 @@ export const LoanService = {
           // Borrowed cash is not earned cash: nothing here may count toward an earning Job.
           questProgress: { type: 'LOAN_ACCEPTED', payload: { loanId: loan.id, offerKey: input.offerKey, installments: quote.installments.length } },
         };
+      },
+    }, now);
+  },
+
+  /**
+   * 1.6.5-B. Accept one of the ruleset's fixed offers. The terms come from the round's own
+   * ruleset under the player's lock, never from the request, and the offer must be open to
+   * the player and fit under the ceiling. A retry with the same request key answers with the
+   * loan it already made, whatever has changed since.
+   */
+  acceptOffer(prisma: PrismaClient, roundPlayerId: string, input: LoanOfferAcceptInput, now: Date = new Date()) {
+    return LoanService.accept(prisma, roundPlayerId, {
+      ...input,
+      terms: (rules, { current, player, netWorthCents }) => {
+        const offer = loanOffers(rules).find((row) => row.key === input.offerKey);
+        if (!offer) throw AppError.notFound('LOAN_OFFER_NOT_FOUND', 'The loan shark is not offering that.');
+        const refused = loanOfferRefusal(rules, offer, {
+          position: { debtCents: current.loanDebtCents, feesAssessedCents: player.loanFeesAssessedCents, ...debtLimits(rules) },
+          netWorthCents,
+        });
+        if (refused) refusal(new LoanError(refused.code, refused.message));
+        return loanOfferTerms(offer);
       },
     }, now);
   },

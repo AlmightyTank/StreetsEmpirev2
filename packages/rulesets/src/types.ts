@@ -3240,6 +3240,22 @@ export interface LoanSharkRules {
   readonly maxInstallments: number;
   /** Largest contract fee a quote may carry, as a whole percent of its principal. */
   readonly maxContractFeePercent: number;
+  /** 1.6.5-B. The fixed offer tiers on the Loan Shark page. Absent: nothing is offered. */
+  readonly offers?: readonly LoanOfferRules[];
+}
+
+/** 1.6.5-B. One fixed loan shark offer: the same terms for everyone it is open to. */
+export interface LoanOfferRules {
+  readonly key: string;
+  readonly name: string;
+  readonly description: string;
+  /** Cash handed over on acceptance. */
+  readonly principalCents: number;
+  /** The fixed contract fee, earned evenly over the term. */
+  readonly contractFeeCents: number;
+  readonly installmentCount: number;
+  /** Only offered to a boss whose net worth is at least this. Absent: open to everyone. */
+  readonly minNetWorthCents?: number;
 }
 
 export interface SupplyNetworkRules {

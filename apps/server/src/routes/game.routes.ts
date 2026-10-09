@@ -15,6 +15,7 @@ import {
   storeCheckoutSchema,
   storeSpecialOrderSchema,
   supplyOrderSchema,
+  loanAcceptSchema,
   dealerStaffAssignSchema,
   dealerStaffReleaseSchema,
   hideoutUpgradeSchema,
@@ -46,6 +47,8 @@ import { OnboardingService } from '../services/onboarding.service.js';
 import { PlayerExperienceService } from '../services/player-experience.service.js';
 import { LawService } from '../services/law.service.js';
 import { SupplyOrderService } from '../services/supply-order.service.js';
+import { LoanService } from '../services/loan.service.js';
+import { LoanSharkService } from '../services/loan-shark.service.js';
 import { SupplyPickupService } from '../services/supply-pickup.service.js';
 import { SupplyPropertyService } from '../services/supply-property.service.js';
 import { SupplyLedgerService } from '../services/supply-ledger.service.js';
@@ -219,6 +222,20 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(supplyOrderSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
     return SupplyOrderService.place(fastify.prisma, player.id, body);
+  });
+
+  // 1.6.5-B: the loan shark. Settled first, so installments that are due have been collected.
+  fastify.get('/loans', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    return LoanSharkService.page(fastify.prisma, settled.ruleset, settled.player, now);
+  });
+
+  fastify.post('/loans/accept', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(loanAcceptSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return LoanService.acceptOffer(fastify.prisma, player.id, body);
   });
 
   // 1.6.0-E: dealer crews.

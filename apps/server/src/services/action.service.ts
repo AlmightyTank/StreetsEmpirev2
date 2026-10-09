@@ -171,6 +171,8 @@ export interface ActionContext {
   /** Standing with each trader, as it stands before the action. */
   standings: Standings;
   recovery: RecoverySettlement;
+  /** 1.6.5-B. Net worth as it stands before the action, freshly calculated. */
+  netWorthCents: bigint;
 }
 
 export interface ActionOutcome<T> {
@@ -507,6 +509,7 @@ export const ActionService = {
         stock,
         standings,
         recovery,
+        netWorthCents: beforeNetWorth,
       });
 
       const next = outcome.next;

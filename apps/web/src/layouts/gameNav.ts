@@ -46,6 +46,7 @@ export const SECTIONS: NavSection[] = [
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
       { key: 'supply', label: 'Bulk Orders', short: 'Supply', to: '/game/supply', icon: 'stores' },
       { key: 'dealers', label: 'Dealer Crews', short: 'Dealers', to: '/game/dealers', icon: 'contacts' },
+      { key: 'loans', label: 'Loan Shark', short: 'Loans', to: '/game/loans', icon: 'stores' },
       { key: 'casino', label: 'Casino', to: '/game/casino', icon: 'casino', prefix: '/game/casino/' },
       { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },
       { key: 'travel', label: 'Travel', to: '/game/travel', icon: 'cities' },
@@ -137,7 +138,7 @@ export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSectio
       id: 'new-player-next',
       title: 'Next Steps',
       defaultOpen: false,
-      pages: pickPages(pages, ['dealers', 'hideout', 'travel', 'turf', 'casino', 'street-pass']),
+      pages: pickPages(pages, ['dealers', 'loans', 'hideout', 'travel', 'turf', 'casino', 'street-pass']),
     },
     {
       id: 'new-player-people',

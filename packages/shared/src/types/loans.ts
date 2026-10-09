@@ -75,3 +75,68 @@ export interface LoanPaymentResult {
   contractFeeWaivedCents: number;
   replayed: boolean;
 }
+
+/** 1.6.5-B. One installment of an offer, as it would fall due if accepted now. */
+export interface LoanOfferInstallmentDto {
+  sequence: number;
+  /** Hours after acceptance. */
+  dueAfterHours: number;
+  amountCents: number;
+}
+
+/** 1.6.5-B. One fixed offer, quoted against the player's debt as it stands. */
+export interface LoanOfferDto {
+  key: string;
+  name: string;
+  description: string;
+  /** Cash handed over on acceptance. */
+  principalCents: number;
+  contractFeeCents: number;
+  /** Principal plus fee: the full payback on schedule, reserved against the ceiling now. */
+  obligationCents: number;
+  /** Fee as a whole percent of the cash advanced, rounded to one decimal. */
+  feePercent: number;
+  installmentCount: number;
+  installmentIntervalHours: number;
+  installments: LoanOfferInstallmentDto[];
+  /** What a missed installment costs, and the most this loan can be charged for missing. */
+  lateFeeCents: number;
+  lateFeeCapCents: number;
+  /** Net worth needed for this offer, if any. */
+  minNetWorthCents: number | null;
+  /** What the player would owe, and the room left, after accepting. */
+  debtAfterCents: number;
+  availableAfterCents: number;
+  available: boolean;
+  /** Why it cannot be taken right now, in player-facing words. */
+  unavailableReason: string | null;
+}
+
+export type LoanEventKind = 'ACCEPTED' | 'PAYMENT' | 'INSTALLMENT_MISSED' | 'FEE_ASSESSED' | 'PAID_OFF' | 'COLLECTION_CHANGED';
+
+/** 1.6.5-B. One line of loan history. */
+export interface LoanHistoryDto {
+  id: string;
+  kind: LoanEventKind;
+  loanId: string | null;
+  offerName: string | null;
+  label: string;
+  /** Signed change to what the player owes. */
+  debtDeltaCents: number;
+  debtAfterCents: number;
+  createdAt: string;
+}
+
+/** GET /api/game/loans. */
+export interface LoanSharkPageDto {
+  enabled: boolean;
+  account: LoanAccountDto | null;
+  cashCents: number;
+  netWorthCents: number;
+  offers: LoanOfferDto[];
+  /** Loans still owing, oldest first. */
+  activeLoans: Array<LoanDto & { offerName: string; nextDueAt: string | null; nextDueCents: number }>;
+  /** Paid-off loans, newest first. */
+  closedLoans: Array<LoanDto & { offerName: string }>;
+  history: LoanHistoryDto[];
+}

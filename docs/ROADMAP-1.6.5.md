@@ -31,7 +31,7 @@ Slices **A–B** establish the debt model and readable loan offers. Slices **C�
 
 Every slice should have a release gate and a pinned ruleset, following the existing StreetsEmpire release pattern. Exact offer amounts, fees, due intervals, debt ceilings, and collection effects are balance values to set through simulation before release.
 
-**Beta progress:** Slice A is implemented on the beta branch: the pinned `classic-og-v1.6.5-a` ruleset, server-owned loan, installment, payment, fee and journal records, one per-round debt ceiling and a separate fee cap read from the ruleset, retry-safe acceptance, repayment, scheduled settlement with partial collection, late-fee assessment, pro-rata early payoff, loan ledger categories, and debt netted out of net worth. Nobody can borrow yet: 1.6.5-B adds the offers and the page.
+**Beta progress:** Slice A is implemented on the beta branch: the pinned `classic-og-v1.6.5-a` ruleset, server-owned loan, installment, payment, fee and journal records, one per-round debt ceiling and a separate fee cap read from the ruleset, retry-safe acceptance, repayment, scheduled settlement with partial collection, late-fee assessment, pro-rata early payoff, loan ledger categories, and debt netted out of net worth. Slice B adds the Loan Shark page with three fixed offer tiers, full quotes before acceptance, retry-safe acceptance over the API, active loans, next due dates, payoff amounts and history.
 
 ## Proposed slices
 
@@ -82,6 +82,8 @@ Establish the authoritative debt lifecycle before adding borrowing.
 
 ### 1.6.5-B — Loan Offers & Acceptance
 
+**Status: Implemented on the beta branch.**
+
 Let players understand the contract before taking cash.
 
 - Add a Loan Shark page reachable from the game navigation.
@@ -98,6 +100,30 @@ Let players understand the contract before taking cash.
 - Show active loans, next due dates, payoff totals, and recent history.
 
 **Gate:** A player can compare offers and see the full obligation before accepting. The accepted loan, player cash, debt balance, and ledger reconcile after retries and reloads.
+
+**As built:**
+
+- **Ruleset.** `classic-og-v1.6.5-b` is 1.6.5-A plus `loanShark.offers`, and is now the ruleset new rounds start on. Three fixed tiers, the same terms for everyone they are open to (BALANCE_APPROXIMATION, for 1.6.5-G):
+
+  | Offer | Cash | Fee | Payback | Installments | Needs net worth |
+  | --- | --- | --- | --- | --- | --- |
+  | Quick Cash | $10,000 | $1,500 (15%) | $11,500 | 2 × 12h | — |
+  | Street Advance | $30,000 | $6,000 (20%) | $36,000 | 3 × 12h | $10,000 |
+  | Heavy Bankroll | $75,000 | $22,500 (30%) | $97,500 | 4 × 12h | $50,000 |
+
+  Bigger advances cost more per dollar, so no tier is the automatic pick, and the smallest is open to everyone.
+- **Page.** **Loan Shark** (`/game/loans`) is in the game menu under Next Steps for new players. The page shows:
+  - **What you owe:** current debt, the ceiling, the room left, late fees charged against the cap, standing, and cash.
+  - **Offers:** cash received, fee and fee rate, total payback, schedule, and any net-worth requirement for each offer.
+  - **Review the deal:** for the picked offer, every installment and when it falls due, debt and room before and after, cash after, how early payoff works, and exactly what missing an installment costs.
+  - **Active loans:** what is still owed on schedule, the payoff amount now, the next due time and amount, late fees, and each installment's status.
+  - **History:** recent loan history, and the loans paid off this round.
+- **Eligibility.** Checked in a fixed order: who the offer is open to (net worth), then room under the ceiling. An offer that cannot be taken says why in player-facing words, and the server refuses it with the same message (`LOAN_NOT_ELIGIBLE`, `LOAN_DEBT_CEILING`). Net worth is the pipeline's freshly calculated value, not the stored one.
+- **Acceptance.** `POST /api/game/loans/accept` takes only `offerKey`, `requestKey` and `actionId`; the terms come from the round's ruleset under the player's lock, after the replay check. A retry with the same request key answers with the loan already made, even if the offer has since become unavailable; the same key for a different offer is refused. The page keeps an unconfirmed attempt's request key across reloads and locks the offers until the result is known.
+- **Settlement on read.** Opening any page now settles due loan installments, as it already did for property upkeep, so a player who is only looking sees installments collected on time.
+- **Earned fee.** An installment that has fallen due always counts its full fee share as earned, even if its due time moved.
+- **Not yet.** Manual payments have a server action (`LoanService.repay`) but no button; 1.6.5-D adds the payment flow. Delinquency does not yet block new loans (1.6.5-E).
+- **Tests.** Ruleset and offer-eligibility unit tests, and an HTTP suite (`LOAN_INTEGRATION=1`) covering full quotes, retries and reloads that reconcile, forged terms, ineligible and ceiling refusals with their reasons, settlement on read, and earlier rulesets.
 
 ### 1.6.5-C — Repeat Borrowing & Escalating Terms
 

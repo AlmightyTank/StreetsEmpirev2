@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV16H, classicOgV165A, type LoanSharkRules, type Ruleset } from '@streets/rulesets';
+import { classicOgV16H, classicOgV165A, classicOgV165B, type LoanSharkRules, type Ruleset } from '@streets/rulesets';
 import {
   LoanError,
   allocateLoanPayment,
@@ -11,6 +11,9 @@ import {
   debtLimits,
   debtRoomCents,
   lateFeeChargeCents,
+  loanOfferRefusal,
+  loanOfferTerms,
+  loanOffers,
   loanOutstandingCents,
   loanSharkRules,
   quoteLoan,
@@ -220,5 +223,37 @@ describe('1.6.5-A debt and net worth', () => {
     expect(weightedDebtCents(0n, 75)).toBe(0n);
     expect(weightedDebtCents(1n, 75)).toBe(1n);
     expect(weightedDebtCents(4n, 75)).toBe(3n);
+  });
+});
+
+describe('1.6.5-B offers', () => {
+  const offerRules = classicOgV165B.loanShark;
+  const [quick, street, heavy] = offerRules.offers;
+  const rich = 1_000_000_000n;
+
+  it('lists the ruleset offers in order, and none before B', () => {
+    expect(loanOffers(offerRules).map((offer) => offer.key)).toEqual(['QUICK_CASH', 'STREET_ADVANCE', 'HEAVY_BANKROLL']);
+    expect(loanOffers(rules)).toEqual([]);
+    expect(loanOfferTerms(quick!)).toEqual({ principalCents: 1_000_000n, contractFeeCents: 150_000n, installmentCount: 2 });
+  });
+
+  it('says who an offer is for before it talks about room', () => {
+    const position = { ...fresh(), debtCents: BigInt(offerRules.debtCeilingCents) };
+    expect(loanOfferRefusal(offerRules, heavy!, { position, netWorthCents: 0n })).toMatchObject({ code: 'LOAN_NOT_ELIGIBLE' });
+    expect(loanOfferRefusal(offerRules, heavy!, { position: fresh(), netWorthCents: BigInt(heavy!.minNetWorthCents!) })).toBeNull();
+    expect(loanOfferRefusal(offerRules, heavy!, { position: fresh(), netWorthCents: BigInt(heavy!.minNetWorthCents!) - 1n })?.message)
+      .toBe('The loan shark only fronts Heavy Bankroll to a boss worth $50,000 or more.');
+  });
+
+  it('refuses an offer that would pass the ceiling, with the room left', () => {
+    const ceiling = BigInt(offerRules.debtCeilingCents);
+    const nearly = { ...fresh(), debtCents: ceiling - 1_000_000n };
+    expect(loanOfferRefusal(offerRules, street!, { position: nearly, netWorthCents: rich })).toEqual({
+      code: 'LOAN_DEBT_CEILING',
+      message: 'This would take what you owe past $150,000. You have $10,000 of room left.',
+    });
+    expect(loanOfferRefusal(offerRules, quick!, { position: { ...fresh(), debtCents: ceiling }, netWorthCents: rich })?.message)
+      .toBe('You owe the loan shark as much as he will let you ($150,000). Pay some back first.');
+    expect(loanOfferRefusal(offerRules, quick!, { position: { ...fresh(), debtCents: ceiling - 1_150_000n }, netWorthCents: rich })).toBeNull();
   });
 });

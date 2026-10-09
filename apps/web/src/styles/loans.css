@@ -1,0 +1,108 @@
+/* 1.6.5-B: the Loan Shark. Layout rides on the supply page's grid and cards. */
+.se-loans__review-anchor {
+  min-width: 0;
+  scroll-margin-top: 96px;
+}
+
+.se-loans__offers-panel {
+  grid-column: 1 / -1;
+}
+
+.se-loans__offers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.se-loans__offer {
+  display: grid;
+  gap: 7px;
+  align-content: start;
+  padding: 12px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.se-loans__offer--selected {
+  border-color: var(--se-accent);
+  background: rgba(var(--se-accent-rgb), 0.05);
+}
+
+.se-loans__offer--unavailable {
+  opacity: 0.72;
+}
+
+.se-loans__reason,
+.se-loans__warning {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.se-loans__reason {
+  color: var(--se-text-dim);
+}
+
+.se-loans__warning {
+  color: var(--se-warn) !important;
+}
+
+.se-loans__meter {
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.se-loans__meter > span {
+  display: block;
+  height: 100%;
+  background: var(--se-accent);
+}
+
+.se-loans__status--late {
+  color: var(--se-bad) !important;
+}
+
+.se-loans__schedule {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-loans__installment {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 11px;
+}
+
+.se-loans__installment--paid {
+  color: var(--se-good);
+}
+
+.se-loans__installment--missed {
+  color: var(--se-bad);
+}
+
+.se-loans__closed {
+  margin: 10px 0 0;
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  .se-loans__offers-panel {
+    grid-column: auto;
+  }
+
+  .se-loans__offers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

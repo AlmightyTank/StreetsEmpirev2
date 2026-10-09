@@ -57,9 +57,15 @@ export function loanOutstanding(loan: Loan): bigint {
     + lateFeesDueCents(loan);
 }
 
-/** Contract fee earned by `at` and not yet paid: the most of the fee a payment may take then. */
-export function loanFeeBudget(loan: Loan, at: Date): bigint {
-  return contractFeeBudgetCents(contractFeeEarnedCents({ ...loan, now: at }), loan.contractFeePaidCents);
+/**
+ * Contract fee earned by `at` and not yet paid: the most of the fee a payment may take then.
+ * Earned is the even accrual over the term, and never less than the fee shares of every
+ * installment already due, so an installment that has fallen due always owes its full share.
+ */
+export function loanFeeBudget(loan: LoanWithInstallments, at: Date): bigint {
+  const accrued = contractFeeEarnedCents({ ...loan, now: at });
+  const due = loan.installments.reduce((sum, row) => (row.dueAt.getTime() <= at.getTime() ? sum + row.contractFeeCents : sum), 0n);
+  return contractFeeBudgetCents(accrued > due ? accrued : due, loan.contractFeePaidCents);
 }
 
 /** What pays the loan off at `at`: late fees, principal, and only the fee earned so far. */
