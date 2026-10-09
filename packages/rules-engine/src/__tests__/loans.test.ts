@@ -4,6 +4,9 @@ import {
   LoanError,
   allocateLoanPayment,
   buildInstallmentSchedule,
+  contractFeeBudgetCents,
+  contractFeeEarnedCents,
+  loanPayoffCents,
   calculateNetWorthCents,
   debtLimits,
   debtRoomCents,
@@ -128,8 +131,8 @@ describe('1.6.5-A payment allocation', () => {
     const paid = allocateLoanPayment(400n, 100n, installments);
     expect(paid).toMatchObject({ appliedCents: 400n, lateFeeCents: 100n, contractFeeCents: 50n, principalCents: 250n, paidOff: false });
     expect(paid.installments).toEqual([
-      { sequence: 1, contractFeeCents: 50n, principalCents: 250n, cleared: false },
-      { sequence: 2, contractFeeCents: 0n, principalCents: 0n, cleared: false },
+      { sequence: 1, contractFeeCents: 50n, principalCents: 250n, contractFeeWaivedCents: 0n, cleared: false },
+      { sequence: 2, contractFeeCents: 0n, principalCents: 0n, contractFeeWaivedCents: 0n, cleared: false },
     ]);
   });
 
@@ -142,9 +145,58 @@ describe('1.6.5-A payment allocation', () => {
     expect(paid.lateFeeCents + paid.contractFeeCents + paid.principalCents).toBe(paid.appliedCents);
   });
 
+  it('takes the contract fee only as far as it is earned, paying principal ahead', () => {
+    const paid = allocateLoanPayment(600n, 0n, installments, 30n);
+    expect(paid).toMatchObject({ appliedCents: 600n, contractFeeCents: 30n, principalCents: 570n, contractFeeWaivedCents: 0n, paidOff: false });
+    expect(paid.installments[0]).toMatchObject({ sequence: 1, contractFeeCents: 30n, principalCents: 500n, cleared: false });
+    expect(paid.installments[1]).toMatchObject({ sequence: 2, contractFeeCents: 0n, principalCents: 70n });
+  });
+
+  it('pays off early for the principal, late fees and earned fee, and waives the rest', () => {
+    const payoff = loanPayoffCents(100n, installments, 30n);
+    expect(payoff).toBe(100n + 1_000n + 30n);
+    expect(payoff).toBeLessThan(loanOutstandingCents(100n, installments));
+    const paid = allocateLoanPayment(5_000n, 100n, installments, 30n);
+    expect(paid).toMatchObject({ appliedCents: payoff, lateFeeCents: 100n, contractFeeCents: 30n, principalCents: 1_000n, contractFeeWaivedCents: 70n, paidOff: true });
+    expect(paid.installments.every((row) => row.cleared)).toBe(true);
+    expect(paid.installments.reduce((sum, row) => sum + row.contractFeeCents + row.contractFeeWaivedCents, 0n)).toBe(100n);
+    // On the full schedule the whole fee is earned and nothing is waived.
+    expect(allocateLoanPayment(5_000n, 100n, installments, 1_000n)).toMatchObject({ contractFeeWaivedCents: 0n, contractFeeCents: 100n, paidOff: true });
+  });
+
   it('rejects non-positive payments and negative balances', () => {
+    expect(() => allocateLoanPayment(1n, 0n, installments, -1n)).toThrow(RangeError);
     expect(() => allocateLoanPayment(0n, 0n, installments)).toThrow(RangeError);
     expect(() => allocateLoanPayment(1n, -1n, installments)).toThrow(RangeError);
+  });
+});
+
+describe('1.6.5-A contract fee accrual', () => {
+  const loan = { contractFeeCents: 100_001n, acceptedAt: at, installmentCount: 4, installmentIntervalHours: 12 };
+  const after = (hours: number) => contractFeeEarnedCents({ ...loan, now: new Date(at.getTime() + hours * 3_600_000) });
+
+  it('earns the fee evenly over the term, rounded up, and never more than the fee', () => {
+    expect(after(-1)).toBe(0n);
+    expect(after(0)).toBe(0n);
+    expect(after(24)).toBe(50_001n);
+    expect(after(48)).toBe(100_001n);
+    expect(after(500)).toBe(100_001n);
+    expect(after(1 / 3_600_000)).toBe(1n);
+    for (let hour = 1; hour <= 48; hour += 1) expect(after(hour)).toBeGreaterThanOrEqual(after(hour - 1));
+  });
+
+  it('has always earned every fee share due by an installment\'s due time', () => {
+    const schedule = buildInstallmentSchedule({ principalCents: 1_000n, contractFeeCents: loan.contractFeeCents, installmentCount: 4 }, 12, at);
+    let shares = 0n;
+    for (const row of schedule) {
+      shares += row.contractFeeCents;
+      expect(contractFeeEarnedCents({ ...loan, now: row.dueAt })).toBeGreaterThanOrEqual(shares);
+    }
+  });
+
+  it('never budgets fee already paid', () => {
+    expect(contractFeeBudgetCents(50n, 20n)).toBe(30n);
+    expect(contractFeeBudgetCents(50n, 80n)).toBe(0n);
   });
 });
 

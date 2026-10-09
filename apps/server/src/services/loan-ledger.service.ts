@@ -1,5 +1,13 @@
 import type { Loan, LoanInstallment, LoanPaymentKind, LoanStatus, Prisma } from '@prisma/client';
-import { allocateLoanPayment, type InstallmentDue, type LoanPaymentAllocation } from '@streets/rules-engine';
+import {
+  allocateLoanPayment,
+  contractFeeBudgetCents,
+  contractFeeEarnedCents,
+  loanPayoffCents,
+  type InstallmentDue,
+  type LoanPaymentAllocation,
+} from '@streets/rules-engine';
+import type { LoanSharkRules } from '@streets/rulesets';
 import type { LoanAccountDto, LoanCollectionState, LoanDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import type { EconomyLedgerWrite } from './economy-ledger.service.js';
@@ -33,7 +41,7 @@ export type LoanWithInstallments = Loan & { installments: LoanInstallment[] };
 export function installmentDue(row: LoanInstallment): InstallmentDue {
   return {
     sequence: row.sequence,
-    contractFeeDueCents: row.contractFeeCents - row.contractFeePaidCents,
+    contractFeeDueCents: row.contractFeeCents - row.contractFeePaidCents - row.contractFeeWaivedCents,
     principalDueCents: row.principalCents - row.principalPaidCents,
   };
 }
@@ -42,13 +50,24 @@ export function lateFeesDueCents(loan: Loan): bigint {
   return loan.lateFeesAssessedCents - loan.lateFeesPaidCents;
 }
 
+/** Everything a loan still owes on its full schedule, the whole contract fee included. */
 export function loanOutstanding(loan: Loan): bigint {
   return (loan.principalCents - loan.principalPaidCents)
-    + (loan.contractFeeCents - loan.contractFeePaidCents)
+    + (loan.contractFeeCents - loan.contractFeePaidCents - loan.contractFeeWaivedCents)
     + lateFeesDueCents(loan);
 }
 
-export function loanDto(loan: LoanWithInstallments): LoanDto {
+/** Contract fee earned by `at` and not yet paid: the most of the fee a payment may take then. */
+export function loanFeeBudget(loan: Loan, at: Date): bigint {
+  return contractFeeBudgetCents(contractFeeEarnedCents({ ...loan, now: at }), loan.contractFeePaidCents);
+}
+
+/** What pays the loan off at `at`: late fees, principal, and only the fee earned so far. */
+export function loanPayoff(loan: LoanWithInstallments, at: Date): bigint {
+  return loanPayoffCents(lateFeesDueCents(loan), loan.installments.map(installmentDue), loanFeeBudget(loan, at));
+}
+
+export function loanDto(loan: LoanWithInstallments, at: Date): LoanDto {
   return {
     id: loan.id,
     offerKey: loan.offerKey,
@@ -59,7 +78,9 @@ export function loanDto(loan: LoanWithInstallments): LoanDto {
     lateFeeCents: Number(loan.lateFeeCents),
     lateFeeCapCents: Number(loan.lateFeeCapCents),
     lateFeesAssessedCents: Number(loan.lateFeesAssessedCents),
+    contractFeeWaivedCents: Number(loan.contractFeeWaivedCents),
     outstandingCents: Number(loanOutstanding(loan)),
+    payoffCents: Number(loanPayoff(loan, at)),
     installments: [...loan.installments].sort((a, b) => a.sequence - b.sequence).map((row) => {
       const due = installmentDue(row);
       return {
@@ -79,20 +100,19 @@ export function loanDto(loan: LoanWithInstallments): LoanDto {
   };
 }
 
-export function loanAccountDto(account: {
+/** The player's debt against the limits the round's ruleset sets now. */
+export function loanAccountDto(rules: LoanSharkRules, account: {
   loanDebtCents: bigint;
-  loanDebtCeilingCents: bigint;
   loanFeesAssessedCents: bigint;
-  loanFeeCapCents: bigint;
   loanCollectionState: LoanCollectionState;
 }): LoanAccountDto {
-  const room = account.loanDebtCeilingCents - account.loanDebtCents;
+  const room = BigInt(rules.debtCeilingCents) - account.loanDebtCents;
   return {
     debtCents: Number(account.loanDebtCents),
-    debtCeilingCents: Number(account.loanDebtCeilingCents),
+    debtCeilingCents: rules.debtCeilingCents,
     availableCents: Number(room > 0n ? room : 0n),
     feesAssessedCents: Number(account.loanFeesAssessedCents),
-    feeCapCents: Number(account.loanFeeCapCents),
+    feeCapCents: rules.feeCapCents,
     collectionState: account.loanCollectionState,
   };
 }
@@ -171,15 +191,19 @@ export async function writeLoanEvent(db: Db, data: {
 export interface AppliedLoanPayment {
   paymentId: string;
   allocation: LoanPaymentAllocation;
+  /** Cash taken plus fee waived: what comes off the player's debt. */
+  debtReductionCents: bigint;
   loan: LoanWithInstallments;
   ledger: EconomyLedgerWrite[];
 }
 
 /**
  * Applies cash the caller has already checked the player has to one loan, in the documented
- * order (late fees, then installments oldest first, fee share before principal), and writes
- * the receipt, the installments, the loan and the journal. Takes no more than the loan owes.
- * The caller takes `allocation.appliedCents` off cash and debt.
+ * order (late fees, then installments oldest first, fee share before principal, fee only as
+ * far as it has been earned), and writes the receipt, the installments, the loan and the
+ * journal. Takes no more than the payoff amount; reaching it pays the loan off and waives the
+ * fee not yet earned. The caller takes `allocation.appliedCents` off cash and
+ * `debtReductionCents` off debt.
  */
 export async function applyLoanPayment(db: Db, input: {
   roundPlayerId: string;
@@ -188,15 +212,13 @@ export async function applyLoanPayment(db: Db, input: {
   requestKey: string;
   amountCents: bigint;
   debtBeforeCents: bigint;
-  /** Installments up to and including this sequence only: a scheduled collection. */
-  throughSequence?: number;
   at: Date;
 }): Promise<AppliedLoanPayment> {
   const { loan, at } = input;
-  const open = loan.installments.filter((row) => input.throughSequence === undefined || row.sequence <= input.throughSequence);
-  const allocation = allocateLoanPayment(input.amountCents, lateFeesDueCents(loan), open.map(installmentDue));
+  const allocation = allocateLoanPayment(input.amountCents, lateFeesDueCents(loan), loan.installments.map(installmentDue), loanFeeBudget(loan, at));
   if (allocation.appliedCents <= 0n) throw new RangeError('A loan payment has to settle something.');
-  const debtAfterCents = input.debtBeforeCents - allocation.appliedCents;
+  const debtReductionCents = allocation.appliedCents + allocation.contractFeeWaivedCents;
+  const debtAfterCents = input.debtBeforeCents - debtReductionCents;
   if (debtAfterCents < 0n) throw new RangeError('A loan payment cannot take debt below zero.');
 
   const payment = await db.loanPayment.create({
@@ -209,6 +231,7 @@ export async function applyLoanPayment(db: Db, input: {
       lateFeeCents: allocation.lateFeeCents,
       contractFeeCents: allocation.contractFeeCents,
       principalCents: allocation.principalCents,
+      contractFeeWaivedCents: allocation.contractFeeWaivedCents,
       debtAfterCents,
       createdAt: at,
     },
@@ -218,7 +241,7 @@ export async function applyLoanPayment(db: Db, input: {
   const installments: LoanInstallment[] = [];
   for (const row of loan.installments) {
     const paid = bySequence.get(row.sequence);
-    if (!paid || (paid.contractFeeCents === 0n && paid.principalCents === 0n && !paid.cleared)) {
+    if (!paid || (paid.contractFeeCents === 0n && paid.principalCents === 0n && paid.contractFeeWaivedCents === 0n && !paid.cleared)) {
       installments.push(row);
       continue;
     }
@@ -227,19 +250,21 @@ export async function applyLoanPayment(db: Db, input: {
       where: { id: row.id },
       data: {
         contractFeePaidCents: { increment: paid.contractFeeCents },
+        contractFeeWaivedCents: { increment: paid.contractFeeWaivedCents },
         principalPaidCents: { increment: paid.principalCents },
         ...(cleared ? { status: 'PAID', paidAt: at } : {}),
       },
     }));
   }
 
-  const outstandingAfter = loanOutstanding(loan) - allocation.appliedCents;
+  const outstandingAfter = loanOutstanding(loan) - debtReductionCents;
   const status = loanStatusFor(outstandingAfter, installments);
   const updated = await db.loan.update({
     where: { id: loan.id },
     data: {
       lateFeesPaidCents: { increment: allocation.lateFeeCents },
       contractFeePaidCents: { increment: allocation.contractFeeCents },
+      contractFeeWaivedCents: { increment: allocation.contractFeeWaivedCents },
       principalPaidCents: { increment: allocation.principalCents },
       status,
       ...(status === 'PAID_OFF' ? { paidOffAt: at } : {}),
@@ -250,7 +275,7 @@ export async function applyLoanPayment(db: Db, input: {
     roundPlayerId: input.roundPlayerId,
     loanId: loan.id,
     kind: 'PAYMENT',
-    debtDeltaCents: -allocation.appliedCents,
+    debtDeltaCents: -debtReductionCents,
     debtAfterCents,
     requestKey: `${input.requestKey}:payment`,
     metadata: {
@@ -259,6 +284,7 @@ export async function applyLoanPayment(db: Db, input: {
       lateFeeCents: Number(allocation.lateFeeCents),
       contractFeeCents: Number(allocation.contractFeeCents),
       principalCents: Number(allocation.principalCents),
+      contractFeeWaivedCents: Number(allocation.contractFeeWaivedCents),
     },
     at,
   });
@@ -269,6 +295,7 @@ export async function applyLoanPayment(db: Db, input: {
       kind: 'PAID_OFF',
       debtAfterCents,
       requestKey: `${input.requestKey}:paid-off`,
+      metadata: { early: allocation.contractFeeWaivedCents > 0n, contractFeeWaivedCents: Number(allocation.contractFeeWaivedCents) },
       at,
     });
   }
@@ -276,6 +303,7 @@ export async function applyLoanPayment(db: Db, input: {
   return {
     paymentId: payment.id,
     allocation,
+    debtReductionCents,
     loan: { ...updated, installments },
     ledger: loanPaymentLedger(input.kind, allocation, { loanId: loan.id, paymentId: payment.id, offerKey: loan.offerKey }),
   };

@@ -1,5 +1,5 @@
--- 1.6.5-A. Loan shark debt foundation: contracts, installments, payments, fees, the loan
--- journal, and the player's debt against one round-wide ceiling and a separate fee cap.
+-- 1.6.5-A. Loan shark debt foundation: contracts, installments, payments, fees and the loan
+-- journal. The debt ceiling and fee caps are read from the round's ruleset.
 
 -- CreateEnum
 CREATE TYPE "LoanStatus" AS ENUM ('ACTIVE', 'DELINQUENT', 'PAID_OFF');
@@ -21,9 +21,7 @@ CREATE TYPE "LoanEventKind" AS ENUM ('ACCEPTED', 'PAYMENT', 'INSTALLMENT_MISSED'
 
 -- AlterTable
 ALTER TABLE "RoundPlayer" ADD COLUMN     "loanCollectionState" "LoanCollectionState" NOT NULL DEFAULT 'CLEAR',
-ADD COLUMN     "loanDebtCeilingCents" BIGINT NOT NULL DEFAULT 0,
 ADD COLUMN     "loanDebtCents" BIGINT NOT NULL DEFAULT 0,
-ADD COLUMN     "loanFeeCapCents" BIGINT NOT NULL DEFAULT 0,
 ADD COLUMN     "loanFeesAssessedCents" BIGINT NOT NULL DEFAULT 0;
 
 -- CreateTable
@@ -38,6 +36,7 @@ CREATE TABLE "Loan" (
     "obligationCents" BIGINT NOT NULL,
     "principalPaidCents" BIGINT NOT NULL DEFAULT 0,
     "contractFeePaidCents" BIGINT NOT NULL DEFAULT 0,
+    "contractFeeWaivedCents" BIGINT NOT NULL DEFAULT 0,
     "lateFeeCents" BIGINT NOT NULL,
     "lateFeeCapCents" BIGINT NOT NULL,
     "lateFeesAssessedCents" BIGINT NOT NULL DEFAULT 0,
@@ -65,6 +64,7 @@ CREATE TABLE "LoanInstallment" (
     "contractFeeCents" BIGINT NOT NULL,
     "principalPaidCents" BIGINT NOT NULL DEFAULT 0,
     "contractFeePaidCents" BIGINT NOT NULL DEFAULT 0,
+    "contractFeeWaivedCents" BIGINT NOT NULL DEFAULT 0,
     "status" "LoanInstallmentStatus" NOT NULL DEFAULT 'SCHEDULED',
     "missedAt" TIMESTAMP(3),
     "paidAt" TIMESTAMP(3),
@@ -85,6 +85,7 @@ CREATE TABLE "LoanPayment" (
     "lateFeeCents" BIGINT NOT NULL,
     "contractFeeCents" BIGINT NOT NULL,
     "principalCents" BIGINT NOT NULL,
+    "contractFeeWaivedCents" BIGINT NOT NULL DEFAULT 0,
     "debtAfterCents" BIGINT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -188,18 +189,18 @@ ALTER TABLE "LoanEvent" ADD CONSTRAINT "LoanEvent_roundPlayerId_fkey" FOREIGN KE
 ALTER TABLE "LoanEvent" ADD CONSTRAINT "LoanEvent_loanId_fkey" FOREIGN KEY ("loanId") REFERENCES "Loan"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 
--- The hard limits, in the database as well as the code. A player's debt and late fees never
--- go below zero or above the limits fixed for the round when they first borrowed.
-ALTER TABLE "RoundPlayer" ADD CONSTRAINT "RoundPlayer_loan_debt_within_limits" CHECK (
-  "loanDebtCents" >= 0 AND "loanDebtCents" <= "loanDebtCeilingCents"
-  AND "loanFeesAssessedCents" >= 0 AND "loanFeesAssessedCents" <= "loanFeeCapCents"
+-- Nothing owed or assessed is ever negative. The ceiling and fee caps are ruleset values,
+-- held in code on every path that can raise debt or fees.
+ALTER TABLE "RoundPlayer" ADD CONSTRAINT "RoundPlayer_loan_debt_nonnegative" CHECK (
+  "loanDebtCents" >= 0 AND "loanFeesAssessedCents" >= 0
 );
 
 ALTER TABLE "Loan" ADD CONSTRAINT "Loan_terms_and_balance_valid" CHECK (
   "principalCents" > 0 AND "contractFeeCents" >= 0
   AND "obligationCents" = "principalCents" + "contractFeeCents"
   AND "principalPaidCents" >= 0 AND "principalPaidCents" <= "principalCents"
-  AND "contractFeePaidCents" >= 0 AND "contractFeePaidCents" <= "contractFeeCents"
+  AND "contractFeePaidCents" >= 0 AND "contractFeeWaivedCents" >= 0
+  AND "contractFeePaidCents" + "contractFeeWaivedCents" <= "contractFeeCents"
   AND "lateFeeCents" >= 0 AND "lateFeeCapCents" >= 0
   AND "lateFeesAssessedCents" >= 0 AND "lateFeesAssessedCents" <= "lateFeeCapCents"
   AND "lateFeesPaidCents" >= 0 AND "lateFeesPaidCents" <= "lateFeesAssessedCents"
@@ -209,13 +210,14 @@ ALTER TABLE "Loan" ADD CONSTRAINT "Loan_terms_and_balance_valid" CHECK (
 ALTER TABLE "LoanInstallment" ADD CONSTRAINT "LoanInstallment_amounts_valid" CHECK (
   "sequence" > 0 AND "principalCents" >= 0 AND "contractFeeCents" >= 0
   AND "principalPaidCents" >= 0 AND "principalPaidCents" <= "principalCents"
-  AND "contractFeePaidCents" >= 0 AND "contractFeePaidCents" <= "contractFeeCents"
+  AND "contractFeePaidCents" >= 0 AND "contractFeeWaivedCents" >= 0
+  AND "contractFeePaidCents" + "contractFeeWaivedCents" <= "contractFeeCents"
 );
 
 ALTER TABLE "LoanPayment" ADD CONSTRAINT "LoanPayment_split_valid" CHECK (
   "amountCents" > 0 AND "lateFeeCents" >= 0 AND "contractFeeCents" >= 0 AND "principalCents" >= 0
   AND "amountCents" = "lateFeeCents" + "contractFeeCents" + "principalCents"
-  AND "debtAfterCents" >= 0
+  AND "contractFeeWaivedCents" >= 0 AND "debtAfterCents" >= 0
 );
 
 ALTER TABLE "LoanFee" ADD CONSTRAINT "LoanFee_amount_valid" CHECK (

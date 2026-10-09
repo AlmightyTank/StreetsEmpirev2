@@ -1226,13 +1226,9 @@ model RoundPlayer {
   /// 1.6.0-A. Thugs assigned to dealer crews. Still owned, but unavailable for other work.
   dealerThugs             Int                      @default(0)
   /// 1.6.5-A. What the player owes the loan shark: every loan's unpaid obligation plus unpaid
-  /// late fees. Never above `loanDebtCeilingCents`; comes off net worth at the cash weight.
+  /// late fees. Held under the ruleset's debt ceiling; comes off net worth at the cash weight.
   loanDebtCents           BigInt                   @default(0)
-  /// 1.6.5-A. This round's debt ceiling and late-fee cap, fixed from the ruleset when the
-  /// player first borrows. Zero until then, which holds the debt at zero too.
-  loanDebtCeilingCents    BigInt                   @default(0)
-  loanFeeCapCents         BigInt                   @default(0)
-  /// 1.6.5-A. Every late fee ever assessed this round, paid or not. Never above the cap.
+  /// 1.6.5-A. Every late fee ever assessed this round, paid or not. Held under the ruleset's fee cap.
   loanFeesAssessedCents   BigInt                   @default(0)
   loanCollectionState     LoanCollectionState      @default(CLEAR)
   /// 1.2.0-A. City chip wallets, open bankroll sessions and immutable casino receipts.
@@ -1939,7 +1935,7 @@ enum LoanEventKind {
 
 /// 1.6.5-A. One accepted loan shark contract: the terms quoted, pinned to the ruleset it
 /// was accepted under, and what has been paid against them. Cash is integer cents.
-/// Outstanding = (principal - principalPaid) + (contractFee - contractFeePaid)
+/// Outstanding = (principal - principalPaid) + (contractFee - contractFeePaid - contractFeeWaived)
 ///             + (lateFeesAssessed - lateFeesPaid).
 model Loan {
   id            String      @id @default(cuid())
@@ -1951,17 +1947,19 @@ model Loan {
   rulesetId      String
   rulesetVersion String
 
-  principalCents        BigInt
-  contractFeeCents      BigInt
+  principalCents         BigInt
+  contractFeeCents       BigInt
   /// Principal plus contract fee: reserved against the debt ceiling at acceptance.
-  obligationCents       BigInt
-  principalPaidCents    BigInt @default(0)
-  contractFeePaidCents  BigInt @default(0)
+  obligationCents        BigInt
+  principalPaidCents     BigInt @default(0)
+  contractFeePaidCents   BigInt @default(0)
+  /// Contract fee not yet earned when the loan was paid off early, forgiven.
+  contractFeeWaivedCents BigInt @default(0)
   /// The fixed fee for one missed installment, and the most this loan can ever be charged.
-  lateFeeCents          BigInt
-  lateFeeCapCents       BigInt
-  lateFeesAssessedCents BigInt @default(0)
-  lateFeesPaidCents     BigInt @default(0)
+  lateFeeCents           BigInt
+  lateFeeCapCents        BigInt
+  lateFeesAssessedCents  BigInt @default(0)
+  lateFeesPaidCents      BigInt @default(0)
 
   installmentCount         Int
   installmentIntervalHours Int
@@ -1992,17 +1990,19 @@ model LoanInstallment {
   roundPlayerId String
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
-  sequence             Int
-  dueAt                DateTime
-  principalCents       BigInt
-  contractFeeCents     BigInt
-  principalPaidCents   BigInt                @default(0)
-  contractFeePaidCents BigInt                @default(0)
-  status               LoanInstallmentStatus @default(SCHEDULED)
+  sequence               Int
+  dueAt                  DateTime
+  principalCents         BigInt
+  contractFeeCents       BigInt
+  principalPaidCents     BigInt                @default(0)
+  contractFeePaidCents   BigInt                @default(0)
+  /// Its fee share forgiven by an early payoff.
+  contractFeeWaivedCents BigInt                @default(0)
+  status                 LoanInstallmentStatus @default(SCHEDULED)
   /// When the server found it unpaid at its due time. Kept after it is paid, for history.
-  missedAt             DateTime?
-  paidAt               DateTime?
-  fees                 LoanFee[]
+  missedAt               DateTime?
+  paidAt                 DateTime?
+  fees                   LoanFee[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2013,21 +2013,23 @@ model LoanInstallment {
 
 /// 1.6.5-A. Immutable receipt for cash paid to the loan shark, split the way it was applied.
 model LoanPayment {
-  id               String          @id @default(cuid())
-  loanId           String
-  loan             Loan            @relation(fields: [loanId], references: [id], onDelete: Cascade)
-  roundPlayerId    String
-  roundPlayer      RoundPlayer     @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
-  kind             LoanPaymentKind
+  id                     String          @id @default(cuid())
+  loanId                 String
+  loan                   Loan            @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  roundPlayerId          String
+  roundPlayer            RoundPlayer     @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  kind                   LoanPaymentKind
   /// A manual payment's request key, or the installment a scheduled payment settled.
-  requestKey       String          @db.VarChar(128)
-  amountCents      BigInt
-  lateFeeCents     BigInt
-  contractFeeCents BigInt
-  principalCents   BigInt
+  requestKey             String          @db.VarChar(128)
+  amountCents            BigInt
+  lateFeeCents           BigInt
+  contractFeeCents       BigInt
+  principalCents         BigInt
+  /// Unearned contract fee forgiven because this payment paid the loan off early. Not cash.
+  contractFeeWaivedCents BigInt          @default(0)
   /// The player's total debt once this payment landed.
-  debtAfterCents   BigInt
-  createdAt        DateTime        @default(now())
+  debtAfterCents         BigInt
+  createdAt              DateTime        @default(now())
 
   @@unique([roundPlayerId, requestKey])
   @@index([loanId, createdAt])

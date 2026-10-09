@@ -14,7 +14,7 @@ export interface LoanInstallmentDto {
   amountCents: number;
   principalCents: number;
   contractFeeCents: number;
-  /** Still owing on this installment. */
+  /** Still owing on this installment, less any fee waived by an early payoff. */
   remainingCents: number;
   status: LoanInstallmentStatus;
   missedAt: string | null;
@@ -32,8 +32,12 @@ export interface LoanDto {
   lateFeeCents: number;
   lateFeeCapCents: number;
   lateFeesAssessedCents: number;
-  /** Everything still owing: unpaid principal, contract fee and late fees. */
+  /** Contract fee forgiven by an early payoff. */
+  contractFeeWaivedCents: number;
+  /** Everything still owing on the full schedule: unpaid principal, contract fee and late fees. */
   outstandingCents: number;
+  /** What pays it off right now: unpaid principal and late fees, and only the fee earned so far. */
+  payoffCents: number;
   installments: LoanInstallmentDto[];
   acceptedAt: string;
   paidOffAt: string | null;
@@ -67,5 +71,7 @@ export interface LoanPaymentResult {
   lateFeeCents: number;
   contractFeeCents: number;
   principalCents: number;
+  /** Unearned contract fee forgiven because this payment paid the loan off early. */
+  contractFeeWaivedCents: number;
   replayed: boolean;
 }

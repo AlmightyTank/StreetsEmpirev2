@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01 } from '@streets/rulesets';
-import { assertPlayerState, type InvariantPlayerState } from '../invariant.service.js';
+import { classicOgV01, classicOgV165A, type Ruleset } from '@streets/rulesets';
+import { assertLoanDebtChange, assertPlayerState, type InvariantPlayerState } from '../invariant.service.js';
 
 function valid(): InvariantPlayerState {
   return {
@@ -101,5 +101,24 @@ describe('assertPlayerState', () => {
         classicOgV01,
       ),
     ).toThrow();
+  });
+});
+
+describe('1.6.5-A loan debt changes', () => {
+  const ceiling = BigInt(classicOgV165A.loanShark.debtCeilingCents);
+
+  it('lets debt rise only to the ceiling the ruleset sets now', () => {
+    expect(() => assertLoanDebtChange(0n, ceiling, classicOgV165A)).not.toThrow();
+    expect(() => assertLoanDebtChange(0n, ceiling + 1n, classicOgV165A)).toThrow(RangeError);
+    expect(() => assertLoanDebtChange(0n, 1n, classicOgV01)).toThrow(RangeError);
+    expect(() => assertPlayerState({ ...valid(), loanDebtCents: -1n }, classicOgV165A)).toThrow(RangeError);
+  });
+
+  it('lets debt above a since-lowered ceiling stay or come down, never grow', () => {
+    const lowered = { ...classicOgV165A, loanShark: { ...classicOgV165A.loanShark, debtCeilingCents: 1_000 } } as Ruleset;
+    expect(() => assertPlayerState({ ...valid(), loanDebtCents: 5_000n }, lowered)).not.toThrow();
+    expect(() => assertLoanDebtChange(5_000n, 5_000n, lowered)).not.toThrow();
+    expect(() => assertLoanDebtChange(5_000n, 4_000n, lowered)).not.toThrow();
+    expect(() => assertLoanDebtChange(5_000n, 5_001n, lowered)).toThrow(RangeError);
   });
 });

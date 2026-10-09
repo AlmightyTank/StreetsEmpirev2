@@ -20,7 +20,7 @@ import { annotateLogContext } from '../utils/request-context.js';
 import { ActivityService } from './activity.service.js';
 import { HappinessService } from './happiness.service.js';
 import { IdempotencyService } from './idempotency.service.js';
-import { assertPlayerState } from './invariant.service.js';
+import { assertLoanDebtChange, assertPlayerState } from './invariant.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { RankingService } from './ranking.service.js';
 import { TurnService } from './turn.service.js';
@@ -511,6 +511,7 @@ export const ActionService = {
 
       const next = outcome.next;
       assertPlayerState(next, ruleset, 'after');
+      assertLoanDebtChange(current.loanDebtCents, next.loanDebtCents, ruleset);
 
       const ledgerEntries = outcome.ledger
         ?? EconomyLedgerService.defaultForAction(options.action, current.cashCents, next.cashCents);

@@ -3218,7 +3218,11 @@ export interface Ruleset {
  * - Late fees are the only debt that can grow after acceptance. Each missed installment is
  *   charged `lateFeeCents` once, capped by the loan's `lateFeeCapPerLoanCents`, the player's
  *   round-wide `feeCapCents`, and whatever room is left under the ceiling. Nothing compounds.
+ * - The contract fee is earned evenly over the loan's term: an early payoff owes only the
+ *   part earned so far, and the rest is waived.
  * - Repayments only ever come out of the player's cash; proceeds never pay another loan.
+ * - The ceiling and fee caps are read from the round's ruleset whenever they apply, never
+ *   fixed per player. Debt above a lowered ceiling stays owed, but cannot grow.
  */
 export interface LoanSharkRules {
   readonly enabled: boolean;

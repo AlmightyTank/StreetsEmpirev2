@@ -7,7 +7,7 @@ import {
   loadLoan,
   loanAccountDto,
   loanDto,
-  loanOutstanding,
+  loanPayoff,
   proceedsLedger,
   refreshCollectionState,
   writeLoanEvent,
@@ -54,7 +54,7 @@ function refusal(error: unknown): never {
 }
 
 export const LoanService = {
-  accept(prisma: PrismaClient, roundPlayerId: string, input: LoanAcceptInput) {
+  accept(prisma: PrismaClient, roundPlayerId: string, input: LoanAcceptInput, now: Date = new Date()) {
     return ActionService.run<LoanAcceptResult>(prisma, roundPlayerId, {
       action: 'LOAN_ACCEPT',
       idempotencyScope: 'LOAN_ACCEPT',
@@ -66,9 +66,7 @@ export const LoanService = {
 
         const account = {
           loanDebtCents: current.loanDebtCents,
-          loanDebtCeilingCents: player.loanDebtCeilingCents,
           loanFeesAssessedCents: player.loanFeesAssessedCents,
-          loanFeeCapCents: player.loanFeeCapCents,
           loanCollectionState: player.loanCollectionState,
         };
 
@@ -85,29 +83,18 @@ export const LoanService = {
           }
           return {
             next: current,
-            result: { loan: loanDto(prior), account: loanAccountDto(account), creditedCents: 0, replayed: true },
+            result: { loan: loanDto(prior, now), account: loanAccountDto(rules, account), creditedCents: 0, replayed: true },
             ledger: [],
           };
         }
 
-        // The round's limits are fixed for this player the first time they borrow.
-        if (account.loanDebtCeilingCents === 0n && account.loanFeeCapCents === 0n) {
-          const limits = debtLimits(rules);
-          account.loanDebtCeilingCents = limits.ceilingCents;
-          account.loanFeeCapCents = limits.feeCapCents;
-          await tx.roundPlayer.update({
-            where: { id: roundPlayerId },
-            data: { loanDebtCeilingCents: limits.ceilingCents, loanFeeCapCents: limits.feeCapCents },
-          });
-        }
-
+        // The limits are whatever the round's ruleset sets now, never a per-player snapshot.
         let quote;
         try {
           quote = quoteLoan(rules, input.terms, {
             debtCents: account.loanDebtCents,
-            ceilingCents: account.loanDebtCeilingCents,
             feesAssessedCents: account.loanFeesAssessedCents,
-            feeCapCents: account.loanFeeCapCents,
+            ...debtLimits(rules),
           }, now);
         } catch (error) {
           refusal(error);
@@ -159,34 +146,34 @@ export const LoanService = {
         account.loanDebtCents = quote.debtAfterCents;
         return {
           next: { ...current, cashCents: current.cashCents + quote.principalCents, loanDebtCents: quote.debtAfterCents },
-          result: { loan: loanDto(loan), account: loanAccountDto(account), creditedCents: Number(quote.principalCents), replayed: false },
+          result: { loan: loanDto(loan, now), account: loanAccountDto(rules, account), creditedCents: Number(quote.principalCents), replayed: false },
           ledger: [proceedsLedger(loan)],
           // Borrowed cash is not earned cash: nothing here may count toward an earning Job.
           questProgress: { type: 'LOAN_ACCEPTED', payload: { loanId: loan.id, offerKey: input.offerKey, installments: quote.installments.length } },
         };
       },
-    });
+    }, now);
   },
 
   /**
    * A payment from cash toward one loan: early, partial or a full payoff. A request for more
-   * than the loan owes pays exactly what it owes. Never from another loan's proceeds: it
+   * than the payoff amount pays exactly the payoff amount, and an early payoff waives the
+   * contract fee not yet earned. Never from another loan's proceeds: it
    * only ever spends the player's cash.
    */
-  repay(prisma: PrismaClient, roundPlayerId: string, input: LoanRepayInput) {
+  repay(prisma: PrismaClient, roundPlayerId: string, input: LoanRepayInput, now: Date = new Date()) {
     return ActionService.run<LoanPaymentResult>(prisma, roundPlayerId, {
       action: 'LOAN_PAYMENT',
       idempotencyScope: 'LOAN_PAYMENT',
       actionId: input.actionId,
       execute: async ({ tx, current, player, ruleset, now }) => {
-        if (!loanSharkRules(ruleset)) throw AppError.notFound('LOAN_SHARK_CLOSED', 'Nobody is lending in this round.');
+        const rules = loanSharkRules(ruleset);
+        if (!rules) throw AppError.notFound('LOAN_SHARK_CLOSED', 'Nobody is lending in this round.');
         assertRequestKey(input.requestKey);
         const paymentKey = `manual:${input.requestKey}`;
         const account = {
           loanDebtCents: current.loanDebtCents,
-          loanDebtCeilingCents: player.loanDebtCeilingCents,
           loanFeesAssessedCents: player.loanFeesAssessedCents,
-          loanFeeCapCents: player.loanFeeCapCents,
           loanCollectionState: player.loanCollectionState,
         };
 
@@ -201,13 +188,14 @@ export const LoanService = {
           return {
             next: current,
             result: {
-              loan: loanDto(loan!),
-              account: loanAccountDto(account),
+              loan: loanDto(loan!, now),
+              account: loanAccountDto(rules, account),
               kind: prior.kind,
               paidCents: Number(prior.amountCents),
               lateFeeCents: Number(prior.lateFeeCents),
               contractFeeCents: Number(prior.contractFeeCents),
               principalCents: Number(prior.principalCents),
+              contractFeeWaivedCents: Number(prior.contractFeeWaivedCents),
               replayed: true,
             },
             ledger: [],
@@ -219,7 +207,8 @@ export const LoanService = {
         }
         const loan = await loadLoan(tx, input.loanId);
         if (!loan || loan.roundPlayerId !== roundPlayerId) throw AppError.notFound('LOAN_NOT_FOUND', 'That loan is not yours.');
-        const owed = loanOutstanding(loan);
+        // An early payoff owes only the contract fee earned so far.
+        const owed = loanPayoff(loan, now);
         if (loan.status === 'PAID_OFF' || owed === 0n) throw AppError.conflict('LOAN_PAID_OFF', 'That loan is already paid off.');
         const paying = input.amountCents < owed ? input.amountCents : owed;
         if (paying > current.cashCents) {
@@ -235,7 +224,7 @@ export const LoanService = {
           debtBeforeCents: current.loanDebtCents,
           at: now,
         });
-        const debtAfterCents = current.loanDebtCents - applied.allocation.appliedCents;
+        const debtAfterCents = current.loanDebtCents - applied.debtReductionCents;
         account.loanDebtCents = debtAfterCents;
         account.loanCollectionState = await refreshCollectionState(tx, {
           roundPlayerId,
@@ -248,19 +237,20 @@ export const LoanService = {
         return {
           next: { ...current, cashCents: current.cashCents - applied.allocation.appliedCents, loanDebtCents: debtAfterCents },
           result: {
-            loan: loanDto(applied.loan),
-            account: loanAccountDto(account),
+            loan: loanDto(applied.loan, now),
+            account: loanAccountDto(rules, account),
             kind: 'MANUAL' as const,
             paidCents: Number(applied.allocation.appliedCents),
             lateFeeCents: Number(applied.allocation.lateFeeCents),
             contractFeeCents: Number(applied.allocation.contractFeeCents),
             principalCents: Number(applied.allocation.principalCents),
+            contractFeeWaivedCents: Number(applied.allocation.contractFeeWaivedCents),
             replayed: false,
           },
           ledger: applied.ledger,
           questProgress: { type: 'LOAN_PAYMENT', payload: { loanId: loan.id, paidOff: applied.allocation.paidOff } },
         };
       },
-    });
+    }, now);
   },
 };

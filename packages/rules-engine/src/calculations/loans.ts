@@ -10,6 +10,9 @@ import type { LoanSharkRules, Ruleset } from '@streets/rulesets';
  * full against the ceiling at acceptance, so stacking contracts can never overrun it. Late
  * fees are the only debt that grows afterwards, and only within three caps: the loan's, the
  * player's round-wide fee cap, and the room left under the ceiling. Fees never earn fees.
+ *
+ * The contract fee is earned evenly over the loan's term. Paying a loan off early owes only
+ * the fee earned so far; the rest is waived and comes off the debt with the payoff.
  */
 
 export function loanSharkRules(ruleset: Ruleset): LoanSharkRules | undefined {
@@ -164,7 +167,7 @@ export function lateFeeChargeCents(input: {
   ));
 }
 
-/** What a loan still has owing on one installment. */
+/** What a loan still has owing on one installment: its share, less what was paid or waived. */
 export interface InstallmentDue {
   sequence: number;
   contractFeeDueCents: bigint;
@@ -175,65 +178,125 @@ export interface InstallmentAllocation {
   sequence: number;
   contractFeeCents: bigint;
   principalCents: bigint;
+  /** Unearned contract fee forgiven because this payment paid the loan off early. */
+  contractFeeWaivedCents: bigint;
   /** Nothing is left owing on this installment after the payment. */
   cleared: boolean;
 }
 
 export interface LoanPaymentAllocation {
-  /** What the payment actually takes: never more than the loan has owing. */
+  /** What the payment actually takes: never more than the payoff amount. */
   appliedCents: bigint;
   lateFeeCents: bigint;
   contractFeeCents: bigint;
   principalCents: bigint;
+  /** Unearned contract fee forgiven on an early payoff; never cash, only debt. */
+  contractFeeWaivedCents: bigint;
   installments: InstallmentAllocation[];
   /** The loan owes nothing after this payment. */
   paidOff: boolean;
 }
 
-/** Everything a loan still owes: late fees, then each installment's fee and principal. */
+/** Everything a loan still owes on its full schedule: late fees, then each installment's fee and principal. */
 export function loanOutstandingCents(lateFeesDueCents: bigint, installments: readonly InstallmentDue[]): bigint {
   return installments.reduce((sum, row) => sum + row.contractFeeDueCents + row.principalDueCents, lateFeesDueCents);
 }
 
 /**
- * Applies a payment in the documented order: unpaid late fees first, then installments
- * oldest first, each installment's share of the contract fee before its principal. A
- * payment larger than the balance takes only the balance.
+ * The contract fee earned by `now`. It accrues evenly from acceptance to the last due time,
+ * rounded up to the cent, so at each installment's due time it covers every fee share due
+ * by then. A loan paid off early owes only this much of its fee; the rest is waived.
  */
-export function allocateLoanPayment(amountCents: bigint, lateFeesDueCents: bigint, installments: readonly InstallmentDue[]): LoanPaymentAllocation {
+export function contractFeeEarnedCents(input: {
+  contractFeeCents: bigint;
+  acceptedAt: Date;
+  installmentCount: number;
+  installmentIntervalHours: number;
+  now: Date;
+}): bigint {
+  const term = BigInt(input.installmentCount * input.installmentIntervalHours * HOUR_MS);
+  if (term <= 0n) throw new RangeError('A loan term must be positive.');
+  const elapsedMs = input.now.getTime() - input.acceptedAt.getTime();
+  if (elapsedMs <= 0) return 0n;
+  const elapsed = BigInt(elapsedMs);
+  if (elapsed >= term) return input.contractFeeCents;
+  return (input.contractFeeCents * elapsed + term - 1n) / term;
+}
+
+/** Earned contract fee not yet paid: the most of the fee any payment may take now. */
+export function contractFeeBudgetCents(earnedCents: bigint, paidCents: bigint): bigint {
+  return maxBig(0n, earnedCents - paidCents);
+}
+
+/**
+ * What clears a loan now: unpaid late fees, all unpaid principal, and the earned contract fee
+ * not yet paid. Without a budget the whole remaining fee counts, as on the full schedule.
+ */
+export function loanPayoffCents(lateFeesDueCents: bigint, installments: readonly InstallmentDue[], contractFeeBudget?: bigint): bigint {
+  const fees = installments.reduce((sum, row) => sum + row.contractFeeDueCents, 0n);
+  const principal = installments.reduce((sum, row) => sum + row.principalDueCents, 0n);
+  return lateFeesDueCents + principal + (contractFeeBudget === undefined ? fees : minBig(fees, contractFeeBudget));
+}
+
+/**
+ * Applies a payment in the documented order: unpaid late fees first, then installments
+ * oldest first, each installment's share of the contract fee before its principal. Fee is
+ * only ever taken up to `contractFeeBudget`, what has been earned and not yet paid, so a
+ * share not yet earned is skipped and its principal paid ahead. A payment that reaches the
+ * payoff amount pays the loan off, and the fee not yet earned is waived. A payment larger
+ * than the payoff amount takes only the payoff amount.
+ */
+export function allocateLoanPayment(
+  amountCents: bigint,
+  lateFeesDueCents: bigint,
+  installments: readonly InstallmentDue[],
+  contractFeeBudget?: bigint,
+): LoanPaymentAllocation {
   if (amountCents <= 0n) throw new RangeError('A payment must be positive.');
   if (lateFeesDueCents < 0n) throw new RangeError('lateFeesDueCents cannot be negative.');
-  let left = amountCents;
+  if (contractFeeBudget !== undefined && contractFeeBudget < 0n) throw new RangeError('contractFeeBudget cannot be negative.');
+  const ordered = [...installments].sort((a, b) => a.sequence - b.sequence);
+  for (const row of ordered) {
+    if (row.contractFeeDueCents < 0n || row.principalDueCents < 0n) throw new RangeError('An amount due cannot be negative.');
+  }
+  const payoff = loanPayoffCents(lateFeesDueCents, ordered, contractFeeBudget);
+  let left = minBig(amountCents, payoff);
+  let budget = contractFeeBudget ?? ordered.reduce((sum, row) => sum + row.contractFeeDueCents, 0n);
   const take = (due: bigint): bigint => {
-    if (due < 0n) throw new RangeError('An amount due cannot be negative.');
     const paid = minBig(left, due);
     left -= paid;
     return paid;
   };
   const lateFeeCents = take(lateFeesDueCents);
+  const paidOff = minBig(amountCents, payoff) === payoff;
   let contractFeeCents = 0n;
   let principalCents = 0n;
+  let contractFeeWaivedCents = 0n;
   const rows: InstallmentAllocation[] = [];
-  for (const row of [...installments].sort((a, b) => a.sequence - b.sequence)) {
-    const fee = take(row.contractFeeDueCents);
+  for (const row of ordered) {
+    const fee = take(minBig(row.contractFeeDueCents, budget));
+    budget -= fee;
     const principal = take(row.principalDueCents);
+    const waived = paidOff ? row.contractFeeDueCents - fee : 0n;
     contractFeeCents += fee;
     principalCents += principal;
+    contractFeeWaivedCents += waived;
     rows.push({
       sequence: row.sequence,
       contractFeeCents: fee,
       principalCents: principal,
-      cleared: fee === row.contractFeeDueCents && principal === row.principalDueCents,
+      contractFeeWaivedCents: waived,
+      cleared: fee + waived === row.contractFeeDueCents && principal === row.principalDueCents,
     });
   }
-  const appliedCents = amountCents - left;
   return {
-    appliedCents,
+    appliedCents: lateFeeCents + contractFeeCents + principalCents,
     lateFeeCents,
     contractFeeCents,
     principalCents,
+    contractFeeWaivedCents,
     installments: rows,
-    paidOff: appliedCents === loanOutstandingCents(lateFeesDueCents, installments),
+    paidOff,
   };
 }
 

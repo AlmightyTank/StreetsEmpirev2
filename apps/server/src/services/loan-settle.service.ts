@@ -1,4 +1,4 @@
-import { lateFeeChargeCents, loanSharkRules, type Ruleset } from '@streets/rules-engine';
+import { debtLimits, lateFeeChargeCents, loanPayoffCents, loanSharkRules, type Ruleset } from '@streets/rules-engine';
 import type { Db } from '../utils/db.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 import {
@@ -6,6 +6,7 @@ import {
   installmentDue,
   lateFeesDueCents,
   loadLoan,
+  loanFeeBudget,
   refreshCollectionState,
   writeLoanEvent,
 } from './loan-ledger.service.js';
@@ -15,51 +16,44 @@ import {
  * like property upkeep. Only the server's clock decides what is due.
  *
  * Each installment whose due time has passed is settled once, oldest first. The server
- * collects what the loan currently has due through that installment (unpaid late fees, any
- * earlier missed installment, and this one) if cash covers all of it. If it does not, it
- * collects nothing: the installment is missed, and the loan's fixed late fee is assessed
- * once, cut down to the loan's cap, the player's fee cap and the room under the ceiling.
- * A missed installment stays owed and is collected with the next one cash can cover.
+ * collects what the loan currently has due through that installment: unpaid late fees, any
+ * earlier missed installment, and this one. When cash covers all of it, the installment is
+ * paid. When it does not, the server takes whatever cash there is toward it, the installment
+ * is missed, and the loan's fixed late fee is assessed once, cut down to the loan's cap and
+ * the ruleset's fee cap and debt ceiling. A missed installment stays owed and is collected
+ * with the next one, or by any payment the player makes.
  */
 export const LoanSettleService = {
   /** Settle everything due by `now`. Returns the cash left, or null when nothing was due. */
   async settle(tx: Db, roundPlayerId: string, ruleset: Ruleset, now: Date): Promise<bigint | null> {
-    if (!loanSharkRules(ruleset)) return null;
+    const rules = loanSharkRules(ruleset);
+    if (!rules) return null;
     const due = await tx.loanInstallment.findMany({
       where: { roundPlayerId, status: 'SCHEDULED', dueAt: { lte: now } },
       orderBy: [{ dueAt: 'asc' }, { sequence: 'asc' }, { id: 'asc' }],
-      select: { id: true, loanId: true, sequence: true, dueAt: true },
+      select: { id: true, loanId: true },
     });
     if (!due.length) return null;
 
     const player = await tx.roundPlayer.findUniqueOrThrow({
       where: { id: roundPlayerId },
-      select: {
-        cashCents: true,
-        loanDebtCents: true,
-        loanDebtCeilingCents: true,
-        loanFeesAssessedCents: true,
-        loanFeeCapCents: true,
-        loanCollectionState: true,
-      },
+      select: { cashCents: true, loanDebtCents: true, loanFeesAssessedCents: true, loanCollectionState: true },
     });
+    const limits = debtLimits(rules);
     let cash = player.cashCents;
     let debt = player.loanDebtCents;
     let feesAssessed = player.loanFeesAssessedCents;
     const ledger: EconomyLedgerWrite[] = [];
 
     for (const next of due) {
-      const loan = await loadLoan(tx, next.loanId);
+      let loan = await loadLoan(tx, next.loanId);
       if (!loan || loan.status === 'PAID_OFF') continue;
       const installment = loan.installments.find((row) => row.id === next.id);
       // Paid in full already by an earlier payment, or settled by an earlier pass.
       if (!installment || installment.status !== 'SCHEDULED') continue;
 
       const through = loan.installments.filter((row) => row.sequence <= installment.sequence);
-      const dueNow = through.reduce((sum, row) => {
-        const owed = installmentDue(row);
-        return sum + owed.contractFeeDueCents + owed.principalDueCents;
-      }, lateFeesDueCents(loan));
+      const dueNow = loanPayoffCents(lateFeesDueCents(loan), through.map(installmentDue), loanFeeBudget(loan, now));
       const key = `scheduled:${installment.id}`;
 
       if (dueNow === 0n) {
@@ -67,22 +61,24 @@ export const LoanSettleService = {
         continue;
       }
 
-      if (cash >= dueNow) {
+      // Everything due if cash covers it, otherwise whatever cash there is.
+      const collect = cash < dueNow ? cash : dueNow;
+      if (collect > 0n) {
         const applied = await applyLoanPayment(tx, {
           roundPlayerId,
           loan,
           kind: 'SCHEDULED',
           requestKey: key,
-          amountCents: dueNow,
+          amountCents: collect,
           debtBeforeCents: debt,
-          throughSequence: installment.sequence,
           at: now,
         });
         cash -= applied.allocation.appliedCents;
-        debt -= applied.allocation.appliedCents;
+        debt -= applied.debtReductionCents;
         ledger.push(...applied.ledger);
-        continue;
+        loan = applied.loan;
       }
+      if (collect === dueNow) continue;
 
       // Missed: recorded once, at its due time, whenever the server first finds it.
       const marked = await tx.loanInstallment.updateMany({
@@ -96,7 +92,7 @@ export const LoanSettleService = {
         kind: 'INSTALLMENT_MISSED',
         debtAfterCents: debt,
         requestKey: `missed:${installment.id}`,
-        metadata: { sequence: installment.sequence, dueCents: Number(dueNow), cashCents: Number(cash) },
+        metadata: { sequence: installment.sequence, dueCents: Number(dueNow), collectedCents: Number(collect), shortCents: Number(dueNow - collect) },
         at: now,
       });
 
@@ -104,7 +100,7 @@ export const LoanSettleService = {
         lateFeeCents: loan.lateFeeCents,
         loanLateFeesAssessedCents: loan.lateFeesAssessedCents,
         loanLateFeeCapCents: loan.lateFeeCapCents,
-        position: { debtCents: debt, ceilingCents: player.loanDebtCeilingCents, feesAssessedCents: feesAssessed, feeCapCents: player.loanFeeCapCents },
+        position: { debtCents: debt, feesAssessedCents: feesAssessed, ...limits },
       });
       await tx.loanFee.create({
         data: {
