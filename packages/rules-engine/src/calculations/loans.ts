@@ -19,7 +19,7 @@ export function loanSharkRules(ruleset: Ruleset): LoanSharkRules | undefined {
   return ruleset.loanShark?.enabled ? ruleset.loanShark : undefined;
 }
 
-export type LoanRefusalCode = 'LOAN_TERMS_INVALID' | 'LOAN_DEBT_CEILING' | 'LOAN_NOT_ELIGIBLE';
+export type LoanRefusalCode = 'LOAN_TERMS_INVALID' | 'LOAN_DEBT_CEILING' | 'LOAN_NOT_ELIGIBLE' | 'LOAN_QUOTE_CHANGED';
 
 /** A refusal a player can act on, as opposed to a RangeError, which is a server bug. */
 export class LoanError extends Error {
@@ -317,10 +317,76 @@ export function loanOffers(rules: LoanSharkRules): readonly LoanOfferRules[] {
   return rules.offers ?? [];
 }
 
-export function loanOfferTerms(offer: LoanOfferRules): LoanTerms {
+/** What a player's record looks like to the loan shark when pricing a new loan. */
+export interface LoanCreditInput {
+  position: DebtPosition;
+  /** Installments missed this round, whether or not they were paid since. */
+  missedInstallments: number;
+}
+
+/** 1.6.5-C. How one offer's fee was priced for this player, right now. */
+export interface LoanOfferPricing {
+  /** The offer's listed fee. */
+  baseFeeCents: bigint;
+  /** Owed / ceiling before the loan, whole percent rounded down. */
+  utilizationPercent: number;
+  tierLabel: string | null;
+  tierSurchargePercent: number;
+  missedInstallments: number;
+  historySurchargePercent: number;
+  /** Both surcharges, as cents of the cash advanced. */
+  surchargeCents: bigint;
+  /** The fee this loan would be fixed at. */
+  contractFeeCents: bigint;
+  /** The fee was cut down to the ruleset's most a fee can be. */
+  capped: boolean;
+}
+
+/** Owed as a whole percent of the ceiling, rounded down. */
+export function debtUtilizationPercent(position: Pick<DebtPosition, 'debtCents' | 'ceilingCents'>): number {
+  if (position.ceilingCents <= 0n) return position.debtCents > 0n ? 100 : 0;
+  return Number((position.debtCents * 100n) / position.ceilingCents);
+}
+
+/**
+ * 1.6.5-C. Prices an offer for a player: its listed fee, plus whole points of the cash
+ * advanced for the utilization tier reached and for installments missed this round, never
+ * more in total than the ruleset's most a fee can be. Without pricing rules, the listed fee.
+ * Deterministic: the same debt and history always give the same price.
+ */
+export function priceLoanOffer(rules: LoanSharkRules, offer: LoanOfferRules, credit: LoanCreditInput): LoanOfferPricing {
+  const principal = BigInt(offer.principalCents);
+  const baseFeeCents = BigInt(offer.contractFeeCents);
+  const utilizationPercent = debtUtilizationPercent(credit.position);
+  const missedInstallments = Math.max(0, Math.trunc(credit.missedInstallments));
+  const pricing = rules.pricing;
+  let tier: { label: string; surchargePercent: number } | null = null;
+  for (const candidate of pricing?.utilizationTiers ?? []) if (utilizationPercent >= candidate.fromPercent) tier = candidate;
+  const tierSurchargePercent = tier?.surchargePercent ?? 0;
+  const historySurchargePercent = pricing
+    ? Math.min(pricing.maxHistorySurchargePercent, missedInstallments * pricing.missedInstallmentSurchargePercent)
+    : 0;
+  const surchargeCents = (principal * BigInt(tierSurchargePercent + historySurchargePercent)) / 100n;
+  const most = (principal * BigInt(rules.maxContractFeePercent)) / 100n;
+  const uncapped = baseFeeCents + surchargeCents;
+  return {
+    baseFeeCents,
+    utilizationPercent,
+    tierLabel: tier?.label ?? null,
+    tierSurchargePercent,
+    missedInstallments,
+    historySurchargePercent,
+    surchargeCents,
+    contractFeeCents: uncapped > most ? most : uncapped,
+    capped: uncapped > most,
+  };
+}
+
+/** An offer's terms, at its listed fee or at the fee it was priced at. */
+export function loanOfferTerms(offer: LoanOfferRules, contractFeeCents: bigint = BigInt(offer.contractFeeCents)): LoanTerms {
   return {
     principalCents: BigInt(offer.principalCents),
-    contractFeeCents: BigInt(offer.contractFeeCents),
+    contractFeeCents,
     installmentCount: offer.installmentCount,
   };
 }
@@ -328,17 +394,19 @@ export function loanOfferTerms(offer: LoanOfferRules): LoanTerms {
 /**
  * 1.6.5-B. Why a player cannot take an offer right now, in words they can act on, or null
  * when they can. Deterministic: the same debt and net worth always give the same answer.
- * Checked in order: who the offer is open to, then room under the ceiling.
+ * Checked in order: who the offer is open to, then room under the ceiling for the whole
+ * obligation at the fee it is priced at (1.6.5-C), then the ruleset's own limits.
  */
 export function loanOfferRefusal(
   rules: LoanSharkRules,
   offer: LoanOfferRules,
-  input: { position: DebtPosition; netWorthCents: bigint },
+  input: { position: DebtPosition; netWorthCents: bigint; contractFeeCents?: bigint },
 ): { code: LoanRefusalCode; message: string } | null {
   if (offer.minNetWorthCents !== undefined && input.netWorthCents < BigInt(offer.minNetWorthCents)) {
     return { code: 'LOAN_NOT_ELIGIBLE', message: `The loan shark only fronts ${offer.name} to a boss worth ${dollars(offer.minNetWorthCents)} or more.` };
   }
-  const obligation = BigInt(offer.principalCents) + BigInt(offer.contractFeeCents);
+  const terms = loanOfferTerms(offer, input.contractFeeCents);
+  const obligation = terms.principalCents + terms.contractFeeCents;
   const room = debtRoomCents(input.position);
   if (obligation > room) {
     return {
@@ -349,7 +417,7 @@ export function loanOfferRefusal(
     };
   }
   try {
-    validateLoanTerms(rules, loanOfferTerms(offer));
+    validateLoanTerms(rules, terms);
   } catch (error) {
     if (error instanceof LoanError) return { code: error.code, message: error.message };
     throw error;

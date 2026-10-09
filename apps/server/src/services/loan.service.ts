@@ -5,12 +5,13 @@ import {
   loanOfferRefusal,
   loanOfferTerms,
   loanOffers,
+  priceLoanOffer,
   loanSharkRules,
   quoteLoan,
   type LoanTerms,
 } from '@streets/rules-engine';
 import type { LoanSharkRules } from '@streets/rulesets';
-import type { LoanAcceptResult, LoanPaymentResult } from '@streets/shared';
+import { formatCents, type LoanAcceptResult, type LoanPaymentResult } from '@streets/shared';
 import { ActionService, type ActionContext } from './action.service.js';
 import {
   applyLoanPayment,
@@ -23,6 +24,7 @@ import {
   writeLoanEvent,
 } from './loan-ledger.service.js';
 import { AppError } from '../utils/errors.js';
+import type { Db } from '../utils/db.js';
 
 /**
  * 1.6.5-A. Borrowing from and repaying the loan shark, as server actions. Both run through
@@ -34,8 +36,11 @@ import { AppError } from '../utils/errors.js';
  * server, inside the transaction, after the replay check.
  */
 
+/** Resolved terms, with anything worth keeping about how they were priced. */
+type ResolvedLoanTerms = LoanTerms & { pricing?: Record<string, string | number | boolean | null> };
+
 /** Terms as given, or resolved under the player's lock (and free to refuse). */
-type LoanTermsSource = LoanTerms | ((rules: LoanSharkRules, context: ActionContext) => LoanTerms);
+type LoanTermsSource = LoanTerms | ((rules: LoanSharkRules, context: ActionContext) => ResolvedLoanTerms | Promise<ResolvedLoanTerms>);
 
 export interface LoanAcceptInput {
   actionId?: string;
@@ -49,6 +54,11 @@ export interface LoanOfferAcceptInput {
   actionId?: string;
   requestKey: string;
   offerKey: string;
+  /**
+   * 1.6.5-C. The contract fee the player was shown. When the price has moved since, the
+   * loan is refused rather than taken at a price nobody saw.
+   */
+  quotedFeeCents?: number;
 }
 
 export interface LoanRepayInput {
@@ -56,6 +66,11 @@ export interface LoanRepayInput {
   requestKey: string;
   loanId: string;
   amountCents: bigint;
+}
+
+/** 1.6.5-C. Installments missed this round, paid since or not: the loan shark's memory. */
+export function countMissedInstallments(db: Db, roundPlayerId: string): Promise<number> {
+  return db.loanInstallment.count({ where: { roundPlayerId, missedAt: { not: null } } });
 }
 
 /** Keys are namespaced in the journal, so a client key is kept well inside the column. */
@@ -110,7 +125,7 @@ export const LoanService = {
           };
         }
 
-        const terms = typeof input.terms === 'function' ? input.terms(rules, context) : input.terms;
+        const terms: ResolvedLoanTerms = typeof input.terms === 'function' ? await input.terms(rules, context) : input.terms;
         // The limits are whatever the round's ruleset sets now, never a per-player snapshot.
         let quote;
         try {
@@ -162,6 +177,7 @@ export const LoanService = {
             principalCents: Number(quote.principalCents),
             contractFeeCents: Number(quote.contractFeeCents),
             installments: quote.installments.length,
+            ...(terms.pricing ? { pricing: terms.pricing } : {}),
           },
           at: now,
         });
@@ -183,19 +199,42 @@ export const LoanService = {
    * ruleset under the player's lock, never from the request, and the offer must be open to
    * the player and fit under the ceiling. A retry with the same request key answers with the
    * loan it already made, whatever has changed since.
+   *
+   * 1.6.5-C. The fee is priced for the player as they stand now, after anything due has
+   * settled: utilization and missed installments raise it. If it is not the fee the player
+   * was quoted, nothing is taken and the new price is reported.
    */
   acceptOffer(prisma: PrismaClient, roundPlayerId: string, input: LoanOfferAcceptInput, now: Date = new Date()) {
+    const { quotedFeeCents, ...rest } = input;
     return LoanService.accept(prisma, roundPlayerId, {
-      ...input,
-      terms: (rules, { current, player, netWorthCents }) => {
+      ...rest,
+      terms: async (rules, { tx, current, player, netWorthCents }) => {
         const offer = loanOffers(rules).find((row) => row.key === input.offerKey);
         if (!offer) throw AppError.notFound('LOAN_OFFER_NOT_FOUND', 'The loan shark is not offering that.');
-        const refused = loanOfferRefusal(rules, offer, {
-          position: { debtCents: current.loanDebtCents, feesAssessedCents: player.loanFeesAssessedCents, ...debtLimits(rules) },
-          netWorthCents,
-        });
+        const position = { debtCents: current.loanDebtCents, feesAssessedCents: player.loanFeesAssessedCents, ...debtLimits(rules) };
+        const missedInstallments = await countMissedInstallments(tx, roundPlayerId);
+        const priced = priceLoanOffer(rules, offer, { position, missedInstallments });
+        const refused = loanOfferRefusal(rules, offer, { position, netWorthCents, contractFeeCents: priced.contractFeeCents });
         if (refused) refusal(new LoanError(refused.code, refused.message));
-        return loanOfferTerms(offer);
+        if (quotedFeeCents !== undefined && BigInt(quotedFeeCents) !== priced.contractFeeCents) {
+          throw AppError.conflict(
+            'LOAN_QUOTE_CHANGED',
+            `The price changed: ${offer.name} now carries a ${formatCents(Number(priced.contractFeeCents))} fee. Review the new terms before you take it.`,
+          );
+        }
+        return {
+          ...loanOfferTerms(offer, priced.contractFeeCents),
+          pricing: {
+            baseFeeCents: Number(priced.baseFeeCents),
+            utilizationPercent: priced.utilizationPercent,
+            tier: priced.tierLabel,
+            tierSurchargePercent: priced.tierSurchargePercent,
+            missedInstallments: priced.missedInstallments,
+            historySurchargePercent: priced.historySurchargePercent,
+            surchargeCents: Number(priced.surchargeCents),
+            capped: priced.capped,
+          },
+        };
       },
     }, now);
   },

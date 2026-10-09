@@ -8,9 +8,12 @@ import {
   loanOffers,
   loanPayoffCents,
   loanSharkRules,
+  priceLoanOffer,
+  debtUtilizationPercent,
   type Ruleset,
 } from '@streets/rules-engine';
-import type { LoanHistoryDto, LoanOfferDto, LoanSharkPageDto } from '@streets/shared';
+import type { LoanCreditDto, LoanHistoryDto, LoanOfferDto, LoanSharkPageDto } from '@streets/shared';
+import { countMissedInstallments } from './loan.service.js';
 import { installmentDue, lateFeesDueCents, loanAccountDto, loanDto, loanFeeBudget } from './loan-ledger.service.js';
 
 /**
@@ -71,9 +74,9 @@ export const LoanSharkService = {
   async page(prisma: PrismaClient, ruleset: Ruleset, player: RoundPlayer, now: Date): Promise<LoanSharkPageDto> {
     const rules = loanSharkRules(ruleset);
     const base = { cashCents: Number(player.cashCents), netWorthCents: Number(player.netWorthCents) };
-    if (!rules) return { enabled: false, account: null, ...base, offers: [], activeLoans: [], closedLoans: [], history: [] };
+    if (!rules) return { enabled: false, account: null, credit: null, ...base, offers: [], activeLoans: [], closedLoans: [], history: [] };
 
-    const [loans, events] = await Promise.all([
+    const [loans, events, missedInstallments] = await Promise.all([
       prisma.loan.findMany({
         where: { roundPlayerId: player.id },
         include: { installments: { orderBy: { sequence: 'asc' } } },
@@ -84,6 +87,7 @@ export const LoanSharkService = {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: HISTORY_LIMIT,
       }),
+      countMissedInstallments(prisma, player.id),
     ]);
 
     const catalog = loanOffers(rules);
@@ -91,20 +95,32 @@ export const LoanSharkService = {
     const limits = debtLimits(rules);
     const position = { debtCents: player.loanDebtCents, feesAssessedCents: player.loanFeesAssessedCents, ...limits };
 
+    // 1.6.5-C: each offer priced for this player as they stand, exactly as acceptance prices it.
     const offers: LoanOfferDto[] = catalog.map((offer) => {
-      const terms = loanOfferTerms(offer);
+      const priced = priceLoanOffer(rules, offer, { position, missedInstallments });
+      const terms = loanOfferTerms(offer, priced.contractFeeCents);
       const obligation = terms.principalCents + terms.contractFeeCents;
       const schedule = buildInstallmentSchedule(terms, rules.installmentIntervalHours, now);
-      const refused = loanOfferRefusal(rules, offer, { position, netWorthCents: player.netWorthCents });
+      const refused = loanOfferRefusal(rules, offer, { position, netWorthCents: player.netWorthCents, contractFeeCents: priced.contractFeeCents });
       const debtAfter = position.debtCents + obligation;
       return {
         key: offer.key,
         name: offer.name,
         description: offer.description,
         principalCents: offer.principalCents,
-        contractFeeCents: offer.contractFeeCents,
+        contractFeeCents: Number(priced.contractFeeCents),
         obligationCents: Number(obligation),
-        feePercent: Math.round((offer.contractFeeCents / offer.principalCents) * 1000) / 10,
+        feePercent: Math.round((Number(priced.contractFeeCents) / offer.principalCents) * 1000) / 10,
+        pricing: {
+          baseFeeCents: Number(priced.baseFeeCents),
+          utilizationPercent: priced.utilizationPercent,
+          tierLabel: priced.tierLabel,
+          tierSurchargePercent: priced.tierSurchargePercent,
+          missedInstallments: priced.missedInstallments,
+          historySurchargePercent: priced.historySurchargePercent,
+          surchargeCents: Number(priced.surchargeCents),
+          capped: priced.capped,
+        },
         installmentCount: offer.installmentCount,
         installmentIntervalHours: rules.installmentIntervalHours,
         installments: schedule.map((row) => ({
@@ -159,9 +175,27 @@ export const LoanSharkService = {
       };
     });
 
+    let credit: LoanCreditDto | null = null;
+    if (rules.pricing) {
+      const utilizationPercent = debtUtilizationPercent(position);
+      const tiers = rules.pricing.utilizationTiers;
+      const reached = [...tiers].reverse().find((tier) => utilizationPercent >= tier.fromPercent) ?? null;
+      const next = tiers.find((tier) => tier.fromPercent > utilizationPercent) ?? null;
+      credit = {
+        utilizationPercent,
+        tierLabel: reached?.label ?? null,
+        tierSurchargePercent: reached?.surchargePercent ?? 0,
+        missedInstallments,
+        historySurchargePercent: Math.min(rules.pricing.maxHistorySurchargePercent, missedInstallments * rules.pricing.missedInstallmentSurchargePercent),
+        nextTier: next ? { label: next.label, fromPercent: next.fromPercent, surchargePercent: next.surchargePercent } : null,
+        maxFeePercent: rules.maxContractFeePercent,
+      };
+    }
+
     return {
       enabled: true,
       account: loanAccountDto(rules, player),
+      credit,
       ...base,
       offers,
       activeLoans,

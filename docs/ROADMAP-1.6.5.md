@@ -31,7 +31,7 @@ Slices **A–B** establish the debt model and readable loan offers. Slices **C�
 
 Every slice should have a release gate and a pinned ruleset, following the existing StreetsEmpire release pattern. Exact offer amounts, fees, due intervals, debt ceilings, and collection effects are balance values to set through simulation before release.
 
-**Beta progress:** Slice A is implemented on the beta branch: the pinned `classic-og-v1.6.5-a` ruleset, server-owned loan, installment, payment, fee and journal records, one per-round debt ceiling and a separate fee cap read from the ruleset, retry-safe acceptance, repayment, scheduled settlement with partial collection, late-fee assessment, pro-rata early payoff, loan ledger categories, and debt netted out of net worth. Slice B adds the Loan Shark page with three fixed offer tiers, full quotes before acceptance, retry-safe acceptance over the API, active loans, next due dates, payoff amounts and history.
+**Beta progress:** Slice A is implemented on the beta branch: the pinned `classic-og-v1.6.5-a` ruleset, server-owned loan, installment, payment, fee and journal records, one per-round debt ceiling and a separate fee cap read from the ruleset, retry-safe acceptance, repayment, scheduled settlement with partial collection, late-fee assessment, pro-rata early payoff, loan ledger categories, and debt netted out of net worth. Slice B adds the Loan Shark page with three fixed offer tiers, full quotes before acceptance, retry-safe acceptance over the API, active loans, next due dates, payoff amounts and history. Slice C lets loans stack under the one ceiling at escalating prices: fees rise with debt utilization and missed installments, every quote shows its breakdown, and a loan is never taken at a price the player was not shown.
 
 ## Proposed slices
 
@@ -127,6 +127,8 @@ Let players understand the contract before taking cash.
 
 ### 1.6.5-C — Repeat Borrowing & Escalating Terms
 
+**Status: Implemented on the beta branch.**
+
 Allow players to stack loans without making the system unlimited.
 
 - Allow another loan while the player has room under the shared debt ceiling and meets the delinquency rules.
@@ -137,6 +139,26 @@ Allow players to stack loans without making the system unlimited.
 - Keep offer access rules deterministic and explain any unavailable offer in player-facing language.
 
 **Gate:** A player can take multiple loans and reach a large balance through poor choices, but cannot exceed the overall debt limit, evade it through parallel contracts, or borrow to manufacture a loan repayment.
+
+**As built:**
+
+- **Ruleset.** `classic-og-v1.6.5-c` is 1.6.5-B plus `loanShark.pricing`, with the most a fee can be raised from 40% to 60% of the cash advanced. It is now the ruleset new rounds start on. The offers and every other limit are B's. All values are BALANCE_APPROXIMATION, for 1.6.5-G.
+- **Pricing.** A new loan's fee is the offer's listed fee plus whole points of the cash advanced:
+
+  | Utilization before the loan (owed / limit) | Tier | Surcharge |
+  | --- | --- | --- |
+  | Under 25% | Clean | — |
+  | 25% | Leaning | +4 |
+  | 50% | Stretched | +8 |
+  | 75% | In deep | +15 |
+
+  On top of the tier, each installment missed this round adds 3 points, to at most 15, whether or not it has been paid since. The total is never more than 60%. Pricing is deterministic and only ever gets dearer as debt or missed installments grow. Without pricing rules (A, B), the listed fee is the fee.
+- **Fixed price.** A loan's fee is set at acceptance and stored on the loan. Nothing reprices a loan already taken, and each `ACCEPTED` journal entry records how it was priced: listed fee, utilization, tier, missed installments, surcharges and whether the fee was capped.
+- **Quoted price only.** The page prices every offer exactly as acceptance does and shows the breakdown: listed fee, debt surcharge, missed-payment surcharge and cap. The accept request must carry the fee the player was shown (`quotedFeeCents`). If the price has moved since (another loan, a missed installment settling), nothing is taken; the server answers `LOAN_QUOTE_CHANGED` with the new fee, and the page reloads with the new terms. A retry of an attempt that did go through still answers with that loan.
+- **One ceiling.** Every loan, at its priced obligation, counts toward the same ceiling; there are no per-tier limits. Parallel acceptances serialize on the player lock, and each is priced and checked against the debt it actually lands on.
+- **No loan-to-loan repayment.** Proceeds only ever go to cash. Acceptance has no way to point proceeds at another loan, and taking a loan never changes another loan's balance. Repayments, scheduled or manual, come only from cash.
+- **Page.** "What you owe" adds how the shark sees you (tier and surcharge), missed installments and their surcharge, and what the next tier would cost. Offer cards say what their fee includes. The review notes that the price is fixed once taken.
+- **Tests.** Engine tests for tiers, history, the cap and monotonic pricing; ruleset tests. An HTTP suite (`LOAN_INTEGRATION=1`) stacks loans into a large balance at rising prices without repricing old ones, refuses a stale quote, raises prices after missed installments (and keeps the record after repayment), holds the ceiling against parallel contracts at mixed prices, and proves proceeds never reach another loan.
 
 ### 1.6.5-D — Repayment & Delinquency
 

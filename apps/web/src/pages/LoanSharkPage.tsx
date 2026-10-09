@@ -27,6 +27,8 @@ interface PendingAccept {
   requestKey: string;
   actionId: string | null;
   offerKey: string;
+  /** 1.6.5-C. The fee the player saw when they accepted. */
+  quotedFeeCents: number;
 }
 
 function readPending(): PendingAccept | null {
@@ -34,8 +36,13 @@ function readPending(): PendingAccept | null {
     const raw = window.sessionStorage.getItem(PENDING_KEY);
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<PendingAccept> | null;
-    if (!value || typeof value.requestKey !== 'string' || typeof value.offerKey !== 'string') return null;
-    return { requestKey: value.requestKey, offerKey: value.offerKey, actionId: typeof value.actionId === 'string' ? value.actionId : null };
+    if (!value || typeof value.requestKey !== 'string' || typeof value.offerKey !== 'string' || !Number.isSafeInteger(value.quotedFeeCents)) return null;
+    return {
+      requestKey: value.requestKey,
+      offerKey: value.offerKey,
+      actionId: typeof value.actionId === 'string' ? value.actionId : null,
+      quotedFeeCents: value.quotedFeeCents as number,
+    };
   } catch {
     return null;
   }
@@ -67,6 +74,14 @@ const STANDING: Record<string, string> = {
   COLLECTIONS: 'In collections',
 };
 
+export function surchargeSummary(offer: Pick<LoanOfferDto, 'pricing'>): string {
+  const parts: string[] = [];
+  if (offer.pricing.tierSurchargePercent > 0) parts.push(`+${offer.pricing.tierSurchargePercent}% for what you owe`);
+  if (offer.pricing.historySurchargePercent > 0) parts.push(`+${offer.pricing.historySurchargePercent}% for missed installments`);
+  if (offer.pricing.capped) parts.push('capped');
+  return parts.join(', ');
+}
+
 export function missedPaymentText(offer: Pick<LoanOfferDto, 'lateFeeCents' | 'lateFeeCapCents'>): string {
   return `If you cannot cover an installment when it falls due, the loan shark takes whatever cash you have toward it, adds a ${formatCents(offer.lateFeeCents)} late fee (at most ${formatCents(offer.lateFeeCapCents)} on this loan), and marks you delinquent until it is paid. Late fees never earn interest.`;
 }
@@ -80,6 +95,7 @@ function OfferCard({ offer, selected, locked, onSelect }: { offer: LoanOfferDto;
       </div>
       <Row label="Cash you receive" value={formatCents(offer.principalCents)} strong />
       <Row label="Contract fee" value={formatCents(offer.contractFeeCents)} />
+      {offer.pricing.surchargeCents > 0 ? <p className="se-loans__reason">Includes {formatCents(offer.contractFeeCents - offer.pricing.baseFeeCents)} on top of the listed {formatCents(offer.pricing.baseFeeCents)}: {surchargeSummary(offer)}.</p> : null}
       <Row label="Total payback" value={formatCents(offer.obligationCents)} strong />
       <Row label="Schedule" value={`${offer.installmentCount} × every ${hoursLabel(offer.installmentIntervalHours)}`} />
       {offer.minNetWorthCents ? <Row label="Needs net worth" value={formatCents(offer.minNetWorthCents)} /> : null}
@@ -144,16 +160,17 @@ export function LoanSharkPage() {
   async function accept() {
     if (!selected || (!uncertain && !selected.available)) return;
     const saved = pending.current;
-    const intent: PendingAccept = saved && saved.offerKey === selected.key
+    // An unconfirmed attempt is retried exactly as it was sent, price included.
+    const intent: PendingAccept = saved && saved.offerKey === selected.key && (uncertain || saved.quotedFeeCents === selected.contractFeeCents)
       ? saved
-      : { requestKey: newActionId(), actionId: null, offerKey: selected.key };
+      : { requestKey: newActionId(), actionId: null, offerKey: selected.key, quotedFeeCents: selected.contractFeeCents };
     pending.current = intent;
     writePending(intent);
     await action.run(async (actionId) => {
       intent.actionId = actionId;
       writePending(intent);
       try {
-        return await loansApi.accept({ offerKey: intent.offerKey, requestKey: intent.requestKey, actionId });
+        return await loansApi.accept({ offerKey: intent.offerKey, quotedFeeCents: intent.quotedFeeCents, requestKey: intent.requestKey, actionId });
       } catch (caught) {
         if (!(caught instanceof ApiError) || caught.isUncertain) setUncertain(true);
         else {
@@ -209,6 +226,18 @@ export function LoanSharkPage() {
               <Row label="Room left" value={formatCents(account.availableCents)} />
               <Row label="Late fees charged this round" value={`${formatCents(account.feesAssessedCents)} of ${formatCents(account.feeCapCents)} max`} />
               <Row label="Cash on hand" value={formatCents(cashCents)} />
+              {data.credit ? (
+                <>
+                  <Row label="How the shark sees you" value={`${data.credit.tierLabel ?? 'Clean'}${data.credit.tierSurchargePercent ? ` · +${data.credit.tierSurchargePercent}% on new loans` : ''}`} />
+                  <Row label="Installments missed this round" value={`${data.credit.missedInstallments}${data.credit.historySurchargePercent ? ` · +${data.credit.historySurchargePercent}% on new loans` : ''}`} />
+                  <p className="se-loans__reason">
+                    {data.credit.nextTier
+                      ? `New loans get dearer as you owe more: from ${data.credit.nextTier.fromPercent}% of your limit (${data.credit.nextTier.label}) they cost ${data.credit.nextTier.surchargePercent} more points of the cash advanced.`
+                      : 'You are in the shark\'s most expensive tier.'}
+                    {' '}Every missed installment adds to the price of new loans too. Loans you already have keep their price.
+                  </p>
+                </>
+              ) : null}
             </Panel>
 
             <div ref={reviewRef} className="se-loans__review-anchor">
@@ -218,6 +247,14 @@ export function LoanSharkPage() {
                   <div className="se-supply__quote">
                     <Row label="Offer" value={selected.name} strong />
                     <Row label="Cash you receive now" value={formatCents(selected.principalCents)} strong />
+                    {selected.pricing.surchargeCents > 0 ? (
+                      <>
+                        <Row label="Listed fee" value={formatCents(selected.pricing.baseFeeCents)} />
+                        {selected.pricing.tierSurchargePercent > 0 ? <Row label={`Debt surcharge · ${selected.pricing.tierLabel ?? ''} (${selected.pricing.utilizationPercent}% of your limit)`} value={`+${selected.pricing.tierSurchargePercent}%`} /> : null}
+                        {selected.pricing.historySurchargePercent > 0 ? <Row label={`Missed-payment surcharge · ${selected.pricing.missedInstallments} missed`} value={`+${selected.pricing.historySurchargePercent}%`} /> : null}
+                        {selected.pricing.capped ? <Row label="Capped at the most a fee can be" value={`${data?.credit?.maxFeePercent ?? selected.feePercent}%`} /> : null}
+                      </>
+                    ) : null}
                     <Row label="Fixed contract fee" value={`${formatCents(selected.contractFeeCents)} (${selected.feePercent}%)`} />
                     <Row label="Total payback on schedule" value={formatCents(selected.obligationCents)} strong />
                     {selected.installments.map((row) => (
@@ -227,7 +264,7 @@ export function LoanSharkPage() {
                     <Row label="You would owe" value={formatCents(selected.debtAfterCents)} strong />
                     <Row label="Room left after" value={formatCents(selected.availableAfterCents)} />
                     <Row label="Cash after" value={formatCents(cashCents + selected.principalCents)} />
-                    <p>Installments are collected from your cash when they fall due. Pay off early and you only owe the part of the fee earned so far; the rest is waived.</p>
+                    <p>Installments are collected from your cash when they fall due. Pay off early and you only owe the part of the fee earned so far; the rest is waived. This price is fixed once you take it: borrowing again later never reprices this loan.</p>
                     <p className="se-loans__warning">{missedPaymentText(selected)}</p>
                   </div>
                   <Button className="se-btn se-btn--primary se-btn--block" onClick={() => void accept()} disabled={action.busy} disabledReason={uncertain ? null : selected.unavailableReason}>

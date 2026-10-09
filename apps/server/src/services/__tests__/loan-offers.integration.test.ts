@@ -59,7 +59,13 @@ describe.runIf(process.env.LOAN_INTEGRATION === '1')('1.6.5-B loan offers and ac
     expect(response.statusCode).toBe(200);
     return response.json() as LoanSharkPageDto;
   };
-  const accept = (payload: Record<string, unknown>) => app.inject({ method: 'POST', url: '/api/game/loans/accept', headers: { cookie }, payload });
+  // B has no pricing, so the quoted fee is always the listed one.
+  const accept = (payload: Record<string, unknown>) => app.inject({
+    method: 'POST',
+    url: '/api/game/loans/accept',
+    headers: { cookie },
+    payload: { quotedFeeCents: rules.offers.find((row) => row.key === payload.offerKey)?.contractFeeCents ?? 0, ...payload },
+  });
   const player = (id: string) => app.prisma.roundPlayer.findUniqueOrThrow({ where: { id } });
 
   beforeAll(async () => {

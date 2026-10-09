@@ -426,6 +426,8 @@ export type CombatReconInputDto = z.infer<typeof combatReconSchema>;
 /** 1.6.5-B. Accept one of the loan shark's fixed offers. The server resolves its terms. */
 export const loanAcceptSchema = z.object({
   offerKey: z.string().trim().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick an offer.'),
+  /** 1.6.5-C. The fee the player was shown. A loan is never taken at a price nobody saw. */
+  quotedFeeCents: z.number({ invalid_type_error: 'Missing the quoted fee.' }).int().min(0).max(Number.MAX_SAFE_INTEGER),
   /** Durable acceptance key: the same key always answers with the same loan. */
   requestKey: actionIdSchema,
   actionId: actionIdSchema,

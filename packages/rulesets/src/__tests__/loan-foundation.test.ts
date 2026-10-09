@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { classicOgV16H } from '../classic-og-v1.6-h/index.js';
 import { classicOgV165A } from '../classic-og-v1.6.5-a/index.js';
 import { classicOgV165B } from '../classic-og-v1.6.5-b/index.js';
+import { classicOgV165C } from '../classic-og-v1.6.5-c/index.js';
 import { hideoutV2For } from '../hideout-v2.js';
 import { rulesets } from '../index.js';
 import type { Ruleset } from '../types.js';
@@ -42,10 +43,10 @@ describe('1.6.5-A debt foundation ruleset', () => {
 describe('1.6.5-B loan offers ruleset', () => {
   const rules = classicOgV165B.loanShark;
 
-  it('is the ruleset new rounds start on, and adds only offers to 1.6.5-A', () => {
+  it('adds only offers to 1.6.5-A', () => {
     expect(classicOgV165B.meta).toEqual({ id: 'classic-og-v1.6.5-b', version: '1.6.5-B', name: 'Classic OG - Loan Offers' });
     expect(rulesets[classicOgV165B.meta.id]).toBe(classicOgV165B);
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV165B);
+    expect((rules as { pricing?: unknown }).pricing).toBeUndefined();
     const { offers: _offers, ...limits } = rules;
     expect(limits).toEqual(classicOgV165A.loanShark);
     const { meta: _meta, loanShark: _loanShark, ...rest } = classicOgV165B;
@@ -77,5 +78,38 @@ describe('1.6.5-B loan offers ruleset', () => {
     }
     // The smallest tier is open to everyone; a new boss is never shut out entirely.
     expect('minNetWorthCents' in tiers[0]!).toBe(false);
+  });
+});
+
+describe('1.6.5-C escalating terms ruleset', () => {
+  const rules = classicOgV165C.loanShark;
+
+  it('is the ruleset new rounds start on, and adds only pricing and a higher fee cap to 1.6.5-B', () => {
+    expect(classicOgV165C.meta).toEqual({ id: 'classic-og-v1.6.5-c', version: '1.6.5-C', name: 'Classic OG - Escalating Loans' });
+    expect(rulesets[classicOgV165C.meta.id]).toBe(classicOgV165C);
+    expect(Object.values(rulesets).at(-1)).toBe(classicOgV165C);
+    const { pricing: _pricing, maxContractFeePercent, ...limits } = rules;
+    const { maxContractFeePercent: baseMax, ...baseLimits } = classicOgV165B.loanShark;
+    expect(limits).toEqual(baseLimits);
+    expect(maxContractFeePercent).toBeGreaterThan(baseMax);
+    expect(maxContractFeePercent).toBeLessThan(100);
+    const { meta: _meta, loanShark: _loanShark, ...rest } = classicOgV165C;
+    const { meta: _baseMeta, loanShark: _baseLoanShark, ...base } = classicOgV165B;
+    expect(rest).toEqual(base);
+    expect(hideoutV2For(classicOgV165C)).toBe(hideoutV2For(classicOgV165B));
+  });
+
+  it('has utilization tiers that start at zero, climb, and only ever get dearer', () => {
+    const tiers = rules.pricing.utilizationTiers;
+    expect(tiers[0]).toMatchObject({ fromPercent: 0, surchargePercent: 0 });
+    for (let index = 1; index < tiers.length; index += 1) {
+      expect(tiers[index]!.fromPercent).toBeGreaterThan(tiers[index - 1]!.fromPercent);
+      expect(tiers[index]!.fromPercent).toBeLessThan(100);
+      expect(tiers[index]!.surchargePercent).toBeGreaterThan(tiers[index - 1]!.surchargePercent);
+    }
+    expect(rules.pricing.missedInstallmentSurchargePercent).toBeGreaterThan(0);
+    expect(rules.pricing.maxHistorySurchargePercent).toBeGreaterThanOrEqual(rules.pricing.missedInstallmentSurchargePercent);
+    // Every listed fee is still valid under the cap.
+    for (const offer of rules.offers) expect(offer.contractFeeCents * 100).toBeLessThanOrEqual(offer.principalCents * rules.maxContractFeePercent);
   });
 });

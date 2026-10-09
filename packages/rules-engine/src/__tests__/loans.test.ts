@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV16H, classicOgV165A, classicOgV165B, type LoanSharkRules, type Ruleset } from '@streets/rulesets';
+import { classicOgV16H, classicOgV165A, classicOgV165B, classicOgV165C, type LoanSharkRules, type Ruleset } from '@streets/rulesets';
 import {
   LoanError,
   allocateLoanPayment,
@@ -12,6 +12,8 @@ import {
   debtRoomCents,
   lateFeeChargeCents,
   loanOfferRefusal,
+  priceLoanOffer,
+  debtUtilizationPercent,
   loanOfferTerms,
   loanOffers,
   loanOutstandingCents,
@@ -255,5 +257,66 @@ describe('1.6.5-B offers', () => {
     expect(loanOfferRefusal(offerRules, quick!, { position: { ...fresh(), debtCents: ceiling }, netWorthCents: rich })?.message)
       .toBe('You owe the loan shark as much as he will let you ($150,000). Pay some back first.');
     expect(loanOfferRefusal(offerRules, quick!, { position: { ...fresh(), debtCents: ceiling - 1_150_000n }, netWorthCents: rich })).toBeNull();
+  });
+});
+
+describe('1.6.5-C escalating terms', () => {
+  const c = classicOgV165C.loanShark;
+  const quick = c.offers[0]!;
+  const heavy = c.offers[2]!;
+  const at = (percent: number): DebtPosition => ({ ...fresh(), debtCents: (BigInt(c.debtCeilingCents) * BigInt(percent)) / 100n });
+
+  it('charges the listed fee to a clean borrower, and nothing changes without pricing rules', () => {
+    expect(priceLoanOffer(c, quick, { position: fresh(), missedInstallments: 0 })).toMatchObject({
+      contractFeeCents: 150_000n, baseFeeCents: 150_000n, surchargeCents: 0n, tierLabel: 'Clean', capped: false,
+    });
+    expect(priceLoanOffer(classicOgV165B.loanShark, quick, { position: at(90), missedInstallments: 9 })).toMatchObject({
+      contractFeeCents: 150_000n, surchargeCents: 0n, tierLabel: null,
+    });
+  });
+
+  it('adds the tier reached by utilization before the loan', () => {
+    expect(debtUtilizationPercent(at(24))).toBe(24);
+    expect(priceLoanOffer(c, quick, { position: at(24), missedInstallments: 0 }).contractFeeCents).toBe(150_000n);
+    expect(priceLoanOffer(c, quick, { position: at(25), missedInstallments: 0 })).toMatchObject({ tierLabel: 'Leaning', contractFeeCents: 190_000n });
+    expect(priceLoanOffer(c, quick, { position: at(50), missedInstallments: 0 })).toMatchObject({ tierLabel: 'Stretched', contractFeeCents: 230_000n });
+    expect(priceLoanOffer(c, quick, { position: at(80), missedInstallments: 0 })).toMatchObject({ tierLabel: 'In deep', contractFeeCents: 300_000n });
+  });
+
+  it('adds points for missed installments up to the history cap', () => {
+    expect(priceLoanOffer(c, quick, { position: fresh(), missedInstallments: 2 })).toMatchObject({ historySurchargePercent: 6, contractFeeCents: 210_000n });
+    expect(priceLoanOffer(c, quick, { position: fresh(), missedInstallments: 50 })).toMatchObject({ historySurchargePercent: 15, contractFeeCents: 300_000n });
+  });
+
+  it('never prices past the most a fee can be', () => {
+    // The worst case for the dearest tier lands exactly on the cap as shipped.
+    const worst = priceLoanOffer(c, heavy, { position: at(80), missedInstallments: 50 });
+    expect(worst.contractFeeCents).toBe((BigInt(heavy.principalCents) * BigInt(c.maxContractFeePercent)) / 100n);
+    const tight = { ...c, maxContractFeePercent: 50 };
+    const capped = priceLoanOffer(tight, heavy, { position: at(80), missedInstallments: 50 });
+    expect(capped).toMatchObject({ capped: true, contractFeeCents: (BigInt(heavy.principalCents) * 50n) / 100n });
+  });
+
+  it('only ever gets dearer as debt and missed installments grow', () => {
+    for (const offer of c.offers) {
+      let last = 0n;
+      for (let percent = 0; percent <= 100; percent += 5) {
+        for (let missed = 0; missed <= 6; missed += 1) {
+          const fee = priceLoanOffer(c, offer, { position: at(percent), missedInstallments: missed }).contractFeeCents;
+          if (missed === 0) {
+            expect(fee).toBeGreaterThanOrEqual(last);
+            last = fee;
+          }
+          expect(fee).toBeGreaterThanOrEqual(priceLoanOffer(c, offer, { position: at(percent), missedInstallments: Math.max(0, missed - 1) }).contractFeeCents);
+        }
+      }
+    }
+  });
+
+  it('checks the ceiling against the priced obligation', () => {
+    const fee = priceLoanOffer(c, quick, { position: at(80), missedInstallments: 0 }).contractFeeCents;
+    const position = { ...fresh(), debtCents: BigInt(c.debtCeilingCents) - BigInt(quick.principalCents) - fee + 1n };
+    expect(loanOfferRefusal(c, quick, { position, netWorthCents: 0n, contractFeeCents: fee })).toMatchObject({ code: 'LOAN_DEBT_CEILING' });
+    expect(loanOfferRefusal(c, quick, { position: { ...position, debtCents: position.debtCents - 1n }, netWorthCents: 0n, contractFeeCents: fee })).toBeNull();
   });
 });

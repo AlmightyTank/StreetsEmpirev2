@@ -3242,6 +3242,33 @@ export interface LoanSharkRules {
   readonly maxContractFeePercent: number;
   /** 1.6.5-B. The fixed offer tiers on the Loan Shark page. Absent: nothing is offered. */
   readonly offers?: readonly LoanOfferRules[];
+  /** 1.6.5-C. Escalating terms. Absent: every offer costs its listed fee. */
+  readonly pricing?: LoanPricingRules;
+}
+
+/**
+ * 1.6.5-C. How a new loan's fee rises with what the player already owes and how they have
+ * paid. Surcharges are whole percentage points of the cash advanced, added to the offer's
+ * listed fee, and the total never passes `maxContractFeePercent`. A loan's price is fixed
+ * when it is taken: nothing here ever reprices a loan already on the books.
+ */
+export interface LoanPricingRules {
+  /**
+   * By debt utilization before the loan (owed / ceiling), lowest first. The highest tier
+   * whose `fromPercent` the player has reached applies. The first starts at 0.
+   */
+  readonly utilizationTiers: readonly LoanUtilizationTierRules[];
+  /** Points added for each installment missed this round, whether or not it was paid since. */
+  readonly missedInstallmentSurchargePercent: number;
+  /** Most the payment-history surcharge can add. */
+  readonly maxHistorySurchargePercent: number;
+}
+
+export interface LoanUtilizationTierRules {
+  readonly fromPercent: number;
+  readonly surchargePercent: number;
+  /** Player-facing name for the tier. */
+  readonly label: string;
 }
 
 /** 1.6.5-B. One fixed loan shark offer: the same terms for everyone it is open to. */

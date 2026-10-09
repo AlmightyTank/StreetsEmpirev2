@@ -76,6 +76,31 @@ export interface LoanPaymentResult {
   replayed: boolean;
 }
 
+/** 1.6.5-C. How one offer's fee was priced: the listed fee plus surcharges, capped. */
+export interface LoanOfferPricingDto {
+  baseFeeCents: number;
+  utilizationPercent: number;
+  tierLabel: string | null;
+  tierSurchargePercent: number;
+  missedInstallments: number;
+  historySurchargePercent: number;
+  surchargeCents: number;
+  /** Cut down to the most a fee can be. */
+  capped: boolean;
+}
+
+/** 1.6.5-C. Where the player stands for pricing, and what the next tier would cost. */
+export interface LoanCreditDto {
+  utilizationPercent: number;
+  tierLabel: string | null;
+  tierSurchargePercent: number;
+  missedInstallments: number;
+  historySurchargePercent: number;
+  /** The next utilization tier up, if any: at what share of the limit, and its surcharge. */
+  nextTier: { label: string; fromPercent: number; surchargePercent: number } | null;
+  maxFeePercent: number;
+}
+
 /** 1.6.5-B. One installment of an offer, as it would fall due if accepted now. */
 export interface LoanOfferInstallmentDto {
   sequence: number;
@@ -96,6 +121,8 @@ export interface LoanOfferDto {
   obligationCents: number;
   /** Fee as a whole percent of the cash advanced, rounded to one decimal. */
   feePercent: number;
+  /** 1.6.5-C. How the fee was priced for this player now; the listed fee and nothing else before C. */
+  pricing: LoanOfferPricingDto;
   installmentCount: number;
   installmentIntervalHours: number;
   installments: LoanOfferInstallmentDto[];
@@ -131,6 +158,8 @@ export interface LoanHistoryDto {
 export interface LoanSharkPageDto {
   enabled: boolean;
   account: LoanAccountDto | null;
+  /** 1.6.5-C. Present where new loans get dearer with debt and missed payments. */
+  credit: LoanCreditDto | null;
   cashCents: number;
   netWorthCents: number;
   offers: LoanOfferDto[];
