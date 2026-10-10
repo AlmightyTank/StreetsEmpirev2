@@ -35,7 +35,7 @@ describe('PermanentUnlockService', () => {
     expect(PermanentUnlockService.productProductionUnlock(ruleset, 'COCAINE')?.key).toBe('PRODUCT_COCAINE_RECIPE');
     expect((await PermanentUnlockService.districtAccess(db, 'player-1', ruleset)).get('URBAN_GHETTO')?.unlocked).toBe(false);
     await expect(PermanentUnlockService.assertCanProduceProduct(db, 'player-1', ruleset, 'COCAINE')).rejects.toMatchObject({ code: 'PRODUCT_RECIPE_LOCKED' });
-    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'URBAN_GHETTO')).rejects.toMatchObject({ code: 'DISTRICT_SCOUT_LOCKED' });
+    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'URBAN_GHETTO')).rejects.toMatchObject({ code: 'DISTRICT_ACCESS_LOCKED' });
     await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'CASINO')).resolves.toBeUndefined();
 
     keys.add('PRODUCT_COCAINE_RECIPE');
