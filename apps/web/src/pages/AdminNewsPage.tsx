@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { AdminNewsDto, AdminNewsPostDto, AdminSiteBannersDto, SiteBannerTone } from '@streets/shared';
+import { markdownToPlainText, type AdminNewsDto, type AdminNewsPostDto, type AdminSiteBannersDto, type SiteBannerTone } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
+import { Markdown } from '../components/Markdown.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen, localInputToIso } from '../utils/admin.js';
@@ -15,6 +16,28 @@ const emptyBanner = { message: '', tone: 'info' as SiteBannerTone, startsAt: '',
 type Pending = { kind: 'edit' | 'delete' | 'resend'; post: AdminNewsPostDto };
 
 const pendingTitle: Record<Pending['kind'], string> = { edit: 'Edit', delete: 'Delete', resend: 'Post to Discord again' };
+
+const MARKDOWN_HINT = 'Markdown works: **bold**, *italic*, ~~strike~~, `code`, [link](https://…), # headings, - lists, > quotes. Discord and the forum show it too.';
+
+/** The words of a post without its markup, for the list. */
+function excerpt(body: string): string {
+  const text = markdownToPlainText(body);
+  return text.length > 280 ? `${text.slice(0, 280)}…` : text;
+}
+
+function MarkdownPreview({ text }: { text: string }) {
+  return (
+    <>
+      <p className="se-hint">{MARKDOWN_HINT}</p>
+      {text.trim() ? (
+        <div className="se-admin-news-preview" aria-label="Preview">
+          <span className="se-label">Preview</span>
+          <Markdown text={text} headings />
+        </div>
+      ) : null}
+    </>
+  );
+}
 
 function PostTags({ post }: { post: AdminNewsPostDto }) {
   const scheduled = Date.parse(post.publishedAt) > Date.now();
@@ -155,6 +178,13 @@ export function AdminNewsPage() {
     });
   }
 
+  function publishNow(target: AdminNewsPostDto) {
+    void run(() => adminApi.updateNews(target.id, { publishNow: true }), (result) => {
+      setNews(result);
+      setNotice('Published. Players see it now, and Discord gets it within a minute.');
+    });
+  }
+
   function retryMirror(target: AdminNewsPostDto) {
     void run(() => adminApi.mirrorNews(target.id), (result) => {
       setNews(result);
@@ -233,6 +263,7 @@ export function AdminNewsPage() {
                   <label className="se-label" htmlFor="admin-news-edit-body">Body</label>
                   <textarea id="admin-news-edit-body" className="se-input se-admin-textarea" maxLength={4000} value={editBody} onChange={(event) => setEditBody(event.target.value)} />
                   <p className="se-hint">Copies already sent to Discord or the forum keep their original text.</p>
+                  <MarkdownPreview text={editBody} />
                 </div>
               </>
             ) : pending.kind === 'resend' ? (
@@ -276,6 +307,7 @@ export function AdminNewsPage() {
               <label className="se-label" htmlFor="admin-news-body">Body</label>
               <textarea id="admin-news-body" className="se-input se-admin-textarea" maxLength={4000} value={post.body} onChange={(event) => setPost({ ...post, body: event.target.value })} />
               {postFields.body ? <p className="se-error" role="alert">{postFields.body}</p> : null}
+              <MarkdownPreview text={post.body} />
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="admin-news-round">Shown in</label>
@@ -398,12 +430,15 @@ export function AdminNewsPage() {
                 <span className="se-muted">{adminWhen(row.publishedAt)}</span>
               </div>
               <PostTags post={row} />
-              <p>{row.body.length > 280 ? `${row.body.slice(0, 280)}…` : row.body}</p>
-              <p className="se-hint">{row.authorName ? `By ${row.authorName}` : 'Seeded'}{row.broadcast ? (row.broadcastAt ? ` · Broadcast ${adminWhen(row.broadcastAt)}` : ' · Broadcast when published') : ''}{row.forumError && !row.forumUrl ? ` · Forum error: ${row.forumError}` : ''}</p>
+              <p>{excerpt(row.body)}</p>
+              <p className="se-hint">{row.authorName ? `By ${row.authorName}` : 'Posted automatically'}{row.broadcast ? (row.broadcastAt ? ` · Broadcast ${adminWhen(row.broadcastAt)}` : ' · Broadcast when published') : ''}{row.forumError && !row.forumUrl ? ` · Forum error: ${row.forumError}` : ''}</p>
               {row.discordWaiting ? <p className={row.discordError ? 'se-error' : 'se-hint'}>Discord: {row.discordWaiting}</p> : null}
               <div className="se-admin-moderation se-mt">
                 <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => togglePin(row)} disabledReason={busy ? working : null}>{row.isPinned ? 'Unpin' : 'Pin'}</Button>
                 <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('edit', row)} disabledReason={busy ? working : null}>Edit</Button>
+                {Date.parse(row.publishedAt) > Date.now() ? (
+                  <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => publishNow(row)} disabledReason={busy ? working : null}>Publish now</Button>
+                ) : null}
                 {mirrorEnabled && !row.forumUrl ? (
                   <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => retryMirror(row)} disabledReason={busy ? working : null}>
                     {row.forumError ? 'Retry forum' : 'Post to forum'}

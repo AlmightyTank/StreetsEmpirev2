@@ -137,25 +137,33 @@ export const AdminNewsService = {
     return AdminNewsService.list(prisma);
   },
 
-  /** Edits the game copy only. A post already sent to Discord or the forum keeps its original text there. */
+  /**
+   * Edits the game copy only. A post already sent to Discord or the forum keeps its original text there.
+   * publishNow releases a scheduled post, such as held deploy patch notes, to players and Discord at once.
+   */
   async update(
     prisma: PrismaClient,
     actor: AuditActor,
     newsId: string,
-    input: { title?: string | undefined; body?: string | undefined; pinned?: boolean | undefined },
+    input: { title?: string | undefined; body?: string | undefined; pinned?: boolean | undefined; publishNow?: true | undefined },
   ): Promise<AdminNewsDto> {
-    await prisma.$transaction(async (tx) => {
+    const now = new Date();
+    const published = await prisma.$transaction(async (tx) => {
       const before = await tx.gameNews.findUnique({ where: { id: newsId } });
       if (!before) throw AppError.notFound('NEWS_NOT_FOUND', 'That news post does not exist.');
+      if (input.publishNow && before.publishedAt <= now) throw AppError.conflict('NEWS_ALREADY_PUBLISHED', 'That post is already published.');
       const data = {
         ...(input.title !== undefined && input.title !== before.title ? { title: input.title } : {}),
         ...(input.body !== undefined && input.body !== before.body ? { body: input.body } : {}),
         ...(input.pinned !== undefined && input.pinned !== before.isPinned ? { isPinned: input.pinned } : {}),
+        ...(input.publishNow ? { publishedAt: now } : {}),
       };
       if (!Object.keys(data).length) throw AppError.badRequest('NO_CHANGES', 'Nothing changed on that post.');
       const after = await tx.gameNews.update({ where: { id: before.id }, data });
-      await AdminAuditService.record(tx, actor, { action: 'news.update', targetType: 'news', targetId: before.id, before, after });
+      await AdminAuditService.record(tx, actor, { action: input.publishNow ? 'news.publish-now' : 'news.update', targetType: 'news', targetId: before.id, before, after });
+      return Boolean(input.publishNow);
     });
+    if (published) wakeDiscordBot('news');
     return AdminNewsService.list(prisma);
   },
 

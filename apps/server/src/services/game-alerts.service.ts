@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { headsUpMinutes, loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
-import type { GameNoticeDto, NoticeCategory } from '@streets/shared';
+import { markdownToPlainText, type GameNoticeDto, type NoticeCategory } from '@streets/shared';
 import { createPlayerActivity } from './in-app-notification.service.js';
 import { CATEGORY_COLUMN, channelsFor, recipientSelect, rowsFor, type ChannelSwitches, type OutboxRow } from './notification-channels.js';
 import { PlayerStateService } from './player-state.service.js';
@@ -549,7 +549,8 @@ async function newsBroadcasts(tx: Tx, now: Date, switches: ChannelSwitches): Pro
       where: post.roundId ? { roundId: post.roundId } : { round: { status: { in: ['ACTIVE', 'REGISTRATION'] }, endsAt: { gt: now } } },
       select: { id: true, accountId: true, account: accountSettings },
     });
-    const excerpt = post.body.length > 160 ? `${post.body.slice(0, 157).trimEnd()}...` : post.body;
+    const text = markdownToPlainText(post.body);
+    const excerpt = text.length > 160 ? `${text.slice(0, 157).trimEnd()}...` : text;
     for (const player of players) {
       await createPlayerActivity(tx, player.id, 'GAME_ANNOUNCEMENT', { newsId: post.id, title: post.title, excerpt });
     }

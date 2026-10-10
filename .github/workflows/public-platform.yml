@@ -106,6 +106,10 @@ jobs:
       cancel-in-progress: false
     environment:
       name: ${{ (inputs.deploy_branch || github.ref_name) == 'main' && 'production' || 'beta' }}
+    permissions:
+      contents: read
+      # Patch notes read the bodies of the pull requests in each deploy.
+      pull-requests: read
     env:
       DEPLOY_BRANCH: ${{ inputs.deploy_branch || github.ref_name }}
       DEPLOY_COMMIT: ${{ needs.validate.outputs.commit_sha }}
@@ -155,3 +159,64 @@ jobs:
           ssh -i "$HOME/.ssh/streets-empire-deploy" \
             -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$VPS_USER@$VPS_HOST" "$remote_command"
+
+      - name: Check out history for patch notes
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.commit_sha }}
+          fetch-depth: 0
+
+      # Turns the "## Patch notes" sections of the PRs in this deploy into one news
+      # post that waits in Admin → News for review. See docs/AUTO-DEPLOY.md. The
+      # deploy already succeeded, so a problem here only warns.
+      - name: Hold patch notes for review
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          case "$DEPLOY_BRANCH" in
+            beta) checkout_dir="/opt/streets-empire/StreetsEmpirev2-beta" ;;
+            main) checkout_dir="/opt/streets-empire/StreetsEmpirev2" ;;
+            *) echo "::error::Unsupported deploy branch: $DEPLOY_BRANCH"; exit 1 ;;
+          esac
+          printf -v checkout_arg '%q' "$checkout_dir"
+          printf -v commit_arg '%q' "$DEPLOY_COMMIT"
+          vps() {
+            ssh -i "$HOME/.ssh/streets-empire-deploy"               -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes               "$VPS_USER@$VPS_HOST" "$1"
+          }
+          # The last commit whose notes were handled, kept beside the deploy history.
+          marker="$checkout_arg/.deploy/patch-notes-commit"
+          remember() { vps "mkdir -p $checkout_arg/.deploy && printf '%s
+' $commit_arg > $marker"; }
+
+          previous="$(vps "cat $marker 2>/dev/null || true" | tr -d '[:space:]')"
+          if [[ ! "$previous" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "No earlier patch notes on this server; later deploys start from $DEPLOY_COMMIT."
+            remember
+            exit 0
+          fi
+          if [[ "$previous" == "$DEPLOY_COMMIT" ]]; then
+            echo "Patch notes for $DEPLOY_COMMIT were already handled."
+            exit 0
+          fi
+          if ! git merge-base --is-ancestor "$previous" "$DEPLOY_COMMIT"; then
+            # A rollback: keep the marker so redeploying forward never repeats notes.
+            echo "$DEPLOY_COMMIT does not follow $previous, so there are no new patch notes."
+            exit 0
+          fi
+
+          notes="$RUNNER_TEMP/patch-notes.json"
+          node scripts/ops/patch-notes.mjs collect --from "$previous" --to "$DEPLOY_COMMIT"             --branch "$DEPLOY_BRANCH" --repo "$GITHUB_REPOSITORY" > "$notes"
+          if jq -e '. != null' "$notes" > /dev/null; then
+            vps "cd $checkout_arg && node scripts/ops/patch-notes.mjs post" < "$notes"
+            {
+              echo "## Patch notes held for review"
+              echo
+              echo "Edit, delete or publish them now under **Admin → News**."
+              echo
+              jq -r '.body' "$notes"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          remember

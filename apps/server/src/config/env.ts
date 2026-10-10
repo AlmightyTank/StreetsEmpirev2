@@ -69,6 +69,11 @@ const envSchema = z.object({
   DISCORD_BOT_PUSH_URL: z.union([z.literal(''), z.string().url()]).default(''),
   DISCORD_BOT_PUSH_TIMEOUT_MS: z.coerce.number().int().min(250).max(30_000).default(2_000),
 
+  /** Deploy-time patch notes (scripts/ops/patch-notes.mjs). The internal endpoint stays off while empty. */
+  PATCH_NOTES_API_TOKEN: z.union([z.literal(''), z.string().min(64)]).default(''),
+  /** How long a deploy's patch notes wait in Admin → News before players see them. */
+  PATCH_NOTES_HOLD_MINUTES: z.coerce.number().int().min(0).max(7 * 24 * 60).default(120),
+
   /** Web Push. Generate a pair with `npx web-push generate-vapid-keys`. */
   VAPID_PUBLIC_KEY: z.string().default(''),
   VAPID_PRIVATE_KEY: z.string().default(''),
@@ -257,6 +262,11 @@ export const env = {
       timeoutMs: parsed.data.DISCORD_BOT_PUSH_TIMEOUT_MS,
       enabled: Boolean(parsed.data.DISCORD_BOT_API_TOKEN && parsed.data.DISCORD_BOT_PUSH_URL),
     },
+  },
+  patchNotes: {
+    apiToken: parsed.data.PATCH_NOTES_API_TOKEN,
+    enabled: Boolean(parsed.data.PATCH_NOTES_API_TOKEN),
+    holdMinutes: parsed.data.PATCH_NOTES_HOLD_MINUTES,
   },
   push: {
     publicKey: parsed.data.VAPID_PUBLIC_KEY,

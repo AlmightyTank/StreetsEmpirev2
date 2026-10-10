@@ -1,5 +1,5 @@
 import type { APIEmbed } from 'discord.js';
-import { formatCents, formatNumber } from '@streets/shared';
+import { formatCents, formatNumber, markdownToPlainText } from '@streets/shared';
 import type {
   AlertSettings,
   AlertType,
@@ -39,6 +39,14 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 /** Player-chosen text must not format replies. Mentions are separately disabled on every reply. */
 export function escapeMarkdown(text: string): string {
   return text.replace(/[\\`*_~|>[\]()#-]/g, (char) => `\\${char}`);
+}
+
+/**
+ * A staff-written news body keeps its markdown, which Discord renders itself.
+ * Headings become bold lines so they read the same in every Discord client.
+ */
+export function newsMarkdown(body: string): string {
+  return body.replace(/^ {0,3}#{1,3}\s+(.+?)\s*#*\s*$/gm, '**$1**');
 }
 
 export function truncate(text: string, max: number): string {
@@ -309,7 +317,7 @@ export function newsEmbed(feed: NewsFeed, origin: string, limit = 5): APIEmbed {
       ? {
         fields: posts.map((post) => ({
           name: truncate(`${post.isPinned ? '📌 ' : ''}${post.title}`, 256),
-          value: truncate(`${escapeMarkdown(truncate(post.body, 300))}\n-# ${post.publishedAt.slice(0, 10)}${post.authorName ? ` · ${escapeMarkdown(post.authorName)}` : ''}`, 1024),
+          value: truncate(`${escapeMarkdown(truncate(markdownToPlainText(post.body), 300))}\n-# ${post.publishedAt.slice(0, 10)}${post.authorName ? ` · ${escapeMarkdown(post.authorName)}` : ''}`, 1024),
         })),
       }
       : { description: 'No round news has been posted yet.' }),
@@ -461,7 +469,7 @@ export function newsPostEmbed(post: NewsPost): APIEmbed {
     title: truncate(`${post.isPinned ? '📌 ' : ''}${post.title}`, 256),
     url: post.url,
     color: BRAND_COLOR,
-    description: truncate(escapeMarkdown(post.body), 1500),
+    description: truncate(newsMarkdown(post.body), 1500),
     footer: { text: post.authorName ? `Posted by ${post.authorName}` : 'StreetsEmpire news' },
     timestamp: post.publishedAt,
   };
