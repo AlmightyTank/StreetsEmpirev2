@@ -1013,7 +1013,7 @@ export interface DistrictDto {
   unarmedThugs: number;
   requiresArmedThugs: boolean;
   /** Quest gate for scouting. The district remains visible while locked. */
-  scoutAccess?: { unlocked: boolean; unlockName: string; unlockDescription: string; unlockQuest: QuestLinkDto | null };
+  districtAccess?: { unlocked: boolean; unlockName: string; unlockDescription: string; unlockQuest: QuestLinkDto | null };
 }
 
 export interface DistrictsDto {
