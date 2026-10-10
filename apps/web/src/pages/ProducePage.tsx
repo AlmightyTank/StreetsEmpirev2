@@ -28,7 +28,7 @@ const CRACK_ONLY: Profile[] = [{ key: 'CRACK', name: 'Product', role: 'The one p
 /** 0.4.0-D. The catalog's cookable products, from the round's recipes. */
 function recipeProfiles(data: ProductsDto | null): Profile[] {
   if (!data?.economy) return CRACK_ONLY;
-  return data.products.filter((product) => product.recipe).map((product) => ({
+  return data.products.filter((product) => product.recipe && product.recipeAccess?.unlocked !== false).map((product) => ({
     key: product.key,
     name: product.name,
     role: `${product.recipe!.perThugPerTurn} a thug a turn · ${formatCentsExact(product.recipe!.ingredientCentsPerUnit)} each${product.recipe!.heatPerUnit > 0 ? ' · draws Heat' : ''}`,
@@ -68,6 +68,7 @@ export function ProducePage() {
   }, []);
 
   const PRODUCT_PROFILES = recipeProfiles(catalog);
+  const lockedRecipes = catalog?.products.filter((product) => product.recipe && product.recipeAccess?.unlocked === false) ?? [];
 
   // A remembered product this round no longer cooks falls back to the first one on offer.
   useEffect(() => {
@@ -170,6 +171,14 @@ export function ProducePage() {
                 </label>
               ))}
             </div>
+            {lockedRecipes.length ? (
+              <Alert>
+                <strong>More recipes open through quests.</strong>
+                <ul>{lockedRecipes.map((product) => (
+                  <li key={product.key}>{product.name}: {product.recipeAccess!.unlockQuest ? <Link to={'/game/quests?focus=' + encodeURIComponent(product.recipeAccess!.unlockQuest.key)}>complete {product.recipeAccess!.unlockQuest.title}</Link> : product.recipeAccess!.unlockDescription}</li>
+                ))}</ul>
+              </Alert>
+            ) : null}
           </section>
 
           <aside className="se-produce-plan__read">
