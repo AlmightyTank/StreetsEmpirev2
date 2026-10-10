@@ -352,7 +352,9 @@ function AchievementsPanel({
                 inert={!showLockedAchievements}
               >
                 <div className="se-collapse__inner">
-                  <ul className="se-ach-grid">{locked.map((award) => <AchievementCard award={award} key={award.key} />)}</ul>
+                  {showLockedAchievements ? (
+                    <ul className="se-ach-grid">{locked.map((award) => <AchievementCard award={award} key={award.key} />)}</ul>
+                  ) : null}
                 </div>
               </div>
             ) : <p className="se-muted">Every listed achievement is unlocked.</p>}
