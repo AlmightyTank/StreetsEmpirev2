@@ -8,7 +8,7 @@ import { Button } from '../components/Button.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { rewardText } from '../components/RewardChip.js';
 import { useGameAction } from '../hooks/useGameAction.js';
-import { ITEM_ART, itemArtUrl, rewardArtKey, type ItemArtKey } from '../items/itemArt.js';
+import { ITEM_ART, itemArtUrl, rewardArtKey } from '../items/itemArt.js';
 import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -74,17 +74,19 @@ function PassMetric({
 
 type CosmeticPreviewKind = 'theme' | 'frame' | 'badge' | 'title' | 'item';
 
-const COSMETIC_PREVIEW_ITEMS = ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN'] as const satisfies readonly ItemArtKey[];
+const COSMETIC_PREVIEW_ITEMS = ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN'] as const;
+type CosmeticPreviewItemKey = typeof COSMETIC_PREVIEW_ITEMS[number];
+type CosmeticCollectionStyleKey = Exclude<ItemCosmeticStyleKey, 'classic'>;
 
-function cosmeticCollectionStyle(key: string): ItemCosmeticStyleKey | null {
+function cosmeticCollectionStyle(key: string): CosmeticCollectionStyleKey | null {
   if (key === 'street-pass-s1-urban-ghost') return 'urban-ghost';
   if (key === 'street-pass-s1-midnight-ops') return 'midnight-ops';
   if (key === 'street-pass-s1-cartel-gold') return 'cartel-gold';
   return null;
 }
 
-function randomCosmeticPreviewItem(): ItemArtKey {
-  return COSMETIC_PREVIEW_ITEMS[Math.floor(Math.random() * COSMETIC_PREVIEW_ITEMS.length)];
+function randomCosmeticPreviewItem(): CosmeticPreviewItemKey {
+  return COSMETIC_PREVIEW_ITEMS[Math.floor(Math.random() * COSMETIC_PREVIEW_ITEMS.length)]!;
 }
 
 type CosmeticPreview = {
@@ -128,13 +130,13 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
   const displayName = useSession((state) => state.me?.displayName ?? state.account?.username ?? 'AMIGHTYTANK');
   const titlePlacement = useSession((state) => state.profileSettings.titlePlacement);
   const active = previews[Math.min(activeIndex, Math.max(0, previews.length - 1))];
-  const [collectionPreviewWeapons] = useState(() => ({
+  const [collectionPreviewItems] = useState<Record<CosmeticCollectionStyleKey, CosmeticPreviewItemKey>>(() => ({
     'urban-ghost': randomCosmeticPreviewItem(),
     'midnight-ops': randomCosmeticPreviewItem(),
     'cartel-gold': randomCosmeticPreviewItem(),
   }));
   const activeCollectionStyle = active ? cosmeticCollectionStyle(active.key) : null;
-  const activeWeapon = activeCollectionStyle ? collectionPreviewWeapons[activeCollectionStyle] : null;
+  const activeWeapon = activeCollectionStyle ? collectionPreviewItems[activeCollectionStyle] : null;
 
   useEffect(() => {
     if (activeIndex < previews.length) return;
