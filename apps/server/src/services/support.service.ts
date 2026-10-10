@@ -8,10 +8,13 @@ import {
   type BugReportCategory,
   type BugReportInput,
   type BugReportResolution,
+  type BugReportSource,
 } from '@streets/shared';
 import { verifyPassword } from '../auth/password.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
+import { wakeDiscordBot } from './discord-bot-push.service.js';
+import { DiscordStaffService, staffBugReport, type StaffBugReportDto } from './discord-staff.service.js';
 
 export const BUG_REPORT_PAGE_SIZE = 25;
 
@@ -31,7 +34,16 @@ function toBugReportDto(row: BugReport): AdminBugReportDto {
     resolvedByUsername: row.resolvedByUsername,
     resolution: (row.resolution as BugReportResolution | null) ?? null,
     resolutionNote: row.resolutionNote,
+    source: row.source === 'DISCORD' ? 'DISCORD' : 'GAME',
+    playerReply: row.playerReply,
   };
+}
+
+/** The active account behind a Discord user, for the bot's /bug and staff buttons. */
+async function discordAccount(prisma: PrismaClient, discordId: string): Promise<Pick<Account, 'id' | 'username' | 'isAdmin'>> {
+  const account = await prisma.account.findFirst({ where: { discordId, isActive: true }, select: { id: true, username: true, isAdmin: true } });
+  if (!account) throw AppError.notFound('DISCORD_NOT_LINKED', 'That Discord account is not linked to a StreetsEmpire account.');
+  return account;
 }
 
 /** rc.2. Bugs players report from the game, and the admin queue that works through them. */
@@ -40,7 +52,7 @@ export const BugReportService = {
     prisma: PrismaClient,
     account: Pick<Account, 'id' | 'username'>,
     input: BugReportInput,
-    meta: { userAgent?: string | undefined },
+    meta: { userAgent?: string | undefined; source?: BugReportSource | undefined },
     now = new Date(),
   ): Promise<{ ok: true; id: string; message: string }> {
     const recent = await prisma.bugReport.count({
@@ -49,19 +61,51 @@ export const BugReportService = {
     if (recent >= BUG_REPORTS_PER_HOUR) {
       throw AppError.tooManyRequests('BUG_REPORT_LIMIT', `That is ${BUG_REPORTS_PER_HOUR} reports this hour. Thank you; send the rest a little later.`);
     }
-    const row = await prisma.bugReport.create({
-      data: {
-        accountId: account.id,
-        username: account.username,
-        category: input.category,
-        summary: input.summary,
-        details: input.details,
-        pagePath: input.pagePath?.slice(0, 200) ?? null,
-        userAgent: meta.userAgent?.slice(0, 255) ?? null,
-        appVersion: APP_VERSION,
-      },
+    const row = await prisma.$transaction(async (tx) => {
+      const created = await tx.bugReport.create({
+        data: {
+          accountId: account.id,
+          username: account.username,
+          category: input.category,
+          summary: input.summary,
+          details: input.details,
+          pagePath: input.pagePath?.slice(0, 200) ?? null,
+          userAgent: meta.userAgent?.slice(0, 255) ?? null,
+          appVersion: APP_VERSION,
+          source: meta.source ?? 'GAME',
+        },
+      });
+      await DiscordStaffService.queue(tx, 'BUG_REPORT', created.id);
+      return created;
     });
-    return { ok: true, id: row.id, message: 'Thanks. Staff read every report, and the page you were on went with it.' };
+    wakeDiscordBot('staff');
+    return {
+      ok: true,
+      id: row.id,
+      message: meta.source === 'DISCORD'
+        ? 'Thanks. Staff read every report, and you will hear back here or in the game when it is resolved.'
+        : 'Thanks. Staff read every report, and the page you were on went with it.',
+    };
+  },
+
+  /** /bug from Discord: the same report and hourly limit as the game form, from the linked account. */
+  async createFromDiscord(prisma: PrismaClient, discordId: string, input: BugReportInput, now = new Date()): Promise<{ ok: true; id: string; message: string }> {
+    const account = await discordAccount(prisma, discordId);
+    return BugReportService.create(prisma, account, input, { userAgent: 'Discord /bug', source: 'DISCORD' }, now);
+  },
+
+  /** A staff button in Discord: only a linked game admin, recorded in the audit log as them. */
+  async resolveFromDiscord(
+    prisma: PrismaClient,
+    discordId: string,
+    reportId: string,
+    input: { resolution: BugReportResolution; note: string; playerReply?: string | undefined },
+    now = new Date(),
+  ): Promise<StaffBugReportDto> {
+    const account = await discordAccount(prisma, discordId);
+    if (!account.isAdmin) throw AppError.forbidden('Only game admins can resolve bug reports.');
+    await BugReportService.resolve(prisma, account, reportId, input.resolution, input.note, now, input.playerReply);
+    return staffBugReport(await prisma.bugReport.findUniqueOrThrow({ where: { id: reportId } }));
   },
 
   async queue(prisma: PrismaClient, status: AdminBugReportStatus, requestedPage = 1): Promise<AdminBugReportQueueDto> {
@@ -90,13 +134,15 @@ export const BugReportService = {
     resolution: BugReportResolution,
     note: string,
     now = new Date(),
+    playerReply?: string | undefined,
   ): Promise<AdminBugReportQueueDto> {
+    const reply = playerReply?.trim() || null;
     await prisma.$transaction(async (tx) => {
       const before = await tx.bugReport.findUnique({ where: { id: reportId } });
       if (!before) throw AppError.notFound('BUG_REPORT_NOT_FOUND', 'That bug report does not exist.');
       const claimed = await tx.bugReport.updateMany({
         where: { id: reportId, resolvedAt: null },
-        data: { resolvedAt: now, resolvedByUsername: actor.username, resolution, resolutionNote: note },
+        data: { resolvedAt: now, resolvedByUsername: actor.username, resolution, resolutionNote: note, playerReply: reply },
       });
       if (claimed.count !== 1) throw AppError.conflict('BUG_REPORT_RESOLVED', 'Another admin already resolved that report.');
       await AdminAuditService.record(tx, actor, {
@@ -105,9 +151,11 @@ export const BugReportService = {
         targetId: reportId,
         reason: note,
         before: { summary: before.summary, reporter: before.username },
-        after: { resolution },
+        after: { resolution, playerReply: reply },
       });
+      await DiscordStaffService.queue(tx, 'BUG_REPORT_RESOLVED', reportId);
     });
+    wakeDiscordBot('staff');
     return BugReportService.queue(prisma, 'open');
   },
 };
