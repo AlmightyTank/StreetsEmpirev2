@@ -126,6 +126,9 @@ function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city:
                 </span>
               </div>
 
+              {block.districtAccess?.unlocked === false ? (
+                <p className="se-hint se-bad">{block.districtAccess.unlockName} required. {block.districtAccess.unlockQuest ? <Link to={'/game/quests?focus=' + encodeURIComponent(block.districtAccess.unlockQuest.key)}>Complete {block.districtAccess.unlockQuest.title} to open this district.</Link> : block.districtAccess.unlockDescription}</p>
+              ) : null}
               <div className="se-turfboard__stats">
                 {block.holder ? (
                   <>
@@ -154,10 +157,10 @@ function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city:
                 </span>
               ) : null}
 
-              {block.businesses ? <BusinessLots block={block} business={turf.business} onChanged={onChanged} /> : null}
-              {turf.business?.wars ? <BlockWarPanel block={block} wars={turf.business.wars} isHome={city.isHome} onChanged={onChanged} /> : null}
+              {block.businesses && block.districtAccess?.unlocked !== false ? <BusinessLots block={block} business={turf.business} onChanged={onChanged} /> : null}
+              {turf.business?.wars && block.districtAccess?.unlocked !== false ? <BlockWarPanel block={block} wars={turf.business.wars} isHome={city.isHome} onChanged={onChanged} /> : null}
 
-              {selectedDistrict === block.district ? (
+              {selectedDistrict === block.district && block.districtAccess?.unlocked !== false ? (
                 <Link className="se-turfboard__scout-link" to={`/game/scout?district=${encodeURIComponent(block.district)}`}>
                   {city.isHome ? 'Scout this district' : 'Scout this district type at home'} <span aria-hidden="true">↗</span>
                 </Link>
@@ -169,7 +172,7 @@ function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city:
                   Revenge active until {formatClockTime(block.revengeUntil)} · no presence required.
                 </span>
               ) : null}
-              <TurfActions
+              {block.districtAccess?.unlocked !== false ? <TurfActions
                 block={block}
                 isHome={city.isHome}
                 holdingEnabled={turf.holdingEnabled}
