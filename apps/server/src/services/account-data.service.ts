@@ -122,7 +122,7 @@ export const AccountDataService = {
       prisma.playerContact.findMany({ where: { ownerId: { in: playerIds } }, select: { kind: true, note: true, createdAt: true, target: { select: { displayName: true, roundId: true } } } }),
       prisma.playerMute.findMany({ where: { muterAccountId: accountId }, select: { createdAt: true, muted: { select: { username: true } } } }),
       prisma.playerMessageReport.findMany({ where: { reporterAccountId: accountId }, select: { reason: true, createdAt: true, resolvedAt: true, resolution: true } }),
-      prisma.bugReport.findMany({ where: { accountId }, select: { category: true, summary: true, details: true, pagePath: true, createdAt: true, resolvedAt: true, resolution: true, resolutionNote: true } }),
+      prisma.bugReport.findMany({ where: { accountId }, select: { category: true, summary: true, details: true, pagePath: true, source: true, createdAt: true, resolvedAt: true, resolution: true, playerReply: true } }),
     ]);
 
     return plain({

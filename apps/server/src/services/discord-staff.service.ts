@@ -95,7 +95,8 @@ export const DiscordStaffService = {
           posts.push({ id: row.id, kind, editMessageId, bugReport: staffBugReport(report) });
         } else if (kind === 'PATCH_NOTES_HELD') {
           const news = await tx.gameNews.findUnique({ where: { id: row.targetId } });
-          if (!news) continue;
+          // Already public, say after the staff channel was down past the hold: nothing left to review.
+          if (!news || news.publishedAt <= now) continue;
           posts.push({
             id: row.id,
             kind,
