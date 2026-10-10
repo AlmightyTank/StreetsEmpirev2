@@ -25,7 +25,7 @@ describe('PermanentUnlockService', () => {
         },
         URBAN_GHETTO_SCOUT_ACCESS: {
           key: 'URBAN_GHETTO_SCOUT_ACCESS', name: 'Ghetto Access', description: 'A quest opens this neighborhood.',
-          category: 'TRAVEL', effect: { kind: 'DISTRICT_SCOUT_ACCESS', districtKey: 'URBAN_GHETTO' },
+          category: 'TRAVEL', effect: { kind: 'DISTRICT_ACCESS', districtKey: 'URBAN_GHETTO' },
         },
       },
     } as Ruleset;
@@ -33,15 +33,15 @@ describe('PermanentUnlockService', () => {
     const db = { playerUnlock: { findMany: async () => [...keys].map((key) => ({ key })) } } as unknown as Db;
 
     expect(PermanentUnlockService.productProductionUnlock(ruleset, 'COCAINE')?.key).toBe('PRODUCT_COCAINE_RECIPE');
-    expect((await PermanentUnlockService.scoutDistrictAccess(db, 'player-1', ruleset)).get('URBAN_GHETTO')?.unlocked).toBe(false);
+    expect((await PermanentUnlockService.districtAccess(db, 'player-1', ruleset)).get('URBAN_GHETTO')?.unlocked).toBe(false);
     await expect(PermanentUnlockService.assertCanProduceProduct(db, 'player-1', ruleset, 'COCAINE')).rejects.toMatchObject({ code: 'PRODUCT_RECIPE_LOCKED' });
-    await expect(PermanentUnlockService.assertCanScoutDistrict(db, 'player-1', ruleset, 'URBAN_GHETTO')).rejects.toMatchObject({ code: 'DISTRICT_SCOUT_LOCKED' });
-    await expect(PermanentUnlockService.assertCanScoutDistrict(db, 'player-1', ruleset, 'CASINO')).resolves.toBeUndefined();
+    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'URBAN_GHETTO')).rejects.toMatchObject({ code: 'DISTRICT_SCOUT_LOCKED' });
+    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'CASINO')).resolves.toBeUndefined();
 
     keys.add('PRODUCT_COCAINE_RECIPE');
     keys.add('URBAN_GHETTO_SCOUT_ACCESS');
     await expect(PermanentUnlockService.assertCanProduceProduct(db, 'player-1', ruleset, 'COCAINE')).resolves.toBeUndefined();
-    await expect(PermanentUnlockService.assertCanScoutDistrict(db, 'player-1', ruleset, 'URBAN_GHETTO')).resolves.toBeUndefined();
+    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'URBAN_GHETTO')).resolves.toBeUndefined();
   });
 
   it('awards one idempotent per-round unlock with its source job', async () => {
