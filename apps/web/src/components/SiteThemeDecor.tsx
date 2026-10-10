@@ -107,21 +107,9 @@ const themeMotes = [
   ['78%', '66%', '-11s'], ['87%', '40%', '-3s'], ['95%', '73%', '-8s'],
 ] as const;
 
-const themeShellArt: Record<string, string> = {
-  'motor-city-iron': 'chrome-serpent',
-  'open-road': 'phantom-convoy',
-  'neon-vice': 'lantern-district',
-  'blue-heat': 'siren-breaker',
-  'rain-city-wire': 'block-sovereign',
-  'casino-floor': 'gilded-house',
-  'federal-case': 'dead-or-alive',
-  'midnight-market': 'laurel-ascendant',
-};
-
 function ThemePackAtmosphere({ themeKey }: { themeKey: string }) {
   return (
     <div className={`se-site-theme-decor se-site-theme-decor--theme-pack se-site-theme-decor--${themeKey}`} aria-hidden="true">
-      <img className="se-theme-pack__art" src={`/site-themes/${themeShellArt[themeKey]}.webp`} alt="" />
       <div className="se-theme-pack__motif" />
       <div className="se-theme-pack__motes">
         {themeMotes.map(([left, top, delay], index) => (

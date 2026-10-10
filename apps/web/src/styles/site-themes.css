@@ -1312,26 +1312,13 @@
   z-index: 0;
   opacity: .48;
 }
-.se-theme-pack__art {
-  position: absolute;
-  top: 50%;
-  left: -18vw;
-  width: 136vw;
-  height: auto;
-  max-width: none;
-  opacity: .38;
-  mix-blend-mode: screen;
-  filter: saturate(.72) brightness(1.16);
-  transform: translate3d(0, -50%, 0);
-  animation: se-theme-pack-art-drift 26s ease-in-out infinite alternate;
-}
 .se-theme-pack__motif {
   position: absolute;
   top: 7vh;
   right: -2vw;
   width: min(58vw, 800px);
   height: min(70vh, 760px);
-  opacity: .12;
+  opacity: .26;
   filter: drop-shadow(0 0 18px var(--se-pack-color));
   background: var(--se-pack-motif);
   animation: se-theme-pack-drift 18s ease-in-out infinite alternate;
@@ -1362,19 +1349,13 @@
 .se-site-theme-decor--federal-case { --se-pack-color: #caa86d; --se-pack-motif: repeating-linear-gradient(0deg, transparent 0 28px, #caa86d25 29px 31px, transparent 32px 48px), linear-gradient(110deg, transparent 40%, #71b8e622 51%, transparent 60%); }
 .se-site-theme-decor--midnight-market { --se-pack-color: #e6c979; --se-pack-motif: radial-gradient(ellipse at 50% 48%, transparent 0 28%, #e6c97935 29% 30%, transparent 31%), radial-gradient(circle at 28% 25%, #ffe9a54a 0 2px, transparent 3px), radial-gradient(circle at 76% 68%, #ffe9a54a 0 2px, transparent 3px); }
 @keyframes se-theme-pack-drift { from { transform: translate3d(0, 0, 0) rotate(-1deg); } to { transform: translate3d(-20px, 12px, 0) rotate(1deg); } }
-@keyframes se-theme-pack-art-drift { from { transform: translate3d(-8px, -50%, 0) scale(1); } to { transform: translate3d(8px, -50%, 0) scale(1.018); } }
 @keyframes se-theme-pack-mote { 0%, 100% { transform: translate3d(0, 14px, 0) scale(.65); opacity: .2; } 50% { transform: translate3d(8px, -18px, 0) scale(1); opacity: .85; } }
 @keyframes se-theme-pack-haze { from { opacity: .28; } to { opacity: .8; } }
-.se-reduced-motion .se-theme-pack__art,
 .se-reduced-motion .se-theme-pack__motif,
 .se-reduced-motion .se-theme-pack__motes i,
 .se-reduced-motion .se-theme-pack__haze { animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
-  .se-theme-pack__art,
   .se-theme-pack__motif,
   .se-theme-pack__motes i,
   .se-theme-pack__haze { animation: none !important; }
-}
-@media (max-width: 700px) {
-  .se-theme-pack__art { top: 28vh; left: -30vw; width: 160vw; opacity: .28; }
 }
