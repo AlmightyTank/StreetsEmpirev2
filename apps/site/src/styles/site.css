@@ -515,6 +515,18 @@ a {
   text-transform: uppercase;
 }
 
+.site-status-badge--beta {
+  border-color: rgba(255, 205, 86, 0.4);
+  background: rgba(255, 205, 86, 0.08);
+  color: #ffcd56;
+}
+
+.site-status-badge--planned {
+  border-color: var(--site-line-soft);
+  background: transparent;
+  color: var(--site-muted);
+}
+
 .site-feature-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1682,6 +1694,7 @@ a {
   font-weight: 900;
 }
 
+.roadmap-item__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .roadmap-item h2 { margin: .25rem 0 .4rem; font-size: 1.25rem; }
 .roadmap-item p { margin: 0; color: var(--site-muted); }
 
