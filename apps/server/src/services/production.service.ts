@@ -16,6 +16,7 @@ import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMov
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { encounterActivityPayload, RandomEncounterService } from './random-encounter.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 
 export interface ProduceInput {
   turns: number;
@@ -78,6 +79,7 @@ export const ProductionService = {
         if (!baseRecipe) {
           throw AppError.badRequest('UNKNOWN_RECIPE', 'Your crew cannot cook that.', { productType: `Pick one of: ${recipes.map((row) => row.name).join(', ')}.` });
         }
+        await PermanentUnlockService.assertCanProduceProduct(tx, roundPlayerId, ruleset, baseRecipe.product);
         const ingredientEfficiencyPercent = hideoutWorkshopIngredientEfficiencyPercent(ruleset, current);
         const effectiveIngredientCentsPerUnit = hideoutWorkshopIngredientCentsPerUnit(
           baseRecipe.ingredientCentsPerUnit,
