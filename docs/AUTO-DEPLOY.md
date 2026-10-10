@@ -55,3 +55,5 @@ Before relying on automation, test the SSH account from a trusted machine and ru
 the existing deploy scripts manually once on the VPS. Add the workflow and secret
 configuration to both `beta` and `main`. Future pushes will validate and deploy
 automatically; manual commit selection is available from the Actions page.
+
+After deploying a selected older SHA, the helper returns the VPS checkout to the branch tip. The services keep running the selected build until the next deployment, and later automatic pushes continue to work.
