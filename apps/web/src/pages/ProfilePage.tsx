@@ -14,6 +14,7 @@ import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { ContactButton } from '../components/ContactButton.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
+import { ProfileBadgeArt } from '../components/ProfileBadgeArt.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
 import { hasProfileLook, ProfileLook } from '../components/ProfileLook.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
@@ -211,6 +212,13 @@ function AchievementCard({ award }: { award: PublicAwardDto }) {
   const percent = progressPercent(award);
   return (
     <li className={`se-ach se-ach--${award.rarity}${award.unlocked ? '' : ' se-ach--locked'}`}>
+      <ProfileBadgeArt
+        badgeKey={award.key}
+        category={award.category}
+        rarity={award.rarity}
+        size={52}
+        locked={!award.unlocked}
+      />
       <div className="se-ach__top">
         <span className="se-ach__cat">{categoryName[award.category]}</span>
         <span className="se-ach__rarity">{award.rarity}</span>
