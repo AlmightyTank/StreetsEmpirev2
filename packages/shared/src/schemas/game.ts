@@ -350,6 +350,16 @@ export const dealerStaffReleaseSchema = z.object({ actionId: actionIdSchema }).s
 export type DealerStaffAssignInput = z.infer<typeof dealerStaffAssignSchema>;
 export type DealerStaffReleaseInput = z.infer<typeof dealerStaffReleaseSchema>;
 
+/** 1.7.0-A. A page of the crew roster. */
+export const crewRosterQuerySchema = z.object({
+  role: z.enum(['THUG', 'WORKER']).optional(),
+  status: z.enum(['AVAILABLE', 'ASSIGNED', 'IN_TRANSIT', 'RECOVERING', 'RELEASED']).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
+}).strict();
+
+export type CrewRosterQuery = z.infer<typeof crewRosterQuerySchema>;
+
 /** 0.4.0-D. Pip's counter for a non-crack product. */
 export const productTradeSchema = z.object({
   product: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),

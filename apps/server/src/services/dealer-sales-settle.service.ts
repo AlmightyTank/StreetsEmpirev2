@@ -12,6 +12,7 @@ import type { DistrictKey } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { LawService } from './law.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 /**
  * 1.6.0-F. Dealer sales, settled lazily under the player's lock before anything reads cash.
@@ -113,6 +114,8 @@ export const DealerSalesSettleService = {
             if (!shares[index]) continue;
             experience[index]! += shares[index]!;
             await tx.dealerStaff.update({ where: { id: staff.id }, data: { experiencePoints: { increment: shares[index]! } } });
+            // 1.7.0-A: and the crew member who carries the career, in step.
+            await CrewRosterService.addDealerExperience(tx, ruleset, staff.id, shares[index]!);
           }
           inventory -= batch.sold;
           sold += batch.sold;

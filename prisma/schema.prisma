@@ -1391,13 +1391,13 @@ model RoundPlayer {
   /// 0.3.0-C. The alliance this player is in now, and since when. Shared revenge only
   /// counts hits on the alliance from after the member joined.
   allianceId            String?
-  alliance              Alliance?          @relation("AllianceMembers", fields: [allianceId], references: [id], onDelete: SetNull)
+  alliance              Alliance?            @relation("AllianceMembers", fields: [allianceId], references: [id], onDelete: SetNull)
   allianceJoinedAt      DateTime?
   /// The alliance this player last left or was kicked from. Until the cooldown passes
   /// they cannot join or found an alliance, and they and that alliance cannot hit each other.
   formerAllianceId      String?
   allianceCooldownUntil DateTime?
-  allianceInvites       AllianceInvite[]   @relation("AllianceInvitee")
+  allianceInvites       AllianceInvite[]     @relation("AllianceInvitee")
   /// 0.4.0-A. Every product except crack, which stays on the `crack` column in every round.
   products              PlayerProduct[]
   productShelves        ProductShelf[]
@@ -1415,6 +1415,10 @@ model RoundPlayer {
   loanPayments          LoanPayment[]
   loanFees              LoanFee[]
   loanEvents            LoanEvent[]
+  /// 1.7.0-A. The individual thugs and workers behind the counts above, and their migration.
+  crewMembers           CrewMember[]
+  crewMemberEvents      CrewMemberEvent[]
+  crewRosterMigration   CrewRosterMigration?
   /// 0.5.0-B. Runs out of town, Pip's shelves in other cities, and what the crew saw there.
   runs                  Run[]
   cityShelves           CityShelf[]
@@ -1423,27 +1427,27 @@ model RoundPlayer {
   /// Trips A. The boss away from home and back.
   bossTrips             BossTrip[]
   /// Trips C. Hits on a visiting boss: started and taken.
-  bossHitsStarted       BossHit[]          @relation("BossHitAttacker")
-  bossHitsTaken         BossHit[]          @relation("BossHitOwner")
+  bossHitsStarted       BossHit[]            @relation("BossHitAttacker")
+  bossHitsTaken         BossHit[]            @relation("BossHitOwner")
   /// Trips D2. Backup sent to allies' bosses, and sit-downs proposed and received.
   bossHitBackups        BossHitBackup[]
-  sitDownsProposed      SitDown[]          @relation("SitDownProposer")
-  sitDownsInvited       SitDown[]          @relation("SitDownInvitee")
-  convoyTailsOwned      ConvoyTail[]       @relation("ConvoyTailOwner")
-  convoyTailsStarted    ConvoyTail[]       @relation("ConvoyTailAttacker")
+  sitDownsProposed      SitDown[]            @relation("SitDownProposer")
+  sitDownsInvited       SitDown[]            @relation("SitDownInvitee")
+  convoyTailsOwned      ConvoyTail[]         @relation("ConvoyTailOwner")
+  convoyTailsStarted    ConvoyTail[]         @relation("ConvoyTailAttacker")
   convoyBackups         ConvoyBackup[]
   convoyRecon           ConvoyRecon?
   /// 0.6.0-A. Blocks this crew holds, and the blocks it has worked lately.
-  turfHeld              Turf[]             @relation("TurfHolder")
-  businessesStaffed     Business[]         @relation("BusinessStaffOwner")
+  turfHeld              Turf[]               @relation("TurfHolder")
+  businessesStaffed     Business[]           @relation("BusinessStaffOwner")
   turfPresence          TurfPresence[]
-  turfTaxPaid           TurfTaxLedger[]    @relation("TurfTaxPayer")
-  turfTaxEarned         TurfTaxLedger[]    @relation("TurfTaxHolder")
+  turfTaxPaid           TurfTaxLedger[]      @relation("TurfTaxPayer")
+  turfTaxEarned         TurfTaxLedger[]      @relation("TurfTaxHolder")
   /// 0.6.0-C. Turf wars started against or defended by this crew.
-  turfPushesStarted     TurfPush[]         @relation("TurfPushAttacker")
-  turfPushesDefended    TurfPush[]         @relation("TurfPushDefender")
-  blockWarsDeclared     BlockWar[]         @relation("BlockWarAttacker")
-  blockWarsDefended     BlockWar[]         @relation("BlockWarDefender")
+  turfPushesStarted     TurfPush[]           @relation("TurfPushAttacker")
+  turfPushesDefended    TurfPush[]           @relation("TurfPushDefender")
+  blockWarsDeclared     BlockWar[]           @relation("BlockWarAttacker")
+  blockWarsDefended     BlockWar[]           @relation("BlockWarDefender")
   blockWarSquads        BlockWarSquad[]
   turfPushBackups       TurfPushBackup[]
   /// 0.6.0-D. Supply/tax boxes for away turf.
@@ -1452,11 +1456,11 @@ model RoundPlayer {
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
-  wirePosts             AllianceWirePost[] @relation("WireAuthor")
-  contacts              PlayerContact[]    @relation("ContactOwner")
-  contactOf             PlayerContact[]    @relation("ContactTarget")
-  messagesSent          DirectMessage[]    @relation("DirectMessageSender")
-  messagesReceived      DirectMessage[]    @relation("DirectMessageRecipient")
+  wirePosts             AllianceWirePost[]   @relation("WireAuthor")
+  contacts              PlayerContact[]      @relation("ContactOwner")
+  contactOf             PlayerContact[]      @relation("ContactTarget")
+  messagesSent          DirectMessage[]      @relation("DirectMessageSender")
+  messagesReceived      DirectMessage[]      @relation("DirectMessageRecipient")
 
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])
@@ -1845,6 +1849,8 @@ model DealerStaff {
   experiencePoints Int         @default(0)
   assignedAt       DateTime    @default(now())
   releasedAt       DateTime?
+  /// 1.7.0-A. The crew member who carries this career, under the same id.
+  crewMember       CrewMember?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1914,6 +1920,107 @@ model SupplyMovement {
   @@index([pickupId, createdAt])
   @@index([warehouseId, createdAt])
   @@index([dealerCrewId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Crew roster (1.7.0)
+// ---------------------------------------------------------------------------
+
+enum CrewMemberRole {
+  THUG
+  WORKER
+}
+
+/// Where a member is. Every status but RELEASED is counted in the player's thugs or whores.
+enum CrewMemberStatus {
+  /// At home and fit for work.
+  AVAILABLE
+  /// Working a job: see the assignment.
+  ASSIGNED
+  /// Out on a run, a tail or backup (the player's busy thugs).
+  IN_TRANSIT
+  /// Wounded and healing.
+  RECOVERING
+  /// No longer in the crew. The record and its career stay for history and a return.
+  RELEASED
+}
+
+enum CrewAssignmentKind {
+  BUSINESS
+  DEALER
+  TURF
+}
+
+enum CrewMemberEventKind {
+  /// Already in the crew when the roster was first built.
+  MIGRATED
+  JOINED
+  ASSIGNED
+  UNASSIGNED
+  RELEASED
+  /// A released member back in the crew, career intact.
+  REHIRED
+}
+
+/// 1.7.0-A. One thug or worker. The player's counts stay authoritative: members are kept in
+/// step with them, so a member is never created or released except to match a count.
+model CrewMember {
+  id               String              @id @default(cuid())
+  roundPlayerId    String
+  roundPlayer      RoundPlayer         @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  role             CrewMemberRole
+  /// Order of joining in this round's roster, 1-based and never reused.
+  serial           Int
+  status           CrewMemberStatus    @default(AVAILABLE)
+  assignmentKind   CrewAssignmentKind?
+  /// The business, dealer crew or turf a member is assigned to, when it is known.
+  assignmentRef    String?
+  experiencePoints Int                 @default(0)
+  /// 1.6 dealer career this member carries; the member keeps the career's id.
+  dealerStaffId    String?             @unique
+  dealerStaff      DealerStaff?        @relation(fields: [dealerStaffId], references: [id], onDelete: SetNull)
+  joinedAt         DateTime
+  statusSince      DateTime
+  releasedAt       DateTime?
+  events           CrewMemberEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, serial])
+  @@index([roundPlayerId, role, status])
+  @@index([roundPlayerId, assignmentKind, assignmentRef])
+}
+
+/// 1.7.0-A. A member's history: joining, assignments and releases. Immutable.
+model CrewMemberEvent {
+  id             String              @id @default(cuid())
+  memberId       String
+  member         CrewMember          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  roundPlayerId  String
+  roundPlayer    RoundPlayer         @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  kind           CrewMemberEventKind
+  assignmentKind CrewAssignmentKind?
+  assignmentRef  String?
+  at             DateTime
+
+  @@index([memberId, at])
+  @@index([roundPlayerId, at(sort: Desc)])
+}
+
+/// 1.7.0-A. The audit of a player's first roster build: the counts it read, and what it made.
+/// One per player, so a retry finds it and never builds a second roster.
+model CrewRosterMigration {
+  id             String      @id @default(cuid())
+  roundPlayerId  String      @unique
+  roundPlayer    RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  rulesetId      String
+  /// The counts the roster was built from, and the member totals it ended with.
+  before         Json
+  after          Json
+  membersCreated Int
+  dealerCareers  Int
+  createdAt      DateTime    @default(now())
 }
 
 // ---------------------------------------------------------------------------

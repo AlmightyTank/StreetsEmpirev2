@@ -10,10 +10,11 @@ import { rulesets } from '../index.js';
 import type { Ruleset } from '../types.js';
 
 describe('1.6.5-A debt foundation ruleset', () => {
-  it('registers a new pinned ruleset and enables the loan shark only there', () => {
+  it('registers a new pinned ruleset and enables the loan shark only there and after', () => {
     expect(classicOgV165A.meta).toEqual({ id: 'classic-og-v1.6.5-a', version: '1.6.5-A', name: 'Classic OG - Debt Foundation' });
     expect(rulesets[classicOgV165A.meta.id]).toBe(classicOgV165A);
-    const others = Object.values(rulesets).filter((ruleset) => !ruleset.meta.id.startsWith('classic-og-v1.6.5-')) as Ruleset[];
+    // 1.7.0 builds on the finished 1.6.5 season, so it carries the loan shark too.
+    const others = Object.values(rulesets).filter((ruleset) => !ruleset.meta.id.startsWith('classic-og-v1.6.5-') && !ruleset.meta.id.startsWith('classic-og-v1.7-')) as Ruleset[];
     expect(others.length).toBeGreaterThan(100);
     for (const ruleset of others) expect(ruleset.loanShark, ruleset.meta.id).toBeUndefined();
   });
@@ -119,10 +120,10 @@ describe('1.6.5-C escalating terms ruleset', () => {
 describe('1.6.5-E collections ruleset', () => {
   const rules = classicOgV165E.loanShark;
 
-  it('adds only collections to 1.6.5-C while the G release snapshot is newest', () => {
+  it('adds only collections to 1.6.5-C while the G release snapshot is the newest 1.6.5', () => {
     expect(classicOgV165E.meta).toEqual({ id: 'classic-og-v1.6.5-e', version: '1.6.5-E', name: 'Classic OG - Loan Collections' });
     expect(rulesets[classicOgV165E.meta.id]).toBe(classicOgV165E);
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV165G);
+    expect(Object.values(rulesets).filter((ruleset) => ruleset.meta.id.startsWith('classic-og-v1.6.5-')).at(-1)).toBe(classicOgV165G);
     const { collections: _collections, ...rest } = rules;
     expect(rest).toEqual(classicOgV165C.loanShark);
     const { meta: _meta, loanShark: _loanShark, ...others } = classicOgV165E;

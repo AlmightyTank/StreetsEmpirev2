@@ -89,6 +89,8 @@ if (withDb) {
     AUTH_INTEGRATION: '1',
     // 1.6.5-G: installments, collections, pause protection, recovery, reconciliation and admin audit.
     LOAN_INTEGRATION: '1',
+    // 1.7.0-A: crew roster migration, retries, dealer careers and members in step with counts.
+    CREW_INTEGRATION: '1',
   });
   // 1.0.0-H: the Discord bot API, verified forum links and phone alerts only exist with their
   // secrets set, so they run on their own with throwaway ones generated here.

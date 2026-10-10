@@ -66,6 +66,7 @@
     "ops:restore-test": "tsx scripts/ops/backup.ts restore-test",
     "ops:restore": "tsx scripts/ops/backup.ts restore",
     "ops:launch-check": "tsx scripts/ops/launch-check.ts",
+    "ops:crew-roster": "tsx scripts/ops/crew-roster-migrate.ts",
     "db:studio": "prisma studio",
     "db:cleanup:seed-rivals": "tsx scripts/ops/remove-seed-rivals.ts",
     "dev:site": "npm run dev -w @streets/site",

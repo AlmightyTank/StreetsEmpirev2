@@ -3148,6 +3148,8 @@ export interface Ruleset {
   readonly supplyNetwork?: SupplyNetworkRules;
   /** 1.6.5-A. The loan shark's debt rules. Absent: no loans, and debt never touches the round. */
   readonly loanShark?: LoanSharkRules;
+  /** 1.7.0-A. Individual crew members behind the thug and worker counts. Absent: counts only. */
+  readonly crewRoster?: CrewRosterRules;
   /** 1.4.0-B. Seasonal faction standing. Absent: factions are identity only. */
   readonly factionStanding?: FactionStandingRules;
   /**
@@ -3312,6 +3314,15 @@ export interface LoanOfferRules {
   readonly installmentCount: number;
   /** Only offered to a boss whose net worth is at least this. Absent: open to everyone. */
   readonly minNetWorthCents?: number;
+}
+
+/**
+ * 1.7.0-A. Every thug and worker is an individual member with a stable id, a status and an
+ * assignment history. The aggregate counts on the player stay authoritative: members follow
+ * them, so no existing action, total, happiness or net worth reads the roster yet.
+ */
+export interface CrewRosterRules {
+  readonly enabled: boolean;
 }
 
 export interface SupplyNetworkRules {

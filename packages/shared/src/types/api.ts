@@ -759,6 +759,43 @@ export interface DealerCrewActionResult {
   message: string;
 }
 
+/** 1.7.0-A. Where a crew member is. Every status but RELEASED is counted in the crew. */
+export type CrewMemberStatusDto = 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED';
+export type CrewAssignmentKindDto = 'BUSINESS' | 'DEALER' | 'TURF';
+
+/** 1.7.0-A. One thug or worker with a stable identity. */
+export interface CrewMemberDto {
+  id: string;
+  role: 'THUG' | 'WORKER';
+  /** Order of joining this round's roster. */
+  serial: number;
+  status: CrewMemberStatusDto;
+  assignment: { kind: CrewAssignmentKindDto; ref: string | null } | null;
+  experiencePoints: number;
+  /** The 1.6 dealer career this member carries, if any. */
+  dealerStaffId: string | null;
+  joinedAt: string;
+  statusSince: string;
+}
+
+/** 1.7.0-A. The crew as individual members, alongside the counts they follow. */
+export interface CrewRosterDto {
+  enabled: boolean;
+  /** When the roster was first built from this player's counts; null before then. */
+  migratedAt: string | null;
+  totals: Array<{
+    role: 'THUG' | 'WORKER';
+    /** Members in the crew: always the matching count. */
+    members: number;
+    byStatus: Record<Exclude<CrewMemberStatusDto, 'RELEASED'>, number>;
+    byAssignment: Record<CrewAssignmentKindDto, number>;
+    released: number;
+  }>;
+  members: CrewMemberDto[];
+  /** Members in the crew matching the filter, for paging. */
+  total: number;
+}
+
 /** One line of the happiness sum, so a low number can explain itself. */
 export interface HappinessTermDto {
   key: string;

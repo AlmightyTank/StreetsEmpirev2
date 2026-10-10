@@ -43,6 +43,7 @@ import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.
 import { StreetPassCredService } from './street-pass-cred.service.js';
 import { LawService, type CaseEvidence } from './law.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 async function casinoCashEquivalentCents(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
   if (!ruleset.casino?.enabled) return 0n;
@@ -576,6 +577,9 @@ export const ActionService = {
             : {}),
         },
       });
+
+      // 1.7.0-A: the crew's members follow the counts the action just wrote.
+      await CrewRosterService.sync(tx, roundPlayerId, ruleset, now, next);
 
       // Street Pass: turns spent on this action earn Cred, up to the daily cap.
       const turnsSpent = Math.max(0, current.turns - next.turns);
