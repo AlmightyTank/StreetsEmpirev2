@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Rolling Deep badge">
+<defs>
+ <linearGradient id="rim" x1=".15" y1="0" x2=".85" y2="1"><stop stop-color="#fff9e7"/><stop offset=".22" stop-color="#d9c9a9"/><stop offset=".48" stop-color="#fff8df"/><stop offset=".75" stop-color="#b6a58c"/><stop offset="1" stop-color="#fff4d6"/></linearGradient>
+ <linearGradient id="field" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#263142"/><stop offset=".52" stop-color="#101722"/><stop offset="1" stop-color="#080d14"/></linearGradient>
+ <linearGradient id="metal" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#ffe1cf"/><stop offset=".35" stop-color="#ff6564"/><stop offset="1" stop-color="#9e2034"/></linearGradient>
+ <radialGradient id="glow"><stop stop-color="#ff6564" stop-opacity=".4"/><stop offset="1" stop-color="#ff6564" stop-opacity="0"/></radialGradient>
+ <filter id="shadow" x="-40%" y="-40%" width="180%" height="190%"><feGaussianBlur in="SourceAlpha" stdDeviation="5"/><feOffset dy="5"/><feComponentTransfer><feFuncA type="linear" slope=".7"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<g filter="url(#shadow)" transform="translate(128 128) scale(.9) translate(-128 -128)">
+ <path d="M128 8 248 128 128 248 8 128Z" fill="url(#rim)" stroke="#070a0e" stroke-width="5"/>
+ <path d="M128 19 237 128 128 237 19 128Z" fill="#88785f" stroke="#fff7e5" stroke-width="2"/>
+ <path d="M128 31 225 128 128 225 31 128Z" fill="url(#field)" stroke="#101722" stroke-width="4"/>
+ <path d="M128 37 217 128 128 217 37 128Z" fill="url(#glow)"/>
+ <path d="M128 31 225 128 128 225 31 128Z" fill="none" stroke="url(#metal)" stroke-width="4"/>
+ <path d="M128 40 208 128 128 208 48 128Z" fill="none" stroke="#ff6564" stroke-opacity=".38" stroke-width="1.5"/>
+ <g transform="translate(0 52) rotate(-2 128 128)" filter="url(#shadow)"><g fill="url(#metal)" stroke="#ffe1cf" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m62 70 14-8 18-26q4-6 12-6h47q9 0 14 7l18 25 13 8v19H62z"/><path d="m99 41-15 22h90l-16-22z" fill="#9e2034"/><circle cx="91" cy="87" r="12" fill="#9e2034"/><circle cx="165" cy="87" r="12" fill="#9e2034"/><path d="M69 71h18m95 0h15" fill="none"/></g></g>
+ <path d="M53 128 68 128m120 0h15" stroke="#ffe1cf" stroke-width="3" stroke-linecap="round" opacity=".86"/>
+ <path d="m128 14 7 7-7 7-7-7zm-107 107 7 7-7 7-7-7zm214 0 7 7-7 7-7-7zm-107 107 7 7-7 7-7-7z" fill="url(#metal)" stroke="#17120d" stroke-width="2"/>
+ <path d="M42 128 128 42l86 86-86 86z" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width="1"/>
+</g></svg>

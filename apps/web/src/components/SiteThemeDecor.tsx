@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { lazy, Suspense, type ComponentType, type CSSProperties } from 'react';
 
 const snow = [
   ['4%', '-2s', '12s', 5], ['9%', '-7s', '16s', 3], ['14%', '-5s', '13s', 4], ['20%', '-10s', '18s', 6],
@@ -80,14 +80,12 @@ const dragonParticles = [
   ['75%', '-10s', '18s', 3], ['83%', '-4s', '14s', 4], ['91%', '-7s', '17s', 5],
 ] as const;
 
+const DragonScene = lazy(() => import('./theme-scenes/DragonScene.js'));
+
 function DragonAtmosphere({ fire = false }: { fire?: boolean }) {
   return (
     <div className={`se-site-theme-decor se-site-theme-decor--dragon${fire ? ' se-site-theme-decor--fire' : ' se-site-theme-decor--ice'}`} aria-hidden="true">
-      <img
-        className="se-dragon-atmosphere__art"
-        src={fire ? '/profile-frames/inferno-popup.webp' : '/profile-frames/snowstorm-popup.webp'}
-        alt=""
-      />
+      <Suspense fallback={null}><DragonScene variant={fire ? 'fire' : 'ice'} /></Suspense>
       <div className="se-dragon-atmosphere__particles">
         {dragonParticles.map(([left, delay, duration, size], index) => (
           <i
@@ -101,33 +99,22 @@ function DragonAtmosphere({ fire = false }: { fire?: boolean }) {
   );
 }
 
-const themeMotes = [
-  ['6%', '22%', '-2s'], ['15%', '61%', '-7s'], ['24%', '35%', '-4s'], ['33%', '78%', '-10s'],
-  ['42%', '17%', '-6s'], ['51%', '54%', '-1s'], ['60%', '82%', '-9s'], ['69%', '29%', '-5s'],
-  ['78%', '66%', '-11s'], ['87%', '40%', '-3s'], ['95%', '73%', '-8s'],
-] as const;
-
-const themeShellArt: Record<string, string> = {
-  'motor-city-iron': 'chrome-serpent',
-  'open-road': 'phantom-convoy',
-  'neon-vice': 'lantern-district',
-  'blue-heat': 'siren-breaker',
-  'rain-city-wire': 'block-sovereign',
-  'casino-floor': 'gilded-house',
-  'federal-case': 'dead-or-alive',
-  'midnight-market': 'laurel-ascendant',
+// Illustrated SVG backdrops for the eight redesigned shells, loaded only for the shell that is equipped.
+const themeScenes: Partial<Record<string, ComponentType>> = {
+  'motor-city-iron': lazy(() => import('./theme-scenes/ChromeSerpentScene.js')),
+  'open-road': lazy(() => import('./theme-scenes/PhantomConvoyScene.js')),
+  'neon-vice': lazy(() => import('./theme-scenes/LanternDistrictScene.js')),
+  'blue-heat': lazy(() => import('./theme-scenes/SirenBreakerScene.js')),
+  'rain-city-wire': lazy(() => import('./theme-scenes/BlockSovereignScene.js')),
+  'casino-floor': lazy(() => import('./theme-scenes/GildedHouseScene.js')),
+  'federal-case': lazy(() => import('./theme-scenes/DeadOrAliveScene.js')),
+  'midnight-market': lazy(() => import('./theme-scenes/LaurelAscendantScene.js')),
 };
 
-function ThemePackAtmosphere({ themeKey }: { themeKey: string }) {
+function ThemeSceneAtmosphere({ themeKey, Scene }: { themeKey: string; Scene: ComponentType }) {
   return (
-    <div className={`se-site-theme-decor se-site-theme-decor--theme-pack se-site-theme-decor--${themeKey}`} aria-hidden="true">
-      <img className="se-theme-pack__art" src={`/site-themes/${themeShellArt[themeKey]}.webp`} alt="" />
-      <div className="se-theme-pack__motif" />
-      <div className="se-theme-pack__motes">
-        {themeMotes.map(([left, top, delay], index) => (
-          <i key={index} style={{ left, top, animationDelay: delay } as CSSProperties} />
-        ))}
-      </div>
+    <div className={`se-site-theme-decor se-site-theme-decor--scene se-site-theme-decor--${themeKey}`} aria-hidden="true">
+      <Suspense fallback={null}><Scene /></Suspense>
       <div className="se-theme-pack__haze" />
     </div>
   );
@@ -138,8 +125,6 @@ export function SiteThemeDecor({ themeKey }: { themeKey: string | null }) {
   if (themeKey === 'halloween-moon') return <HalloweenMoon />;
   if (themeKey === 'dragon-ice') return <DragonAtmosphere />;
   if (themeKey === 'dragon-fire') return <DragonAtmosphere fire />;
-  if (themeKey && ['motor-city-iron', 'open-road', 'neon-vice', 'blue-heat', 'rain-city-wire', 'casino-floor', 'federal-case', 'midnight-market'].includes(themeKey)) {
-    return <ThemePackAtmosphere themeKey={themeKey} />;
-  }
-  return null;
+  const Scene = themeKey ? themeScenes[themeKey] : undefined;
+  return themeKey && Scene ? <ThemeSceneAtmosphere themeKey={themeKey} Scene={Scene} /> : null;
 }

@@ -811,21 +811,11 @@
   user-select: none;
 }
 
+/* The dragon scenes (components/theme-scenes/DragonScene) sit under page content like the pack scenes. */
 .se-site-theme-decor--dragon {
-  inset: 58px 0 0;
+  inset: 48px 0 0;
+  z-index: -1;
   opacity: 0.82;
-}
-
-.se-dragon-atmosphere__art {
-  position: absolute;
-  top: 2vh;
-  right: -2vw;
-  width: min(43vw, 590px);
-  height: min(82vh, 940px);
-  object-fit: fill;
-  opacity: 0.13;
-  mix-blend-mode: screen;
-  animation: se-dragon-art-drift 12s ease-in-out infinite;
 }
 
 .se-dragon-atmosphere__particles {
@@ -889,10 +879,6 @@
   to { opacity: 0.48; }
 }
 
-@keyframes se-dragon-art-drift {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); filter: brightness(0.94); }
-  50% { transform: translate3d(-5px, 4px, 0) scale(1.012); filter: brightness(1.12); }
-}
 
 /* --- winter / Christmas ------------------------------------------------- */
 
@@ -1228,14 +1214,12 @@
 .se-reduced-motion .se-theme-bat,
 .se-reduced-motion .se-theme-fog,
 .se-reduced-motion .se-dragon-atmosphere__particles i,
-.se-reduced-motion .se-dragon-atmosphere__art,
 .se-reduced-motion .se-dragon-atmosphere__haze {
   animation: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .se-dragon-atmosphere__particles i,
-  .se-dragon-atmosphere__art,
   .se-dragon-atmosphere__haze {
     animation: none !important;
   }
@@ -1307,74 +1291,538 @@
   border-top-color: rgba(45, 212, 191, 0.36);
 }
 
-/* Ambient motion for the eight rebuilt shell themes; the shell palette remains selectable on its own. */
-.se-site-theme-decor--theme-pack {
-  z-index: 0;
-  opacity: .48;
-}
-.se-theme-pack__art {
-  position: absolute;
-  top: 50%;
-  left: -18vw;
-  width: 136vw;
-  height: auto;
-  max-width: none;
-  opacity: .38;
-  mix-blend-mode: screen;
-  filter: saturate(.72) brightness(1.16);
-  transform: translate3d(0, -50%, 0);
-  animation: se-theme-pack-art-drift 26s ease-in-out infinite alternate;
-}
-.se-theme-pack__motif {
-  position: absolute;
-  top: 7vh;
-  right: -2vw;
-  width: min(58vw, 800px);
-  height: min(70vh, 760px);
-  opacity: .12;
-  filter: drop-shadow(0 0 18px var(--se-pack-color));
-  background: var(--se-pack-motif);
-  animation: se-theme-pack-drift 18s ease-in-out infinite alternate;
-}
-.se-theme-pack__motes { position: absolute; inset: 0; overflow: hidden; }
-.se-theme-pack__motes i {
-  position: absolute;
-  width: 5px;
-  height: 5px;
-  border: 1px solid color-mix(in srgb, var(--se-pack-color) 75%, white);
-  border-radius: 50%;
-  background: var(--se-pack-color);
-  box-shadow: 0 0 12px var(--se-pack-color);
-  animation: se-theme-pack-mote 9s ease-in-out infinite;
-}
+/* Illustrated SVG scenes (components/theme-scenes) for the eight redesigned shells. They sit
+   under page content (.se-app isolates) so the art never covers text; the haze tints the floor. */
+.se-site-theme-decor--scene { z-index: -1; opacity: .62; }
 .se-theme-pack__haze {
   position: absolute;
   inset: 50% 0 0;
   background: radial-gradient(ellipse at 72% 100%, color-mix(in srgb, var(--se-pack-color) 18%, transparent), transparent 66%);
   animation: se-theme-pack-haze 5s ease-in-out infinite alternate;
 }
-.se-site-theme-decor--motor-city-iron { --se-pack-color: #91dbe4; --se-pack-motif: repeating-linear-gradient(135deg, transparent 0 42px, #91dbe426 43px 45px, transparent 46px 82px), radial-gradient(ellipse at 78% 46%, transparent 0 36%, #91dbe428 37% 38%, transparent 39%); }
-.se-site-theme-decor--open-road { --se-pack-color: #9ed4ff; --se-pack-motif: linear-gradient(105deg, transparent 30%, #c5e7ff48 47%, transparent 53%), repeating-linear-gradient(0deg, transparent 0 64px, #9ed4ff20 65px 66px, transparent 67px 128px); }
-.se-site-theme-decor--neon-vice { --se-pack-color: #ff64ac; --se-pack-motif: radial-gradient(ellipse at 24% 58%, transparent 0 23%, #ff64ac35 24% 25%, transparent 26%), radial-gradient(ellipse at 72% 34%, transparent 0 28%, #58e8ff36 29% 30%, transparent 31%); }
-.se-site-theme-decor--blue-heat { --se-pack-color: #56b8ff; --se-pack-motif: linear-gradient(112deg, transparent 32%, #ff4f6440 46%, #52baff44 52%, transparent 66%), radial-gradient(ellipse at 76% 50%, transparent 0 36%, #56b8ff28 37% 38%, transparent 39%); }
-.se-site-theme-decor--rain-city-wire { --se-pack-color: #63e3c0; --se-pack-motif: repeating-linear-gradient(90deg, transparent 0 55px, #63e3c026 56px 58px, transparent 59px 96px), repeating-linear-gradient(0deg, transparent 0 70px, #63e3c020 71px 72px, transparent 73px 120px); }
-.se-site-theme-decor--casino-floor { --se-pack-color: #f0cf76; --se-pack-motif: radial-gradient(circle at 29% 42%, transparent 0 14%, #f0cf763a 15% 16%, transparent 17%), radial-gradient(circle at 74% 58%, transparent 0 20%, #d65c6740 21% 22%, transparent 23%); }
-.se-site-theme-decor--federal-case { --se-pack-color: #caa86d; --se-pack-motif: repeating-linear-gradient(0deg, transparent 0 28px, #caa86d25 29px 31px, transparent 32px 48px), linear-gradient(110deg, transparent 40%, #71b8e622 51%, transparent 60%); }
-.se-site-theme-decor--midnight-market { --se-pack-color: #e6c979; --se-pack-motif: radial-gradient(ellipse at 50% 48%, transparent 0 28%, #e6c97935 29% 30%, transparent 31%), radial-gradient(circle at 28% 25%, #ffe9a54a 0 2px, transparent 3px), radial-gradient(circle at 76% 68%, #ffe9a54a 0 2px, transparent 3px); }
-@keyframes se-theme-pack-drift { from { transform: translate3d(0, 0, 0) rotate(-1deg); } to { transform: translate3d(-20px, 12px, 0) rotate(1deg); } }
-@keyframes se-theme-pack-art-drift { from { transform: translate3d(-8px, -50%, 0) scale(1); } to { transform: translate3d(8px, -50%, 0) scale(1.018); } }
-@keyframes se-theme-pack-mote { 0%, 100% { transform: translate3d(0, 14px, 0) scale(.65); opacity: .2; } 50% { transform: translate3d(8px, -18px, 0) scale(1); opacity: .85; } }
+.se-site-theme-decor--motor-city-iron { --se-pack-color: #91dbe4; }
+.se-site-theme-decor--open-road { --se-pack-color: #9ed4ff; }
+.se-site-theme-decor--neon-vice { --se-pack-color: #ff64ac; }
+.se-site-theme-decor--blue-heat { --se-pack-color: #56b8ff; }
+.se-site-theme-decor--rain-city-wire { --se-pack-color: #63e3c0; }
+.se-site-theme-decor--casino-floor { --se-pack-color: #f0cf76; }
+.se-site-theme-decor--federal-case { --se-pack-color: #caa86d; }
+.se-site-theme-decor--midnight-market { --se-pack-color: #e6c979; }
 @keyframes se-theme-pack-haze { from { opacity: .28; } to { opacity: .8; } }
-.se-reduced-motion .se-theme-pack__art,
-.se-reduced-motion .se-theme-pack__motif,
-.se-reduced-motion .se-theme-pack__motes i,
-.se-reduced-motion .se-theme-pack__haze { animation: none !important; }
-@media (prefers-reduced-motion: reduce) {
-  .se-theme-pack__art,
-  .se-theme-pack__motif,
-  .se-theme-pack__motes i,
-  .se-theme-pack__haze { animation: none !important; }
+@media (min-width: 900px) {
+  /* The desktop game frame pins a sidebar left and a taller HUD bar; frame the content column.
+     The folded icon rail narrows the sidebar on .se-frame, a sibling of the decor, so lift that
+     width to the shared .se-app ancestor for the scenes to follow it. */
+  .se-app--sidebar:has(> .se-frame--rail) {
+    --se-sidebar-w: 68px;
+  }
+  .se-app--sidebar :is(.se-site-theme-decor--scene, .se-site-theme-decor--dragon) {
+    top: var(--se-topbar-h);
+    left: var(--se-sidebar-w);
+  }
+}
+.se-theme-scene { position: absolute; inset: 0; }
+.se-theme-scene svg { position: absolute; overflow: visible; }
+
+/* Dead-or-Alive: window shaft through venetian blinds, a ceiling fan's shadow, pinned case files. */
+.se-doa__light {
+  top: 0;
+  right: 0;
+  width: min(74vw, 1040px);
+  height: 100%;
+}
+.se-doa__fan {
+  transform-origin: 700px 150px;
+  animation: se-doa-fan 16s linear infinite;
+}
+.se-doa__beam { animation: se-doa-beam 11s ease-in-out infinite alternate; }
+.se-doa__dust circle { animation: se-doa-dust 17s ease-in-out infinite alternate; }
+.se-doa__board {
+  top: 5vh;
+  left: -2vw;
+  width: min(30vw, 400px);
+  height: auto;
+  filter: drop-shadow(0 8px 14px #000a);
+}
+.se-doa__type {
+  fill: #e6cc93;
+  fill-opacity: .7;
+  font: 700 17px/1 Georgia, 'Times New Roman', serif;
+  letter-spacing: 3px;
+}
+.se-doa__type--big { font-size: 38px; letter-spacing: 5px; }
+.se-doa__sheet--poster > g { transform-origin: 158px 44px; animation: se-doa-sway 9s ease-in-out infinite alternate; }
+.se-doa__sheet--card > g { transform-origin: 300px 318px; animation: se-doa-flutter 7s ease-in-out -3s infinite alternate; }
+@keyframes se-doa-fan { to { transform: rotate(360deg); } }
+@keyframes se-doa-beam { from { opacity: .75; } to { opacity: 1; } }
+@keyframes se-doa-dust {
+  0% { transform: translate(0, 0); opacity: .25; }
+  50% { opacity: .95; }
+  100% { transform: translate(-26px, 34px); opacity: .35; }
+}
+@keyframes se-doa-sway { from { rotate: -.6deg; } to { rotate: .7deg; } }
+@keyframes se-doa-flutter { from { rotate: -1.4deg; } to { rotate: 1.2deg; } }
+@media (max-width: 700px) {
+  .se-doa__light { width: 120vw; right: -30vw; }
+  .se-doa__board { top: auto; bottom: 4vh; left: -10vw; width: 46vw; opacity: .7; }
+}
+
+/* Lantern District: paper lanterns on strands under the eaves, a neon stall sign, rising sparks. */
+.se-ld__defs { position: absolute; }
+.se-ld__strands {
+  top: 0;
+  width: min(20vw, 320px);
+  height: auto;
+}
+.se-ld__strands--left { left: 0; }
+.se-ld__strands--right { right: 0; scale: -1 1; }
+.se-ld__strand--back { opacity: .62; }
+.se-ld__lantern { animation: se-ld-sway 6s ease-in-out infinite alternate; }
+.se-ld__strand--back .se-ld__lantern { animation-duration: 8s; }
+.se-ld__halo { animation: se-ld-glow 4.5s ease-in-out infinite alternate; }
+.se-ld__sign {
+  top: 46vh;
+  right: 1.5vw;
+  width: min(6vw, 86px);
+  height: auto;
+  filter: drop-shadow(0 0 6px #22d3ee88) drop-shadow(0 0 14px #ff64ac55);
+}
+.se-ld__neon { animation: se-ld-flicker 11s steps(1, end) infinite; }
+.se-ld__sparks { position: absolute; inset: 0; overflow: hidden; }
+.se-ld__sparks i {
+  position: absolute;
+  bottom: -8px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ffd18a;
+  box-shadow: 0 0 6px #ffae3b, 0 0 12px #ff5a86aa;
+  animation: se-ld-spark 13s linear infinite;
+}
+@keyframes se-ld-sway { from { rotate: -2.6deg; } to { rotate: 2.4deg; } }
+@keyframes se-ld-glow { from { opacity: .45; } to { opacity: 1; } }
+@keyframes se-ld-flicker {
+  0%, 88%, 92%, 95% { opacity: 1; }
+  90% { opacity: .35; }
+  93.5% { opacity: .6; }
+}
+@keyframes se-ld-spark {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  12% { opacity: .9; }
+  50% { transform: translate3d(14px, -48vh, 0); }
+  85% { opacity: .5; }
+  100% { transform: translate3d(-10px, -92vh, 0); opacity: 0; }
 }
 @media (max-width: 700px) {
-  .se-theme-pack__art { top: 28vh; left: -30vw; width: 160vw; opacity: .28; }
+  .se-ld__strands { width: 42vw; }
+  .se-ld__sign { display: none; }
+}
+
+/* Dragon scenes: a dragon flies over an aurora with icicles and crystal spires (ice), or over
+   smoke with lava-cracked crags and flames (fire). Corner pieces mirror on the right. */
+.se-dg__sky {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+}
+.se-dg__flight {
+  transform: translate(-600px, 0);
+  animation: se-dg-flight 48s linear -14s infinite;
+}
+.se-dg__bob { animation: se-dg-bob 3.4s ease-in-out infinite alternate; }
+.se-dg__wing {
+  transform-box: fill-box;
+  transform-origin: 30% 100%;
+  animation: se-dg-flap 1.9s ease-in-out infinite;
+}
+.se-dg__wing--far { animation-delay: -.12s; }
+.se-theme-scene--dragon-ice .se-dg__body,
+.se-theme-scene--dragon-ice .se-dg__wing--near { fill: #d6f3ff; fill-opacity: .55; stroke: #8de0ff; stroke-opacity: .6; stroke-width: 1.5; }
+.se-theme-scene--dragon-ice .se-dg__wing--far { fill: #8de0ff; fill-opacity: .32; }
+.se-theme-scene--dragon-ice .se-dg__eye { fill: #8de0ff; }
+.se-dg__wing .se-dg__bones { fill: none; stroke-width: 1.4; }
+.se-theme-scene--dragon-ice .se-dg__bones { stroke: #effcff; stroke-opacity: .45; }
+.se-theme-scene--dragon-fire .se-dg__bones { stroke: #ff7a3a; stroke-opacity: .5; }
+.se-theme-scene--dragon-fire .se-dg__body,
+.se-theme-scene--dragon-fire .se-dg__wing--near { fill: #1f0a07; stroke: #ff7a3a; stroke-opacity: .55; stroke-width: 1.5; }
+.se-theme-scene--dragon-fire .se-dg__wing--far { fill: #3a120b; }
+.se-theme-scene--dragon-fire .se-dg__eye { fill: #ffd27a; }
+.se-dg__breath {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: 100% 50%;
+  animation: se-dg-breath 6s ease-out infinite;
+}
+.se-dg__aurora { animation: se-dg-aurora 22s ease-in-out infinite alternate; }
+.se-dg__smoke { animation: se-dg-smoke 26s ease-in-out infinite alternate; }
+.se-dg__gusts path { opacity: 0; animation: se-dg-gust 7.5s ease-in infinite; }
+.se-dg__corner { height: auto; }
+.se-dg__corner--top { top: 0; width: min(22vw, 300px); }
+.se-dg__corner--bottom { bottom: 0; width: min(24vw, 340px); }
+.se-dg__corner--left { left: 0; }
+.se-dg__corner--right { right: 0; scale: -1 1; }
+.se-dg__glint { opacity: 0; animation: se-dg-glint 5.5s ease-in infinite; }
+.se-dg__drip { opacity: 0; animation: se-dg-drip 4.2s ease-in infinite; }
+.se-dg__facet { animation: se-dg-shimmer 6s ease-in-out infinite alternate; }
+.se-dg__flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: se-dg-flicker 1.6s ease-in-out infinite alternate;
+}
+.se-dg__flame--core { animation-duration: 1.1s; }
+.se-dg__lava-glow { animation: se-dg-lava 4s ease-in-out infinite alternate; }
+.se-dg__cracks { animation: se-dg-lava 3.2s ease-in-out -1s infinite alternate; }
+@keyframes se-dg-flight {
+  0% { transform: translate(1760px, 110px); }
+  28% { transform: translate(900px, 56px); }
+  56% { transform: translate(-460px, 130px); }
+  100% { transform: translate(-460px, 130px); }
+}
+@keyframes se-dg-bob { from { translate: 0 -8px; } to { translate: 0 8px; } }
+@keyframes se-dg-flap { 0%, 100% { scale: 1 1; } 50% { scale: 1 -.4; } }
+@keyframes se-dg-breath {
+  0%, 62% { opacity: 0; scale: .2 .6; }
+  70% { opacity: 1; scale: 1 1; }
+  84% { opacity: .75; scale: 1.08 1.1; }
+  94%, 100% { opacity: 0; scale: 1.15 1.2; }
+}
+@keyframes se-dg-aurora { from { translate: -70px 0; opacity: .7; } to { translate: 70px 10px; opacity: 1; } }
+@keyframes se-dg-smoke { from { translate: -50px 0; } to { translate: 50px 8px; } }
+@keyframes se-dg-gust {
+  0%, 60% { opacity: 0; translate: -120px 0; }
+  70% { opacity: .55; }
+  90%, 100% { opacity: 0; translate: 220px -10px; }
+}
+@keyframes se-dg-glint {
+  0%, 55% { opacity: 0; translate: 0 0; }
+  65% { opacity: .9; }
+  90%, 100% { opacity: 0; translate: 0 70px; }
+}
+@keyframes se-dg-drip {
+  0%, 70% { opacity: 0; translate: 0 0; }
+  74% { opacity: .9; translate: 0 0; }
+  100% { opacity: 0; translate: 0 70px; }
+}
+@keyframes se-dg-shimmer { from { fill-opacity: .25; } to { fill-opacity: .6; } }
+@keyframes se-dg-flicker {
+  0% { scale: 1 .88; transform: skewX(-3deg); }
+  50% { scale: .96 1.06; }
+  100% { scale: 1.02 1.12; transform: skewX(3deg); }
+}
+@keyframes se-dg-lava { from { opacity: .55; } to { opacity: 1; } }
+@media (max-width: 700px) {
+  .se-dg__corner--top { width: 36vw; }
+  .se-dg__corner--bottom { width: 40vw; }
+}
+
+/* Phantom Convoy: a ghost convoy crossing a wet highway under the city glow, an overhead route
+   sign, a sodium streetlight, and headlight sweeps across the shell. */
+.se-pc__horizon { bottom: 0; left: 0; width: 100%; height: auto; }
+.se-pc__rig { fill: #070b11; stroke: #7dd3fc; stroke-opacity: .55; stroke-width: 1.4; }
+.se-pc__glass { fill: #38bdf8; fill-opacity: .18; }
+.se-pc__wheel { fill: #05080c; }
+.se-pc__convoy {
+  transform: translate(-2000px, 0);
+  animation: se-pc-convoy 40s linear -8s infinite;
+}
+.se-pc__window { animation: se-pc-window 7s steps(1, end) infinite; }
+.se-pc__reflections rect { animation: se-pc-ripple 3.6s ease-in-out infinite alternate; }
+.se-pc__streetlight { top: 0; left: 0; width: min(22vw, 300px); height: auto; }
+.se-pc__cone { animation: se-pc-flicker 13s steps(1, end) infinite; }
+.se-pc__sign { top: 0; right: 0; width: min(25vw, 340px); height: auto; }
+.se-pc__sign-type { fill: #f0f7f1; font: 700 26px/1 'Arial Narrow', Arial, sans-serif; }
+.se-pc__sign-type--small { font-size: 15px; fill-opacity: .8; letter-spacing: 1px; }
+.se-pc__sign-type--tab { fill: #1a1505; font-size: 13px; letter-spacing: 1px; }
+.se-pc__glint { opacity: 0; animation: se-pc-glint 9s ease-in-out infinite; }
+.se-pc__sweep {
+  position: absolute;
+  left: -6vw;
+  bottom: -4vh;
+  width: 130vw;
+  height: 90vh;
+  opacity: 0;
+  background: linear-gradient(90deg, rgba(255, 238, 176, .2), rgba(255, 238, 176, .06) 55%, transparent 85%);
+  clip-path: polygon(0 100%, 100% 18%, 100% 62%);
+  transform-origin: 0 100%;
+  animation: se-pc-sweep 17s ease-in-out -5s infinite;
+}
+@keyframes se-pc-convoy {
+  0% { transform: translate(1700px, 0); }
+  70% { transform: translate(-1100px, 0); }
+  100% { transform: translate(-1100px, 0); }
+}
+@keyframes se-pc-window { 0%, 64% { fill-opacity: .7; } 66%, 100% { fill-opacity: .12; } }
+@keyframes se-pc-ripple { from { opacity: .5; translate: 0 0; } to { opacity: 1; translate: 0 4px; } }
+@keyframes se-pc-flicker { 0%, 90%, 93%, 96% { opacity: 1; } 91.5% { opacity: .4; } 94.5% { opacity: .7; } }
+@keyframes se-pc-glint { 0%, 55% { opacity: 0; translate: 0 0; } 60% { opacity: 1; } 80%, 100% { opacity: 0; translate: 240px 0; } }
+@keyframes se-pc-sweep {
+  0%, 52% { opacity: 0; rotate: -14deg; }
+  62% { opacity: .9; }
+  80% { opacity: .6; }
+  92%, 100% { opacity: 0; rotate: 10deg; }
+}
+@media (max-width: 700px) {
+  .se-pc__streetlight { width: 40vw; }
+  .se-pc__sign { width: 46vw; }
+}
+
+/* Siren Breaker: rain, soft alternating red/blue siren washes (kept well under 1 Hz, never a hard
+   strobe), a helicopter searchlight, police tape, cracked glass and rippling puddles. */
+.se-sb__rain {
+  position: absolute;
+  inset: -100% -10% 0;
+  background: repeating-linear-gradient(104deg, transparent 0 22px, rgba(170, 200, 255, .1) 22px 23px, transparent 23px 58px);
+  animation: se-sb-rain 1.1s linear infinite;
+}
+.se-sb__rain--near {
+  background: repeating-linear-gradient(106deg, transparent 0 46px, rgba(200, 220, 255, .14) 46px 47.5px, transparent 47.5px 120px);
+  animation-duration: .7s;
+}
+.se-sb__siren {
+  position: absolute;
+  bottom: -20vh;
+  width: 70vw;
+  height: 80vh;
+  opacity: .25;
+}
+.se-sb__siren--red {
+  left: -24vw;
+  background: radial-gradient(closest-side, rgba(233, 32, 72, .42), transparent);
+  animation: se-sb-siren 2.6s ease-in-out infinite;
+}
+.se-sb__siren--blue {
+  right: -24vw;
+  background: radial-gradient(closest-side, rgba(104, 153, 243, .48), transparent);
+  animation: se-sb-siren 2.6s ease-in-out -1.3s infinite;
+}
+.se-sb__searchlight {
+  position: absolute;
+  top: -10vh;
+  left: 50%;
+  width: 46vw;
+  height: 120vh;
+  margin-left: -23vw;
+  background: linear-gradient(180deg, rgba(230, 240, 255, .2), rgba(230, 240, 255, .05) 70%, transparent);
+  clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
+  transform-origin: 50% 0;
+  opacity: 0;
+  animation: se-sb-search 21s ease-in-out -6s infinite;
+}
+.se-sb__glass { top: 0; right: 0; width: min(26vw, 360px); height: auto; }
+.se-sb__glass-glint { opacity: 0; animation: se-sb-glint 8s ease-in-out infinite; }
+.se-sb__puddles { bottom: 0; right: 0; width: min(34vw, 480px); height: auto; }
+.se-sb__flash--red { animation: se-sb-siren 2.6s ease-in-out infinite; }
+.se-sb__flash--blue { animation: se-sb-siren 2.6s ease-in-out -1.3s infinite; }
+.se-sb__ripple {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: se-sb-ripple 3.8s ease-out infinite;
+}
+.se-sb__tape { bottom: 4vh; left: -2vw; width: min(36vw, 500px); height: auto; }
+.se-sb__tape-band { transform-box: fill-box; transform-origin: 0 50%; animation: se-sb-flutter 5s ease-in-out infinite alternate; }
+.se-sb__tape-band--low { animation-duration: 6.5s; animation-delay: -2s; }
+.se-sb__tape-type { fill: #111; font: 800 17px/1 Arial, sans-serif; letter-spacing: 2px; }
+@keyframes se-sb-rain { to { transform: translate3d(-14px, 50%, 0); } }
+@keyframes se-sb-siren { 0%, 100% { opacity: .2; } 30%, 45% { opacity: .95; } }
+@keyframes se-sb-search {
+  0%, 40% { opacity: 0; rotate: -38deg; }
+  50% { opacity: 1; }
+  80% { opacity: .8; }
+  90%, 100% { opacity: 0; rotate: 34deg; }
+}
+@keyframes se-sb-glint { 0%, 70% { opacity: 0; } 78% { opacity: .9; } 90%, 100% { opacity: 0; } }
+@keyframes se-sb-ripple { 0% { opacity: .8; scale: .1; } 100% { opacity: 0; scale: 1.6; } }
+@keyframes se-sb-flutter { from { rotate: -.8deg; } to { rotate: .9deg; } }
+@media (max-width: 700px) {
+  .se-sb__glass { width: 44vw; }
+  .se-sb__puddles { width: 60vw; }
+  .se-sb__tape { width: 62vw; }
+}
+
+/* Block Sovereign: a territory map whose blocks are claimed in turn, a water tower on a painted
+   brick parapet, and a crown flag over a chain-link fence with ivy. */
+.se-bs__map { top: 0; left: 0; width: 100%; height: auto; }
+.se-bs__districts path { fill: #2dd4bf; fill-opacity: 0; animation: se-bs-claim 12s ease-in-out infinite; }
+.se-bs__route { stroke-opacity: .4; animation: se-bs-route 2.4s linear infinite; }
+.se-bs__flock { transform: translate(-200px, 0); animation: se-bs-flock 30s linear -6s infinite; }
+.se-bs__bird {
+  fill: none;
+  stroke: #cfe9e4;
+  stroke-opacity: .7;
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: se-bs-flap .7s ease-in-out infinite alternate;
+}
+.se-bs__corner { bottom: 0; width: min(28vw, 380px); height: auto; }
+.se-bs__corner--left { left: 0; }
+.se-bs__corner--right { right: 0; }
+.se-bs__flag {
+  transform-box: fill-box;
+  transform-origin: 100% 0;
+  animation: se-bs-wave 3.2s ease-in-out infinite alternate;
+}
+.se-bs__flag-sheen { animation: se-bs-sheen 3.2s ease-in-out infinite alternate; }
+.se-bs__tag { animation: se-bs-tag 9s ease-in-out infinite alternate; }
+@keyframes se-bs-claim {
+  0%, 100% { fill-opacity: 0; }
+  6% { fill-opacity: .34; }
+  16%, 42% { fill-opacity: .14; }
+  58% { fill-opacity: 0; }
+}
+@keyframes se-bs-route { to { stroke-dashoffset: -48; } }
+@keyframes se-bs-flock {
+  0% { transform: translate(1700px, 120px); }
+  60% { transform: translate(-200px, 40px); }
+  100% { transform: translate(-200px, 40px); }
+}
+@keyframes se-bs-flap { from { scale: 1 1; } to { scale: 1 -.6; } }
+@keyframes se-bs-wave { from { transform: skewY(-4deg) scaleX(.95); } to { transform: skewY(3deg) scaleX(1); } }
+@keyframes se-bs-sheen { from { fill-opacity: 0; } to { fill-opacity: .16; } }
+@keyframes se-bs-tag { from { opacity: .7; } to { opacity: 1; } }
+@media (max-width: 700px) {
+  .se-bs__corner { width: 46vw; }
+}
+
+/* Gilded House: chasing marquee bulbs, a felt table edge with a glinting brass rail, a fanned hand
+   with a chip stack, a roulette wheel turning in the corner, and gold sparkles. */
+.se-gh__marquee { top: 8px; left: 0; width: 100%; height: auto; }
+.se-gh__bulb { fill: #ffe7a3; animation: se-gh-chase 1.5s steps(1, end) infinite; }
+.se-gh__bulb--1 { animation-delay: -.5s; }
+.se-gh__bulb--2 { animation-delay: -1s; }
+.se-gh__table { bottom: 0; left: 0; width: 100%; height: auto; }
+.se-gh__rail-glint { stroke-opacity: .8; animation: se-gh-rail 9s linear infinite; }
+.se-gh__hand { bottom: 3vh; left: 0; width: min(26vw, 360px); height: auto; }
+.se-gh__rank { font: 700 17px/1 Georgia, 'Times New Roman', serif; }
+.se-gh__card-glint { opacity: 0; animation: se-gh-glint 7s ease-in-out infinite; }
+.se-gh__wheel { bottom: 0; right: 0; width: min(30vw, 420px); height: auto; }
+.se-gh__spin { transform-origin: 400px 400px; animation: se-gh-spin 60s linear infinite; }
+.se-gh__ball { transform-origin: 400px 400px; animation: se-gh-spin 9s linear infinite reverse; }
+.se-gh__sparkles { position: absolute; inset: 0; }
+.se-gh__sparkles i {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #ffe7a3;
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  opacity: 0;
+  animation: se-gh-sparkle 6s ease-in-out infinite;
+}
+@keyframes se-gh-chase { 0%, 66% { fill-opacity: .25; } 33% { fill-opacity: 1; } }
+@keyframes se-gh-rail { from { stroke-dashoffset: 1870; } to { stroke-dashoffset: 0; } }
+@keyframes se-gh-glint { 0%, 60% { opacity: 0; translate: 0 0; } 68% { opacity: 1; } 85%, 100% { opacity: 0; translate: 150px 0; } }
+@keyframes se-gh-spin { to { rotate: 360deg; } }
+@keyframes se-gh-sparkle { 0%, 70%, 100% { opacity: 0; scale: .3; } 80% { opacity: .9; scale: 1; } }
+@media (max-width: 700px) {
+  .se-gh__hand { width: 44vw; }
+  .se-gh__wheel { width: 48vw; }
+}
+
+/* Chrome Serpent: a chrome serpent gliding along route-map lines (SVG animateMotion, hidden under
+   reduced motion since CSS cannot pause it), a swinging shop lamp, a roll-up door, a classic
+   car's grille, and a tire stack by an oil drum. */
+.se-cs__wall { top: 0; left: 0; width: 100%; height: 100%; }
+.se-cs__shine { fill-opacity: 0; animation: se-cs-shine 3.2s ease-in-out infinite; }
+.se-cs__tongue { fill: none; stroke: #f87171; stroke-width: 1.6; opacity: 0; animation: se-cs-tongue 2.6s steps(1, end) infinite; }
+.se-cs__lamp { top: 0; left: 1vw; width: min(20vw, 270px); height: auto; }
+.se-cs__lamp-swing { transform-origin: 150px 0; animation: se-cs-swing 5.5s ease-in-out infinite alternate; }
+.se-cs__door { top: 0; right: 0; width: min(25vw, 340px); height: auto; }
+.se-cs__door-sheen { animation: se-cs-sheen 11s ease-in-out infinite; }
+.se-cs__stencil { fill: #d97706; fill-opacity: .55; font: 800 34px/1 'Arial Black', Arial, sans-serif; letter-spacing: 6px; }
+.se-cs__car { bottom: 0; left: 0; width: min(28vw, 380px); height: auto; }
+.se-cs__headlight { animation: se-cs-glow 4s ease-in-out infinite alternate; }
+.se-cs__bumper-glint { opacity: 0; animation: se-cs-glint 8s ease-in-out infinite; }
+.se-cs__tires { bottom: 0; right: 0; width: min(26vw, 360px); height: auto; }
+@keyframes se-cs-shine { 0%, 100% { fill-opacity: 0; } 20% { fill-opacity: .75; } 45% { fill-opacity: 0; } }
+@keyframes se-cs-tongue { 0%, 80% { opacity: 0; } 84%, 90% { opacity: .9; } 87% { opacity: 0; } }
+@keyframes se-cs-swing { from { rotate: -3.5deg; } to { rotate: 3.5deg; } }
+@keyframes se-cs-sheen { 0%, 40% { translate: 0 0; } 80%, 100% { translate: 0 300px; } }
+@keyframes se-cs-glow { from { opacity: .6; } to { opacity: 1; } }
+@keyframes se-cs-glint { 0%, 55% { opacity: 0; translate: 0 0; } 62% { opacity: .9; } 85%, 100% { opacity: 0; translate: 380px 0; } }
+.se-reduced-motion .se-cs__serpent { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .se-cs__serpent { display: none; }
+}
+@media (max-width: 700px) {
+  .se-cs__lamp { width: 36vw; }
+  .se-cs__door { width: 44vw; }
+  .se-cs__car { width: 50vw; }
+  .se-cs__tires { width: 46vw; }
+}
+
+/* Laurel Ascendant: velvet banners with laurel crests, crossing spotlights, a trophy on a plinth,
+   a podium with a turning medal, and drifting gold flakes. */
+.se-la__spot {
+  position: absolute;
+  top: -12vh;
+  width: 40vw;
+  height: 125vh;
+  background: linear-gradient(180deg, rgba(255, 228, 160, .2), rgba(255, 228, 160, .04) 75%, transparent);
+  clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%);
+  transform-origin: 50% 0;
+  animation: se-la-spot 14s ease-in-out infinite alternate;
+}
+.se-la__spot--left { left: 4vw; }
+.se-la__spot--right { right: 4vw; animation-name: se-la-spot-right; animation-delay: -7s; }
+.se-la__banners { top: 0; width: min(20vw, 280px); height: auto; }
+.se-la__banners--left { left: 0; }
+.se-la__banners--right { right: 0; scale: -1 1; }
+.se-la__banner {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+  animation: se-la-sway 7s ease-in-out infinite alternate;
+}
+.se-la__trophy { bottom: 0; left: 1vw; width: min(20vw, 270px); height: auto; }
+.se-la__glint { opacity: 0; animation: se-la-glint 7.5s ease-in-out infinite; }
+.se-la__podium { bottom: 0; right: 0; width: min(25vw, 340px); height: auto; }
+.se-la__numeral { fill: #e6c979; fill-opacity: .7; font: 700 40px/1 Georgia, 'Times New Roman', serif; }
+.se-la__medal {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: se-la-medal 7s ease-in-out infinite;
+}
+.se-la__flakes { position: absolute; inset: 0; overflow: hidden; }
+.se-la__flakes i {
+  position: absolute;
+  top: -12px;
+  width: 6px;
+  height: 9px;
+  background: linear-gradient(135deg, #fff2c0, #c9a34e);
+  opacity: .7;
+  animation: se-la-flake 20s linear infinite;
+}
+@keyframes se-la-spot { from { rotate: -26deg; } to { rotate: 14deg; } }
+@keyframes se-la-spot-right { from { rotate: 26deg; } to { rotate: -14deg; } }
+@keyframes se-la-sway { from { rotate: -1.6deg; } to { rotate: 1.6deg; } }
+@keyframes se-la-glint { 0%, 58% { opacity: 0; translate: 0 0; } 66% { opacity: 1; } 84%, 100% { opacity: 0; translate: 200px 0; } }
+@keyframes se-la-medal {
+  0%, 30% { scale: 1 1; translate: 0 0; }
+  45% { scale: .06 1; }
+  60%, 100% { scale: 1 1; translate: 0 -6px; }
+}
+@keyframes se-la-flake {
+  0% { transform: translate3d(0, 0, 0) rotate(0); }
+  50% { transform: translate3d(24px, 52vh, 0) rotate(260deg); }
+  100% { transform: translate3d(-12px, 106vh, 0) rotate(520deg); }
+}
+@media (max-width: 700px) {
+  .se-la__banners { width: 34vw; }
+  .se-la__trophy { width: 38vw; }
+  .se-la__podium { width: 46vw; }
+}
+
+.se-reduced-motion .se-theme-pack__haze,
+.se-reduced-motion .se-theme-scene * { animation: none !important; }
+/* Travelling pieces rest off-screen between passes; with motion off, park them in view instead. */
+.se-reduced-motion .se-dg__flight { transform: translate(900px, 56px); }
+.se-reduced-motion .se-pc__convoy { transform: translate(500px, 0); }
+.se-reduced-motion .se-bs__flock { transform: translate(1100px, 60px); }
+@media (prefers-reduced-motion: reduce) {
+  .se-theme-pack__haze,
+  .se-theme-scene * { animation: none !important; }
+  .se-dg__flight { transform: translate(900px, 56px); }
+  .se-pc__convoy { transform: translate(500px, 0); }
+  .se-bs__flock { transform: translate(1100px, 60px); }
 }

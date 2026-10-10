@@ -1,4 +1,4 @@
-import type { ActivityType, PlayerActivity, Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, type ActivityType, type PlayerActivity, type PrismaClient } from '@prisma/client';
 import {
   CONSOLE_ACTIVITY_PAGE_SIZE,
   MESSAGE_PAGE_SIZE,
@@ -816,22 +816,22 @@ export const PimpConsoleService = {
       throw AppError.notFound('MESSAGE_NOT_FOUND', 'Only received messages can be reported.');
     }
 
-    // A submitted report is immutable evidence, so a retry, even a concurrent one,
-    // is a no-op: only the request that actually inserted the row queues its staff post.
-    const created = await prisma.$transaction(async (tx) => {
-      const { count } = await tx.playerMessageReport.createMany({
-        data: [{ messageId, reporterAccountId: owner.accountId, reason: input.reason }],
-        skipDuplicates: true,
+    const where = { messageId_reporterAccountId: { messageId, reporterAccountId: owner.accountId } };
+    // A submitted report is immutable evidence. Retrying is a no-op.
+    if (await prisma.playerMessageReport.findUnique({ where, select: { id: true } })) return { ok: true };
+    try {
+      await prisma.$transaction(async (tx) => {
+        const report = await tx.playerMessageReport.create({
+          data: { messageId, reporterAccountId: owner.accountId, reason: input.reason },
+        });
+        await DiscordStaffService.queue(tx, 'MESSAGE_REPORT', report.id);
       });
-      if (count !== 1) return false;
-      const report = await tx.playerMessageReport.findUniqueOrThrow({
-        where: { messageId_reporterAccountId: { messageId, reporterAccountId: owner.accountId } },
-        select: { id: true },
-      });
-      await DiscordStaffService.queue(tx, 'MESSAGE_REPORT', report.id);
-      return true;
-    });
-    if (created) wakeDiscordBot('staff');
+    } catch (error) {
+      // A retry racing this one created the report first, and queued its staff post.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return { ok: true };
+      throw error;
+    }
+    wakeDiscordBot('staff');
     return { ok: true };
   },
 
