@@ -17,9 +17,9 @@ const badgeArtByKey: Record<string, BadgeArtPosition> = {
   'quarter-million': [0, 5],
   millionaire: [0, 6],
   'empire-builder': [0, 7],
-  'beta-tester': [0, 8],
-  veteran: [0, 9],
-  'top-finisher': [0, 10],
+  'beta-tester': [0, 9],
+  veteran: [0, 10],
+  'top-finisher': [0, 11],
   'hall-of-fame': [8, 8],
 
   // Combat progression — atlas 2.
