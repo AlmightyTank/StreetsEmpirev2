@@ -112,11 +112,23 @@ function tx(rows: unknown[] = []): any {
   };
 }
 
-function choicePrisma(encounter: unknown): any {
+function choicePrisma(encounter: any, pausedAt: Date | null = null): any {
   return {
+    roundPlayer: {
+      findUnique: vi.fn(async () => ({ round: { pausedAt } })),
+    },
     randomEncounter: {
       findFirst: vi.fn(async () => encounter),
       update: vi.fn(async ({ data }: { data: unknown }) => data),
+      updateMany: vi.fn(async ({ where, data }: { where: any; data: any }) => {
+        const expired = encounter?.id === where.id
+          && encounter?.roundPlayerId === where.roundPlayerId
+          && encounter?.status === 'PENDING'
+          && encounter?.expiresAt instanceof Date
+          && encounter.expiresAt <= where.expiresAt.lte;
+        if (expired) Object.assign(encounter, data);
+        return { count: expired ? 1 : 0 };
+      }),
     },
   };
 }
@@ -379,6 +391,9 @@ describe('RandomEncounterService', () => {
   it('returns only unexpired pending encounters for dashboard recovery', async () => {
     const now = new Date('2026-10-09T00:00:00Z');
     const db = {
+      roundPlayer: {
+        findUnique: vi.fn(async () => ({ round: { pausedAt: null } })),
+      },
       randomEncounter: {
         findMany: vi.fn(async () => [
           {
@@ -415,6 +430,38 @@ describe('RandomEncounterService', () => {
     ]);
   });
 
+  it('keeps pending choices available while the round is paused', async () => {
+    const now = new Date('2026-10-10T00:00:00Z');
+    const pausedAt = new Date('2026-10-09T00:00:00Z');
+    const db = {
+      roundPlayer: {
+        findUnique: vi.fn(async () => ({ round: { pausedAt } })),
+      },
+      randomEncounter: {
+        findMany: vi.fn(async () => [{
+          id: 'encounter-1',
+          key: 'choice',
+          title: 'Choice',
+          text: 'Pick one.',
+          tone: 'neutral',
+          status: 'PENDING',
+          effects: {},
+          choices: [{ key: 'walk', label: 'Walk', text: 'You walk.', effects: {} }],
+          expiresAt: new Date('2026-10-09T12:00:00Z'),
+        }]),
+      },
+    } as any;
+
+    const pending = await RandomEncounterService.pendingForPlayer(db, 'player-1', now);
+
+    expect(pending).toHaveLength(1);
+    expect(db.randomEncounter.findMany).toHaveBeenCalledWith({
+      where: { roundPlayerId: 'player-1', status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+  });
+
   it('marks expired pending choices and rejects them', async () => {
     const db = choicePrisma({
       id: 'encounter-1',
@@ -432,10 +479,14 @@ describe('RandomEncounterService', () => {
       statusCode: 409,
     });
 
-    expect(db.randomEncounter.update).toHaveBeenCalledWith({
-      where: { id: 'encounter-1' },
+    expect(db.randomEncounter.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: 'encounter-1',
+        status: 'PENDING',
+      }),
       data: { status: 'EXPIRED' },
-    });
+    }));
+    expect(runMock).not.toHaveBeenCalled();
   });
 
   it('caps choice effects and returns the full effect payload', async () => {

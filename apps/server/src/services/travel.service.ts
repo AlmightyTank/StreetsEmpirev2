@@ -635,7 +635,7 @@ export const TravelService = {
   },
 
   /** Load a run up at home and send it: cars, escorts, cash and cargo leave home stock together. */
-  launch(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<RunLaunchResult>> {
+  launch(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown, rng: Rng = Math.random): Promise<GameActionResult<RunLaunchResult>> {
     const input = runLaunchSchema.parse(rawInput);
     return ActionService.run<RunLaunchResult>(prisma, roundPlayerId, {
       action: 'RUN_LAUNCH',
@@ -829,6 +829,7 @@ export const TravelService = {
           ruleset,
           turns: plan.turns,
           now,
+          rng,
         });
         const result: RunLaunchResult = {
           ...baseResult,
@@ -1063,7 +1064,7 @@ export const TravelService = {
   },
 
   /** Leave town for another city, then home from there. Pays only for the extra road. */
-  driveOn(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<RunMoveResult>> {
+  driveOn(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown, rng: Rng = Math.random): Promise<GameActionResult<RunMoveResult>> {
     const input = runDriveOnSchema.parse(rawInput);
     return ActionService.run<RunMoveResult>(prisma, roundPlayerId, {
       action: 'RUN_DRIVE_ON',
@@ -1089,6 +1090,7 @@ export const TravelService = {
           ruleset,
           turns: plan.turns,
           now,
+          rng,
         });
         return {
           next: encounter.next,
@@ -1105,7 +1107,7 @@ export const TravelService = {
   },
 
   /** Close the town window now and drive home. The drive is already paid for. */
-  headHome(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<RunMoveResult>> {
+  headHome(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown, rng: Rng = Math.random): Promise<GameActionResult<RunMoveResult>> {
     const input = runHeadHomeSchema.parse(rawInput);
     return ActionService.run<RunMoveResult>(prisma, roundPlayerId, {
       action: 'RUN_HEAD_HOME',
@@ -1127,6 +1129,7 @@ export const TravelService = {
           ruleset,
           turns: 0,
           now,
+          rng,
         });
         return {
           next: encounter.next,

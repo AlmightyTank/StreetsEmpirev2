@@ -241,14 +241,20 @@ async function persistEncounter(input: Pick<ScoutEncounterInput, 'tx' | 'roundPl
 
 export const RandomEncounterService = {
   async pendingForPlayer(prisma: PrismaClient | Db, roundPlayerId: string, now = new Date()): Promise<RandomEncounterDto[]> {
+    const player = await prisma.roundPlayer.findUnique({
+      where: { id: roundPlayerId },
+      select: { round: { select: { pausedAt: true } } },
+    });
     const rows = await prisma.randomEncounter.findMany({
       where: {
         roundPlayerId,
         status: 'PENDING',
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: now } },
-        ],
+        ...(!player?.round.pausedAt ? {
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: now } },
+          ],
+        } : {}),
       },
       orderBy: { createdAt: 'desc' },
       take: 5,
