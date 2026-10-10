@@ -8,6 +8,7 @@ import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { CityDistrictMap } from '../components/CityDistrictMap.js';
 import { DistrictPicker } from '../components/DistrictPicker.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
@@ -77,6 +78,17 @@ export function ScoutPage() {
   const districtTone = coverageTone(selectedDistrict);
   const chosenTurns = typeof turns === 'number' ? turns : 0;
   const remainingTurns = Math.max(0, available - chosenTurns);
+  const mapDistricts = districts.map((entry) => {
+    const exposure = Math.round(entry.exposedFraction * 100);
+    const tone = coverageTone(entry);
+    return {
+      district: entry.key,
+      name: entry.name,
+      status: tone === 'good' ? 'coverage-covered' : tone === 'warn' ? 'coverage-warn' : 'coverage-bad',
+      statusText: exposure === 0 ? 'Covered' : `${exposure}% exposed`,
+      detail: `${100 - exposure}% crew covered`,
+    } as const;
+  });
   const supplyJobs = district
     ? [{ job: district, label: selectedDistrict?.name ?? 'This district' }]
     : [];
@@ -130,6 +142,38 @@ export function ScoutPage() {
 
         {loadError ? <Alert>{loadError}</Alert> : null}
         {action.error ? <Alert>{action.error}</Alert> : null}
+
+        <section className="se-scout-section se-scout-map-section">
+          <div className="se-scout-sectionhead">
+            <div>
+              <span className="se-eyebrow">Your city · {me.city.name}</span>
+              <h2>Choose where to scout</h2>
+            </div>
+            <p>Select a district on the map or from the list below. The selected district stays in sync.</p>
+          </div>
+          <div className="se-citymap-layout">
+            <CityDistrictMap
+              cityName={me.city.name}
+              districts={mapDistricts}
+              selectedDistrict={district}
+              onSelect={setDistrict}
+              disabled={action.busy}
+            />
+            <aside className="se-citymap-brief" aria-label="Scout map coverage summary">
+              <div className="se-citymap-brief__control">
+                <span className="se-eyebrow">Selected district</span>
+                <strong>{selectedDistrict?.name ?? 'Pick a district'}</strong>
+                <span>{selectedDistrict ? `${coveredPercent}% crew covered · ${exposurePercent}% exposed` : 'Choose an area to see your crew coverage.'}</span>
+              </div>
+              <div className="se-citymap-brief__legend" aria-label="Scout coverage legend">
+                <span><i className="se-citymap__legend-dot se-citymap__legend-dot--mine" />Covered</span>
+                <span><i className="se-citymap__legend-dot se-citymap__legend-dot--held" />Some crew exposed</span>
+                <span><i className="se-citymap__legend-dot se-citymap__legend-dot--pressure" />High exposure</span>
+              </div>
+              <p>Coverage reflects your current crew and the selected district’s protection rule.</p>
+            </aside>
+          </div>
+        </section>
 
         <div className="se-scout-plan">
           <section className="se-scout-plan__main">
