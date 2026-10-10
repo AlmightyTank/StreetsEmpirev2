@@ -50,6 +50,6 @@ describe('1.6.0 never reaches a round pinned before it', () => {
   });
 
   it('makes the newest 1.6 ruleset the one new rounds start on', () => {
-    expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v1.6-h');
+    expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v1.6-h2');
   });
 });
