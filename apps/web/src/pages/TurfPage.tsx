@@ -15,6 +15,7 @@ import { useCountdown } from '../hooks/useCountdown.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen } from '../utils/time.js';
+import { CityDistrictMap } from '../components/CityDistrictMap.js';
 
 const ORDER: Record<TurfBlockDto['district'], number> = {
   CASINO: 0,
@@ -93,10 +94,16 @@ function holder(block: TurfBlockDto) {
   );
 }
 
-function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged: () => void }) {
+function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city: CityCharacterDto; onChanged: () => void; onSelect: (district: TurfBlockDto['district']) => void; selectedDistrict: TurfBlockDto['district'] | null }) {
   const turf = city.turf;
   if (!turf) return <p className="se-muted">Turf is not enabled in this round.</p>;
-  const blocks = [...turf.blocks].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
+  const blocks = [...turf.blocks].sort((a, b) => {
+    if (selectedDistrict) {
+      if (a.district === selectedDistrict) return -1;
+      if (b.district === selectedDistrict) return 1;
+    }
+    return ORDER[a.district] - ORDER[b.district];
+  });
 
   return (
     <>
@@ -105,10 +112,13 @@ function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged
         {blocks.map((block) => {
           const status = block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
           return (
-            <article key={block.district} role="listitem" className={`se-turfboard__block se-turfboard__block--${status}`}>
+            <article id={`turf-block-${block.district}`} key={block.district} role="listitem" className={`se-turfboard__block se-turfboard__block--${status}${selectedDistrict === block.district ? ' se-turfboard__block--selected' : ''}`}>
               <div className="se-turfboard__head">
                 <div>
-                  <span className="se-eyebrow">{block.districtName}</span>
+                  <button type="button" className="se-turfboard__focus" onClick={() => onSelect(block.district)} aria-pressed={selectedDistrict === block.district}>
+                    <span className="se-eyebrow">District</span>
+                    <strong>{block.districtName}</strong>
+                  </button>
                   <div className="se-turfboard__holder">{holder(block)}</div>
                 </div>
                 <span className="se-turfboard__age" title={block.heldSince ? `Held since ${formatWhen(block.heldSince)}` : undefined}>
@@ -147,6 +157,12 @@ function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged
               {block.businesses ? <BusinessLots block={block} business={turf.business} onChanged={onChanged} /> : null}
               {turf.business?.wars ? <BlockWarPanel block={block} wars={turf.business.wars} isHome={city.isHome} onChanged={onChanged} /> : null}
 
+              {selectedDistrict === block.district ? (
+                <Link className="se-turfboard__scout-link" to={`/game/scout?district=${encodeURIComponent(block.district)}`}>
+                  {city.isHome ? 'Scout this district' : 'Scout this district type at home'} <span aria-hidden="true">↗</span>
+                </Link>
+              ) : null}
+
               {block.outpost ? <span className="se-turfboard__outpost">Your outpost</span> : null}
               {block.revengeAvailable && block.revengeUntil ? (
                 <span className="se-hint se-good">
@@ -166,6 +182,67 @@ function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged
         })}
       </div>
     </>
+  );
+}
+
+function CityTurfMap({
+  city,
+  onSelect,
+  selectedDistrict,
+}: {
+  city: CityCharacterDto;
+  onSelect: (district: TurfBlockDto['district']) => void;
+  selectedDistrict: TurfBlockDto['district'] | null;
+}) {
+  const blocks = [...(city.turf?.blocks ?? [])].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
+  const cityController = city.turf?.control?.alliance.tag;
+  const blocksHeldByController = city.turf?.control?.blocksHeld ?? 0;
+  const mapDistricts = blocks.map((block) => {
+    const activePush = Boolean(block.push || block.war);
+    const status = activePush ? 'pressure' : block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
+    const owner = block.holder
+      ? `${block.holder.alliance ? `[${block.holder.alliance.tag}] ` : ''}${block.holder.displayName}`
+      : block.localsReclaimAt ? 'Vacant · locals rebuilding' : 'Locals hold this block';
+    return {
+      district: block.district,
+      name: block.districtName,
+      status,
+      statusText: activePush ? 'Conflict' : block.isMine ? 'Your crew' : block.holder ? 'Player-held' : block.localsReclaimAt ? 'Rebuilding' : 'Local control',
+      detail: owner,
+    } as const;
+  });
+
+  return (
+    <details className="se-cityblocks-mapdetails">
+      <summary>
+        <span><span className="se-eyebrow">City overview · {city.name}</span><strong>Open the district map</strong></span>
+        <span>{selectedDistrict ? `Focused: ${blocks.find((block) => block.district === selectedDistrict)?.districtName ?? 'district'}` : 'Five districts · select to focus'}</span>
+      </summary>
+      <div className="se-citymap-layout">
+        <CityDistrictMap cityName={city.name} districts={mapDistricts} selectedDistrict={selectedDistrict} onSelect={(district) => onSelect(district as TurfBlockDto['district'])} />
+
+        <aside className="se-citymap-brief" aria-label="City control summary">
+          <div className="se-citymap-brief__control">
+            <span className="se-eyebrow">City control</span>
+            <strong>{cityController ? `[${cityController}]` : 'Contested city'}</strong>
+            <span>{cityController ? `${blocksHeldByController} of 5 blocks held · 3 needed to control` : 'No alliance currently controls the city'}</span>
+          </div>
+          <div className="se-citymap-brief__legend" aria-label="Map legend">
+            <span><i className="se-citymap__legend-dot se-citymap__legend-dot--mine" />Your crew</span>
+            <span><i className="se-citymap__legend-dot se-citymap__legend-dot--held" />Other crew</span>
+            <span><i className="se-citymap__legend-dot se-citymap__legend-dot--locals" />Locals</span>
+            <span><i className="se-citymap__legend-dot se-citymap__legend-dot--vacant" />Rebuilding</span>
+            <span><i className="se-citymap__legend-dot se-citymap__legend-dot--pressure" />Active conflict</span>
+          </div>
+          {selectedDistrict ? (
+            <a className="se-citymap-brief__action" href={`#turf-block-${selectedDistrict}`}>
+              Jump to district actions <span aria-hidden="true">↓</span>
+            </a>
+          ) : null}
+          <p>Select a district to focus its card on the control board below.</p>
+        </aside>
+      </div>
+    </details>
   );
 }
 
@@ -244,6 +321,10 @@ export function TurfPage() {
     ?? turfCities.find((city) => city.isHome)
     ?? turfCities[0]
     ?? null;
+  const requestedDistrict = params.get('district');
+  const selectedDistrict = selected?.turf?.blocks.some((block) => block.district === requestedDistrict)
+    ? requestedDistrict as TurfBlockDto['district']
+    : null;
   const selectedPulse = selected ? pulse(selected) : null;
   const activeRuns = travel?.runs ?? (travel?.run ? [travel.run] : []);
   const nextRunDeadline = activeRuns.reduce<string | null>((next, run) => {
@@ -263,8 +344,8 @@ export function TurfPage() {
       <div className="se-cityblocks">
         <header className="se-cityblocks-hero">
           <div className="se-cityblocks-hero__copy">
-            <span className="se-eyebrow">Territory command · {selected?.name ?? me.city.name}</span>
-            <h1>Turf</h1>
+            <span className="se-eyebrow">Turf · {selected?.name ?? me.city.name}</span>
+            <h1>City Control</h1>
             <p>Read who owns the street, where pressure is building, and where your crew can claim, reinforce, defend, or push next.</p>
           </div>
 
@@ -308,7 +389,9 @@ export function TurfPage() {
                       role="tab"
                       aria-selected={active}
                       className={`se-turfcitystrip__city${active ? ' se-turfcitystrip__city--on' : ''}`}
-                      onClick={() => setParams({ city: city.slug }, { replace: true })}
+                      onClick={() => {
+                        setParams({ city: city.slug }, { replace: true, preventScrollReset: true });
+                      }}
                     >
                       <strong>{city.name}</strong>
                       <span>{city.turf?.control ? `[${city.turf.control.alliance.tag}] controls` : 'No city controller'}</span>
@@ -324,16 +407,18 @@ export function TurfPage() {
                 <section className="se-cityblocks-section">
                   <div className="se-cityblocks-sectionhead">
                     <div>
-                      <span className="se-eyebrow">City pulse</span>
-                      <h2>{selected.name}</h2>
+                      <span className="se-eyebrow">City control · {selected.name}</span>
+                      <h2>{selected.turf?.control ? `[${selected.turf.control.alliance.tag}] controls ${selected.turf.control.blocksHeld} of 5` : 'No alliance controls the city yet'}</h2>
                     </div>
                     <div className="se-cityblocks-control">
                       {selected.turf?.control ? (
                         <Link to={`/game/alliances/${encodeURIComponent(selected.turf.control.alliance.tag)}`}>
-                          [{selected.turf.control.alliance.tag}] controls {selected.turf.control.blocksHeld}/5
+                          {selected.turf.control.blocksHeld >= 3
+                            ? 'City control threshold met'
+                            : `${3 - selected.turf.control.blocksHeld} more ${selected.turf.control.blocksHeld === 2 ? 'district' : 'districts'} needed for control`}
                         </Link>
                       ) : (
-                        <span>No alliance controls the city</span>
+                        <span>One alliance needs 3 of 5 districts</span>
                       )}
                     </div>
                   </div>
@@ -341,32 +426,35 @@ export function TurfPage() {
                   <div className="se-cityblocks-pulse">
                     <CityBlocksMetric label="Player-held" value={`${formatNumber(selectedPulse.held)} / 5`} detail="blocks with player crews" />
                     <CityBlocksMetric label="Your blocks" value={formatNumber(selectedPulse.mine)} detail="currently under your control" tone={selectedPulse.mine > 0 ? 'accent' : undefined} />
-                    <CityBlocksMetric label="Locals" value={formatNumber(selectedPulse.locals)} detail="fully local-controlled" />
-                    <CityBlocksMetric label="Vacant" value={formatNumber(selectedPulse.vacant)} detail="locals rebuilding" tone={selectedPulse.vacant > 0 ? 'warn' : undefined} />
-                    <CityBlocksMetric label="Posted crew" value={formatNumber(selectedPulse.postedThugs)} detail="all player-held blocks" />
-                    <CityBlocksMetric label="Posted guns" value={formatNumber(selectedPulse.guns)} detail="all player-held blocks" />
+                    <CityBlocksMetric label="Open ground" value={formatNumber(selectedPulse.locals + selectedPulse.vacant)} detail="outside player control" tone={selectedPulse.locals + selectedPulse.vacant > 0 ? 'good' : undefined} />
                     <CityBlocksMetric
-                      label="Avg. current hold"
-                      value={selectedPulse.averageHold ? durationFrom(new Date(Date.now() - selectedPulse.averageHold).toISOString()) : '—'}
-                      detail="age of current holders"
-                    />
-                    <CityBlocksMetric
-                      label="Visible pressure"
+                      label="Active fronts"
                       value={formatNumber(selectedPulse.visiblePushes)}
-                      detail={selectedPulse.visiblePushes ? 'pushes currently visible' : 'no visible pushes'}
+                      detail={selectedPulse.visiblePushes ? 'districts under pressure' : 'no visible conflict'}
                       tone={selectedPulse.visiblePushes > 0 ? 'warn' : 'good'}
                     />
                   </div>
-                  <p className="se-hint">The pulse is a current snapshot. Round performance still uses cumulative block-time in the standings below.</p>
+                  <p className="se-hint">City control is a current snapshot. Round performance still uses cumulative block-time in the standings below.</p>
                 </section>
+
+                <CityTurfMap
+                  city={selected}
+                  selectedDistrict={selectedDistrict}
+                  onSelect={(district) => {
+                    const next = new URLSearchParams(params);
+                    next.set('city', selected.slug);
+                    next.set('district', district);
+                    setParams(next, { replace: true, preventScrollReset: true });
+                  }}
+                />
 
                 <section className="se-cityblocks-section">
                   <div className="se-cityblocks-sectionhead">
                     <div>
-                      <span className="se-eyebrow">District board</span>
-                      <h2>Control & corner work</h2>
+                      <span className="se-eyebrow">City control board</span>
+                      <h2>Choose a district to work</h2>
                     </div>
-                    <span className="se-cityblocks-sectionhead__meta">5 districts</span>
+                    <span className="se-cityblocks-sectionhead__meta">Select a district for its actions</span>
                   </div>
 
                   {selected.turf?.upkeepDiscount ? (
@@ -375,7 +463,17 @@ export function TurfPage() {
                     </p>
                   ) : null}
                   <div className="se-cityblocks-boardwrap">
-                    <CityBlockBoard city={selected} onChanged={load} />
+                    <CityBlockBoard
+                      city={selected}
+                      onChanged={load}
+                      selectedDistrict={selectedDistrict}
+                      onSelect={(district) => {
+                        const next = new URLSearchParams(params);
+                        next.set('city', selected.slug);
+                        next.set('district', district);
+                        setParams(next, { replace: true, preventScrollReset: true });
+                      }}
+                    />
                   </div>
                 </section>
 
