@@ -261,7 +261,7 @@ export async function handleStaffModal(interaction: ModalSubmitInteraction, deps
       if (interaction.message) await interaction.message.edit(messageReportMessage(report)).catch(() => undefined);
       await interaction.editReply({
         content: act.action === 'mute-1d'
-          ? `Muted ${report.sender.displayName} for 1 day and closed every report on that message. Lift it from their admin account page.`
+          ? `Muted ${report.sender.displayName} for at least 1 day (a longer mute already in place is kept) and closed every report on that message. Change it from their admin account page.`
           : 'Dismissed every report on that message.',
       });
       return;

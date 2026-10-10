@@ -1,4 +1,4 @@
-import type { ActivityType, PlayerActivity, Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, type ActivityType, type PlayerActivity, type PrismaClient } from '@prisma/client';
 import {
   CONSOLE_ACTIVITY_PAGE_SIZE,
   MESSAGE_PAGE_SIZE,
@@ -819,14 +819,18 @@ export const PimpConsoleService = {
     const where = { messageId_reporterAccountId: { messageId, reporterAccountId: owner.accountId } };
     // A submitted report is immutable evidence. Retrying is a no-op.
     if (await prisma.playerMessageReport.findUnique({ where, select: { id: true } })) return { ok: true };
-    await prisma.$transaction(async (tx) => {
-      const report = await tx.playerMessageReport.upsert({
-        where,
-        create: { messageId, reporterAccountId: owner.accountId, reason: input.reason },
-        update: {},
+    try {
+      await prisma.$transaction(async (tx) => {
+        const report = await tx.playerMessageReport.create({
+          data: { messageId, reporterAccountId: owner.accountId, reason: input.reason },
+        });
+        await DiscordStaffService.queue(tx, 'MESSAGE_REPORT', report.id);
       });
-      await DiscordStaffService.queue(tx, 'MESSAGE_REPORT', report.id);
-    });
+    } catch (error) {
+      // A retry racing this one created the report first, and queued its staff post.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return { ok: true };
+      throw error;
+    }
     wakeDiscordBot('staff');
     return { ok: true };
   },

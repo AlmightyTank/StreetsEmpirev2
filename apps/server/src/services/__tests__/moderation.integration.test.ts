@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV08H } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
+import { env } from '../../config/env.js';
+import { AdminModerationService } from '../admin-moderation.service.js';
 import { NotificationService } from '../notification.service.js';
 import { PimpConsoleService } from '../pimp-console.service.js';
 import { ReputationService } from '../reputation.service.js';
@@ -246,6 +248,48 @@ describe.runIf(process.env.MODERATION_INTEGRATION === '1')('0.9.0-H moderation a
     expect(history.reports.find((row: { id: string }) => row.id === entry.id)).toMatchObject({
       resolution: 'ACTIONED', resolutionNote: 'Muted the sender for a day', resolvedByUsername: p.admin!.name,
     });
+  });
+
+  it('queues one staff post for racing report retries, and lets one Discord admin win a race on a report', async () => {
+    const [sender, reporter, second] = [p.x5!, p.x6!, p.x7!];
+    // Staff posts are only queued while the bot API is on.
+    const bot = env.discordBot as { enabled: boolean };
+    const botWas = bot.enabled;
+    bot.enabled = true;
+    onTestFinished(() => { bot.enabled = botWas; });
+    const [firstDiscord, secondDiscord] = [`d-${randomUUID()}`, `d-${randomUUID()}`];
+    await app.prisma.account.update({ where: { id: p.admin!.accountId }, data: { discordId: firstDiscord } });
+    await app.prisma.account.update({ where: { id: second.accountId }, data: { isAdmin: true, discordId: secondDiscord } });
+    const reportOf = async (messageId: string) => {
+      await Promise.all(Array.from({ length: 4 }, () => PimpConsoleService.report(app.prisma, reporter.accountId, messageId, { reason: 'Threats' })));
+      const report = await app.prisma.playerMessageReport.findUniqueOrThrow({ where: { messageId_reporterAccountId: { messageId, reporterAccountId: reporter.accountId } } });
+      expect(await app.prisma.discordStaffPost.count({ where: { kind: 'MESSAGE_REPORT', targetId: report.id } })).toBe(1);
+      return report.id;
+    };
+
+    for (let round = 0; round < 3; round += 1) {
+      const reportId = await reportOf((await send(sender, reporter, `pay up ${round}`)).message.id);
+      const codes = await Promise.all([
+        errorCode(AdminModerationService.actFromDiscord(app.prisma, firstDiscord, reportId, 'mute-1d', 'Threats, read in admin')),
+        errorCode(AdminModerationService.actFromDiscord(app.prisma, secondDiscord, reportId, 'dismiss', 'Banter')),
+      ]);
+      expect(codes.sort()).toEqual([null, 'REPORT_RESOLVED'].sort());
+      const closed = await app.prisma.playerMessageReport.findUniqueOrThrow({ where: { id: reportId } });
+      const account = await app.prisma.account.findUniqueOrThrow({ where: { id: sender.accountId } });
+      // Muted exactly when the report closed as actioned.
+      expect({ resolution: closed.resolution, muted: Boolean(account.commsMutedUntil) }).toEqual(
+        closed.resolution === 'ACTIONED' ? { resolution: 'ACTIONED', muted: true } : { resolution: 'DISMISSED', muted: false },
+      );
+      await app.prisma.account.update({ where: { id: sender.accountId }, data: { commsMutedUntil: null, commsMuteReason: null, commsMutedByUsername: null } });
+    }
+
+    // A week's mute already in place is not cut to a day by the Discord button.
+    const reportId = await reportOf((await send(sender, reporter, 'pay up, last time')).message.id);
+    expect((await admin('POST', `/accounts/${sender.accountId}/comms-mute`, { length: '7d', reason: 'Earlier threats' })).statusCode).toBe(200);
+    const week = (await app.prisma.account.findUniqueOrThrow({ where: { id: sender.accountId } })).commsMutedUntil;
+    await AdminModerationService.actFromDiscord(app.prisma, firstDiscord, reportId, 'mute-1d', 'Threats again');
+    expect((await app.prisma.account.findUniqueOrThrow({ where: { id: sender.accountId } })).commsMutedUntil).toEqual(week);
+    expect((await app.prisma.playerMessageReport.findUniqueOrThrow({ where: { id: reportId } })).resolution).toBe('ACTIONED');
   });
 
   it('keeps private moderation notes on accounts', async () => {
