@@ -762,7 +762,7 @@ export interface DealerCrewActionResult {
 /** 1.7.0-A. Where a crew member is. Every status but RELEASED is counted in the crew. */
 export type CrewMemberStatusDto = 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED';
 export type CrewAssignmentKindDto = 'BUSINESS' | 'DEALER' | 'TURF';
-export type CrewMemberSpecialtyDto = 'GENERALIST' | 'DEALER';
+export type CrewMemberSpecialtyDto = 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE';
 
 export interface CrewMemberHistoryDto {
   kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED';
@@ -781,6 +781,10 @@ export interface CrewMemberDto {
   assignment: { kind: CrewAssignmentKindDto; ref: string | null; label: string } | null;
   experiencePoints: number;
   specialty: CrewMemberSpecialtyDto;
+  specialtyExperiencePoints: number;
+  specialtyLevel: 0 | 1 | 2;
+  specialtyEffectPercent: number;
+  nextSpecialtyMilestone: number | null;
   /** Descriptive identity tags. They have no gameplay modifiers in 1.7.0-B. */
   traits: string[];
   unavailableReason: string | null;

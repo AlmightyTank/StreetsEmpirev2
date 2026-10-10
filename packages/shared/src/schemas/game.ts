@@ -355,7 +355,7 @@ export const crewRosterQuerySchema = z.object({
   role: z.enum(['THUG', 'WORKER']).optional(),
   status: z.enum(['AVAILABLE', 'ASSIGNED', 'IN_TRANSIT', 'RECOVERING', 'RELEASED']).optional(),
   assignment: z.enum(['BUSINESS', 'DEALER', 'TURF']).optional(),
-  specialty: z.enum(['GENERALIST', 'DEALER']).optional(),
+  specialty: z.enum(['GENERALIST', 'ENFORCER', 'WHEELMAN', 'SCOUT', 'DEALER', 'SERVICE']).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
 }).strict();

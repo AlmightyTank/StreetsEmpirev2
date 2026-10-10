@@ -25,6 +25,6 @@ export function crewMemberTraits(role: 'THUG' | 'WORKER', serial: number): strin
   return [CREW_BASELINE_TRAITS[(index * 5 + offset) % CREW_BASELINE_TRAITS.length]!];
 }
 
-export function crewMemberSpecialty(dealerStaffId: string | null): CrewMemberSpecialtyDto {
-  return dealerStaffId ? 'DEALER' : 'GENERALIST';
+export function crewMemberSpecialty(dealerStaffId: string | null, specialty: CrewMemberSpecialtyDto): CrewMemberSpecialtyDto {
+  return dealerStaffId ? 'DEALER' : specialty;
 }

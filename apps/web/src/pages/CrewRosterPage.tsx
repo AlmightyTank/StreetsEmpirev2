@@ -11,6 +11,12 @@ import '../styles/crew-roster.css';
 const statusLabels: Record<CrewMemberStatusDto, string> = {
   AVAILABLE: 'Available', ASSIGNED: 'Assigned', IN_TRANSIT: 'Away on a run', RECOVERING: 'Recovering', RELEASED: 'Released',
 };
+const specialtyLabels: Record<CrewMemberDto['specialty'], string> = {
+  GENERALIST: 'Generalist', ENFORCER: 'Enforcer', WHEELMAN: 'Wheelman', SCOUT: 'Scout', DEALER: 'Dealer', SERVICE: 'Service specialist',
+};
+const effectLabels: Record<CrewMemberDto['specialty'], string> = {
+  GENERALIST: 'no specialty effect', ENFORCER: 'raid strength', WHEELMAN: 'road-stop risk reduction', SCOUT: 'scouting income', DEALER: 'dealer pace and cut', SERVICE: 'worker service performance',
+};
 
 function CrewMemberCard({ member }: { member: CrewMemberDto }) {
   return (
@@ -25,8 +31,15 @@ function CrewMemberCard({ member }: { member: CrewMemberDto }) {
       <div className="se-crew-roster__facts">
         <div><span>Current assignment</span><strong>{member.assignment?.label ?? (member.status === 'RELEASED' ? 'Outside the active crew' : 'Home crew')}</strong></div>
         <div><span>Experience</span><strong>{formatNumber(member.experiencePoints)} XP</strong></div>
-        <div><span>Specialty</span><strong>{member.specialty === 'DEALER' ? 'Dealer' : 'Generalist'}</strong></div>
+        <div><span>Specialty</span><strong>{specialtyLabels[member.specialty]}</strong></div>
       </div>
+      <p className="se-crew-roster__note">
+        {member.specialty === 'GENERALIST'
+          ? `${formatNumber(member.specialtyExperiencePoints)} career XP · ${member.nextSpecialtyMilestone ? `${formatNumber(Math.max(0, member.nextSpecialtyMilestone - member.specialtyExperiencePoints))} XP to a specialty` : 'No specialty progression this round'}`
+          : member.specialty === 'DEALER'
+            ? `Dealer career · ${formatNumber(member.specialtyExperiencePoints)} XP · pace and cut follow dealer tiers`
+            : `Tier ${member.specialtyLevel} · ${member.specialtyEffectPercent}% ${effectLabels[member.specialty]} · ${member.nextSpecialtyMilestone ? `${formatNumber(Math.max(0, member.nextSpecialtyMilestone - member.specialtyExperiencePoints))} XP to next tier` : 'career capped'}`}
+      </p>
       {member.unavailableReason ? <p className="se-crew-roster__reason">{member.unavailableReason}</p> : null}
       <div className="se-crew-roster__traits" aria-label="Crew traits">
         {member.traits.map((trait) => <span key={trait}>{trait}</span>)}
@@ -121,10 +134,10 @@ export function CrewRosterPage() {
                 <option value="">All assignments</option><option value="BUSINESS">Business</option><option value="DEALER">Dealer crew</option><option value="TURF">Turf</option>
               </select></label>
               <label>Specialty<select className="se-input" value={specialty ?? ''} onChange={(event) => { setSpecialty((event.target.value || undefined) as CrewRosterFilters['specialty']); setOffset(0); }}>
-                <option value="">All specialties</option><option value="GENERALIST">Generalist</option><option value="DEALER">Dealer</option>
+                <option value="">All specialties</option><option value="GENERALIST">Generalist</option><option value="ENFORCER">Enforcer</option><option value="WHEELMAN">Wheelman</option><option value="SCOUT">Scout</option><option value="DEALER">Dealer</option><option value="SERVICE">Service</option>
               </select></label>
             </div>
-            <p className="se-crew-roster__note">Traits describe each member. They do not change game outcomes in this slice; specialty progression comes later.</p>
+            <p className="se-crew-roster__note">Completed raids, scouting trips, and returned runs earn specialty XP. Bonuses cap at 5% and apply only to that job.</p>
             {loading ? <p className="se-muted">Checking the roster…</p> : data.members.length ? (
               <>
                 <div className="se-crew-roster__list">{data.members.map((member) => <CrewMemberCard key={member.id} member={member} />)}</div>

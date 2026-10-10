@@ -5,7 +5,7 @@ export interface CrewRosterFilters {
   role?: 'THUG' | 'WORKER';
   status?: 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED';
   assignment?: 'BUSINESS' | 'DEALER' | 'TURF';
-  specialty?: 'GENERALIST' | 'DEALER';
+  specialty?: 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE';
   limit?: number;
   offset?: number;
 }

@@ -115,6 +115,17 @@ Make members improve in ways tied to their work.
 
 **Gate:** Tests prove skill applies only to its stated job, is capped, advances only from valid completed work, and cannot be multiplied by retries or timing manipulation.
 
+**Status: Implemented.**
+
+**As built:**
+
+- Crew careers persist a specialty and specialty XP. A completed eligible job awards 5 XP to one deterministic eligible member in the same database transaction as the result. Failed requests never reach the award; raids replay their stored report, and road-run XP is awarded only when an active run is first marked returned.
+- A member unlocks the specialty of their work at 20 XP and reaches tier two at 100 XP. Dealer careers keep using the existing `DealerStaff` experience, pace and cut tiers; the roster mirrors that progress instead of creating a second dealer system.
+- Enforcers add 2% raid strength at tier one and 5% at tier two. Wheelmen reduce road-stop risk by the same bounded amounts for runs they launch. Scouts increase scouting income by the same bounded amounts. These effects are job-specific and capped at 5%; earlier rulesets are unchanged.
+- The current ruleset has no selectable worker service-category model, so Service Specialist remains a reserved specialty and receives no XP or effect. It can be opened when service categories are introduced.
+- The roster shows specialty XP, tier, effect and distance to the next milestone. Filters include all specialties.
+- The C ruleset pins thresholds, XP awards and bonus caps. A schema migration preserves existing dealer experience and marks their specialty as Dealer.
+
 ### 1.7.0-D — Assignment, Training & Availability
 
 Give players practical control over who does each job.

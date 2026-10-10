@@ -33,7 +33,7 @@ const COUNT_FIELDS = {
 } as const;
 
 const MEMBER_FIELDS = {
-  id: true, role: true, serial: true, status: true, assignmentKind: true, assignmentRef: true, experiencePoints: true, dealerStaffId: true,
+  id: true, role: true, serial: true, status: true, assignmentKind: true, assignmentRef: true, experiencePoints: true, specialty: true, specialtyExperiencePoints: true, dealerStaffId: true,
 } as const;
 
 /** Rows per statement, well inside Postgres' bind-parameter limit. */
@@ -178,8 +178,8 @@ async function totalsFor(db: Db | PrismaClient, roundPlayerId: string) {
 
 function memberDto(row: {
   id: string; role: CrewRole; serial: number; status: CrewMemberStatusDto; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null;
-  experiencePoints: number; dealerStaffId: string | null; joinedAt: Date; statusSince: Date;
-}, assignmentLabel: string | null, history: CrewMemberHistoryDto[]): CrewMemberDto {
+  experiencePoints: number; specialty: CrewMemberDto['specialty']; specialtyExperiencePoints: number; dealerStaffId: string | null; joinedAt: Date; statusSince: Date;
+}, assignmentLabel: string | null, history: CrewMemberHistoryDto[], ruleset: Ruleset): CrewMemberDto {
   const assignment = row.assignmentKind ? {
     kind: row.assignmentKind,
     ref: row.assignmentRef,
@@ -197,7 +197,14 @@ function memberDto(row: {
     status: row.status,
     assignment,
     experiencePoints: row.experiencePoints,
-    specialty: crewMemberSpecialty(row.dealerStaffId),
+    specialty: crewMemberSpecialty(row.dealerStaffId, row.specialty),
+    specialtyExperiencePoints: row.specialtyExperiencePoints,
+    specialtyLevel: row.specialty === 'GENERALIST' ? 0 : row.specialtyExperiencePoints >= (ruleset.crewRoster?.specialtyTierTwoExperience ?? Number.MAX_SAFE_INTEGER) ? 2 : 1,
+    specialtyEffectPercent: row.specialty === 'GENERALIST' || row.specialty === 'DEALER' ? 0 : row.specialtyExperiencePoints >= (ruleset.crewRoster?.specialtyTierTwoExperience ?? Number.MAX_SAFE_INTEGER)
+      ? Math.min(ruleset.crewRoster?.specialtyBonusPercent?.tierTwo ?? 0, ruleset.crewRoster?.specialtyBonusPercent?.cap ?? 0)
+      : Math.min(ruleset.crewRoster?.specialtyBonusPercent?.tierOne ?? 0, ruleset.crewRoster?.specialtyBonusPercent?.cap ?? 0),
+    nextSpecialtyMilestone: row.specialty === 'GENERALIST' ? (ruleset.crewRoster?.specialtyUnlockExperience ?? null)
+      : row.specialtyExperiencePoints < (ruleset.crewRoster?.specialtyTierTwoExperience ?? Number.MAX_SAFE_INTEGER) ? (ruleset.crewRoster?.specialtyTierTwoExperience ?? null) : null,
     traits: crewMemberTraits(row.role, row.serial),
     unavailableReason,
     history,
@@ -281,6 +288,7 @@ export const CrewRosterService = {
           id: row.id, roundPlayerId, role: row.role, serial: row.serial, status: row.status,
           assignmentKind: row.assignmentKind, assignmentRef: row.assignmentRef,
           experiencePoints: row.experiencePoints, dealerStaffId: row.dealerStaffId,
+          specialty: row.dealerStaffId ? 'DEALER' : 'GENERALIST', specialtyExperiencePoints: row.dealerStaffId ? row.experiencePoints : 0,
           joinedAt: now, statusSince: now, releasedAt: row.status === 'RELEASED' ? now : null,
         })),
       });
@@ -303,7 +311,7 @@ export const CrewRosterService = {
     // Members who left with nothing earned are deleted, their history with them.
     for (const batch of chunks(plan.drops)) await tx.crewMember.deleteMany({ where: { roundPlayerId, id: { in: batch } } });
     for (const link of plan.links) {
-      await tx.crewMember.update({ where: { id: link.id }, data: { dealerStaffId: link.dealerStaffId, experiencePoints: link.experiencePoints } });
+      await tx.crewMember.update({ where: { id: link.id }, data: { dealerStaffId: link.dealerStaffId, experiencePoints: link.experiencePoints, specialty: 'DEALER', specialtyExperiencePoints: link.experiencePoints } });
     }
     for (const batch of chunks(plan.events)) {
       await tx.crewMemberEvent.createMany({
@@ -339,7 +347,40 @@ export const CrewRosterService = {
   /** 1.6 dealer sales: the experience a career earns is the experience its member has. */
   async addDealerExperience(tx: Db, ruleset: Ruleset, dealerStaffId: string, points: number): Promise<void> {
     if (!ruleset.crewRoster?.enabled || points <= 0) return;
-    await tx.crewMember.updateMany({ where: { dealerStaffId }, data: { experiencePoints: { increment: points } } });
+    await tx.crewMember.updateMany({ where: { dealerStaffId }, data: { experiencePoints: { increment: points }, specialtyExperiencePoints: { increment: points }, specialty: 'DEALER' } });
+  },
+
+  /** Award a bounded career point share after a server-resolved operation commits successfully. */
+  async awardCompletedWork(tx: Db, input: { roundPlayerId: string; ruleset: Ruleset; role: 'THUG' | 'WORKER'; specialty: 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'SERVICE'; assignmentKind?: CrewAssignmentKindDto; assignmentRef?: string | null; at: Date; label: string }): Promise<void> {
+    const rules = input.ruleset.crewRoster;
+    if (!rules?.enabled || !rules.experiencePerCompletedJob) return;
+    const [member] = await tx.crewMember.findMany({
+      where: { roundPlayerId: input.roundPlayerId, role: input.role, status: input.specialty === 'WHEELMAN' ? { in: ['AVAILABLE', 'IN_TRANSIT'] } : 'AVAILABLE', dealerStaffId: null, OR: [{ specialty: 'GENERALIST' }, { specialty: input.specialty }] },
+      orderBy: [{ specialtyExperiencePoints: 'desc' }, { serial: 'asc' }], take: 1,
+      select: { id: true, specialty: true, specialtyExperiencePoints: true },
+    });
+    if (!member) return;
+    const points = rules.experiencePerCompletedJob;
+    const nextPoints = member.specialtyExperiencePoints + points;
+    const specialty = member.specialty === 'GENERALIST' && nextPoints >= (rules.specialtyUnlockExperience ?? Number.MAX_SAFE_INTEGER) ? input.specialty : member.specialty;
+    await tx.crewMember.update({ where: { id: member.id }, data: { experiencePoints: { increment: points }, specialtyExperiencePoints: { increment: points }, specialty } });
+    await tx.crewMemberEvent.create({ data: { memberId: member.id, roundPlayerId: input.roundPlayerId, kind: 'WORK_COMPLETED', assignmentKind: input.assignmentKind, assignmentRef: input.assignmentRef, summary: `${input.label} · +${points} XP.`, at: input.at } });
+  },
+
+  /** Highest bounded effect already earned by a member who can take this job. */
+  async specialtyBonusPercent(tx: Db, roundPlayerId: string, ruleset: Ruleset, role: 'THUG' | 'WORKER', specialty: 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'SERVICE'): Promise<number> {
+    const career = ruleset.crewRoster;
+    if (!career?.enabled) return 0;
+    const members = await tx.crewMember.findMany({
+      where: { roundPlayerId, role, specialty, status: 'AVAILABLE', dealerStaffId: null },
+      select: { specialtyExperiencePoints: true },
+    });
+    const points = Math.max(0, ...members.map((member) => member.specialtyExperiencePoints));
+    if (!points) return 0;
+    const percent = points >= (career.specialtyTierTwoExperience ?? Number.MAX_SAFE_INTEGER)
+      ? career.specialtyBonusPercent?.tierTwo ?? 0
+      : career.specialtyBonusPercent?.tierOne ?? 0;
+    return Math.min(percent, career.specialtyBonusPercent?.cap ?? 0);
   },
 
   /** One history entry per member for a settled dealer shift, never one per interval. */
@@ -374,7 +415,7 @@ export const CrewRosterService = {
         roundPlayerId,
         ...(query.role ? { role: query.role } : {}),
         ...(query.assignment ? { assignmentKind: query.assignment } : {}),
-        ...(query.specialty === 'DEALER' ? { dealerStaffId: { not: null } } : query.specialty === 'GENERALIST' ? { dealerStaffId: null } : {}),
+        ...(query.specialty ? { specialty: query.specialty } : {}),
         status: query.status ?? { not: 'RELEASED' },
       };
       const [migration, totals, total, members] = await Promise.all([
@@ -426,6 +467,7 @@ export const CrewRosterService = {
           member,
           assignmentName(member.assignmentKind, member.assignmentRef, labels),
           eventHistory(eventsByMember.get(member.id) ?? [], member.joinedAt, labels),
+          ruleset,
         )),
         total,
       };

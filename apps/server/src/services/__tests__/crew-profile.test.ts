@@ -16,7 +16,8 @@ describe('crew profiles', () => {
       const traits = Array.from({ length: 300 }, (_, index) => crewMemberTraits(role, index + 1)[0]!);
       expect(new Set(traits)).toEqual(new Set(CREW_BASELINE_TRAITS));
     }
-    expect(crewMemberSpecialty(null)).toBe('GENERALIST');
-    expect(crewMemberSpecialty('staff-id')).toBe('DEALER');
+    expect(crewMemberSpecialty(null, 'GENERALIST')).toBe('GENERALIST');
+    expect(crewMemberSpecialty(null, 'SCOUT')).toBe('SCOUT');
+    expect(crewMemberSpecialty('staff-id', 'SCOUT')).toBe('DEALER');
   });
 });

@@ -438,6 +438,7 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   // 1.7.0 crew roster rulesets carry it forward too.
   'classic-og-v1.7-a': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.7-b': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.7-c': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */

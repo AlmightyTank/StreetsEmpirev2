@@ -1931,6 +1931,15 @@ enum CrewMemberRole {
   WORKER
 }
 
+enum CrewMemberSpecialty {
+  GENERALIST
+  ENFORCER
+  WHEELMAN
+  SCOUT
+  DEALER
+  SERVICE
+}
+
 /// Where a member is. Every status but RELEASED is counted in the player's thugs or whores.
 enum CrewMemberStatus {
   /// At home and fit for work.
@@ -1976,6 +1985,8 @@ model CrewMember {
   /// The business, dealer crew or turf a member is assigned to, when it is known.
   assignmentRef    String?
   experiencePoints Int                 @default(0)
+  specialty        CrewMemberSpecialty @default(GENERALIST)
+  specialtyExperiencePoints Int         @default(0)
   /// 1.6 dealer career this member carries; the member keeps the career's id.
   dealerStaffId    String?             @unique
   dealerStaff      DealerStaff?        @relation(fields: [dealerStaffId], references: [id], onDelete: SetNull)
@@ -2258,6 +2269,8 @@ model Run {
   beer           Int            @default(0)
   startBeer      Int            @default(0)
   turnsSpent     Int
+  /// 1.7.0-C. Capped risk reduction earned by a Wheelman on this run.
+  wheelmanBonusPercent Int @default(0)
   launchedAt     DateTime       @default(now())
   returnedAt     DateTime?
   /// 0.5.0-C. Stops whose road in has been rolled for a police stop, counted from the first.

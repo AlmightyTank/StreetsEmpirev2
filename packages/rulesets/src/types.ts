@@ -3323,6 +3323,11 @@ export interface LoanOfferRules {
  */
 export interface CrewRosterRules {
   readonly enabled: boolean;
+  /** 1.7.0-C career milestones. Effects apply only to the job named by the specialty. */
+  readonly experiencePerCompletedJob?: number;
+  readonly specialtyUnlockExperience?: number;
+  readonly specialtyTierTwoExperience?: number;
+  readonly specialtyBonusPercent?: { readonly tierOne: number; readonly tierTwo: number; readonly cap: number };
 }
 
 export interface SupplyNetworkRules {

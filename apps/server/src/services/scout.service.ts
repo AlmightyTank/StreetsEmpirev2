@@ -13,6 +13,7 @@ import { TurfService } from './turf.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { encounterActivityPayload, RandomEncounterService } from './random-encounter.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 export interface Crew {
   whores: number;
@@ -145,6 +146,7 @@ export const ScoutService = {
         if (supply) await WorkSupplyService.consume(tx, roundPlayerId, ruleset, supply);
 
         const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
+        const scoutCareerBonus = await CrewRosterService.specialtyBonusPercent(tx, roundPlayerId, ruleset, 'WORKER', 'SCOUT');
         const scoutRuleset: Ruleset = favorBonuses.scoutIncomePercent > 0 || favorBonuses.scoutRecruitmentPercent > 0
           ? {
               ...ruleset,
@@ -167,12 +169,16 @@ export const ScoutService = {
               },
             }
           : ruleset;
+        const effectiveScoutRuleset: Ruleset = scoutCareerBonus > 0 ? {
+          ...scoutRuleset,
+          scouting: { ...scoutRuleset.scouting, grossPerWhorePerTurnCents: Math.max(1, Math.round(scoutRuleset.scouting.grossPerWhorePerTurnCents * (100 + scoutCareerBonus) / 100)) },
+        } : scoutRuleset;
         const outcome = calculateScout({
           supply,
           heat: current.heat,
           player: { ...active, whoreHappiness, thugHappiness },
           turns: input.turns,
-          ruleset: scoutRuleset,
+          ruleset: effectiveScoutRuleset,
           city: cityModifiers(ruleset, player.city.slug),
           district: found.key,
           clientCapacity: capacities[found.key],
@@ -310,6 +316,7 @@ export const ScoutService = {
 
         const local = localDistrict(ruleset, player.city.slug, found.key, found.district);
 
+        await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'WORKER', specialty: 'SCOUT', at: now, label: 'Scouting trip complete' });
         return {
           next,
           result,
