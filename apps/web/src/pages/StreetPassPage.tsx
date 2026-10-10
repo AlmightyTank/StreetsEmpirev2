@@ -74,7 +74,7 @@ function PassMetric({
 
 type CosmeticPreviewKind = 'theme' | 'frame' | 'badge' | 'title' | 'item';
 
-const COSMETIC_PREVIEW_WEAPONS = ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47'] as const satisfies readonly ItemArtKey[];
+const COSMETIC_PREVIEW_ITEMS = ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN'] as const satisfies readonly ItemArtKey[];
 
 function cosmeticCollectionStyle(key: string): ItemCosmeticStyleKey | null {
   if (key === 'street-pass-s1-urban-ghost') return 'urban-ghost';
@@ -83,8 +83,8 @@ function cosmeticCollectionStyle(key: string): ItemCosmeticStyleKey | null {
   return null;
 }
 
-function randomCosmeticPreviewWeapon(): ItemArtKey {
-  return COSMETIC_PREVIEW_WEAPONS[Math.floor(Math.random() * COSMETIC_PREVIEW_WEAPONS.length)];
+function randomCosmeticPreviewItem(): ItemArtKey {
+  return COSMETIC_PREVIEW_ITEMS[Math.floor(Math.random() * COSMETIC_PREVIEW_ITEMS.length)];
 }
 
 type CosmeticPreview = {
@@ -129,9 +129,9 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
   const titlePlacement = useSession((state) => state.profileSettings.titlePlacement);
   const active = previews[Math.min(activeIndex, Math.max(0, previews.length - 1))];
   const [collectionPreviewWeapons] = useState(() => ({
-    'urban-ghost': randomCosmeticPreviewWeapon(),
-    'midnight-ops': randomCosmeticPreviewWeapon(),
-    'cartel-gold': randomCosmeticPreviewWeapon(),
+    'urban-ghost': randomCosmeticPreviewItem(),
+    'midnight-ops': randomCosmeticPreviewItem(),
+    'cartel-gold': randomCosmeticPreviewItem(),
   }));
   const activeCollectionStyle = active ? cosmeticCollectionStyle(active.key) : null;
   const activeWeapon = activeCollectionStyle ? collectionPreviewWeapons[activeCollectionStyle] : null;
