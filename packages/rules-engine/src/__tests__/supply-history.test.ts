@@ -56,4 +56,8 @@ describe('1.6.0 never reaches a round pinned before it', () => {
       expect(ruleset.supplyNetwork, ruleset.meta.id).toEqual(finished.supplyNetwork);
     }
   });
+
+  it('makes the guided empire ruleset the newest season ruleset', () => {
+    expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v1.6.5-e2');
+  });
 });
