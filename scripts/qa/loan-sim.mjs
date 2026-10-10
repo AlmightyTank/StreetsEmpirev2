@@ -1,6 +1,7 @@
 import {
   debtLimits,
   debtRoomCents,
+  garnishCents,
   lateFeeChargeCents,
   loanOfferTerms,
   loanOfferRefusal,
@@ -99,13 +100,16 @@ assert(lateFeeChargeCents({ lateFeeCents: BigInt(rules.lateFeeCents), loanLateFe
 const overdue = BigInt(quick.principalCents) / 2n;
 let garnished = 0n;
 for (const income of [500_000n, 800_000n, 2_000_000n, 10_000_000n]) {
-  const payment = Math.min(Number(overdue - garnished), Number(BigInt(rules.collections.garnishCapPerDayCents) - garnished), Number(income * BigInt(rules.collections.garnishPercent) / 100n));
-  garnished += BigInt(Math.max(0, payment));
+  garnished += garnishCents(rules, {
+    incomeCents: income,
+    garnishedLast24hCents: garnished,
+    overdueCents: overdue - garnished,
+    cashCents: income,
+  });
   assert(garnished <= overdue, 'Collections garnished more than the overdue amount.');
   assert(garnished <= BigInt(rules.collections.garnishCapPerDayCents), 'Collections exceeded the 24-hour cap.');
 }
 const recovering = nextLoanStanding(rules, { current: 'COLLECTIONS', recoveryNeeded: 0, missedOutstanding: 0, owesAnything: true, onTimeCleared: 0 });
-const recoveryHours = rules.installmentIntervalHours * rules.collections.recoveryOnTimeInstallments;
 const recovered = nextLoanStanding(rules, { current: recovering.state, recoveryNeeded: recovering.recoveryNeeded, missedOutstanding: 0, owesAnything: true, onTimeCleared: rules.collections.recoveryOnTimeInstallments });
 assert(recovering.state === 'RECOVERING' && recovered.state === 'CLEAR', 'A paid-up delinquent player could not complete recovery.');
 assert(!classicOgV165C.loanShark.collections, 'Historical 1.6.5-C rounds unexpectedly gained collections behavior.');
@@ -126,7 +130,7 @@ const report = [
   `- Missed installments: ${missCount} assessments charged ${dollars(totalLateFees)} before the per-loan cap stopped growth; a separate near-ceiling check allowed only ${dollars(ceilingLimitedFee)} before debt growth stopped.`,
   `- Fee totals: ${dollars(feePosition.feesAssessedCents)} / round cap ${dollars(feePosition.feeCapCents)}; per-loan late fees ${dollars(totalLateFees)} / cap ${dollars(BigInt(rules.lateFeeCapPerLoanCents))}.`,
   `- Collections: garnishment stayed within 25% per income line, ${dollars(BigInt(rules.collections.garnishCapPerDayCents))} per rolling day, overdue balance, and cash available.`,
-  `- Recovery: clearing overdue moved the account to Recovering; ${rules.collections.recoveryOnTimeInstallments} on-time installments (${recoveryHours} game-clock hours) restored Clear standing.`,
+  `- Recovery: clearing overdue moved the account to Recovering; ${rules.collections.recoveryOnTimeInstallments} on-time installments restored Clear standing.`,
   '- Historical rulesets: 1.6.5-C retains its original delinquency behavior; 1.6.0-H has no loan feature.',
   '',
   'All gates passed. The earnings profile is a transparent balance assumption, not observed telemetry; rerun at other values before finalizing offer limits.',
