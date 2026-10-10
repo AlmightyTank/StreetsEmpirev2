@@ -1352,8 +1352,9 @@
 @keyframes se-theme-pack-mote { 0%, 100% { transform: translate3d(0, 14px, 0) scale(.65); opacity: .2; } 50% { transform: translate3d(8px, -18px, 0) scale(1); opacity: .85; } }
 @keyframes se-theme-pack-haze { from { opacity: .28; } to { opacity: .8; } }
 
-/* Illustrated SVG scenes (components/theme-scenes) replace the generic motif and motes. */
-.se-site-theme-decor--scene { opacity: .62; }
+/* Illustrated SVG scenes (components/theme-scenes) replace the generic motif and motes.
+   They sit under page content (.se-app isolates) so the art never covers text. */
+.se-site-theme-decor--scene { z-index: -1; opacity: .62; }
 .se-site-theme-decor--scene :is(.se-theme-pack__motif, .se-theme-pack__motes) { display: none; }
 .se-theme-scene { position: absolute; inset: 0; }
 .se-theme-scene svg { position: absolute; overflow: visible; }
@@ -1399,6 +1400,57 @@
 @media (max-width: 700px) {
   .se-doa__light { width: 120vw; right: -30vw; }
   .se-doa__board { top: auto; bottom: 4vh; left: -10vw; width: 46vw; opacity: .7; }
+}
+
+/* Lantern District: paper lanterns on strands under the eaves, a neon stall sign, rising sparks. */
+.se-ld__defs { position: absolute; }
+.se-ld__strands {
+  top: 0;
+  width: min(20vw, 320px);
+  height: auto;
+}
+.se-ld__strands--left { left: 0; }
+.se-ld__strands--right { right: 0; scale: -1 1; }
+.se-ld__strand--back { opacity: .62; }
+.se-ld__lantern { animation: se-ld-sway 6s ease-in-out infinite alternate; }
+.se-ld__strand--back .se-ld__lantern { animation-duration: 8s; }
+.se-ld__halo { animation: se-ld-glow 4.5s ease-in-out infinite alternate; }
+.se-ld__sign {
+  top: 46vh;
+  right: 1.5vw;
+  width: min(6vw, 86px);
+  height: auto;
+  filter: drop-shadow(0 0 6px #22d3ee88) drop-shadow(0 0 14px #ff64ac55);
+}
+.se-ld__neon { animation: se-ld-flicker 11s steps(1, end) infinite; }
+.se-ld__sparks { position: absolute; inset: 0; overflow: hidden; }
+.se-ld__sparks i {
+  position: absolute;
+  bottom: -8px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ffd18a;
+  box-shadow: 0 0 6px #ffae3b, 0 0 12px #ff5a86aa;
+  animation: se-ld-spark 13s linear infinite;
+}
+@keyframes se-ld-sway { from { rotate: -2.6deg; } to { rotate: 2.4deg; } }
+@keyframes se-ld-glow { from { opacity: .45; } to { opacity: 1; } }
+@keyframes se-ld-flicker {
+  0%, 88%, 92%, 95% { opacity: 1; }
+  90% { opacity: .35; }
+  93.5% { opacity: .6; }
+}
+@keyframes se-ld-spark {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  12% { opacity: .9; }
+  50% { transform: translate3d(14px, -48vh, 0); }
+  85% { opacity: .5; }
+  100% { transform: translate3d(-10px, -92vh, 0); opacity: 0; }
+}
+@media (max-width: 700px) {
+  .se-ld__strands { width: 42vw; }
+  .se-ld__sign { display: none; }
 }
 
 .se-reduced-motion .se-theme-pack__motif,
