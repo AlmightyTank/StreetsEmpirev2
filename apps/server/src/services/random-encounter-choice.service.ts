@@ -51,7 +51,7 @@ function effectsOf(value: Prisma.JsonValue | unknown): PendingChoice['effects'] 
 }
 
 export const RandomEncounterChoiceService = {
-  resolve(
+  async resolve(
     prisma: PrismaClient,
     roundPlayerId: string,
     encounterId: string,

@@ -9,7 +9,6 @@ import {
   raidSchema,
   specialRaidSchema,
   type BattleReportDto,
-  type RandomEncounterDto,
   type CombatDriveByDto,
   type CombatIntelReportDto,
   type CombatPageDto,
