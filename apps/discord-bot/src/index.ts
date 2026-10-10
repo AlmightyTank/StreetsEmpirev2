@@ -467,9 +467,11 @@ client.once(Events.ClientReady, async (ready) => {
       if (!event || !config.DISCORD_STATUS_CHANNEL_ID) return;
       const { channel } = await statusCheck();
       if (!channel) return;
+      // A failed send throws before `posted`, so the next probe offers the same news again.
       if (event.event === 'down') {
         const sent = await channel.send({ ...outageMessage(event.since, Date.now()), allowedMentions: { parse: [] } });
         outagePost = { channelId: channel.id, messageId: sent.id };
+        outages.posted(event);
         console.warn(`The game API has not answered since ${new Date(event.since).toISOString()}; posted an outage notice.`);
       } else {
         const posted = outagePost?.channelId === channel.id ? await channel.messages.fetch(outagePost.messageId).catch(() => null) : null;
@@ -477,6 +479,7 @@ client.once(Events.ClientReady, async (ready) => {
         if (posted) await posted.edit(message);
         else await channel.send({ ...message, allowedMentions: { parse: [] } });
         outagePost = null;
+        outages.posted(event);
         console.log(`The game API is answering again after ${Math.round(event.downForMs / 60_000)} min.`);
       }
     });

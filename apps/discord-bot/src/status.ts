@@ -21,10 +21,13 @@ export type OutageEvent = { event: 'down'; since: number } | { event: 'up'; sinc
 /**
  * Turns a probe every minute into at most one "down" and one "up" post per outage.
  * Quiet while a deploy the bot posted about is running: restarts are expected then,
- * unless the game stays down past the grace period.
+ * unless the game stays down past the grace period. A post only counts once Discord
+ * took it (`posted`): until then every probe offers it again, so a status channel
+ * that was briefly unusable still gets the news.
  */
 export class OutageWatch {
   private failingSince: number | null = null;
+  /** A "down" post is in the channel. */
   private down = false;
   private deployUntil = 0;
 
@@ -38,18 +41,29 @@ export class OutageWatch {
     this.deployUntil = 0;
   }
 
+  /** What to post now, if anything. Nothing changes until `posted` says Discord took it. */
   record(ok: boolean, now: number): OutageEvent | null {
     if (ok) {
       const since = this.failingSince;
-      this.failingSince = null;
-      if (!this.down || since === null) return null;
-      this.down = false;
+      // Back before anyone was told it was down: nothing to say.
+      if (!this.down || since === null) {
+        this.failingSince = null;
+        return null;
+      }
       return { event: 'up', since, downForMs: now - since };
     }
     this.failingSince ??= now;
     if (this.down || now - this.failingSince < this.thresholdMs || now < this.deployUntil) return null;
-    this.down = true;
     return { event: 'down', since: this.failingSince };
+  }
+
+  posted(event: OutageEvent): void {
+    if (event.event === 'down') {
+      this.down = true;
+    } else {
+      this.down = false;
+      this.failingSince = null;
+    }
   }
 }
 
