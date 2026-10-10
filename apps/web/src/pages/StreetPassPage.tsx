@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { QuestRewardDto, StreetPassClaimResult, StreetPassDto, StreetPassTierDto } from '@streets/shared';
-import { formatNumber } from '@streets/shared';
+import { formatNumber, formatProfileName } from '@streets/shared';
 import { streetPassApi } from '../api/streetPass.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { rewardText } from '../components/RewardChip.js';
 import { useGameAction } from '../hooks/useGameAction.js';
-import { ITEM_ART, rewardArtKey } from '../items/itemArt.js';
+import { ITEM_ART, itemArtUrl, rewardArtKey } from '../items/itemArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { useSession } from '../stores/session.js';
 
 /** "$10K", "$2.5K", "$100K": cash counts on a tile. */
 function compactDollars(cents: number): string {
@@ -109,6 +110,8 @@ function streetPassCosmeticPreviews(pass: StreetPassDto): CosmeticPreview[] {
 
 function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const displayName = useSession((state) => state.me?.displayName ?? state.account?.username ?? 'AMIGHTYTANK');
+  const titlePlacement = useSession((state) => state.profileSettings.titlePlacement);
   const active = previews[Math.min(activeIndex, Math.max(0, previews.length - 1))];
 
   useEffect(() => {
@@ -131,7 +134,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
   const description = active.kind === 'theme'
     ? `Unlocks at tier ${formatNumber(active.tier)} and can be selected from account settings after you claim it.`
     : active.kind === 'title'
-      ? `Unlocks at tier ${formatNumber(active.tier)} and gives your profile name a season title.`
+      ? `Unlocks at tier ${formatNumber(active.tier)} and shows how this title appears with your player name.`
       : `Unlocks at tier ${formatNumber(active.tier)} and stays on your account after the season.`;
 
   return (
@@ -141,21 +144,6 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
           <span className="se-eyebrow">{eyebrow}</span>
           <h3>{active.label}</h3>
           <p>{description}</p>
-          {previews.length > 1 ? (
-            <div className="se-pass-theme-preview__dots" role="tablist" aria-label="Cosmetic previews">
-              {previews.map((preview, index) => (
-                <button
-                  key={preview.key}
-                  type="button"
-                  className={index === activeIndex ? 'is-active' : undefined}
-                  aria-label={`Show ${preview.label}`}
-                  aria-selected={index === activeIndex}
-                  role="tab"
-                  onClick={() => setActiveIndex(index)}
-                />
-              ))}
-            </div>
-          ) : null}
         </div>
         {active.kind === 'theme' ? (
           <div className="se-pass-theme-preview__mock" aria-hidden="true">
@@ -190,28 +178,14 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
             <span className="se-pass-theme-preview__glow" />
           </div>
         ) : (
-          <div className="se-pass-theme-preview__cosmetic-stage" aria-hidden="true">
-            <span className="se-pass-theme-preview__cosmetic-glow" />
+          <div className="se-pass-theme-preview__cosmetic-stage">
+            <span className="se-pass-theme-preview__cosmetic-glow" aria-hidden="true" />
             {active.art ? (
-              <div className="se-pass-theme-preview__big-art">
-                <ItemTile item={active.art} size="lg" label title={`${active.label} cosmetic`} />
-              </div>
+              <img className="se-pass-theme-preview__item-art" src={itemArtUrl(active.art)} alt={`${active.label} cosmetic artwork`} />
             ) : null}
             {active.kind === 'title' ? (
-              <div className="se-pass-theme-preview__nameplates">
-                <span>
-                  <small>Prefix</small>
-                  <strong>{active.label} AMIGHTYTANK</strong>
-                </span>
-                <span>
-                  <small>Profile</small>
-                  <strong>AMIGHTYTANK</strong>
-                  <em>{active.label} · Season 1</em>
-                </span>
-                <span>
-                  <small>Compact</small>
-                  <strong>AMIGHTYTANK · {active.label}</strong>
-                </span>
+              <div className="se-pass-theme-preview__title-name">
+                <strong>{formatProfileName(displayName, active.label, titlePlacement)}</strong>
               </div>
             ) : (
               <div className="se-pass-theme-preview__cosmetic-profile">
@@ -223,6 +197,21 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
           </div>
         )}
       </article>
+      {previews.length > 1 ? (
+        <div className="se-pass-theme-preview__dots" role="tablist" aria-label="Cosmetic previews">
+          {previews.map((preview, index) => (
+            <button
+              key={preview.key}
+              type="button"
+              className={index === activeIndex ? 'is-active' : undefined}
+              aria-label={`Show ${preview.label}`}
+              aria-selected={index === activeIndex}
+              role="tab"
+              onClick={() => setActiveIndex(index)}
+            />
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
