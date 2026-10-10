@@ -194,11 +194,15 @@ export function ProfileBadgeArt({ badgeKey, category, rarity = 'common', size = 
   const family = category ?? badgeCategoryForKey(badgeKey);
   const artKey = badgeArtByKey[badgeKey] ? badgeKey : (fallbackKeyByCategory[family] ?? 'hall-of-fame');
   const style = { width: size, height: size, opacity: locked ? 0.35 : 1 };
+  const standaloneBadgeKeys = new Set(['kingpin', 'beta-tester', 'veteran', 'top-finisher', 'hall-of-fame', 'past-winner']);
+  const artPath = standaloneBadgeKeys.has(artKey)
+    ? `/assets/profile-badges/individual-standalone/${artKey}.webp`
+    : `/assets/profile-badges/individual-v2/${artKey}.webp`;
 
   return (
     <img
       className={`se-badge-art se-badge-art--${rarity}${locked ? ' is-locked' : ''}`}
-      src={`/assets/profile-badges/individual-v2/${artKey}.webp`}
+      src={artPath}
       style={style}
       alt={`${family} ${rarity} badge`}
     />
