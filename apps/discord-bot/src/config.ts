@@ -29,6 +29,8 @@ const schema = z.object({
   DISCORD_RAID_FEED_CHANNEL_ID: optionalChannel('DISCORD_RAID_FEED_CHANNEL_ID'),
   /** Private staff channel for bug reports and held patch notes; empty turns staff posts off. */
   DISCORD_STAFF_CHANNEL_ID: optionalChannel('DISCORD_STAFF_CHANNEL_ID'),
+  /** Text channel /support tickets are private threads in; empty turns /support off. */
+  DISCORD_SUPPORT_CHANNEL_ID: optionalChannel('DISCORD_SUPPORT_CHANNEL_ID'),
   /** How often alerts (/alerts), the raid feed and round events are checked. */
   DISCORD_ALERTS_MINUTES: z.coerce.number().int().min(1).max(60).default(1),
   /** Local HTTP listener for game-server wake-up nudges. Set port 0 to turn it off. */

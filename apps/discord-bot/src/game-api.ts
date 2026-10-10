@@ -216,6 +216,42 @@ const bugCreatedSchema = z.object({ ok: z.literal(true), id: z.string(), message
 const bugResolvedSchema = z.object({ report: staffBugReportSchema });
 const reportActedSchema = z.object({ report: staffMessageReportSchema });
 
+const ticketSchema = z.object({
+  id: z.string(),
+  discordId: z.string(),
+  discordName: z.string(),
+  subject: z.string(),
+  threadId: z.string().nullable(),
+  staffMessageId: z.string().nullable(),
+  createdAt: z.string(),
+  closedAt: z.string().nullable(),
+  closedByName: z.string().nullable(),
+});
+
+/** Staff-only: posted to the staff channel, never into the ticket thread the member reads. */
+const supportContextSchema = z.object({
+  account: z.object({
+    username: z.string(),
+    createdAt: z.string(),
+    lastLoginAt: z.string().nullable(),
+    emailVerified: z.boolean(),
+    isAdmin: z.boolean(),
+    restrictions: z.array(z.string()),
+    url: z.string(),
+  }).nullable(),
+  player: z.object({ roundName: z.string(), displayName: z.string(), publicPimpId: z.number(), url: z.string() }).nullable(),
+  bugReports: z.object({ open: z.number(), recent: z.array(z.object({ summary: z.string(), resolution: z.string().nullable() })) }),
+  openReportsAgainst: z.number(),
+  pastTickets: z.number(),
+});
+
+const openTicketSchema = z.union([
+  z.object({ existing: ticketSchema }),
+  z.object({ ticket: ticketSchema, context: supportContextSchema }),
+]);
+const closedTicketSchema = z.object({ ticket: ticketSchema });
+const staffCheckSchema = z.object({ admin: z.boolean() });
+
 const newsCreatedSchema = z.object({ id: z.string(), title: z.string(), url: z.string().url(), roundName: z.string().nullable() });
 
 export const ALERT_TYPES = ['attacks', 'round', 'rank', 'turns', 'turf', 'alliance'] as const;
@@ -475,6 +511,8 @@ export type StaffPost = z.infer<typeof staffPostSchema>;
 export type StaffBugReport = z.infer<typeof staffBugReportSchema>;
 export type StaffMessageReport = z.infer<typeof staffMessageReportSchema>;
 export type ReportAction = 'mute-1d' | 'dismiss';
+export type SupportTicket = z.infer<typeof ticketSchema>;
+export type SupportContext = z.infer<typeof supportContextSchema>;
 export type BugCategory = BugReportCategory;
 export type BugResolution = BugReportResolution;
 export type RoundEvent = AlertsClaim['rounds'][number];
@@ -565,6 +603,20 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     /** A staff button on a message report; the game checks the member is a linked admin. */
     actOnMessageReport: async (reportId: string, input: { discordId: string; action: ReportAction; note: string }) =>
       (await call(reportActedSchema, `/api/internal/discord/message-reports/${encodeURIComponent(reportId)}/act`, { method: 'POST', body: input })).report,
+    /** Whether a member may use staff buttons: a linked, active game admin. */
+    isStaff: async (discordId: string) => (await call(staffCheckSchema, `/api/internal/discord/staff?${query({ discordId })}`)).admin,
+    /** /support: their open ticket, or a new one with staff-only context. */
+    openTicket: (input: { discordId: string; discordName: string; subject: string }) =>
+      call(openTicketSchema, '/api/internal/discord/support-tickets', { method: 'POST', body: input }),
+    attachTicket: async (ticketId: string, input: { threadId: string; staffMessageId: string | null }) => {
+      await call(okSchema, `/api/internal/discord/support-tickets/${encodeURIComponent(ticketId)}/attach`, { method: 'POST', body: input });
+    },
+    abandonTicket: async (ticketId: string) => {
+      await call(okSchema, `/api/internal/discord/support-tickets/${encodeURIComponent(ticketId)}/abandon`, { method: 'POST' });
+    },
+    /** The member who opened it or a linked game admin; the game checks which. */
+    closeTicket: async (ticketId: string, input: { discordId: string; name: string }) =>
+      (await call(closedTicketSchema, `/api/internal/discord/support-tickets/${encodeURIComponent(ticketId)}/close`, { method: 'POST', body: input })).ticket,
     /** Staff channel posts, each handed out once. */
     claimStaffPosts: async () => (await call(staffClaimSchema, '/api/internal/discord/staff-posts/claim', { method: 'POST' })).posts,
     staffPostPosted: async (postId: string, messageId: string) => {

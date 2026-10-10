@@ -109,7 +109,7 @@ export const AccountDataService = {
       orderBy: { createdAt: 'asc' },
     });
     const playerIds = players.map((row) => row.id);
-    const [profile, cosmetics, notifications, sessions, trustedDevices, devices, forumLink, sent, received, contacts, mutes, messageReports, bugReports] = await Promise.all([
+    const [profile, cosmetics, notifications, sessions, trustedDevices, devices, forumLink, sent, received, contacts, mutes, messageReports, bugReports, supportTickets] = await Promise.all([
       prisma.accountProfile.findUnique({ where: { accountId } }),
       prisma.accountCosmeticUnlock.findMany({ where: { accountId } }),
       prisma.notificationSettings.findUnique({ where: { accountId } }),
@@ -123,6 +123,7 @@ export const AccountDataService = {
       prisma.playerMute.findMany({ where: { muterAccountId: accountId }, select: { createdAt: true, muted: { select: { username: true } } } }),
       prisma.playerMessageReport.findMany({ where: { reporterAccountId: accountId }, select: { reason: true, createdAt: true, resolvedAt: true, resolution: true } }),
       prisma.bugReport.findMany({ where: { accountId }, select: { category: true, summary: true, details: true, pagePath: true, source: true, createdAt: true, resolvedAt: true, resolution: true, playerReply: true } }),
+      prisma.supportTicket.findMany({ where: { accountId }, select: { subject: true, createdAt: true, closedAt: true } }),
     ]);
 
     return plain({
@@ -160,6 +161,7 @@ export const AccountDataService = {
       playersMuted: mutes.map((row) => ({ username: row.muted.username, since: row.createdAt })),
       messageReportsMade: messageReports,
       bugReports,
+      supportTickets,
     }) as Record<string, unknown>;
   },
 

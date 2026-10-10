@@ -33,6 +33,7 @@ import { ALERT_TYPES, GameApiError, isLeaderboardStat, type AlertType, type City
 import { cityChoices, parsePlayerRef, resolveCity, type Cooldowns } from './lookup.js';
 import { roleNamesForKeys, type ManagedRole } from './roles.js';
 import { showBugForm } from './staff.js';
+import { showTicketForm } from './support.js';
 import type { RoleSync } from './sync.js';
 
 export const commandData = [
@@ -137,6 +138,7 @@ export const commandData = [
       .setDescription('What kind of problem')
       .setRequired(true)
       .addChoices(...BUG_REPORT_CATEGORIES.map((category) => ({ name: BUG_REPORT_CATEGORY_LABELS[category], value: category })))),
+  new SlashCommandBuilder().setName('support').setDescription('Open a private ticket with the StreetsEmpire staff'),
   new SlashCommandBuilder().setName('sync').setDescription('Update your StreetsEmpire roles now'),
   new SlashCommandBuilder().setName('help').setDescription('List the StreetsEmpire bot commands'),
   new SlashCommandBuilder()
@@ -147,7 +149,7 @@ export const commandData = [
 ].map((command) => command.toJSON());
 
 /** Replies only the caller sees. */
-export const PRIVATE_COMMANDS: ReadonlySet<string> = new Set(['alerts', 'announce', 'bug', 'link', 'remind', 'stats', 'sync', 'help', 'syncall']);
+export const PRIVATE_COMMANDS: ReadonlySet<string> = new Set(['alerts', 'announce', 'bug', 'link', 'remind', 'stats', 'support', 'sync', 'help', 'syncall']);
 
 export interface CommandDeps {
   api: GameApi;
@@ -345,9 +347,10 @@ async function run(interaction: ChatInputCommandInteraction, deps: CommandDeps):
 }
 
 export async function handleCommand(interaction: ChatInputCommandInteraction, deps: CommandDeps): Promise<void> {
-  // A form has to be the first reply, so /bug never defers.
-  if (interaction.commandName === 'bug') {
-    await showBugForm(interaction).catch((error: unknown) => console.error('/bug could not open its form:', error));
+  // A form has to be the first reply, so /bug and /support never defer.
+  if (interaction.commandName === 'bug' || interaction.commandName === 'support') {
+    const show = interaction.commandName === 'bug' ? showBugForm : showTicketForm;
+    await show(interaction).catch((error: unknown) => console.error(`/${interaction.commandName} could not open its form:`, error));
     return;
   }
   const received = Date.now();
