@@ -243,9 +243,12 @@ export function planCrewRoster(input: CrewPlanInput): CrewPlan {
     if (slot) slot.left = Math.max(0, slot.left - count);
   }
   const floating: CrewMemberRow[] = [];
-  const active = input.members.filter((row) => row.status !== 'RELEASED' && !used.has(row.id)).sort(seniority);
+  // A released experienced member can come back when a counted slot opens. Released rows
+  // are loaded only up to real vacancies, so the planner never resurrects someone at random.
+  const active = input.members.filter((row) => !used.has(row.id)).sort((a, b) => Number(a.status === 'RELEASED') - Number(b.status === 'RELEASED') || seniority(a, b));
   for (const member of active) {
-    const slot = open.get(key(member.role, placeOf(member)!));
+    const currentPlace = placeOf(member);
+    const slot = currentPlace ? open.get(key(member.role, currentPlace)) : undefined;
     if (slot && slot.left > 0) {
       slot.left -= 1;
       move(member, slot.target);

@@ -765,7 +765,7 @@ export type CrewAssignmentKindDto = 'BUSINESS' | 'DEALER' | 'TURF';
 export type CrewMemberSpecialtyDto = 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE';
 
 export interface CrewMemberHistoryDto {
-  kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED';
+  kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED' | 'TRAINED';
   label: string;
   at: string;
 }
@@ -857,1080 +857,1395 @@ export interface RoundPlayerDto {
   /** 0.4.0-C. Null on rounds without Heat. */
   heat: HeatDto | null;
   /**
-   * Every product the player holds, crack included, in catalog order. Null on rounds
-   * where Product is still only crack.
-   */
-  products: Array<{ key: string; name: string; quantity: number }> | null;
-  /** 0.5.0-B. A run out of town, or null. */
-  run: { phase: 'road' | 'town'; city: string; cityName: string; until: string } | null;
-  /** 0.5.0-D. On the road to a new home, or null. */
-  moving: { to: string; toName: string; arrivesAt: string } | null;
-  /** 0.5.0-E. Someone on your run's tail, or an ally's call you can answer: the soonest to land. */
-  convoyAlert: { kind: 'tailed' | 'call'; cityName: string; landsAt: string } | null;
-  /** 0.6.0-B. Home turf and today's house-minted street tax. */
-  turf: TurfSummaryDto | null;
-  /** Open street situations that are waiting on a player choice. */
-  pendingEncounters: RandomEncounterDto[];
-  /** Street Pass summary for the nav badge. Absent or null on rounds without a pass. */
-  streetPass?: { tier: number; tierCount: number; claimable: number } | null;
-  /** 1.3.0-A. The worst Case the player has anywhere. Absent or null on rounds without the law. */
-  law?: LawSummaryDto | null;
-  /** Lifetime account XP; does not reset between rounds. */
-  experience?: PlayerExperienceDto;
-  rank: RankDto;
-  hideout: SeasonHideoutDto;
-
-  joinedAt: string;
-  lastActiveAt: string;
-}
-
-export interface PlayerExperienceDto {
-  totalXp: number;
-  level: number;
-  /** XP earned within the current level. */
-  xpIntoLevel: number;
-  /** XP required to complete the current level. */
-  xpForLevel: number;
-  xpToNextLevel: number;
-  progressPercent: number;
-}
-
-export interface PlayerExperienceEventDto {
-  id: string;
-  source: string;
-  amount: number;
-  awardedAt: string;
-}
-
-export interface ActivityDto {
-  id: string;
-  type: ActivityType;
-  payload: Record<string, unknown>;
-  createdAt: string;
-}
-
-/** GET /api/game/me - one authoritative dashboard payload. Section 45. */
-export interface GameSnapshotDto {
-  round: RoundDto;
-  player: RoundPlayerDto;
-  recentActivity: ActivityDto[];
-}
-
-export interface RoundOverPlayerDto {
-  publicPimpId: number;
-  displayName: string;
-  city: CityDto;
-  netWorthCents: number;
-  cashCents: number;
-  rank: {
-    local: number | null;
-    national: number | null;
-  };
-  hideout: SeasonHideoutDto;
-  joinedAt: string;
-  lastActiveAt: string;
-}
-
-export interface SeasonHideoutDto {
-  totalLevel: number;
-  totalMaxLevel: number;
-  rooms: Array<{
-    key: HideoutRoomKeyDto;
-    name: string;
-    level: number;
-    maxLevel: number;
-    /** 0.7.0-G permanent branch key, null for rooms without a branch or an unchosen branch. */
-    specialization?: string | null;
-  }>;
-}
-
-export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE' | 'GARAGE';
-
-export interface HideoutRoomDto {
-  key: HideoutRoomKeyDto;
-  name: string;
-  blurb: string;
-  level: number;
-  maxLevel: number;
-  nextCostCents: number | null;
-  currentEffect: string;
-  nextEffect: string | null;
-}
-
-export interface HideoutDto {
-  enabled: boolean;
-  seasonScoped: boolean;
-  totalLevel: number;
-  totalMaxLevel: number;
-  rooms: HideoutRoomDto[];
-}
-
-export interface RoundOverLegacyDto {
-  roundsPlayed: number;
-  roundWins: number;
-  topTenFinishes: number;
-  bestNationalRank: number | null;
-  bestLocalRank: number | null;
-  totalFinalNetWorthCents: number;
-}
-
-export interface RoundOverBadgeDto {
-  key: string;
-  title: string;
-  description: string;
-  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
-}
-
-export interface RoundOverDto {
-  round: RoundDto;
-  player: RoundOverPlayerDto;
-  legacy: RoundOverLegacyDto;
-  earnedLegacyBadges: RoundOverBadgeDto[];
-  newLegacyBadges: RoundOverBadgeDto[];
-}
-
-export interface CurrentRoundDto {
-  /** Current active or registration round, usually the next season after round-over. */
-  round: RoundDto | null;
-  /** The account's player in the current round, when already joined. */
-  me: RoundPlayerDto | null;
-  canJoin: boolean;
-  /** Most recent finished round for this account, for the round-over screen. */
-  roundOver: RoundOverDto | null;
-}
-
-/** A single resource moving. Section 44. */
-export interface ResourceChange {
-  resource: string;
-  before: number;
-  after: number;
-  change: number;
-}
-
-/** Section 43. Every action endpoint answers in this shape. */
-export interface PlayerSnapshot {
-  cashCents: number;
-  netWorthCents: number;
-  turns: number;
-  whoreHappiness: number;
-  thugHappiness: number;
-  resources: ResourcesDto;
-}
-
-export interface RankChanges {
-  localBefore: number | null;
-  localAfter: number | null;
-  nationalBefore: number | null;
-  nationalAfter: number | null;
-}
-
-export interface GameActionResult<T> {
-  success: true;
-  action: string;
-  before: PlayerSnapshot;
-  after: PlayerSnapshot;
-  changes: ResourceChange[];
-  result: T;
-  rankChanges?: RankChanges;
-}
-
-// --- actions ----------------------------------------------------------------
-
-export interface DistrictDto {
-  key: string;
-  slug: string;
-  name: string;
-  /** City-specific street flavor. Older rulesets may omit it. */
-  blurb?: string;
-  /*
-   * There is deliberately no pay band and no recruit rate here.
-   *
-   * What a block pays depends on the clients out on it, which rotates hourly
-   * and is never posted. What you can recruit there depends on how many you
-   * already run. Publishing either would be a spoiler at best and a lie at
-   * worst, so the only numbers on this DTO are the ones a player could see
-   * standing on the corner: how much muscle the block wants, and how much of
-   * their crew is currently uncovered.
-   */
-
-  /** How many girls one thug can cover on this block. */
-  protectionWhoresPerThug: number;
-  /** Girls this crew could cover here. */
-  coveredWhores: number;
-  /** Fraction of the stable that would be standing alone, 0..1. */
-  exposedFraction: number;
-  /** Fit thugs with weapons counted for this block. */
-  armedThugs: number;
-  /** Fit thugs without weapons; E/F rounds do not count them as street cover. */
-  unarmedThugs: number;
-  requiresArmedThugs: boolean;
-}
-
-export interface DistrictsDto {
-  districts: DistrictDto[];
-}
-
-/**
- * Manual 3.1. One trip: the girls work the block while you pick people up, so
- * a scout result carries both the night's take and who you found.
- */
-export interface FoundProductDto {
-  key: string;
-  name: string;
-  quantity: number;
-}
-
-export type RandomEncounterToneDto = 'good' | 'warn' | 'bad' | 'neutral';
-
-export interface RandomEncounterDto {
-  id?: string;
-  key: string;
-  title: string;
-  text: string;
-  tone: RandomEncounterToneDto;
-  effects: {
-    cashCents?: number;
-    heat?: number;
-    condoms?: number;
-    medicine?: number;
-    crack?: number;
-    beer?: number;
-  };
-  choices?: Array<{
-    key: string;
-    label: string;
-    text: string;
-    effects: {
-      cashCents?: number;
-      heat?: number;
-      condoms?: number;
-      medicine?: number;
-      crack?: number;
-      beer?: number;
-    };
-  }>;
-  status?: 'PENDING' | 'RESOLVED';
-}
-
-export interface RandomEncounterChoiceResult {
-  encounterId: string;
-  encounterKey: string;
-  title: string;
-  choice: string;
-  choiceLabel: string;
-  text: string;
-  cashCents: number;
-  effects: RandomEncounterDto['effects'];
-}
-
-export interface ScoutResult {
-  district: DistrictDto;
-  /** 0.6.0-B. Hold bonus or street tax applied to this trip. */
-  turf?: TurfTripDto;
-  /** 0.4.0-B. How the trip was supplied, on rounds with work supply. */
-  supply?: WorkSupplyPlanDto;
-  /** 0.4.0-C. On rounds with Heat. */
-  heat?: TripHeatDto;
-
-  whoresRecruited: number;
-  thugsRecruited: number;
-
-  /** Everything the girls brought in. */
-  grossEarnedCents: number;
-  /** The crew's share of the night. */
-  crewTakeCents: number;
-  /** Your share, which is what landed in cash. */
-  cashEarnedCents: number;
-  hideoutBonusCents?: number;
-  /** Trips A. What the lieutenant skimmed while the boss was away. Already out of `cashEarnedCents`. */
-  lieutenantCutCents?: number;
-  favorIncomePercent?: number;
-  favorRecruitmentPercent?: number;
-  payoutPercent: number;
-
-  /** Crack-only compatibility field. On product rounds, this is the Crack slice of productsFound. */
-  crackFound: number;
-  /** 0.4.0+ product rounds: everything picked up on the street during the trip. */
-  productsFound?: FoundProductDto[];
-
-  condomsUsed: number;
-  crackUsed: number;
-  beerUsed: number;
-  condomsMissing: number;
-  beerMissing: number;
-
-  whoresLeft: number;
-  thugsLeft: number;
-
-  /** Who caught something working without enough condoms. */
-  infected: number;
-  /** Of those, how many the medicine on hand covered. */
-  treated: number;
-  medicineUsed: number;
-  /** Untreated, and gone. */
-  lostToInfection: number;
-
-  /** Fraction of the stable that worked with nobody watching, 0..1. */
-  exposedFraction: number;
-  coveredWhores: number;
-  armedThugs: number;
-  unarmedThugs: number;
-
-  /** 1.6.0-F. Action-triggered street color and consequences. */
-  encounter?: RandomEncounterDto;
-
-  turnsUsed: number;
-  turnsRemaining: number;
-}
-
-/**
- * Manual 3.2. The girls still go out while the thugs cook - they just earn a
- * fraction of a scouted night, because nobody is out there running them.
- */
-export interface ProduceCrackResult {
-  /** 0.4.0-B. How the girls' shift was supplied, on rounds with work supply. */
-  supply?: WorkSupplyPlanDto;
-  /** 0.4.0-C. On rounds with Heat. */
-  /** 0.4.0-C. What the cooking thugs burned, on rounds where they burn product. */
-  cook?: WorkSupplyPlanDto;
-  heat?: TripHeatDto;
-
-  productType: ProductTypeDto;
-  productName: string;
-  productProduced: number;
-  hideoutBonusProduct?: number;
-  favorProductionPercent?: number;
-  crackProduced: number;
-  hideoutBonusCrack?: number;
-  ingredientCents: number;
-  /** 0.7.0-D. Workshop ingredient-cost reduction used for this batch. */
-  hideoutIngredientEfficiencyPercent?: number;
-  /** 0.7.0-D. Ingredient cash saved compared with the base recipe for the same base output. */
-  hideoutIngredientSavingsCents?: number;
-  /** Effective ingredient price after Workshop efficiency. */
-  ingredientCentsPerUnit?: number;
-  /** True when cash, not thugs, was the limit on the batch. */
-  limitedByCash: boolean;
-
-  /** What the unsupervised shift still brought in. */
-  grossEarnedCents: number;
-  crewTakeCents: number;
-  cashEarnedCents: number;
-  hideoutBonusCents?: number;
-  /** Trips A. What the lieutenant skimmed while the boss was away. Already out of `cashEarnedCents`. */
-  lieutenantCutCents?: number;
-  payoutPercent: number;
-
-  /** Crack-only compatibility field. On product rounds, this is the Crack slice of productsFound. */
-  crackFound: number;
-  /** Product the girls found while the thugs were cooking. */
-  productsFound?: FoundProductDto[];
-  condomsUsed: number;
-  crackUsed: number;
-  beerUsed: number;
-  condomsMissing: number;
-  beerMissing: number;
-
-  whoresLeft: number;
-  thugsLeft: number;
-
-  /** Who caught something working without enough condoms. */
-  infected: number;
-  /** Of those, how many the medicine on hand covered. */
-  treated: number;
-  medicineUsed: number;
-  /** Untreated, and gone. */
-  lostToInfection: number;
-
-  /** 1.6.0-F. Action-triggered street color and consequences. */
-  encounter?: RandomEncounterDto;
-
-  turnsUsed: number;
-  turnsRemaining: number;
-}
-
-export interface PayoutResult {
-  before: number;
-  after: number;
-}
-
-export interface HideoutUpgradeResult {
-  room: HideoutRoomKeyDto;
-  roomName: string;
-  levelBefore: number;
-  levelAfter: number;
-  costCents: number;
-  effect: string;
-}
-
-/** 1.4.0-D. A Connected faction's nudge on a price: who gives it and how much it takes off. */
-export interface FactionDiscountDto {
-  factionKey: string;
-  factionName: string;
-  percent: number;
-}
-
-export interface StoreItemDto {
-  unlock: WeaponUnlockDto | null;
-  /** 1.5.0-E2. A shelf a job opens (a weapon rack or a vehicle class), with the job that opens it. */
-  questLock?: QuestLockDto | null;
-  key: string;
-  name: string;
-  field: Exclude<keyof ResourcesDto, 'cashCents' | 'fitThugs' | 'woundedThugs'>;
-  buyCents: number;
-  /** Present when an armed single-use favor lowered the current buy quote. */
-  baseBuyCents?: number;
-  favorDiscountPercent?: number;
-  relationshipBuyDiscountPercent?: number;
-  relationshipSellBonusPercent?: number;
-  /** 1.4.0-D. A Connected faction's cut in the buy quote. */
-  factionDiscount?: FactionDiscountDto;
-  sellCents: number | null;
-  owned: number;
-  maxBuy: number;
-  /** 0.8.0-B. Player-facing context for the current quote versus its normal price. */
-  market: StoreMarketContextDto;
-  /** Null when the store can sell as many as you can pay for. */
-  restock: StoreRestockDto | null;
-}
-
-export interface StoreRelationshipPerkDto {
-  label: string;
-  description: string;
-  buyDiscountPercent?: number;
-  sellBonusPercent?: number;
-}
-
-export interface StoreRelationshipNextPerkDto extends StoreRelationshipPerkDto {
-  at: number;
-  pointsRemaining: number;
-}
-
-export interface StoreRelationshipDto {
-  current: StoreRelationshipPerkDto | null;
-  next: StoreRelationshipNextPerkDto | null;
-}
-
-export type PriceContextLabelDto = 'Cheap' | 'Below Normal' | 'Normal' | 'Above Normal' | 'Expensive';
-export type MarketTrendDto = 'Rising' | 'Stable' | 'Falling';
-export type StockContextLabelDto = 'Always Available' | 'Plentiful' | 'Normal' | 'Low' | 'Scarce' | 'Sold Out';
-
-export interface StorePriceContextDto {
-  label: PriceContextLabelDto;
-  trend: MarketTrendDto;
-  baseCents: number;
-  currentCents: number;
-  deltaPercent: number;
-}
-
-export interface StoreStockContextDto {
-  label: StockContextLabelDto;
-  stock: number | null;
-  cap: number | null;
-  percent: number | null;
-}
-
-export interface StoreMarketContextDto {
-  buy: StorePriceContextDto;
-  sell: StorePriceContextDto | null;
-  stock: StoreStockContextDto;
-}
-
-export type StoreShipmentStatusDto = 'ON_TIME' | 'DELAYED' | 'PARTIAL' | 'LARGE';
-
-export interface StoreShipmentDto {
-  quantity: number;
-  scheduledAt: string;
-  arrivesAt: string;
-  status: StoreShipmentStatusDto;
-  delayMinutes: number;
-  destinationTrader: string;
-  itemName: string;
-  news: string;
-}
-
-export interface StoreSpecialOrderDto {
-  feeCents: number;
-  baseFeeCents: number;
-  markupPercent: number;
-  arrivesAt: string;
-  waitMinutes: number;
-  quantity: number;
-  label: string;
-}
-
-/** What the store has on the shelf, and when the next one lands. */
-export interface StoreRestockDto {
-  stock: number;
-  cap: number;
-  intervalMinutes: number;
-  /** How many arrive per delivery. */
-  perInterval: number;
-  /** ISO timestamp, or null when the shelf is already full. */
-  nextAt: string | null;
-  /** 0.8.0-E. Incoming physical shipment details when enabled for this round. */
-  shipment?: StoreShipmentDto | null;
-  /** 0.8.0-F. Paid sourcing option when the shelf is sold out. */
-  specialOrder?: StoreSpecialOrderDto | null;
-}
-
-export interface WeaponUnlockDto {
-  key: 'SHOTGUN' | 'TEK9' | 'AK47';
-  weaponName: string;
-  title: string;
-  description: string;
-  unlocked: boolean;
-  /** Standing across every trader, and what this rung wants. */
-  totalRep: number;
-  totalRepRequired: number;
-  prerequisiteName: string | null;
-  prerequisiteMet: boolean;
-  canComplete: boolean;
-}
-
-export interface WeaponUnlockResult {
-  key: 'SHOTGUN' | 'TEK9' | 'AK47';
-  weaponName: string;
-  /** Unlocking costs standing only; buying the gun is a separate trade. */
-  title: string;
-}
-
-export type PlayerQuestStatusDto =
-  | 'LOCKED'
-  | 'AVAILABLE'
-  | 'ACTIVE'
-  | 'READY_TO_TURN_IN'
-  | 'COMPLETED'
-  | 'FAILED'
-  | 'EXPIRED';
-
-export interface QuestObjectiveDto {
-  id: string;
-  kind: string;
-  description: string;
-  format?: 'NUMBER' | 'CURRENCY';
-  current: number;
-  target: number;
-  completed: boolean;
-  bonus: boolean;
-}
-
-export interface QuestRewardDto {
-  kind: string;
-  key: string | null;
-  amount: number | null;
-  label: string;
-}
-
-export interface QuestBranchReputationDto {
-  contactKey: string;
-  contactName: string;
-  amount: number;
-  label: string;
-}
-
-export interface QuestBranchChoiceDto {
-  key: string;
-  title: string;
-  description: string;
-  rewards: QuestRewardDto[];
-  reputationDeltas: QuestBranchReputationDto[];
-}
-
-export interface QuestStoryDto {
-  chapter: string;
-  speaker: string;
-  intro: string;
-  inProgress: string;
-  ready: string;
-  completed: string;
-  lesson: string;
-  actionHint: string;
-}
-
-export interface QuestContactDto {
-  key: string;
-  name: string;
-  shortName: string;
-  role: string;
-  description: string;
-  points: number;
-  standing: string;
-  nextStandingAt: number | null;
-  /** 1.4.0-A. The faction this contact works for, or null (before 1.4, or independent). */
-  faction: { key: string; name: string } | null;
-  /** 1.4.0-A. Why the contact belongs to no faction; null when they have one or before 1.4. */
-  independent: string | null;
-}
-
-/** 1.4.0-B. The player's own standing with one faction. Private to them. */
-export interface FactionStandingDto {
-  points: number;
-  tier: string;
-  tierName: string;
-  /** The next tier up and where it starts, or null at Inner Circle. */
-  next: { tier: string; tierName: string; startsAt: number } | null;
-  max: number;
-}
-
-/** 1.4.0-D. One level of a faction's perks: what it is, the tier it opens at, and what it says now. */
-export interface FactionPerkLevelDto {
-  /** Whether the player's standing opens it. */
-  open: boolean;
-  tierName: string;
-  /** What this level gives, e.g. "Where Pip is short". */
-  title: string;
-  /** What the faction is telling the player right now; empty while closed or with nothing to say. */
-  lines: string[];
-}
-
-/** 1.4.0-D. A faction's perks: information at Known, early warnings at Trusted, a nudge at Connected. */
-export interface FactionPerksDto {
-  information: FactionPerkLevelDto;
-  warnings: FactionPerkLevelDto;
-  /** Null for a faction with no nudge. */
-  nudge: (FactionPerkLevelDto & { percent: number }) | null;
-}
-
-/** 1.4.0-A. One underworld faction, as the Jobs page shows it. */
-export interface FactionDto {
-  key: string;
-  name: string;
-  shortName: string;
-  identity: string;
-  lane: string;
-  description: string;
-  rivals: Array<{ key: string; name: string }>;
-  /** Contacts who work for it. */
-  faces: Array<{ key: string; name: string }>;
-  /** Faces with no contact of their own. */
-  facesNote: string | null;
-  /** 1.4.0-B. The player's standing, or null before standing exists. */
-  standing: FactionStandingDto | null;
-  /** 1.4.0-B. The faction's own Jobs, the tier each opens at, and where the player is with it. */
-  jobs: Array<{ key: string; title: string; tierName: string | null; status: string }>;
-  /** 1.4.0-D. What standing with it opens and what it says now. Absent before D. */
-  perks?: FactionPerksDto | null;
-  /** 1.4.0-E. The Inner Circle lock, from this player's side. Absent before E. */
-  innerCircle?: {
-    /** The rival whose Inner Circle has locked this one for the season, or null. */
-    lockedBy: { key: string; name: string } | null;
-    /** The rivals reaching Inner Circle here would lock (empty once reached or locked). */
-    wouldLock: Array<{ key: string; name: string }>;
-    /** Vic's introduction to this faction, while the player is below Known with it. */
-    introduction: { key: string; title: string; status: string } | null;
-  };
-}
-
-/** 1.5.0-E2. Something a locked Job still waits for, and the earlier Job to go do, if any. */
-export interface QuestRequirementDto {
-  label: string;
-  questKey?: string;
-}
-
-export interface PlayerQuestDto {
-  key: string;
-  attempt: number;
-  title: string;
-  description: string;
-  contactKey: string | null;
-  contactName: string | null;
-  /** 1.5.0-E2. On a locked Job: what it still waits for. */
-  requires?: QuestRequirementDto[];
-  /** 1.4.0-A. The faction the Job works for (its own, else its contact's), or null. */
-  factionName: string | null;
-  /** 1.4.0-B. That faction's key, or null. */
-  factionKey: string | null;
-  /** 1.4.0-B. A faction's own Job, opened by standing. */
-  factionJob: boolean;
-  /** 1.4.0-B. Standing the Job pays, one entry per faction it helps. */
-  factionStandings: Array<{
-    factionKey: string; factionName: string; amount: number; label: string;
-    /** 1.4.0-E. Rivals whose Inner Circle collecting this would lock for the season. Shown before it applies. */
-    locks?: string[];
-    /** 1.4.0-E. The rival whose Inner Circle holds this faction short of its own; the standing stops one point short. */
-    heldShortBy?: string;
-  }>;
-  /** 1.4.0-E. What collecting it costs, in cents, at today's net worth (Vic's introductions). */
-  feeCents?: number;
-  /** 1.4.0-E. The faction a broker's Job introduces you to. */
-  introduces?: { factionKey: string; factionName: string };
-  type: string;
-  category: string;
-  difficulty: string;
-  status: PlayerQuestStatusDto;
-  isTracked: boolean;
-  chosenBranch: string | null;
-  branchChoices: QuestBranchChoiceDto[];
-  story?: QuestStoryDto;
-  objectives: QuestObjectiveDto[];
-  rewards: QuestRewardDto[];
-  seasonalEvent?: {
-    eventKey: string;
-    label: string | null;
-    startsAt: string;
-    endsAt: string;
-  };
-  communityEvent?: {
-    startsAt: string;
-    endsAt: string;
-    contributionCurrent: number;
-    contributionTarget: number;
-    contributionLabel: string;
-    contributionFormat: 'NUMBER' | 'CURRENCY';
-    sharedCompleted: boolean;
-  };
-  allianceContract?: {
-    contributionCurrent: number;
-    contributionTarget: number;
-    contributionLabel: string;
-    contributionFormat: 'NUMBER' | 'CURRENCY';
-    contributionCompleted: boolean;
-  };
-  acceptedAt: string | null;
-  completedAt: string | null;
-  claimedAt: string | null;
-  expiresAt: string | null;
-}
-
-export interface QuestPermanentUnlockDto {
-  key: string;
-  name: string;
-  description: string;
-  category: string;
-  sourceQuestKey: string | null;
-  awardedAt: string;
-}
-
-export interface QuestActiveFavorDto {
-  key: string;
-  name: string;
-  description: string;
-  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
-  startedAt: string;
-  expiresAt: string;
-}
-
-export interface QuestArmedFavorDto {
-  key: string;
-  name: string;
-  description: string;
-  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
-  armedAt: string;
-}
-
-export interface FavorArmResult {
-  favorKey: string;
-  name: string;
-  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
-  armed: boolean;
-  quantityRemaining: number;
-}
-
-export interface FavorActivationResult {
-  favorKey: string;
-  name: string;
-  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
-  startedAt: string;
-  expiresAt: string;
-  quantityRemaining: number;
-}
-
-export interface QuestFavorDto {
-  key: string;
-  name: string;
-  description: string;
-  contactKey: string;
-  rarity: 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
-  activationKind: 'TIMED' | 'SINGLE_USE';
-  activatable: boolean;
-  category: string;
-  durationMinutes: number | null;
-  quantity: number;
-  totalGranted: number;
-  lastSourceQuestKey: string | null;
-}
-
-export interface QuestPageDto {
-  /** Server clock used by the client to age timed favor expiries without trusting its wall clock. */
-  serverTime: string;
-  dailyContracts: {
-    enabled: boolean;
-    slots: number;
-    resetAt: string | null;
-  };
-  weeklyContracts: {
-    enabled: boolean;
-    slots: number;
-    resetAt: string | null;
-  };
-  cityContracts: {
-    enabled: boolean;
-    slots: number;
-    resetAt: string | null;
-  };
-  /** 1.4.0-B2 Season board. resetAt is when the round ends. Absent from older servers. */
-  seasonContracts?: {
-    enabled: boolean;
-    slots: number;
-    resetAt: string | null;
-  };
-  trackedLimit: number;
-  /** Daily, weekly and city board work starts itself while this is on. Absent from older servers. */
-  autoAccept?: boolean;
-  counts: {
-    available: number;
-    active: number;
-    ready: number;
-    completed: number;
-  };
-  contacts: QuestContactDto[];
-  /** 1.4.0-A. The round's factions, or null before 1.4. */
-  factions: FactionDto[] | null;
-  permanentUnlocks: QuestPermanentUnlockDto[];
-  activeFavors: QuestActiveFavorDto[];
-  armedFavors: QuestArmedFavorDto[];
-  favors: QuestFavorDto[];
-  quests: PlayerQuestDto[];
-}
-
-/** Street Pass: one tier of the track and whether this player has reached and claimed it. */
-export interface StreetPassTierDto {
-  tier: number;
-  /** Total Cred needed to reach this tier. */
-  credToReach: number;
-  reached: boolean;
-  claimed: boolean;
-  rewards: QuestRewardDto[];
-}
-
-/** Street Pass: the round's track and this player's place on it. */
-export interface StreetPassDto {
-  key: string;
-  name: string;
-  cred: number;
-  /** Highest tier reached (0 before the first). */
-  tier: number;
-  tierCount: number;
-  /** Total Cred needed for the next tier, or null once the track is finished. */
-  nextTierCred: number | null;
-  lateJoinBonusPercent: number;
-  /** Base Cred from turns counted in today's window, and the daily cap. */
-  turnCredToday: number;
-  turnCredCap: number;
-  /** Cred each source pays, before any late-join bonus. */
-  sources: { dailyContract: number; weeklyContract: number; oneTimeJob: number; eventContract: number; perTurnSpent: number };
-  /** Tiers reached but not yet claimed. */
-  claimable: number[];
-  tiers: StreetPassTierDto[];
-}
-
-export interface StreetPassClaimResult {
-  passKey: string;
-  tier: number;
-  rewards: QuestRewardDto[];
-}
-
-export interface QuestClaimResult {
-  questKey: string;
-  title: string;
-  chosenBranch: string | null;
-  rewards: QuestRewardDto[];
-  reputationChanges: QuestBranchReputationDto[];
-  newlyAvailable: string[];
-  /** 1.4.0-B. Faction standing the claim paid. Empty before standing exists. */
-  standingChanges: Array<{
-    factionKey: string; factionName: string; amount: number; tierName: string; tierUp: boolean; label: string;
-    /** 1.4.0-E. Rivals whose Inner Circle this claim locked for the season. */
-    locked?: string[];
-    /** 1.4.0-E. The rival whose Inner Circle held this faction one point short. */
-    heldShortBy?: string;
-  }>;
-  /** 1.4.0-E. The fee the claim took (Vic's introductions), in cents. */
-  feeCents?: number;
-}
-
-export interface StoreDto {
-  key: string;
-  slug: string;
-  name: string;
-  /** Who is behind the counter, for copy that talks about the stock. */
-  keeper: string;
-  blurb: string;
-  /** What this shopkeeper makes of you: Stranger, Known, Regular, Family. */
-  standing: string;
-  reputation: number;
-  /** How much sooner they restock for you at that standing, as a percentage. */
-  restockSpeedup: number;
-  /** 0.8.0-D. Current and next ruleset-defined relationship benefit. */
-  relationship?: StoreRelationshipDto;
-  /** 0.8.0-E. Trader-facing headlines about fresh stock and shortages. */
-  news?: string[];
-  items: StoreItemDto[];
-}
-
-export interface StoreIntegrationDto {
-  hideout: {
-    nextUpgradeName: string | null;
-    nextUpgradeCostCents: number | null;
-    cashShortCents: number;
-    ready: boolean;
-  } | null;
-  turf: {
-    blocksHeld: number;
-    specialOrderDiscountPercent: number;
-    label: string;
-  } | null;
-  travel: {
-    product: string;
-    productName: string;
-    city: string;
-    cityName: string;
-    localSellCents: number;
-    remoteSellCents: number;
-    deltaPercent: number;
-  } | null;
-  convoy: {
-    activeRuns: number;
-    incomingShipments: number;
-    label: string;
-  } | null;
-}
-
-export interface StoresDto {
-  stores: StoreDto[];
-  bulkHelpers: number[];
-  lowRiderThugCapacity: number;
-  /** 0.4.0-D. Pip deals every product at his counter. */
-  productCounter?: boolean;
-  /** 0.8.0-G. Cross-system store context from Hideout, Turf, Travel, and Convoys. */
-  integrations?: StoreIntegrationDto;
-}
-
-/** 1.5.0-E2. The job behind a lock, for a link straight to it on the jobs page. */
-export interface QuestLinkDto {
-  key: string;
-  title: string;
-  /** The contact who gives it, when there is one. */
-  giverName: string | null;
-}
-
-/** 1.5.0-E2. A shelf a job opens: whether it is open, what it is called, and the job that opens it. */
-export interface QuestLockDto {
-  unlocked: boolean;
-  unlockName: string;
-  quest: QuestLinkDto | null;
-}
-
-export interface StoreTradeResult {
-  /**
-   * Standing earned by dealing with them today. Zero when the day's credit is
-   * already paid or the trade cap is reached - trading more does not buy more.
-   */
-  reputationGained: number;
-  storeKey: string;
-  storeName: string;
-  itemName: string;
-  /** The resource the line moved. Absent on a product line from Pip's counter, which moves `productKey`. */
-  field?: StoreItemDto['field'];
-  /** A basket line for one of Pip's products, and how many the crew holds after it. */
-  productKey?: string;
-  quantityAfter?: number;
-  direction: 'buy' | 'sell';
-  quantity: number;
-  unitCents: number;
-  totalCents: number;
-  cashChangeCents: number;
-  quantityChange: number;
-  favorKey?: string;
-  favorDiscountPercent?: number;
-  baseUnitCents?: number;
-  /** 1.4.0-D. A Connected faction's cut on this purchase, and what it saved. */
-  factionDiscount?: FactionDiscountDto & { savedCents: number };
-}
-
-export type StoreCheckoutLineResult = StoreTradeResult;
-
-export interface StoreCheckoutResult {
-  lines: StoreCheckoutLineResult[];
-  totalCents: number;
-  cashChangeCents: number;
-  lineCount: number;
-  itemCount: number;
-  reputation: Array<{
-    trader: string;
-    points: number;
-  }>;
-}
-
-export interface StoreSpecialOrderResult {
-  storeKey: string;
-  storeName: string;
-  itemKey: string;
-  itemName: string;
-  feeCents: number;
-  cashChangeCents: number;
-  stockArrivesAt: string;
-  waitMinutes: number;
-}
-
-/** 0.4.0-A. One product the round knows about, with the player's stock. */
-export interface ProductStockDto {
-  key: string;
-  name: string;
-  blurb: string;
-  quantity: number;
-  /** 0.4.0-D. What one unit adds to net worth. Absent before product values. */
-  netWorthCents?: number;
-  /** 0.4.0-D. Pip's counter for this product. Absent for crack, which Pip sells as Product. */
-  pip?: {
-    buyCents: number;
-    sellCents: number;
-    /** 0.8.0-B. Price and stock context for Pip's current product counter quote. */
-    market: StoreMarketContextDto;
-    stock: number;
-    cap: number;
-    perInterval: number;
-    intervalMinutes: number;
-    nextAt: string | null;
-    maxBuy: number;
-    /** Phase I. Selling stays open; this only gates buying from Pip. */
-    purchaseUnlocked: boolean;
-    unlockName: string | null;
-    unlockDescription: string | null;
-    /** 1.5.0-E2. The job that opens purchases. */
-    unlockQuest?: QuestLinkDto | null;
-    favorDiscountPercent?: number;
-    relationshipBuyDiscountPercent?: number;
-    relationshipSellBonusPercent?: number;
-    /** 1.4.0-D. The Cartel Line's Connected cut in the buy quote. */
-    factionDiscount?: FactionDiscountDto;
-  } | null;
-  /** 0.4.0-D. Present where Produce can cook it. */
-  recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
-}
-
-/** 0.4.0-D. POST /api/game/products/trade. */
-export interface ProductTradeResult {
-  product: string;
-  productName: string;
-  direction: 'buy' | 'sell';
-  quantity: number;
-  unitCents: number;
-  totalCents: number;
-  cashChangeCents: number;
-  quantityAfter: number;
-  stockAfter: number | null;
-  reputationGained: number;
-  favorDiscountPercent?: number;
-  /** 1.4.0-D. The Cartel Line's Connected cut on this purchase, and what it saved. */
-  factionDiscount?: FactionDiscountDto & { savedCents: number };
-}
-
-/** GET /api/game/products. Disabled on rounds where Product is still only crack. */
-export interface ProductsDto {
-  enabled: boolean;
-  /** 0.4.0-D. True where Pip deals, and Produce cooks, more than crack. */
-  economy?: boolean;
-  products: ProductStockDto[];
+   * Every product the player holds, crack i…36985 tokens truncated…n reversed this battle. Voided battles stay visible but no longer count for
+  /// revenge, trophies, repeat-target limits, stats or the raid feed.
+  voidedAt           DateTime?
+  voidedByUsername   String?
+  voidReason         String?
+  /// 0.3.0-C. The defender's alliance when the hit landed. Shared revenge reads this, so
+  /// the victim leaving afterwards cannot take the window away from the alliance.
+  defenderAllianceId String?
+  /// 0.3.0-E. The attacker's alliance when the hit landed, and whose recon they had
+  /// (own, ally or none), so alliance rounds can be balanced from real battles.
+  attackerAllianceId String?
+  attackerIntel      String?
+  /// 0.9.0-G. When the defender's "revenge expiring" check ran for this hit.
+  revengeAlertedAt   DateTime?
+
+  @@unique([attackerId, actionId])
+  @@index([attackerId, createdAt(sort: Desc), id])
+  @@index([defenderId, createdAt(sort: Desc), id])
+  @@index([defenderAllianceId, attackerId, createdAt])
+  @@index([revengeAlertedAt, createdAt])
+}
+
+model CombatInjury {
+  id            String    @id @default(cuid())
+  roundPlayerId String
+  battleId      String?
+  thugs         Int
+  recoverAt     DateTime
+  createdAt     DateTime  @default(now())
+  treatedAt     DateTime?
+
+  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  battle      RaidBattle? @relation(fields: [battleId], references: [id], onDelete: Cascade)
+
+  @@index([roundPlayerId, recoverAt])
+  @@index([battleId])
+}
+
+model CombatIntel {
+  id         String      @id @default(cuid())
+  observerId String
+  targetId   String
+  observer   RoundPlayer @relation("IntelObserver", fields: [observerId], references: [id], onDelete: Cascade)
+  target     RoundPlayer @relation("IntelTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  report     Json
+  expiresAt  DateTime
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([observerId, targetId])
+  @@index([observerId, expiresAt])
+  @@index([targetId])
+}
+
+model PlayerActivity {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer        @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  notification  InAppNotification?
+
+  type    ActivityType
+  payload Json
+
+  createdAt DateTime @default(now())
+
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+}
+
+/// 1.6.0-F. Durable action-triggered street situations.
+model RandomEncounter {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// SCOUT, PRODUCE, TRAVEL, etc.
+  trigger String
+  key     String
+  title   String
+  text    String
+  tone    String
+  status  String @default("RESOLVED")
+
+  effects Json @default("{}")
+  choices Json @default("[]")
+
+  selectedChoice String?
+  result         Json?
+
+  sourceActivityId String?
+  resolvedAt       DateTime?
+  expiresAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([roundPlayerId, status, createdAt(sort: Desc)])
+  @@index([roundPlayerId, trigger, createdAt(sort: Desc)])
+  @@index([expiresAt, status])
+}
+
+/// Durable in-game notification receipt for a toast-worthy activity.
+/// The notification id intentionally matches the activity id so a live toast can
+/// acknowledge itself without another lookup.
+/// 0.9.0-G. Something that happens by the clock rather than by a write, e.g. a special
+/// order arriving. The alert collector fires it once when due.
+model ScheduledAlert {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// SPECIAL_ORDER
+  kind    String
+  dueAt   DateTime
+  payload Json
+  firedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([firedAt, dueAt])
+  @@index([roundPlayerId])
+}
+
+model InAppNotification {
+  id String @id
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  activityId String         @unique
+  activity   PlayerActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([roundPlayerId, readAt, createdAt(sort: Desc)])
+}
+
+/// 0.7.0-E. Durable economic lines for the Back Office ledger.
+/// Positive amounts are income; negative amounts are expenses. Internal transfers
+/// (for example cash loaded into a run) are intentionally not recorded here.
+model EconomyLedgerEntry {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  source          String
+  label           String
+  amountCents     BigInt
+  metadata        Json?
+  /// 1.6.5-E. When this income line was considered for a loan collection garnish (taken from
+  /// or not). Set once, so no income is ever garnished twice.
+  loanCollectedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// Turf (0.6.0-A)
+// ---------------------------------------------------------------------------
+
+/// One district in one city: forty blocks a round with all eight cities enabled. A row is
+/// created for every block when the round first reads its turf, held by the locals.
+///
+/// A null `holderId` means no player holds it. Before `localsReclaimAt` it is vacant;
+/// afterwards the locals have it. `localsThugs` grows back from `localsAt` on the
+/// ruleset's clock, exactly like Pip's shelves: nothing sweeps this table.
+model Turf {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id])
+
+  /// Ruleset district key, e.g. CASINO.
+  district String
+
+  /// The crew standing on it, or null for the locals.
+  holderId       String?
+  holder         RoundPlayer? @relation("TurfHolder", fields: [holderId], references: [id], onDelete: SetNull)
+  /// The holder's posted thugs on this corner. Part of the holder's `postedThugs`.
+  cornerThugs    Int          @default(0)
+  /// Their guns have physically left the holder's home arsenal while posted.
+  cornerPistols  Int          @default(0)
+  cornerShotguns Int          @default(0)
+  cornerTek9s    Int          @default(0)
+  cornerAk47s    Int          @default(0)
+  heldSince      DateTime?
+  /// 0.6.0-C. Taken blocks cannot be taken again until this passes.
+  shieldUntil    DateTime?
+
+  /// What the locals hold it with, and when that was last worked out.
+  localsThugs     Int
+  localsAt        DateTime  @default(now())
+  /// 0.6.0-C. A released block stays vacant until this time, then the locals return.
+  /// Null means the locals are already on a holderless block, or a player currently holds it.
+  localsReclaimAt DateTime?
+
+  /// 0.6.0-B. Last corner-upkeep boundary settled.
+  upkeepAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// 1.1.0-D. War fatigue (devastation), 0..ruleset max, as of `fatigueAt`; it heals while
+  /// no war is on the block. `capturedAts` keeps when the block changed hands, for scarring.
+  fatigue        Float      @default(0)
+  fatigueAt      DateTime   @default(now())
+  capturedAts    DateTime[]
+  /// Set while a block war's siege is on: registers stop filling and the hold clock pauses.
+  siegedSince    DateTime?
+  /// The ally's cut of this block's business income during the truce after a war.
+  warCutPlayerId String?
+  warCutShare    Float      @default(0)
+  warCutUntil    DateTime?
+
+  pushes       TurfPush[]
+  outpost      TurfOutpost?
+  holdSegments TurfHoldSegment[]
+  businesses   Business[]
+  blockWars    BlockWar[]
+
+  @@unique([roundId, cityId, district])
+  @@index([roundId, holderId])
+}
+
+/// 1.1.0-A. One business lot on a block. Every block has three, fixed by its district,
+/// and they start empty (level 0). The business belongs to the block, not to a player:
+/// whoever holds the block runs it, and a block war hands it over with its level intact.
+/// Read-only in A; 1.1.0-B adds building, staff, supply and the register.
+model Business {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  turfId String
+  turf   Turf   @relation(fields: [turfId], references: [id], onDelete: Cascade)
+
+  /// 1-based lot on the block. Lot 1 opens first.
+  lot   Int
+  /// Ruleset business key, e.g. CASINO_FRONT.
+  kind  String
+  /// 0 is an empty lot.
+  level Int    @default(0)
+
+  /// 1.1.0-B. Staff working it: thugs, or girls for a Strip Club. Still counted in the
+  /// owner's `thugs`/`whores`, and marked there as `businessThugs`/`businessWhores`.
+  staff           Int             @default(0)
+  /// How many staff the crew wants here: up to the level's max, 0 to close it.
+  staffTarget     Int             @default(0)
+  /// Replace staff who desert or are lured from the fit crew, up to the target, on settle.
+  autoStaff       Boolean         @default(true)
+  /// Whose staff they are. Only earns while this crew holds the block; when it no longer
+  /// does, the staff go home on the owner's next settle and the register is lost.
+  staffOwnerId    String?
+  staffOwner      RoundPlayer?    @relation("BusinessStaffOwner", fields: [staffOwnerId], references: [id], onDelete: SetNull)
+  /// Income waiting to be collected, capped at the ruleset's register hours.
+  registerCents   BigInt          @default(0)
+  /// Whole hours of income and supply are settled up to here.
+  accruedAt       DateTime        @default(now())
+  /// 1.1.0-C. The ruleset racket key this business runs on top of its front, if any.
+  /// Cleared when another crew takes it over.
+  racket          String?
+  /// When the racket was last set or switched; the switch cooldown runs from here.
+  racketSince     DateTime?
+  /// 1.1.0-D. A torch the holder lit during a war: it burns down at `torchUntil`.
+  torchUntil      DateTime?
+  torchById       String?
+  /// 1.3.0-C. A business raid shuts the racket (never the front) for this window.
+  racketShutFrom  DateTime?
+  racketShutUntil DateTime?
+  warrants        PlayerWarrant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([turfId, lot])
+  @@index([roundId])
+  @@index([staffOwnerId])
+}
+
+/// 1.2.0-A. Chips never sit on RoundPlayer cash. Every city owns a separate wallet.
+model CasinoWallet {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  chipsCents BigInt   @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([roundPlayerId, cityId])
+  @@index([cityId])
+}
+
+/// One in-person casino bankroll. Later games mutate bankrollCents under the same player lock.
+model CasinoSession {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  status        String    @default("OPEN")
+  bankrollCents BigInt
+  openedAt      DateTime  @default(now())
+  closedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  ledger CasinoLedgerEntry[]
+
+  @@index([roundPlayerId, status, openedAt(sort: Desc)])
+  @@index([cityId, status])
+}
+
+/// 1.2.0-B. One durable non-retriggering free-spin bundle per player.
+/// The wager configuration that earned it is frozen until the bundle is consumed.
+model CasinoFreeSpinBonus {
+  id String @id @default(cuid())
+
+  roundPlayerId String      @unique
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  citySlug          String
+  machineKey        String
+  betPerLineCents   BigInt
+  activePaylineKeys Json
+  awardedSpins      Int
+  remainingSpins    Int
+  totalWonCents     BigInt   @default(0)
+  sourceActionId    String
+  awardedAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([machineKey])
+  @@index([citySlug])
+}
+
+/// 1.2.0-C. Server-owned shuffled shoe for one player/table.
+/// The cursor advances only under the RoundPlayer row lock.
+model CasinoBlackjackShoe {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  tableKey      String
+  cards         Json
+  cursor        Int      @default(0)
+  shuffleNumber Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([roundPlayerId, tableKey])
+  @@index([tableKey])
+}
+
+/// 1.2.0-C. Reconnect-safe blackjack hand. Player/dealer cards and split-hand
+/// state stay server-owned; settled rows double as durable hand history.
+model CasinoBlackjackHand {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  sessionId           String
+  cityId              String
+  tableKey            String
+  status              String    @default("ACTIVE")
+  wagerCents          BigInt
+  committedWagerCents BigInt
+  playerHands         Json
+  dealerCards         Json
+  activeHandIndex     Int       @default(0)
+  totalReturnCents    BigInt    @default(0)
+  bankrollAfterCents  BigInt    @default(0)
+  shoeRemainingCards  Int       @default(0)
+  shuffleNumber       Int       @default(1)
+  initialActionId     String
+  settledAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([roundPlayerId, initialActionId])
+  @@index([roundPlayerId, status, createdAt(sort: Desc)])
+  @@index([sessionId, status])
+  @@index([cityId, createdAt(sort: Desc)])
+}
+
+/// Idempotency receipt for blackjack Deal / Hit / Stand / Double / Split.
+/// response is the exact post-action hand snapshot returned on retry.
+model CasinoBlackjackAction {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  handId    String
+  actionId  String
+  kind      String
+  response  Json
+  createdAt DateTime @default(now())
+
+  @@unique([roundPlayerId, actionId])
+  @@index([handId, createdAt])
+}
+
+/// 1.2.0-D. One reconnect-safe Street Dice pass-line cycle.
+/// The line and odds wagers stay committed until the point resolves.
+model CasinoStreetDiceRound {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  sessionId String
+  cityId    String
+  tableKey  String
+  status    String @default("ACTIVE")
+
+  lineWagerCents BigInt
+  oddsWagerCents BigInt  @default(0)
+  point          Int?
+  lastDice       Json    @default("[]")
+  lastOutcome    String?
+  rollCount      Int     @default(0)
+
+  totalReturnCents   BigInt @default(0)
+  bankrollAfterCents BigInt @default(0)
+
+  initialActionId String
+  settledAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([roundPlayerId, initialActionId])
+  @@index([roundPlayerId, status, createdAt(sort: Desc)])
+  @@index([sessionId, status])
+  @@index([cityId, createdAt(sort: Desc)])
+}
+
+/// Idempotency receipt for Street Dice start / roll / odds actions.
+model CasinoStreetDiceAction {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  diceRoundId String
+  actionId    String
+  kind        String
+  response    Json
+  createdAt   DateTime @default(now())
+
+  @@unique([roundPlayerId, actionId])
+  @@index([diceRoundId, createdAt])
+}
+
+/// 1.2.0-E. Server-owned solo Hold’em hand. The JSON game state includes bot cards
+/// and is never returned directly; the service builds viewer-safe DTOs from it.
+model CasinoPokerHand {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  sessionId          String
+  cityId             String
+  tableKey           String
+  status             String    @default("ACTIVE")
+  buyInCents         BigInt
+  state              Json
+  bankrollAfterCents BigInt
+  initialActionId    String
+  settledAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([roundPlayerId, initialActionId])
+  @@index([roundPlayerId, status, createdAt(sort: Desc)])
+  @@index([sessionId, status])
+  @@index([cityId, createdAt(sort: Desc)])
+}
+
+/// Idempotent action receipt for solo Hold’em, including the exact safe response.
+model CasinoPokerAction {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  handId    String
+  actionId  String
+  kind      String
+  response  Json
+  createdAt DateTime @default(now())
+
+  @@unique([roundPlayerId, actionId])
+  @@index([handId, createdAt])
+}
+
+/// 1.2.0-F. Multiplayer Hold’em lobby table; gameplay is added in the next slice.
+model CasinoPokerTable {
+  id                   String                 @id @default(cuid())
+  roundId              String
+  round                Round                  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  cityId               String
+  name                 String
+  visibility           String                 @default("PUBLIC")
+  inviteCodeHash       String?
+  creatorRoundPlayerId String
+  createActionId       String
+  maxPlayers           Int                    @default(6)
+  buyInCents           BigInt
+  status               String                 @default("WAITING")
+  dealerSeatNo         Int?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  seats                CasinoPokerSeat[]
+  hands                CasinoPokerTableHand[]
+
+  @@unique([creatorRoundPlayerId, createActionId])
+  @@index([roundId, status, visibility, createdAt])
+  @@index([cityId, status])
+}
+
+model CasinoPokerSeat {
+  id            String           @id @default(cuid())
+  tableId       String
+  table         CasinoPokerTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer      @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  sessionId     String
+  actionId      String
+  seatNo        Int
+  stackCents    BigInt
+  status        String           @default("WAITING")
+  joinedAt      DateTime         @default(now())
+  leftAt        DateTime?
+
+  @@unique([tableId, seatNo])
+  @@unique([roundPlayerId, actionId])
+  @@index([roundPlayerId, status])
+  @@index([tableId, status, seatNo])
+}
+
+model CasinoPokerTableHand {
+  id        String                   @id @default(cuid())
+  tableId   String
+  table     CasinoPokerTable         @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  handNo    Int
+  status    String                   @default("ACTIVE")
+  state     Json
+  outcome   String?
+  startedAt DateTime                 @default(now())
+  settledAt DateTime?
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+  actions   CasinoPokerTableAction[]
+
+  @@unique([tableId, handNo])
+  @@index([tableId, status, handNo])
+}
+
+model CasinoPokerTableAction {
+  id            String               @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer          @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  handId        String
+  hand          CasinoPokerTableHand @relation(fields: [handId], references: [id], onDelete: Cascade)
+  actionId      String
+  kind          String
+  response      Json
+  createdAt     DateTime             @default(now())
+
+  @@unique([roundPlayerId, actionId])
+  @@index([handId, createdAt])
+}
+
+/// Immutable retry receipt for every casino money movement.
+model CasinoLedgerEntry {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  sessionId String?
+  session   CasinoSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  actionId               String
+  kind                   String
+  cashDeltaCents         BigInt   @default(0)
+  walletChipDeltaCents   BigInt   @default(0)
+  sessionChipDeltaCents  BigInt   @default(0)
+  walletChipsAfterCents  BigInt
+  sessionChipsAfterCents BigInt   @default(0)
+  metadata               Json     @default("{}")
+  createdAt              DateTime @default(now())
+
+  @@unique([roundPlayerId, actionId])
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+  @@index([sessionId, createdAt])
+  @@index([cityId, createdAt(sort: Desc)])
+}
+
+/// 1.2.0-E. Rated play for one player at one city's casino. Every charged wager adds its
+/// theoretical house win (wager x pinned edge), never its result. Network status is the
+/// sum of theo across cities; comps are earned as a share of theo and spent on Boss Trip
+/// hotel nights. Basis columns hold cents x basis points so small wagers lose nothing to
+/// rounding; whole cents are basis / 10,000. Status and comps never feed any game's odds.
+model CasinoRating {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  /// Charged chips wagered here. Free spins and comped play add nothing.
+  wageredCents    BigInt    @default(0)
+  /// Theoretical house win in cents x bps.
+  theoBasis       BigInt    @default(0)
+  /// Comps earned here in cents x bps.
+  compBasis       BigInt    @default(0)
+  /// Whole comp cents redeemed while the boss was in this city.
+  compsSpentCents BigInt    @default(0)
+  ratedWagers     Int       @default(0)
+  /// 1.2.0-F. Season casino feats: wagers placed at VIP tables, progressive jackpots hit,
+  /// and the biggest net win on one settled hand, spin, roll or poker hand.
+  vipWagers       Int       @default(0)
+  jackpots        Int       @default(0)
+  biggestWinCents BigInt    @default(0)
+  lastRatedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([roundPlayerId, cityId])
+  @@index([cityId])
+}
+
+/// 1.2.0-B. One progressive pool per round/machine. It is house money, never player net worth.
+model CasinoJackpot {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  machineKey String
+  poolCents  BigInt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([roundId, machineKey])
+  @@index([machineKey])
+}
+
+/// 0.6.0-D. The box attached to one away-held block. A home block never needs one.
+/// Runs are the only intended way to move stock in or out; later D slices enforce that.
+model TurfOutpost {
+  id String @id @default(cuid())
+
+  turfId String @unique
+  turf   Turf   @relation(fields: [turfId], references: [id], onDelete: Cascade)
+
+  ownerId String
+  owner   RoundPlayer @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  cashCents BigInt @default(0)
+  beer      Int    @default(0)
+  /// Product-key -> quantity. Crack is stored here too because this is not home inventory.
+  products  Json   @default("{}")
+
+  /// Trips D2. The boss walked this corner: its crew stays put until `moraleUntil`.
+  visitedAt   DateTime?
+  moraleUntil DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+/// 0.6.0-A. Turns a crew has worked on a block lately. You cannot claim a block you have
+/// never worked, and presence fades on the ruleset's half-life, settled from `at` on read.
+model TurfPresence {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id])
+
+  /// Ruleset district key, e.g. CASINO.
+  district String
+
+  /// Turns worked, as of `at`. Faded on read, never by a sweep.
+  turns Float    @default(0)
+  at    DateTime @default(now())
+
+  @@unique([roundPlayerId, cityId, district])
+}
+
+/// 0.6.0-C. A player-vs-player attempt to take one block. The attacking squad
+/// is committed at start and the fight lands after the warning window.
+enum TurfPushStatus {
+  PENDING
+  LANDED
+}
+
+model TurfPush {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  turfId String
+  turf   Turf   @relation(fields: [turfId], references: [id], onDelete: Cascade)
+
+  attackerId         String
+  attacker           RoundPlayer @relation("TurfPushAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+  /// Alliance snapshots make shared revenge stable if either player later leaves.
+  attackerAllianceId String?
+
+  /// Holder when the push started. The block may be abandoned before it lands.
+  defenderId         String
+  defender           RoundPlayer @relation("TurfPushDefender", fields: [defenderId], references: [id], onDelete: Cascade)
+  defenderAllianceId String?
+
+  squad              Int
+  /// Morale and the exact guns committed from home.
+  attackerCrew       Json
+  turnsSpent         Int
+  actionId           String
+  startedAt          DateTime
+  landsAt            DateTime
+  status             TurfPushStatus   @default(PENDING)
+  settledAt          DateTime?
+  /// True only when this push actually transferred the block to the attacker.
+  captured           Boolean          @default(false)
+  result             Json?
+  attackerCreditedAt DateTime?
+  alliesCalledAt     DateTime?
+  /// Public turf-feed claim, parallel to RaidBattle.discordPostedAt.
+  discordPostedAt    DateTime?
+  /// 0.9.0-G. When the holder was told their block is being pushed (once their Lookouts saw it),
+  /// and when their alliance was told about the call for help.
+  defenderAlertedAt  DateTime?
+  alliesAlertedAt    DateTime?
+  /// Private notification collection is independent from the public feed.
+  alertsCollectedAt  DateTime?
+  backups            TurfPushBackup[]
+
+  @@unique([attackerId, actionId])
+  @@index([turfId, status])
+  @@index([roundId, status, landsAt])
+  @@index([roundId, captured, settledAt(sort: Desc)])
+  @@index([alertsCollectedAt, settledAt])
+  @@index([attackerId, turfId, startedAt(sort: Desc)])
+  @@index([attackerId, captured, settledAt(sort: Desc)])
+  @@index([defenderAllianceId, attackerId, captured, settledAt(sort: Desc)])
+  @@index([attackerId, attackerCreditedAt])
+}
+
+/// Real home/alliance help committed to a pending turf push. C landing decides
+/// whether an ally's uncertain reinforcement actually arrives.
+model TurfPushBackup {
+  id String @id @default(cuid())
+
+  pushId String
+  push   TurfPush @relation(fields: [pushId], references: [id], onDelete: Cascade)
+
+  playerId String
+  player   RoundPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  /// OWNER or ALLY.
+  kind       String
+  thugs      Int
+  crew       Json
+  sentAt     DateTime
+  showedUp   Boolean?
+  wounded    Int       @default(0)
+  creditedAt DateTime?
+
+  @@unique([pushId, playerId])
+  @@index([playerId, creditedAt])
+}
+
+/// 0.6.0-E. One continuous stretch where a crew held a block with one alliance
+/// identity. Alliance membership changes split the segment so old hours never move
+/// retroactively to a new alliance.
+model TurfHoldSegment {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  turfId String
+  turf   Turf   @relation(fields: [turfId], references: [id], onDelete: Cascade)
+
+  holderId String
+  holder   RoundPlayer @relation(fields: [holderId], references: [id], onDelete: Cascade)
+
+  holderPublicPimpId Int
+  holderName         String
+
+  /// Snapshot only. We deliberately do not FK this because disband/rename history must survive.
+  allianceId   String?
+  allianceName String?
+  allianceTag  String?
+
+  startedAt DateTime
+  endedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([roundId, holderId, startedAt])
+  @@index([roundId, allianceId, startedAt])
+  @@index([turfId, endedAt])
+}
+
+/// 0.6.0-E. One durable alliance city-control change. Snapshot names/tags keep
+/// history readable if an alliance later renames or disbands.
+model TurfControlEvent {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  previousAllianceId   String?
+  previousAllianceName String?
+  previousAllianceTag  String?
+  nextAllianceId       String?
+  nextAllianceName     String?
+  nextAllianceTag      String?
+
+  previousBlocksHeld Int @default(0)
+  nextBlocksHeld     Int @default(0)
+  blocksTotal        Int
+
+  happenedAt        DateTime
+  discordPostedAt   DateTime?
+  alertsCollectedAt DateTime?
+
+  @@index([roundId, happenedAt(sort: Desc)])
+  @@index([discordPostedAt, happenedAt])
+  @@index([alertsCollectedAt, happenedAt])
+}
+
+/// 0.6.0-F. One seeded late-round Federal sweep. The target and clock are fixed per
+/// round, so the warning and the sweep can be replayed/idempotently claimed by Discord.
+model TurfCrackdown {
+  id String @id @default(cuid())
+
+  roundId String @unique
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  warningAt DateTime
+  sweepAt   DateTime
+  sweptAt   DateTime?
+
+  holdersAffected Int  @default(0)
+  thugsPickedUp   Int  @default(0)
+  /// Per-holder result snapshots for receipts/feed summaries.
+  results         Json @default("[]")
+
+  warningDiscordPostedAt DateTime?
+  sweepDiscordPostedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([warningAt])
+  @@index([sweepAt, sweptAt])
+  @@index([warningDiscordPostedAt, warningAt])
+  @@index([sweepDiscordPostedAt, sweepAt])
+}
+
+/// 0.6.0-B. The daily turf-tax cap is per payer and holder. The worker's burn is not
+/// stored here; only the minted holder share needs a cap and a dashboard/history read.
+model TurfTaxLedger {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  payerId String
+  payer   RoundPlayer @relation("TurfTaxPayer", fields: [payerId], references: [id], onDelete: Cascade)
+
+  holderId String
+  holder   RoundPlayer @relation("TurfTaxHolder", fields: [holderId], references: [id], onDelete: Cascade)
+
+  /// UTC calendar day, stored at midnight.
+  day DateTime
+
+  mintedCents   BigInt @default(0)
+  /// House-minted tax already credited to the holder's home cash or, in 0.6.0-D, an outpost box.
+  creditedCents BigInt @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundId, payerId, holderId, day])
+  @@index([roundId, holderId, day])
+}
+
+// ---------------------------------------------------------------------------
+// Idempotency
+// ---------------------------------------------------------------------------
+
+/// Short-lived record of a completed resource-changing action. A repeated
+/// actionId replays the stored result instead of executing twice.
+model ProcessedAction {
+  id String @id @default(cuid())
+
+  /// Client generated. Scoped to the player, so one player's action id can
+  /// never collide with or block another's.
+  actionId String
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  action String
+  result Json
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@unique([roundPlayerId, actionId])
+  @@index([expiresAt])
+}
+
+/// 1.0.0-E. Something the server refused because it looked like an exploit or a bug:
+/// a database guard, a broken invariant, a hit between linked accounts, a flood of
+/// refused requests. The same thing from the same account on the same day folds into
+/// one row. No foreign keys: a flag outlives what it points at.
+model ExploitFlag {
+  id            String   @id @default(cuid())
+  fingerprint   String   @unique
+  kind          String
+  /// info, warning or critical.
+  severity      String   @default("warning")
+  accountId     String?
+  roundPlayerId String?
+  roundId       String?
+  route         String?
+  message       String
+  detail        Json?
+  occurrences   Int      @default(1)
+  firstSeenAt   DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+
+  reviewedAt         DateTime?
+  reviewedByUsername String?
+  /// dismissed or actioned.
+  resolution         String?
+  reviewNote         String?
+
+  @@index([reviewedAt, lastSeenAt(sort: Desc)])
+  @@index([accountId, lastSeenAt(sort: Desc)])
+}
+
+/// 1.1.0-D. A block war against a player-held block: declared, opened with a fight, then a
+/// siege that builds Control until the attacker wins, or the holder breaks it, concedes, or
+/// the time limit runs out. Everything is settled lazily, like turf pushes.
+model BlockWar {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  turfId String
+  turf   Turf   @relation(fields: [turfId], references: [id], onDelete: Cascade)
+
+  attackerId         String
+  attacker           RoundPlayer @relation("BlockWarAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+  attackerAllianceId String?
+  defenderId         String
+  defender           RoundPlayer @relation("BlockWarDefender", fields: [defenderId], references: [id], onDelete: Cascade)
+  defenderAllianceId String?
+
+  goal       BlockWarGoal
+  status     BlockWarStatus @default(OPENING)
+  actionId   String
+  declaredAt DateTime
+  endsBy     DateTime
+
+  /// Control 0..100, as of `controlAt`, while a siege is on.
+  control        Float     @default(0)
+  controlAt      DateTime?
+  siegeSince     DateTime?
+  /// Every hour of siege so far, and every fight, for fatigue.
+  siegeHours     Float     @default(0)
+  fights         Int       @default(0)
+  /// After a lost assault or a broken siege, when the declarer may assault again.
+  nextAssaultAt  DateTime?
+  fatigueAtStart Float     @default(0)
+
+  /// One ally slot per side for the whole war, the cut its caller promised (0..0.5), the
+  /// call's open window, and whether the ally actually fought.
+  attackerAllyId     String?
+  defenderAllyId     String?
+  attackerCut        Float     @default(0)
+  defenderCut        Float     @default(0)
+  attackerCallUntil  DateTime?
+  defenderCallUntil  DateTime?
+  attackerAllyFought Boolean   @default(false)
+  defenderAllyFought Boolean   @default(false)
+
+  winner                  BlockWarSide?
+  /// CONTROL, CONCEDED, WITHDREW, TIMEOUT, ABANDONED or CUTOFF.
+  endReason               String?
+  endedAt                 DateTime?
+  result                  Json?
+  /// The public Discord street feed: when the declaration and the end were posted.
+  discordDeclaredPostedAt DateTime?
+  discordEndedPostedAt    DateTime?
+
+  squads    BlockWarSquad[]
+  fightRows BlockWarFight[]
+
+  @@unique([attackerId, actionId])
+  @@index([turfId, status])
+  @@index([roundId, status])
+  @@index([attackerId, status])
+  @@index([defenderId, status])
+}
+
+/// A fight in a block war: the opening fight, a re-assault after a lost one, or the holder's
+/// attempt to break the siege. It lands at `landsAt`, after the warning or muster window.
+model BlockWarFight {
+  id String @id @default(cuid())
+
+  warId String
+  war   BlockWar @relation(fields: [warId], references: [id], onDelete: Cascade)
+
+  kind      BlockWarFightKind
+  startedAt DateTime
+  landsAt   DateTime
+  /// PENDING, LANDED or CANCELLED.
+  status    String            @default("PENDING")
+  result    Json?
+
+  @@index([warId, status])
+}
+
+/// Thugs (and their guns) a crew has committed to a block war: the declarer's squad, the
+/// holder's backup, an ally. They leave home while committed, like a push squad, and come
+/// back through the player's own credit pass, so nobody else's row is written for them.
+model BlockWarSquad {
+  id String @id @default(cuid())
+
+  warId String
+  war   BlockWar @relation(fields: [warId], references: [id], onDelete: Cascade)
+
+  playerId String
+  player   RoundPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  side            BlockWarSide
+  /// DECLARER, HOLDER or ALLY.
+  role            String
+  /// The fight it was sent to, or null for the occupying squad's siege presence.
+  fightId         String?
+  sent            Int
+  /// Still deployed. Wounded thugs go home as they are hurt; the rest when it is released.
+  thugs           Int
+  wounded         Int          @default(0)
+  /// Morale and the exact guns committed from home.
+  crew            Json
+  active          Boolean      @default(true)
+  recoverAt       DateTime?
+  /// On a Take, the declarer's thugs that stay on as the new corner crew.
+  posted          Int          @default(0)
+  /// Paid with the squad's final credit: Sack loot or an ally's cut, and Heat.
+  payoutCents     BigInt       @default(0)
+  heat            Int          @default(0)
+  /// What the owner's credit pass has already taken back.
+  creditedThugs   Int          @default(0)
+  creditedWounded Int          @default(0)
+  gunsCreditedAt  DateTime?
+  createdAt       DateTime     @default(now())
+
+  @@index([playerId, active])
+  @@index([warId, active])
+}
+
+enum BlockWarGoal {
+  TAKE
+  SACK
+}
+
+enum BlockWarStatus {
+  OPENING
+  SIEGE
+  BETWEEN
+  ENDED
+}
+
+enum BlockWarSide {
+  ATTACKER
+  DEFENDER
+}
+
+enum BlockWarFightKind {
+  OPENING
+  ASSAULT
+  BREAK
+}
+
+// ---------------------------------------------------------------------------
+// Law enforcement (1.3.0)
+// ---------------------------------------------------------------------------
+
+/// 1.3.0-A. One city's Case on one player: what that city's police have on them. Stored
+/// in hundredths of a point (the ruleset's caseMax x 100 at most). Private to its player,
+/// and gone with the round like every RoundPlayer row. Heat is unaffected by it.
+model PlayerCase {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  caseHundredths Int       @default(0)
+  /// The Wanted stage the Case last read as; a rise logs CASE_STAGE_UP once.
+  stage          String    @default("QUIET")
+  /// 1.3.0-B. When `caseHundredths` was last brought up to date. Cooling after it is worked
+  /// out on read and written as a COOLING receipt with the next change.
+  caseAt         DateTime  @default(now())
+  /// 1.3.0-B. The player's last act that added evidence here. Cooling starts a quiet spell after it.
+  lastEvidenceAt DateTime?
+  /// 1.3.0-B. Cash moved in this city on `reportDay` (UTC), for currency reports.
+  reportDay      String?
+  reportCents    BigInt    @default(0)
+  /// 1.3.0-F. The highest stage this Case has reached since it last left Quiet, and when it
+  /// left Quiet. Both reset when it cools back to Quiet. Ledger's Jobs read them.
+  peakStage      String    @default("QUIET")
+  openedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, cityId])
+  @@index([cityId])
+}
+
+/// 1.3.0-A. An itemised, immutable change to a Case: why it exists. Keyed on the act that
+/// caused it, so a retried action or a re-run settle never adds evidence twice.
+model PlayerCaseReceipt {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  /// What drew it: SCOUT, PRODUCE, RUN_SALE, COMBAT, CONVOY, TORCH, SACK, RACKETS, CRACKDOWN,
+  /// and from 1.3.0-B BUST, ARREST, ROAD_STOP, HIJACK, CURRENCY_REPORT, LAUNDERING and COOLING.
+  source              String
+  sourceKey           String
+  /// Heat the act drew, before the Heat meter's cap.
+  heat                Float
+  deltaHundredths     Int
+  caseAfterHundredths Int
+  stageAfter          String
+  /// 1.3.0-B. This change took the Case to a higher stage; the alert collector tells the player.
+  stageUp             Boolean   @default(false)
+  alertsCollectedAt   DateTime?
+  createdAt           DateTime  @default(now())
+
+  @@unique([roundPlayerId, sourceKey])
+  @@index([stageUp, alertsCollectedAt])
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+  @@index([roundPlayerId, cityId, createdAt(sort: Desc)])
+}
+
+/// 1.3.0-C. A warrant a city's police drafted when the player's Case there reached the Warrant
+/// stage. It names one target and is served at `servesAt` unless answered first. A personal
+/// warrant past `servesAt` waits (WAITING) until the boss is in that city, or the round ends.
+model PlayerWarrant {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  /// HIDEOUT, BUSINESS or PERSONAL.
+  target     String
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+
+  /// OPEN, WAITING, SERVED, LAWYERED, or (1.3.0-D) QUASHED by a District Attorney.
+  status     String    @default("OPEN")
+  draftedAt  DateTime
+  servesAt   DateTime
+  resolvedAt DateTime?
+  /// What serving or answering it did: seizures, fines, the shut window, the lock-up, or the fee.
+  outcome    Json      @default("{}")
+
+  /// Alert collection markers, one per event the player is told about.
+  draftAlertedAt    DateTime?
+  waitingAlertedAt  DateTime?
+  resolvedAlertedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roundPlayerId, status])
+  @@index([status, servesAt])
+  @@index([cityId])
+  @@index([businessId])
+}
+
+/// 1.3.0-D. A corrupt official on one player's payroll in one city: a Precinct Captain, a
+/// District Attorney, a Judge or a Customs Officer. Paid by the week; works only while paid.
+/// Every favor adds exposure; past the line Internal Affairs opens a file, and an official
+/// still on the books when `stingAt` comes is stung, which ends them and adds evidence.
+model PlayerOfficial {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  /// CAPTAIN, DA, JUDGE or CUSTOMS.
+  role         String
+  /// ACTIVE (working while `paidUntil` is ahead), CUT (let go) or STUNG (caught by Internal Affairs).
+  status       String    @default("ACTIVE")
+  hiredAt      DateTime
+  paidUntil    DateTime
+  /// Exposure points from favors. Starts again from zero with each new hire.
+  exposure     Int       @default(0)
+  /// Internal Affairs opened a file at `iaOpenedAt`; the sting lands at `stingAt` unless cut first.
+  iaOpenedAt   DateTime?
+  stingAt      DateTime?
+  /// A DA can quash again from here.
+  quashReadyAt DateTime?
+  endedAt      DateTime?
+
+  /// Alert collection markers.
+  iaAlertedAt    DateTime?
+  stungAlertedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, cityId, role])
+  @@index([status, stingAt])
+  @@index([cityId])
+}
+
+/// 1.3.0-D. A tip bought from an informant: information, never protection. SWEEP names the
+/// federal sweep's city and time before it is public; CITY names a city's police lines.
+model PlayerTip {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  kind    String
+  cityId  String?
+  city    City?   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  payload Json    @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+  @@index([cityId])
+}
+
+/// 1.4.0-B. A player's seasonal standing with one faction. Starts at zero every round; only the
+/// player's own one-time Jobs add to it, each with a receipt.
+model PlayerFactionStanding {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// KINGS, OUTFIT, ROAD_SAINTS, CARTEL_LINE or CIVIC_HANDSHAKE.
+  factionKey          String
+  points              Int       @default(0)
+  /// The tier the standing last read as; a rise logs FACTION_TIER_UP once.
+  tier                String    @default("UNKNOWN")
+  /// 1.4.0-F. When the player reached Inner Circle, and when the street feed posted it.
+  innerCircleAt       DateTime?
+  innerCirclePostedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, factionKey])
+  @@index([innerCirclePostedAt, innerCircleAt])
+}
+
+/// 1.4.0-B. An immutable change to faction standing, keyed on the act that caused it so a retry
+/// never pays twice. The receipts always add up to the stored standing.
+model PlayerFactionReceipt {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  factionKey  String
+  /// JOB (a one-time Job), CONTRACT (a sponsored board contract, 1.4.0-C), later ADMIN and others.
+  source      String
+  sourceKey   String
+  delta       Int
+  pointsAfter Int
+  tierAfter   String
+
+  createdAt DateTime @default(now())
+
+  @@unique([roundPlayerId, sourceKey])
+  @@index([roundPlayerId, factionKey, createdAt])
+}
+
+/// 1.4.0-D. A Connected nudge taking effect: which faction, which nudge, the percent the ruleset
+/// pinned, and what it saved. Keyed on the act it applied to, so a retried action or a re-run
+/// settle never logs twice. Read-only to play; G's admin view audits it.
+model PlayerFactionPerkUse {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  factionKey String
+  /// CORNER_UPKEEP, TOMMY_WEAPONS, BODYGUARD_TICKETS, PIP_PRODUCT or OFFICIAL_EXPOSURE.
+  kind       String
+  sourceKey  String
+  percent    Int
+  /// What it saved: { cents }, { beer, product } or { exposure }.
+  saved      Json
+
+  createdAt DateTime @default(now())
+
+  @@unique([roundPlayerId, sourceKey])
+  @@index([roundPlayerId, factionKey, createdAt])
+}
+
+/// 1.4.0-D. An early warning from a faction the player is Trusted with that has reached the bell.
+/// Keyed on the warning itself (a shield, a run's leg, a drought, a Case nearing a stage), so the
+/// alert sweep sends each warning once however often it looks.
+model PlayerFactionWarning {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  factionKey        String
+  warningKey        String
+  /// What the warning said and where it pointed, for the push and Discord alert.
+  text              String    @default("")
+  href              String    @default("/game/quests#factions")
+  /// When the alert collector turned it into push and Discord alerts.
+  alertsCollectedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([roundPlayerId, warningKey])
+  @@index([alertsCollectedAt, createdAt])
 }

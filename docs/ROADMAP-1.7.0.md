@@ -139,6 +139,16 @@ Give players practical control over who does each job.
 
 **Gate:** Concurrent actions cannot assign the same member twice; members in an active run or work shift cannot be selected elsewhere; release and re-hire preserve career data.
 
+**Status: Implemented.**
+
+**As built:**
+
+- **Roster actions.** A player can swap an available person into an existing business or turf job slot while the displaced member returns home. Dealer careers, members on runs, and recovering members are not selectable. The action changes only individual identities; the existing business, turf and dealer counts remain authoritative.
+- **Return from release.** An experienced released veteran can return in exchange for an available member or an existing job occupant. The released member keeps their experience and specialty; the outgoing replacement keeps their own career if released. When counted headcount grows, the roster automatically rehires the most experienced released generalist before creating a baseline member.
+- **Training.** An available member with a play-earned specialty can train toward tier two for one turn and $5,000. Each session adds up to five specialty XP. Training XP is tracked separately and cannot exceed 25% of completed-work experience; training cannot unlock a specialty or exceed tier two. The roster shows the cost and gain before the action.
+- **Concurrency and safety.** Roster exchanges lock the player's row and validate both members again inside the transaction. The UI excludes dealer careers, run crews, and recovering members. Training uses the normal action pipeline and action idempotency, so a retry cannot charge or award twice.
+- **Rules and migration.** `classic-og-v1.7-d` pins the training cost, amount and career cap. The new training counter defaults to zero for existing members, and training history is recorded in the career log. Earlier rulesets remain unchanged.
+
 ### 1.7.0-E — Teams & Operational Choices
 
 Make the roster matter in jobs where a selected team changes the outcome.

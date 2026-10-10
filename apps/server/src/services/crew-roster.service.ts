@@ -4,7 +4,9 @@ import type { Ruleset } from '@streets/rules-engine';
 import type { BusinessKey } from '@streets/rulesets';
 import type { CrewAssignmentKindDto, CrewMemberDto, CrewMemberHistoryDto, CrewMemberStatusDto, CrewRosterDto, CrewRosterQuery } from '@streets/shared';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
+import { AppError } from '../utils/errors.js';
 import { crewMemberName, crewMemberSpecialty, crewMemberTraits } from './crew-profile.js';
+import { IdempotencyService } from './idempotency.service.js';
 import {
   crewPlaceCounts,
   crewPlaceKey,
@@ -123,6 +125,22 @@ async function loadChanges(tx: Db, roundPlayerId: string, counts: CrewCounts, re
   if (careersInStep && placesInStep) return null;
 
   const loaded = new Map(carriers.map((row) => [row.id, row]));
+  const wantedByRole = new Map<CrewRole, number>();
+  for (const [placeKey, count] of want) {
+    const role = placeKey.slice(0, placeKey.indexOf('|')) as CrewRole;
+    wantedByRole.set(role, (wantedByRole.get(role) ?? 0) + count);
+  }
+  const presentByRole = new Map<CrewRole, number>();
+  for (const group of groups) presentByRole.set(group.role, (presentByRole.get(group.role) ?? 0) + group._count._all);
+  for (const role of ['THUG', 'WORKER'] as const) {
+    const vacancies = Math.max(0, (wantedByRole.get(role) ?? 0) - (presentByRole.get(role) ?? 0));
+    if (!vacancies) continue;
+    const veterans = await tx.crewMember.findMany({
+      where: { roundPlayerId, role, status: 'RELEASED', dealerStaffId: null, experiencePoints: { gt: 0 } },
+      orderBy: [{ experiencePoints: 'desc' }, { serial: 'asc' }], take: vacancies, select: MEMBER_FIELDS,
+    }) as CrewMemberRow[];
+    for (const row of veterans) loaded.set(row.id, row);
+  }
   for (const group of groups) {
     if (group.assignmentKind === 'DEALER') continue; // already loaded above
     const surplus = group._count._all - (want.get(groupKey(group)) ?? 0);
@@ -220,7 +238,7 @@ function assignmentName(kind: CrewAssignmentKindDto | null, ref: string | null, 
   return labels.get(key) ?? (kind === 'BUSINESS' ? 'Business shift' : kind === 'DEALER' ? 'Dealer crew' : 'Turf post');
 }
 
-function eventHistory(rows: Array<{ kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED'; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null; summary: string | null; at: Date }>, joinedAt: Date, labels: Map<string, string>): CrewMemberHistoryDto[] {
+function eventHistory(rows: Array<{ kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED' | 'TRAINED'; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null; summary: string | null; at: Date }>, joinedAt: Date, labels: Map<string, string>): CrewMemberHistoryDto[] {
   const entries = rows.map((event): CrewMemberHistoryDto => {
     const place = assignmentName(event.assignmentKind, event.assignmentRef, labels);
     const label = event.summary ?? (event.kind === 'JOINED' ? 'Joined the crew'
@@ -228,7 +246,7 @@ function eventHistory(rows: Array<{ kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' |
         : event.kind === 'UNASSIGNED' ? `Returned from ${place ?? 'an assignment'}`
           : event.kind === 'RELEASED' ? 'Released from the crew'
             : event.kind === 'REHIRED' ? 'Rejoined the crew'
-              : 'Completed a job');
+              : event.kind === 'TRAINED' ? 'Completed training' : 'Completed a job');
     return { kind: event.kind, label, at: event.at.toISOString() };
   });
   if (!rows.some((event) => event.kind === 'JOINED')) entries.push({ kind: 'JOINED', label: 'Joined this round', at: joinedAt.toISOString() });
@@ -236,6 +254,42 @@ function eventHistory(rows: Array<{ kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' |
 }
 
 export const CrewRosterService = {
+  /** Replace an occupant of an existing slot, or exchange an available member for a released veteran. */
+  async exchange(prisma: PrismaClient, roundPlayerId: string, memberId: string, replaceMemberId: string, actionId: string, ruleset: Ruleset, now = new Date()) {
+    if (memberId === replaceMemberId) throw AppError.badRequest('INVALID_CREW_EXCHANGE', 'Choose two different crew members.');
+    return prisma.$transaction(async (tx) => {
+      await lockRoundPlayer(tx, roundPlayerId);
+      const replay = await IdempotencyService.find<{ memberId: string; replacedMemberId: string }>(tx, actionId, roundPlayerId, 'CREW_EXCHANGE');
+      if (replay) return replay;
+      await CrewRosterService.sync(tx, roundPlayerId, ruleset, now);
+      const [member, replacement] = await Promise.all([
+        tx.crewMember.findFirst({ where: { id: memberId, roundPlayerId } }),
+        tx.crewMember.findFirst({ where: { id: replaceMemberId, roundPlayerId } }),
+      ]);
+      if (!member || !replacement) throw AppError.notFound('CREW_MEMBER_NOT_FOUND', 'One of those members is not on your roster.');
+      if (member.role !== replacement.role || member.dealerStaffId || replacement.dealerStaffId) throw AppError.conflict('CREW_EXCHANGE_UNSUPPORTED', 'Only members with the same role and no dealer career can be exchanged.');
+      const exchangeable = (member.status === 'AVAILABLE' && ['ASSIGNED', 'RELEASED'].includes(replacement.status))
+        || (replacement.status === 'AVAILABLE' && ['ASSIGNED', 'RELEASED'].includes(member.status))
+        || (member.status === 'ASSIGNED' && replacement.status === 'RELEASED')
+        || (member.status === 'ASSIGNED' && replacement.status === 'ASSIGNED' && member.assignmentKind === replacement.assignmentKind && member.assignmentRef === replacement.assignmentRef);
+      if (!exchangeable) throw AppError.conflict('CREW_MEMBER_UNAVAILABLE', 'Only available members, current job occupants, and released veterans can be exchanged. Members on runs or recovering cannot move.');
+      const toMember = { status: replacement.status, assignmentKind: replacement.assignmentKind, assignmentRef: replacement.assignmentRef, releasedAt: replacement.status === 'RELEASED' ? replacement.releasedAt ?? now : null };
+      const toReplacement = { status: member.status, assignmentKind: member.assignmentKind, assignmentRef: member.assignmentRef, releasedAt: member.status === 'RELEASED' ? member.releasedAt ?? now : null };
+      await tx.crewMember.update({ where: { id: member.id }, data: { ...toMember, statusSince: now } });
+      await tx.crewMember.update({ where: { id: replacement.id }, data: { ...toReplacement, statusSince: now } });
+      const event = async (id: string, kind: 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED', assignmentKind: CrewAssignmentKindDto | null, assignmentRef: string | null, summary: string | null) => tx.crewMemberEvent.create({ data: { memberId: id, roundPlayerId, kind, assignmentKind, assignmentRef, summary, at: now } });
+      const logMove = async (row: typeof member, to: typeof member) => {
+        if (row.status === 'RELEASED' && to.status !== 'RELEASED') return event(row.id, 'REHIRED', to.assignmentKind, to.assignmentRef, 'Rejoined the active crew with career intact.');
+        if (to.status === 'RELEASED') return event(row.id, 'RELEASED', row.assignmentKind, row.assignmentRef, 'Released from the active crew.');
+        if (row.status === 'ASSIGNED' && (row.assignmentKind !== to.assignmentKind || row.assignmentRef !== to.assignmentRef)) await event(row.id, 'UNASSIGNED', row.assignmentKind, row.assignmentRef, null);
+        if (to.status === 'ASSIGNED' && (row.assignmentKind !== to.assignmentKind || row.assignmentRef !== to.assignmentRef || row.status !== 'ASSIGNED')) await event(row.id, 'ASSIGNED', to.assignmentKind, to.assignmentRef, 'Assigned to an existing job slot.');
+      };
+      await Promise.all([logMove(member, replacement), logMove(replacement, member)]);
+      const result = { memberId: member.id, replacedMemberId: replacement.id };
+      await IdempotencyService.record(tx, actionId, roundPlayerId, 'CREW_EXCHANGE', result, now);
+      return result;
+    });
+  },
   /**
    * Bring the player's members in line with their counts. `counts` may be passed when the
    * caller has just written them; otherwise they are read. A no-op on rounds without the roster.

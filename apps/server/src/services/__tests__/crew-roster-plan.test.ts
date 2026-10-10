@@ -206,6 +206,20 @@ describe('1.7.0-A roster migration', () => {
 });
 
 describe('1.7.0-A roster upkeep', () => {
+  it('rehire an experienced released member into a newly counted slot', () => {
+    const veteran: CrewMemberRow = {
+      id: 'veteran-1', role: 'THUG', serial: 2, status: 'RELEASED', assignmentKind: null,
+      assignmentRef: null, experiencePoints: 45, dealerStaffId: null,
+    };
+    const plan = planCrewRoster({
+      counts: { ...none, thugs: 1 }, refs: noRefs, members: [veteran], nextSerial: 3,
+      firstBuild: false, newId: () => 'newbie',
+    });
+    expect(plan.creates).toEqual([]);
+    expect(plan.moves).toEqual([expect.objectContaining({ id: 'veteran-1', from: null, to: expect.objectContaining({ status: 'AVAILABLE', assignmentKind: null, assignmentRef: null }) })]);
+    expect(plan.events).toEqual([{ memberId: 'veteran-1', kind: 'REHIRED', assignmentKind: null, assignmentRef: null }]);
+  });
+
   it('lets the newest, least experienced members go when the crew shrinks', () => {
     const roster = new Roster();
     roster.sync({ ...none, thugs: 5 });

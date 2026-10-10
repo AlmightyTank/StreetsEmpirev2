@@ -1969,6 +1969,7 @@ enum CrewMemberEventKind {
   REHIRED
   /// A completed, server-resolved shift worth remembering in the career log.
   WORK_COMPLETED
+  TRAINED
 }
 
 /// 1.7.0-A. One thug or worker. The player's counts stay authoritative: members are kept in
@@ -1985,6 +1986,8 @@ model CrewMember {
   /// The business, dealer crew or turf a member is assigned to, when it is known.
   assignmentRef    String?
   experiencePoints Int                 @default(0)
+  /// 1.7.0-D. Training may accelerate earned specialties, but is separately capped.
+  trainingExperiencePoints Int         @default(0)
   specialty        CrewMemberSpecialty @default(GENERALIST)
   specialtyExperiencePoints Int         @default(0)
   /// 1.6 dealer career this member carries; the member keeps the career's id.

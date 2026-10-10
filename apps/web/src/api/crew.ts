@@ -16,4 +16,6 @@ export const crewApi = {
     for (const [key, value] of Object.entries(filters)) if (value !== undefined) query.set(key, String(value));
     return api.get<CrewRosterDto>(`/game/crew${query.size ? `?${query.toString()}` : ''}`);
   },
+  train: (memberId: string, actionId: string) => api.post('/game/crew/train', { memberId, actionId }),
+  exchange: (memberId: string, replaceMemberId: string, actionId: string) => api.post('/game/crew/exchange', { memberId, replaceMemberId, actionId }),
 };

@@ -18,7 +18,14 @@ const effectLabels: Record<CrewMemberDto['specialty'], string> = {
   GENERALIST: 'no specialty effect', ENFORCER: 'raid strength', WHEELMAN: 'road-stop risk reduction', SCOUT: 'scouting income', DEALER: 'dealer pace and cut', SERVICE: 'worker service performance',
 };
 
-function CrewMemberCard({ member }: { member: CrewMemberDto }) {
+function CrewMemberCard({ member, peers, busy, onExchange, onTrain }: { member: CrewMemberDto; peers: CrewMemberDto[]; busy: boolean; onExchange: (memberId: string, replaceMemberId: string) => void; onTrain: (memberId: string) => void }) {
+  const [replaceId, setReplaceId] = useState('');
+  const candidates = peers.filter((peer) => peer.id !== member.id && peer.role === member.role && !peer.dealerStaffId && !member.dealerStaffId && (
+    (member.status === 'AVAILABLE' && ['ASSIGNED', 'RELEASED'].includes(peer.status))
+    || (peer.status === 'AVAILABLE' && ['ASSIGNED', 'RELEASED'].includes(member.status))
+    || (member.status === 'ASSIGNED' && peer.status === 'RELEASED')
+    || (member.status === 'ASSIGNED' && peer.status === 'ASSIGNED')
+  ));
   return (
     <article className="se-crew-roster__member">
       <div className="se-crew-roster__member-head">
@@ -41,6 +48,15 @@ function CrewMemberCard({ member }: { member: CrewMemberDto }) {
             : `Tier ${member.specialtyLevel} · ${member.specialtyEffectPercent}% ${effectLabels[member.specialty]} · ${member.nextSpecialtyMilestone ? `${formatNumber(Math.max(0, member.nextSpecialtyMilestone - member.specialtyExperiencePoints))} XP to next tier` : 'career capped'}`}
       </p>
       {member.unavailableReason ? <p className="se-crew-roster__reason">{member.unavailableReason}</p> : null}
+      {candidates.length ? <div className="se-crew-roster__actions">
+        <label>Swap with <select className="se-input" value={replaceId} onChange={(event) => setReplaceId(event.target.value)}>
+          <option value="">Choose a member</option>{candidates.map((peer) => <option key={peer.id} value={peer.id}>#{peer.serial} · {peer.status === 'RELEASED' ? 'released veteran' : peer.assignment?.label ?? peer.status.toLowerCase()}</option>)}
+        </select></label>
+        <button className="se-btn se-btn--sm" type="button" disabled={busy || !replaceId} onClick={() => onExchange(member.id, replaceId)}>Confirm swap</button>
+      </div> : null}
+      {member.status === 'AVAILABLE' && member.specialty !== 'GENERALIST' && member.specialty !== 'DEALER' && member.specialtyLevel === 1 ? <div className="se-crew-roster__actions">
+        <button className="se-btn se-btn--sm" type="button" disabled={busy} onClick={() => onTrain(member.id)}>Train · 1 turn + $5,000 · up to 5 XP</button>
+      </div> : null}
       <div className="se-crew-roster__traits" aria-label="Crew traits">
         {member.traits.map((trait) => <span key={trait}>{trait}</span>)}
       </div>
@@ -70,6 +86,7 @@ export function CrewRosterPage() {
   const [data, setData] = useState<Awaited<ReturnType<typeof crewApi.roster>> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionBusy, setActionBusy] = useState(false);
   const filters = useMemo(() => ({ role, status, assignment, specialty, limit: 50, offset }), [role, status, assignment, specialty, offset]);
   const filtersKey = JSON.stringify(filters);
 
@@ -86,6 +103,20 @@ export function CrewRosterPage() {
   }, [filtersKey]);
 
   const allMembers = data?.totals.reduce((sum, row) => sum + row.members, 0) ?? 0;
+
+  const refresh = async () => setData(await crewApi.roster(filters));
+  const exchange = async (memberId: string, replaceMemberId: string) => {
+    setActionBusy(true); setError(null);
+    try { await crewApi.exchange(memberId, replaceMemberId, crypto.randomUUID()); await refresh(); }
+    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Could not update the crew assignment.'); }
+    finally { setActionBusy(false); }
+  };
+  const train = async (memberId: string) => {
+    setActionBusy(true); setError(null);
+    try { await crewApi.train(memberId, crypto.randomUUID()); await refresh(); }
+    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Could not complete crew training.'); }
+    finally { setActionBusy(false); }
+  };
 
   return (
     <GameLayout>
@@ -137,10 +168,10 @@ export function CrewRosterPage() {
                 <option value="">All specialties</option><option value="GENERALIST">Generalist</option><option value="ENFORCER">Enforcer</option><option value="WHEELMAN">Wheelman</option><option value="SCOUT">Scout</option><option value="DEALER">Dealer</option><option value="SERVICE">Service</option>
               </select></label>
             </div>
-            <p className="se-crew-roster__note">Completed raids, scouting trips, and returned runs earn specialty XP. Bonuses cap at 5% and apply only to that job.</p>
+            <p className="se-crew-roster__note">Completed raids, scouting trips, and returned runs earn specialty XP. Bonuses cap at 5% and apply only to that job. Training costs 1 turn and $5,000, adds up to 5 XP toward an earned specialty tier, and is capped by completed-work experience.</p>
             {loading ? <p className="se-muted">Checking the roster…</p> : data.members.length ? (
               <>
-                <div className="se-crew-roster__list">{data.members.map((member) => <CrewMemberCard key={member.id} member={member} />)}</div>
+                <div className="se-crew-roster__list">{data.members.map((member) => <CrewMemberCard key={member.id} member={member} peers={data.members} busy={actionBusy} onExchange={(id, replaceId) => void exchange(id, replaceId)} onTrain={(id) => void train(id)} />)}</div>
                 <div className="se-crew-roster__pagination">
                   <span>Showing {formatNumber(offset + 1)}–{formatNumber(Math.min(offset + data.members.length, data.total))} of {formatNumber(data.total)}</span>
                   <div>

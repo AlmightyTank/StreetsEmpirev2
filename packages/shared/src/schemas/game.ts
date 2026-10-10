@@ -362,6 +362,21 @@ export const crewRosterQuerySchema = z.object({
 
 export type CrewRosterQuery = z.infer<typeof crewRosterQuerySchema>;
 
+/** 1.7.0-D. Train an available member who already earned the selected specialty. */
+export const crewTrainingSchema = z.object({
+  memberId: z.string().trim().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+export type CrewTrainingInput = z.infer<typeof crewTrainingSchema>;
+
+/** Replace an existing job occupant, or trade an available member for a released veteran. */
+export const crewAssignmentSchema = z.object({
+  memberId: z.string().trim().min(1).max(64),
+  replaceMemberId: z.string().trim().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+export type CrewAssignmentInput = z.infer<typeof crewAssignmentSchema>;
+
 /** 0.4.0-D. Pip's counter for a non-crack product. */
 export const productTradeSchema = z.object({
   product: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),

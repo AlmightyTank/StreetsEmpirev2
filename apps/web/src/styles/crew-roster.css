@@ -211,6 +211,10 @@
 
 .se-crew-roster__pagination > div { display: flex; gap: 8px; }
 
+.se-crew-roster__actions { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.se-crew-roster__actions label { display: grid; gap: 5px; min-width: min(100%, 190px); color: var(--se-text-muted, #bcb5a6); font-size: 11px; }
+.se-crew-roster__actions .se-input { min-width: 190px; }
+
 @media (max-width: 760px) {
   .se-crew-roster__summary { grid-template-columns: minmax(0, 1fr); }
   .se-crew-roster__filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
