@@ -179,7 +179,7 @@ function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city:
                 // 1.1.0-D: a player's block is taken by a block war, declared above.
                 warsEnabled={turf.warsEnabled && !turf.business?.wars}
                 onChanged={onChanged}
-              />
+              /> : null}
             </article>
           );
         })}
