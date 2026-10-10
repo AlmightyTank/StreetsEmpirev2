@@ -375,6 +375,7 @@ export const HELP_LINES: Array<[string, string]> = [
   ['/stats', 'Your private cash, crew, weapons, supplies and turns. Only you see it.'],
   ['/alerts type enabled', 'DM alerts for attacks, turf, alliance control, rounds, rank drops and full turns. Only you see it.'],
   ['/remind turns', 'Shortcut for /alerts type:turns. Only you see it.'],
+  ['/bug category', 'Report a bug to staff. You hear back when it is resolved. Only you see it.'],
   ['/sync', 'Update your roles now (once a minute).'],
   ['/help', 'This list. Only you see it.'],
   ['/announce title body', 'Game admins: post news from Discord. Only you see the result.'],

@@ -526,10 +526,37 @@ model BugReport {
   resolvedByUsername String?
   /// FIXED, WONT_FIX or DUPLICATE.
   resolution         String?
+  /// Staff only: why it was resolved, kept in the queue and the audit log.
   resolutionNote     String?
+
+  /// GAME (the report form) or DISCORD (/bug).
+  source             String    @default("GAME")
+  /// Optional words for the reporter, sent with the "your report was resolved" notice.
+  playerReply        String?
+  /// When that notice was collected; set at once for reports resolved before notices existed.
+  reporterNotifiedAt DateTime?
 
   @@index([resolvedAt, createdAt(sort: Desc)])
   @@index([accountId, createdAt(sort: Desc)])
+}
+
+/// What the Discord bot posts to the staff channel: a new bug report, its
+/// resolution (an edit of the first post), held patch notes. Claimed once, like news.
+model DiscordStaffPost {
+  id        String    @id @default(cuid())
+  /// BUG_REPORT, BUG_REPORT_RESOLVED or PATCH_NOTES_HELD.
+  kind      String
+  /// The bug report or news post it is about; read fresh when the bot claims it.
+  targetId  String
+  createdAt DateTime  @default(now())
+  claimedAt DateTime?
+  /// The staff channel message, so a later post about the same target can edit it.
+  messageId String?
+  /// Why Discord refused it, as the bot reported it.
+  error     String?
+
+  @@index([claimedAt, createdAt])
+  @@index([kind, targetId])
 }
 
 // ---------------------------------------------------------------------------
