@@ -155,6 +155,13 @@ export function AdminNewsPage() {
     });
   }
 
+  function publishNow(target: AdminNewsPostDto) {
+    void run(() => adminApi.updateNews(target.id, { publishNow: true }), (result) => {
+      setNews(result);
+      setNotice('Published. Players see it now, and Discord gets it within a minute.');
+    });
+  }
+
   function retryMirror(target: AdminNewsPostDto) {
     void run(() => adminApi.mirrorNews(target.id), (result) => {
       setNews(result);
@@ -399,11 +406,14 @@ export function AdminNewsPage() {
               </div>
               <PostTags post={row} />
               <p>{row.body.length > 280 ? `${row.body.slice(0, 280)}…` : row.body}</p>
-              <p className="se-hint">{row.authorName ? `By ${row.authorName}` : 'Seeded'}{row.broadcast ? (row.broadcastAt ? ` · Broadcast ${adminWhen(row.broadcastAt)}` : ' · Broadcast when published') : ''}{row.forumError && !row.forumUrl ? ` · Forum error: ${row.forumError}` : ''}</p>
+              <p className="se-hint">{row.authorName ? `By ${row.authorName}` : 'Posted automatically'}{row.broadcast ? (row.broadcastAt ? ` · Broadcast ${adminWhen(row.broadcastAt)}` : ' · Broadcast when published') : ''}{row.forumError && !row.forumUrl ? ` · Forum error: ${row.forumError}` : ''}</p>
               {row.discordWaiting ? <p className={row.discordError ? 'se-error' : 'se-hint'}>Discord: {row.discordWaiting}</p> : null}
               <div className="se-admin-moderation se-mt">
                 <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => togglePin(row)} disabledReason={busy ? working : null}>{row.isPinned ? 'Unpin' : 'Pin'}</Button>
                 <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('edit', row)} disabledReason={busy ? working : null}>Edit</Button>
+                {Date.parse(row.publishedAt) > Date.now() ? (
+                  <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => publishNow(row)} disabledReason={busy ? working : null}>Publish now</Button>
+                ) : null}
                 {mirrorEnabled && !row.forumUrl ? (
                   <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => retryMirror(row)} disabledReason={busy ? working : null}>
                     {row.forumError ? 'Retry forum' : 'Post to forum'}

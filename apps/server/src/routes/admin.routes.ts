@@ -242,6 +242,8 @@ const updateNewsSchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
   body: z.string().trim().min(1).max(4000).optional(),
   pinned: z.boolean().optional(),
+  /** Publish a scheduled post now, e.g. deploy patch notes after review. */
+  publishNow: z.literal(true).optional(),
 }).strict();
 
 const createBannerSchema = z.object({

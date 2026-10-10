@@ -660,6 +660,8 @@ export interface AdminUpdateNewsInput {
   title?: string;
   body?: string;
   pinned?: boolean;
+  /** Publish a scheduled post now instead of at its scheduled time. */
+  publishNow?: true;
 }
 
 export interface AdminUpdateRoundInput {

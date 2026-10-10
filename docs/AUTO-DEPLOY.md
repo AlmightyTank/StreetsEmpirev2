@@ -57,3 +57,37 @@ configuration to both `beta` and `main`. Future pushes will validate and deploy
 automatically; manual commit selection is available from the Actions page.
 
 After deploying a selected older SHA, the helper returns the VPS checkout to the branch tip. The services keep running the selected build until the next deployment, and later automatic pushes continue to work.
+
+## Patch notes
+
+After a successful deploy, the workflow turns the PRs in it into one news post
+that waits for review:
+
+1. Each PR's description has a `## Patch notes` section (the PR template adds
+   it). Its bullets are written for players. Write `none`, or leave the section
+   out, for changes players won't notice.
+2. The workflow finds every PR merged into the deployed branch since the last
+   deploy whose notes were handled, and collects their bullets in merge order.
+3. It sends them to the game on the VPS as a global news post titled
+   `Patch notes: <date>`, scheduled `PATCH_NOTES_HOLD_MINUTES` ahead (default
+   120). The run's summary page shows the notes too.
+4. Until then, players, Discord and the forum don't see the post. In
+   **Admin → News**, edit it, delete it, or click **Publish now**. If nobody acts,
+   it publishes at the scheduled time and the bot posts it to Discord. Use
+   **Post to forum** after it publishes to mirror it.
+
+Set it up once per server: put a new random 64+ character secret in
+`PATCH_NOTES_API_TOKEN` in the checkout's `.env` (`openssl rand -hex 48`) and
+restart the API. While it's empty the internal endpoint answers 404 and
+deploys just log that patch notes are off.
+
+The first deploy that runs this step only records its commit, so older PRs are
+never announced. The last handled commit is kept in `.deploy/patch-notes-commit`
+in the checkout; delete that file to start over from the next deploy. A rollback
+posts nothing and leaves the marker alone, so redeploying forward doesn't repeat
+notes. If the notes step fails, the deploy still counts as successful; the step
+shows a warning and the next deploy picks up the same PRs again. Re-running a
+job within a day never posts the same notes twice.
+
+Beta gets its own notes on the beta game from PRs merged into `beta`. Commits
+cherry-picked straight onto `beta` have no PR, so they have no notes.
