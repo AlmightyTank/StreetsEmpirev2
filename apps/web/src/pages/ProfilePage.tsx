@@ -7,7 +7,7 @@ import type {
   PublicSeasonResultDto,
   PublicStatSheetDto,
 } from '@streets/shared';
-import { formatCents, formatNumber, formatProfileName, profileNameParts } from '@streets/shared';
+import { formatCents, formatNumber, profileNameParts } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
