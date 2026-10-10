@@ -1212,6 +1212,13 @@ export const CombatService = {
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
+      if (combatEncounter?.effects.cashCents) {
+        await EconomyLedgerService.record(tx, attackerId, [{
+          source: 'RANDOM_ENCOUNTER',
+          label: `Street encounter · ${combatEncounter.title}`,
+          amountCents: combatEncounter.effects.cashCents,
+        }], now);
+      }
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       if (result.lootCents > 0n) {
         await EconomyLedgerService.record(tx, attackerId, [{
@@ -1380,6 +1387,13 @@ export const CombatService = {
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
+      if (combatEncounter?.effects.cashCents) {
+        await EconomyLedgerService.record(tx, attackerId, [{
+          source: 'RANDOM_ENCOUNTER',
+          label: `Street encounter · ${combatEncounter.title}`,
+          amountCents: combatEncounter.effects.cashCents,
+        }], now);
+      }
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'DRIVE_BY_ATTACK', attackerReport], [target.id, 'DRIVE_BY_DEFENSE', defenderReport]] as const) {
         await ActivityService.log(tx, playerId, type, json({ battleId: id, opponent: report.opponent.displayName, opponentTag: report.opponent.alliance?.tag ?? null, won: report.won,
@@ -1619,6 +1633,13 @@ export const CombatService = {
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
+      if (combatEncounter?.effects.cashCents) {
+        await EconomyLedgerService.record(tx, attackerId, [{
+          source: 'RANDOM_ENCOUNTER',
+          label: `Street encounter · ${combatEncounter.title}`,
+          amountCents: combatEncounter.effects.cashCents,
+        }], now);
+      }
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'RAID_ATTACK', attackerReport], [target.id, 'RAID_DEFENSE', defenderReport]] as const) {
         await ActivityService.log(tx, playerId, type, json({ battleId: id, kind: input.kind, move: rule.title, opponent: report.opponent.displayName, opponentTag: report.opponent.alliance?.tag ?? null, won: report.won,
