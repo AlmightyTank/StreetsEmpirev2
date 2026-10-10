@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Lantern District theme">
+  <defs>
+    <linearGradient id="dusk" x2="0" y2="1">
+      <stop stop-color="#3b1426"/>
+      <stop offset="1" stop-color="#140a12"/>
+    </linearGradient>
+    <radialGradient id="lamp">
+      <stop stop-color="#fff1c2"/>
+      <stop offset=".5" stop-color="#fb923c"/>
+      <stop offset="1" stop-color="#c2410c"/>
+    </radialGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect x="12" y="15" width="104" height="98" rx="13" fill="#0c0609" stroke="#9a3412" stroke-width="4"/>
+  <rect x="19" y="22" width="90" height="84" rx="8" fill="url(#dusk)"/>
+  <rect x="24" y="72" width="24" height="30" rx="2" fill="#f5deb3" opacity=".22"/>
+  <rect x="52" y="66" width="24" height="36" rx="2" fill="#f5deb3" opacity=".3"/>
+  <rect x="80" y="74" width="24" height="28" rx="2" fill="#f5deb3" opacity=".22"/>
+  <path d="M36 72v30M64 66v36M92 74v28M24 87h24M52 81h24M80 89h24" stroke="#7c2d12" stroke-width="1.5" opacity=".7"/>
+  <path d="M19 32c16 12 30 14 45 14s29-2 45-14" fill="none" stroke="#451a03" stroke-width="2"/>
+  <g filter="url(#glow)">
+    <ellipse cx="34" cy="46" rx="7" ry="9" fill="url(#lamp)"/>
+    <ellipse cx="64" cy="54" rx="8" ry="10" fill="url(#lamp)"/>
+    <ellipse cx="94" cy="46" rx="7" ry="9" fill="url(#lamp)"/>
+  </g>
+  <path d="M34 36v1M64 43v1M94 36v1M34 55v5M64 64v6M94 55v5" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
+  <path d="M28 46h12M57 54h14M88 46h12" stroke="#9a3412" stroke-width="1.2" opacity=".6"/>
+</svg>

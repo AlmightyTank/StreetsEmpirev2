@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Phantom Convoy theme">
+  <defs>
+    <linearGradient id="sky" x2="0" y2="1">
+      <stop stop-color="#1e2a44"/>
+      <stop offset=".55" stop-color="#121a2c"/>
+      <stop offset="1" stop-color="#090d16"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="1" x2="0" y2="0">
+      <stop stop-color="#fef3c7" stop-opacity=".75"/>
+      <stop offset="1" stop-color="#fef3c7" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect x="12" y="15" width="104" height="98" rx="13" fill="#05070c" stroke="#3b4c6b" stroke-width="4"/>
+  <rect x="19" y="22" width="90" height="84" rx="8" fill="url(#sky)"/>
+  <path d="M19 62h8v-8h6v-6h6v10h5v-14h7v14h6v-6h6v8h8v-12h6v12h7v-6h6v8h9v8H19z" fill="#1c2840"/>
+  <path d="M30 52h2m10-6h2m14 4h2m20-2h2m14 6h2" stroke="#fcd34d" stroke-width="2" opacity=".8"/>
+  <path d="M19 70h90" stroke="#475569" stroke-width="2"/>
+  <path d="M58 70 34 106h60L70 70z" fill="#0f172a"/>
+  <path d="M64 74v5m0 6v7m0 6v6" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round"/>
+  <path d="M42 106 59 72h3l-8 34zm44 0L69 72h-3l8 34z" fill="url(#beam)"/>
+  <circle cx="60" cy="72" r="2.5" fill="#fef9c3" filter="url(#glow)"/>
+  <circle cx="68" cy="72" r="2.5" fill="#fef9c3" filter="url(#glow)"/>
+  <path d="M28 28l-4 10m22-12-4 10m38-8-4 10m24-12-4 10m-62 52-3 8m70-8-3 8" stroke="#93c5fd" stroke-width="1.2" stroke-linecap="round" opacity=".55"/>
+</svg>
