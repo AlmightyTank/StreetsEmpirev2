@@ -34,6 +34,7 @@ import { betaTesterRoles, managedRoles, parseForumGroupList } from './roles.js';
 import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
 import { startOptionalPushServer } from './push-server.js';
+import { handleStaffButton, handleStaffModal, staffPostMessage } from './staff.js';
 
 const config = loadConfig();
 const api = createGameApi({ baseUrl: config.GAME_API_URL, token: config.DISCORD_BOT_API_TOKEN });
@@ -76,7 +77,12 @@ client.rest.on(RESTEvents.RateLimited, (info) => {
 });
 
 /** A configured text channel the bot can post in, or why it can't. */
-async function checkPostChannel(guild: Guild, channelId: string, envName: string): Promise<{ channel: GuildTextBasedChannel | null; problem: string | null }> {
+async function checkPostChannel(
+  guild: Guild,
+  channelId: string,
+  envName: string,
+  extra: bigint[] = [],
+): Promise<{ channel: GuildTextBasedChannel | null; problem: string | null }> {
   if (!channelId) return { channel: null, problem: `${envName} is not set in the bot's .env.` };
   const channel = await guild.channels.fetch(channelId).catch(() => null);
   if (!channel?.isTextBased()) {
@@ -87,6 +93,7 @@ async function checkPostChannel(guild: Guild, channelId: string, envName: string
     PermissionFlagsBits.ViewChannel,
     PermissionFlagsBits.SendMessages,
     PermissionFlagsBits.EmbedLinks,
+    ...extra,
   ]);
   if (missing.length) return { channel: null, problem: `the bot needs ${missing.join(', ')} in #${channel.name}.` };
   return { channel, problem: null };
@@ -106,6 +113,23 @@ async function postNews(channel: GuildTextBasedChannel): Promise<void> {
       // The admin panel shows why, and an admin can resend it once that is fixed.
       await api.newsFailed(post.id, describeDiscordError(error, channel.name))
         .catch((reportError: unknown) => console.error(`Could not report the failed news post "${post.title}" to the game API:`, reportError));
+    }
+  }
+}
+
+/** Staff channel posts. A post about a report already in the channel edits that message. */
+async function postStaff(channel: GuildTextBasedChannel): Promise<void> {
+  for (const post of await api.claimStaffPosts()) {
+    const message = staffPostMessage(post);
+    if (!message) continue;
+    try {
+      const existing = post.editMessageId ? await channel.messages.fetch(post.editMessageId).catch(() => null) : null;
+      const sent = existing ? await existing.edit(message) : await channel.send({ ...message, allowedMentions: { parse: [] } });
+      await api.staffPostPosted(post.id, sent.id);
+    } catch (error) {
+      console.error(`Could not post staff ${post.kind} ${post.id} to #${channel.name}:`, error);
+      await api.staffPostFailed(post.id, describeDiscordError(error, channel.name))
+        .catch((reportError: unknown) => console.error(`Could not report the failed staff post ${post.id} to the game API:`, reportError));
     }
   }
 }
@@ -336,10 +360,27 @@ client.once(Events.ClientReady, async (ready) => {
         console.log(`Admin resync: ${members?.size ?? 0} of ${claim.discordIds.length} requested members synced.`);
       }
     });
+    // Edits need Read Message History. While the channel is unusable, posts wait on the
+    // server; with no channel set they are claimed and dropped, like the raid feed.
+    let staffProblem: string | null | undefined;
+    const runStaff = serialTask('Staff channel', async () => {
+      if (!config.DISCORD_STAFF_CHANNEL_ID) {
+        await api.claimStaffPosts();
+        return;
+      }
+      const check = await checkPostChannel(guild, config.DISCORD_STAFF_CHANNEL_ID, 'DISCORD_STAFF_CHANNEL_ID', [PermissionFlagsBits.ReadMessageHistory]);
+      if (check.problem !== staffProblem) {
+        if (check.problem) console.warn(`Staff channel posts are paused until fixed: ${check.problem}`);
+        else console.log(`Posting bug reports and held patch notes to #${check.channel!.name}.`);
+        staffProblem = check.problem;
+      }
+      if (check.channel) await postStaff(check.channel);
+    });
     const runWake = serialTask('Discord push wake', async () => {
       await runNews();
       await runAlerts();
       await runAdminResync();
+      await runStaff();
     });
 
     console.log(`Checking Discord alerts every ${config.DISCORD_ALERTS_MINUTES} min.`);
@@ -348,6 +389,7 @@ client.once(Events.ClientReady, async (ready) => {
     // Resyncs an admin asked for in the game panel. A full sync that is already
     // running covers an "everyone" request, so a skipped run is not lost work.
     startPoller('Admin role resync', config.DISCORD_ALERTS_MINUTES * 60_000, runAdminResync);
+    startPoller('Staff channel', config.DISCORD_ALERTS_MINUTES * 60_000, runStaff);
 
     if (config.DISCORD_BOT_LISTEN_PORT > 0) {
       stopPushServer = await startOptionalPushServer({
@@ -382,6 +424,10 @@ client.on(Events.InteractionCreate, (interaction) => {
     void handleAutocomplete(interaction, deps);
   } else if (interaction.isChatInputCommand()) {
     handleCommand(interaction, deps).catch((error: unknown) => console.error(`/${interaction.commandName} crashed:`, error));
+  } else if (interaction.isButton()) {
+    handleStaffButton(interaction).catch((error: unknown) => console.error(`Button ${interaction.customId} crashed:`, error));
+  } else if (interaction.isModalSubmit()) {
+    handleStaffModal(interaction, deps).catch((error: unknown) => console.error(`Form ${interaction.customId} crashed:`, error));
   }
 });
 

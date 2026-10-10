@@ -1,3 +1,4 @@
+import { BUG_REPORT_CATEGORIES, BUG_REPORT_CATEGORY_LABELS } from '@streets/shared';
 import {
   MessageFlags,
   PermissionFlagsBits,
@@ -31,6 +32,7 @@ import {
 import { ALERT_TYPES, GameApiError, isLeaderboardStat, type AlertType, type City, type GameApi } from './game-api.js';
 import { cityChoices, parsePlayerRef, resolveCity, type Cooldowns } from './lookup.js';
 import { roleNamesForKeys, type ManagedRole } from './roles.js';
+import { showBugForm } from './staff.js';
 import type { RoleSync } from './sync.js';
 
 export const commandData = [
@@ -127,6 +129,14 @@ export const commandData = [
       .setRequired(true)
       .addChoices({ name: 'Current round', value: 'round' }, { name: 'Global', value: 'global' }))
     .addBooleanOption((option) => option.setName('pinned').setDescription('Pin this news post')),
+  new SlashCommandBuilder()
+    .setName('bug')
+    .setDescription('Report a bug to the StreetsEmpire staff')
+    .addStringOption((option) => option
+      .setName('category')
+      .setDescription('What kind of problem')
+      .setRequired(true)
+      .addChoices(...BUG_REPORT_CATEGORIES.map((category) => ({ name: BUG_REPORT_CATEGORY_LABELS[category], value: category })))),
   new SlashCommandBuilder().setName('sync').setDescription('Update your StreetsEmpire roles now'),
   new SlashCommandBuilder().setName('help').setDescription('List the StreetsEmpire bot commands'),
   new SlashCommandBuilder()
@@ -137,7 +147,7 @@ export const commandData = [
 ].map((command) => command.toJSON());
 
 /** Replies only the caller sees. */
-export const PRIVATE_COMMANDS: ReadonlySet<string> = new Set(['alerts', 'announce', 'link', 'remind', 'stats', 'sync', 'help', 'syncall']);
+export const PRIVATE_COMMANDS: ReadonlySet<string> = new Set(['alerts', 'announce', 'bug', 'link', 'remind', 'stats', 'sync', 'help', 'syncall']);
 
 export interface CommandDeps {
   api: GameApi;
@@ -335,6 +345,11 @@ async function run(interaction: ChatInputCommandInteraction, deps: CommandDeps):
 }
 
 export async function handleCommand(interaction: ChatInputCommandInteraction, deps: CommandDeps): Promise<void> {
+  // A form has to be the first reply, so /bug never defers.
+  if (interaction.commandName === 'bug') {
+    await showBugForm(interaction).catch((error: unknown) => console.error('/bug could not open its form:', error));
+    return;
+  }
   const received = Date.now();
   // Discord gives 3 seconds to acknowledge; game API calls can take longer, so defer first.
   try {

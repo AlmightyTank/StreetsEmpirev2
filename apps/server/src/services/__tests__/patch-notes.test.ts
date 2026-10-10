@@ -70,7 +70,7 @@ describe('buildPatchNotes', () => {
 type NewsRow = { id: string; title: string; body: string; roundId: string | null; isPinned: boolean; publishedAt: Date; createdAt: Date };
 
 function fakePrisma(rows: NewsRow[], now: Date) {
-  return {
+  const db = {
     gameNews: {
       findFirst: async ({ where }: { where: { title: string; body: string; createdAt: { gte: Date } } }) =>
         rows.find((row) => row.title === where.title && row.body === where.body && row.roundId === null && row.createdAt >= where.createdAt.gte) ?? null,
@@ -80,7 +80,11 @@ function fakePrisma(rows: NewsRow[], now: Date) {
         return row;
       },
     },
-  } as unknown as PrismaClient;
+    // No bot API in tests, so the staff channel heads-up is never queued.
+    discordStaffPost: { create: async () => { throw new Error('queued a staff post with the bot API off'); } },
+    $transaction: async <T>(work: (tx: unknown) => Promise<T>) => work(db),
+  };
+  return db as unknown as PrismaClient;
 }
 
 describe('PatchNotesService.hold', () => {

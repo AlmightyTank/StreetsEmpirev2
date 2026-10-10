@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BUG_REPORT_CATEGORY_LABELS,
+  BUG_REPORT_REPLY_MAX,
   formatNumber,
   type AdminBugReportDto,
   type AdminBugReportQueueDto,
@@ -24,15 +25,17 @@ const RESOLUTION_TEXT: Record<BugReportResolution, string> = {
 
 function BugReport({ report, onResolved }: { report: AdminBugReportDto; onResolved: (queue: AdminBugReportQueueDto) => void }) {
   const [note, setNote] = useState('');
+  const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const noteId = `bug-note-${report.id}`;
+  const replyId = `bug-reply-${report.id}`;
 
   async function resolve(resolution: BugReportResolution) {
     setBusy(true);
     setError(null);
     try {
-      onResolved(await adminApi.resolveBugReport(report.id, resolution, note.trim()));
+      onResolved(await adminApi.resolveBugReport(report.id, resolution, note.trim(), reply.trim() || undefined));
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not resolve that report.');
       setBusy(false);
@@ -43,7 +46,7 @@ function BugReport({ report, onResolved }: { report: AdminBugReportDto; onResolv
   return (
     <Panel title={report.summary} className="se-mb se-admin-report">
       <p className="se-hint">
-        {BUG_REPORT_CATEGORY_LABELS[report.category]} · {adminWhen(report.createdAt)} · from{' '}
+        {BUG_REPORT_CATEGORY_LABELS[report.category]} · {adminWhen(report.createdAt)}{report.source === 'DISCORD' ? ' · via Discord /bug' : ''} · from{' '}
         {report.accountId ? <Link to={`/game/admin/accounts/${report.accountId}`}>{report.username}</Link> : report.username}
         {report.pagePath ? <> · on <code>{report.pagePath}</code></> : null}
         {report.appVersion ? ` · v${report.appVersion}` : ''}
@@ -54,12 +57,19 @@ function BugReport({ report, onResolved }: { report: AdminBugReportDto; onResolv
         <p>
           {report.resolution ? RESOLUTION_TEXT[report.resolution] : 'Resolved'} by {report.resolvedByUsername}, {adminWhen(report.resolvedAt)}
           {report.resolutionNote ? ` · ${report.resolutionNote}` : ''}
+          {report.playerReply ? <><br /><span className="se-hint">Told the player: {report.playerReply}</span></> : null}
         </p>
       ) : (
         <>
           <div className="se-field se-mt">
             <label className="se-label" htmlFor={noteId}>Resolution note</label>
             <textarea id={noteId} className="se-input se-admin-reason" rows={2} maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} />
+            <p className="se-hint">Staff only. It stays in this queue and the audit log.</p>
+          </div>
+          <div className="se-field">
+            <label className="se-label" htmlFor={replyId}>Message to the player (optional)</label>
+            <textarea id={replyId} className="se-input se-admin-reason" rows={2} maxLength={BUG_REPORT_REPLY_MAX} value={reply} onChange={(event) => setReply(event.target.value)} />
+            <p className="se-hint">Sent with the "your report was resolved" alert by Discord or push, if they get message alerts.</p>
           </div>
           {error ? <Alert>{error}</Alert> : null}
           <div className="se-cta">

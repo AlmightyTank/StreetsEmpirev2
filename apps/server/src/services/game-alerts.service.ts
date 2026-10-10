@@ -386,6 +386,46 @@ async function messages(tx: Tx, now: Date, switches: ChannelSwitches): Promise<O
   });
 }
 
+const BUG_REPLY_TITLES: Record<string, string> = {
+  FIXED: 'Your bug report was fixed',
+  WONT_FIX: 'Your bug report was reviewed',
+  DUPLICATE: 'Your bug report is already known',
+};
+
+/** What staff decided about a report, in the player's own words for it. */
+export function bugReplyBody(row: { summary: string; resolution: string | null; playerReply: string | null }): string {
+  const decided = row.resolution === 'FIXED'
+    ? `Staff fixed what you reported: "${row.summary}".`
+    : row.resolution === 'DUPLICATE'
+      ? `Staff already know about "${row.summary}" and are tracking it.`
+      : `Staff looked into "${row.summary}" and won't be changing it.`;
+  return row.playerReply ? `${decided} Staff said: ${row.playerReply}` : decided;
+}
+
+/**
+ * A resolved bug report, to the player who sent it. Says what staff decided and any
+ * words they left for the player, never the staff note. Messages, since staff wrote back.
+ */
+async function bugReportReplies(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  const rows = await tx.bugReport.findMany({
+    where: { resolvedAt: { not: null }, reporterNotifiedAt: null },
+    orderBy: { resolvedAt: 'asc' },
+    take: BATCH,
+    select: { id: true, summary: true, resolution: true, playerReply: true, accountId: true, account: accountSettings },
+  });
+  if (!rows.length) return [];
+  await tx.bugReport.updateMany({ where: { id: { in: rows.map((row) => row.id) }, reporterNotifiedAt: null }, data: { reporterNotifiedAt: now } });
+  return rows.flatMap((row) => {
+    if (!row.accountId || !row.account) return [];
+    return notice(row.accountId, row.account.notificationSettings, 'messages', `bug-report:${row.id}`, {
+      title: BUG_REPLY_TITLES[row.resolution ?? ''] ?? 'Your bug report was reviewed',
+      body: bugReplyBody(row),
+      url: gameUrl('/game/report-bug'),
+      tag: `bug-report:${row.id}`,
+    }, switches, now);
+  });
+}
+
 /** Alliance announcements for current members, except whoever posted it. */
 async function announcements(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
   const posts = await tx.allianceWirePost.findMany({
@@ -757,6 +797,7 @@ export const GameAlertService = {
       ...await revengeExpiring(tx, now, switches),
       ...await scheduled(tx, now, switches),
       ...await messages(tx, now, switches),
+      ...await bugReportReplies(tx, now, switches),
       ...await caseStages(tx, now, switches),
       ...await warrantAlerts(tx, now, switches),
       ...await officialAlerts(tx, now, switches),

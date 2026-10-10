@@ -5,6 +5,7 @@ import {
   ADMIN_NOTE_MAX,
   ADMIN_PRODUCT_GRANT_CAP,
   ADMIN_SUSPENSION_LENGTHS,
+  BUG_REPORT_REPLY_MAX,
   BUG_REPORT_RESOLUTIONS,
   adminSurveyCloseSchema,
   adminSurveyDefinitionSchema,
@@ -148,7 +149,11 @@ const reportQuery = z.object({
   page: z.coerce.number().int().min(1).max(10_000).default(1),
 });
 const resolveReportSchema = z.object({ resolution: z.enum(['DISMISSED', 'ACTIONED']), note: reason }).strict();
-const resolveBugReportSchema = z.object({ resolution: z.enum(BUG_REPORT_RESOLUTIONS), note: reason }).strict();
+const resolveBugReportSchema = z.object({
+  resolution: z.enum(BUG_REPORT_RESOLUTIONS),
+  note: reason,
+  playerReply: z.string().trim().max(BUG_REPORT_REPLY_MAX).optional(),
+}).strict();
 const startRoundSchema = z.object({ confirmHandoff: z.boolean().optional() }).strict();
 const revokeSessionsSchema = z.object({ reason, sessionId: id.optional() }).strict();
 const renameSchema = z.object({ reason, username: usernameSchema }).strict();
@@ -650,7 +655,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/bug-reports/:reportId/resolve', async (request) => {
     const { reportId } = parseBody(reportParams, request.params);
     const body = parseBody(resolveBugReportSchema, request.body ?? {});
-    return BugReportService.resolve(fastify.prisma, request.auth!.account, reportId, body.resolution, body.note);
+    return BugReportService.resolve(fastify.prisma, request.auth!.account, reportId, body.resolution, body.note, new Date(), body.playerReply);
   });
 
   fastify.post('/accounts/:accountId/suspend/lift', async (request) => {

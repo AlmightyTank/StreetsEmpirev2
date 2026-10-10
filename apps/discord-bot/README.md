@@ -60,6 +60,7 @@ the person who ran the command.
 | `/stats` | Private | Your own cash, crew, weapons, supplies, happiness, turns and ranks |
 | `/alerts` | Private | Turns on DMs for attacks, round events, rank drops or full turns. See below. |
 | `/remind` | Private | Compatibility shortcut for `/alerts type:turns` |
+| `/bug` | Private | Opens a form to report a bug from the member's linked account; same limit as the game form (5 an hour). They hear back when staff resolve it. |
 | `/sync` | Private | Updates your roles now instead of at the next scheduled sync; once a minute per member |
 | `/help` | Private | Every command |
 | `/announce` | Private | Game admins: create a news post from Discord |
@@ -100,6 +101,24 @@ channel once.
   Ended rounds also post final standings to the news channel when configured.
 - A member who blocks DMs from server members won't get them; the bot logs that
   and moves on.
+
+**Staff channel.** When `DISCORD_STAFF_CHANNEL_ID` is set, the bot posts there:
+- Every new bug report, from the game form or `/bug`, with **Fixed**, **Won't
+  fix** and **Duplicate** buttons and a link to **Admin → Bug reports**.
+  Reports that existed before this was added are never posted.
+- Each button opens a form for the private staff note and an optional message to
+  the player. Only members whose linked game account is an admin can resolve; the
+  game checks that on every submit and records them in the audit log, just like
+  the web panel.
+- Resolving a report anywhere (Discord or the web panel) updates its post to say
+  who resolved it and removes the buttons. The reporter gets a "your report was
+  resolved" alert by Discord DM or push if they get message alerts. It never
+  includes the staff note.
+- Patch notes a deploy holds for review, with when they will publish on their own.
+- Make the channel private to staff. The bot needs **View Channel**, **Send
+  Messages**, **Embed Links** and **Read Message History** there (the last one
+  lets it edit its own posts). While any is missing, posts wait on the server and
+  the bot logs what to fix; with no channel set, posts are dropped.
 
 ## 1. Create the bot in Discord
 
@@ -160,6 +179,7 @@ DISCORD_ROLE_SYNC_MODE="full"
 DISCORD_NEWS_CHANNEL_ID="<channel id, or empty for no auto-posting>"
 DISCORD_NEWS_MINUTES=1
 DISCORD_RAID_FEED_CHANNEL_ID="<channel id, or empty for no raid feed>"
+DISCORD_STAFF_CHANNEL_ID="<private staff channel id, or empty for no staff posts>"
 DISCORD_ALERTS_MINUTES=1
 ```
 
@@ -180,6 +200,8 @@ DISCORD_ALERTS_MINUTES=1
   right-clicking the channel → **Copy Channel ID**, with Developer Mode on.
 - `DISCORD_RAID_FEED_CHANNEL_ID` is the channel for public raid/combat results.
   Leave it empty to keep the feed off.
+- `DISCORD_STAFF_CHANNEL_ID` is the private staff channel for bug reports and held
+  patch notes. Leave it empty to keep staff posts off.
 
 Restart the game API after setting `DISCORD_BOT_API_TOKEN`.
 

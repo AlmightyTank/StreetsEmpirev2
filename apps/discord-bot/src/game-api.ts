@@ -1,3 +1,4 @@
+import { BUG_REPORT_RESOLUTIONS, type BugReportCategory, type BugReportResolution } from '@streets/shared';
 import { z } from 'zod';
 
 export class GameApiError extends Error {
@@ -163,6 +164,34 @@ const newsClaimSchema = z.object({
 });
 
 const okSchema = z.object({ ok: z.literal(true) });
+
+const staffBugReportSchema = z.object({
+  id: z.string(),
+  category: z.string(),
+  summary: z.string(),
+  details: z.string(),
+  username: z.string(),
+  source: z.enum(['GAME', 'DISCORD']),
+  pagePath: z.string().nullable(),
+  appVersion: z.string().nullable(),
+  createdAt: z.string(),
+  resolution: z.enum(BUG_REPORT_RESOLUTIONS).nullable(),
+  resolvedByUsername: z.string().nullable(),
+  resolvedAt: z.string().nullable(),
+  url: z.string(),
+});
+
+const staffPostSchema = z.object({
+  id: z.string(),
+  kind: z.enum(['BUG_REPORT', 'BUG_REPORT_RESOLVED', 'PATCH_NOTES_HELD']),
+  editMessageId: z.string().nullable(),
+  bugReport: staffBugReportSchema.optional(),
+  patchNotes: z.object({ id: z.string(), title: z.string(), body: z.string(), publishedAt: z.string(), url: z.string() }).optional(),
+});
+
+const staffClaimSchema = z.object({ posts: z.array(staffPostSchema) });
+const bugCreatedSchema = z.object({ ok: z.literal(true), id: z.string(), message: z.string() });
+const bugResolvedSchema = z.object({ report: staffBugReportSchema });
 
 const newsCreatedSchema = z.object({ id: z.string(), title: z.string(), url: z.string().url(), roundName: z.string().nullable() });
 
@@ -419,6 +448,10 @@ export type FactionEvent = AlertsClaim['factions'][number];
 export type TurfAlert = AlertsClaim['turfAlerts'][number];
 export type AllianceAlert = AlertsClaim['allianceAlerts'][number];
 export type GameNotice = AlertsClaim['notices'][number];
+export type StaffPost = z.infer<typeof staffPostSchema>;
+export type StaffBugReport = z.infer<typeof staffBugReportSchema>;
+export type BugCategory = BugReportCategory;
+export type BugResolution = BugReportResolution;
 export type RoundEvent = AlertsClaim['rounds'][number];
 export type RoundStatus = z.infer<typeof statusSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;
@@ -497,6 +530,20 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     /** Whether the news channel is usable, so the admin panel can say why news is stuck. */
     reportNewsChannel: async (report: { channel: string | null; problem: string | null }) => {
       await call(okSchema, '/api/internal/discord/news/status', { method: 'POST', body: report });
+    },
+    /** /bug: a report from the member's linked account. */
+    createBugReport: (discordId: string, report: { category: BugCategory; summary: string; details: string }) =>
+      call(bugCreatedSchema, '/api/internal/discord/bug-reports', { method: 'POST', body: { discordId, report } }),
+    /** A staff button; the game checks the member is a linked admin. */
+    resolveBugReport: async (reportId: string, input: { discordId: string; resolution: BugResolution; note: string; playerReply?: string }) =>
+      (await call(bugResolvedSchema, `/api/internal/discord/bug-reports/${encodeURIComponent(reportId)}/resolve`, { method: 'POST', body: input })).report,
+    /** Staff channel posts, each handed out once. */
+    claimStaffPosts: async () => (await call(staffClaimSchema, '/api/internal/discord/staff-posts/claim', { method: 'POST' })).posts,
+    staffPostPosted: async (postId: string, messageId: string) => {
+      await call(okSchema, `/api/internal/discord/staff-posts/${encodeURIComponent(postId)}/posted`, { method: 'POST', body: { messageId } });
+    },
+    staffPostFailed: async (postId: string, error: string) => {
+      await call(okSchema, `/api/internal/discord/staff-posts/${encodeURIComponent(postId)}/failed`, { method: 'POST', body: { error } });
     },
     alertSettings: (discordId: string) => call(alertSettingsSchema, `/api/internal/discord/alerts?${query({ discordId })}`),
     setAlert: (discordId: string, type: AlertType, enabled: boolean) =>

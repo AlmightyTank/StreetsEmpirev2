@@ -1,5 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { env } from '../config/env.js';
+import { wakeDiscordBot } from './discord-bot-push.service.js';
+import { DiscordStaffService } from './discord-staff.service.js';
 
 /** A re-run deploy job sends the same notes again; this long after the first, they count as the same post. */
 export const PATCH_NOTES_DUPLICATE_MS = 24 * 60 * 60_000;
@@ -15,6 +17,7 @@ export interface HeldPatchNotes {
  * Deploy-time patch notes from scripts/ops/patch-notes.mjs. Each one is a global
  * news post scheduled holdMinutes ahead: until then players, Discord and the forum
  * never see it, and staff edit, delete or publish it early from Admin → News.
+ * The staff channel hears about it, so someone looks before it goes out.
  */
 export const PatchNotesService = {
   async hold(
@@ -28,15 +31,20 @@ export const PatchNotesService = {
       orderBy: { createdAt: 'desc' },
     });
     if (existing) return { id: existing.id, title: existing.title, publishedAt: existing.publishedAt.toISOString(), duplicate: true };
-    const row = await prisma.gameNews.create({
-      data: {
-        title: input.title,
-        body: input.body,
-        isPinned: false,
-        roundId: null,
-        publishedAt: new Date(now.getTime() + holdMinutes * 60_000),
-      },
+    const row = await prisma.$transaction(async (tx) => {
+      const created = await tx.gameNews.create({
+        data: {
+          title: input.title,
+          body: input.body,
+          isPinned: false,
+          roundId: null,
+          publishedAt: new Date(now.getTime() + holdMinutes * 60_000),
+        },
+      });
+      await DiscordStaffService.queue(tx, 'PATCH_NOTES_HELD', created.id);
+      return created;
     });
+    wakeDiscordBot('staff');
     return { id: row.id, title: row.title, publishedAt: row.publishedAt.toISOString(), duplicate: false };
   },
 };

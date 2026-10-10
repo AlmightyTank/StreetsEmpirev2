@@ -178,8 +178,8 @@ export const adminApi = {
     api.post<AdminReportQueueDto>(`/admin/reports/${encodeURIComponent(reportId)}/resolve`, { resolution, note }),
   // rc.2: bugs players reported from the game.
   bugReports: (status: AdminBugReportStatus, page = 1) => api.get<AdminBugReportQueueDto>(`/admin/bug-reports${queryString({ status, page })}`),
-  resolveBugReport: (reportId: string, resolution: BugReportResolution, note: string) =>
-    api.post<AdminBugReportQueueDto>(`/admin/bug-reports/${encodeURIComponent(reportId)}/resolve`, { resolution, note }),
+  resolveBugReport: (reportId: string, resolution: BugReportResolution, note: string, playerReply?: string) =>
+    api.post<AdminBugReportQueueDto>(`/admin/bug-reports/${encodeURIComponent(reportId)}/resolve`, { resolution, note, ...(playerReply ? { playerReply } : {}) }),
   revokeSessions: (accountId: string, reason: string, sessionId?: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'sessions/revoke'), { reason, ...(sessionId ? { sessionId } : {}) }),
   renameAccount: (accountId: string, username: string, reason: string) =>
