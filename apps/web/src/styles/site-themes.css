@@ -1778,6 +1778,67 @@
   .se-cs__tires { width: 46vw; }
 }
 
+/* Laurel Ascendant: velvet banners with laurel crests, crossing spotlights, a trophy on a plinth,
+   a podium with a turning medal, and drifting gold flakes. */
+.se-la__spot {
+  position: absolute;
+  top: -12vh;
+  width: 40vw;
+  height: 125vh;
+  background: linear-gradient(180deg, rgba(255, 228, 160, .2), rgba(255, 228, 160, .04) 75%, transparent);
+  clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%);
+  transform-origin: 50% 0;
+  animation: se-la-spot 14s ease-in-out infinite alternate;
+}
+.se-la__spot--left { left: 4vw; }
+.se-la__spot--right { right: 4vw; animation-name: se-la-spot-right; animation-delay: -7s; }
+.se-la__banners { top: 0; width: min(20vw, 280px); height: auto; }
+.se-la__banners--left { left: 0; }
+.se-la__banners--right { right: 0; scale: -1 1; }
+.se-la__banner {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+  animation: se-la-sway 7s ease-in-out infinite alternate;
+}
+.se-la__trophy { bottom: 0; left: 1vw; width: min(20vw, 270px); height: auto; }
+.se-la__glint { opacity: 0; animation: se-la-glint 7.5s ease-in-out infinite; }
+.se-la__podium { bottom: 0; right: 0; width: min(25vw, 340px); height: auto; }
+.se-la__numeral { fill: #e6c979; fill-opacity: .7; font: 700 40px/1 Georgia, 'Times New Roman', serif; }
+.se-la__medal {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: se-la-medal 7s ease-in-out infinite;
+}
+.se-la__flakes { position: absolute; inset: 0; overflow: hidden; }
+.se-la__flakes i {
+  position: absolute;
+  top: -12px;
+  width: 6px;
+  height: 9px;
+  background: linear-gradient(135deg, #fff2c0, #c9a34e);
+  opacity: .7;
+  animation: se-la-flake 20s linear infinite;
+}
+@keyframes se-la-spot { from { rotate: -26deg; } to { rotate: 14deg; } }
+@keyframes se-la-spot-right { from { rotate: 26deg; } to { rotate: -14deg; } }
+@keyframes se-la-sway { from { rotate: -1.6deg; } to { rotate: 1.6deg; } }
+@keyframes se-la-glint { 0%, 58% { opacity: 0; translate: 0 0; } 66% { opacity: 1; } 84%, 100% { opacity: 0; translate: 200px 0; } }
+@keyframes se-la-medal {
+  0%, 30% { scale: 1 1; translate: 0 0; }
+  45% { scale: .06 1; }
+  60%, 100% { scale: 1 1; translate: 0 -6px; }
+}
+@keyframes se-la-flake {
+  0% { transform: translate3d(0, 0, 0) rotate(0); }
+  50% { transform: translate3d(24px, 52vh, 0) rotate(260deg); }
+  100% { transform: translate3d(-12px, 106vh, 0) rotate(520deg); }
+}
+@media (max-width: 700px) {
+  .se-la__banners { width: 34vw; }
+  .se-la__trophy { width: 38vw; }
+  .se-la__podium { width: 46vw; }
+}
+
 .se-reduced-motion .se-theme-pack__motif,
 .se-reduced-motion .se-theme-pack__motes i,
 .se-reduced-motion .se-theme-pack__haze,
