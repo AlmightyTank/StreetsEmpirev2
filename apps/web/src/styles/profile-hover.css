@@ -557,6 +557,16 @@
   object-fit: fill;
   pointer-events: none;
 }
+.se-profile-hover-card.se-profile-effect--snowstorm .se-profile-hover-card__frame-art,
+.se-profile-card-preview.se-profile-effect--snowstorm .se-profile-card-preview__frame-art {
+  transform-origin: 52% 48%;
+  animation: se-frame-art-snow 5.8s ease-in-out infinite;
+}
+.se-profile-hover-card.se-profile-effect--inferno .se-profile-hover-card__frame-art,
+.se-profile-card-preview.se-profile-effect--inferno .se-profile-card-preview__frame-art {
+  transform-origin: 50% 76%;
+  animation: se-frame-art-fire 1.9s ease-in-out infinite;
+}
 .se-profile-hover-card > :not(.se-profile-hover-card__frame-art) {
   position: relative;
   z-index: 1;
@@ -577,6 +587,14 @@
   object-fit: contain;
   filter: drop-shadow(0 0 7px color-mix(in srgb, var(--se-frame-color) 36%, transparent));
   pointer-events: none;
+}
+.se-profile-hover-card.se-profile-effect--snowstorm .se-profile-hover-card__avatar-art,
+.se-profile-card-preview.se-profile-effect--snowstorm .se-profile-card-preview__avatar-art {
+  animation: se-avatar-art-snow 4.2s ease-in-out infinite;
+}
+.se-profile-hover-card.se-profile-effect--inferno .se-profile-hover-card__avatar-art,
+.se-profile-card-preview.se-profile-effect--inferno .se-profile-card-preview__avatar-art {
+  animation: se-avatar-art-fire 1.6s ease-in-out infinite;
 }
 .se-profile-card-preview__avatar-art { top: -14px; left: -8px; width: 104px; height: 104px; }
 .se-profile-hover-card:is(.se-profile-effect--snowstorm, .se-profile-effect--inferno)::before {
@@ -611,6 +629,16 @@
   mask-image: radial-gradient(ellipse 62% 43% at center, transparent 40%, #000 86%);
   animation: se-frame-snowfall 4.5s linear infinite;
 }
+.se-profile-hover-card.se-profile-effect--snowstorm::before,
+.se-profile-card-preview.se-profile-effect--snowstorm::before {
+  z-index: 2;
+  background: linear-gradient(118deg, transparent 43%, #e8fbff00 47%, #e8fbff85 50%, #c9f3ff12 53%, transparent 58%);
+  background-size: 240% 100%;
+  background-position: -140% 0;
+  -webkit-mask-image: radial-gradient(ellipse 62% 43% at center, transparent 40%, #000 86%);
+  mask-image: radial-gradient(ellipse 62% 43% at center, transparent 40%, #000 86%);
+  animation: se-frame-ice-shimmer 6.8s ease-in-out infinite;
+}
 .se-profile-hover-card.se-profile-effect--inferno,
 .se-profile-card-preview.se-profile-effect--inferno { --se-frame-color: #ff8b36; }
 .se-profile-hover-card.se-profile-effect--inferno::after,
@@ -627,8 +655,8 @@
     radial-gradient(ellipse 44% 25% at 50% 103%, #ff9b3880 0, #ed392e44 48%, transparent 84%),
     radial-gradient(circle, #ffe7a9 0 1.5px, transparent 2.5px),
     radial-gradient(circle, #ff6f32 0 2px, transparent 3px);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 73px 82px, 101px 107px;
-  background-position: 0 0, 0 0, 0 0, 13px 0, 47px 27px;
+  background-size: 112% 145%, 112% 145%, 108% 138%, 73px 82px, 101px 107px;
+  background-position: 0 30px, 0 18px, 0 26px, 13px 0, 47px 27px;
   -webkit-mask-image: linear-gradient(to top, #000 0, #000 24%, #0008 52%, transparent 90%);
   mask-image: linear-gradient(to top, #000 0, #000 24%, #0008 52%, transparent 90%);
   animation: se-frame-flames 1.8s ease-in-out infinite alternate;
@@ -648,9 +676,30 @@
 @keyframes se-avatar-frame-gold { 0%, 100% { box-shadow: 0 0 0 2px #e9c46a, 0 0 0 5px #e9c46a55; } 50% { box-shadow: 0 0 0 2px #fff0b4, 0 0 0 7px #e9c46a88; } }
 @keyframes se-avatar-frame-champion { 0%, 100% { box-shadow: 0 0 0 2px #f1cf71, 0 0 0 5px #b6ff3a55; } 50% { box-shadow: 0 0 0 3px #fff0b4, 0 0 0 8px #f1cf7180; } }
 @keyframes se-frame-snowfall { to { background-position: 0 189px, 22px 290px, 41px 333px, 0 0; } }
-@keyframes se-frame-flames { from { background-position: 0 0, 0 0, 0 0, 13px 25px, 47px 57px; filter: saturate(.9) brightness(.9); } to { background-position: 0 0, 0 0, 0 0, 13px -24px, 47px -23px; filter: saturate(1.2) brightness(1.18); } }
+@keyframes se-frame-flames { from { background-position: 0 30px, 0 18px, 0 26px, 13px 25px, 47px 57px; filter: saturate(.9) brightness(.9); } to { background-position: 0 -30px, 0 -18px, 0 -26px, 13px -24px, 47px -23px; filter: saturate(1.2) brightness(1.18); } }
+@keyframes se-frame-ice-shimmer { 0%, 12% { background-position: -140% 0; opacity: 0; } 46% { opacity: .78; } 82%, 100% { background-position: 140% 0; opacity: 0; } }
 @keyframes se-avatar-snow { 0%, 100% { box-shadow: 0 0 0 2px #a9eaff, 0 0 0 6px #a9eaff4d; } 50% { box-shadow: 0 0 0 2px #e8fbff, 0 0 0 8px #a9eaff88; } }
 @keyframes se-avatar-fire { from { box-shadow: 0 0 0 2px #ff8b36, 0 0 0 6px #ff5a2e55; } to { box-shadow: 0 0 0 3px #ffd15b, 0 0 0 9px #f044287a; } }
+@keyframes se-frame-art-snow {
+  0%, 100% { transform: scale(1.01) translate3d(0, 0, 0); filter: brightness(.96) saturate(.96); }
+  25% { transform: scale(1.018) translate3d(1px, -1px, 0); filter: brightness(1.03) saturate(1.02); }
+  50% { transform: scale(1.025) translate3d(-1px, 1px, 0); filter: brightness(1.1) saturate(1.08); }
+  75% { transform: scale(1.016) translate3d(0, -1px, 0); filter: brightness(1.02) saturate(1); }
+}
+@keyframes se-frame-art-fire {
+  0%, 100% { transform: scale(1.01) translate3d(0, 0, 0); filter: brightness(.96) saturate(1); }
+  25% { transform: scale(1.022) translate3d(-1px, -1px, 0); filter: brightness(1.14) saturate(1.14); }
+  50% { transform: scale(1.018) translate3d(1px, -2px, 0); filter: brightness(1.2) saturate(1.18); }
+  75% { transform: scale(1.025) translate3d(0, -1px, 0); filter: brightness(1.08) saturate(1.12); }
+}
+@keyframes se-avatar-art-snow {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0); }
+  50% { transform: translate3d(0, -1.5px, 0) rotate(.6deg); }
+}
+@keyframes se-avatar-art-fire {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-.5deg) scale(1); }
+  50% { transform: translate3d(0, -1px, 0) rotate(.6deg) scale(1.025); }
+}
 @media (prefers-reduced-motion: reduce) {
   .se-profile-hover-card:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion),
   .se-profile-card-preview:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion),
@@ -660,6 +709,10 @@
   .se-profile-card-preview:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion)::after,
   .se-profile-hover-card .se-profile-hover-card__avatar,
   .se-profile-card-preview .se-profile-card-preview__avatar,
+  .se-profile-hover-card .se-profile-hover-card__frame-art,
+  .se-profile-card-preview .se-profile-card-preview__frame-art,
+  .se-profile-hover-card .se-profile-hover-card__avatar-art,
+  .se-profile-card-preview .se-profile-card-preview__avatar-art,
   .se-profile-hover-card.se-profile-effect--snowstorm::before,
   .se-profile-hover-card.se-profile-effect--inferno::before,
   .se-profile-card-preview.se-profile-effect--snowstorm::before,
