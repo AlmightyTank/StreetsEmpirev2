@@ -29,6 +29,10 @@ function frameUnlock(key: string): UnlockRow {
   return { key, kind: 'PROFILE_FRAME', title: key, description: key, styleKey: key, awardedAt: new Date(0) };
 }
 
+function themeUnlock(key: string): UnlockRow {
+  return { key: `${key}-unlock`, kind: 'SITE_THEME', title: key, description: key, styleKey: key, awardedAt: new Date(0) };
+}
+
 function prismaFor(isAdmin: boolean, unlocks: UnlockRow[] = []): PrismaClient {
   let profile: AccountProfile | null = null;
   return {
@@ -91,6 +95,8 @@ describe('AccountProfileService admin site theme QA', () => {
       'midnight-market',
       'winter-lights',
       'halloween-moon',
+      'dragon-ice',
+      'dragon-fire',
     ]));
   });
 
@@ -134,6 +140,29 @@ describe('AccountProfileService admin site theme QA', () => {
     expect(response.settings.activeSiteThemeKey).toBe('neon-vice');
   });
 
+  it('lets an earned dragon shell theme and popup animation be equipped independently', async () => {
+    const prisma = prismaFor(false, [themeUnlock('dragon-ice'), themeUnlock('dragon-fire'), frameUnlock('inferno-drake')]);
+    const saved = await AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: 'dragon-ice',
+      profileEffect: 'inferno',
+    });
+
+    expect(saved.settings.activeSiteThemeKey).toBe('dragon-ice');
+    expect(saved.settings.profileEffect).toBe('inferno');
+    expect(saved.options.themes.map((option) => option.key)).toEqual(['dragon-ice', 'dragon-fire']);
+    expect(saved.options.effects.map((option) => option.key)).toEqual(['none', 'inferno']);
+  });
+
+  it('keeps animated popup choices locked until the matching Street Pass frame is earned', async () => {
+    const prisma = prismaFor(false, [themeUnlock('dragon-fire')]);
+    await expect(AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: 'dragon-fire',
+      profileEffect: 'inferno',
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+  });
+
   it('also supports the current-round path when one exists', async () => {
     vi.mocked(RoundService.getCurrent).mockResolvedValue(currentRound() as Awaited<ReturnType<typeof RoundService.getCurrent>>);
 
@@ -148,12 +177,14 @@ describe('AccountProfileService animated profile frames', () => {
     vi.mocked(RoundService.getCurrent).mockResolvedValue(null);
   });
 
-  it('offers the StreetsEmpire animated effect set in place of the old generic list', async () => {
+  it('keeps the dragon effect catalog and locks choices until their frames are earned', async () => {
     expect(PROFILE_EFFECTS.map((option) => option.key)).toEqual([
-      'none', 'street-circuit', 'night-drive', 'corner-glow', 'heat-signal',
-      'turf-claim', 'high-roller', 'wanted', 'season-champion', 'snowstorm', 'inferno',
+      'none', 'chrome-serpent', 'phantom-convoy', 'lantern-district', 'siren-breaker',
+      'block-sovereign', 'gilded-house', 'dead-or-alive', 'laurel-ascendant', 'snowstorm', 'inferno',
     ]);
-    expect((await AccountProfileService.settings(prismaFor(false), 'account-1')).options.effects).toEqual(PROFILE_EFFECTS);
+    expect((await AccountProfileService.settings(prismaFor(false), 'account-1')).options.effects.map((option) => option.key)).toEqual(['none']);
+    expect((await AccountProfileService.settings(prismaFor(false, [frameUnlock('chrome-serpent-frame'), frameUnlock('phantom-convoy-frame'), frameUnlock('lantern-district-frame'), frameUnlock('siren-breaker-frame'), frameUnlock('block-sovereign-frame'), frameUnlock('gilded-house-frame'), frameUnlock('dead-or-alive-frame'), frameUnlock('laurel-ascendant-frame'), frameUnlock('snowstorm-drake'), frameUnlock('inferno-drake')]), 'account-1')).options.effects.map((option) => option.key))
+      .toEqual(PROFILE_EFFECTS.map((option) => option.key));
   });
 
   it('saves popup and avatar frames independently and only when both are earned', async () => {

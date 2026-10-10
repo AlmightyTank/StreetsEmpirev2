@@ -359,6 +359,11 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
   const me = useSession((s) => s.me);
   const settings = useSession((s) => s.profileSettings);
   const pageTheme = usePageTheme((s) => s.themeKey);
+  // Popup animation and the viewer's full-shell theme are independent loadout choices.
+  // A public profile can preview its owner's theme in the content area without
+  // replacing the viewer's own shell theme.
+  const shellTheme = pageTheme ? null : settings.activeSiteThemeKey;
+  const decorTheme = pageTheme ?? settings.activeSiteThemeKey;
   const logout = useSession((s) => s.logout);
   const navigate = useNavigate();
   const location = useLocation();
@@ -413,7 +418,7 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
   );
 
   return (
-    <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${pageTheme ? 'none' : settings.activeSiteThemeKey ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}${sidebar ? ' se-app--sidebar' : ''}`}>
+    <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${shellTheme ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}${sidebar ? ' se-app--sidebar' : ''}`}>
       {/* 1.0.0-G: the first Tab stop jumps past the header and navigation. */}
       <a
         className="se-skiplink"
@@ -429,7 +434,7 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
       </a>
       <EnvironmentRibbon />
       <InstallBanner />
-      <SiteThemeDecor themeKey={pageTheme ?? settings.activeSiteThemeKey} />
+      <SiteThemeDecor themeKey={decorTheme} />
 
       {sidebar ? <SidebarFrame sidebar={sidebar}>{page}</SidebarFrame> : page}
       <ConfirmDialog />

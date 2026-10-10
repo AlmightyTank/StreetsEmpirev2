@@ -390,6 +390,107 @@
   }
 }
 
+/* Reimagined theme effects: animated popup treatments paired with independent shell and frame unlocks. */
+.se-profile-effect--chrome-serpent { --se-theme-frame: #92efff; }
+.se-profile-effect--phantom-convoy { --se-theme-frame: #a7d8ff; }
+.se-profile-effect--lantern-district { --se-theme-frame: #ffb85c; }
+.se-profile-effect--siren-breaker { --se-theme-frame: #ff5969; }
+.se-profile-effect--block-sovereign { --se-theme-frame: #8fe29a; }
+.se-profile-effect--gilded-house { --se-theme-frame: #edcf7a; }
+.se-profile-effect--dead-or-alive { --se-theme-frame: #d2aa76; }
+.se-profile-effect--laurel-ascendant { --se-theme-frame: #c6db77; }
+.se-profile-hover-card:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant),
+.se-profile-card-preview:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant) {
+  position: relative; isolation: isolate; border-color: color-mix(in srgb, var(--se-theme-frame) 72%, white);
+  box-shadow: 0 18px 54px #000b, 0 0 22px color-mix(in srgb, var(--se-theme-frame) 28%, transparent);
+}
+.se-profile-hover-card:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant)::before,
+.se-profile-card-preview:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant)::before {
+  content: ""; position: absolute; z-index: 5; inset: 0; border: 1px solid var(--se-theme-frame); border-radius: inherit;
+  box-shadow: inset 0 0 20px color-mix(in srgb, var(--se-theme-frame) 24%, transparent); pointer-events: none;
+  animation: se-theme-frame-pulse 4s ease-in-out infinite;
+}
+.se-profile-hover-card:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant)::after,
+.se-profile-card-preview:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant)::after {
+  content: ""; position: absolute; z-index: 4; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%, color-mix(in srgb, var(--se-theme-frame) 38%, transparent) 50%, transparent 62%);
+  background-size: 240% 100%; animation: se-theme-frame-traverse 6s ease-in-out infinite;
+}
+.se-profile-hover-card:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant) .se-profile-hover-card__avatar,
+.se-profile-card-preview:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant) .se-profile-card-preview__avatar {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--se-theme-frame), 0 0 18px color-mix(in srgb, var(--se-theme-frame) 62%, transparent);
+  animation: se-theme-avatar-pulse 2.8s ease-in-out infinite alternate;
+}
+.se-profile-hover-card.se-profile-effect--chrome-serpent::after, .se-profile-card-preview.se-profile-effect--chrome-serpent::after {
+  background-image: repeating-linear-gradient(132deg, transparent 0 14px, #a8f4ff32 15px 17px, transparent 18px 30px), linear-gradient(115deg, transparent 38%, #ecffff66 50%, transparent 62%);
+  background-size: 90px 100%, 240% 100%; animation: se-serpent-scale-glint 5.6s linear infinite;
+}
+.se-profile-hover-card.se-profile-effect--phantom-convoy::after, .se-profile-card-preview.se-profile-effect--phantom-convoy::after {
+  background-image: linear-gradient(100deg, transparent 32%, #f8fdff0a 42%, #e9f9ffad 49%, #a6e3ff44 54%, transparent 64%); background-size: 250% 100%; animation-duration: 4.2s;
+}
+.se-profile-hover-card.se-profile-effect--lantern-district::after, .se-profile-card-preview.se-profile-effect--lantern-district::after {
+  background-image: radial-gradient(ellipse at 8% 18%, #ffc55c63, transparent 18%), radial-gradient(ellipse at 92% 20%, #ffd98650, transparent 19%); background-size: 100% 100%; animation: se-lantern-sway 3.4s ease-in-out infinite alternate;
+}
+.se-profile-hover-card.se-profile-effect--siren-breaker::after, .se-profile-card-preview.se-profile-effect--siren-breaker::after {
+  background-image: linear-gradient(90deg, #ef3e5942 0 18%, transparent 36% 64%, #37aaf342 82% 100%); background-size: 210% 100%; animation: se-siren-sweep 3.1s ease-in-out infinite;
+}
+.se-profile-hover-card.se-profile-effect--block-sovereign::after, .se-profile-card-preview.se-profile-effect--block-sovereign::after {
+  background-image: linear-gradient(90deg, transparent 18%, #8fe29a5e 19% 20%, transparent 21% 79%, #8fe29a5e 80% 81%, transparent 82%), linear-gradient(0deg, transparent 18%, #8fe29a42 19% 20%, transparent 21% 79%, #8fe29a42 80% 81%, transparent 82%);
+  background-size: 100% 100%; animation: se-block-claim 4.8s steps(1, end) infinite;
+}
+.se-profile-hover-card.se-profile-effect--gilded-house::after, .se-profile-card-preview.se-profile-effect--gilded-house::after {
+  background-image: linear-gradient(112deg, transparent 28%, #fff1b312 40%, #fff4c7bb 49%, #e5b94770 53%, transparent 64%); background-size: 250% 100%;
+}
+.se-profile-hover-card.se-profile-effect--dead-or-alive::after, .se-profile-card-preview.se-profile-effect--dead-or-alive::after {
+  background-image: radial-gradient(ellipse at 0 0, #a35f323c, transparent 30%), radial-gradient(ellipse at 100% 100%, #a35f323c, transparent 32%), repeating-linear-gradient(0deg, transparent 0 7px, #f6d5a10a 8px 9px);
+  background-size: 100% 100%; animation: se-paper-flutter 4s ease-in-out infinite;
+}
+.se-profile-hover-card.se-profile-effect--laurel-ascendant::after, .se-profile-card-preview.se-profile-effect--laurel-ascendant::after {
+  background-image: radial-gradient(ellipse at 0 50%, transparent 0 38%, #c6db7738 39% 41%, transparent 42%), radial-gradient(ellipse at 100% 50%, transparent 0 38%, #c6db7738 39% 41%, transparent 42%);
+  background-size: 100% 100%; animation: se-laurel-unfurl 4s ease-in-out infinite alternate;
+}
+
+/* Selecting one of these frames alone adds the same trim to popup and avatar. */
+.se-profile-hover-card[data-frame="chrome-serpent-frame"], .se-profile-card-preview[data-popup-frame="chrome-serpent-frame"] { --se-theme-frame: #92efff; }
+.se-profile-hover-card[data-frame="phantom-convoy-frame"], .se-profile-card-preview[data-popup-frame="phantom-convoy-frame"] { --se-theme-frame: #a7d8ff; }
+.se-profile-hover-card[data-frame="lantern-district-frame"], .se-profile-card-preview[data-popup-frame="lantern-district-frame"] { --se-theme-frame: #ffb85c; }
+.se-profile-hover-card[data-frame="siren-breaker-frame"], .se-profile-card-preview[data-popup-frame="siren-breaker-frame"] { --se-theme-frame: #ff5969; }
+.se-profile-hover-card[data-frame="block-sovereign-frame"], .se-profile-card-preview[data-popup-frame="block-sovereign-frame"] { --se-theme-frame: #8fe29a; }
+.se-profile-hover-card[data-frame="gilded-house-frame"], .se-profile-card-preview[data-popup-frame="gilded-house-frame"] { --se-theme-frame: #edcf7a; }
+.se-profile-hover-card[data-frame="dead-or-alive-frame"], .se-profile-card-preview[data-popup-frame="dead-or-alive-frame"] { --se-theme-frame: #d2aa76; }
+.se-profile-hover-card[data-frame="laurel-ascendant-frame"], .se-profile-card-preview[data-popup-frame="laurel-ascendant-frame"] { --se-theme-frame: #c6db77; }
+.se-profile-hover-card[data-avatar-frame="chrome-serpent-frame"], .se-profile-card-preview[data-avatar-frame="chrome-serpent-frame"] { --se-theme-frame: #92efff; }
+.se-profile-hover-card[data-avatar-frame="phantom-convoy-frame"], .se-profile-card-preview[data-avatar-frame="phantom-convoy-frame"] { --se-theme-frame: #a7d8ff; }
+.se-profile-hover-card[data-avatar-frame="lantern-district-frame"], .se-profile-card-preview[data-avatar-frame="lantern-district-frame"] { --se-theme-frame: #ffb85c; }
+.se-profile-hover-card[data-avatar-frame="siren-breaker-frame"], .se-profile-card-preview[data-avatar-frame="siren-breaker-frame"] { --se-theme-frame: #ff5969; }
+.se-profile-hover-card[data-avatar-frame="block-sovereign-frame"], .se-profile-card-preview[data-avatar-frame="block-sovereign-frame"] { --se-theme-frame: #8fe29a; }
+.se-profile-hover-card[data-avatar-frame="gilded-house-frame"], .se-profile-card-preview[data-avatar-frame="gilded-house-frame"] { --se-theme-frame: #edcf7a; }
+.se-profile-hover-card[data-avatar-frame="dead-or-alive-frame"], .se-profile-card-preview[data-avatar-frame="dead-or-alive-frame"] { --se-theme-frame: #d2aa76; }
+.se-profile-hover-card[data-avatar-frame="laurel-ascendant-frame"], .se-profile-card-preview[data-avatar-frame="laurel-ascendant-frame"] { --se-theme-frame: #c6db77; }
+.se-profile-hover-card:is([data-frame="chrome-serpent-frame"], [data-frame="phantom-convoy-frame"], [data-frame="lantern-district-frame"], [data-frame="siren-breaker-frame"], [data-frame="block-sovereign-frame"], [data-frame="gilded-house-frame"], [data-frame="dead-or-alive-frame"], [data-frame="laurel-ascendant-frame"]),
+.se-profile-card-preview:is([data-popup-frame="chrome-serpent-frame"], [data-popup-frame="phantom-convoy-frame"], [data-popup-frame="lantern-district-frame"], [data-popup-frame="siren-breaker-frame"], [data-popup-frame="block-sovereign-frame"], [data-popup-frame="gilded-house-frame"], [data-popup-frame="dead-or-alive-frame"], [data-popup-frame="laurel-ascendant-frame"]) {
+  border: 2px solid var(--se-theme-frame); box-shadow: 0 18px 54px #000b, 0 0 20px color-mix(in srgb, var(--se-theme-frame) 25%, transparent);
+}
+.se-profile-hover-card:is([data-avatar-frame="chrome-serpent-frame"], [data-avatar-frame="phantom-convoy-frame"], [data-avatar-frame="lantern-district-frame"], [data-avatar-frame="siren-breaker-frame"], [data-avatar-frame="block-sovereign-frame"], [data-avatar-frame="gilded-house-frame"], [data-avatar-frame="dead-or-alive-frame"], [data-avatar-frame="laurel-ascendant-frame"]) .se-profile-hover-card__avatar,
+.se-profile-card-preview:is([data-avatar-frame="chrome-serpent-frame"], [data-avatar-frame="phantom-convoy-frame"], [data-avatar-frame="lantern-district-frame"], [data-avatar-frame="siren-breaker-frame"], [data-avatar-frame="block-sovereign-frame"], [data-avatar-frame="gilded-house-frame"], [data-avatar-frame="dead-or-alive-frame"], [data-avatar-frame="laurel-ascendant-frame"]) .se-profile-card-preview__avatar {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--se-theme-frame), 0 0 18px color-mix(in srgb, var(--se-theme-frame) 62%, transparent);
+}
+@keyframes se-theme-frame-pulse { 0%, 100% { opacity: .58; } 50% { opacity: 1; } }
+@keyframes se-theme-frame-traverse { 0%, 20% { background-position: 140% 0; } 82%, 100% { background-position: -40% 0; } }
+@keyframes se-serpent-scale-glint { to { background-position: 90px 0, -40% 0; } }
+@keyframes se-lantern-sway { from { filter: brightness(.88); } to { filter: brightness(1.2); } }
+@keyframes se-siren-sweep { 0%, 100% { background-position: 120% 0; } 50% { background-position: -20% 0; } }
+@keyframes se-block-claim { 0%, 30%, 100% { opacity: .22; } 45%, 72% { opacity: .78; } }
+@keyframes se-paper-flutter { 0%, 100% { filter: sepia(.12); } 50% { filter: sepia(.42) brightness(1.08); } }
+@keyframes se-laurel-unfurl { from { transform: scale(.97); opacity: .55; } to { transform: scale(1.02); opacity: 1; } }
+@keyframes se-theme-avatar-pulse { from { transform: scale(1); } to { transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) {
+  .se-profile-hover-card:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant)::before,
+  .se-profile-hover-card:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant)::after,
+  .se-profile-card-preview:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant)::before,
+  .se-profile-card-preview:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant)::after { animation: none !important; }
+}
+
 
 /* Current animated frame collection is defined below. */
 
@@ -457,6 +558,37 @@
 .se-profile-hover-card[data-frame="civic-seal-frame"], .se-profile-card-preview[data-popup-frame="civic-seal-frame"] { --se-popup-frame-color: #9aa1ee; }
 .se-profile-hover-card[data-frame="street-pass-s1-frame"], .se-profile-card-preview[data-popup-frame="street-pass-s1-frame"] { --se-popup-frame-color: #f0c233; }
 .se-profile-hover-card[data-frame="street-pass-s1-chrome-halo"], .se-profile-card-preview[data-popup-frame="street-pass-s1-chrome-halo"] { --se-popup-frame-color: #2dd4bf; }
+.se-profile-hover-card[data-frame="snowstorm-drake"], .se-profile-card-preview[data-popup-frame="snowstorm-drake"] { --se-popup-frame-color: #a9eaff; }
+.se-profile-hover-card[data-frame="inferno-drake"], .se-profile-card-preview[data-popup-frame="inferno-drake"] { --se-popup-frame-color: #ff8b36; }
+.se-profile-hover-card[data-frame="snowstorm-drake"], .se-profile-card-preview[data-popup-frame="snowstorm-drake"],
+.se-profile-hover-card[data-frame="inferno-drake"], .se-profile-card-preview[data-popup-frame="inferno-drake"] {
+  border: 2px solid var(--se-popup-frame-color);
+  box-shadow: 0 18px 54px #000b, 0 0 18px color-mix(in srgb, var(--se-popup-frame-color) 42%, transparent), inset 0 0 0 1px #fff5;
+  animation: se-dragon-frame-breathe 4s ease-in-out infinite;
+}
+.se-profile-hover-card[data-frame="snowstorm-drake"]::after, .se-profile-card-preview[data-popup-frame="snowstorm-drake"]::after,
+.se-profile-hover-card[data-frame="inferno-drake"]::after, .se-profile-card-preview[data-popup-frame="inferno-drake"]::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+  opacity: .7;
+  background: repeating-linear-gradient(135deg, transparent 0 18px, color-mix(in srgb, var(--se-popup-frame-color) 32%, transparent) 19px 20px, transparent 21px 38px);
+  mask: linear-gradient(#000, #000) top/100% 2px no-repeat, linear-gradient(#000, #000) bottom/100% 2px no-repeat, linear-gradient(#000, #000) left/2px 100% no-repeat, linear-gradient(#000, #000) right/2px 100% no-repeat;
+}
+.se-profile-hover-card[data-avatar-frame="snowstorm-drake"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="snowstorm-drake"] .se-profile-card-preview__avatar,
+.se-profile-hover-card[data-avatar-frame="inferno-drake"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="inferno-drake"] .se-profile-card-preview__avatar {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--se-popup-frame-color, #a9eaff), 0 0 22px color-mix(in srgb, var(--se-popup-frame-color, #a9eaff) 68%, transparent);
+  animation: se-dragon-avatar-breathe 2.5s ease-in-out infinite alternate;
+}
+.se-profile-hover-card[data-avatar-frame="snowstorm-drake"], .se-profile-card-preview[data-avatar-frame="snowstorm-drake"] { --se-popup-frame-color: #a9eaff; }
+.se-profile-hover-card[data-avatar-frame="inferno-drake"], .se-profile-card-preview[data-avatar-frame="inferno-drake"] { --se-popup-frame-color: #ff8b36; }
+@keyframes se-dragon-frame-breathe { 0%, 100% { filter: saturate(.92); } 50% { filter: saturate(1.25); } }
+@keyframes se-dragon-avatar-breathe { from { transform: scale(1); } to { transform: scale(1.045); } }
 
 .se-profile-hover-card:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion),
 .se-profile-card-preview:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion) {
@@ -724,3 +856,19 @@
     animation: none !important;
   }
 }
+
+/* Keep the motif independent when players mix a frame with another animation. */
+.se-profile-hover-card[data-frame="chrome-serpent-frame"], .se-profile-card-preview[data-popup-frame="chrome-serpent-frame"] { --se-theme-frame: #92efff; }
+.se-profile-hover-card[data-frame="phantom-convoy-frame"], .se-profile-card-preview[data-popup-frame="phantom-convoy-frame"] { --se-theme-frame: #a7d8ff; }
+.se-profile-hover-card[data-frame="lantern-district-frame"], .se-profile-card-preview[data-popup-frame="lantern-district-frame"] { --se-theme-frame: #ffb85c; }
+.se-profile-hover-card[data-frame="siren-breaker-frame"], .se-profile-card-preview[data-popup-frame="siren-breaker-frame"] { --se-theme-frame: #ff5969; }
+.se-profile-hover-card[data-frame="block-sovereign-frame"], .se-profile-card-preview[data-popup-frame="block-sovereign-frame"] { --se-theme-frame: #8fe29a; }
+.se-profile-hover-card[data-frame="gilded-house-frame"], .se-profile-card-preview[data-popup-frame="gilded-house-frame"] { --se-theme-frame: #edcf7a; }
+.se-profile-hover-card[data-frame="dead-or-alive-frame"], .se-profile-card-preview[data-popup-frame="dead-or-alive-frame"] { --se-theme-frame: #d2aa76; }
+.se-profile-hover-card[data-frame="laurel-ascendant-frame"], .se-profile-card-preview[data-popup-frame="laurel-ascendant-frame"] { --se-theme-frame: #c6db77; }
+.se-profile-hover-card:is([data-frame="chrome-serpent-frame"], [data-frame="phantom-convoy-frame"], [data-frame="lantern-district-frame"], [data-frame="siren-breaker-frame"], [data-frame="block-sovereign-frame"], [data-frame="gilded-house-frame"], [data-frame="dead-or-alive-frame"], [data-frame="laurel-ascendant-frame"]),
+.se-profile-card-preview:is([data-popup-frame="chrome-serpent-frame"], [data-popup-frame="phantom-convoy-frame"], [data-popup-frame="lantern-district-frame"], [data-popup-frame="siren-breaker-frame"], [data-popup-frame="block-sovereign-frame"], [data-popup-frame="gilded-house-frame"], [data-popup-frame="dead-or-alive-frame"], [data-popup-frame="laurel-ascendant-frame"]) {
+  border: 2px solid var(--se-theme-frame); box-shadow: 0 18px 54px #000b, 0 0 20px color-mix(in srgb, var(--se-theme-frame) 25%, transparent);
+}
+.se-profile-hover-card:is([data-avatar-frame="chrome-serpent-frame"], [data-avatar-frame="phantom-convoy-frame"], [data-avatar-frame="lantern-district-frame"], [data-avatar-frame="siren-breaker-frame"], [data-avatar-frame="block-sovereign-frame"], [data-avatar-frame="gilded-house-frame"], [data-avatar-frame="dead-or-alive-frame"], [data-avatar-frame="laurel-ascendant-frame"]) .se-profile-hover-card__avatar,
+.se-profile-card-preview:is([data-avatar-frame="chrome-serpent-frame"], [data-avatar-frame="phantom-convoy-frame"], [data-avatar-frame="lantern-district-frame"], [data-avatar-frame="siren-breaker-frame"], [data-avatar-frame="block-sovereign-frame"], [data-avatar-frame="gilded-house-frame"], [data-avatar-frame="dead-or-alive-frame"], [data-avatar-frame="laurel-ascendant-frame"]) .se-profile-card-preview__avatar { box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--se-theme-frame), 0 0 18px color-mix(in srgb, var(--se-theme-frame) 62%, transparent); }

@@ -730,6 +730,78 @@
     0 13px 26px rgba(0, 0, 0, 0.36);
 }
 
+/* Animated profile effects carry through the whole game shell while equipped. */
+.se-site-theme--dragon-ice {
+  --se-bg: #07121d;
+  --se-panel: #101d29;
+  --se-panel-hi: #192c3d;
+  --se-line: rgba(149, 220, 255, 0.28);
+  --se-line-soft: rgba(149, 220, 255, 0.16);
+  --se-text: #edf8ff;
+  --se-text-dim: #b1ccdc;
+  --se-muted: #819db0;
+  --se-accent: #8de0ff;
+  --se-accent-dim: #3a9bc1;
+  --se-accent-hover: #d2f5ff;
+  --se-accent-rgb: 141, 224, 255;
+  --se-accent-2: #788dff;
+  color-scheme: dark;
+  background-image:
+    radial-gradient(ellipse 38% 34% at 96% 8%, rgba(72, 175, 255, 0.2), transparent 72%),
+    radial-gradient(ellipse 45% 32% at 2% 88%, rgba(88, 211, 255, 0.12), transparent 70%),
+    linear-gradient(180deg, rgba(13, 36, 55, 0.48), transparent 60%);
+}
+
+.se-site-theme--dragon-fire {
+  --se-bg: #160b0a;
+  --se-panel: #211412;
+  --se-panel-hi: #34201a;
+  --se-line: rgba(255, 148, 78, 0.3);
+  --se-line-soft: rgba(255, 105, 48, 0.18);
+  --se-text: #fff2e9;
+  --se-text-dim: #d6b8a6;
+  --se-muted: #ad8975;
+  --se-accent: #ffad58;
+  --se-accent-dim: #c85127;
+  --se-accent-hover: #ffe0a4;
+  --se-accent-rgb: 255, 156, 72;
+  --se-accent-2: #f14e31;
+  color-scheme: dark;
+  background-image:
+    radial-gradient(ellipse 40% 36% at 98% 8%, rgba(255, 87, 37, 0.2), transparent 72%),
+    radial-gradient(ellipse 45% 30% at 0% 90%, rgba(255, 157, 56, 0.12), transparent 70%),
+    linear-gradient(180deg, rgba(62, 26, 17, 0.44), transparent 60%);
+}
+
+:is(.se-site-theme--dragon-ice, .se-site-theme--dragon-fire) .se-topbar {
+  background: linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.12), transparent 58%), color-mix(in srgb, var(--se-bg) 90%, #000);
+  border-bottom-color: color-mix(in srgb, var(--se-accent) 50%, var(--se-line));
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.42), 0 0 28px rgba(var(--se-accent-rgb), 0.12);
+}
+
+:is(.se-site-theme--dragon-ice, .se-site-theme--dragon-fire) :is(.se-panel, .se-stats, .se-stat, .se-seasoncard, .se-nav, .se-sidebar) {
+  border-color: var(--se-line);
+  background-image: linear-gradient(145deg, rgba(var(--se-accent-rgb), 0.055), transparent 58%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 0 20px rgba(var(--se-accent-rgb), 0.07);
+}
+
+:is(.se-site-theme--dragon-ice, .se-site-theme--dragon-fire) :is(.se-panel__head, .se-stat__label) {
+  border-color: var(--se-line-soft);
+  background: linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.12), transparent 70%);
+}
+
+:is(.se-site-theme--dragon-ice, .se-site-theme--dragon-fire) :is(.se-btn, .se-input) {
+  border-color: color-mix(in srgb, var(--se-accent) 36%, var(--se-line));
+  background-color: color-mix(in srgb, var(--se-panel-hi) 84%, #07090c);
+}
+
+:is(.se-site-theme--dragon-ice, .se-site-theme--dragon-fire) .se-btn--primary {
+  color: #101318;
+  border-color: color-mix(in srgb, var(--se-accent) 74%, white);
+  background: linear-gradient(135deg, var(--se-accent-hover), var(--se-accent));
+  box-shadow: 0 0 18px rgba(var(--se-accent-rgb), 0.18);
+}
+
 .se-site-theme-decor {
   position: fixed;
   inset: 48px 0 0;
@@ -737,6 +809,89 @@
   overflow: hidden;
   pointer-events: none;
   user-select: none;
+}
+
+.se-site-theme-decor--dragon {
+  inset: 58px 0 0;
+  opacity: 0.82;
+}
+
+.se-dragon-atmosphere__art {
+  position: absolute;
+  top: 2vh;
+  right: -2vw;
+  width: min(43vw, 590px);
+  height: min(82vh, 940px);
+  object-fit: fill;
+  opacity: 0.13;
+  mix-blend-mode: screen;
+  animation: se-dragon-art-drift 12s ease-in-out infinite;
+}
+
+.se-dragon-atmosphere__particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.se-dragon-atmosphere__particles i {
+  position: absolute;
+  top: -10px;
+  display: block;
+  border-radius: 50%;
+  animation: se-dragon-particle-rise 14s linear infinite;
+}
+
+.se-site-theme-decor--ice .se-dragon-atmosphere__particles i {
+  background: #d8f7ff;
+  box-shadow: 0 0 7px #8bdfff, 0 0 15px rgba(114, 206, 255, 0.72);
+  border-radius: 0;
+  animation-name: se-dragon-snowfall;
+}
+
+.se-site-theme-decor--fire .se-dragon-atmosphere__particles i {
+  background: #ffe3a3;
+  box-shadow: 0 0 7px #ff8a36, 0 0 15px rgba(255, 80, 35, 0.76);
+}
+
+.se-dragon-atmosphere__haze {
+  position: absolute;
+  inset: auto 0 0;
+  height: 36vh;
+  opacity: 0.32;
+  animation: se-dragon-haze-pulse 5s ease-in-out infinite alternate;
+}
+
+.se-site-theme-decor--ice .se-dragon-atmosphere__haze {
+  background: radial-gradient(ellipse at 75% 100%, rgba(83, 192, 255, 0.2), transparent 70%);
+}
+
+.se-site-theme-decor--fire .se-dragon-atmosphere__haze {
+  background: radial-gradient(ellipse at 75% 100%, rgba(255, 85, 31, 0.2), transparent 70%);
+}
+
+@keyframes se-dragon-particle-rise {
+  from { transform: translate3d(0, 105vh, 0) scale(0.7); opacity: 0; }
+  18% { opacity: 0.76; }
+  82% { opacity: 0.72; }
+  to { transform: translate3d(18px, -8vh, 0) scale(1.1); opacity: 0; }
+}
+
+@keyframes se-dragon-snowfall {
+  from { transform: translate3d(0, -3vh, 0) rotate(0); opacity: 0; }
+  16% { opacity: 0.76; }
+  84% { opacity: 0.72; }
+  to { transform: translate3d(26px, 108vh, 0) rotate(210deg); opacity: 0; }
+}
+
+@keyframes se-dragon-haze-pulse {
+  from { opacity: 0.18; }
+  to { opacity: 0.48; }
+}
+
+@keyframes se-dragon-art-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); filter: brightness(0.94); }
+  50% { transform: translate3d(-5px, 4px, 0) scale(1.012); filter: brightness(1.12); }
 }
 
 /* --- winter / Christmas ------------------------------------------------- */
@@ -1071,8 +1226,19 @@
 
 .se-reduced-motion .se-theme-snowflake,
 .se-reduced-motion .se-theme-bat,
-.se-reduced-motion .se-theme-fog {
+.se-reduced-motion .se-theme-fog,
+.se-reduced-motion .se-dragon-atmosphere__particles i,
+.se-reduced-motion .se-dragon-atmosphere__art,
+.se-reduced-motion .se-dragon-atmosphere__haze {
   animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-dragon-atmosphere__particles i,
+  .se-dragon-atmosphere__art,
+  .se-dragon-atmosphere__haze {
+    animation: none !important;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1139,4 +1305,57 @@
 .se-site-theme--street-pass-s1-night-drive .se-footer {
   background: linear-gradient(180deg, rgba(9, 9, 20, 0.75), #090914);
   border-top-color: rgba(45, 212, 191, 0.36);
+}
+
+/* Ambient motion for the eight rebuilt shell themes; the shell palette remains selectable on its own. */
+.se-site-theme-decor--theme-pack {
+  z-index: 0;
+  opacity: .48;
+}
+.se-theme-pack__motif {
+  position: absolute;
+  top: 7vh;
+  right: -2vw;
+  width: min(58vw, 800px);
+  height: min(70vh, 760px);
+  opacity: .26;
+  filter: drop-shadow(0 0 18px var(--se-pack-color));
+  background: var(--se-pack-motif);
+  animation: se-theme-pack-drift 18s ease-in-out infinite alternate;
+}
+.se-theme-pack__motes { position: absolute; inset: 0; overflow: hidden; }
+.se-theme-pack__motes i {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border: 1px solid color-mix(in srgb, var(--se-pack-color) 75%, white);
+  border-radius: 50%;
+  background: var(--se-pack-color);
+  box-shadow: 0 0 12px var(--se-pack-color);
+  animation: se-theme-pack-mote 9s ease-in-out infinite;
+}
+.se-theme-pack__haze {
+  position: absolute;
+  inset: 50% 0 0;
+  background: radial-gradient(ellipse at 72% 100%, color-mix(in srgb, var(--se-pack-color) 18%, transparent), transparent 66%);
+  animation: se-theme-pack-haze 5s ease-in-out infinite alternate;
+}
+.se-site-theme-decor--motor-city-iron { --se-pack-color: #91dbe4; --se-pack-motif: repeating-linear-gradient(135deg, transparent 0 42px, #91dbe426 43px 45px, transparent 46px 82px), radial-gradient(ellipse at 78% 46%, transparent 0 36%, #91dbe428 37% 38%, transparent 39%); }
+.se-site-theme-decor--open-road { --se-pack-color: #9ed4ff; --se-pack-motif: linear-gradient(105deg, transparent 30%, #c5e7ff48 47%, transparent 53%), repeating-linear-gradient(0deg, transparent 0 64px, #9ed4ff20 65px 66px, transparent 67px 128px); }
+.se-site-theme-decor--neon-vice { --se-pack-color: #ff64ac; --se-pack-motif: radial-gradient(ellipse at 24% 58%, transparent 0 23%, #ff64ac35 24% 25%, transparent 26%), radial-gradient(ellipse at 72% 34%, transparent 0 28%, #58e8ff36 29% 30%, transparent 31%); }
+.se-site-theme-decor--blue-heat { --se-pack-color: #56b8ff; --se-pack-motif: linear-gradient(112deg, transparent 32%, #ff4f6440 46%, #52baff44 52%, transparent 66%), radial-gradient(ellipse at 76% 50%, transparent 0 36%, #56b8ff28 37% 38%, transparent 39%); }
+.se-site-theme-decor--rain-city-wire { --se-pack-color: #63e3c0; --se-pack-motif: repeating-linear-gradient(90deg, transparent 0 55px, #63e3c026 56px 58px, transparent 59px 96px), repeating-linear-gradient(0deg, transparent 0 70px, #63e3c020 71px 72px, transparent 73px 120px); }
+.se-site-theme-decor--casino-floor { --se-pack-color: #f0cf76; --se-pack-motif: radial-gradient(circle at 29% 42%, transparent 0 14%, #f0cf763a 15% 16%, transparent 17%), radial-gradient(circle at 74% 58%, transparent 0 20%, #d65c6740 21% 22%, transparent 23%); }
+.se-site-theme-decor--federal-case { --se-pack-color: #caa86d; --se-pack-motif: repeating-linear-gradient(0deg, transparent 0 28px, #caa86d25 29px 31px, transparent 32px 48px), linear-gradient(110deg, transparent 40%, #71b8e622 51%, transparent 60%); }
+.se-site-theme-decor--midnight-market { --se-pack-color: #e6c979; --se-pack-motif: radial-gradient(ellipse at 50% 48%, transparent 0 28%, #e6c97935 29% 30%, transparent 31%), radial-gradient(circle at 28% 25%, #ffe9a54a 0 2px, transparent 3px), radial-gradient(circle at 76% 68%, #ffe9a54a 0 2px, transparent 3px); }
+@keyframes se-theme-pack-drift { from { transform: translate3d(0, 0, 0) rotate(-1deg); } to { transform: translate3d(-20px, 12px, 0) rotate(1deg); } }
+@keyframes se-theme-pack-mote { 0%, 100% { transform: translate3d(0, 14px, 0) scale(.65); opacity: .2; } 50% { transform: translate3d(8px, -18px, 0) scale(1); opacity: .85; } }
+@keyframes se-theme-pack-haze { from { opacity: .28; } to { opacity: .8; } }
+.se-reduced-motion .se-theme-pack__motif,
+.se-reduced-motion .se-theme-pack__motes i,
+.se-reduced-motion .se-theme-pack__haze { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .se-theme-pack__motif,
+  .se-theme-pack__motes i,
+  .se-theme-pack__haze { animation: none !important; }
 }

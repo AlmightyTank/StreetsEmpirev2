@@ -43,11 +43,17 @@ describe('Street Pass cosmetic top-up at round close', () => {
     const autoClaimed = await StreetPassService.grantUnclaimedCosmetics(tx, 'round-1', classicOgStreetPassA, new Date());
 
     expect(autoClaimed).toBe(0);
-    expect(awarded).toEqual(['street-pass-s1-urban-ghost']);
+    expect(awarded).toEqual([
+      'street-pass-s1-urban-ghost', 'street-pass-s1-chrome-serpent-theme', 'street-pass-s1-chrome-serpent-frame',
+      'street-pass-s1-phantom-convoy-theme', 'street-pass-s1-phantom-convoy-frame',
+    ]);
   });
 
   it('does not award a cosmetic the account already owns', async () => {
-    const { tx, awarded } = txFor([8, 10], ['street-pass-s1-urban-ghost', 'street-pass-s1-fresh-face'], 10);
+    const { tx, awarded } = txFor([8, 10], [
+      'street-pass-s1-urban-ghost', 'street-pass-s1-fresh-face', 'street-pass-s1-chrome-serpent-theme',
+      'street-pass-s1-chrome-serpent-frame', 'street-pass-s1-phantom-convoy-theme', 'street-pass-s1-phantom-convoy-frame',
+    ], 10);
 
     await StreetPassService.grantUnclaimedCosmetics(tx, 'round-1', classicOgStreetPassA, new Date());
 
@@ -59,13 +65,15 @@ describe('Street Pass cosmetic top-up at round close', () => {
 
     const autoClaimed = await StreetPassService.grantUnclaimedCosmetics(tx, 'round-1', classicOgStreetPassA, new Date());
 
-    expect(autoClaimed).toBe(4);
-    expect(claims.map((claim) => claim.tier)).toEqual([8, 10, 15, 18]);
+    expect(autoClaimed).toBe(5);
+    expect(claims.map((claim) => claim.tier)).toEqual([8, 10, 12, 15, 18]);
     expect(awarded).toEqual([
-      'street-pass-s1-urban-ghost',
-      'street-pass-s1-fresh-face',
-      'street-pass-s1-night-drive-theme',
-      'street-pass-s1-midnight-ops',
+      'street-pass-s1-urban-ghost', 'street-pass-s1-chrome-serpent-theme', 'street-pass-s1-chrome-serpent-frame',
+      'street-pass-s1-fresh-face', 'street-pass-s1-phantom-convoy-theme', 'street-pass-s1-phantom-convoy-frame',
+      'street-pass-s1-lantern-district-theme', 'street-pass-s1-lantern-district-frame',
+      'street-pass-s1-ice-dragon-theme', 'street-pass-s1-snowstorm-frame',
+      'street-pass-s1-siren-breaker-theme', 'street-pass-s1-siren-breaker-frame',
+      'street-pass-s1-midnight-ops', 'street-pass-s1-block-sovereign-theme', 'street-pass-s1-block-sovereign-frame',
     ]);
   });
 });

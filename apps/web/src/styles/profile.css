@@ -396,6 +396,32 @@
     0 16px 40px rgba(0, 0, 0, 0.42);
 }
 
+.se-profile-pagehead__avatar--snowstorm-drake {
+  --se-profile-avatar-frame: #a9eaff;
+  --se-profile-avatar-glow: rgba(169, 234, 255, 0.72);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 6px #a9eaff, 0 0 26px #8bdcffaa;
+  animation: se-dragon-avatar-breathe 2.5s ease-in-out infinite alternate;
+}
+.se-profile-pagehead__avatar--inferno-drake {
+  --se-profile-avatar-frame: #ff8b36;
+  --se-profile-avatar-glow: rgba(255, 139, 54, 0.72);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 6px #ff8b36, 0 0 26px #ff5a24aa;
+  animation: se-dragon-avatar-breathe 1.8s ease-in-out infinite alternate;
+}
+.se-profile-pagehead__avatar--chrome-serpent-frame { --se-profile-avatar-frame: #92efff; --se-profile-avatar-glow: #92efff99; }
+.se-profile-pagehead__avatar--phantom-convoy-frame { --se-profile-avatar-frame: #a7d8ff; --se-profile-avatar-glow: #a7d8ff99; }
+.se-profile-pagehead__avatar--lantern-district-frame { --se-profile-avatar-frame: #ffb85c; --se-profile-avatar-glow: #ffb85c99; }
+.se-profile-pagehead__avatar--siren-breaker-frame { --se-profile-avatar-frame: #ff5969; --se-profile-avatar-glow: #ff596999; }
+.se-profile-pagehead__avatar--block-sovereign-frame { --se-profile-avatar-frame: #8fe29a; --se-profile-avatar-glow: #8fe29a99; }
+.se-profile-pagehead__avatar--gilded-house-frame { --se-profile-avatar-frame: #edcf7a; --se-profile-avatar-glow: #edcf7a99; }
+.se-profile-pagehead__avatar--dead-or-alive-frame { --se-profile-avatar-frame: #d2aa76; --se-profile-avatar-glow: #d2aa7699; }
+.se-profile-pagehead__avatar--laurel-ascendant-frame { --se-profile-avatar-frame: #c6db77; --se-profile-avatar-glow: #c6db7799; }
+
+@media (prefers-reduced-motion: reduce) {
+  .se-profile-pagehead__avatar--snowstorm-drake,
+  .se-profile-pagehead__avatar--inferno-drake { animation: none; }
+}
+
 .se-profile-pagehead__avatar img {
   width: 100%;
   height: 100%;

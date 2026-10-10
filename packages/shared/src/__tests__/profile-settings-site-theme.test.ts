@@ -188,7 +188,7 @@ describe('account profile settings schema', () => {
       profileBio: '  Runs the south side.\r\n\r\n\r\nBring receipts.  ',
       profileImageUrl: ' https://i.imgur.com/avatar.png ',
       profileBannerUrl: '',
-      profileEffect: 'street-circuit',
+      profileEffect: 'snowstorm',
       activeProfileFrameKey: null,
       activeSiteThemeKey: null,
       featuredBadgeKeys: [],
@@ -202,7 +202,7 @@ describe('account profile settings schema', () => {
     expect(result.profileBio).toBe('Runs the south side.\n\nBring receipts.');
     expect(result.profileImageUrl).toBe('https://i.imgur.com/avatar.png');
     expect(result.profileBannerUrl).toBeNull();
-    expect(result.profileEffect).toBe('street-circuit');
+    expect(result.profileEffect).toBe('snowstorm');
   });
 
   it.each(['snowstorm', 'inferno'])('accepts the %s atmospheric frame effect', (profileEffect) => {

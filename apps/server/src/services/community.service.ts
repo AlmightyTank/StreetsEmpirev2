@@ -14,6 +14,7 @@ import type {
   PublicPlayerProfileDto,
   PublicSeasonStatsDto,
   ProfileAccent,
+  ProfileEffect,
   RankingEntryDto,
   RankingsDto,
 } from '@streets/shared';
@@ -1046,6 +1047,11 @@ export const CommunityService = {
       ? requestedAvatarFrame
       : null;
     const showcase = await profileShowcase(prisma, player.accountId, profileSettings);
+    const profileEffect = profileSettings?.profileEffect;
+    const publicProfileEffects = new Set<string>([
+      'snowstorm', 'inferno', 'chrome-serpent', 'phantom-convoy', 'lantern-district', 'siren-breaker',
+      'block-sovereign', 'gilded-house', 'dead-or-alive', 'laurel-ascendant',
+    ]);
 
     return {
       forumProfileUrl: forumLink ? forumProfileUrl(forumLink) : null,
@@ -1057,15 +1063,8 @@ export const CommunityService = {
         accent: profileAccent(profileSettings?.profileAccent),
         frame,
         avatarFrame,
-        effect: profileSettings?.profileEffect === 'street-circuit'
-          || profileSettings?.profileEffect === 'night-drive'
-          || profileSettings?.profileEffect === 'corner-glow'
-          || profileSettings?.profileEffect === 'heat-signal'
-          || profileSettings?.profileEffect === 'turf-claim'
-          || profileSettings?.profileEffect === 'high-roller'
-          || profileSettings?.profileEffect === 'wanted'
-          || profileSettings?.profileEffect === 'season-champion'
-          ? profileSettings.profileEffect
+        effect: profileEffect && publicProfileEffects.has(profileEffect)
+          ? profileEffect as ProfileEffect
           : 'none',
         imageUrl: profileSettings?.profileImageUrl ?? null,
         bannerUrl: profileSettings?.profileBannerUrl ?? null,

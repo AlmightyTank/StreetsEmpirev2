@@ -7,7 +7,7 @@ import type { Ruleset } from '../types.js';
  *
  * Trips E plus the free Street Pass, Season 1: 30 tiers of Cred-earned rewards
  * (cash, crew, guns, product and favors), with permanent Fresh Face, Made Man
- * and Kingpin titles, the Night Drive theme, the Chrome Halo frame, the
+ * and Kingpin titles, the Ice Dragon/Snowstorm set and Fire Dragon/Inferno set,
  * Season 1 badge and frame, and the Urban Ghost, Midnight Ops and Cartel Gold
  * item art collections. Balance is checked by
  * `npm run qa:street-pass`; see docs/STREET-PASS.md.

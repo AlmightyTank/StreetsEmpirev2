@@ -1704,6 +1704,68 @@ img.se-pass-theme-preview__frame-avatar {
   width: 44%;
 }
 
+.se-pass-theme-preview__frame-stage--street-pass-s1-snowstorm-frame .se-pass-theme-preview__frame-avatar,
+.se-pass-theme-preview__frame-stage--street-pass-s1-inferno-frame .se-pass-theme-preview__frame-avatar {
+  top: 28%;
+  left: 28%;
+  width: 44%;
+}
+
+.se-pass-theme-preview--street-pass-s1-ice-dragon-theme .se-pass-theme-preview__mock {
+  position: relative;
+  border: 1px solid #8cecff;
+  background: radial-gradient(ellipse at 78% 8%, #66d9ff55, transparent 42%), linear-gradient(145deg, #163a66, #081629 68%);
+  box-shadow: inset 0 0 35px #5cdcff28, 0 0 28px #53d9ff26;
+}
+.se-pass-theme-preview--street-pass-s1-ice-dragon-theme .se-pass-theme-preview__mock::before,
+.se-pass-theme-preview--street-pass-s1-fire-dragon-theme .se-pass-theme-preview__mock::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10%;
+  pointer-events: none;
+  opacity: .48;
+  background: radial-gradient(circle at 18% 26%, #fff 0 1px, transparent 2px), radial-gradient(circle at 64% 62%, #c8f9ff 0 1px, transparent 2px), radial-gradient(circle at 82% 34%, #fff 0 1.5px, transparent 2px);
+  background-size: 52px 58px, 73px 82px, 91px 104px;
+  animation: se-dragon-preview-drift 8s linear infinite;
+}
+.se-pass-theme-preview--street-pass-s1-ice-dragon-theme .se-pass-theme-preview__mock-topbar {
+  border-color: #8cecff77;
+  background: linear-gradient(90deg, #54cfff36, #b9f8ff18);
+}
+.se-pass-theme-preview--street-pass-s1-ice-dragon-theme .se-pass-theme-preview__mock-topbar strong span { color: #a8efff; }
+.se-pass-theme-preview--street-pass-s1-ice-dragon-theme .se-pass-theme-preview__mock-stats span,
+.se-pass-theme-preview--street-pass-s1-ice-dragon-theme .se-pass-theme-preview__mock-panel,
+.se-pass-theme-preview--street-pass-s1-ice-dragon-theme .se-pass-theme-preview__mock-nav i {
+  border-color: #8cecff55;
+  background: #0c274bd9;
+  box-shadow: inset 0 0 16px #62dfff14;
+}
+.se-pass-theme-preview--street-pass-s1-fire-dragon-theme .se-pass-theme-preview__mock {
+  position: relative;
+  border: 1px solid #ff9b47;
+  background: radial-gradient(ellipse at 78% 8%, #ff642f55, transparent 42%), linear-gradient(145deg, #4d1d2b, #1a111b 68%);
+  box-shadow: inset 0 0 35px #fa533028, 0 0 28px #ff6c3026;
+}
+.se-pass-theme-preview--street-pass-s1-fire-dragon-theme .se-pass-theme-preview__mock::before {
+  background: radial-gradient(circle at 18% 92%, #ffc45b 0 1.5px, transparent 3px), radial-gradient(circle at 64% 82%, #ff6333 0 1px, transparent 3px), radial-gradient(circle at 82% 95%, #ffe69a 0 1px, transparent 2px);
+  background-size: 52px 58px, 73px 82px, 91px 104px;
+  animation: se-dragon-preview-embers 4.5s linear infinite;
+}
+.se-pass-theme-preview--street-pass-s1-fire-dragon-theme .se-pass-theme-preview__mock-topbar {
+  border-color: #ff9b4777;
+  background: linear-gradient(90deg, #ff593136, #ffce5b18);
+}
+.se-pass-theme-preview--street-pass-s1-fire-dragon-theme .se-pass-theme-preview__mock-topbar strong span { color: #ffc15b; }
+.se-pass-theme-preview--street-pass-s1-fire-dragon-theme .se-pass-theme-preview__mock-stats span,
+.se-pass-theme-preview--street-pass-s1-fire-dragon-theme .se-pass-theme-preview__mock-panel,
+.se-pass-theme-preview--street-pass-s1-fire-dragon-theme .se-pass-theme-preview__mock-nav i {
+  border-color: #ff9b4755;
+  background: #321722e8;
+  box-shadow: inset 0 0 16px #ff6b3014;
+}
+@keyframes se-dragon-preview-drift { to { background-position: 0 58px, 22px 82px, 41px 104px; } }
+@keyframes se-dragon-preview-embers { from { transform: translateY(12px); opacity: .15; } to { transform: translateY(-22px); opacity: .7; } }
+
 
 /* Keep the preview card vertically scrollable while horizontal touch gestures change slides. */
 .se-pass-theme-preview {

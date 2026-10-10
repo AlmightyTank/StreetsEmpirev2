@@ -73,8 +73,61 @@ function HalloweenMoon() {
   );
 }
 
+const dragonParticles = [
+  ['5%', '-2s', '13s', 4], ['12%', '-8s', '17s', 3], ['19%', '-5s', '15s', 5],
+  ['27%', '-11s', '19s', 3], ['35%', '-3s', '14s', 4], ['43%', '-9s', '18s', 5],
+  ['51%', '-1s', '16s', 3], ['59%', '-12s', '20s', 4], ['67%', '-6s', '15s', 5],
+  ['75%', '-10s', '18s', 3], ['83%', '-4s', '14s', 4], ['91%', '-7s', '17s', 5],
+] as const;
+
+function DragonAtmosphere({ fire = false }: { fire?: boolean }) {
+  return (
+    <div className={`se-site-theme-decor se-site-theme-decor--dragon${fire ? ' se-site-theme-decor--fire' : ' se-site-theme-decor--ice'}`} aria-hidden="true">
+      <img
+        className="se-dragon-atmosphere__art"
+        src={fire ? '/profile-frames/inferno-popup.webp' : '/profile-frames/snowstorm-popup.webp'}
+        alt=""
+      />
+      <div className="se-dragon-atmosphere__particles">
+        {dragonParticles.map(([left, delay, duration, size], index) => (
+          <i
+            key={index}
+            style={{ left, animationDelay: delay, animationDuration: duration, width: size, height: size } as CSSProperties}
+          />
+        ))}
+      </div>
+      <div className="se-dragon-atmosphere__haze" />
+    </div>
+  );
+}
+
+const themeMotes = [
+  ['6%', '22%', '-2s'], ['15%', '61%', '-7s'], ['24%', '35%', '-4s'], ['33%', '78%', '-10s'],
+  ['42%', '17%', '-6s'], ['51%', '54%', '-1s'], ['60%', '82%', '-9s'], ['69%', '29%', '-5s'],
+  ['78%', '66%', '-11s'], ['87%', '40%', '-3s'], ['95%', '73%', '-8s'],
+] as const;
+
+function ThemePackAtmosphere({ themeKey }: { themeKey: string }) {
+  return (
+    <div className={`se-site-theme-decor se-site-theme-decor--theme-pack se-site-theme-decor--${themeKey}`} aria-hidden="true">
+      <div className="se-theme-pack__motif" />
+      <div className="se-theme-pack__motes">
+        {themeMotes.map(([left, top, delay], index) => (
+          <i key={index} style={{ left, top, animationDelay: delay } as CSSProperties} />
+        ))}
+      </div>
+      <div className="se-theme-pack__haze" />
+    </div>
+  );
+}
+
 export function SiteThemeDecor({ themeKey }: { themeKey: string | null }) {
   if (themeKey === 'winter-lights') return <WinterLights />;
   if (themeKey === 'halloween-moon') return <HalloweenMoon />;
+  if (themeKey === 'dragon-ice') return <DragonAtmosphere />;
+  if (themeKey === 'dragon-fire') return <DragonAtmosphere fire />;
+  if (themeKey && ['motor-city-iron', 'open-road', 'neon-vice', 'blue-heat', 'rain-city-wire', 'casino-floor', 'federal-case', 'midnight-market'].includes(themeKey)) {
+    return <ThemePackAtmosphere themeKey={themeKey} />;
+  }
   return null;
 }

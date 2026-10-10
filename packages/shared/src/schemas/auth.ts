@@ -123,14 +123,14 @@ export const moneyFormatSchema = z.enum(['full', 'compact']);
 export const defaultLandingSchema = z.enum(['game', 'profile', 'rankings', 'news']);
 export const profileEffectSchema = z.enum([
   'none',
-  'street-circuit',
-  'night-drive',
-  'corner-glow',
-  'heat-signal',
-  'turf-claim',
-  'high-roller',
-  'wanted',
-  'season-champion',
+  'chrome-serpent',
+  'phantom-convoy',
+  'lantern-district',
+  'siren-breaker',
+  'block-sovereign',
+  'gilded-house',
+  'dead-or-alive',
+  'laurel-ascendant',
   'snowstorm',
   'inferno',
 ]);

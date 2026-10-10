@@ -81,27 +81,27 @@ testing, not final.
 | ★ 5 | 25 pistols + 5 thugs |
 | 6 | 500 beer |
 | 7 | 50 medicine |
-| ★ 8 | $50,000 + **Urban Ghost** collection |
+| ★ 8 | $50,000 + **Urban Ghost** collection + **Chrome Serpent** theme pack |
 | 9 | 250 weed |
-| ★ 10 | 3 shotguns + 5 hoes + **Fresh Face** title |
+| ★ 10 | 3 shotguns + 5 hoes + **Fresh Face** title + **Phantom Convoy** theme pack |
 | 11 | 40 turns |
-| 12 | Street Frenzy |
+| ★ 12 | Street Frenzy + **Lantern District** theme pack |
 | 13 | 10 thugs |
 | 14 | 150 ecstasy |
-| ★ 15 | $100,000 + Tommy Voucher + **Night Drive · Season 1** theme |
+| ★ 15 | $100,000 + Tommy Voucher + **Ice Dragon/Snowstorm** set + **Siren Breaker** theme pack |
 | 16 | 8 hoes |
 | 17 | Cookhouse Rush |
-| ★ 18 | 200 meth + **Midnight Ops** collection |
+| ★ 18 | 200 meth + **Midnight Ops** collection + **Block Sovereign** theme pack |
 | 19 | 60 turns |
-| ★ 20 | 2 Tek-9s + 1 Low-Rider + **Made Man** title |
+| ★ 20 | 2 Tek-9s + 1 Low-Rider + **Made Man** title + **Gilded House** theme pack |
 | 21 | $150,000 |
 | 22 | 150 cocaine |
 | 23 | 2 Burner Phones |
 | 24 | 15 thugs |
-| ★ 25 | 12 hoes + Doctor Favor + **Chrome Halo · Season 1** frame |
+| ★ 25 | 12 hoes + Doctor Favor + **Fire Dragon/Inferno** set + **Dead-or-Alive** theme pack |
 | 26 | 100 turns |
 | 27 | 200 heroin |
-| ★ 28 | $200,000 + **Cartel Gold** collection |
+| ★ 28 | $200,000 + **Cartel Gold** collection + **Laurel Ascendant** theme pack |
 | 29 | 2 AK-47s + 1 Low-Rider |
 | ★ 30 | **Kingpin** title + season badge + season profile frame (all permanent) |
 
@@ -177,8 +177,18 @@ permanent on the account, through the existing cosmetics system
 | 10 | Fresh Face · Season 1 | title (`TITLE_BADGE`) | rare |
 | 20 | Made Man · Season 1 | title (`TITLE_BADGE`) | epic |
 | 30 | Kingpin · Season 1 | title (`TITLE_BADGE`) | legendary |
-| 15 | Night Drive · Season 1 | site theme (`SITE_THEME`) | epic |
-| 25 | Chrome Halo · Season 1 | profile frame (`PROFILE_FRAME`) | epic |
+| 15 | Ice Dragon · Season 1 | site theme (`SITE_THEME`) | legendary |
+| 15 | Snowstorm Drake Frame · Season 1 | profile frame (`PROFILE_FRAME`) | legendary |
+| 8 | Chrome Serpent · Season 1 | motor-city shell + popup/avatar frame | epic |
+| 10 | Phantom Convoy · Season 1 | open-road shell + popup/avatar frame | epic |
+| 12 | Lantern District · Season 1 | neon-vice shell + popup/avatar frame | epic |
+| 15 | Siren Breaker · Season 1 | blue-heat shell + popup/avatar frame | epic |
+| 18 | Block Sovereign · Season 1 | rain-city shell + popup/avatar frame | epic |
+| 20 | Gilded House · Season 1 | casino-floor shell + popup/avatar frame | epic |
+| 25 | Fire Dragon · Season 1 | site theme (`SITE_THEME`) | legendary |
+| 25 | Inferno Drake Frame · Season 1 | profile frame (`PROFILE_FRAME`) | legendary |
+| 25 | Dead-or-Alive · Season 1 | federal-case shell + popup/avatar frame | epic |
+| 28 | Laurel Ascendant · Season 1 | midnight-market shell + popup/avatar frame | epic |
 | 30 | Street Pass · Season 1 | badge (`TITLE_BADGE`) | legendary |
 | 30 | Season 1 Frame | profile frame (`PROFILE_FRAME`) | legendary |
 | 8 | Urban Ghost Collection | item art collection (`ITEM_COLLECTION`) | rare |
@@ -284,15 +294,17 @@ Jobs can use these too.
    the 30-tier track of item tiles that opens at the player's position, and
    the Cred rates, today's turn Cred and the late-join bonus. Season
    cosmetics show a ★ stand-in tile until step 4.
-4. **Done.** Item art for all seven Season 1 cosmetics in
+4. **Done.** Item art for all Season 1 cosmetics in
    `apps/web/public/items/street-pass-s1-*.svg`: fresh kicks (Fresh Face),
-   a fedora (Made Man), a gold crown (Kingpin), a lanyard pass (badge), a gold
-   frame, a neon road card (Night Drive), and a chrome halo frame. The catalog
+   a fedora (Made Man), a gold crown (Kingpin), a lanyard pass (badge), an Ice
+   Dragon shell, a Snowstorm Drake frame, a Fire Dragon shell, an Inferno Drake
+   frame, eight matched theme packs, and the gold season frame. The catalog
    uses the `COSMETIC` category so the track and reward chips show them. The Season 1 frame uses
-   `.se-profile-frame--street-pass-s1-frame` (gold double border); Chrome Halo
-   uses `.se-profile-frame--street-pass-s1-chrome-halo`. Night Drive uses the
-   `street-pass-s1-night-drive` player-facing site theme. Titles read as named
-   on profiles ("Kingpin · Season 1", not "The …").
+   `.se-profile-frame--street-pass-s1-frame` (gold double border). The Ice and
+   Fire shell choices are separate from the Snowstorm and Inferno popup
+   animations, and the Drake frames can be selected independently for the
+   popup and avatar. Titles read as named on profiles ("Kingpin · Season 1",
+   not "The …").
    Job finale cosmetics still have no art and stay text chips.
 5. **Done.** `npm run qa:street-pass` balance run (six player types, pass
    value against the season simulation), tier costs raised to 800 / 1,200 /

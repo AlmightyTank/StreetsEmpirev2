@@ -44,14 +44,32 @@ describe('Street Pass season 1', () => {
     ]);
     expect(STREET_PASS_S1_COSMETICS['street-pass-s1-badge'].kind).toBe('TITLE_BADGE');
     expect(STREET_PASS_S1_COSMETICS['street-pass-s1-frame'].kind).toBe('PROFILE_FRAME');
-    expect(STREET_PASS_S1.tiers[14]!.rewards).toContainEqual({ kind: 'COSMETIC_UNLOCK', key: 'street-pass-s1-night-drive-theme' });
-    expect(STREET_PASS_S1.tiers[24]!.rewards).toContainEqual({ kind: 'COSMETIC_UNLOCK', key: 'street-pass-s1-chrome-halo-frame' });
-    expect(STREET_PASS_S1_COSMETICS['street-pass-s1-night-drive-theme']).toMatchObject({
-      kind: 'SITE_THEME', styleKey: 'street-pass-s1-night-drive',
+    expect(STREET_PASS_S1.tiers[14]!.rewards).toContainEqual({ kind: 'COSMETIC_UNLOCK', key: 'street-pass-s1-ice-dragon-theme' });
+    expect(STREET_PASS_S1.tiers[14]!.rewards).toContainEqual({ kind: 'COSMETIC_UNLOCK', key: 'street-pass-s1-snowstorm-frame' });
+    expect(STREET_PASS_S1.tiers[24]!.rewards).toContainEqual({ kind: 'COSMETIC_UNLOCK', key: 'street-pass-s1-fire-dragon-theme' });
+    expect(STREET_PASS_S1.tiers[24]!.rewards).toContainEqual({ kind: 'COSMETIC_UNLOCK', key: 'street-pass-s1-inferno-frame' });
+    expect(STREET_PASS_S1_COSMETICS['street-pass-s1-ice-dragon-theme']).toMatchObject({
+      kind: 'SITE_THEME', styleKey: 'dragon-ice',
     });
-    expect(STREET_PASS_S1_COSMETICS['street-pass-s1-chrome-halo-frame']).toMatchObject({
-      kind: 'PROFILE_FRAME', styleKey: 'street-pass-s1-chrome-halo',
+    expect(STREET_PASS_S1_COSMETICS['street-pass-s1-snowstorm-frame']).toMatchObject({
+      kind: 'PROFILE_FRAME', styleKey: 'snowstorm-drake',
     });
+    expect(STREET_PASS_S1_COSMETICS['street-pass-s1-fire-dragon-theme']).toMatchObject({
+      kind: 'SITE_THEME', styleKey: 'dragon-fire',
+    });
+    expect(STREET_PASS_S1_COSMETICS['street-pass-s1-inferno-frame']).toMatchObject({
+      kind: 'PROFILE_FRAME', styleKey: 'inferno-drake',
+    });
+    for (const [name, shell] of [
+      ['chrome-serpent', 'motor-city-iron'], ['phantom-convoy', 'open-road'], ['lantern-district', 'neon-vice'],
+      ['siren-breaker', 'blue-heat'], ['block-sovereign', 'rain-city-wire'], ['gilded-house', 'casino-floor'],
+      ['dead-or-alive', 'federal-case'], ['laurel-ascendant', 'midnight-market'],
+    ]) {
+      const themeKey = `street-pass-s1-${name}-theme` as keyof typeof STREET_PASS_S1_COSMETICS;
+      const frameKey = `street-pass-s1-${name}-frame` as keyof typeof STREET_PASS_S1_COSMETICS;
+      expect(STREET_PASS_S1_COSMETICS[themeKey]).toMatchObject({ kind: 'SITE_THEME', styleKey: shell });
+      expect(STREET_PASS_S1_COSMETICS[frameKey]).toMatchObject({ kind: 'PROFILE_FRAME', styleKey: `${name}-frame` });
+    }
   });
 
   it('awards a season title at tiers 10, 20 and 30, rising in rarity', () => {
@@ -187,12 +205,30 @@ describe('streetPassProblems', () => {
   it('refuses season 1 on a round without its cosmetics', () => {
     expect(streetPassProblems(STREET_PASS_S1, classicOgV08H)).toEqual([
       'street-pass-s1 tier 8: COSMETIC_UNLOCK street-pass-s1-urban-ghost is not a cosmetic in this round',
+      'street-pass-s1 tier 8: COSMETIC_UNLOCK street-pass-s1-chrome-serpent-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 8: COSMETIC_UNLOCK street-pass-s1-chrome-serpent-frame is not a cosmetic in this round',
       'street-pass-s1 tier 10: COSMETIC_UNLOCK street-pass-s1-fresh-face is not a cosmetic in this round',
-      'street-pass-s1 tier 15: COSMETIC_UNLOCK street-pass-s1-night-drive-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 10: COSMETIC_UNLOCK street-pass-s1-phantom-convoy-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 10: COSMETIC_UNLOCK street-pass-s1-phantom-convoy-frame is not a cosmetic in this round',
+      'street-pass-s1 tier 12: COSMETIC_UNLOCK street-pass-s1-lantern-district-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 12: COSMETIC_UNLOCK street-pass-s1-lantern-district-frame is not a cosmetic in this round',
+      'street-pass-s1 tier 15: COSMETIC_UNLOCK street-pass-s1-ice-dragon-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 15: COSMETIC_UNLOCK street-pass-s1-snowstorm-frame is not a cosmetic in this round',
+      'street-pass-s1 tier 15: COSMETIC_UNLOCK street-pass-s1-siren-breaker-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 15: COSMETIC_UNLOCK street-pass-s1-siren-breaker-frame is not a cosmetic in this round',
       'street-pass-s1 tier 18: COSMETIC_UNLOCK street-pass-s1-midnight-ops is not a cosmetic in this round',
+      'street-pass-s1 tier 18: COSMETIC_UNLOCK street-pass-s1-block-sovereign-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 18: COSMETIC_UNLOCK street-pass-s1-block-sovereign-frame is not a cosmetic in this round',
       'street-pass-s1 tier 20: COSMETIC_UNLOCK street-pass-s1-made-man is not a cosmetic in this round',
-      'street-pass-s1 tier 25: COSMETIC_UNLOCK street-pass-s1-chrome-halo-frame is not a cosmetic in this round',
+      'street-pass-s1 tier 20: COSMETIC_UNLOCK street-pass-s1-gilded-house-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 20: COSMETIC_UNLOCK street-pass-s1-gilded-house-frame is not a cosmetic in this round',
+      'street-pass-s1 tier 25: COSMETIC_UNLOCK street-pass-s1-fire-dragon-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 25: COSMETIC_UNLOCK street-pass-s1-inferno-frame is not a cosmetic in this round',
+      'street-pass-s1 tier 25: COSMETIC_UNLOCK street-pass-s1-dead-or-alive-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 25: COSMETIC_UNLOCK street-pass-s1-dead-or-alive-frame is not a cosmetic in this round',
       'street-pass-s1 tier 28: COSMETIC_UNLOCK street-pass-s1-cartel-gold is not a cosmetic in this round',
+      'street-pass-s1 tier 28: COSMETIC_UNLOCK street-pass-s1-laurel-ascendant-theme is not a cosmetic in this round',
+      'street-pass-s1 tier 28: COSMETIC_UNLOCK street-pass-s1-laurel-ascendant-frame is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-kingpin is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-badge is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-frame is not a cosmetic in this round',

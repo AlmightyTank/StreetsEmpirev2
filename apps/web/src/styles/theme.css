@@ -2756,6 +2756,90 @@ a:hover { color: var(--se-accent-hover); }
   border: 3px double rgba(240, 194, 51, 0.38);
 }
 
+/* Season 1's paired animated frames use an illustrated dragon crest and elemental trim. */
+.se-profile-frame--snowstorm-drake {
+  border: 2px solid #a9eaff;
+  background: linear-gradient(145deg, #102a48, #0c1729 58%, #142f4a);
+  box-shadow: 0 0 24px #7cddff35, inset 0 0 28px #73dcff18;
+  animation: se-dragon-frame-breathe 4s ease-in-out infinite;
+}
+.se-profile-frame--snowstorm-drake::before {
+  inset: 0;
+  background: linear-gradient(135deg, #dffbff36, transparent 22%), linear-gradient(315deg, #60d9ff26, transparent 25%);
+}
+.se-profile-frame--snowstorm-drake::after { border: 2px solid #dffbff8c; }
+.se-profile-frame--inferno-drake {
+  border: 2px solid #ff8b36;
+  background: linear-gradient(145deg, #431d28, #19111b 58%, #401d23);
+  box-shadow: 0 0 24px #ff6a3038, inset 0 0 28px #ff67221b;
+  animation: se-dragon-frame-breathe 2.2s ease-in-out infinite;
+}
+.se-profile-frame--inferno-drake::before {
+  inset: 0;
+  background: linear-gradient(135deg, #ffe09d30, transparent 21%), linear-gradient(315deg, #ff542f2e, transparent 26%);
+}
+.se-profile-frame--inferno-drake::after { border: 2px solid #ffd06f9c; }
+@media (prefers-reduced-motion: reduce) {
+  .se-profile-frame--snowstorm-drake,
+  .se-profile-frame--inferno-drake { animation: none; }
+}
+
+/* Matching public profile frames for the eight rebuilt Street Pass themes. */
+.se-profile-frame--chrome-serpent-frame { --se-theme-frame: #92efff; border-color: #92efff; box-shadow: inset 0 0 24px #92efff19, 0 0 18px #92efff26; }
+.se-profile-frame--phantom-convoy-frame { --se-theme-frame: #a7d8ff; border-color: #a7d8ff; box-shadow: inset 0 0 24px #a7d8ff19, 0 0 18px #a7d8ff26; }
+.se-profile-frame--lantern-district-frame { --se-theme-frame: #ffb85c; border-color: #ffb85c; box-shadow: inset 0 0 24px #ffb85c19, 0 0 18px #ffb85c26; }
+.se-profile-frame--siren-breaker-frame { --se-theme-frame: #ff5969; border-color: #ff5969; box-shadow: inset 0 0 24px #ff596919, 0 0 18px #ff596926; }
+.se-profile-frame--block-sovereign-frame { --se-theme-frame: #8fe29a; border-color: #8fe29a; box-shadow: inset 0 0 24px #8fe29a19, 0 0 18px #8fe29a26; }
+.se-profile-frame--gilded-house-frame { --se-theme-frame: #edcf7a; border-color: #edcf7a; box-shadow: inset 0 0 24px #edcf7a19, 0 0 18px #edcf7a26; }
+.se-profile-frame--dead-or-alive-frame { --se-theme-frame: #d2aa76; border-color: #d2aa76; box-shadow: inset 0 0 24px #d2aa7619, 0 0 18px #d2aa7626; }
+.se-profile-frame--laurel-ascendant-frame { --se-theme-frame: #c6db77; border-color: #c6db77; box-shadow: inset 0 0 24px #c6db7719, 0 0 18px #c6db7726; }
+.se-profile-frame--chrome-serpent-frame::after,
+.se-profile-frame--phantom-convoy-frame::after,
+.se-profile-frame--lantern-district-frame::after,
+.se-profile-frame--siren-breaker-frame::after,
+.se-profile-frame--block-sovereign-frame::after,
+.se-profile-frame--gilded-house-frame::after,
+.se-profile-frame--dead-or-alive-frame::after,
+.se-profile-frame--laurel-ascendant-frame::after { border: 1px solid color-mix(in srgb, var(--se-theme-frame) 72%, white); }
+.se-profile-frame--chrome-serpent-frame::before { inset: 0; background: repeating-linear-gradient(132deg, transparent 0 14px, #a8f4ff18 15px 17px, transparent 18px 30px); }
+.se-profile-frame--phantom-convoy-frame::before { inset: 0; background: linear-gradient(100deg, transparent 32%, #e9f9ff44 49%, transparent 64%); background-size: 250% 100%; animation: se-theme-frame-traverse 6s ease-in-out infinite; }
+.se-profile-frame--lantern-district-frame::before { inset: 0; background: radial-gradient(ellipse at 8% 18%, #ffc55c30, transparent 18%), radial-gradient(ellipse at 92% 20%, #ffd98628, transparent 19%); animation: se-lantern-sway 3.4s ease-in-out infinite alternate; }
+.se-profile-frame--siren-breaker-frame::before { inset: 0; background: linear-gradient(90deg, #ef3e592c 0 18%, transparent 36% 64%, #37aaf32c 82% 100%); background-size: 210% 100%; animation: se-siren-sweep 3.1s ease-in-out infinite; }
+.se-profile-frame--block-sovereign-frame::before { inset: 0; background-image: linear-gradient(90deg, transparent 18%, #8fe29a38 19% 20%, transparent 21% 79%, #8fe29a38 80% 81%, transparent 82%); }
+.se-profile-frame--gilded-house-frame::before { inset: 0; background: linear-gradient(112deg, transparent 28%, #fff4c766 49%, transparent 64%); background-size: 250% 100%; animation: se-theme-frame-traverse 5s ease-in-out infinite; }
+.se-profile-frame--dead-or-alive-frame::before { inset: 0; background: radial-gradient(ellipse at 0 0, #a35f3224, transparent 30%), radial-gradient(ellipse at 100% 100%, #a35f3224, transparent 32%); animation: se-paper-flutter 4s ease-in-out infinite; }
+.se-profile-frame--laurel-ascendant-frame::before { inset: 0; background: radial-gradient(ellipse at 0 50%, transparent 0 38%, #c6db772a 39% 41%, transparent 42%), radial-gradient(ellipse at 100% 50%, transparent 0 38%, #c6db772a 39% 41%, transparent 42%); animation: se-laurel-unfurl 4s ease-in-out infinite alternate; }
+
+/* The public profile header mirrors the selected popup animation. */
+.se-profile-pagehead.se-profile-effect--chrome-serpent { --se-page-frame-color: #92efff; }
+.se-profile-pagehead.se-profile-effect--phantom-convoy { --se-page-frame-color: #a7d8ff; }
+.se-profile-pagehead.se-profile-effect--lantern-district { --se-page-frame-color: #ffb85c; }
+.se-profile-pagehead.se-profile-effect--siren-breaker { --se-page-frame-color: #ff5969; }
+.se-profile-pagehead.se-profile-effect--block-sovereign { --se-page-frame-color: #8fe29a; }
+.se-profile-pagehead.se-profile-effect--gilded-house { --se-page-frame-color: #edcf7a; }
+.se-profile-pagehead.se-profile-effect--dead-or-alive { --se-page-frame-color: #d2aa76; }
+.se-profile-pagehead.se-profile-effect--laurel-ascendant { --se-page-frame-color: #c6db77; }
+.se-profile-pagehead:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant) {
+  border-color: var(--se-page-frame-color);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--se-page-frame-color) 24%, transparent);
+  animation: se-page-theme-pulse 3.8s ease-in-out infinite;
+}
+.se-profile-pagehead:is(.se-profile-effect--phantom-convoy, .se-profile-effect--gilded-house)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(110deg, transparent 35%, color-mix(in srgb, var(--se-page-frame-color) 34%, transparent) 50%, transparent 65%);
+  background-size: 240% 100%; animation: se-theme-frame-traverse 5s ease-in-out infinite;
+}
+.se-profile-pagehead:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant) .se-profile-pagehead__avatar {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 6px var(--se-page-frame-color), 0 0 22px color-mix(in srgb, var(--se-page-frame-color) 72%, transparent);
+  animation: se-avatar-frame-breathe 3s ease-in-out infinite alternate;
+}
+@keyframes se-page-theme-pulse { 0%, 100% { filter: saturate(.92); } 50% { filter: saturate(1.22); } }
+@media (prefers-reduced-motion: reduce) {
+  .se-profile-pagehead:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant),
+  .se-profile-pagehead:is(.se-profile-effect--phantom-convoy, .se-profile-effect--gilded-house)::after,
+  .se-profile-pagehead:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant) .se-profile-pagehead__avatar { animation: none !important; }
+}
+
 .se-profile-effect {
   position: relative;
   isolation: isolate;

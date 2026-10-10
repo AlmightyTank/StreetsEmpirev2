@@ -38,10 +38,12 @@ const cosmetic = (key: string): QuestRewardDefinition => ({ kind: 'COSMETIC_UNLO
 
 /**
  * Season 1's permanent cosmetics: a title at tiers 10, 20 and 30, plus the
- * tier 30 badge and frame, the tier 15 theme, the tier 25 frame, and the three
- * item art collections at tiers 8, 18 and 28. A ruleset that ships this pass
- * adds these to its cosmetics. Titles carry the season so each season's set is
- * collectible.
+ * tier 30 badge and frame, an Ice Dragon shell and Snowstorm frame at tier 15,
+ * a Fire Dragon shell and Inferno frame at tier 25, and the three
+ * item art collections at tiers 8, 18 and 28. Eight reimagined theme packs
+ * spread across cosmetic tiers pair a site shell with its popup/avatar frame.
+ * A ruleset that ships this pass adds these to its cosmetics. Titles carry the
+ * season so each season's set is collectible.
  */
 export const STREET_PASS_S1_COSMETICS = {
   'street-pass-s1-fresh-face': {
@@ -80,21 +82,117 @@ export const STREET_PASS_S1_COSMETICS = {
     rarity: 'legendary',
     styleKey: 'street-pass-s1-frame',
   },
-  'street-pass-s1-night-drive-theme': {
-    key: 'street-pass-s1-night-drive-theme',
-    name: 'Night Drive · Season 1',
-    description: 'A midnight road theme with violet glass, electric teal and passing headlight streaks.',
-    kind: 'SITE_THEME',
-    rarity: 'epic',
-    styleKey: 'street-pass-s1-night-drive',
+  'street-pass-s1-chrome-serpent-theme': {
+    key: 'street-pass-s1-chrome-serpent-theme', name: 'Chrome Serpent · Season 1',
+    description: 'A brushed-steel garage shell with animated route lines and teal scale light.',
+    kind: 'SITE_THEME', rarity: 'epic', styleKey: 'motor-city-iron',
   },
-  'street-pass-s1-chrome-halo-frame': {
-    key: 'street-pass-s1-chrome-halo-frame',
-    name: 'Chrome Halo · Season 1',
-    description: 'A polished chrome ring with cool violet and teal light, earned through the Season 1 Street Pass.',
+  'street-pass-s1-chrome-serpent-frame': {
+    key: 'street-pass-s1-chrome-serpent-frame', name: 'Chrome Serpent Frame · Season 1',
+    description: 'A chrome serpent frame with moving scale highlights for the popup and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', styleKey: 'chrome-serpent-frame',
+  },
+  'street-pass-s1-phantom-convoy-theme': {
+    key: 'street-pass-s1-phantom-convoy-theme', name: 'Phantom Convoy · Season 1',
+    description: 'A rain-slick interstate shell with distant city light and headlight reflections.',
+    kind: 'SITE_THEME', rarity: 'epic', styleKey: 'open-road',
+  },
+  'street-pass-s1-phantom-convoy-frame': {
+    key: 'street-pass-s1-phantom-convoy-frame', name: 'Phantom Convoy Frame · Season 1',
+    description: 'A road-sign crest frame with sweeping headlight light for the popup and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', styleKey: 'phantom-convoy-frame',
+  },
+  'street-pass-s1-lantern-district-theme': {
+    key: 'street-pass-s1-lantern-district-theme', name: 'Lantern District · Season 1',
+    description: 'A night-market shell with warm paper panels and animated lantern light.',
+    kind: 'SITE_THEME', rarity: 'epic', styleKey: 'neon-vice',
+  },
+  'street-pass-s1-lantern-district-frame': {
+    key: 'street-pass-s1-lantern-district-frame', name: 'Lantern District Frame · Season 1',
+    description: 'A lacquered lantern frame with swaying tassels and animated light pools.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', styleKey: 'lantern-district-frame',
+  },
+  'street-pass-s1-siren-breaker-theme': {
+    key: 'street-pass-s1-siren-breaker-theme', name: 'Siren Breaker · Season 1',
+    description: 'A rain-dark shell with evidence-board blues and distant siren reflections.',
+    kind: 'SITE_THEME', rarity: 'epic', styleKey: 'blue-heat',
+  },
+  'street-pass-s1-siren-breaker-frame': {
+    key: 'street-pass-s1-siren-breaker-frame', name: 'Siren Breaker Frame · Season 1',
+    description: 'A cracked-glass signal frame with a sweeping searchlight and red-blue pulse.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', styleKey: 'siren-breaker-frame',
+  },
+  'street-pass-s1-block-sovereign-theme': {
+    key: 'street-pass-s1-block-sovereign-theme', name: 'Block Sovereign · Season 1',
+    description: 'A wet-city shell with painted brick, a rooftop skyline and territory lines.',
+    kind: 'SITE_THEME', rarity: 'epic', styleKey: 'rain-city-wire',
+  },
+  'street-pass-s1-block-sovereign-frame': {
+    key: 'street-pass-s1-block-sovereign-frame', name: 'Block Sovereign Frame · Season 1',
+    description: 'A neighborhood crest frame with pulsing claim marks for the popup and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', styleKey: 'block-sovereign-frame',
+  },
+  'street-pass-s1-gilded-house-theme': {
+    key: 'street-pass-s1-gilded-house-theme', name: 'Gilded House · Season 1',
+    description: 'A casino shell with deep felt, brass rails and slow marquee light.',
+    kind: 'SITE_THEME', rarity: 'epic', styleKey: 'casino-floor',
+  },
+  'street-pass-s1-gilded-house-frame': {
+    key: 'street-pass-s1-gilded-house-frame', name: 'Gilded House Frame · Season 1',
+    description: 'A coin-and-gem frame with an animated card fan and traveling gold glint.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', styleKey: 'gilded-house-frame',
+  },
+  'street-pass-s1-dead-or-alive-theme': {
+    key: 'street-pass-s1-dead-or-alive-theme', name: 'Dead-or-Alive · Season 1',
+    description: 'A dusty case-office shell with pinned files and sepia paper surfaces.',
+    kind: 'SITE_THEME', rarity: 'epic', styleKey: 'federal-case',
+  },
+  'street-pass-s1-dead-or-alive-frame': {
+    key: 'street-pass-s1-dead-or-alive-frame', name: 'Dead-or-Alive Frame · Season 1',
+    description: 'A weathered wanted-poster frame with fluttering paper and an animated seal.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', styleKey: 'dead-or-alive-frame',
+  },
+  'street-pass-s1-laurel-ascendant-theme': {
+    key: 'street-pass-s1-laurel-ascendant-theme', name: 'Laurel Ascendant · Season 1',
+    description: 'A velvet championship shell with trophy brass, banners and marquee light.',
+    kind: 'SITE_THEME', rarity: 'epic', styleKey: 'midnight-market',
+  },
+  'street-pass-s1-laurel-ascendant-frame': {
+    key: 'street-pass-s1-laurel-ascendant-frame', name: 'Laurel Ascendant Frame · Season 1',
+    description: 'A sculpted laurel and medal frame that unfurls around the popup and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', styleKey: 'laurel-ascendant-frame',
+  },
+  'street-pass-s1-ice-dragon-theme': {
+    key: 'street-pass-s1-ice-dragon-theme',
+    name: 'Ice Dragon · Season 1',
+    description: 'A glacial dragon shell with frozen blue panels, drifting snow and ice-lit details.',
+    kind: 'SITE_THEME',
+    rarity: 'legendary',
+    styleKey: 'dragon-ice',
+  },
+  'street-pass-s1-snowstorm-frame': {
+    key: 'street-pass-s1-snowstorm-frame',
+    name: 'Snowstorm Drake Frame · Season 1',
+    description: 'An illustrated ice dragon curls around the popup and avatar, with animated frost and snow.',
     kind: 'PROFILE_FRAME',
-    rarity: 'epic',
-    styleKey: 'street-pass-s1-chrome-halo',
+    rarity: 'legendary',
+    styleKey: 'snowstorm-drake',
+  },
+  'street-pass-s1-fire-dragon-theme': {
+    key: 'street-pass-s1-fire-dragon-theme',
+    name: 'Fire Dragon · Season 1',
+    description: 'A fire dragon shell with ember-lit panels, heated accents and rising sparks.',
+    kind: 'SITE_THEME',
+    rarity: 'legendary',
+    styleKey: 'dragon-fire',
+  },
+  'street-pass-s1-inferno-frame': {
+    key: 'street-pass-s1-inferno-frame',
+    name: 'Inferno Drake Frame · Season 1',
+    description: 'An illustrated fire dragon curls around the popup and avatar, with animated flame and embers.',
+    kind: 'PROFILE_FRAME',
+    rarity: 'legendary',
+    styleKey: 'inferno-drake',
   },
   'street-pass-s1-urban-ghost': {
     key: 'street-pass-s1-urban-ghost',
@@ -152,27 +250,27 @@ export const STREET_PASS_S1 = {
     { tier: 5, rewards: [item('pistols', 25), item('thugs', 5)] },
     { tier: 6, rewards: [item('beer', 500)] },
     { tier: 7, rewards: [item('medicine', 50)] },
-    { tier: 8, rewards: [cash(50_000), cosmetic('street-pass-s1-urban-ghost')] },
+    { tier: 8, rewards: [cash(50_000), cosmetic('street-pass-s1-urban-ghost'), cosmetic('street-pass-s1-chrome-serpent-theme'), cosmetic('street-pass-s1-chrome-serpent-frame')] },
     { tier: 9, rewards: [product('WEED', 250)] },
-    { tier: 10, rewards: [item('shotguns', 3), item('whores', 5), cosmetic('street-pass-s1-fresh-face')] },
+    { tier: 10, rewards: [item('shotguns', 3), item('whores', 5), cosmetic('street-pass-s1-fresh-face'), cosmetic('street-pass-s1-phantom-convoy-theme'), cosmetic('street-pass-s1-phantom-convoy-frame')] },
     { tier: 11, rewards: [turns(40)] },
-    { tier: 12, rewards: [favor('STREET_FRENZY')] },
+    { tier: 12, rewards: [favor('STREET_FRENZY'), cosmetic('street-pass-s1-lantern-district-theme'), cosmetic('street-pass-s1-lantern-district-frame')] },
     { tier: 13, rewards: [item('thugs', 10)] },
     { tier: 14, rewards: [product('ECSTASY', 150)] },
-    { tier: 15, rewards: [cash(100_000), favor('TOMMY_VOUCHER'), cosmetic('street-pass-s1-night-drive-theme')] },
+    { tier: 15, rewards: [cash(100_000), favor('TOMMY_VOUCHER'), cosmetic('street-pass-s1-ice-dragon-theme'), cosmetic('street-pass-s1-snowstorm-frame'), cosmetic('street-pass-s1-siren-breaker-theme'), cosmetic('street-pass-s1-siren-breaker-frame')] },
     { tier: 16, rewards: [item('whores', 8)] },
     { tier: 17, rewards: [favor('COOKHOUSE_RUSH')] },
-    { tier: 18, rewards: [product('METH', 200), cosmetic('street-pass-s1-midnight-ops')] },
+    { tier: 18, rewards: [product('METH', 200), cosmetic('street-pass-s1-midnight-ops'), cosmetic('street-pass-s1-block-sovereign-theme'), cosmetic('street-pass-s1-block-sovereign-frame')] },
     { tier: 19, rewards: [turns(60)] },
-    { tier: 20, rewards: [item('tek9s', 2), item('lowRiders', 1), cosmetic('street-pass-s1-made-man')] },
+    { tier: 20, rewards: [item('tek9s', 2), item('lowRiders', 1), cosmetic('street-pass-s1-made-man'), cosmetic('street-pass-s1-gilded-house-theme'), cosmetic('street-pass-s1-gilded-house-frame')] },
     { tier: 21, rewards: [cash(150_000)] },
     { tier: 22, rewards: [product('COCAINE', 150)] },
     { tier: 23, rewards: [favor('BURNER_PHONE', 2)] },
     { tier: 24, rewards: [item('thugs', 15)] },
-    { tier: 25, rewards: [item('whores', 12), favor('DOCTOR_FAVOR'), cosmetic('street-pass-s1-chrome-halo-frame')] },
+    { tier: 25, rewards: [item('whores', 12), favor('DOCTOR_FAVOR'), cosmetic('street-pass-s1-fire-dragon-theme'), cosmetic('street-pass-s1-inferno-frame'), cosmetic('street-pass-s1-dead-or-alive-theme'), cosmetic('street-pass-s1-dead-or-alive-frame')] },
     { tier: 26, rewards: [turns(100)] },
     { tier: 27, rewards: [product('HEROIN', 200)] },
-    { tier: 28, rewards: [cash(200_000), cosmetic('street-pass-s1-cartel-gold')] },
+    { tier: 28, rewards: [cash(200_000), cosmetic('street-pass-s1-cartel-gold'), cosmetic('street-pass-s1-laurel-ascendant-theme'), cosmetic('street-pass-s1-laurel-ascendant-frame')] },
     { tier: 29, rewards: [item('ak47s', 2), item('lowRiders', 1)] },
     { tier: 30, rewards: [cosmetic('street-pass-s1-kingpin'), cosmetic('street-pass-s1-badge'), cosmetic('street-pass-s1-frame')] },
   ],

@@ -114,14 +114,14 @@ export function AccountSettingsPage() {
               themes: [],
               effects: [
                 { key: 'none', label: 'No effect', description: null },
-                { key: 'street-circuit', label: 'Street Circuit', description: null },
-                { key: 'night-drive', label: 'Night Drive', description: null },
-                { key: 'corner-glow', label: 'Corner Glow', description: null },
-                { key: 'heat-signal', label: 'Heat Signal', description: null },
-                { key: 'turf-claim', label: 'Turf Claim', description: null },
-                { key: 'high-roller', label: 'High Roller', description: null },
-                { key: 'wanted', label: 'Wanted', description: null },
-                { key: 'season-champion', label: 'Season Champion', description: null },
+                { key: 'chrome-serpent', label: 'Chrome Serpent', description: null },
+                { key: 'phantom-convoy', label: 'Phantom Convoy', description: null },
+                { key: 'lantern-district', label: 'Lantern District', description: null },
+                { key: 'siren-breaker', label: 'Siren Breaker', description: null },
+                { key: 'block-sovereign', label: 'Block Sovereign', description: null },
+                { key: 'gilded-house', label: 'Gilded House', description: null },
+                { key: 'dead-or-alive', label: 'Dead-or-Alive', description: null },
+                { key: 'laurel-ascendant', label: 'Laurel Ascendant', description: null },
                 { key: 'snowstorm', label: 'Snowstorm', description: null },
                 { key: 'inferno', label: 'Inferno', description: null },
               ],
@@ -723,7 +723,7 @@ export function AccountSettingsPage() {
                 </div>
 
                 <div className="se-field">
-                  <label className="se-label" htmlFor="profile-effect">Frame animation</label>
+                  <label className="se-label" htmlFor="profile-effect">Popup animation</label>
                   <select
                     id="profile-effect"
                     className="se-input"
@@ -739,7 +739,7 @@ export function AccountSettingsPage() {
                   </select>
                   {fields.profileEffect
                     ? <p className="se-error" role="alert">{fields.profileEffect}</p>
-                    : <p className="se-hint">Choose a paired animation for the popup and avatar frames. Reduced-motion visitors see the still frame artwork.</p>}
+                    : <p className="se-hint">This changes the hover popup and avatar effect only. Choose a separate shell theme below to match it or mix Ice Dragon and Fire Dragon. Reduced-motion visitors see still artwork.</p>}
                 </div>
 
                 <div className="se-field">
@@ -760,7 +760,7 @@ export function AccountSettingsPage() {
                   </select>
                   {fields.activeSiteThemeKey
                     ? <p className="se-error" role="alert">{fields.activeSiteThemeKey}</p>
-                    : <p className="se-hint">{profileSettings.options.themes.length ? 'Themes reskin the player-facing game shell, panels, controls and background atmosphere.' : 'Seasonal and event themes will appear here after you unlock them.'}</p>}
+                    : <p className="se-hint">{profileSettings.options.themes.length ? 'Choose the whole game-shell look independently from your popup animation. Dragon themes add matching ambient artwork and motion.' : 'Seasonal and event themes will appear here after you unlock them.'}</p>}
                 </div>
               </div>
 

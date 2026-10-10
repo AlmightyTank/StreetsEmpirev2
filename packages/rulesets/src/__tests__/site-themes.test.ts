@@ -12,7 +12,7 @@ describe('Phase Y-E player-facing site themes', () => {
     expect(classicOgV07Z.questDefinitions).toBe(classicOgV07Y.questDefinitions);
   });
 
-  it('adds permanent identity themes plus Winter Lights and Halloween Moon as site themes', () => {
+  it('adds permanent identity, seasonal and dragon themes as site themes', () => {
     expect(classicOgV07Z.cosmetics?.['neon-vice']).toMatchObject({
       kind: 'SITE_THEME',
       styleKey: 'neon-vice',
@@ -67,6 +67,16 @@ describe('Phase Y-E player-facing site themes', () => {
       kind: 'SITE_THEME',
       styleKey: 'halloween-moon',
       rarity: 'epic',
+    });
+    expect(classicOgV07Z.cosmetics?.['dragon-ice-theme']).toMatchObject({
+      kind: 'SITE_THEME',
+      styleKey: 'dragon-ice',
+      rarity: 'legendary',
+    });
+    expect(classicOgV07Z.cosmetics?.['dragon-fire-theme']).toMatchObject({
+      kind: 'SITE_THEME',
+      styleKey: 'dragon-fire',
+      rarity: 'legendary',
     });
   });
 

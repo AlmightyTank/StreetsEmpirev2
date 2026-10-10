@@ -205,7 +205,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
             </div>
             <div className="se-pass-theme-preview__mock-panel">
               <small>HOME BASE</small>
-              <strong>Night Drive</strong>
+              <strong>{active.label}</strong>
               <i />
             </div>
             <div className="se-pass-theme-preview__mock-nav"><i /><i /><i /><i /><i /></div>

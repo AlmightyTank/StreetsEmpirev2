@@ -96,16 +96,16 @@ export const DEFAULT_LANDINGS: CosmeticOptionDto[] = [
 
 export const PROFILE_EFFECTS: CosmeticOptionDto[] = [
   { key: 'none', label: 'No animation', description: 'Keep both frames still.' },
-  { key: 'street-circuit', label: 'Street Circuit', description: 'A lime route line traces the popup edge and avatar ring.' },
-  { key: 'night-drive', label: 'Night Drive', description: 'A headlight sweep travels across the popup and avatar frame.' },
-  { key: 'corner-glow', label: 'Corner Glow', description: 'Warm streetlight glows rise and fade at the frame corners.' },
-  { key: 'heat-signal', label: 'Heat Signal', description: 'A restrained red-blue warning pulse moves around both frames.' },
-  { key: 'turf-claim', label: 'Turf Claim', description: 'A block marker lights up before the border settles.' },
-  { key: 'high-roller', label: 'High Roller', description: 'A gold glint sweeps around the popup and avatar.' },
-  { key: 'wanted', label: 'Wanted', description: 'An amber alert glow flickers once in a while.' },
-  { key: 'season-champion', label: 'Season Champion', description: 'A championship double-ring and crest glow.' },
-  { key: 'snowstorm', label: 'Snowstorm', description: 'Snow swirls around the popup while frost gathers on the frame.' },
-  { key: 'inferno', label: 'Inferno', description: 'Flames climb the popup edges as glowing embers drift upward.' },
+  { key: 'chrome-serpent', label: 'Chrome Serpent', description: 'A scale-plated chrome dragon coils around the frame with animated teal light.' },
+  { key: 'phantom-convoy', label: 'Phantom Convoy', description: 'Headlights sweep across the popup while a road-glass frame shimmers.' },
+  { key: 'lantern-district', label: 'Lantern District', description: 'Lanterns sway and cast warm, animated pools of light around the popup.' },
+  { key: 'siren-breaker', label: 'Siren Breaker', description: 'A searchlight cuts across the card as red-blue signal light moves around its rim.' },
+  { key: 'block-sovereign', label: 'Block Sovereign', description: 'A neighborhood crest lights up as claim marks pulse across the frame.' },
+  { key: 'gilded-house', label: 'Gilded House', description: 'A fan of cards opens behind the banner as gold light travels over the trim.' },
+  { key: 'dead-or-alive', label: 'Dead-or-Alive', description: 'A wanted notice flutters with paper grain, drifting dust and a stamped seal.' },
+  { key: 'laurel-ascendant', label: 'Laurel Ascendant', description: 'A medal turns as gold laurel leaves unfurl around the profile.' },
+  { key: 'snowstorm', label: 'Snowstorm', description: 'A living ice-dragon frame sweeps through snow and frost.' },
+  { key: 'inferno', label: 'Inferno', description: 'A living fire-dragon frame moves through flame and rising embers.' },
 ];
 
 function stringArray(value: unknown): string[] {
@@ -114,6 +114,24 @@ function stringArray(value: unknown): string[] {
 
 function uniqueKeys(keys: string[]): string[] {
   return [...new Set(keys.map((key) => key.trim()).filter(Boolean))];
+}
+
+function profileEffectsForFrames(frames: CosmeticOptionDto[]): CosmeticOptionDto[] {
+  const earnedFrames = new Set(frames.map((frame) => frame.key));
+  const frameByEffect: Record<string, string> = {
+    'chrome-serpent': 'chrome-serpent-frame',
+    'phantom-convoy': 'phantom-convoy-frame',
+    'lantern-district': 'lantern-district-frame',
+    'siren-breaker': 'siren-breaker-frame',
+    'block-sovereign': 'block-sovereign-frame',
+    'gilded-house': 'gilded-house-frame',
+    'dead-or-alive': 'dead-or-alive-frame',
+    'laurel-ascendant': 'laurel-ascendant-frame',
+    snowstorm: 'snowstorm-drake',
+    inferno: 'inferno-drake',
+  };
+  return PROFILE_EFFECTS.filter((effect) => effect.key === 'none'
+    || (frameByEffect[effect.key] !== undefined && earnedFrames.has(frameByEffect[effect.key]!)));
 }
 
 function optionFromAward(award: PublicAwardDto): BadgeCosmeticOptionDto {
@@ -205,6 +223,7 @@ function toSettingsDto(
     ? profile!.defaultLanding as DefaultLanding
     : 'game';
   const profileEffect = PROFILE_EFFECTS.some((option) => option.key === profile?.profileEffect)
+    && profileEffectsForFrames(frameOptions).some((option) => option.key === profile?.profileEffect)
     ? profile!.profileEffect as ProfileEffect
     : 'none';
   return {
@@ -312,7 +331,7 @@ export const AccountProfileService = {
         accents: appearance.accents,
         frames: appearance.frames,
         themes: appearance.themes,
-        effects: PROFILE_EFFECTS,
+        effects: profileEffectsForFrames(appearance.frames),
         itemStyles: collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, appearance.collections, hints),
         crewStyles: collectionOptions(RELEASED_CREW_COSMETIC_STYLES, appearance.collections, hints),
         densities: UI_DENSITIES,
@@ -359,6 +378,12 @@ export const AccountProfileService = {
     if (requestedAvatarFrameKey && !activeAvatarFrameKey) {
       throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick an avatar frame you have already earned.', {
         activeAvatarFrameKey: 'That avatar frame is not unlocked.',
+      });
+    }
+    const effectOptions = profileEffectsForFrames(appearance.frames);
+    if (input.profileEffect && !effectOptions.some((option) => option.key === input.profileEffect)) {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Unlock the matching animated frame before equipping its popup animation.', {
+        profileEffect: 'That popup animation is not unlocked.',
       });
     }
     const themeKeys = new Set(appearance.themes.map((option) => option.key));
