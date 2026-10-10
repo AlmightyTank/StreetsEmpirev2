@@ -112,6 +112,7 @@ const themeScenes: Partial<Record<string, ComponentType>> = {
   'neon-vice': lazy(() => import('./theme-scenes/LanternDistrictScene.js')),
   'blue-heat': lazy(() => import('./theme-scenes/SirenBreakerScene.js')),
   'rain-city-wire': lazy(() => import('./theme-scenes/BlockSovereignScene.js')),
+  'casino-floor': lazy(() => import('./theme-scenes/GildedHouseScene.js')),
   'federal-case': lazy(() => import('./theme-scenes/DeadOrAliveScene.js')),
 };
 

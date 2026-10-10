@@ -1340,6 +1340,13 @@
    They sit under page content (.se-app isolates) so the art never covers text. */
 .se-site-theme-decor--scene { z-index: -1; opacity: .62; }
 .se-site-theme-decor--scene :is(.se-theme-pack__motif, .se-theme-pack__motes) { display: none; }
+@media (min-width: 900px) {
+  /* The desktop game frame pins a sidebar left and a taller HUD bar; frame the content column. */
+  .se-app--sidebar :is(.se-site-theme-decor--scene, .se-site-theme-decor--dragon) {
+    top: var(--se-topbar-h);
+    left: var(--se-sidebar-w);
+  }
+}
 .se-theme-scene { position: absolute; inset: 0; }
 .se-theme-scene svg { position: absolute; overflow: visible; }
 
@@ -1703,6 +1710,40 @@
 @keyframes se-bs-tag { from { opacity: .7; } to { opacity: 1; } }
 @media (max-width: 700px) {
   .se-bs__corner { width: 46vw; }
+}
+
+/* Gilded House: chasing marquee bulbs, a felt table edge with a glinting brass rail, a fanned hand
+   with a chip stack, a roulette wheel turning in the corner, and gold sparkles. */
+.se-gh__marquee { top: 8px; left: 0; width: 100%; height: auto; }
+.se-gh__bulb { fill: #ffe7a3; animation: se-gh-chase 1.5s steps(1, end) infinite; }
+.se-gh__bulb--1 { animation-delay: -.5s; }
+.se-gh__bulb--2 { animation-delay: -1s; }
+.se-gh__table { bottom: 0; left: 0; width: 100%; height: auto; }
+.se-gh__rail-glint { stroke-opacity: .8; animation: se-gh-rail 9s linear infinite; }
+.se-gh__hand { bottom: 3vh; left: 0; width: min(26vw, 360px); height: auto; }
+.se-gh__rank { font: 700 17px/1 Georgia, 'Times New Roman', serif; }
+.se-gh__card-glint { opacity: 0; animation: se-gh-glint 7s ease-in-out infinite; }
+.se-gh__wheel { bottom: 0; right: 0; width: min(30vw, 420px); height: auto; }
+.se-gh__spin { transform-origin: 400px 400px; animation: se-gh-spin 60s linear infinite; }
+.se-gh__ball { transform-origin: 400px 400px; animation: se-gh-spin 9s linear infinite reverse; }
+.se-gh__sparkles { position: absolute; inset: 0; }
+.se-gh__sparkles i {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #ffe7a3;
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  opacity: 0;
+  animation: se-gh-sparkle 6s ease-in-out infinite;
+}
+@keyframes se-gh-chase { 0%, 66% { fill-opacity: .25; } 33% { fill-opacity: 1; } }
+@keyframes se-gh-rail { from { stroke-dashoffset: 1870; } to { stroke-dashoffset: 0; } }
+@keyframes se-gh-glint { 0%, 60% { opacity: 0; translate: 0 0; } 68% { opacity: 1; } 85%, 100% { opacity: 0; translate: 150px 0; } }
+@keyframes se-gh-spin { to { rotate: 360deg; } }
+@keyframes se-gh-sparkle { 0%, 70%, 100% { opacity: 0; scale: .3; } 80% { opacity: .9; scale: 1; } }
+@media (max-width: 700px) {
+  .se-gh__hand { width: 44vw; }
+  .se-gh__wheel { width: 48vw; }
 }
 
 .se-reduced-motion .se-theme-pack__motif,
