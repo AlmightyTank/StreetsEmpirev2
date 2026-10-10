@@ -1660,6 +1660,51 @@
   .se-sb__tape { width: 62vw; }
 }
 
+/* Block Sovereign: a territory map whose blocks are claimed in turn, a water tower on a painted
+   brick parapet, and a crown flag over a chain-link fence with ivy. */
+.se-bs__map { top: 0; left: 0; width: 100%; height: auto; }
+.se-bs__districts path { fill: #2dd4bf; fill-opacity: 0; animation: se-bs-claim 12s ease-in-out infinite; }
+.se-bs__route { stroke-opacity: .4; animation: se-bs-route 2.4s linear infinite; }
+.se-bs__flock { transform: translate(-200px, 0); animation: se-bs-flock 30s linear -6s infinite; }
+.se-bs__bird {
+  fill: none;
+  stroke: #cfe9e4;
+  stroke-opacity: .7;
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: se-bs-flap .7s ease-in-out infinite alternate;
+}
+.se-bs__corner { bottom: 0; width: min(28vw, 380px); height: auto; }
+.se-bs__corner--left { left: 0; }
+.se-bs__corner--right { right: 0; }
+.se-bs__flag {
+  transform-box: fill-box;
+  transform-origin: 100% 0;
+  animation: se-bs-wave 3.2s ease-in-out infinite alternate;
+}
+.se-bs__flag-sheen { animation: se-bs-sheen 3.2s ease-in-out infinite alternate; }
+.se-bs__tag { animation: se-bs-tag 9s ease-in-out infinite alternate; }
+@keyframes se-bs-claim {
+  0%, 100% { fill-opacity: 0; }
+  6% { fill-opacity: .34; }
+  16%, 42% { fill-opacity: .14; }
+  58% { fill-opacity: 0; }
+}
+@keyframes se-bs-route { to { stroke-dashoffset: -48; } }
+@keyframes se-bs-flock {
+  0% { transform: translate(1700px, 120px); }
+  60% { transform: translate(-200px, 40px); }
+  100% { transform: translate(-200px, 40px); }
+}
+@keyframes se-bs-flap { from { scale: 1 1; } to { scale: 1 -.6; } }
+@keyframes se-bs-wave { from { transform: skewY(-4deg) scaleX(.95); } to { transform: skewY(3deg) scaleX(1); } }
+@keyframes se-bs-sheen { from { fill-opacity: 0; } to { fill-opacity: .16; } }
+@keyframes se-bs-tag { from { opacity: .7; } to { opacity: 1; } }
+@media (max-width: 700px) {
+  .se-bs__corner { width: 46vw; }
+}
+
 .se-reduced-motion .se-theme-pack__motif,
 .se-reduced-motion .se-theme-pack__motes i,
 .se-reduced-motion .se-theme-pack__haze,
