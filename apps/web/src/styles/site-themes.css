@@ -1291,55 +1291,24 @@
   border-top-color: rgba(45, 212, 191, 0.36);
 }
 
-/* Ambient motion for the eight rebuilt shell themes; the shell palette remains selectable on its own. */
-.se-site-theme-decor--theme-pack {
-  z-index: 0;
-  opacity: .48;
-}
-.se-theme-pack__motif {
-  position: absolute;
-  top: 7vh;
-  right: -2vw;
-  width: min(58vw, 800px);
-  height: min(70vh, 760px);
-  opacity: .26;
-  filter: drop-shadow(0 0 18px var(--se-pack-color));
-  background: var(--se-pack-motif);
-  animation: se-theme-pack-drift 18s ease-in-out infinite alternate;
-}
-.se-theme-pack__motes { position: absolute; inset: 0; overflow: hidden; }
-.se-theme-pack__motes i {
-  position: absolute;
-  width: 5px;
-  height: 5px;
-  border: 1px solid color-mix(in srgb, var(--se-pack-color) 75%, white);
-  border-radius: 50%;
-  background: var(--se-pack-color);
-  box-shadow: 0 0 12px var(--se-pack-color);
-  animation: se-theme-pack-mote 9s ease-in-out infinite;
-}
+/* Illustrated SVG scenes (components/theme-scenes) for the eight redesigned shells. They sit
+   under page content (.se-app isolates) so the art never covers text; the haze tints the floor. */
+.se-site-theme-decor--scene { z-index: -1; opacity: .62; }
 .se-theme-pack__haze {
   position: absolute;
   inset: 50% 0 0;
   background: radial-gradient(ellipse at 72% 100%, color-mix(in srgb, var(--se-pack-color) 18%, transparent), transparent 66%);
   animation: se-theme-pack-haze 5s ease-in-out infinite alternate;
 }
-.se-site-theme-decor--motor-city-iron { --se-pack-color: #91dbe4; --se-pack-motif: repeating-linear-gradient(135deg, transparent 0 42px, #91dbe426 43px 45px, transparent 46px 82px), radial-gradient(ellipse at 78% 46%, transparent 0 36%, #91dbe428 37% 38%, transparent 39%); }
-.se-site-theme-decor--open-road { --se-pack-color: #9ed4ff; --se-pack-motif: linear-gradient(105deg, transparent 30%, #c5e7ff48 47%, transparent 53%), repeating-linear-gradient(0deg, transparent 0 64px, #9ed4ff20 65px 66px, transparent 67px 128px); }
-.se-site-theme-decor--neon-vice { --se-pack-color: #ff64ac; --se-pack-motif: radial-gradient(ellipse at 24% 58%, transparent 0 23%, #ff64ac35 24% 25%, transparent 26%), radial-gradient(ellipse at 72% 34%, transparent 0 28%, #58e8ff36 29% 30%, transparent 31%); }
-.se-site-theme-decor--blue-heat { --se-pack-color: #56b8ff; --se-pack-motif: linear-gradient(112deg, transparent 32%, #ff4f6440 46%, #52baff44 52%, transparent 66%), radial-gradient(ellipse at 76% 50%, transparent 0 36%, #56b8ff28 37% 38%, transparent 39%); }
-.se-site-theme-decor--rain-city-wire { --se-pack-color: #63e3c0; --se-pack-motif: repeating-linear-gradient(90deg, transparent 0 55px, #63e3c026 56px 58px, transparent 59px 96px), repeating-linear-gradient(0deg, transparent 0 70px, #63e3c020 71px 72px, transparent 73px 120px); }
-.se-site-theme-decor--casino-floor { --se-pack-color: #f0cf76; --se-pack-motif: radial-gradient(circle at 29% 42%, transparent 0 14%, #f0cf763a 15% 16%, transparent 17%), radial-gradient(circle at 74% 58%, transparent 0 20%, #d65c6740 21% 22%, transparent 23%); }
-.se-site-theme-decor--federal-case { --se-pack-color: #caa86d; --se-pack-motif: repeating-linear-gradient(0deg, transparent 0 28px, #caa86d25 29px 31px, transparent 32px 48px), linear-gradient(110deg, transparent 40%, #71b8e622 51%, transparent 60%); }
-.se-site-theme-decor--midnight-market { --se-pack-color: #e6c979; --se-pack-motif: radial-gradient(ellipse at 50% 48%, transparent 0 28%, #e6c97935 29% 30%, transparent 31%), radial-gradient(circle at 28% 25%, #ffe9a54a 0 2px, transparent 3px), radial-gradient(circle at 76% 68%, #ffe9a54a 0 2px, transparent 3px); }
-@keyframes se-theme-pack-drift { from { transform: translate3d(0, 0, 0) rotate(-1deg); } to { transform: translate3d(-20px, 12px, 0) rotate(1deg); } }
-@keyframes se-theme-pack-mote { 0%, 100% { transform: translate3d(0, 14px, 0) scale(.65); opacity: .2; } 50% { transform: translate3d(8px, -18px, 0) scale(1); opacity: .85; } }
+.se-site-theme-decor--motor-city-iron { --se-pack-color: #91dbe4; }
+.se-site-theme-decor--open-road { --se-pack-color: #9ed4ff; }
+.se-site-theme-decor--neon-vice { --se-pack-color: #ff64ac; }
+.se-site-theme-decor--blue-heat { --se-pack-color: #56b8ff; }
+.se-site-theme-decor--rain-city-wire { --se-pack-color: #63e3c0; }
+.se-site-theme-decor--casino-floor { --se-pack-color: #f0cf76; }
+.se-site-theme-decor--federal-case { --se-pack-color: #caa86d; }
+.se-site-theme-decor--midnight-market { --se-pack-color: #e6c979; }
 @keyframes se-theme-pack-haze { from { opacity: .28; } to { opacity: .8; } }
-
-/* Illustrated SVG scenes (components/theme-scenes) replace the generic motif and motes.
-   They sit under page content (.se-app isolates) so the art never covers text. */
-.se-site-theme-decor--scene { z-index: -1; opacity: .62; }
-.se-site-theme-decor--scene :is(.se-theme-pack__motif, .se-theme-pack__motes) { display: none; }
 @media (min-width: 900px) {
   /* The desktop game frame pins a sidebar left and a taller HUD bar; frame the content column. */
   .se-app--sidebar :is(.se-site-theme-decor--scene, .se-site-theme-decor--dragon) {
@@ -1839,13 +1808,9 @@
   .se-la__podium { width: 46vw; }
 }
 
-.se-reduced-motion .se-theme-pack__motif,
-.se-reduced-motion .se-theme-pack__motes i,
 .se-reduced-motion .se-theme-pack__haze,
 .se-reduced-motion .se-theme-scene * { animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
-  .se-theme-pack__motif,
-  .se-theme-pack__motes i,
   .se-theme-pack__haze,
   .se-theme-scene * { animation: none !important; }
 }

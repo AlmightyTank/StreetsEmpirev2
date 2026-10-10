@@ -99,36 +99,22 @@ function DragonAtmosphere({ fire = false }: { fire?: boolean }) {
   );
 }
 
-const themeMotes = [
-  ['6%', '22%', '-2s'], ['15%', '61%', '-7s'], ['24%', '35%', '-4s'], ['33%', '78%', '-10s'],
-  ['42%', '17%', '-6s'], ['51%', '54%', '-1s'], ['60%', '82%', '-9s'], ['69%', '29%', '-5s'],
-  ['78%', '66%', '-11s'], ['87%', '40%', '-3s'], ['95%', '73%', '-8s'],
-] as const;
-
-// Illustrated SVG backdrops, loaded only for the shell that is equipped. A pack with a
-// scene drops the generic motif and motes in favour of its own.
+// Illustrated SVG backdrops for the eight redesigned shells, loaded only for the shell that is equipped.
 const themeScenes: Partial<Record<string, ComponentType>> = {
+  'motor-city-iron': lazy(() => import('./theme-scenes/ChromeSerpentScene.js')),
   'open-road': lazy(() => import('./theme-scenes/PhantomConvoyScene.js')),
   'neon-vice': lazy(() => import('./theme-scenes/LanternDistrictScene.js')),
   'blue-heat': lazy(() => import('./theme-scenes/SirenBreakerScene.js')),
   'rain-city-wire': lazy(() => import('./theme-scenes/BlockSovereignScene.js')),
   'casino-floor': lazy(() => import('./theme-scenes/GildedHouseScene.js')),
-  'motor-city-iron': lazy(() => import('./theme-scenes/ChromeSerpentScene.js')),
-  'midnight-market': lazy(() => import('./theme-scenes/LaurelAscendantScene.js')),
   'federal-case': lazy(() => import('./theme-scenes/DeadOrAliveScene.js')),
+  'midnight-market': lazy(() => import('./theme-scenes/LaurelAscendantScene.js')),
 };
 
-function ThemePackAtmosphere({ themeKey }: { themeKey: string }) {
-  const Scene = themeScenes[themeKey];
+function ThemeSceneAtmosphere({ themeKey, Scene }: { themeKey: string; Scene: ComponentType }) {
   return (
-    <div className={`se-site-theme-decor se-site-theme-decor--theme-pack se-site-theme-decor--${themeKey}${Scene ? ' se-site-theme-decor--scene' : ''}`} aria-hidden="true">
-      {Scene ? <Suspense fallback={null}><Scene /></Suspense> : null}
-      <div className="se-theme-pack__motif" />
-      <div className="se-theme-pack__motes">
-        {themeMotes.map(([left, top, delay], index) => (
-          <i key={index} style={{ left, top, animationDelay: delay } as CSSProperties} />
-        ))}
-      </div>
+    <div className={`se-site-theme-decor se-site-theme-decor--scene se-site-theme-decor--${themeKey}`} aria-hidden="true">
+      <Suspense fallback={null}><Scene /></Suspense>
       <div className="se-theme-pack__haze" />
     </div>
   );
@@ -139,8 +125,6 @@ export function SiteThemeDecor({ themeKey }: { themeKey: string | null }) {
   if (themeKey === 'halloween-moon') return <HalloweenMoon />;
   if (themeKey === 'dragon-ice') return <DragonAtmosphere />;
   if (themeKey === 'dragon-fire') return <DragonAtmosphere fire />;
-  if (themeKey && ['motor-city-iron', 'open-road', 'neon-vice', 'blue-heat', 'rain-city-wire', 'casino-floor', 'federal-case', 'midnight-market'].includes(themeKey)) {
-    return <ThemePackAtmosphere themeKey={themeKey} />;
-  }
-  return null;
+  const Scene = themeKey ? themeScenes[themeKey] : undefined;
+  return themeKey && Scene ? <ThemeSceneAtmosphere themeKey={themeKey} Scene={Scene} /> : null;
 }
