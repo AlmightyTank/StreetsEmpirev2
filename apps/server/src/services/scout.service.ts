@@ -12,7 +12,7 @@ import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMov
 import { TurfService } from './turf.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
-import { encounterActivityPayload, RandomEncounterService } from './random-encounter.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 
 export interface Crew {
   whores: number;
@@ -75,13 +75,28 @@ export function findDistrict(
   return district ? { key: normalized as DistrictKey, district } : null;
 }
 
-export function districtsFor(ruleset: Ruleset, crew: Crew, citySlug?: string): DistrictsDto {
+export function districtsFor(
+  ruleset: Ruleset,
+  crew: Crew,
+  citySlug?: string,
+  access: Awaited<ReturnType<typeof PermanentUnlockService.scoutDistrictAccess>> = new Map(),
+): DistrictsDto {
   const all = Object.values(ruleset.districts);
 
   return {
-    districts: Object.entries(ruleset.districts).map(([key, district]) =>
-      toDistrictDto(key, district, all, ruleset, crew, citySlug),
-    ),
+    districts: Object.entries(ruleset.districts).map(([key, district]) => {
+      const dto = toDistrictDto(key, district, all, ruleset, crew, citySlug);
+      const gate = access.get(key as DistrictKey);
+      return gate ? {
+        ...dto,
+        scoutAccess: {
+          unlocked: gate.unlocked,
+          unlockName: gate.unlock.name,
+          unlockDescription: gate.unlock.description,
+          unlockQuest: PermanentUnlockService.questFor(ruleset, gate.unlock.key),
+        },
+      } : dto;
+    }),
   };
 }
 
@@ -93,7 +108,10 @@ export interface ScoutInput {
 
 export const ScoutService = {
   /** Section 25. What the player picks between, priced for the crew they run. */
-  districts: districtsFor,
+  async districts(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, crew: Crew, citySlug?: string): Promise<DistrictsDto> {
+    const access = await PermanentUnlockService.scoutDistrictAccess(prisma, roundPlayerId, ruleset);
+    return districtsFor(ruleset, crew, citySlug, access);
+  },
 
   /**
    * Manual 3.1. Where you make money for yourself, and pick up whores and
@@ -121,6 +139,8 @@ export const ScoutService = {
             { district: 'Pick one of the listed districts.' },
           );
         }
+
+        await PermanentUnlockService.assertCanScoutDistrict(tx, roundPlayerId, ruleset, found.key);
 
         if (input.turns < ruleset.scouting.minTurns) {
           throw AppError.badRequest(
@@ -239,7 +259,7 @@ export const ScoutService = {
 
         // 0.4.0-C: the trip's Heat lands, and a hot crew can be busted on the way home.
         const trip = await HeatService.afterTrip(tx, roundPlayerId, ruleset, { startHeat: current.heat, plans: [supply], next: worked, rng, now });
-        let next = trip.next;
+        const next = trip.next;
         await TurfService.addPresence(tx, {
           roundPlayerId,
           roundId: round.id,
@@ -249,17 +269,6 @@ export const ScoutService = {
           ruleset,
           now,
         });
-        const encounter = await RandomEncounterService.scout({
-          tx,
-          roundPlayerId,
-          next,
-          ruleset,
-          district: found.key,
-          turns: input.turns,
-          now,
-          rng,
-        });
-        next = encounter.next;
 
         const all = Object.values(ruleset.districts);
 
@@ -301,8 +310,6 @@ export const ScoutService = {
           coveredWhores: outcome.exposure.covered,
           armedThugs: armedThugsForStreet(active, ruleset),
           unarmedThugs: unarmedThugsForStreet(active, ruleset),
-
-          ...(encounter.encounter ? { encounter: encounter.encounter } : {}),
 
           turnsUsed: input.turns,
           turnsRemaining: next.turns,
@@ -348,7 +355,6 @@ export const ScoutService = {
               infected: outcome.infections.infected,
               lostToInfection: outcome.infections.lost,
               ...(trip.heat ? { heat: trip.heat.after, heatAdded: trip.heat.added, busted: trip.heat.busted, fineCents: trip.heat.fineCents } : {}),
-              ...(encounter.encounter ? { encounter: encounterActivityPayload(encounter.encounter) } : {}),
             },
           },
           // 1.3.0-A/B: the Heat the trip drew, and any bust or arrest, build the Case at home.
