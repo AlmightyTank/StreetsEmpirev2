@@ -2768,142 +2768,46 @@ a:hover { color: var(--se-accent-hover); }
   z-index: 1;
 }
 
-.se-profile-effect--neon-pulse {
-  animation: se-profile-effect-pulse 3.2s ease-in-out infinite;
+/* The player-facing profile header uses the same refreshed frame animation names as the popup. */
+.se-profile-pagehead:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion) {
+  --se-page-frame-color: var(--se-profile-accent, var(--se-accent));
+  animation: se-page-frame-breathe 4.8s ease-in-out infinite;
 }
-
-.se-profile-effect--scanlines {
-  box-shadow:
-    inset 0 0 0 999px rgba(255, 255, 255, 0.012),
-    0 0 22px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 18%, transparent);
-}
-
-.se-profile-effect--spotlight {
-  box-shadow:
-    inset 0 0 65px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 13%, transparent),
-    0 0 24px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 14%, transparent);
-}
-
-.se-profile-effect--glitch {
-  animation: se-profile-effect-glitch 4.8s steps(1, end) infinite;
-}
-
-.se-profile-effect--ember-sparks {
-  box-shadow:
-    inset 0 -18px 42px color-mix(in srgb, #f97316 13%, transparent),
-    0 0 22px color-mix(in srgb, var(--se-profile-accent, #f97316) 16%, transparent);
-}
-
-.se-profile-effect--ember-sparks::after {
+.se-profile-pagehead.se-profile-effect--night-drive { --se-page-frame-color: #74d7e8; }
+.se-profile-pagehead.se-profile-effect--corner-glow { --se-page-frame-color: #ff9f43; }
+.se-profile-pagehead.se-profile-effect--heat-signal { --se-page-frame-color: #ef5962; }
+.se-profile-pagehead.se-profile-effect--turf-claim { --se-page-frame-color: #65df91; }
+.se-profile-pagehead.se-profile-effect--high-roller { --se-page-frame-color: #e9c46a; }
+.se-profile-pagehead.se-profile-effect--wanted { --se-page-frame-color: #f08d49; }
+.se-profile-pagehead.se-profile-effect--season-champion { --se-page-frame-color: #f1cf71; }
+.se-profile-pagehead:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--high-roller)::after {
   content: "";
   position: absolute;
   z-index: 2;
   inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(circle at 18% 82%, rgba(249, 115, 22, 0.32) 0 1px, transparent 2px),
-    radial-gradient(circle at 66% 24%, rgba(251, 191, 36, 0.24) 0 1px, transparent 2px),
-    radial-gradient(circle at 84% 70%, rgba(239, 68, 68, 0.2) 0 1px, transparent 2px);
-  background-size: 54px 54px, 78px 78px, 66px 66px;
-  animation: se-profile-effect-sparks 8s linear infinite;
+  background: linear-gradient(112deg, transparent 0 40%, color-mix(in srgb, var(--se-page-frame-color) 18%, transparent) 49%, transparent 58% 100%);
+  background-size: 240% 100%;
+  animation: se-frame-pass 6.2s ease-in-out infinite;
 }
-
-.se-profile-effect--cash-shimmer {
-  box-shadow:
-    inset 0 0 58px color-mix(in srgb, #22c55e 10%, transparent),
-    0 0 22px color-mix(in srgb, #f1b622 14%, transparent);
+.se-profile-pagehead.se-profile-effect--corner-glow { box-shadow: inset 0 0 26px #ff9f4330; }
+.se-profile-pagehead.se-profile-effect--heat-signal { box-shadow: inset 5px 0 #ef596240, inset -5px 0 #55a6f340; }
+.se-profile-pagehead.se-profile-effect--season-champion { box-shadow: inset 0 0 0 3px #f1cf7140, inset 0 0 28px #f1cf7125; }
+.se-profile-pagehead:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion) .se-profile-pagehead__avatar {
+  animation: se-avatar-frame-breathe 4.8s ease-in-out infinite;
 }
-
-.se-profile-effect--cash-shimmer::after {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    112deg,
-    transparent 0 38%,
-    rgba(241, 182, 34, 0.18) 45%,
-    rgba(74, 222, 128, 0.14) 50%,
-    transparent 58% 100%
-  );
-  background-size: 260% 100%;
-  animation: se-profile-effect-shimmer 6.4s ease-in-out infinite;
+.se-profile-pagehead.se-profile-effect--heat-signal .se-profile-pagehead__avatar { animation-name: se-avatar-frame-heat; }
+.se-profile-pagehead.se-profile-effect--high-roller .se-profile-pagehead__avatar { animation-name: se-avatar-frame-gold; }
+.se-profile-pagehead.se-profile-effect--season-champion .se-profile-pagehead__avatar { animation-name: se-avatar-frame-champion; }
+@keyframes se-page-frame-breathe {
+  0%, 100% { box-shadow: 0 0 14px color-mix(in srgb, var(--se-page-frame-color) 12%, transparent); }
+  50% { box-shadow: 0 0 26px color-mix(in srgb, var(--se-page-frame-color) 28%, transparent); }
 }
-
-.se-profile-effect--sirens {
-  box-shadow:
-    inset 5px 0 0 rgba(233, 32, 72, 0.42),
-    inset -5px 0 0 rgba(104, 153, 243, 0.42),
-    0 0 24px rgba(104, 153, 243, 0.12);
-  animation: se-profile-effect-sirens 3.8s ease-in-out infinite;
-}
-
-.se-profile-effect--smoke::after {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  inset: -24%;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse at 24% 58%, rgba(226, 232, 240, 0.09), transparent 38%),
-    radial-gradient(ellipse at 72% 34%, rgba(148, 163, 184, 0.08), transparent 36%),
-    radial-gradient(ellipse at 48% 88%, rgba(226, 232, 240, 0.06), transparent 42%);
-  filter: blur(10px);
-  animation: se-profile-effect-smoke 12s ease-in-out infinite alternate;
-}
-
-@keyframes se-profile-effect-pulse {
-  0%, 100% { box-shadow: 0 0 0 color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 0%, transparent); }
-  50% { box-shadow: 0 0 28px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 32%, transparent); }
-}
-
-@keyframes se-profile-effect-glitch {
-  0%, 91%, 100% { filter: none; transform: translate(0); }
-  92% { filter: saturate(1.5) contrast(1.15); transform: translate(1px, 0); }
-  93% { transform: translate(-1px, 1px); }
-  94% { filter: none; transform: translate(0); }
-}
-
-@keyframes se-profile-effect-sparks {
-  from { background-position: 0 0, 0 0, 0 0; opacity: 0.72; }
-  50% { opacity: 0.42; }
-  to { background-position: 0 -108px, 26px -156px, -18px -132px; opacity: 0.72; }
-}
-
-@keyframes se-profile-effect-shimmer {
-  0%, 18% { background-position: 130% 0; opacity: 0.42; }
-  60%, 100% { background-position: -40% 0; opacity: 0.78; }
-}
-
-@keyframes se-profile-effect-sirens {
-  0%, 100% {
-    box-shadow:
-      inset 5px 0 0 rgba(233, 32, 72, 0.5),
-      inset -5px 0 0 rgba(104, 153, 243, 0.28),
-      0 0 24px rgba(233, 32, 72, 0.12);
-  }
-  50% {
-    box-shadow:
-      inset 5px 0 0 rgba(233, 32, 72, 0.28),
-      inset -5px 0 0 rgba(104, 153, 243, 0.52),
-      0 0 24px rgba(104, 153, 243, 0.16);
-  }
-}
-
-@keyframes se-profile-effect-smoke {
-  from { transform: translate3d(-4%, 2%, 0) rotate(0deg); opacity: 0.7; }
-  to { transform: translate3d(5%, -3%, 0) rotate(2deg); opacity: 0.42; }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .se-profile-effect--neon-pulse,
-  .se-profile-effect--glitch,
-  .se-profile-effect--ember-sparks::after,
-  .se-profile-effect--cash-shimmer::after,
-  .se-profile-effect--sirens,
-  .se-profile-effect--smoke::after {
-    animation: none;
+  .se-profile-pagehead:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion),
+  .se-profile-pagehead:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--high-roller)::after,
+  .se-profile-pagehead:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion) .se-profile-pagehead__avatar {
+    animation: none !important;
   }
 }
 

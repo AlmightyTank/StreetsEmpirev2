@@ -95,15 +95,17 @@ export const DEFAULT_LANDINGS: CosmeticOptionDto[] = [
 ];
 
 export const PROFILE_EFFECTS: CosmeticOptionDto[] = [
-  { key: 'none', label: 'No effect', description: 'Keep the profile card still and clean.' },
-  { key: 'neon-pulse', label: 'Neon pulse', description: 'A soft animated accent glow around your profile.' },
-  { key: 'scanlines', label: 'Scanlines', description: 'A subtle moving screen-line overlay.' },
-  { key: 'spotlight', label: 'Spotlight', description: 'A slow highlight sweep across the card.' },
-  { key: 'glitch', label: 'Glitch', description: 'A sharper flicker effect for loud profiles.' },
-  { key: 'ember-sparks', label: 'Ember sparks', description: 'Warm sparks and corner heat for a late-night profile card.' },
-  { key: 'cash-shimmer', label: 'Cash shimmer', description: 'A soft green-gold money glint across the profile.' },
-  { key: 'sirens', label: 'Sirens', description: 'Alternating red and blue pressure lights on the card edge.' },
-  { key: 'smoke', label: 'Smoke', description: 'A slow smoky haze over the profile banner and frame.' },
+  { key: 'none', label: 'No animation', description: 'Keep both frames still.' },
+  { key: 'street-circuit', label: 'Street Circuit', description: 'A lime route line traces the popup edge and avatar ring.' },
+  { key: 'night-drive', label: 'Night Drive', description: 'A headlight sweep travels across the popup and avatar frame.' },
+  { key: 'corner-glow', label: 'Corner Glow', description: 'Warm streetlight glows rise and fade at the frame corners.' },
+  { key: 'heat-signal', label: 'Heat Signal', description: 'A restrained red-blue warning pulse moves around both frames.' },
+  { key: 'turf-claim', label: 'Turf Claim', description: 'A block marker lights up before the border settles.' },
+  { key: 'high-roller', label: 'High Roller', description: 'A gold glint sweeps around the popup and avatar.' },
+  { key: 'wanted', label: 'Wanted', description: 'An amber alert glow flickers once in a while.' },
+  { key: 'season-champion', label: 'Season Champion', description: 'A championship double-ring and crest glow.' },
+  { key: 'snowstorm', label: 'Snowstorm', description: 'Snow swirls around the popup while frost gathers on the frame.' },
+  { key: 'inferno', label: 'Inferno', description: 'Flames climb the popup edges as glowing embers drift upward.' },
 ];
 
 function stringArray(value: unknown): string[] {
@@ -186,6 +188,10 @@ function toSettingsDto(
   const activeProfileFrameKey = profile?.activeProfileFrameKey && frameKeys.has(profile.activeProfileFrameKey)
     ? profile.activeProfileFrameKey
     : null;
+  const savedAvatarFrameKey = profile?.activeAvatarFrameKey ?? null;
+  const activeAvatarFrameKey = savedAvatarFrameKey && frameKeys.has(savedAvatarFrameKey)
+    ? savedAvatarFrameKey
+    : null;
   const activeSiteThemeKey = profile?.activeSiteThemeKey && themeKeys.has(profile.activeSiteThemeKey)
     ? profile.activeSiteThemeKey
     : null;
@@ -210,6 +216,7 @@ function toSettingsDto(
     profileBannerUrl: profile?.profileBannerUrl ?? null,
     profileEffect,
     activeProfileFrameKey,
+    activeAvatarFrameKey,
     activeSiteThemeKey,
     itemCosmetics: itemCosmeticLoadout(profile?.itemCosmetics, ownedCollections),
     crewCosmetics: crewCosmeticLoadout(profile?.crewCosmetics, ownedCollections),
@@ -343,6 +350,17 @@ export const AccountProfileService = {
         activeProfileFrameKey: 'That profile frame is not unlocked.',
       });
     }
+    const requestedAvatarFrameKey = input.activeAvatarFrameKey === undefined
+      ? activeProfileFrameKey
+      : input.activeAvatarFrameKey;
+    const activeAvatarFrameKey = requestedAvatarFrameKey && frameKeys.has(requestedAvatarFrameKey)
+      ? requestedAvatarFrameKey
+      : null;
+    if (requestedAvatarFrameKey && !activeAvatarFrameKey) {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick an avatar frame you have already earned.', {
+        activeAvatarFrameKey: 'That avatar frame is not unlocked.',
+      });
+    }
     const themeKeys = new Set(appearance.themes.map((option) => option.key));
     const activeSiteThemeKey = input.activeSiteThemeKey && themeKeys.has(input.activeSiteThemeKey)
       ? input.activeSiteThemeKey
@@ -395,6 +413,7 @@ export const AccountProfileService = {
         profileBannerUrl: profileBannerUrl ?? null,
         profileEffect: profileEffect ?? 'none',
         activeProfileFrameKey,
+        activeAvatarFrameKey,
         activeSiteThemeKey,
         itemCosmetics: input.itemCosmetics ?? {},
         crewCosmetics: { ...(input.crewCosmetics ?? DEFAULT_CREW_COSMETICS) },
@@ -416,6 +435,7 @@ export const AccountProfileService = {
         ...(profileBannerUrl !== undefined ? { profileBannerUrl } : {}),
         ...(profileEffect !== undefined ? { profileEffect } : {}),
         activeProfileFrameKey,
+        activeAvatarFrameKey,
         activeSiteThemeKey,
         itemCosmetics: input.itemCosmetics ?? {},
         crewCosmetics: { ...(input.crewCosmetics ?? DEFAULT_CREW_COSMETICS) },

@@ -255,6 +255,8 @@ export interface PublicPlayerProfileDto {
     titlePlacement: 'prefix' | 'suffix';
     accent: ProfileAccent;
     frame: string | null;
+    /** Optional for compatibility with profiles serialized before avatar frames shipped. */
+    avatarFrame?: string | null;
     effect: ProfileEffect;
     imageUrl: string | null;
     bannerUrl: string | null;

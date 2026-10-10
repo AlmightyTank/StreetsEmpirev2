@@ -193,6 +193,7 @@ model AccountProfile {
   profileBannerUrl      String?
   profileEffect         String  @default("none")
   activeProfileFrameKey String?
+  activeAvatarFrameKey  String?
   activeSiteThemeKey    String?
   /// Player-selected visual skin per inventory item key. Cosmetic only.
   itemCosmetics         Json    @default("{}")

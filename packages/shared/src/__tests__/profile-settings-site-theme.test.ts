@@ -188,7 +188,7 @@ describe('account profile settings schema', () => {
       profileBio: '  Runs the south side.\r\n\r\n\r\nBring receipts.  ',
       profileImageUrl: ' https://i.imgur.com/avatar.png ',
       profileBannerUrl: '',
-      profileEffect: 'scanlines',
+      profileEffect: 'street-circuit',
       activeProfileFrameKey: null,
       activeSiteThemeKey: null,
       featuredBadgeKeys: [],
@@ -202,7 +202,44 @@ describe('account profile settings schema', () => {
     expect(result.profileBio).toBe('Runs the south side.\n\nBring receipts.');
     expect(result.profileImageUrl).toBe('https://i.imgur.com/avatar.png');
     expect(result.profileBannerUrl).toBeNull();
-    expect(result.profileEffect).toBe('scanlines');
+    expect(result.profileEffect).toBe('street-circuit');
+  });
+
+  it.each(['snowstorm', 'inferno'])('accepts the %s atmospheric frame effect', (profileEffect) => {
+    const result = updateAccountProfileSettingsSchema.safeParse({
+      activeTitleKey: null,
+      activeProfileFrameKey: null,
+      activeAvatarFrameKey: null,
+      titlePlacement: 'prefix',
+      crewName: null,
+      profileBio: '',
+      profileImageUrl: '',
+      profileBannerUrl: '',
+      featuredBadgeKeys: [],
+      profileAccent: 'default',
+      uiDensity: 'comfortable',
+      reducedMotion: false,
+      moneyFormat: 'full',
+      defaultLanding: 'game',
+      profileEffect,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('retires generic effects from the profile animation picker', () => {
+    const result = updateAccountProfileSettingsSchema.safeParse({
+      activeTitleKey: null,
+      activeProfileFrameKey: null,
+      featuredBadgeKeys: [],
+      profileAccent: 'default',
+      uiDensity: 'comfortable',
+      reducedMotion: false,
+      moneyFormat: 'full',
+      defaultLanding: 'game',
+      profileEffect: 'scanlines',
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it('rejects non-https profile media URLs', () => {

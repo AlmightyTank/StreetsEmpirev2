@@ -578,14 +578,14 @@ export const AdminAccountService = {
       if (profile) {
         await tx.accountProfile.update({
           where: { accountId: before.id },
-          data: { activeTitleKey: null, titlePlacement: 'prefix', crewName: null, profileBio: null, profileImageUrl: null, profileBannerUrl: null, profileEffect: 'none', activeProfileFrameKey: null, activeSiteThemeKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
+          data: { activeTitleKey: null, titlePlacement: 'prefix', crewName: null, profileBio: null, profileImageUrl: null, profileBannerUrl: null, profileEffect: 'none', activeProfileFrameKey: null, activeAvatarFrameKey: null, activeSiteThemeKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
         });
       }
       return {
         account: before,
         detail: {
           previousProfile: profile
-            ? { activeTitleKey: profile.activeTitleKey, titlePlacement: profile.titlePlacement, crewName: profile.crewName, profileBio: profile.profileBio, profileImageUrl: profile.profileImageUrl, profileBannerUrl: profile.profileBannerUrl, profileEffect: profile.profileEffect, activeProfileFrameKey: profile.activeProfileFrameKey, activeSiteThemeKey: profile.activeSiteThemeKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
+            ? { activeTitleKey: profile.activeTitleKey, titlePlacement: profile.titlePlacement, crewName: profile.crewName, profileBio: profile.profileBio, profileImageUrl: profile.profileImageUrl, profileBannerUrl: profile.profileBannerUrl, profileEffect: profile.profileEffect, activeProfileFrameKey: profile.activeProfileFrameKey, activeAvatarFrameKey: profile.activeAvatarFrameKey, activeSiteThemeKey: profile.activeSiteThemeKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
             : null,
         },
       };

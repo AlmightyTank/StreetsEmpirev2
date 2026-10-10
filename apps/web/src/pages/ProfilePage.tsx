@@ -15,8 +15,6 @@ import { AllianceTag } from '../components/AllianceTag.js';
 import { ContactButton } from '../components/ContactButton.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
-import { ProfileBadgeArt } from '../components/ProfileBadgeArt.js';
-import { ProfileBadgeCollection } from '../components/ProfileBadgeCollection.js';
 import { hasProfileLook, ProfileLook } from '../components/ProfileLook.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -213,7 +211,6 @@ function AchievementCard({ award }: { award: PublicAwardDto }) {
   const percent = progressPercent(award);
   return (
     <li className={`se-ach se-ach--${award.rarity}${award.unlocked ? '' : ' se-ach--locked'}`}>
-      <ProfileBadgeArt badgeKey={award.key} category={award.category} rarity={award.rarity} locked={!award.unlocked} size={54} />
       <div className="se-ach__top">
         <span className="se-ach__cat">{categoryName[award.category]}</span>
         <span className="se-ach__rarity">{award.rarity}</span>
@@ -445,6 +442,9 @@ export function ProfilePage() {
   const [useMyTheme, setUseMyTheme] = useState(false);
   const setPageTheme = usePageTheme((s) => s.setThemeKey);
   const isYou = Boolean(player && me && player.publicPimpId === me.publicPimpId);
+  const avatarFrame = player?.cosmetics.avatarFrame === undefined
+    ? player?.cosmetics.frame ?? null
+    : player.cosmetics.avatarFrame ?? null;
   const ownerTheme = player && !isYou ? player.cosmetics.siteTheme ?? null : null;
   const shownTheme = useMyTheme ? null : ownerTheme;
 
@@ -523,6 +523,7 @@ export function ProfilePage() {
         ) : null}
         <div
           className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player?.cosmetics.frame ? ` se-profile-frame se-profile-frame--${player.cosmetics.frame}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}`}
+          data-avatar-frame={avatarFrame ?? 'none'}
         >
           {player ? (
             <div
@@ -533,7 +534,7 @@ export function ProfilePage() {
           ) : null}
           <div className="se-profile-pagehead__main">
             {player ? (
-              <span className={`se-profile-pagehead__avatar${player.cosmetics.frame ? ` se-profile-pagehead__avatar--framed se-profile-pagehead__avatar--${player.cosmetics.frame}` : ''}`} aria-hidden="true">
+              <span className={`se-profile-pagehead__avatar${avatarFrame ? ` se-profile-pagehead__avatar--framed se-profile-pagehead__avatar--${avatarFrame}` : ''}`} aria-hidden="true">
                 {player.cosmetics.imageUrl ? <img src={player.cosmetics.imageUrl} alt="" /> : initials(player.displayName)}
               </span>
             ) : null}
@@ -549,14 +550,13 @@ export function ProfilePage() {
               </h1>
               {player?.crewName ? <p className="se-profile-crew">Crew · <strong>{player.crewName}</strong></p> : null}
               {player?.factionAlignment?.length ? (
-                <div className="se-profile-alignment" aria-label="Faction badges">
+                <p className="se-profile-alignment" aria-label="Faction alignment">
                   {player.factionAlignment.map((faction) => (
-                    <span key={faction.key} className={`se-profile-alignment__badge${faction.tierName === 'Inner Circle' ? ' is-inner' : ''}`}>
-                      <ProfileBadgeArt badgeKey={'faction-' + faction.key} category="reputation" rarity={faction.tierName === 'Inner Circle' ? 'epic' : 'rare'} size={42} />
-                      <span><strong>{faction.name}</strong><small>{faction.tierName}</small></span>
+                    <span key={faction.key} className={`se-profile-alignment__chip${faction.tierName === 'Inner Circle' ? ' is-inner' : ''}`}>
+                      {faction.name} · {faction.tierName}
                     </span>
                   ))}
-                </div>
+                </p>
               ) : null}
               <p className="se-eyebrow">
                 {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Permanent season record'}
@@ -570,8 +570,6 @@ export function ProfilePage() {
             {player?.forumProfileUrl ? <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum Profile</a> : null}
           </div>
         </div>
-
-        {player ? <ProfileBadgeCollection awards={player.awards} forumGroups={player.forumGroups} factionAlignment={player.factionAlignment} /> : null}
 
         {error ? <Alert>{error}</Alert> : null}
 

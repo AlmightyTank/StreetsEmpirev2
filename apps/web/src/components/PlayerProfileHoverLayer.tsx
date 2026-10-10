@@ -6,7 +6,6 @@ import { CREW_COSMETIC_KEYS, formatCents, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ItemTile } from './ItemTile.js';
 import { hasProfileLook } from './ProfileLook.js';
-import '../styles/profile-hover.css';
 
 type Target = { id: number; anchor: HTMLAnchorElement; label: string };
 type Position = { top: number; left: number; width: number };
@@ -15,6 +14,16 @@ const CARD_WIDTH = 330;
 const CARD_HEIGHT = 370;
 /** Slice F: the hover card's look strip, a gun and the ride (plus both crew) in the owner's art. */
 const HOVER_LOOK_ITEMS = ['AK47', 'LOW_RIDER'] as const;
+const PROFILE_EFFECT_FRAME_ART = {
+  snowstorm: {
+    popup: '/profile-frames/snowstorm-popup.webp',
+    avatar: '/profile-frames/snowstorm-avatar.webp',
+  },
+  inferno: {
+    popup: '/profile-frames/inferno-popup.webp',
+    avatar: '/profile-frames/inferno-avatar.webp',
+  },
+} as const;
 
 function getProfile(id: number): Promise<PublicPlayerProfileDto> {
   let request = cache.get(id);
@@ -224,6 +233,7 @@ export function PlayerProfileHoverLayer() {
 
   if (!target) return null;
   const to = `/game/players/${target.id}`;
+  const frameArt = profile ? PROFILE_EFFECT_FRAME_ART[profile.cosmetics.effect as keyof typeof PROFILE_EFFECT_FRAME_ART] : null;
   return createPortal(
     <aside
       ref={cardRef}
@@ -231,8 +241,8 @@ export function PlayerProfileHoverLayer() {
       className={`se-profile-hover-card${profile ? ` se-profile-effect se-profile-effect--${profile.cosmetics.effect}` : ''}${profile?.cosmetics.siteTheme ? ` se-site-theme--${profile.cosmetics.siteTheme}` : ''}`}
       data-theme={profile?.cosmetics.siteTheme ?? 'none'}
       data-accent={profile?.cosmetics.accent ?? 'default'}
-      data-framed={profile?.cosmetics.frame ? 'true' : 'false'}
       data-frame={profile?.cosmetics.frame ?? 'none'}
+      data-avatar-frame={profile?.cosmetics.avatarFrame === undefined ? profile?.cosmetics.frame ?? 'none' : profile.cosmetics.avatarFrame ?? 'none'}
       data-touch={touch ? 'true' : 'false'}
       style={touch ? undefined : { top: position.top, left: position.left, width: position.width }}
       aria-label={`${profile?.displayName ?? target.label} profile preview`}
@@ -244,6 +254,7 @@ export function PlayerProfileHoverLayer() {
         if (!event.currentTarget.contains(next) && !target.anchor.contains(next)) scheduleClose();
       }}
     >
+      {frameArt ? <img className="se-profile-hover-card__frame-art" src={frameArt.popup} alt="" aria-hidden="true" /> : null}
       <div
         className="se-profile-hover-card__banner"
         aria-hidden="true"
@@ -257,6 +268,7 @@ export function PlayerProfileHoverLayer() {
         <span className="se-profile-hover-card__avatar" aria-hidden="true">
           {profile?.cosmetics.imageUrl ? <img src={profile.cosmetics.imageUrl} alt="" /> : initials(profile?.displayName ?? target.label)}
         </span>
+        {frameArt ? <img className="se-profile-hover-card__avatar-art" src={frameArt.avatar} alt="" aria-hidden="true" /> : null}
         <span className="se-profile-hover-card__identity-copy">
           {profile?.cosmetics.title ? <span className="se-profile-hover-card__title">{profile.cosmetics.title}</span> : null}
           <strong>{profile?.displayName ?? target.label}</strong>
@@ -308,13 +320,14 @@ export function PlayerProfileHoverLayer() {
               ))}
             </div>
           ) : null}
-          {profile.cosmetics.frame || profile.cosmetics.accent !== 'default' || profile.cosmetics.effect !== 'none' || profile.cosmetics.siteThemeLabel ? (
+          {profile.cosmetics.frame || profile.cosmetics.avatarFrame || profile.cosmetics.accent !== 'default' || profile.cosmetics.effect !== 'none' || profile.cosmetics.siteThemeLabel ? (
             <div className="se-profile-hover-card__effects">
-              <small>PROFILE EFFECTS</small>
+              <small>PROFILE LOOK</small>
               {profile.cosmetics.siteThemeLabel ? <span>{profile.cosmetics.siteThemeLabel} theme</span> : null}
-              {profile.cosmetics.frame ? <span>{profile.cosmetics.frame.replaceAll('-', ' ')}</span> : null}
+              {profile.cosmetics.frame ? <span>{profile.cosmetics.frame.replaceAll('-', ' ')} popup frame</span> : null}
+              {profile.cosmetics.avatarFrame ? <span>{profile.cosmetics.avatarFrame.replaceAll('-', ' ')} avatar frame</span> : null}
               {profile.cosmetics.accent !== 'default' ? <span>{profile.cosmetics.accent.replaceAll('-', ' ')} accent</span> : null}
-              {profile.cosmetics.effect !== 'none' ? <span>{profile.cosmetics.effect.replaceAll('-', ' ')}</span> : null}
+              {profile.cosmetics.effect !== 'none' ? <span>{profile.cosmetics.effect.replaceAll('-', ' ')} animation</span> : null}
             </div>
           ) : null}
         </>

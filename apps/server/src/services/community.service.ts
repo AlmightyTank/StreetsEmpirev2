@@ -1041,6 +1041,10 @@ export const CommunityService = {
     const frame = frameOptions.some((option) => option.key === profileSettings?.activeProfileFrameKey)
       ? profileSettings!.activeProfileFrameKey
       : null;
+    const requestedAvatarFrame = profileSettings?.activeAvatarFrameKey ?? null;
+    const avatarFrame = frameOptions.some((option) => option.key === requestedAvatarFrame)
+      ? requestedAvatarFrame
+      : null;
     const showcase = await profileShowcase(prisma, player.accountId, profileSettings);
 
     return {
@@ -1052,14 +1056,15 @@ export const CommunityService = {
         titlePlacement: profileSettings?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
         accent: profileAccent(profileSettings?.profileAccent),
         frame,
-        effect: profileSettings?.profileEffect === 'neon-pulse'
-          || profileSettings?.profileEffect === 'scanlines'
-          || profileSettings?.profileEffect === 'spotlight'
-          || profileSettings?.profileEffect === 'glitch'
-          || profileSettings?.profileEffect === 'ember-sparks'
-          || profileSettings?.profileEffect === 'cash-shimmer'
-          || profileSettings?.profileEffect === 'sirens'
-          || profileSettings?.profileEffect === 'smoke'
+        avatarFrame,
+        effect: profileSettings?.profileEffect === 'street-circuit'
+          || profileSettings?.profileEffect === 'night-drive'
+          || profileSettings?.profileEffect === 'corner-glow'
+          || profileSettings?.profileEffect === 'heat-signal'
+          || profileSettings?.profileEffect === 'turf-claim'
+          || profileSettings?.profileEffect === 'high-roller'
+          || profileSettings?.profileEffect === 'wanted'
+          || profileSettings?.profileEffect === 'season-champion'
           ? profileSettings.profileEffect
           : 'none',
         imageUrl: profileSettings?.profileImageUrl ?? null,

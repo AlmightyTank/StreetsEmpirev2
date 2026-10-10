@@ -154,7 +154,7 @@
   height: 100%;
   object-fit: cover;
 }
-.se-profile-hover-card[data-framed="true"] .se-profile-hover-card__avatar {
+.se-profile-hover-card[data-avatar-frame]:not([data-avatar-frame="none"]) .se-profile-hover-card__avatar {
   box-shadow: 0 0 0 3px var(--se-hover-accent), 0 0 18px color-mix(in srgb, var(--se-hover-accent) 65%, transparent);
   animation: se-profile-frame-pulse 3.4s ease-in-out infinite;
 }
@@ -391,196 +391,283 @@
 }
 
 
-/* Discord-inspired profile cosmetics, scoped to the shared in-game hover card. */
-.se-profile-hover-card.se-profile-effect--neon-pulse {
-  border-color: color-mix(in srgb, var(--se-hover-accent) 78%, white);
-  animation:
-    se-profile-hover-in 140ms ease-out both,
-    se-profile-hover-neon 3.2s ease-in-out infinite;
-}
-.se-profile-hover-card.se-profile-effect--neon-pulse .se-profile-hover-card__avatar {
-  box-shadow:
-    0 0 0 3px var(--se-hover-accent),
-    0 0 18px color-mix(in srgb, var(--se-hover-accent) 76%, transparent);
-  animation: se-profile-frame-pulse 3.2s ease-in-out infinite;
-}
-.se-profile-hover-card.se-profile-effect--neon-pulse .se-profile-hover-card__banner {
-  background-image:
-    radial-gradient(ellipse at 72% 115%, color-mix(in srgb, var(--se-hover-accent) 58%, transparent), transparent 46%),
-    linear-gradient(128deg, #161d17, #273426 56%, #141b15);
-}
-.se-profile-hover-card.se-profile-effect--scanlines::after {
-  content: "";
-  position: absolute;
-  z-index: 4;
-  inset: 0;
-  border-radius: inherit;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 3px,
-    color-mix(in srgb, var(--se-hover-accent) 12%, transparent) 4px
-  );
-  opacity: .24;
-  pointer-events: none;
-}
-.se-profile-hover-card.se-profile-effect--spotlight::after {
-  content: "";
-  position: absolute;
-  z-index: 4;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    112deg,
-    transparent 34%,
-    color-mix(in srgb, var(--se-hover-accent) 10%, transparent) 48%,
-    color-mix(in srgb, white 10%, transparent) 51%,
-    transparent 64%
-  );
-  background-size: 240% 100%;
-  animation: se-profile-hover-spotlight 5.5s ease-in-out infinite;
-  pointer-events: none;
-}
-.se-profile-hover-card.se-profile-effect--glitch {
-  border-color: color-mix(in srgb, var(--se-hover-accent) 68%, #cb7289);
-}
-.se-profile-hover-card.se-profile-effect--glitch .se-profile-hover-card__banner > span {
-  animation: se-profile-hover-glitch 4.8s steps(1, end) infinite;
-  text-shadow:
-    1px 0 color-mix(in srgb, var(--se-hover-accent) 70%, #e86a93),
-    -1px 0 color-mix(in srgb, #58d7ec 72%, transparent);
-}
-.se-profile-hover-card.se-profile-effect--glitch .se-profile-hover-card__avatar {
-  box-shadow:
-    2px 0 color-mix(in srgb, var(--se-hover-accent) 72%, #e86a93),
-    -2px 0 color-mix(in srgb, #58d7ec 62%, transparent),
-    0 0 18px color-mix(in srgb, var(--se-hover-accent) 48%, transparent);
-}
-.se-profile-hover-card.se-profile-effect--ember-sparks {
-  border-color: color-mix(in srgb, #f97316 48%, var(--se-hover-accent));
-  box-shadow:
-    0 18px 54px #000b,
-    inset 0 -20px 42px rgba(249, 115, 22, 0.12);
-}
-.se-profile-hover-card.se-profile-effect--ember-sparks::after {
-  content: "";
-  position: absolute;
-  z-index: 4;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(circle at 18% 82%, rgba(249, 115, 22, 0.36) 0 1px, transparent 2px),
-    radial-gradient(circle at 66% 24%, rgba(251, 191, 36, 0.26) 0 1px, transparent 2px),
-    radial-gradient(circle at 84% 70%, rgba(239, 68, 68, 0.2) 0 1px, transparent 2px);
-  background-size: 46px 46px, 72px 72px, 58px 58px;
-  animation: se-profile-hover-sparks 8s linear infinite;
-  pointer-events: none;
-}
-.se-profile-hover-card.se-profile-effect--cash-shimmer {
-  border-color: color-mix(in srgb, #f1b622 52%, #22c55e);
-}
-.se-profile-hover-card.se-profile-effect--cash-shimmer::after {
-  content: "";
-  position: absolute;
-  z-index: 4;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    112deg,
-    transparent 0 36%,
-    rgba(241, 182, 34, 0.18) 45%,
-    rgba(74, 222, 128, 0.14) 50%,
-    transparent 60% 100%
-  );
-  background-size: 260% 100%;
-  animation: se-profile-hover-shimmer 6.4s ease-in-out infinite;
-  pointer-events: none;
-}
-.se-profile-hover-card.se-profile-effect--sirens {
-  border-color: color-mix(in srgb, #6899f3 54%, #e92048);
-  animation:
-    se-profile-hover-in 140ms ease-out both,
-    se-profile-hover-sirens 3.8s ease-in-out infinite;
-}
-.se-profile-hover-card.se-profile-effect--smoke::after {
-  content: "";
-  position: absolute;
-  z-index: 4;
-  inset: -24%;
-  border-radius: inherit;
-  background:
-    radial-gradient(ellipse at 24% 58%, rgba(226, 232, 240, 0.1), transparent 38%),
-    radial-gradient(ellipse at 72% 34%, rgba(148, 163, 184, 0.08), transparent 36%),
-    radial-gradient(ellipse at 48% 88%, rgba(226, 232, 240, 0.06), transparent 42%);
-  filter: blur(10px);
-  animation: se-profile-hover-smoke 12s ease-in-out infinite alternate;
-  pointer-events: none;
-}
-@keyframes se-profile-hover-neon {
-  0%, 100% {
-    box-shadow:
-      0 18px 54px #000b,
-      0 0 18px color-mix(in srgb, var(--se-hover-accent) 20%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 18px 54px #000b,
-      0 0 32px color-mix(in srgb, var(--se-hover-accent) 40%, transparent);
-  }
-}
-@keyframes se-profile-hover-spotlight {
-  0%, 20% { background-position: 130% 0; }
-  75%, 100% { background-position: -30% 0; }
-}
-@keyframes se-profile-hover-glitch {
-  0%, 93%, 100% { transform: translateX(0); filter: none; }
-  94% { transform: translateX(1px); filter: brightness(1.25); }
-  96% { transform: translateX(-1px); filter: saturate(1.35); }
-  98% { transform: translateX(0); filter: none; }
-}
-@keyframes se-profile-hover-sparks {
-  from { background-position: 0 0, 0 0, 0 0; opacity: 0.74; }
-  50% { opacity: 0.44; }
-  to { background-position: 0 -92px, 22px -144px, -14px -116px; opacity: 0.74; }
-}
-@keyframes se-profile-hover-shimmer {
-  0%, 18% { background-position: 130% 0; opacity: 0.42; }
-  60%, 100% { background-position: -40% 0; opacity: 0.78; }
-}
-@keyframes se-profile-hover-sirens {
-  0%, 100% {
-    box-shadow:
-      0 18px 54px #000b,
-      inset 5px 0 0 rgba(233, 32, 72, 0.5),
-      inset -5px 0 0 rgba(104, 153, 243, 0.28);
-  }
-  50% {
-    box-shadow:
-      0 18px 54px #000b,
-      inset 5px 0 0 rgba(233, 32, 72, 0.28),
-      inset -5px 0 0 rgba(104, 153, 243, 0.52);
-  }
-}
-@keyframes se-profile-hover-smoke {
-  from { transform: translate3d(-4%, 2%, 0) rotate(0deg); opacity: 0.68; }
-  to { transform: translate3d(5%, -3%, 0) rotate(2deg); opacity: 0.4; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .se-profile-hover-card.se-profile-effect--neon-pulse,
-  .se-profile-hover-card.se-profile-effect--neon-pulse .se-profile-hover-card__avatar,
-  .se-profile-hover-card.se-profile-effect--spotlight::after,
-  .se-profile-hover-card.se-profile-effect--glitch .se-profile-hover-card__banner > span,
-  .se-profile-hover-card.se-profile-effect--ember-sparks::after,
-  .se-profile-hover-card.se-profile-effect--cash-shimmer::after,
-  .se-profile-hover-card.se-profile-effect--sirens,
-  .se-profile-hover-card.se-profile-effect--smoke::after {
-    animation: none !important;
-  }
-}
+/* Current animated frame collection is defined below. */
 
-.se-profile-hover-card[data-frame="street-pass-s1-chrome-halo"] .se-profile-hover-card__avatar {
+.se-profile-hover-card[data-avatar-frame="street-pass-s1-chrome-halo"] .se-profile-hover-card__avatar {
   box-shadow:
     0 0 0 2px #d9e5ee,
     0 0 0 5px rgba(45, 212, 191, 0.58),
     0 0 22px rgba(167, 139, 250, 0.55);
+}
+
+/* Animated frame collection: every effect pairs an avatar ring with a popup edge treatment.
+   Keep the motion slow and mostly on opacity/box-shadow so it stays light in long lists. */
+.se-profile-hover-card[data-avatar-frame]:not([data-avatar-frame="none"]) .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame]:not([data-avatar-frame="none"]) .se-profile-card-preview__avatar {
+  box-shadow:
+    0 0 0 2px var(--se-hover-accent, #a4cf5b),
+    0 0 0 5px color-mix(in srgb, var(--se-hover-accent, #a4cf5b) 30%, transparent);
+}
+.se-profile-hover-card[data-avatar-frame="kings-crown-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="kings-crown-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #e9c46a; }
+.se-profile-hover-card[data-avatar-frame="outfit-pinstripe-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="outfit-pinstripe-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #d0683f; }
+.se-profile-hover-card[data-avatar-frame="saints-patch-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="saints-patch-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #c3cbd6; }
+.se-profile-hover-card[data-avatar-frame="cartel-pipeline-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="cartel-pipeline-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #3fbf93; }
+.se-profile-hover-card[data-avatar-frame="civic-seal-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="civic-seal-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #9aa1ee; }
+.se-profile-hover-card[data-avatar-frame="ghost-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="ghost-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #a78bfa; }
+.se-profile-hover-card[data-avatar-frame="top-shelf-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="top-shelf-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #2dd4bf; }
+.se-profile-hover-card[data-avatar-frame="full-rack-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="full-rack-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #f43f5e; }
+.se-profile-hover-card[data-avatar-frame="open-road-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="open-road-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #38bdf8; }
+.se-profile-hover-card[data-avatar-frame="clean-slate-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="clean-slate-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #a5f3fc; }
+.se-profile-hover-card[data-avatar-frame="corner-boss-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="corner-boss-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #f59e0b; }
+.se-profile-hover-card[data-avatar-frame="velvet-rope-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="velvet-rope-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #e0607e; }
+.se-profile-hover-card[data-avatar-frame="case-file-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="case-file-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #d6b578; }
+.se-profile-hover-card[data-avatar-frame="street-pass-s1-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="street-pass-s1-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #f0c233; }
+
+.se-profile-hover-card[data-frame]:not([data-frame="none"]),
+.se-profile-card-preview[data-popup-frame]:not([data-popup-frame="none"]) {
+  border-width: 2px;
+  box-shadow: 0 18px 54px #000b, 0 0 22px color-mix(in srgb, var(--se-popup-frame-color, var(--se-hover-accent, #a4cf5b)) 24%, transparent);
+}
+.se-profile-hover-card[data-frame="ghost-frame"], .se-profile-card-preview[data-popup-frame="ghost-frame"] { --se-popup-frame-color: #a78bfa; }
+.se-profile-hover-card[data-frame="top-shelf-frame"], .se-profile-card-preview[data-popup-frame="top-shelf-frame"] { --se-popup-frame-color: #2dd4bf; }
+.se-profile-hover-card[data-frame="full-rack-frame"], .se-profile-card-preview[data-popup-frame="full-rack-frame"] { --se-popup-frame-color: #f43f5e; }
+.se-profile-hover-card[data-frame="open-road-frame"], .se-profile-card-preview[data-popup-frame="open-road-frame"] { --se-popup-frame-color: #38bdf8; }
+.se-profile-hover-card[data-frame="clean-slate-frame"], .se-profile-card-preview[data-popup-frame="clean-slate-frame"] { --se-popup-frame-color: #a5f3fc; }
+.se-profile-hover-card[data-frame="corner-boss-frame"], .se-profile-card-preview[data-popup-frame="corner-boss-frame"] { --se-popup-frame-color: #f59e0b; }
+.se-profile-hover-card[data-frame="velvet-rope-frame"], .se-profile-card-preview[data-popup-frame="velvet-rope-frame"] { --se-popup-frame-color: #e0607e; }
+.se-profile-hover-card[data-frame="case-file-frame"], .se-profile-card-preview[data-popup-frame="case-file-frame"] { --se-popup-frame-color: #d6b578; }
+.se-profile-hover-card[data-frame="kings-crown-frame"], .se-profile-card-preview[data-popup-frame="kings-crown-frame"] { --se-popup-frame-color: #e9c46a; }
+.se-profile-hover-card[data-frame="outfit-pinstripe-frame"], .se-profile-card-preview[data-popup-frame="outfit-pinstripe-frame"] { --se-popup-frame-color: #d0683f; }
+.se-profile-hover-card[data-frame="saints-patch-frame"], .se-profile-card-preview[data-popup-frame="saints-patch-frame"] { --se-popup-frame-color: #c3cbd6; }
+.se-profile-hover-card[data-frame="cartel-pipeline-frame"], .se-profile-card-preview[data-popup-frame="cartel-pipeline-frame"] { --se-popup-frame-color: #3fbf93; }
+.se-profile-hover-card[data-frame="civic-seal-frame"], .se-profile-card-preview[data-popup-frame="civic-seal-frame"] { --se-popup-frame-color: #9aa1ee; }
+.se-profile-hover-card[data-frame="street-pass-s1-frame"], .se-profile-card-preview[data-popup-frame="street-pass-s1-frame"] { --se-popup-frame-color: #f0c233; }
+.se-profile-hover-card[data-frame="street-pass-s1-chrome-halo"], .se-profile-card-preview[data-popup-frame="street-pass-s1-chrome-halo"] { --se-popup-frame-color: #2dd4bf; }
+
+.se-profile-hover-card:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion),
+.se-profile-card-preview:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion) {
+  position: relative;
+  isolation: isolate;
+}
+.se-profile-hover-card:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion)::before,
+.se-profile-card-preview:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion)::before {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  border: 1px solid var(--se-frame-color, var(--se-hover-accent, #a4cf5b));
+  border-radius: inherit;
+  box-shadow: inset 0 0 18px color-mix(in srgb, var(--se-frame-color, var(--se-hover-accent, #a4cf5b)) 12%, transparent);
+  pointer-events: none;
+  animation: se-frame-breathe 4.8s ease-in-out infinite;
+}
+.se-profile-hover-card:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--high-roller)::after,
+.se-profile-card-preview:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--high-roller)::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(112deg, transparent 0 40%, color-mix(in srgb, var(--se-frame-color, #a4cf5b) 22%, transparent) 49%, transparent 58% 100%);
+  background-size: 240% 100%;
+  animation: se-frame-pass 6.2s ease-in-out infinite;
+  pointer-events: none;
+}
+.se-profile-hover-card.se-profile-effect--street-circuit,
+.se-profile-card-preview.se-profile-effect--street-circuit { --se-frame-color: #b6ff3a; }
+.se-profile-hover-card.se-profile-effect--night-drive,
+.se-profile-card-preview.se-profile-effect--night-drive { --se-frame-color: #74d7e8; }
+.se-profile-hover-card.se-profile-effect--corner-glow,
+.se-profile-card-preview.se-profile-effect--corner-glow { --se-frame-color: #ff9f43; }
+.se-profile-hover-card.se-profile-effect--heat-signal,
+.se-profile-card-preview.se-profile-effect--heat-signal { --se-frame-color: #ef5962; }
+.se-profile-hover-card.se-profile-effect--turf-claim,
+.se-profile-card-preview.se-profile-effect--turf-claim { --se-frame-color: #65df91; }
+.se-profile-hover-card.se-profile-effect--high-roller,
+.se-profile-card-preview.se-profile-effect--high-roller { --se-frame-color: #e9c46a; }
+.se-profile-hover-card.se-profile-effect--wanted,
+.se-profile-card-preview.se-profile-effect--wanted { --se-frame-color: #f08d49; }
+.se-profile-hover-card.se-profile-effect--season-champion,
+.se-profile-card-preview.se-profile-effect--season-champion { --se-frame-color: #f1cf71; }
+
+.se-profile-hover-card.se-profile-effect--corner-glow,
+.se-profile-card-preview.se-profile-effect--corner-glow { animation: se-profile-hover-in 140ms ease-out both, se-frame-corner-glow 4s ease-in-out infinite; }
+.se-profile-hover-card.se-profile-effect--heat-signal,
+.se-profile-card-preview.se-profile-effect--heat-signal { animation: se-profile-hover-in 140ms ease-out both, se-frame-heat 3.8s ease-in-out infinite; }
+.se-profile-hover-card.se-profile-effect--wanted,
+.se-profile-card-preview.se-profile-effect--wanted { animation: se-profile-hover-in 140ms ease-out both, se-frame-alert 5.8s steps(1, end) infinite; }
+.se-profile-hover-card.se-profile-effect--turf-claim::after,
+.se-profile-card-preview.se-profile-effect--turf-claim::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  top: 8px;
+  right: 10px;
+  width: 10px;
+  height: 10px;
+  border: 1px solid #65df91;
+  border-radius: 2px;
+  box-shadow: 0 0 12px #65df9180;
+  pointer-events: none;
+  animation: se-frame-block 5s ease-in-out infinite;
+}
+.se-profile-hover-card.se-profile-effect--season-champion::before,
+.se-profile-card-preview.se-profile-effect--season-champion::before {
+  border-width: 2px;
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, #f1cf71 32%, transparent), inset 0 0 22px #f1cf7122;
+}
+.se-profile-hover-card:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion) .se-profile-hover-card__avatar,
+.se-profile-card-preview:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion) .se-profile-card-preview__avatar {
+  animation: se-avatar-frame-breathe 4.8s ease-in-out infinite;
+}
+.se-profile-hover-card.se-profile-effect--heat-signal .se-profile-hover-card__avatar,
+.se-profile-card-preview.se-profile-effect--heat-signal .se-profile-card-preview__avatar { animation-name: se-avatar-frame-heat; }
+.se-profile-hover-card.se-profile-effect--high-roller .se-profile-hover-card__avatar,
+.se-profile-card-preview.se-profile-effect--high-roller .se-profile-card-preview__avatar { animation-name: se-avatar-frame-gold; }
+.se-profile-hover-card.se-profile-effect--season-champion .se-profile-hover-card__avatar,
+.se-profile-card-preview.se-profile-effect--season-champion .se-profile-card-preview__avatar { animation-name: se-avatar-frame-champion; }
+.se-profile-hover-card.se-profile-effect--snowstorm,
+.se-profile-card-preview.se-profile-effect--snowstorm,
+.se-profile-hover-card.se-profile-effect--inferno,
+.se-profile-card-preview.se-profile-effect--inferno {
+  position: relative;
+  isolation: isolate;
+}
+.se-profile-hover-card__frame-art,
+.se-profile-card-preview__frame-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+}
+.se-profile-hover-card > :not(.se-profile-hover-card__frame-art) {
+  position: relative;
+  z-index: 1;
+}
+.se-profile-card-preview > .se-profile-card-preview__frame-art { z-index: 0; }
+.se-profile-hover-card__identity,
+.se-profile-card-preview__identity { position: relative; }
+.se-profile-hover-card__identity-copy,
+.se-profile-card-preview__identity > div { position: relative; z-index: 4; }
+.se-profile-hover-card__avatar-art,
+.se-profile-card-preview__avatar-art {
+  position: absolute;
+  z-index: 3;
+  top: -12px;
+  left: 5px;
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--se-frame-color) 36%, transparent));
+  pointer-events: none;
+}
+.se-profile-card-preview__avatar-art { top: -14px; left: -8px; width: 104px; height: 104px; }
+.se-profile-hover-card:is(.se-profile-effect--snowstorm, .se-profile-effect--inferno)::before {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  border: 0;
+  border-radius: inherit;
+  box-shadow: none;
+  pointer-events: none;
+  animation: none;
+}
+.se-profile-hover-card.se-profile-effect--snowstorm,
+.se-profile-card-preview.se-profile-effect--snowstorm { --se-frame-color: #a9eaff; }
+.se-profile-hover-card.se-profile-effect--snowstorm::after,
+.se-profile-card-preview.se-profile-effect--snowstorm::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, #f4fdff 0 1.5px, transparent 2px),
+    radial-gradient(circle, #bceeff 0 1px, transparent 1.8px),
+    radial-gradient(circle, #ffffff 0 2px, transparent 2.8px),
+    linear-gradient(145deg, transparent 28%, #d9f7ff18 48%, transparent 68%);
+  background-size: 54px 63px, 77px 91px, 103px 111px, 100% 100%;
+  background-position: 0 0, 22px 17px, 41px 55px, 0 0;
+  -webkit-mask-image: radial-gradient(ellipse 62% 43% at center, transparent 40%, #000 86%);
+  mask-image: radial-gradient(ellipse 62% 43% at center, transparent 40%, #000 86%);
+  animation: se-frame-snowfall 4.5s linear infinite;
+}
+.se-profile-hover-card.se-profile-effect--inferno,
+.se-profile-card-preview.se-profile-effect--inferno { --se-frame-color: #ff8b36; }
+.se-profile-hover-card.se-profile-effect--inferno::after,
+.se-profile-card-preview.se-profile-effect--inferno::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse 19% 48% at 4% 100%, #ffcb5b80 0, #ff702c66 36%, transparent 78%),
+    radial-gradient(ellipse 20% 45% at 96% 100%, #ffd15b80 0, #f0442866 38%, transparent 78%),
+    radial-gradient(ellipse 44% 25% at 50% 103%, #ff9b3880 0, #ed392e44 48%, transparent 84%),
+    radial-gradient(circle, #ffe7a9 0 1.5px, transparent 2.5px),
+    radial-gradient(circle, #ff6f32 0 2px, transparent 3px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 73px 82px, 101px 107px;
+  background-position: 0 0, 0 0, 0 0, 13px 0, 47px 27px;
+  -webkit-mask-image: linear-gradient(to top, #000 0, #000 24%, #0008 52%, transparent 90%);
+  mask-image: linear-gradient(to top, #000 0, #000 24%, #0008 52%, transparent 90%);
+  animation: se-frame-flames 1.8s ease-in-out infinite alternate;
+}
+.se-profile-hover-card.se-profile-effect--snowstorm .se-profile-hover-card__avatar,
+.se-profile-card-preview.se-profile-effect--snowstorm .se-profile-card-preview__avatar { animation: se-avatar-snow 3.6s ease-in-out infinite; }
+.se-profile-hover-card.se-profile-effect--inferno .se-profile-hover-card__avatar,
+.se-profile-card-preview.se-profile-effect--inferno .se-profile-card-preview__avatar { animation: se-avatar-fire 2s ease-in-out infinite alternate; }
+@keyframes se-frame-breathe { 0%, 100% { opacity: .66; } 50% { opacity: 1; } }
+@keyframes se-frame-pass { 0%, 22% { background-position: 140% 0; opacity: .25; } 72%, 100% { background-position: -40% 0; opacity: .72; } }
+@keyframes se-frame-corner-glow { 0%, 100% { box-shadow: 0 18px 54px #000b, 0 0 10px #ff9f4320; } 50% { box-shadow: 0 18px 54px #000b, 0 0 26px #ff9f4355; } }
+@keyframes se-frame-heat { 0%, 100% { box-shadow: 0 18px 54px #000b, inset 4px 0 #ef596230, inset -4px 0 #55a6f330; } 50% { box-shadow: 0 18px 54px #000b, inset 4px 0 #ef596280, inset -4px 0 #55a6f380; } }
+@keyframes se-frame-alert { 0%, 94%, 100% { box-shadow: 0 18px 54px #000b, 0 0 12px #f08d4920; } 95%, 97% { box-shadow: 0 18px 54px #000b, 0 0 24px #f08d4970; } }
+@keyframes se-frame-block { 0%, 20%, 100% { opacity: .4; transform: scale(.72); } 48%, 72% { opacity: 1; transform: scale(1); background: #65df9140; } }
+@keyframes se-avatar-frame-breathe { 0%, 100% { box-shadow: 0 0 0 2px var(--se-frame-color), 0 0 0 5px color-mix(in srgb, var(--se-frame-color) 24%, transparent); } 50% { box-shadow: 0 0 0 2px var(--se-frame-color), 0 0 0 7px color-mix(in srgb, var(--se-frame-color) 38%, transparent); } }
+@keyframes se-avatar-frame-heat { 0%, 100% { box-shadow: 0 0 0 2px #ef5962, 0 0 0 5px #55a6f355; } 50% { box-shadow: 0 0 0 2px #55a6f3, 0 0 0 5px #ef596288; } }
+@keyframes se-avatar-frame-gold { 0%, 100% { box-shadow: 0 0 0 2px #e9c46a, 0 0 0 5px #e9c46a55; } 50% { box-shadow: 0 0 0 2px #fff0b4, 0 0 0 7px #e9c46a88; } }
+@keyframes se-avatar-frame-champion { 0%, 100% { box-shadow: 0 0 0 2px #f1cf71, 0 0 0 5px #b6ff3a55; } 50% { box-shadow: 0 0 0 3px #fff0b4, 0 0 0 8px #f1cf7180; } }
+@keyframes se-frame-snowfall { to { background-position: 0 189px, 22px 290px, 41px 333px, 0 0; } }
+@keyframes se-frame-flames { from { background-position: 0 0, 0 0, 0 0, 13px 25px, 47px 57px; filter: saturate(.9) brightness(.9); } to { background-position: 0 0, 0 0, 0 0, 13px -24px, 47px -23px; filter: saturate(1.2) brightness(1.18); } }
+@keyframes se-avatar-snow { 0%, 100% { box-shadow: 0 0 0 2px #a9eaff, 0 0 0 6px #a9eaff4d; } 50% { box-shadow: 0 0 0 2px #e8fbff, 0 0 0 8px #a9eaff88; } }
+@keyframes se-avatar-fire { from { box-shadow: 0 0 0 2px #ff8b36, 0 0 0 6px #ff5a2e55; } to { box-shadow: 0 0 0 3px #ffd15b, 0 0 0 9px #f044287a; } }
+@media (prefers-reduced-motion: reduce) {
+  .se-profile-hover-card:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion),
+  .se-profile-card-preview:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion),
+  .se-profile-hover-card:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion)::before,
+  .se-profile-hover-card:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion)::after,
+  .se-profile-card-preview:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion)::before,
+  .se-profile-card-preview:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion)::after,
+  .se-profile-hover-card .se-profile-hover-card__avatar,
+  .se-profile-card-preview .se-profile-card-preview__avatar,
+  .se-profile-hover-card.se-profile-effect--snowstorm::before,
+  .se-profile-hover-card.se-profile-effect--inferno::before,
+  .se-profile-card-preview.se-profile-effect--snowstorm::before,
+  .se-profile-card-preview.se-profile-effect--inferno::before,
+  .se-profile-hover-card.se-profile-effect--snowstorm::after,
+  .se-profile-hover-card.se-profile-effect--inferno::after,
+  .se-profile-card-preview.se-profile-effect--snowstorm::after,
+  .se-profile-card-preview.se-profile-effect--inferno::after {
+    animation: none !important;
+  }
 }

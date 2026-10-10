@@ -123,14 +123,16 @@ export const moneyFormatSchema = z.enum(['full', 'compact']);
 export const defaultLandingSchema = z.enum(['game', 'profile', 'rankings', 'news']);
 export const profileEffectSchema = z.enum([
   'none',
-  'neon-pulse',
-  'scanlines',
-  'spotlight',
-  'glitch',
-  'ember-sparks',
-  'cash-shimmer',
-  'sirens',
-  'smoke',
+  'street-circuit',
+  'night-drive',
+  'corner-glow',
+  'heat-signal',
+  'turf-claim',
+  'high-roller',
+  'wanted',
+  'season-champion',
+  'snowstorm',
+  'inferno',
 ]);
 
 export const profileBioSchema = z
@@ -206,6 +208,7 @@ export const updateAccountProfileSettingsSchema = z.object({
   profileBannerUrl: profileImageUrlSchema.nullable().optional(),
   profileEffect: profileEffectSchema.optional(),
   activeProfileFrameKey: z.string().trim().min(1).max(80).nullable(),
+  activeAvatarFrameKey: z.string().trim().min(1).max(80).nullable().optional(),
   activeSiteThemeKey: z.string().trim().min(1).max(80).nullable().default(null),
   itemCosmetics: itemCosmeticLoadoutSchema,
   crewCosmetics: crewCosmeticLoadoutSchema,

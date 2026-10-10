@@ -28,6 +28,7 @@ import './styles/console.css';
 import './styles/alliance.css';
 import './styles/contacts.css';
 import './styles/profile.css';
+import './styles/profile-hover.css';
 import './styles/activity.css';
 import './styles/admin.css';
 import './styles/public-info.css';

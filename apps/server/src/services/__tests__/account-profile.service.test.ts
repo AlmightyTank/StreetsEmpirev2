@@ -2,7 +2,7 @@ import type { AccountProfile, PrismaClient } from '@prisma/client';
 import { classicOgStreetPassA, classicOgV07AA } from '@streets/rulesets';
 import type { UpdateAccountProfileSettingsInput } from '@streets/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AccountProfileService } from '../account-profile.service.js';
+import { AccountProfileService, PROFILE_EFFECTS } from '../account-profile.service.js';
 import { RoundService } from '../round.service.js';
 
 vi.mock('../round.service.js', () => ({
@@ -23,6 +23,10 @@ type UnlockRow = { key: string; kind: string; title: string; description: string
 
 function collectionUnlock(styleKey: string): UnlockRow {
   return { key: `street-pass-s1-${styleKey}`, kind: 'ITEM_COLLECTION', title: styleKey, description: styleKey, styleKey, awardedAt: new Date(0) };
+}
+
+function frameUnlock(key: string): UnlockRow {
+  return { key, kind: 'PROFILE_FRAME', title: key, description: key, styleKey: key, awardedAt: new Date(0) };
 }
 
 function prismaFor(isAdmin: boolean, unlocks: UnlockRow[] = []): PrismaClient {
@@ -136,6 +140,51 @@ describe('AccountProfileService admin site theme QA', () => {
     const response = await AccountProfileService.settings(prismaFor(true), 'account-1');
 
     expect(response.options.themes.map((option) => option.key)).toContain('neon-vice');
+  });
+});
+
+describe('AccountProfileService animated profile frames', () => {
+  beforeEach(() => {
+    vi.mocked(RoundService.getCurrent).mockResolvedValue(null);
+  });
+
+  it('offers the StreetsEmpire animated effect set in place of the old generic list', async () => {
+    expect(PROFILE_EFFECTS.map((option) => option.key)).toEqual([
+      'none', 'street-circuit', 'night-drive', 'corner-glow', 'heat-signal',
+      'turf-claim', 'high-roller', 'wanted', 'season-champion', 'snowstorm', 'inferno',
+    ]);
+    expect((await AccountProfileService.settings(prismaFor(false), 'account-1')).options.effects).toEqual(PROFILE_EFFECTS);
+  });
+
+  it('saves popup and avatar frames independently and only when both are earned', async () => {
+    const prisma = prismaFor(false, [frameUnlock('popup-frame'), frameUnlock('avatar-frame')]);
+    const saved = await AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: null,
+      activeProfileFrameKey: 'popup-frame',
+      activeAvatarFrameKey: 'avatar-frame',
+    });
+
+    expect(saved.settings).toMatchObject({
+      activeProfileFrameKey: 'popup-frame',
+      activeAvatarFrameKey: 'avatar-frame',
+    });
+    const withoutAvatarFrame = await AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: null,
+      activeProfileFrameKey: 'popup-frame',
+      activeAvatarFrameKey: null,
+    });
+    expect(withoutAvatarFrame.settings).toMatchObject({
+      activeProfileFrameKey: 'popup-frame',
+      activeAvatarFrameKey: null,
+    });
+    await expect(AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: null,
+      activeProfileFrameKey: 'popup-frame',
+      activeAvatarFrameKey: 'unearned-frame',
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
   });
 });
 

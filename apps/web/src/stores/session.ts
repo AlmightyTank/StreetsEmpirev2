@@ -33,6 +33,7 @@ export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   profileBannerUrl: null,
   profileEffect: 'none',
   activeProfileFrameKey: null,
+  activeAvatarFrameKey: null,
   activeSiteThemeKey: null,
   itemCosmetics: {},
   crewCosmetics: { THUG: 'classic', HOE: 'classic' },

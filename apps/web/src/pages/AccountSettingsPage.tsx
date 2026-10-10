@@ -1,4 +1,3 @@
-import { ProfileBadgeArt } from '../components/ProfileBadgeArt.js';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type {
@@ -34,6 +33,16 @@ const SESSIONS_SHOWN = 5;
 /** Used when settings fail to load: only Classic is known to be owned. */
 const FALLBACK_ITEM_STYLES = collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, new Set());
 const FALLBACK_CREW_STYLES = collectionOptions(RELEASED_CREW_COSMETIC_STYLES, new Set());
+const PROFILE_EFFECT_FRAME_ART: Partial<Record<ProfileEffect, { popup: string; avatar: string }>> = {
+  snowstorm: {
+    popup: '/profile-frames/snowstorm-popup.webp',
+    avatar: '/profile-frames/snowstorm-avatar.webp',
+  },
+  inferno: {
+    popup: '/profile-frames/inferno-popup.webp',
+    avatar: '/profile-frames/inferno-avatar.webp',
+  },
+};
 
 function formatDate(value: string | null): string {
   return value ? formatWhen(value) : 'Never';
@@ -105,14 +114,16 @@ export function AccountSettingsPage() {
               themes: [],
               effects: [
                 { key: 'none', label: 'No effect', description: null },
-                { key: 'neon-pulse', label: 'Neon pulse', description: null },
-                { key: 'scanlines', label: 'Scanlines', description: null },
-                { key: 'spotlight', label: 'Spotlight', description: null },
-                { key: 'glitch', label: 'Glitch', description: null },
-                { key: 'ember-sparks', label: 'Ember sparks', description: null },
-                { key: 'cash-shimmer', label: 'Cash shimmer', description: null },
-                { key: 'sirens', label: 'Sirens', description: null },
-                { key: 'smoke', label: 'Smoke', description: null },
+                { key: 'street-circuit', label: 'Street Circuit', description: null },
+                { key: 'night-drive', label: 'Night Drive', description: null },
+                { key: 'corner-glow', label: 'Corner Glow', description: null },
+                { key: 'heat-signal', label: 'Heat Signal', description: null },
+                { key: 'turf-claim', label: 'Turf Claim', description: null },
+                { key: 'high-roller', label: 'High Roller', description: null },
+                { key: 'wanted', label: 'Wanted', description: null },
+                { key: 'season-champion', label: 'Season Champion', description: null },
+                { key: 'snowstorm', label: 'Snowstorm', description: null },
+                { key: 'inferno', label: 'Inferno', description: null },
               ],
               itemStyles: FALLBACK_ITEM_STYLES,
               crewStyles: FALLBACK_CREW_STYLES,
@@ -325,6 +336,8 @@ export function AccountSettingsPage() {
   const selectedAccent = profileSettings?.options.accents.find((option) => option.key === cosmetics.profileAccent);
   const selectedTitle = profileSettings?.options.titles.find((option) => option.key === cosmetics.activeTitleKey);
   const selectedFrame = profileSettings?.options.frames.find((option) => option.key === cosmetics.activeProfileFrameKey);
+  const selectedAvatarFrame = profileSettings?.options.frames.find((option) => option.key === cosmetics.activeAvatarFrameKey);
+  const profileEffectFrameArt = PROFILE_EFFECT_FRAME_ART[cosmetics.profileEffect];
   const displayName = me?.displayName ?? account.username;
   const previewCity = me?.city.name ?? 'Your city';
   const previewRank = me ? `#${me.publicPimpId.toLocaleString()}` : 'Preview';
@@ -689,7 +702,28 @@ export function AccountSettingsPage() {
                 </div>
 
                 <div className="se-field">
-                  <label className="se-label" htmlFor="profile-effect">Profile effect</label>
+                  <label className="se-label" htmlFor="avatar-frame">Avatar frame</label>
+                  <select
+                    id="avatar-frame"
+                    className="se-input"
+                    value={cosmetics.activeAvatarFrameKey ?? ''}
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      activeAvatarFrameKey: event.target.value || null,
+                    }))}
+                  >
+                    <option value="">No avatar frame</option>
+                    {profileSettings.options.frames.map((option) => (
+                      <option value={option.key} key={option.key}>{option.label}</option>
+                    ))}
+                  </select>
+                  {fields.activeAvatarFrameKey
+                    ? <p className="se-error" role="alert">{fields.activeAvatarFrameKey}</p>
+                    : <p className="se-hint">Choose a separate frame for the avatar, using frames you have already earned.</p>}
+                </div>
+
+                <div className="se-field">
+                  <label className="se-label" htmlFor="profile-effect">Frame animation</label>
                   <select
                     id="profile-effect"
                     className="se-input"
@@ -705,7 +739,7 @@ export function AccountSettingsPage() {
                   </select>
                   {fields.profileEffect
                     ? <p className="se-error" role="alert">{fields.profileEffect}</p>
-                    : <p className="se-hint">Discord-style card effects for your public profile. Reduced-motion visitors see a calmer version.</p>}
+                    : <p className="se-hint">Choose a paired animation for the popup and avatar frames. Reduced-motion visitors see the still frame artwork.</p>}
                 </div>
 
                 <div className="se-field">
@@ -731,7 +765,12 @@ export function AccountSettingsPage() {
               </div>
 
               <div className="se-account-cosmetics__side">
-                <div className={`se-profile-card-preview se-profile-accent se-profile-accent--${cosmetics.profileAccent}${cosmetics.activeProfileFrameKey ? ` se-profile-frame se-profile-frame--${cosmetics.activeProfileFrameKey}` : ''} se-profile-effect se-profile-effect--${cosmetics.profileEffect}`}>
+                <div
+                  className={`se-profile-card-preview se-profile-accent se-profile-accent--${cosmetics.profileAccent}${cosmetics.activeProfileFrameKey ? ` se-profile-frame se-profile-frame--${cosmetics.activeProfileFrameKey}` : ''} se-profile-effect se-profile-effect--${cosmetics.profileEffect}`}
+                  data-avatar-frame={cosmetics.activeAvatarFrameKey ?? 'none'}
+                  data-popup-frame={cosmetics.activeProfileFrameKey ?? 'none'}
+                >
+                  {profileEffectFrameArt ? <img className="se-profile-card-preview__frame-art" src={profileEffectFrameArt.popup} alt="" aria-hidden="true" /> : null}
                   <div
                     className="se-profile-card-preview__banner"
                     style={cosmetics.profileBannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 8, 0.52), rgba(5, 8, 8, 0.86)), url("${cosmetics.profileBannerUrl}")` } : undefined}
@@ -739,9 +778,10 @@ export function AccountSettingsPage() {
                     <span>Street Empire</span>
                   </div>
                   <div className="se-profile-card-preview__identity">
-                    <span className="se-profile-card-preview__avatar" aria-hidden="true">
+                    <span className="se-profile-card-preview__avatar" aria-hidden="true" title={selectedAvatarFrame?.label}>
                       {cosmetics.profileImageUrl ? <img src={cosmetics.profileImageUrl} alt="" /> : initials(displayName)}
                     </span>
+                    {profileEffectFrameArt ? <img className="se-profile-card-preview__avatar-art" src={profileEffectFrameArt.avatar} alt="" aria-hidden="true" /> : null}
                     <div>
                       <strong className="se-profile-card-preview__name">
                         {profileNameParts(displayName, selectedTitle?.label).map((part, index) => (
@@ -755,8 +795,9 @@ export function AccountSettingsPage() {
                   <p>{previewCity}{round ? ` · ${round.name}` : ''}</p>
                   <div className="se-profile-card-preview__chips">
                     <span>{selectedAccent?.label ?? 'StreetsEmpire'} accent</span>
-                    {selectedFrame ? <span>{selectedFrame.label} frame</span> : null}
-                    {cosmetics.profileEffect !== 'none' ? <span>{profileSettings.options.effects.find((option) => option.key === cosmetics.profileEffect)?.label ?? 'Profile effect'}</span> : null}
+                    {selectedFrame ? <span>{selectedFrame.label} popup frame</span> : null}
+                    {selectedAvatarFrame ? <span>{selectedAvatarFrame.label} avatar frame</span> : null}
+                    {cosmetics.profileEffect !== 'none' ? <span>{profileSettings.options.effects.find((option) => option.key === cosmetics.profileEffect)?.label ?? 'Frame animation'}</span> : null}
                   </div>
                 </div>
 
@@ -775,11 +816,9 @@ export function AccountSettingsPage() {
                               disabled={!checked && cosmetics.featuredBadgeKeys.length >= 6}
                               onChange={() => toggleFeaturedBadge(option.key)}
                             />
-                            <span className="se-badge-picker__option">
-                              <ProfileBadgeArt badgeKey={option.key} rarity={option.rarity} size={38} />
-                              <span><strong>{option.label}</strong>
-                                <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity.charAt(0).toUpperCase() + option.rarity.slice(1)}</small>
-                              </span>
+                            <span>
+                              <strong>{option.label}</strong>
+                              <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity.charAt(0).toUpperCase() + option.rarity.slice(1)}</small>
                             </span>
                           </label>
                         );

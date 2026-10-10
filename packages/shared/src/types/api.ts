@@ -200,14 +200,16 @@ export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
 export type ProfileTitlePlacement = 'prefix' | 'suffix';
 export type ProfileEffect =
   | 'none'
-  | 'neon-pulse'
-  | 'scanlines'
-  | 'spotlight'
-  | 'glitch'
-  | 'ember-sparks'
-  | 'cash-shimmer'
-  | 'sirens'
-  | 'smoke';
+  | 'street-circuit'
+  | 'night-drive'
+  | 'corner-glow'
+  | 'heat-signal'
+  | 'turf-claim'
+  | 'high-roller'
+  | 'wanted'
+  | 'season-champion'
+  | 'snowstorm'
+  | 'inferno';
 
 export interface CosmeticOptionDto {
   key: string;
@@ -240,6 +242,8 @@ export interface AccountProfileSettingsDto {
   profileBannerUrl: string | null;
   profileEffect: ProfileEffect;
   activeProfileFrameKey: string | null;
+  /** Independently equipped avatar frame. Optional for older clients. */
+  activeAvatarFrameKey?: string | null;
   activeSiteThemeKey: string | null;
   /** Player-selected skin per item. Optional for backward-compatible clients. */
   itemCosmetics?: ItemCosmeticLoadout;
