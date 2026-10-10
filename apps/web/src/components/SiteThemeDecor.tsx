@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { lazy, Suspense, type ComponentType, type CSSProperties } from 'react';
 
 const snow = [
   ['4%', '-2s', '12s', 5], ['9%', '-7s', '16s', 3], ['14%', '-5s', '13s', 4], ['20%', '-10s', '18s', 6],
@@ -107,9 +107,17 @@ const themeMotes = [
   ['78%', '66%', '-11s'], ['87%', '40%', '-3s'], ['95%', '73%', '-8s'],
 ] as const;
 
+// Illustrated SVG backdrops, loaded only for the shell that is equipped. A pack with a
+// scene drops the generic motif and motes in favour of its own.
+const themeScenes: Partial<Record<string, ComponentType>> = {
+  'federal-case': lazy(() => import('./theme-scenes/DeadOrAliveScene.js')),
+};
+
 function ThemePackAtmosphere({ themeKey }: { themeKey: string }) {
+  const Scene = themeScenes[themeKey];
   return (
-    <div className={`se-site-theme-decor se-site-theme-decor--theme-pack se-site-theme-decor--${themeKey}`} aria-hidden="true">
+    <div className={`se-site-theme-decor se-site-theme-decor--theme-pack se-site-theme-decor--${themeKey}${Scene ? ' se-site-theme-decor--scene' : ''}`} aria-hidden="true">
+      {Scene ? <Suspense fallback={null}><Scene /></Suspense> : null}
       <div className="se-theme-pack__motif" />
       <div className="se-theme-pack__motes">
         {themeMotes.map(([left, top, delay], index) => (

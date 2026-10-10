@@ -1351,11 +1351,63 @@
 @keyframes se-theme-pack-drift { from { transform: translate3d(0, 0, 0) rotate(-1deg); } to { transform: translate3d(-20px, 12px, 0) rotate(1deg); } }
 @keyframes se-theme-pack-mote { 0%, 100% { transform: translate3d(0, 14px, 0) scale(.65); opacity: .2; } 50% { transform: translate3d(8px, -18px, 0) scale(1); opacity: .85; } }
 @keyframes se-theme-pack-haze { from { opacity: .28; } to { opacity: .8; } }
+
+/* Illustrated SVG scenes (components/theme-scenes) replace the generic motif and motes. */
+.se-site-theme-decor--scene { opacity: .62; }
+.se-site-theme-decor--scene :is(.se-theme-pack__motif, .se-theme-pack__motes) { display: none; }
+.se-theme-scene { position: absolute; inset: 0; }
+.se-theme-scene svg { position: absolute; overflow: visible; }
+
+/* Dead-or-Alive: window shaft through venetian blinds, a ceiling fan's shadow, pinned case files. */
+.se-doa__light {
+  top: 0;
+  right: 0;
+  width: min(74vw, 1040px);
+  height: 100%;
+}
+.se-doa__fan {
+  transform-origin: 700px 150px;
+  animation: se-doa-fan 16s linear infinite;
+}
+.se-doa__beam { animation: se-doa-beam 11s ease-in-out infinite alternate; }
+.se-doa__dust circle { animation: se-doa-dust 17s ease-in-out infinite alternate; }
+.se-doa__board {
+  top: 5vh;
+  left: -2vw;
+  width: min(30vw, 400px);
+  height: auto;
+  filter: drop-shadow(0 8px 14px #000a);
+}
+.se-doa__type {
+  fill: #e6cc93;
+  fill-opacity: .7;
+  font: 700 17px/1 Georgia, 'Times New Roman', serif;
+  letter-spacing: 3px;
+}
+.se-doa__type--big { font-size: 38px; letter-spacing: 5px; }
+.se-doa__sheet--poster > g { transform-origin: 158px 44px; animation: se-doa-sway 9s ease-in-out infinite alternate; }
+.se-doa__sheet--card > g { transform-origin: 300px 318px; animation: se-doa-flutter 7s ease-in-out -3s infinite alternate; }
+@keyframes se-doa-fan { to { transform: rotate(360deg); } }
+@keyframes se-doa-beam { from { opacity: .75; } to { opacity: 1; } }
+@keyframes se-doa-dust {
+  0% { transform: translate(0, 0); opacity: .25; }
+  50% { opacity: .95; }
+  100% { transform: translate(-26px, 34px); opacity: .35; }
+}
+@keyframes se-doa-sway { from { rotate: -.6deg; } to { rotate: .7deg; } }
+@keyframes se-doa-flutter { from { rotate: -1.4deg; } to { rotate: 1.2deg; } }
+@media (max-width: 700px) {
+  .se-doa__light { width: 120vw; right: -30vw; }
+  .se-doa__board { top: auto; bottom: 4vh; left: -10vw; width: 46vw; opacity: .7; }
+}
+
 .se-reduced-motion .se-theme-pack__motif,
 .se-reduced-motion .se-theme-pack__motes i,
-.se-reduced-motion .se-theme-pack__haze { animation: none !important; }
+.se-reduced-motion .se-theme-pack__haze,
+.se-reduced-motion .se-theme-scene * { animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .se-theme-pack__motif,
   .se-theme-pack__motes i,
-  .se-theme-pack__haze { animation: none !important; }
+  .se-theme-pack__haze,
+  .se-theme-scene * { animation: none !important; }
 }
