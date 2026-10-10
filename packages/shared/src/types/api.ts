@@ -98,14 +98,6 @@ export type ActivityType =
   | 'FACTION_TIER_UP'
   /** 1.4.0-D. An early warning from a faction the player is Trusted with. */
   | 'FACTION_WARNING'
-  /** 1.6.0-H. A lane shipment landed: clean, partly searched, or seized. */
-  | 'SUPPLY_LANE_ARRIVED'
-  /** 1.6.5-D. Loan shark: a loan taken, a payment (scheduled or manual), a missed installment. */
-  | 'LOAN_TAKEN'
-  | 'LOAN_PAYMENT'
-  | 'LOAN_INSTALLMENT_MISSED'
-  /** 1.6.5-E. Into collections, or out of it into recovery or good standing. */
-  | 'LOAN_COLLECTIONS'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'
@@ -200,16 +192,14 @@ export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
 export type ProfileTitlePlacement = 'prefix' | 'suffix';
 export type ProfileEffect =
   | 'none'
-  | 'chrome-serpent'
-  | 'phantom-convoy'
-  | 'lantern-district'
-  | 'siren-breaker'
-  | 'block-sovereign'
-  | 'gilded-house'
-  | 'dead-or-alive'
-  | 'laurel-ascendant'
-  | 'snowstorm'
-  | 'inferno';
+  | 'neon-pulse'
+  | 'scanlines'
+  | 'spotlight'
+  | 'glitch'
+  | 'ember-sparks'
+  | 'cash-shimmer'
+  | 'sirens'
+  | 'smoke';
 
 export interface CosmeticOptionDto {
   key: string;
@@ -242,8 +232,6 @@ export interface AccountProfileSettingsDto {
   profileBannerUrl: string | null;
   profileEffect: ProfileEffect;
   activeProfileFrameKey: string | null;
-  /** Independently equipped avatar frame. Optional for older clients. */
-  activeAvatarFrameKey?: string | null;
   activeSiteThemeKey: string | null;
   /** Player-selected skin per item. Optional for backward-compatible clients. */
   itemCosmetics?: ItemCosmeticLoadout;
@@ -330,8 +318,6 @@ export interface ResourcesDto {
   postedThugs: number;
   /** 1.1.0-B. Thugs and girls working a business: still yours, never fit or working at home. */
   businessThugs: number;
-  /** 1.6.0-A. Thugs assigned to dealer crews: still yours, unavailable for other work. */
-  dealerThugs: number;
   businessWhores: number;
   armedThugs: number;
   unarmedThugs: number;
@@ -352,411 +338,6 @@ export interface ResourcesDto {
   /** 1.5.0-B/E2. Ready class vehicles; Charlie sells them from 1.5.0-E2. */
   sedans: number;
   vans: number;
-}
-
-export type SupplyOrderStatusDto = 'OPEN' | 'PARTIALLY_COLLECTED' | 'FULFILLED' | 'CANCELLED';
-
-export interface SupplyOfferDto {
-  productKey: string;
-  productName: string;
-  unitCostCents: number;
-  minOrderQuantity: number;
-  maxOrderQuantity: number;
-  availableQuantity: number;
-}
-
-export interface SupplySupplierDto {
-  key: string;
-  name: string;
-  citySlug: string;
-  cityName: string;
-  description: string;
-  offers: SupplyOfferDto[];
-}
-
-export interface SupplyOrderDto {
-  id: string;
-  supplierKey: string;
-  supplierName: string;
-  supplierCitySlug: string;
-  supplierCityName: string;
-  productKey: string;
-  productName: string;
-  quantityOrdered: number;
-  quantityCollected: number;
-  quantityRemaining: number;
-  unitCostCents: number;
-  totalPaidCents: number;
-  status: SupplyOrderStatusDto;
-  createdAt: string;
-}
-
-export interface SupplyPageDto {
-  enabled: boolean;
-  maxOpenOrders: number;
-  openOrderCount: number;
-  suppliers: SupplySupplierDto[];
-  orders: SupplyOrderDto[];
-  /** 1.6.0-C. Collecting orders in vehicle loads. Null before pickups open. */
-  pickups?: SupplyPickupPlanningDto | null;
-  /** 1.6.0-F. The network's money and stock, this round. */
-  ledger?: SupplyLedgerDto | null;
-  /** 1.6.0-F. What moved, newest first. */
-  history?: SupplyHistoryItemDto[];
-}
-
-/** 1.6.0-F. Every cent the supply network took and made, and where every unit is. */
-export interface SupplyLedgerDto {
-  wholesaleCents: number;
-  propertyCents: number;
-  upkeepCents: number;
-  /** 1.6.0-H. What route cards cost. */
-  laneFeesCents: number;
-  grossSalesCents: number;
-  dealerCutCents: number;
-  wagesCents: number;
-  /** What sales paid in after the cut, less wages, wholesale, properties and upkeep. */
-  netCents: number;
-  unitsSold: number;
-  stock: { awaitingPickup: number; inTransit: number; stored: number; withCrews: number };
-}
-
-export interface SupplyHistoryItemDto {
-  at: string;
-  /** LANE: 1.6.0-H, a lane shipment landing, searched or not. */
-  kind: 'ORDERED' | 'PICKED_UP' | 'STORED' | 'ASSIGNED_TO_DEALER' | 'SOLD' | 'RETURNED' | 'LANE' | 'CORRECTED';
-  productName: string;
-  units: number;
-  text: string;
-}
-
-export type SupplyPickupStatusDto = 'PLANNED' | 'IN_TRANSIT' | 'DELIVERED' | 'FAILED' | 'CANCELLED';
-/** 1.6.0-C. A road's police pressure in words. Never a chance. */
-export type SupplyRouteRiskDto = 'QUIET' | 'WATCHED' | 'HEAVY';
-export type SupplyVehicleClassId = 'LOW_RIDER' | 'SEDAN' | 'VAN';
-
-/** 1.6.0-C. One load of a paid order: driving out, riding home, or done. */
-export interface SupplyPickupDto {
-  id: string;
-  /** Null for a 1.6.0-F shipment between warehouses. */
-  orderId: string | null;
-  /** 1.6.0-F. A shipment moves the player's own stock between warehouses. */
-  shipment: boolean;
-  /** 1.6.0-H. A contracted lane from abroad, and how it landed once it has. */
-  lane: { route: SupplyLaneRouteKeyDto; routeName: string; outcome: 'CLEAN' | 'PARTIAL' | 'SEIZED' | null } | null;
-  runId: string | null;
-  productKey: string;
-  productName: string;
-  supplierName: string;
-  originCitySlug: string;
-  originCityName: string;
-  destinationCitySlug: string;
-  destinationCityName: string;
-  /** 1.6.0-D. The warehouse it goes to. */
-  warehouseName: string;
-  /** Loaded, or to be loaded at the supplier. */
-  quantity: number;
-  /** In storage once the pickup is home. */
-  deliveredQuantity: number;
-  /** Lost on the road: only known once the pickup is home. */
-  lostQuantity: number;
-  vehicleLoadout: Record<SupplyVehicleClassId, number>;
-  status: SupplyPickupStatusDto;
-  /** From a supplier in the player's own city: no road, straight into storage. */
-  local: boolean;
-  dispatchedAt: string | null;
-  loadedAt: string | null;
-  expectedArrivalAt: string | null;
-  deliveredAt: string | null;
-}
-
-/** 1.6.0-C. One way to a supplier, as it would go if the pickup left now. */
-export interface SupplyRouteOptionDto {
-  index: number;
-  cities: Array<{ slug: string; name: string }>;
-  /** 1.6.0-D. Every stop in order, home last: the supplier, and the warehouse when it is elsewhere. */
-  stops: Array<{ slug: string; name: string }>;
-  /** Out to the supplier. */
-  gameMinutes: number;
-  /** Out, the loading window and home again. */
-  roundTripMinutes: number;
-  turns: number;
-  police: number;
-  risk: SupplyRouteRiskDto;
-  arriveAt: string;
-  backAt: string;
-}
-
-export interface SupplyPickupOrderPlanDto {
-  orderId: string;
-  local: boolean;
-  /** Neither loaded nor promised to a pickup still driving out. */
-  availableQuantity: number;
-  /** Promised to pickups still driving out. */
-  reservedQuantity: number;
-  /** Ways to bring a load home to the home stash. */
-  routes: SupplyRouteOptionDto[];
-  /** 1.6.0-D. Every storage it can go to, by `SupplyStashDto.key`, with the ways there. */
-  destinations: Array<{ key: string; local: boolean; routes: SupplyRouteOptionDto[] }>;
-}
-
-/** 1.6.0-C. Where pickups land: the home stash, and from 1.6.0-D bought warehouses. */
-export interface SupplyStashDto {
-  /** The warehouse id, or `stash` for a home stash nothing has landed in yet. */
-  key: string;
-  /** 1.6.0-D. */
-  kind: 'STASH' | 'WAREHOUSE';
-  name: string;
-  citySlug: string;
-  cityName: string;
-  capacityUnits: number;
-  storedUnits: number;
-  /** Loads on their way here, already holding room. */
-  inboundUnits: number;
-  roomUnits: number;
-  stock: Array<{ productKey: string; productName: string; quantity: number }>;
-  /** 1.6.0-D. Upkeep each period, and how far it is paid. Zero and null for the stash. */
-  upkeepCents: number;
-  paidThrough: string | null;
-  /** Upkeep fell due and cash could not cover it: no new deliveries until it is paid. */
-  behind: boolean;
-}
-
-/** 1.6.0-D. What each city sells, and what the player holds there. */
-export interface SupplyPropertyMarketDto {
-  maxWarehouses: number;
-  ownedWarehouses: number;
-  maxSafehouses: number;
-  ownedSafehouses: number;
-  upkeepPeriodHours: number;
-  cities: SupplyPropertyCityDto[];
-}
-
-export interface SupplyPropertyCityDto {
-  citySlug: string;
-  cityName: string;
-  isHome: boolean;
-  /** Home, or a safehouse that is paid up: a warehouse can be bought here. */
-  foothold: boolean;
-  warehouse: { costCents: number; upkeepCents: number; capacityUnits: number; ownedId: string | null; blockedReason: string | null };
-  /** Null at home: the home city needs no safehouse. */
-  safehouse: { costCents: number; upkeepCents: number; ownedId: string | null; paidThrough: string | null; behind: boolean; blockedReason: string | null } | null;
-}
-
-export interface SupplyPropertyActionResult {
-  kind: 'WAREHOUSE' | 'SAFEHOUSE';
-  action: 'BOUGHT' | 'CLOSED';
-  propertyId: string;
-  citySlug: string;
-  cityName: string;
-  chargedCents: number;
-}
-
-export interface SupplyPickupVehicleDto {
-  classId: SupplyVehicleClassId;
-  name: string;
-  /** Ready at home. Damaged, disabled and away vehicles cannot go. */
-  ready: number;
-  /** Cargo per vehicle, before the round's cargo bonus. Fractional for some classes. */
-  cargoUnits: number;
-  crewSeats: number;
-  routeProfile: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
-  routeRiskPercent: number;
-}
-
-export interface SupplyPickupPlanningDto {
-  homeCitySlug: string;
-  homeCityName: string;
-  turns: number;
-  fitThugs: number;
-  runLimit: number;
-  activeRuns: number;
-  /** Extra cargo share from rackets; capacity is floor(sum of vehicle cargo × (1 + this)). */
-  cargoShare: number;
-  localPickupTurns: number;
-  townWindowMinutes: number;
-  vehicles: SupplyPickupVehicleDto[];
-  /** The home stash. */
-  stash: SupplyStashDto;
-  /** 1.6.0-D. Every place a load can go, the home stash first. */
-  storage: SupplyStashDto[];
-  /** 1.6.0-D. Null before properties open. */
-  properties: SupplyPropertyMarketDto | null;
-  /** 1.6.0-H. Suppliers abroad and the route cards to them. Null before lanes open. */
-  lanes: SupplyLanesDto | null;
-  /** 1.6.0-F. Ways stock can be shipped between storage in different cities. Null before shipments open. */
-  shipmentLanes: Array<{ from: string; to: string; routes: SupplyRouteOptionDto[] }> | null;
-  orders: SupplyPickupOrderPlanDto[];
-  /** Active pickups first, then the most recent finished ones. */
-  pickups: SupplyPickupDto[];
-}
-
-export type SupplyLaneRouteKeyDto = 'FREIGHT' | 'OVERLAND' | 'AIR' | 'NORTHERN';
-export type SupplyLaneRiskDto = 'LOW' | 'MODERATE' | 'HIGH';
-
-/** 1.6.0-H. A route card: what it carries, costs and takes, and how it looks in each city it lands in. */
-export interface SupplyLaneRouteDto {
-  key: SupplyLaneRouteKeyDto;
-  name: string;
-  description: string;
-  capacityUnits: number;
-  baseFeeCents: number;
-  feeCentsPerUnit: number;
-  transitHours: number;
-  /** Where it lands, the chance of a search there in words, and the player's storage that can take it. */
-  entries: Array<{ citySlug: string; cityName: string; risk: SupplyLaneRiskDto; storage: Array<{ key: string; name: string; roomUnits: number }> }>;
-}
-
-export interface SupplyLaneSupplierDto {
-  key: string;
-  name: string;
-  origin: string;
-  description: string;
-  routes: SupplyLaneRouteKeyDto[];
-  offers: SupplyOfferDto[];
-}
-
-export interface SupplyLanesDto {
-  maxInTransit: number;
-  inTransit: number;
-  routes: SupplyLaneRouteDto[];
-  suppliers: SupplyLaneSupplierDto[];
-}
-
-export interface SupplyLaneResult {
-  pickup: SupplyPickupDto;
-  goodsCents: number;
-  feeCents: number;
-  chargedCents: number;
-  replayed: boolean;
-}
-
-export interface SupplyShipmentResult {
-  pickup: SupplyPickupDto;
-  turns: number;
-  risk: SupplyRouteRiskDto | null;
-  replayed: boolean;
-}
-
-export interface SupplyPickupDispatchResult {
-  pickup: SupplyPickupDto;
-  order: SupplyOrderDto;
-  turns: number;
-  capacityUnits: number;
-  risk: SupplyRouteRiskDto | null;
-  replayed: boolean;
-}
-
-export interface SupplyOrderPlacementResult {
-  order: SupplyOrderDto;
-  chargedCents: number;
-  replayed: boolean;
-}
-
-/** 1.6.0-A. One individual's persisted dealer career, assigned or released. */
-export interface DealerStaffDto {
-  id: string;
-  crewId: string | null;
-  experiencePoints: number;
-  assignedAt: string;
-  releasedAt: string | null;
-}
-
-export interface DealerStaffActionResult {
-  staff: DealerStaffDto;
-  dealerThugs: number;
-  availableThugs: number;
-  replayed: boolean;
-}
-
-export type DemandWordDto = 'STRONG' | 'STEADY' | 'MODEST' | 'THIN';
-
-/** 1.6.0-E. One dealer's career: his experience, the tier it earns him, and his cut. */
-export interface DealerCareerDto {
-  id: string;
-  crewId: string | null;
-  experiencePoints: number;
-  tierKey: string;
-  tierName: string;
-  cutPercent: number;
-  /** Experience to the next tier, or null at the top. */
-  nextTierAt: number | null;
-}
-
-/** 1.6.0-E. A crew, its offering and what it is expected to do. */
-export interface DealerCrewDto {
-  id: string;
-  citySlug: string;
-  cityName: string;
-  districtKey: string;
-  districtName: string;
-  status: 'ACTIVE' | 'PAUSED';
-  /** False when the safehouse it relies on is gone or behind. */
-  foothold: boolean;
-  productKey: string | null;
-  productName: string | null;
-  priceCents: number | null;
-  streetPriceCents: number | null;
-  priceRange: { minCents: number; maxCents: number } | null;
-  demand: DemandWordDto | null;
-  /** The district's foot traffic, 1 ordinary. */
-  traffic: number;
-  capacityUnits: number;
-  inventoryUnits: number;
-  dealers: DealerCareerDto[];
-  /** What it would do now, at this price, with this stock. Sales themselves begin in 1.6.0-F. */
-  pace: {
-    unitsPerHour: number;
-    cutPercent: number;
-    operatingCentsPerHour: number;
-    grossCentsPerHour: number;
-    /** After the dealers' cut and operating costs. */
-    netCentsPerHour: number;
-    /** Until the stock it holds runs out; null when it is not selling. */
-    hoursToSellOut: number | null;
-  };
-  /** Storage in its city it can be stocked from, with what each holds of its product. */
-  warehouses: Array<{ id: string; name: string; available: number; roomUnits: number }>;
-  /** What it could sell in this city. */
-  products: Array<{ key: string; name: string; streetPriceCents: number; demand: DemandWordDto; stored: number }>;
-  /** 1.6.0-F. What it has sold this round, and its latest batches. Null before sales open. */
-  sales: {
-    units: number;
-    grossCents: number;
-    cutCents: number;
-    netCents: number;
-    wagesCents: number;
-    recent: Array<{ at: string; units: number; priceCents: number; netCents: number }>;
-  } | null;
-}
-
-export interface DealerPageDto {
-  enabled: boolean;
-  rules: {
-    maxCrews: number;
-    maxDealersPerCrew: number;
-    unitsPerDealer: number;
-    setupTurns: number;
-    operatingCentsPerDealerHour: number;
-    priceRange: { min: number; max: number };
-    tiers: Array<{ key: string; name: string; minExperience: number; cutPercent: number; paceBonus: number }>;
-    /** 1.6.0-F. Crews sell on the server's clock. */
-    selling: boolean;
-    salesIntervalMinutes: number | null;
-  } | null;
-  turns: number;
-  fitThugs: number;
-  dealerThugs: number;
-  /** Cities with a foothold, and their districts. */
-  cities: Array<{ citySlug: string; cityName: string; isHome: boolean; districts: Array<{ key: string; name: string; traffic: number; taken: boolean }> }>;
-  crews: DealerCrewDto[];
-  /** Released dealers, who come back with their experience when a crew needs hands. */
-  careers: DealerCareerDto[];
-}
-
-export interface DealerCrewActionResult {
-  crew: DealerCrewDto | null;
-  message: string;
 }
 
 /** One line of the happiness sum, so a low number can explain itself. */
@@ -815,8 +396,6 @@ export interface RoundPlayerDto {
   convoyAlert: { kind: 'tailed' | 'call'; cityName: string; landsAt: string } | null;
   /** 0.6.0-B. Home turf and today's house-minted street tax. */
   turf: TurfSummaryDto | null;
-  /** Open street situations that are waiting on a player choice. */
-  pendingEncounters: RandomEncounterDto[];
   /** Street Pass summary for the nav badge. Absent or null on rounds without a pass. */
   streetPass?: { tier: number; tierCount: number; claimable: number } | null;
   /** 1.3.0-A. The worst Case the player has anywhere. Absent or null on rounds without the law. */
@@ -977,8 +556,6 @@ export interface GameActionResult<T> {
   after: PlayerSnapshot;
   changes: ResourceChange[];
   result: T;
-  /** Action-triggered street encounter attached to this receipt. */
-  encounter?: RandomEncounterDto;
   rankChanges?: RankChanges;
 }
 
@@ -1012,6 +589,13 @@ export interface DistrictDto {
   /** Fit thugs without weapons; E/F rounds do not count them as street cover. */
   unarmedThugs: number;
   requiresArmedThugs: boolean;
+  /** Quest gate for scouting. The district remains visible while locked. */
+  scoutAccess?: {
+    unlocked: boolean;
+    unlockName: string;
+    unlockDescription: string;
+    unlockQuest: QuestLinkDto | null;
+  };
 }
 
 export interface DistrictsDto {
@@ -1026,49 +610,6 @@ export interface FoundProductDto {
   key: string;
   name: string;
   quantity: number;
-}
-
-export type RandomEncounterToneDto = 'good' | 'warn' | 'bad' | 'neutral';
-
-export interface RandomEncounterDto {
-  id?: string;
-  key: string;
-  title: string;
-  text: string;
-  tone: RandomEncounterToneDto;
-  effects: {
-    cashCents?: number;
-    heat?: number;
-    condoms?: number;
-    medicine?: number;
-    crack?: number;
-    beer?: number;
-  };
-  choices?: Array<{
-    key: string;
-    label: string;
-    text: string;
-    effects: {
-      cashCents?: number;
-      heat?: number;
-      condoms?: number;
-      medicine?: number;
-      crack?: number;
-      beer?: number;
-    };
-  }>;
-  status?: 'PENDING' | 'RESOLVED';
-}
-
-export interface RandomEncounterChoiceResult {
-  encounterId: string;
-  encounterKey: string;
-  title: string;
-  choice: string;
-  choiceLabel: string;
-  text: string;
-  cashCents: number;
-  effects: RandomEncounterDto['effects'];
 }
 
 export interface ScoutResult {
@@ -1123,9 +664,6 @@ export interface ScoutResult {
   coveredWhores: number;
   armedThugs: number;
   unarmedThugs: number;
-
-  /** 1.6.0-F. Action-triggered street color and consequences. */
-  encounter?: RandomEncounterDto;
 
   turnsUsed: number;
   turnsRemaining: number;
@@ -1189,9 +727,6 @@ export interface ProduceCrackResult {
   medicineUsed: number;
   /** Untreated, and gone. */
   lostToInfection: number;
-
-  /** 1.6.0-F. Action-triggered street color and consequences. */
-  encounter?: RandomEncounterDto;
 
   turnsUsed: number;
   turnsRemaining: number;
@@ -1856,6 +1391,13 @@ export interface ProductStockDto {
   } | null;
   /** 0.4.0-D. Present where Produce can cook it. */
   recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
+  /** Slice A. Present for a cookable product and separate from Pip purchase access. */
+  recipeAccess?: {
+    unlocked: boolean;
+    unlockName: string | null;
+    unlockDescription: string | null;
+    unlockQuest: QuestLinkDto | null;
+  } | null;
 }
 
 /** 0.4.0-D. POST /api/game/products/trade. */
