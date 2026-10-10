@@ -1746,6 +1746,38 @@
   .se-gh__wheel { width: 48vw; }
 }
 
+/* Chrome Serpent: a chrome serpent gliding along route-map lines (SVG animateMotion, hidden under
+   reduced motion since CSS cannot pause it), a swinging shop lamp, a roll-up door, a classic
+   car's grille, and a tire stack by an oil drum. */
+.se-cs__wall { top: 0; left: 0; width: 100%; height: 100%; }
+.se-cs__shine { fill-opacity: 0; animation: se-cs-shine 3.2s ease-in-out infinite; }
+.se-cs__tongue { fill: none; stroke: #f87171; stroke-width: 1.6; opacity: 0; animation: se-cs-tongue 2.6s steps(1, end) infinite; }
+.se-cs__lamp { top: 0; left: 1vw; width: min(20vw, 270px); height: auto; }
+.se-cs__lamp-swing { transform-origin: 150px 0; animation: se-cs-swing 5.5s ease-in-out infinite alternate; }
+.se-cs__door { top: 0; right: 0; width: min(25vw, 340px); height: auto; }
+.se-cs__door-sheen { animation: se-cs-sheen 11s ease-in-out infinite; }
+.se-cs__stencil { fill: #d97706; fill-opacity: .55; font: 800 34px/1 'Arial Black', Arial, sans-serif; letter-spacing: 6px; }
+.se-cs__car { bottom: 0; left: 0; width: min(28vw, 380px); height: auto; }
+.se-cs__headlight { animation: se-cs-glow 4s ease-in-out infinite alternate; }
+.se-cs__bumper-glint { opacity: 0; animation: se-cs-glint 8s ease-in-out infinite; }
+.se-cs__tires { bottom: 0; right: 0; width: min(26vw, 360px); height: auto; }
+@keyframes se-cs-shine { 0%, 100% { fill-opacity: 0; } 20% { fill-opacity: .75; } 45% { fill-opacity: 0; } }
+@keyframes se-cs-tongue { 0%, 80% { opacity: 0; } 84%, 90% { opacity: .9; } 87% { opacity: 0; } }
+@keyframes se-cs-swing { from { rotate: -3.5deg; } to { rotate: 3.5deg; } }
+@keyframes se-cs-sheen { 0%, 40% { translate: 0 0; } 80%, 100% { translate: 0 300px; } }
+@keyframes se-cs-glow { from { opacity: .6; } to { opacity: 1; } }
+@keyframes se-cs-glint { 0%, 55% { opacity: 0; translate: 0 0; } 62% { opacity: .9; } 85%, 100% { opacity: 0; translate: 380px 0; } }
+.se-reduced-motion .se-cs__serpent { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .se-cs__serpent { display: none; }
+}
+@media (max-width: 700px) {
+  .se-cs__lamp { width: 36vw; }
+  .se-cs__door { width: 44vw; }
+  .se-cs__car { width: 50vw; }
+  .se-cs__tires { width: 46vw; }
+}
+
 .se-reduced-motion .se-theme-pack__motif,
 .se-reduced-motion .se-theme-pack__motes i,
 .se-reduced-motion .se-theme-pack__haze,
