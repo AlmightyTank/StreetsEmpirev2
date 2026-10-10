@@ -1958,6 +1958,8 @@ enum CrewMemberEventKind {
   RELEASED
   /// A released member back in the crew, career intact.
   REHIRED
+  /// A completed, server-resolved shift worth remembering in the career log.
+  WORK_COMPLETED
 }
 
 /// 1.7.0-A. One thug or worker. The player's counts stay authoritative: members are kept in
@@ -2000,6 +2002,7 @@ model CrewMemberEvent {
   kind           CrewMemberEventKind
   assignmentKind CrewAssignmentKind?
   assignmentRef  String?
+  summary        String?
   at             DateTime
 
   @@index([memberId, at])

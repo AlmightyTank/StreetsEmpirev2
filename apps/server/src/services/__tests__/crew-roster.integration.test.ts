@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { RoundPlayer } from '@prisma/client';
-import { classicOgV165G, classicOgV17A } from '@streets/rulesets';
+import { classicOgV165G, classicOgV17A, classicOgV17B } from '@streets/rulesets';
 import { startingStock, type Ruleset } from '@streets/rules-engine';
 import type { CrewRosterDto } from '@streets/shared';
 import { ActionService } from '../action.service.js';
@@ -239,8 +239,8 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
     expect(thugs.filter((entry) => entry.assignmentKind === 'DEALER').map((entry) => entry.id).sort()).toEqual(dealers.map((entry) => entry.id).sort());
   });
 
-  it('reads the roster through the API, in step with the counts', async () => {
-    const rules = classicOgV17A;
+  it('reads 1.7.0-B profiles through the API with filters and career history', async () => {
+    const rules = classicOgV17B;
     const player = await seasonedPlayer(rules);
     await app.prisma.roundPlayer.update({ where: { id: player.id }, data: { thugs: 25 } });
     const response = await app.inject({ method: 'GET', url: '/api/game/crew?limit=10', headers: { cookie } });
@@ -256,9 +256,20 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
     expect(view.totals.find((entry) => entry.role === 'WORKER')).toMatchObject({ members: 45 });
     expect(view.members).toHaveLength(10);
     expect(view.total).toBe(70);
+    expect(view.members[0]).toMatchObject({
+      name: expect.any(String),
+      role: expect.any(String),
+      specialty: 'GENERALIST',
+      traits: [expect.any(String)],
+      assignment: null,
+    });
+    expect(view.members[0]!.history).toEqual([expect.objectContaining({ kind: 'JOINED', label: 'Joined this round' })]);
     const workers = (await app.inject({ method: 'GET', url: '/api/game/crew?role=WORKER&status=AVAILABLE&limit=200&offset=40', headers: { cookie } })).json<CrewRosterDto>();
     expect(workers.total).toBe(45);
     expect(workers.members).toHaveLength(5);
+    const filtered = (await app.inject({ method: 'GET', url: '/api/game/crew?role=WORKER&status=AVAILABLE&specialty=GENERALIST&limit=200', headers: { cookie } })).json<CrewRosterDto>();
+    expect(filtered.total).toBe(45);
+    expect(filtered.members.every((member) => member.role === 'WORKER' && member.status === 'AVAILABLE' && member.specialty === 'GENERALIST')).toBe(true);
   });
 
   it('leaves earlier rulesets alone: no roster, and actions behave as before', async () => {

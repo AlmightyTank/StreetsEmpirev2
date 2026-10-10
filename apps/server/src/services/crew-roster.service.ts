@@ -2,8 +2,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { Ruleset } from '@streets/rules-engine';
 import type { BusinessKey } from '@streets/rulesets';
-import type { CrewAssignmentKindDto, CrewMemberDto, CrewMemberStatusDto, CrewRosterDto, CrewRosterQuery } from '@streets/shared';
+import type { CrewAssignmentKindDto, CrewMemberDto, CrewMemberHistoryDto, CrewMemberStatusDto, CrewRosterDto, CrewRosterQuery } from '@streets/shared';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
+import { crewMemberName, crewMemberSpecialty, crewMemberTraits } from './crew-profile.js';
 import {
   crewPlaceCounts,
   crewPlaceKey,
@@ -178,18 +179,53 @@ async function totalsFor(db: Db | PrismaClient, roundPlayerId: string) {
 function memberDto(row: {
   id: string; role: CrewRole; serial: number; status: CrewMemberStatusDto; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null;
   experiencePoints: number; dealerStaffId: string | null; joinedAt: Date; statusSince: Date;
-}): CrewMemberDto {
+}, assignmentLabel: string | null, history: CrewMemberHistoryDto[]): CrewMemberDto {
+  const assignment = row.assignmentKind ? {
+    kind: row.assignmentKind,
+    ref: row.assignmentRef,
+    label: assignmentLabel ?? (row.assignmentKind === 'BUSINESS' ? 'Business shift' : row.assignmentKind === 'DEALER' ? 'Dealer crew' : 'Turf post'),
+  } : null;
+  const unavailableReason = row.status === 'ASSIGNED' ? `Currently assigned to ${assignment?.label ?? 'a job'}.`
+    : row.status === 'IN_TRANSIT' ? 'Away on a run.'
+      : row.status === 'RECOVERING' ? 'Recovering from injuries.'
+        : row.status === 'RELEASED' ? 'Released from the active crew.' : null;
   return {
     id: row.id,
+    name: crewMemberName(row.role, row.serial),
     role: row.role,
     serial: row.serial,
     status: row.status,
-    assignment: row.assignmentKind ? { kind: row.assignmentKind, ref: row.assignmentRef } : null,
+    assignment,
     experiencePoints: row.experiencePoints,
+    specialty: crewMemberSpecialty(row.dealerStaffId),
+    traits: crewMemberTraits(row.role, row.serial),
+    unavailableReason,
+    history,
     dealerStaffId: row.dealerStaffId,
     joinedAt: row.joinedAt.toISOString(),
     statusSince: row.statusSince.toISOString(),
   };
+}
+
+function assignmentName(kind: CrewAssignmentKindDto | null, ref: string | null, labels: Map<string, string>): string | null {
+  if (!kind) return null;
+  const key = `${kind}:${ref ?? ''}`;
+  return labels.get(key) ?? (kind === 'BUSINESS' ? 'Business shift' : kind === 'DEALER' ? 'Dealer crew' : 'Turf post');
+}
+
+function eventHistory(rows: Array<{ kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED'; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null; summary: string | null; at: Date }>, joinedAt: Date, labels: Map<string, string>): CrewMemberHistoryDto[] {
+  const entries = rows.map((event): CrewMemberHistoryDto => {
+    const place = assignmentName(event.assignmentKind, event.assignmentRef, labels);
+    const label = event.summary ?? (event.kind === 'JOINED' ? 'Joined the crew'
+      : event.kind === 'ASSIGNED' ? `Assigned to ${place ?? 'a job'}`
+        : event.kind === 'UNASSIGNED' ? `Returned from ${place ?? 'an assignment'}`
+          : event.kind === 'RELEASED' ? 'Released from the crew'
+            : event.kind === 'REHIRED' ? 'Rejoined the crew'
+              : 'Completed a job');
+    return { kind: event.kind, label, at: event.at.toISOString() };
+  });
+  if (!rows.some((event) => event.kind === 'JOINED')) entries.push({ kind: 'JOINED', label: 'Joined this round', at: joinedAt.toISOString() });
+  return entries.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 4);
 }
 
 export const CrewRosterService = {
@@ -306,6 +342,27 @@ export const CrewRosterService = {
     await tx.crewMember.updateMany({ where: { dealerStaffId }, data: { experiencePoints: { increment: points } } });
   },
 
+  /** One history entry per member for a settled dealer shift, never one per interval. */
+  async recordDealerShift(tx: Db, roundPlayerId: string, ruleset: Ruleset, crewId: string, dealerStaffIds: string[], sold: number, product: string, at: Date): Promise<void> {
+    if (!ruleset.crewRoster?.enabled || sold <= 0 || !dealerStaffIds.length) return;
+    const members = await tx.crewMember.findMany({ where: { roundPlayerId, dealerStaffId: { in: dealerStaffIds } }, select: { id: true } });
+    if (!members.length) return;
+    const productLabel = product === 'CRACK'
+      ? ruleset.stores.PIP.items.CRACK?.name ?? 'Crack'
+      : ruleset.products?.[product]?.name ?? product;
+    await tx.crewMemberEvent.createMany({
+      data: members.map((member) => ({
+        memberId: member.id,
+        roundPlayerId,
+        kind: 'WORK_COMPLETED',
+        assignmentKind: 'DEALER',
+        assignmentRef: crewId,
+        summary: `Dealer shift complete · ${sold.toLocaleString('en-US')} ${productLabel} sold.`,
+        at,
+      })),
+    });
+  },
+
   /** The roster as it stands, brought in line with the counts first. */
   async view(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, query: CrewRosterQuery, now = new Date()): Promise<CrewRosterDto> {
     if (!ruleset.crewRoster?.enabled) {
@@ -316,6 +373,8 @@ export const CrewRosterService = {
       const where: Prisma.CrewMemberWhereInput = {
         roundPlayerId,
         ...(query.role ? { role: query.role } : {}),
+        ...(query.assignment ? { assignmentKind: query.assignment } : {}),
+        ...(query.specialty === 'DEALER' ? { dealerStaffId: { not: null } } : query.specialty === 'GENERALIST' ? { dealerStaffId: null } : {}),
         status: query.status ?? { not: 'RELEASED' },
       };
       const [migration, totals, total, members] = await Promise.all([
@@ -330,7 +389,46 @@ export const CrewRosterService = {
           select: { ...MEMBER_FIELDS, joinedAt: true, statusSince: true },
         }),
       ]);
-      return { enabled: true, migratedAt: migration?.createdAt.toISOString() ?? null, totals, members: members.map(memberDto), total };
+      const ids = members.map((member) => member.id);
+      const refs = [...new Set(members.flatMap((member) => member.assignmentRef ? [[member.assignmentKind, member.assignmentRef] as const] : []))];
+      const [businesses, dealerCrews, turf, events] = await Promise.all([
+        tx.business.findMany({ where: { id: { in: refs.filter(([kind]) => kind === 'BUSINESS').map(([, ref]) => ref) } }, select: { id: true, kind: true } }),
+        tx.dealerCrew.findMany({ where: { id: { in: refs.filter(([kind]) => kind === 'DEALER').map(([, ref]) => ref) } }, select: { id: true, citySlug: true, districtKey: true } }),
+        tx.turf.findMany({ where: { id: { in: refs.filter(([kind]) => kind === 'TURF').map(([, ref]) => ref) } }, select: { id: true, district: true, city: { select: { name: true } } } }),
+        ids.length ? tx.crewMemberEvent.findMany({ where: { memberId: { in: ids } }, orderBy: [{ at: 'desc' }, { id: 'desc' }], select: { memberId: true, kind: true, assignmentKind: true, assignmentRef: true, summary: true, at: true } }) : Promise.resolve([]),
+      ]);
+      const labels = new Map<string, string>();
+      for (const business of businesses) {
+        const catalog = ruleset.business?.catalog[business.kind as BusinessKey];
+        labels.set(`BUSINESS:${business.id}`, catalog?.name ?? business.kind.replaceAll('_', ' ').toLowerCase());
+      }
+      for (const crew of dealerCrews) {
+        const city = ruleset.cities?.[crew.citySlug]?.name ?? crew.citySlug;
+        const district = ruleset.cities?.[crew.citySlug]?.districts?.[crew.districtKey as keyof NonNullable<NonNullable<Ruleset['cities']>[string]['districts']>]?.name
+          ?? ruleset.districts[crew.districtKey as keyof Ruleset['districts']]?.name ?? crew.districtKey;
+        labels.set(`DEALER:${crew.id}`, `${district} · ${city}`);
+      }
+      for (const block of turf) {
+        const district = ruleset.districts[block.district as keyof Ruleset['districts']]?.name ?? block.district;
+        labels.set(`TURF:${block.id}`, `${district} · ${block.city.name}`);
+      }
+      const eventsByMember = new Map<string, typeof events>();
+      for (const event of events) {
+        const bucket = eventsByMember.get(event.memberId) ?? [];
+        if (bucket.length < 4) bucket.push(event);
+        eventsByMember.set(event.memberId, bucket);
+      }
+      return {
+        enabled: true,
+        migratedAt: migration?.createdAt.toISOString() ?? null,
+        totals,
+        members: members.map((member) => memberDto(
+          member,
+          assignmentName(member.assignmentKind, member.assignmentRef, labels),
+          eventHistory(eventsByMember.get(member.id) ?? [], member.joinedAt, labels),
+        )),
+        total,
+      };
     });
   },
 

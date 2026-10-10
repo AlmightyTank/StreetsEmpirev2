@@ -138,6 +138,7 @@ export const DealerSalesSettleService = {
       });
       const where = `${districtName(ruleset, crew.citySlug, crew.districtKey)}, ${cityName(ruleset, crew.citySlug)}`;
       if (sold > 0 && product) {
+        await CrewRosterService.recordDealerShift(tx, roundPlayerId, ruleset, crew.id, crew.staff.map((staff) => staff.id), sold, product, now);
         lines.push({
           source: 'DEALER_SALES',
           label: `${where} · ${sold.toLocaleString('en-US')} ${productName(ruleset, product)} sold`,

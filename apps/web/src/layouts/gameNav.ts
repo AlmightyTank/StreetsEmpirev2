@@ -46,6 +46,7 @@ export const SECTIONS: NavSection[] = [
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
       { key: 'supply', label: 'Bulk Orders', short: 'Supply', to: '/game/supply', icon: 'stores' },
       { key: 'dealers', label: 'Dealer Crews', short: 'Dealers', to: '/game/dealers', icon: 'contacts' },
+      { key: 'crew-roster', label: 'Crew Roster', short: 'Crew', to: '/game/crew', icon: 'contacts' },
       { key: 'loans', label: 'Loan Shark', short: 'Loans', to: '/game/loans', icon: 'stores' },
       { key: 'casino', label: 'Casino', to: '/game/casino', icon: 'casino', prefix: '/game/casino/' },
       { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },

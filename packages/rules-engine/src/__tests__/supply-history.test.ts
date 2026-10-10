@@ -57,7 +57,7 @@ describe('1.6.0 never reaches a round pinned before it', () => {
     }
   });
 
-  it('makes the 1.7.0-A roster ruleset the newest season ruleset', () => {
-    expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v1.7-a');
+  it('makes the 1.7.0-B crew profiles ruleset the newest season ruleset', () => {
+    expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v1.7-b');
   });
 });

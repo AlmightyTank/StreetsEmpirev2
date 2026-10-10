@@ -62,7 +62,7 @@ Create the server-owned member records that later slices use.
 
 **As built:**
 
-- **Ruleset.** `classic-og-v1.7-a` is 1.6.5-G plus `crewRoster: { enabled: true }`, and is now the newest ruleset. No gameplay value changes. Every earlier ruleset has no `crewRoster`, so no roster is built, read or synced for it.
+- **Ruleset.** `classic-og-v1.7-a` is 1.6.5-G plus `crewRoster: { enabled: true }`. It remains pinned for existing A rounds; 1.7.0-B adds a new profile-only ruleset on top. No gameplay value changes. Every earlier ruleset has no `crewRoster`, so no roster is built, read or synced for it.
 - **Records.** `CrewMember` is one thug or worker: a stable id, a role (`THUG` or `WORKER`), a per-round serial (order of joining, never reused), a status, an assignment, experience, and the 1.6 dealer career it carries, if any. Statuses use 1.7.0-D's vocabulary: `AVAILABLE` (fit at home), `ASSIGNED` (with a `BUSINESS`, `DEALER` or `TURF` assignment and, where the game records it, the business, dealer crew or corner), `IN_TRANSIT` (the player's busy thugs), `RECOVERING` (wounded) and `RELEASED` (no longer in the crew, with experience or a career to come back to). `CrewMemberEvent` is the immutable history: `JOINED`, `ASSIGNED`, `UNASSIGNED`, `RELEASED` and `REHIRED`. Changes between available, in transit and recovering are not written to the history, and the first build writes no line per member: the audit row covers it. `CrewRosterMigration` is the per-player audit of the first build: the counts it read, the member totals it ended with, and how many members and dealer careers it created. Members belong to the round's player row, so a new round starts a new roster.
 - **Counts stay authoritative.** The player's columns (`thugs`, `woundedThugs`, `busyThugs`, `postedThugs`, `businessThugs`, `dealerThugs`, `whores`, `businessWhores`) remain the source of truth for every existing action, screen, happiness and net-worth calculation. The roster follows them and never writes them. Database checks keep an assignment only on assigned members and a release time only on released ones.
 - **Sync.** `CrewRosterService.sync` runs under the player's lock at the end of every action in the action pipeline, and when the roster is read. The audit row keeps a signature of the counts and assignments the roster was last in step with; while they match, a sync reads no members at all. When they differ, it counts members by place and loads only what has to move: the dealers and career carriers (a handful), and from each place holding more than its count, only the surplus, least senior first. Everyone else stays put. The pure planner (`crew-roster-plan.ts`) then matches members to the places the counts call for: members already in the right place stay there, with the most experienced and longest-serving kept first; members whose place shrank fill places that grew; new members join only for places nobody can fill; and whoever is left without a place leaves the crew. Counts that change outside the player's own actions (raids taken, admin grants) are picked up on the player's next action or roster read. Anything else that ever writes members (a future admin correction) must clear the signature.
@@ -85,6 +85,18 @@ Present individual members in a compact roster rather than adding a separate man
 - Record promotions, training, assignments, releases, and notable completed jobs in member history.
 
 **Gate:** A player can find an eligible member and understand their strengths and current commitment without navigating through multiple unrelated tabs.
+
+**Status: Implemented.**
+
+**As built:**
+
+- **Roster page.** `/game/crew` presents member cards with stable generated names, role, round roster number, availability, assignment, experience, specialty, descriptive trait and recent career history. The sidebar and phone navigation include Crew Roster.
+- **Identity.** Names are deterministic per role and join order, so a member keeps the same identity across reads and assignments. Traits use a small visible set (Steady, Observant, Streetwise, Dependable, Cool under pressure, Quick learner); they have no gameplay modifiers in B. Renaming is deferred until the rules and cost are scoped.
+- **Specialty.** Existing dealer careers display Dealer; everyone else displays Generalist until C introduces earned specialties. Dealer identity comes from the existing career link, not a second progression track.
+- **Find and scan.** Role, availability, assignment and specialty filters are server-side and combine with paging. The page groups total headcounts by role and availability for large rosters. Assignment labels resolve to a business, dealer district or turf district when the target still exists. Assigned, travelling, recovering and released members show why they cannot be selected.
+- **History.** The page shows the latest four career entries, including join, assignment, unassignment, release, rehire and completed dealer shifts. A dealer shift is recorded once per settled batch for each participating dealer, only when sales occurred; settlement retries cannot duplicate it. The migration itself still writes no per-member event.
+- **Data and rules.** B adds a nullable event summary and `WORK_COMPLETED` event kind. It does not change crew counts, actions, outcomes, or earlier rulesets. The shared roster API accepts assignment and specialty filters.
+- **Checks.** Added unit coverage for deterministic, unique generated names and the descriptive trait/specialty mapping. The 1.7-A PostgreSQL roster test now checks profile fields, initial history and combined filters.
 
 ### 1.7.0-C — Career Experience & Specialties
 
@@ -160,7 +172,7 @@ Make individual progression safe to operate and fair across different play style
 ## Open decisions
 
 - Should all recruited members receive names and profiles immediately, or should 1.7 first individualize members assigned to active jobs and expand to reserves later?
-- Are profiles auto-named, player-named, or a mix with a clear rename limit?
+- Names are auto-generated and stable in B; player renaming remains deferred until its rules and cost are scoped.
 - Which existing combat and travel formulas are safe places to add a specialist bonus without shifting current balance too far?
 - Which worker service categories should receive individual proficiency, and should the player choose a specialty or discover it through use?
 - Should training cost turns, cash, or both?

@@ -1,0 +1,4 @@
+ALTER TYPE "CrewMemberEventKind" ADD VALUE 'WORK_COMPLETED';
+
+ALTER TABLE "CrewMemberEvent"
+ADD COLUMN "summary" TEXT;

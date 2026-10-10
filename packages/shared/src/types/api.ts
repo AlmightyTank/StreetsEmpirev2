@@ -762,16 +762,29 @@ export interface DealerCrewActionResult {
 /** 1.7.0-A. Where a crew member is. Every status but RELEASED is counted in the crew. */
 export type CrewMemberStatusDto = 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED';
 export type CrewAssignmentKindDto = 'BUSINESS' | 'DEALER' | 'TURF';
+export type CrewMemberSpecialtyDto = 'GENERALIST' | 'DEALER';
+
+export interface CrewMemberHistoryDto {
+  kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED';
+  label: string;
+  at: string;
+}
 
 /** 1.7.0-A. One thug or worker with a stable identity. */
 export interface CrewMemberDto {
   id: string;
+  name: string;
   role: 'THUG' | 'WORKER';
   /** Order of joining this round's roster. */
   serial: number;
   status: CrewMemberStatusDto;
-  assignment: { kind: CrewAssignmentKindDto; ref: string | null } | null;
+  assignment: { kind: CrewAssignmentKindDto; ref: string | null; label: string } | null;
   experiencePoints: number;
+  specialty: CrewMemberSpecialtyDto;
+  /** Descriptive identity tags. They have no gameplay modifiers in 1.7.0-B. */
+  traits: string[];
+  unavailableReason: string | null;
+  history: CrewMemberHistoryDto[];
   /** The 1.6 dealer career this member carries, if any. */
   dealerStaffId: string | null;
   joinedAt: string;
