@@ -112,7 +112,7 @@
 
 /* On phones, let the HUD scroll away with the page so content never passes beneath it. */
 @media (max-width: 899px) {
-  .se-topbar {
+  .se-app--tabbar .se-topbar {
     position: static;
     backdrop-filter: none;
   }
