@@ -266,6 +266,8 @@ export const ProductMarketService = {
           ? boostedSellCents(quote.sellCents, quote.buyCents, relationship.sellBonusPercent + racketStorePrice(ruleset, effects, 'PIP', key).sellBonusPercent) ?? quote.sellCents
           : 0;
         const recipe = economyOn ? recipes.get(key) : undefined;
+        const requiredRecipeUnlock = recipe ? PermanentUnlockService.productProductionUnlock(ruleset, key) : null;
+        const recipeUnlocked = !requiredRecipeUnlock || unlockKeys.has(requiredRecipeUnlock.key);
         const requiredUnlock = PermanentUnlockService.productPurchaseUnlock(ruleset, key);
         const purchaseUnlocked = !requiredUnlock || unlockKeys.has(requiredUnlock.key);
         const effectiveBuyCents = quote
@@ -306,6 +308,12 @@ export const ProductMarketService = {
               unlockQuest: requiredUnlock ? PermanentUnlockService.questFor(ruleset, requiredUnlock.key) : null,
             } : null,
             recipe: recipe ? { perThugPerTurn: recipe.perThugPerTurn, ingredientCentsPerUnit: recipe.ingredientCentsPerUnit, heatPerUnit: recipe.heatPerUnit } : null,
+            recipeAccess: recipe ? {
+              unlocked: recipeUnlocked,
+              unlockName: requiredRecipeUnlock?.name ?? null,
+              unlockDescription: requiredRecipeUnlock?.description ?? null,
+              unlockQuest: requiredRecipeUnlock ? PermanentUnlockService.questFor(ruleset, requiredRecipeUnlock.key) : null,
+            } : null,
           } : {}),
         };
       }),
