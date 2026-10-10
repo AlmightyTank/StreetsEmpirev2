@@ -3,6 +3,7 @@ import { blockWarsOn, cornerMinimumFor, equipCombatSquad, headsUpMinutes, type R
 import type { DistrictKey } from '@streets/rulesets';
 import type { TurfClaimInput, TurfClaimResult, TurfPostInput, TurfPostResult, TurfPullInput, TurfPullResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import {
   TurfService, addCornerGuns, allocateCornerGuns, cornerGunWorthCents, gunsFromTurf,
@@ -70,6 +71,7 @@ export const TurfActionService = {
         assertHolding(ruleset);
         await TurfService.ensureRound(tx, round.id, ruleset);
         const key = input.district as DistrictKey;
+        await PermanentUnlockService.assertCanAccessDistrict(tx, roundPlayerId, ruleset, key);
         if (!ruleset.turf!.districts[key]) throw AppError.badRequest('UNKNOWN_DISTRICT', 'That is not a turf block.');
         const block = await tx.turf.findUnique({
           where: { roundId_cityId_district: { roundId: round.id, cityId: player.cityId, district: key } },
@@ -170,6 +172,7 @@ export const TurfActionService = {
       execute: async ({ tx, current, player, round, ruleset, now }) => {
         assertHolding(ruleset);
         const key = input.district as DistrictKey;
+        await PermanentUnlockService.assertCanAccessDistrict(tx, roundPlayerId, ruleset, key);
         const block = await tx.turf.findUnique({ where: { roundId_cityId_district: { roundId: round.id, cityId: player.cityId, district: key } } });
         if (!block) throw AppError.notFound('TURF_NOT_FOUND', 'That block is not on the map.');
         await lockBlock(tx, block.id);
@@ -208,6 +211,7 @@ export const TurfActionService = {
       execute: async ({ tx, current, player, round, ruleset, now }) => {
         assertHolding(ruleset);
         const key = input.district as DistrictKey;
+        await PermanentUnlockService.assertCanAccessDistrict(tx, roundPlayerId, ruleset, key);
         const block = await tx.turf.findUnique({
           where: { roundId_cityId_district: { roundId: round.id, cityId: player.cityId, district: key } },
           include: { city: { select: { slug: true } } },
