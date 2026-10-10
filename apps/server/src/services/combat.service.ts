@@ -9,6 +9,7 @@ import {
   raidSchema,
   specialRaidSchema,
   type BattleReportDto,
+  type RandomEncounterDto,
   type CombatDriveByDto,
   type CombatIntelReportDto,
   type CombatPageDto,
@@ -37,6 +38,7 @@ import { npcRules } from './npc-gang-rules.js';
 import { npcIdentity, npcPersonality, npcReputation, storedHistory } from './npc-gang-personality.js';
 import { npcBattleNotes, npcBattleOutcome, npcCityRelief, npcWanted, storedRetirement } from './npc-gang-rewards.js';
 import { ActivityService } from './activity.service.js';
+import { RandomEncounterService, encounterActivityPayload } from './random-encounter.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
@@ -1112,8 +1114,14 @@ export const CombatService = {
       const productLoot = ruleset.productEconomy ? splitProductUnits(exposedStashD, result.lootCrack, ruleset) : { CRACK: result.lootCrack };
       const crackLoot = productLoot.CRACK ?? 0;
       const moved = await moveProducts(tx, ruleset, productLoot, { id: defender.id, products: d.products }, { id: attacker.id, products: a.products });
-      const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
+      let nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
         turns: result.attackerTurnsAfter, cashCents: attacker.cashCents + result.lootCents, crack: attacker.crack + crackLoot, raidsDone: attacker.raidsDone + 1 };
+      const combatEncounterResult = await RandomEncounterService.action({
+        tx, roundPlayerId: attackerId, next: nextA, ruleset, turns: model.turnCost, now,
+        rng: () => randomInt(0, 2 ** 32) / 2 ** 32,
+      }, 'COMBAT');
+      nextA = combatEncounterResult.next;
+      const combatEncounter = combatEncounterResult.encounter;
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender,
         cashCents: result.defenderCashAfterCents, crack: defender.crack - crackLoot };
       assertPlayerState(nextA, ruleset);
@@ -1162,7 +1170,7 @@ export const CombatService = {
           yourWounds: ownWounds, opponentWounds,
           woundedThugsAfter: isAttacker ? nextA.woundedThugs : nextD.woundedThugs,
           nextRecoveryAt: ownWounds > 0 ? recoverAt.toISOString() : null,
-          cashChangeCents: Number(isAttacker ? result.lootCents : -result.lootCents),
+          cashChangeCents: Number(isAttacker ? result.lootCents : -result.lootCents) + (isAttacker ? (combatEncounter?.effects.cashCents ?? 0) : 0),
           cashAfterCents: Number(isAttacker ? nextA.cashCents : nextD.cashCents),
           crackChange: isAttacker ? crackLoot : -crackLoot,
           crackAfter: isAttacker ? nextA.crack : nextD.crack,
@@ -1192,6 +1200,7 @@ export const CombatService = {
           ...(!isAttacker && retaliation ? { payback: true } : {}),
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
           ...npcBattleNotes(npc, isAttacker ? attackerId : target.id, isAttacker),
+          ...(isAttacker && combatEncounter ? { encounter: combatEncounter } : {}),
         };
       };
       const looks = await battleLooks(tx, attacker.accountId, defender.accountId);
@@ -1228,6 +1237,7 @@ export const CombatService = {
           wounds: report.yourWounds,
           inventoryChanges: report.inventoryChanges ?? [],
           ...(type === 'RAID_DEFENSE' && retaliation ? { payback: true } : {}),
+          ...(type === 'RAID_ATTACK' && combatEncounter ? { randomEncounter: encounterActivityPayload(combatEncounter) } : {}),
           ...npcActivity(npc, playerId, type === 'RAID_ATTACK'),
         }));
       }
@@ -1288,8 +1298,14 @@ export const CombatService = {
       const beforeD = await RankingService.ranksFor(tx, defender);
       const result = simulateDriveBy({ attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), attackerBoost: boostOf(a), defenderBoost: boostOf(d), shooters: input.attackingThugs,
         lowRiders: attacker.lowRiders, attackerTurns: attacker.turns, defenderWhores: workingWhores(defender) }, model, rules, () => randomInt(0, 2 ** 32) / 2 ** 32);
-      const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker, turns: result.attackerTurnsAfter,
+      let nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker, turns: result.attackerTurnsAfter,
         lowRiders: result.lowRidersAfter, driveBysDone: attacker.driveBysDone + 1 };
+      const combatEncounterResult = await RandomEncounterService.action({
+        tx, roundPlayerId: attackerId, next: nextA, ruleset, turns: rules.turnCost, now,
+        rng: () => randomInt(0, 2 ** 32) / 2 ** 32,
+      }, 'COMBAT');
+      nextA = combatEncounterResult.next;
+      const combatEncounter = combatEncounterResult.encounter;
       // 1.1.0-B: a drive-by hits the girls on the block, never the ones working a business.
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender, whores: defender.whores - result.whoresKilled };
       assertPlayerState(nextA, ruleset);
@@ -1337,7 +1353,7 @@ export const CombatService = {
           yourWounds: ownWounds, opponentWounds: isAttacker ? result.wounds.defender : result.wounds.attacker,
           woundedThugsAfter: isAttacker ? nextA.woundedThugs : nextD.woundedThugs,
           nextRecoveryAt: ownWounds > 0 ? recoverAt.toISOString() : null,
-          cashChangeCents: 0,
+          cashChangeCents: isAttacker ? (combatEncounter?.effects.cashCents ?? 0) : 0,
           cashAfterCents: Number(isAttacker ? nextA.cashCents : nextD.cashCents),
           ...(inventory.length ? { inventoryChanges: inventory } : {}),
           turnsSpent: isAttacker ? rules.turnCost : 0, turnsAfter: isAttacker ? nextA.turns : nextD.turns,
@@ -1349,6 +1365,7 @@ export const CombatService = {
           ...(!isAttacker && retaliation ? { payback: true } : {}),
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
           ...npcBattleNotes(npc, isAttacker ? attackerId : target.id, isAttacker),
+          ...(isAttacker && combatEncounter ? { encounter: combatEncounter } : {}),
           driveBy: isAttacker
             ? { whoresKilled: result.whoresKilled, carsSent: result.cars.length, lowRidersLost: result.lowRidersLost, lowRidersAfter: nextA.lowRiders }
             : { whoresKilled: result.whoresKilled, whoresAfter: nextD.whores },
@@ -1369,6 +1386,7 @@ export const CombatService = {
           wounds: report.yourWounds, opponentWounds: report.opponentWounds, whoresKilled: result.whoresKilled,
           lowRidersLost: type === 'DRIVE_BY_ATTACK' ? result.lowRidersLost : 0, turns: report.turnsSpent,
           ...(type === 'DRIVE_BY_DEFENSE' && retaliation ? { payback: true } : {}),
+          ...(type === 'DRIVE_BY_ATTACK' && combatEncounter ? { randomEncounter: encounterActivityPayload(combatEncounter) } : {}),
           ...npcActivity(npc, playerId, type === 'DRIVE_BY_ATTACK') }));
       }
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: 'DRIVE_BY', result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });
@@ -1479,9 +1497,15 @@ export const CombatService = {
         }
       }
 
-      const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
+      let nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
         turns: attacker.turns - turnCost, crack: attacker.crack - crackSpent, beer: attacker.beer - beerSpent,
         whores: attacker.whores + whoresLured, thugs: attacker.thugs + thugsLured, lowRiders: attacker.lowRiders + lowRidersStolen, raidsDone: attacker.raidsDone + 1 };
+      const combatEncounterResult = await RandomEncounterService.action({
+        tx, roundPlayerId: attackerId, next: nextA, ruleset, turns: turnCost, now,
+        rng: () => randomInt(0, 2 ** 32) / 2 ** 32,
+      }, 'COMBAT');
+      nextA = combatEncounterResult.next;
+      const combatEncounter = combatEncounterResult.encounter;
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender,
         crack: defender.crack - defenderCrackBurned, condoms: defender.condoms - defenderCondomsBurned,
         whores: defender.whores - whoresLured, thugs: defender.thugs - thugsLured, lowRiders: defender.lowRiders - lowRidersStolen,
@@ -1551,7 +1575,7 @@ export const CombatService = {
           yourWounds: ownWounds, opponentWounds: isAttacker ? result.wounds.defender : result.wounds.attacker,
           woundedThugsAfter: isAttacker ? nextA.woundedThugs : nextD.woundedThugs,
           nextRecoveryAt: ownWounds > 0 ? recoverAt.toISOString() : null,
-          cashChangeCents: 0,
+          cashChangeCents: isAttacker ? (combatEncounter?.effects.cashCents ?? 0) : 0,
           cashAfterCents: Number(isAttacker ? nextA.cashCents : nextD.cashCents),
           crackChange: ownCrackChange,
           crackAfter: isAttacker ? nextA.crack : nextD.crack,
@@ -1577,6 +1601,7 @@ export const CombatService = {
           ...(!isAttacker && retaliation ? { payback: true } : {}),
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
           ...npcBattleNotes(npc, isAttacker ? attackerId : target.id, isAttacker),
+          ...(isAttacker && combatEncounter ? { encounter: combatEncounter } : {}),
           raidForm: {
             title: rule.title,
             ...(input.kind === 'DRUG_HOES' ? { whoresDrugged, crackSpent, defenderCrackBurned, defenderCondomsBurned } : {}),
@@ -1610,6 +1635,7 @@ export const CombatService = {
           thugsLured,
           beerSpent,
           ...(type === 'RAID_DEFENSE' && retaliation ? { payback: true } : {}),
+          ...(type === 'RAID_ATTACK' && combatEncounter ? { randomEncounter: encounterActivityPayload(combatEncounter) } : {}),
           ...npcActivity(npc, playerId, type === 'RAID_ATTACK'),
         }));
       }

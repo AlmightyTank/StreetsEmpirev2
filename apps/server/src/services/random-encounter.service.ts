@@ -46,6 +46,16 @@ interface EncounterSettlement {
   encounter?: RandomEncounterDto;
 }
 
+interface ActionEncounterInput {
+  tx: Db;
+  roundPlayerId: string;
+  next: PlayerState;
+  ruleset: Ruleset;
+  turns: number;
+  now: Date;
+  rng?: () => number;
+}
+
 function randomInt(min: number, max: number, rng: () => number): number {
   const low = Math.ceil(min);
   const high = Math.floor(max);
@@ -239,6 +249,27 @@ async function persistEncounter(input: Pick<ScoutEncounterInput, 'tx' | 'roundPl
   return { ...settlement, encounter: { ...settlement.encounter, id: stored.id } };
 }
 
+async function rollActionTrigger(input: ActionEncounterInput, triggerKey: RandomEncounterTrigger): Promise<EncounterSettlement> {
+  const trigger = input.ruleset.randomEncounters?.triggers[triggerKey];
+  if (!input.ruleset.randomEncounters?.enabled || !trigger?.enabled) return { next: input.next };
+  if (input.turns < (trigger.minTurns ?? 1)) return { next: input.next };
+
+  const rng = input.rng ?? Math.random;
+  const recentAny = trigger.cooldownMinutes
+    ? await recentEncounterKeys(input, triggerKey, trigger.cooldownMinutes)
+    : new Set<string>();
+  if (recentAny.size > 0) return { next: input.next };
+
+  const recentKeys = trigger.perKeyCooldownMinutes
+    ? await recentEncounterKeys(input, triggerKey, trigger.perKeyCooldownMinutes)
+    : new Set<string>();
+  if (rng() >= trigger.chance) return { next: input.next };
+
+  const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
+  const picked = pickWeighted(eligible, rng);
+  return picked ? persistEncounter(input, triggerKey, settle(picked, input.next, rng)) : { next: input.next };
+}
+
 export const RandomEncounterService = {
   async pendingForPlayer(prisma: PrismaClient | Db, roundPlayerId: string, now = new Date()): Promise<RandomEncounterDto[]> {
     const player = await prisma.roundPlayer.findUnique({
@@ -307,6 +338,10 @@ export const RandomEncounterService = {
     const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
     const picked = pickWeighted(eligible, rng);
     return picked ? persistEncounter(input, 'PRODUCE', settle(picked, input.next, rng)) : { next: input.next };
+  },
+
+  async action(input: ActionEncounterInput, trigger: Extract<RandomEncounterTrigger, 'STORE' | 'TURF' | 'COMBAT'>): Promise<EncounterSettlement> {
+    return rollActionTrigger(input, trigger);
   },
 
   async travel(input: TravelEncounterInput): Promise<EncounterSettlement> {

@@ -332,6 +332,45 @@ describe('RandomEncounterService', () => {
     expect(settled.encounter?.key).toBe('anywhere');
   });
 
+  it('rolls Store encounters through the shared action-trigger path', async () => {
+    const actionRuleset = {
+      randomEncounters: {
+        enabled: true,
+        triggers: {
+          STORE: {
+            enabled: true,
+            chance: 1,
+            minTurns: 0,
+            entries: [{
+              key: 'store-rebate',
+              title: 'Rebate',
+              text: 'A shopkeeper sends a small rebate.',
+              tone: 'good',
+              weight: 1,
+              cash: { minCents: 500, maxCents: 500 },
+            }],
+          },
+        },
+      },
+    } as never;
+    const db = tx();
+    const settled = await RandomEncounterService.action({
+      tx: db,
+      roundPlayerId: 'player-1',
+      next: state,
+      ruleset: actionRuleset,
+      turns: 0,
+      now: new Date('2026-10-09T00:00:00Z'),
+      rng: () => 0,
+    }, 'STORE');
+
+    expect(settled.next.cashCents).toBe(state.cashCents + 500n);
+    expect(settled.encounter?.key).toBe('store-rebate');
+    expect(db.randomEncounter.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ trigger: 'STORE', key: 'store-rebate', status: 'RESOLVED' }),
+    }));
+  });
+
   it('rolls travel encounters from the travel trigger', async () => {
     const travelRuleset = {
       randomEncounters: {
@@ -383,6 +422,9 @@ describe('RandomEncounterService', () => {
       'scout-back-alley-choice',
       'produce-cookhouse-spare-bag',
       'travel-hot-wire-toll',
+      'store-regulars-rebate',
+      'turf-neighbor-contribution',
+      'combat-late-payer',
     ]));
     expect(entries.map((entry) => entry.title).join(' ')).toContain('Red Hand Crew');
     expect(entries.map((entry) => entry.title).join(' ')).toContain('Hot Wire Gang');
