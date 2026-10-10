@@ -69,7 +69,8 @@
     "db:studio": "prisma studio",
     "db:cleanup:seed-rivals": "tsx scripts/ops/remove-seed-rivals.ts",
     "dev:site": "npm run dev -w @streets/site",
-    "build:site": "npm run build -w @streets/site"
+    "build:site": "npm run build -w @streets/site",
+    "qa:loans": "node --import tsx scripts/qa/loan-sim.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -113,6 +113,19 @@ describe.runIf(process.env.LOAN_INTEGRATION === '1')('due settle sweep with Post
     expect(await app.prisma.loanFee.count({ where: { roundPlayerId: playerId } })).toBe(1);
   });
 
+  it('does not settle due loans when an online dashboard read hits a paused round', async () => {
+    const playerId = await fixture();
+    await overdueLoan(playerId, 5_000_000n);
+    await app.prisma.round.update({ where: { id: await roundOf(playerId) }, data: { pausedAt: new Date(), pauseReason: 'test' } });
+
+    // /api/game/me calls this same settlement path on every foreground and background poll.
+    await PlayerStateService.settle(app.prisma, playerId, { markActive: false, now: new Date() });
+
+    expect(await app.prisma.loanPayment.count({ where: { roundPlayerId: playerId } })).toBe(0);
+    expect(await app.prisma.loanFee.count({ where: { roundPlayerId: playerId } })).toBe(0);
+    expect(await app.prisma.loanInstallment.count({ where: { roundPlayerId: playerId, status: 'SCHEDULED' } })).toBe(2);
+    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } })).loanCollectionState).toBe('CLEAR');
+  });
   it('leaves paused and finished rounds alone', async () => {
     // Paused or ended after the loan is taken: actions refuse both, and so does the sweep.
     const paused = await fixture();
