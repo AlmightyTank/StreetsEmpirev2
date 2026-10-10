@@ -9,9 +9,9 @@ export function ProfileBadges({ badges, forumGroups }: { badges: ProfileBadgeDto
   return (
     <ul className="se-badges" aria-label="Featured badges and community roles">
       {forumGroups.map((group) => (
-        <li key={'forum-' + group.name} className="se-badge se-badge--group" title="Verified community role">
+        <li key={'forum-' + group.name} className="se-badge se-badge--group" title="Verified community role" style={group.color ? ({ '--se-badge-color': group.color } as CSSProperties) : undefined}>
           <ProfileBadgeArt badgeKey={'forum-' + group.name} category="community" rarity="uncommon" size={48} />
-          <strong style={group.color ? ({ '--se-badge-color': group.color } as CSSProperties) : undefined}>{group.name}</strong>
+          <strong>{group.name}</strong>
         </li>
       ))}
       {badges.map((badge) => (

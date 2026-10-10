@@ -995,3 +995,10 @@
 
 .se-badge-picker__option { display: flex; align-items: center; gap: 8px; }
 .se-badge-picker__option > span { display: grid; gap: 2px; }
+
+.se-profile .se-badge--group {
+  border-color: color-mix(in srgb, var(--se-badge-color, var(--se-line)) 56%, var(--se-line));
+}
+.se-profile .se-badge--group strong {
+  color: var(--se-badge-color, var(--se-text-dim));
+}
