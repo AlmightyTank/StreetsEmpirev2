@@ -30,6 +30,10 @@ export async function eraseAccount(tx: Db, before: Account, replacementPasswordH
   const sessionsRevoked = await tx.session.count({ where: { accountId: before.id } });
   // Bug reports outlive the account; they must not keep its name.
   await tx.bugReport.updateMany({ where: { accountId: before.id }, data: { username: 'Deleted Player' } });
+  // Support tickets copy their Discord id and name, so they go with the account.
+  await tx.supportTicket.deleteMany({
+    where: { OR: [{ accountId: before.id }, ...(before.discordId ? [{ discordId: before.discordId }] : [])] },
+  });
 
   if (roundsPlayed === 0) {
     await tx.account.delete({ where: { id: before.id } });

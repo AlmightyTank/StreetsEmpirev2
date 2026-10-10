@@ -10,10 +10,35 @@ describe('OutageWatch', () => {
     expect(watch.record(true, t0)).toBeNull();
     expect(watch.record(false, t0 + MIN)).toBeNull();
     expect(watch.record(false, t0 + 2 * MIN)).toBeNull();
-    expect(watch.record(false, t0 + 4 * MIN)).toEqual({ event: 'down', since: t0 + MIN });
+    const down = watch.record(false, t0 + 4 * MIN);
+    expect(down).toEqual({ event: 'down', since: t0 + MIN });
+    watch.posted(down!);
     expect(watch.record(false, t0 + 5 * MIN)).toBeNull();
-    expect(watch.record(true, t0 + 9 * MIN)).toEqual({ event: 'up', since: t0 + MIN, downForMs: 8 * MIN });
+    const up = watch.record(true, t0 + 9 * MIN);
+    expect(up).toEqual({ event: 'up', since: t0 + MIN, downForMs: 8 * MIN });
+    watch.posted(up!);
     expect(watch.record(true, t0 + 10 * MIN)).toBeNull();
+  });
+
+  it('keeps offering the news until Discord takes it', () => {
+    const watch = new OutageWatch(3 * MIN);
+    watch.record(false, t0);
+    // The status channel was unusable at the threshold: the next probe offers it again.
+    expect(watch.record(false, t0 + 3 * MIN)).toEqual({ event: 'down', since: t0 });
+    const down = watch.record(false, t0 + 4 * MIN);
+    expect(down).toEqual({ event: 'down', since: t0 });
+    watch.posted(down!);
+    // Recovery fails to post once, and is offered again, now longer.
+    expect(watch.record(true, t0 + 6 * MIN)).toEqual({ event: 'up', since: t0, downForMs: 6 * MIN });
+    expect(watch.record(true, t0 + 7 * MIN)).toEqual({ event: 'up', since: t0, downForMs: 7 * MIN });
+  });
+
+  it('says nothing when the game is back before the outage was ever posted', () => {
+    const watch = new OutageWatch(3 * MIN);
+    watch.record(false, t0);
+    expect(watch.record(false, t0 + 3 * MIN)).toEqual({ event: 'down', since: t0 });
+    expect(watch.record(true, t0 + 4 * MIN)).toBeNull();
+    expect(watch.record(false, t0 + 5 * MIN)).toBeNull();
   });
 
   it('says nothing about a blip shorter than the threshold', () => {
