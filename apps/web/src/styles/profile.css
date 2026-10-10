@@ -962,13 +962,7 @@
 .se-badge-art {
   display: block;
   flex: 0 0 auto;
-  box-sizing: border-box;
-  padding: 5%;
-  background-origin: content-box;
-  background-clip: content-box;
-  background-image: url('/assets/profile-badge-atlas.webp');
-  background-repeat: no-repeat;
-  background-size: 400% 300%;
+  object-fit: contain;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .48));
 }
 

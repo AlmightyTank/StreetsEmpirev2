@@ -1,5 +1,3 @@
-import type { CSSProperties } from 'react';
-
 type BadgeArtPosition = readonly [atlas: number, cell: number];
 
 /**
@@ -149,10 +147,6 @@ const badgeArtByKey: Record<string, BadgeArtPosition> = {
   'faction-civic-handshake': [9, 7],
 };
 
-const atlasUrls = Array.from({ length: 12 }, (_, index) =>
-  `/assets/profile-badges/atlas-${String(index + 1).padStart(2, '0')}.webp`,
-);
-
 const fallbackKeyByCategory: Record<string, string> = {
   rank: 'national-number-one',
   wealth: 'first-stack',
@@ -198,24 +192,15 @@ export function ProfileBadgeArt({ badgeKey, category, rarity = 'common', size = 
   locked?: boolean;
 }) {
   const family = category ?? badgeCategoryForKey(badgeKey);
-  const art = badgeArtByKey[badgeKey] ?? badgeArtByKey[fallbackKeyByCategory[family] ?? 'hall-of-fame']!;
-  const [atlas, cell] = art;
-  const column = cell % 4;
-  const row = Math.floor(cell / 4);
-  const style = {
-    width: size,
-    height: size,
-    backgroundImage: `url("${atlasUrls[atlas]}")`,
-    backgroundPosition: `${(column / 3) * 100}% ${(row / 2) * 100}%`,
-    opacity: locked ? 0.35 : 1,
-  } as CSSProperties;
+  const artKey = badgeArtByKey[badgeKey] ? badgeKey : (fallbackKeyByCategory[family] ?? 'hall-of-fame');
+  const style = { width: size, height: size, opacity: locked ? 0.35 : 1 };
 
   return (
-    <span
+    <img
       className={`se-badge-art se-badge-art--${rarity}${locked ? ' is-locked' : ''}`}
+      src={`/assets/profile-badges/individual/${artKey}.webp`}
       style={style}
-      role="img"
-      aria-label={`${family} ${rarity} badge`}
+      alt={`${family} ${rarity} badge`}
     />
   );
 }
