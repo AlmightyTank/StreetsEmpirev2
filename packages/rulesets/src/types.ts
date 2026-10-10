@@ -370,8 +370,8 @@ export type PermanentUnlockEffect =
       readonly productKey: string;
     }
   | {
-      /** Allows scouting a district while leaving it visible on the district list. */
-      readonly kind: 'DISTRICT_SCOUT_ACCESS';
+      /** Allows Scout and Turf access to a district while leaving it visible on the district list. */
+      readonly kind: 'DISTRICT_ACCESS';
       readonly districtKey: DistrictKey;
     }
   | {
