@@ -184,12 +184,13 @@ jobs:
           printf -v checkout_arg '%q' "$checkout_dir"
           printf -v commit_arg '%q' "$DEPLOY_COMMIT"
           vps() {
-            ssh -i "$HOME/.ssh/streets-empire-deploy"               -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes               "$VPS_USER@$VPS_HOST" "$1"
+            ssh -i "$HOME/.ssh/streets-empire-deploy" \
+              -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "$VPS_USER@$VPS_HOST" "$1"
           }
           # The last commit whose notes were handled, kept beside the deploy history.
           marker="$checkout_arg/.deploy/patch-notes-commit"
-          remember() { vps "mkdir -p $checkout_arg/.deploy && printf '%s
-' $commit_arg > $marker"; }
+          remember() { vps "mkdir -p $checkout_arg/.deploy && printf '%s\n' $commit_arg > $marker"; }
 
           previous="$(vps "cat $marker 2>/dev/null || true" | tr -d '[:space:]')"
           if [[ ! "$previous" =~ ^[0-9a-f]{40}$ ]]; then
@@ -208,7 +209,8 @@ jobs:
           fi
 
           notes="$RUNNER_TEMP/patch-notes.json"
-          node scripts/ops/patch-notes.mjs collect --from "$previous" --to "$DEPLOY_COMMIT"             --branch "$DEPLOY_BRANCH" --repo "$GITHUB_REPOSITORY" > "$notes"
+          node scripts/ops/patch-notes.mjs collect --from "$previous" --to "$DEPLOY_COMMIT" \
+            --branch "$DEPLOY_BRANCH" --repo "$GITHUB_REPOSITORY" > "$notes"
           if jq -e '. != null' "$notes" > /dev/null; then
             vps "cd $checkout_arg && node scripts/ops/patch-notes.mjs post" < "$notes"
             {

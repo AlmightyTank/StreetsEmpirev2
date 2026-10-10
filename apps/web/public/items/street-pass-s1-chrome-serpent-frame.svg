@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Chrome Serpent profile frame">
+  <defs>
+    <linearGradient id="chrome" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#f8fafc"/>
+      <stop offset=".3" stop-color="#8fa4b7"/>
+      <stop offset=".55" stop-color="#e2e8f0"/>
+      <stop offset=".78" stop-color="#5b7083"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <circle cx="64" cy="64" r="36" fill="#0d131b" fill-opacity=".6" stroke="#334155" stroke-width="3"/>
+  <path d="M94 38C82 22 56 18 40 30S18 76 32 92s48 20 64 6c11-10 14-26 8-40" fill="none" stroke="url(#chrome)" stroke-width="11" stroke-linecap="round"/>
+  <path d="M94 38C82 22 56 18 40 30S18 76 32 92s48 20 64 6c11-10 14-26 8-40" fill="none" stroke="#2dd4bf" stroke-width="2" stroke-dasharray="3 7" opacity=".9" filter="url(#glow)"/>
+  <path d="M88 34c5-8 15-9 20-2 4 5 2 12-4 14l-10 2c-6 0-9-6-6-14z" fill="url(#chrome)" stroke="#f8fafc" stroke-width="1.5"/>
+  <circle cx="100" cy="37" r="2.2" fill="#2dd4bf" filter="url(#glow)"/>
+  <path d="M108 44l7 3m-7-1 4 6" stroke="#f43f5e" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="64" cy="64" r="27" fill="none" stroke="#2dd4bf" stroke-width="1.5" opacity=".6"/>
+</svg>

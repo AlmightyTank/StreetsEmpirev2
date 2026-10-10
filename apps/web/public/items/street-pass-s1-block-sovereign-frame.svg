@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Block Sovereign profile frame">
+  <defs>
+    <linearGradient id="crest" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ecfccb"/>
+      <stop offset=".4" stop-color="#84cc16"/>
+      <stop offset="1" stop-color="#365314"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <path d="M64 12 104 26v34c0 26-16 44-40 56-24-12-40-30-40-56V26z" fill="#0b1206" fill-opacity=".7" stroke="url(#crest)" stroke-width="7" stroke-linejoin="round"/>
+  <circle cx="64" cy="64" r="28" fill="none" stroke="#a3e635" stroke-width="2" opacity=".85"/>
+  <path d="M46 20l4 8 4-8M74 20l4 8 4-8M58 16l6 9 6-9" fill="#d9f99d" stroke="#365314" stroke-width="1" stroke-linejoin="round"/>
+  <g filter="url(#glow)" fill="#a3e635">
+    <path d="M32 46h7v7h-7zM89 46h7v7h-7zM36 82h7v7h-7zM85 82h7v7h-7z"/>
+  </g>
+  <path d="M29 46h-3m75 0h3M33 89l-3 3m65-3 3 3" stroke="#d9f99d" stroke-width="2" stroke-linecap="round"/>
+  <path d="M56 104h16" stroke="#a3e635" stroke-width="3" stroke-linecap="round"/>
+</svg>

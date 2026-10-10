@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Gilded House profile frame">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#fff7d1"/>
+      <stop offset=".35" stop-color="#facc15"/>
+      <stop offset=".7" stop-color="#a16207"/>
+      <stop offset="1" stop-color="#fde68a"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <g transform="translate(64 30)">
+    <rect x="-8" y="-20" width="16" height="22" rx="2" fill="#f8fafc" stroke="#a16207" transform="rotate(-28)"/>
+    <rect x="-8" y="-22" width="16" height="22" rx="2" fill="#f8fafc" stroke="#a16207" transform="rotate(-10)"/>
+    <rect x="-8" y="-22" width="16" height="22" rx="2" fill="#f8fafc" stroke="#a16207" transform="rotate(10)"/>
+    <rect x="-8" y="-20" width="16" height="22" rx="2" fill="#f8fafc" stroke="#a16207" transform="rotate(28)"/>
+    <path d="M2-17l3 4-3 4-3-4z" fill="#dc2626" transform="rotate(10)"/>
+  </g>
+  <circle cx="64" cy="68" r="38" fill="#0f0a02" fill-opacity=".6" stroke="url(#gold)" stroke-width="9"/>
+  <circle cx="64" cy="68" r="38" fill="none" stroke="#78350f" stroke-width="1.5" stroke-dasharray="2 5"/>
+  <circle cx="64" cy="68" r="29" fill="none" stroke="#fde68a" stroke-width="2" opacity=".85"/>
+  <path d="M26 68l5-6 5 6-5 6zm66 0 5-6 5 6-5 6z" fill="#10b981" stroke="#ecfdf5" stroke-width="1.2"/>
+  <path d="M64 106l5 6-5 6-5-6z" fill="#dc2626" stroke="#fef2f2" stroke-width="1.2"/>
+  <path d="M38 40a38 38 0 0 1 14-8" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".9" filter="url(#glow)"/>
+</svg>
