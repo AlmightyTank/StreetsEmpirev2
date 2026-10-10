@@ -21,6 +21,11 @@ const badgeArtByKey: Record<string, BadgeArtPosition> = {
   veteran: [0, 10],
   'top-finisher': [0, 11],
   'hall-of-fame': [8, 8],
+  'player-level-5-title': [11, 0],
+  'player-level-10-title': [11, 1],
+  'player-level-20-title': [11, 2],
+  'player-level-30-title': [11, 3],
+  'player-level-50-title': [11, 4],
 
   // Combat progression — atlas 2.
   'knock-knock': [1, 0],
@@ -134,12 +139,17 @@ const badgeArtByKey: Record<string, BadgeArtPosition> = {
   'saints-prospect': [9, 5],
   'cartel-partner': [9, 6],
   'civic-contributor': [9, 7],
-  'faction-saints': [9, 5],
-  'faction-cartel': [9, 6],
-  'faction-civic': [9, 7],
+  'kings-crown-of-the-block': [11, 5],
+  'outfit-seat-at-the-table': [11, 6],
+  'road-saints-full-patch': [11, 7],
+  'cartel-line-the-pipeline': [11, 8],
+  'civic-handshake-untouchable': [11, 9],
+  'faction-road-saints': [9, 5],
+  'faction-cartel-line': [9, 6],
+  'faction-civic-handshake': [9, 7],
 };
 
-const atlasUrls = Array.from({ length: 11 }, (_, index) =>
+const atlasUrls = Array.from({ length: 12 }, (_, index) =>
   `/assets/profile-badges/atlas-${String(index + 1).padStart(2, '0')}.webp`,
 );
 
