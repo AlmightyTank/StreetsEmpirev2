@@ -11,7 +11,9 @@ import {
   adminSurveyDefinitionSchema,
   adminSurveyResultsQuerySchema,
   usernameSchema,
+  ADMIN_DISCORD_TIMEOUT_LENGTHS,
   type AdminCommsMuteLength,
+  type AdminDiscordTimeoutLength,
   type AdminSuspensionLength,
 } from '@streets/shared';
 import { z } from 'zod';
@@ -50,6 +52,9 @@ import { ADMIN_VEHICLE_MAX, AdminVehicleService } from '../services/admin-vehicl
 import { AdminLawService } from '../services/admin-law.service.js';
 import { AdminTurfService } from '../services/admin-turf.service.js';
 import { BugReportService } from '../services/support.service.js';
+import { AdminCommunityService } from '../services/admin-community.service.js';
+import { DiscordModerationService } from '../services/discord-moderation.service.js';
+import { ForumModerationService } from '../services/forum-moderation.service.js';
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
 import { MonitoringService } from '../services/monitoring.service.js';
 import { parseBody } from '../utils/validate.js';
@@ -140,6 +145,14 @@ const resumeRoundSchema = z.object({ extend: z.boolean().optional(), reason: rea
 // 0.9.0-H moderation.
 const commsMuteSchema = z.object({
   length: z.enum(ADMIN_COMMS_MUTE_LENGTHS.map((option) => option.key) as [AdminCommsMuteLength, ...AdminCommsMuteLength[]]),
+  reason,
+}).strict();
+const forumSuspendSchema = z.object({
+  length: z.enum(ADMIN_SUSPENSION_LENGTHS.map((option) => option.key) as [AdminSuspensionLength, ...AdminSuspensionLength[]]),
+  reason,
+}).strict();
+const discordTimeoutSchema = z.object({
+  length: z.enum(ADMIN_DISCORD_TIMEOUT_LENGTHS.map((option) => option.key) as [AdminDiscordTimeoutLength, ...AdminDiscordTimeoutLength[]]),
   reason,
 }).strict();
 const noteSchema = z.object({ body: z.string().trim().min(3, 'Write a note of at least 3 characters.').max(ADMIN_NOTE_MAX) }).strict();
@@ -608,6 +621,40 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(suspendSchema, request.body ?? {});
     return AdminAccountService.suspend(fastify.prisma, request.auth!.account, accountId, body.length as AdminSuspensionLength, body.reason);
+  });
+
+  /** The player on the forum and Discord, plus their support tickets. Asks both, so it loads on its own. */
+  fastify.get('/accounts/:accountId/community', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    return AdminCommunityService.load(fastify.prisma, accountId);
+  });
+
+  fastify.post('/accounts/:accountId/forum-suspend', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(forumSuspendSchema, request.body ?? {});
+    await ForumModerationService.suspend(fastify.prisma, request.auth!.account, accountId, body.length, body.reason);
+    return AdminCommunityService.load(fastify.prisma, accountId);
+  });
+
+  fastify.post('/accounts/:accountId/forum-suspend/lift', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    await ForumModerationService.lift(fastify.prisma, request.auth!.account, accountId, body.reason);
+    return AdminCommunityService.load(fastify.prisma, accountId);
+  });
+
+  fastify.post('/accounts/:accountId/discord-timeout', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(discordTimeoutSchema, request.body ?? {});
+    await DiscordModerationService.timeout(fastify.prisma, request.auth!.account, accountId, body.length, body.reason);
+    return AdminCommunityService.load(fastify.prisma, accountId);
+  });
+
+  fastify.post('/accounts/:accountId/discord-timeout/lift', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    await DiscordModerationService.liftTimeout(fastify.prisma, request.auth!.account, accountId, body.reason);
+    return AdminCommunityService.load(fastify.prisma, accountId);
   });
 
   fastify.post('/accounts/:accountId/comms-mute', async (request) => {

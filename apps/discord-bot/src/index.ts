@@ -34,6 +34,7 @@ import { Cooldowns } from './lookup.js';
 import { betaTesterRoles, managedRoles, parseForumGroupList } from './roles.js';
 import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
+import { memberStatus, timeoutMember } from './moderation.js';
 import { startOptionalPushServer } from './push-server.js';
 import { handleStaffButton, handleStaffModal, staffPostMessage } from './staff.js';
 import { OutageWatch, outageMessage, recoveredMessage, statusPostMessage } from './status.js';
@@ -503,6 +504,13 @@ client.once(Events.ClientReady, async (ready) => {
         port: config.DISCORD_BOT_LISTEN_PORT,
         token: config.DISCORD_BOT_API_TOKEN,
         onWake: runWake,
+        // The admin account page: a member's status, and timeouts the game has already audited.
+        onMember: (discordId) => memberStatus(guild, discordId),
+        onTimeout: async (input) => {
+          const member = await timeoutMember(guild, input);
+          console.log(`${input.minutes === null ? 'Lifted the timeout on' : `Timed out for ${input.minutes} min:`} ${input.discordId}, at the game's request.`);
+          return member;
+        },
       });
     }
   } catch (error) {

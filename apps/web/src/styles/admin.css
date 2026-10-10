@@ -78,3 +78,7 @@
 /* 1.0.0-F monitoring */
 .se-grid-2,.se-grid-3{display:grid;gap:14px}.se-grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}.se-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:760px){.se-grid-2,.se-grid-3{grid-template-columns:1fr}}
+
+/* 1.7 Community panel on the admin account page */
+.se-admin-tickets { margin: 0; padding-left: 1.2em; }
+.se-admin-tickets li + li { margin-top: 4px; }

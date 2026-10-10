@@ -341,6 +341,56 @@ export interface AdminAccountDetailDto {
   reportsAgainst: { open: number; total: number };
 }
 
+/** Discord caps a timeout at 28 days. */
+export const ADMIN_DISCORD_TIMEOUT_LENGTHS = [
+  { key: '1h', label: '1 hour', minutes: 60 },
+  { key: '1d', label: '1 day', minutes: 24 * 60 },
+  { key: '7d', label: '7 days', minutes: 7 * 24 * 60 },
+  { key: '28d', label: '28 days', minutes: 28 * 24 * 60 },
+] as const;
+
+export type AdminDiscordTimeoutLength = (typeof ADMIN_DISCORD_TIMEOUT_LENGTHS)[number]['key'];
+
+/** The longest Discord timeout that does not outlast a game suspension of this many hours. */
+export function discordTimeoutFor(hours: number): AdminDiscordTimeoutLength {
+  const fits = ADMIN_DISCORD_TIMEOUT_LENGTHS.filter((option) => option.minutes <= hours * 60);
+  return (fits[fits.length - 1] ?? ADMIN_DISCORD_TIMEOUT_LENGTHS[0]).key;
+}
+
+/**
+ * The player across the game's community tools, for the admin account page. Each
+ * part loads on its own: a forum or bot outage leaves a problem line, not an error.
+ */
+export interface AdminCommunityDto {
+  forum:
+    | { linked: false }
+    | {
+      linked: true;
+      username: string;
+      profileUrl: string;
+      /** False when the game has no forum API key, so suspensions are done on the forum itself. */
+      moderationEnabled: boolean;
+      /** Why the forum status could not be read, if it could not. */
+      problem: string | null;
+      suspendedUntil: string | null;
+    };
+  discord:
+    | { linked: false }
+    | {
+      linked: true;
+      discordId: string;
+      /** False when the bot's local listener is not configured on this server. */
+      moderationEnabled: boolean;
+      problem: string | null;
+      inServer: boolean;
+      displayName: string | null;
+      timedOutUntil: string | null;
+      /** The bot can time this member out: it has Moderate Members and sits above their roles. */
+      canModerate: boolean;
+    };
+  tickets: Array<{ id: string; subject: string; createdAt: string; closedAt: string | null; closedByName: string | null; threadUrl: string | null }>;
+}
+
 export interface AdminAccountDeleteResultDto {
   accountId: string;
   formerUsername: string;
