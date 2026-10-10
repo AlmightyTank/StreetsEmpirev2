@@ -33,7 +33,7 @@ This is a proposed roadmap. It does not change live or historical rulesets until
 
 | Slice | Theme | Outcome |
 | --- | --- | --- |
-| **A — Recipe Access Foundation** | Separate cooking from buying | Add a permanent `PRODUCT_PRODUCTION_ACCESS` unlock effect, server-side recipe checks, clear locked recipe data in the Products API, and a Produce page explanation with a quest link. Existing purchase unlocks keep their current behavior. |
+| **A — Quest Access Foundation** | Unlock recipes and Scout districts through quests | Add permanent recipe and district-scouting access effects, server-side checks, visible locked-state data, and direct links to the unlocking quests. Existing purchase unlocks keep their current behavior. |
 | **B — Pip's Cookhouse Ladder** | Earn three new recipes | Add quest chains for Weed, Cocaine, and Heroin. Completing each chain opens that product's recipe in the current round. Quests use existing actions and award no free ingredients, stock, or crew. |
 | **C — Product Identity & Balance** | Make each recipe a real choice | Define per-product production costs, output, variance, and Heat in the pinned ruleset. Simulate production, market sales, Heat, city demand, and supply so no product becomes a universal best pick. |
 | **D — Quest Presentation** | Show the progression clearly | Present recipe locks and their unlocking quest in Products and Produce. Keep Available quests limited to quests that are actually available; show future progression on the existing quest progression view. |
@@ -41,7 +41,7 @@ This is a proposed roadmap. It does not change live or historical rulesets until
 
 ## Slice details
 
-### A — Recipe Access Foundation
+### A — Quest Access Foundation
 
 - Extend the permanent unlock effect model with `PRODUCT_PRODUCTION_ACCESS`, keyed by product.
 - Keep it independent from `PRODUCT_PURCHASE_ACCESS`; a quest can grant one, both, or neither.
@@ -49,8 +49,9 @@ This is a proposed roadmap. It does not change live or historical rulesets until
 - Return each product's recipe state and, when locked, its unlock name and the quest that grants it.
 - Show locked recipes as visible future options, with their role and the required quest. Do not offer them as selectable batches.
 - Keep old rulesets ungated unless they already define a production unlock. Historical players retain the behavior their round began with.
+- Support `DISTRICT_SCOUT_ACCESS`, keyed by district, as a separate effect that gates the Scout action only. Keep every district visible on the Scout page and explain which quest opens a locked district; do not gate Turf or other district systems.
 
-**Gate:** A locked recipe cannot be produced through a direct or replayed API request. An unlocked recipe can be produced once per valid action, with existing turn, ingredient, crew, Heat, and idempotency checks unchanged.
+**Gate:** A locked recipe cannot be produced through a direct or replayed API request, and a locked district cannot be scouted through a direct or replayed API request. Locked options remain visible with their quest path. Unlocked actions retain the existing turn, ingredient, crew, Heat, turf, and idempotency checks.
 
 ### B — Pip's Cookhouse Ladder
 
