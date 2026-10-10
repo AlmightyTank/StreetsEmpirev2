@@ -4,15 +4,36 @@ on:
   push:
     branches:
       - main
+      - beta
       - feature/1.2.0-d-roulette-street-dice
   pull_request:
     branches:
       - main
+      - beta
+  workflow_dispatch:
+    inputs:
+      deploy_branch:
+        description: Environment to deploy
+        type: choice
+        required: true
+        default: beta
+        options:
+          - beta
+          - main
+      commit_sha:
+        description: Optional commit SHA from the selected branch; blank uses its current tip
+        type: string
+        required: false
+
+permissions:
+  contents: read
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    outputs:
+      commit_sha: ${{ steps.target_commit.outputs.sha }}
     services:
       postgres:
         image: postgres:17-alpine
@@ -33,8 +54,14 @@ jobs:
       SESSION_SECRET: ci-only-session-secret-change-me-32-characters
 
     steps:
-      - name: Check out repository
+      - name: Check out the commit to validate
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha || inputs.deploy_branch || github.sha }}
+
+      - name: Record validated commit
+        id: target_commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
@@ -67,3 +94,64 @@ jobs:
 
       - name: Build API, game, public site and bot
         run: npm run build
+
+  deploy:
+    name: Deploy ${{ inputs.deploy_branch || github.ref_name }}
+    needs: validate
+    if: (github.event_name == 'push' && (github.ref_name == 'beta' || github.ref_name == 'main')) || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: streets-empire-deploy-${{ inputs.deploy_branch || github.ref_name }}
+      cancel-in-progress: false
+    environment:
+      name: ${{ (inputs.deploy_branch || github.ref_name) == 'main' && 'production' || 'beta' }}
+    env:
+      DEPLOY_BRANCH: ${{ inputs.deploy_branch || github.ref_name }}
+      DEPLOY_COMMIT: ${{ needs.validate.outputs.commit_sha }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+      VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+    steps:
+      - name: Validate deployment secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in VPS_HOST VPS_USER VPS_SSH_PRIVATE_KEY VPS_SSH_KNOWN_HOSTS; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing required environment secret: $name"
+              exit 1
+            fi
+          done
+          if [[ "$DEPLOY_BRANCH" != "beta" && "$DEPLOY_BRANCH" != "main" ]]; then
+            echo "::error::Only beta and main can be deployed."
+            exit 1
+          fi
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$HOME/.ssh/streets-empire-deploy"
+          chmod 600 "$HOME/.ssh/streets-empire-deploy"
+          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Deploy selected commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$DEPLOY_BRANCH" in
+            beta) checkout_dir="/opt/streets-empire/StreetsEmpirev2-beta" ;;
+            main) checkout_dir="/opt/streets-empire/StreetsEmpirev2" ;;
+            *) echo "::error::Unsupported deploy branch: $DEPLOY_BRANCH"; exit 1 ;;
+          esac
+          printf -v checkout_arg '%q' "$checkout_dir"
+          printf -v branch_arg '%q' "$DEPLOY_BRANCH"
+          printf -v commit_arg '%q' "$DEPLOY_COMMIT"
+          remote_command="cd $checkout_arg && bash scripts/ops/deploy-ref.sh $branch_arg $commit_arg"
+          ssh -i "$HOME/.ssh/streets-empire-deploy" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" "$remote_command"

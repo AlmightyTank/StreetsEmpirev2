@@ -143,7 +143,7 @@ describe('createGameApi', () => {
     await api.reportNewsChannel({ channel: null, problem: 'the bot needs SendMessages in #news.' });
     expect((await api.setAlert('123456789012345678', 'turns', true)).current).toEqual({ turns: 5, cap: 144, nationalRank: 7 });
     // A server from before 0.9.0-G sends no notices; the bot treats that as none.
-    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], notices: [], battles: [], turf: [], blockWars: [], territory: [], crackdowns: [], rounds: [] });
+    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], notices: [], battles: [], turf: [], blockWars: [], territory: [], crackdowns: [], rounds: [], factions: [] });
     // A raid feed the bot can't post in leaves its events on the server.
     await api.claimAlerts({ feed: false });
     expect(calls).toEqual([
