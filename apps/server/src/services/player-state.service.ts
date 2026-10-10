@@ -163,7 +163,8 @@ export const PlayerStateService = {
     const upkeepCash = await SupplyPropertySettleService.settleUpkeep(tx, roundPlayerId, ruleset, now);
     if (upkeepCash !== null) rest = { ...rest, cashCents: upkeepCash };
     // 1.6.5-B: and loan installments that have fallen due, for players who are only looking.
-    if (await LoanSettleService.settle(tx, roundPlayerId, ruleset, now) !== null) {
+    // A pause freezes due money; the background dashboard read must not settle loans either.
+    if (!round.pausedAt && await LoanSettleService.settle(tx, roundPlayerId, ruleset, now) !== null) {
       const loans = await tx.roundPlayer.findUniqueOrThrow({
         where: { id: roundPlayerId },
         select: { cashCents: true, loanDebtCents: true, loanFeesAssessedCents: true, loanCollectionState: true, loanRecoveryNeeded: true, loanCollectionsSince: true },

@@ -313,6 +313,9 @@ Provide tools to inspect and safely operate the system.
 
 ### 1.6.5-G — Balance, Mobile & Release
 
+**Status: release gate implemented on `loan-shark-1.6.5-g`; database and phone-width checks must pass before final balance values are signed off.**
+
+
 Prove that the debt system adds tension without overwhelming the economy.
 
 - Simulate new players and established players taking one loan, stacking loans, missing installments, reaching the debt ceiling, and repaying out of delinquency.
