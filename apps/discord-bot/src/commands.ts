@@ -33,6 +33,7 @@ import { ALERT_TYPES, GameApiError, isLeaderboardStat, type AlertType, type City
 import { cityChoices, parsePlayerRef, resolveCity, type Cooldowns } from './lookup.js';
 import { roleNamesForKeys, type ManagedRole } from './roles.js';
 import { showBugForm } from './staff.js';
+import { statusEmbed } from './status.js';
 import { showTicketForm } from './support.js';
 import type { RoleSync } from './sync.js';
 
@@ -87,6 +88,7 @@ export const commandData = [
     .addStringOption((option) => option.setName('tag').setDescription('Alliance tag (default: yours)').setMaxLength(5)),
   new SlashCommandBuilder().setName('halloffame').setDescription('Podiums from recent finished rounds'),
   new SlashCommandBuilder().setName('round').setDescription('Current round status and time left'),
+  new SlashCommandBuilder().setName('status').setDescription('Is StreetsEmpire up, which version, and any maintenance'),
   new SlashCommandBuilder().setName('news').setDescription('Latest StreetsEmpire news'),
   new SlashCommandBuilder().setName('invite').setDescription('How to start playing StreetsEmpire and get your roles'),
   new SlashCommandBuilder().setName('link').setDescription('Your link status and the roles you qualify for (only you see it)'),
@@ -273,6 +275,19 @@ async function run(interaction: ChatInputCommandInteraction, deps: CommandDeps):
 
     case 'news':
       return { embeds: [newsEmbed(await api.news(), origin)] };
+
+    case 'status': {
+      // Answers even when the game is down: that is when people ask.
+      const [ready, meta, banner] = await Promise.allSettled([api.ready(), api.meta(), api.banner()]);
+      return {
+        embeds: [statusEmbed({
+          up: ready.status === 'fulfilled' && ready.value.ok,
+          meta: meta.status === 'fulfilled' ? meta.value : null,
+          banner: banner.status === 'fulfilled' ? banner.value : null,
+          origin,
+        })],
+      };
+    }
 
     case 'invite':
       // The steps still help when round status is unavailable.

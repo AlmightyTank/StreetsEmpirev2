@@ -12,6 +12,7 @@ import healthRoutes from './health.routes.js';
 import notificationRoutes from './notification.routes.js';
 import pimpConsoleRoutes from './pimp-console.routes.js';
 import forumRoutes from './forum.routes.js';
+import opsRoutes from './ops.routes.js';
 import patchNotesRoutes from './patch-notes.routes.js';
 import roundInfoRoutes from './round-info.routes.js';
 import roundRoutes from './round.routes.js';
@@ -30,6 +31,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(notificationRoutes, { prefix: '/notifications' });
   await fastify.register(discordBotRoutes, { prefix: '/internal/discord' });
   await fastify.register(patchNotesRoutes, { prefix: '/internal/patch-notes' });
+  await fastify.register(opsRoutes, { prefix: '/internal/ops' });
   await fastify.register(adminRoutes, { prefix: '/admin' });
   await fastify.register(roundRoutes, { prefix: '/rounds' });
   await fastify.register(roundInfoRoutes, { prefix: '/rounds' });

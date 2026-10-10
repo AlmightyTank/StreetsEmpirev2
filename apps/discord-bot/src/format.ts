@@ -370,6 +370,7 @@ export const HELP_LINES: Array<[string, string]> = [
   ['/halloffame', 'Podiums from recent finished rounds.'],
   ['/round', 'Round status and time left.'],
   ['/news', 'Latest news posts.'],
+  ['/status', 'Whether the game is up, the running version and any planned maintenance.'],
   ['/invite', 'How to start playing and get your roles.'],
   ['/link', 'Your link status and the roles you qualify for. Only you see it.'],
   ['/stats', 'Your private cash, crew, weapons, supplies and turns. Only you see it.'],
