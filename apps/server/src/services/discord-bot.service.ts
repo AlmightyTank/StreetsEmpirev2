@@ -1016,14 +1016,14 @@ export const DiscordBotService = {
     const now = new Date();
     const feed = options.feed ?? true;
     await NotificationService.collect(prisma, now);
-    const [battles, turf, blockWars, territory, crackdowns, rounds, dms] = await Promise.all([
+    const [battles, turf, blockWars, territory, crackdowns, rounds, factions, dms] = await Promise.all([
       feed ? claimBattles(prisma, now) : [],
       feed ? claimTurf(prisma, now) : [],
       feed ? claimBlockWars(prisma, now) : [],
       feed ? claimTerritory(prisma, now) : [],
       feed ? claimCrackdowns(prisma, now) : [],
       claimRoundEnds(prisma, now),
-      claimFactions(prisma, now),
+      feed ? claimFactions(prisma, now) : [],
       NotificationService.claimDiscord(prisma, now),
     ]);
     return { ...dms, battles, turf, blockWars, territory, crackdowns, rounds, factions };
