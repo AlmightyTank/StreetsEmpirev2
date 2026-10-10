@@ -4,6 +4,7 @@ import { classicOgV17A } from '../classic-og-v1.7-a/index.js';
 import { classicOgV17B } from '../classic-og-v1.7-b/index.js';
 import { classicOgV17C } from '../classic-og-v1.7-c/index.js';
 import { classicOgV17D } from '../classic-og-v1.7-d/index.js';
+import { classicOgV17E } from '../classic-og-v1.7-e/index.js';
 import { hideoutV2For } from '../hideout-v2.js';
 import { rulesets } from '../index.js';
 import type { Ruleset } from '../types.js';
@@ -12,7 +13,7 @@ describe('1.7.0 crew profile rulesets', () => {
   it('keeps A pinned and enables the roster only on 1.7 rulesets', () => {
     expect(classicOgV17A.meta).toEqual({ id: 'classic-og-v1.7-a', version: '1.7.0-A', name: 'Classic OG - Individual Roster' });
     expect(rulesets[classicOgV17A.meta.id]).toBe(classicOgV17A);
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV17D);
+    expect(Object.values(rulesets).at(-1)).toBe(classicOgV17E);
     const earlier = Object.values(rulesets).filter((ruleset) => !ruleset.meta.id.startsWith('classic-og-v1.7-')) as Ruleset[];
     expect(earlier.length).toBeGreaterThan(100);
     for (const ruleset of earlier) expect(ruleset.crewRoster, ruleset.meta.id).toBeUndefined();
@@ -47,5 +48,12 @@ describe('1.7.0 crew profile rulesets', () => {
     expect(classicOgV17D.crewRoster.training).toEqual({ turnCost: 1, cashCostCents: 500_000, experience: 5, earnedExperienceRatioPercent: 25 });
     expect(rulesets[classicOgV17D.meta.id]).toBe(classicOgV17D);
     expect(hideoutV2For(classicOgV17D)).toBe(hideoutV2For(classicOgV165G));
+  });
+
+  it('pins the 1.7.0-E operational team ruleset without changing crew progression', () => {
+    expect(classicOgV17E.meta).toEqual({ id: 'classic-og-v1.7-e', version: '1.7.0-E', name: 'Classic OG - Operational Teams' });
+    expect(classicOgV17E.crewRoster).toEqual(classicOgV17D.crewRoster);
+    expect(rulesets[classicOgV17E.meta.id]).toBe(classicOgV17E);
+    expect(hideoutV2For(classicOgV17E)).toBe(hideoutV2For(classicOgV17D));
   });
 });

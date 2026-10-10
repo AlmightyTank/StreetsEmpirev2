@@ -405,11 +405,11 @@ export const CrewRosterService = {
   },
 
   /** Award a bounded career point share after a server-resolved operation commits successfully. */
-  async awardCompletedWork(tx: Db, input: { roundPlayerId: string; ruleset: Ruleset; role: 'THUG' | 'WORKER'; specialty: 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'SERVICE'; assignmentKind?: CrewAssignmentKindDto; assignmentRef?: string | null; at: Date; label: string }): Promise<void> {
+  async awardCompletedWork(tx: Db, input: { roundPlayerId: string; ruleset: Ruleset; role: 'THUG' | 'WORKER'; specialty: 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'SERVICE'; memberIds?: string[]; assignmentKind?: CrewAssignmentKindDto; assignmentRef?: string | null; at: Date; label: string }): Promise<void> {
     const rules = input.ruleset.crewRoster;
     if (!rules?.enabled || !rules.experiencePerCompletedJob) return;
     const [member] = await tx.crewMember.findMany({
-      where: { roundPlayerId: input.roundPlayerId, role: input.role, status: input.specialty === 'WHEELMAN' ? { in: ['AVAILABLE', 'IN_TRANSIT'] } : 'AVAILABLE', dealerStaffId: null, OR: [{ specialty: 'GENERALIST' }, { specialty: input.specialty }] },
+      where: { roundPlayerId: input.roundPlayerId, role: input.role, ...(input.memberIds ? { id: { in: input.memberIds } } : {}), status: input.specialty === 'WHEELMAN' ? { in: ['AVAILABLE', 'IN_TRANSIT'] } : 'AVAILABLE', dealerStaffId: null, OR: [{ specialty: 'GENERALIST' }, { specialty: input.specialty }] },
       orderBy: [{ specialtyExperiencePoints: 'desc' }, { serial: 'asc' }], take: 1,
       select: { id: true, specialty: true, specialtyExperiencePoints: true },
     });
@@ -429,6 +429,25 @@ export const CrewRosterService = {
       where: { roundPlayerId, role, specialty, status: 'AVAILABLE', dealerStaffId: null },
       select: { specialtyExperiencePoints: true },
     });
+    const points = Math.max(0, ...members.map((member) => member.specialtyExperiencePoints));
+    if (!points) return 0;
+    const percent = points >= (career.specialtyTierTwoExperience ?? Number.MAX_SAFE_INTEGER)
+      ? career.specialtyBonusPercent?.tierTwo ?? 0
+      : career.specialtyBonusPercent?.tierOne ?? 0;
+    return Math.min(percent, career.specialtyBonusPercent?.cap ?? 0);
+  },
+
+  /** A chosen operation team must still be available and eligible under the player's lock. */
+  async selectedSpecialtyBonusPercent(tx: Db, roundPlayerId: string, ruleset: Ruleset, role: 'THUG' | 'WORKER', specialty: 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'SERVICE', memberIds: string[]): Promise<number> {
+    if (!memberIds.length) return 0;
+    if (ruleset.meta.id !== 'classic-og-v1.7-e') throw AppError.badRequest('TEAM_SELECTION_UNAVAILABLE', 'Selected operation teams are not available in this ruleset.');
+    const career = ruleset.crewRoster;
+    if (!career?.enabled) return 0;
+    const members = await tx.crewMember.findMany({
+      where: { roundPlayerId, id: { in: memberIds }, role, specialty, status: 'AVAILABLE', dealerStaffId: null },
+      select: { id: true, specialtyExperiencePoints: true },
+    });
+    if (members.length !== memberIds.length) throw AppError.conflict('CREW_TEAM_UNAVAILABLE', 'One or more selected crew members are unavailable or not eligible for this operation. Refresh your roster and choose again.');
     const points = Math.max(0, ...members.map((member) => member.specialtyExperiencePoints));
     if (!points) return 0;
     const percent = points >= (career.specialtyTierTwoExperience ?? Number.MAX_SAFE_INTEGER)
@@ -461,7 +480,7 @@ export const CrewRosterService = {
   /** The roster as it stands, brought in line with the counts first. */
   async view(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, query: CrewRosterQuery, now = new Date()): Promise<CrewRosterDto> {
     if (!ruleset.crewRoster?.enabled) {
-      return { enabled: false, migratedAt: null, totals: [], members: [], total: 0 };
+      return { enabled: false, supportsSelectedTeams: false, migratedAt: null, totals: [], members: [], total: 0 };
     }
     return prisma.$transaction(async (tx) => {
       await CrewRosterService.sync(tx, roundPlayerId, ruleset, now);
@@ -515,6 +534,7 @@ export const CrewRosterService = {
       }
       return {
         enabled: true,
+        supportsSelectedTeams: ruleset.meta.id === 'classic-og-v1.7-e',
         migratedAt: migration?.createdAt.toISOString() ?? null,
         totals,
         members: members.map((member) => memberDto(

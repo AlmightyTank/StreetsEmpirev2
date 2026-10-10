@@ -162,6 +162,8 @@ Make the roster matter in jobs where a selected team changes the outcome.
 
 **Gate:** Member availability reconciles across all supported operations; no member can produce overlapping benefits in two simultaneous jobs.
 
+**Implemented in 1.7.0-E:** Raid enforcers and scouting teams can be selected from the available roster. Both operations revalidate the whole team under the player's transaction lock, apply the highest selected specialty effect at the existing 5% cap without stacking, and award completed-work experience only to the selected team. Recommendations are optional; empty team choices keep the established count-based crew flow and automatic career bonus. These actions resolve in one transaction, so there is no cross-turn crew reservation to reconcile. Team selection is enabled only by `classic-og-v1.7-e`; older rulesets keep their previous behavior.
+
 ### 1.7.0-F — Balance, Admin & Release
 
 Make individual progression safe to operate and fair across different play styles.

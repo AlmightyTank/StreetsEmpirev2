@@ -89,6 +89,7 @@ export function districtsFor(ruleset: Ruleset, crew: Crew, citySlug?: string): D
 export interface ScoutInput {
   district: string;
   turns: number;
+  crewMemberIds?: string[];
   actionId?: string;
 }
 
@@ -146,7 +147,10 @@ export const ScoutService = {
         if (supply) await WorkSupplyService.consume(tx, roundPlayerId, ruleset, supply);
 
         const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
-        const scoutCareerBonus = await CrewRosterService.specialtyBonusPercent(tx, roundPlayerId, ruleset, 'WORKER', 'SCOUT');
+        await CrewRosterService.sync(tx, roundPlayerId, ruleset, now);
+        const scoutCareerBonus = input.crewMemberIds
+          ? await CrewRosterService.selectedSpecialtyBonusPercent(tx, roundPlayerId, ruleset, 'WORKER', 'SCOUT', input.crewMemberIds)
+          : await CrewRosterService.specialtyBonusPercent(tx, roundPlayerId, ruleset, 'WORKER', 'SCOUT');
         const scoutRuleset: Ruleset = favorBonuses.scoutIncomePercent > 0 || favorBonuses.scoutRecruitmentPercent > 0
           ? {
               ...ruleset,
@@ -316,7 +320,7 @@ export const ScoutService = {
 
         const local = localDistrict(ruleset, player.city.slug, found.key, found.district);
 
-        await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'WORKER', specialty: 'SCOUT', at: now, label: 'Scouting trip complete' });
+        await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'WORKER', specialty: 'SCOUT', ...(input.crewMemberIds ? { memberIds: input.crewMemberIds } : {}), at: now, label: 'Scouting trip complete' });
         return {
           next,
           result,

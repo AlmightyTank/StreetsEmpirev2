@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { classicOgV17C } from '@streets/rulesets';
+import { classicOgV17C, classicOgV17E } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import { CrewRosterService } from '../crew-roster.service.js';
 
@@ -27,5 +27,28 @@ describe('1.7.0-C crew careers', () => {
     const tx = { crewMember: { findMany: vi.fn().mockResolvedValue([{ specialtyExperiencePoints: 1_000 }]) } } as unknown as Db;
     await expect(CrewRosterService.specialtyBonusPercent(tx, 'player-1', classicOgV17C, 'THUG', 'ENFORCER')).resolves.toBe(5);
     expect(tx.crewMember.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: 'AVAILABLE', specialty: 'ENFORCER' }) }));
+  });
+
+  it('validates selected specialists against live availability and applies their best bounded effect', async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      { id: 'enforcer-1', specialtyExperiencePoints: 20 },
+      { id: 'enforcer-2', specialtyExperiencePoints: 100 },
+    ]);
+    const tx = { crewMember: { findMany } } as unknown as Db;
+    await expect(CrewRosterService.selectedSpecialtyBonusPercent(tx, 'player-1', classicOgV17E, 'THUG', 'ENFORCER', ['enforcer-1', 'enforcer-2'])).resolves.toBe(5);
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: { in: ['enforcer-1', 'enforcer-2'] }, status: 'AVAILABLE', dealerStaffId: null }) }));
+
+    findMany.mockResolvedValueOnce([{ id: 'enforcer-1', specialtyExperiencePoints: 20 }]);
+    await expect(CrewRosterService.selectedSpecialtyBonusPercent(tx, 'player-1', classicOgV17E, 'THUG', 'ENFORCER', ['enforcer-1', 'stale-id'])).rejects.toMatchObject({ code: 'CREW_TEAM_UNAVAILABLE' });
+    await expect(CrewRosterService.selectedSpecialtyBonusPercent(tx, 'player-1', classicOgV17C, 'THUG', 'ENFORCER', ['enforcer-1'])).rejects.toMatchObject({ code: 'TEAM_SELECTION_UNAVAILABLE' });
+  });
+
+  it('awards selected-team experience only to a selected eligible member', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ id: 'chosen', specialty: 'ENFORCER', specialtyExperiencePoints: 20 }]);
+    const tx = { crewMember: { findMany, update: vi.fn() }, crewMemberEvent: { create: vi.fn() } } as unknown as Db;
+    await CrewRosterService.awardCompletedWork(tx, {
+      roundPlayerId: 'player-1', ruleset: classicOgV17E, role: 'THUG', specialty: 'ENFORCER', memberIds: ['chosen'], at: new Date('2026-01-01T00:00:00Z'), label: 'Raid completed',
+    });
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: { in: ['chosen'] } }) }));
   });
 });

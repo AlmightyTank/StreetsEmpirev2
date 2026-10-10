@@ -1100,6 +1100,7 @@ export const CombatService = {
       if (truce) throw AppError.conflict('TRUCE', truce);
       await assertNotLinked(tx, attacker, defender, now);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
+      await CrewRosterService.sync(tx, attackerId, ruleset, now);
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
       const repeatTargetHits = await consecutiveRepeatTargetHits(tx, attackerId, target.id);
@@ -1109,7 +1110,10 @@ export const CombatService = {
         ? Object.values(exposedStashD).reduce((sum, count) => sum + Math.max(0, count), 0)
         : exposedStashD.CRACK ?? 0;
       const supplyBoost = boostOf(a);
-      const enforcerBonus = await CrewRosterService.specialtyBonusPercent(tx, attackerId, ruleset, 'THUG', 'ENFORCER');
+      const enforcerBonus = input.crewMemberIds
+        ? await CrewRosterService.selectedSpecialtyBonusPercent(tx, attackerId, ruleset, 'THUG', 'ENFORCER', input.crewMemberIds)
+        : await CrewRosterService.specialtyBonusPercent(tx, attackerId, ruleset, 'THUG', 'ENFORCER');
+      if ((input.crewMemberIds?.length ?? 0) > input.attackingThugs) throw AppError.badRequest('INVALID_CREW_TEAM', 'The selected team cannot be larger than the raid squad.');
       const attackerBoost: CombatBoost | undefined = enforcerBonus > 0
         ? { strength: (supplyBoost?.strength ?? 1) * (1 + enforcerBonus / 100), wounds: supplyBoost?.wounds ?? 1 }
         : supplyBoost;
@@ -1207,7 +1211,7 @@ export const CombatService = {
         attackingThugs: input.attackingThugs, modelVersion: model.version,
         calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, ...(bossAwayMultiplier !== 1 ? { bossAwayMultiplier } : {}), retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
-      await CrewRosterService.awardCompletedWork(tx, { roundPlayerId: attackerId, ruleset, role: 'THUG', specialty: 'ENFORCER', at: now, label: 'Raid completed' });
+      await CrewRosterService.awardCompletedWork(tx, { roundPlayerId: attackerId, ruleset, role: 'THUG', specialty: 'ENFORCER', ...(input.crewMemberIds ? { memberIds: input.crewMemberIds } : {}), at: now, label: 'Raid completed' });
       await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
