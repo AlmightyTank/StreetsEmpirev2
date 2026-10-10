@@ -21,6 +21,7 @@ import type {
 } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { ActionService, assertTurns, fitThugs, type PlayerState } from './action.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { allianceTargetBlock } from './alliance.service.js';
@@ -175,6 +176,7 @@ export const BlockWarService = {
         const turfRules = ruleset.turf!;
         const district = input.district as DistrictKey;
         if (!turfRules.districts[district]) throw AppError.badRequest('UNKNOWN_DISTRICT', 'That is not a turf block.');
+        await PermanentUnlockService.assertCanAccessDistrict(tx, attackerId, ruleset, district);
         await TurfService.ensureRound(tx, round.id, ruleset);
         const block = await tx.turf.findUnique({ where: { roundId_cityId_district: { roundId: round.id, cityId: player.cityId, district } }, select: { id: true } });
         if (!block) throw AppError.notFound('TURF_NOT_FOUND', 'That block is not in your city.');
