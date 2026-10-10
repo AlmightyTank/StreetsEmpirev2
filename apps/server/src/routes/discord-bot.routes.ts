@@ -142,8 +142,8 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/message-reports/:reportId/act', async (request) => {
     const { reportId } = parseBody(messageReportParams, request.params);
     const { discordId, action, note } = parseBody(messageReportActionSchema, request.body);
-    await AdminModerationService.actFromDiscord(fastify.prisma, discordId, reportId, action, note);
-    return { report: await staffMessageReport(fastify.prisma, reportId) };
+    const { mute } = await AdminModerationService.actFromDiscord(fastify.prisma, discordId, reportId, action, note);
+    return { report: await staffMessageReport(fastify.prisma, reportId), mute };
   });
 
   /** Staff channel posts, claimed once like news. */

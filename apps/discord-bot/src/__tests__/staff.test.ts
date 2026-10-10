@@ -10,6 +10,7 @@ import {
   parseReportFormId,
   parseResolveId,
   patchNotesHeldMessage,
+  reportActedText,
   reportForm,
   resolveForm,
   staffErrorText,
@@ -162,6 +163,14 @@ describe('messageReportMessage', () => {
     expect(parseActionId('report-act-form:dismiss:cmrep1', 'report-act-form')).toEqual({ action: 'dismiss', reportId: 'cmrep1' });
     expect(parseActionId('report-act:ban:cmrep1')).toBeNull();
     expect(parseActionId('bug-resolve:FIXED:cmbug1')).toBeNull();
+  });
+});
+
+describe('reportActedText', () => {
+  it('never claims a mute that did not happen', () => {
+    expect(reportActedText('Loud_Guy', 'applied')).toMatch(/^Muted Loud_Guy for 1 day/);
+    expect(reportActedText('Loud_Guy', 'kept')).toBe('Loud_Guy was already muted for longer than a day, so that mute stays as it is. Closed every report on that message as actioned.');
+    expect(reportActedText('Loud_Guy', 'none')).toBe('Dismissed every report on that message.');
   });
 });
 

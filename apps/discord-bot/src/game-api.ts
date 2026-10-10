@@ -214,7 +214,8 @@ const staffPostSchema = z.object({
 const staffClaimSchema = z.object({ posts: z.array(staffPostSchema) });
 const bugCreatedSchema = z.object({ ok: z.literal(true), id: z.string(), message: z.string() });
 const bugResolvedSchema = z.object({ report: staffBugReportSchema });
-const reportActedSchema = z.object({ report: staffMessageReportSchema });
+/** applied: muted now. kept: a longer mute was already in force. none: dismissed. */
+const reportActedSchema = z.object({ report: staffMessageReportSchema, mute: z.enum(['applied', 'kept', 'none']) });
 
 const newsCreatedSchema = z.object({ id: z.string(), title: z.string(), url: z.string().url(), roundName: z.string().nullable() });
 
@@ -564,7 +565,7 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
       (await call(bugResolvedSchema, `/api/internal/discord/bug-reports/${encodeURIComponent(reportId)}/resolve`, { method: 'POST', body: input })).report,
     /** A staff button on a message report; the game checks the member is a linked admin. */
     actOnMessageReport: async (reportId: string, input: { discordId: string; action: ReportAction; note: string }) =>
-      (await call(reportActedSchema, `/api/internal/discord/message-reports/${encodeURIComponent(reportId)}/act`, { method: 'POST', body: input })).report,
+      call(reportActedSchema, `/api/internal/discord/message-reports/${encodeURIComponent(reportId)}/act`, { method: 'POST', body: input }),
     /** Staff channel posts, each handed out once. */
     claimStaffPosts: async () => (await call(staffClaimSchema, '/api/internal/discord/staff-posts/claim', { method: 'POST' })).posts,
     staffPostPosted: async (postId: string, messageId: string) => {
