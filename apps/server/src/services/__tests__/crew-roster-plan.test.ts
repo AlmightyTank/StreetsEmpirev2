@@ -26,20 +26,44 @@ class Roster {
   built = false;
   private ids = 0;
 
-  plan(counts: CrewCounts, refs: CrewRefs): CrewPlan {
+  /** Plan from the whole crew, or (incremental) only what the service would load. */
+  plan(counts: CrewCounts, refs: CrewRefs, incremental = false): CrewPlan {
     const careers = new Set(refs.dealers.map((career) => career.staffId));
+    const all = [...this.members.values()];
+    const carriers = all.filter((row) => (row.status === 'ASSIGNED' && row.assignmentKind === 'DEALER') || (row.dealerStaffId && careers.has(row.dealerStaffId)));
+    let members = all.filter((row) => row.status !== 'RELEASED' || (row.dealerStaffId && careers.has(row.dealerStaffId)));
+    let placed: Map<string, number> | undefined;
+    if (incremental && this.built) {
+      // As CrewRosterService loads it: carriers, plus each over-full place's least senior surplus.
+      const want = crewPlaceCounts(crewTargets(counts, refs));
+      const groups = new Map<string, CrewMemberRow[]>();
+      for (const row of all.filter((entry) => entry.status !== 'RELEASED')) {
+        const key = crewPlaceKey(row.role, row as never);
+        groups.set(key, [...(groups.get(key) ?? []), row]);
+      }
+      const loaded = new Map(carriers.map((row) => [row.id, row]));
+      for (const [key, rows] of groups) {
+        if (rows[0]!.assignmentKind === 'DEALER') continue;
+        const surplus = rows.length - (want.get(key) ?? 0);
+        const least = [...rows].sort((a, b) => a.experiencePoints - b.experiencePoints || b.serial - a.serial).slice(0, Math.max(0, surplus));
+        for (const row of least) loaded.set(row.id, row);
+      }
+      members = [...loaded.values()];
+      placed = new Map([...groups].map(([key, rows]) => [key, rows.filter((row) => !loaded.has(row.id)).length]));
+    }
     return planCrewRoster({
       counts,
       refs,
-      members: [...this.members.values()].filter((row) => row.status !== 'RELEASED' || (row.dealerStaffId && careers.has(row.dealerStaffId))),
+      members,
+      placed,
       nextSerial: this.serial,
       firstBuild: !this.built,
       newId: () => `m${++this.ids}`,
     });
   }
 
-  sync(counts: CrewCounts, refs: CrewRefs = noRefs): CrewPlan {
-    const plan = this.plan(counts, refs);
+  sync(counts: CrewCounts, refs: CrewRefs = noRefs, incremental = false): CrewPlan {
+    const plan = this.plan(counts, refs, incremental);
     for (const row of plan.creates) {
       expect(this.members.has(row.id), `duplicate member ${row.id}`).toBe(false);
       this.members.set(row.id, { ...row });
@@ -48,6 +72,11 @@ class Roster {
     for (const move of plan.moves) {
       const row = this.members.get(move.id)!;
       Object.assign(row, move.to ?? { status: 'RELEASED', assignmentKind: null, assignmentRef: null });
+    }
+    for (const id of plan.drops) {
+      const row = this.members.get(id)!;
+      expect(row.experiencePoints === 0 && !row.dealerStaffId, `dropped ${id} had something earned`).toBe(true);
+      this.members.delete(id);
     }
     for (const link of plan.links) Object.assign(this.members.get(link.id)!, { dealerStaffId: link.dealerStaffId, experiencePoints: link.experiencePoints });
     this.built = true;
@@ -59,7 +88,7 @@ class Roster {
   }
 
   /** Every place holds exactly what the counts call for. */
-  expectInStep(counts: CrewCounts, refs: CrewRefs = noRefs) {
+  expectInStep(counts: CrewCounts, refs: CrewRefs = noRefs, incremental = false) {
     const want = crewPlaceCounts(crewTargets(counts, refs));
     const have = new Map<string, number>();
     for (const row of this.active()) {
@@ -69,8 +98,8 @@ class Roster {
     expect(have).toEqual(want);
     expect(this.active('THUG')).toHaveLength(counts.thugs);
     expect(this.active('WORKER')).toHaveLength(counts.whores);
-    const empty = this.plan(counts, refs);
-    expect(empty).toEqual({ creates: [], moves: [], links: [], events: [] });
+    const empty = this.plan(counts, refs, incremental);
+    expect(empty).toEqual({ creates: [], moves: [], drops: [], links: [], events: [] });
   }
 }
 
@@ -134,8 +163,8 @@ describe('1.7.0-A roster migration', () => {
     roster.expectInStep(counts, refs);
     expect(plan.moves).toEqual([]);
     expect(new Set(plan.creates.map((row) => row.serial)).size).toBe(plan.creates.length);
-    expect(plan.events.every((event) => event.kind === 'MIGRATED')).toBe(true);
-    expect(plan.events).toHaveLength(plan.creates.length);
+    // The migration audit covers the first build: no history line per member.
+    expect(plan.events).toEqual([]);
   });
 
   it('keeps 1.6 dealer careers under their own ids with their experience', () => {
@@ -165,7 +194,7 @@ describe('1.7.0-A roster migration', () => {
     roster.sync(counts, refs);
     const size = roster.members.size;
     const again = roster.sync(counts, refs);
-    expect(again).toEqual({ creates: [], moves: [], links: [], events: [] });
+    expect(again).toEqual({ creates: [], moves: [], drops: [], links: [], events: [] });
     expect(roster.members.size).toBe(size);
   });
 
@@ -177,16 +206,26 @@ describe('1.7.0-A roster migration', () => {
 });
 
 describe('1.7.0-A roster upkeep', () => {
-  it('releases the newest, least experienced members when the crew shrinks', () => {
+  it('lets the newest, least experienced members go when the crew shrinks', () => {
     const roster = new Roster();
     roster.sync({ ...none, thugs: 5 });
     const [veteran] = roster.active('THUG').sort((a, b) => a.serial - b.serial);
     veteran!.experiencePoints = 500;
     const plan = roster.sync({ ...none, thugs: 2 });
-    expect(plan.events.filter((event) => event.kind === 'RELEASED')).toHaveLength(3);
+    // They had nothing earned, so they are deleted rather than kept as released.
+    expect(plan.drops).toHaveLength(3);
+    expect(plan.events).toEqual([]);
     expect(roster.active('THUG').map((row) => row.serial).sort()).toEqual([1, 2]);
-    expect(roster.members.size).toBe(5);
+    expect(roster.members.size).toBe(2);
     roster.expectInStep({ ...none, thugs: 2 });
+    // A member with experience who leaves is kept, released, with a history line.
+    roster.members.get(roster.active('THUG').find((row) => row.serial === 1)!.id)!.experiencePoints = 0;
+    roster.members.get(roster.active('THUG').find((row) => row.serial === 2)!.id)!.experiencePoints = 40;
+    const second = roster.sync({ ...none, thugs: 0 });
+    expect(second.drops).toHaveLength(1);
+    expect(second.events).toEqual([expect.objectContaining({ kind: 'RELEASED' })]);
+    expect([...roster.members.values()]).toEqual([expect.objectContaining({ serial: 2, status: 'RELEASED', experiencePoints: 40 })]);
+    roster.expectInStep(none);
   });
 
   it('moves the same people between places: wounded heal, staff go to work and come home', () => {
@@ -202,6 +241,7 @@ describe('1.7.0-A roster upkeep', () => {
     for (const [counts, refs] of steps) {
       const plan = roster.sync(counts, refs);
       expect(plan.creates).toEqual([]);
+      expect(plan.drops).toEqual([]);
       expect(plan.events.some((event) => event.kind === 'RELEASED')).toBe(false);
       roster.expectInStep(counts, refs);
     }
@@ -240,7 +280,7 @@ describe('1.7.0-A roster upkeep', () => {
     roster.expectInStep({ ...none, thugs: 5, dealerThugs: 1 }, { ...noRefs, dealers: [{ staffId: 'new-career', crewId: 'crew-2', experiencePoints: 1_100 }] });
   });
 
-  it('stays in step through a long run of random count changes', () => {
+  it('stays in step through a long run of random count changes, loading only what moves', () => {
     let seed = 17;
     const rand = (max: number) => {
       seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
@@ -264,10 +304,17 @@ describe('1.7.0-A roster upkeep', () => {
         businesses: [{ id: 'biz', role: 'THUG', staff: rand(businessThugs) }, { id: 'club', role: 'WORKER', staff: businessWhores }],
         turf: [{ id: 'corner', thugs: rand(postedThugs) }],
       };
-      roster.sync(counts, refs);
+      // Some members earn a little along the way, so leaving keeps some and deletes others.
+      const earners = roster.active().filter((row) => !row.dealerStaffId);
+      if (earners.length && rand(2) === 0) earners[rand(earners.length - 1)]!.experiencePoints += 1 + rand(9);
+      roster.sync(counts, refs, true);
+      roster.expectInStep(counts, refs, true);
       roster.expectInStep(counts, refs);
       const carried = [...roster.members.values()].map((row) => row.dealerStaffId).filter(Boolean);
       expect(new Set(carried).size).toBe(carried.length);
+      // Released members are only ever those with something to come back to.
+      for (const row of roster.members.values()) if (row.status === 'RELEASED') expect(row.experiencePoints > 0 || row.dealerStaffId).toBeTruthy();
     }
+    expect([...roster.members.values()].some((row) => row.status === 'RELEASED')).toBe(true);
   });
 });

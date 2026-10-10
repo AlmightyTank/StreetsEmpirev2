@@ -161,7 +161,8 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
     const audit = await app.prisma.crewRosterMigration.findUniqueOrThrow({ where: { roundPlayerId: player.id } });
     expect(audit).toMatchObject({ rulesetId: rules.meta.id, membersCreated: afterRow.thugs + afterRow.whores, dealerCareers: 3 });
     expect(audit.before).toMatchObject({ thugs: afterRow.thugs, whores: afterRow.whores, dealerThugs: 2 });
-    expect(await app.prisma.crewMemberEvent.count({ where: { roundPlayerId: player.id, kind: 'MIGRATED' } })).toBe(afterRow.thugs + afterRow.whores);
+    // The audit row is the migration's record: no history line per member.
+    expect(await app.prisma.crewMemberEvent.count({ where: { roundPlayerId: player.id } })).toBe(0);
   });
 
   it('creates nobody twice when the migration is retried or raced', async () => {
@@ -210,11 +211,24 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
     await DealerStaffService.assign(app.prisma, player.id, crew.id, { staffId: career, actionId: randomUUID() });
     expect(await app.prisma.crewMember.findUniqueOrThrow({ where: { id: dealers[0]!.id } })).toMatchObject({ status: 'ASSIGNED', assignmentKind: 'DEALER', experiencePoints: 777 });
 
-    // The crew shrinks and grows: members are released and join to match, never more.
+    // The crew shrinks and grows: members leave and join to match, never more. Those who
+    // leave with nothing earned are deleted; the table stays the size of the crew.
+    const veteran = thugs.find((entry) => entry.status === 'AVAILABLE' && !entry.dealerStaffId)!;
+    await app.prisma.crewMember.update({ where: { id: veteran.id }, data: { experiencePoints: 5 } });
+    await app.prisma.crewRosterMigration.update({ where: { roundPlayerId: player.id }, data: { syncedKey: null } });
     await ActionService.run(app.prisma, player.id, { action: 'TEST_LOSS', execute: ({ current }) => ({ next: { ...current, thugs: current.thugs - 10 }, result: null }) });
     let row = await fresh(player.id);
     expect(await active(player.id, 'THUG')).toHaveLength(row.thugs);
-    expect(await app.prisma.crewMember.count({ where: { roundPlayerId: player.id, role: 'THUG', status: 'RELEASED' } })).toBe(10);
+    expect(await app.prisma.crewMember.count({ where: { roundPlayerId: player.id, status: 'RELEASED' } })).toBe(0);
+    expect(await app.prisma.crewMember.count({ where: { roundPlayerId: player.id } })).toBe(row.thugs + row.whores);
+    // The least senior went; the one with experience stayed.
+    expect(await app.prisma.crewMember.findUniqueOrThrow({ where: { id: veteran.id } })).toMatchObject({ status: 'AVAILABLE' });
+
+    // Counts changed outside the player's own actions (a raid, an admin grant) are picked up next time.
+    await app.prisma.roundPlayer.update({ where: { id: player.id }, data: { whores: { decrement: 7 } } });
+    await ActionService.run(app.prisma, player.id, { action: 'TEST_NOOP', execute: ({ current }) => ({ next: current, result: null }) });
+    row = await fresh(player.id);
+    expect(await active(player.id, 'WORKER')).toHaveLength(row.whores);
     await ActionService.run(app.prisma, player.id, { action: 'TEST_HIRE', execute: ({ current }) => ({ next: { ...current, thugs: current.thugs + 4, whores: current.whores + 2 }, result: null }) });
     row = await fresh(player.id);
     thugs = await active(player.id, 'THUG');

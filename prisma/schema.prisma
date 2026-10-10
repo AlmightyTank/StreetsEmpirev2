@@ -1952,8 +1952,6 @@ enum CrewAssignmentKind {
 }
 
 enum CrewMemberEventKind {
-  /// Already in the crew when the roster was first built.
-  MIGRATED
   JOINED
   ASSIGNED
   UNASSIGNED
@@ -2020,6 +2018,9 @@ model CrewRosterMigration {
   after          Json
   membersCreated Int
   dealerCareers  Int
+  /// The counts and assignments the roster was last brought in step with. While they match,
+  /// a sync has nothing to check.
+  syncedKey      String?
   createdAt      DateTime    @default(now())
 }
 

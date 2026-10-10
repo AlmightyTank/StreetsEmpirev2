@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { Ruleset } from '@streets/rules-engine';
 import type { BusinessKey } from '@streets/rulesets';
@@ -73,31 +73,75 @@ async function loadRefs(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promis
   };
 }
 
-/** True when every place holds what the counts call for and every career sits with its member. */
-async function inStep(tx: Db, roundPlayerId: string, counts: CrewCounts, refs: CrewRefs): Promise<boolean> {
+/**
+ * Everything the roster follows, in one string: the counts and where the game says they are.
+ * While it matches what the roster was last synced to, there is nothing to check.
+ */
+function rosterKey(counts: CrewCounts, refs: CrewRefs): string {
+  const fields = Object.keys(COUNT_FIELDS).map((field) => counts[field as keyof CrewCounts]);
+  const business = [...refs.businesses].sort((x, y) => x.id.localeCompare(y.id)).map((row) => `${row.id}:${row.role}:${row.staff}`);
+  const turf = [...refs.turf].sort((x, y) => x.id.localeCompare(y.id)).map((row) => `${row.id}:${row.thugs}`);
+  const dealers = refs.dealers.map((row) => `${row.staffId}:${row.crewId}:${row.experiencePoints}`);
+  return createHash('sha1').update(JSON.stringify([fields, business, turf, dealers])).digest('base64');
+}
+
+type PlaceGroup = { role: CrewRole; status: CrewMemberStatusDto; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null; _count: { _all: number } };
+const groupKey = (group: Pick<PlaceGroup, 'role' | 'status' | 'assignmentKind' | 'assignmentRef'>) => crewPlaceKey(group.role, {
+  status: group.status as CrewPlace['status'], assignmentKind: group.assignmentKind, assignmentRef: group.assignmentRef,
+});
+
+/**
+ * What a sync needs to look at when the roster is not in step, without reading the whole
+ * crew: every dealer and career carrier (a handful), and from each place holding more than
+ * the counts allow, only the surplus, least senior first. Everyone else stays put and is
+ * passed to the planner as a count. Null when the roster is already in step.
+ */
+async function loadChanges(tx: Db, roundPlayerId: string, counts: CrewCounts, refs: CrewRefs): Promise<{ members: CrewMemberRow[]; placed: Map<string, number> } | null> {
   const want = crewPlaceCounts(crewTargets(counts, refs));
-  const groups = await tx.crewMember.groupBy({
-    by: ['role', 'status', 'assignmentKind', 'assignmentRef'],
-    where: { roundPlayerId, status: { not: 'RELEASED' } },
-    _count: { _all: true },
-  });
-  if (groups.length !== want.size) return false;
-  for (const group of groups) {
-    const place = { status: group.status, assignmentKind: group.assignmentKind, assignmentRef: group.assignmentRef } as CrewPlace;
-    if (want.get(crewPlaceKey(group.role, place)) !== group._count._all) return false;
-  }
+  const careerIds = refs.dealers.map((career) => career.staffId);
+  const [groups, carriers] = await Promise.all([
+    tx.crewMember.groupBy({
+      by: ['role', 'status', 'assignmentKind', 'assignmentRef'],
+      where: { roundPlayerId, status: { not: 'RELEASED' } },
+      _count: { _all: true },
+    }).then((rows) => rows as PlaceGroup[]),
+    tx.crewMember.findMany({
+      where: { roundPlayerId, OR: [{ status: 'ASSIGNED', assignmentKind: 'DEALER' }, ...(careerIds.length ? [{ dealerStaffId: { in: careerIds } }] : [])] },
+      select: MEMBER_FIELDS,
+    }) as Promise<CrewMemberRow[]>,
+  ]);
+
   const careers = refs.dealers.slice(0, Math.max(0, counts.dealerThugs));
-  if (!careers.length) return true;
-  const carriers = await tx.crewMember.findMany({
-    where: { roundPlayerId, dealerStaffId: { in: careers.map((career) => career.staffId) } },
-    select: { dealerStaffId: true, status: true, assignmentKind: true, assignmentRef: true, experiencePoints: true },
-  });
   const byCareer = new Map(carriers.map((row) => [row.dealerStaffId, row]));
-  return careers.every((career) => {
+  const careersInStep = careers.every((career) => {
     const member = byCareer.get(career.staffId);
     return member?.status === 'ASSIGNED' && member.assignmentKind === 'DEALER' && member.assignmentRef === career.crewId
       && member.experiencePoints === career.experiencePoints;
   });
+  const placesInStep = groups.length === want.size && groups.every((group) => want.get(groupKey(group)) === group._count._all);
+  if (careersInStep && placesInStep) return null;
+
+  const loaded = new Map(carriers.map((row) => [row.id, row]));
+  for (const group of groups) {
+    if (group.assignmentKind === 'DEALER') continue; // already loaded above
+    const surplus = group._count._all - (want.get(groupKey(group)) ?? 0);
+    if (surplus <= 0) continue;
+    const rows = await tx.crewMember.findMany({
+      where: { roundPlayerId, role: group.role, status: group.status, assignmentKind: group.assignmentKind, assignmentRef: group.assignmentRef },
+      orderBy: [{ experiencePoints: 'asc' }, { serial: 'desc' }],
+      take: surplus,
+      select: MEMBER_FIELDS,
+    }) as CrewMemberRow[];
+    for (const row of rows) loaded.set(row.id, row);
+  }
+
+  const placed = new Map(groups.map((group) => [groupKey(group), group._count._all]));
+  for (const row of loaded.values()) {
+    if (row.status === 'RELEASED') continue;
+    const placeKey = groupKey(row);
+    placed.set(placeKey, (placed.get(placeKey) ?? 0) - 1);
+  }
+  return { members: [...loaded.values()], placed };
 }
 
 function rosterTotals(rows: ReadonlyArray<{ role: CrewRole; status: CrewMemberStatusDto; assignmentKind: CrewAssignmentKindDto | null; _count: { _all: number } }>): CrewRosterDto['totals'] {
@@ -152,26 +196,34 @@ export const CrewRosterService = {
   /**
    * Bring the player's members in line with their counts. `counts` may be passed when the
    * caller has just written them; otherwise they are read. A no-op on rounds without the roster.
+   * Anything else that writes members (a future admin correction) must clear `syncedKey`.
    */
   async sync(tx: Db, roundPlayerId: string, ruleset: Ruleset, now: Date, counts?: CrewCounts): Promise<CrewRosterSync | null> {
     if (!ruleset.crewRoster?.enabled) return null;
     await lockRoundPlayer(tx, roundPlayerId);
-    const [player, refs, migration] = await Promise.all([
+    const [stored, refs, migration] = await Promise.all([
       counts ?? tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: COUNT_FIELDS }),
       loadRefs(tx, roundPlayerId, ruleset),
-      tx.crewRosterMigration.findUnique({ where: { roundPlayerId }, select: { id: true } }),
+      tx.crewRosterMigration.findUnique({ where: { roundPlayerId }, select: { id: true, syncedKey: true } }),
     ]);
+    const player = Object.fromEntries(Object.keys(COUNT_FIELDS).map((field) => [field, stored[field as keyof CrewCounts]])) as unknown as CrewCounts;
+    const syncedKey = rosterKey(player, refs);
     const firstBuild = !migration;
-    if (!firstBuild && await inStep(tx, roundPlayerId, player, refs)) {
-      return { migrated: false, created: 0, moved: 0, released: 0 };
+    const unchanged = { migrated: false, created: 0, moved: 0, released: 0 };
+    // Nothing the roster follows has moved since it was last in step.
+    if (migration?.syncedKey === syncedKey) return unchanged;
+
+    let changes: { members: CrewMemberRow[]; placed: Map<string, number> } = { members: [], placed: new Map() };
+    if (!firstBuild) {
+      const found = await loadChanges(tx, roundPlayerId, player, refs);
+      if (!found) {
+        await tx.crewRosterMigration.update({ where: { roundPlayerId }, data: { syncedKey } });
+        return unchanged;
+      }
+      changes = found;
     }
 
-    const careerIds = refs.dealers.map((career) => career.staffId);
-    const [members, last, releasedCareers] = await Promise.all([
-      tx.crewMember.findMany({
-        where: { roundPlayerId, OR: [{ status: { not: 'RELEASED' } }, ...(careerIds.length ? [{ dealerStaffId: { in: careerIds } }] : [])] },
-        select: MEMBER_FIELDS,
-      }),
+    const [last, releasedCareers] = await Promise.all([
       tx.crewMember.aggregate({ where: { roundPlayerId }, _max: { serial: true } }),
       firstBuild
         ? tx.dealerStaff.findMany({ where: { roundPlayerId, OR: [{ dealerCrewId: null }, { releasedAt: { not: null } }] }, select: { id: true, experiencePoints: true } })
@@ -180,7 +232,8 @@ export const CrewRosterService = {
     const plan = planCrewRoster({
       counts: player,
       refs: { ...refs, releasedCareers: releasedCareers.map((row) => ({ staffId: row.id, experiencePoints: row.experiencePoints })) },
-      members: members as CrewMemberRow[],
+      members: changes.members,
+      placed: changes.placed,
       nextSerial: (last._max.serial ?? 0) + 1,
       firstBuild,
       newId: randomUUID,
@@ -211,6 +264,8 @@ export const CrewRosterService = {
         : { status: 'RELEASED', assignmentKind: null, assignmentRef: null, statusSince: now, releasedAt: now };
       for (const batch of chunks(ids)) await tx.crewMember.updateMany({ where: { roundPlayerId, id: { in: batch } }, data });
     }
+    // Members who left with nothing earned are deleted, their history with them.
+    for (const batch of chunks(plan.drops)) await tx.crewMember.deleteMany({ where: { roundPlayerId, id: { in: batch } } });
     for (const link of plan.links) {
       await tx.crewMember.update({ where: { id: link.id }, data: { dealerStaffId: link.dealerStaffId, experiencePoints: link.experiencePoints } });
     }
@@ -230,15 +285,18 @@ export const CrewRosterService = {
           after: totals as unknown as Prisma.InputJsonValue,
           membersCreated: plan.creates.length,
           dealerCareers: plan.creates.filter((row) => row.dealerStaffId).length,
+          syncedKey,
           createdAt: now,
         },
       });
+    } else {
+      await tx.crewRosterMigration.update({ where: { roundPlayerId }, data: { syncedKey } });
     }
     return {
       migrated: firstBuild,
       created: plan.creates.length,
       moved: plan.moves.filter((move) => move.to).length,
-      released: plan.moves.filter((move) => !move.to).length,
+      released: plan.moves.filter((move) => !move.to).length + plan.drops.length,
     };
   },
 

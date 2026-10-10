@@ -12,7 +12,7 @@
 export type CrewRole = 'THUG' | 'WORKER';
 export type CrewStatus = 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED';
 export type CrewAssignment = 'BUSINESS' | 'DEALER' | 'TURF';
-export type CrewEventKind = 'MIGRATED' | 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED';
+export type CrewEventKind = 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED';
 
 /** The player's columns the roster mirrors. */
 export interface CrewCounts {
@@ -97,6 +97,11 @@ export interface CrewEvent {
 export interface CrewPlan {
   creates: CrewCreate[];
   moves: CrewMove[];
+  /**
+   * Members who left the crew with nothing to come back to: no experience and no career.
+   * They are interchangeable, so they are deleted rather than kept as released.
+   */
+  drops: string[];
   /** Members who take up a dealer career, or whose career experience moved. */
   links: CrewLink[];
   events: CrewEvent[];
@@ -180,18 +185,26 @@ export function crewPlaceKey(role: CrewRole, place: CrewPlace): string {
 export interface CrewPlanInput {
   counts: CrewCounts;
   refs: CrewRefs;
-  /** Every member still in the crew, and any released member who carries a career on a crew now. */
+  /**
+   * The members that may need to move: any released member who carries a career on a crew
+   * now, and members still in the crew. Members left out must be in a place that keeps them.
+   */
   members: readonly CrewMemberRow[];
+  /** Members in the crew left out of `members`, by place key: they stay where they are. */
+  placed?: ReadonlyMap<string, number>;
   /** The serial the next new member takes. */
   nextSerial: number;
-  /** The roster has never been built: new members were already here, and say so. */
+  /**
+   * The roster has never been built: new members were already here, so they get no JOINED
+   * line (the migration audit covers them), and released 1.6 careers are given members.
+   */
   firstBuild: boolean;
   newId: () => string;
 }
 
 export function planCrewRoster(input: CrewPlanInput): CrewPlan {
   const targets = crewTargets(input.counts, input.refs);
-  const plan: CrewPlan = { creates: [], moves: [], links: [], events: [] };
+  const plan: CrewPlan = { creates: [], moves: [], drops: [], links: [], events: [] };
   const placed = new Map<string, CrewPlace | null>();
   const used = new Set<string>();
   let serial = input.nextSerial;
@@ -224,6 +237,10 @@ export function planCrewRoster(input: CrewPlanInput): CrewPlan {
     const slot = open.get(key(target.role, target));
     if (slot) slot.left += target.count;
     else open.set(key(target.role, target), { target, left: target.count });
+  }
+  for (const [placeKey, count] of input.placed ?? []) {
+    const slot = open.get(placeKey);
+    if (slot) slot.left = Math.max(0, slot.left - count);
   }
   const floating: CrewMemberRow[] = [];
   const active = input.members.filter((row) => row.status !== 'RELEASED' && !used.has(row.id)).sort(seniority);
@@ -268,8 +285,13 @@ export function planCrewRoster(input: CrewPlanInput): CrewPlan {
     }
   }
 
-  // 5. Whoever is still without a place has left the crew.
-  for (const member of floating) move(member, null);
+  // 5. Whoever is still without a place has left the crew. Those with nothing earned go for good.
+  const dropped = new Set<string>();
+  for (const member of floating) {
+    move(member, null);
+    if (member.experiencePoints === 0 && !member.dealerStaffId) dropped.add(member.id);
+  }
+  plan.drops.push(...dropped);
 
   // On the first build, released 1.6 careers belong to thugs who went back to the pool:
   // the most experienced go to the thugs at home first, and any beyond the crew are kept
@@ -294,18 +316,17 @@ export function planCrewRoster(input: CrewPlanInput): CrewPlan {
       id, role, serial: serial++, status: place.status, assignmentKind: place.assignmentKind, assignmentRef: place.assignmentRef,
       experiencePoints: entry.experience, dealerStaffId: entry.staffId ?? null,
     });
-    plan.events.push({ memberId: id, kind: input.firstBuild ? 'MIGRATED' : 'JOINED', assignmentKind: place.assignmentKind, assignmentRef: place.assignmentRef });
+    if (!input.firstBuild) plan.events.push({ memberId: id, kind: 'JOINED', assignmentKind: place.assignmentKind, assignmentRef: place.assignmentRef });
   }
   for (const career of released) {
     plan.creates.push({
       id: career.staffId, role: 'THUG', serial: serial++, status: 'RELEASED', assignmentKind: null, assignmentRef: null,
       experiencePoints: career.experiencePoints, dealerStaffId: career.staffId,
     });
-    plan.events.push({ memberId: career.staffId, kind: 'MIGRATED', assignmentKind: null, assignmentRef: null });
   }
 
   for (const member of input.members) {
-    if (!placed.has(member.id)) continue;
+    if (!placed.has(member.id) || dropped.has(member.id)) continue;
     const from = placeOf(member);
     const to = placed.get(member.id)!;
     if (samePlace(from, to)) continue;

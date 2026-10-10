@@ -11,7 +11,7 @@ CREATE TYPE "CrewMemberStatus" AS ENUM ('AVAILABLE', 'ASSIGNED', 'IN_TRANSIT', '
 CREATE TYPE "CrewAssignmentKind" AS ENUM ('BUSINESS', 'DEALER', 'TURF');
 
 -- CreateEnum
-CREATE TYPE "CrewMemberEventKind" AS ENUM ('MIGRATED', 'JOINED', 'ASSIGNED', 'UNASSIGNED', 'RELEASED', 'REHIRED');
+CREATE TYPE "CrewMemberEventKind" AS ENUM ('JOINED', 'ASSIGNED', 'UNASSIGNED', 'RELEASED', 'REHIRED');
 
 -- CreateTable
 CREATE TABLE "CrewMember" (
@@ -55,6 +55,7 @@ CREATE TABLE "CrewRosterMigration" (
     "after" JSONB NOT NULL,
     "membersCreated" INTEGER NOT NULL,
     "dealerCareers" INTEGER NOT NULL,
+    "syncedKey" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "CrewRosterMigration_pkey" PRIMARY KEY ("id")
