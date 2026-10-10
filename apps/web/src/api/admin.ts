@@ -62,6 +62,8 @@ import type {
   AdminSignalsDto,
   AdminSuspensionLength,
   AdminCommsMuteLength,
+  AdminCommunityDto,
+  AdminDiscordTimeoutLength,
   AdminReportDetailDto,
   AdminReportQueueDto,
   AdminReportResolution,
@@ -171,6 +173,14 @@ export const adminApi = {
   muteComms: (accountId: string, length: AdminCommsMuteLength, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'comms-mute'), { length, reason }),
   unmuteComms: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'comms-mute/lift'), { reason }),
+  /** The player on the forum and Discord, plus support tickets. Loads apart from the account. */
+  community: (accountId: string) => api.get<AdminCommunityDto>(accountPath(accountId, 'community')),
+  forumSuspend: (accountId: string, length: AdminSuspensionLength, reason: string) =>
+    api.post<AdminCommunityDto>(accountPath(accountId, 'forum-suspend'), { length, reason }),
+  forumUnsuspend: (accountId: string, reason: string) => api.post<AdminCommunityDto>(accountPath(accountId, 'forum-suspend/lift'), { reason }),
+  discordTimeout: (accountId: string, length: AdminDiscordTimeoutLength, reason: string) =>
+    api.post<AdminCommunityDto>(accountPath(accountId, 'discord-timeout'), { length, reason }),
+  discordUntimeout: (accountId: string, reason: string) => api.post<AdminCommunityDto>(accountPath(accountId, 'discord-timeout/lift'), { reason }),
   addNote: (accountId: string, body: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'notes'), { body }),
   reports: (status: AdminReportStatus, page = 1) => api.get<AdminReportQueueDto>(`/admin/reports${queryString({ status, page })}`),
   openReport: (reportId: string) => api.post<AdminReportDetailDto>(`/admin/reports/${encodeURIComponent(reportId)}/open`, {}),

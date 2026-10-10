@@ -66,6 +66,8 @@ const envSchema = z.object({
   BETA_TESTER_FORUM_GROUPS: z.string().default(''),
 
   DISCORD_BOT_API_TOKEN: z.union([z.literal(''), z.string().min(64)]).default(''),
+  /** The bot's Discord server, shared with the bot's own settings; only used to link support ticket threads. */
+  DISCORD_GUILD_ID: z.union([z.literal(''), z.string().regex(/^[0-9]{17,20}$/)]).default(''),
   DISCORD_BOT_PUSH_URL: z.union([z.literal(''), z.string().url()]).default(''),
   DISCORD_BOT_PUSH_TIMEOUT_MS: z.coerce.number().int().min(250).max(30_000).default(2_000),
 
@@ -242,6 +244,15 @@ export const env = {
       /** Off in tests so no test run ever posts to a real forum. */
       enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.FORUM_API_KEY && parsed.data.FORUM_NEWS_TAG_ID),
     },
+    /**
+     * Suspending linked players on the forum from the admin account page. Needs the
+     * Suspend extension and an API key acting as a forum admin. Off in tests.
+     */
+    moderation: {
+      apiKey: parsed.data.FORUM_API_KEY,
+      userId: parsed.data.FORUM_API_USER_ID,
+      enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.FORUM_API_KEY && parsed.data.FORUM_LINK_SECRET),
+    },
     recruitment: {
       apiKey: parsed.data.FORUM_API_KEY,
       userId: parsed.data.FORUM_API_USER_ID,
@@ -255,6 +266,7 @@ export const env = {
     enabled: parsed.data.BETA_TESTER_DISCORD_LINKED || betaTesterForumGroups.length > 0,
   },
   discordBot: {
+    guildId: parsed.data.DISCORD_GUILD_ID,
     apiToken: parsed.data.DISCORD_BOT_API_TOKEN,
     enabled: Boolean(parsed.data.DISCORD_BOT_API_TOKEN),
     push: {

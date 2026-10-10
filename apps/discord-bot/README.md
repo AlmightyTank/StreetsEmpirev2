@@ -146,6 +146,16 @@ channel once.
 - Make it a read-only channel members can see. The bot needs **View Channel**,
   **Send Messages**, **Embed Links** and **Read Message History** there.
 
+**Moderation from the game.** The admin account page's **Community** panel
+shows a linked player's Discord status (in the server, display name, any timeout)
+and can time them out or lift a timeout. The game audits who did it; the bot
+records the reason in Discord's audit log too. The game reaches the bot through
+`DISCORD_BOT_PUSH_URL`, so that must be set. The bot needs **Moderate Members**,
+and its role must sit above the player's highest role; Discord never times out
+the server owner or members with **Administrator**. The panel says which applies.
+Ticking "Time out on Discord" on a game suspension or ban does the same in one go,
+for as long as fits (Discord allows at most 28 days).
+
 **Support tickets.** When `DISCORD_SUPPORT_CHANNEL_ID` is set, `/support` opens a
 form and turns it into a private thread in that channel:
 - Only the member and staff can see the thread. The bot adds the member and posts
@@ -177,12 +187,16 @@ You can reuse the application you already use for Discord login
    Treat it like a password.
 2. On the same tab, under **Privileged Gateway Intents**, turn on **Server
    Members Intent** and save. Role sync can't list members without it.
-3. Invite the bot with this URL, using your application ID. The permission
-   requested is **Manage Roles** only:
+3. Invite the bot with this URL, using your application ID. The permissions
+   requested are **Manage Roles** and **Moderate Members** (for timeouts from the
+   admin account page; leave it off and timeouts say what is missing):
 
    ```text
-   https://discord.com/oauth2/authorize?client_id=YOUR_APPLICATION_ID&scope=bot%20applications.commands&permissions=268435456
+   https://discord.com/oauth2/authorize?client_id=YOUR_APPLICATION_ID&scope=bot%20applications.commands&permissions=1099780063232
    ```
+
+   An already-invited bot keeps its old permissions: add **Moderate Members** to
+   its role in **Server Settings → Roles** instead.
 
 4. In **Server Settings → Roles**, drag the bot's role above the roles it
    manages. Discord doesn't let a bot assign roles that sit above its own.
