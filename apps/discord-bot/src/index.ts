@@ -8,6 +8,7 @@ import {
   RESTEvents,
   type Guild,
   type GuildTextBasedChannel,
+  type TextChannel,
 } from 'discord.js';
 import { commandData, handleAutocomplete, handleCommand, type CommandDeps } from './commands.js';
 import { loadConfig } from './config.js';
@@ -35,6 +36,7 @@ import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
 import { startOptionalPushServer } from './push-server.js';
 import { handleStaffButton, handleStaffModal, staffPostMessage } from './staff.js';
+import { handleTicketButton, handleTicketForm, type SupportDeps } from './support.js';
 
 const config = loadConfig();
 const api = createGameApi({ baseUrl: config.GAME_API_URL, token: config.DISCORD_BOT_API_TOKEN });
@@ -98,6 +100,47 @@ async function checkPostChannel(
   if (missing.length) return { channel: null, problem: `the bot needs ${missing.join(', ')} in #${channel.name}.` };
   return { channel, problem: null };
 }
+
+let readyGuild: Guild | null = null;
+
+/** The staff channel, when it is set and the bot can post and edit there. */
+async function usableStaffChannel(): Promise<GuildTextBasedChannel | null> {
+  if (!readyGuild || !config.DISCORD_STAFF_CHANNEL_ID) return null;
+  return (await checkPostChannel(readyGuild, config.DISCORD_STAFF_CHANNEL_ID, 'DISCORD_STAFF_CHANNEL_ID', [PermissionFlagsBits.ReadMessageHistory])).channel;
+}
+
+let supportProblem: string | null | undefined;
+/**
+ * The channel /support tickets are private threads in. Checked on every ticket, so
+ * fixing it needs no restart. Members need View Channel there to see their thread.
+ */
+async function usableSupportChannel(): Promise<TextChannel | null> {
+  if (!readyGuild || !config.DISCORD_SUPPORT_CHANNEL_ID) return null;
+  const channel = await readyGuild.channels.fetch(config.DISCORD_SUPPORT_CHANNEL_ID).catch(() => null);
+  let problem: string | null = null;
+  if (!channel || channel.type !== ChannelType.GuildText) {
+    problem = `channel ${config.DISCORD_SUPPORT_CHANNEL_ID} (DISCORD_SUPPORT_CHANNEL_ID) is not a text channel the bot can see in ${readyGuild.name}. Tickets are private threads, which need a plain text channel.`;
+  } else {
+    const missing = channel.permissionsFor(await readyGuild.members.fetchMe()).missing([
+      PermissionFlagsBits.ViewChannel,
+      // Discord also wants Send Messages to start a thread, even with Create Private Threads.
+      PermissionFlagsBits.SendMessages,
+      PermissionFlagsBits.CreatePrivateThreads,
+      PermissionFlagsBits.SendMessagesInThreads,
+      PermissionFlagsBits.EmbedLinks,
+      PermissionFlagsBits.ManageThreads,
+    ]);
+    if (missing.length) problem = `the bot needs ${missing.join(', ')} in #${channel.name}.`;
+  }
+  if (problem !== supportProblem) {
+    if (problem) console.warn(`Support tickets are off until fixed: ${problem}`);
+    else console.log(`Opening /support tickets as private threads in #${(channel as TextChannel).name}.`);
+    supportProblem = problem;
+  }
+  return problem ? null : channel as TextChannel;
+}
+
+const supportDeps: SupportDeps = { api, origin: config.frontendOrigin, supportChannel: usableSupportChannel, staffChannel: usableStaffChannel };
 
 async function postNews(channel: GuildTextBasedChannel): Promise<void> {
   // Claimed posts count as posted, which is why the channel is checked before any claim.
@@ -301,6 +344,7 @@ client.once(Events.ClientReady, async (ready) => {
     }
 
     const guild = await ready.guilds.fetch(config.DISCORD_GUILD_ID);
+    readyGuild = guild;
     // Guild commands update immediately, unlike global ones.
     await guild.commands.set(commandData);
     void getCities();
@@ -425,9 +469,12 @@ client.on(Events.InteractionCreate, (interaction) => {
   } else if (interaction.isChatInputCommand()) {
     handleCommand(interaction, deps).catch((error: unknown) => console.error(`/${interaction.commandName} crashed:`, error));
   } else if (interaction.isButton()) {
-    handleStaffButton(interaction).catch((error: unknown) => console.error(`Button ${interaction.customId} crashed:`, error));
+    // Each handler ignores buttons that are not its own.
+    Promise.all([handleStaffButton(interaction), handleTicketButton(interaction, supportDeps)])
+      .catch((error: unknown) => console.error(`Button ${interaction.customId} crashed:`, error));
   } else if (interaction.isModalSubmit()) {
-    handleStaffModal(interaction, deps).catch((error: unknown) => console.error(`Form ${interaction.customId} crashed:`, error));
+    Promise.all([handleStaffModal(interaction, deps), handleTicketForm(interaction, supportDeps)])
+      .catch((error: unknown) => console.error(`Form ${interaction.customId} crashed:`, error));
   }
 });
 

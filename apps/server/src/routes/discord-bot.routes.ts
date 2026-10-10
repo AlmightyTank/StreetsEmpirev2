@@ -6,6 +6,7 @@ import { botTokenMatches, DiscordBotService } from '../services/discord-bot.serv
 import { claimResyncRequests } from '../services/discord-resync.service.js';
 import { AdminModerationService } from '../services/admin-moderation.service.js';
 import { DiscordStaffService, staffMessageReport } from '../services/discord-staff.service.js';
+import { SupportTicketService } from '../services/support-ticket.service.js';
 import { BugReportService } from '../services/support.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
@@ -51,6 +52,14 @@ const messageReportActionSchema = z.object({
   note: z.string().trim().min(5, 'Write a note of at least 5 characters.').max(500),
 }).strict();
 const staffPostParams = z.object({ postId: z.string().min(1).max(64) }).strict();
+const ticketParams = z.object({ ticketId: z.string().min(1).max(64) }).strict();
+const openTicketSchema = z.object({
+  discordId: snowflake,
+  discordName: z.string().trim().min(1).max(100),
+  subject: z.string().trim().min(5, 'Say what you need help with in a few words.').max(80),
+}).strict();
+const attachTicketSchema = z.object({ threadId: snowflake, staffMessageId: snowflake.nullable() }).strict();
+const closeTicketSchema = z.object({ discordId: snowflake, name: z.string().trim().min(1).max(100) }).strict();
 const staffPostedSchema = z.object({ messageId: snowflake }).strict();
 const newsFailedSchema = z.object({ error: z.string().trim().min(1).max(500) }).strict();
 const alertsClaimSchema = z.object({ feed: z.boolean().optional() }).strict();
@@ -144,6 +153,32 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
     const { discordId, action, note } = parseBody(messageReportActionSchema, request.body);
     await AdminModerationService.actFromDiscord(fastify.prisma, discordId, reportId, action, note);
     return { report: await staffMessageReport(fastify.prisma, reportId) };
+  });
+
+  /** Whether a member may use staff buttons: a linked, active game admin. */
+  fastify.get('/staff', async (request) => {
+    const { discordId } = parseBody(memberQuery, request.query);
+    return { admin: await SupportTicketService.isStaff(fastify.prisma, discordId) };
+  });
+
+  /** /support: their open ticket, or a new one with staff-only context for the staff channel. */
+  fastify.post('/support-tickets', async (request) => SupportTicketService.open(fastify.prisma, parseBody(openTicketSchema, request.body)));
+
+  fastify.post('/support-tickets/:ticketId/attach', async (request) => {
+    const { ticketId } = parseBody(ticketParams, request.params);
+    await SupportTicketService.attach(fastify.prisma, ticketId, parseBody(attachTicketSchema, request.body));
+    return { ok: true };
+  });
+
+  fastify.post('/support-tickets/:ticketId/abandon', async (request) => {
+    const { ticketId } = parseBody(ticketParams, request.params);
+    await SupportTicketService.abandon(fastify.prisma, ticketId);
+    return { ok: true };
+  });
+
+  fastify.post('/support-tickets/:ticketId/close', async (request) => {
+    const { ticketId } = parseBody(ticketParams, request.params);
+    return { ticket: await SupportTicketService.close(fastify.prisma, ticketId, parseBody(closeTicketSchema, request.body)) };
   });
 
   /** Staff channel posts, claimed once like news. */

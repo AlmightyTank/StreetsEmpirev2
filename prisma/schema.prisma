@@ -81,6 +81,7 @@ model Account {
 
   sessions               Session[]
   bugReports             BugReport[]
+  supportTickets         SupportTicket[]
   twoFactorRecoveryCodes TwoFactorRecoveryCode[]
   trustedDevices         TrustedDevice[]
   knownDevices           AccountDevice[]
@@ -537,6 +538,30 @@ model BugReport {
   reporterNotifiedAt DateTime?
 
   @@index([resolvedAt, createdAt(sort: Desc)])
+  @@index([accountId, createdAt(sort: Desc)])
+}
+
+/// A /support ticket: a private Discord thread between one member and staff.
+/// Members without a linked game account can open one too, since "I can't sign
+/// in" is exactly what support is for. One open ticket per member at a time.
+model SupportTicket {
+  id             String    @id @default(cuid())
+  discordId      String
+  /// The member's Discord name when they opened it, for staff who never see the thread.
+  discordName    String
+  /// Their linked game account then, if any.
+  accountId      String?
+  account        Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  subject        String
+  /// Set once the bot has made the thread and its staff channel post.
+  threadId       String?   @unique
+  staffMessageId String?
+  createdAt      DateTime  @default(now())
+  closedAt       DateTime?
+  /// Who closed it, by Discord name: the member themselves or a staff member.
+  closedByName   String?
+
+  @@index([discordId, closedAt])
   @@index([accountId, createdAt(sort: Desc)])
 }
 
