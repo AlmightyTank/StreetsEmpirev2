@@ -1626,3 +1626,22 @@
     gap: 5px;
   }
 }
+
+
+.se-pass-theme-preview__weapon-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 280px;
+  height: clamp(280px, 38vh, 420px);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.se-pass-theme-preview__weapon-art {
+  display: block;
+  width: min(88%, 560px);
+  max-height: min(360px, 34vh);
+  object-fit: contain;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.38));
+}
