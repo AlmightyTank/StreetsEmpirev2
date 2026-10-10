@@ -68,7 +68,7 @@ describe('ruleset loader', () => {
       expect(isKnownRulesetId(id)).toBe(true);
     }
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(118);
+    expect(listRulesets()).toHaveLength(119);
   });
 });
 
