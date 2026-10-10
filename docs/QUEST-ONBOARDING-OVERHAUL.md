@@ -2,7 +2,7 @@
 
 ## Goal
 
-Rewrite the opening quest progression as a guided campaign through every major StreetsEmpire feature. After players finish the full tour, open the quest board into optional specialization branches.
+Rewrite the opening quest progression as a guided campaign through the core StreetsEmpire loop. After the capstone, open ten optional specialties that introduce the rest of the project and point into its existing contact and faction arcs.
 
 This replaces the current opening quest sequence as the tutorial. It does not remove rotating contracts, seasonal/event work, or the deeper contact and faction arcs; those become available as side content or branch paths after their systems are introduced.
 
@@ -20,19 +20,18 @@ Every chapter card should show the current lesson, its objective progress, the g
 
 | Chapter | Feature coverage | Example lesson action |
 | --- | --- | --- |
-| 1. Get on Your Feet | Dashboard, resource strip, turns, cash, crew, inventory, activity and payouts | Read the resource strip, complete a short Scout, then set a payout |
-| 2. Work the Block | Districts, scouting, recruitment, crew performance and supplies | Scout a district and review the resulting crew and resource changes |
-| 3. Keep the Operation Running | Production, product inventory, product choice, work supply and happiness | Produce or restock a product and inspect the effect on the operation |
-| 4. Buy and Manage | Stores, inventory and storage limits, weapons, rides, businesses, properties and dealer crews | Complete a safe purchase or management action and review the ledger |
-| 5. Protect the Crew | Crew assignments and traits, weapons, health, recon, raids, raid reports and recovery | Inspect combat readiness, recon a target, then complete a protected tutorial combat action |
-| 6. Understand the Heat | Heat, busts, arrests, Cases, warrants, lawyers, officials, informants and city pressure | Review a Case or Heat report and learn which actions increase exposure |
-| 7. Leave Home | Cities, routes, vehicles, runs, road risk, convoys, supply pickups and shipments | Plan a short run, review route risk, and return or settle the run |
-| 8. Claim Ground | Turf, districts/blocks, territory control, block wars, businesses on turf and alliances | Inspect a block, understand control, then complete a low-risk turf objective |
-| 9. Build the Network | Jobs, contacts, reputation, favors, factions, standing, branch choices, daily/weekly/city/season/alliance contracts and community events | Claim a contact job and review its follow-up, reward and reputation changes |
-| 10. Take a Break and Track Your Career | Casino venues and games, Street Pass, player XP, titles, cosmetics, achievements, profile, rankings, career history and community features | Visit the casino and progress page, then review the career/profile rewards |
-| 11. First Empire | Review the player’s operation and summarize the systems they have learned | Complete a capstone that combines a business goal with a chosen operational action |
+| 1. Work the Block | Turns, cash, districts, scouting, recruitment and resource changes | Scout a district and review the result |
+| 2. Balance the Crew | Crew growth, roles, readiness, health and supplies | Build a working mix of workers and muscle |
+| 3. Stock the Shelves | Stores, inventory, storage limits and crew upkeep | Restock the supplies your crew needs |
+| 4. Make Your Own Supply | Production, product inventory, product choice and work supply | Produce a batch after taking the job |
+| 5. Read the Take | Street income, cash flow and payouts | Earn cash from fresh work |
+| 6. Arm the Muscle | Weapons, crew condition and combat readiness | Equip the crew before accepting combat work |
+| 7. Look Before Trouble | Recon, target information and raid reports | Recon another player |
+| 8. Commit to a Fight | Raid planning, risk and recovery | Resolve one raid attempt; a win is not required to continue |
+| 9. Leave Home Loaded | Cities, routes, vehicles, runs and road risk | Launch one intercity run |
+| 10. First Empire | Turf and a recap of the core loop; unlocks the specialty board | Claim one city block |
 
-Feature lessons should use the smallest safe action that genuinely teaches the feature. A lesson about casino play should use a low minimum wager; a lesson about combat, law, turf, or travel should not require a high-risk loss to continue.
+The core line uses the current story lessons. Its combat objective records a resolved raid attempt regardless of outcome, so losing a fight does not strand the player. Advanced systems remain optional specialty starts after the capstone; actions with high cash or risk costs never block the tutorial.
 
 ## Branches after the tour
 
@@ -46,6 +45,8 @@ The capstone opens these optional paths. Players can pursue several branches; ch
 - **Fixer:** Heat, Cases, warrants, lawyers, informants, officials and law contacts
 - **Underworld Network:** contact arcs, factions, standing, favors, contracts, alliances and events
 - **High Roller:** casino games, rated play, comps, poker and casino status
+- **Supply Broker:** local supply, property, pickups, shipments and international supply lanes
+- **Career & Community:** profile, progression, Street Pass, achievements, rankings, career history and community events
 
 Use the existing contacts as the voices and givers for the branches: Mama for fundamentals, Pip for product and business, Tommy for weapons and muscle, Wheels for vehicles and travel, Vic for favors and pressure, Blocks for turf, Ace for casino, and Ledger for law.
 
@@ -63,20 +64,18 @@ The current quest system already has the right foundations: ordered prerequisite
 
 Implementation should:
 
-1. Inventory current story quest keys, objectives, unlock rewards, and prerequisite chains in the active ruleset.
-2. Map each current job to a tutorial lesson, a post-tour branch, or existing board content.
-3. Define the chapter order and make only the next tutorial lesson available at each point.
-4. Add chapter/feature labels and explicit “opens after” copy to quest cards.
-5. Add navigation from a lesson to the page it teaches, including mobile behavior.
-6. Add the capstone transition to the specialization board.
-7. Test progression across actions, claim/replay behavior, locked-state copy, branch availability, and rounds pinned to older rulesets before updating a ruleset version.
+1. Preserve the existing ten-quest core lesson sequence and revise the combat lesson to accept any resolved raid outcome.
+2. Turn the final turf lesson into the capstone and connect it to independent specialty starts.
+3. Gate each specialty start behind the capstone, then gate its deeper contact arc behind the matching start.
+4. Use the existing quest story, objective, and prerequisite UI rather than adding a parallel tutorial engine.
+5. Test event tracking, branch availability, content validation, and older ruleset pinning.
 
 ## Acceptance criteria
 
-- A new player can follow one visible, ordered quest path from the first dashboard visit through all major feature groups.
+- A new player can follow one visible, ordered core quest path and can see ten specialty starts after the capstone.
 - Every lesson contains one clear explanation and one practical objective tied to a real action or state.
 - A lesson unlocks only after its prerequisite is claimed; players can see what opens next.
-- The feature tour includes economy, crew, product/business, combat, law, travel, turf, supply network, contacts/factions, casino, progression and community features.
+- Core quests introduce economy, crew, product, combat, travel and turf. Specialty starts cover business, law, supply network, contacts/factions, casino, progression and community features.
 - Completing the capstone opens multiple independent branches.
 - Existing rotating contracts and deep contact/faction story content remain available in their appropriate paths.
 - Old rounds keep their pinned quest definitions and behavior.
