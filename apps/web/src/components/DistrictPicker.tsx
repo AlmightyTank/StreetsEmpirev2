@@ -42,6 +42,7 @@ export function DistrictPicker({
             <span className="se-choice__body">
               <span className="se-choice__name">{district.name}</span>
               {district.blurb ? <span className="se-choice__blurb">{district.blurb}</span> : null}
+              {district.scoutAccess && !district.scoutAccess.unlocked ? <span className="se-choice__blurb">Locked · {district.scoutAccess.unlockName}</span> : null}
 
               <span className="se-choice__meta">
                 <span className={exposed > 0 ? 'se-bad' : undefined}>
