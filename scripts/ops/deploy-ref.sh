@@ -40,6 +40,14 @@ else
     || fail "commit $target is not in the selected $branch branch history."
 fi
 
+# Always leave the worktree at the current branch tip, even after a rollback.
+# The deployment script records/builds the selected SHA before this cleanup.
+restore_checkout() {
+  git checkout --detach "$branch_tip" >/dev/null 2>&1 \
+    || printf 'Warning: could not restore checkout to origin/%s (%s).\n' "$branch" "$branch_tip" >&2
+}
+trap restore_checkout EXIT
+
 printf 'Deploying %s commit %s\n' "$branch" "$target"
 git checkout --detach "$target"
 SKIP_PULL=1 BRANCH="$branch" bash "$deploy_script"
