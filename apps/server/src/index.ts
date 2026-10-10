@@ -13,6 +13,7 @@ import { RoundService } from './services/round.service.js';
 import { PlatformService, buildCommit } from './services/platform.service.js';
 import { APP_VERSION } from '@streets/shared';
 import { startPoller } from './utils/poller.js';
+import { DueSettleService } from './services/due-settle.service.js';
 import { metrics } from './services/metrics.service.js';
 import { LawWarrantService } from './services/law-warrant.service.js';
 import { LawOfficialService } from './services/law-official.service.js';
@@ -66,6 +67,9 @@ const stopAlerts = startPoller('Alerts', 60_000, async () => {
     await BossHitService.sweep(app.prisma, now);
     // 0.9.0-G: bring runs home on time, so "made it home" goes out while their owner is away.
     await GameAlertService.sweepRuns(app.prisma, now);
+    // 1.6.5-D: loan installments and property upkeep on their due time, from the cash on hand
+    // then, so a missed installment reaches the bell while its owner is away.
+    await DueSettleService.sweep(app.prisma, now, (roundPlayerId, error) => app.log.error({ err: error, roundPlayerId }, 'Due settle failed'));
     // 1.3.0-C/D: serve warrants on time, personal warrants once the boss is in town, and
     // Internal Affairs stings when they are due.
     const lawOwners = new Set([...await LawWarrantService.dueOwners(app.prisma, now), ...await LawOfficialService.dueOwners(app.prisma, now)]);

@@ -49,6 +49,10 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'FACTION_WARNING',
   // 1.6.0-H. A lane load landed, and whether it was searched.
   'SUPPLY_LANE_ARRIVED',
+  // 1.6.5-D. A loan installment the server could not collect in full.
+  'LOAN_INSTALLMENT_MISSED',
+  // 1.6.5-E. Into collections, out into recovery, and borrowing restored.
+  'LOAN_COLLECTIONS',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {

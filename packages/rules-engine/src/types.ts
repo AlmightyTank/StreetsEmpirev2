@@ -37,6 +37,8 @@ export interface NetWorthInput {
   outpostNetWorthCents?: bigint | number;
   /** 1.2.0-A. Raw cash-equivalent chips in city wallets plus any open casino bankroll; the calculator applies the cash weight. */
   casinoNetWorthCents?: bigint | number;
+  /** 1.6.5-A. What the player owes the loan shark. Comes off net worth at the cash weight. */
+  loanDebtCents?: bigint | number;
 }
 
 export interface ThugHappinessInput {

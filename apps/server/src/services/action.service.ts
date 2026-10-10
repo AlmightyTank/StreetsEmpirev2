@@ -20,7 +20,7 @@ import { annotateLogContext } from '../utils/request-context.js';
 import { ActivityService } from './activity.service.js';
 import { HappinessService } from './happiness.service.js';
 import { IdempotencyService } from './idempotency.service.js';
-import { assertPlayerState } from './invariant.service.js';
+import { assertLoanDebtChange, assertPlayerState } from './invariant.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { RankingService } from './ranking.service.js';
 import { TurnService } from './turn.service.js';
@@ -36,6 +36,7 @@ import { BusinessService } from './business.service.js';
 import { SupplyPropertySettleService } from './supply-property-settle.service.js';
 import { DealerSalesSettleService } from './dealer-sales-settle.service.js';
 import { SupplyLaneSettleService } from './supply-lane-settle.service.js';
+import { LoanSettleService } from './loan-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
@@ -99,6 +100,8 @@ export interface PlayerState {
   postedNetWorthCents: bigint;
   /** 0.6.0-D. Net worth stored in away outpost boxes. */
   outpostNetWorthCents: bigint;
+  /** 1.6.5-A. Owed to the loan shark. Only loan acceptance and repayment move it. */
+  loanDebtCents: bigint;
   /** 0.5.0-C. Set by an arrest at home; left out, it is not written. */
   lockedUntil?: Date | null;
   /** 0.5.0-D. Set by a move; left out, it is not written. */
@@ -168,6 +171,8 @@ export interface ActionContext {
   /** Standing with each trader, as it stands before the action. */
   standings: Standings;
   recovery: RecoverySettlement;
+  /** 1.6.5-B. Net worth as it stands before the action, freshly calculated. */
+  netWorthCents: bigint;
 }
 
 export interface ActionOutcome<T> {
@@ -252,6 +257,7 @@ export function toState(player: RoundPlayer): PlayerState {
     awayNetWorthCents: player.awayNetWorthCents,
     postedNetWorthCents: player.postedNetWorthCents,
     outpostNetWorthCents: player.outpostNetWorthCents,
+    loanDebtCents: player.loanDebtCents,
     busyThugs: player.busyThugs,
     postedThugs: player.postedThugs,
     businessThugs: player.businessThugs,
@@ -449,10 +455,12 @@ export const ActionService = {
       const salesCash = await DealerSalesSettleService.settle(tx, roundPlayerId, ruleset, now);
       // 1.6.0-D: and property upkeep that has fallen due.
       const upkeepCash = await SupplyPropertySettleService.settleUpkeep(tx, roundPlayerId, ruleset, now);
+      // 1.6.5-A: installments that have fallen due on the server clock, after the day's takings.
+      const loanCash = await LoanSettleService.settle(tx, roundPlayerId, ruleset, now);
       // 1.3.0-C: and any warrant that is due is served before the action reads the player. A
       // personal warrant's lock-up takes hold from the next action.
       const warrantServed = await LawWarrantService.serveDue(tx, roundPlayerId, now);
-      if (turfSettlement || businessSettlement || warrantServed || salesCash !== null || upkeepCash !== null) {
+      if (turfSettlement || businessSettlement || warrantServed || salesCash !== null || upkeepCash !== null || loanCash !== null) {
         player = await tx.roundPlayer.findUniqueOrThrow({
           where: { id: roundPlayerId },
           include: { city: true },
@@ -501,10 +509,12 @@ export const ActionService = {
         stock,
         standings,
         recovery,
+        netWorthCents: beforeNetWorth,
       });
 
       const next = outcome.next;
       assertPlayerState(next, ruleset, 'after');
+      assertLoanDebtChange(current.loanDebtCents, next.loanDebtCents, ruleset);
 
       const ledgerEntries = outcome.ledger
         ?? EconomyLedgerService.defaultForAction(options.action, current.cashCents, next.cashCents);

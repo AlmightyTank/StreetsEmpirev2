@@ -3146,6 +3146,8 @@ export interface Ruleset {
   readonly vehicleCatalog?: VehicleCatalog;
   /** 1.6.0-A. Presence gates the supply-network foundation to pinned 1.6 rounds. */
   readonly supplyNetwork?: SupplyNetworkRules;
+  /** 1.6.5-A. The loan shark's debt rules. Absent: no loans, and debt never touches the round. */
+  readonly loanShark?: LoanSharkRules;
   /** 1.4.0-B. Seasonal faction standing. Absent: factions are identity only. */
   readonly factionStanding?: FactionStandingRules;
   /**
@@ -3204,6 +3206,112 @@ export interface Ruleset {
   /** 1.3.0-A. Absent before the law keeps a Case. Never changes how `heat` behaves. */
   readonly law?: LawRules;
   readonly evidence: EvidenceRules;
+}
+
+/**
+ * 1.6.5-A. Game-cash loans from an NPC loan shark. Every value is integer cents or whole
+ * hours on the server clock. The limits are hard: no sequence of loans, missed payments or
+ * retries can take a player past them.
+ *
+ * - A loan's quoted obligation (principal plus its fixed contract fee) is reserved against
+ *   `debtCeilingCents` in full when it is accepted, so parallel loans cannot overrun it.
+ * - Late fees are the only debt that can grow after acceptance. Each missed installment is
+ *   charged `lateFeeCents` once, capped by the loan's `lateFeeCapPerLoanCents`, the player's
+ *   round-wide `feeCapCents`, and whatever room is left under the ceiling. Nothing compounds.
+ * - The contract fee is earned evenly over the loan's term: an early payoff owes only the
+ *   part earned so far, and the rest is waived.
+ * - Repayments only ever come out of the player's cash; proceeds never pay another loan.
+ * - The ceiling and fee caps are read from the round's ruleset whenever they apply, never
+ *   fixed per player. Debt above a lowered ceiling stays owed, but cannot grow.
+ */
+export interface LoanSharkRules {
+  readonly enabled: boolean;
+  /** Most a player can owe in one round: every loan's unpaid obligation plus unpaid late fees. */
+  readonly debtCeilingCents: number;
+  /** Most late fees that can ever be assessed against one player in one round. */
+  readonly feeCapCents: number;
+  /** Most late fees one loan can ever be assessed. */
+  readonly lateFeeCapPerLoanCents: number;
+  /** The fixed fee for one missed installment, assessed once. */
+  readonly lateFeeCents: number;
+  /** Hours between installments; the first falls due one interval after acceptance. */
+  readonly installmentIntervalHours: number;
+  /** Most installments one contract can be split into. */
+  readonly maxInstallments: number;
+  /** Largest contract fee a quote may carry, as a whole percent of its principal. */
+  readonly maxContractFeePercent: number;
+  /** 1.6.5-B. The fixed offer tiers on the Loan Shark page. Absent: nothing is offered. */
+  readonly offers?: readonly LoanOfferRules[];
+  /** 1.6.5-C. Escalating terms. Absent: every offer costs its listed fee. */
+  readonly pricing?: LoanPricingRules;
+  /**
+   * 1.6.5-E. Collection pressure and recovery. Absent: delinquency only marks the player,
+   * and clearing it clears it.
+   */
+  readonly collections?: LoanCollectionsRules;
+}
+
+/**
+ * 1.6.5-E. What happens to a player who falls behind, and how they climb back.
+ *
+ * - Any missed installment still owing makes the player delinquent: no new loans.
+ * - Enough of them at once puts the player in collections. While in collections, a share of
+ *   each eligible income line earned since is garnished toward what is overdue, never more
+ *   than a capped amount a day, never more than is overdue, never more than the cash on hand.
+ *   Nothing is added to the debt by collections; it only takes payments.
+ * - Clearing everything overdue ends delinquency or collections and starts recovery: new
+ *   loans unlock after enough installments are paid on time, or as soon as nothing is owed.
+ */
+export interface LoanCollectionsRules {
+  /** Missed installments still owing, across every loan, that put a player in collections. */
+  readonly missedInstallmentsThreshold: number;
+  /** Whole percent of each eligible income line garnished while in collections. */
+  readonly garnishPercent: number;
+  /** Most garnished in any rolling 24 hours. */
+  readonly garnishCapPerDayCents: number;
+  /** Economy ledger sources that count as income the shark can garnish. Only positive lines. */
+  readonly garnishSources: readonly string[];
+  /** Installments paid on time, after clearing what was overdue, before new loans unlock. */
+  readonly recoveryOnTimeInstallments: number;
+}
+
+/**
+ * 1.6.5-C. How a new loan's fee rises with what the player already owes and how they have
+ * paid. Surcharges are whole percentage points of the cash advanced, added to the offer's
+ * listed fee, and the total never passes `maxContractFeePercent`. A loan's price is fixed
+ * when it is taken: nothing here ever reprices a loan already on the books.
+ */
+export interface LoanPricingRules {
+  /**
+   * By debt utilization before the loan (owed / ceiling), lowest first. The highest tier
+   * whose `fromPercent` the player has reached applies. The first starts at 0.
+   */
+  readonly utilizationTiers: readonly LoanUtilizationTierRules[];
+  /** Points added for each installment missed this round, whether or not it was paid since. */
+  readonly missedInstallmentSurchargePercent: number;
+  /** Most the payment-history surcharge can add. */
+  readonly maxHistorySurchargePercent: number;
+}
+
+export interface LoanUtilizationTierRules {
+  readonly fromPercent: number;
+  readonly surchargePercent: number;
+  /** Player-facing name for the tier. */
+  readonly label: string;
+}
+
+/** 1.6.5-B. One fixed loan shark offer: the same terms for everyone it is open to. */
+export interface LoanOfferRules {
+  readonly key: string;
+  readonly name: string;
+  readonly description: string;
+  /** Cash handed over on acceptance. */
+  readonly principalCents: number;
+  /** The fixed contract fee, earned evenly over the term. */
+  readonly contractFeeCents: number;
+  readonly installmentCount: number;
+  /** Only offered to a boss whose net worth is at least this. Absent: open to everyone. */
+  readonly minNetWorthCents?: number;
 }
 
 export interface SupplyNetworkRules {

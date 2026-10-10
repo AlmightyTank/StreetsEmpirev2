@@ -558,6 +558,63 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       };
     }
 
+    case 'LOAN_TAKEN':
+      // 1.6.5-D: borrowed from the loan shark.
+      return {
+        text: `Borrowed ${formatCents(num(p.principalCents))} from the loan shark (${str(p.offerName, 'loan')}).`,
+        detail: `${formatCents(num(p.obligationCents))} to pay back in ${num(p.installments)} installments · you owe ${formatCents(num(p.debtAfterCents))}`,
+      };
+
+    case 'LOAN_PAYMENT': {
+      const waived = num(p.contractFeeWaivedCents);
+      const kind = str(p.kind);
+      if (kind === 'COLLECTION') {
+        return {
+          text: `The loan shark garnished ${formatCents(num(p.paidCents))} of your income toward your overdue ${str(p.offerName, 'loan')}.`,
+          detail: [
+            num(p.garnishPercent) ? `${num(p.garnishPercent)}% of ${formatCents(num(p.incomeCents))} earned` : null,
+            num(p.lateFeeCents) ? `${formatCents(num(p.lateFeeCents))} late fees` : null,
+            `you owe ${formatCents(num(p.debtAfterCents))}`,
+          ].filter(Boolean).join(' · '),
+        };
+      }
+      const what = kind === 'SCHEDULED' ? 'The loan shark collected' : 'You paid the loan shark';
+      return {
+        text: `${what} ${formatCents(num(p.paidCents))} on your ${str(p.offerName, 'loan')}${p.paidOff ? ', paying it off' : ''}.`,
+        detail: [
+          num(p.lateFeeCents) ? `${formatCents(num(p.lateFeeCents))} late fees` : null,
+          num(p.contractFeeCents) ? `${formatCents(num(p.contractFeeCents))} fee` : null,
+          num(p.principalCents) ? `${formatCents(num(p.principalCents))} principal` : null,
+          waived ? `${formatCents(waived)} unearned fee waived` : null,
+          `you owe ${formatCents(num(p.debtAfterCents))}`,
+        ].filter(Boolean).join(' · '),
+      };
+    }
+
+    case 'LOAN_COLLECTIONS': {
+      // 1.6.5-E: into collections, out into recovery, or borrowing restored.
+      const to = str(p.to);
+      if (to === 'COLLECTIONS') {
+        return {
+          text: `You are in collections: ${num(p.missedInstallments)} missed installments.`,
+          detail: `${num(p.garnishPercent)}% of your income is garnished until everything overdue is paid · no new loans · you owe ${formatCents(num(p.debtAfterCents))}`,
+        };
+      }
+      if (to === 'RECOVERING') {
+        return {
+          text: 'Out of collections: everything overdue is paid.',
+          detail: `Pay ${num(p.recoveryNeeded)} installment${num(p.recoveryNeeded) === 1 ? '' : 's'} on time to borrow again`,
+        };
+      }
+      return { text: 'Back in good standing with the loan shark.', detail: 'You can borrow again' };
+    }
+
+    case 'LOAN_INSTALLMENT_MISSED':
+      return {
+        text: `You missed installment ${num(p.sequence)} on your ${str(p.offerName, 'loan')}${num(p.collectedCents) ? ` · ${formatCents(num(p.collectedCents))} of ${formatCents(num(p.dueCents))} collected` : ''}.`,
+        detail: `${num(p.lateFeeCents) ? `${formatCents(num(p.lateFeeCents))} late fee added` : 'No late fee: you are at the cap'} · ${formatCents(num(p.shortCents))} still overdue · you owe ${formatCents(num(p.debtAfterCents))}`,
+      };
+
     case 'SUPPLY_LANE_ARRIVED': {
       // 1.6.0-H: how a lane load landed.
       const load = `${str(p.routeName, 'Lane')} load of ${formatNumber(num(p.quantity))} ${str(p.product, 'product')} from ${str(p.supplier, 'abroad')}`;
@@ -788,6 +845,10 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     FACTION_TIER_UP: 'Faction',
     FACTION_WARNING: 'Faction word',
     SUPPLY_LANE_ARRIVED: 'Lane landed',
+    LOAN_TAKEN: 'Loan',
+    LOAN_PAYMENT: 'Loan payment',
+    LOAN_INSTALLMENT_MISSED: 'Missed installment',
+    LOAN_COLLECTIONS: 'Collections',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();

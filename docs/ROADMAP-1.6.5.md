@@ -31,7 +31,7 @@ Slices **A–B** establish the debt model and readable loan offers. Slices **C�
 
 Every slice should have a release gate and a pinned ruleset, following the existing StreetsEmpire release pattern. Exact offer amounts, fees, due intervals, debt ceilings, and collection effects are balance values to set through simulation before release.
 
-**Beta progress:** Proposed roadmap only. No 1.6.5 slices are marked implemented.
+**Beta progress:** Slice A is implemented on the beta branch: the pinned `classic-og-v1.6.5-a` ruleset, server-owned loan, installment, payment, fee and journal records, one per-round debt ceiling and a separate fee cap read from the ruleset, retry-safe acceptance, repayment, scheduled settlement with partial collection, late-fee assessment, pro-rata early payoff, loan ledger categories, and debt netted out of net worth. Slice B adds the Loan Shark page with three fixed offer tiers, full quotes before acceptance, retry-safe acceptance over the API, active loans, next due dates, payoff amounts and history. Slice C lets loans stack under the one ceiling at escalating prices: fees rise with debt utilization and missed installments, every quote shows its breakdown, and a loan is never taken at a price the player was not shown. Slice D adds payments from the page (overdue, next installment, payoff or any amount) with a server preview before confirmation, receipts for automatic and manual payments, what is overdue on every loan, and loan events in the activity feed, with missed installments on the bell. Slice E pauses borrowing while a player is behind, garnishes a capped share of income in collections, and brings players back through an on-time streak. Slice F adds the admin Loan Shark page (a round overview and per-player inspection, every borrower reconciled), two audited corrections that never create cash or erase history, and loan checks in the reconciliation and the exploit audit.
 
 ## Proposed slices
 
@@ -49,6 +49,8 @@ Every slice should have a release gate and a pinned ruleset, following the exist
 
 ### 1.6.5-A — Debt Foundation
 
+**Status: Implemented on the beta branch as the debt foundation. No offers or player page yet.**
+
 Establish the authoritative debt lifecycle before adding borrowing.
 
 - Define loan offers, accepted loans, scheduled installments, repayments, assessed fees, collection state, and payoff history.
@@ -62,7 +64,25 @@ Establish the authoritative debt lifecycle before adding borrowing.
 
 **Gate:** Tests prove that the total obligation never exceeds the debt ceiling, fees never exceed the fee cap, retries cannot duplicate a loan or payment, and historical rulesets remain unchanged.
 
+**As built:**
+
+- **Ruleset.** `classic-og-v1.6.5-a` is 1.6.0-H plus a `loanShark` block, and is now the ruleset new rounds start on. Every earlier ruleset has no `loanShark`, so no loan path, settle or net-worth change reaches it. Opening values, all for 1.6.5-G to tune: a $150,000 debt ceiling, a $15,000 round fee cap, a $7,500 late-fee cap a loan, a $2,500 fee per missed installment, installments every 12 hours, at most 4 installments, and contract fees of at most 40% of the principal.
+- **Records.** `Loan` holds the quoted terms, the ruleset it was accepted under, and what has been paid against principal, contract fee and late fees, and how much of the fee was waived. `LoanInstallment` holds each installment's share and due time. `LoanPayment` is the immutable receipt for each payment, split the way it was applied. `LoanFee` records every assessed fee. `LoanEvent` is the journal: acceptance, payment, missed installment, fee, payoff and collection change, each with the debt after it. The player's `loanDebtCents`, assessed fees and collection state live on `RoundPlayer`.
+- **Ceiling and fee cap.** A loan's whole obligation (principal plus contract fee) is reserved against the ceiling at acceptance, or the loan is refused. The ceiling and fee cap are read from the round's ruleset every time they apply; they are never snapshotted per player. If a ruleset change ever lowers them below what a player already owes or has been charged, that balance stays owed but cannot grow: new loans are refused and late fees stop. The action pipeline refuses any change that raises debt above the current ceiling. Database checks hold debt and fees at zero or above, and each loan's late fees under its own quoted cap. A loan's late fee and late-fee cap are contract terms and keep their quoted values.
+- **Late fees.** A missed installment is charged the loan's fixed late fee once, cut down to the loan's cap, the player's fee cap and the room left under the ceiling. Once any of these is full, the balance stops growing. Fees never earn fees.
+- **Settlement.** Installments are settled under the player's lock, by the server clock only: in the action pipeline, on any page load, and (from 1.6.5-D) by the alerts poller at their due time. When an installment falls due, the server collects what the loan has due through it: unpaid late fees, any earlier missed installment, and this one. If cash covers it all, the installment is paid. If not, the server takes whatever cash there is toward it, in the payment order below; the installment is then marked missed at its due time, the late fee is assessed, and the loan and player become delinquent. A missed installment stays owed and is collected with the next installment or by any payment.
+- **Early payoff (pro-rata).** The contract fee is earned evenly over the loan's term, from acceptance to the last due time, rounded up to the cent. A payment never takes more of the fee than has been earned and not yet paid. Paying a loan off owes the unpaid principal, unpaid late fees and only the earned fee; the unearned fee is waived and comes off the debt with the payoff. Each loan reports its `payoffCents` now. A waiver is forgiven debt, not cash, so it is on the receipt, the loan, its installments and the journal (`PAID_OFF` with `early: true`), but not in the cash ledger. Late fees are never waived.
+- **Payments.** Payments are applied in a fixed order: unpaid late fees first, then installments oldest first, with each installment's contract-fee share before its principal. A fee share not yet earned is skipped and that installment's principal paid ahead. A request for more than the payoff amount pays exactly the payoff amount. Payments only ever come from the player's cash, and there is no path from one loan's proceeds to another loan.
+- **Retries.** Acceptance and manual payments are replayed by the action id and by a durable request key, and a reused key with different terms is refused. Scheduled payments and late fees are keyed by installment, so a second settle finds nothing to do.
+- **Ledger.** `LOAN_PROCEEDS` (loan shark → cash), and `LOAN_PRINCIPAL`, `LOAN_CONTRACT_FEE` and `LOAN_LATE_FEE` (cash → loan shark), with `LOAN_COLLECTION` reserved for 1.6.5-E. Loan proceeds never count toward an earning Job.
+- **Net worth.** Debt comes off net worth at the cash weight, rounded up, and net worth never goes below zero, so borrowing cannot buy rank.
+- **Reconciliation.** `reconcileLoans` proves that a player's debt equals their loans' balances, that receipts (payments and waivers), installments, fees and the cash ledger agree, and reports debt or fees over the ruleset's current limits. 1.6.5-F will expose it to admins.
+- **Server API for 1.6.5-B.** `LoanService.accept` takes server-quoted terms, and `LoanService.repay` takes a cash payment. Neither has a route yet.
+- **Tests.** Unit tests cover quotes, schedules, stacking, fee caps, payment order and net worth. A PostgreSQL suite (`LOAN_INTEGRATION=1`) covers replays, parallel acceptance at the ceiling, scheduled collection, a missed installment and recovery, partial collection on a shortfall, fees at every cap, limits read live from the ruleset, partial payments and a pro-rata early payoff, settlement in the action pipeline, and a pre-1.6.5 round.
+
 ### 1.6.5-B — Loan Offers & Acceptance
+
+**Status: Implemented on the beta branch.**
 
 Let players understand the contract before taking cash.
 
@@ -81,7 +101,33 @@ Let players understand the contract before taking cash.
 
 **Gate:** A player can compare offers and see the full obligation before accepting. The accepted loan, player cash, debt balance, and ledger reconcile after retries and reloads.
 
+**As built:**
+
+- **Ruleset.** `classic-og-v1.6.5-b` is 1.6.5-A plus `loanShark.offers`, and is now the ruleset new rounds start on. Three fixed tiers, the same terms for everyone they are open to (BALANCE_APPROXIMATION, for 1.6.5-G):
+
+  | Offer | Cash | Fee | Payback | Installments | Needs net worth |
+  | --- | --- | --- | --- | --- | --- |
+  | Quick Cash | $10,000 | $1,500 (15%) | $11,500 | 2 × 12h | — |
+  | Street Advance | $30,000 | $6,000 (20%) | $36,000 | 3 × 12h | $10,000 |
+  | Heavy Bankroll | $75,000 | $22,500 (30%) | $97,500 | 4 × 12h | $50,000 |
+
+  Bigger advances cost more per dollar, so no tier is the automatic pick, and the smallest is open to everyone.
+- **Page.** **Loan Shark** (`/game/loans`) is in the game menu under Next Steps for new players. The page shows:
+  - **What you owe:** current debt, the ceiling, the room left, late fees charged against the cap, standing, and cash.
+  - **Offers:** cash received, fee and fee rate, total payback, schedule, and any net-worth requirement for each offer.
+  - **Review the deal:** for the picked offer, every installment and when it falls due, debt and room before and after, cash after, how early payoff works, and exactly what missing an installment costs.
+  - **Active loans:** what is still owed on schedule, the payoff amount now, the next due time and amount, late fees, and each installment's status.
+  - **History:** recent loan history, and the loans paid off this round.
+- **Eligibility.** Checked in a fixed order: who the offer is open to (net worth), then room under the ceiling. An offer that cannot be taken says why in player-facing words, and the server refuses it with the same message (`LOAN_NOT_ELIGIBLE`, `LOAN_DEBT_CEILING`). Net worth is the pipeline's freshly calculated value, not the stored one.
+- **Acceptance.** `POST /api/game/loans/accept` takes only `offerKey`, `requestKey` and `actionId`; the terms come from the round's ruleset under the player's lock, after the replay check. A retry with the same request key answers with the loan already made, even if the offer has since become unavailable; the same key for a different offer is refused. The page keeps an unconfirmed attempt's request key across reloads and locks the offers until the result is known.
+- **Settlement on read.** Opening any page now settles due loan installments, as it already did for property upkeep, so a player who is only looking sees installments collected on time.
+- **Earned fee.** An installment that has fallen due always counts its full fee share as earned, even if its due time moved.
+- **Not yet.** Manual payments have a server action (`LoanService.repay`) but no button; 1.6.5-D adds the payment flow. Delinquency does not yet block new loans (1.6.5-E).
+- **Tests.** Ruleset and offer-eligibility unit tests, and an HTTP suite (`LOAN_INTEGRATION=1`) covering full quotes, retries and reloads that reconcile, forged terms, ineligible and ceiling refusals with their reasons, settlement on read, and earlier rulesets.
+
 ### 1.6.5-C — Repeat Borrowing & Escalating Terms
+
+**Status: Implemented on the beta branch.**
 
 Allow players to stack loans without making the system unlimited.
 
@@ -94,7 +140,29 @@ Allow players to stack loans without making the system unlimited.
 
 **Gate:** A player can take multiple loans and reach a large balance through poor choices, but cannot exceed the overall debt limit, evade it through parallel contracts, or borrow to manufacture a loan repayment.
 
+**As built:**
+
+- **Ruleset.** `classic-og-v1.6.5-c` is 1.6.5-B plus `loanShark.pricing`, with the most a fee can be raised from 40% to 60% of the cash advanced. It is now the ruleset new rounds start on. The offers and every other limit are B's. All values are BALANCE_APPROXIMATION, for 1.6.5-G.
+- **Pricing.** A new loan's fee is the offer's listed fee plus whole points of the cash advanced:
+
+  | Utilization before the loan (owed / limit) | Tier | Surcharge |
+  | --- | --- | --- |
+  | Under 25% | Clean | — |
+  | 25% | Leaning | +4 |
+  | 50% | Stretched | +8 |
+  | 75% | In deep | +15 |
+
+  On top of the tier, each installment missed this round adds 3 points, to at most 15, whether or not it has been paid since. The total is never more than 60%. Pricing is deterministic and only ever gets dearer as debt or missed installments grow. Without pricing rules (A, B), the listed fee is the fee.
+- **Fixed price.** A loan's fee is set at acceptance and stored on the loan. Nothing reprices a loan already taken, and each `ACCEPTED` journal entry records how it was priced: listed fee, utilization, tier, missed installments, surcharges and whether the fee was capped.
+- **Quoted price only.** The page prices every offer exactly as acceptance does and shows the breakdown: listed fee, debt surcharge, missed-payment surcharge and cap. The accept request must carry the fee the player was shown (`quotedFeeCents`). If the price has moved since (another loan, a missed installment settling), nothing is taken; the server answers `LOAN_QUOTE_CHANGED` with the new fee, and the page reloads with the new terms. A retry of an attempt that did go through still answers with that loan.
+- **One ceiling.** Every loan, at its priced obligation, counts toward the same ceiling; there are no per-tier limits. Parallel acceptances serialize on the player lock, and each is priced and checked against the debt it actually lands on.
+- **No loan-to-loan repayment.** Proceeds only ever go to cash. Acceptance has no way to point proceeds at another loan, and taking a loan never changes another loan's balance. Repayments, scheduled or manual, come only from cash.
+- **Page.** "What you owe" adds how the shark sees you (tier and surcharge), missed installments and their surcharge, and what the next tier would cost. Offer cards say what their fee includes. The review notes that the price is fixed once taken.
+- **Tests.** Engine tests for tiers, history, the cap and monotonic pricing; ruleset tests. An HTTP suite (`LOAN_INTEGRATION=1`) stacks loans into a large balance at rising prices without repricing old ones, refuses a stale quote, raises prices after missed installments (and keeps the record after repayment), holds the ceiling against parallel contracts at mixed prices, and proves proceeds never reach another loan.
+
 ### 1.6.5-D — Repayment & Delinquency
+
+**Status: Implemented on the beta branch.**
 
 Make payments predictable and missed payments consequential.
 
@@ -108,7 +176,38 @@ Make payments predictable and missed payments consequential.
 
 **Gate:** A loan can be paid early, partially, or on schedule; a missed payment is recorded once; no settlement can charge more than the outstanding amount; and all cash movements reconcile.
 
+**As built:**
+
+- **No new ruleset.** Payments are available wherever the loan shark is (1.6.5-A onward), since any round with loans needs a way to pay them. Nothing about what a loan costs changes, and like 1.6.0-I this slice adds no rule values.
+- **What is owed, where.** Each active loan shows:
+  - every installment with its amount, due time and status;
+  - what is **overdue now**: unpaid late fees plus whatever is still owed on installments already past due;
+  - what will be collected at the next due time, including anything overdue;
+  - the payoff amount right now.
+
+  The page totals what is overdue across loans and, while anything is, shows a warning that says what it costs and how to clear it.
+- **Paying.** Each active loan has a payment panel:
+  - **Choices:** pay overdue, everything due by the next date, pay off, or any amount in dollars.
+  - **Preview first.** `GET /api/game/loans/:loanId/preview?amountCents=` settles the player, then returns exactly what the payment would do: the split (late fees, contract fee, principal), any unearned fee waived, whether it clears what is overdue or pays the loan off, the loan's state after, and the player's debt and cash after.
+  - **Pay.** `POST /api/game/loans/:loanId/pay` applies the same allocation to the loan as it stands when the payment lands, takes no more than the payoff amount, and never more cash than the player has. Retry-safe like acceptance: an unconfirmed payment keeps its key across reloads and locks the panel until the result is known.
+- **Payoff while the fee earns.** The contract fee keeps earning by the second (pro-rata), so a payoff preview also returns `payoffHoldCents`: the payoff ten minutes from now. A payoff request names that as its most; the server takes only the payoff at the moment it lands, so a payoff confirmed within the hold never costs more than the player was shown.
+- **Receipts.** Every payment, scheduled, manual or (from 1.6.5-E) collection, appears on the page as a receipt: what it took, how it was applied, any fee waived, and the debt after. A manual payment's result is shown as a receipt too, and stays on screen when the payoff takes the loan off the list.
+- **Activity history and the bell.** New activity types `LOAN_TAKEN`, `LOAN_PAYMENT` (scheduled or manual) and `LOAN_INSTALLMENT_MISSED`. A missed installment also reaches the bell and raises a toast that links to the Loan Shark, so a player who is away hears about it; it is a system alert and cannot be muted. Loan activity never carries a `cashCents` field, so neither borrowing nor paying counts toward a Job that rewards earning.
+- **On time, while away.** The alerts poller sweeps every minute for loan installments past their due time and for property upkeep that has fallen due, and settles each owner through the ordinary settle under their own lock, exactly as if they had opened a page. So an installment is collected, or missed, at its due time from the cash on hand then; a missed one reaches the bell while its owner is away; and upkeep is charged on time. The sweep has a few safeguards:
+  - **Live rounds only.** A paused or finished round is not swept, so a pause never costs anyone an installment.
+  - **Upkeep the owner can pay.** A property is swept only when its owner's cash covers at least one period. One that is behind for want of cash waits for an action or page load, instead of being re-settled every minute for nothing.
+  - **Failures are contained.** At most 200 owners are settled per tick. One owner's failure is logged and skipped, never stopping the others or the rest of the alerts tick.
+- **Delinquency.** As in 1.6.5-A: an installment is missed only once its due time has passed, recorded once with one capped late fee. Clearing everything overdue returns the loan to active and the player to good standing.
+- **Tests.** Web tests for amount parsing, request amounts, feed text and the toast. A sweep suite (`LOAN_INTEGRATION=1`) covers on-time collection while away (once), a missed installment reaching the bell with no player action, paused and finished rounds left alone, upkeep charged on time only when payable, and one failing owner not stopping the rest. An HTTP suite (`LOAN_INTEGRATION=1`) covers:
+  - a partial payment that matches its preview and receipt, and is charged once on retry;
+  - a pro-rata early payoff within its hold;
+  - an on-schedule collection with receipt and feed entry;
+  - a partly collected missed installment recorded once, on the bell, cleared by paying exactly what is overdue;
+  - refusals for more cash than the player has, bad amounts and unknown loans, and a huge request that takes only the payoff.
+
 ### 1.6.5-E — Collection Pressure & Recovery
+
+**Status: Implemented on the beta branch.**
 
 Make a deep debt hole matter while ensuring players can climb out.
 
@@ -122,7 +221,47 @@ Make a deep debt hole matter while ensuring players can climb out.
 
 **Gate:** A heavily indebted player faces meaningful restrictions, can see a clear path to reduce them, and can recover through play and repayment without an infinite balance or permanent lockout.
 
+**As built:**
+
+- **Ruleset.** `classic-og-v1.6.5-e` is 1.6.5-C plus `loanShark.collections`, and is now the ruleset new rounds start on. There is no `classic-og-v1.6.5-d`: D added no rule values. Opening values (BALANCE_APPROXIMATION, for 1.6.5-G):
+  - collections from 2 missed installments still owing;
+  - 25% of eligible income garnished, at most $25,000 in any 24 hours;
+  - recovery after 2 on-time installments.
+- **Standings.** Four standings, worked out by `nextLoanStanding`:
+
+  | Standing | When | What changes |
+  | --- | --- | --- |
+  | **Clear** | Nothing overdue, recovery done. | Nothing. |
+  | **Delinquent** | Any missed installment still owing. | No new loans. |
+  | **Collections** | At least 2 missed installments owing at once. Lasts until everything overdue is paid, even after it drops below the threshold. | No new loans, and income is garnished. |
+  | **Recovering** | Everything overdue has been paid. | No new loans until 2 installments are paid on time or early, or until nothing is owed at all. A new miss during recovery starts over. |
+
+  Every change is journaled. Going into collections, out of it, and clearing recovery are feed entries that reach the bell and raise a toast.
+- **Garnishing.** Eligible income is every positive economy-ledger line from the ruleset's garnish sources, earned since the player went into collections:
+  - **Sources:** street work, store and dealer sales, business, turf and racket income, run sales, and raid, convoy and boss-hit winnings. Never borrowed cash, admin grants or transfers.
+  - **How much:** 25% of it, capped by the day's room, by what is overdue and by the cash on hand.
+  - **Where it goes:** to overdue loans oldest first, as a `COLLECTION` payment (late fees, then missed installments). It never prepays future installments, adds nothing to the debt, and is recorded on the receipt, the `LOAN_COLLECTION` ledger line and a feed entry.
+  - **Each line once.** Every income line is considered once (`EconomyLedgerEntry.loanCollectedAt`), whether or not anything was taken from it, so income above the day's cap is never taken later.
+  - **When.** Garnishing runs in the settle on every action and page load, and on the alerts poller within a minute of the income being earned.
+- **Bounded and finite.** Late fees still stop at the fee caps and the ceiling. Collections only ever takes payments. The page shows the total payoff for every loan as a finite target, and players can pay at any time.
+- **No lockout.** Recovery needs no admin, reset or new round: paying what is overdue ends collections at once, and either on-time installments or paying everything off restores borrowing.
+- **Page.** One notice per standing explains what changes and the way out, with the threshold, the share, the cap, what was garnished in the last 24 hours, what is overdue, and how many on-time installments are still needed. Every offer is shown unavailable with the same reason the server refuses with (`LOAN_PAUSED`). "What you owe" adds the total payoff, the garnish against its cap, and installments still needed.
+- **Earlier rounds.** 1.6.5-A to D keep plain delinquency: no pause, no collections, no garnish.
+- **Tests.**
+  - Engine tests for standings, refusals and garnish bounds; ruleset tests; web tests for the notice, feed and toasts.
+  - An integration suite (`LOAN_INTEGRATION=1`) covers:
+    - the pause and its reason;
+    - going into collections, with the bell;
+    - garnishing new income once, never older income or ineligible lines, at the share and the day cap;
+    - never garnishing more than is overdue, and leaving collections at once when it is cleared;
+    - recovery through on-time installments, with the next loan priced with its history;
+    - a miss during recovery starting over;
+    - the poller garnishing while the player is away;
+    - 1.6.5-C rounds unchanged.
+
 ### 1.6.5-F — Admin, Ledger & Exploit Review
+
+**Status: Implemented on the beta branch.**
 
 Provide tools to inspect and safely operate the system.
 
@@ -133,6 +272,44 @@ Provide tools to inspect and safely operate the system.
 - Keep admin corrections from silently creating cash, clearing debt, or erasing delinquency history.
 
 **Gate:** Admins can identify the source of a balance, trace every change, and correct a verified error without altering historical records invisibly.
+
+**As built:**
+
+- **No new ruleset.** F adds tools, not rules: rounds keep the ruleset they started on.
+- **Round overview** (`GET /api/admin/rounds/:roundId/loans`, the admin **Loan Shark** page):
+  - totals: borrowers, loans by status, outstanding debt, principal advanced, late fees assessed and waived, contract fees waived on early payoff, paid by kind (scheduled, manual, collection), and garnished in the last 24 hours;
+  - how many borrowers are in each standing, and the round's limits;
+  - every borrower (up to 500, by debt) with debt, ceiling use, fees, standing, active and delinquent loans, missed installments, what is overdue, and how many problems reconciliation found;
+  - the latest 100 journal entries across the round.
+- **Player inspection** (`GET /api/admin/players/:roundPlayerId/loans`): the account summary, every contract with its schedule and ruleset, every payment receipt split into late fees, contract fee and principal, every fee with what was waived, the full journal, the player's loan ledger lines, and the reconciliation. It is marked frozen once the round has finished.
+- **Corrections** (`POST /api/admin/players/:roundPlayerId/loans/correct`), for verified errors only:
+
+  | Correction | What it does |
+  | --- | --- |
+  | **Waive late fee** | Forgives what is still unpaid of one late fee, never more than the loan owes in late fees. |
+  | **Excuse miss** | Reschedules one missed installment one interval from now, keeps its original due time, and waives its late fee. The excused miss no longer counts toward pricing or the standing, and when nothing else is missed the player is clear straight away, with no recovery streak. |
+
+  Each correction:
+  - needs a reason, and refuses an admin's own player, finished rounds, rounds without the loan shark, the wrong state (`LOAN_NOT_MISSED`), and a waiver with nothing left (`LOAN_CORRECTION_UNCHANGED`);
+  - settles the player first, under their lock, so it starts from the true state;
+  - never creates cash and never deletes anything: a waived fee stays assessed and on record with what was waived, the miss and its fee stay in the journal, and the debt only falls by the amount waived;
+  - writes a `CORRECTED` journal entry with the reason and the staff member, and an admin audit record with before and after;
+  - answers with the reconciliation afterwards.
+- **Reconciliation** (`reconcileLoans`, run for every borrower in the overview, for the player, and after each correction) now also checks:
+  - exactly one acceptance per loan, and one loan advance per loan;
+  - every payment journaled exactly once;
+  - no more late fees for an installment than it has misses, and every miss with its fee;
+  - waived fees matching the fee records;
+  - the standing agreeing with the missed installments still owed.
+- **Exploit audit.** `scripts/ops/exploit-audit.ts` has a loan shark section that checks the whole database for: debt that differs from loan balances, advances that differ from loans, duplicated acceptances, payments journaled other than once, more late fees than misses, and standings out of step with misses.
+- **Schema.** Late fees can be waived (`Loan.lateFeesWaivedCents`, `LoanFee.waivedCents`), with checks that a waiver never exceeds its fee and paid plus waived never exceeds assessed. An installment records when it was excused and its original due time. Settlement keys include the excuse, so a rescheduled installment can be collected or missed again exactly once.
+- **Tests.** An integration suite (`LOAN_INTEGRATION=1`) covers:
+  - the report, player detail and corrections limited to staff;
+  - the overview and player detail;
+  - the reconciliation catching a duplicated advance, a second late fee for one miss, debt changed outside the ledger, and a dodged standing;
+  - waiving a fee, with no cash created, history kept and the audit record written;
+  - excusing a miss, restoring the standing, and the rescheduled installment being collected once;
+  - refusals for unknown targets, the wrong state, an admin's own player, and finished rounds.
 
 ### 1.6.5-G — Balance, Mobile & Release
 
@@ -161,7 +338,7 @@ Prove that the debt system adds tension without overwhelming the economy.
 
 - Which game-clock interval should installments use: hours, days, or a small number of scheduled checkpoints?
 - Should accepted-loan fees be included in the amount reserved immediately, or should the offer show principal plus a fixed payoff fee due on repayment?
-- Which bounded collection consequence best fits StreetsEmpire: temporary contract restrictions, a capped deduction from eligible proceeds, or another non-permanent pressure?
+- ~~Which bounded collection consequence best fits StreetsEmpire?~~ Decided in 1.6.5-E: a capped share of eligible income is garnished while in collections, on top of pausing new loans. Recovery is an on-time streak, or paying everything off.
 - What should the opening debt ceiling, fee cap, offer tiers, and delinquency threshold be after simulation?
 - Should loan availability be immediate, or unlocked by a first-round milestone so new players understand the regular economy first?
 

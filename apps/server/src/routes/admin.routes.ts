@@ -41,6 +41,8 @@ import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
 import { AdminSupplyService } from '../services/admin-supply.service.js';
 import { AdminSupplyCorrectionService } from '../services/admin-supply-correction.service.js';
+import { AdminLoansService } from '../services/admin-loans.service.js';
+import { AdminLoanCorrectionService } from '../services/admin-loan-correction.service.js';
 import { AdminCasinoService } from '../services/admin-casino.service.js';
 import { AdminFactionService } from '../services/admin-faction.service.js';
 import { ADMIN_VEHICLE_MAX, AdminVehicleService } from '../services/admin-vehicle.service.js';
@@ -178,6 +180,12 @@ const supplyAdjustSchema = z.object({
   quantity: z.number().int().min(0).max(10_000_000),
   reason: z.string().trim().min(3).max(500),
 }).strict();
+
+// 1.6.5-F: one audited loan correction, for a verified error: a late fee, or a missed installment.
+const loanCorrectionSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('WAIVE_LATE_FEE'), feeId: z.string().trim().min(1).max(64), reason: z.string().trim().min(3).max(500) }).strict(),
+  z.object({ kind: z.literal('EXCUSE_MISS'), installmentId: z.string().trim().min(1).max(64), reason: z.string().trim().min(3).max(500) }).strict(),
+]);
 
 const lawAdjustSchema = z.object({
   reason,
@@ -835,6 +843,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminSupplyService.report(fastify.prisma, roundId);
   });
 
+  /** 1.6.5-F: read-only loan shark health for a round, every borrower reconciled and exploit-checked. */
+  fastify.get('/rounds/:roundId/loans', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    return AdminLoansService.report(fastify.prisma, roundId);
+  });
+
   fastify.get('/rounds/:roundId/suspicious', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
     const { hours } = parseBody(z.object({ hours: z.coerce.number().int().min(1).max(24 * 14).optional() }).strict(), request.query ?? {});
@@ -882,6 +896,19 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { roundPlayerId } = parseBody(playerParams, request.params);
     const body = parseBody(supplyAdjustSchema, request.body ?? {});
     return AdminSupplyCorrectionService.adjust(fastify.prisma, request.auth!.account, roundPlayerId, body);
+  });
+
+  /** 1.6.5-F: one player's loans in full: contracts, schedules, payments, fees, journal and ledger. */
+  fastify.get('/players/:roundPlayerId/loans', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    return AdminLoansService.player(fastify.prisma, roundPlayerId);
+  });
+
+  /** 1.6.5-F: an audited loan correction: waive one late fee, or excuse one missed installment. */
+  fastify.post('/players/:roundPlayerId/loans/correct', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    const body = parseBody(loanCorrectionSchema, request.body ?? {});
+    return AdminLoanCorrectionService.correct(fastify.prisma, request.auth!.account, roundPlayerId, body);
   });
 
   /** 1.3.0-G: an audited correction to one city's Case. */

@@ -1,4 +1,8 @@
 import type {
+  AdminLoanCorrectionInput,
+  AdminLoanCorrectionResult,
+  AdminLoanPlayerDto,
+  AdminLoansDto,
   AdminBugReportQueueDto,
   AdminBugReportStatus,
   BugReportResolution,
@@ -223,6 +227,11 @@ export const adminApi = {
   adjustPlayerSupply: (roundPlayerId: string, input: { target: 'WAREHOUSE' | 'CREW'; targetId: string; productKey: string; quantity: number; reason: string }) =>
     api.post<AdminSupplyCorrectionResult>(`/admin/players/${enc(roundPlayerId)}/supply/adjust`, input),
   casino: (roundId: string) => api.get<AdminCasinoDto>(roundPath(roundId, 'casino')),
+  /** 1.6.5-F. Loan shark health for a round, one player's loans, and an audited correction. */
+  loans: (roundId: string) => api.get<AdminLoansDto>(roundPath(roundId, 'loans')),
+  playerLoans: (roundPlayerId: string) => api.get<AdminLoanPlayerDto>(`/admin/players/${enc(roundPlayerId)}/loans`),
+  correctPlayerLoans: (roundPlayerId: string, input: AdminLoanCorrectionInput) =>
+    api.post<AdminLoanCorrectionResult>(`/admin/players/${enc(roundPlayerId)}/loans/correct`, input),
   // 1.4.0-G: faction standing health and audited correction.
   factions: (roundId: string) => api.get<AdminFactionRoundDto>(roundPath(roundId, 'factions')),
   adjustPlayerFaction: (roundPlayerId: string, input: AdminFactionAdjustmentInput) =>

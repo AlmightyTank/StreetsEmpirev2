@@ -1,6 +1,7 @@
 import type { ActivityDto, RoundDto, RoundStatus } from './api.js';
 import type { BattleReportDto } from './combat.js';
 import type { LawPageDto, WantedStageDto } from './law.js';
+import type { LoanAccountDto, LoanCollectionState, LoanDto, LoanHistoryDto, LoanReceiptDto } from './loans.js';
 
 /** 0.3.0-B. Lifecycle moves an admin can make on a round in its current status. */
 export type AdminRoundAction = 'open-registration' | 'start' | 'pause' | 'resume' | 'end-early' | 'archive';
@@ -1390,4 +1391,99 @@ export interface AdminNpcTelemetryDto {
   blocked: Record<string, number>;
   skips: Record<string, number>;
   rates: { blocked: number | null; layLow: number | null; dogpileSkips: number | null };
+}
+
+/** 1.6.5-F. One borrower in a round, for the admin loan overview. */
+export interface AdminLoanPlayerRowDto {
+  player: AdminPlayerRefDto;
+  debtCents: number;
+  /** Debt as a whole percent of the ruleset's ceiling. */
+  ceilingUsePercent: number;
+  feesAssessedCents: number;
+  standing: LoanCollectionState;
+  recoveryNeeded: number;
+  activeLoans: number;
+  delinquentLoans: number;
+  missedInstallments: number;
+  overdueCents: number;
+  problems: number;
+}
+
+/** 1.6.5-F. GET /api/admin/rounds/:roundId/loans. */
+export interface AdminLoansDto {
+  round: { id: string; name: string; status: RoundStatus; rulesetId: string };
+  enabled: boolean;
+  limits: {
+    debtCeilingCents: number;
+    feeCapCents: number;
+    lateFeeCents: number;
+    lateFeeCapPerLoanCents: number;
+    collections: { missedInstallmentsThreshold: number; garnishPercent: number; garnishCapPerDayCents: number; recoveryOnTimeInstallments: number } | null;
+  } | null;
+  totals: {
+    borrowers: number;
+    loans: number;
+    activeLoans: number;
+    delinquentLoans: number;
+    paidOffLoans: number;
+    debtCents: number;
+    principalAdvancedCents: number;
+    lateFeesAssessedCents: number;
+    lateFeesWaivedCents: number;
+    contractFeeWaivedCents: number;
+    paidCents: { SCHEDULED: number; MANUAL: number; COLLECTION: number };
+    garnished24hCents: number;
+    standings: Record<LoanCollectionState, number>;
+  };
+  /** Borrowers, deepest debt first. */
+  players: AdminLoanPlayerRowDto[];
+  /** Every borrower checked by the reconciliation and exploit checks, and what failed. */
+  checkedPlayers: number;
+  problems: Array<{ player: AdminPlayerRefDto; problems: string[] }>;
+  /** The round's loan journal, newest first. */
+  journal: Array<LoanHistoryDto & { player: AdminPlayerRefDto }>;
+}
+
+/** 1.6.5-F. GET /api/admin/players/:roundPlayerId/loans. */
+export interface AdminLoanPlayerDto {
+  player: AdminPlayerRefDto;
+  round: { id: string; name: string; status: RoundStatus; rulesetId: string };
+  /** Finished rounds are read-only. */
+  frozen: boolean;
+  account: LoanAccountDto | null;
+  loans: Array<LoanDto & { offerName: string; rulesetId: string; rulesetVersion: string }>;
+  payments: LoanReceiptDto[];
+  fees: Array<{
+    id: string;
+    loanId: string;
+    offerName: string;
+    installmentId: string | null;
+    sequence: number | null;
+    kind: 'LATE' | 'COLLECTION';
+    amountCents: number;
+    quotedCents: number;
+    waivedCents: number;
+    waivedAt: string | null;
+    createdAt: string;
+  }>;
+  journal: LoanHistoryDto[];
+  ledger: Array<{ id: string; source: string; label: string; amountCents: number; createdAt: string }>;
+  problems: string[];
+}
+
+export type AdminLoanCorrectionInput =
+  | { kind: 'WAIVE_LATE_FEE'; feeId: string; reason: string }
+  | { kind: 'EXCUSE_MISS'; installmentId: string; reason: string };
+
+/** 1.6.5-F. POST /api/admin/players/:roundPlayerId/loans/correct. */
+export interface AdminLoanCorrectionResult {
+  kind: AdminLoanCorrectionInput['kind'];
+  waivedCents: number;
+  debtBeforeCents: number;
+  debtAfterCents: number;
+  standing: LoanCollectionState;
+  /** For an excused miss: when it is due again. */
+  dueAgainAt: string | null;
+  auditId: string | null;
+  problems: string[];
 }
