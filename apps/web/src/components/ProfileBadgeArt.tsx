@@ -20,7 +20,7 @@ const badgeArtByKey: Record<string, BadgeArtPosition> = {
   'beta-tester': [0, 8],
   veteran: [0, 9],
   'top-finisher': [0, 10],
-  'hall-of-fame': [0, 11],
+  'hall-of-fame': [8, 8],
 
   // Combat progression — atlas 2.
   'knock-knock': [1, 0],
@@ -37,7 +37,7 @@ const badgeArtByKey: Record<string, BadgeArtPosition> = {
   boosted: [1, 11],
 
   // Intelligence, reputation, and specialist honors — atlas 3.
-  'chop-shop-regular': [6, 2],
+  'chop-shop-regular': [10, 0],
   'silver-tongue': [2, 0],
   recruiter: [2, 1],
   'stick-up-king': [2, 2],
@@ -97,10 +97,10 @@ const badgeArtByKey: Record<string, BadgeArtPosition> = {
   'hideout-regular': [6, 1],
   'room-maxed': [6, 2],
   'fully-built-hideout': [6, 3],
-  'ghost-of-the-block': [6, 4],
+  'ghost-of-the-block': [7, 4],
   'top-shelf-operator': [6, 5],
   'full-rack-enforcer': [6, 6],
-  'road-king': [6, 7],
+  'road-king': [7, 5],
   'no-paper-trail': [6, 8],
   'corner-boss': [6, 9],
   kingpin: [6, 10],
@@ -111,14 +111,14 @@ const badgeArtByKey: Record<string, BadgeArtPosition> = {
   'street-pass-s1-fresh-face': [7, 1],
   'street-pass-s1-made-man': [7, 2],
   'street-pass-s1-kingpin': [7, 3],
-  'faction-many-friends': [7, 4],
-  'faction-inner-circle': [7, 5],
-  'faction-two-crowns': [7, 6],
-  'kings-friend': [7, 7],
-  'outfit-associate': [7, 8],
-  'top-ten': [7, 9],
-  'faction-kings': [7, 7],
-  'faction-outfit': [7, 8],
+  'faction-many-friends': [7, 6],
+  'faction-inner-circle': [7, 7],
+  'faction-two-crowns': [7, 8],
+  'kings-friend': [7, 9],
+  'outfit-associate': [7, 10],
+  'top-ten': [0, 8],
+  'faction-kings': [7, 9],
+  'faction-outfit': [7, 10],
 
   // Permanent quest titles from casino, law, and faction story arcs — atlases 9–10.
   'ace-floor-walker': [8, 0],
@@ -139,7 +139,7 @@ const badgeArtByKey: Record<string, BadgeArtPosition> = {
   'faction-civic': [9, 7],
 };
 
-const atlasUrls = Array.from({ length: 10 }, (_, index) =>
+const atlasUrls = Array.from({ length: 11 }, (_, index) =>
   `/assets/profile-badges/atlas-${String(index + 1).padStart(2, '0')}.webp`,
 );
 
