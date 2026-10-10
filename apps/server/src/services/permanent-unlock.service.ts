@@ -86,7 +86,7 @@ export const PermanentUnlockService = {
     const access = (await PermanentUnlockService.districtAccess(db, roundPlayerId, ruleset)).get(districtKey);
     if (!access || access.unlocked) return;
     const quest = PermanentUnlockService.questFor(ruleset, access.unlock.key);
-    throw AppError.conflict('DISTRICT_SCOUT_LOCKED', quest ? `Finish "${quest.title}"${quest.giverName ? ` for ${quest.giverName}` : ''} to unlock scouting in ${access.unlock.name}.` : `Complete the required job to unlock scouting in ${access.unlock.name}.`);
+    throw AppError.conflict('DISTRICT_ACCESS_LOCKED', quest ? `Finish "${quest.title}"${quest.giverName ? ` for ${quest.giverName}` : ''} to unlock access to ${access.unlock.name}.` : `Complete the required job to unlock access to ${access.unlock.name}.`);
   },
 
   async assertCanProduceProduct(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, productKey: string): Promise<void> {
