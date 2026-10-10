@@ -95,6 +95,11 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
     expect(page.economy).toBe(true);
     const weed = page.products.find((product) => product.key === 'WEED')!;
     expect(weed.pip).toMatchObject({ buyCents: 800, sellCents: 240, stock: 400, cap: 400 });
+    expect(page.products.find((product) => product.key === 'METH')!.recipeAccess).toMatchObject({
+      unlocked: true,
+      unlockName: null,
+      unlockQuest: null,
+    });
     expect(page.products.find((product) => product.key === 'CRACK')!.pip).toBeNull();
 
     const before = await row(0);
