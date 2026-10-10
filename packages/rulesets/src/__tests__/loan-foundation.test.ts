@@ -4,6 +4,7 @@ import { classicOgV165A } from '../classic-og-v1.6.5-a/index.js';
 import { classicOgV165B } from '../classic-og-v1.6.5-b/index.js';
 import { classicOgV165C } from '../classic-og-v1.6.5-c/index.js';
 import { classicOgV165E } from '../classic-og-v1.6.5-e/index.js';
+import { classicOgV165G } from '../classic-og-v1.6.5-g/index.js';
 import { hideoutV2For } from '../hideout-v2.js';
 import { rulesets } from '../index.js';
 import type { Ruleset } from '../types.js';
@@ -118,10 +119,10 @@ describe('1.6.5-C escalating terms ruleset', () => {
 describe('1.6.5-E collections ruleset', () => {
   const rules = classicOgV165E.loanShark;
 
-  it('is the ruleset new rounds start on, and adds only collections to 1.6.5-C', () => {
+  it('adds only collections to 1.6.5-C while the G release snapshot is newest', () => {
     expect(classicOgV165E.meta).toEqual({ id: 'classic-og-v1.6.5-e', version: '1.6.5-E', name: 'Classic OG - Loan Collections' });
     expect(rulesets[classicOgV165E.meta.id]).toBe(classicOgV165E);
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV165E);
+    expect(Object.values(rulesets).at(-1)).toBe(classicOgV165G);
     const { collections: _collections, ...rest } = rules;
     expect(rest).toEqual(classicOgV165C.loanShark);
     const { meta: _meta, loanShark: _loanShark, ...others } = classicOgV165E;
