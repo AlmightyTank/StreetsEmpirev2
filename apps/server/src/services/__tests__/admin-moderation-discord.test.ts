@@ -8,15 +8,9 @@ import { DiscordStaffService } from '../discord-staff.service.js';
 const now = new Date('2026-10-10T15:00:00.000Z');
 const admin = { id: 'acct-admin', username: 'admin', isAdmin: true };
 
-type Sender = { username: string; isAdmin: boolean; commsMutedUntil: Date | null; commsMutedPermanent: boolean };
-const unmuted: Sender = { username: 'loud_guy', isAdmin: false, commsMutedUntil: null, commsMutedPermanent: false };
-
-function fakePrisma(options: { account?: typeof admin | null; report?: { resolvedAt: Date | null; senderAccountId: string } | null; sender?: Sender }) {
+function fakePrisma(options: { account?: typeof admin | null; report?: { resolvedAt: Date | null; senderAccountId: string } | null }) {
   return {
-    account: {
-      findFirst: async () => (options.account === undefined ? admin : options.account),
-      findUniqueOrThrow: async () => options.sender ?? unmuted,
-    },
+    account: { findFirst: async () => (options.account === undefined ? admin : options.account) },
     playerMessageReport: {
       findUnique: async () => (options.report === undefined
         ? { resolvedAt: null, message: { sender: { accountId: 'acct-sender' } } }
@@ -28,53 +22,31 @@ function fakePrisma(options: { account?: typeof admin | null; report?: { resolve
 afterEach(() => vi.restoreAllMocks());
 
 describe('AdminModerationService.actFromDiscord', () => {
-  it('closes the report as actioned first, then mutes the sender for a day, as the linked admin', async () => {
+  it('mutes the sender for a day, then closes the report as actioned, as the linked admin', async () => {
     const calls: string[] = [];
     const mute = vi.spyOn(AdminAccountService, 'muteComms').mockImplementation(async () => { calls.push('mute'); return {} as never; });
     const resolve = vi.spyOn(AdminModerationService, 'resolve').mockImplementation(async () => { calls.push('resolve'); return {} as never; });
-    expect(await AdminModerationService.actFromDiscord(fakePrisma({}), '123456789012345678', 'rep1', 'mute-1d', 'Threats, read in admin', now)).toEqual({ mute: 'applied' });
-    expect(calls).toEqual(['resolve', 'mute']);
+    await AdminModerationService.actFromDiscord(fakePrisma({}), '123456789012345678', 'rep1', 'mute-1d', 'Threats, read in admin', now);
+    expect(calls).toEqual(['mute', 'resolve']);
     expect(mute).toHaveBeenCalledWith(expect.anything(), admin, 'acct-sender', '1d', 'Threats, read in admin', now);
     expect(resolve).toHaveBeenCalledWith(expect.anything(), admin, 'rep1', 'ACTIONED', 'Threats, read in admin', now);
-  });
-
-  it('never shortens a longer mute already in force', async () => {
-    const mute = vi.spyOn(AdminAccountService, 'muteComms').mockResolvedValue({} as never);
-    vi.spyOn(AdminModerationService, 'resolve').mockResolvedValue({} as never);
-    const weekLeft = { ...unmuted, commsMutedUntil: new Date(now.getTime() + 7 * 24 * 60 * 60_000) };
-    expect(await AdminModerationService.actFromDiscord(fakePrisma({ sender: weekLeft }), '1', 'rep1', 'mute-1d', 'note!', now)).toEqual({ mute: 'kept' });
-    expect(await AdminModerationService.actFromDiscord(fakePrisma({ sender: { ...unmuted, commsMutedPermanent: true } }), '1', 'rep1', 'mute-1d', 'note!', now)).toEqual({ mute: 'kept' });
-    expect(mute).not.toHaveBeenCalled();
-    // A mute that runs out sooner than a day is extended to the day.
-    const hourLeft = { ...unmuted, commsMutedUntil: new Date(now.getTime() + 60 * 60_000) };
-    expect(await AdminModerationService.actFromDiscord(fakePrisma({ sender: hourLeft }), '1', 'rep1', 'mute-1d', 'note!', now)).toEqual({ mute: 'applied' });
-  });
-
-  it('mutes nobody when another admin closed the report first', async () => {
-    const mute = vi.spyOn(AdminAccountService, 'muteComms');
-    vi.spyOn(AdminModerationService, 'resolve').mockRejectedValue(Object.assign(new Error('Another admin already resolved that report.'), { code: 'REPORT_RESOLVED' }));
-    await expect(AdminModerationService.actFromDiscord(fakePrisma({}), '1', 'rep1', 'mute-1d', 'note!', now)).rejects.toMatchObject({ code: 'REPORT_RESOLVED' });
-    expect(mute).not.toHaveBeenCalled();
   });
 
   it('dismisses without muting', async () => {
     const mute = vi.spyOn(AdminAccountService, 'muteComms');
     const resolve = vi.spyOn(AdminModerationService, 'resolve').mockResolvedValue({} as never);
-    expect(await AdminModerationService.actFromDiscord(fakePrisma({}), '123456789012345678', 'rep1', 'dismiss', 'Banter between allies', now)).toEqual({ mute: 'none' });
+    await AdminModerationService.actFromDiscord(fakePrisma({}), '123456789012345678', 'rep1', 'dismiss', 'Banter between allies', now);
     expect(mute).not.toHaveBeenCalled();
     expect(resolve).toHaveBeenCalledWith(expect.anything(), admin, 'rep1', 'DISMISSED', 'Banter between allies', now);
   });
 
-  it('refuses before closing anything: not a linked admin, an admin sender, or a closed or missing report', async () => {
+  it('refuses members who are not linked admins, and reports already closed, before muting anyone', async () => {
     const mute = vi.spyOn(AdminAccountService, 'muteComms');
-    const resolve = vi.spyOn(AdminModerationService, 'resolve');
     await expect(AdminModerationService.actFromDiscord(fakePrisma({ account: null }), '1', 'rep1', 'mute-1d', 'note!', now)).rejects.toMatchObject({ code: 'DISCORD_NOT_LINKED' });
     await expect(AdminModerationService.actFromDiscord(fakePrisma({ account: { ...admin, isAdmin: false } }), '1', 'rep1', 'mute-1d', 'note!', now)).rejects.toMatchObject({ statusCode: 403 });
-    await expect(AdminModerationService.actFromDiscord(fakePrisma({ sender: { ...unmuted, isAdmin: true } }), '1', 'rep1', 'mute-1d', 'note!', now)).rejects.toMatchObject({ code: 'ADMIN_COMMS_MUTE' });
     await expect(AdminModerationService.actFromDiscord(fakePrisma({ report: { resolvedAt: now, senderAccountId: 'acct-sender' } }), '1', 'rep1', 'mute-1d', 'note!', now)).rejects.toMatchObject({ code: 'REPORT_RESOLVED' });
     await expect(AdminModerationService.actFromDiscord(fakePrisma({ report: null }), '1', 'rep1', 'dismiss', 'note!', now)).rejects.toMatchObject({ code: 'REPORT_NOT_FOUND' });
     expect(mute).not.toHaveBeenCalled();
-    expect(resolve).not.toHaveBeenCalled();
   });
 });
 

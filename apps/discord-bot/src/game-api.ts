@@ -214,8 +214,7 @@ const staffPostSchema = z.object({
 const staffClaimSchema = z.object({ posts: z.array(staffPostSchema) });
 const bugCreatedSchema = z.object({ ok: z.literal(true), id: z.string(), message: z.string() });
 const bugResolvedSchema = z.object({ report: staffBugReportSchema });
-/** applied: muted now. kept: a longer mute was already in force. none: dismissed. */
-const reportActedSchema = z.object({ report: staffMessageReportSchema, mute: z.enum(['applied', 'kept', 'none']) });
+const reportActedSchema = z.object({ report: staffMessageReportSchema });
 
 const ticketSchema = z.object({
   id: z.string(),
@@ -603,7 +602,7 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
       (await call(bugResolvedSchema, `/api/internal/discord/bug-reports/${encodeURIComponent(reportId)}/resolve`, { method: 'POST', body: input })).report,
     /** A staff button on a message report; the game checks the member is a linked admin. */
     actOnMessageReport: async (reportId: string, input: { discordId: string; action: ReportAction; note: string }) =>
-      call(reportActedSchema, `/api/internal/discord/message-reports/${encodeURIComponent(reportId)}/act`, { method: 'POST', body: input }),
+      (await call(reportActedSchema, `/api/internal/discord/message-reports/${encodeURIComponent(reportId)}/act`, { method: 'POST', body: input })).report,
     /** Whether a member may use staff buttons: a linked, active game admin. */
     isStaff: async (discordId: string) => (await call(staffCheckSchema, `/api/internal/discord/staff?${query({ discordId })}`)).admin,
     /** /support: their open ticket, or a new one with staff-only context. */

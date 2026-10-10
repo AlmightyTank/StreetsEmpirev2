@@ -93,11 +93,6 @@ function summary(row: ReportRow, against: Map<string, number>, now: Date): Admin
 /** What the Discord staff buttons on a message report can do. */
 export type DiscordReportAction = 'mute-1d' | 'dismiss';
 
-/** What happened to the sender's messaging: muted now, an existing longer mute kept, or nothing. */
-export type DiscordReportMute = 'applied' | 'kept' | 'none';
-
-const DAY_MS = 24 * 60 * 60_000;
-
 export const AdminModerationService = {
   /**
    * One report as the queue lists it, for the staff channel: who reported whom
@@ -212,8 +207,6 @@ export const AdminModerationService = {
         where: { messageId: row.messageId, resolvedAt: null },
         data: { resolvedAt: now, resolvedByUsername: actor.username, resolution, resolutionNote: note },
       });
-      // Another admin closed them between the check and here: their decision stands.
-      if (count === 0) throw AppError.conflict('REPORT_RESOLVED', 'Another admin already resolved that report.');
       // Every closed report's staff post says so, not just this one's.
       for (const closed of closing) await DiscordStaffService.queue(tx, 'MESSAGE_REPORT_RESOLVED', closed.id);
       await AdminAuditService.record(tx, actor, {
@@ -230,10 +223,9 @@ export const AdminModerationService = {
   },
 
   /**
-   * A staff button in Discord, for linked game admins only. The report closes first,
-   * so when two admins act at once only the one whose close lands mutes anyone. The
-   * mute is then its own audited account action, and never shortens a longer mute
-   * already in force. Neither button shows the message, which stays behind the audited open.
+   * A staff button in Discord, for linked game admins only. Muting is still its own
+   * audited account action, taken before the report closes as actioned; dismissing
+   * just closes it. Neither shows the message, which stays behind the audited open.
    */
   async actFromDiscord(
     prisma: PrismaClient,
@@ -242,7 +234,7 @@ export const AdminModerationService = {
     action: DiscordReportAction,
     note: string,
     now = new Date(),
-  ): Promise<{ mute: DiscordReportMute }> {
+  ): Promise<void> {
     const actor = await linkedDiscordAccount(prisma, discordId);
     if (!actor.isAdmin) throw AppError.forbidden('Only game admins can act on reports.');
     const row = await prisma.playerMessageReport.findUnique({
@@ -251,19 +243,7 @@ export const AdminModerationService = {
     });
     if (!row) throw AppError.notFound('REPORT_NOT_FOUND', 'That report does not exist.');
     if (row.resolvedAt) throw AppError.conflict('REPORT_RESOLVED', 'Another admin already resolved that report.');
-    const muting = action === 'mute-1d';
-    const sender = await prisma.account.findUniqueOrThrow({
-      where: { id: row.message.sender.accountId },
-      select: { username: true, isAdmin: true, commsMutedUntil: true, commsMutedPermanent: true },
-    });
-    // Checked before closing, so a report never closes as actioned with nobody muted.
-    if (muting && sender.isAdmin) throw AppError.conflict('ADMIN_COMMS_MUTE', `Remove ${sender.username}'s admin role before muting them.`);
-    const longer = sender.commsMutedPermanent || Boolean(sender.commsMutedUntil && sender.commsMutedUntil.getTime() >= now.getTime() + DAY_MS);
-
-    await AdminModerationService.resolve(prisma, actor, reportId, muting ? 'ACTIONED' : 'DISMISSED', note, now);
-    if (!muting) return { mute: 'none' };
-    if (longer) return { mute: 'kept' };
-    await AdminAccountService.muteComms(prisma, actor, row.message.sender.accountId, '1d', note, now);
-    return { mute: 'applied' };
+    if (action === 'mute-1d') await AdminAccountService.muteComms(prisma, actor, row.message.sender.accountId, '1d', note, now);
+    await AdminModerationService.resolve(prisma, actor, reportId, action === 'mute-1d' ? 'ACTIONED' : 'DISMISSED', note, now);
   },
 };

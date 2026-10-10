@@ -173,13 +173,6 @@ export function staffPostMessage(post: StaffPost): StaffMessage | null {
   return null;
 }
 
-/** What the admin is told after a report button: never claims a mute that did not happen. */
-export function reportActedText(sender: string, mute: 'applied' | 'kept' | 'none'): string {
-  if (mute === 'applied') return `Muted ${sender} for 1 day and closed every report on that message. Lift it from their admin account page.`;
-  if (mute === 'kept') return `${sender} was already muted for longer than a day, so that mute stays as it is. Closed every report on that message as actioned.`;
-  return 'Dismissed every report on that message.';
-}
-
 /** The game's words for a refusal the member can act on; anything else is an outage. */
 export function staffErrorText(error: unknown, origin: string): string {
   if (error instanceof GameApiError && error.status >= 400 && error.status < 500 && error.status !== 401) {
@@ -260,13 +253,17 @@ export async function handleStaffModal(interaction: ModalSubmitInteraction, deps
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   try {
     if (act) {
-      const { report, mute } = await deps.api.actOnMessageReport(act.reportId, {
+      const report = await deps.api.actOnMessageReport(act.reportId, {
         discordId: interaction.user.id,
         action: act.action,
         note: interaction.fields.getTextInputValue('note').trim(),
       });
       if (interaction.message) await interaction.message.edit(messageReportMessage(report)).catch(() => undefined);
-      await interaction.editReply({ content: reportActedText(report.sender.displayName, mute) });
+      await interaction.editReply({
+        content: act.action === 'mute-1d'
+          ? `Muted ${report.sender.displayName} for 1 day and closed every report on that message. Lift it from their admin account page.`
+          : 'Dismissed every report on that message.',
+      });
       return;
     }
     if (category) {
