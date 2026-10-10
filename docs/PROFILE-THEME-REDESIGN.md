@@ -17,7 +17,7 @@ The earlier generic popup effects have been removed from the picker and request 
 
 The first Street Pass rewards use the same independent controls: tier 15 grants the Ice Dragon shell and Snowstorm Drake frame; tier 25 grants the Fire Dragon shell and Inferno Drake frame. The popup effect is selected separately from the shell, and each frame can be selected separately for the popup and avatar.
 
-All eight redesigned sets now ship in Street Pass Season 1 as paired site-shell themes and profile frames. The frames power both the popup trim animation and avatar ring; players can select the shell, popup effect, popup frame, and avatar frame independently, or match them. The CSS artwork uses animated light, shimmer, glints, dust, and motif motion. The Dragon sets remain the more elaborate illustrated pair with their full-shell snowfall and fire effects.
+All eight redesigned sets now ship in Street Pass Season 1 as paired site-shell themes and profile frames. The frames power both the popup trim animation and avatar ring; players can select the shell, popup effect, popup frame, and avatar frame independently, or match them. Each shell now has its own illustrated, transparent backdrop layer with slow ambient motion, alongside animated light, shimmer, glints, dust, and motes. The Dragon sets retain their illustrated backdrops with full-shell snowfall and fire effects.
 
 | Theme pack | Shell style key | Popup/frame style key | Street Pass tier |
 | --- | --- | --- | ---: |
