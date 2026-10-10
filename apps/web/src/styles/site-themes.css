@@ -1310,7 +1310,12 @@
 .se-site-theme-decor--midnight-market { --se-pack-color: #e6c979; }
 @keyframes se-theme-pack-haze { from { opacity: .28; } to { opacity: .8; } }
 @media (min-width: 900px) {
-  /* The desktop game frame pins a sidebar left and a taller HUD bar; frame the content column. */
+  /* The desktop game frame pins a sidebar left and a taller HUD bar; frame the content column.
+     The folded icon rail narrows the sidebar on .se-frame, a sibling of the decor, so lift that
+     width to the shared .se-app ancestor for the scenes to follow it. */
+  .se-app--sidebar:has(> .se-frame--rail) {
+    --se-sidebar-w: 68px;
+  }
   .se-app--sidebar :is(.se-site-theme-decor--scene, .se-site-theme-decor--dragon) {
     top: var(--se-topbar-h);
     left: var(--se-sidebar-w);
@@ -1810,7 +1815,14 @@
 
 .se-reduced-motion .se-theme-pack__haze,
 .se-reduced-motion .se-theme-scene * { animation: none !important; }
+/* Travelling pieces rest off-screen between passes; with motion off, park them in view instead. */
+.se-reduced-motion .se-dg__flight { transform: translate(900px, 56px); }
+.se-reduced-motion .se-pc__convoy { transform: translate(500px, 0); }
+.se-reduced-motion .se-bs__flock { transform: translate(1100px, 60px); }
 @media (prefers-reduced-motion: reduce) {
   .se-theme-pack__haze,
   .se-theme-scene * { animation: none !important; }
+  .se-dg__flight { transform: translate(900px, 56px); }
+  .se-pc__convoy { transform: translate(500px, 0); }
+  .se-bs__flock { transform: translate(1100px, 60px); }
 }
