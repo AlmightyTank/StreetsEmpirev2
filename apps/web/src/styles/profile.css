@@ -936,8 +936,15 @@
 .se-badge-art {
   display: block;
   flex: 0 0 auto;
+  background-image: url('/assets/profile-badge-atlas.webp');
+  background-repeat: no-repeat;
+  background-size: 400% 300%;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .48));
 }
+
+.se-badge-art--rare { filter: drop-shadow(0 0 3px rgba(90, 188, 255, .58)); }
+.se-badge-art--epic { filter: drop-shadow(0 0 4px rgba(184, 125, 255, .72)); }
+.se-badge-art--legendary { filter: drop-shadow(0 0 5px rgba(255, 207, 82, .82)); }
 
 .se-profile .se-badges {
   display: flex;
