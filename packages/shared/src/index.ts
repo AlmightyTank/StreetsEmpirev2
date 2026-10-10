@@ -8,6 +8,7 @@ export * from './schemas/survey.js';
 export * from './schemas/admin-survey.js';
 export * from './types/api.js';
 export * from './types/casino.js';
+export * from './types/sportsbook.js';
 export * from './types/casino-tournament.js';
 export * from './types/law.js';
 export * from './types/community.js';

@@ -422,6 +422,29 @@ async function moveLocalCash(
   await refreshAwayWorth(tx, roundPlayerId, ruleset);
 }
 
+/** Move sportsbook cash from the boss's current physical wallet without touching turns. */
+export async function moveSportsbookCash(
+  tx: Db,
+  roundPlayerId: string,
+  ruleset: Ruleset,
+  deltaCents: bigint,
+  now: Date,
+): Promise<void> {
+  const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, include: { city: true, round: true } });
+  if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
+  const location = await casinoCashLocation(tx, ruleset, player, now);
+  if (!location) {
+    if (deltaCents < 0n) throw AppError.conflict('NOT_ENOUGH_CASH', 'The boss does not have available cash on hand for that wager.');
+    // A result may settle while the boss is between locations; credit safe home cash.
+    await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { cashCents: { increment: deltaCents } } });
+    return;
+  }
+  if (deltaCents < 0n && location.cashCents < -deltaCents) {
+    throw AppError.conflict('NOT_ENOUGH_CASH', 'The boss does not have enough cash on hand for that wager.');
+  }
+  await moveLocalCash(tx, roundPlayerId, ruleset, location, deltaCents);
+}
+
 function venueDto(
   casino: CasinoRules,
   city: { id: string; slug: string; name: string },

@@ -1292,6 +1292,8 @@ model RoundPlayer {
   casinoWallets           CasinoWallet[]
   casinoSessions          CasinoSession[]
   casinoLedger            CasinoLedgerEntry[]
+  /// 1.8.0-A. Off-turn pregame sportsbook tickets.
+  sportsbookBets          SportsbookBet[]
   /// 1.3.0-A. What each city's police have on this player, and every change to it.
   cases                   PlayerCase[]
   caseReceipts            PlayerCaseReceipt[]
@@ -3620,6 +3622,74 @@ model CasinoJackpot {
 
   @@unique([roundId, machineKey])
   @@index([machineKey])
+}
+
+/// 1.8.0-A. Shared, server-cached pregame moneyline snapshot from TheRundown.
+/// Player reads never call the provider; refreshes are performed by one background poller.
+model SportsbookEvent {
+  id String @id @default(cuid())
+
+  providerEventId String @unique
+  sport           String
+  homeTeam        String
+  awayTeam        String
+  startsAt        DateTime
+  status          String   @default("PRE")
+  homeOdds        Int?
+  awayOdds        Int?
+  homeScore       Int?
+  awayScore       Int?
+  oddsUpdatedAt   DateTime?
+  settledAt       DateTime?
+  lastSeenAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  bets SportsbookBet[]
+
+  @@index([sport, startsAt, status])
+  @@index([status, settledAt])
+}
+
+/// TheRundown quota headers and last successful snapshot time; one row per provider key.
+model SportsbookProviderState {
+  id String @id @default("therundown")
+
+  lastPolledAt       DateTime?
+  lastDatapoints     Int       @default(0)
+  datapointsUsed     Int       @default(0)
+  datapointsLimit    Int       @default(0)
+  datapointsRemaining Int?
+  datapointsPeriod   String    @default("")
+  quotaObservedAt    DateTime?
+  lastErrorAt        DateTime?
+  lastError          String    @default("")
+  updatedAt          DateTime  @updatedAt
+}
+
+/// An immutable game-cash wager. Price/payout are pinned at acceptance, independent of
+/// subsequent line movement, and actionId makes retries a single charge.
+model SportsbookBet {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  eventId       String
+  event         SportsbookEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  actionId       String
+  selection      String
+  oddsAmerican   Int
+  stakeCents     BigInt
+  payoutCents    BigInt
+  status         String   @default("OPEN")
+  settledAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([roundPlayerId, actionId])
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+  @@index([eventId, status])
 }
 
 /// 0.6.0-D. The box attached to one away-held block. A home block never needs one.
