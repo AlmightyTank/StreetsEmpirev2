@@ -365,6 +365,16 @@ export type PermanentUnlockEffect =
       readonly productKey: string;
     }
   | {
+      /** Opens a product's cookhouse recipe without granting purchase access. */
+      readonly kind: 'PRODUCT_PRODUCTION_ACCESS';
+      readonly productKey: string;
+    }
+  | {
+      /** Allows scouting a district while leaving it visible on the district list. */
+      readonly kind: 'DISTRICT_SCOUT_ACCESS';
+      readonly districtKey: DistrictKey;
+    }
+  | {
       /** 1.5.0-E2. Charlie sells this vehicle class. */
       readonly kind: 'VEHICLE_PURCHASE_ACCESS';
       readonly classId: 'SEDAN' | 'VAN';

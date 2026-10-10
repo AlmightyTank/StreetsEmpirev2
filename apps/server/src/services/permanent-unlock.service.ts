@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { PermanentUnlockDefinition, Ruleset, WeaponUnlockKey } from '@streets/rulesets';
+import type { DistrictKey, PermanentUnlockDefinition, Ruleset, WeaponUnlockKey } from '@streets/rulesets';
 import type { QuestLinkDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
@@ -58,6 +58,42 @@ export const PermanentUnlockService = {
       if (definition.effect.kind === 'PRODUCT_PURCHASE_ACCESS' && !keys.has(definition.key)) locked.set(definition.effect.productKey, definition);
     }
     return locked;
+  },
+
+  productProductionUnlock(ruleset: Ruleset, productKey: string): PermanentUnlockDefinition | null {
+    return Object.values(ruleset.permanentUnlocks ?? {}).find((definition) => definition.effect.kind === 'PRODUCT_PRODUCTION_ACCESS' && definition.effect.productKey === productKey) ?? null;
+  },
+
+  async lockedProductionRecipes(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<Map<string, PermanentUnlockDefinition>> {
+    const locked = new Map<string, PermanentUnlockDefinition>();
+    const gated = Object.values(ruleset.permanentUnlocks ?? {}).filter((definition) => definition.effect.kind === 'PRODUCT_PRODUCTION_ACCESS');
+    if (!gated.length) return locked;
+    const keys = await PermanentUnlockService.keys(db, roundPlayerId);
+    for (const definition of gated) if (definition.effect.kind === 'PRODUCT_PRODUCTION_ACCESS' && !keys.has(definition.key)) locked.set(definition.effect.productKey, definition);
+    return locked;
+  },
+
+  async scoutDistrictAccess(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<Map<DistrictKey, { unlock: PermanentUnlockDefinition; unlocked: boolean }>> {
+    const access = new Map<DistrictKey, { unlock: PermanentUnlockDefinition; unlocked: boolean }>();
+    const gated = Object.values(ruleset.permanentUnlocks ?? {}).filter((definition) => definition.effect.kind === 'DISTRICT_SCOUT_ACCESS');
+    if (!gated.length) return access;
+    const keys = await PermanentUnlockService.keys(db, roundPlayerId);
+    for (const definition of gated) if (definition.effect.kind === 'DISTRICT_SCOUT_ACCESS') access.set(definition.effect.districtKey, { unlock: definition, unlocked: keys.has(definition.key) });
+    return access;
+  },
+
+  async assertCanScoutDistrict(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, districtKey: DistrictKey): Promise<void> {
+    const access = (await PermanentUnlockService.scoutDistrictAccess(db, roundPlayerId, ruleset)).get(districtKey);
+    if (!access || access.unlocked) return;
+    const quest = PermanentUnlockService.questFor(ruleset, access.unlock.key);
+    throw AppError.conflict('DISTRICT_SCOUT_LOCKED', quest ? `Finish "${quest.title}"${quest.giverName ? ` for ${quest.giverName}` : ''} to unlock scouting in ${access.unlock.name}.` : `Complete the required job to unlock scouting in ${access.unlock.name}.`);
+  },
+
+  async assertCanProduceProduct(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, productKey: string): Promise<void> {
+    const required = (await PermanentUnlockService.lockedProductionRecipes(db, roundPlayerId, ruleset)).get(productKey);
+    if (!required) return;
+    const quest = PermanentUnlockService.questFor(ruleset, required.key);
+    throw AppError.conflict('PRODUCT_RECIPE_LOCKED', quest ? `Finish "${quest.title}"${quest.giverName ? ` for ${quest.giverName}` : ''} to unlock the ${required.name} recipe.` : `Complete the required job to unlock the ${required.name} recipe.`);
   },
 
   /**

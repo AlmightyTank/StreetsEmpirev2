@@ -268,6 +268,7 @@ export const ProductMarketService = {
         const recipe = economyOn ? recipes.get(key) : undefined;
         const requiredUnlock = PermanentUnlockService.productPurchaseUnlock(ruleset, key);
         const purchaseUnlocked = !requiredUnlock || unlockKeys.has(requiredUnlock.key);
+        const recipeUnlock = PermanentUnlockService.productProductionUnlock(ruleset, key);
         const effectiveBuyCents = quote
           ? discountedPipBuyCents(quote.buyCents, sellCents, relationship.buyDiscountPercent + favorBonuses.pipBuyDiscountPercent + (nudge?.percent ?? 0))
           : 0;
@@ -307,6 +308,7 @@ export const ProductMarketService = {
             } : null,
             recipe: recipe ? { perThugPerTurn: recipe.perThugPerTurn, ingredientCentsPerUnit: recipe.ingredientCentsPerUnit, heatPerUnit: recipe.heatPerUnit } : null,
           } : {}),
+          ...(recipeUnlock ? { recipeAccess: { unlocked: unlockKeys.has(recipeUnlock.key), unlockName: recipeUnlock.name, unlockDescription: recipeUnlock.description, unlockQuest: PermanentUnlockService.questFor(ruleset, recipeUnlock.key) } } : {}),
         };
       }),
     };
