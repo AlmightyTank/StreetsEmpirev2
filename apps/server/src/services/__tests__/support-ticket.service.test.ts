@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
-import { SupportTicketService } from '../support-ticket.service.js';
+import { SupportTicketService, TICKET_PROVISION_MS } from '../support-ticket.service.js';
 
 const now = new Date('2026-10-10T15:00:00.000Z');
 
@@ -10,7 +10,9 @@ type Ticket = {
 };
 
 function fakePrisma(tickets: Ticket[], accounts: Array<{ discordId: string; isAdmin: boolean; isActive?: boolean }> = []) {
-  return {
+  const db = {
+    $executeRaw: async () => 0,
+    $transaction: async <T>(work: (tx: unknown) => Promise<T>) => work(db),
     supportTicket: {
       findFirst: async ({ where }: { where: { discordId: string; closedAt: null } }) => tickets.find((row) => row.discordId === where.discordId && !row.closedAt) ?? null,
       findUnique: async ({ where }: { where: { id: string } }) => tickets.find((row) => row.id === where.id) ?? null,
@@ -41,7 +43,8 @@ function fakePrisma(tickets: Ticket[], accounts: Array<{ discordId: string; isAd
         return account ? { isAdmin: account.isAdmin } : null;
       },
     },
-  } as unknown as PrismaClient;
+  };
+  return db as unknown as PrismaClient;
 }
 
 const ticket = (overrides: Partial<Ticket> = {}): Ticket => ({
@@ -67,8 +70,14 @@ describe('SupportTicketService.open', () => {
     expect(tickets).toHaveLength(1);
   });
 
+  it('leaves a ticket another form is still making, rather than deleting it', async () => {
+    const tickets = [ticket({ id: 'making', threadId: null, createdAt: new Date(now.getTime() - 10_000) })];
+    expect(await SupportTicketService.open(fakePrisma(tickets), { discordId: 'member', discordName: 'Member', subject: 'Twice' }, now)).toEqual({ pending: true });
+    expect(tickets.map((row) => row.id)).toEqual(['making']);
+  });
+
   it('replaces a ticket the bot never finished making', async () => {
-    const tickets = [ticket({ id: 'half', threadId: null })];
+    const tickets = [ticket({ id: 'half', threadId: null, createdAt: new Date(now.getTime() - TICKET_PROVISION_MS - 1) })];
     const opened = await SupportTicketService.open(fakePrisma(tickets), { discordId: 'member', discordName: 'Member', subject: 'Try again' }, now);
     expect('ticket' in opened && opened.ticket.subject).toBe('Try again');
     expect(tickets.map((row) => row.id)).not.toContain('half');

@@ -124,6 +124,8 @@ async function usableSupportChannel(): Promise<TextChannel | null> {
   } else {
     const missing = channel.permissionsFor(await readyGuild.members.fetchMe()).missing([
       PermissionFlagsBits.ViewChannel,
+      // Discord also wants Send Messages to start a thread, even with Create Private Threads.
+      PermissionFlagsBits.SendMessages,
       PermissionFlagsBits.CreatePrivateThreads,
       PermissionFlagsBits.SendMessagesInThreads,
       PermissionFlagsBits.EmbedLinks,

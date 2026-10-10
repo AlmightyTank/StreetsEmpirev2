@@ -269,6 +269,8 @@ const supportContextSchema = z.object({
 
 const openTicketSchema = z.union([
   z.object({ existing: ticketSchema }),
+  /** Another of their /support forms is making its thread right now. */
+  z.object({ pending: z.literal(true) }),
   z.object({ ticket: ticketSchema, context: supportContextSchema }),
 ]);
 const closedTicketSchema = z.object({ ticket: ticketSchema });
