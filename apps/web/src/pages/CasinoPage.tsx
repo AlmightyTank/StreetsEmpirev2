@@ -49,7 +49,7 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-type CasinoGameKey = 'slots' | 'blackjack' | 'roulette' | 'street-dice' | 'poker';
+type CasinoGameKey = 'slots' | 'blackjack' | 'roulette' | 'street-dice' | 'poker' | 'sportsbook';
 
 const CASINO_GAMES: readonly {
   key: CasinoGameKey;
@@ -104,6 +104,15 @@ const CASINO_GAMES: readonly {
     live: true,
     title: 'Solo Poker',
     description: 'Texas Hold’em against two house players. Multiplayer tables are planned for a later slice.',
+  },
+  {
+    key: 'sportsbook',
+    label: 'Sports Betting',
+    icon: '🏟️',
+    status: 'LIVE',
+    live: true,
+    title: 'Sports Betting',
+    description: 'Pregame moneylines for NFL, NBA, MLB and NHL. Cash bets close at kickoff.',
   },
 ];
 
@@ -599,14 +608,6 @@ export function CasinoPage() {
 
             {!activeGame ? (
               <>
-                <SportsbookPanel
-                  cashCents={data.cashCents}
-                  onPlaced={async () => {
-                    const next = await casinoApi.page();
-                    setData(next);
-                    await refreshSnapshot({ background: false });
-                  }}
-                />
                 <section className="se-casino-lobby" aria-label="Casino games">
                   {CASINO_GAMES.map((game) => (
                     <Link key={game.key} to={'/game/casino/' + game.key} className={'se-casino-gamecard se-casino-gamecard--' + game.key}>
@@ -1221,7 +1222,18 @@ export function CasinoPage() {
             />
                 ) : null}
 
-                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'roulette' && activeGame !== 'street-dice' && activeGame !== 'poker' ? (() => {
+                {activeGame === 'sportsbook' ? (
+                  <SportsbookPanel
+                    cashCents={data.cashCents}
+                    onPlaced={async () => {
+                      const next = await casinoApi.page();
+                      setData(next);
+                      await refreshSnapshot({ background: false });
+                    }}
+                  />
+                ) : null}
+
+                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'roulette' && activeGame !== 'street-dice' && activeGame !== 'poker' && activeGame !== 'sportsbook' ? (() => {
                   const game = CASINO_GAMES.find((candidate) => candidate.key === activeGame)!;
                   return (
                     <CasinoGamePlaceholder
