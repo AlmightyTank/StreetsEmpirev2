@@ -114,6 +114,13 @@ channel once.
   who resolved it and removes the buttons. The reporter gets a "your report was
   resolved" alert by Discord DM or push if they get message alerts. It never
   includes the staff note.
+- Every new private-message report, from a player or the automatic spam check,
+  with who reported whom and why. It never includes the message: reading that
+  stays in **Admin → Reports**, where opening a report is audited.
+- Report posts have **Mute sender 1 day** and **Dismiss** buttons, each asking
+  for a note for the audit log. Muting is the same account action as the admin
+  panel's 1-day comms mute, recorded before the report closes as actioned. Closing
+  one report closes every report on that message, and all of their posts update.
 - Patch notes a deploy holds for review, with when they will publish on their own.
 - Make the channel private to staff. The bot needs **View Channel**, **Send
   Messages**, **Embed Links** and **Read Message History** there (the last one
@@ -200,7 +207,7 @@ DISCORD_ALERTS_MINUTES=1
   right-clicking the channel → **Copy Channel ID**, with Developer Mode on.
 - `DISCORD_RAID_FEED_CHANNEL_ID` is the channel for public raid/combat results.
   Leave it empty to keep the feed off.
-- `DISCORD_STAFF_CHANNEL_ID` is the private staff channel for bug reports and held
+- `DISCORD_STAFF_CHANNEL_ID` is the private staff channel for bug reports, message reports and held
   patch notes. Leave it empty to keep staff posts off.
 
 Restart the game API after setting `DISCORD_BOT_API_TOKEN`.

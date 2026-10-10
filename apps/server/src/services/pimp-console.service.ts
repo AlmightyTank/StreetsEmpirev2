@@ -1,4 +1,4 @@
-import type { ActivityType, PlayerActivity, Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, type ActivityType, type PlayerActivity, type PrismaClient } from '@prisma/client';
 import {
   CONSOLE_ACTIVITY_PAGE_SIZE,
   MESSAGE_PAGE_SIZE,
@@ -28,6 +28,8 @@ import { toActivityDto } from '../game/dto.js';
 import { RoundService } from './round.service.js';
 import { bellWhere } from './in-app-notification.service.js';
 import { assertCanCommunicate, checkDirectMessage, commsMuted, flagMessage } from './communication-guard.js';
+import { wakeDiscordBot } from './discord-bot-push.service.js';
+import { DiscordStaffService } from './discord-staff.service.js';
 
 const SEND_MIN_INTERVAL_MS = 5_000;
 const SEND_WINDOW_MS = 10 * 60_000;
@@ -731,9 +733,11 @@ export const PimpConsoleService = {
         },
         select: messageSelect,
       });
-      await flagMessage(tx, created.id, flags, now);
-      return { row: created, replayed: false as const };
+      const flagId = await flagMessage(tx, created.id, flags, now);
+      if (flagId) await DiscordStaffService.queue(tx, 'MESSAGE_REPORT', flagId);
+      return { row: created, replayed: false as const, flagged: Boolean(flagId) };
     });
+    if ('flagged' in row && row.flagged) wakeDiscordBot('staff');
 
     return {
       message: await oneMessageDto(prisma, owner, row.row),
@@ -812,21 +816,22 @@ export const PimpConsoleService = {
       throw AppError.notFound('MESSAGE_NOT_FOUND', 'Only received messages can be reported.');
     }
 
-    await prisma.playerMessageReport.upsert({
-      where: {
-        messageId_reporterAccountId: {
-          messageId,
-          reporterAccountId: owner.accountId,
-        },
-      },
-      create: {
-        messageId,
-        reporterAccountId: owner.accountId,
-        reason: input.reason,
-      },
-      // A submitted report is immutable evidence. Retrying is a no-op.
-      update: {},
-    });
+    const where = { messageId_reporterAccountId: { messageId, reporterAccountId: owner.accountId } };
+    // A submitted report is immutable evidence. Retrying is a no-op.
+    if (await prisma.playerMessageReport.findUnique({ where, select: { id: true } })) return { ok: true };
+    try {
+      await prisma.$transaction(async (tx) => {
+        const report = await tx.playerMessageReport.create({
+          data: { messageId, reporterAccountId: owner.accountId, reason: input.reason },
+        });
+        await DiscordStaffService.queue(tx, 'MESSAGE_REPORT', report.id);
+      });
+    } catch (error) {
+      // A retry racing this one created the report first, and queued its staff post.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return { ok: true };
+      throw error;
+    }
+    wakeDiscordBot('staff');
     return { ok: true };
   },
 

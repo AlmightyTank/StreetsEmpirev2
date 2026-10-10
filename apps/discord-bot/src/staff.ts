@@ -15,7 +15,16 @@ import {
 } from 'discord.js';
 import { BUG_REPORT_CATEGORIES, BUG_REPORT_REPLY_MAX, BUG_REPORT_RESOLUTIONS } from '@streets/shared';
 import { escapeMarkdown, truncate } from './format.js';
-import { GameApiError, type BugCategory, type BugResolution, type GameApi, type StaffBugReport, type StaffPost } from './game-api.js';
+import {
+  GameApiError,
+  type BugCategory,
+  type BugResolution,
+  type GameApi,
+  type ReportAction,
+  type StaffBugReport,
+  type StaffMessageReport,
+  type StaffPost,
+} from './game-api.js';
 
 /**
  * The staff channel and /bug: bug reports posted with resolve buttons, the forms
@@ -30,6 +39,9 @@ const OPEN_COLOR = 0xf59e0b;
 const RESOLVE_BUTTON = 'bug-resolve';
 const RESOLVE_FORM = 'bug-resolve-form';
 const REPORT_FORM = 'bug-report-form';
+const ACT_BUTTON = 'report-act';
+const ACT_FORM = 'report-act-form';
+const REPORT_ACTIONS: readonly ReportAction[] = ['mute-1d', 'dismiss'];
 
 export type StaffMessage = { embeds: APIEmbed[]; components: APIActionRowComponent<APIComponentInMessageActionRow>[] };
 
@@ -38,6 +50,13 @@ export function parseResolveId(customId: string, prefix: typeof RESOLVE_BUTTON |
   const [head, resolution, reportId, ...rest] = customId.split(':');
   if (head !== prefix || rest.length || !reportId || !(BUG_REPORT_RESOLUTIONS as readonly string[]).includes(resolution ?? '')) return null;
   return { resolution: resolution as BugResolution, reportId };
+}
+
+/** The action and report id a message report button or its form carries, or null. */
+export function parseActionId(customId: string, prefix: typeof ACT_BUTTON | typeof ACT_FORM = ACT_BUTTON): { action: ReportAction; reportId: string } | null {
+  const [head, action, reportId, ...rest] = customId.split(':');
+  if (head !== prefix || rest.length || !reportId || !(REPORT_ACTIONS as readonly string[]).includes(action ?? '')) return null;
+  return { action: action as ReportAction, reportId };
 }
 
 /** The /bug category its form carries, or null. */
@@ -87,6 +106,50 @@ export function bugReportMessage(report: StaffBugReport): StaffMessage {
   };
 }
 
+function partyText(party: StaffMessageReport['sender']): string {
+  return `${escapeMarkdown(party.displayName)} (${escapeMarkdown(party.username)}, #${party.publicPimpId})`;
+}
+
+/**
+ * A message report as staff see it: who reported whom and why, never the message.
+ * Reading it stays in the admin panel, where opening a report is audited.
+ */
+export function messageReportMessage(report: StaffMessageReport): StaffMessage {
+  const auto = report.source === 'AUTO';
+  const resolved = report.resolution
+    ? `${report.resolution === 'ACTIONED' ? 'Actioned' : 'Dismissed'} by ${report.resolvedByUsername ?? 'staff'}`
+    : null;
+  return {
+    embeds: [{
+      title: truncate(`${resolved ? '✅' : auto ? '🤖' : '🚩'} ${auto ? 'Auto-flagged message' : 'Message report'}: ${report.sender.displayName}`, 256),
+      url: report.url,
+      color: report.resolution === 'ACTIONED' ? RESOLUTION_COLORS.FIXED : report.resolution === 'DISMISSED' ? RESOLUTION_COLORS.WONT_FIX : 0xef4444,
+      description: `**${auto ? 'Flagged for' : 'Reason'}:** ${truncate(escapeMarkdown(report.reason), 1000)}\n`
+        + '-# The message is only shown in the admin panel, where opening a report is audited.',
+      fields: [
+        { name: 'Sender', value: partyText(report.sender), inline: true },
+        { name: 'Recipient', value: partyText(report.recipient), inline: true },
+        { name: 'Reported by', value: auto ? 'Automatic spam check' : escapeMarkdown(report.reporterUsername ?? 'a deleted account'), inline: true },
+        { name: 'Round', value: escapeMarkdown(report.roundName), inline: true },
+        { name: 'Open against sender', value: String(report.openAgainstSender), inline: true },
+        { name: 'Sender muted', value: report.senderRestricted ? 'Yes' : 'No', inline: true },
+      ],
+      footer: { text: resolved ?? `Open · ${report.reportsOnMessage} report${report.reportsOnMessage === 1 ? '' : 's'} on this message` },
+      timestamp: report.resolvedAt ?? report.createdAt,
+    }],
+    components: [{
+      type: ComponentType.ActionRow,
+      components: [
+        ...(report.resolution ? [] : [
+          { type: ComponentType.Button as const, style: ButtonStyle.Danger as const, label: 'Mute sender 1 day', custom_id: `${ACT_BUTTON}:mute-1d:${report.id}` },
+          { type: ComponentType.Button as const, style: ButtonStyle.Secondary as const, label: 'Dismiss', custom_id: `${ACT_BUTTON}:dismiss:${report.id}` },
+        ]),
+        linkButton('Read in admin', report.url),
+      ],
+    }],
+  };
+}
+
 /** Held deploy patch notes: a nudge to review them before they publish themselves. */
 export function patchNotesHeldMessage(notes: NonNullable<StaffPost['patchNotes']>): StaffMessage {
   const publishes = Math.floor(Date.parse(notes.publishedAt) / 1000);
@@ -105,6 +168,7 @@ export function patchNotesHeldMessage(notes: NonNullable<StaffPost['patchNotes']
 /** What a claimed staff post becomes in the channel; null for a post with nothing to show. */
 export function staffPostMessage(post: StaffPost): StaffMessage | null {
   if (post.bugReport) return bugReportMessage(post.bugReport);
+  if (post.messageReport) return messageReportMessage(post.messageReport);
   if (post.patchNotes) return patchNotesHeldMessage(post.patchNotes);
   return null;
 }
@@ -118,7 +182,7 @@ export function staffErrorText(error: unknown, origin: string): string {
   return 'StreetsEmpire is not answering right now. Try again in a minute.';
 }
 
-function resolveForm(resolution: BugResolution, reportId: string): ModalBuilder {
+export function resolveForm(resolution: BugResolution, reportId: string): ModalBuilder {
   return new ModalBuilder()
     .setCustomId(`${RESOLVE_FORM}:${resolution}:${reportId}`)
     .setTitle(`Mark as ${RESOLUTION_LABELS[resolution]}`)
@@ -134,7 +198,19 @@ function resolveForm(resolution: BugResolution, reportId: string): ModalBuilder 
     );
 }
 
-function reportForm(category: BugCategory): ModalBuilder {
+export function actionForm(action: ReportAction, reportId: string): ModalBuilder {
+  return new ModalBuilder()
+    .setCustomId(`${ACT_FORM}:${action}:${reportId}`)
+    .setTitle(action === 'mute-1d' ? 'Mute the sender for 1 day' : 'Dismiss this report')
+    .addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder()
+      .setCustomId('note').setLabel('Note for the audit log').setStyle(TextInputStyle.Paragraph)
+      .setRequired(true).setMinLength(5).setMaxLength(500)
+      .setPlaceholder(action === 'mute-1d'
+        ? 'Read it in the admin panel first. Mutes messages, wire posts and recruiting for a day.'
+        : 'Why this needs no action.')));
+}
+
+export function reportForm(category: BugCategory): ModalBuilder {
   return new ModalBuilder()
     .setCustomId(`${REPORT_FORM}:${category}`)
     .setTitle('Report a bug')
@@ -158,19 +234,38 @@ export async function showBugForm(interaction: ChatInputCommandInteraction): Pro
   await interaction.showModal(reportForm(category as BugCategory));
 }
 
-/** A resolve button: opens its form. Whether the member may resolve is checked when they submit. */
+/** A staff button: opens its form. Whether the member may act is checked when they submit. */
 export async function handleStaffButton(interaction: ButtonInteraction): Promise<void> {
-  const parsed = parseResolveId(interaction.customId);
-  if (!parsed) return;
-  await interaction.showModal(resolveForm(parsed.resolution, parsed.reportId));
+  const resolve = parseResolveId(interaction.customId);
+  if (resolve) {
+    await interaction.showModal(resolveForm(resolve.resolution, resolve.reportId));
+    return;
+  }
+  const act = parseActionId(interaction.customId);
+  if (act) await interaction.showModal(actionForm(act.action, act.reportId));
 }
 
 export async function handleStaffModal(interaction: ModalSubmitInteraction, deps: { api: GameApi; origin: string }): Promise<void> {
   const category = parseReportFormId(interaction.customId);
   const resolve = parseResolveId(interaction.customId, RESOLVE_FORM);
-  if (!category && !resolve) return;
+  const act = parseActionId(interaction.customId, ACT_FORM);
+  if (!category && !resolve && !act) return;
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   try {
+    if (act) {
+      const report = await deps.api.actOnMessageReport(act.reportId, {
+        discordId: interaction.user.id,
+        action: act.action,
+        note: interaction.fields.getTextInputValue('note').trim(),
+      });
+      if (interaction.message) await interaction.message.edit(messageReportMessage(report)).catch(() => undefined);
+      await interaction.editReply({
+        content: act.action === 'mute-1d'
+          ? `Muted ${report.sender.displayName} for at least 1 day (a longer mute already in place is kept) and closed every report on that message. Change it from their admin account page.`
+          : 'Dismissed every report on that message.',
+      });
+      return;
+    }
     if (category) {
       const created = await deps.api.createBugReport(interaction.user.id, {
         category,

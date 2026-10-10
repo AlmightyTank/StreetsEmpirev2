@@ -1,7 +1,20 @@
 import { ButtonStyle, ComponentType } from 'discord.js';
 import { describe, expect, it } from 'vitest';
-import { GameApiError, type StaffBugReport } from '../game-api.js';
-import { bugReportMessage, parseReportFormId, parseResolveId, patchNotesHeldMessage, staffErrorText, staffPostMessage } from '../staff.js';
+import { BUG_REPORT_CATEGORIES, BUG_REPORT_RESOLUTIONS } from '@streets/shared';
+import { GameApiError, type StaffBugReport, type StaffMessageReport } from '../game-api.js';
+import {
+  actionForm,
+  bugReportMessage,
+  messageReportMessage,
+  parseActionId,
+  parseReportFormId,
+  parseResolveId,
+  patchNotesHeldMessage,
+  reportForm,
+  resolveForm,
+  staffErrorText,
+  staffPostMessage,
+} from '../staff.js';
 
 const origin = 'https://streetsempire.dev';
 const report: StaffBugReport = {
@@ -92,6 +105,79 @@ describe('patch notes and claimed posts', () => {
     expect(staffPostMessage({ id: 'p1', kind: 'BUG_REPORT', editMessageId: null, bugReport: report })!.embeds[0]!.title).toMatch(/^🐞/);
     expect(staffPostMessage({ id: 'p2', kind: 'PATCH_NOTES_HELD', editMessageId: null, patchNotes: notes })!.embeds[0]!.title).toMatch(/^📝/);
     expect(staffPostMessage({ id: 'p3', kind: 'BUG_REPORT', editMessageId: null })).toBeNull();
+  });
+});
+
+const messageReport: StaffMessageReport = {
+  id: 'cmrep1',
+  source: 'PLAYER',
+  reason: 'Threats in a *private* message',
+  createdAt: '2026-10-10T12:00:00.000Z',
+  reporterUsername: 'quiet_one',
+  roundName: 'Game #021',
+  sender: { username: 'loud_guy', displayName: 'Loud_Guy', publicPimpId: 41 },
+  recipient: { username: 'quiet_one', displayName: 'Quiet', publicPimpId: 7 },
+  reportsOnMessage: 2,
+  openAgainstSender: 3,
+  senderRestricted: false,
+  resolvedAt: null,
+  resolvedByUsername: null,
+  resolution: null,
+  url: `${origin}/game/admin/reports`,
+};
+
+describe('messageReportMessage', () => {
+  it('shows who reported whom and why, never the message, with mute and dismiss', () => {
+    const message = messageReportMessage(messageReport);
+    const [embed] = message.embeds;
+    expect(embed!.title).toBe('🚩 Message report: Loud_Guy');
+    expect(embed!.description).toBe('**Reason:** Threats in a \\*private\\* message\n-# The message is only shown in the admin panel, where opening a report is audited.');
+    expect(embed!.fields!.map((field) => [field.name, field.value])).toEqual([
+      ['Sender', 'Loud\\_Guy (loud\\_guy, #41)'],
+      ['Recipient', 'Quiet (quiet\\_one, #7)'],
+      ['Reported by', 'quiet\\_one'],
+      ['Round', 'Game \\#021'],
+      ['Open against sender', '3'],
+      ['Sender muted', 'No'],
+    ]);
+    expect(embed!.footer!.text).toBe('Open · 2 reports on this message');
+    expect(buttons(message).map((button) => button.custom_id ?? button.url)).toEqual(['report-act:mute-1d:cmrep1', 'report-act:dismiss:cmrep1', `${origin}/game/admin/reports`]);
+    expect(buttons(message)[0]!.style).toBe(ButtonStyle.Danger);
+  });
+
+  it('names automatic flags and drops the buttons once closed', () => {
+    const message = messageReportMessage({ ...messageReport, source: 'AUTO', reporterUsername: null, senderRestricted: true, resolution: 'ACTIONED', resolvedByUsername: 'admin', resolvedAt: '2026-10-10T13:00:00.000Z' });
+    const [embed] = message.embeds;
+    expect(embed!.title).toBe('✅ Auto-flagged message: Loud_Guy');
+    expect(embed!.description!.startsWith('**Flagged for:**')).toBe(true);
+    expect(embed!.fields!.find((field) => field.name === 'Reported by')!.value).toBe('Automatic spam check');
+    expect(embed!.fields!.find((field) => field.name === 'Sender muted')!.value).toBe('Yes');
+    expect(embed!.footer!.text).toBe('Actioned by admin');
+    expect(buttons(message).map((button) => button.label)).toEqual(['Read in admin']);
+    expect(staffPostMessage({ id: 'p4', kind: 'MESSAGE_REPORT', editMessageId: null, messageReport })!.embeds[0]!.title).toMatch(/^🚩/);
+  });
+
+  it('reads its buttons and forms, and nothing else', () => {
+    expect(parseActionId('report-act:mute-1d:cmrep1')).toEqual({ action: 'mute-1d', reportId: 'cmrep1' });
+    expect(parseActionId('report-act-form:dismiss:cmrep1', 'report-act-form')).toEqual({ action: 'dismiss', reportId: 'cmrep1' });
+    expect(parseActionId('report-act:ban:cmrep1')).toBeNull();
+    expect(parseActionId('bug-resolve:FIXED:cmbug1')).toBeNull();
+  });
+});
+
+describe('forms', () => {
+  it('builds every form within Discord limits', () => {
+    const forms = [
+      ...BUG_REPORT_RESOLUTIONS.map((resolution) => resolveForm(resolution, 'c'.repeat(30))),
+      actionForm('mute-1d', 'c'.repeat(30)),
+      actionForm('dismiss', 'c'.repeat(30)),
+      ...BUG_REPORT_CATEGORIES.map((category) => reportForm(category)),
+    ];
+    for (const form of forms) {
+      const json = form.toJSON();
+      expect(json.title.length).toBeLessThanOrEqual(45);
+      expect(json.custom_id.length).toBeLessThanOrEqual(100);
+    }
   });
 });
 

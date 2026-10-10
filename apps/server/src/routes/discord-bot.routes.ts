@@ -4,7 +4,8 @@ import { BUG_REPORT_REPLY_MAX, BUG_REPORT_RESOLUTIONS, bugReportSchema } from '@
 import { env } from '../config/env.js';
 import { botTokenMatches, DiscordBotService } from '../services/discord-bot.service.js';
 import { claimResyncRequests } from '../services/discord-resync.service.js';
-import { DiscordStaffService } from '../services/discord-staff.service.js';
+import { AdminModerationService } from '../services/admin-moderation.service.js';
+import { DiscordStaffService, staffMessageReport } from '../services/discord-staff.service.js';
 import { BugReportService } from '../services/support.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
@@ -42,6 +43,12 @@ const resolveFromDiscordSchema = z.object({
   resolution: z.enum(BUG_REPORT_RESOLUTIONS),
   note: z.string().trim().min(5, 'Write a staff note of at least 5 characters.').max(500),
   playerReply: z.string().trim().max(BUG_REPORT_REPLY_MAX).optional(),
+}).strict();
+const messageReportParams = z.object({ reportId: z.string().min(1).max(64) }).strict();
+const messageReportActionSchema = z.object({
+  discordId: snowflake,
+  action: z.enum(['mute-1d', 'dismiss']),
+  note: z.string().trim().min(5, 'Write a note of at least 5 characters.').max(500),
 }).strict();
 const staffPostParams = z.object({ postId: z.string().min(1).max(64) }).strict();
 const staffPostedSchema = z.object({ messageId: snowflake }).strict();
@@ -129,6 +136,14 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
     const { reportId } = parseBody(bugReportParams, request.params);
     const { discordId, ...input } = parseBody(resolveFromDiscordSchema, request.body);
     return { report: await BugReportService.resolveFromDiscord(fastify.prisma, discordId, reportId, input) };
+  });
+
+  /** A staff button on a message report: mute the sender for a day, or dismiss. Linked game admins only. */
+  fastify.post('/message-reports/:reportId/act', async (request) => {
+    const { reportId } = parseBody(messageReportParams, request.params);
+    const { discordId, action, note } = parseBody(messageReportActionSchema, request.body);
+    await AdminModerationService.actFromDiscord(fastify.prisma, discordId, reportId, action, note);
+    return { report: await staffMessageReport(fastify.prisma, reportId) };
   });
 
   /** Staff channel posts, claimed once like news. */

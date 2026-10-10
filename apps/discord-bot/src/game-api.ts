@@ -181,17 +181,40 @@ const staffBugReportSchema = z.object({
   url: z.string(),
 });
 
+const reportPartySchema = z.object({ username: z.string(), displayName: z.string(), publicPimpId: z.number() });
+
+/** Who reported whom and why. The game never sends the message itself. */
+const staffMessageReportSchema = z.object({
+  id: z.string(),
+  source: z.enum(['PLAYER', 'AUTO']),
+  reason: z.string(),
+  createdAt: z.string(),
+  reporterUsername: z.string().nullable(),
+  roundName: z.string(),
+  sender: reportPartySchema,
+  recipient: reportPartySchema,
+  reportsOnMessage: z.number(),
+  openAgainstSender: z.number(),
+  senderRestricted: z.boolean(),
+  resolvedAt: z.string().nullable(),
+  resolvedByUsername: z.string().nullable(),
+  resolution: z.enum(['DISMISSED', 'ACTIONED']).nullable(),
+  url: z.string(),
+});
+
 const staffPostSchema = z.object({
   id: z.string(),
-  kind: z.enum(['BUG_REPORT', 'BUG_REPORT_RESOLVED', 'PATCH_NOTES_HELD']),
+  kind: z.enum(['BUG_REPORT', 'BUG_REPORT_RESOLVED', 'MESSAGE_REPORT', 'MESSAGE_REPORT_RESOLVED', 'PATCH_NOTES_HELD']),
   editMessageId: z.string().nullable(),
   bugReport: staffBugReportSchema.optional(),
+  messageReport: staffMessageReportSchema.optional(),
   patchNotes: z.object({ id: z.string(), title: z.string(), body: z.string(), publishedAt: z.string(), url: z.string() }).optional(),
 });
 
 const staffClaimSchema = z.object({ posts: z.array(staffPostSchema) });
 const bugCreatedSchema = z.object({ ok: z.literal(true), id: z.string(), message: z.string() });
 const bugResolvedSchema = z.object({ report: staffBugReportSchema });
+const reportActedSchema = z.object({ report: staffMessageReportSchema });
 
 const newsCreatedSchema = z.object({ id: z.string(), title: z.string(), url: z.string().url(), roundName: z.string().nullable() });
 
@@ -450,6 +473,8 @@ export type AllianceAlert = AlertsClaim['allianceAlerts'][number];
 export type GameNotice = AlertsClaim['notices'][number];
 export type StaffPost = z.infer<typeof staffPostSchema>;
 export type StaffBugReport = z.infer<typeof staffBugReportSchema>;
+export type StaffMessageReport = z.infer<typeof staffMessageReportSchema>;
+export type ReportAction = 'mute-1d' | 'dismiss';
 export type BugCategory = BugReportCategory;
 export type BugResolution = BugReportResolution;
 export type RoundEvent = AlertsClaim['rounds'][number];
@@ -537,6 +562,9 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     /** A staff button; the game checks the member is a linked admin. */
     resolveBugReport: async (reportId: string, input: { discordId: string; resolution: BugResolution; note: string; playerReply?: string }) =>
       (await call(bugResolvedSchema, `/api/internal/discord/bug-reports/${encodeURIComponent(reportId)}/resolve`, { method: 'POST', body: input })).report,
+    /** A staff button on a message report; the game checks the member is a linked admin. */
+    actOnMessageReport: async (reportId: string, input: { discordId: string; action: ReportAction; note: string }) =>
+      (await call(reportActedSchema, `/api/internal/discord/message-reports/${encodeURIComponent(reportId)}/act`, { method: 'POST', body: input })).report,
     /** Staff channel posts, each handed out once. */
     claimStaffPosts: async () => (await call(staffClaimSchema, '/api/internal/discord/staff-posts/claim', { method: 'POST' })).posts,
     staffPostPosted: async (postId: string, messageId: string) => {
