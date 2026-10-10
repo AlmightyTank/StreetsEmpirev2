@@ -101,7 +101,7 @@ export function ScoutPage() {
   const canScout =
     !action.busy &&
     district !== '' &&
-    selectedDistrict?.scoutAccess?.unlocked !== false &&
+    selectedDistrict?.districtAccess?.unlocked !== false &&
     typeof turns === 'number' &&
     turns >= 1 &&
     turns <= available;
@@ -110,8 +110,8 @@ export function ScoutPage() {
     ? 'Your crew is still out on the last job.'
     : district === ''
       ? 'Pick a district to work first.'
-      : selectedDistrict?.scoutAccess?.unlocked === false
-        ? `Complete ${selectedDistrict.scoutAccess.unlockQuest?.title ?? 'the required quest'} to unlock this district.`
+      : selectedDistrict?.districtAccess?.unlocked === false
+        ? `Complete ${selectedDistrict.districtAccess.unlockQuest?.title ?? 'the required quest'} to unlock this district.`
       : typeof turns !== 'number' || turns < 1
         ? 'Say how many turns to spend - at least one.'
         : turns > available
@@ -218,11 +218,11 @@ export function ScoutPage() {
             <p className="se-scout-intel__blurb">
               {selectedDistrict?.blurb ?? 'Choose a district to see the protection situation for your current crew.'}
             </p>
-            {selectedDistrict?.scoutAccess?.unlocked === false ? (
+            {selectedDistrict?.districtAccess?.unlocked === false ? (
               <Alert>
-                <strong>{selectedDistrict.scoutAccess.unlockName} required.</strong>{' '}
-                {selectedDistrict.scoutAccess.unlockDescription}{' '}
-                {selectedDistrict.scoutAccess.unlockQuest ? <Link to={'/game/quests?focus=' + encodeURIComponent(selectedDistrict.scoutAccess.unlockQuest.key)}>View “{selectedDistrict.scoutAccess.unlockQuest.title}”</Link> : null}
+                <strong>{selectedDistrict.districtAccess.unlockName} required.</strong>{' '}
+                {selectedDistrict.districtAccess.unlockDescription}{' '}
+                {selectedDistrict.districtAccess.unlockQuest ? <Link to={'/game/quests?focus=' + encodeURIComponent(selectedDistrict.districtAccess.unlockQuest.key)}>View “{selectedDistrict.districtAccess.unlockQuest.title}”</Link> : null}
               </Alert>
             ) : null}
 
