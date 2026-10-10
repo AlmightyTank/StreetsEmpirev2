@@ -137,7 +137,8 @@ export const DiscordStaffService = {
         if (report) posts.push({ id: row.id, kind, editMessageId, messageReport: report });
       } else if (kind === 'PATCH_NOTES_HELD') {
         const news = await prisma.gameNews.findUnique({ where: { id: row.targetId } });
-        if (!news) continue;
+        // Already public, say after the staff channel was down past the hold: nothing left to review.
+        if (!news || news.publishedAt <= now) continue;
         posts.push({
           id: row.id,
           kind,

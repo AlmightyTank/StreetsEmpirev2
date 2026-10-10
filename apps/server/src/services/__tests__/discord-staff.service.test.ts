@@ -64,8 +64,13 @@ describe('DiscordStaffService.claim', () => {
       post('gone', 'BUG_REPORT', 'deleted'),
       post('notes', 'PATCH_NOTES_HELD', 'news1'),
       post('notes-gone', 'PATCH_NOTES_HELD', 'news-deleted'),
+      post('notes-public', 'PATCH_NOTES_HELD', 'news-published'),
     ];
-    const prisma = fakePrisma(posts, [report], [{ id: 'news1', title: 'Patch notes: October 10, 2026', body: '- Fixed raids', publishedAt: new Date('2026-10-10T17:00:00.000Z') }]);
+    const prisma = fakePrisma(posts, [report], [
+      { id: 'news1', title: 'Patch notes: October 10, 2026', body: '- Fixed raids', publishedAt: new Date('2026-10-10T17:00:00.000Z') },
+      // Published while the staff channel was down: nothing left to review.
+      { id: 'news-published', title: 'Patch notes: October 9, 2026', body: '- Older', publishedAt: new Date('2026-10-10T14:00:00.000Z') },
+    ]);
     expect(await DiscordStaffService.claim(prisma, now)).toMatchObject([
       { id: 'notes', kind: 'PATCH_NOTES_HELD', patchNotes: { title: 'Patch notes: October 10, 2026', publishedAt: '2026-10-10T17:00:00.000Z' } },
     ]);
