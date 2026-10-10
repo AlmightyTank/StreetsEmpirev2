@@ -33,7 +33,7 @@ This is a proposed roadmap. It does not change live or historical rulesets until
 
 | Slice | Theme | Outcome |
 | --- | --- | --- |
-| **A — Quest Access Foundation** | Unlock recipes and Scout districts through quests | Add permanent recipe and district-scouting access effects, server-side checks, visible locked-state data, and direct links to the unlocking quests. Existing purchase unlocks keep their current behavior. |
+| **A — Quest Access Foundation** | Unlock recipes and Scout districts through quests | Add permanent recipe and district access for scouting and Turf effects, server-side checks, visible locked-state data, and direct links to the unlocking quests. Existing purchase unlocks keep their current behavior. |
 | **B — Pip's Cookhouse Ladder** | Earn three new recipes | Add quest chains for Weed, Cocaine, and Heroin. Completing each chain opens that product's recipe in the current round. Quests use existing actions and award no free ingredients, stock, or crew. |
 | **C — Product Identity & Balance** | Make each recipe a real choice | Define per-product production costs, output, variance, and Heat in the pinned ruleset. Simulate production, market sales, Heat, city demand, and supply so no product becomes a universal best pick. |
 | **D — Quest Presentation** | Show the progression clearly | Present recipe locks and their unlocking quest in Products and Produce. Keep Available quests limited to quests that are actually available; show future progression on the existing quest progression view. |
@@ -49,7 +49,7 @@ This is a proposed roadmap. It does not change live or historical rulesets until
 - Return each product's recipe state and, when locked, its unlock name and the quest that grants it.
 - Show locked recipes as visible future options, with their role and the required quest. Do not offer them as selectable batches.
 - Keep old rulesets ungated unless they already define a production unlock. Historical players retain the behavior their round began with.
-- Support `DISTRICT_ACCESS`, keyed by district, as a separate effect that gates the Scout action only. Keep every district visible on the Scout page and explain which quest opens a locked district; do not gate Turf or other district systems.
+- Support `DISTRICT_ACCESS`, keyed by district, as a separate effect that gates Scout and Turf actions only. Keep every district visible on the Scout page and explain which quest opens a locked district; Turf controls in a locked district remain unavailable until the quest is complete.
 
 **Gate:** A locked recipe cannot be produced through a direct or replayed API request, and a locked district cannot be scouted through a direct or replayed API request. Locked options remain visible with their quest path. Unlocked actions retain the existing turn, ingredient, crew, Heat, turf, and idempotency checks.
 
