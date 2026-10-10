@@ -17,6 +17,7 @@ import type {
   RunOutpostTransferResult,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { readVehicleLoadout } from './vehicle-fleet.service.js';
 import { ActionService, assertTurns } from './action.service.js';
 import { productKeys } from './product-inventory.service.js';
@@ -134,6 +135,7 @@ export const TurfOutpostService = {
 
         const city = await tx.city.findUniqueOrThrow({ where: { slug: citySlug } });
         const key = input.district as DistrictKey;
+        await PermanentUnlockService.assertCanAccessDistrict(tx, roundPlayerId, ruleset, key);
         if (!ruleset.turf!.districts[key]) throw AppError.badRequest('UNKNOWN_DISTRICT', 'That is not a turf block.');
 
         const block = await tx.turf.findUnique({
