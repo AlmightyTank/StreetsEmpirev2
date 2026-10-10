@@ -161,35 +161,66 @@ async function moderate(
   reason: string,
   apply: (tx: Db, account: Account) => Promise<Change>,
 ): Promise<void> {
-  if (actor.id === accountId) {
-    throw AppError.conflict('ADMIN_SELF_ACTION', 'Admins cannot moderate their own account. Ask another admin.');
-  }
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(3003)`;
-      const me = await tx.account.findUnique({ where: { id: actor.id }, select: { isAdmin: true, isActive: true } });
-      if (!me?.isAdmin || !me.isActive) throw AppError.forbidden('Only game admins can do that.');
-
-      await lockAccount(tx, accountId);
-      const before = await tx.account.findUnique({ where: { id: accountId } });
-      if (!before) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
-
-      const change = await apply(tx, before);
-      await AdminAuditService.record(tx, actor, {
-        action: `account.${action}`,
-        targetType: 'account',
-        targetId: accountId,
-        reason,
-        before: accountSnapshot(before),
-        after: { ...accountSnapshot(change.account), ...change.detail },
-      });
-    });
+    await prisma.$transaction((tx) => moderateWithin(tx, actor, accountId, action, reason, apply));
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw AppError.conflict('USERNAME_TAKEN', 'That pimp name was just taken.', { username: 'That pimp name is taken.' });
     }
     throw error;
   }
+}
+
+/** The same moderation step, inside a transaction the caller already holds. */
+async function moderateWithin(
+  tx: Db,
+  actor: AuditActor,
+  accountId: string,
+  action: string,
+  reason: string,
+  apply: (tx: Db, account: Account) => Promise<Change>,
+): Promise<void> {
+  if (actor.id === accountId) {
+    throw AppError.conflict('ADMIN_SELF_ACTION', 'Admins cannot moderate their own account. Ask another admin.');
+  }
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(3003)`;
+  const me = await tx.account.findUnique({ where: { id: actor.id }, select: { isAdmin: true, isActive: true } });
+  if (!me?.isAdmin || !me.isActive) throw AppError.forbidden('Only game admins can do that.');
+
+  await lockAccount(tx, accountId);
+  const before = await tx.account.findUnique({ where: { id: accountId } });
+  if (!before) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
+
+  const change = await apply(tx, before);
+  await AdminAuditService.record(tx, actor, {
+    action: `account.${action}`,
+    targetType: 'account',
+    targetId: accountId,
+    reason,
+    before: accountSnapshot(before),
+    after: { ...accountSnapshot(change.account), ...change.detail },
+  });
+}
+
+/**
+ * A comms mute of one of the offered lengths. With keepLonger, a mute already in
+ * place that ends later (or never) is left as it is rather than cut short.
+ */
+function commsMuteStep(actor: AuditActor, length: AdminCommsMuteLength, reason: string, now: Date, keepLonger: boolean) {
+  const chosen = ADMIN_COMMS_MUTE_LENGTHS.find((option) => option.key === length);
+  if (!chosen) throw AppError.badRequest('COMMS_MUTE_LENGTH_UNKNOWN', 'Pick one of the offered mute lengths.');
+  const permanent = chosen.hours === null;
+  const until = permanent ? null : new Date(now.getTime() + chosen.hours! * 60 * 60_000);
+  return async (tx: Db, before: Account): Promise<Change> => {
+    if (before.isAdmin) throw AppError.conflict('ADMIN_COMMS_MUTE', `Remove ${before.username}'s admin role before muting them.`);
+    const outlasts = before.commsMutedPermanent || Boolean(until && before.commsMutedUntil && before.commsMutedUntil >= until);
+    if (keepLonger && outlasts) return { account: before, detail: { length: chosen.label, keptLongerMute: true } };
+    const account = await tx.account.update({
+      where: { id: before.id },
+      data: { commsMutedUntil: until, commsMutedPermanent: permanent, commsMuteReason: reason, commsMutedByUsername: actor.username },
+    });
+    return { account, detail: { length: chosen.label } };
+  };
 }
 
 export const AdminAccountService = {
@@ -337,19 +368,23 @@ export const AdminAccountService = {
     reason: string,
     now = new Date(),
   ): Promise<AdminAccountDetailDto> {
-    const chosen = ADMIN_COMMS_MUTE_LENGTHS.find((option) => option.key === length);
-    if (!chosen) throw AppError.badRequest('COMMS_MUTE_LENGTH_UNKNOWN', 'Pick one of the offered mute lengths.');
-    const permanent = chosen.hours === null;
-    const until = permanent ? null : new Date(now.getTime() + chosen.hours! * 60 * 60_000);
-    await moderate(prisma, actor, accountId, 'comms-mute', reason, async (tx, before) => {
-      if (before.isAdmin) throw AppError.conflict('ADMIN_COMMS_MUTE', `Remove ${before.username}'s admin role before muting them.`);
-      const account = await tx.account.update({
-        where: { id: before.id },
-        data: { commsMutedUntil: until, commsMutedPermanent: permanent, commsMuteReason: reason, commsMutedByUsername: actor.username },
-      });
-      return { account, detail: { length: chosen.label } };
-    });
+    await moderate(prisma, actor, accountId, 'comms-mute', reason, commsMuteStep(actor, length, reason, now, false));
     return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /**
+   * A comms mute taken as part of a larger action, in the caller's transaction.
+   * It never shortens a longer mute the account already has.
+   */
+  async muteCommsWithin(
+    tx: Db,
+    actor: AuditActor,
+    accountId: string,
+    length: AdminCommsMuteLength,
+    reason: string,
+    now = new Date(),
+  ): Promise<void> {
+    await moderateWithin(tx, actor, accountId, 'comms-mute', reason, commsMuteStep(actor, length, reason, now, true));
   },
 
   async unmuteComms(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, now = new Date()): Promise<AdminAccountDetailDto> {
