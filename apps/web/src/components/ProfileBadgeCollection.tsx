@@ -28,7 +28,7 @@ export function ProfileBadgeCollection({ awards, forumGroups, factionAlignment }
       key: award.key, title: award.title, description: award.description, category: award.category, rarity: award.rarity,
     })),
     ...(factionAlignment ?? []).map((faction) => ({
-      key: 'faction-' + faction.key,
+      key: 'faction-' + faction.key.toLowerCase().replace(/_/g, '-'),
       title: faction.name + ' · ' + faction.tierName,
       description: 'Current faction standing: ' + faction.tierName + '.',
       category: 'reputation',
