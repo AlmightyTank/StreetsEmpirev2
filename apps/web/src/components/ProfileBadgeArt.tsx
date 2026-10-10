@@ -198,7 +198,7 @@ export function ProfileBadgeArt({ badgeKey, category, rarity = 'common', size = 
   return (
     <img
       className={`se-badge-art se-badge-art--${rarity}${locked ? ' is-locked' : ''}`}
-      src={`/assets/profile-badges/individual/${artKey}.webp`}
+      src={`/assets/profile-badges/individual-v2/${artKey}.webp`}
       style={style}
       alt={`${family} ${rarity} badge`}
     />
