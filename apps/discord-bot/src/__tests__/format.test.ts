@@ -143,6 +143,11 @@ describe('roundEmbed and newsEmbed', () => {
     }
     expect(newsEmbed({ news: [] }, origin).description).toBe('No round news has been posted yet.');
   });
+
+  it('previews each post as plain words, not half-cut markup', () => {
+    const post = { title: 'Patch notes', body: '## Fixes\n- **Raids** pay out\n- [Turf](https://x.dev) holds', isPinned: false, publishedAt: '2026-09-13T12:00:00.000Z', authorName: null };
+    expect(newsEmbed({ news: [post] }, origin).fields![0]!.value.split('\n')[0]).toBe('Fixes Raids pay out · Turf holds');
+  });
 });
 
 describe('city rankings', () => {
@@ -429,10 +434,10 @@ describe('inviteEmbed', () => {
 });
 
 describe('news posts and turn reminders', () => {
-  it('builds an escaped, bounded news channel post', () => {
-    const embed = newsPostEmbed({ id: 'n1', title: 'Big *update*', body: `**bold** ${'x'.repeat(2000)}`, isPinned: true, publishedAt: '2026-09-14T10:00:00.000Z', authorName: 'Admin', url: `${origin}/game/news` });
+  it('builds a bounded news channel post that keeps its markdown', () => {
+    const embed = newsPostEmbed({ id: 'n1', title: 'Big *update*', body: `## What's new\n- **bold** ${'x'.repeat(2000)}`, isPinned: true, publishedAt: '2026-09-14T10:00:00.000Z', authorName: 'Admin', url: `${origin}/game/news` });
     expect(embed.title).toBe('📌 Big *update*');
-    expect(embed.description!.startsWith('\\*\\*bold\\*\\*')).toBe(true);
+    expect(embed.description!.startsWith("**What's new**\n- **bold** ")).toBe(true);
     expect(embed.description!.length).toBeLessThanOrEqual(1500);
     expect(embed).toMatchObject({ url: `${origin}/game/news`, timestamp: '2026-09-14T10:00:00.000Z', footer: { text: 'Posted by Admin' } });
   });

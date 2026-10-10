@@ -6,6 +6,7 @@ import { ApiError } from '../api/client.js';
 import { wireApi } from '../api/playing-together.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
+import { Markdown } from './Markdown.js';
 import { Panel } from './Panel.js';
 import { formatWhen } from '../utils/time.js';
 
@@ -34,7 +35,7 @@ function PostRow({ post, busy, run }: {
           ) : null}
         </span>
       </div>
-      <p className="se-wire__body">{post.body}</p>
+      <Markdown className="se-wire__body" text={post.body} maskedLinks={false} />
     </li>
   );
 }
@@ -142,7 +143,7 @@ export function AllianceWire() {
           </div>
         ) : null}
         <div className="se-wire__actions">
-          <span className="se-hint">{draft.length}/{WIRE_POST_MAX} · only your alliance sees this</span>
+          <span className="se-hint">{draft.length}/{WIRE_POST_MAX} · only your alliance sees this · **bold**, *italic*, - lists</span>
           <Button type="submit" className="se-btn se-btn--primary se-btn--sm" disabledReason={blocked}>Post</Button>
         </div>
       </form>

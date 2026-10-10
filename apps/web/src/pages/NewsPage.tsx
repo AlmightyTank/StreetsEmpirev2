@@ -3,6 +3,7 @@ import type { GameNewsDto } from '@streets/shared';
 import { roundsApi } from '../api/rounds.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Markdown } from '../components/Markdown.js';
 import { InfoLayout } from '../layouts/InfoLayout.js';
 import { formatDate } from '../utils/time.js';
 import { useSession } from '../stores/session.js';
@@ -76,7 +77,7 @@ export function NewsPage() {
                     </div>
                     <time className="se-news-card__date se-num" dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
                   </div>
-                  <p className="se-news-card__body">{post.body}</p>
+                  <Markdown className="se-news-card__body" text={post.body} headings />
                   <footer className="se-news-card__footer">
                     <span>{post.authorName ? `Posted by ${post.authorName}` : 'StreetsEmpire wire'}</span>
                     <span>Official round notice</span>
