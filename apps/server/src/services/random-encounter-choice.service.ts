@@ -51,12 +51,32 @@ function effectsOf(value: Prisma.JsonValue | unknown): PendingChoice['effects'] 
 }
 
 export const RandomEncounterChoiceService = {
-  resolve(
+  async resolve(
     prisma: PrismaClient,
     roundPlayerId: string,
     encounterId: string,
     input: RandomEncounterChoiceInput,
   ): Promise<GameActionResult<RandomEncounterChoiceResult>> {
+    const requestedAt = new Date();
+    const player = await prisma.roundPlayer.findUnique({
+      where: { id: roundPlayerId },
+      select: { round: { select: { pausedAt: true } } },
+    });
+    if (!player?.round.pausedAt) {
+      const expired = await prisma.randomEncounter.updateMany({
+        where: {
+          id: encounterId,
+          roundPlayerId,
+          status: 'PENDING',
+          expiresAt: { lte: requestedAt },
+        },
+        data: { status: 'EXPIRED' },
+      });
+      if (expired.count > 0) {
+        throw AppError.conflict('ENCOUNTER_EXPIRED', 'That street situation has cooled off.');
+      }
+    }
+
     return ActionService.run<RandomEncounterChoiceResult>(prisma, roundPlayerId, {
       action: 'RANDOM_ENCOUNTER_CHOICE',
       actionId: input.actionId,
@@ -68,11 +88,6 @@ export const RandomEncounterChoiceService = {
 
         if (!encounter) {
           throw AppError.notFound('ENCOUNTER_NOT_FOUND', 'That street situation is no longer open.');
-        }
-
-        if (encounter.expiresAt && encounter.expiresAt.getTime() <= Date.now()) {
-          await tx.randomEncounter.update({ where: { id: encounter.id }, data: { status: 'EXPIRED' } });
-          throw AppError.conflict('ENCOUNTER_EXPIRED', 'That street situation has cooled off.');
         }
 
         const choice = choicesOf(encounter.choices).find((candidate) => candidate.key === input.choice);
@@ -114,6 +129,6 @@ export const RandomEncounterChoiceService = {
           },
         };
       },
-    });
+    }, requestedAt);
   },
 };

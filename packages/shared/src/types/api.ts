@@ -977,6 +977,8 @@ export interface GameActionResult<T> {
   after: PlayerSnapshot;
   changes: ResourceChange[];
   result: T;
+  /** Action-triggered street encounter attached to this receipt. */
+  encounter?: RandomEncounterDto;
   rankChanges?: RankChanges;
 }
 
