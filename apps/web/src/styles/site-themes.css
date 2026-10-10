@@ -1535,6 +1535,57 @@
   .se-dg__corner--bottom { width: 40vw; }
 }
 
+/* Phantom Convoy: a ghost convoy crossing a wet highway under the city glow, an overhead route
+   sign, a sodium streetlight, and headlight sweeps across the shell. */
+.se-pc__horizon { bottom: 0; left: 0; width: 100%; height: auto; }
+.se-pc__rig { fill: #070b11; stroke: #7dd3fc; stroke-opacity: .55; stroke-width: 1.4; }
+.se-pc__glass { fill: #38bdf8; fill-opacity: .18; }
+.se-pc__wheel { fill: #05080c; }
+.se-pc__convoy {
+  transform: translate(-2000px, 0);
+  animation: se-pc-convoy 40s linear -8s infinite;
+}
+.se-pc__window { animation: se-pc-window 7s steps(1, end) infinite; }
+.se-pc__reflections rect { animation: se-pc-ripple 3.6s ease-in-out infinite alternate; }
+.se-pc__streetlight { top: 0; left: 0; width: min(22vw, 300px); height: auto; }
+.se-pc__cone { animation: se-pc-flicker 13s steps(1, end) infinite; }
+.se-pc__sign { top: 0; right: 0; width: min(25vw, 340px); height: auto; }
+.se-pc__sign-type { fill: #f0f7f1; font: 700 26px/1 'Arial Narrow', Arial, sans-serif; }
+.se-pc__sign-type--small { font-size: 15px; fill-opacity: .8; letter-spacing: 1px; }
+.se-pc__sign-type--tab { fill: #1a1505; font-size: 13px; letter-spacing: 1px; }
+.se-pc__glint { opacity: 0; animation: se-pc-glint 9s ease-in-out infinite; }
+.se-pc__sweep {
+  position: absolute;
+  left: -6vw;
+  bottom: -4vh;
+  width: 130vw;
+  height: 90vh;
+  opacity: 0;
+  background: linear-gradient(90deg, rgba(255, 238, 176, .2), rgba(255, 238, 176, .06) 55%, transparent 85%);
+  clip-path: polygon(0 100%, 100% 18%, 100% 62%);
+  transform-origin: 0 100%;
+  animation: se-pc-sweep 17s ease-in-out -5s infinite;
+}
+@keyframes se-pc-convoy {
+  0% { transform: translate(1700px, 0); }
+  70% { transform: translate(-1100px, 0); }
+  100% { transform: translate(-1100px, 0); }
+}
+@keyframes se-pc-window { 0%, 64% { fill-opacity: .7; } 66%, 100% { fill-opacity: .12; } }
+@keyframes se-pc-ripple { from { opacity: .5; translate: 0 0; } to { opacity: 1; translate: 0 4px; } }
+@keyframes se-pc-flicker { 0%, 90%, 93%, 96% { opacity: 1; } 91.5% { opacity: .4; } 94.5% { opacity: .7; } }
+@keyframes se-pc-glint { 0%, 55% { opacity: 0; translate: 0 0; } 60% { opacity: 1; } 80%, 100% { opacity: 0; translate: 240px 0; } }
+@keyframes se-pc-sweep {
+  0%, 52% { opacity: 0; rotate: -14deg; }
+  62% { opacity: .9; }
+  80% { opacity: .6; }
+  92%, 100% { opacity: 0; rotate: 10deg; }
+}
+@media (max-width: 700px) {
+  .se-pc__streetlight { width: 40vw; }
+  .se-pc__sign { width: 46vw; }
+}
+
 .se-reduced-motion .se-theme-pack__motif,
 .se-reduced-motion .se-theme-pack__motes i,
 .se-reduced-motion .se-theme-pack__haze,

@@ -108,6 +108,7 @@ const themeMotes = [
 // Illustrated SVG backdrops, loaded only for the shell that is equipped. A pack with a
 // scene drops the generic motif and motes in favour of its own.
 const themeScenes: Partial<Record<string, ComponentType>> = {
+  'open-road': lazy(() => import('./theme-scenes/PhantomConvoyScene.js')),
   'neon-vice': lazy(() => import('./theme-scenes/LanternDistrictScene.js')),
   'federal-case': lazy(() => import('./theme-scenes/DeadOrAliveScene.js')),
 };
