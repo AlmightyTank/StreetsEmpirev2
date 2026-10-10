@@ -4,10 +4,15 @@ on:
   push:
     branches:
       - main
+      - beta
       - feature/1.2.0-d-roulette-street-dice
   pull_request:
     branches:
       - main
+      - beta
+
+permissions:
+  contents: read
 
 jobs:
   validate:
@@ -67,3 +72,59 @@ jobs:
 
       - name: Build API, game, public site and bot
         run: npm run build
+
+  deploy:
+    name: Deploy ${{ github.ref_name }}
+    needs: validate
+    if: github.event_name == 'push' && (github.ref_name == 'beta' || github.ref_name == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: streets-empire-deploy-${{ github.ref_name }}
+      cancel-in-progress: false
+    environment:
+      name: ${{ github.ref_name == 'main' && 'production' || 'beta' }}
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+      VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+    steps:
+      - name: Validate deployment secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in VPS_HOST VPS_USER VPS_SSH_PRIVATE_KEY VPS_SSH_KNOWN_HOSTS; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing required environment secret: $name"
+              exit 1
+            fi
+          done
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$HOME/.ssh/streets-empire-deploy"
+          chmod 600 "$HOME/.ssh/streets-empire-deploy"
+          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Deploy beta
+        if: github.ref_name == 'beta'
+        shell: bash
+        run: |
+          ssh -i "$HOME/.ssh/streets-empire-deploy" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" \
+            'cd /opt/streets-empire/StreetsEmpirev2-beta && bash scripts/ops/deploy-beta.sh'
+
+      - name: Deploy production
+        if: github.ref_name == 'main'
+        shell: bash
+        run: |
+          ssh -i "$HOME/.ssh/streets-empire-deploy" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" \
+            'cd /opt/streets-empire/StreetsEmpirev2 && bash scripts/ops/deploy.sh'
