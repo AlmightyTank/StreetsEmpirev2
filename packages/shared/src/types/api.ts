@@ -1012,7 +1012,7 @@ export interface DistrictDto {
   /** Fit thugs without weapons; E/F rounds do not count them as street cover. */
   unarmedThugs: number;
   requiresArmedThugs: boolean;
-  /** Quest gate for scouting. The district remains visible while locked. */
+  /** Quest gate for Scout and Turf access. The district remains visible while locked. */
   districtAccess?: { unlocked: boolean; unlockName: string; unlockDescription: string; unlockQuest: QuestLinkDto | null };
 }
 
