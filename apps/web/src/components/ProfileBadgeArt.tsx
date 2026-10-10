@@ -37,7 +37,7 @@ const badgeArtByKey: Record<string, BadgeArtPosition> = {
   boosted: [1, 11],
 
   // Intelligence, reputation, and specialist honors — atlas 3.
-  'chop-shop-regular': [4, 11],
+  'chop-shop-regular': [6, 2],
   'silver-tongue': [2, 0],
   recruiter: [2, 1],
   'stick-up-king': [2, 2],
@@ -119,9 +119,27 @@ const badgeArtByKey: Record<string, BadgeArtPosition> = {
   'top-ten': [7, 9],
   'faction-kings': [7, 7],
   'faction-outfit': [7, 8],
+
+  // Permanent quest titles from casino, law, and faction story arcs — atlases 9–10.
+  'ace-floor-walker': [8, 0],
+  'ace-natural': [8, 1],
+  'ace-road-gambler': [8, 2],
+  'ace-velvet-rope': [8, 3],
+  'ace-black-room': [8, 4],
+  'ledger-cool-head': [9, 0],
+  'ledger-lawyered-up': [9, 1],
+  'ledger-clean-hands': [9, 2],
+  'ledger-teflon': [9, 3],
+  'ledger-case-closed': [9, 4],
+  'saints-prospect': [9, 5],
+  'cartel-partner': [9, 6],
+  'civic-contributor': [9, 7],
+  'faction-saints': [9, 5],
+  'faction-cartel': [9, 6],
+  'faction-civic': [9, 7],
 };
 
-const atlasUrls = Array.from({ length: 8 }, (_, index) =>
+const atlasUrls = Array.from({ length: 10 }, (_, index) =>
   `/assets/profile-badges/atlas-${String(index + 1).padStart(2, '0')}.webp`,
 );
 
