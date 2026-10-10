@@ -85,6 +85,13 @@ function cosmeticCollectionStyle(key: string): CosmeticCollectionStyleKey | null
   return null;
 }
 
+function playerInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return words.length > 1
+    ? `${words[0]![0]}${words[words.length - 1]![0]}`.toUpperCase()
+    : (words[0]?.slice(0, 2) ?? 'SE').toUpperCase();
+}
+
 function randomCosmeticPreviewItem(): CosmeticPreviewItemKey {
   return COSMETIC_PREVIEW_ITEMS[Math.floor(Math.random() * COSMETIC_PREVIEW_ITEMS.length)]!;
 }
@@ -128,6 +135,7 @@ function streetPassCosmeticPreviews(pass: StreetPassDto): CosmeticPreview[] {
 function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const displayName = useSession((state) => state.me?.displayName ?? state.account?.username ?? 'AMIGHTYTANK');
+  const profileImageUrl = useSession((state) => state.profileSettings.profileImageUrl);
   const titlePlacement = useSession((state) => state.profileSettings.titlePlacement);
   const active = previews[Math.min(activeIndex, Math.max(0, previews.length - 1))];
   const [collectionPreviewItems] = useState<Record<CosmeticCollectionStyleKey, CosmeticPreviewItemKey>>(() => ({
@@ -202,6 +210,21 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
             </span>
             <span className="se-pass-theme-preview__road" />
             <span className="se-pass-theme-preview__glow" />
+          </div>
+        ) : active.kind === 'frame' && active.art ? (
+          <div
+            className={`se-pass-theme-preview__frame-stage se-pass-theme-preview__frame-stage--${active.key}`}
+            role="img"
+            aria-label={`${displayName}'s avatar shown with ${active.label}`}
+          >
+            <img className="se-pass-theme-preview__frame-art" src={itemArtUrl(active.art)} alt="" />
+            {profileImageUrl ? (
+              <img className="se-pass-theme-preview__frame-avatar" src={profileImageUrl} alt="" />
+            ) : (
+              <span className="se-pass-theme-preview__frame-avatar se-pass-theme-preview__frame-avatar--initials" aria-hidden="true">
+                {playerInitials(displayName)}
+              </span>
+            )}
           </div>
         ) : active.kind === 'item' && activeCollectionStyle && activeWeapon ? (
           <div className="se-pass-theme-preview__weapon-stage">
