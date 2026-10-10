@@ -38,7 +38,14 @@ export interface SupportContextDto {
   pastTickets: number;
 }
 
-export type OpenTicketResult = { existing: SupportTicketDto } | { ticket: SupportTicketDto; context: SupportContextDto };
+/**
+ * existing: their open ticket. pending: another of their forms is making one right now.
+ * ticket: a new one, with what staff should know about them.
+ */
+export type OpenTicketResult = { existing: SupportTicketDto } | { pending: true } | { ticket: SupportTicketDto; context: SupportContextDto };
+
+/** A ticket still without a thread this long after it was opened was abandoned by a failed bot run. */
+export const TICKET_PROVISION_MS = 2 * 60_000;
 
 function toDto(row: SupportTicket): SupportTicketDto {
   return {
@@ -99,15 +106,24 @@ async function context(prisma: PrismaClient, discordId: string, ticketId: string
 export const SupportTicketService = {
   /** Their open ticket if they have one; otherwise a new one, with what staff should know about them. */
   async open(prisma: PrismaClient, input: { discordId: string; discordName: string; subject: string }, now = new Date()): Promise<OpenTicketResult> {
-    const open = await prisma.supportTicket.findFirst({ where: { discordId: input.discordId, closedAt: null }, orderBy: { createdAt: 'desc' } });
-    if (open?.threadId) return { existing: toDto(open) };
-    // Opened but never got a thread (the bot failed part way): start again.
-    if (open) await prisma.supportTicket.delete({ where: { id: open.id } });
-    const account = await prisma.account.findUnique({ where: { discordId: input.discordId }, select: { id: true } });
-    const row = await prisma.supportTicket.create({
-      data: { discordId: input.discordId, discordName: input.discordName, subject: input.subject, accountId: account?.id ?? null, createdAt: now },
+    const row = await prisma.$transaction(async (tx): Promise<{ kind: 'existing' | 'created'; row: SupportTicket } | { kind: 'pending' }> => {
+      // One member's /support forms take turns, so two at once can never both open a ticket.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`support-ticket:${input.discordId}`}))`;
+      const open = await tx.supportTicket.findFirst({ where: { discordId: input.discordId, closedAt: null }, orderBy: { createdAt: 'desc' } });
+      if (open?.threadId) return { kind: 'existing', row: open };
+      // Another of their forms is still making its thread: leave it be.
+      if (open && now.getTime() - open.createdAt.getTime() < TICKET_PROVISION_MS) return { kind: 'pending' };
+      // Opened long ago but never got a thread (the bot failed part way): start again.
+      if (open) await tx.supportTicket.delete({ where: { id: open.id } });
+      const account = await tx.account.findUnique({ where: { discordId: input.discordId }, select: { id: true } });
+      const created = await tx.supportTicket.create({
+        data: { discordId: input.discordId, discordName: input.discordName, subject: input.subject, accountId: account?.id ?? null, createdAt: now },
+      });
+      return { kind: 'created', row: created };
     });
-    return { ticket: toDto(row), context: await context(prisma, input.discordId, row.id, now) };
+    if (row.kind === 'pending') return { pending: true };
+    if (row.kind === 'existing') return { existing: toDto(row.row) };
+    return { ticket: toDto(row.row), context: await context(prisma, input.discordId, row.row.id, now) };
   },
 
   /** The bot made the thread (and maybe the staff post): the ticket is real now. */

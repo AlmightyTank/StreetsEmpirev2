@@ -187,6 +187,10 @@ export async function handleTicketForm(interaction: ModalSubmitInteraction, deps
     await interaction.editReply({ content: `You already have an open ticket: <#${opened.existing.threadId}>. Add to it there, or close it first.` });
     return;
   }
+  if ('pending' in opened) {
+    await interaction.editReply({ content: 'Your ticket is still being opened. It will show up in your threads in a moment.' });
+    return;
+  }
 
   const { ticket, context } = opened;
   let thread: ThreadChannel | null = null;

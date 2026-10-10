@@ -145,8 +145,10 @@ form and turns it into a private thread in that channel:
 - Make the support channel visible to members (they need **View Channel** to see
   their thread) but stop them posting in it directly: deny **Send Messages** and
   **Create Public Threads**, keep **Send Messages in Threads**. The bot needs **View
-  Channel**, **Create Private Threads**, **Send Messages in Threads**, **Embed
-  Links** and **Manage Threads** (to lock closed tickets). It logs what is missing.
+  Channel**, **Send Messages** (Discord requires it to start any thread, so give the
+  bot's role an allow that beats the members' deny), **Create Private Threads**,
+  **Send Messages in Threads**, **Embed Links** and **Manage Threads** (to lock
+  closed tickets). It logs what is missing.
 
 ## 1. Create the bot in Discord
 
