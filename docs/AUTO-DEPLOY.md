@@ -58,6 +58,21 @@ automatically; manual commit selection is available from the Actions page.
 
 After deploying a selected older SHA, the helper returns the VPS checkout to the branch tip. The services keep running the selected build until the next deployment, and later automatic pushes continue to work.
 
+## Deploy notices
+
+When the Discord bot has a status channel (`DISCORD_STATUS_CHANNEL_ID`, see the
+[bot README](../apps/discord-bot/README.md)), each deploy posts there:
+
+1. Before deploying, the workflow runs `scripts/ops/deploy-status.mjs started` in
+   the checkout, and the channel says the game is updating.
+2. After a successful deploy, `finished` edits that post to say the update is live.
+3. If any deploy step fails, `failed` edits it to say the update hit a problem.
+
+These use the same `PATCH_NOTES_API_TOKEN` as patch notes, and every step only
+warns: a missing token, a down API or an old checkout without the script never
+fails a deploy. While a deploy it announced is running, the bot also holds back
+its own "the game isn't responding" posts.
+
 ## Patch notes
 
 After a successful deploy, the workflow turns the PRs in it into one news post

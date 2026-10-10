@@ -16,13 +16,39 @@ export type StaffPostKind =
   | 'BUG_REPORT_RESOLVED'
   | 'MESSAGE_REPORT'
   | 'MESSAGE_REPORT_RESOLVED'
-  | 'PATCH_NOTES_HELD';
+  | 'PATCH_NOTES_HELD'
+  | 'STATUS_DEPLOY_STARTED'
+  | 'STATUS_DEPLOY_FINISHED'
+  | 'STATUS_DEPLOY_FAILED'
+  | 'STATUS_MAINTENANCE';
 
-/** Each "resolved" kind edits the post its first kind made. */
+/**
+ * staff: the private staff channel. status: the public status channel. Each is claimed
+ * on its own, so one channel being unusable never holds the other's posts back.
+ */
+export type StaffPostAudience = 'staff' | 'status';
+
+const STATUS_KINDS: StaffPostKind[] = ['STATUS_DEPLOY_STARTED', 'STATUS_DEPLOY_FINISHED', 'STATUS_DEPLOY_FAILED', 'STATUS_MAINTENANCE'];
+const STAFF_KINDS: StaffPostKind[] = ['BUG_REPORT', 'BUG_REPORT_RESOLVED', 'MESSAGE_REPORT', 'MESSAGE_REPORT_RESOLVED', 'PATCH_NOTES_HELD'];
+
+/** Each follow-up kind edits the post its first kind made. */
 const FIRST_POST: Partial<Record<StaffPostKind, StaffPostKind>> = {
   BUG_REPORT_RESOLVED: 'BUG_REPORT',
   MESSAGE_REPORT_RESOLVED: 'MESSAGE_REPORT',
+  STATUS_DEPLOY_FINISHED: 'STATUS_DEPLOY_STARTED',
+  STATUS_DEPLOY_FAILED: 'STATUS_DEPLOY_STARTED',
 };
+
+const DEPLOY_PHASES: Partial<Record<StaffPostKind, DeployPhase>> = {
+  STATUS_DEPLOY_STARTED: 'started',
+  STATUS_DEPLOY_FINISHED: 'finished',
+  STATUS_DEPLOY_FAILED: 'failed',
+};
+
+export type DeployPhase = 'started' | 'finished' | 'failed';
+
+/** A deploy notice the bot sees this late is old news: an update long since over. */
+export const DEPLOY_POST_MAX_AGE_MS = 60 * 60_000;
 
 /**
  * A post the bot first sees this long after it was queued is dropped instead of
@@ -57,6 +83,9 @@ export interface DiscordStaffPostDto {
   bugReport?: StaffBugReportDto;
   messageReport?: StaffMessageReportDto;
   patchNotes?: { id: string; title: string; body: string; publishedAt: string; url: string };
+  /** Status channel posts: a deploy starting, finishing or failing, or planned maintenance. */
+  deploy?: { phase: DeployPhase; commit: string; at: string };
+  maintenance?: { message: string; startsAt: string; endsAt: string };
 }
 
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -105,9 +134,14 @@ export const DiscordStaffService = {
    * Unclaimed posts, oldest first, marked claimed before the bot sends them: at most
    * once, like news. Each is read fresh after the claim, so a deleted target is skipped.
    */
-  async claim(prisma: PrismaClient, now = new Date(), limit = 10): Promise<DiscordStaffPostDto[]> {
+  async claim(prisma: PrismaClient, now = new Date(), limit = 10, audience: StaffPostAudience = 'staff'): Promise<DiscordStaffPostDto[]> {
+    const kinds = audience === 'status' ? STATUS_KINDS : STAFF_KINDS;
     const rows = await prisma.$transaction(async (tx) => {
-      const unclaimed = await tx.discordStaffPost.findMany({ where: { claimedAt: null }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: limit });
+      const unclaimed = await tx.discordStaffPost.findMany({
+        where: { claimedAt: null, kind: { in: kinds } },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: limit,
+      });
       if (unclaimed.length) {
         await tx.discordStaffPost.updateMany({ where: { id: { in: unclaimed.map((row) => row.id) }, claimedAt: null }, data: { claimedAt: now } });
       }
@@ -135,6 +169,19 @@ export const DiscordStaffService = {
       } else if (kind === 'MESSAGE_REPORT' || kind === 'MESSAGE_REPORT_RESOLVED') {
         const report = await staffMessageReport(prisma, row.targetId, now);
         if (report) posts.push({ id: row.id, kind, editMessageId, messageReport: report });
+      } else if (DEPLOY_PHASES[kind]) {
+        if (now.getTime() - row.createdAt.getTime() > DEPLOY_POST_MAX_AGE_MS) continue;
+        posts.push({ id: row.id, kind, editMessageId, deploy: { phase: DEPLOY_PHASES[kind]!, commit: row.targetId, at: row.createdAt.toISOString() } });
+      } else if (kind === 'STATUS_MAINTENANCE') {
+        const banner = await prisma.siteBanner.findUnique({ where: { id: row.targetId } });
+        // Ended early, or already over: nothing to warn anyone about.
+        if (!banner?.maintenanceStartsAt || !banner.maintenanceEndsAt || banner.endsAt <= now || banner.maintenanceEndsAt <= now) continue;
+        posts.push({
+          id: row.id,
+          kind,
+          editMessageId: null,
+          maintenance: { message: banner.message, startsAt: banner.maintenanceStartsAt.toISOString(), endsAt: banner.maintenanceEndsAt.toISOString() },
+        });
       } else if (kind === 'PATCH_NOTES_HELD') {
         const news = await prisma.gameNews.findUnique({ where: { id: row.targetId } });
         // Already public, say after the staff channel was down past the hold: nothing left to review.

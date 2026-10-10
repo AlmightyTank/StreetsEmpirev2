@@ -31,6 +31,10 @@ const schema = z.object({
   DISCORD_STAFF_CHANNEL_ID: optionalChannel('DISCORD_STAFF_CHANNEL_ID'),
   /** Text channel /support tickets are private threads in; empty turns /support off. */
   DISCORD_SUPPORT_CHANNEL_ID: optionalChannel('DISCORD_SUPPORT_CHANNEL_ID'),
+  /** Public channel for updates going live, planned maintenance and outages; empty turns them off. */
+  DISCORD_STATUS_CHANNEL_ID: optionalChannel('DISCORD_STATUS_CHANNEL_ID'),
+  /** How long the game must stay unreachable before the status channel says it is down. */
+  DISCORD_OUTAGE_MINUTES: z.coerce.number().int().min(1).max(60).default(3),
   /** How often alerts (/alerts), the raid feed and round events are checked. */
   DISCORD_ALERTS_MINUTES: z.coerce.number().int().min(1).max(60).default(1),
   /** Local HTTP listener for game-server wake-up nudges. Set port 0 to turn it off. */

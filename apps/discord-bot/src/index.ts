@@ -36,6 +36,7 @@ import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
 import { startOptionalPushServer } from './push-server.js';
 import { handleStaffButton, handleStaffModal, staffPostMessage } from './staff.js';
+import { OutageWatch, outageMessage, recoveredMessage, statusPostMessage } from './status.js';
 import { handleTicketButton, handleTicketForm, type SupportDeps } from './support.js';
 
 const config = loadConfig();
@@ -173,6 +174,28 @@ async function postStaff(channel: GuildTextBasedChannel): Promise<void> {
       console.error(`Could not post staff ${post.kind} ${post.id} to #${channel.name}:`, error);
       await api.staffPostFailed(post.id, describeDiscordError(error, channel.name))
         .catch((reportError: unknown) => console.error(`Could not report the failed staff post ${post.id} to the game API:`, reportError));
+    }
+  }
+}
+
+const outages = new OutageWatch(config.DISCORD_OUTAGE_MINUTES * 60_000);
+
+/** Status channel posts. A deploy's finish or failure edits its "updating" post. */
+async function postStatus(channel: GuildTextBasedChannel): Promise<void> {
+  for (const post of await api.claimStaffPosts('status')) {
+    const message = statusPostMessage(post);
+    if (!message) continue;
+    // A deploy restarts the game: outage posts wait while it runs.
+    if (post.deploy?.phase === 'started') outages.deployStarted(Date.now());
+    else if (post.deploy) outages.deployEnded();
+    try {
+      const existing = post.editMessageId ? await channel.messages.fetch(post.editMessageId).catch(() => null) : null;
+      const sent = existing ? await existing.edit(message) : await channel.send({ ...message, allowedMentions: { parse: [] } });
+      await api.staffPostPosted(post.id, sent.id);
+    } catch (error) {
+      console.error(`Could not post status ${post.kind} ${post.id} to #${channel.name}:`, error);
+      await api.staffPostFailed(post.id, describeDiscordError(error, channel.name))
+        .catch((reportError: unknown) => console.error(`Could not report the failed status post ${post.id} to the game API:`, reportError));
     }
   }
 }
@@ -420,11 +443,53 @@ client.once(Events.ClientReady, async (ready) => {
       }
       if (check.channel) await postStaff(check.channel);
     });
+    const statusCheck = () => checkPostChannel(guild, config.DISCORD_STATUS_CHANNEL_ID, 'DISCORD_STATUS_CHANNEL_ID', [PermissionFlagsBits.ReadMessageHistory]);
+    let statusProblem: string | null | undefined;
+    const runStatus = serialTask('Status channel', async () => {
+      if (!config.DISCORD_STATUS_CHANNEL_ID) {
+        await api.claimStaffPosts('status');
+        return;
+      }
+      const check = await statusCheck();
+      if (check.problem !== statusProblem) {
+        if (check.problem) console.warn(`Status channel posts are paused until fixed: ${check.problem}`);
+        else console.log(`Posting updates, maintenance and outages to #${check.channel!.name}.`);
+        statusProblem = check.problem;
+      }
+      if (check.channel) await postStatus(check.channel);
+    });
+
+    // The bot's own call: a down game can't post. One "down" post per outage, edited when it's back.
+    let outagePost: { channelId: string; messageId: string } | null = null;
+    const runOutageWatch = serialTask('Outage watch', async () => {
+      const ok = await api.ready().then((ready) => ready.ok).catch(() => false);
+      const event = outages.record(ok, Date.now());
+      if (!event || !config.DISCORD_STATUS_CHANNEL_ID) return;
+      const { channel } = await statusCheck();
+      if (!channel) return;
+      // A failed send throws before `posted`, so the next probe offers the same news again.
+      if (event.event === 'down') {
+        const sent = await channel.send({ ...outageMessage(event.since, Date.now()), allowedMentions: { parse: [] } });
+        outagePost = { channelId: channel.id, messageId: sent.id };
+        outages.posted(event);
+        console.warn(`The game API has not answered since ${new Date(event.since).toISOString()}; posted an outage notice.`);
+      } else {
+        const posted = outagePost?.channelId === channel.id ? await channel.messages.fetch(outagePost.messageId).catch(() => null) : null;
+        const message = recoveredMessage(event.since, event.downForMs);
+        if (posted) await posted.edit(message);
+        else await channel.send({ ...message, allowedMentions: { parse: [] } });
+        outagePost = null;
+        outages.posted(event);
+        console.log(`The game API is answering again after ${Math.round(event.downForMs / 60_000)} min.`);
+      }
+    });
+
     const runWake = serialTask('Discord push wake', async () => {
       await runNews();
       await runAlerts();
       await runAdminResync();
       await runStaff();
+      await runStatus();
     });
 
     console.log(`Checking Discord alerts every ${config.DISCORD_ALERTS_MINUTES} min.`);
@@ -434,6 +499,8 @@ client.once(Events.ClientReady, async (ready) => {
     // running covers an "everyone" request, so a skipped run is not lost work.
     startPoller('Admin role resync', config.DISCORD_ALERTS_MINUTES * 60_000, runAdminResync);
     startPoller('Staff channel', config.DISCORD_ALERTS_MINUTES * 60_000, runStaff);
+    startPoller('Status channel', config.DISCORD_ALERTS_MINUTES * 60_000, runStatus);
+    startPoller('Outage watch', 60_000, runOutageWatch);
 
     if (config.DISCORD_BOT_LISTEN_PORT > 0) {
       stopPushServer = await startOptionalPushServer({

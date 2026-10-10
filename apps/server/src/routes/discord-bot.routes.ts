@@ -52,6 +52,7 @@ const messageReportActionSchema = z.object({
   note: z.string().trim().min(5, 'Write a note of at least 5 characters.').max(500),
 }).strict();
 const staffPostParams = z.object({ postId: z.string().min(1).max(64) }).strict();
+const staffClaimSchema = z.object({ audience: z.enum(['staff', 'status']).optional() }).strict();
 const ticketParams = z.object({ ticketId: z.string().min(1).max(64) }).strict();
 const openTicketSchema = z.object({
   discordId: snowflake,
@@ -182,7 +183,9 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   /** Staff channel posts, claimed once like news. */
-  fastify.post('/staff-posts/claim', async () => ({ posts: await DiscordStaffService.claim(fastify.prisma) }));
+  fastify.post('/staff-posts/claim', async (request) => ({
+    posts: await DiscordStaffService.claim(fastify.prisma, new Date(), 10, parseBody(staffClaimSchema, request.body ?? {}).audience),
+  }));
 
   fastify.post('/staff-posts/:postId/posted', async (request) => {
     const { postId } = parseBody(staffPostParams, request.params);

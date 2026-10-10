@@ -55,6 +55,7 @@ the person who ran the command.
 | `/halloffame` | Public | Final top 3 of the five most recently finished rounds |
 | `/round` | Public | Round status, time left, players, turn rate |
 | `/news` | Public | Latest five news posts |
+| `/status` | Public | Whether the game is answering, the running version, the season and any planned maintenance. Answers even while the game is down. |
 | `/invite` | Public | How to register, join the current round and get roles, with the round's status |
 | `/link` | Private | Your game account, current-round player, forum link, and the roles you qualify for, or how to link |
 | `/stats` | Private | Your own cash, crew, weapons, supplies, happiness, turns and ranks |
@@ -128,6 +129,22 @@ channel once.
   Messages**, **Embed Links** and **Read Message History** there (the last one
   lets it edit its own posts). While any is missing, posts wait on the server and
   the bot logs what to fix; with no channel set, posts are dropped.
+
+**Status channel.** When `DISCORD_STATUS_CHANNEL_ID` is set, the bot posts there:
+- **Updates:** "Updating StreetsEmpire" when a deploy starts, edited to "Update
+  finished" or "Update hit a problem" when it ends. The deploy workflow sends these
+  through `scripts/ops/deploy-status.mjs`, using the game's `PATCH_NOTES_API_TOKEN`
+  (see [docs/AUTO-DEPLOY.md](../../docs/AUTO-DEPLOY.md)).
+- **Planned maintenance:** every maintenance banner scheduled in **Admin → News**,
+  announced or not, with its window in each reader's own time zone.
+- **Outages:** the bot checks the game every minute. After
+  `DISCORD_OUTAGE_MINUTES` (default 3) without an answer it posts that the game
+  isn't responding, and edits that post when it is back, with how long it was
+  down. It stays quiet for up to 20 minutes after posting that an update started,
+  since restarts are expected then. A bot restart mid-outage forgets its post, so
+  it posts the recovery as a new message.
+- Make it a read-only channel members can see. The bot needs **View Channel**,
+  **Send Messages**, **Embed Links** and **Read Message History** there.
 
 **Support tickets.** When `DISCORD_SUPPORT_CHANNEL_ID` is set, `/support` opens a
 form and turns it into a private thread in that channel:
@@ -211,6 +228,8 @@ DISCORD_NEWS_MINUTES=1
 DISCORD_RAID_FEED_CHANNEL_ID="<channel id, or empty for no raid feed>"
 DISCORD_STAFF_CHANNEL_ID="<private staff channel id, or empty for no staff posts>"
 DISCORD_SUPPORT_CHANNEL_ID="<text channel for /support ticket threads, or empty for no tickets>"
+DISCORD_STATUS_CHANNEL_ID="<public status channel id, or empty for no status posts>"
+DISCORD_OUTAGE_MINUTES=3
 DISCORD_ALERTS_MINUTES=1
 ```
 
@@ -235,6 +254,9 @@ DISCORD_ALERTS_MINUTES=1
   patch notes. Leave it empty to keep staff posts off.
 - `DISCORD_SUPPORT_CHANNEL_ID` is the text channel `/support` tickets are private
   threads in. Leave it empty to keep `/support` off.
+- `DISCORD_STATUS_CHANNEL_ID` is the public channel for updates, maintenance and
+  outages. Leave it empty to keep status posts off. `DISCORD_OUTAGE_MINUTES` is how
+  long the game must be unreachable before it says so.
 
 Restart the game API after setting `DISCORD_BOT_API_TOKEN`.
 
