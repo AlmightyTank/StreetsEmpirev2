@@ -1,9 +1,8 @@
 type BadgeArtPosition = readonly [atlas: number, cell: number];
 
 /**
- * Each stable award key points at its own original, illustrated crest in a
- * transparent 4×3 sprite atlas. Keys stay explicit so adding an award cannot
- * silently reuse a category icon.
+ * Explicit allowlist of supported badge keys. Every registered badge loads
+ * its own complete standalone illustration from the badge asset directory.
  */
 const badgeArtByKey: Record<string, BadgeArtPosition> = {
   // Rank, wealth, and career honors — atlas 1.
@@ -194,10 +193,7 @@ export function ProfileBadgeArt({ badgeKey, category, rarity = 'common', size = 
   const family = category ?? badgeCategoryForKey(badgeKey);
   const artKey = badgeArtByKey[badgeKey] ? badgeKey : (fallbackKeyByCategory[family] ?? 'hall-of-fame');
   const style = { width: size, height: size, opacity: locked ? 0.35 : 1 };
-  const standaloneBadgeKeys = new Set(['kingpin', 'beta-tester', 'veteran', 'top-finisher', 'hall-of-fame', 'past-winner']);
-  const artPath = standaloneBadgeKeys.has(artKey)
-    ? `/assets/profile-badges/individual-standalone/${artKey}.webp`
-    : `/assets/profile-badges/individual-v2/${artKey}.webp`;
+  const artPath = `/assets/profile-badges/individual-standalone/${artKey}.svg`;
 
   return (
     <img
