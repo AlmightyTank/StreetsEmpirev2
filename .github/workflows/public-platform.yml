@@ -143,9 +143,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          case "$DEPLOY_BRANCH" in
+            beta) checkout_dir="/opt/streets-empire/StreetsEmpirev2-beta" ;;
+            main) checkout_dir="/opt/streets-empire/StreetsEmpirev2" ;;
+            *) echo "::error::Unsupported deploy branch: $DEPLOY_BRANCH"; exit 1 ;;
+          esac
+          printf -v checkout_arg '%q' "$checkout_dir"
           printf -v branch_arg '%q' "$DEPLOY_BRANCH"
           printf -v commit_arg '%q' "$DEPLOY_COMMIT"
-          remote_command="cd /opt/streets-empire/StreetsEmpirev2 && bash scripts/ops/deploy-ref.sh $branch_arg $commit_arg"
+          remote_command="cd $checkout_arg && bash scripts/ops/deploy-ref.sh $branch_arg $commit_arg"
           ssh -i "$HOME/.ssh/streets-empire-deploy" \
             -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$VPS_USER@$VPS_HOST" "$remote_command"
