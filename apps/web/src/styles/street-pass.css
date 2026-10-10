@@ -1703,3 +1703,153 @@ img.se-pass-theme-preview__frame-avatar {
   left: 28%;
   width: 44%;
 }
+
+
+/* Keep the preview card vertically scrollable while horizontal touch gestures change slides. */
+.se-pass-theme-preview {
+  touch-action: pan-y;
+}
+
+.se-pass-theme-preview__mock {
+  display: grid;
+  grid-template-rows: 28px auto minmax(74px, 1fr) 24px;
+  gap: 10px;
+  min-height: 270px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.se-pass-theme-preview__mock::before,
+.se-pass-theme-preview__mock::after {
+  content: none;
+}
+
+.se-pass-theme-preview__mock-topbar,
+.se-pass-theme-preview__mock-stats,
+.se-pass-theme-preview__mock-panel,
+.se-pass-theme-preview__mock-nav {
+  position: relative;
+  min-width: 0;
+}
+
+.se-pass-theme-preview__mock-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 9px;
+  border-bottom: 1px solid rgba(114, 245, 255, 0.25);
+  background: linear-gradient(90deg, rgba(34, 220, 255, 0.19), rgba(173, 255, 47, 0.12));
+}
+
+.se-pass-theme-preview__mock-topbar strong {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.se-pass-theme-preview__mock-topbar strong span {
+  color: #7bedab;
+}
+
+.se-pass-theme-preview__mock-topbar small,
+.se-pass-theme-preview__mock-panel small,
+.se-pass-theme-preview__mock-stats small {
+  color: rgba(226, 238, 255, 0.62);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.se-pass-theme-preview__mock-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.se-pass-theme-preview__mock-stats span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid rgba(114, 245, 255, 0.17);
+  background: rgba(3, 8, 18, 0.72);
+}
+
+.se-pass-theme-preview__mock-stats strong {
+  color: #f5f8ff;
+  font-size: 13px;
+}
+
+.se-pass-theme-preview__mock-panel {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  min-height: 74px;
+  padding: 12px;
+  border: 1px solid rgba(114, 245, 255, 0.2);
+  background: linear-gradient(125deg, rgba(26, 58, 70, 0.52), rgba(9, 14, 26, 0.88));
+}
+
+.se-pass-theme-preview__mock-panel strong {
+  font-size: 16px;
+}
+
+.se-pass-theme-preview__mock-panel i {
+  display: block;
+  width: 62%;
+  height: 5px;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #b8f85a, #31d6d1);
+}
+
+.se-pass-theme-preview__mock-nav {
+  display: flex;
+  gap: 7px;
+}
+
+.se-pass-theme-preview__mock-nav i {
+  flex: 1;
+  border: 1px solid rgba(114, 245, 255, 0.16);
+  background: rgba(14, 25, 38, 0.9);
+}
+
+.se-pass-theme-preview__mock-nav i:first-child {
+  border-color: rgba(173, 255, 47, 0.48);
+  background: rgba(173, 255, 47, 0.12);
+}
+
+.se-pass-theme-preview__title-name {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0;
+  text-align: center;
+}
+
+.se-pass-theme-preview__title-part {
+  overflow-wrap: anywhere;
+}
+
+.se-pass-theme-preview__title-part--name {
+  color: #f7fbff;
+  font-size: clamp(18px, 3.3vw, 26px);
+  font-weight: 900;
+}
+
+.se-pass-theme-preview__title-part--separator {
+  color: rgba(226, 238, 255, 0.54);
+  white-space: pre;
+}
+
+.se-pass-theme-preview__title-part--title {
+  color: var(--se-accent);
+  font-size: clamp(16px, 3vw, 23px);
+  font-weight: 850;
+}
+
+@media (max-width: 760px) {
+  .se-pass-theme-preview__mock {
+    min-height: 230px;
+  }
+}

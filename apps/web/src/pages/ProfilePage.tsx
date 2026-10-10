@@ -7,7 +7,7 @@ import type {
   PublicSeasonResultDto,
   PublicStatSheetDto,
 } from '@streets/shared';
-import { formatCents, formatNumber, formatProfileName } from '@streets/shared';
+import { formatCents, formatNumber, profileNameParts } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
@@ -538,7 +538,9 @@ export function ProfilePage() {
               <h1 className="se-title">
                 {player ? <AllianceTag alliance={player.alliance} /> : null}
                 {player
-                  ? <><span className={player.cosmetics.title ? `se-profile-title se-profile-title--${player.cosmetics.titlePlacement}` : undefined}>{formatProfileName(player.displayName, player.cosmetics.title, player.cosmetics.titlePlacement)}</span>{' '}</>
+                  ? <><span className="se-profile-name">{profileNameParts(player.displayName, player.cosmetics.title).map((part, index) => (
+                    <span className={`se-profile-name__part se-profile-name__part--${part.kind}`} key={index}>{part.text}</span>
+                  ))}</span>{' '}</>
                   : account?.username ?? 'Profile'}
                 {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
               </h1>
