@@ -73,17 +73,17 @@ export const PermanentUnlockService = {
     return locked;
   },
 
-  async scoutDistrictAccess(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<Map<DistrictKey, { unlock: PermanentUnlockDefinition; unlocked: boolean }>> {
+  async districtAccess(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<Map<DistrictKey, { unlock: PermanentUnlockDefinition; unlocked: boolean }>> {
     const access = new Map<DistrictKey, { unlock: PermanentUnlockDefinition; unlocked: boolean }>();
-    const gated = Object.values(ruleset.permanentUnlocks ?? {}).filter((definition) => definition.effect.kind === 'DISTRICT_SCOUT_ACCESS');
+    const gated = Object.values(ruleset.permanentUnlocks ?? {}).filter((definition) => definition.effect.kind === 'DISTRICT_ACCESS');
     if (!gated.length) return access;
     const keys = await PermanentUnlockService.keys(db, roundPlayerId);
-    for (const definition of gated) if (definition.effect.kind === 'DISTRICT_SCOUT_ACCESS') access.set(definition.effect.districtKey, { unlock: definition, unlocked: keys.has(definition.key) });
+    for (const definition of gated) if (definition.effect.kind === 'DISTRICT_ACCESS') access.set(definition.effect.districtKey, { unlock: definition, unlocked: keys.has(definition.key) });
     return access;
   },
 
-  async assertCanScoutDistrict(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, districtKey: DistrictKey): Promise<void> {
-    const access = (await PermanentUnlockService.scoutDistrictAccess(db, roundPlayerId, ruleset)).get(districtKey);
+  async assertCanAccessDistrict(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, districtKey: DistrictKey): Promise<void> {
+    const access = (await PermanentUnlockService.districtAccess(db, roundPlayerId, ruleset)).get(districtKey);
     if (!access || access.unlocked) return;
     const quest = PermanentUnlockService.questFor(ruleset, access.unlock.key);
     throw AppError.conflict('DISTRICT_SCOUT_LOCKED', quest ? `Finish "${quest.title}"${quest.giverName ? ` for ${quest.giverName}` : ''} to unlock scouting in ${access.unlock.name}.` : `Complete the required job to unlock scouting in ${access.unlock.name}.`);
