@@ -1,3 +1,4 @@
+import { ProfileBadgeArt } from '../components/ProfileBadgeArt.js';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type {
@@ -774,9 +775,11 @@ export function AccountSettingsPage() {
                               disabled={!checked && cosmetics.featuredBadgeKeys.length >= 6}
                               onChange={() => toggleFeaturedBadge(option.key)}
                             />
-                            <span>
-                              <strong>{option.label}</strong>
-                              <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity.charAt(0).toUpperCase() + option.rarity.slice(1)}</small>
+                            <span className="se-badge-picker__option">
+                              <ProfileBadgeArt badgeKey={option.key} rarity={option.rarity} size={38} />
+                              <span><strong>{option.label}</strong>
+                                <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity.charAt(0).toUpperCase() + option.rarity.slice(1)}</small>
+                              </span>
                             </span>
                           </label>
                         );
