@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { QuestRewardDto, StreetPassClaimResult, StreetPassDto, StreetPassTierDto } from '@streets/shared';
+import type { ItemCosmeticStyleKey, QuestRewardDto, StreetPassClaimResult, StreetPassDto, StreetPassTierDto } from '@streets/shared';
 import { formatNumber, formatProfileName } from '@streets/shared';
 import { streetPassApi } from '../api/streetPass.js';
 import { Alert } from '../components/Alert.js';
@@ -9,6 +9,7 @@ import { ItemTile } from '../components/ItemTile.js';
 import { rewardText } from '../components/RewardChip.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { ITEM_ART, itemArtUrl, rewardArtKey } from '../items/itemArt.js';
+import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 
@@ -71,7 +72,22 @@ function PassMetric({
   );
 }
 
-type CosmeticPreviewKind = 'theme' | 'frame' | 'badge' | 'title';
+type CosmeticPreviewKind = 'theme' | 'frame' | 'badge' | 'title' | 'item';
+
+const COSMETIC_PREVIEW_ITEMS = ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN'] as const;
+type CosmeticPreviewItemKey = typeof COSMETIC_PREVIEW_ITEMS[number];
+type CosmeticCollectionStyleKey = Exclude<ItemCosmeticStyleKey, 'classic'>;
+
+function cosmeticCollectionStyle(key: string): CosmeticCollectionStyleKey | null {
+  if (key === 'street-pass-s1-urban-ghost') return 'urban-ghost';
+  if (key === 'street-pass-s1-midnight-ops') return 'midnight-ops';
+  if (key === 'street-pass-s1-cartel-gold') return 'cartel-gold';
+  return null;
+}
+
+function randomCosmeticPreviewItem(): CosmeticPreviewItemKey {
+  return COSMETIC_PREVIEW_ITEMS[Math.floor(Math.random() * COSMETIC_PREVIEW_ITEMS.length)]!;
+}
 
 type CosmeticPreview = {
   key: string;
@@ -88,6 +104,7 @@ function cosmeticPreviewLabel(reward: QuestRewardDto): string {
 }
 
 function cosmeticPreviewKind(key: string): CosmeticPreviewKind {
+  if (cosmeticCollectionStyle(key)) return 'item';
   if (key.endsWith('-theme')) return 'theme';
   if (key.includes('frame') || key.includes('chrome-halo')) return 'frame';
   if (key.includes('badge')) return 'badge';
@@ -113,6 +130,13 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
   const displayName = useSession((state) => state.me?.displayName ?? state.account?.username ?? 'AMIGHTYTANK');
   const titlePlacement = useSession((state) => state.profileSettings.titlePlacement);
   const active = previews[Math.min(activeIndex, Math.max(0, previews.length - 1))];
+  const [collectionPreviewItems] = useState<Record<CosmeticCollectionStyleKey, CosmeticPreviewItemKey>>(() => ({
+    'urban-ghost': randomCosmeticPreviewItem(),
+    'midnight-ops': randomCosmeticPreviewItem(),
+    'cartel-gold': randomCosmeticPreviewItem(),
+  }));
+  const activeCollectionStyle = active ? cosmeticCollectionStyle(active.key) : null;
+  const activeWeapon = activeCollectionStyle ? collectionPreviewItems[activeCollectionStyle] : null;
 
   useEffect(() => {
     if (activeIndex < previews.length) return;
@@ -135,7 +159,9 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
     ? `Unlocks at tier ${formatNumber(active.tier)} and can be selected from account settings after you claim it.`
     : active.kind === 'title'
       ? `Unlocks at tier ${formatNumber(active.tier)} and shows how this title appears with your player name.`
-      : `Unlocks at tier ${formatNumber(active.tier)} and stays on your account after the season.`;
+      : active.kind === 'item'
+        ? `Unlocks at tier ${formatNumber(active.tier)} and gives this look to every eligible item.`
+        : `Unlocks at tier ${formatNumber(active.tier)} and stays on your account after the season.`;
 
   return (
     <section className="se-pass-theme-previews" aria-label="Street Pass cosmetic previews">
@@ -176,6 +202,14 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
             </span>
             <span className="se-pass-theme-preview__road" />
             <span className="se-pass-theme-preview__glow" />
+          </div>
+        ) : active.kind === 'item' && activeCollectionStyle && activeWeapon ? (
+          <div className="se-pass-theme-preview__weapon-stage">
+            <img
+              className="se-pass-theme-preview__weapon-art"
+              src={itemCosmeticArtUrl(activeWeapon, activeCollectionStyle)}
+              alt={`${active.label} ${ITEM_ART[activeWeapon].shortName}`}
+            />
           </div>
         ) : (
           <div className="se-pass-theme-preview__cosmetic-stage">
