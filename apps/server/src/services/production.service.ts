@@ -15,7 +15,7 @@ import {
 import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMovements } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
-import { encounterActivityPayload, RandomEncounterService } from './random-encounter.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 
 export interface ProduceInput {
   turns: number;
@@ -78,6 +78,7 @@ export const ProductionService = {
         if (!baseRecipe) {
           throw AppError.badRequest('UNKNOWN_RECIPE', 'Your crew cannot cook that.', { productType: `Pick one of: ${recipes.map((row) => row.name).join(', ')}.` });
         }
+        await PermanentUnlockService.assertCanProduceProduct(tx, roundPlayerId, ruleset, baseRecipe.product);
         const ingredientEfficiencyPercent = hideoutWorkshopIngredientEfficiencyPercent(ruleset, current);
         const effectiveIngredientCentsPerUnit = hideoutWorkshopIngredientCentsPerUnit(
           baseRecipe.ingredientCentsPerUnit,
@@ -207,17 +208,7 @@ export const ProductionService = {
           // 0.4.0-D: some cooks draw attention of their own.
           extraHeat: productProduced * recipe.heatPerUnit,
         });
-        let next = trip.next;
-        const encounter = await RandomEncounterService.produce({
-          tx,
-          roundPlayerId,
-          next,
-          ruleset,
-          turns: input.turns,
-          now,
-          rng,
-        });
-        next = encounter.next;
+        const next = trip.next;
 
         const result: ProduceCrackResult = {
           ...(supply ? { supply: toPlanDto(supply, ruleset) } : {}),
@@ -261,7 +252,6 @@ export const ProductionService = {
           condomsMissing: outcome.shortages.condoms,
           beerMissing: outcome.shortages.beer,
 
-          ...(encounter.encounter ? { encounter: encounter.encounter } : {}),
 
           turnsUsed: input.turns,
           turnsRemaining: next.turns,
@@ -328,7 +318,6 @@ export const ProductionService = {
               infected: outcome.infections.infected,
               lostToInfection: outcome.infections.lost,
               ...(trip.heat ? { heat: trip.heat.after, heatAdded: trip.heat.added, busted: trip.heat.busted, fineCents: trip.heat.fineCents } : {}),
-              ...(encounter.encounter ? { encounter: encounterActivityPayload(encounter.encounter) } : {}),
             },
           },
           // 1.3.0-A/B: the Heat the trip drew, and any bust or arrest, build the Case at home.
