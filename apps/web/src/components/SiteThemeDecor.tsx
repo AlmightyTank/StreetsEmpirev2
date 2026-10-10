@@ -80,14 +80,12 @@ const dragonParticles = [
   ['75%', '-10s', '18s', 3], ['83%', '-4s', '14s', 4], ['91%', '-7s', '17s', 5],
 ] as const;
 
+const DragonScene = lazy(() => import('./theme-scenes/DragonScene.js'));
+
 function DragonAtmosphere({ fire = false }: { fire?: boolean }) {
   return (
     <div className={`se-site-theme-decor se-site-theme-decor--dragon${fire ? ' se-site-theme-decor--fire' : ' se-site-theme-decor--ice'}`} aria-hidden="true">
-      <img
-        className="se-dragon-atmosphere__art"
-        src={fire ? '/profile-frames/inferno-popup.webp' : '/profile-frames/snowstorm-popup.webp'}
-        alt=""
-      />
+      <Suspense fallback={null}><DragonScene variant={fire ? 'fire' : 'ice'} /></Suspense>
       <div className="se-dragon-atmosphere__particles">
         {dragonParticles.map(([left, delay, duration, size], index) => (
           <i
