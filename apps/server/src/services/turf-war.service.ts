@@ -10,6 +10,7 @@ import type {
   TurfPushStartResult,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { allianceTargetBlock } from './alliance.service.js';
