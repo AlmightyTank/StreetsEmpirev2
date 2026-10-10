@@ -625,8 +625,8 @@
     linear-gradient(145deg, transparent 28%, #d9f7ff18 48%, transparent 68%);
   background-size: 54px 63px, 77px 91px, 103px 111px, 100% 100%;
   background-position: 0 0, 22px 17px, 41px 55px, 0 0;
-  -webkit-mask-image: radial-gradient(ellipse 62% 43% at center, transparent 40%, #000 86%);
-  mask-image: radial-gradient(ellipse 62% 43% at center, transparent 40%, #000 86%);
+  -webkit-mask-image: radial-gradient(ellipse 82% 82% at center, #0005 0%, #0008 70%, #000 100%);
+  mask-image: radial-gradient(ellipse 82% 82% at center, #0005 0%, #0008 70%, #000 100%);
   animation: se-frame-snowfall 4.5s linear infinite;
 }
 .se-profile-hover-card.se-profile-effect--snowstorm::before,
@@ -657,8 +657,8 @@
     radial-gradient(circle, #ff6f32 0 2px, transparent 3px);
   background-size: 112% 145%, 112% 145%, 108% 138%, 73px 82px, 101px 107px;
   background-position: 0 30px, 0 18px, 0 26px, 13px 0, 47px 27px;
-  -webkit-mask-image: linear-gradient(to top, #000 0, #000 24%, #0008 52%, transparent 90%);
-  mask-image: linear-gradient(to top, #000 0, #000 24%, #0008 52%, transparent 90%);
+  -webkit-mask-image: linear-gradient(to top, #000 0, #000 24%, #000b 52%, #0006 78%, #0004 100%);
+  mask-image: linear-gradient(to top, #000 0, #000 24%, #000b 52%, #0006 78%, #0004 100%);
   animation: se-frame-flames 1.8s ease-in-out infinite alternate;
 }
 .se-profile-hover-card.se-profile-effect--snowstorm .se-profile-hover-card__avatar,
