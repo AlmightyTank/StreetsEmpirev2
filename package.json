@@ -31,6 +31,7 @@
     "qa:law": "node --import tsx scripts/qa/law-sim.mjs",
     "qa:factions": "node --import tsx scripts/qa/faction-sim.mjs",
     "qa:vehicles": "node --import tsx scripts/qa/vehicle-sim.mjs",
+    "qa:crew-roster": "node --import tsx scripts/qa/crew-roster-sim.ts",
     "qa:street-pass": "tsx scripts/qa/street-pass-sim.ts",
     "qa:npc-gangs": "tsx scripts/qa/npc-gang-sim.ts",
     "qa:supply-cities": "tsx scripts/qa/supply-cities-sim.ts",

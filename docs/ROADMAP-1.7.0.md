@@ -175,6 +175,8 @@ Make individual progression safe to operate and fair across different play style
 - Review the roster UI on desktop and mobile, including large lists and accessibility of status labels.
 - Run pinned historical-ruleset tests and database migration tests before release.
 
+**Implemented in 1.7.0-F:** Staff can inspect roster migration coverage, role/specialty/status/assignment distribution, career XP ranges, and the top 100 veterans per round. From a player inspector, staff can correct a member's career XP and specialty with a reason; the member history and admin audit log record before/after values, self-correction is blocked, and ended/archived rounds reject writes. Reads of an unmigrated player's roster do not trigger a migration. `npm run qa:crew-roster` exercises new, casual, and optimized veteran crews from size 2 through 100 across combat, supply, scouting, and the reserved service path; it asserts the active paths' pinned 0/2/5% progression ceiling, verifies that service has no implied effect before its category exists, confirms that five selected veterans do not stack, and checks that pinned A–D rulesets retain their prior behavior. The audit event enum is added by `20261012010000_crew_admin_corrections`.
+
 **Release gates:**
 
 - Migrated players retain every crew member and all existing derived totals.

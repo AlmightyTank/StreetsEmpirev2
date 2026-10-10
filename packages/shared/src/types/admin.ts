@@ -24,6 +24,43 @@ export interface AdminRoundsDto {
   rulesets: AdminRulesetOptionDto[];
 }
 
+/** 1.7.0-F. Staff view of roster migration and career balance in one round. */
+export interface AdminCrewRosterDto {
+  roundId: string;
+  roundName: string;
+  roundStatus: RoundStatus;
+  rulesetId: string;
+  enabled: boolean;
+  generatedAt: string;
+  players: { total: number; migrated: number; pending: number };
+  members: { total: number; experienceMin: number | null; experienceMax: number | null; experienceAverage: number | null };
+  byRole: Array<{ role: 'THUG' | 'WORKER'; count: number }>;
+  bySpecialty: Array<{ specialty: 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE'; count: number }>;
+  byStatus: Array<{ status: 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED'; count: number }>;
+  byAssignment: Array<{ assignment: 'BUSINESS' | 'DEALER' | 'TURF' | 'UNASSIGNED'; count: number }>;
+  topVeterans: Array<{ roundPlayerId: string; displayName: string; memberId: string; role: 'THUG' | 'WORKER'; serial: number; experiencePoints: number; specialty: string; specialtyExperiencePoints: number }>;
+}
+
+export interface AdminCrewCorrectionInput {
+  experiencePoints: number;
+  specialty: 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE';
+  specialtyExperiencePoints: number;
+  reason: string;
+}
+
+export interface AdminCrewPlayerDto {
+  enabled: boolean;
+  members: Array<{ id: string; name: string; role: 'THUG' | 'WORKER'; serial: number; status: string; experiencePoints: number; specialty: string; specialtyExperiencePoints: number }>;
+}
+
+export interface AdminCrewCorrectionResult {
+  memberId: string;
+  experiencePoints: number;
+  specialty: string;
+  specialtyExperiencePoints: number;
+  auditId: string | null;
+}
+
 export interface AdminRoundResultDto {
   round: AdminRoundDto;
 }

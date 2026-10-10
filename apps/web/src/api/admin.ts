@@ -1,4 +1,8 @@
 import type {
+  AdminCrewCorrectionInput,
+  AdminCrewCorrectionResult,
+  AdminCrewPlayerDto,
+  AdminCrewRosterDto,
   AdminLoanCorrectionInput,
   AdminLoanCorrectionResult,
   AdminLoanPlayerDto,
@@ -101,6 +105,7 @@ export const adminApi = {
   resumeRound: (roundId: string, extend: boolean) => api.post<AdminRoundResultDto>(roundPath(roundId, 'resume'), { extend }),
   updateRound: (roundId: string, input: AdminUpdateRoundInput) => api.post<AdminRoundResultDto>(roundPath(roundId, 'update'), input),
   roundHealth: (roundId: string) => api.get<AdminRoundHealthDto>(roundPath(roundId, 'health')),
+  crewRoster: (roundId: string) => api.get<AdminCrewRosterDto>(roundPath(roundId, 'crew')),
   updateStreetPass: (roundId: string, input: AdminStreetPassUpdateInput) => api.post<AdminRoundHealthDto>(roundPath(roundId, 'street-pass'), input),
   rulesetChange: (roundId: string, rulesetId?: string) =>
     api.get<AdminRulesetChangeDto>(`${roundPath(roundId, 'ruleset-change')}${queryString({ rulesetId })}`),
@@ -199,6 +204,9 @@ export const adminApi = {
   players: (params: { query: string; roundId?: string | undefined; limit?: number | undefined }) =>
     api.get<AdminPlayerSearchDto>(`/admin/players${queryString(params)}`),
   player: (roundPlayerId: string) => api.get<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}`),
+  playerCrew: (roundPlayerId: string) => api.get<AdminCrewPlayerDto>(`/admin/players/${enc(roundPlayerId)}/crew`),
+  correctPlayerCrew: (roundPlayerId: string, memberId: string, input: AdminCrewCorrectionInput) =>
+    api.post<AdminCrewCorrectionResult>(`/admin/players/${enc(roundPlayerId)}/crew/${enc(memberId)}/correct`, input),
   grantToPlayer: (roundPlayerId: string, input: AdminGrantInput) => api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/grant`, input),
   grantQuest: (roundPlayerId: string, key: string, reason: string) =>
     api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/quests/grant`, { key, reason }),

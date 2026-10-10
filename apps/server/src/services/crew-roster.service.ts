@@ -218,7 +218,7 @@ function memberDto(row: {
     specialty: crewMemberSpecialty(row.dealerStaffId, row.specialty),
     specialtyExperiencePoints: row.specialtyExperiencePoints,
     specialtyLevel: row.specialty === 'GENERALIST' ? 0 : row.specialtyExperiencePoints >= (ruleset.crewRoster?.specialtyTierTwoExperience ?? Number.MAX_SAFE_INTEGER) ? 2 : 1,
-    specialtyEffectPercent: row.specialty === 'GENERALIST' || row.specialty === 'DEALER' ? 0 : row.specialtyExperiencePoints >= (ruleset.crewRoster?.specialtyTierTwoExperience ?? Number.MAX_SAFE_INTEGER)
+    specialtyEffectPercent: row.specialty === 'GENERALIST' || row.specialty === 'DEALER' || row.specialty === 'SERVICE' ? 0 : row.specialtyExperiencePoints >= (ruleset.crewRoster?.specialtyTierTwoExperience ?? Number.MAX_SAFE_INTEGER)
       ? Math.min(ruleset.crewRoster?.specialtyBonusPercent?.tierTwo ?? 0, ruleset.crewRoster?.specialtyBonusPercent?.cap ?? 0)
       : Math.min(ruleset.crewRoster?.specialtyBonusPercent?.tierOne ?? 0, ruleset.crewRoster?.specialtyBonusPercent?.cap ?? 0),
     nextSpecialtyMilestone: row.specialty === 'GENERALIST' ? (ruleset.crewRoster?.specialtyUnlockExperience ?? null)
@@ -238,7 +238,7 @@ function assignmentName(kind: CrewAssignmentKindDto | null, ref: string | null, 
   return labels.get(key) ?? (kind === 'BUSINESS' ? 'Business shift' : kind === 'DEALER' ? 'Dealer crew' : 'Turf post');
 }
 
-function eventHistory(rows: Array<{ kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED' | 'TRAINED'; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null; summary: string | null; at: Date }>, joinedAt: Date, labels: Map<string, string>): CrewMemberHistoryDto[] {
+function eventHistory(rows: Array<{ kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED' | 'TRAINED' | 'ADMIN_CORRECTED'; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null; summary: string | null; at: Date }>, joinedAt: Date, labels: Map<string, string>): CrewMemberHistoryDto[] {
   const entries = rows.map((event): CrewMemberHistoryDto => {
     const place = assignmentName(event.assignmentKind, event.assignmentRef, labels);
     const label = event.summary ?? (event.kind === 'JOINED' ? 'Joined the crew'
@@ -246,7 +246,8 @@ function eventHistory(rows: Array<{ kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' |
         : event.kind === 'UNASSIGNED' ? `Returned from ${place ?? 'an assignment'}`
           : event.kind === 'RELEASED' ? 'Released from the crew'
             : event.kind === 'REHIRED' ? 'Rejoined the crew'
-              : event.kind === 'TRAINED' ? 'Completed training' : 'Completed a job');
+              : event.kind === 'TRAINED' ? 'Completed training'
+                : event.kind === 'ADMIN_CORRECTED' ? 'Staff corrected this career' : 'Completed a job');
     return { kind: event.kind, label, at: event.at.toISOString() };
   });
   if (!rows.some((event) => event.kind === 'JOINED')) entries.push({ kind: 'JOINED', label: 'Joined this round', at: joinedAt.toISOString() });
@@ -424,7 +425,7 @@ export const CrewRosterService = {
   /** Highest bounded effect already earned by a member who can take this job. */
   async specialtyBonusPercent(tx: Db, roundPlayerId: string, ruleset: Ruleset, role: 'THUG' | 'WORKER', specialty: 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'SERVICE'): Promise<number> {
     const career = ruleset.crewRoster;
-    if (!career?.enabled) return 0;
+    if (!career?.enabled || specialty === 'SERVICE') return 0;
     const members = await tx.crewMember.findMany({
       where: { roundPlayerId, role, specialty, status: 'AVAILABLE', dealerStaffId: null },
       select: { specialtyExperiencePoints: true },
@@ -442,7 +443,7 @@ export const CrewRosterService = {
     if (!memberIds.length) return 0;
     if (ruleset.meta.id !== 'classic-og-v1.7-e') throw AppError.badRequest('TEAM_SELECTION_UNAVAILABLE', 'Selected operation teams are not available in this ruleset.');
     const career = ruleset.crewRoster;
-    if (!career?.enabled) return 0;
+    if (!career?.enabled || specialty === 'SERVICE') return 0;
     const members = await tx.crewMember.findMany({
       where: { roundPlayerId, id: { in: memberIds }, role, specialty, status: 'AVAILABLE', dealerStaffId: null },
       select: { id: true, specialtyExperiencePoints: true },

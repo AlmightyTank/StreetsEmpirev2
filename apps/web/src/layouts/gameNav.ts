@@ -99,6 +99,7 @@ export const ADMIN_SECTION: NavSection = {
     { key: 'admin-law', label: 'Law', to: '/game/admin/law', icon: 'admin' },
     { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefix: '/game/admin/accounts/' },
     { key: 'admin-factions', label: 'Factions', to: '/game/admin/factions', icon: 'admin' },
+    { key: 'admin-crew', label: 'Crew Roster', to: '/game/admin/crew', icon: 'admin' },
     { key: 'admin-vehicles', label: 'Vehicles', to: '/game/admin/vehicles', icon: 'admin' },
     { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets', icon: 'admin' },
     { key: 'admin-rounds', label: 'Rounds', to: '/game/admin/rounds', icon: 'admin', prefix: '/game/admin/rounds/' },
@@ -140,7 +141,7 @@ export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSectio
       id: 'new-player-next',
       title: 'Next Steps',
       defaultOpen: false,
-      pages: pickPages(pages, ['dealers', 'loans', 'hideout', 'travel', 'turf', 'casino', 'street-pass']),
+      pages: pickPages(pages, ['dealers', 'crew-roster', 'loans', 'hideout', 'travel', 'turf', 'casino', 'street-pass']),
     },
     {
       id: 'new-player-people',

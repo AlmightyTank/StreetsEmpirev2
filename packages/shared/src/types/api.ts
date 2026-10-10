@@ -765,7 +765,7 @@ export type CrewAssignmentKindDto = 'BUSINESS' | 'DEALER' | 'TURF';
 export type CrewMemberSpecialtyDto = 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE';
 
 export interface CrewMemberHistoryDto {
-  kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED' | 'TRAINED';
+  kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED' | 'TRAINED' | 'ADMIN_CORRECTED';
   label: string;
   at: string;
 }

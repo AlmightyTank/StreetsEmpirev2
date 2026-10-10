@@ -50,6 +50,7 @@ describe('new player navigation model', () => {
     expect(next?.defaultOpen).toBe(false);
     expect(next?.pages.map((item) => item.key)).toEqual([
       'dealers',
+      'crew-roster',
       'loans',
       'hideout',
       'travel',

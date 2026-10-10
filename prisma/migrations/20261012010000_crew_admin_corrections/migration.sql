@@ -1,0 +1,1 @@
+ALTER TYPE "CrewMemberEventKind" ADD VALUE 'ADMIN_CORRECTED';

@@ -29,6 +29,13 @@ describe('1.7.0-C crew careers', () => {
     expect(tx.crewMember.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: 'AVAILABLE', specialty: 'ENFORCER' }) }));
   });
 
+  it('keeps the reserved service specialty from implying an effect before service categories exist', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ specialtyExperiencePoints: 1_000 }]);
+    const tx = { crewMember: { findMany } } as unknown as Db;
+    await expect(CrewRosterService.specialtyBonusPercent(tx, 'player-1', classicOgV17E, 'WORKER', 'SERVICE')).resolves.toBe(0);
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
   it('validates selected specialists against live availability and applies their best bounded effect', async () => {
     const findMany = vi.fn().mockResolvedValue([
       { id: 'enforcer-1', specialtyExperiencePoints: 20 },
