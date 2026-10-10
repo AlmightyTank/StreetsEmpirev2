@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ItemCosmeticStyleKey, QuestRewardDto, StreetPassClaimResult, StreetPassDto, StreetPassTierDto } from '@streets/shared';
-import { formatNumber, formatProfileName } from '@streets/shared';
+import { formatNumber, formatProfileName, profileNameParts } from '@streets/shared';
 import { streetPassApi } from '../api/streetPass.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -119,7 +119,7 @@ function cosmeticPreviewKind(key: string): CosmeticPreviewKind {
 }
 
 function streetPassCosmeticPreviews(pass: StreetPassDto): CosmeticPreview[] {
-  return pass.tiers.flatMap((tier) => (
+  const previews = pass.tiers.flatMap((tier) => (
     tier.rewards
       .filter((reward) => reward.kind === 'COSMETIC_UNLOCK' && reward.key)
       .map((reward) => ({
@@ -130,13 +130,18 @@ function streetPassCosmeticPreviews(pass: StreetPassDto): CosmeticPreview[] {
         kind: cosmeticPreviewKind(reward.key!),
       }))
   ));
+  return previews.sort((left, right) => (
+    Number(right.kind === 'frame') - Number(left.kind === 'frame')
+    || left.tier - right.tier
+    || left.label.localeCompare(right.label)
+  ));
 }
 
 function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const displayName = useSession((state) => state.me?.displayName ?? state.account?.username ?? 'AMIGHTYTANK');
   const profileImageUrl = useSession((state) => state.profileSettings.profileImageUrl);
-  const titlePlacement = useSession((state) => state.profileSettings.titlePlacement);
   const active = previews[Math.min(activeIndex, Math.max(0, previews.length - 1))];
   const [collectionPreviewItems] = useState<Record<CosmeticCollectionStyleKey, CosmeticPreviewItemKey>>(() => ({
     'urban-ghost': randomCosmeticPreviewItem(),
@@ -151,15 +156,6 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
     setActiveIndex(0);
   }, [activeIndex, previews.length]);
 
-  useEffect(() => {
-    if (previews.length <= 1) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const timer = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % previews.length);
-    }, 4500);
-    return () => window.clearInterval(timer);
-  }, [previews.length]);
-
   if (!active) return null;
 
   const eyebrow = active.kind === 'theme' ? 'Theme preview' : active.kind === 'title' ? 'Name preview' : 'Cosmetic preview';
@@ -173,7 +169,24 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
 
   return (
     <section className="se-pass-theme-previews" aria-label="Street Pass cosmetic previews">
-      <article className={`se-pass-theme-preview se-pass-theme-preview--${active.kind} se-pass-theme-preview--${active.key}`}>
+      <article
+        className={`se-pass-theme-preview se-pass-theme-preview--${active.kind} se-pass-theme-preview--${active.key}`}
+        aria-label={`${active.label} preview`}
+        onPointerDown={(event) => {
+          if (event.pointerType === 'mouse' && event.button !== 0) return;
+          swipeStart.current = { x: event.clientX, y: event.clientY };
+        }}
+        onPointerUp={(event) => {
+          const start = swipeStart.current;
+          swipeStart.current = null;
+          if (!start || previews.length < 2) return;
+          const deltaX = event.clientX - start.x;
+          const deltaY = event.clientY - start.y;
+          if (Math.abs(deltaX) < 44 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
+          setActiveIndex((current) => (current + (deltaX < 0 ? 1 : -1) + previews.length) % previews.length);
+        }}
+        onPointerCancel={() => { swipeStart.current = null; }}
+      >
         <div className="se-pass-theme-preview__copy">
           <span className="se-eyebrow">{eyebrow}</span>
           <h3>{active.label}</h3>
@@ -181,35 +194,21 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
         </div>
         {active.kind === 'theme' ? (
           <div className="se-pass-theme-preview__mock" aria-hidden="true">
-            <span className="se-pass-theme-preview__topbar" />
-            <span className="se-pass-theme-preview__rail">
+            <div className="se-pass-theme-preview__mock-topbar">
+              <strong>STREETS<span>EMPIRE</span></strong>
+              <small>{active.label}</small>
+            </div>
+            <div className="se-pass-theme-preview__mock-stats">
+              <span><small>CASH</small><strong>$19K</strong></span>
+              <span><small>TURNS</small><strong>144</strong></span>
+              <span><small>HEAT</small><strong>0</strong></span>
+            </div>
+            <div className="se-pass-theme-preview__mock-panel">
+              <small>HOME BASE</small>
+              <strong>Night Drive</strong>
               <i />
-              <i />
-              <i />
-              <i />
-            </span>
-            <span className="se-pass-theme-preview__stats">
-              <i />
-              <i />
-              <i />
-            </span>
-            <span className="se-pass-theme-preview__panel">
-              <i />
-              <i />
-              <i />
-            </span>
-            <span className="se-pass-theme-preview__profile">
-              <i />
-              <strong>AMIGHTYTANK</strong>
-              <small>Night Drive shell</small>
-            </span>
-            <span className="se-pass-theme-preview__badges">
-              <i />
-              <i />
-              <i />
-            </span>
-            <span className="se-pass-theme-preview__road" />
-            <span className="se-pass-theme-preview__glow" />
+            </div>
+            <div className="se-pass-theme-preview__mock-nav"><i /><i /><i /><i /><i /></div>
           </div>
         ) : active.kind === 'frame' && active.art ? (
           <div
@@ -241,8 +240,12 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
               <img className="se-pass-theme-preview__item-art" src={itemArtUrl(active.art)} alt={`${active.label} cosmetic artwork`} />
             ) : null}
             {active.kind === 'title' ? (
-              <div className="se-pass-theme-preview__title-name">
-                <strong>{formatProfileName(displayName, active.label, titlePlacement)}</strong>
+              <div className="se-pass-theme-preview__title-name" aria-label={formatProfileName(displayName, active.label)}>
+                {profileNameParts(displayName, active.label).map((part, index) => (
+                  <span className={`se-pass-theme-preview__title-part se-pass-theme-preview__title-part--${part.kind}`} key={index}>
+                    {part.text}
+                  </span>
+                ))}
               </div>
             ) : (
               <div className="se-pass-theme-preview__cosmetic-profile">

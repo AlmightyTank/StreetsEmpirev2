@@ -4529,3 +4529,28 @@ button.se-notification-empty:hover { color: var(--se-text); }
     inset 0 0 0 2px rgba(45, 212, 191, 0.48),
     0 0 20px rgba(167, 139, 250, 0.3);
 }
+
+
+/* Profile titles are rendered as a name with a title-specific accent. */
+.se-profile-card-preview__name {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--se-text);
+  font-size: 20px;
+  line-height: 1.12;
+}
+
+.se-profile-card-preview__namepart--title,
+.se-profile-name-preview__title {
+  color: var(--se-profile-accent, var(--se-accent));
+}
+
+.se-profile-card-preview__namepart--separator,
+.se-profile-name-preview__separator {
+  color: var(--se-muted);
+  white-space: pre;
+}
+
+.se-profile-name-preview__title {
+  color: var(--se-accent);
+}

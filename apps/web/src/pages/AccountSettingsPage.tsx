@@ -9,7 +9,7 @@ import type {
   ProfileEffect,
   UiDensity,
 } from '@streets/shared';
-import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
+import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -631,31 +631,19 @@ export function AccountSettingsPage() {
                       <option value={option.key} key={option.key}>{option.label}</option>
                     ))}
                   </select>
-                  {fields.activeTitleKey ? <p className="se-error" role="alert">{fields.activeTitleKey}</p> : <p className="se-hint">Sir, Madam, Don, and Donna are always available. Other titles come from achievements, season feats, legacy awards, and quests. Titles are cosmetic only.</p>}
+                  {fields.activeTitleKey ? <p className="se-error" role="alert">{fields.activeTitleKey}</p> : <p className="se-hint">Sir, Madam, Don, and Donna appear before your name. Earned titles appear after it. Titles are cosmetic only.</p>}
                   {(() => {
                     const title = profileSettings.options.titles.find((option) => option.key === cosmetics.activeTitleKey)?.label;
                     const name = me?.displayName ?? account.username;
                     if (!title) return null;
-                    const preview = formatProfileName(name, title, cosmetics.titlePlacement);
-                    return <p className="se-hint">Preview: <strong>{preview}</strong></p>;
+                    return (
+                      <p className="se-hint">Preview: <strong className="se-profile-name-preview">
+                        {profileNameParts(name, title).map((part, index) => (
+                          <span className={`se-profile-name-preview__${part.kind}`} key={index}>{part.text}</span>
+                        ))}
+                      </strong></p>
+                    );
                   })()}
-                </div>
-
-                <div className="se-field">
-                  <label className="se-label" htmlFor="title-placement">Title position</label>
-                  <select
-                    id="title-placement"
-                    className="se-input"
-                    value={cosmetics.titlePlacement}
-                    onChange={(event) => setCosmetics((current) => ({
-                      ...current,
-                      titlePlacement: event.target.value as typeof current.titlePlacement,
-                    }))}
-                  >
-                    <option value="prefix">Before my name · The Quiet Ghost AMightyTank</option>
-                    <option value="suffix">After my name · AMightyTank, Quiet Ghost</option>
-                  </select>
-                  <p className="se-hint">Choose how your selected title appears on your public profile.</p>
                 </div>
 
                 <div className="se-field">
@@ -754,8 +742,11 @@ export function AccountSettingsPage() {
                       {cosmetics.profileImageUrl ? <img src={cosmetics.profileImageUrl} alt="" /> : initials(displayName)}
                     </span>
                     <div>
-                      {selectedTitle ? <span className="se-profile-card-preview__title">{selectedTitle.label}</span> : null}
-                      <strong>{displayName}</strong>
+                      <strong className="se-profile-card-preview__name">
+                        {profileNameParts(displayName, selectedTitle?.label).map((part, index) => (
+                          <span className={`se-profile-card-preview__namepart se-profile-card-preview__namepart--${part.kind}`} key={index}>{part.text}</span>
+                        ))}
+                      </strong>
                       <small>Player {previewRank}</small>
                     </div>
                   </div>
