@@ -132,12 +132,14 @@ export async function checkDirectMessage(
   return flags;
 }
 
-/** One automated flag per message, however many reasons it has. */
-export async function flagMessage(tx: Tx, messageId: string, reasons: string[], now: Date): Promise<void> {
-  if (!reasons.length) return;
+/** One automated flag per message, however many reasons it has. Returns the new flag's id, if one was made. */
+export async function flagMessage(tx: Tx, messageId: string, reasons: string[], now: Date): Promise<string | null> {
+  if (!reasons.length) return null;
   const existing = await tx.playerMessageReport.findFirst({ where: { messageId, source: 'AUTO' }, select: { id: true } });
-  if (existing) return;
-  await tx.playerMessageReport.create({
+  if (existing) return null;
+  const flag = await tx.playerMessageReport.create({
     data: { messageId, source: 'AUTO', reporterAccountId: null, reason: reasons.join(' · ').slice(0, 500), createdAt: now },
+    select: { id: true },
   });
+  return flag.id;
 }

@@ -8,8 +8,10 @@ import type {
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
-import { toCommsMuteDto } from './admin-account.service.js';
+import { AdminAccountService, toCommsMuteDto } from './admin-account.service.js';
 import { commsMuted } from './communication-guard.js';
+import { wakeDiscordBot } from './discord-bot-push.service.js';
+import { DiscordStaffService, linkedDiscordAccount } from './discord-staff.service.js';
 
 /**
  * 0.9.0-H. The reports queue.
@@ -88,7 +90,20 @@ function summary(row: ReportRow, against: Map<string, number>, now: Date): Admin
   };
 }
 
+/** What the Discord staff buttons on a message report can do. */
+export type DiscordReportAction = 'mute-1d' | 'dismiss';
+
 export const AdminModerationService = {
+  /**
+   * One report as the queue lists it, for the staff channel: who reported whom
+   * and why, never the message text. Null when the report is gone.
+   */
+  async summary(prisma: PrismaClient, reportId: string, now = new Date()): Promise<AdminReportSummaryDto | null> {
+    const row = await prisma.playerMessageReport.findUnique({ where: { id: reportId }, include: reportInclude });
+    if (!row) return null;
+    return summary(row, await openAgainst(prisma, [row.message.sender.accountId]), now);
+  },
+
   async queue(prisma: PrismaClient, status: AdminReportStatus, requestedPage = 1, now = new Date()): Promise<AdminReportQueueDto> {
     const where: Prisma.PlayerMessageReportWhereInput = status === 'open' ? { resolvedAt: null } : { resolvedAt: { not: null } };
     const [open, resolved] = await Promise.all([
@@ -187,10 +202,13 @@ export const AdminModerationService = {
       const row = await tx.playerMessageReport.findUnique({ where: { id: reportId }, select: { id: true, messageId: true, resolvedAt: true } });
       if (!row) throw AppError.notFound('REPORT_NOT_FOUND', 'That report does not exist.');
       if (row.resolvedAt) throw AppError.conflict('REPORT_RESOLVED', 'Another admin already resolved that report.');
+      const closing = await tx.playerMessageReport.findMany({ where: { messageId: row.messageId, resolvedAt: null }, select: { id: true } });
       const { count } = await tx.playerMessageReport.updateMany({
         where: { messageId: row.messageId, resolvedAt: null },
         data: { resolvedAt: now, resolvedByUsername: actor.username, resolution, resolutionNote: note },
       });
+      // Every closed report's staff post says so, not just this one's.
+      for (const closed of closing) await DiscordStaffService.queue(tx, 'MESSAGE_REPORT_RESOLVED', closed.id);
       await AdminAuditService.record(tx, actor, {
         action: 'report.resolve',
         targetType: 'message-report',
@@ -200,6 +218,32 @@ export const AdminModerationService = {
         after: { resolution, messageId: row.messageId, reportsClosed: count },
       });
     });
+    wakeDiscordBot('staff');
     return AdminModerationService.queue(prisma, 'open', 1, now);
+  },
+
+  /**
+   * A staff button in Discord, for linked game admins only. Muting is still its own
+   * audited account action, taken before the report closes as actioned; dismissing
+   * just closes it. Neither shows the message, which stays behind the audited open.
+   */
+  async actFromDiscord(
+    prisma: PrismaClient,
+    discordId: string,
+    reportId: string,
+    action: DiscordReportAction,
+    note: string,
+    now = new Date(),
+  ): Promise<void> {
+    const actor = await linkedDiscordAccount(prisma, discordId);
+    if (!actor.isAdmin) throw AppError.forbidden('Only game admins can act on reports.');
+    const row = await prisma.playerMessageReport.findUnique({
+      where: { id: reportId },
+      select: { resolvedAt: true, message: { select: { sender: { select: { accountId: true } } } } },
+    });
+    if (!row) throw AppError.notFound('REPORT_NOT_FOUND', 'That report does not exist.');
+    if (row.resolvedAt) throw AppError.conflict('REPORT_RESOLVED', 'Another admin already resolved that report.');
+    if (action === 'mute-1d') await AdminAccountService.muteComms(prisma, actor, row.message.sender.accountId, '1d', note, now);
+    await AdminModerationService.resolve(prisma, actor, reportId, action === 'mute-1d' ? 'ACTIONED' : 'DISMISSED', note, now);
   },
 };

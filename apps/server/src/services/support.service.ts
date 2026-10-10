@@ -14,7 +14,7 @@ import { verifyPassword } from '../auth/password.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { wakeDiscordBot } from './discord-bot-push.service.js';
-import { DiscordStaffService, staffBugReport, type StaffBugReportDto } from './discord-staff.service.js';
+import { DiscordStaffService, linkedDiscordAccount, staffBugReport, type StaffBugReportDto } from './discord-staff.service.js';
 
 export const BUG_REPORT_PAGE_SIZE = 25;
 
@@ -37,13 +37,6 @@ function toBugReportDto(row: BugReport): AdminBugReportDto {
     source: row.source === 'DISCORD' ? 'DISCORD' : 'GAME',
     playerReply: row.playerReply,
   };
-}
-
-/** The active account behind a Discord user, for the bot's /bug and staff buttons. */
-async function discordAccount(prisma: PrismaClient, discordId: string): Promise<Pick<Account, 'id' | 'username' | 'isAdmin'>> {
-  const account = await prisma.account.findFirst({ where: { discordId, isActive: true }, select: { id: true, username: true, isAdmin: true } });
-  if (!account) throw AppError.notFound('DISCORD_NOT_LINKED', 'That Discord account is not linked to a StreetsEmpire account.');
-  return account;
 }
 
 /** rc.2. Bugs players report from the game, and the admin queue that works through them. */
@@ -90,7 +83,7 @@ export const BugReportService = {
 
   /** /bug from Discord: the same report and hourly limit as the game form, from the linked account. */
   async createFromDiscord(prisma: PrismaClient, discordId: string, input: BugReportInput, now = new Date()): Promise<{ ok: true; id: string; message: string }> {
-    const account = await discordAccount(prisma, discordId);
+    const account = await linkedDiscordAccount(prisma, discordId);
     return BugReportService.create(prisma, account, input, { userAgent: 'Discord /bug', source: 'DISCORD' }, now);
   },
 
@@ -102,7 +95,7 @@ export const BugReportService = {
     input: { resolution: BugReportResolution; note: string; playerReply?: string | undefined },
     now = new Date(),
   ): Promise<StaffBugReportDto> {
-    const account = await discordAccount(prisma, discordId);
+    const account = await linkedDiscordAccount(prisma, discordId);
     if (!account.isAdmin) throw AppError.forbidden('Only game admins can resolve bug reports.');
     await BugReportService.resolve(prisma, account, reportId, input.resolution, input.note, now, input.playerReply);
     return staffBugReport(await prisma.bugReport.findUniqueOrThrow({ where: { id: reportId } }));
