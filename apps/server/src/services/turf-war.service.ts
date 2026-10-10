@@ -11,6 +11,7 @@ import type {
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { allianceTargetBlock } from './alliance.service.js';
@@ -91,6 +92,7 @@ export const TurfWarService = {
         if (!model) throw AppError.conflict('COMBAT_DISABLED', 'Street fights are not enabled in this round.');
         const district = input.district as DistrictKey;
         if (!turfRules.districts[district]) throw AppError.badRequest('UNKNOWN_DISTRICT', 'That is not a turf block.');
+        await PermanentUnlockService.assertCanAccessDistrict(tx, attackerId, ruleset, district);
 
         await TurfService.ensureRound(tx, round.id, ruleset);
         const block = await tx.turf.findUnique({
