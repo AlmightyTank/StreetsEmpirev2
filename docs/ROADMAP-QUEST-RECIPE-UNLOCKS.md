@@ -49,9 +49,9 @@ This is a proposed roadmap. It does not change live or historical rulesets until
 - Return each product's recipe state and, when locked, its unlock name and the quest that grants it.
 - Show locked recipes as visible future options, with their role and the required quest. Do not offer them as selectable batches.
 - Keep old rulesets ungated unless they already define a production unlock. Historical players retain the behavior their round began with.
-- Support `DISTRICT_ACCESS`, keyed by district, as a separate effect that gates Scout and Turf actions only. Keep every district visible on the Scout page and explain which quest opens a locked district; Turf controls in a locked district remain unavailable until the quest is complete.
+- Support `DISTRICT_ACCESS`, keyed by district, as a separate effect that gates Scout and Turf actions only. Keep every district visible on the Scout and Turf pages and explain which quest opens a locked district; Turf controls in a locked district remain unavailable until the quest is complete.
 
-**Gate:** A locked recipe cannot be produced through a direct or replayed API request, and a locked district cannot be scouted through a direct or replayed API request. Locked options remain visible with their quest path. Unlocked actions retain the existing turn, ingredient, crew, Heat, turf, and idempotency checks.
+**Gate:** A locked recipe cannot be produced through a direct or replayed API request, and locked districts reject Scout and Turf actions through direct or replayed API requests. Locked options remain visible with their quest path. Unlocked actions retain the existing turn, ingredient, crew, Heat, turf, and idempotency checks.
 
 ### B — Pip's Cookhouse Ladder
 
