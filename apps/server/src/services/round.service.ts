@@ -7,6 +7,7 @@ import { PlayerStateService } from './player-state.service.js';
 import { TurfCrackdownService } from './turf-crackdown.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { StreetPassService } from './street-pass.service.js';
+import { RoundAftermathService } from './round-aftermath.service.js';
 
 /**
  * A round is joinable while it is taking registrations or already running,
@@ -202,6 +203,7 @@ export const RoundService = {
         ...(endsAt ? { endsAt, ...(endsAt.getTime() < round.startsAt.getTime() ? { startsAt: endsAt } : {}) } : {}),
       },
     });
+    await RoundAftermathService.finalize(tx, round.id, freezeAt);
     return { closed: true, round: ended, previous: round };
   },
 

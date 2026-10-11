@@ -742,6 +742,12 @@ enum RoundStatus {
   ARCHIVED
 }
 
+enum RoundAftermathStatus {
+  PREPARING
+  READY
+  UNAVAILABLE
+}
+
 enum GameEventType {
   COMMUNITY
   SEASONAL
@@ -1127,6 +1133,7 @@ model Round {
   updatedAt DateTime @updatedAt
 
   players              RoundPlayer[]
+  aftermathReport      RoundAftermathReport?
   eventOccurrences     GameEventOccurrence[]
   news                 GameNews[]
   alliances            Alliance[]
@@ -1146,6 +1153,32 @@ model Round {
   supplySupplierStocks SupplySupplierStock[]
 
   @@index([status])
+}
+
+/// Immutable end-of-round report. A round gets one report for its schema
+/// version; unsupported legacy data is explicit rather than represented as zero.
+model RoundAftermathReport {
+  id      String @id @default(cuid())
+  roundId String @unique
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  schemaVersion  Int                  @default(1)
+  status         RoundAftermathStatus
+  sourceRevision String
+  cutoffAt       DateTime?
+  finalizedAt    DateTime?
+
+  /// Versioned JSON aggregate contracts; monetary values are decimal cent strings.
+  sourceProvenance  Json
+  globalAggregate   Json?
+  cityAggregates    Json?
+  playerAggregates  Json?
+  categoryRecords   Json?
+  allianceAggregate Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, finalizedAt])
 }
 
 // ---------------------------------------------------------------------------

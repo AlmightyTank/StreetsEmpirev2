@@ -1,7 +1,7 @@
 # StreetsEmpire — Round Aftermath & Statistics Roadmap
 
 **Target:** beta · future feature release (version to be assigned)  
-**Status:** Planned; slices A–H not implemented  
+**Status:** Slice A implemented; slices B–H planned
 **Goal:** Replace the bare “round ended / top standings” experience with a permanent, compelling end-of-round report covering **every city** and the complete criminal economy, with a personal performance view and a compact Discord recap.
 
 ## Player experience
@@ -52,13 +52,14 @@ At round close, show a new **Round Aftermath** page. A player can switch between
 ## Delivery slices
 
 ### Slice A — Audit, definitions, and immutable round snapshot
-- Inventory each metric's durable source and identify unsupported values before promising them in UI.
-- Add schema for per-round report metadata/status/version, global and city aggregates, player aggregates, category records, and optional alliance aggregates; prefer structured typed schema/JSON with explicit revision and source provenance.
-- Freeze at close cutoff after game settlement; generate asynchronously/outside long round-close lock if needed from already frozen source rows, but guarantee stable cutoff and no live mutation.
-- Idempotent worker/job keyed by round + schema version; safe retries, crash recovery, admin rebuild only with audited explicit intent; include timestamps and stable player IDs.
-- Backfill only reliably derivable historical data; label unavailable historical categories instead of invented zeros.
-- Tests: normal/end-early/handoff closes, empty round, idempotency, pause, concurrency, historical cutoff, high values and decimal precision.
-- **Done when:** one canonical finalized report exists per closed round and does not change on reads.
+**Status: Complete.** The canonical version-1 report is created in the round-close transaction after settlement and final standings. See [ROUND-AFTERMATH-METRIC-INVENTORY.md](./ROUND-AFTERMATH-METRIC-INVENTORY.md) for source definitions and unsupported metrics.
+
+- `RoundAftermathReport` stores status, schema/source revisions, cutoff/finalized timestamps, global/city/player aggregates, category records, optional alliance data, and metric provenance.
+- Close retries are protected by the round lock and unique report-per-round row. A failed close rolls back both the round transition and report.
+- Historical ended rounds are seeded as `UNAVAILABLE`; no unsupported values are recalculated from current state.
+- Version 1 records final wealth, final crew headcount, final turf ownership, active business footprint, and attempted raid/drive-by counts. Unsupported cumulative metrics are `NOT_RECORDED`, never fabricated as zero.
+- Unit coverage checks tied records, empty rounds, dynamic cities, and exact integer-cent handling. Round lifecycle integration coverage exercises normal expiry, concurrent retries, and handoff cutoffs.
+- Report corrections/rebuilds are not exposed; a future rebuild must be an explicit audited operation.
 
 ### Slice B — Global Aftermath dashboard
 - Add read-only APIs for report overview, global categories, leaderboard pages; status responses while preparing.
