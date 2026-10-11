@@ -645,8 +645,8 @@
 }
 
 .se-round-archive-compare-select input {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   accent-color: var(--se-accent);
 }
 

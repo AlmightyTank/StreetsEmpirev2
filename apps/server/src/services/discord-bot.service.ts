@@ -513,7 +513,9 @@ export function roundRecapDto(roundId: string, globalValue: Prisma.JsonValue, pl
   }
   return {
     roundId,
-    aftermathUrl: gameUrl(`/game/rounds/${encodeURIComponent(roundId)}/aftermath`),
+    aftermathUrl: gameUrl(env.roundAftermath.publicEnabled
+      ? `/game/rounds/${encodeURIComponent(roundId)}/aftermath`
+      : '/game/hall-of-fame'),
     participants: global.participants ?? null,
     eligibleCompetitors: global.eligibleCompetitors ?? null,
     cities: global.citiesInRound ?? null,
