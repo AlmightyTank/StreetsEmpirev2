@@ -2019,10 +2019,6 @@ enum CrewAssignmentKind {
   BUSINESS
   DEALER
   TURF
-<<<<<<< Updated upstream
-  CORNER_LOOKOUT
-  STASH_GUARD
-=======
   CORNER_ENFORCER
   CORNER_LOOKOUT
   STASH_GUARD
@@ -2038,7 +2034,6 @@ enum CrewJobPostKind {
   RUNNER
   BODYGUARD
   ESCORT
->>>>>>> Stashed changes
 }
 
 enum CrewMemberEventKind {

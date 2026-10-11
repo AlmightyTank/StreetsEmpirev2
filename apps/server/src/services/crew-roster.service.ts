@@ -7,17 +7,6 @@ import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { crewMemberName, crewMemberSpecialty, crewMemberTraits } from './crew-profile.js';
 import { IdempotencyService } from './idempotency.service.js';
-<<<<<<< Updated upstream
-
-/** 1.7.0-E selected operation teams, carried forward by every later ruleset that builds on it. */
-const SELECTED_TEAM_RULESETS: ReadonlySet<string> = new Set(['classic-og-v1.7-e', 'classic-og-v1.8-e', 'classic-og-v1.8-f', 'classic-og-v1.8-g']);
-const CORNER_JOB_KINDS = ['CORNER_LOOKOUT', 'STASH_GUARD'] as const;
-type CornerJobKind = typeof CORNER_JOB_KINDS[number];
-const CORNER_JOB_LIMITS: Record<CornerJobKind, number> = { CORNER_LOOKOUT: 3, STASH_GUARD: 5 };
-const CORNER_LOOKOUT_WARNING_MINUTES = 2;
-const STASH_GUARD_LOOT_REDUCTION_PERCENT = 5;
-=======
->>>>>>> Stashed changes
 import {
   crewPlaceCounts,
   crewPlaceKey,
@@ -32,6 +21,11 @@ import {
 
 /** 1.7.0-E selected operation teams, carried forward by every later ruleset that builds on it. */
 const SELECTED_TEAM_RULESETS: ReadonlySet<string> = new Set(['classic-og-v1.7-e', 'classic-og-v1.8-e', 'classic-og-v1.8-f', 'classic-og-v1.8-g']);
+const CORNER_JOB_KINDS = ['CORNER_LOOKOUT', 'STASH_GUARD'] as const;
+type CornerJobKind = typeof CORNER_JOB_KINDS[number];
+const CORNER_JOB_LIMITS: Record<CornerJobKind, number> = { CORNER_LOOKOUT: 3, STASH_GUARD: 5 };
+const CORNER_LOOKOUT_WARNING_MINUTES = 2;
+const STASH_GUARD_LOOT_REDUCTION_PERCENT = 5;
 
 const ASSIGNMENT_COUNTS: Record<CrewAssignmentKindDto, number> = {
   BUSINESS: 0,
@@ -225,11 +219,7 @@ function rosterTotals(rows: ReadonlyArray<{ role: CrewRole; status: CrewMemberSt
       role,
       members: 0,
       byStatus: { AVAILABLE: 0, ASSIGNED: 0, IN_TRANSIT: 0, RECOVERING: 0 },
-<<<<<<< Updated upstream
-      byAssignment: { BUSINESS: 0, DEALER: 0, TURF: 0, CORNER_LOOKOUT: 0, STASH_GUARD: 0 },
-=======
       byAssignment: { ...ASSIGNMENT_COUNTS },
->>>>>>> Stashed changes
       released: 0,
     };
     for (const row of rows.filter((entry) => entry.role === role)) {
@@ -261,14 +251,7 @@ function memberDto(row: {
   const assignment = row.assignmentKind ? {
     kind: row.assignmentKind,
     ref: row.assignmentRef,
-<<<<<<< Updated upstream
-    label: assignmentLabel ?? (row.assignmentKind === 'BUSINESS' ? 'Business shift'
-      : row.assignmentKind === 'DEALER' ? 'Dealer crew'
-        : row.assignmentKind === 'CORNER_LOOKOUT' ? 'Corner lookout'
-          : row.assignmentKind === 'STASH_GUARD' ? 'Stash guard' : 'Turf post'),
-=======
     label: assignmentLabel ?? ASSIGNMENT_LABELS[row.assignmentKind],
->>>>>>> Stashed changes
   } : null;
   const unavailableReason = row.status === 'ASSIGNED' ? `Currently assigned to ${assignment?.label ?? 'a job'}.`
     : row.status === 'IN_TRANSIT' ? 'Away on a run.'
@@ -302,14 +285,7 @@ function memberDto(row: {
 function assignmentName(kind: CrewAssignmentKindDto | null, ref: string | null, labels: Map<string, string>): string | null {
   if (!kind) return null;
   const key = `${kind}:${ref ?? ''}`;
-<<<<<<< Updated upstream
-  return labels.get(key) ?? (kind === 'BUSINESS' ? 'Business shift'
-    : kind === 'DEALER' ? 'Dealer crew'
-      : kind === 'CORNER_LOOKOUT' ? 'Corner lookout'
-        : kind === 'STASH_GUARD' ? 'Stash guard' : 'Turf post');
-=======
   return labels.get(key) ?? ASSIGNMENT_LABELS[kind];
->>>>>>> Stashed changes
 }
 
 function eventHistory(rows: Array<{ kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED' | 'TRAINED' | 'ADMIN_CORRECTED'; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null; summary: string | null; at: Date }>, joinedAt: Date, labels: Map<string, string>): CrewMemberHistoryDto[] {

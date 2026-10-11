@@ -421,12 +421,8 @@ export const TurfWarSettlementService = {
       await ActivityService.log(tx, defender.id, 'TURF_PUSH_DEFENSE', json({
         pushId: loaded.id, district: turf.district, held: !won, unopposed, stale,
         attackerWounds, defenderWounds, cornerWounds, ownerBackupWounds, allyBackup: allyShown, strength,
-<<<<<<< Updated upstream
-        outpostLoot, stashGuardLootReductionPercent,
-=======
         enforcerDefenseBonusPercent, cornerDefenseExperience,
-        outpostLoot,
->>>>>>> Stashed changes
+        outpostLoot, stashGuardLootReductionPercent,
       }));
       return true;
     };

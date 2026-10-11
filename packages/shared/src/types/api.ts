@@ -783,12 +783,8 @@ export interface DealerCrewActionResult {
 
 /** 1.7.0-A. Where a crew member is. Every status but RELEASED is counted in the crew. */
 export type CrewMemberStatusDto = 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED';
-<<<<<<< Updated upstream
-export type CrewAssignmentKindDto = 'BUSINESS' | 'DEALER' | 'TURF' | 'CORNER_LOOKOUT' | 'STASH_GUARD';
-=======
 export type CrewAssignmentKindDto = 'BUSINESS' | 'DEALER' | 'TURF' | 'CORNER_ENFORCER' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'RUNNER' | 'BODYGUARD' | 'ESCORT';
 export type CrewJobPostKindDto = 'CORNER_ENFORCER' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'RUNNER' | 'BODYGUARD' | 'ESCORT';
->>>>>>> Stashed changes
 export type CrewMemberSpecialtyDto = 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE';
 
 export interface CrewMemberHistoryDto {

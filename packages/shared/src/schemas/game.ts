@@ -355,11 +355,7 @@ export type DealerStaffReleaseInput = z.infer<typeof dealerStaffReleaseSchema>;
 export const crewRosterQuerySchema = z.object({
   role: z.enum(['THUG', 'WORKER']).optional(),
   status: z.enum(['AVAILABLE', 'ASSIGNED', 'IN_TRANSIT', 'RECOVERING', 'RELEASED']).optional(),
-<<<<<<< Updated upstream
-  assignment: z.enum(['BUSINESS', 'DEALER', 'TURF', 'CORNER_LOOKOUT', 'STASH_GUARD']).optional(),
-=======
   assignment: z.enum(['BUSINESS', 'DEALER', 'TURF', 'CORNER_ENFORCER', 'CORNER_LOOKOUT', 'STASH_GUARD', 'RUNNER', 'BODYGUARD', 'ESCORT']).optional(),
->>>>>>> Stashed changes
   specialty: z.enum(['GENERALIST', 'ENFORCER', 'WHEELMAN', 'SCOUT', 'DEALER', 'SERVICE']).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
