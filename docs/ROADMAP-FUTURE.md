@@ -266,6 +266,8 @@ Never add cities that are simply another copy of New York.
 
 ## 1.7 — Crew Identity & Management
 
+**1.8.6 Crew Jobs roadmap (person-first assignment and new thug jobs):** [ROADMAP-1.8.6.md](ROADMAP-1.8.6.md).
+
 ### Theme
 
 Make the empire feel more personal without turning crew members into hundreds of individual RPG characters.
