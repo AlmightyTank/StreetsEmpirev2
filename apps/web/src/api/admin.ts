@@ -1,4 +1,8 @@
 import type {
+  AdminEventCalendarInput,
+  AdminEventPreviewDto,
+  AdminEventReleaseReportDto,
+  AdminEventTuneInput,
   SportsbookLeagueKey,
   AdminSportsbookActionDto,
   AdminSportsbookProviderCheckDto,
@@ -238,6 +242,14 @@ export const adminApi = {
     api.get<AdminPlayerBattlesDto>(`/admin/players/${enc(roundPlayerId)}/battles${queryString({ before })}`),
 
   audit: (filters: AdminAuditFilters = {}) => api.get<AdminAuditLogDto>(`/admin/audit${queryString({ ...filters })}`),
+  eventOps: () => api.get<AdminEventReleaseReportDto>('/admin/events'),
+  eventPreview: (rulesetId: string) => api.get<AdminEventPreviewDto>(`/admin/events/preview${queryString({ rulesetId })}`),
+  createEventDraft: (input: AdminEventTuneInput & { rulesetId: string; rulesetVersion: string; key: string; type: string; scope: string }) =>
+    api.post<{ draft: unknown }>('/admin/events/drafts', input),
+  tuneEventDraft: (definitionId: string, input: AdminEventTuneInput) =>
+    api.patch<{ draft: unknown }>(`/admin/events/drafts/${enc(definitionId)}`, input),
+  eventCalendar: (occurrenceId: string, input: AdminEventCalendarInput) =>
+    api.patch<{ occurrence: unknown }>(`/admin/events/occurrences/${enc(occurrenceId)}/calendar`, input),
   auditRetention: () => api.get<AdminAuditRetentionDto>('/admin/audit/retention'),
   purgeAudit: (reason: string) => api.post<AdminAuditPurgeResultDto>('/admin/audit/purge', { reason }),
   /** A plain link: the browser downloads it with the session cookie it already has. */
