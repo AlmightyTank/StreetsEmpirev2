@@ -60,6 +60,7 @@ import { DiscordModerationService } from '../services/discord-moderation.service
 import { ForumModerationService } from '../services/forum-moderation.service.js';
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
 import { MonitoringService } from '../services/monitoring.service.js';
+import { AdminEventService } from '../services/admin-event.service.js';
 import { parseBody } from '../utils/validate.js';
 
 const isoDate = z.coerce.date();
@@ -200,6 +201,41 @@ const supportFavorSchema = z.object({
   reason,
   key: contentKey,
   delta: z.number().int().min(-1000).max(1000).refine((value) => value !== 0, 'Use a non-zero adjustment.'),
+}).strict();
+
+const eventDraftParams = z.object({ definitionId: id }).strict();
+const eventOccurrenceParams = z.object({ occurrenceId: id }).strict();
+const eventJsonObject = z.record(z.string(), z.unknown());
+const eventJsonArray = z.array(z.unknown()).max(100);
+const eventDraftSchema = z.object({
+  reason,
+  rulesetId: z.string().trim().min(1).max(64),
+  rulesetVersion: z.string().trim().min(1).max(40),
+  key: z.string().trim().min(3).max(100).regex(/^[A-Z0-9][A-Z0-9_.:-]+$/),
+  type: z.enum(['COMMUNITY', 'SEASONAL', 'RANDOM_ENCOUNTER', 'CITY_CONDITION']),
+  scope: z.enum(['ROUND', 'PLAYER', 'CITY']),
+  title: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(2_000),
+  schedule: eventJsonObject,
+  objectives: eventJsonArray,
+  rewards: eventJsonArray,
+  config: eventJsonObject,
+}).strict();
+const eventDraftTuneSchema = z.object({
+  reason,
+  title: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().max(2_000).optional(),
+  schedule: eventJsonObject.optional(),
+  objectives: eventJsonArray.optional(),
+  rewards: eventJsonArray.optional(),
+  config: eventJsonObject.optional(),
+}).strict().refine((body) => Object.keys(body).some((key) => key !== 'reason'), 'Change at least one event field.');
+const eventPreviewQuery = z.object({ rulesetId: z.string().trim().min(1).max(64) }).strict();
+const eventCalendarSchema = z.object({
+  reason,
+  startsAt: z.string().datetime().nullable().optional(),
+  endsAt: z.string().datetime().nullable().optional(),
+  cancel: z.boolean().optional(),
 }).strict();
 
 // 1.3.0-G: set one city's Case to an exact value, with a reason.
@@ -1081,6 +1117,33 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       turfId: id.optional(), roundPlayerId: id.optional(), pushId: id.optional(), reason,
     }).strict(), request.body ?? {});
     return AdminTurfService.repair(fastify.prisma, request.auth!.account, body);
+  });
+
+  /** 1.8.5-G: event release checks, migration inventory, calendar and audit history. */
+  fastify.get('/events', async () => AdminEventService.releaseReport(fastify.prisma));
+
+  fastify.get('/events/preview', async (request) => {
+    const { rulesetId } = parseBody(eventPreviewQuery, request.query ?? {});
+    return AdminEventService.preview(rulesetId);
+  });
+
+  /** Drafts stay disabled in the database; publishing them requires a pinned ruleset change. */
+  fastify.post('/events/drafts', async (request, reply) => {
+    const body = parseBody(eventDraftSchema, request.body ?? {});
+    const result = await AdminEventService.createDraft(fastify.prisma, request.auth!.account, body);
+    return reply.status(201).send(result);
+  });
+
+  fastify.patch('/events/drafts/:definitionId', async (request) => {
+    const { definitionId } = parseBody(eventDraftParams, request.params);
+    const body = parseBody(eventDraftTuneSchema, request.body ?? {});
+    return AdminEventService.tuneDraft(fastify.prisma, request.auth!.account, definitionId, body);
+  });
+
+  fastify.patch('/events/occurrences/:occurrenceId/calendar', async (request) => {
+    const { occurrenceId } = parseBody(eventOccurrenceParams, request.params);
+    const body = parseBody(eventCalendarSchema, request.body ?? {});
+    return AdminEventService.calendar(fastify.prisma, request.auth!.account, occurrenceId, body);
   });
 
   // Audit
