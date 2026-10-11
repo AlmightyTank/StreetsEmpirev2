@@ -1,107 +1,117 @@
-# StreetsEmpire 1.8.5 — City in Motion
+# StreetsEmpire 1.8.5 — Event System Takeover
 
 ## Purpose
 
-Bring the beta's existing community events and holiday event Jobs into the same player-facing event experience as action-based random encounters and future city conditions.
+Make 1.8.5 the release that takes ownership of StreetsEmpire's event systems.
 
-The update builds on the event systems already in the Jobs and quest rulesets. It should make the city feel active without replacing seasonal progress, resetting event rewards, or making players learn a second unrelated event interface.
+The existing round-based Community Events and calendar Seasonal Event Jobs become first-class features of a unified event system. That system will own event schedules, participation, progress, rewards, history, and admin controls. Action-triggered random encounters and future city conditions will use the same event foundation.
 
-**The question:** What is happening in the city, the round, or the real-world event calendar—and what can I do about it?
+This is a modernization and migration of real gameplay—not just a new page that links to the current features.
 
-## Existing systems to carry forward
+**The question:** Can players see what is happening across the round, the seasonal calendar, and their own actions, and take part through one dependable event system?
 
-### Round community events
+## Current events 1.8.5 takes over
 
-Phase U already runs one community event in each quarter of a round:
+### Round Community Events
 
-| Round window | Current event | Shared objective |
+Phase U currently runs one shared event in each quarter of a round:
+
+| Round window | Event | Shared objective |
 | --- | --- | --- |
 | 0–25% | Opening Rush | Complete 100 scouting actions |
 | 25–50% | Money in Motion | Sell $1,000,000 through store counters |
 | 50–75% | Interstate Push | Return 25 intercity runs |
 | 75–100% | Last Call | Launch 40 raids or turf pushes |
 
-Participation starts automatically when a player takes part in the active event. Each player contributes to the shared round total and must also meet a personal contribution floor to collect the modest cash and turn reward. Community event rows stay outside the personal 8-Job limit. The shared total is aggregated from player contributions; it is not maintained by writing every action to every player's row.
+Participation is automatic. Each player contributes to the shared round total and meets a personal contribution floor to collect the modest cash and turn reward. Community Events remain outside the personal 8-Job limit.
 
-1.8.5 should surface and extend this system, not rebuild it as a new contest or remove its contribution rules.
+1.8.5 moves these events' definitions, scheduling, progress, claims, and history into the first-class event system. Preserve the shared objective, personal floor, automatic participation, bounded rewards, and no-fan-out aggregation model unless balance work gives a clear reason to adjust them.
 
-### Calendar seasonal event Jobs
+### Calendar Seasonal Events
 
-Phase Y-F already provides UTC-window holiday Jobs, including **The Witching Run** for Halloween and **Midnight Delivery** for Christmas. These are personal, event-shaped objectives with permanent cosmetic rewards. Normal players follow the real UTC window; beta/admin accounts can use the existing non-production seasonal-event test mode.
+Phase Y-F currently provides holiday Event Jobs on real-world UTC windows, including The Witching Run for Halloween and Midnight Delivery for Christmas. They use personal objectives and award permanent cosmetic themes. On non-production servers, admins can use the existing seasonal-event test mode.
 
-1.8.5 should build a reusable event calendar and improve discovery, countdowns, history, and testing around this pattern. Keep seasonal rewards cosmetic and permanent; preserve the rule that an accepted Job is not forcibly abandoned just because its event window closes.
+1.8.5 moves seasonal schedules, eligibility, progress, rewards, and event history into the same first-class event system. Keep the UTC boundaries, permanent cosmetic ownership, beta/admin QA controls, and the rule that an accepted event is not forcibly abandoned at the instant its window closes.
 
-### Action-based random encounters
+### Random Encounters and City Events
 
-Random encounters are a separate, action-triggered lane. The beta has been extending them across Scout, Produce, Travel, Stores, Turf, and Combat. Slice A audits the current hooks, odds, receipts, and pause behavior before increasing their volume.
+Random encounters are action-triggered opportunities currently being extended across Scout, Produce, Travel, Stores, Turf, and Combat. They become another event type in the shared system, with action-based eligibility and short-lived choices.
 
-### Keep the event lanes distinct
+Citywide conditions—such as a festival, product shortage, trader shipment, or economic boom—become scheduled event types whose affected districts, actions, modifiers, and end times are visible to players.
 
-The player should be able to discover all events in one place, but the existing lifecycles stay clear:
+## Event system boundaries
 
-- **Street encounters:** triggered by a player's action; optional, short-lived choices.
-- **Community events:** shared round progress in four quarter-season windows; automatic participation and a personal floor.
-- **Seasonal Jobs:** real-world UTC windows with personal objectives and permanent cosmetic rewards.
-- **City conditions:** visible, time-limited modifiers affecting named activities or districts.
-
-Do not force these different clocks, contribution rules, or reward settlement paths into one generic quest flow just to share a screen.
-
-## Design principles
-
-1. **Events create choices.** Explain the trigger, options, possible outcomes, deadline, and reward before commitment.
-2. **No hidden turn costs.** An encounter does not silently consume turns or charge cash. Show any optional cost before confirmation.
-3. **No offline punishment.** Expiring an optional street encounter creates no debt, heat, lost crew, or missed-payment penalty.
-4. **Server authority.** Eligibility, progress, event selection, cooldowns, rewards, and settlement are checked and recorded server-side.
-5. **Transparent schedules.** Show whether an event is tied to the round, a real-world UTC window, an action, or a city condition.
-6. **Bounded rewards and modifiers.** Preserve modest community cash/turn rewards and cosmetic seasonal rewards. Prevent modifier stacking and repeatable reward farming.
-7. **Round compatibility.** Carry changes through versioned rulesets; older pinned rounds keep their existing definitions and behavior.
-8. **Pause safety.** Paused rounds do not advance round-event windows, action triggers, or settlement through read requests.
+1. **One source of truth.** A first-class event catalog and lifecycle own schedules, eligibility, progress, reward claims, and history. Do not leave competing quest and event schedulers active for the same event.
+2. **Distinct event types.** Community, calendar-seasonal, action-triggered, and city-condition events can have different progress rules while sharing event identity, lifecycle, audit, and player discovery.
+3. **Safe migration.** Preserve in-flight progress, completed objectives, claimed rewards, and accepted seasonal events when moving state. A migration or compatibility adapter must prevent duplicate progress and duplicate payouts.
+4. **Round compatibility.** New event behavior ships through a versioned ruleset. Older pinned rounds continue using their original definitions and behavior; do not silently rewrite historical rules.
+5. **No hidden costs.** Random encounters do not silently consume turns or cash. Optional costs are shown before confirmation.
+6. **No offline punishment.** Missing an optional encounter does not create debt, heat, lost crew, or a missed-payment penalty.
+7. **Server authority.** Selection, eligibility, progress, schedules, rewards, and settlement are checked on the server and protected against retries and concurrency.
+8. **Transparent rewards and modifiers.** Preserve bounded community rewards and permanent seasonal cosmetics. Cap city modifiers and prevent reward farming.
+9. **Pause safety.** Paused rounds do not advance round event windows or settle event progress through read requests.
 
 ## Proposed slices
 
 | Slice | Theme | Outcome |
 | --- | --- | --- |
-| **1.8.5-A — Event Compatibility & Engine Audit** | Preserve what already works | Inventory Phase U community events, Phase Y-F seasonal Jobs, and random encounter hooks. Verify ruleset boundaries, progress receipts, idempotency, pause behavior, and reward settlement. Do not migrate or rewrite established event state without a concrete need. |
-| **1.8.5-B — Event Center & History** | Give players one place to see what's happening | Add a responsive Events view with separate Street, Community, Seasonal, and City sections. Show active/upcoming status, source and end time, shared progress, personal contribution, rewards, receipts, and history. Keep each lane's existing actions and rules. |
-| **1.8.5-C — Street Opportunities** | Make action encounters consistent | Tune and round out encounters attached to Scout, Produce, Travel, Stores, Turf, and Combat. Use action IDs, cooldowns, duplicate protection, and receipts. Keep encounters optional and low-frequency so normal play remains the main loop. |
-| **1.8.5-D — Community Event Growth** | Expand the quarter-season loop | Keep the four round windows and automatic participation. Improve contribution clarity and late-join visibility, then add a small number of objective variants only when they use authoritative gameplay receipts and can be fairly balanced. Preserve a personal floor and bounded rewards. |
-| **1.8.5-E — Seasonal Calendar** | Make real-world events reusable | Replace one-off discovery and date handling with a clear UTC event calendar for seasonal Jobs, countdowns, upcoming events, past rewards, and admin QA previews. Preserve the non-production test-mode boundary and permanent cosmetic ownership. |
-| **1.8.5-F — City Conditions & Connected Stories** | Let event lanes affect the living city | Add transparent, bounded city conditions such as a festival, shortage, trader shipment, or economic boom. Allow a street encounter or seasonal/community objective to point into a follow-up opportunity, while keeping its progress and reward rules in its original lane. |
-| **1.8.5-G — Admin, Balance & Release** | Make events operable and safe | Add permission-checked calendar and event controls, audit logs, outcome metrics, economy simulations, compatibility checks, mobile/accessibility QA, and release verification. |
+| **1.8.5-A — First-Class Event Foundation** | Establish event ownership | Define the event catalog, event identities and types, schedule/lifecycle contracts, authoritative progress and claim records, history, audit trail, and ruleset boundaries. Map the existing Phase U and Y-F data to the new model. |
+| **1.8.5-B — Community Event Takeover** | Move the quarter-season loop | Move the four Phase U events to the event system. Preserve automatic participation, four round-derived windows, shared progress, personal contribution floors, 8-Job-limit exemption, modest rewards, and concurrency-safe aggregation. Remove duplicate legacy ownership for new supported rulesets. |
+| **1.8.5-C — Seasonal Event Takeover** | Move holiday windows and rewards | Move Phase Y-F scheduling, UTC eligibility, personal objectives, permanent cosmetic rewards, event history, and non-production admin test mode to the event system. Preserve progress and prevent double-granting during transition. |
+| **1.8.5-D — Player Event Center** | Make the new system visible | Add a responsive Events center for active, upcoming, completed, and claimed events. Show event type, schedule, shared and personal progress, objectives, choices, deadlines, rewards, and history. Use one consistent entry point while clearly labeling each event's rules. |
+| **1.8.5-E — Random Encounters** | Bring action events onto the same foundation | Connect Scout, Produce, Travel, Stores, Turf, and Combat encounters to first-class event identity, action receipts, cooldowns, idempotency, expiry, and reward settlement. Keep their action-triggered lifecycle. |
+| **1.8.5-F — City Conditions & Event Chains** | Make events shape the season | Add bounded citywide conditions and optional event follow-ups. Show affected districts/actions and end times. Community and seasonal objectives may point to a follow-up, but the original event remains the source of truth for its progress and reward. |
+| **1.8.5-G — Migration, Admin & Release** | Finish the takeover safely | Add permission-checked event authoring/tuning, calendar controls, QA preview, migration verification, duplicate-handler removal, audit views, balance simulation, compatibility checks, and release verification. |
 
-## Example event experiences
+## Migration and compatibility plan
 
-- The Events view shows that **Money in Motion** is active, with the $1,000,000 shared target, the player's personal sales floor, the player's own contribution, and the quarter-window end time.
-- A player who joins late can see whether a community reward is still achievable by meeting the remaining personal floor before the window closes.
-- The seasonal section shows the next holiday Job, its UTC opening and closing time, required objectives, permanent cosmetic reward, and already-earned past rewards.
-- After a completed scouting action, a low-frequency street encounter offers an optional lead. It has its own short deadline and does not alter community-event progress unless the underlying scouting receipt legitimately qualifies.
-- A city festival marks affected districts and activities on its card and expires at a stated time. A player can see the modifier before choosing an action.
+- Establish the first-class event record and lifecycle before moving existing definitions.
+- Map each current Community Event and Seasonal Event Job to a stable event key and ruleset version.
+- Preserve each player's progress, completion, accepted status, and claim state. Never replay a completed claim as a new reward.
+- Keep old pinned rulesets on their existing behavior. New or explicitly upgraded rulesets use the event system.
+- During migration, use one authoritative writer for each event. A compatibility adapter may read old state temporarily, but must not let both systems advance or pay the same event.
+- Compare old and new progress totals and claim states before retiring the old event-specific handlers.
+- Keep schema/data migration reversible through a verified backup or a migration script that does not delete the legacy state until parity is confirmed.
+
+## Example event experience
+
+The Events center lists **Money in Motion** as the active community event. The player sees the shared $1,000,000 sales target, the personal floor, their contribution, the round window end, and the cash/turn reward. Progress and claims are served by the first-class event system.
+
+The same center lists an upcoming holiday event with its UTC dates, objectives, permanent cosmetic reward, and admin test status when appropriate. A completed seasonal reward remains in the player's history and account inventory.
+
+After scouting, the player may receive an optional short-lived street opportunity. It uses the same event identity, receipt, and audit system, but does not accidentally count toward the community objective unless the underlying action independently meets that objective.
+
+A city festival card shows which districts and actions it affects and when those modifiers expire.
 
 ## Release gates
 
-- Confirm the four Phase U windows remain contiguous, round-derived, and mutually exclusive.
-- Confirm community totals use authoritative per-player contributions without cross-player fan-out writes; claims recheck both the shared goal and personal floor.
-- Confirm auto-participation works even when the player has not opened the Events view, and community events remain outside the personal 8-Job limit.
-- Confirm seasonal availability uses server UTC, accepted Jobs follow their documented expiration behavior, and only non-production admins receive the existing QA bypass.
-- Confirm seasonal cosmetics are granted permanently and independently from equipped site themes.
-- Confirm every random encounter can generate at most one result for a single action ID, including retries or concurrent requests.
-- Confirm event rewards and receipts settle exactly once.
-- Confirm paused rounds cannot trigger, expire, or settle round events through dashboard polling or other read paths.
-- Confirm declining or missing an optional street encounter does not charge cash, turns, crew, heat, debt, or reputation.
-- Simulate repeated encounters and overlapping city modifiers for cash, XP, supplies, turf, and combat reward farming.
-- Verify event configuration changes are permission-checked and logged.
-- Test desktop, mobile, keyboard navigation, empty/upcoming states, stale data, and retry behavior.
+- Confirm Community Event windows remain contiguous, round-derived, and mutually exclusive.
+- Confirm each community event still auto-enrolls qualifying activity without requiring the player to open the Events center first.
+- Confirm shared totals use authoritative per-player contributions without cross-player fan-out writes; claims recheck the shared goal and personal floor.
+- Confirm Community Events remain outside the personal 8-Job limit unless an explicit balance decision changes the design.
+- Confirm seasonal event availability uses server UTC and only non-production admins receive the QA bypass.
+- Confirm accepted seasonal event progress survives the event boundary according to its documented expiration rules.
+- Confirm existing event progress, completion, and claims survive the migration without reset or double payout.
+- Confirm only one system can progress or settle each event during and after migration.
+- Confirm retries, concurrent actions, and repeated claims cannot duplicate progress or rewards.
+- Confirm paused rounds cannot advance event windows or settle progress through read paths.
+- Confirm random encounter expiry creates no penalty and consumes no hidden turns or cash.
+- Simulate repeated events and overlapping conditions for cash, XP, supplies, turf, and combat reward farming.
+- Verify event authoring, tuning, calendar controls, and QA tools are permission-checked and logged.
+- Test desktop, mobile, keyboard navigation, accessibility, stale data, and retry behavior.
+- Keep historical rulesets and existing player-facing rules stable unless a versioned change is explicitly approved.
 
 ## Explicitly deferred
 
-- Replacing the Jobs system or rebuilding Phase U and Phase Y-F from scratch.
+- Rebuilding the general Jobs system, story quests, contacts, or all contracts under the event service.
+- Letting two schedulers or settlement paths own the same Community or Seasonal Event.
 - Live betting, parlays, and sportsbook market expansion; see the separate sportsbook roadmap.
-- Permanent competitive power for community leaderboard placement.
+- Permanent competitive power for community event placement.
 - Uncapped city modifiers or event reward stacking.
 - Events that consume turns without explicit player confirmation.
-- Offline penalties for missing optional encounters.
-- Large competitive tournaments until event telemetry and balance are proven.
+- Offline penalties for missing optional random encounters.
+- Large competitive tournaments until the unified event system has proven telemetry and balance.
 
 ## Guiding question
 
-**Can players understand what's happening across the round, the seasonal calendar, and their own actions—and join in without hidden costs or unfair pressure?**
+**Have Community Events, Seasonal Events, random encounters, and city conditions become real parts of one dependable event system, with no lost progress, duplicate payouts, or confusion about how to participate?**
