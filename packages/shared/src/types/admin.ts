@@ -128,7 +128,11 @@ export interface AdminCrewRosterDto {
   byRole: Array<{ role: 'THUG' | 'WORKER'; count: number }>;
   bySpecialty: Array<{ specialty: 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE'; count: number }>;
   byStatus: Array<{ status: 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED'; count: number }>;
+<<<<<<< Updated upstream
   byAssignment: Array<{ assignment: 'BUSINESS' | 'DEALER' | 'TURF' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'UNASSIGNED'; count: number }>;
+=======
+  byAssignment: Array<{ assignment: 'BUSINESS' | 'DEALER' | 'TURF' | 'CORNER_ENFORCER' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'RUNNER' | 'BODYGUARD' | 'ESCORT' | 'UNASSIGNED'; count: number }>;
+>>>>>>> Stashed changes
   topVeterans: Array<{ roundPlayerId: string; displayName: string; memberId: string; role: 'THUG' | 'WORKER'; serial: number; experiencePoints: number; specialty: string; specialtyExperiencePoints: number }>;
 }
 

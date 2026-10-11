@@ -57,6 +57,7 @@ import {
   type CityControl,
 } from './turf-territory.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
+import { fitThugs } from './crew-availability.js';
 
 type TurfDb = PrismaClient | Db;
 const TIER_NAME = { FOOTHOLD: 'a Foothold', ESTABLISHED: 'Established', STRONGHOLD: 'a Stronghold' } as const;
@@ -97,7 +98,7 @@ export function localsReclaimAt(ruleset: Ruleset, releasedAt: Date): Date {
 function utcDay(now: Date): Date { return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())); }
 function holdingOn(ruleset: Ruleset): boolean { return ruleset.turf?.holding === true; }
 function homeFit(player: { thugs: number; woundedThugs: number; busyThugs: number; postedThugs: number; businessThugs?: number; dealerThugs?: number }): number {
-  return Math.max(0, player.thugs - player.woundedThugs - player.busyThugs - player.postedThugs - (player.businessThugs ?? 0) - (player.dealerThugs ?? 0));
+  return fitThugs(player);
 }
 function gunCount(guns: CornerGuns): number { return guns.pistols + guns.shotguns + guns.tek9s + guns.ak47s; }
 
@@ -1002,7 +1003,7 @@ export const TurfService = {
 
       const districtGate = accessByDistrict.get(row.district as DistrictKey);
       blocks.push({
-        city: citySlug, district, districtName: districtName(ruleset, citySlug, row.district),
+        id: row.id, city: citySlug, district, districtName: districtName(ruleset, citySlug, row.district),
         ...(districtGate ? { districtAccess: { unlocked: districtGate.unlocked, unlockName: districtGate.unlock.name, unlockDescription: districtGate.unlock.description, unlockQuest: PermanentUnlockService.questFor(ruleset, districtGate.unlock.key) } } : {}),
         holder: row.holder ? {
           publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName,

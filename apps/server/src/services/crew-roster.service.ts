@@ -7,6 +7,7 @@ import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { crewMemberName, crewMemberSpecialty, crewMemberTraits } from './crew-profile.js';
 import { IdempotencyService } from './idempotency.service.js';
+<<<<<<< Updated upstream
 
 /** 1.7.0-E selected operation teams, carried forward by every later ruleset that builds on it. */
 const SELECTED_TEAM_RULESETS: ReadonlySet<string> = new Set(['classic-og-v1.7-e', 'classic-og-v1.8-e', 'classic-og-v1.8-f', 'classic-og-v1.8-g']);
@@ -15,6 +16,8 @@ type CornerJobKind = typeof CORNER_JOB_KINDS[number];
 const CORNER_JOB_LIMITS: Record<CornerJobKind, number> = { CORNER_LOOKOUT: 3, STASH_GUARD: 5 };
 const CORNER_LOOKOUT_WARNING_MINUTES = 2;
 const STASH_GUARD_LOOT_REDUCTION_PERCENT = 5;
+=======
+>>>>>>> Stashed changes
 import {
   crewPlaceCounts,
   crewPlaceKey,
@@ -26,6 +29,32 @@ import {
   type CrewRefs,
   type CrewRole,
 } from './crew-roster-plan.js';
+
+/** 1.7.0-E selected operation teams, carried forward by every later ruleset that builds on it. */
+const SELECTED_TEAM_RULESETS: ReadonlySet<string> = new Set(['classic-og-v1.7-e', 'classic-og-v1.8-e', 'classic-og-v1.8-f', 'classic-og-v1.8-g']);
+
+const ASSIGNMENT_COUNTS: Record<CrewAssignmentKindDto, number> = {
+  BUSINESS: 0,
+  DEALER: 0,
+  TURF: 0,
+  CORNER_ENFORCER: 0,
+  CORNER_LOOKOUT: 0,
+  STASH_GUARD: 0,
+  RUNNER: 0,
+  BODYGUARD: 0,
+  ESCORT: 0,
+};
+const ASSIGNMENT_LABELS: Record<CrewAssignmentKindDto, string> = {
+  BUSINESS: 'Business shift',
+  DEALER: 'Dealer crew',
+  TURF: 'Turf post',
+  CORNER_ENFORCER: 'Corner enforcer',
+  CORNER_LOOKOUT: 'Corner lookout',
+  STASH_GUARD: 'Stash guard',
+  RUNNER: 'Runner',
+  BODYGUARD: 'Bodyguard',
+  ESCORT: 'Escort',
+};
 
 /**
  * 1.7.0-A. Keeps a player's crew members in step with their counts.
@@ -196,7 +225,11 @@ function rosterTotals(rows: ReadonlyArray<{ role: CrewRole; status: CrewMemberSt
       role,
       members: 0,
       byStatus: { AVAILABLE: 0, ASSIGNED: 0, IN_TRANSIT: 0, RECOVERING: 0 },
+<<<<<<< Updated upstream
       byAssignment: { BUSINESS: 0, DEALER: 0, TURF: 0, CORNER_LOOKOUT: 0, STASH_GUARD: 0 },
+=======
+      byAssignment: { ...ASSIGNMENT_COUNTS },
+>>>>>>> Stashed changes
       released: 0,
     };
     for (const row of rows.filter((entry) => entry.role === role)) {
@@ -228,10 +261,14 @@ function memberDto(row: {
   const assignment = row.assignmentKind ? {
     kind: row.assignmentKind,
     ref: row.assignmentRef,
+<<<<<<< Updated upstream
     label: assignmentLabel ?? (row.assignmentKind === 'BUSINESS' ? 'Business shift'
       : row.assignmentKind === 'DEALER' ? 'Dealer crew'
         : row.assignmentKind === 'CORNER_LOOKOUT' ? 'Corner lookout'
           : row.assignmentKind === 'STASH_GUARD' ? 'Stash guard' : 'Turf post'),
+=======
+    label: assignmentLabel ?? ASSIGNMENT_LABELS[row.assignmentKind],
+>>>>>>> Stashed changes
   } : null;
   const unavailableReason = row.status === 'ASSIGNED' ? `Currently assigned to ${assignment?.label ?? 'a job'}.`
     : row.status === 'IN_TRANSIT' ? 'Away on a run.'
@@ -265,10 +302,14 @@ function memberDto(row: {
 function assignmentName(kind: CrewAssignmentKindDto | null, ref: string | null, labels: Map<string, string>): string | null {
   if (!kind) return null;
   const key = `${kind}:${ref ?? ''}`;
+<<<<<<< Updated upstream
   return labels.get(key) ?? (kind === 'BUSINESS' ? 'Business shift'
     : kind === 'DEALER' ? 'Dealer crew'
       : kind === 'CORNER_LOOKOUT' ? 'Corner lookout'
         : kind === 'STASH_GUARD' ? 'Stash guard' : 'Turf post');
+=======
+  return labels.get(key) ?? ASSIGNMENT_LABELS[kind];
+>>>>>>> Stashed changes
 }
 
 function eventHistory(rows: Array<{ kind: 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED' | 'WORK_COMPLETED' | 'TRAINED' | 'ADMIN_CORRECTED'; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null; summary: string | null; at: Date }>, joinedAt: Date, labels: Map<string, string>): CrewMemberHistoryDto[] {
@@ -562,12 +603,74 @@ export const CrewRosterService = {
     await tx.crewMemberEvent.create({ data: { memberId: member.id, roundPlayerId: input.roundPlayerId, kind: 'WORK_COMPLETED', assignmentKind: input.assignmentKind, assignmentRef: input.assignmentRef, summary: `${input.label} · +${points} XP.`, at: input.at } });
   },
 
+  /** 1.8.6-D. Every named corner defender earns Enforcer progress when a push is beaten off. */
+  async awardCornerDefense(tx: Db, input: { roundPlayerId: string; ruleset: Ruleset; turfId: string; at: Date }): Promise<number> {
+    const rules = input.ruleset.crewRoster;
+    if (!rules?.enabled || !rules.experiencePerCompletedJob) return 0;
+    const members = await tx.crewMember.findMany({
+      where: { roundPlayerId: input.roundPlayerId, role: 'THUG', status: 'ASSIGNED', assignmentKind: 'TURF', assignmentRef: input.turfId, dealerStaffId: null },
+      select: { id: true, specialty: true, specialtyExperiencePoints: true },
+    });
+    if (!members.length) return 0;
+    const points = rules.experiencePerCompletedJob;
+    for (const member of members) {
+      const nextPoints = member.specialtyExperiencePoints + points;
+      const canEarnEnforcer = member.specialty === 'GENERALIST' || member.specialty === 'ENFORCER';
+      const specialty = member.specialty === 'GENERALIST' && nextPoints >= (rules.specialtyUnlockExperience ?? Number.MAX_SAFE_INTEGER)
+        ? 'ENFORCER'
+        : member.specialty;
+      await tx.crewMember.update({
+        where: { id: member.id },
+        data: {
+          experiencePoints: { increment: points },
+          ...(canEarnEnforcer ? { specialtyExperiencePoints: { increment: points }, specialty } : {}),
+        },
+      });
+    }
+    await tx.crewMemberEvent.createMany({
+      data: members.map((member) => ({
+        memberId: member.id,
+        roundPlayerId: input.roundPlayerId,
+        kind: 'WORK_COMPLETED' as const,
+        assignmentKind: 'TURF' as const,
+        assignmentRef: input.turfId,
+        summary: `Corner defense held · +${points} XP.`,
+        at: input.at,
+      })),
+    });
+    return members.length;
+  },
+
   /** Highest bounded effect already earned by a member who can take this job. */
   async specialtyBonusPercent(tx: Db, roundPlayerId: string, ruleset: Ruleset, role: 'THUG' | 'WORKER', specialty: 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'SERVICE'): Promise<number> {
     const career = ruleset.crewRoster;
     if (!career?.enabled || specialty === 'SERVICE') return 0;
     const members = await tx.crewMember.findMany({
       where: { roundPlayerId, role, specialty, status: 'AVAILABLE', dealerStaffId: null },
+      select: { specialtyExperiencePoints: true },
+    });
+    const points = Math.max(0, ...members.map((member) => member.specialtyExperiencePoints));
+    if (!points) return 0;
+    const percent = points >= (career.specialtyTierTwoExperience ?? Number.MAX_SAFE_INTEGER)
+      ? career.specialtyBonusPercent?.tierTwo ?? 0
+      : career.specialtyBonusPercent?.tierOne ?? 0;
+    return Math.min(percent, career.specialtyBonusPercent?.cap ?? 0);
+  },
+
+  /** 1.8.6-D. Highest non-stacking specialist effect among members assigned to a specific job. */
+  async assignedSpecialtyBonusPercent(tx: Db, input: { roundPlayerId: string; ruleset: Ruleset; role: 'THUG' | 'WORKER'; specialty: 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'SERVICE'; assignmentKind: CrewAssignmentKindDto; assignmentRef: string }): Promise<number> {
+    const career = input.ruleset.crewRoster;
+    if (!career?.enabled || input.specialty === 'SERVICE') return 0;
+    const members = await tx.crewMember.findMany({
+      where: {
+        roundPlayerId: input.roundPlayerId,
+        role: input.role,
+        specialty: input.specialty,
+        status: 'ASSIGNED',
+        assignmentKind: input.assignmentKind,
+        assignmentRef: input.assignmentRef,
+        dealerStaffId: null,
+      },
       select: { specialtyExperiencePoints: true },
     });
     const points = Math.max(0, ...members.map((member) => member.specialtyExperiencePoints));

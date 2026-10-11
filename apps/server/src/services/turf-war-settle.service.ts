@@ -56,6 +56,8 @@ interface StoredPushResult {
   attackerPostedGuns: CornerGuns;
   attackerReturnedGuns: CornerGuns;
   strength: { attacker: number; defender: number } | null;
+  enforcerDefenseBonusPercent?: number;
+  cornerDefenseExperience?: number;
   shieldUntil: string | null;
   recoverAt: string | null;
   outpostLoot: OutpostLoot | null;
@@ -220,6 +222,8 @@ export const TurfWarSettlementService = {
       let cornerWounds = 0;
       let ownerBackupWounds = 0;
       let strength: StoredPushResult['strength'] = null;
+      let enforcerDefenseBonusPercent = 0;
+      let cornerDefenseExperience = 0;
       let recoverAt: Date | null = null;
       const woundByBackup = new Map<string, number>();
 
@@ -242,6 +246,14 @@ export const TurfWarSettlementService = {
           moraleTotal += count * group.snapshot.thugHappiness;
           defenderWeapons = addWeapons(defenderWeapons, committedWeapons(group.snapshot, count, model));
         }
+        enforcerDefenseBonusPercent = await CrewRosterService.assignedSpecialtyBonusPercent(tx, {
+          roundPlayerId: defender.id,
+          ruleset: base,
+          role: 'THUG',
+          specialty: 'ENFORCER',
+          assignmentKind: 'TURF',
+          assignmentRef: turf.id,
+        });
 
         const fight = simulateRaid({
           attacker: { thugs: loaded.squad, thugHappiness: attacker.thugHappiness, weapons: attacker.weapons },
@@ -250,6 +262,7 @@ export const TurfWarSettlementService = {
             thugHappiness: defenderCount > 0 ? Math.round(moraleTotal / defenderCount) : defender.thugHappiness,
             weapons: defenderWeapons,
           },
+          defenderBoost: { strength: 1 + enforcerDefenseBonusPercent / 100, wounds: 1 },
           attackingThugs: loaded.squad,
           attackerTurns: model.turnCost,
           defenderCashCents: 0n,
@@ -272,6 +285,14 @@ export const TurfWarSettlementService = {
         for (const backup of ownerBackups) woundByBackup.set(backup.id, split[`owner:${backup.id}`] ?? 0);
         for (const backup of shownAllies) woundByBackup.set(backup.id, split[`ally:${backup.id}`] ?? 0);
         ownerBackupWounds = ownerBackups.reduce((sum, backup) => sum + (woundByBackup.get(backup.id) ?? 0), 0);
+        if (!won) {
+          cornerDefenseExperience = await CrewRosterService.awardCornerDefense(tx, {
+            roundPlayerId: defender.id,
+            ruleset: base,
+            turfId: turf.id,
+            at,
+          });
+        }
       }
 
       const attackerReturnedGuns = won ? releaseCornerGuns(attackerGuns, attackerWounds) : attackerGuns;
@@ -388,7 +409,8 @@ export const TurfWarSettlementService = {
           allyShowed: allyShown,
         },
         attackerPostedThugs, attackerPostedGuns, attackerReturnedGuns,
-        strength, shieldUntil: shieldUntil?.toISOString() ?? null, recoverAt: recoverAt?.toISOString() ?? null,
+        strength, enforcerDefenseBonusPercent, cornerDefenseExperience,
+        shieldUntil: shieldUntil?.toISOString() ?? null, recoverAt: recoverAt?.toISOString() ?? null,
         outpostLoot,
         ...(stashGuardLootReductionPercent > 0 ? { stashGuardLootReductionPercent } : {}),
       };
@@ -399,7 +421,12 @@ export const TurfWarSettlementService = {
       await ActivityService.log(tx, defender.id, 'TURF_PUSH_DEFENSE', json({
         pushId: loaded.id, district: turf.district, held: !won, unopposed, stale,
         attackerWounds, defenderWounds, cornerWounds, ownerBackupWounds, allyBackup: allyShown, strength,
+<<<<<<< Updated upstream
         outpostLoot, stashGuardLootReductionPercent,
+=======
+        enforcerDefenseBonusPercent, cornerDefenseExperience,
+        outpostLoot,
+>>>>>>> Stashed changes
       }));
       return true;
     };

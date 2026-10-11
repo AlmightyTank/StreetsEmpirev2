@@ -37,6 +37,7 @@ import { ProductInventoryService } from './product-inventory.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { blockFatigueNow } from './block-war-settle.service.js';
 import { LawService } from './law.service.js';
+import { fitThugs as availableThugs } from './crew-availability.js';
 
 const HOUR_MS = 3_600_000;
 
@@ -540,7 +541,7 @@ export const BusinessService = {
 
     // Auto-staffing: replace anyone who walked off or was lured, from the fit crew (or the
     // girls working the street), up to each business's target, as far as the crew allows.
-    let fitThugs = Math.max(0, thugs - player.woundedThugs - player.busyThugs - player.postedThugs - businessThugs - player.dealerThugs);
+    let fitThugs = availableThugs({ ...player, thugs, businessThugs });
     let freeGirls = Math.max(0, whores - businessWhores);
     for (const entry of kept) {
       if (!entry.auto || entry.staff >= entry.want) continue;
@@ -555,7 +556,7 @@ export const BusinessService = {
 
     // Anything else that took the crew's people since (an admin change, a path that does not
     // know about businesses) cannot leave more staff than crew: shed the difference.
-    const thugRoom = Math.max(0, thugs - player.woundedThugs - player.busyThugs - player.postedThugs - player.dealerThugs);
+    const thugRoom = availableThugs({ ...player, thugs, businessThugs: 0 });
     const shed = { thugs: Math.max(0, businessThugs - thugRoom), whores: Math.max(0, businessWhores - whores) };
     if (shed.thugs > 0 || shed.whores > 0) {
       await BusinessService.loseStaff(tx, roundPlayerId, ruleset, shed, now);

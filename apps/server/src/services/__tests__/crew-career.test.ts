@@ -58,4 +58,47 @@ describe('1.7.0-C crew careers', () => {
     });
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: { in: ['chosen'] } }) }));
   });
+
+  it('uses the best assigned Enforcer on a corner without stacking', async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      { specialtyExperiencePoints: 20 },
+      { specialtyExperiencePoints: 100 },
+    ]);
+    const tx = { crewMember: { findMany } } as unknown as Db;
+    await expect(CrewRosterService.assignedSpecialtyBonusPercent(tx, {
+      roundPlayerId: 'player-1',
+      ruleset: classicOgV17E,
+      role: 'THUG',
+      specialty: 'ENFORCER',
+      assignmentKind: 'TURF',
+      assignmentRef: 'turf-1',
+    })).resolves.toBe(5);
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ status: 'ASSIGNED', assignmentKind: 'TURF', assignmentRef: 'turf-1', specialty: 'ENFORCER' }),
+    }));
+  });
+
+  it('awards corner defense experience to every named defender on the corner', async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      { id: 'rookie', specialty: 'GENERALIST', specialtyExperiencePoints: 15 },
+      { id: 'enforcer', specialty: 'ENFORCER', specialtyExperiencePoints: 100 },
+    ]);
+    const update = vi.fn();
+    const createMany = vi.fn();
+    const tx = { crewMember: { findMany, update }, crewMemberEvent: { createMany } } as unknown as Db;
+    await expect(CrewRosterService.awardCornerDefense(tx, {
+      roundPlayerId: 'player-1',
+      ruleset: classicOgV17E,
+      turfId: 'turf-1',
+      at: new Date('2026-01-01T00:00:00Z'),
+    })).resolves.toBe(2);
+    expect(update).toHaveBeenCalledWith({ where: { id: 'rookie' }, data: { experiencePoints: { increment: 5 }, specialtyExperiencePoints: { increment: 5 }, specialty: 'ENFORCER' } });
+    expect(update).toHaveBeenCalledWith({ where: { id: 'enforcer' }, data: { experiencePoints: { increment: 5 }, specialtyExperiencePoints: { increment: 5 }, specialty: 'ENFORCER' } });
+    expect(createMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.arrayContaining([
+        expect.objectContaining({ memberId: 'rookie', kind: 'WORK_COMPLETED', assignmentKind: 'TURF', assignmentRef: 'turf-1', summary: 'Corner defense held · +5 XP.' }),
+        expect.objectContaining({ memberId: 'enforcer', kind: 'WORK_COMPLETED', assignmentKind: 'TURF', assignmentRef: 'turf-1', summary: 'Corner defense held · +5 XP.' }),
+      ]),
+    }));
+  });
 });

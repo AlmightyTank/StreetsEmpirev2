@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { CrewMemberDto, CrewMemberStatusDto } from '@streets/shared';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CitiesDto, CrewMemberDto, CrewMemberStatusDto, CrewPutToWorkResult, CrewRosterDto, DealerPageDto, GameActionResult, TurfBlockDto } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { crewApi, type CrewRosterFilters } from '../api/crew.js';
-import { ApiError } from '../api/client.js';
+import { dealersApi } from '../api/dealers.js';
+import { api, ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
+import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { useSession } from '../stores/session.js';
 import '../styles/crew-roster.css';
 
 const statusLabels: Record<CrewMemberStatusDto, string> = {
@@ -17,6 +21,175 @@ const specialtyLabels: Record<CrewMemberDto['specialty'], string> = {
 const effectLabels: Record<CrewMemberDto['specialty'], string> = {
   GENERALIST: 'no specialty effect', ENFORCER: 'raid strength', WHEELMAN: 'road-stop risk reduction', SCOUT: 'scouting income', DEALER: 'dealer pace and cut', SERVICE: 'worker service performance',
 };
+
+type AssignmentTarget =
+  | { key: string; kind: 'DEALER'; id: string; title: string; meta: string; count: number; capacity: number }
+  | { key: string; kind: 'TURF'; id: string; district: TurfBlockDto['district']; title: string; meta: string; count: number; guns: number; postTurnCost: number; pullTurnCost: number };
+
+function shortMember(member: CrewMemberDto): string {
+  return `#${String(member.serial).padStart(3, '0')} · ${member.name}`;
+}
+
+function CrewJobsBoard({
+  roster,
+  dealers,
+  cities,
+  onDone,
+}: {
+  roster: CrewRosterDto;
+  dealers: DealerPageDto | null;
+  cities: CitiesDto | null;
+  onDone: () => Promise<void>;
+}) {
+  const me = useSession((state) => state.me);
+  const action = useGameAction<CrewPutToWorkResult>();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const members = roster.members;
+  const byId = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
+  const selected = selectedIds.flatMap((id) => byId.get(id) ? [byId.get(id)!] : []);
+  const available = members.filter((member) => member.role === 'THUG' && member.status === 'AVAILABLE');
+  const selectedAvailable = selected.filter((member) => member.role === 'THUG' && member.status === 'AVAILABLE');
+  const guns = me ? me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s : 0;
+  const turns = me?.turns.turns ?? 0;
+
+  const dealerTargets: AssignmentTarget[] = dealers?.enabled && dealers.rules ? dealers.crews.map((crew) => ({
+    key: `dealer:${crew.id}`,
+    kind: 'DEALER',
+    id: crew.id,
+    title: `${crew.districtName} · ${crew.cityName}`,
+    meta: `${crew.status === 'PAUSED' ? 'Paused' : 'Working'} · holds ${formatNumber(crew.inventoryUnits)} of ${formatNumber(crew.capacityUnits)}`,
+    count: crew.dealers.length,
+    capacity: dealers.rules!.maxDealersPerCrew,
+  })) : [];
+  const turfTargets: AssignmentTarget[] = (cities?.enabled ? cities.cities : [])
+    .filter((city) => city.isHome)
+    .flatMap((city) => city.turf?.blocks.filter((block) => block.isMine).map((block) => ({
+      key: `turf:${block.id}`,
+      kind: 'TURF' as const,
+      id: block.id,
+      district: block.district,
+      title: `${block.districtName} · ${city.name}`,
+      meta: `${formatNumber(block.cornerMinimumThugs)} minimum · ${block.push ? 'push visible' : 'quiet'}`,
+      count: block.cornerThugs,
+      guns: block.cornerGuns.total,
+      postTurnCost: city.turf!.postTurnCost,
+      pullTurnCost: city.turf!.pullTurnCost,
+    })) ?? []);
+  const targets = [...dealerTargets, ...turfTargets];
+
+  const toggle = (id: string) => setSelectedIds((current) => current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]);
+  const clear = () => setSelectedIds([]);
+  const run = async (call: (actionId: string) => Promise<GameActionResult<CrewPutToWorkResult>>) => {
+    await action.run(call);
+    setSelectedIds([]);
+    await onDone();
+  };
+  const assignedTo = (target: AssignmentTarget) => members.filter((member) => member.assignment?.kind === target.kind && member.assignment.ref === target.id);
+
+  return (
+    <Panel title="Crew jobs board" aside={`${formatNumber(available.length)} fit thugs shown`}>
+      {action.error ? <Alert>{action.error}</Alert> : null}
+      <div className="se-crew-board__metrics">
+        <span><strong>{formatNumber(me?.resources.fitThugs ?? available.length)}</strong><small>fit at home</small></span>
+        <span><strong>{formatNumber(guns)}</strong><small>home guns</small></span>
+        <span><strong>{formatNumber(turns)}</strong><small>turns ready</small></span>
+        <span><strong>{formatNumber(selectedIds.length)}</strong><small>selected</small></span>
+      </div>
+      <div className="se-crew-board">
+        <section className="se-crew-board__pool" aria-label="Available thugs">
+          <div className="se-crew-board__sectionhead">
+            <h3>Home thugs</h3>
+            <button type="button" className="se-linkbtn" onClick={clear} disabled={!selectedIds.length}>Clear</button>
+          </div>
+          {available.length ? (
+            <div className="se-crew-board__members">
+              {available.map((member) => (
+                <label key={member.id} className="se-crew-board__member">
+                  <input type="checkbox" checked={selectedIds.includes(member.id)} onChange={() => toggle(member.id)} />
+                  <span>
+                    <strong>{shortMember(member)}</strong>
+                    <small>{specialtyLabels[member.specialty]} · {formatNumber(member.specialtyExperiencePoints)} XP</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+          ) : <p className="se-muted">No available thugs in this roster page.</p>}
+        </section>
+
+        <section className="se-crew-board__targets" aria-label="Assignment slots">
+          {targets.length ? targets.map((target) => {
+            const here = assignedTo(target);
+            const selectedHere = selected.filter((member) => member.assignment?.kind === target.kind && member.assignment.ref === target.id);
+            const selectedElsewhere = selected.filter((member) => member.assignment?.kind === target.kind && member.assignment.ref && member.assignment.ref !== target.id);
+            const room = target.kind === 'DEALER' ? Math.max(0, target.capacity - target.count) : Number.MAX_SAFE_INTEGER;
+            const assignBlock = action.busy ? 'Working.'
+              : !selectedAvailable.length ? 'Choose home thugs first.'
+                : target.kind === 'DEALER' && selectedAvailable.length > room ? `This crew has room for ${formatNumber(room)}.`
+                  : target.kind === 'TURF' && selectedAvailable.length > guns ? `You have ${formatNumber(guns)} home guns.`
+                    : target.kind === 'TURF' && selectedAvailable.length > (me?.resources.fitThugs ?? selectedAvailable.length) ? `You have ${formatNumber(me?.resources.fitThugs ?? 0)} fit thugs.`
+                      : target.kind === 'TURF' && turns < target.postTurnCost ? `Posting costs ${target.postTurnCost} turns.`
+                        : null;
+            const moveBlock = action.busy ? 'Working.'
+              : !selectedElsewhere.length ? `Choose ${target.kind === 'DEALER' ? 'dealers' : 'corner thugs'} from another slot.`
+                : target.kind === 'DEALER' && selectedElsewhere.length > room ? `This crew has room for ${formatNumber(room)}.`
+                  : target.kind === 'TURF' && turns < target.postTurnCost ? `Moving costs ${target.postTurnCost} turns.`
+                    : null;
+            const returnBlock = action.busy ? 'Working.'
+              : !selectedHere.length ? 'Choose people from this slot.'
+                : target.kind === 'TURF' && turns < target.pullTurnCost ? `Pulling costs ${target.pullTurnCost} turns.`
+                  : null;
+            return (
+              <article key={target.key} className="se-crew-board__target">
+                <div className="se-crew-board__target-head">
+                  <div>
+                    <span className="se-eyebrow">{target.kind === 'DEALER' ? 'Dealer crew' : 'Corner'}</span>
+                    <h3>{target.title}</h3>
+                    <p>{target.meta}</p>
+                  </div>
+                  <strong>{formatNumber(target.count)}{target.kind === 'DEALER' ? `/${formatNumber(target.capacity)}` : ''}</strong>
+                </div>
+                {here.length ? (
+                  <div className="se-crew-board__members se-crew-board__members--compact">
+                    {here.map((member) => (
+                      <label key={member.id} className="se-crew-board__member">
+                        <input type="checkbox" checked={selectedIds.includes(member.id)} onChange={() => toggle(member.id)} />
+                        <span>
+                          <strong>{shortMember(member)}</strong>
+                          <small>{specialtyLabels[member.specialty]} · {formatNumber(member.specialtyExperiencePoints)} XP</small>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                ) : <p className="se-muted">No named members are posted here.</p>}
+                <div className="se-crew-board__actions">
+                  <Button className="se-btn se-btn--sm" disabledReason={assignBlock}
+                    onClick={() => void run((actionId) => target.kind === 'DEALER'
+                      ? crewApi.assignDealers(target.id, selectedAvailable.map((member) => member.id), actionId)
+                      : crewApi.postTurf(target.district, selectedAvailable.map((member) => member.id), actionId))}>
+                    Send selected
+                  </Button>
+                  <Button className="se-btn se-btn--ghost se-btn--sm" disabledReason={moveBlock}
+                    onClick={() => void run((actionId) => target.kind === 'DEALER'
+                      ? crewApi.moveDealers(target.id, selectedElsewhere.map((member) => member.id), actionId)
+                      : crewApi.moveTurf(target.district, selectedElsewhere.map((member) => member.id), actionId))}>
+                    Move selected
+                  </Button>
+                  <Button className="se-btn se-btn--ghost se-btn--sm" disabledReason={returnBlock}
+                    onClick={() => void run((actionId) => target.kind === 'DEALER'
+                      ? crewApi.releaseDealers(selectedHere.map((member) => member.id), actionId)
+                      : crewApi.pullTurf(target.district, selectedHere.map((member) => member.id), actionId))}>
+                    Bring home
+                  </Button>
+                </div>
+              </article>
+            );
+          }) : <p className="se-muted">No dealer crews or held home corners are open for assignments yet.</p>}
+        </section>
+      </div>
+      {roster.total > roster.members.length ? <p className="se-crew-roster__note">Showing the first {formatNumber(roster.members.length)} active roster members on the board.</p> : null}
+    </Panel>
+  );
+}
 
 function CrewMemberCard({ member, peers, busy, onExchange, onTrain }: { member: CrewMemberDto; peers: CrewMemberDto[]; busy: boolean; onExchange: (memberId: string, replaceMemberId: string) => void; onTrain: (memberId: string) => void }) {
   const [replaceId, setReplaceId] = useState('');
@@ -78,17 +251,41 @@ function CrewMemberCard({ member, peers, busy, onExchange, onTrain }: { member: 
 }
 
 export function CrewRosterPage() {
+  const me = useSession((state) => state.me);
   const [role, setRole] = useState<CrewRosterFilters['role']>();
   const [status, setStatus] = useState<CrewRosterFilters['status']>();
   const [assignment, setAssignment] = useState<CrewRosterFilters['assignment']>();
   const [specialty, setSpecialty] = useState<CrewRosterFilters['specialty']>();
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<Awaited<ReturnType<typeof crewApi.roster>> | null>(null);
+  const [boardData, setBoardData] = useState<CrewRosterDto | null>(null);
+  const [dealers, setDealers] = useState<DealerPageDto | null>(null);
+  const [cities, setCities] = useState<CitiesDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [boardError, setBoardError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [boardLoading, setBoardLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState(false);
   const filters = useMemo(() => ({ role, status, assignment, specialty, limit: 50, offset }), [role, status, assignment, specialty, offset]);
   const filtersKey = JSON.stringify(filters);
+  const loadBoard = useCallback(async () => {
+    setBoardLoading(true);
+    setBoardError(null);
+    try {
+      const [roster, dealerPage, cityPage] = await Promise.all([
+        crewApi.roster({ limit: 200, offset: 0 }),
+        dealersApi.page().catch(() => null),
+        api.get<CitiesDto>('/game/cities').catch(() => null),
+      ]);
+      setBoardData(roster);
+      setDealers(dealerPage);
+      setCities(cityPage);
+    } catch (caught) {
+      setBoardError(caught instanceof ApiError ? caught.message : 'Could not load the crew jobs board.');
+    } finally {
+      setBoardLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -101,10 +298,14 @@ export function CrewRosterPage() {
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [filtersKey]);
+  useEffect(() => { void loadBoard(); }, [loadBoard, me?.id]);
 
   const allMembers = data?.totals.reduce((sum, row) => sum + row.members, 0) ?? 0;
 
-  const refresh = async () => setData(await crewApi.roster(filters));
+  const refresh = async () => {
+    const [next] = await Promise.all([crewApi.roster(filters), loadBoard()]);
+    setData(next);
+  };
   const exchange = async (memberId: string, replaceMemberId: string) => {
     setActionBusy(true); setError(null);
     try { await crewApi.exchange(memberId, replaceMemberId, crypto.randomUUID()); await refresh(); }
@@ -123,8 +324,8 @@ export function CrewRosterPage() {
       <div className="se-crew-roster">
         <header className="se-crew-roster__hero">
           <span className="se-eyebrow">Your people · their careers</span>
-          <h1>Crew Roster</h1>
-          <p>See who is working, who is ready, and how each person has built a place in your operation.</p>
+          <h1>Crew Assignments</h1>
+          <p>Pick people first, see every open crew slot, and move thugs between home, dealer crews, and corners from one board.</p>
           <div className="se-crew-roster__hero-stats">
             <span><strong>{formatNumber(allMembers)}</strong> active crew</span>
             <span><strong>{formatNumber(data?.totals.reduce((sum, row) => sum + row.released, 0) ?? 0)}</strong> released careers</span>
@@ -132,6 +333,7 @@ export function CrewRosterPage() {
         </header>
 
         {error ? <Alert>{error}</Alert> : null}
+        {boardError ? <Alert>{boardError}</Alert> : null}
         {data && !data.enabled && !loading ? <Alert>This round does not use individual crew profiles.</Alert> : null}
 
         {data?.enabled ? (
@@ -152,8 +354,14 @@ export function CrewRosterPage() {
           </Panel>
         ) : null}
 
+        {boardData?.enabled ? (
+          <CrewJobsBoard roster={boardData} dealers={dealers} cities={cities} onDone={refresh} />
+        ) : boardLoading ? (
+          <Panel title="Crew jobs board"><p className="se-muted">Checking open assignments...</p></Panel>
+        ) : null}
+
         {data?.enabled ? (
-          <Panel title="Find a crew member" aside={`${formatNumber(data.total)} matches`}>
+          <Panel title="Roster search" aside={`${formatNumber(data.total)} matches`}>
             <div className="se-crew-roster__filters">
               <label>Role<select className="se-input" value={role ?? ''} onChange={(event) => { setRole((event.target.value || undefined) as CrewRosterFilters['role']); setOffset(0); }}>
                 <option value="">All roles</option><option value="THUG">Thugs</option><option value="WORKER">Workers</option>

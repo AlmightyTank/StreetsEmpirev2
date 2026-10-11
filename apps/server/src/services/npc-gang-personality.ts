@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { hashParts } from '@streets/rules-engine';
 import type { NpcGangPersonality, NpcGangRules, NpcGangTargeting } from '@streets/rulesets';
+import { fitThugs } from './crew-availability.js';
 
 /**
  * Phase M. Who a gang is on the street: its personality (from the archetype), its crew
@@ -63,7 +64,7 @@ export interface NpcTargetTraits {
 export function orderByTargeting<T extends NpcTargetTraits>(targets: readonly T[], targeting: NpcGangTargeting): T[] {
   const ranked = targets.map((target, index) => ({ target, index }));
   const score = (target: T): number => {
-    if (targeting === 'WEAKEST') return -(target.thugs - target.woundedThugs - target.postedThugs - target.businessThugs - (target.dealerThugs ?? 0));
+    if (targeting === 'WEAKEST') return -fitThugs(target);
     if (targeting === 'RIDES') return target.lowRiders;
     if (targeting === 'PRODUCT') return target.crack;
     if (targeting === 'DISTRACTED') {

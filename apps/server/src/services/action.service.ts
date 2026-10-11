@@ -45,6 +45,9 @@ import { StreetPassCredService } from './street-pass-cred.service.js';
 import { LawService, type CaseEvidence } from './law.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
+import { fitThugs } from './crew-availability.js';
+
+export { fitThugs, workingWhores } from './crew-availability.js';
 
 async function casinoCashEquivalentCents(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
   if (!ruleset.casino?.enabled) return 0n;
@@ -307,16 +310,6 @@ export function toState(player: RoundPlayer): PlayerState {
     crackStock: player.crackStock,
     thugStock: player.thugStock,
   };
-}
-
-/** Thugs who can do something at home: not wounded, busy elsewhere, posted on a corner, or working a business. */
-export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number; postedThugs?: number; businessThugs?: number; dealerThugs?: number }): number {
-  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0) - (player.postedThugs ?? 0) - (player.businessThugs ?? 0) - (player.dealerThugs ?? 0));
-}
-
-/** 1.1.0-B. Girls who work the street or a Produce shift: everyone not working a business. */
-export function workingWhores(player: { whores: number; businessWhores?: number }): number {
-  return Math.max(0, player.whores - (player.businessWhores ?? 0));
 }
 
 function armedThugsForSnapshot(state: PlayerState): number {

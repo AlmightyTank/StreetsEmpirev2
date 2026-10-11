@@ -11,7 +11,11 @@
 
 export type CrewRole = 'THUG' | 'WORKER';
 export type CrewStatus = 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED';
+<<<<<<< Updated upstream
 export type CrewAssignment = 'BUSINESS' | 'DEALER' | 'TURF' | 'CORNER_LOOKOUT' | 'STASH_GUARD';
+=======
+export type CrewAssignment = 'BUSINESS' | 'DEALER' | 'TURF' | 'CORNER_ENFORCER' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'RUNNER' | 'BODYGUARD' | 'ESCORT';
+>>>>>>> Stashed changes
 export type CrewEventKind = 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED';
 
 /** The player's columns the roster mirrors. */
