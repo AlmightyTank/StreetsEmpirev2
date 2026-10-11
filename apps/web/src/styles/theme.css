@@ -6,21 +6,21 @@
  */
 
 :root {
-  --se-bg: #0b0c0e;
-  --se-panel: #14161a;
-  --se-panel-hi: #191d23;
-  --se-line: #262b33;
-  --se-line-soft: #1c2027;
+  --se-bg: #080a0d;
+  --se-panel: #111419;
+  --se-panel-hi: #171c23;
+  --se-line: #2a3039;
+  --se-line-soft: #20262e;
 
-  --se-text: #dbe0e7;
-  --se-text-dim: #98a1ad;
-  --se-muted: #6b7480;
+  --se-text: #e8edf4;
+  --se-text-dim: #a7b0bc;
+  --se-muted: #7b8592;
 
-  --se-accent: #b6ff3a;
-  --se-accent-dim: #7fb028;
-  --se-accent-hover: #c9ff63;
-  --se-accent-rgb: 182, 255, 58;
-  --se-accent-2: #ff2d78;
+  --se-accent: #ef4657;
+  --se-accent-dim: #b72e3d;
+  --se-accent-hover: #ff7784;
+  --se-accent-rgb: 239, 70, 87;
+  --se-accent-2: #d6dee8;
 
   --se-good: #4ade80;
   --se-good-rgb: 74, 222, 128;
