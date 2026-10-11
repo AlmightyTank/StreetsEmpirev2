@@ -4,6 +4,7 @@ import {
   ADMIN_GRANT_CAPS,
   ADMIN_NOTE_MAX,
   ADMIN_PRODUCT_GRANT_CAP,
+  ADMIN_SUPPORTER_GRANT_MAX,
   ADMIN_SUSPENSION_LENGTHS,
   BUG_REPORT_REPLY_MAX,
   BUG_REPORT_RESOLUTIONS,
@@ -40,6 +41,7 @@ import { AdminRulesetService } from '../services/admin-ruleset.service.js';
 import { AdminSignalsService } from '../services/admin-signals.service.js';
 import { AdminSurveyService } from '../services/admin-survey.service.js';
 import { AdminSurveyResultsService } from '../services/admin-survey-results.service.js';
+import { AdminSupporterService } from '../services/admin-supporter.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
@@ -151,6 +153,15 @@ const npcGangControlBody = z.discriminatedUnion('action', [
   z.object({ action: z.literal('RESET'), scope: z.enum(['MOMENTUM', 'GRUDGES', 'MIGRATION']), reason }).strict(),
 ]);
 const reasonBody = z.object({ reason }).strict();
+// Supporters tab. A preview needs no reason; a commit does.
+const supporterGrantSchema = z.object({
+  usernames: z.array(z.string().trim().min(1).max(64))
+    .min(1, 'Name at least one account.')
+    .max(ADMIN_SUPPORTER_GRANT_MAX, `At most ${ADMIN_SUPPORTER_GRANT_MAX} names per grant.`),
+  reason: reason.optional(),
+  dryRun: z.boolean().optional(),
+}).strict();
+const supporterBackfillSchema = z.object({ reason: reason.optional(), dryRun: z.boolean().optional() }).strict();
 const sportsbookEventParams = z.object({ eventId: id }).strict();
 const sportsbookProviderCheckBody = z.object({ league: z.enum(['NFL', 'NBA', 'MLB', 'NHL']) }).strict();
 // 1.0.0-E: resuming extends the season by the pause unless told not to.
@@ -793,6 +804,18 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(reasonBody, request.body ?? {});
     return AdminAccountService.grantSupporter(fastify.prisma, request.auth!.account, accountId, body.reason);
+  });
+
+  fastify.get('/supporters', async () => AdminSupporterService.list(fastify.prisma));
+
+  fastify.post('/supporters/grant', async (request) => {
+    const body = parseBody(supporterGrantSchema, request.body ?? {});
+    return AdminSupporterService.grant(fastify.prisma, request.auth!.account, body);
+  });
+
+  fastify.post('/supporters/backfill', async (request) => {
+    const body = parseBody(supporterBackfillSchema, request.body ?? {});
+    return AdminSupporterService.backfill(fastify.prisma, request.auth!.account, body);
   });
 
   fastify.post('/accounts/:accountId/email/resend', async (request) => {

@@ -45,6 +45,8 @@ import type {
   AdminAccountStatusFilter,
   AdminAuditFilters,
   AdminAuditLogDto,
+  AdminSupporterGrantResultDto,
+  AdminSupportersDto,
   AdminAuditPurgeResultDto,
   AdminAuditRetentionDto,
   AdminCloseExpiredResultDto,
@@ -213,6 +215,12 @@ export const adminApi = {
   setBetaApproved: (accountId: string, approved: boolean, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'beta-access'), { approved, reason }),
   grantSupporter: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'supporter'), { reason }),
+  /** Supporters tab: the roster, a bulk grant by username and a backfill of rewards added later. dryRun previews. */
+  supporters: () => api.get<AdminSupportersDto>('/admin/supporters'),
+  grantSupporters: (usernames: string[], reason: string, dryRun: boolean) =>
+    api.post<AdminSupporterGrantResultDto>('/admin/supporters/grant', dryRun ? { usernames, dryRun } : { usernames, reason, dryRun }),
+  backfillSupporters: (reason: string, dryRun: boolean) =>
+    api.post<AdminSupporterGrantResultDto>('/admin/supporters/backfill', dryRun ? { dryRun } : { reason, dryRun }),
   resendVerification: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/resend'), { reason }),
   resetTwoFactor: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, '2fa/reset'), { reason }),
   markEmailVerified: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/verify'), { reason }),

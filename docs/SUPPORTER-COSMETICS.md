@@ -19,9 +19,28 @@ Both come from `SUPPORTER_COSMETICS` in `packages/rulesets/src/supporter.ts`.
 `SupporterService.grant(db, accountId)` writes the missing `AccountCosmeticUnlock`
 rows with `sourceQuestKey = 'supporter'` and returns the keys it added. Granting
 twice adds nothing. Until checkout exists, an admin grants it from the account
-page ("Grant supporter rewards", `POST /admin/accounts/:id/supporter`). The
-action is audited as `account.grant-supporter`. A payment hook can later call
-the same service.
+page ("Grant supporter rewards", `POST /admin/accounts/:id/supporter`) or from
+Admin → Supporters. Every grant is audited as `account.grant-supporter`. A
+payment hook can later call the same service.
+
+## Admin → Supporters
+
+`/game/admin/supporters` (`AdminSupportersPage`, `AdminSupporterService`) lists
+every account holding a supporter reward, with when it started, its last login,
+which rewards it has and whether it wears the card.
+
+- **Grant** (`POST /admin/supporters/grant`) takes up to 100 pasted usernames.
+  A preview (`dryRun`) sorts them into new, missing rewards, already done, not
+  found, self and listed twice. The commit grants the first two, one audited
+  account action each, and keeps any failure on its own row.
+- **Backfill** (`POST /admin/supporters/backfill`) gives every supporter the
+  catalogue rewards they lack. Run it after adding a reward to
+  `SUPPORTER_COSMETICS`; existing supporters do not get a new reward otherwise.
+- **Recent grants** shows the last ten `account.grant-supporter` audit entries.
+  The audit log's action filter also has "Supporter grants".
+
+There is no "currently supporting" status yet: a supporter is anyone who was
+ever granted, because rewards are permanent.
 
 ## Midnight Chrome collection
 
