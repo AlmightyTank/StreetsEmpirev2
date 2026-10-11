@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07AA, classicOgV07T, classicOgV16F, classicOgV18F, classicOgV18G, classicOgV18H, classicOgV18I, classicOgV18J } from '../index.js';
+import { classicOgV07AA, classicOgV07T, classicOgV16F, classicOgV18F, classicOgV18G, classicOgV18H, classicOgV18I, classicOgV18J, classicOgV18K } from '../index.js';
 import { activeRoundEventTime, eventCatalogForRuleset } from '../event-system.js';
 
 describe('first-class event catalog adapter', () => {
@@ -13,6 +13,7 @@ describe('first-class event catalog adapter', () => {
     expect(eventCatalogForRuleset(classicOgV18I).filter((entry) => entry.type === 'RANDOM_ENCOUNTER').length)
       .toBeGreaterThan(eventCatalogForRuleset(classicOgV18H).filter((entry) => entry.type === 'RANDOM_ENCOUNTER').length);
     expect(classicOgV18J.meta.eventSystem?.cityConditions).toBe('FIRST_CLASS');
+    expect(classicOgV18K.meta.eventSystem).toEqual(classicOgV18J.meta.eventSystem);
     const conditions = eventCatalogForRuleset(classicOgV18J).filter((entry) => entry.type === 'CITY_CONDITION');
     expect(conditions).toHaveLength(5);
     expect(conditions.every((entry) => entry.scope === 'CITY' && entry.legacySource.kind === 'CITY_CONDITION')).toBe(true);
@@ -20,6 +21,11 @@ describe('first-class event catalog adapter', () => {
       kind: 'EVENT_FOLLOW_UP', parentType: 'COMMUNITY', parentKey: 'EVENT_MONEY_IN_MOTION', durationMinutes: 360,
     });
     expect(eventCatalogForRuleset(classicOgV18I).filter((entry) => entry.type === 'CITY_CONDITION')).toHaveLength(0);
+    const previousCatalog = eventCatalogForRuleset(classicOgV18J);
+    const releaseCatalog = eventCatalogForRuleset(classicOgV18K);
+    expect(releaseCatalog.map(({ rulesetId: _id, rulesetVersion: _version, ...entry }) => entry))
+      .toEqual(previousCatalog.map(({ rulesetId: _id, rulesetVersion: _version, ...entry }) => entry));
+    expect(releaseCatalog.every((entry) => entry.rulesetId === 'classic-og-v1.8-k' && entry.rulesetVersion === '1.8.0-K')).toBe(true);
     expect(classicOgV18H.randomEncounters).toEqual(classicOgV16F.randomEncounters);
   });
 

@@ -24,6 +24,97 @@ export interface AdminRoundsDto {
   rulesets: AdminRulesetOptionDto[];
 }
 
+export interface AdminEventDefinitionDto {
+  id: string;
+  key: string;
+  type: string;
+  scope: string;
+  title: string;
+  description: string;
+  schedule: unknown;
+  objectives: unknown;
+  rewards: unknown;
+  config: unknown;
+  sourceKind: string | null;
+  sourceKey: string | null;
+  isEnabled: boolean;
+  updatedAt: string;
+  occurrences: { total: number; active: number; scheduled: number; completed: number; expired: number; cancelled: number };
+}
+
+export interface AdminEventOccurrenceDto {
+  id: string;
+  key: string;
+  title: string;
+  type: string;
+  roundId: string | null;
+  roundName: string | null;
+  scopeKey: string;
+  status: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  participantCount: number;
+  updatedAt: string;
+}
+
+export interface AdminEventHistoryDto {
+  id: string;
+  key: string;
+  title: string;
+  action: string;
+  actorLabel: string | null;
+  happenedAt: string;
+  payload: unknown;
+}
+
+export interface AdminEventReleaseReportDto {
+  generatedAt: string;
+  rulesets: Array<{ id: string; version: string; name: string; firstClassTypes: string[]; catalogEntries: number }>;
+  rounds: Array<{ id: string; name: string; status: string; rulesetId: string; rulesetVersion: string; compatible: boolean }>;
+  metrics: {
+    definitions: number;
+    occurrences: number;
+    participations: number;
+    progressReceipts: number;
+    rewardClaims: number;
+    legacyRandomEncounters: number;
+    legacyEventQuests: number;
+    legacyClaims: number;
+    firstClassEventClaims: number;
+  };
+  migration: { claimCountGap: number; legacyEncounterRowsInFirstClassRounds: number; duplicateSourceMappings: string[] };
+  definitions: AdminEventDefinitionDto[];
+  calendar: AdminEventOccurrenceDto[];
+  history: AdminEventHistoryDto[];
+  checks: Array<{ key: string; status: 'PASS' | 'REVIEW' | 'FAIL'; detail: string }>;
+}
+
+export interface AdminEventPreviewDto {
+  ruleset: AdminRulesetOptionDto;
+  firstClassTypes: string[];
+  catalog: Array<{ key: string; type: string; scope: string; title: string; description: string; schedule: unknown; objectives: unknown; rewards: unknown; config: unknown }>;
+  modifierSimulation: Array<{ action: string; district: string; rawPercent: number; cappedPercent: number; sourceKeys: string[] }>;
+  checks: Array<{ key: string; status: 'PASS' | 'REVIEW' | 'FAIL'; detail: string }>;
+}
+
+export interface AdminEventTuneInput {
+  reason: string;
+  title?: string;
+  description?: string;
+  isEnabled?: boolean;
+  config?: Record<string, unknown>;
+  schedule?: Record<string, unknown>;
+  objectives?: unknown[];
+  rewards?: unknown[];
+}
+
+export interface AdminEventCalendarInput {
+  reason: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  cancel?: boolean;
+}
+
 /** 1.7.0-F. Staff view of roster migration and career balance in one round. */
 export interface AdminCrewRosterDto {
   roundId: string;

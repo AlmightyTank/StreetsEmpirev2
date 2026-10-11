@@ -118,6 +118,7 @@ export const ADMIN_SECTION: NavSection = {
     { key: 'admin-combat', label: 'Combat and Exploits', short: 'Combat', to: '/game/admin/combat', icon: 'admin' },
     { key: 'admin-turf', label: 'Turf', to: '/game/admin/turf', icon: 'admin' },
     { key: 'admin-audit', label: 'Audit log', short: 'Audit', to: '/game/admin/audit', icon: 'admin' },
+    { key: 'admin-events', label: 'Event Operations', short: 'Events', to: '/game/admin/events', icon: 'admin' },
     { key: 'admin-signals', label: 'Signals', to: '/game/admin/signals', icon: 'admin' },
   ],
 };
