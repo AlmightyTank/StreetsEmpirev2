@@ -68,7 +68,7 @@ The first two rungs reuse Pip's existing side quests, **Party Favors** and **Bul
 | Step | Quest | Recipe opened | Requires | Objective direction |
 | --- | --- | --- | --- | --- |
 | 0 | — | **Crack** | Starting recipe | Available from the start of the round. Keeping Them Happy and Cookhouse already teach Produce with Crack. |
-| 1 | **Party Favors** (existing) | Ecstasy | Cookhouse, Pip rep 15 | Run a working Crack operation: produce Crack after accepting and move it through ordinary sales or orders. |
+| 1 | **Party Favors** (existing) | Ecstasy | Cookhouse, Pip rep 12 | Run a working Crack operation: produce Crack after accepting and move it through ordinary sales or orders. |
 | 2 | **Bulk Order** (existing) | Meth | Party Favors | Handle two products: produce and sell Ecstasy alongside Crack while keeping the operation's Heat in check. |
 | 3 | **Green Thumb** (new) | Weed | Bulk Order | Handle Weed through ordinary product orders and sales; prove the operation can move a steady, lower-pressure product. |
 | 4 | **A Better Cut** (new) | Cocaine | Green Thumb | Build a record with premium product sales while managing the operation's Heat and costs. |
@@ -80,7 +80,7 @@ Names for the new quests are working titles. Objective quantities and cash rewar
 
 | Quest | Today | New ruleset |
 | --- | --- | --- |
-| **Party Favors** | Requires Cookhouse and Pip rep 25. Produce 100 Ecstasy. Grants Ecstasy purchase access. | Requires Cookhouse and **Pip rep 15** (lowered from 25). Produce and sell Crack. Grants the **Ecstasy recipe** and keeps Ecstasy purchase access. Cookhouse leaves the player at Pip rep 10. Pip daily contracts give +2 rep each, and four of them already work with Crack (Cook Order, Move Product, Crack Batch, Counter Cash), so three dailies close the gap. |
+| **Party Favors** | Requires Cookhouse and Pip rep 25. Produce 100 Ecstasy. Grants Ecstasy purchase access. | Requires Cookhouse and **Pip rep 12** (lowered from 25). Produce and sell Crack. Grants the **Ecstasy recipe** and keeps Ecstasy purchase access. Cookhouse leaves the player at Pip rep 10. Pip daily contracts give +2 rep each, and four of them already work with Crack (Cook Order, Move Product, Crack Batch, Counter Cash), so a single daily closes the gap. |
 | **Bulk Order** | Requires Cookhouse. Produce 150 Meth. Grants Meth purchase access. | Requires **Party Favors**. Produce and sell Ecstasy (with Crack). Grants the **Meth recipe** and keeps Meth purchase access. |
 | **Taking Sides** | Requires Bulk Order and Heavy Hands. Produce 250 of any product. | No change. Its objective already counts any product, and it now follows the Meth unlock. |
 | **Move the Weight** | Sell Pip Weed, Ecstasy, and Meth. Grants Cocaine and Heroin purchase access. | No change. Its Ecstasy and Meth sales are only reachable after rungs 1–2, which fits the ladder. |
@@ -126,7 +126,7 @@ Recipe identity is expressed only through game rules. No real-world production i
 - Simulate product production and sale economics with and without workshops, favors, and crew supply policies.
 - Add admin inspection for recipe unlocks and their source quest; corrections remain audited.
 - Test that a new round starts with only Crack cookable and that each rung's quest is unavailable until the previous rung is complete.
-- Test that Party Favors needs Pip rep 15 after Cookhouse and that a Crack-only player can reach it through Pip daily contracts.
+- Test that Party Favors needs Pip rep 12 after Cookhouse and that a Crack-only player can reach it through Pip daily contracts.
 - Test that Party Favors grants the Ecstasy recipe and purchase access, Bulk Order grants the Meth recipe and purchase access, and Bulk Order is unavailable until Party Favors is complete.
 - Test that Meth and Ecstasy daily contracts are not offered before the matching recipe is unlocked.
 - Run historical-ruleset tests and verify no old round receives new recipes or gates; rounds that started with Meth and Ecstasy keep them.
