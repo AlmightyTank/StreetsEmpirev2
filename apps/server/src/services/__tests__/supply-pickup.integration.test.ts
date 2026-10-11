@@ -97,6 +97,33 @@ describe.runIf(process.env.SUPPLY_INTEGRATION === '1')('1.6.0-C supply pickups w
   const stash = async () => (await app.prisma.supplyStock.aggregate({ where: { warehouse: { roundPlayerId: playerId } }, _sum: { quantity: true } }))._sum.quantity ?? 0;
   const DAY = 24 * 60;
 
+  it('assigns one fleet to shuttle a whole order in consecutive loads', async () => {
+    const placed = await order(2_000);
+    const before = await player();
+    const capacity = runCapacity(rules, { LOW_RIDER: 1 });
+
+    const sent = await pickup(placed.result.order.id, 2_000, { LOW_RIDER: 1 }, { continuous: true });
+    expect(sent.result).toMatchObject({
+      capacityUnits: capacity,
+      pickup: { quantity: capacity, tripNumber: 1, tripCount: 3 },
+    });
+
+    const rows = await app.prisma.supplyPickup.findMany({
+      where: { orderId: placed.result.order.id },
+      orderBy: { tripNumber: 'asc' },
+    });
+    expect(rows.map((row) => row.quantity)).toEqual([capacity, capacity, 2_000 - capacity * 2]);
+    expect(rows.map((row) => row.loadStopOrder)).toEqual([0, 2, 4]);
+    expect(rows.map((row) => row.unloadStopOrder)).toEqual([1, 3, 5]);
+    expect(new Set(rows.map((row) => row.runId)).size).toBe(1);
+
+    const assigned = await player();
+    expect(assigned.lowRiders).toBe(before.lowRiders - 1);
+    expect(assigned.thugs).toBe(before.thugs - 2);
+    expect(assigned.turns).toBe(before.turns - sent.result.turns);
+    expect(await app.prisma.run.count({ where: { roundPlayerId: playerId } })).toBe(1);
+  });
+
   it('completes one order across several trips and credits each load once', async () => {
     const placed = await order(2_000);
     const orderId = placed.result.order.id;

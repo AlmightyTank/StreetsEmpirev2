@@ -15,6 +15,7 @@ import {
   vehicleLoadoutSeats,
   vehicleRiskMultiplier,
   type Ruleset,
+  type RunStopPlan,
   type SupplyRunPlan,
 } from '@streets/rules-engine';
 import type { SupplyPickupRules } from '@streets/rulesets';
@@ -46,8 +47,8 @@ import { LANE_PREFIX, SupplyLaneService } from './supply-lane.service.js';
 
 /**
  * 1.6.0-C/D. Collecting a paid order in vehicle loads. A pickup is a run that drives to the
- * supplier, takes on one load, drives it to its warehouse (from 1.6.0-D any the player
- * owns, or the home stash) and comes home. The load rides the road like any other cargo,
+ * supplier, takes on one or more loads, drives each to its warehouse (from 1.6.0-D any the
+ * player owns, or the home stash) and comes home. Each load rides the road like any other cargo,
  * and what is left of it lands in storage (supply-pickup-settle.service). Nothing about the
  * load is decided here but its size and where it goes: the road decides the rest.
  */
@@ -101,6 +102,8 @@ export function pickupDto(ruleset: Ruleset, row: PickupRow): SupplyPickupDto {
     destinationCityName: cityName(ruleset, row.destinationCitySlug),
     warehouseName: row.warehouse?.name ?? HOME_STASH_NAME,
     quantity: row.quantity,
+    tripNumber: row.tripNumber,
+    tripCount: row.tripCount,
     deliveredQuantity: row.deliveredQuantity,
     lostQuantity: finished ? row.quantity - row.deliveredQuantity : 0,
     vehicleLoadout: readLoadout(row.vehicleLoadout),
@@ -205,6 +208,43 @@ function refuse(error: unknown): never {
   throw error;
 }
 
+export interface ShuttleRunPlan extends SupplyRunPlan {
+  /** Stop indexes used by each load in the repeated circuit. -1 means loaded at launch. */
+  loadStops: number[];
+  unloadStops: number[];
+  tripCount: number;
+}
+
+/** Repeat one supplier/storage circuit without releasing its assigned fleet between loads. */
+export function repeatSupplyRunPlan(plan: SupplyRunPlan, tripCount: number): ShuttleRunPlan {
+  if (tripCount <= 1) {
+    return { ...plan, loadStops: [plan.loadStop], unloadStops: [plan.unloadStop], tripCount: 1 };
+  }
+  const size = plan.stops.length;
+  const duration = plan.stops[size - 1]!.arriveAt.getTime() - plan.stops[0]!.departAt.getTime();
+  const stops: RunStopPlan[] = [];
+  const loadStops: number[] = [];
+  const unloadStops: number[] = [];
+  for (let trip = 0; trip < tripCount; trip++) {
+    const offset = trip * duration;
+    for (let index = 0; index < size; index++) {
+      const stop = plan.stops[index]!;
+      const arriveAt = new Date(stop.arriveAt.getTime() + offset);
+      const final = index === size - 1;
+      stops.push({
+        ...stop,
+        departAt: new Date(stop.departAt.getTime() + offset),
+        arriveAt,
+        // An intermediate return home turns straight around for the next load.
+        leaveAt: final && trip < tripCount - 1 ? arriveAt : stop.leaveAt ? new Date(stop.leaveAt.getTime() + offset) : null,
+      });
+    }
+    loadStops.push(plan.loadStop === -1 ? (trip === 0 ? -1 : trip * size - 1) : trip * size + plan.loadStop);
+    unloadStops.push(trip * size + plan.unloadStop);
+  }
+  return { ...plan, stops, turns: plan.turns * tripCount, loadStops, unloadStops, tripCount };
+}
+
 export const SupplyPickupService = {
   /** What the Supply page needs to plan a pickup. Null when pickups are not part of the round. */
   async planning(db: Db | PrismaClient, ruleset: Ruleset, player: RoundPlayer & { city: City }, now: Date): Promise<SupplyPickupPlanningDto | null> {
@@ -213,7 +253,9 @@ export const SupplyPickupService = {
     const home = player.city.slug;
     const [orders, pickups, activeRuns, storage, properties] = await Promise.all([
       db.supplyOrder.findMany({ where: { roundPlayerId: player.id, status: { in: ['OPEN', 'PARTIALLY_COLLECTED'] } }, orderBy: { createdAt: 'asc' } }),
-      db.supplyPickup.findMany({ where: { roundPlayerId: player.id }, include: PICKUP_INCLUDE, orderBy: { createdAt: 'desc' }, take: 20 }),
+      // A continuous assignment has one row per load. Keep enough history to show the whole
+      // active shuttle instead of hiding its current load behind later queued trips.
+      db.supplyPickup.findMany({ where: { roundPlayerId: player.id }, include: PICKUP_INCLUDE, orderBy: { createdAt: 'desc' }, take: 100 }),
       db.run.count({ where: { roundPlayerId: player.id, status: 'ACTIVE' } }),
       storageList(db, ruleset, rules, player.id, home, now),
       SupplyPropertyService.market(db, ruleset, player, now),
@@ -283,9 +325,9 @@ export const SupplyPickupService = {
   },
 
   /**
-   * Send vehicles for one load of a paid order. When the supplier and the warehouse are both
-   * in the player's own city the load goes straight in; otherwise it is a run, paid in turns
-   * like any run: out to the supplier, on to the warehouse when that is elsewhere, and home.
+   * Send vehicles for a paid order. Continuous assignments reserve the requested balance and
+   * keep the fleet shuttling one load at a time. When supplier and warehouse are both local the
+   * loads go straight in; otherwise it is a run, paid in turns for every round trip.
    * The load is held against the order and the warehouse's room from now on, so two pickups
    * can never claim the same units or the same space.
    */
@@ -347,12 +389,15 @@ export const SupplyPickupService = {
           inboundByWarehouse(tx, [destination.id]),
         ]);
         const room = Math.max(0, destination.capacityUnits - (stock._sum.quantity ?? 0) - (inbound.get(destination.id) ?? 0));
+        if (capacity < 1) {
+          throw AppError.badRequest('TRUNK_FULL', 'These vehicles have no cargo room.');
+        }
         if (input.quantity > available) {
           throw AppError.badRequest('SUPPLY_PICKUP_QUANTITY', available > 0
             ? `Only ${formatNumber(available)} units of this order are left to send for.`
             : 'Every unit of this order is already loaded or has a pickup on the way.', { quantity: `At most ${available}.` });
         }
-        if (input.quantity > capacity) {
+        if (!input.continuous && input.quantity > capacity) {
           throw AppError.badRequest('TRUNK_FULL', `These vehicles carry ${formatNumber(capacity)} units.`, { quantity: `At most ${capacity}.` });
         }
         if (input.quantity > room) {
@@ -360,7 +405,17 @@ export const SupplyPickupService = {
             ? `Your ${where} has room for ${formatNumber(room)} more units, counting loads on the way. ${formatNumber(input.quantity - room)} would not fit.`
             : `Your ${where} is full, counting loads on the way.`);
         }
-        planSupplyPickup({ orderQuantity: order.quantityOrdered, collectedQuantity: order.quantityCollected, reservedQuantity: reserved, requestedQuantity: input.quantity, capacityUnits: capacity, storageRoomUnits: room });
+        // A continuous assignment reserves the whole requested balance, then divides it into
+        // full vehicle loads. A one-load legacy request keeps the old capacity rule.
+        const tripCount = input.continuous ? Math.ceil(input.quantity / capacity) : 1;
+        planSupplyPickup({
+          orderQuantity: order.quantityOrdered,
+          collectedQuantity: order.quantityCollected,
+          reservedQuantity: reserved,
+          requestedQuantity: Math.min(input.quantity, capacity),
+          capacityUnits: capacity,
+          storageRoomUnits: room,
+        });
 
         const product = productName(ruleset, order.productKey);
         const supplier = supplierName(ruleset, order.supplierKey);
@@ -378,8 +433,9 @@ export const SupplyPickupService = {
         };
 
         if (order.supplierCitySlug === home && destination.citySlug === home) {
-          // Off the dock and into storage: no road, so nothing between can go wrong.
-          assertTurns(current.turns, rules.localPickupTurns);
+          // Off the dock and into storage: repeat the short local circuit immediately.
+          const localTurns = rules.localPickupTurns * tripCount;
+          assertTurns(current.turns, localTurns);
           const collected = order.quantityCollected + input.quantity;
           const updated = await tx.supplyOrder.update({ where: { id: order.id }, data: { quantityCollected: collected, status: supplyOrderStatus(order.quantityOrdered, collected) } });
           await tx.supplyStock.upsert({
@@ -388,7 +444,7 @@ export const SupplyPickupService = {
             update: { quantity: { increment: input.quantity } },
           });
           const pickup = await tx.supplyPickup.create({
-            data: { ...base, routeKey: LOCAL_ROUTE, status: 'DELIVERED', loadedAt: now, expectedArrivalAt: now, deliveredAt: now, deliveredQuantity: input.quantity },
+            data: { ...base, routeKey: LOCAL_ROUTE, status: 'DELIVERED', loadedAt: now, expectedArrivalAt: now, deliveredAt: now, deliveredQuantity: input.quantity, tripNumber: 1, tripCount },
             include: PICKUP_INCLUDE,
           });
           await tx.supplyMovement.createMany({
@@ -398,26 +454,46 @@ export const SupplyPickupService = {
             ],
           });
           return {
-            next: { ...current, turns: current.turns - rules.localPickupTurns },
-            result: { pickup: pickupDto(ruleset, pickup), order: supplyOrderDto(ruleset, updated), turns: rules.localPickupTurns, capacityUnits: capacity, risk: null, replayed: false },
+            next: { ...current, turns: current.turns - localTurns },
+            result: { pickup: pickupDto(ruleset, pickup), order: supplyOrderDto(ruleset, updated), turns: localTurns, capacityUnits: capacity, risk: null, replayed: false },
             ledger: [],
           };
         }
 
-        const launched = await launchSupplyRun(tx, { roundPlayerId, ruleset, player, current, now, loadout, vehicleCount, escortThugs: input.escortThugs, escortMemberIds: input.escortMemberIds, route: input.route, origin: order.supplierCitySlug, destination: destination.citySlug });
-        const created = await tx.supplyPickup.create({
-          data: { ...base, runId: launched.runId, routeKey: launched.plan.stops.map((stop) => stop.city).join('>'), status: 'PLANNED', expectedArrivalAt: launched.plan.stops[launched.plan.unloadStop]!.arriveAt },
-          include: { order: true },
-        });
-        // From a supplier in the home city, the load goes on as the run leaves.
-        if (launched.plan.loadStop === -1) await loadPickupOntoRun(tx, roundPlayerId, launched.runId, created, now);
-        const pickup = await tx.supplyPickup.findUniqueOrThrow({ where: { id: created.id }, include: PICKUP_INCLUDE });
+        const launched = await launchSupplyRun(tx, { roundPlayerId, ruleset, player, current, now, loadout, vehicleCount, escortThugs: input.escortThugs, escortMemberIds: input.escortMemberIds, route: input.route, origin: order.supplierCitySlug, destination: destination.citySlug, tripCount });
+        let left = input.quantity;
+        let firstId = '';
+        for (let trip = 0; trip < launched.plan.tripCount; trip++) {
+          const quantity = Math.min(capacity, left);
+          left -= quantity;
+          const requestKey = trip === 0 ? input.requestKey : `${input.requestKey}:${trip + 1}`;
+          const created = await tx.supplyPickup.create({
+            data: {
+              ...base,
+              quantity,
+              requestKey,
+              runId: launched.runId,
+              routeKey: launched.plan.stops.map((stop) => stop.city).join('>'),
+              status: 'PLANNED',
+              loadStopOrder: launched.plan.loadStops[trip],
+              unloadStopOrder: launched.plan.unloadStops[trip],
+              tripNumber: trip + 1,
+              tripCount: launched.plan.tripCount,
+              expectedArrivalAt: launched.plan.stops[launched.plan.unloadStops[trip]!]!.arriveAt,
+            },
+            include: { order: true },
+          });
+          if (trip === 0) firstId = created.id;
+          // From a supplier in the home city, the first load goes on as the run leaves.
+          if (launched.plan.loadStops[trip] === -1) await loadPickupOntoRun(tx, roundPlayerId, launched.runId, created, now);
+        }
+        const pickup = await tx.supplyPickup.findUniqueOrThrow({ where: { id: firstId }, include: PICKUP_INCLUDE });
         return {
           next: launched.next,
           result: { pickup: pickupDto(ruleset, pickup), order: supplyOrderDto(ruleset, order), turns: launched.plan.turns, capacityUnits: capacity, risk: launched.risk, replayed: false },
           ledger: [],
           activity: launched.activity({
-            pickupId: pickup.id, orderId: order.id, supplier, product, productKey: order.productKey, quantity: input.quantity,
+            pickupId: pickup.id, orderId: order.id, supplier, product, productKey: order.productKey, quantity: input.quantity, trips: tripCount,
             destination: destination.citySlug === home ? null : cityName(ruleset, destination.citySlug),
           }),
         };
@@ -527,7 +603,7 @@ function assertFleet(ruleset: Ruleset, current: PlayerState, loadout: Loadout): 
  */
 async function launchSupplyRun(tx: Db, input: {
   roundPlayerId: string; ruleset: Ruleset; player: RoundPlayer; current: PlayerState; now: Date;
-  loadout: Loadout; vehicleCount: number; escortThugs: number; escortMemberIds?: string[]; route: number; origin: string; destination: string;
+  loadout: Loadout; vehicleCount: number; escortThugs: number; escortMemberIds?: string[]; route: number; origin: string; destination: string; tripCount?: number;
 }) {
   const { roundPlayerId, ruleset, player, current, now, loadout, vehicleCount, escortThugs } = input;
   const home = (await tx.city.findUniqueOrThrow({ where: { id: player.cityId }, select: { slug: true } })).slug;
@@ -539,10 +615,11 @@ async function launchSupplyRun(tx: Db, input: {
       ? 'You already have a run out. Build the Garage or wait for it to come home.'
       : `Your Garage supports ${limit} active runs, and they are already out.`);
   }
-  let plan: SupplyRunPlan;
+  let single: SupplyRunPlan;
   try {
-    plan = planSupplyRun(ruleset, { home, origin: input.origin, destination: input.destination, routeIndex: input.route, now });
+    single = planSupplyRun(ruleset, { home, origin: input.origin, destination: input.destination, routeIndex: input.route, now });
   } catch (error) { refuse(error); }
+  const plan = repeatSupplyRunPlan(single, input.tripCount ?? 1);
   assertTurns(current.turns, plan.turns);
   const seats = vehicleLoadoutSeats(ruleset, loadout);
   const fit = fitThugs(current);

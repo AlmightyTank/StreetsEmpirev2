@@ -858,6 +858,8 @@ export interface RunSupplyPickupDto {
   productName: string;
   supplierName: string;
   quantity: number;
+  tripNumber: number;
+  tripCount: number;
   status: 'PLANNED' | 'IN_TRANSIT' | 'DELIVERED' | 'FAILED' | 'CANCELLED';
   deliveredQuantity: number;
   /** 1.6.0-D. Where the load comes off: home, or a warehouse on the way. */

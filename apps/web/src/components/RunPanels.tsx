@@ -774,6 +774,15 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
   const trunk = run.cargo.reduce((sum, entry) => sum + entry.quantity, 0);
   const pickup = run.supplyPickup ?? null;
   const homeSlug = run.stops[run.stops.length - 1]!.city;
+  const stopsPerPickupTrip = pickup && pickup.tripCount > 1 && run.stops.length % pickup.tripCount === 0
+    ? run.stops.length / pickup.tripCount
+    : 0;
+  const visibleTrip = stopsPerPickupTrip
+    ? Math.min(pickup!.tripCount - 1, Math.floor(Math.max(0, run.position.stopIndex) / stopsPerPickupTrip))
+    : 0;
+  const visibleStops = stopsPerPickupTrip
+    ? run.stops.slice(visibleTrip * stopsPerPickupTrip, (visibleTrip + 1) * stopsPerPickupTrip)
+    : run.stops;
   // 1.6.0-D: a load bound for a warehouse elsewhere comes off there before the run may cut for home.
   const unloading = Boolean(pickup && pickup.destinationCitySlug !== homeSlug && run.position.city === pickup.destinationCitySlug);
   const mayHeadHome = Boolean(pickup && pickup.status !== 'PLANNED' && (pickup.status !== 'IN_TRANSIT' || pickup.destinationCitySlug === homeSlug));
@@ -790,7 +799,7 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
       <p className={`se-run__headline${inTown ? ' se-run__headline--town' : ''}`}>{headline}</p>
       {run.vehicleDamage ? <p className="se-hint se-warn">{damageText(run.vehicleDamage, false)}</p> : null}
       <ol className="se-run__trip">
-        {tripNodes(run).map((node, index) => {
+        {tripNodes(run, visibleStops).map((node, index) => {
           const here = inTown && node.stop === stop;
           return (
             <li key={`${node.slug}-${index}`} className={`se-run__node${node.stop ? ' se-run__node--stop' : ' se-run__node--pass'}${here ? ' se-run__node--here' : ''}`}
@@ -817,7 +826,7 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
 
       <div className="se-rows se-mt">
         {pickup ? (
-          <Row label="Supply load" strong tooltip="Road stops and convoy hits can take part of it. What is still aboard at home goes into your stash."
+          <Row label={pickup.tripCount > 1 ? `Supply load ${pickup.tripNumber} of ${pickup.tripCount}` : 'Supply load'} strong tooltip="The assigned fleet unloads each load, turns around, and repeats until the pickup is finished. Road stops and convoy hits can take part of each load."
             value={pickup.status === 'PLANNED'
               ? `${formatNumber(pickup.quantity)} ${pickup.productName} waiting at ${pickup.supplierName}`
               : pickup.status === 'IN_TRANSIT'
@@ -878,11 +887,11 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
 }
 
 /** Every city on the trip in order: stops, and towns it only drives through. */
-function tripNodes(run: RunDto): Array<{ slug: string; name: string; stop: RunDto['stops'][number] | null }> {
-  const first = run.stops[0]!.route[0]!;
+function tripNodes(run: RunDto, stops: RunDto['stops'] = run.stops): Array<{ slug: string; name: string; stop: RunDto['stops'][number] | null }> {
+  const first = stops[0]!.route[0]!;
   return [
     { slug: first.slug, name: first.name, stop: null },
-    ...run.stops.flatMap((entry) => entry.route.slice(1).map((city, index, list) => ({ slug: city.slug, name: city.name, stop: index === list.length - 1 ? entry : null }))),
+    ...stops.flatMap((entry) => entry.route.slice(1).map((city, index, list) => ({ slug: city.slug, name: city.name, stop: index === list.length - 1 ? entry : null }))),
   ];
 }
 

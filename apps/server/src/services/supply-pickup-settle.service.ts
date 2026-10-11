@@ -158,23 +158,58 @@ export async function settleSupplyStops(
     if (stop.arriveAt.getTime() > now.getTime()) break;
     current = await roll(current, index + 1);
     let changed = false;
-    const waiting = await tx.supplyPickup.findMany({ where: { runId: run.id, status: 'PLANNED', originCitySlug: stop.city }, include: { order: true }, orderBy: { createdAt: 'asc' } });
+    // Unload before putting the next circuit's load into the same trunk. Explicit stop
+    // indexes make intermediate returns home real unload/reload points; null indexes keep
+    // old one-trip pickups working as before.
+    const arriving = await tx.supplyPickup.findMany({
+      where: {
+        runId: run.id,
+        status: 'IN_TRANSIT',
+        OR: [
+          { unloadStopOrder: index },
+          ...(stop.city !== current.homeCity ? [{ unloadStopOrder: null, destinationCitySlug: stop.city }] : []),
+        ],
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    for (const pickup of arriving) {
+      const cargo = await tx.runCargo.findUnique({ where: { runId_productKey: { runId: run.id, productKey: pickup.productKey } } });
+      const warehouseId = pickup.warehouseId ?? (await homeStash(tx, roundPlayerId, current.homeCity, Math.max(1, ruleset.supplyNetwork?.pickups?.homeStashUnits ?? pickup.quantity))).id;
+      const done = await credit(tx, roundPlayerId, ruleset, pickup, run.id, warehouseId, cargo?.quantity ?? 0, stop.arriveAt);
+      if (cargo) await tx.runCargo.update({ where: { id: cargo.id }, data: { quantity: done.extra } });
+      changed = true;
+    }
+    const waiting = await tx.supplyPickup.findMany({
+      where: {
+        runId: run.id,
+        status: 'PLANNED',
+        OR: [{ loadStopOrder: index }, { loadStopOrder: null, originCitySlug: stop.city }],
+      },
+      include: { order: true },
+      orderBy: { createdAt: 'asc' },
+    });
     for (const pickup of waiting) {
       await loadPickupOntoRun(tx, roundPlayerId, run.id, pickup, stop.arriveAt);
       changed = true;
     }
-    if (stop.city !== current.homeCity) {
-      const arriving = await tx.supplyPickup.findMany({
-        where: { runId: run.id, status: 'IN_TRANSIT', destinationCitySlug: stop.city },
-        orderBy: { createdAt: 'asc' },
-      });
-      for (const pickup of arriving) {
-        const cargo = await tx.runCargo.findUnique({ where: { runId_productKey: { runId: run.id, productKey: pickup.productKey } } });
-        const warehouseId = pickup.warehouseId ?? (await homeStash(tx, roundPlayerId, current.homeCity, Math.max(1, ruleset.supplyNetwork?.pickups?.homeStashUnits ?? pickup.quantity))).id;
-        const done = await credit(tx, roundPlayerId, ruleset, pickup, run.id, warehouseId, cargo?.quantity ?? 0, stop.arriveAt);
-        if (cargo) await tx.runCargo.update({ where: { id: cargo.id }, data: { quantity: done.extra } });
-        changed = true;
-      }
+    // Supplier and destination can be the same away city. That load comes off during
+    // the same stop in which it went aboard, before the fleet starts its next circuit.
+    const sameStop = waiting.length ? await tx.supplyPickup.findMany({
+      where: {
+        runId: run.id,
+        status: 'IN_TRANSIT',
+        OR: [
+          { loadStopOrder: index, unloadStopOrder: index },
+          { loadStopOrder: null, unloadStopOrder: null, originCitySlug: stop.city, destinationCitySlug: stop.city },
+        ],
+      },
+      orderBy: { createdAt: 'asc' },
+    }) : [];
+    for (const pickup of sameStop) {
+      const cargo = await tx.runCargo.findUnique({ where: { runId_productKey: { runId: run.id, productKey: pickup.productKey } } });
+      const warehouseId = pickup.warehouseId ?? (await homeStash(tx, roundPlayerId, current.homeCity, Math.max(1, ruleset.supplyNetwork?.pickups?.homeStashUnits ?? pickup.quantity))).id;
+      const done = await credit(tx, roundPlayerId, ruleset, pickup, run.id, warehouseId, cargo?.quantity ?? 0, stop.arriveAt);
+      if (cargo) await tx.runCargo.update({ where: { id: cargo.id }, data: { quantity: done.extra } });
     }
     if (changed) current = { ...current, cargo: await tx.runCargo.findMany({ where: { runId: run.id } }) };
   }
@@ -264,7 +299,16 @@ export async function runSupplyPickups(db: Db, ruleset: Ruleset, runIds: readonl
     orderBy: { createdAt: 'asc' },
   });
   const suppliers = ruleset.supplyNetwork.suppliers ?? [];
-  return new Map(rows.flatMap((row) => (row.runId ? [[row.runId, {
+  const chosen = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    if (!row.runId) continue;
+    const current = chosen.get(row.runId);
+    // Show the load actually in the trunk, otherwise the next load waiting at its supplier.
+    const priority = row.status === 'IN_TRANSIT' ? 3 : row.status === 'PLANNED' ? 2 : 1;
+    const currentPriority = current?.status === 'IN_TRANSIT' ? 3 : current?.status === 'PLANNED' ? 2 : current ? 1 : 0;
+    if (!current || priority > currentPriority) chosen.set(row.runId, row);
+  }
+  return new Map([...chosen.entries()].map(([runId, row]) => [runId, {
     id: row.id,
     orderId: row.orderId,
     productKey: row.productKey,
@@ -274,11 +318,13 @@ export async function runSupplyPickups(db: Db, ruleset: Ruleset, runIds: readonl
       ? suppliers.find((supplier) => supplier.key === row.order!.supplierKey)?.name ?? row.order.supplierKey
       : `your ${cityName(ruleset, row.originCitySlug)} storage`,
     quantity: row.quantity,
+    tripNumber: row.tripNumber,
+    tripCount: row.tripCount,
     status: row.status,
     deliveredQuantity: row.deliveredQuantity,
     destinationCitySlug: row.destinationCitySlug,
     destinationCityName: cityName(ruleset, row.destinationCitySlug),
-  }] as const] : [])));
+  }] as const));
 }
 
 /** Refuse anything but driving home for a run sent to collect supply. */

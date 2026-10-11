@@ -27,7 +27,7 @@ import { Panel, Row } from './Panel.js';
  * see the road, the turns and the room at home before the crew leaves.
  */
 
-const PENDING_PICKUP_KEY = 'streets.supply.pending-pickup.v1';
+const PENDING_PICKUP_KEY = 'streets.supply.pending-pickup.v2';
 const CLASSES: readonly SupplyVehicleClassId[] = ['LOW_RIDER', 'SEDAN', 'VAN'];
 type Counts = Record<SupplyVehicleClassId, number | ''>;
 
@@ -109,7 +109,7 @@ export function laneStatusLabel(pickup: SupplyPickupDto): string {
   }
 }
 
-/** Plan and send one load. `orders` are the player's paid orders; the plan is the server's. */
+/** Assign one fleet to shuttle every remaining load of an order. */
 export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlanningDto; orders: SupplyOrderDto[]; onDone: () => void }) {
   const [restored] = useState(readPendingPickup);
   const pending = useRef<PendingPickupIntent | null>(restored);
@@ -121,7 +121,6 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
   const [vehicles, setVehicles] = useState<Counts>(restored?.vehicleLoadout ?? { LOW_RIDER: 0, SEDAN: 0, VAN: 0 });
   const [escorts, setEscorts] = useState<number | ''>(restored?.escortThugs ?? 0);
   const [route, setRoute] = useState(restored?.route ?? 0);
-  const [quantity, setQuantity] = useState<number | ''>(restored?.quantity ?? '');
   const [destinationKey, setDestinationKey] = useState(restored?.destination ?? plan.stash.key);
 
   // A plan that no longer offers the picked order (collected, or loads already promised) moves on.
@@ -156,9 +155,13 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
     : 0;
   const escortMax = Math.min(plan.fitThugs, seats);
   const available = orderPlan?.availableQuantity ?? 0;
-  const most = Math.max(0, Math.min(available, capacity, target.roomUnits));
-  const load = count(quantity);
-  const turns = local ? plan.localPickupTurns : chosenRoute?.turns ?? 0;
+  const load = uncertain && restored ? restored.quantity : available;
+  const tripCount = capacity > 0 && load > 0 ? Math.ceil(load / capacity) : 0;
+  const turnsPerTrip = local ? plan.localPickupTurns : chosenRoute?.turns ?? 0;
+  const turns = turnsPerTrip * tripCount;
+  const finishedAt = chosenRoute && tripCount > 0
+    ? new Date(new Date(chosenRoute.backAt).getTime() + chosenRoute.roundTripMinutes * 60_000 * (tripCount - 1)).toISOString()
+    : null;
 
   function changed(update: () => void) {
     if (uncertain || action.busy) return;
@@ -171,16 +174,15 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
   const block = uncertain ? null
     : !orderPlan || !order ? 'No paid order has anything left to send for.'
       : fleetSize < 1 ? 'Choose at least one vehicle.'
+        : capacity < 1 ? 'These vehicles have no cargo room.'
         : CLASSES.some((classId) => selected[classId] > (spec(classId)?.ready ?? 0)) ? 'You do not have that many vehicles ready at home.'
           : !local && !chosenRoute ? 'There is no road to that supplier.'
             : !local && plan.activeRuns >= plan.runLimit ? (plan.runLimit === 1 ? 'You already have a run out. A pickup is a run: wait for it to come home.' : `All ${plan.runLimit} of your runs are out.`)
               : !local && count(escorts) > escortMax ? `Send at most ${escortMax} escorts: ${seats} seats, ${plan.fitThugs} fit thugs at home.`
-                : load < 1 ? 'Enter how many units to collect.'
-                  : load > available ? `Only ${formatNumber(available)} units of this order are left to send for.`
-                    : load > capacity ? `These vehicles carry ${formatNumber(capacity)} units.`
-                      : load > target.roomUnits ? `Your ${targetName} has room for ${formatNumber(target.roomUnits)} more: ${formatNumber(load - target.roomUnits)} would not fit.`
-                        : turns > plan.turns ? `This pickup costs ${turns} turns and you have ${plan.turns}.`
-                          : null;
+                : load < 1 ? 'This order has nothing left to collect.'
+                  : load > target.roomUnits ? `The full pickup needs room for ${formatNumber(load)} units. Your ${targetName} has room for ${formatNumber(target.roomUnits)} more.`
+                    : turns > plan.turns ? `This pickup costs ${turns} turns and you have ${plan.turns}.`
+                      : null;
 
   async function dispatch() {
     if (!orderPlan) return;
@@ -196,13 +198,12 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
       savePending(intent);
       try {
         const outcome = await supplyApi.dispatchPickup({
-          orderId: intent.orderId, quantity: intent.quantity, vehicleLoadout: intent.vehicleLoadout, escortThugs: intent.escortThugs, route: intent.route, requestKey: intent.requestKey, actionId,
+          orderId: intent.orderId, quantity: intent.quantity, continuous: true, vehicleLoadout: intent.vehicleLoadout, escortThugs: intent.escortThugs, route: intent.route, requestKey: intent.requestKey, actionId,
           ...(intent.destination !== 'stash' ? { warehouseId: intent.destination } : {}),
         });
         pending.current = null;
         savePending(null);
         setUncertain(false);
-        setQuantity('');
         onDone();
         return outcome;
       } catch (caught) {
@@ -225,14 +226,14 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
       {action.error ? <Alert>{action.error}</Alert> : null}
       {sent && action.result ? (
         <ActionResult
-          title={sent.replayed ? 'Pickup already sent' : sent.pickup.local ? `Loaded into the ${sent.pickup.warehouseName.toLowerCase()}` : 'Pickup on the road'}
-          subtitle={`${formatNumber(sent.pickup.quantity)} ${sent.pickup.productName} · ${sent.pickup.supplierName}`}
+          title={sent.replayed ? 'Pickup already assigned' : sent.pickup.local ? `Loaded into the ${sent.pickup.warehouseName.toLowerCase()}` : 'Pickup fleet on the road'}
+          subtitle={`${sent.pickup.productName} · ${sent.pickup.supplierName} · ${sent.pickup.tripCount} load${sent.pickup.tripCount === 1 ? '' : 's'} assigned`}
           result={action.result}
           onDismiss={action.clear}
           lines={[
             sent.pickup.local
               ? { label: 'Stored', value: formatNumber(sent.pickup.deliveredQuantity) }
-              : { label: `At the ${sent.pickup.warehouseName.toLowerCase()} around`, value: sent.pickup.expectedArrivalAt ? formatWeekdayTime(sent.pickup.expectedArrivalAt) : '—' },
+              : { label: 'Assignment', value: `${formatNumber(sent.pickup.tripCount)} back-and-forth load${sent.pickup.tripCount === 1 ? '' : 's'}` },
             ...(sent.risk ? [{ label: 'The road', value: RISK_WORDS[sent.risk] }] : []),
           ]}
         />
@@ -304,20 +305,10 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
           </div>
           <p className="se-hint">Need more room? Buy, repair or recover vehicles in the <Link className="se-golink" to="/game/travel?tab=garage">Garage</Link>.</p>
 
-          <div className="se-field">
-            <label htmlFor="pickup-quantity">Units to collect</label>
-            <div className="se-launch__with-all">
-              <input id="pickup-quantity" className="se-input" type="number" inputMode="numeric" min={1} max={most} value={quantity}
-                disabled={uncertain || action.busy} onChange={(event) => changed(() => setQuantity(whole(event.target.value)))} />
-              <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={uncertain || action.busy || most < 1} onClick={() => changed(() => setQuantity(most))}>Max</button>
-            </div>
-            <small className="se-muted">Up to {formatNumber(most)}: the least of what is left on the order, what the vehicles carry, and the room where it goes.</small>
-          </div>
-
           <div className="se-supply__quote">
-            <Row label="Vehicles" value={fleetSize ? `${formatNumber(fleetSize)} · ${formatNumber(capacity)} units of cargo` : 'None picked'} />
-            <Row label="This load" value={`${formatNumber(load)} of ${formatNumber(available)} left`} strong />
-            <Row label="Left on the order after" value={formatNumber(Math.max(0, available - load))} />
+            <Row label="Assigned fleet" value={fleetSize ? `${formatNumber(fleetSize)} vehicle${fleetSize === 1 ? '' : 's'} · ${formatNumber(capacity)} units each trip` : 'None picked'} />
+            <Row label="Pickup assignment" value={`${formatNumber(load)} units · ${formatNumber(tripCount)} load${tripCount === 1 ? '' : 's'}`} strong />
+            <Row label="Left on the order after" value="0" />
             <Row label={`${target.kind === 'STASH' ? target.name : `${target.cityName} warehouse`} room after`}
               value={load > target.roomUnits
                 ? <span className="se-bad">{formatNumber(load - target.roomUnits)} would not fit</span>
@@ -325,7 +316,8 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
             {chosenRoute ? (
               <>
                 <Row label={order && chosenRoute.stops[0]?.slug === order.supplierCitySlug ? 'At the supplier' : `At ${chosenRoute.stops[0]?.name ?? 'the warehouse'}`} value={`${formatClockTime(chosenRoute.arriveAt)} · ${minutesText(chosenRoute.gameMinutes)}`} />
-                <Row label="Back home" value={`${formatWeekdayTime(chosenRoute.backAt)} · ${minutesText(chosenRoute.roundTripMinutes)} round trip`} />
+                <Row label="Each round trip" value={minutesText(chosenRoute.roundTripMinutes)} />
+                <Row label="Pickup finished around" value={finishedAt ? formatWeekdayTime(finishedAt) : '—'} />
                 <Row label="The road" value={`${RISK_WORDS[chosenRoute.risk]}${fleetRisk ? ` · fleet ${fleetRisk > 0 ? `${fleetRisk}% more noticed` : `${-fleetRisk}% quieter`}` : ''}`}
                   tooltip="Road stops, busts on the way and convoy hits can take part of the load. What is lost is gone: the order counts it as collected." />
               </>
@@ -333,13 +325,13 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
             <Row label="Cost" value={`${formatNumber(turns)} turn${turns === 1 ? '' : 's'}${local ? '' : ' · no cash'}`} />
             <p>
               {local
-                ? 'Loaded and stored at once.'
-                : `The run loads at the supplier, ${target.citySlug === plan.homeCitySlug ? 'drives home' : `drives on to ${target.cityName}`} and unloads into your ${targetName}, waiting up to ${minutesText(plan.townWindowMinutes)} at each stop. It cannot trade on the way. Only what is still aboard when it arrives is stored; the rest of the order waits for the next trip.`}
+                ? `The assigned fleet repeats the local pickup ${formatNumber(tripCount)} time${tripCount === 1 ? '' : 's'} and stores the whole order now.`
+                : `The selected cars and thugs stay assigned. They load at the supplier, ${target.citySlug === plan.homeCitySlug ? 'return home' : `drive on to ${target.cityName}`}, unload into your ${targetName}, then repeat until all ${formatNumber(load)} units have been collected. They cannot trade on the way.`}
             </p>
           </div>
 
           <Button className="se-btn se-btn--primary se-btn--block" onClick={() => void dispatch()} disabled={action.busy} disabledReason={block}>
-            {action.busy ? 'Sending…' : uncertain ? 'Retry pickup check' : local ? `Load ${formatNumber(load)} into the ${targetName}` : `Send the pickup · ${formatNumber(turns)} turns`}
+            {action.busy ? 'Assigning…' : uncertain ? 'Retry pickup check' : local ? `Collect all ${formatNumber(load)} units` : `Assign pickup fleet · ${formatNumber(turns)} turns`}
           </Button>
         </div>
       )}
@@ -440,18 +432,27 @@ export function PropertiesPanel({ plan, onDone }: { plan: SupplyPickupPlanningDt
 
 /** Pickups on the road first, then the latest that came home. */
 export function PickupList({ pickups }: { pickups: SupplyPickupDto[] }) {
+  const activeFleetCount = new Set(
+    pickups
+      .filter((row) => row.status === 'PLANNED' || row.status === 'IN_TRANSIT')
+      .map((row) => row.runId ?? row.id),
+  ).size;
   return (
-    <Panel title="Pickups" aside={`${pickups.filter((row) => row.status === 'PLANNED' || row.status === 'IN_TRANSIT').length} on the road`}>
+    <Panel title="Pickups" aside={`${activeFleetCount} pickup ${activeFleetCount === 1 ? 'fleet' : 'fleets'} on the road`}>
       {pickups.length === 0 ? <p className="se-muted">Pickups you send will appear here.</p> : (
         <div className="se-supply__history">
           {pickups.map((row) => {
             const active = row.status === 'PLANNED' || row.status === 'IN_TRANSIT';
+            const shuttleLoad = row.tripCount > 1 ? `Load ${row.tripNumber} of ${row.tripCount} · ` : '';
+            const status = row.tripCount > 1 && row.tripNumber > 1 && row.status === 'PLANNED'
+              ? 'Queued for the next trip'
+              : pickupStatusLabel(row);
             return (
               <div className="se-supply__history-row" key={row.id}>
                 <div>
-                  <strong>{formatNumber(row.quantity)} {row.productName} · {row.lane ? `${row.lane.routeName} from ${row.originCityName}` : row.shipment ? `shipment from ${row.originCityName}` : row.supplierName}</strong>
+                  <strong>{shuttleLoad}{formatNumber(row.quantity)} {row.productName} · {row.lane ? `${row.lane.routeName} from ${row.originCityName}` : row.shipment ? `shipment from ${row.originCityName}` : row.supplierName}</strong>
                   <span>
-                    {row.lane ? laneStatusLabel(row) : pickupStatusLabel(row)}
+                    {row.lane ? laneStatusLabel(row) : status}
                     {active && row.expectedArrivalAt ? ` · home ${formatWeekdayTime(row.expectedArrivalAt)}` : ''}
                     {!active && row.lostQuantity > 0 ? ` · ${formatNumber(row.lostQuantity)} lost on the road` : ''}
                     {` · to ${row.warehouseName === 'Home stash' ? 'home stash' : `${row.destinationCityName} warehouse`}`}
