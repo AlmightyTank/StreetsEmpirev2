@@ -3388,6 +3388,8 @@ export interface CrewRosterRules {
   readonly specialtyBonusPercent?: { readonly tierOne: number; readonly tierTwo: number; readonly cap: number };
   /** 1.7.0-D. Paid training only accelerates an already earned specialty tier. */
   readonly training?: { readonly turnCost: number; readonly cashCostCents: number; readonly experience: number; readonly earnedExperienceRatioPercent: number };
+  /** 1.7.0-E. Raids and scouting may take a chosen team from the roster. Later rulesets inherit it. */
+  readonly selectedTeams?: boolean;
 }
 
 export interface SupplyNetworkRules {
