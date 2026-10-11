@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { FACTION_TIERS, contractStanding, factionTierName, factionTierRank, factionTierStartsAt, innerCircleLockedBy, innerCirclePreview, jobStanding as jobStandingFor, lawPriceCents } from '@streets/rules-engine';
+import { FACTION_TIERS, recipeLadder, contractStanding, factionTierName, factionTierRank, factionTierStartsAt, innerCircleLockedBy, innerCirclePreview, jobStanding as jobStandingFor, lawPriceCents } from '@streets/rules-engine';
 import {
   type ContactKey,
   contractBoard,
@@ -930,6 +930,13 @@ export const HandcraftedQuestService = {
         contacts,
         factions,
         permanentUnlocks,
+        recipeLadder: recipeLadder(ruleset).map((rung, index) => ({
+          step: index + 1,
+          questKey: rung.questKey,
+          product: rung.product,
+          productName: ruleset.products?.[rung.product]?.name ?? rung.product,
+          identity: ruleset.products?.[rung.product]?.recipeIdentity ?? null,
+        })),
         activeFavors,
         armedFavors,
         favors,

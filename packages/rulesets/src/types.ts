@@ -1451,6 +1451,8 @@ export interface ProductDefinition {
    * Pip's Product item, `economy.netWorth.perCrackCents` and `production.crack`.
    */
   readonly economy?: ProductEconomy;
+  /** Quest Recipe Unlocks D. One line on what cooking it is like, shown before a player spends turns on it. */
+  readonly recipeIdentity?: string;
 }
 
 /** 0.4.0-D. Integer cents throughout. */

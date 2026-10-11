@@ -35,15 +35,15 @@ This is a proposed roadmap. It does not change live or historical rulesets until
 
 ## Slice status and roadmap
 
-Slice A is implemented on beta as the access foundation. Slice B is implemented in ruleset `classic-og-v1.8-f` and Slice C in `classic-og-v1.8-m`. Slice D is the next implementation slice.
+Slice A is implemented on beta as the access foundation. Slice B is implemented in ruleset `classic-og-v1.8-f` and Slice C in `classic-og-v1.8-m`. Slice D is implemented on top of them. Slice E is the next implementation slice.
 
 | Slice | Status | Theme | Outcome |
 | --- | --- | --- | --- |
 | **A — Quest Access Foundation** | **Complete on beta** | Unlock recipes and districts through quests | Add permanent recipe access plus district access for Scout and Turf, server-side checks, visible locked-state data, and direct links to unlocking quests. Existing purchase unlocks keep their current behavior. |
 | **B — Pip's Cookhouse Ladder** | **Implemented (1.8.0-F)** | Start on Crack, earn the rest | Gate Ecstasy and Meth production behind quests in the new ruleset, then add quest chains for Weed, Cocaine, and Heroin. Each chain requires the previous one and opens one recipe in the current round. Quests use existing actions and award no free ingredients, stock, or crew. |
 | **C — Product Identity & Balance** | **Implemented (1.8.0-M)** | Make each recipe a real choice | Define per-product production costs, output, variance, and Heat in the pinned ruleset. Confirm a Crack-only opening is viable, then simulate production, market sales, Heat, city demand, and supply so no product becomes a universal best pick. |
-| **D — Quest Presentation** | **Next** | Show the progression clearly | Present recipe locks and their unlocking quest in Products and Produce. Keep Available quests limited to quests that are actually available; show future progression on the existing quest progression view. |
-| **E — Admin, Tests & Release** | Planned | Verify access and economy | Add unlock, objective, exploit, and balance coverage; expose recipe access in admin quest inspection; release behind the new ruleset only after the gates pass. |
+| **D — Quest Presentation** | **Implemented** | Show the progression clearly | Present recipe locks and their unlocking quest in Products and Produce. Keep Available quests limited to quests that are actually available; show future progression on the existing quest progression view. |
+| **E — Admin, Tests & Release** | **Next** | Verify access and economy | Add unlock, objective, exploit, and balance coverage; expose recipe access in admin quest inspection; release behind the new ruleset only after the gates pass. |
 
 ## Slice details
 
@@ -148,6 +148,16 @@ Recipe identity is expressed only through game rules. No real-world production i
 - Keep locked jobs out of Available quests. The quest progression view can show the longer path and prerequisites.
 - Completing a recipe quest refreshes recipe access immediately, without requiring a page reload.
 - Keep Scout, Produce, Products, and Travel as distinct destinations rather than nesting more tabs inside them.
+
+**Implemented:**
+
+- **Pip's counter (Products).** Pip's store opens with a "Stock, buying and cooking" table: every product with what you hold, **Can buy** and **Can produce**, each open or locked with a link to the job that opens it (and the recipe's ladder step). On phones the table becomes one card per product. Each product shelf also carries separate **Buy** and **Cook** badges and a line on cooking it, apart from the purchase lock.
+- **Produce.** Open recipes show a one-line identity and their numbers (output a thug a turn, ingredients, Heat). Locked recipes appear below as visible but unselectable cards in ladder order ("Step 2 of 5"), each with its identity, numbers and the job that opens it. A new player sees Crack to cook and the rest of the ladder as future goals.
+- **Quests.** Locked jobs stay off the Available board, as before. The progression desk gains a **Recipe ladder** panel: every rung with its product, identity, job, state (recipe open, ready to collect, in progress, job available, locked) and what a locked rung waits on. Claiming a rung says which recipe it opened.
+- **Refresh.** Produce and Pip's counter reload products when a job is claimed (`streets:quests-changed`) and when the tab becomes visible again, so a new recipe or shelf appears without a page reload.
+- **Data.** `/game/products` adds each recipe's identity and, for a gated recipe, its ladder step and the ladder's length; `/game/quests` adds `recipeLadder`. The ladder order comes from `recipeLadder` in the rules engine, which `ladderPacing` also uses. The identity lines are display text on 1.8.0-M's products (`recipeIdentity`); they change no gameplay value. Rounds on 1.8.0-F to 1.8.0-L have no identity text, so the client describes those recipes from their numbers.
+- **Navigation.** Scout, Produce, Products (Pip's store) and Travel stay separate destinations; nothing new is nested inside them.
+- **Tests.** `apps/web/src/utils/recipes.test.ts` covers recipe ordering, buy and cook access per product, identity text and the ladder states. The PostgreSQL ladder suite checks the ladder steps on `/game/products`, `recipeLadder` on `/game/quests`, that locked rungs stay off the Available board, and that a 1.8.0-E round has no ladder.
 
 ### E — Admin, Tests & Release
 

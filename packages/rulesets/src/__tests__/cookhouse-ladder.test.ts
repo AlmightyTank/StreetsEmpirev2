@@ -153,12 +153,14 @@ describe('1.8.0-M recipe balance', () => {
     const { meta: _baseMeta, products: baseProducts, questDefinitions: base, ...baseRest } = classicOgV18L;
     expect(rest).toEqual(baseRest);
     const changedProducts = Object.keys(products).filter((key) => products[key as keyof typeof products] !== baseProducts[key as keyof typeof baseProducts]);
-    expect(changedProducts.sort()).toEqual(['COCAINE', 'ECSTASY', 'HEROIN', 'METH', 'WEED']);
+    expect(changedProducts.sort()).toEqual(['COCAINE', 'CRACK', 'ECSTASY', 'HEROIN', 'METH', 'WEED']);
     for (const key of changedProducts) {
-      const { economy, ...product } = products[key as keyof typeof products] as { economy: { production: unknown } };
-      const { economy: baseEconomy, ...baseProduct } = baseProducts[key as keyof typeof baseProducts] as { economy: { production: unknown } };
+      // Only the recipe and its one-line identity (Slice D) change.
+      const { economy, recipeIdentity, ...product } = products[key as keyof typeof products] as { economy?: { production: unknown }; recipeIdentity?: string };
+      const { economy: baseEconomy, ...baseProduct } = baseProducts[key as keyof typeof baseProducts] as { economy?: { production: unknown } };
       expect(product, key).toEqual(baseProduct);
-      expect({ ...economy, production: null }, key).toEqual({ ...baseEconomy, production: null });
+      expect(recipeIdentity, key).toBeTruthy();
+      if (economy) expect({ ...economy, production: null }, key).toEqual({ ...baseEconomy, production: null });
     }
     const nextQuests: QuestDefinitionCatalog = next;
     const baseQuests: QuestDefinitionCatalog = base;

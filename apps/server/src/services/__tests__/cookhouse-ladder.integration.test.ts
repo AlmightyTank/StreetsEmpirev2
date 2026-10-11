@@ -90,6 +90,9 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('cookhouse ladder with P
     expect(access('WEED')).toMatchObject({ unlocked: false, unlockQuest: { key: 'PIP_GREEN_THUMB' } });
     expect(access('COCAINE')).toMatchObject({ unlocked: false, unlockQuest: { key: 'PIP_A_BETTER_CUT' } });
     expect(access('HEROIN')).toMatchObject({ unlocked: false, unlockQuest: { key: 'PIP_RED_LEDGER' } });
+    // Slice D: each locked recipe knows its place on the ladder, and every recipe says what it is like.
+    expect(['ECSTASY', 'METH', 'WEED', 'COCAINE', 'HEROIN'].map((key) => [access(key)?.step, access(key)?.steps])).toEqual([[1, 5], [2, 5], [3, 5], [4, 5], [5, 5]]);
+    for (const product of products.filter((row) => row.recipe)) expect(product.recipe!.identity, product.key).toBeTruthy();
 
     for (const product of ['ECSTASY', 'METH', 'WEED', 'COCAINE', 'HEROIN']) {
       const refused = await cook(product, 1);
@@ -99,6 +102,11 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('cookhouse ladder with P
     expect((await cook('CRACK', 1)).statusCode).toBe(200);
 
     const page = await quests();
+    expect(page.recipeLadder?.map((rung) => [rung.step, rung.questKey, rung.product])).toEqual([
+      [1, 'PIP_PARTY_FAVORS', 'ECSTASY'], [2, 'PIP_BULK_ORDER', 'METH'], [3, 'PIP_GREEN_THUMB', 'WEED'], [4, 'PIP_A_BETTER_CUT', 'COCAINE'], [5, 'PIP_RED_LEDGER', 'HEROIN'],
+    ]);
+    // Locked rungs stay off the Available board; the ladder is where they are shown.
+    for (const rung of page.recipeLadder!) expect(page.quests.find((row) => row.key === rung.questKey)!.status, rung.questKey).toBe('LOCKED');
     const dailies = page.quests.filter((row) => row.type === 'DAILY').map((row) => row.key);
     expect(dailies).toHaveLength(3);
     expect(dailies).not.toContain('DAILY_METH_COOK');
@@ -174,6 +182,7 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('cookhouse ladder with P
       expect(cooked.statusCode, cooked.body).toBe(200);
       const products = (await get('/products')).json<ProductsDto>().products;
       expect(products.every((row) => row.recipeAccess === undefined || row.recipeAccess === null || row.recipeAccess.unlocked)).toBe(true);
+      expect((await quests()).recipeLadder).toEqual([]);
     } finally {
       await app.prisma.round.update({ where: { id: roundId }, data: { rulesetId: rules.meta.id, rulesetVersion: rules.meta.version } });
     }
