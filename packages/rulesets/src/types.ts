@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 36412)
-Total output lines: 3535
-
 /**
  * The ruleset contract.
  *
@@ -1063,7 +1060,1611 @@ export interface NpcGangEscalationRules {
   readonly coolAt: number;
   /** At or below this momentum a gang goes dormant. */
   readonly dormantBelow: number;
-  /** Human hits on the…16412 tokens truncated…ooter's own wait between drive-bys. Separate from the raid clock. */
+  /** Human hits on the gang inside `overTargetedHours` that send it to ground, win or lose. */
+  readonly overTargetedHits: number;
+  readonly overTargetedHours: number;
+  readonly dormantMinHours: number;
+  readonly dormantMaxHours: number;
+}
+
+/**
+ * Phase K. NPC migration is an ordinary relocation: fee, time on the road, cooldown and
+ * the round-end cutoff all apply, and a gang cannot leave while someone it hit can still
+ * hit back. A gang that decides to move goes quiet first, so the move is readable.
+ */
+export interface NpcGangMigrationRules {
+  readonly enabled: boolean;
+  /** Only these tiers ever move house. */
+  readonly tiers: readonly NpcGangTier[];
+  /** How often a settled gang reconsiders its city. */
+  readonly evaluateEveryHours: number;
+  /** Hours a gang stays after arriving (or being seeded) before it reconsiders. */
+  readonly minStayHours: number;
+  /** A human counts toward a city's population if active inside this many hours. */
+  readonly activeHumanHours: number;
+  /** A city with fewer active humans than this is too quiet to stay in or move to. */
+  readonly quietBelowHumans: number;
+  /** One NPC gang per this many active humans, at least one and at most `maxPerCity`. */
+  readonly humansPerGang: number;
+  /** Lost fights inside the turf loss window that make a city too hostile. */
+  readonly hostileLosses: number;
+  /** A richer city must have at least this many more active humans to be worth the move. */
+  readonly betterByHumans: number;
+  /** A gang that has not managed to leave within this many hours drops the plan. */
+  readonly packingHours: number;
+}
+
+/**
+ * Phase J. NPC turf is ordinary turf: presence from Scout turns, a claim fight
+ * against the locals, posted corner crews with upkeep. NPCs only take blocks
+ * the locals hold; they never push a block a human crew holds.
+ */
+export interface NpcGangTurfRules {
+  readonly enabled: boolean;
+  /** Gangs below this ambition never go looking for a block; they still defend one they hold. */
+  readonly minAmbition: number;
+  readonly maxBlocksPerGang: number;
+  /** All NPC gangs together, so every city keeps blocks for human crews. */
+  readonly maxNpcBlocksPerCity: number;
+  /** Reinforce while the corner is below this multiple of its minimum. */
+  readonly reinforceBelowMinimum: number;
+  /** Hours of corner beer the gang tries to keep at home. */
+  readonly supplyHours: number;
+  /** Lost fights inside `lossWindowHours` that make a gang give its block up. */
+  readonly abandonAfterLosses: number;
+  readonly lossWindowHours: number;
+  /** Raid weight added while human crews are working the gang's block. */
+  readonly pressureIntentBonus: number;
+}
+
+// --- turns ------------------------------------------------------------------
+
+export interface AwayBonusRules {
+  readonly enabled: boolean;
+  readonly afterHours: number;
+  readonly amount: number;
+}
+
+export interface TurnRules {
+  readonly amountPerInterval: number;
+  readonly intervalMinutes: number;
+  readonly cap: number;
+  readonly awayBonus: AwayBonusRules;
+  readonly reserveTurns: { readonly enabled: boolean };
+  readonly purchasedTurns: { readonly enabled: boolean };
+}
+
+// --- economy ----------------------------------------------------------------
+
+export interface EconomyRules {
+  readonly currency: {
+    readonly centsPerDollar: number;
+    readonly symbol: string;
+    readonly code: string;
+  };
+  /** Net worth contribution per unit owned, in cents. */
+  readonly netWorth: {
+    /** What a dollar of cash is worth as net worth, in percent. */
+    readonly cashWeightPercent: number;
+    readonly perWhoreCents: number;
+    readonly perThugCents: number;
+    readonly perLowRiderCents: number;
+    readonly perMedicineCents: number;
+    readonly perCrackCents: number;
+    readonly perCondomCents: number;
+    readonly perBeerCents: number;
+    readonly perPistolCents: number;
+    readonly perShotgunCents: number;
+    readonly perTek9Cents: number;
+    readonly perAk47Cents: number;
+  };
+  readonly payout: {
+    readonly min: number;
+    readonly max: number;
+    readonly default: number;
+  };
+  readonly netWorthExcluded: readonly string[];
+}
+
+// --- happiness --------------------------------------------------------------
+
+export interface HappinessRules {
+  readonly min: number;
+  readonly max: number;
+  readonly thug: {
+    readonly penaltyPerThugWithoutBeer: number;
+    readonly penaltyPerThugWithoutWeapon: number;
+  };
+  readonly whore: {
+    readonly neutralPayoutPercent: number;
+    readonly penaltyPerPayoutPercentBelowNeutral: number;
+    readonly condomsPerWhore: number;
+    readonly maxCondomPenalty: number;
+    readonly crackPerWhore: number;
+    readonly maxCrackPenalty: number;
+    readonly whoresPerThug: number;
+    readonly maxProtectionPenalty: number;
+  };
+}
+
+// --- scouting ---------------------------------------------------------------
+
+export interface District {
+  readonly slug: string;
+  readonly name: string;
+  /** What scouting here turns up. */
+  readonly whoresPerTurn: number;
+  readonly thugsPerTurn: number;
+  /** Multiplies what the crew brings in per turn worked here. */
+  readonly payMultiplier: number;
+  /** How many girls one thug can cover on this block. */
+  readonly protectionWhoresPerThug: number;
+}
+
+export type Districts = { readonly [K in DistrictKey]: District };
+
+/**
+ * Manual 3.1. One action: the crew works a block while you pick people up, so
+ * these rules cover both the recruiting and the earning.
+ */
+export interface ScoutingRules {
+  readonly turnCostPerScout: number;
+  readonly minTurns: number;
+  /** Manual 3.1's suggested spend per trip. */
+  readonly recommendedTurns: number;
+  readonly districts: Districts;
+  /** Crew size at which a district yields half its headline recruit rate. */
+  readonly recruitment: {
+    readonly whoreSoftCap: number;
+    readonly thugSoftCap: number;
+  };
+  readonly variance: number;
+
+  readonly grossPerWhorePerTurnCents: number;
+  readonly minHappinessMultiplier: number;
+  readonly takeVariance: number;
+  readonly consumption: {
+    readonly condomsPerWhorePerTurn: number;
+    readonly crackPerWhorePerTurn: number;
+    readonly beerPerThugPerTurn: number;
+  };
+  readonly exposure: {
+    readonly maxTakePenalty: number;
+  };
+  /** When true, only fit thugs with weapons count as street protection. */
+  readonly requiresArmedThugs?: boolean;
+  /**
+   * How many clients a block holds. Hidden from the player, and rotated
+   * between the districts on a clock - one value per district, reshuffled
+   * every `clients.rotationMinutes`.
+   */
+  readonly clients: {
+    /** Exactly one per district. Shuffled, never scaled. */
+    readonly capacities: readonly number[];
+    readonly rotationMinutes: number;
+  };
+  /** Where the girls work while the thugs cook. Never shown to the player. */
+  readonly produceDistrict: DistrictKey;
+  readonly finds: {
+    readonly chancePerTurn: number;
+    readonly crackMin: number;
+    readonly crackMax: number;
+  };
+}
+
+// --- production -------------------------------------------------------------
+
+/**
+ * Manual 3.2. The girls still work while the thugs cook, just for less.
+ */
+export interface ProductionRules {
+  readonly turnCostPerRun: number;
+  readonly minTurns: number;
+  readonly crack: {
+    readonly perThugPerTurn: number;
+    readonly minHappinessMultiplier: number;
+    readonly variance: number;
+    readonly ingredientCentsPerRock: number;
+  };
+  /** What an unsupervised shift earns against a scouted one. */
+  readonly unsupervisedTakeMultiplier: number;
+}
+
+/** Working without protection, and what medicine is for. */
+export interface HealthRules {
+  readonly infectionChancePerTurnUnprotected: number;
+  readonly medicinePerTreatment: number;
+  readonly maxInfectedFractionPerAction: number;
+}
+
+/** When unhappy people give up and walk. Shared by every action. */
+export interface DepartureRules {
+  readonly happinessThreshold: number;
+  readonly chancePerTurn: number;
+  readonly maxFractionPerAction: number;
+}
+
+// --- stores and weapons -----------------------------------------------------
+
+/** RoundPlayer columns holding an item's shelf count and that shelf's clock. */
+export type StockField =
+  | 'pistolStock'
+  | 'shotgunStock'
+  | 'tek9Stock'
+  | 'ak47Stock'
+  | 'lowRiderStock'
+  | 'condomStock'
+  | 'medicineStock'
+  | 'beerStock'
+  | 'crackStock'
+  | 'thugStock';
+export type StockAtField =
+  | 'pistolStockAt'
+  | 'shotgunStockAt'
+  | 'tek9StockAt'
+  | 'ak47StockAt'
+  | 'lowRiderStockAt'
+  | 'condomStockAt'
+  | 'medicineStockAt'
+  | 'beerStockAt'
+  | 'crackStockAt'
+  | 'thugStockAt';
+
+/**
+ * How many of something a shopkeeper can actually get hold of, and how often.
+ *
+ * Cash is not the only thing standing between a player and an arsenal or a
+ * fleet: the goods have to come from somewhere. A shelf holds `cap` at most
+ * and gains one every `intervalMinutes`, so the bigger the thing the longer
+ * the wait - the same lazy-regeneration shape as turns.
+ *
+ * Null on an item means no limit at all.
+ */
+export interface RestockRule {
+  /** Most that can ever be waiting for you at once. */
+  readonly cap: number;
+  /** Minutes before the next delivery. */
+  readonly intervalMinutes: number;
+  /**
+   * How many arrive per delivery. Defaults to 1.
+   *
+   * Supplies move in cases, not one condom at a time, so a corner store
+   * restocks in the thousands per hour while a chop shop builds one car in
+   * eight. Same rule, different units.
+   */
+  readonly perInterval?: number;
+  readonly stockField: StockField;
+  readonly stockAtField: StockAtField;
+}
+
+export interface Weapon {
+  readonly field: ResourceField;
+  readonly name: string;
+  readonly buyCents: number;
+  readonly sellCents: number;
+  /** Unused until 0.2.0 combat. */
+  readonly power: number;
+  /** Null means Tommy can get as many as you can pay for. */
+  readonly restock: RestockRule | null;
+}
+
+export interface StoreItem {
+  readonly unlockKey?: WeaponUnlockKey;
+  /**
+   * 1.5.0-E2. A vehicle class on the shelf. When the round has a VEHICLE_PURCHASE_ACCESS unlock
+   * for the class, buying it waits for that unlock; selling and owning never do.
+   */
+  readonly vehicleClass?: 'SEDAN' | 'VAN';
+  readonly name: string;
+  readonly field: ResourceField;
+  readonly buyCents: number;
+  /** Null means the store does not buy this back. */
+  readonly sellCents: number | null;
+  /** Absent or null means the shop can get as many as you can pay for. */
+  readonly restock?: RestockRule | null;
+}
+
+export interface Store {
+  readonly slug: string;
+  readonly name: string;
+  /** Who is behind the counter. Used when the shop talks about its stock. */
+  readonly keeper: string;
+  readonly blurb: string;
+  /**
+   * Item keys differ per store, so a lookup by a key from a request is
+   * `StoreItem | undefined` - which is what forces the "item belongs to this
+   * store" check to actually happen.
+   */
+  readonly items: Readonly<Record<string, StoreItem>>;
+}
+
+// --- rankings and evidence --------------------------------------------------
+
+export interface RankingRules {
+  readonly topCount: number;
+  readonly neighborhoodRadius: number;
+  readonly dailyResetHourUtc: number;
+}
+
+export interface CommunityPrivacyRules {
+  /** Hide exact opponent crew counts on public profiles. */
+  readonly hideOpponentCrew: boolean;
+  /** Hide exact opponent weapon counts on public profiles. */
+  readonly hideOpponentWeapons: boolean;
+}
+
+export interface EvidenceRules {
+  readonly enabled: boolean;
+  readonly perScout: number;
+  readonly perProduce: number;
+  readonly perStoreTransaction: number;
+  readonly decayPerInterval: number;
+  readonly bustThreshold: number;
+}
+
+// --- seasonal hideout -------------------------------------------------------
+
+export interface HideoutRoomRule {
+  readonly name: string;
+  readonly blurb: string;
+  readonly maxLevel: number;
+  /** Cost for levels 1..maxLevel, in cents. */
+  readonly costsCents: readonly number[];
+}
+
+/**
+ * 0.3.0-C. Alliances belong to one round and reset with it. Absent on rounds
+ * where alliances have not shipped, which keeps every older ruleset unchanged.
+ */
+export interface AllianceRules {
+  /** Members including the leader. Checked under a lock whenever someone joins. */
+  readonly maxMembers: number;
+  /**
+   * After leaving or being kicked, a player cannot join or found an alliance,
+   * and cannot hit or be hit by the alliance they left, until this passes.
+   */
+  readonly leaveCooldownHours: number;
+  readonly inviteExpiresHours: number;
+  /** Outstanding invites one alliance can have at once. */
+  readonly maxPendingInvites: number;
+  /** 0.3.0-D. Fresh recon one member gathers is visible to every current member until it expires. */
+  readonly sharedIntel?: boolean;
+}
+
+/**
+ * 0.4.0-A. One product a round knows about. Keys are uppercase, e.g. ECSTASY.
+ * CRACK is always stored on the player's crack column; every other key is stored
+ * as a product row, so adding a product never needs a schema change.
+ */
+export interface ProductDefinition {
+  readonly name: string;
+  readonly blurb: string;
+  readonly sortOrder: number;
+  /** 0.4.0-B. What a slice of a work trip supplied with this product does. Absent means no change. */
+  readonly work?: {
+    readonly takeMultiplier?: number;
+  };
+  /** 0.4.0-C. The product's identity for each role. Takes precedence over `work`. */
+  readonly effects?: ProductEffects;
+  /**
+   * 0.4.0-D. Price, shelf, value and production. Crack leaves this out: it keeps
+   * Pip's Product item, `economy.netWorth.perCrackCents` and `production.crack`.
+   */
+  readonly economy?: ProductEconomy;
+}
+
+/** 0.4.0-D. Integer cents throughout. */
+export interface ProductEconomy {
+  /** What one unit adds to net worth. Never above `pip.sellCents`, so buying never raises net worth. */
+  readonly netWorthCents: number;
+  /** Pip's counter. Null where Pip does not deal it. */
+  readonly pip: {
+    readonly buyCents: number;
+    readonly sellCents: number;
+    readonly restock: { readonly cap: number; readonly perInterval: number; readonly intervalMinutes: number };
+  } | null;
+  /** Produce Product. Null where it cannot be cooked. */
+  readonly production: {
+    readonly perThugPerTurn: number;
+    /** Ingredients per unit. Never below `pip.sellCents`, so cooking to sell is never free money. */
+    readonly ingredientCentsPerUnit: number;
+    readonly variance: number;
+    readonly minHappinessMultiplier: number;
+    /** Heat per unit cooked. */
+    readonly heatPerUnit: number;
+  } | null;
+}
+
+/**
+ * 0.4.0-C. What a product does to the group that burns it. Every multiplier is
+ * 1 for "no change" and applies only to the share of the trip the product
+ * supplied, so a product that runs out part-way only counts for its slice.
+ */
+export interface ProductEffects {
+  /**
+   * What the product is worth, in cents, for simulation. 0.4.0-D prices products
+   * at Pip's and for net worth around these numbers.
+   */
+  readonly referenceCostCents: number;
+  readonly hoes: {
+    /** Take on any job. */
+    readonly take: number;
+    /** Fit per job (district key or PRODUCE), multiplied on top of `take`. Missing jobs are 1. */
+    readonly jobTake?: Readonly<Record<string, number>>;
+    /** How much one unit on hand counts toward whore happiness, against crack's 1. */
+    readonly happinessWeight: number;
+    /** Whores recruited on a Scout trip: client attraction. */
+    readonly recruitment: number;
+    /** Chance an unhappy whore walks. */
+    readonly departures: number;
+    /** Departures on the dry part of a trip after this product ran out. Absent means no crash. */
+    readonly crashDepartures?: number;
+    /** Heat per turn this product supplies a crew of `heat.crewScale.whores`. */
+    readonly heatPerTurn: number;
+  };
+  readonly thugs: {
+    /** Production output while cooking. */
+    readonly output: number;
+    /** Happiness points added to the crew's mood while cooking, capped at 100. */
+    readonly morale: number;
+    /** Chance an unhappy thug walks while cooking. */
+    readonly departures: number;
+    /** Heat per turn this product supplies a crew of `heat.crewScale.thugs`. */
+    readonly heatPerTurn: number;
+  };
+  /**
+   * 0.4.0-E. Thugs in a fight: a raid, drive-by or special raid they send, or a
+   * defense of their own block. Absent means no effect.
+   */
+  readonly combat?: {
+    /** Strength when attacking. */
+    readonly attack: number;
+    /** Strength when defending. */
+    readonly defense: number;
+    /** Share of the squad wounded, win or lose. */
+    readonly wounds: number;
+  };
+}
+
+/** 0.4.0-B. How work trips burn products and what running dry costs. */
+export interface WorkSupplyRules {
+  /** Product units one whore burns per turn worked, whichever product it is. */
+  readonly productPerWhorePerTurn: number;
+  /** Take multiplier for the part of a trip with no allowed product left. */
+  readonly dryTakeMultiplier: number;
+  /** 0.4.0-C. Departure chance on the dry part of a trip. Absent means 1. */
+  readonly dryDepartureMultiplier?: number;
+  /** 0.4.0-C. Product units one fit thug burns per turn cooking. Absent means thugs burn nothing. */
+  readonly productPerThugPerTurn?: number;
+  /**
+   * 0.4.0-C. Round a trip's need up rather than down, so a small crew on a short
+   * trip cannot take a product's effects without burning any of it.
+   */
+  readonly roundNeedUp?: boolean;
+}
+
+/** 0.4.0-E. Product burned by thugs in a fight, under the RAID and DEFENSE supply policies. */
+export interface CombatSupplyRules {
+  /** Units each committed thug burns per fight. */
+  readonly productPerThugPerFight: number;
+}
+
+// --- 0.5.0 travel -------------------------------------------------------------
+
+/** 0.5.0-A. How much of a product Pip has in a city. */
+export type SupplyLevel = 'PLENTIFUL' | 'NORMAL' | 'LOW' | 'OUT';
+
+/** 0.5.0-A. One product in one city. */
+export interface CityProductRules {
+  /** Pip's buy and sell prices here against his base prices, before supply leans on them. */
+  readonly price: number;
+  /**
+   * The high market's baseline here, as a multiple of Pip's base buy price. Kept at or
+   * below `price` times the cheapest supply lean, less the spread, so buying at Pip's
+   * and selling on the high market in the same city always loses.
+   */
+  readonly demand: number;
+  /** Pip's usual supply here, or null where he does not carry it. */
+  readonly supply: SupplyLevel | null;
+}
+
+/**
+ * 0.5.0-A. What Heat means in a city. Heat is one number that goes wherever the
+ * player goes; each city decides where it starts to cost.
+ */
+export interface CityHeatRules {
+  readonly dragStartsAt: number;
+  readonly bustStartsAt: number;
+  /** 0.5.0-C. Where arrests start. */
+  readonly arrestStartsAt: number;
+  /** Multiplies the round's bust seizure and fine here. */
+  readonly bustSeverity: number;
+}
+
+/** Local presentation for one mechanical district in one city. */
+export interface CityDistrictRules {
+  readonly name: string;
+  readonly blurb: string;
+}
+
+/** 0.5.0-A. A city's character. Everything here is balance, so it lives in the ruleset, not the City table. */
+export interface CityRules {
+  readonly name: string;
+  /** The headline: "The Exchange". */
+  readonly trait: string;
+  readonly blurb: string;
+  /**
+   * Street talk: what anyone can find out about a city without going. Always true, never
+   * a number. It names what is cheap and what sells, so a trip is never wasted, but not
+   * by how much, so no route can be ruled out from home.
+   */
+  readonly talk: readonly string[];
+  /** Every catalog product, crack included. */
+  readonly products: { readonly [product: string]: CityProductRules };
+  /** How far and how often supply moves over a round, 0 (steady) to 1 (the swing city). Also how often price events land. */
+  readonly supplySwing: number;
+  /** The lowest supply level any product here falls to in a swing. */
+  readonly supplyFloor: SupplyLevel;
+  /** Multiplies Heat gained on runs here. */
+  readonly policePressure: number;
+  /** High-market units that move the price 1%. */
+  readonly marketDepth: number;
+  readonly heat: CityHeatRules;
+  /** The scout, income and crack modifiers that used to sit on the City row. */
+  readonly modifiers: { readonly scout: number; readonly income: number; readonly crack: number };
+  /** Drive hours out along each road its locals can follow a run. */
+  readonly zoneHours: number;
+  /**
+   * Local names and flavor for the five mechanical district archetypes.
+   * The keys stay stable for scouting/turf balance and persistence; only presentation changes by city.
+   */
+  readonly districts?: { readonly [K in DistrictKey]?: CityDistrictRules };
+  /** District pay for players living here. Applied from 0.5.0-D (with `travel.relocation`). */
+  readonly districtPay?: { readonly [K in DistrictKey]?: number };
+  /** What stores charge players living here. Applied from 0.5.0-D (with `travel.relocation`); buyback prices do not move. */
+  readonly storePrices?: { readonly [K in StoreKey]?: number };
+}
+
+/** 0.5.0-A. A real road between two cities. */
+export interface RoadRules {
+  readonly from: string;
+  readonly to: string;
+  /** "I-95". */
+  readonly name: string;
+  readonly driveHours: number;
+  /** Road-stop pressure, 1 for an ordinary road. */
+  readonly police: number;
+  readonly note?: string;
+}
+
+/** 0.5.0-A. Roads, run costs and Pip's supply levels, round-wide. */
+export interface TravelRules {
+  readonly roads: readonly RoadRules[];
+  /** Real time per drive hour. */
+  readonly gameMinutesPerDriveHour: number;
+  /** Turns a run spends per drive hour. */
+  readonly turnsPerDriveHour: number;
+  /** Units of product one Low-Rider carries. */
+  readonly cargoPerLowRider: number;
+  /** Other routes are offered when they are no more than this share longer than the shortest. */
+  readonly alternativeRouteShare: number;
+  /** Most routes offered between two cities. */
+  readonly maxRoutes: number;
+  /** What each supply level does to a shelf's size, its restock and Pip's prices. */
+  readonly supplyLevels: { readonly [K in SupplyLevel]: SupplyLevelRules };
+  /** The high market's cut: buyers pay baseline x (1 + spread), sellers get x (1 - spread). */
+  readonly highMarketSpread: number;
+  /** 0.5.0-B. Absent where cities have characters but nobody drives yet. */
+  readonly runs?: RunRules;
+  /** 0.5.0-C. The live high market. Absent: runs trade at Pip's counters only. */
+  readonly market?: HighMarketRules;
+  /** 0.5.0-C. Pip's supply moving over the round. Absent: every city keeps its usual supply. */
+  readonly swings?: SupplySwingRules;
+  /** 0.5.0-C. Gluts and droughts. Absent: none. */
+  readonly events?: PriceEventRules;
+  /** 0.5.0-C. Police stops on the road. Absent: the road is safe. */
+  readonly stops?: RoadStopRules;
+  /** 0.5.0-C. Heat a run draws by selling. Absent: selling is quiet. */
+  readonly saleHeat?: SaleHeatRules;
+  /**
+   * 0.5.0-D. Moving the whole operation to another city. Present, it also turns on each
+   * city's living rules for its residents: district pay, store prices and Pip's home
+   * counter at that city's prices and usual supply.
+   */
+  readonly relocation?: RelocationRules;
+  /** 0.5.0-E. Runs near a city can be tailed and hit. Absent: runs only meet the police. */
+  readonly convoys?: ConvoyRules;
+  /** Trips A. The boss visits another city and comes home. Absent: the boss never leaves. */
+  readonly trips?: TripRules;
+}
+
+/**
+ * Trips A. The boss leaves home for a stay in another city and comes back. Home keeps
+ * working while they are gone, run by a lieutenant who skims the take. Stage A flies the
+ * boss alone: a ticket from home cash, a hotel stay paid up front, and a bankroll that
+ * is all the boss has in town.
+ */
+export interface TripRules {
+  /** Real minutes in the air, airport included, between any two cities. Each way. */
+  readonly flightMinutes: number;
+  /** A round-trip ticket for the boss, paid from home cash. */
+  readonly ticketCents: number;
+  /** The most bankroll one boss can carry onto a plane. */
+  readonly carryOnCapCents: number;
+  /** Stay lengths offered at launch, in real minutes. */
+  readonly stayMinutes: readonly number[];
+  /** The longest a stay can run, extensions included. */
+  readonly maxStayMinutes: number;
+  /** Extensions are sold in blocks of this many minutes. */
+  readonly extendMinutes: number;
+  /** The hotel's rate per real hour, before the city's lean. */
+  readonly hotelCentsPerHour: number;
+  /** Each city's lean on the hotel rate. Missing is 1. */
+  readonly hotelPrice?: { readonly [citySlug: string]: number };
+  /** Turns it takes to get out the door. */
+  readonly launchTurns: number;
+  /** The lieutenant's share of Scout and Produce takes while the boss is away, 0 to 1. */
+  readonly lieutenantCut: number;
+  /** No new trips in the round's last hours. */
+  readonly cutoffHours: number;
+  /** Trips B. The boss can ride along with a run. Absent: runs are crew only. */
+  readonly rideAlong?: RideAlongRules;
+  /** Trips C. A boss away from home can be found and hit. Absent: nobody hunts a boss. */
+  readonly hunted?: HuntedRules;
+  /** Trips D. The boss can fly with bodyguards and rent guns in town. Absent: the boss flies alone. */
+  readonly bodyguards?: BodyguardRules;
+  /** Trips D2. Airport security reads Heat. Absent: nobody looks twice. */
+  readonly airport?: AirportRules;
+  /** Trips D2. The boss can visit an outpost in person. Absent: outposts never see the boss. */
+  readonly outpostVisits?: OutpostVisitRules;
+  /** Trips D2. Two bosses in one city can sit down and agree a truce. Absent: no sit-downs. */
+  readonly sitDowns?: SitDownRules;
+  /** Trips D2. Allies who live where a boss is hit can send backup. Absent: a boss stands alone. */
+  readonly allyBackup?: boolean;
+  /**
+   * Trips E. The girls notice the boss is gone: whore happiness sits lower the longer the
+   * boss is away (on a flight trip or riding along), up to a cap, and recovers the moment
+   * the boss is home. Absent: nobody notices.
+   */
+  readonly awayHappiness?: { readonly pointsPerHour: number; readonly maxPoints: number };
+}
+
+/**
+ * Trips D2. A hot boss gets pulled aside at the airport on the way out: part of the carried
+ * bankroll is taken and the flight lands late. Past `noFlyHeat`, nobody lets them board.
+ */
+export interface AirportRules {
+  /** Heat from which security starts looking twice. */
+  readonly checkFromHeat: number;
+  /** Chance of being pulled aside for each point of Heat past `checkFromHeat`. */
+  readonly chancePerHeat: number;
+  readonly maxChance: number;
+  /** Share of the carried bankroll taken when pulled aside. */
+  readonly seizePercent: number;
+  /** Real minutes lost in the back room: the whole trip runs this much later. */
+  readonly delayMinutes: number;
+  /** At this Heat or above, no flight. */
+  readonly noFlyHeat: number;
+  /** Heat each bodyguard adds for the check only: a crew draws eyes. Missing is 0. */
+  readonly bodyguardHeat?: number;
+  /** Security checks the flight home too, as the boss leaves town. Missing is off. */
+  readonly checkHome?: boolean;
+}
+
+/**
+ * Trips D2. A boss in town where they hold an outpost can walk the corner: for a while the
+ * crew there does not walk out when supplies run short, and a boss on a flight trip can
+ * carry the box's cash in their bankroll, up to the carry-on cap.
+ */
+export interface OutpostVisitRules {
+  /** Hours after a visit in which the corner crew stays put whatever the box holds. */
+  readonly moraleHours: number;
+}
+
+/**
+ * Trips D2. A boss in town proposes a sit-down to a boss who is also in that city (living
+ * there or visiting). If the other agrees while both are still there, neither crew can hit
+ * the other for `truceHours`: no raids, drive-bys, special raids, convoy tails or boss hits.
+ */
+export interface SitDownRules {
+  /** Minutes an invitation stays open. */
+  readonly inviteMinutes: number;
+  readonly truceHours: number;
+}
+
+/**
+ * Trips D. Bodyguards fly with the boss: fit thugs out of home, each on their own ticket
+ * and lodged by the hour, and unarmed, because nothing goes through the airport. In town,
+ * a boss with Tommy's out-of-town connect can rent guns for them, one each, paid out of the
+ * bankroll and handed back at check-out. Bodyguards fight a hit on the boss.
+ */
+export interface BodyguardRules {
+  /** The most bodyguards on one trip. */
+  readonly max: number;
+  /** A round-trip ticket for each bodyguard, from home cash. */
+  readonly ticketCents: number;
+  /** Lodging for each bodyguard, per real hour, paid with the boss's hotel. */
+  readonly lodgingCentsPerThugHour: number;
+  /** Rent for one gun for the rest of a stay, by weapon. Never below zero; never the price of the gun. */
+  readonly gunRentCents: { readonly [K in WeaponKey]: number };
+  /** The permanent unlock that opens Tommy's out-of-town connect. */
+  readonly gunConnectUnlockKey: string;
+}
+
+/**
+ * Trips C. The boss away from home is a target. Locals find a visiting boss with an area
+ * recon (a solo boss keeps a low profile, so only sometimes), tail them on the convoy
+ * clock, and the hit lands if the boss is still in town. A solo boss has nobody to fight
+ * back. A beaten boss loses part of the bankroll, flies home and is laid up: no travel
+ * until they heal, while the lieutenant keeps running home. The convoy rules set the
+ * warning window, the turn cost and the re-hit cooldown.
+ */
+export interface HuntedRules {
+  /** Chance an area recon spots a solo boss in town or on the way in, rolled per recon. */
+  readonly soloSightChance: number;
+  /** Share of the bankroll a successful hit takes, rolled in this range. */
+  readonly bankrollPercent: { readonly min: number; readonly max: number };
+  /** Real minutes a beaten boss is laid up: no trips, no riding along. */
+  readonly layUpMinutes: number;
+  /** Home defends raids at this share of its strength while the boss is away or laid up. */
+  readonly awayDefenseMultiplier: number;
+}
+
+/**
+ * Trips B. The boss rides with a run. Every town the run stops in holds it for as long as
+ * the boss likes, up to `maxStayMinutes`, and the hotel bills by the started hour out of
+ * the run's own cash. When the cash cannot cover the next hour, the boss checks out and
+ * the run heads home.
+ */
+export interface RideAlongRules {
+  /** The longest the run stays in one town with the boss aboard. */
+  readonly maxStayMinutes: number;
+  /** Lodging for each escort, per real hour, on top of the boss's hotel. */
+  readonly crewCentsPerThugHour: number;
+}
+
+/**
+ * 0.6.0-A. Turf: a block is one district in one city, forty in all, and it is held by
+ * whoever has a corner crew standing on it. Holding pays a bonus on the holder's own
+ * trips there and a street tax on everyone else's, and costs fit, armed thugs who are
+ * not at home.
+ *
+ * Data only in A: nothing reads these numbers until 0.6.0-B posts the first corner crew.
+ */
+export interface TurfRules {
+  readonly districts: { readonly [K in DistrictKey]: TurfDistrictRules };
+  readonly locals: TurfLocalsRules;
+  readonly presence: TurfPresenceRules;
+  readonly corner: TurfCornerRules;
+  readonly caps: TurfCapRules;
+  /** 0.6.0-B. A owns the data/map; B turns claiming and holding on. */
+  readonly holding?: boolean;
+  /** 0.6.0-C. Player-vs-player pushes and turf-war windows. */
+  readonly wars?: boolean;
+  /** 0.6.0-D. Away holdings with their own supply/tax box. */
+  readonly outposts?: TurfOutpostRules;
+  /** 0.6.0-E. Alliance territory and city-control rules. */
+  readonly territory?: TurfTerritoryRules;
+  /** 0.6.0-F. One seeded late-round Federal sweep of a city's held corners. */
+  readonly crackdown?: TurfCrackdownRules;
+  /** 0.6.0-C. Taking a block. Data in A. */
+  readonly push: TurfPushRules;
+}
+
+export interface TurfCrackdownRules {
+  /** The sweep lands this many hours before the scheduled round end. */
+  readonly hoursBeforeRoundEnd: number;
+  /** How many hours before the sweep the target city is made public. */
+  readonly warningHours: number;
+  /** Heat added to a holder for each corner they still hold when the sweep lands. */
+  readonly heatPerHeldBlock: number;
+  /** Share of each posted corner crew the Feds pick up. */
+  readonly pickupShare: number;
+  /** Hard cap per block so one event cannot erase a large late-round crew. */
+  readonly maxPickedUpPerBlock: number;
+  /** Always leave this many on a non-empty corner; the sweep weakens turf rather than auto-flipping it. */
+  readonly minimumCornerSurvivors: number;
+}
+
+export interface TurfTerritoryRules {
+  /** Share of the city's five blocks one alliance must hold to control it. */
+  readonly cityControlShare: number;
+  /** Controlled-city alliance members do not pay street tax there. */
+  readonly controlledCityNoTax: boolean;
+  /**
+   * A personally held corner acts as a live road lookout in that city. It sees
+   * who is passing now, but never paid-recon wallet/trunk/escort bands or lookahead.
+   */
+  readonly cornerRunSightings: boolean;
+}
+
+export interface TurfOutpostRules {
+  /** Cash the box may hold before a run has to collect it. */
+  readonly cashCapCents: number;
+  /** Beer kept at the outpost for corner upkeep. */
+  readonly beerCap: number;
+  /** Total product units kept in the box across all products. */
+  readonly productCap: number;
+  /** Turns a run spends moving stock between its trunk/wallet and an outpost. */
+  readonly transferTurnCost: number;
+  /** Share of each stored resource exposed when the outpost is captured. */
+  readonly lootShare: number;
+  /** Hard caps keep one rich box from deciding a round in a single push. */
+  readonly lootCashCapCents: number;
+  readonly lootBeerCap: number;
+  readonly lootProductCap: number;
+}
+
+export interface TurfDistrictRules {
+  /** Multiplies the holder's own take on this block. */
+  readonly holdBonus: number;
+  /**
+   * Share of the take a crew loses working someone else's block. It is burned: money
+   * never moves from one player to another, because that is the multi-account route.
+   */
+  readonly taxBurn: number;
+  /** Share of that worker's take paid to the holder from the house, capped per payer per day. */
+  readonly taxMint: number;
+  /** Fit, armed thugs a corner crew needs to hold this block, however small the crew. */
+  readonly cornerMinimum: number;
+  /**
+   * A corner is as big as the crew that holds it: this share of the holder's thugs, when
+   * that is more than the minimum. Without it a late crew holds the slums on 1% of its
+   * muscle and turf is free money for whoever is already winning.
+   */
+  readonly cornerShareOfCrew: number;
+  /** Thugs the locals hold this block with, before the city multiplier. */
+  readonly localsThugs: number;
+}
+
+/**
+ * Every block opens the round held by the locals, so there is always something to take,
+ * even in a city with one player in it. A block nobody holds goes back to them.
+ */
+export interface TurfLocalsRules {
+  /** Multiplies `localsThugs` in each city: Detroit's corners are the hardest. */
+  readonly byCity: { readonly [slug: string]: number };
+  /** What the locals fight with, and the share of them carrying it. */
+  readonly weapon: WeaponKey;
+  readonly armedShare: number;
+  /** Thugs the locals get back an hour after losing a block, up to their full strength. */
+  readonly regrowPerHour: number;
+  /** Hours after a block is released before the locals move back onto it. */
+  readonly reclaimHours: number;
+}
+
+/** You cannot claim a block you have never worked. Presence is turns worked there, and it fades. */
+export interface TurfPresenceRules {
+  readonly turnsToClaim: number;
+  readonly halfLifeHours: number;
+  /** Presence a Scout turn on the block adds. Produce trips add none. */
+  readonly perScoutTurn: number;
+}
+
+/** What a corner crew costs to keep standing. */
+export interface TurfCornerRules {
+  readonly postTurnCost: number;
+  readonly pullTurnCost: number;
+  readonly beerPerThugPerHour: number;
+  readonly productPerThugPerHour: number;
+  /** Share of a short-supplied corner crew that walks each hour. */
+  readonly walkoutSharePerHour: number;
+  /**
+   * 1.1.0-B. Corner crews are still the crew: when it is unhappy they walk off like anyone
+   * else (each settled hour counts as this many turns of the departure chance), and a Lure
+   * Crew raid can take them. Absent: corners only walk when supply runs short, as in 0.6.0.
+   */
+  readonly desertTurnsPerHour?: number;
+}
+
+export interface TurfCapRules {
+  readonly blocksPerCrewHome: number;
+  /** 0.6.0-D. Blocks held away from home, through outposts. */
+  readonly blocksPerCrewAway: number;
+  readonly blocksPerAllianceInCity: number;
+  /** Most tax one payer can mint for a holder in a day. */
+  readonly dailyTaxCapCentsPerPayer: number;
+}
+
+export interface TurfPushRules {
+  /** Real minutes between starting a push and it landing, as a convoy tail works. */
+  readonly warningMinutes: number;
+  readonly turnCost: number;
+  /** Hours a newly taken block cannot be taken again. */
+  readonly shieldHours: number;
+  /** Hours before the same crew can push the same block again. */
+  readonly attackerCooldownHours: number;
+  /**
+   * The raid engine's roll on a corner: a smaller edge than a home defense, and a wider
+   * swing. Between a raid (1.1, 0.1) and a convoy ambush (1.0, 0.3).
+   */
+  readonly fight: { readonly defenseMultiplier: number; readonly variance: number };
+  /**
+   * 0.3.0-D's held reinforcement, shipping on turf first: allies send real help, but only
+   * sometimes, which keeps the swing a flat cap would flatten. Home raids stay unhelped.
+   */
+  readonly allies: {
+    readonly maxShareOfDefender: number;
+    readonly chanceToShowUp: number;
+    readonly maxHelpers: number;
+  };
+}
+
+/** 1.1.0-A. The ten businesses a block's lots can hold. */
+export type BusinessKey =
+  | 'NIGHTCLUB'
+  | 'BAR'
+  | 'STRIP_CLUB'
+  | 'CHOP_SHOP'
+  | 'PAWN_SHOP'
+  | 'AUTO_GARAGE'
+  | 'CONVENIENCE_STORE'
+  | 'WAREHOUSE'
+  | 'CASINO_FRONT'
+  | 'LAUNDROMAT';
+
+/**
+ * 1.1.0-A. Businesses, Fronts & Rackets. Every turf block has three lots, fixed by its
+ * district, and each lot holds one business. Lots start empty: the crew holding the block
+ * builds and upgrades them, they change hands with the block in a block war, and a war
+ * leaves them running at a fatigued rate until the neighborhood recovers.
+ *
+ * Data only in A: nothing reads these numbers until 1.1.0-B builds the first business.
+ * See docs/ROADMAP-1.1.0.md.
+ */
+export interface BusinessCrackdownRules {
+  /** Extra Heat per staffed, active racket in the swept city when the federal turf crackdown lands. */
+  readonly activeRacketHeatPerBusiness: number;
+}
+
+export interface BusinessRules {
+  /** 1.1.0-B. A owns the data and the map; B turns building, staffing and collecting on. */
+  readonly building?: boolean;
+  /** 1.1.0-E. Away blocks can run businesses through their 0.6.0-D outpost box. */
+  readonly outposts?: boolean;
+  readonly catalog: { readonly [K in BusinessKey]: BusinessTypeRules };
+  /** The three lots on every block of a district, in lot order. Lot 1 opens first. */
+  readonly lots: { readonly [K in DistrictKey]: readonly [BusinessKey, BusinessKey, BusinessKey] };
+  /** One business per city earns more there. Keyed by City slug. */
+  readonly signatures: { readonly [slug: string]: BusinessSignatureRules };
+  /**
+   * Foot traffic: the same business earns more on a richer block. A Bar on the Casino strip
+   * out-earns one in the slums, which is also what pays for staff on the blocks where a
+   * thug covers the fewest girls.
+   */
+  readonly districtIncome: { readonly [K in DistrictKey]: number };
+  readonly levels: BusinessLevelRules;
+  readonly supply: BusinessSupplyRules;
+  readonly register: BusinessRegisterRules;
+  /** Turns to open a business (send its staff in) or close it (bring them home). */
+  readonly staffTurnCost: number;
+  /**
+   * Staff are still the crew's, so an unhappy crew's staff walk off like anyone else. Each
+   * settled hour at a business counts as this many turns of the ruleset's departure chance.
+   */
+  readonly staffDepartureTurnsPerHour: number;
+  /** Most an away (outpost) business makes, as a share of the same business at home. */
+  readonly awayOutputShare: number;
+  readonly tiers: BusinessTierRules;
+  readonly fatigue: BusinessFatigueRules;
+  readonly wars: BlockWarRules;
+  readonly allies: BlockWarAllyRules;
+  readonly locals: BusinessLocalsRules;
+  readonly torch: BusinessTorchRules;
+  /** Levels every business on a block loses when a war ends in a Sack. */
+  readonly sackLevelsLost: number;
+  /** 1.1.0-C. One racket per business, on top of its front income. Absent before C. */
+  readonly rackets?: RacketRules;
+  /** 1.1.0-F. Extra release-crackdown pressure on businesses that are actively running rackets. */
+  readonly crackdown?: BusinessCrackdownRules;
+}
+
+export type RacketKey =
+  | 'ECSTASY_DEMAND'
+  | 'INFORMATION_NETWORK'
+  | 'BACK_ROOM_CARDS'
+  | 'LOOSE_LIPS'
+  | 'VIP_ROOM'
+  | 'PILLOW_TALK'
+  | 'STOLEN_LOW_RIDERS'
+  | 'VEHICLE_RECOVERY'
+  | 'FENCING'
+  | 'LOAN_SHARKING'
+  | 'RUN_MODS'
+  | 'GETAWAY_CARS'
+  | 'BEER_SUPPLY'
+  | 'COUNTER_SALES'
+  | 'PRODUCT_STORAGE'
+  | 'SHIPMENT_CAPACITY'
+  | 'HOUSE_ALWAYS_WINS'
+  | 'CASINO_LAUNDERING'
+  | 'LAUNDERING'
+  | 'WASH_AND_FOLD';
+
+/**
+ * What a racket does, at full strength (top level, fully staffed). A racket's strength is
+ * `levelStrength` for its business's level times its staffing share; the effect scales with it.
+ */
+export type RacketEffect =
+  /** Extra cash into the register: a share of the business's front income. */
+  | { readonly kind: 'CASH'; readonly incomeShare: number }
+  /** Better prices at one store for some items, on top of standing. */
+  | { readonly kind: 'STORE_PRICE'; readonly store: string; readonly items: readonly string[]; readonly buyDiscountPercent?: number; readonly sellBonusPercent?: number }
+  /** Earlier sightings of pushes on the crew's blocks and tails on its runs, on top of Lookouts. */
+  | { readonly kind: 'HEADS_UP'; readonly minutes: number }
+  /** Turns off a recon on a crew in the same city. Paid recon always costs at least one turn. */
+  | { readonly kind: 'RECON_DISCOUNT'; readonly turns: number }
+  /** Home raid defense strength, on top of Lookouts. */
+  | { readonly kind: 'RAID_DEFENSE'; readonly percent: number }
+  /** Share of the Low-Riders a convoy hit would take off a run that are recovered on the spot. */
+  | { readonly kind: 'VEHICLE_RECOVERY'; readonly share: number }
+  /** Share off the chance of a police stop on a run out of the home city. */
+  | { readonly kind: 'RUN_STOPS'; readonly share: number }
+  /** Share of a beaten push squad's wounds it avoids by getting away. */
+  | { readonly kind: 'GETAWAY'; readonly share: number }
+  /** Product sold over the counter each hour, at Pip's base price, into the register. */
+  | { readonly kind: 'COUNTER_SALES'; readonly unitsPerHour: number }
+  /** Extra product sealed away from raids, on top of the Safe Room. */
+  | { readonly kind: 'PRODUCT_STORAGE'; readonly units: number }
+  /** Extra cargo per Low-Rider on runs out of the home city, as a share. */
+  | { readonly kind: 'CARGO'; readonly share: number }
+  /** Heat washed off each hour, paid from the register, under the laundering caps. */
+  | { readonly kind: 'LAUNDER'; readonly heatPerHour: number }
+  /** Share off the Heat the crew's other rackets draw. */
+  | { readonly kind: 'HEAT_SHIELD'; readonly share: number };
+
+export interface RacketTypeRules {
+  readonly name: string;
+  readonly business: BusinessKey;
+  readonly description: string;
+  readonly effect: RacketEffect;
+  /** Heat the racket draws each hour at full strength. */
+  readonly heatPerHour: number;
+}
+
+export interface RacketRules {
+  readonly catalog: { readonly [K in RacketKey]: RacketTypeRules };
+  /** Strength by business level (index 0 = level 1), before staffing. */
+  readonly levelStrength: readonly number[];
+  /** Turns to set or switch a racket. */
+  readonly switchTurnCost: number;
+  /** Hours after a racket is set before it can be switched again (or shut). */
+  readonly switchCooldownHours: number;
+  readonly laundering: {
+    /** Heat a crew can wash off in a day (UTC), across all its laundering. */
+    readonly dailyHeatCap: number;
+    /** Heat a crew can wash off in a round. */
+    readonly roundHeatCap: number;
+    /** Price per point of Heat washed, as a share of the crew's bribe price. */
+    readonly bribePriceShare: number;
+  };
+}
+
+export interface BusinessTypeRules {
+  readonly name: string;
+  /** Who works it. Girls staff the Strip Club only; thugs staff everything else. */
+  readonly staff: 'THUGS' | 'WHORES';
+  /** Staff a level-1 business needs. Scaled by `levels.staffMultiplier`. */
+  readonly baseStaff: number;
+  /** Front income an hour at level 1, on a 1.0 foot-traffic block, home, no fatigue. */
+  readonly incomeCentsPerHour: number;
+  /** Cash to open it at level 1. Each upgrade costs a multiple of this. */
+  readonly buildCostCents: number;
+}
+
+export interface BusinessSignatureRules {
+  readonly business: BusinessKey;
+  /** Multiplies that business's income in this city. */
+  readonly multiplier: number;
+}
+
+/** One entry per level, level 1 first. All arrays are `maxLevel` long. */
+export interface BusinessLevelRules {
+  readonly maxLevel: number;
+  /** Income at each level as a multiple of level 1. */
+  readonly incomeMultiplier: readonly number[];
+  /** Staff at each level as a multiple of `baseStaff`, rounded up. */
+  readonly staffMultiplier: readonly number[];
+  /** Cost to reach each level as a multiple of `buildCostCents`: index 0 is the build. */
+  readonly costMultiplier: readonly number[];
+  /** Turns to build or upgrade. */
+  readonly buildTurnCost: number;
+  /** Upgrades cost this much more while the block's fatigue is above `fatigue.upgradeMarkupAbove`. */
+  readonly fatiguedUpgradeMarkup: number;
+}
+
+/** A business burns beer and product under the BUSINESS supply job, like a corner crew. */
+export interface BusinessSupplyRules {
+  readonly beerPerStaffPerHour: number;
+  readonly productPerStaffPerHour: number;
+}
+
+/** Income waits in the register; past the cap it is lost, so someone has to come by. */
+export interface BusinessRegisterRules {
+  /** Hours of full income the register holds. */
+  readonly capHours: number;
+  readonly collectTurnCost: number;
+}
+
+/**
+ * A block's tier opens its lots. It rises with uninterrupted holding and business levels,
+ * the way a settlement grows in rank.
+ */
+export interface BusinessTierRules {
+  /** Lots open at Foothold, Established and Stronghold. */
+  readonly lotsOpen: readonly [number, number, number];
+  /** Hours held (siege pauses the clock) to reach Established and Stronghold. */
+  readonly establishedHours: number;
+  readonly strongholdHours: number;
+  /** Level the lot-1 business needs for Established. */
+  readonly establishedLotOneLevel: number;
+  /** Total levels on lots 1 and 2 for Stronghold. */
+  readonly strongholdLevels: number;
+  /** Tiers a block drops when a war ends in a Take. */
+  readonly takeTierDrop: number;
+}
+
+/** War fatigue (devastation): a per-block meter. Output is (100 - fatigue)%. */
+export interface BusinessFatigueRules {
+  /** Fatigue never rises above this, so a business always makes something. */
+  readonly max: number;
+  readonly perFight: number;
+  readonly perSiegeHour: number;
+  readonly onTake: number;
+  readonly onConcede: number;
+  readonly onSack: number;
+  readonly onLocalsClaim: number;
+  readonly recoveryPerHour: number;
+  /** Slower recovery on a block that changed hands this many times inside the window. */
+  readonly scarredRecoveryPerHour: number;
+  readonly scarredHandsChanged: number;
+  readonly scarredWindowHours: number;
+  /** Upgrades cost `levels.fatiguedUpgradeMarkup` more above this fatigue. */
+  readonly upgradeMarkupAbove: number;
+}
+
+/**
+ * Taking a block from a player is a block war: declare, an opening fight, a siege that
+ * builds Control to 100, and a truce. Taking a block from the locals stays a single fight.
+ */
+export interface BlockWarRules {
+  readonly declareTurnCost: number;
+  /** Wars one crew can have declared at a time. */
+  readonly maxDeclaredPerCrew: number;
+  /** Real minutes between the declaration and the opening fight. */
+  readonly warningMinutes: number;
+  /** Hours for a siege to take Control from 0 to 100 with no allied help. */
+  readonly siegeHours: number;
+  /** Control rate x (1 + this x allied share): an ally at the full cap speeds the siege. */
+  readonly allySiegeSpeedup: number;
+  /** Control lost when the holder breaks the siege. */
+  readonly breakSiegeControlLoss: number;
+  readonly resiegeCooldownHours: number;
+  readonly maxWarHours: number;
+  readonly truceHours: number;
+  readonly sackTruceHours: number;
+  /** Hours the losing attacker cannot declare on that block again. */
+  readonly loserCooldownHours: number;
+  /** Minutes between starting a break attempt and the fight landing, so an ally can answer. */
+  readonly breakMusterMinutes: number;
+  /**
+   * 1.1.0-D. Block wars are played: a player-held block is taken by a war, not the 0.6.0-C
+   * push, and the settings below apply. Absent before D, where the numbers are proposals.
+   */
+  readonly enabled?: boolean;
+  /** Share of the block's registers a Sack takes, and the most it can take. */
+  readonly sackLootShare?: number;
+  readonly sackLootCapCents?: number;
+  /** Heat a Sack puts on the attacker, and a torch on the holder. */
+  readonly sackHeat?: number;
+  readonly torchHeat?: number;
+}
+
+/**
+ * One ally per side, and only a member who is online and answers the call. No dice: the
+ * uncertainty is whether a real ally is around.
+ */
+export interface BlockWarAllyRules {
+  readonly maxPerSide: number;
+  /** An ally sends at most this multiple of the declarer's committed thugs, on either side. */
+  readonly maxShareOfDeclarer: number;
+  /** Minutes an attacker's call to join a siege stays open. */
+  readonly siegeCallMinutes: number;
+  /** Active wars one crew can be the ally in. Declaring is counted separately. */
+  readonly maxWarsAsAlly: number;
+  /** Most of the winnings the caller can promise the ally, and the step it moves in. */
+  readonly maxCutShare: number;
+  readonly cutStep: number;
+}
+
+/** A block the locals take over: its businesses go dormant and decay. */
+export interface BusinessLocalsRules {
+  /** Hours after the locals take over before levels start to fall. */
+  readonly graceHours: number;
+  /** Every business loses a level this often after the grace period. */
+  readonly levelLossEveryHours: number;
+  /** Tiers dropped when the locals take over, and hours until the block is a Foothold. */
+  readonly takeoverTierDrop: number;
+  readonly footholdAfterHours: number;
+  /** Extra local thugs per business level on the block, capped at a share of the district's base. */
+  readonly localsPerLevel: number;
+  readonly maxLocalsBonusShare: number;
+}
+
+/** The holder burns a business down rather than hand it over. */
+export interface BusinessTorchRules {
+  readonly levelsLost: number;
+  /** Share of the lost levels' build cost paid back. */
+  readonly salvageShare: number;
+  readonly turnCost: number;
+  /** Minutes the torch takes; it must finish before Control reaches 100. */
+  readonly minutes: number;
+  /** No torching in the round's final hours. */
+  readonly closedFinalHours: number;
+}
+
+/**
+ * 0.5.0-E. Convoys: a run can be hit near a city (leaving it, in town, or coming in),
+ * by the players who live there and by rival runs in reach at the same time. A hit is a
+ * tail first: the squad is committed and the hit lands when a warning window closes, if
+ * the run is still in reach.
+ */
+export interface ConvoyRules {
+  /** Real minutes between starting a tail and the hit landing. */
+  readonly warningMinutes: number;
+  /**
+   * Nobody is alerted. The owner only sees a tail on their run in its last minutes, this
+   * many per Lookouts level: none at level 0, a little at the top.
+   */
+  readonly headsUpMinutesPerLookouts: number;
+  /**
+   * Recon of the area: runs coming near, in town or leaving where you live (and where your
+   * run is), for turns. It goes stale, and only a run it found can be tailed.
+   */
+  readonly recon: {
+    readonly turnCost: number;
+    /** Real minutes a recon stays good. */
+    readonly freshMinutes: number;
+    /** How far ahead it sees runs coming, and how much more per Lookouts level. */
+    readonly lookaheadMinutes: number;
+    readonly lookaheadMinutesPerLookouts: number;
+  };
+  readonly turnCost: number;
+  /** Minutes after a run is hit before anyone can tail it again. */
+  readonly rehitMinutes: number;
+  /**
+   * Share of the owner's fit thugs at home who ride out on their own when a run is hit
+   * at home: the most in the home town, falling to none at the edge of the home zone.
+   */
+  readonly homeBackupMaxShare: number;
+  /**
+   * The raid engine's strength roll, as it plays on the road: an ambush takes away most
+   * of a defender's edge, and a fight on the move swings more than a fight on a block.
+   */
+  readonly fight: { readonly defenseMultiplier: number; readonly variance: number };
+  readonly loot: {
+    /** Share of the run's cash taken, rolled in this range. */
+    readonly cashPercent: { readonly min: number; readonly max: number };
+    /** Share of the run's cargo taken, rolled in this range, split across products by largest remainder. */
+    readonly cargoPercent: { readonly min: number; readonly max: number };
+    /** Cash each fit attacker can carry away. */
+    readonly cashPerAttackerCents: number;
+    /** Cargo units each fit attacker can carry away. */
+    readonly cargoPerAttacker: number;
+    /** Chance at one of the run's Low-Riders when its whole escort goes down (the run keeps at least one). */
+    readonly lowRiderChance: number;
+  };
+}
+
+/** 0.5.0-D. Relocation: a fee priced on net worth, hours on the road, and limits. */
+export interface RelocationRules {
+  /** The least a move costs. */
+  readonly feeFloorCents: number;
+  /** Share of net worth a move costs, when that is more. */
+  readonly feeNetWorthFraction: number;
+  /** Real minutes on the road: no actions, still a target in the old city. */
+  readonly downtimeMinutes: number;
+  /** Hours from the start of one move before the next. */
+  readonly cooldownHours: number;
+  /** No moves in the round's last hours, so nobody reshuffles local ranks at the end. */
+  readonly cutoffHours: number;
+}
+
+/** 0.5.0-A. What a supply level does to Pip's counter (and from 0.5.0-C the high market). */
+export interface SupplyLevelRules {
+  readonly shelf: number;
+  readonly restock: number;
+  readonly price: number;
+  /** 0.5.0-C. The high market's baseline leans the same way as Pip's supply. Missing is 1. */
+  readonly market?: number;
+}
+
+/**
+ * 0.5.0-C. The high market: one shared price per round, city and product. Trades push
+ * it; it drifts back to its baseline.
+ */
+export interface HighMarketRules {
+  /** Real minutes for half of any push off the baseline to wear off. */
+  readonly recoveryHalfLifeMinutes: number;
+  /** How far the price may be pushed, as shares of the baseline: [-down, +up]. */
+  readonly maxPushDown: number;
+  readonly maxPushUp: number;
+  /** A trade is refused when its first unit is worse than the quote the player saw by more than this share. */
+  readonly quoteTolerance: number;
+}
+
+/**
+ * 0.5.0-C. Pip's supply moves on a schedule seeded per round, so rounds differ and a
+ * round can be replayed. Each slot a product may step away from its usual level: how
+ * often and how far is the city's `supplySwing`.
+ */
+export interface SupplySwingRules {
+  /** Real minutes a supply level holds before the next roll. */
+  readonly slotMinutes: number;
+  /** Chance a product is off its usual level in a slot, at a swing of 1. */
+  readonly moveChance: number;
+  /** Share of moves that go two levels rather than one, at a swing of 1. */
+  readonly bigMoveShare: number;
+  /** Share of level changes to or from out or plentiful that make the street wire. */
+  readonly wireShare: number;
+  /**
+   * The most a high market's baseline drifts either way in a slot, at a swing of 1,
+   * whatever Pip's supply does. Live prices move; Pip's counter does not drift.
+   */
+  readonly marketDrift: number;
+}
+
+export type PriceEventKind = 'GLUT' | 'DROUGHT';
+
+/** 0.5.0-C. Price events: bigger and rarer than a swing, and always on the wire. */
+export interface PriceEventRules {
+  /** Real minutes per roll. At most one event per city per slot. */
+  readonly slotMinutes: number;
+  /** Chance of an event in a slot at a `supplySwing` of 1. */
+  readonly chance: number;
+  readonly kinds: { readonly [K in PriceEventKind]: PriceEventKindRules };
+}
+
+export interface PriceEventKindRules {
+  /** Share of events that are this kind. */
+  readonly weight: number;
+  readonly durationMinutes: number;
+  /** Pip's supply while it lasts. */
+  readonly supply: SupplyLevel;
+  /** The high market's baseline while it lasts. Above 1 only with Pip out, or it is a loop. */
+  readonly marketMultiplier: number;
+}
+
+/** 0.5.0-C. Police stops on the road, rolled once per leg. */
+export interface RoadStopRules {
+  /** Chance per drive hour on a road with police 1, before cargo, Heat and escorts. */
+  readonly chancePerDriveHour: number;
+  /** Units at which cargo doubles the chance of an empty car. */
+  readonly cargoScale: number;
+  /** The most cargo can multiply the chance by. */
+  readonly maxCargoFactor: number;
+  /** Chance cut per escort, down to `minEscortFactor`. */
+  readonly escortCut: number;
+  readonly minEscortFactor: number;
+  /** Share of each product in the trunk taken. */
+  readonly productSeizedFraction: number;
+  /** Share of the run's cash taken. */
+  readonly cashFineFraction: number;
+}
+
+/**
+ * 0.5.0-C. Heat from selling on a run: the city's police pressure x `perTenThousandDollars`
+ * x the square root of the sale in ten-thousands of dollars. Split sales draw more, not less.
+ */
+export interface SaleHeatRules {
+  readonly perTenThousandDollars: number;
+}
+
+/** 0.5.0-B. Runs: a crew on the road with its own wallet and trunk. */
+export interface RunRules {
+  /** Real minutes a run stays in a city it stops at before it heads home on its own. */
+  readonly townWindowMinutes: number;
+  /**
+   * 0.5.0-F. A run can buy on its home city's high market as it loads up, straight into the
+   * trunk and paid from home cash. Buying only: nobody sells on their own market, so cooking
+   * to sell still never pays.
+   */
+  readonly homeMarketAtLaunch?: boolean;
+}
+
+/** 0.4.0-D. Round-wide product economy switches. */
+export interface ProductEconomyRules {
+  /** Recon's stock level, in product units per whore the target runs. */
+  readonly intel: { readonly lightBelowPerWhore: number; readonly heavyFromPerWhore: number };
+}
+
+export interface StoreRelationshipPerk {
+  readonly at: number;
+  readonly label: string;
+  readonly description: string;
+  readonly buyDiscountPercent?: number;
+  readonly sellBonusPercent?: number;
+}
+
+export interface StoreShipmentRules {
+  readonly enabled: boolean;
+  readonly seed: string;
+  readonly delayChancePercent: number;
+  readonly delayMinutes: number;
+  readonly partialChancePercent: number;
+  readonly partialMultiplier: number;
+  readonly largeChancePercent: number;
+  readonly largeMultiplier: number;
+}
+
+export interface StoreSpecialOrderRules {
+  readonly enabled: boolean;
+  readonly markupPercent: number;
+  readonly minWaitMinutes: number;
+  readonly waitMultiplier: number;
+  readonly standingMarkupDiscountPercentPerTier: number;
+  readonly standingWaitDiscountPercentPerTier: number;
+}
+
+export interface StoreIntegrationRules {
+  readonly enabled: boolean;
+  readonly turfSpecialOrderDiscountPercentPerBlock: number;
+  readonly maxTurfSpecialOrderDiscountPercent: number;
+  readonly travelOpportunityMinProfitPercent: number;
+}
+
+export interface StoreEconomyRules {
+  /**
+   * 0.8.0-C. Home Pip product trades nudge the same local pressure used by
+   * the high market: buying lifts the next quote, selling cools it, and the
+   * pressure slowly normalizes through the high-market recovery clock.
+   */
+  readonly pipProductPressure?: {
+    readonly enabled: boolean;
+    /** Maximum share up or down that Pip's product quotes can move from their city baseline. */
+    readonly maxPricePressure: number;
+  };
+  /** 0.8.0-D. Best reached trader relationship perk, keyed by store. */
+  readonly traderPerks?: Partial<Record<StoreKey, readonly StoreRelationshipPerk[]>>;
+  /** 0.8.0-E. Lazy-settled incoming shipments for restocked store shelves. */
+  readonly shipments?: StoreShipmentRules;
+  /** 0.8.0-F. Paid sourcing for sold-out eligible restocked shelves. */
+  readonly specialOrders?: StoreSpecialOrderRules;
+  /** 0.8.0-G. Cross-system store hooks and modest bonuses. */
+  readonly integrations?: StoreIntegrationRules;
+}
+
+/**
+ * 0.4.0-C. Heat: how much attention the crew's product draws. It rises with risky
+ * product, decays on the turn clock, drags the take when high and risks a bust
+ * when higher. A bribe brings it down for a price that grows with net worth.
+ */
+export interface HeatRules {
+  readonly max: number;
+  /** Heat lost per turn interval, on the same clock turns regenerate on. */
+  readonly decayPerInterval: number;
+  /** Crew sizes at which a product's `heatPerTurn` applies as written. Heat scales with the square root of crew over these. */
+  readonly crewScale: { readonly whores: number; readonly thugs: number };
+  readonly drag: {
+    /** Heat at which the take starts to suffer. */
+    readonly startsAt: number;
+    /** Take lost at max Heat, 0..1. */
+    readonly maxTakePenalty: number;
+  };
+  readonly bust: {
+    /** Heat at which a Scout or Produce trip can be busted. */
+    readonly startsAt: number;
+    /** Bust chance per trip at max Heat. */
+    readonly chanceAtMax: number;
+    /** Share of every product on hand seized. */
+    readonly productSeizedFraction: number;
+    /** Share of cash taken as a fine. */
+    readonly cashFineFraction: number;
+    /** Heat a bust burns off. */
+    readonly heatDrop: number;
+  };
+  /**
+   * 0.5.0-C. Arrests: a tier above busts. At home an arrest seizes and fines more than a
+   * bust and locks the player up; on a run it takes the trunk and part of the wallet and
+   * sends the run home. Absent: no arrests.
+   */
+  readonly arrest?: {
+    /** Heat at which arrests start. Each city sets its own. */
+    readonly startsAt: number;
+    /** Arrest chance per trip or trade at max Heat. */
+    readonly chanceAtMax: number;
+    readonly productSeizedFraction: number;
+    readonly cashFineFraction: number;
+    readonly heatDrop: number;
+    /** Real minutes locked up after an arrest at home. */
+    readonly downtimeMinutes: number;
+    /** Share of a run's cash taken when the run is arrested. Its whole trunk goes. */
+    readonly runCashSeizedFraction: number;
+  };
+  readonly bribe: {
+    /** The least one point of Heat costs. */
+    readonly minCentsPerPoint: number;
+    /** Share of net worth one point costs, when that is more. */
+    readonly netWorthFractionPerPoint: number;
+  };
+}
+
+export type ProductCatalog = { readonly CRACK: ProductDefinition } & { readonly [key: string]: ProductDefinition };
+
+export interface HideoutRules {
+  readonly rooms: { readonly [K in BaseHideoutRoomKey]: HideoutRoomRule } & { readonly GARAGE?: HideoutRoomRule };
+  readonly buffs: {
+    readonly safeRoomProtectedCashCentsPerLevel: number;
+    readonly lookoutsDefenseBonusPercentPerLevel: number;
+    readonly workshopCrackBonusPercentPerLevel: number;
+    readonly backOfficeTakeBonusPercentPerLevel: number;
+    /** 0.6.0-D. Active-run limit once the Garage exists. */
+    readonly garageRunLimit?: number;
+  };
+}
+
+// --- the ruleset ------------------------------------------------------------
+
+
+export type SpecialRaidKind = 'DRUG_HOES' | 'STEAL_RIDE' | 'LURE_CREW';
+
+export interface SpecialRaidRules {
+  readonly title: string;
+  readonly buttonLabel: string;
+  /** Defaults to the normal raid turn cost. */
+  readonly turnCost?: number;
+}
+
+export interface DrugHoesRules extends SpecialRaidRules {
+  readonly crackPerWhore: number;
+  readonly whoresPerSurvivor: number;
+  readonly defenderCrackBurnPerWhore: number;
+  readonly defenderCondomBurnPerWhore: number;
+}
+
+export interface StealRideRules extends SpecialRaidRules {
+  readonly lowRidersStolen: number;
+}
+
+export interface LureCrewRules extends SpecialRaidRules {
+  /** Target happiness must be below this before anyone listens. */
+  readonly happinessBelow: number;
+  readonly crackPerWhore: number;
+  readonly beerPerThug: number;
+  readonly whoresPerSurvivor: number;
+  readonly thugsPerSurvivor: number;
+}
+
+export interface CombatStrategyRules {
+  readonly intel: {
+    readonly turnCost: number;
+    readonly expiresMinutes: number;
+  };
+  readonly retaliation: {
+    readonly revengeHours: number;
+    readonly bypassProtection: boolean;
+    readonly bypassMinimumStrength: boolean;
+  };
+}
+
+/** A percentage rolled between two bounds, weighted toward the low end. */
+export interface WeightedPercentRange {
+  readonly minPercent: number;
+  readonly maxPercent: number;
+  /** Above 1 pulls rolls toward `minPercent`; the top stays possible but rare. */
+  readonly exponent: number;
+}
+
+/**
+ * Drive-bys: a hit-and-run from Low-Riders that takes nothing and leaves the
+ * target weaker. Shooters ride in cars; a car comes home as long as anyone in
+ * it does, and is lost when its whole crew goes down.
+ */
+export interface DriveByRules {
+  readonly turnCost: number;
+  /** Shooters per Low-Rider. The squad can never outnumber the seats. */
+  readonly thugsPerLowRider: number;
+  /** The shooter's own wait between drive-bys. Separate from the raid clock. */
   readonly cooldownMinutes: number;
   /** How long a block that was shot up is left alone by everybody. */
   readonly protectionHours: number;
