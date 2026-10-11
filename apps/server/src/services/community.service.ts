@@ -28,7 +28,7 @@ import { forumProfileUrl } from './forum-link.service.js';
 import { selectProfileBadges } from './profile-badges.js';
 import { isBuiltInProfileTitle, profileTitleForAward, profileTitleForKey } from './profile-titles.js';
 import { TurfHistoryService } from './turf-history.service.js';
-import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { QuestCosmeticService, withThemeCompanionFrames } from './quest-cosmetic.service.js';
 import { profileShowcase, profileThemeTags, themeTagFields } from './profile-showcase.service.js';
 import { seasonFeatAwards, type FeatSeason } from './season-feats.js';
 import { emptySeasonTotals, SeasonStatsService, toStatSheet, type SeasonTotals } from './season-stats.service.js';
@@ -1014,7 +1014,7 @@ export const CommunityService = {
     const weapons = player.pistols + player.shotguns + player.tek9s + player.ak47s;
     // 0.9.0-F. A live season's cash, crew and product flow stay sealed from everyone else.
     const sealed = !isYou && now.getTime() < player.round.endsAt.getTime();
-    const [contexts, linkedForumGroups, history, currentTotals, profileSettings, betaTesterAwards, questCosmetics, frameOptions] = await Promise.all([
+    const [contexts, linkedForumGroups, history, currentTotals, profileSettings, betaTesterAwards, questCosmetics, earnedFrames, themeOptions] = await Promise.all([
       loadPublicContexts(prisma, roundId, [player]),
       forumLink ? ForumGroupsService.groupsFor(forumLink.forumUserId) : [],
       loadSeasonHistory(prisma, player.accountId, roundId, now),
@@ -1023,7 +1023,9 @@ export const CommunityService = {
       betaTesterAwardsForAccount(prisma, player.accountId),
       QuestCosmeticService.awardsForAccount(prisma, player.accountId),
       QuestCosmeticService.optionsForAccount(prisma, player.accountId, 'PROFILE_FRAME'),
+      QuestCosmeticService.optionsForAccount(prisma, player.accountId, 'SITE_THEME'),
     ]);
+    const frameOptions = withThemeCompanionFrames(earnedFrames, themeOptions);
     const career = await loadCareerForAccount(prisma, player.accountId, {
       currentRoundId: roundId,
       limit: 10,

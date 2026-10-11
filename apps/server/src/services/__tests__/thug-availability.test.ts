@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitThugs } from '../action.service.js';
+import { fitThugs } from '../crew-availability.js';
 
 describe('fitThugs', () => {
   it('keeps dealer-assigned thugs in the owned crew but out of the available pool', () => {

@@ -13,6 +13,7 @@ import { recordTerritoryControlChange, territoryControlForCity } from './turf-te
 import { endTurfHold, startTurfHold } from './turf-history.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { applyLocalsClaim, dormancyFor, dormantLevelNow, localsMaxWithBusinesses } from './block-dormancy.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 function localDistrictName(ruleset: Ruleset, citySlug: string, district: DistrictKey): string {
   return ruleset.cities?.[citySlug]?.districts?.[district]?.name ?? ruleset.districts[district].name;
@@ -180,7 +181,8 @@ export const TurfActionService = {
         if (fresh.holderId !== roundPlayerId) throw AppError.conflict('NOT_YOUR_TURF', 'You do not hold that block.');
         if (ruleset.turf?.wars) {
           const push = await tx.turfPush.findFirst({ where: { turfId: fresh.id, status: 'PENDING' }, select: { landsAt: true } });
-          const spotted = push && push.landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) * 60_000);
+          const cornerWarningMinutes = await CrewRosterService.cornerPushWarningMinutes(tx, roundPlayerId, fresh.id);
+          const spotted = push && push.landsAt <= new Date(now.getTime() + (headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) + cornerWarningMinutes) * 60_000);
           if (spotted) {
             throw AppError.conflict('TURF_UNDER_PUSH', 'Your Lookouts spotted a push here. Send fight backup instead of permanently posting more thugs.');
           }

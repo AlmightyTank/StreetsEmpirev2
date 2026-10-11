@@ -17,6 +17,7 @@ import {
   supplyOrderSchema,
   loanAcceptSchema,
   loanPaymentSchema,
+  crewCornerJobSchema,
   crewRosterQuerySchema,
   crewTrainingSchema,
   crewAssignmentSchema,
@@ -286,6 +287,22 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const now = new Date();
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
     return CrewRosterService.exchange(fastify.prisma, player.id, body.memberId, body.replaceMemberId, body.actionId, settled.ruleset, now);
+  });
+
+  fastify.post('/crew/corner-jobs/assign', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(crewCornerJobSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    return CrewRosterService.assignCornerJob(fastify.prisma, player.id, body, settled.ruleset, now);
+  });
+
+  fastify.post('/crew/corner-jobs/release', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(crewCornerJobSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    return CrewRosterService.releaseCornerJob(fastify.prisma, player.id, body, settled.ruleset, now);
   });
 
   // 1.6.0-E: dealer crews.
