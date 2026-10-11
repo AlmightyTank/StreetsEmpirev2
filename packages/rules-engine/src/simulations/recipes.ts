@@ -36,7 +36,7 @@ export interface RecipeScenario {
 /** Slice E. The biggest production favor the ruleset offers, in percent of output. */
 export function productionFavorPercent(ruleset: Ruleset): number {
   return Math.max(0, ...Object.values(ruleset.favors ?? {}).map((favor) =>
-    favor?.effect.kind === 'PRODUCTION_BOOST' ? favor.effect.outputPercent : 0));
+    favor?.effect?.kind === 'PRODUCTION_BOOST' ? favor.effect.outputPercent : 0));
 }
 
 /** Slice E. The most a crew supply policy can raise the cooks' output: the best product's thug output effect. */
