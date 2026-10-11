@@ -27,6 +27,7 @@ export function SupporterPanel() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(returned === 'thanks');
+  const [listingBusy, setListingBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -73,6 +74,18 @@ export function SupporterPanel() {
     }
   }
 
+  async function setListed(listed: boolean) {
+    setListingBusy(true);
+    setError(null);
+    try {
+      setStatus(await supporterApi.setListed(listed));
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not save that choice.');
+    } finally {
+      setListingBusy(false);
+    }
+  }
+
   function dismissReturn() {
     const next = new URLSearchParams(searchParams);
     next.delete('supporter');
@@ -107,6 +120,7 @@ export function SupporterPanel() {
         Supporting keeps StreetsEmpire running. It is cosmetic only: no cash, turns, product, weapons or anything else that
         changes play. Supporters get the <strong>Midnight Chrome collection</strong> (looks for the Thug, Hoe, Sedan, Van
         and Low-Rider) and the <strong>Signature Profile Card</strong>, and keep them for good, even after they stop.
+        Every month you support also brings that month&apos;s supporter badge.
       </p>
 
       {!status ? (
@@ -150,6 +164,42 @@ export function SupporterPanel() {
           ) : null}
         </>
       )}
+
+      {status?.drop || status?.dropsHeld.length ? (
+        <div className="se-panel-section">
+          <h3 className="se-label">Monthly drops</h3>
+          {status.drop ? (
+            <p>
+              This month: <strong>{status.drop.name}</strong>{' '}
+              {status.drop.held
+                ? <span className="se-tag se-tag--good">Yours</span>
+                : <span className="se-muted">· given to everyone supporting this month</span>}
+            </p>
+          ) : null}
+          {status.dropsHeld.length ? (
+            <p className="se-hint">
+              You have {status.dropsHeld.map((drop) => drop.name).join(', ')}. Wear one as a title or feature it as a badge in Cosmetics below.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {status?.hasRewards ? (
+        <div className="se-panel-section">
+          <label className="se-checkrow se-checkrow--inline">
+            <input
+              type="checkbox"
+              checked={status.listed}
+              disabled={listingBusy}
+              onChange={(event) => void setListed(event.target.checked)}
+            />
+            <span>
+              <strong>Thank me on the public supporter list</strong>
+              <small>Shows your name and the month you started supporting on the StreetsEmpire site. Nothing about payments. Off unless you turn it on.</small>
+            </span>
+          </label>
+        </div>
+      ) : null}
     </Panel>
   );
 }

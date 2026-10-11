@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { PublicSiteService } from '../services/public-site.service.js';
 import { PublicDirectoryService } from '../services/public-directory.service.js';
+import { PublicSupportersService } from '../services/public-supporters.service.js';
 import { AppError } from '../utils/errors.js';
 
 const PUBLIC_CACHE = 'public, max-age=30, stale-while-revalidate=60';
@@ -10,6 +11,12 @@ const publicRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/overview', async (_request, reply) => {
     reply.header('Cache-Control', PUBLIC_CACHE);
     return PublicSiteService.overview(fastify.prisma);
+  });
+
+  /** Supporters who chose to be thanked publicly. */
+  fastify.get('/supporters', async (_request, reply) => {
+    reply.header('Cache-Control', PUBLIC_CACHE);
+    return PublicSupportersService.list(fastify.prisma);
   });
 
   fastify.get('/current-game', async (_request, reply) => {

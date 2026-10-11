@@ -113,7 +113,7 @@ export const AccountDataService = {
       orderBy: { createdAt: 'asc' },
     });
     const playerIds = players.map((row) => row.id);
-    const [profile, cosmetics, notifications, sessions, trustedDevices, devices, forumLink, sent, received, contacts, mutes, messageReports, bugReports, supportTickets] = await Promise.all([
+    const [profile, cosmetics, notifications, sessions, trustedDevices, devices, forumLink, sent, received, contacts, mutes, messageReports, bugReports, supportTickets, supporterMembership, supporterPayments] = await Promise.all([
       prisma.accountProfile.findUnique({ where: { accountId } }),
       prisma.accountCosmeticUnlock.findMany({ where: { accountId } }),
       prisma.notificationSettings.findUnique({ where: { accountId } }),
@@ -128,6 +128,8 @@ export const AccountDataService = {
       prisma.playerMessageReport.findMany({ where: { reporterAccountId: accountId }, select: { reason: true, createdAt: true, resolvedAt: true, resolution: true } }),
       prisma.bugReport.findMany({ where: { accountId }, select: { category: true, summary: true, details: true, pagePath: true, source: true, createdAt: true, resolvedAt: true, resolution: true, playerReply: true } }),
       prisma.supportTicket.findMany({ where: { accountId }, select: { subject: true, createdAt: true, closedAt: true } }),
+      prisma.supporterMembership.findUnique({ where: { accountId }, select: { status: true, startedAt: true, currentPeriodEnd: true, cancelAtPeriodEnd: true, endedAt: true } }),
+      prisma.supporterPayment.findMany({ where: { accountId }, orderBy: { paidAt: 'asc' }, select: { amountCents: true, currency: true, status: true, paidAt: true, stripeInvoiceId: true } }),
     ]);
 
     return plain({
@@ -166,6 +168,8 @@ export const AccountDataService = {
       messageReportsMade: messageReports,
       bugReports,
       supportTickets,
+      // Card details stay with Stripe; StreetsEmpire never sees them.
+      supporter: { membership: supporterMembership, payments: supporterPayments },
     }) as Record<string, unknown>;
   },
 

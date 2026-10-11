@@ -120,6 +120,7 @@ export function AdminSupportersPage() {
   const [backfillReason, setBackfillReason] = useState('');
   const [backfillResult, setBackfillResult] = useState<AdminSupporterGrantResultDto | null>(null);
   const [backfillBusy, setBackfillBusy] = useState(false);
+  const [dropBusy, setDropBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -186,6 +187,23 @@ export function AdminSupportersPage() {
     }
   }
 
+  async function releaseDrop() {
+    setDropBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await adminApi.releaseSupporterDrop();
+      setNotice(result.granted
+        ? `Gave the ${result.month} drop to ${formatNumber(result.granted)} ${result.granted === 1 ? 'supporter' : 'supporters'}.`
+        : `Everyone supporting now already has the ${result.month} drop.`);
+      await load();
+    } catch (caught) {
+      setError(message(caught, 'Could not give out the drop.'));
+    } finally {
+      setDropBusy(false);
+    }
+  }
+
   function previewGrant(event: FormEvent) {
     event.preventDefault();
     void runGrant(true);
@@ -229,6 +247,7 @@ export function AdminSupportersPage() {
         <Stat label="Supporting now" value={data ? formatNumber(data.activeCount) : '-'} />
         <Stat label="Wearing the card" value={data ? formatNumber(supporters.filter((supporter) => supporter.wearingCard).length) : '-'} />
         <Stat label="Missing rewards" value={data ? formatNumber(data.missingCount) : '-'} />
+        <Stat label="On the thank-you list" value={data ? formatNumber(data.listedCount) : '-'} />
       </div>
 
       <Panel title="Grant rewards" className="se-mb">
@@ -328,6 +347,62 @@ export function AdminSupportersPage() {
             <GrantRows result={backfillResult} rewardName={rewardName} />
           </div>
         ) : null}
+      </Panel>
+
+      <Panel title="Monthly drops" aside="UTC months" flush className="se-mb">
+        <p className="se-hint se-admin-pad">
+          Everyone supporting gets the month&apos;s drop: active subscribers within an hour of the month starting, and
+          anyone whose payment lands during it. Drops are set in <code>SUPPORTER_MONTHLY_DROPS</code>; add the next months
+          there before they start.
+        </p>
+        {!data ? (
+          <p className="se-muted se-admin-pad">Loading drops...</p>
+        ) : !data.drops.length ? (
+          <p className="se-muted se-admin-pad">No drops are set.</p>
+        ) : (
+          <div className="se-tablewrap">
+            <table className="se-table se-table--cards">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Drop</th>
+                  <th className="se-table__number">Holders</th>
+                  <th>When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.drops.map((drop) => (
+                  <tr key={drop.key}>
+                    <td className="se-td--title"><strong>{drop.month}</strong></td>
+                    <td data-label="Drop">{drop.name}</td>
+                    <td className="se-table__number" data-label="Holders">{formatNumber(drop.holders)}</td>
+                    <td data-label="When">
+                      {drop.when === 'current'
+                        ? <span className="se-tag se-tag--good">This month</span>
+                        : drop.when === 'past' ? <span className="se-muted">Past</span> : <span className="se-muted">Upcoming</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {data && !data.drops.some((drop) => drop.when === 'current') ? (
+          <Alert tone="warning">This month has no drop. Add one to SUPPORTER_MONTHLY_DROPS so supporters get something.</Alert>
+        ) : null}
+        {data && !data.drops.some((drop) => drop.when === 'upcoming') ? (
+          <p className="se-hint se-admin-pad">No drops are set after this month yet.</p>
+        ) : null}
+        <div className="se-admin-actions se-admin-pad">
+          <Button
+            type="button"
+            className="se-btn se-btn--ghost"
+            onClick={() => void releaseDrop()}
+            disabledReason={dropBusy ? working : data && !data.drops.some((drop) => drop.when === 'current') ? 'This month has no drop.' : null}
+          >
+            {dropBusy ? 'Working...' : "Give this month's drop now"}
+          </Button>
+        </div>
       </Panel>
 
       <Panel

@@ -1,5 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
-import { SUPPORTER_COSMETICS, SUPPORTER_SOURCE, SUPPORTER_SOURCE_VERSION } from '@streets/rulesets';
+import {
+  SUPPORTER_COSMETICS,
+  SUPPORTER_DROP_SOURCE,
+  SUPPORTER_SOURCE,
+  SUPPORTER_SOURCE_VERSION,
+  supporterDropFor,
+} from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 
 /**
@@ -38,6 +44,33 @@ export const SupporterService = {
       added.push(cosmetic.key);
     }
     return added;
+  },
+
+  /**
+   * Gives the account a month's drop if it does not have it yet. Returns the
+   * key it added, or null when the month has no drop or it is already held.
+   */
+  async grantDrop(db: Db, accountId: string, month: string, at = new Date()): Promise<string | null> {
+    const drop = supporterDropFor(month);
+    if (!drop) return null;
+    const held = await db.accountCosmeticUnlock.findFirst({ where: { accountId, key: drop.key }, select: { key: true } });
+    if (held) return null;
+    await db.accountCosmeticUnlock.create({
+      data: {
+        accountId,
+        key: drop.key,
+        kind: drop.kind,
+        title: drop.name,
+        description: drop.description,
+        rarity: drop.rarity,
+        styleKey: drop.styleKey ?? null,
+        sourceQuestKey: SUPPORTER_SOURCE,
+        sourceRulesetId: SUPPORTER_DROP_SOURCE,
+        sourceRulesetVersion: month,
+        awardedAt: at,
+      },
+    });
+    return drop.key;
   },
 
   /** When the account was first given supporter rewards, or null if it never was. */
