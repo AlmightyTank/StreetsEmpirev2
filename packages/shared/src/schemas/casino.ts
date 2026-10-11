@@ -16,6 +16,7 @@ export const sportsbookBetSchema = z.object({
   selection: z.enum(['HOME', 'AWAY']),
   stakeCents: casinoAmountCents,
   actionId: actionIdSchema,
+  expectedOdds: z.number().int().optional(),
 }).strict();
 
 export const casinoSessionStartSchema = z.object({

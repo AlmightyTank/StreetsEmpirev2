@@ -3771,6 +3771,13 @@ model SportsbookEvent {
   oddsUpdatedAt   DateTime?
   settledAt       DateTime?
   lastSeenAt      DateTime @default(now())
+  /// 1.8.0-C. Result checks are paced per event, so a long game does not spend a datapoint every poll.
+  resultCheckCount  Int       @default(0)
+  resultCheckedAt   DateTime?
+  nextResultCheckAt DateTime?
+  resultError       String    @default("")
+  /// 1.8.0-E. How the result was graded: FEED, ADMIN_RECHECK or ADMIN_VOID ('' until settled).
+  settledVia        String    @default("")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -3793,7 +3800,34 @@ model SportsbookProviderState {
   quotaObservedAt    DateTime?
   lastErrorAt        DateTime?
   lastError          String    @default("")
+  /// 1.8.0-C. lastPolledAt is the last successful odds snapshot; lastAttemptAt is the last try.
+  lastAttemptAt       DateTime?
+  lastResultCheckAt   DateTime?
+  consecutiveFailures Int       @default(0)
+  /// One poller at a time across server instances; cleared when a refresh finishes.
+  pollLeaseUntil      DateTime?
+  /// League key -> { lastAttemptAt, lastSuccessAt, lastError, lastErrorAt, eventsSeen }.
+  leagueStatus        Json      @default("{}")
   updatedAt          DateTime  @updatedAt
+}
+
+/// 1.8.0-E. One row per feed run that held the lease, kept 90 days, for reviewing provider usage.
+model SportsbookFeedRun {
+  id String @id @default(cuid())
+
+  startedAt       DateTime
+  oddsPolled      Boolean
+  requests        Int
+  datapoints      Int
+  snapshots       Int
+  failedSnapshots Int
+  pulled          Int
+  resultChecks    Int
+  settled         Int
+  failed          Boolean
+  error           String   @default("")
+
+  @@index([startedAt])
 }
 
 /// An immutable game-cash wager. Price/payout are pinned at acceptance, independent of

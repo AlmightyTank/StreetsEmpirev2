@@ -34,3 +34,4 @@ export * from './monitoring.js';
 export * from './support.js';
 export * from './two-factor.js';
 export * from './markdown.js';
+export * from './sportsbook.js';

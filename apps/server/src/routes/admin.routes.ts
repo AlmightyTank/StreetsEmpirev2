@@ -47,7 +47,9 @@ import { AdminSupplyService } from '../services/admin-supply.service.js';
 import { AdminSupplyCorrectionService } from '../services/admin-supply-correction.service.js';
 import { AdminLoansService } from '../services/admin-loans.service.js';
 import { AdminLoanCorrectionService } from '../services/admin-loan-correction.service.js';
+import { env } from '../config/env.js';
 import { AdminCasinoService } from '../services/admin-casino.service.js';
+import { AdminSportsbookService } from '../services/admin-sportsbook.service.js';
 import { AdminFactionService } from '../services/admin-faction.service.js';
 import { ADMIN_VEHICLE_MAX, AdminVehicleService } from '../services/admin-vehicle.service.js';
 import { AdminLawService } from '../services/admin-law.service.js';
@@ -148,6 +150,8 @@ const npcGangControlBody = z.discriminatedUnion('action', [
   z.object({ action: z.literal('RESET'), scope: z.enum(['MOMENTUM', 'GRUDGES', 'MIGRATION']), reason }).strict(),
 ]);
 const reasonBody = z.object({ reason }).strict();
+const sportsbookEventParams = z.object({ eventId: id }).strict();
+const sportsbookProviderCheckBody = z.object({ league: z.enum(['NFL', 'NBA', 'MLB', 'NHL']) }).strict();
 // 1.0.0-E: resuming extends the season by the pause unless told not to.
 const resumeRoundSchema = z.object({ extend: z.boolean().optional(), reason: reason.optional() }).strict();
 // 0.9.0-H moderation.
@@ -939,6 +943,30 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/rounds/:roundId/casino', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
     return AdminCasinoService.report(fastify.prisma, roundId);
+  });
+
+  /** 1.8.0-C: sportsbook feed health, quota and unresolved results. The feed is global, not per round. */
+  const sportsbookFeed = () => ({
+    configured: Boolean(env.THERUNDOWN_API_KEY), pollMinutes: env.SPORTSBOOK_POLL_MINUTES, apiKey: env.THERUNDOWN_API_KEY,
+  });
+  fastify.get('/sportsbook', async () => AdminSportsbookService.report(fastify.prisma, sportsbookFeed()));
+
+  fastify.post('/sportsbook/events/:eventId/recheck', async (request) => {
+    const { eventId } = parseBody(sportsbookEventParams, request.params);
+    parseBody(emptyBody, request.body ?? {});
+    return AdminSportsbookService.recheck(fastify.prisma, sportsbookFeed(), request.auth!.account, eventId);
+  });
+
+  /** 1.8.0-E release gate: parse one league's live snapshot without storing it. */
+  fastify.post('/sportsbook/provider-check', async (request) => {
+    const { league } = parseBody(sportsbookProviderCheckBody, request.body ?? {});
+    return AdminSportsbookService.providerCheck(fastify.prisma, sportsbookFeed(), request.auth!.account, league);
+  });
+
+  fastify.post('/sportsbook/events/:eventId/void', async (request) => {
+    const { eventId } = parseBody(sportsbookEventParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminSportsbookService.void(fastify.prisma, sportsbookFeed(), request.auth!.account, eventId, body.reason);
   });
 
   /** 1.3.0-G: law health for a round. Read-only; Cases are shown only to staff. */

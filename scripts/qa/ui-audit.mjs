@@ -50,7 +50,7 @@ const WIDTHS = [
 const PUBLIC_PAGES = ['/', '/login', '/register', '/forgot-password'];
 const PLAYER_PAGES = [
   '/game', '/game/scout', '/game/produce', '/game/combat', '/game/quests', '/game/hideout',
-  '/game/casino/slots', '/game/casino/blackjack', '/game/casino/roulette', '/game/casino/street-dice', '/game/casino/poker',
+  '/game/casino/slots', '/game/casino/blackjack', '/game/casino/roulette', '/game/casino/street-dice', '/game/casino/poker', '/game/casino/sportsbook',
   '/game/stores', '/game/stores/pip', '/game/stores/charlie', '/game/stores/iron-maya',
   '/game/travel', '/game/turf', '/game/crew', '/game/blocks', '/game/cities', '/game/rankings', '/game/players',
   '/game/alliance', '/game/alliances', '/game/contacts', '/game/console', '/game/profile',
