@@ -69,8 +69,7 @@ const honorificTitles: BadgeCosmeticOptionDto[] = [
 const honorificTitleKeys = honorificTitles.map((option) => option.key);
 
 export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
-  { key: 'default', label: 'StreetsEmpire', description: 'The classic neon-green profile accent.' },
-  { key: 'crimson', label: 'Crimson', description: 'A deep red profile accent.' },
+  { key: 'default', label: 'StreetsEmpire', description: 'The house crimson accent.' },
   { key: 'gold', label: 'Goldenrod', description: 'A bright goldenrod profile accent.' },
   { key: 'green', label: 'Emerald', description: 'A rich emerald-green profile accent.' },
   { key: 'blue', label: 'Cornflower', description: 'A soft cornflower-blue profile accent.' },

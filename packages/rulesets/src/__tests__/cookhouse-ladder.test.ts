@@ -5,6 +5,7 @@ import { classicOgV18H } from '../classic-og-v1.8-h/index.js';
 import { classicOgV18I } from '../classic-og-v1.8-i/index.js';
 import { classicOgV18J } from '../classic-og-v1.8-j/index.js';
 import { classicOgV18K } from '../classic-og-v1.8-k/index.js';
+import { classicOgV18L } from '../classic-og-v1.8-l/index.js';
 import { classicOgV18G } from '../classic-og-v1.8-g/index.js';
 import { rulesets } from '../index.js';
 import { questRequiredRecipes } from '../quest-definitions.js';
@@ -117,7 +118,7 @@ describe('1.8.0-F Pip\'s Cookhouse Ladder', () => {
 
   it('leaves every earlier ruleset ungated', () => {
     for (const ruleset of Object.values(rulesets) as Ruleset[]) {
-      if (ruleset === classicOgV18F || ruleset === classicOgV18G || ruleset === classicOgV18H || ruleset === classicOgV18I || ruleset === classicOgV18J || ruleset === classicOgV18K) continue;
+      if (ruleset === classicOgV18F || ruleset === classicOgV18G || ruleset === classicOgV18H || ruleset === classicOgV18I || ruleset === classicOgV18J || ruleset === classicOgV18K || ruleset === classicOgV18L) continue;
       expect(recipeGates(ruleset).size, ruleset.meta.id).toBe(0);
     }
     expect(oldQuests.PIP_BULK_ORDER!.objectives[0]!.params).toMatchObject({ where: { productType: 'METH' } });

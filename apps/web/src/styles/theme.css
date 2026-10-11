@@ -467,11 +467,12 @@ body {
   --se-accent-hover: #ff7784;
   --se-accent-rgb: 239, 70, 87;
 }
+/* Retired in 1.8.0-L: the house accent is crimson now, so a saved "crimson" renders as the default. */
 .se-site-accent--crimson {
-  --se-accent: #e92048;
-  --se-accent-dim: #aa1735;
-  --se-accent-hover: #f0637f;
-  --se-accent-rgb: 233, 32, 72;
+  --se-accent: #ef4657;
+  --se-accent-dim: #b72e3d;
+  --se-accent-hover: #ff7784;
+  --se-accent-rgb: 239, 70, 87;
 }
 .se-site-accent--gold {
   --se-accent: #f1b622;
@@ -569,6 +570,43 @@ body {
   --se-accent-dim: #5b63c4;
   --se-accent-hover: #a5adfb;
   --se-accent-rgb: 129, 140, 248;
+}
+/* 1.8.0-L quest accents. */
+.se-site-accent--original-neon {
+  --se-accent: #b6ff3a;
+  --se-accent-dim: #7fb028;
+  --se-accent-hover: #c9ff63;
+  --se-accent-rgb: 182, 255, 58;
+}
+.se-site-accent--neon-sign-pink {
+  --se-accent: #ff2ec4;
+  --se-accent-dim: #b8208d;
+  --se-accent-hover: #ff70d8;
+  --se-accent-rgb: 255, 46, 196;
+}
+.se-site-accent--gavel-bronze {
+  --se-accent: #cf9a5c;
+  --se-accent-dim: #94693b;
+  --se-accent-hover: #e0b886;
+  --se-accent-rgb: 207, 154, 92;
+}
+.se-site-accent--clean-books-ivory {
+  --se-accent: #efe6d2;
+  --se-accent-dim: #b3a98f;
+  --se-accent-hover: #faf5ea;
+  --se-accent-rgb: 239, 230, 210;
+}
+.se-site-accent--sunset-coral {
+  --se-accent: #ff8a70;
+  --se-accent-dim: #c2634f;
+  --se-accent-hover: #ffad9b;
+  --se-accent-rgb: 255, 138, 112;
+}
+.se-site-accent--night-map-plum {
+  --se-accent: #b45cff;
+  --se-accent-dim: #8240bd;
+  --se-accent-hover: #cb8dff;
+  --se-accent-rgb: 180, 92, 255;
 }
 
 /*
@@ -2500,7 +2538,7 @@ a:hover { color: var(--se-accent-hover); }
 }
 
 .se-profile-accent--default { --se-profile-accent: #ef4657; }
-.se-profile-accent--crimson { --se-profile-accent: #e92048; }
+.se-profile-accent--crimson { --se-profile-accent: #ef4657; }
 .se-profile-accent--gold { --se-profile-accent: #f1b622; }
 .se-profile-accent--green { --se-profile-accent: #4ade80; }
 .se-profile-accent--blue { --se-profile-accent: #6899f3; }
@@ -2517,6 +2555,12 @@ a:hover { color: var(--se-accent-hover); }
 .se-profile-accent--saints-chrome { --se-profile-accent: #cbd5e1; }
 .se-profile-accent--cartel-jade { --se-profile-accent: #10b981; }
 .se-profile-accent--civic-seal { --se-profile-accent: #818cf8; }
+.se-profile-accent--original-neon { --se-profile-accent: #b6ff3a; }
+.se-profile-accent--neon-sign-pink { --se-profile-accent: #ff2ec4; }
+.se-profile-accent--gavel-bronze { --se-profile-accent: #cf9a5c; }
+.se-profile-accent--clean-books-ivory { --se-profile-accent: #efe6d2; }
+.se-profile-accent--sunset-coral { --se-profile-accent: #ff8a70; }
+.se-profile-accent--night-map-plum { --se-profile-accent: #b45cff; }
 
 .se-profile-frame {
   position: relative;
@@ -3613,7 +3657,7 @@ a:hover { color: var(--se-accent-hover); }
 }
 
 .se-swatch--default { --se-swatch: #ef4657; }
-.se-swatch--crimson { --se-swatch: #e92048; }
+.se-swatch--crimson { --se-swatch: #ef4657; }
 .se-swatch--gold { --se-swatch: #f1b622; }
 .se-swatch--green { --se-swatch: #4ade80; }
 .se-swatch--blue { --se-swatch: #6899f3; }
@@ -3630,6 +3674,12 @@ a:hover { color: var(--se-accent-hover); }
 .se-swatch--saints-chrome { --se-swatch: #cbd5e1; }
 .se-swatch--cartel-jade { --se-swatch: #10b981; }
 .se-swatch--civic-seal { --se-swatch: #818cf8; }
+.se-swatch--original-neon { --se-swatch: #b6ff3a; }
+.se-swatch--neon-sign-pink { --se-swatch: #ff2ec4; }
+.se-swatch--gavel-bronze { --se-swatch: #cf9a5c; }
+.se-swatch--clean-books-ivory { --se-swatch: #efe6d2; }
+.se-swatch--sunset-coral { --se-swatch: #ff8a70; }
+.se-swatch--night-map-plum { --se-swatch: #b45cff; }
 .se-swatch--on {
   border-color: var(--se-swatch);
   color: var(--se-text);

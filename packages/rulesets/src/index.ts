@@ -129,6 +129,7 @@ import { classicOgV18H } from './classic-og-v1.8-h/index.js';
 import { classicOgV18I } from './classic-og-v1.8-i/index.js';
 import { classicOgV18J } from './classic-og-v1.8-j/index.js';
 import { classicOgV18K } from './classic-og-v1.8-k/index.js';
+import { classicOgV18L } from './classic-og-v1.8-l/index.js';
 import type { Ruleset } from './types.js';
 
 export { classicOgV01 };
@@ -262,6 +263,7 @@ export { classicOgV18H };
 export { classicOgV18I };
 export { classicOgV18J };
 export { classicOgV18K };
+export { classicOgV18L };
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './event-system.js';
@@ -407,6 +409,7 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV18I.meta.id]: classicOgV18I,
   [classicOgV18J.meta.id]: classicOgV18J,
   [classicOgV18K.meta.id]: classicOgV18K,
+  [classicOgV18L.meta.id]: classicOgV18L,
 };
 
 export const DEFAULT_RULESET_ID = classicOgV01.meta.id;

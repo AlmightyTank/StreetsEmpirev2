@@ -193,7 +193,13 @@ export type ProfileAccent =
   | 'outfit-oxblood'
   | 'saints-chrome'
   | 'cartel-jade'
-  | 'civic-seal';
+  | 'civic-seal'
+  | 'original-neon'
+  | 'neon-sign-pink'
+  | 'gavel-bronze'
+  | 'clean-books-ivory'
+  | 'sunset-coral'
+  | 'night-map-plum';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';

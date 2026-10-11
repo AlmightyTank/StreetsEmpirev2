@@ -95,6 +95,13 @@ export const profileAccentSchema = z.enum([
   'saints-chrome',
   'cartel-jade',
   'civic-seal',
+  // 1.8.0-L quest accents, earned from contact finales and season contracts.
+  'original-neon',
+  'neon-sign-pink',
+  'gavel-bronze',
+  'clean-books-ivory',
+  'sunset-coral',
+  'night-map-plum',
 ]);
 export const CREW_NAME_MIN = 3;
 export const CREW_NAME_MAX = 32;

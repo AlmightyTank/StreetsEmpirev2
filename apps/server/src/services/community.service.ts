@@ -586,6 +586,12 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'saints-chrome',
     'cartel-jade',
     'civic-seal',
+    'original-neon',
+    'neon-sign-pink',
+    'gavel-bronze',
+    'clean-books-ivory',
+    'sunset-coral',
+    'night-map-plum',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';

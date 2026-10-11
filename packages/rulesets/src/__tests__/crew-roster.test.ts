@@ -12,6 +12,7 @@ import { classicOgV18H } from '../classic-og-v1.8-h/index.js';
 import { classicOgV18I } from '../classic-og-v1.8-i/index.js';
 import { classicOgV18J } from '../classic-og-v1.8-j/index.js';
 import { classicOgV18K } from '../classic-og-v1.8-k/index.js';
+import { classicOgV18L } from '../classic-og-v1.8-l/index.js';
 import { hideoutV2For } from '../hideout-v2.js';
 import { rulesets } from '../index.js';
 import type { Ruleset } from '../types.js';
@@ -21,7 +22,7 @@ describe('1.7.0 crew profile rulesets', () => {
     expect(classicOgV17A.meta).toEqual({ id: 'classic-og-v1.7-a', version: '1.7.0-A', name: 'Classic OG - Individual Roster' });
     expect(rulesets[classicOgV17A.meta.id]).toBe(classicOgV17A);
     // 1.8.0-E builds on 1.7.0-E; later rulesets retain the crew roster.
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18K);
+    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18L);
     expect(classicOgV18E.crewRoster).toBe(classicOgV17E.crewRoster);
     const earlier = Object.values(rulesets).filter((ruleset) => !/^classic-og-v1\.[78]-/.test(ruleset.meta.id)) as Ruleset[];
     expect(earlier.length).toBeGreaterThan(100);
@@ -97,5 +98,10 @@ describe('1.7.0 crew profile rulesets', () => {
     const { meta: _baseMeta, ...base } = classicOgV18J;
     expect(next).toEqual(base);
     expect(hideoutV2For(classicOgV18K)).toBe(hideoutV2For(classicOgV18J));
+  });
+
+  it('carries crew and hideout configuration into the 1.8.0-L quest accent ruleset', () => {
+    expect(classicOgV18L.crewRoster).toBe(classicOgV18K.crewRoster);
+    expect(hideoutV2For(classicOgV18L)).toBe(hideoutV2For(classicOgV18K));
   });
 });
