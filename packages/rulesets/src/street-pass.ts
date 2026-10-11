@@ -245,6 +245,30 @@ export const SITE_THEME_COMPANION_FRAMES = {
   'dragon-fire': 'street-pass-s1-inferno-frame',
 } as const satisfies Record<string, keyof typeof STREET_PASS_S1_COSMETICS>;
 
+/** Each companion frame's popup animation (the profile effect key it unlocks). */
+export const SITE_THEME_COMPANION_EFFECTS = {
+  'motor-city-iron': 'chrome-serpent',
+  'open-road': 'phantom-convoy',
+  'neon-vice': 'lantern-district',
+  'blue-heat': 'siren-breaker',
+  'rain-city-wire': 'block-sovereign',
+  'casino-floor': 'gilded-house',
+  'federal-case': 'dead-or-alive',
+  'midnight-market': 'laurel-ascendant',
+  'dragon-ice': 'snowstorm',
+  'dragon-fire': 'inferno',
+} as const satisfies Record<keyof typeof SITE_THEME_COMPANION_FRAMES, string>;
+
+/**
+ * The matched look for a site theme: the frame option key (its style key) and
+ * the popup animation. Settings pre-select these when the theme is picked.
+ */
+export function siteThemeCompanionLook(themeStyleKey: string): { frameKey: string; effect: string } | undefined {
+  const frame = siteThemeCompanionFrame(themeStyleKey);
+  const effect = (SITE_THEME_COMPANION_EFFECTS as Record<string, string>)[themeStyleKey];
+  return frame && effect ? { frameKey: frame.styleKey ?? frame.key, effect } : undefined;
+}
+
 /** The frame that comes with a site theme, by the theme's style key. */
 export function siteThemeCompanionFrame(themeStyleKey: string): QuestCosmeticDefinition | undefined {
   const frameKey = (SITE_THEME_COMPANION_FRAMES as Record<string, keyof typeof STREET_PASS_S1_COSMETICS>)[themeStyleKey];

@@ -10,6 +10,7 @@ import type {
   UiDensity,
 } from '@streets/shared';
 import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts } from '@streets/shared';
+import { siteThemeCompanionLook } from '@streets/rulesets';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -748,10 +749,19 @@ export function AccountSettingsPage() {
                     id="site-theme"
                     className="se-input"
                     value={cosmetics.activeSiteThemeKey ?? ''}
-                    onChange={(event) => setCosmetics((current) => ({
-                      ...current,
-                      activeSiteThemeKey: event.target.value || null,
-                    }))}
+                    onChange={(event) => {
+                      const themeKey = event.target.value || null;
+                      // Put on the theme's matching frame and popup animation; either can be changed after to mix.
+                      const look = themeKey ? siteThemeCompanionLook(themeKey) : undefined;
+                      const frameKey = look && profileSettings.options.frames.some((option) => option.key === look.frameKey) ? look.frameKey : null;
+                      const effect = look && profileSettings.options.effects.some((option) => option.key === look.effect) ? look.effect as ProfileEffect : null;
+                      setCosmetics((current) => ({
+                        ...current,
+                        activeSiteThemeKey: themeKey,
+                        ...(frameKey ? { activeProfileFrameKey: frameKey, activeAvatarFrameKey: frameKey } : {}),
+                        ...(effect ? { profileEffect: effect } : {}),
+                      }));
+                    }}
                   >
                     <option value="">No site theme</option>
                     {profileSettings.options.themes.map((option) => (
@@ -760,7 +770,7 @@ export function AccountSettingsPage() {
                   </select>
                   {fields.activeSiteThemeKey
                     ? <p className="se-error" role="alert">{fields.activeSiteThemeKey}</p>
-                    : <p className="se-hint">{profileSettings.options.themes.length ? 'Choose the whole game-shell look. Unlocking a theme also unlocks its matching frame and popup animation, which you can wear separately.' : 'Seasonal and event themes will appear here after you unlock them, with their matching frame and popup animation.'}</p>}
+                    : <p className="se-hint">{profileSettings.options.themes.length ? 'Choose the whole game-shell look. Picking a theme also puts on its matching frame and popup animation; change either afterwards to mix.' : 'Seasonal and event themes will appear here after you unlock them, with their matching frame and popup animation.'}</p>}
                 </div>
               </div>
 

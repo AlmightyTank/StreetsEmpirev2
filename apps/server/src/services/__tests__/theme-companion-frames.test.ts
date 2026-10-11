@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rulesets, SITE_THEME_COMPANION_FRAMES, STREET_PASS_S1_COSMETICS } from '@streets/rulesets';
+import { rulesets, SITE_THEME_COMPANION_FRAMES, STREET_PASS_S1_COSMETICS, siteThemeCompanionLook } from '@streets/rulesets';
 import { withThemeCompanionFrames } from '../quest-cosmetic.service.js';
 import { PROFILE_EFFECTS } from '../account-profile.service.js';
 
@@ -30,6 +30,16 @@ describe('site theme companion frames', () => {
       .map((cosmetic) => cosmetic.key);
     expect(new Set(Object.values(SITE_THEME_COMPANION_FRAMES))).toEqual(new Set(animatedFrames));
     expect(PROFILE_EFFECTS.length - 1).toBe(animatedFrames.length);
+  });
+
+  it('names a real popup animation and frame option for each theme\'s matched look', () => {
+    const effects = new Set(PROFILE_EFFECTS.map((effect) => effect.key));
+    for (const [themeStyle, frameKey] of Object.entries(SITE_THEME_COMPANION_FRAMES)) {
+      const look = siteThemeCompanionLook(themeStyle)!;
+      expect(effects.has(look.effect), themeStyle).toBe(true);
+      expect(look.frameKey).toBe(STREET_PASS_S1_COSMETICS[frameKey].styleKey);
+    }
+    expect(siteThemeCompanionLook('back-office')).toBeUndefined();
   });
 
   it('adds the frame for each owned theme once, and nothing for themes without one', () => {
