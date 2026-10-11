@@ -12,6 +12,7 @@ import type {
   InAppNotificationDto,
   InAppNotificationFeedDto,
   PimpConsoleThreadsDto,
+  PlayerDirectoryEntryDto,
 } from '@streets/shared';
 import {
   MESSAGE_BODY_MAX,
@@ -32,6 +33,7 @@ import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 import { confirmAction } from '../stores/confirm.js';
 import { formatWhen } from '../utils/time.js';
+import { playersApi } from '../api/playing-together.js';
 
 type ConsoleView = 'threads' | 'alliance' | 'attacks' | 'notifications' | 'activity' | 'archived' | 'blocked';
 type ConsoleMode = 'detail' | 'compose';
@@ -90,6 +92,10 @@ export function ConsolePage() {
   const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(null);
   const [mode, setMode] = useState<ConsoleMode>('detail');
   const [recipient, setRecipient] = useState('');
+  const [recipientQuery, setRecipientQuery] = useState('');
+  const [recipientMatches, setRecipientMatches] = useState<PlayerDirectoryEntryDto[]>([]);
+  const [recipientPlayer, setRecipientPlayer] = useState<PlayerDirectoryEntryDto | null>(null);
+  const [recipientSearching, setRecipientSearching] = useState(false);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [reporting, setReporting] = useState(false);
@@ -121,8 +127,42 @@ export function ConsolePage() {
     const to = searchParams.get('to');
     if (!to || !/^\d+$/.test(to)) return;
     setRecipient(to);
+    setRecipientPlayer(null);
+    setRecipientQuery(`#${to}`);
     setMode('compose');
   }, [searchParams]);
+
+  useEffect(() => {
+    let live = true;
+    const query = recipientQuery.trim();
+    if (mode !== 'compose' || !query || query.length < 2 || recipientPlayer) {
+      setRecipientMatches([]);
+      setRecipientSearching(false);
+      return () => { live = false; };
+    }
+    setRecipientSearching(true);
+    const timer = window.setTimeout(() => {
+      void playersApi.list('all', query, 1).then((result) => {
+        if (!live) return;
+        const normalized = query.replace(/^#/, '');
+        const exactId = /^\d+$/.test(normalized) ? Number(normalized) : null;
+        const exact = exactId === null ? null : result.players.find((player) => player.publicPimpId === exactId) ?? null;
+        if (exact) {
+          setRecipient(String(exact.publicPimpId));
+          setRecipientPlayer(exact);
+          setRecipientQuery(`${exact.displayName} · #${exact.publicPimpId}`);
+          setRecipientMatches([]);
+        } else {
+          setRecipientMatches(result.players);
+        }
+      }).catch(() => {
+        if (live) setRecipientMatches([]);
+      }).finally(() => {
+        if (live) setRecipientSearching(false);
+      });
+    }, 220);
+    return () => { live = false; window.clearTimeout(timer); };
+  }, [mode, recipientQuery, recipientPlayer]);
 
   useEffect(() => {
     let live = true;
@@ -265,6 +305,26 @@ export function ConsolePage() {
     actionId.current = newActionId();
   }
 
+  function selectRecipient(player: PlayerDirectoryEntryDto) {
+    setRecipient(String(player.publicPimpId));
+    setRecipientPlayer(player);
+    setRecipientQuery(`${player.displayName} · #${player.publicPimpId}`);
+    setRecipientMatches([]);
+    actionId.current = newActionId();
+  }
+
+  function navigateView(nextView: ConsoleView) {
+    const next = new URLSearchParams(searchParams);
+    next.delete('to');
+    if (nextView === 'threads') next.delete('view');
+    else next.set('view', nextView);
+    setSearchParams(next, { replace: true });
+    setView(nextView);
+    setPage(1);
+    setMode('detail');
+    setSelectedEventId(null);
+  }
+
   async function refreshCurrent() {
     if (view === 'blocked') {
       const [nextBlocks, nextCounts] = await Promise.all([consoleApi.blocks(), consoleApi.summary()]);
@@ -330,6 +390,9 @@ export function ConsolePage() {
       });
       setNotice(result.replayed ? 'That message was already delivered.' : 'Message sent.');
       setRecipient('');
+      setRecipientQuery('');
+      setRecipientPlayer(null);
+      setRecipientMatches([]);
       setSubject('');
       setBody('');
       actionId.current = newActionId();
@@ -574,15 +637,19 @@ export function ConsolePage() {
     }
   }
 
-  function countFor(key: ConsoleView): number {
-    if (!counts) return key === 'blocked' ? (blocks?.blocked.length ?? 0) + (blocks?.muted.length ?? 0) : 0;
-    if (key === 'threads') return data?.folder === 'active' ? data.total : counts.inbox + counts.sent;
-    if (key === 'archived') return data?.folder === 'archived' ? data.total : counts.archived;
-    if (key === 'alliance') return 0;
-    if (key === 'attacks') return counts.attacks;
-    if (key === 'notifications') return counts.notifications;
-    if (key === 'activity') return counts.activity;
-    return counts.blocked + (counts.muted ?? 0);
+  const activeLane = view === 'activity' || view === 'attacks' || view === 'notifications'
+    ? 'dispatch'
+    : view === 'alliance' ? 'alliance' : view === 'blocked' ? 'more' : 'messages';
+
+  function startCompose() {
+    navigateView('threads');
+    setRecipient('');
+    setRecipientQuery('');
+    setRecipientPlayer(null);
+    setRecipientMatches([]);
+    setSubject('');
+    setBody('');
+    setMode('compose');
   }
 
   function selectActivityFilter(next: ConsoleActivityFilter) {
@@ -615,9 +682,9 @@ export function ConsolePage() {
       <div className="se-console">
         <header className="se-console-hero">
           <div>
-            <span className="se-eyebrow">0.9.0 · Pimp Console</span>
-            <h1>Console</h1>
-            <p>Street mail and important operation history, collected in one place without replacing the reports that already own the facts.</p>
+            <span className="se-eyebrow">Street Wire · Messages &amp; dispatches</span>
+            <h1>Street Wire</h1>
+            <p>Keep up with the players you know, the messages they send, and what’s happening across your operation.</p>
           </div>
           <div className="se-console-hero__stats">
             <span><small>Unread</small><strong>{counts?.unread ?? 0}</strong></span>
@@ -634,48 +701,45 @@ export function ConsolePage() {
         <PendingEncountersPanel encounters={pendingEncounters} />
 
         <section className="se-console-bar">
-          <div className="se-console-tabs" role="tablist" aria-label="Console folders">
-            {VIEWS.map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={view === key}
-                className={`se-console-tab${view === key ? ' se-console-tab--active' : ''}`}
-                onClick={() => {
-                  const next = new URLSearchParams(searchParams);
-                  next.delete('to');
-                  if (key === 'threads') next.delete('view');
-                  else next.set('view', key);
-                  setSearchParams(next, { replace: true });
-                  setView(key);
-                  setPage(1);
-                  setMode('detail');
-                  setSelectedEventId(null);
-                }}
-              >
-                <span>{label}</span>
-                <strong>{countFor(key)}</strong>
-                {key === 'threads' && (counts?.unread ?? 0) > 0
-                  ? <em>{counts!.unread} unread</em>
-                  : null}
-                {key === 'notifications' && (counts?.notifications ?? notifications?.unreadCount ?? 0) > 0
-                  ? <em>{counts?.notifications ?? notifications!.unreadCount} unread</em>
-                  : null}
-              </button>
-            ))}
+          <nav className="se-console-tabs" aria-label="Street Wire sections">
+            <button type="button" aria-pressed={activeLane === 'messages'} className={`se-console-tab${activeLane === 'messages' ? ' se-console-tab--active' : ''}`} onClick={() => navigateView('threads')}>
+              <span>Messages</span><strong>{data?.total ?? 0}</strong>
+              {(counts?.unread ?? 0) > 0 ? <em>{counts!.unread} unread</em> : null}
+            </button>
+            <button type="button" aria-pressed={activeLane === 'dispatch'} className={`se-console-tab${activeLane === 'dispatch' ? ' se-console-tab--active' : ''}`} onClick={() => navigateView('activity')}>
+              <span>Dispatches</span>
+            </button>
+            <button type="button" aria-pressed={activeLane === 'alliance'} className={`se-console-tab${activeLane === 'alliance' ? ' se-console-tab--active' : ''}`} onClick={() => navigateView('alliance')}>
+              <span>Alliance Wire</span>
+            </button>
+            <Link className="se-console-tab se-console-tab--link" to="/game/players"><span>Find Players</span><span aria-hidden="true">↗</span></Link>
+            <details className="se-console-more">
+              <summary className={view === 'blocked' ? 'se-console-tab se-console-tab--active' : 'se-console-tab'} aria-label={view === 'blocked' ? 'More sections, safety selected' : 'More sections'}>More</summary>
+              <div className="se-console-more__menu">
+                <button type="button" className={view === 'archived' ? 'is-active' : ''} onClick={() => navigateView('archived')}>Archived messages <strong>{counts?.archived ?? 0}</strong></button>
+                <button type="button" className={view === 'blocked' ? 'is-active' : ''} onClick={() => navigateView('blocked')}>Muted &amp; blocked <strong>{(counts?.blocked ?? 0) + (counts?.muted ?? 0)}</strong></button>
+              </div>
+            </details>
+          </nav>
+          <div className="se-console-toolbar">
+            {activeLane === 'dispatch' ? (
+              <div className="se-console-subtabs" role="tablist" aria-label="Dispatch type">
+                {[
+                  { key: 'notifications' as const, label: 'Alerts', count: counts?.notifications ?? 0 },
+                  { key: 'activity' as const, label: 'Operations', count: counts?.activity ?? 0 },
+                  { key: 'attacks' as const, label: 'Attacks', count: counts?.attacks ?? 0 },
+                ].map((item) => (
+                  <button key={item.key} type="button" role="tab" aria-selected={view === item.key} onClick={() => navigateView(item.key)}>{item.label}<strong>{item.count}</strong></button>
+                ))}
+              </div>
+            ) : activeLane === 'messages' ? (
+              <div className="se-console-subtabs" role="tablist" aria-label="Message folder">
+                <button type="button" role="tab" aria-selected={view === 'threads'} onClick={() => navigateView('threads')}>Inbox</button>
+                <button type="button" role="tab" aria-selected={view === 'archived'} onClick={() => navigateView('archived')}>Archive <strong>{counts?.archived ?? 0}</strong></button>
+              </div>
+            ) : null}
+            <button type="button" className="se-btn se-btn--primary" onClick={startCompose}>New message</button>
           </div>
-          <button
-            type="button"
-            className="se-btn se-btn--primary"
-            onClick={() => {
-              setView('threads');
-              setPage(1);
-              setMode('compose');
-            }}
-          >
-            Compose
-          </button>
           {data?.restriction ? (
             <p className="se-alert se-console-restriction" role="status">
               {data.restriction.permanent
@@ -991,15 +1055,42 @@ export function ConsolePage() {
               {mode === 'compose' ? (
                 <Panel title="Compose" aside="Private message" className="se-console-panel">
                   <form className="se-console-compose" onSubmit={(event) => void send(event)}>
-                    <label>
-                      <span>Recipient pimp #</span>
+                    <label className="se-console-recipient">
+                      <span>Find a player</span>
                       <input
                         className="se-input"
-                        inputMode="numeric"
-                        value={recipient}
-                        placeholder="1042"
-                        onChange={(event) => changeComposeField(setRecipient, event.target.value)}
+                        type="search"
+                        autoComplete="off"
+                        value={recipientQuery}
+                        placeholder="Search by name or #PimpID"
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setRecipientQuery(value);
+                          setRecipient('');
+                          setRecipientPlayer(null);
+                          setRecipientMatches([]);
+                          actionId.current = newActionId();
+                        }}
                       />
+                      {recipientSearching ? <small className="se-muted">Searching players…</small> : null}
+                      {recipientMatches.length > 0 ? (
+                        <div className="se-console-recipient__results" role="listbox" aria-label="Player matches">
+                          {recipientMatches.map((player) => (
+                            <button key={player.publicPimpId} type="button" role="option" aria-selected={false} onClick={() => selectRecipient(player)}>
+                              <span className="se-console-recipient__name">{player.displayName}<small>#{player.publicPimpId}</small></span>
+                              <span className="se-console-recipient__meta">{player.crewName ? `${player.crewName} · ` : ''}{player.alliance?.tag ?? player.city.name} · Rank #{player.nationalRank}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : recipientQuery.trim().length >= 2 && !recipientSearching && !recipientPlayer ? (
+                        <small className="se-muted">No player selected. Choose a match to continue.</small>
+                      ) : null}
+                      {recipientPlayer ? (
+                        <div className="se-console-recipient__selected">
+                          <span>To <strong>{recipientPlayer.displayName}</strong> <small>#{recipientPlayer.publicPimpId}</small></span>
+                          <Link to={`/game/players/${recipientPlayer.publicPimpId}`}>View profile</Link>
+                        </div>
+                      ) : null}
                     </label>
                     <label>
                       <span>Subject</span>
@@ -1025,7 +1116,7 @@ export function ConsolePage() {
                       <button
                         type="submit"
                         className="se-btn se-btn--primary"
-                        disabled={busy || !recipient.trim() || !subject.trim() || !body.trim()}
+                        disabled={busy || !recipient.trim() || !recipientPlayer || !subject.trim() || !body.trim()}
                       >
                         {busy ? 'Sending...' : 'Send message'}
                       </button>
@@ -1042,6 +1133,13 @@ export function ConsolePage() {
                   aside={`${conversation.messageCount} message${conversation.messageCount === 1 ? '' : 's'}`}
                   className="se-console-panel"
                 >
+                  <div className="se-console-person-card">
+                    <div>
+                      <strong>{conversation.counterpart.displayName}</strong>
+                      <span className="se-num">Pimp #{conversation.counterpart.publicPimpId}</span>
+                    </div>
+                    <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/players/${conversation.counterpart.publicPimpId}`}>View profile</Link>
+                  </div>
                   <div className="se-console-thread">
                     {conversation.messages.map((message) => (
                       <button
@@ -1174,7 +1272,7 @@ export function ConsolePage() {
                   </form>
                 </Panel>
               ) : (
-                <Panel title="Message threads" className="se-console-panel">
+                <Panel title={view === 'archived' ? 'Archived messages' : 'Messages'} className="se-console-panel">
                   <div className="se-console-placeholder">
                     <strong>Select a thread or start a new one.</strong>
                     <p>Messages are grouped by player, so the whole back-and-forth stays together.</p>
