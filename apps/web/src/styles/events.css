@@ -43,6 +43,13 @@
 .se-event-history li { display: flex; justify-content: space-between; gap: 12px; color: var(--se-text-dim); font-size: 12px; }
 .se-event-history time { text-align: right; }
 .se-event-card__actions { margin-top: 16px; }
+.se-city-conditions { display: grid; gap: 10px; }
+.se-city-conditions > header h2 { margin: 0 0 4px; font-size: 18px; }
+.se-city-conditions > header p { margin: 0; color: var(--se-text-dim); font-size: 13px; }
+.se-city-condition { border-left: 3px solid #f1b622; }
+.se-event-condition-effects { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.se-event-condition-effects strong { flex-basis: 100%; color: var(--se-muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.se-event-condition-effects span { padding: 4px 8px; border: 1px solid var(--se-line); color: #f1b622; font-family: var(--se-mono); font-size: 11px; }
 
 @media (max-width: 760px) {
   .se-events-hero { grid-template-columns: 1fr; }

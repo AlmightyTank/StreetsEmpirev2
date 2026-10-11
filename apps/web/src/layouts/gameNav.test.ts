@@ -56,6 +56,7 @@ describe('new player navigation model', () => {
       'travel',
       'turf',
       'casino',
+      'events',
       'street-pass',
     ]);
   });

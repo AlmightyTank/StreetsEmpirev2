@@ -88,6 +88,7 @@ import {
   syncSeasonalEventAttempts,
   usesFirstClassSeasonalEvents,
 } from './seasonal-event.service.js';
+import { CityConditionService } from './city-condition.service.js';
 
 const TRACKED_LIMIT = 3;
 /** Shared-board work: not counted as a personal job and not abandonable. Personal jobs have no cap. */
@@ -889,6 +890,7 @@ export const HandcraftedQuestService = {
         where: { id: roundPlayerId },
         select: { account: { select: { profile: { select: { autoAcceptBoardWork: true } } } } },
       });
+      const cityConditions = await CityConditionService.page(tx, roundPlayerId, ruleset, now);
       return {
         // Sample immediately before the response object is built so browser clock
         // skew cannot decide when an active favor expires.
@@ -913,6 +915,7 @@ export const HandcraftedQuestService = {
           slots: seasonEnabled ? SEASON_CONTRACT_SLOTS : 0,
           resetAt: seasonEndsAt?.toISOString() ?? null,
         },
+        cityConditions,
         trackedLimit: TRACKED_LIMIT,
         autoAccept: owner?.account.profile?.autoAcceptBoardWork ?? true,
         counts: {
@@ -1060,7 +1063,7 @@ export const HandcraftedQuestService = {
       action: 'QUEST_CLAIM',
       actionId: input.actionId,
       idempotencyScope: `QUEST_CLAIM:${key}`,
-      execute: async ({ tx, current, now, player }) => {
+      execute: async ({ tx, current, now, player, round }) => {
         const communityEvent = isCommunityEventDefinition(ruleset.questDefinitions?.[key]);
         const seasonalEvent = usesFirstClassSeasonalEvents(ruleset) && isSeasonalEventDefinition(ruleset.questDefinitions?.[key]);
         if (communityEvent) {
@@ -1159,6 +1162,21 @@ export const HandcraftedQuestService = {
           await recordCommunityEventClaim(tx, row, questRewards, now);
         }
         if (seasonalEvent) await recordSeasonalEventClaim(tx, roundPlayerId, ruleset, key, now);
+        if (communityEvent || seasonalEvent) {
+          const parentKey = communityEvent
+            ? key
+            : ruleset.questDefinitions?.[key]?.availability.seasonalEvent?.eventKey;
+          if (parentKey) {
+            await CityConditionService.activateFollowUpsForEvent(tx, {
+              round,
+              cityId: player.cityId,
+              ruleset,
+              parentType: communityEvent ? 'COMMUNITY' : 'SEASONAL',
+              parentKey,
+              now,
+            });
+          }
+        }
         const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now);
         const dtoRewards = visibleRewards(questRewards).map((reward) => rewardDto(reward, ruleset));
 

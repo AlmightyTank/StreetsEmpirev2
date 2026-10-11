@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatCents, formatNumber, type PlayerQuestDto, type QuestPageDto } from '@streets/shared';
+import { formatCents, formatNumber, type CityConditionDto, type PlayerQuestDto, type QuestPageDto } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { questsApi } from '../api/quests.js';
 import { Alert } from '../components/Alert.js';
@@ -45,6 +45,28 @@ function progressText(current: number, target: number, format?: 'NUMBER' | 'CURR
   return format === 'CURRENCY'
     ? `${formatCents(current)} / ${formatCents(target)}`
     : `${formatNumber(current)} / ${formatNumber(target)}`;
+}
+
+function CityConditionCard({ condition }: { condition: CityConditionDto }) {
+  const effects = Object.entries(condition.effects)
+    .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] > 0)
+    .map(([key, value]) => `${key === 'cashGainPercent' ? 'Sale income' : key === 'recruitPercent' ? 'Recruiting' : 'Product output'} +${value}%`);
+  const districtNames = condition.districts.map((district) => district.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase()));
+  const actionNames = condition.actions.map((action) => action === 'PRODUCE_CRACK' ? 'Production' : action === 'STORE_SELL' ? 'Store sales' : titleCase(action.toLowerCase()));
+  const source = condition.followUpFrom
+    ? `${condition.followUpFrom.type === 'COMMUNITY' ? 'Community' : 'Seasonal'} event · ${condition.followUpFrom.key.replaceAll('_', ' ').toLowerCase()}`
+    : null;
+
+  return <Panel className="se-city-condition" title={condition.title} aside={condition.status === 'ACTIVE' ? 'Active city condition' : 'Scheduled city condition'}>
+    <p className="se-event-card__description">{condition.description}</p>
+    <div className="se-event-card__schedule">
+      <span><small>Affected districts</small>{districtNames.join(', ')}</span>
+      <span><small>Affected actions</small>{actionNames.join(', ')}</span>
+      <span><small>Ends</small>{formatDate(condition.endsAt)}</span>
+      {source ? <span><small>Event chain</small>Follow-up from {source}</span> : null}
+    </div>
+    {effects.length ? <div className="se-event-condition-effects"><strong>Modifiers</strong>{effects.map((effect) => <span key={effect}>{effect}</span>)}</div> : null}
+  </Panel>;
 }
 
 function EventCard({ event, shelf }: { event: PlayerQuestDto; shelf: EventShelf }) {
@@ -134,6 +156,10 @@ export function EventsPage() {
       <nav className="se-event-tabs" aria-label="Event status">
         {(['active', 'upcoming', 'completed', 'claimed'] as const).map((shelf) => <Button key={shelf} className={`se-btn ${tab === shelf ? '' : 'se-btn--ghost'}`} aria-pressed={tab === shelf} onClick={() => setTab(shelf)}>{titleCase(shelf)} <span>{count(shelf)}</span></Button>)}
       </nav>
+      {page?.cityConditions?.length ? <section className="se-city-conditions" aria-label="City conditions">
+        <header><h2>City conditions</h2><p>Temporary modifiers apply to everyone in your city while their window is active.</p></header>
+        {page.cityConditions.map((condition) => <CityConditionCard key={condition.key} condition={condition} />)}
+      </section> : null}
       {!page && !error ? <Panel title="Loading events"><p className="se-hint">Checking the event calendar…</p></Panel> : null}
       {page && selected.length === 0 ? <Panel title={`No ${tab} events`}><p className="se-hint">Events in this section will appear here, with their schedule and progress.</p><Link className="se-btn se-btn--ghost" to="/game/quests">Browse jobs</Link></Panel> : null}
       {selected.map(({ event, shelf }) => <EventCard key={`${event.key}-${event.attempt}`} event={event} shelf={shelf} />)}

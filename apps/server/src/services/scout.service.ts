@@ -15,6 +15,7 @@ import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { encounterActivityPayload, RandomEncounterService } from './random-encounter.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
+import { CityConditionService } from './city-condition.service.js';
 
 export interface Crew {
   whores: number;
@@ -159,11 +160,15 @@ export const ScoutService = {
         if (supply) await WorkSupplyService.consume(tx, roundPlayerId, ruleset, supply);
 
         const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
+        const cityConditionBonuses = await CityConditionService.bonuses(tx, {
+          round, cityId: player.cityId, ruleset, action: 'SCOUT', district: found.key, now,
+        });
         await CrewRosterService.sync(tx, roundPlayerId, ruleset, now);
         const scoutCareerBonus = input.crewMemberIds
           ? await CrewRosterService.selectedSpecialtyBonusPercent(tx, roundPlayerId, ruleset, 'WORKER', 'SCOUT', input.crewMemberIds)
           : await CrewRosterService.specialtyBonusPercent(tx, roundPlayerId, ruleset, 'WORKER', 'SCOUT');
-        const scoutRuleset: Ruleset = favorBonuses.scoutIncomePercent > 0 || favorBonuses.scoutRecruitmentPercent > 0
+        const combinedRecruitmentPercent = favorBonuses.scoutRecruitmentPercent + cityConditionBonuses.recruitPercent;
+        const scoutRuleset: Ruleset = favorBonuses.scoutIncomePercent > 0 || combinedRecruitmentPercent > 0
           ? {
               ...ruleset,
               scouting: {
@@ -177,9 +182,9 @@ export const ScoutService = {
                   [found.key]: {
                     ...ruleset.scouting.districts[found.key],
                     whoresPerTurn: ruleset.scouting.districts[found.key].whoresPerTurn
-                      * (100 + favorBonuses.scoutRecruitmentPercent) / 100,
+                      * (100 + combinedRecruitmentPercent) / 100,
                     thugsPerTurn: ruleset.scouting.districts[found.key].thugsPerTurn
-                      * (100 + favorBonuses.scoutRecruitmentPercent) / 100,
+                      * (100 + combinedRecruitmentPercent) / 100,
                   },
                 },
               },
@@ -301,6 +306,7 @@ export const ScoutService = {
           ...(lieutenantCutCents > 0n ? { lieutenantCutCents: Number(lieutenantCutCents) } : {}),
           ...(favorBonuses.scoutIncomePercent > 0 ? { favorIncomePercent: favorBonuses.scoutIncomePercent } : {}),
           ...(favorBonuses.scoutRecruitmentPercent > 0 ? { favorRecruitmentPercent: favorBonuses.scoutRecruitmentPercent } : {}),
+          ...(cityConditionBonuses.recruitPercent > 0 ? { cityConditionBonusPercent: cityConditionBonuses.recruitPercent } : {}),
           payoutPercent: current.payoutPercent,
 
           crackFound,
