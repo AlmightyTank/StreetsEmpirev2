@@ -7,6 +7,7 @@ import { classicOgV17D } from '../classic-og-v1.7-d/index.js';
 import { classicOgV17E } from '../classic-og-v1.7-e/index.js';
 import { classicOgV18E } from '../classic-og-v1.8-e/index.js';
 import { classicOgV18F } from '../classic-og-v1.8-f/index.js';
+import { classicOgV18G } from '../classic-og-v1.8-g/index.js';
 import { hideoutV2For } from '../hideout-v2.js';
 import { rulesets } from '../index.js';
 import type { Ruleset } from '../types.js';
@@ -15,8 +16,8 @@ describe('1.7.0 crew profile rulesets', () => {
   it('keeps A pinned and enables the roster only on 1.7 rulesets', () => {
     expect(classicOgV17A.meta).toEqual({ id: 'classic-og-v1.7-a', version: '1.7.0-A', name: 'Classic OG - Individual Roster' });
     expect(rulesets[classicOgV17A.meta.id]).toBe(classicOgV17A);
-    // 1.8.0-E builds on 1.7.0-E and keeps its roster; 1.8.0-F builds on 1.8.0-E.
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18F);
+    // 1.8.0-E builds on 1.7.0-E; later rulesets retain the crew roster.
+    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18G);
     expect(classicOgV18E.crewRoster).toBe(classicOgV17E.crewRoster);
     const earlier = Object.values(rulesets).filter((ruleset) => !/^classic-og-v1\.[78]-/.test(ruleset.meta.id)) as Ruleset[];
     expect(earlier.length).toBeGreaterThan(100);
@@ -64,5 +65,10 @@ describe('1.7.0 crew profile rulesets', () => {
   it('carries the 1.8.0-E crew rules and hideout into the 1.8.0-F cookhouse ladder unchanged', () => {
     expect(classicOgV18F.crewRoster).toBe(classicOgV18E.crewRoster);
     expect(hideoutV2For(classicOgV18F)).toBe(hideoutV2For(classicOgV18E));
+  });
+
+  it('carries crew and hideout configuration into the 1.8.0-G event ruleset', () => {
+    expect(classicOgV18G.crewRoster).toBe(classicOgV18E.crewRoster);
+    expect(hideoutV2For(classicOgV18G)).toBe(hideoutV2For(classicOgV18E));
   });
 });

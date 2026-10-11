@@ -19,6 +19,7 @@ import {
 import {
   isCommunityEventDefinition,
   refreshCommunityEventReadinessForPlayer,
+  recordFirstClassCommunityEventProgress,
   syncCommunityEventAttemptsForPlayer,
 } from './community-event.service.js';
 
@@ -241,23 +242,37 @@ export const QuestProgressService = {
         status: { in: [...ACTIVE_STATUSES] },
         questDefinition: { type: { not: 'ALLIANCE' }, isEnabled: true },
       },
-      select: { id: true },
+      select: { id: true, questDefinition: { select: { key: true } } },
       orderBy: { id: 'asc' },
     });
     const allianceCandidateIds = await allianceContractProgressCandidateIds(db, roundPlayerId);
     const candidateIds = [...new Set([
-      ...directCandidates.map((candidate) => candidate.id),
+      ...directCandidates
+        .filter((candidate) => !(
+          communityRuleset?.meta.eventSystem?.communityEvents === 'FIRST_CLASS'
+          && isCommunityEventDefinition(communityRuleset.questDefinitions?.[candidate.questDefinition.key])
+        ))
+        .map((candidate) => candidate.id),
       ...allianceCandidateIds,
     ])].sort();
     const candidates = candidateIds.map((id) => ({ id }));
-    if (candidates.length === 0) return result;
-
     const state = await playerState(db, roundPlayerId);
     const event: QuestProgressEvent = {
       type: signal.type,
       payload: signal.payload,
       ...(state ? { state } : {}),
     };
+
+    if (communityRuleset?.meta.eventSystem?.communityEvents === 'FIRST_CLASS') {
+      const eventProgress = await recordFirstClassCommunityEventProgress(db, roundPlayerId, communityRuleset, {
+        sourceKey: signal.sourceKey,
+        event,
+        at,
+      });
+      result.matched += eventProgress.matched;
+      result.advanced += eventProgress.advanced;
+      result.duplicate += eventProgress.duplicate;
+    }
 
     for (const candidate of candidates) {
       await lockPlayerQuest(db, candidate.id);

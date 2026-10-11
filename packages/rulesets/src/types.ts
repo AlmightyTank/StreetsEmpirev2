@@ -686,6 +686,8 @@ export interface RulesetMeta {
   readonly id: string;
   readonly version: string;
   readonly name: string;
+  /** Runtime event ownership introduced by a versioned ruleset. */
+  readonly eventSystem?: { readonly communityEvents: 'FIRST_CLASS' };
 }
 
 /** 1.5.0-A. Player-facing vehicle identities; A maps the legacy counter without changing play. */

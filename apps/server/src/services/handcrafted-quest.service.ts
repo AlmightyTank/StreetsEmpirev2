@@ -75,6 +75,7 @@ import {
   assertCommunityEventClaim,
   communityEventSnapshot,
   isCommunityEventDefinition,
+  recordCommunityEventClaim,
   refreshCommunityEventReadinessForPlayer,
   syncCommunityEventAttempts,
   type CommunityEventSnapshot,
@@ -941,7 +942,9 @@ export const HandcraftedQuestService = {
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN') return;
       if (row.status !== 'AVAILABLE') throw AppError.conflict('QUEST_NOT_AVAILABLE', 'That job is not available yet.');
-      const tracked = await tx.playerQuest.count({ where: { roundPlayerId, isTracked: true } });
+      const tracked = await tx.playerQuest.count({
+        where: { roundPlayerId, isTracked: true, questDefinition: { type: { not: 'EVENT' } } },
+      });
       const acceptedAt = new Date();
       if (row.expiresAt && row.expiresAt.getTime() <= acceptedAt.getTime()) {
         throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
@@ -1018,8 +1021,10 @@ export const HandcraftedQuestService = {
       await refreshAvailability(tx, roundPlayerId, ruleset);
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (!['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)) throw AppError.conflict('QUEST_NOT_ACTIVE', 'Only active jobs can be tracked.');
-      if (tracked && !row.isTracked) {
-        const count = await tx.playerQuest.count({ where: { roundPlayerId, isTracked: true } });
+      if (tracked && !row.isTracked && row.questDefinition.type !== 'EVENT') {
+        const count = await tx.playerQuest.count({
+          where: { roundPlayerId, isTracked: true, questDefinition: { type: { not: 'EVENT' } } },
+        });
         if (count >= TRACKED_LIMIT) throw AppError.conflict('QUEST_TRACK_LIMIT', `You can only track ${TRACKED_LIMIT} jobs at once.`);
       }
       await tx.playerQuest.update({ where: { id: row.id }, data: { isTracked: tracked } });
@@ -1131,6 +1136,9 @@ export const HandcraftedQuestService = {
             chosenBranch: selectedBranch?.key ?? row.chosenBranch,
           },
         });
+        if (communityEvent) {
+          await recordCommunityEventClaim(tx, row, questRewards, now);
+        }
         const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now);
         const dtoRewards = visibleRewards(questRewards).map((reward) => rewardDto(reward, ruleset));
 

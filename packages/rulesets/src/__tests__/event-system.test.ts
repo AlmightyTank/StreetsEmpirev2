@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07AA, classicOgV07T, classicOgV16F } from '../index.js';
+import { classicOgV07AA, classicOgV07T, classicOgV16F, classicOgV18F, classicOgV18G } from '../index.js';
 import { activeRoundEventTime, eventCatalogForRuleset } from '../event-system.js';
 
 describe('first-class event catalog adapter', () => {
+  it('pins first-class community ownership to the new ruleset version', () => {
+    expect('eventSystem' in classicOgV18F.meta).toBe(false);
+    expect(classicOgV18G.meta.eventSystem?.communityEvents).toBe('FIRST_CLASS');
+    expect(eventCatalogForRuleset(classicOgV18G).filter((entry) => entry.type === 'COMMUNITY')).toHaveLength(4);
+  });
+
   it('maps Phase U community jobs to round-scoped quarter windows', () => {
     const entries = eventCatalogForRuleset(classicOgV07T).filter((entry) => entry.type === 'COMMUNITY');
 

@@ -57,7 +57,7 @@ describe('1.6.0 never reaches a round pinned before it', () => {
     }
   });
 
-  it('makes the 1.8.0-F cookhouse ladder ruleset the newest season ruleset', () => {
-    expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v1.8-f');
+  it('makes the 1.8.0-G event takeover ruleset the newest season ruleset', () => {
+    expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v1.8-g');
   });
 });

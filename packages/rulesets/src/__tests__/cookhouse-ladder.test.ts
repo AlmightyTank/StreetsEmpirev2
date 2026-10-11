@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV18E } from '../classic-og-v1.8-e/index.js';
 import { classicOgV18F } from '../classic-og-v1.8-f/index.js';
+import { classicOgV18G } from '../classic-og-v1.8-g/index.js';
 import { rulesets } from '../index.js';
 import { questRequiredRecipes } from '../quest-definitions.js';
 import type { QuestDefinition, QuestDefinitionCatalog, Ruleset } from '../types.js';
@@ -43,7 +44,7 @@ describe('1.8.0-F Pip\'s Cookhouse Ladder', () => {
   it('ships as the newest ruleset on top of 1.8.0-E', () => {
     expect(classicOgV18F.meta).toEqual({ id: 'classic-og-v1.8-f', version: '1.8.0-F', name: 'Classic OG - Cookhouse Ladder' });
     expect(rulesets[classicOgV18F.meta.id]).toBe(classicOgV18F);
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18F);
+    expect(rulesets[classicOgV18G.meta.id]).toBe(classicOgV18G);
   });
 
   it('starts a round with only Crack cookable and gates every other recipe', () => {
@@ -111,7 +112,7 @@ describe('1.8.0-F Pip\'s Cookhouse Ladder', () => {
 
   it('leaves every earlier ruleset ungated', () => {
     for (const ruleset of Object.values(rulesets) as Ruleset[]) {
-      if (ruleset === classicOgV18F) continue;
+      if (ruleset === classicOgV18F || ruleset === classicOgV18G) continue;
       expect(recipeGates(ruleset).size, ruleset.meta.id).toBe(0);
     }
     expect(oldQuests.PIP_BULK_ORDER!.objectives[0]!.params).toMatchObject({ where: { productType: 'METH' } });
