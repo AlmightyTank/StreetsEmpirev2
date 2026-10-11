@@ -28,6 +28,7 @@ import { ConvoyService } from './convoy.service.js';
 import { HighMarketService } from './high-market.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { CRACK, productKeys } from './product-inventory.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
 import { hasVehicleDamage, readVehicleDamage, readVehicleLoadout, vehicleDamageJson } from './vehicle-fleet.service.js';
 import { deliverSupplyPickups, settleSupplyStops, supplyLoadsByRun, withoutSupplyLoad } from './supply-pickup-settle.service.js';
@@ -202,7 +203,7 @@ async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, ru
       heat: player.heat,
       rng: seededRng(hashParts(run.id, 'road-stop', checks)),
       stopCut,
-      riskMultiplier: vehicleRiskMultiplier(ruleset, readVehicleLoadout(current.vehicleLoadout, current.lowRiders)),
+      riskMultiplier: vehicleRiskMultiplier(ruleset, readVehicleLoadout(current.vehicleLoadout, current.lowRiders)) * Math.max(0.5, 1 - (current.wheelmanBonusPercent ?? 0) / 100),
     });
     checks++;
     if (!stopped.stopped) continue;
@@ -340,6 +341,7 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     });
   }
   await tx.run.update({ where: { id: run.id }, data: { status: 'RETURNED', returnedAt } });
+  await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'THUG', specialty: 'WHEELMAN', at: returnedAt, label: 'Run completed' });
   const awayNetWorthCents = await totalAwayWorth(tx, roundPlayerId, ruleset);
   await tx.roundPlayer.update({
     where: { id: roundPlayerId },

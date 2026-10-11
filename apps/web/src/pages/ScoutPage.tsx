@@ -14,6 +14,7 @@ import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { HeatNotice } from '../components/HeatPanel.js';
+import { CrewTeamPicker } from '../components/CrewTeamPicker.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { scoutReceiptLines } from '../receipts/actionReceipts.js';
@@ -56,6 +57,7 @@ export function ScoutPage() {
   const [district, setDistrict] = useRememberedState<string>(rememberedKey('scout.district', me?.id), '', { accept: isString });
   const [turns, setTurns] = useRememberedState<number | ''>(rememberedKey('scout.turns', me?.id), 13, { accept: isTurns });
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [scoutTeam, setScoutTeam] = useState<string[]>([]);
 
   // Refetched whenever the crew changes, because the visible coverage on offer
   // depends on how many people and armed fit thugs the player has available.
@@ -127,7 +129,7 @@ export function ScoutPage() {
     event.preventDefault();
     if (!canScout || typeof turns !== 'number') return;
 
-    await action.run((actionId) => actionsApi.scout({ district, turns, actionId }));
+    await action.run((actionId) => actionsApi.scout({ district, turns, ...(scoutTeam.length ? { crewMemberIds: scoutTeam } : {}), actionId }));
   }
 
   async function resolveEncounter(choice: string) {
@@ -450,6 +452,7 @@ export function ScoutPage() {
             disabled={action.busy}
             disabledReason={action.busy ? 'Your crew is still out on the last job.' : null}
           />
+          <CrewTeamPicker role="WORKER" specialty="SCOUT" selectedIds={scoutTeam} onChange={setScoutTeam} disabled={action.busy} refreshKey={action.result} />
           <Button className="se-btn se-btn--primary" disabledReason={scoutBlock}>
             {action.busy ? 'Working the block...' : action.result ? 'Send again' : 'Send crew scouting'}
           </Button>

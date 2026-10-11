@@ -43,8 +43,9 @@ export const turnsToSpendSchema = z
 export const scoutSchema = z.object({
   district: z.string().trim().min(1, 'Pick a district to scout.'),
   turns: turnsToSpendSchema,
+  crewMemberIds: z.array(z.string().trim().min(1).max(64)).max(5).refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.').optional(),
   actionId: actionIdSchema,
-});
+}).strict();
 
 export const produceCrackSchema = z.object({
   turns: turnsToSpendSchema,
@@ -350,6 +351,33 @@ export const dealerStaffReleaseSchema = z.object({ actionId: actionIdSchema }).s
 export type DealerStaffAssignInput = z.infer<typeof dealerStaffAssignSchema>;
 export type DealerStaffReleaseInput = z.infer<typeof dealerStaffReleaseSchema>;
 
+/** 1.7.0-A. A page of the crew roster. */
+export const crewRosterQuerySchema = z.object({
+  role: z.enum(['THUG', 'WORKER']).optional(),
+  status: z.enum(['AVAILABLE', 'ASSIGNED', 'IN_TRANSIT', 'RECOVERING', 'RELEASED']).optional(),
+  assignment: z.enum(['BUSINESS', 'DEALER', 'TURF']).optional(),
+  specialty: z.enum(['GENERALIST', 'ENFORCER', 'WHEELMAN', 'SCOUT', 'DEALER', 'SERVICE']).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
+}).strict();
+
+export type CrewRosterQuery = z.infer<typeof crewRosterQuerySchema>;
+
+/** 1.7.0-D. Train an available member who already earned the selected specialty. */
+export const crewTrainingSchema = z.object({
+  memberId: z.string().trim().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+export type CrewTrainingInput = z.infer<typeof crewTrainingSchema>;
+
+/** Replace an existing job occupant, or trade an available member for a released veteran. */
+export const crewAssignmentSchema = z.object({
+  memberId: z.string().trim().min(1).max(64),
+  replaceMemberId: z.string().trim().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+export type CrewAssignmentInput = z.infer<typeof crewAssignmentSchema>;
+
 /** 0.4.0-D. Pip's counter for a non-crack product. */
 export const productTradeSchema = z.object({
   product: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),
@@ -396,15 +424,16 @@ export const raidSchema = z.object({
   roundId: z.string().min(1).max(64),
   targetPublicPimpId: z.number().int().positive().max(2_147_483_647),
   attackingThugs: z.number().int().positive().safe(),
+  crewMemberIds: z.array(z.string().trim().min(1).max(64)).max(5).refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.').optional(),
   actionId: actionIdSchema,
 }).strict();
 export type RaidInputDto = z.infer<typeof raidSchema>;
 
 /** Same intent as a raid: a target, how many go, and a retry-safe id. */
-export const driveBySchema = raidSchema;
+export const driveBySchema = raidSchema.omit({ crewMemberIds: true });
 export type DriveByInputDto = z.infer<typeof driveBySchema>;
 
-export const specialRaidSchema = raidSchema.extend({
+export const specialRaidSchema = raidSchema.omit({ crewMemberIds: true }).extend({
   kind: z.enum(['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW']),
 }).strict();
 export type SpecialRaidInputDto = z.infer<typeof specialRaidSchema>;

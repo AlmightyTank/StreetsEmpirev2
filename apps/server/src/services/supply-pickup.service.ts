@@ -40,6 +40,7 @@ import { awayWorth, writeRunStops } from './run-settle.service.js';
 import { HOME_STASH_NAME, homeStash, loadPickupOntoRun } from './supply-pickup-settle.service.js';
 import { propertyBehind } from './supply-property-settle.service.js';
 import { SupplyPropertyService } from './supply-property.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 import { supplyOrderDto } from './supply-order.service.js';
 import { LANE_PREFIX, SupplyLaneService } from './supply-lane.service.js';
 
@@ -557,6 +558,7 @@ async function launchSupplyRun(tx: Db, input: {
     data: {
       roundPlayerId, homeCity: home, lowRiders: vehicleCount, vehicleLoadout: loadout, escortThugs, ...guns,
       cashCents: 0n, startCashCents: 0n, turnsSpent: plan.turns, launchedAt: now,
+      wheelmanBonusPercent: await CrewRosterService.specialtyBonusPercent(tx, roundPlayerId, ruleset, 'THUG', 'WHEELMAN'),
     },
   });
   await writeRunStops(tx, run.id, plan.stops);

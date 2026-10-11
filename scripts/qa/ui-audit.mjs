@@ -52,13 +52,13 @@ const PLAYER_PAGES = [
   '/game', '/game/scout', '/game/produce', '/game/combat', '/game/quests', '/game/hideout',
   '/game/casino/slots', '/game/casino/blackjack', '/game/casino/roulette', '/game/casino/street-dice', '/game/casino/poker',
   '/game/stores', '/game/stores/pip', '/game/stores/charlie', '/game/stores/iron-maya',
-  '/game/travel', '/game/turf', '/game/blocks', '/game/cities', '/game/rankings', '/game/players',
+  '/game/travel', '/game/turf', '/game/crew', '/game/blocks', '/game/cities', '/game/rankings', '/game/players',
   '/game/alliance', '/game/alliances', '/game/contacts', '/game/console', '/game/profile',
   '/game/activity', '/game/reputation', '/game/news', '/game/status', '/game/rules', '/game/hall-of-fame', '/account',
 ];
 const ADMIN_PAGES = [
   '/game/admin', '/game/admin/monitoring', '/game/admin/news', '/game/admin/accounts', '/game/admin/quests', '/game/admin/surveys',
-  '/game/admin/integrations', '/game/admin/rulesets', '/game/admin/signals', '/game/admin/audit', '/game/admin/reports',
+  '/game/admin/integrations', '/game/admin/rulesets', '/game/admin/signals', '/game/admin/audit', '/game/admin/reports', '/game/admin/crew',
   '/game/admin/economy', '/game/admin/casino', '/game/admin/law', '/game/admin/combat', '/game/admin/turf',
 ];
 

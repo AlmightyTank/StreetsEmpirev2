@@ -17,6 +17,9 @@ import {
   supplyOrderSchema,
   loanAcceptSchema,
   loanPaymentSchema,
+  crewRosterQuerySchema,
+  crewTrainingSchema,
+  crewAssignmentSchema,
   dealerStaffAssignSchema,
   dealerStaffReleaseSchema,
   hideoutUpgradeSchema,
@@ -57,6 +60,8 @@ import { SupplyLedgerService } from '../services/supply-ledger.service.js';
 import { SupplyLaneService } from '../services/supply-lane.service.js';
 import { DealerStaffService } from '../services/dealer-staff.service.js';
 import { DealerCrewService } from '../services/dealer-crew.service.js';
+import { CrewRosterService } from '../services/crew-roster.service.js';
+import { CrewTrainingService } from '../services/crew-training.service.js';
 import { RandomEncounterChoiceService } from '../services/random-encounter-choice.service.js';
 import { RandomEncounterService } from '../services/random-encounter.service.js';
 
@@ -259,6 +264,28 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(loanPaymentSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
     return LoanService.repay(fastify.prisma, player.id, { loanId, requestKey: body.requestKey, actionId: body.actionId, amountCents: BigInt(body.amountCents) });
+  });
+
+  // 1.7.0-A: the crew as individual members, in step with the counts.
+  fastify.get('/crew', { preHandler: fastify.requireAuth }, async (request) => {
+    const query = parseBody(crewRosterQuerySchema, request.query);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    return CrewRosterService.view(fastify.prisma, player.id, settled.ruleset, query, now);
+  });
+
+  fastify.post('/crew/train', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(crewTrainingSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return CrewTrainingService.train(fastify.prisma, player.id, body);
+  });
+  fastify.post('/crew/exchange', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(crewAssignmentSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    return CrewRosterService.exchange(fastify.prisma, player.id, body.memberId, body.replaceMemberId, body.actionId, settled.ruleset, now);
   });
 
   // 1.6.0-E: dealer crews.

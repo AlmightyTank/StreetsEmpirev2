@@ -24,6 +24,7 @@ import { AllianceBalanceService } from '../services/alliance-balance.service.js'
 import { AllianceService } from '../services/alliance.service.js';
 import { WireService } from '../services/wire.service.js';
 import { AdminBattleService } from '../services/admin-battle.service.js';
+import { AdminCrewService } from '../services/admin-crew.service.js';
 import { AdminConvoyService } from '../services/admin-convoy.service.js';
 import { AdminDevBotsService } from '../services/admin-dev-bots.service.js';
 import { AdminNpcGangService } from '../services/admin-npc-gang.service.js';
@@ -108,6 +109,13 @@ const changeRulesetSchema = z.object({
 const roundParams = z.object({ roundId: id }).strict();
 const accountParams = z.object({ accountId: id }).strict();
 const playerParams = z.object({ roundPlayerId: id }).strict();
+const crewMemberParams = z.object({ roundPlayerId: id, memberId: id }).strict();
+const crewCorrectionSchema = z.object({
+  reason,
+  experiencePoints: z.number().int().min(0).max(1_000_000),
+  specialty: z.enum(['GENERALIST', 'ENFORCER', 'WHEELMAN', 'SCOUT', 'DEALER', 'SERVICE']),
+  specialtyExperiencePoints: z.number().int().min(0).max(1_000_000),
+}).strict();
 const battleParams = z.object({ battleId: id }).strict();
 const tailParams = z.object({ tailId: id }).strict();
 const allianceParams = z.object({ allianceId: id }).strict();
@@ -821,6 +829,18 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminPlayerService.inspect(fastify.prisma, roundPlayerId);
   });
 
+  /** 1.7.0-F: inspect the player's own roster, with member history, for support corrections. */
+  fastify.get('/players/:roundPlayerId/crew', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    return AdminCrewService.playerRoster(fastify.prisma, roundPlayerId);
+  });
+
+  fastify.post('/players/:roundPlayerId/crew/:memberId/correct', async (request) => {
+    const { roundPlayerId, memberId } = parseBody(crewMemberParams, request.params);
+    const input = parseBody(crewCorrectionSchema, request.body ?? {});
+    return AdminCrewService.correct(fastify.prisma, request.auth!.account, roundPlayerId, memberId, input);
+  });
+
   fastify.get('/players/:roundPlayerId/battles', async (request) => {
     const { roundPlayerId } = parseBody(playerParams, request.params);
     const { before } = parseBody(battlesQuery, request.query);
@@ -886,6 +906,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // 1.0.0-E: economy, fights, exploit flags and turf. Reads are read-only; repairs are audited.
+  /** 1.7.0-F: migration, role, assignment, and experience health across a round. */
+  fastify.get('/rounds/:roundId/crew', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    return AdminCrewService.report(fastify.prisma, roundId);
+  });
+
   fastify.get('/rounds/:roundId/markets', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
     return AdminEconomyService.markets(fastify.prisma, roundId);

@@ -12,7 +12,7 @@ import { api } from './client.js';
 export const actionsApi = {
   districts: () => api.get<DistrictsDto>('/game/districts'),
 
-  scout: (input: { district: string; turns: number; actionId: string }) =>
+  scout: (input: { district: string; turns: number; crewMemberIds?: string[]; actionId: string }) =>
     api.post<GameActionResult<ScoutResult>>('/game/scout', input),
 
 
