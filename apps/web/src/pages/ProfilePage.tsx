@@ -1,5 +1,5 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import type {
   PublicAwardDto,
   PublicCareerDto,
@@ -519,6 +519,14 @@ export function ProfilePage() {
   return (
     <GameLayout>
       <div className={`se-profile${shownTheme ? ` se-profile--themed se-site-theme--${shownTheme}` : ''}`}>
+        <div className="se-profile-heading">
+          <div>
+            <span className="se-eyebrow">STREETS EMPIRE · PLAYER RECORD</span>
+            <h1>Player Profile</h1>
+            <p>Rank, legacy, achievements, and the style you bring to the streets.</p>
+          </div>
+          {player?.isYou ? <Link to="/account" className="se-btn se-btn--sm se-profile-heading__edit">Edit Profile</Link> : null}
+        </div>
         {player && ownerTheme ? (
           <div className="se-profile-themebar" role="status">
             <span>
@@ -575,6 +583,28 @@ export function ProfilePage() {
               {player ? <ProfileBadges badges={player.badges} forumGroups={player.forumGroups} /> : null}
             </div>
           </div>
+          {player?.experience ? (
+            <div className="se-profile-xp">
+              <div className="se-profile-xp__top">
+                <strong>Empire Level {formatNumber(player.experience.level)}</strong>
+                <span>{formatNumber(player.experience.totalXp)} lifetime XP</span>
+              </div>
+              <div
+                className="se-profile-xp__track"
+                role="progressbar"
+                aria-label="Experience progress to next level"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(player.experience.progressPercent)}
+              >
+                <span style={{ width: `${Math.max(0, Math.min(100, player.experience.progressPercent))}%` }} />
+              </div>
+              <div className="se-profile-xp__foot">
+                <span>{formatNumber(player.experience.xpIntoLevel)} / {formatNumber(player.experience.xpForLevel)} XP</span>
+                <span>{formatNumber(player.experience.xpToNextLevel)} to next level</span>
+              </div>
+            </div>
+          ) : null}
           <div className="se-inline-actions">
             {player && !player.isYou ? <ContactButton publicPimpId={player.publicPimpId} /> : null}
             {player?.forumProfileUrl ? <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum Profile</a> : null}
