@@ -370,16 +370,26 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
                 Max
               </button>
             </div>
-            <dl className="se-sportsbook__figures">
-              <div><dt>To win</dt><dd>{payoutCents !== null && stakeCents !== null ? formatCentsExact(payoutCents - stakeCents) : '—'}</dd></div>
-              <div><dt>Total payout</dt><dd>{payoutCents !== null ? formatCentsExact(payoutCents) : '—'}</dd></div>
-            </dl>
-            <small id="sb-cash" className="se-muted">
-              Cash on hand: {formatCentsExact(cashCents)} · uses no turns
-              {pickedOdds !== null ? <><br />Top stake at {formatAmericanOdds(pickedOdds)}: {formatCentsExact(topStakeCents)}</> : null}
-              <br />Last 24 hours: {formatCentsExact(usage.dailyStakeCents)} of {formatCentsExact(limits.dailyStakeCents)} staked
-              <br />Open: {formatCentsExact(usage.openStakeCents)} of {formatCentsExact(limits.openStakeCents)} · {usage.openTickets} of {limits.openTickets} tickets
-            </small>
+            <div className="se-sportsbook__return" aria-live="polite">
+              <div>
+                <span>Potential payout</span>
+                <strong>{payoutCents !== null ? formatCentsExact(payoutCents) : '—'}</strong>
+              </div>
+              <small>
+                {payoutCents !== null && stakeCents !== null
+                  ? `Includes your stake · ${formatCentsExact(payoutCents - stakeCents)} profit`
+                  : 'Choose a side and enter a stake to see your return.'}
+              </small>
+            </div>
+            <details className="se-sportsbook__limits">
+              <summary>Cash & betting limits</summary>
+              <small id="sb-cash" className="se-muted">
+                Cash on hand: {formatCentsExact(cashCents)} · uses no turns
+                {pickedOdds !== null ? <><br />Top stake at {formatAmericanOdds(pickedOdds)}: {formatCentsExact(topStakeCents)}</> : null}
+                <br />Last 24 hours: {formatCentsExact(usage.dailyStakeCents)} of {formatCentsExact(limits.dailyStakeCents)} staked
+                <br />Open: {formatCentsExact(usage.openStakeCents)} of {formatCentsExact(limits.openStakeCents)} · {usage.openTickets} of {limits.openTickets} tickets
+              </small>
+            </details>
             <div className="se-sportsbook__slip-actions">
               <Button type="button" className="se-btn se-btn--primary se-btn--block" disabled={busy} disabledReason={busy ? null : placeReason} onClick={() => void place()}>
                 {busy ? 'Placing…' : 'Place ticket'}
