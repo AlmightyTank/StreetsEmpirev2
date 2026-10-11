@@ -422,9 +422,14 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
               </div>
             </div>
             <p className="se-sportsbook__summary">
-              {ticketView === 'open'
-                ? `${summary.openCount} open · ${formatCentsExact(summary.openStakeCents)} at stake · pays up to ${formatCentsExact(summary.openPayoutCents)}`
-                : `Record ${summary.won}-${summary.lost}-${summary.push}${summary.void ? ` · ${summary.void} void` : ''} · Net ${signedCents(summary.netCents)}`}
+              {ticketView === 'open' ? (
+                <>
+                  <span>{summary.openCount} open · {formatCentsExact(summary.openStakeCents)} at stake · pays up to {formatCentsExact(summary.openPayoutCents)}</span>
+                  <span>Record {summary.won}-{summary.lost}-{summary.push}{summary.void ? ` · ${summary.void} void` : ''} · Net {signedCents(summary.netCents)}</span>
+                </>
+              ) : (
+                `Record ${summary.won}-${summary.lost}-${summary.push}${summary.void ? ` · ${summary.void} void` : ''} · Net ${signedCents(summary.netCents)}`
+              )}
             </p>
             <div className="se-sportsbook__ticket-list" id="sb-ticket-list" role="tabpanel" aria-labelledby={`sb-tab-${ticketView}`}>
               {shownTickets.length === 0 ? (
