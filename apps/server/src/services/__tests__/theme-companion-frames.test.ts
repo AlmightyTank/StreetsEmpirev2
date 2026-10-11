@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rulesets, SITE_THEME_COMPANION_FRAMES, STREET_PASS_S1_COSMETICS, siteThemeCompanionLook } from '@streets/rulesets';
+import { rulesets, SITE_THEME_COMPANION_FRAMES, STREET_PASS_S1_COSMETICS, SUPPORTER_COSMETICS, siteThemeCompanionLook } from '@streets/rulesets';
 import { withThemeCompanionFrames } from '../quest-cosmetic.service.js';
 import { PROFILE_EFFECTS } from '../account-profile.service.js';
 
@@ -29,7 +29,11 @@ describe('site theme companion frames', () => {
       .filter((cosmetic) => cosmetic.kind === 'PROFILE_FRAME' && cosmetic.key !== 'street-pass-s1-frame')
       .map((cosmetic) => cosmetic.key);
     expect(new Set(Object.values(SITE_THEME_COMPANION_FRAMES))).toEqual(new Set(animatedFrames));
-    expect(PROFILE_EFFECTS.length - 1).toBe(animatedFrames.length);
+    // Every popup effect but "none" comes with one animated Street Pass frame, except the ones a
+    // supporter cosmetic brings (the Midnight Chrome glint rides on the Signature card frame).
+    const supporterStyles = new Set(Object.values(SUPPORTER_COSMETICS).map((cosmetic) => cosmetic.styleKey));
+    const frameEffects = PROFILE_EFFECTS.filter((effect) => effect.key !== 'none' && !supporterStyles.has(effect.key));
+    expect(frameEffects.length).toBe(animatedFrames.length);
   });
 
   it('names a real popup animation and frame option for each theme\'s matched look', () => {
