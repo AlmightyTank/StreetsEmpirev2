@@ -63,26 +63,35 @@ Slice A is implemented on beta as the access foundation. The remaining work is s
 
 A new round opens with Crack as the only cookable product. Pip opens each further recipe once the player proves the operation can handle the one before it. Each rung is a prerequisite for the next, so recipes unlock in a fixed order.
 
+The first two rungs reuse Pip's existing side quests, **Party Favors** and **Bulk Order**, rather than adding new jobs. Today those quests require cooking Ecstasy and Meth; in the new ruleset they become the quests that open those recipes, so their objectives change to products the player can already cook.
+
 | Step | Quest | Recipe opened | Requires | Objective direction |
 | --- | --- | --- | --- | --- |
-| 0 | — | **Crack** | Starting recipe | Available from the start of the round. The onboarding quests teach Produce with Crack. |
-| 1 | **Party Starter** | Ecstasy | Onboarding complete | Run a working Crack operation: cook batches and move them through ordinary sales or orders. |
-| 2 | **Glass House** | Meth | Party Starter | Move Ecstasy through ordinary sales and keep the operation's Heat in check while running two products. |
-| 3 | **Green Thumb** | Weed | Glass House | Handle Weed through ordinary product orders and sales; prove the operation can move a steady, lower-pressure product. |
-| 4 | **A Better Cut** | Cocaine | Green Thumb | Build a record with premium product sales while managing the operation's Heat and costs. |
-| 5 | **Pip's Red Ledger** | Heroin | A Better Cut | Fulfill a scarce-product contract through normal sourcing and sales before Pip trusts the player with the recipe. |
+| 0 | — | **Crack** | Starting recipe | Available from the start of the round. Keeping Them Happy and Cookhouse already teach Produce with Crack. |
+| 1 | **Party Favors** (existing) | Ecstasy | Cookhouse | Run a working Crack operation: produce Crack after accepting and move it through ordinary sales or orders. |
+| 2 | **Bulk Order** (existing) | Meth | Party Favors | Handle two products: produce and sell Ecstasy alongside Crack while keeping the operation's Heat in check. |
+| 3 | **Green Thumb** (new) | Weed | Bulk Order | Handle Weed through ordinary product orders and sales; prove the operation can move a steady, lower-pressure product. |
+| 4 | **A Better Cut** (new) | Cocaine | Green Thumb | Build a record with premium product sales while managing the operation's Heat and costs. |
+| 5 | **Pip's Red Ledger** (new) | Heroin | A Better Cut | Fulfill a scarce-product contract through normal sourcing and sales before Pip trusts the player with the recipe. |
 
-Quest names are working titles. Objective quantities and cash rewards are set during balance work. The chains should be completable through normal play, should start counting after acceptance where appropriate, and should never require a player to cook a product they cannot yet cook or buy an item they cannot yet access.
+Names for the new quests are working titles. Objective quantities and cash rewards are set during balance work. The chains should be completable through normal play, should start counting after acceptance where appropriate, and should never require a player to cook a product they cannot yet cook or buy an item they cannot yet access.
 
-**Content that must move behind the ladder.** Several existing jobs assume Meth and Ecstasy are cookable from the start. In the new ruleset:
+**Changes to existing Pip quests in the new ruleset:**
 
-- The side quests **Bulk Order** (cooks Meth) and **Party Favors** (cooks Ecstasy) require the matching recipe quest as a prerequisite.
-- Daily contracts that require cooking a product (**Meth Cook**, **Party Pack**, and any later product contracts) are offered only to players who can cook that product.
-- Existing Pip purchase access (`PRODUCT_METH_ACCESS`, `PRODUCT_ECSTASY_ACCESS`) is unchanged. A player can still buy those products at the counter without the recipe, and earning a recipe does not grant purchase access.
+| Quest | Today | New ruleset |
+| --- | --- | --- |
+| **Party Favors** | Requires Cookhouse and Pip rep 25. Produce 100 Ecstasy. Grants Ecstasy purchase access. | Requires Cookhouse. Produce and sell Crack. Grants the **Ecstasy recipe** and keeps Ecstasy purchase access. Revisit the Pip rep 25 requirement in balance work: Cookhouse leaves the player at Pip rep 10, so the gate must not stall the first unlock. |
+| **Bulk Order** | Requires Cookhouse. Produce 150 Meth. Grants Meth purchase access. | Requires **Party Favors**. Produce and sell Ecstasy (with Crack). Grants the **Meth recipe** and keeps Meth purchase access. |
+| **Taking Sides** | Requires Bulk Order and Heavy Hands. Produce 250 of any product. | No change. Its objective already counts any product, and it now follows the Meth unlock. |
+| **Move the Weight** | Sell Pip Weed, Ecstasy, and Meth. Grants Cocaine and Heroin purchase access. | No change. Its Ecstasy and Meth sales are only reachable after rungs 1–2, which fits the ladder. |
+
+**Other content that must move behind the ladder.** Daily contracts that require cooking a product (**Meth Cook**, **Party Pack**, and any later product contracts) are offered only to players who can cook that product.
+
+Party Favors and Bulk Order each grant two separate unlocks: the recipe and purchase access. They remain distinct effects, so other quests can still grant one without the other.
 
 Recipe identity is expressed only through game rules. No real-world production instructions or ingredients are part of quest text or the UI.
 
-**Gate:** A new round starts with only Crack cookable. Each later recipe opens only after its quest, in ladder order. No available quest or daily contract requires cooking a locked product. Historical rounds keep all of their existing recipes.
+**Gate:** A new round starts with only Crack cookable. Party Favors opens Ecstasy, Bulk Order opens Meth, and each later recipe opens only after its quest, in ladder order. No available quest or daily contract requires cooking a locked product. Historical rounds keep their existing recipes and the old Party Favors and Bulk Order objectives.
 
 ### C — Product Identity & Balance
 
@@ -117,7 +126,8 @@ Recipe identity is expressed only through game rules. No real-world production i
 - Simulate product production and sale economics with and without workshops, favors, and crew supply policies.
 - Add admin inspection for recipe unlocks and their source quest; corrections remain audited.
 - Test that a new round starts with only Crack cookable and that each rung's quest is unavailable until the previous rung is complete.
-- Test that Meth and Ecstasy side quests and daily contracts are not offered before the matching recipe is unlocked.
+- Test that Party Favors grants the Ecstasy recipe and purchase access, Bulk Order grants the Meth recipe and purchase access, and Bulk Order is unavailable until Party Favors is complete.
+- Test that Meth and Ecstasy daily contracts are not offered before the matching recipe is unlocked.
 - Run historical-ruleset tests and verify no old round receives new recipes or gates; rounds that started with Meth and Ecstasy keep them.
 
 ## Implementation notes
@@ -126,7 +136,8 @@ Recipe identity is expressed only through game rules. No real-world production i
 - The permanent unlock service currently understands product purchase access, weapon access, travel access, and vehicle purchase access. Production access should be an explicit new effect and should not change the meaning of existing unlock keys.
 - The current `Produce` page builds selectable batches from the recipe list returned by the product page. The API and production endpoint must agree on recipe availability; server validation is the source of truth.
 - The Slice A gate already locks any product that has a `PRODUCT_PRODUCTION_ACCESS` definition in the ruleset. Gating Ecstasy and Meth needs only new unlock definitions in the new ruleset; Crack has none, so it stays open.
-- A reward key should name the product recipe it opens, for example `PRODUCT_ECSTASY_RECIPE` or `PRODUCT_WEED_RECIPE`. This keeps admin inspection and support readable.
+- A reward key should name the product recipe it opens, for example `PRODUCT_ECSTASY_RECIPE` or `PRODUCT_WEED_RECIPE`.
+- Override `PIP_PARTY_FAVORS` and `PIP_BULK_ORDER` in the new ruleset's quest catalog, as `classic-og-v1.6.5-e2/guided-campaign.ts` does for earlier quests. Keep their quest keys so completion history, admin inspection, and `Taking Sides` prerequisites still line up. This keeps admin inspection and support readable.
 - Use a new ruleset ID for every shipped behavior change. Do not edit an already-used ruleset in place.
 
 ## Release gates
