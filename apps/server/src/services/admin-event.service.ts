@@ -98,7 +98,7 @@ export const AdminEventService = {
       prisma.round.findMany({ where: { status: { in: ['SCHEDULED', 'REGISTRATION', 'ACTIVE'] } }, select: { id: true, name: true, status: true, rulesetId: true, rulesetVersion: true }, orderBy: { startsAt: 'desc' } }),
       prisma.gameEventDefinition.findMany({ orderBy: [{ updatedAt: 'desc' }, { key: 'asc' }], take: 250 }),
       prisma.gameEventOccurrence.groupBy({ by: ['definitionId', 'status'], _count: { _all: true } }),
-      prisma.gameEventOccurrence.findMany({ orderBy: [{ startsAt: 'asc' }, { updatedAt: 'desc' }], take: 120, include: { definition: { select: { key: true, title: true, type: true } }, round: { select: { name: true } }, _count: { select: { participations: true } } } }),
+      prisma.gameEventOccurrence.findMany({ where: { status: { in: ['SCHEDULED', 'ACTIVE'] } }, orderBy: [{ startsAt: 'asc' }, { updatedAt: 'desc' }], take: 120, include: { definition: { select: { key: true, title: true, type: true } }, round: { select: { name: true } }, _count: { select: { participations: true } } } }),
       prisma.gameEventHistory.findMany({ orderBy: { happenedAt: 'desc' }, take: 100, include: { occurrence: { include: { definition: { select: { key: true, title: true } } } } } }),
       Promise.all([
         prisma.gameEventDefinition.count(),
