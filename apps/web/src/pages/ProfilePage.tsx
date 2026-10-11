@@ -457,7 +457,7 @@ export function ProfilePage() {
     ? player?.cosmetics.frame ?? null
     : player.cosmetics.avatarFrame ?? null;
   // The Signature Profile Card (a supporter reward) is on while its frame is equipped; the mark comes with it.
-  const signature = player?.cosmetics.frame === SIGNATURE_CARD_FRAME_KEY;
+  const signature = avatarFrame === SIGNATURE_CARD_FRAME_KEY;
   const ownerTheme = player && !isYou ? player.cosmetics.siteTheme ?? null : null;
   const shownTheme = useMyTheme ? null : ownerTheme;
 
@@ -535,7 +535,7 @@ export function ProfilePage() {
           </div>
         ) : null}
         <div
-          className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}`}
+          className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}${signature ? ' se-signature-card' : ''}`}
           data-avatar-frame={avatarFrame ?? 'none'}
           data-surface={signature ? player?.cosmetics.surface ?? 'brushed' : undefined}
         >

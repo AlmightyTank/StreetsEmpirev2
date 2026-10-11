@@ -384,15 +384,15 @@ describe('AccountProfileService Midnight Chrome supporter rewards', () => {
     expect(settings.options.surfaces?.map((option) => option.key)).toEqual(['brushed', 'carbon', 'engine-turned']);
     expect(settings.options.effects.map((option) => option.key)).toContain('midnight-chrome');
 
+    // The card rides on its avatar frame; the retired popup-frame slot stays empty.
     const saved = await AccountProfileService.update(prisma, 'account-1', {
       ...input,
-      activeProfileFrameKey: 'midnight-chrome-frame',
       activeAvatarFrameKey: 'midnight-chrome-frame',
       profileEffect: 'midnight-chrome',
       profileSurface: 'engine-turned',
     });
     expect(saved.settings).toMatchObject({
-      activeProfileFrameKey: 'midnight-chrome-frame',
+      activeProfileFrameKey: null,
       activeAvatarFrameKey: 'midnight-chrome-frame',
       profileEffect: 'midnight-chrome',
       profileSurface: 'engine-turned',
