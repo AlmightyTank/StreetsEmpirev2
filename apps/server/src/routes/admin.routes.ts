@@ -958,6 +958,11 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   /** 1.8.0-E release gate: parse one league's live snapshot without storing it. */
+  fastify.post('/sportsbook/pull', async (request) => {
+    parseBody(emptyBody, request.body ?? {});
+    return AdminSportsbookService.pullNow(fastify.prisma, sportsbookFeed(), request.auth!.account);
+  });
+
   fastify.post('/sportsbook/provider-check', async (request) => {
     const { league } = parseBody(sportsbookProviderCheckBody, request.body ?? {});
     return AdminSportsbookService.providerCheck(fastify.prisma, sportsbookFeed(), request.auth!.account, league);

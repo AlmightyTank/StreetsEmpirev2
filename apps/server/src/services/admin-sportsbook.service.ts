@@ -18,6 +18,7 @@ import {
   ProviderError,
   checkSportsbookResult,
   parseLeagueStatus,
+  refreshSportsbookCache,
   summarizeSnapshot,
   type FeedDeps,
 } from './sportsbook-feed.service.js';
@@ -200,6 +201,37 @@ export const AdminSportsbookService = {
       after: checked,
     });
     return { message: checked.detail, report: await this.report(prisma, config, now) };
+  },
+
+  /**
+   * Run the normal cached odds poll on demand. This bypasses only the scheduled interval; the
+   * provider lease and quota floor still apply, and the whole operation is audited.
+   */
+  async pullNow(
+    prisma: PrismaClient,
+    config: FeedConfig,
+    actor: AuditActor,
+    now = new Date(),
+    deps: FeedDeps = {},
+  ): Promise<AdminSportsbookActionDto> {
+    if (!config.apiKey) throw AppError.conflict('SPORTSBOOK_FEED_OFF', 'The odds feed has no provider key on this server.');
+    const result = await refreshSportsbookCache(prisma, config.apiKey, now, deps);
+    let message: string;
+    if (result.skipped === 'BUSY') {
+      message = 'A sportsbook feed pull is already running; no second pull was started.';
+    } else if (!result.oddsPolled) {
+      message = result.errors.join(' · ') || 'The manual pull was skipped because provider quota is near its limit.';
+    } else if (!result.snapshots) {
+      message = 'The manual pull completed without a successful odds snapshot.';
+    } else {
+      message = `Manual odds pull finished: ${result.snapshots} snapshots fetched, ${result.failedSnapshots} failed, ${result.pulled} missing games closed.`;
+      if (result.errors.length) message += ` ${result.errors.join(' · ')}`;
+    }
+    await AdminAuditService.record(prisma, actor, {
+      action: 'sportsbook.manual-pull', targetType: 'sportsbook-provider', targetId: SPORTSBOOK_PROVIDER_ID,
+      after: result,
+    });
+    return { message, report: await this.report(prisma, config, now) };
   },
 
   /**

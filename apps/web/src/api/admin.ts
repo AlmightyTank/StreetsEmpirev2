@@ -252,6 +252,8 @@ export const adminApi = {
   /** 1.8.0-C. Sportsbook feed health (global, not per round), an on-demand result check and an audited void. */
   sportsbook: () => api.get<AdminSportsbookDto>('/admin/sportsbook'),
   sportsbookRecheck: (eventId: string) => api.post<AdminSportsbookActionDto>(`/admin/sportsbook/events/${enc(eventId)}/recheck`, {}),
+  /** Pulls all league odds into the shared player cache now, using normal lease and quota guards. */
+  sportsbookPull: () => api.post<AdminSportsbookActionDto>('/admin/sportsbook/pull', {}),
   /** 1.8.0-E release gate: parse one league's live provider snapshot without storing it. */
   sportsbookProviderCheck: (league: SportsbookLeagueKey) => api.post<AdminSportsbookProviderCheckDto>('/admin/sportsbook/provider-check', { league }),
   sportsbookVoid: (eventId: string, reason: string) =>
