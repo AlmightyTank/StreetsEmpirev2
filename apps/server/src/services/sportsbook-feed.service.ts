@@ -1,4 +1,7 @@
 import type { Prisma, PrismaClient, SportsbookProviderState } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import {
   SPORTSBOOK_QUOTA_ODDS_FLOOR,
   SPORTSBOOK_QUOTA_RESULTS_FLOOR,
@@ -44,8 +47,59 @@ const RESULT_FIRST_CHECK_MINUTES: Record<SportsbookLeagueKey, number> = { NFL: 1
  * back to UTC-10 keeps both the fetched dates and the "missing from the snapshot" check honest.
  */
 const PROVIDER_DATE_OFFSET_HOURS = 10;
+/** Hard provider-request cooldown. Manual admin pulls share the same file-backed window. */
+export const SPORTSBOOK_ODDS_CACHE_INTERVAL_MS = 30 * 60_000;
+const DEFAULT_ODDS_CACHE_FILE = path.resolve(process.cwd(), '.runtime', 'sportsbook-odds.json');
 
-export type FeedDeps = { fetch?: typeof fetch; sleep?: (ms: number) => Promise<void> };
+type OddsCacheSnapshot = { league: SportsbookLeagueKey; date: string; events: unknown[] };
+type OddsCacheFile = { version: 1; updatedAt: string | null; snapshots: OddsCacheSnapshot[] };
+
+export type FeedDeps = { fetch?: typeof fetch; sleep?: (ms: number) => Promise<void>; cacheFilePath?: string };
+
+/** The boundary is inclusive: a fresh provider poll is allowed exactly 30 minutes later. */
+export function sportsbookOddsCacheDue(updatedAt: Date | null, now: Date, intervalMs = SPORTSBOOK_ODDS_CACHE_INTERVAL_MS): boolean {
+  return !updatedAt || now.getTime() - updatedAt.getTime() >= intervalMs;
+}
+
+function emptyOddsCache(): OddsCacheFile {
+  return { version: 1, updatedAt: null, snapshots: [] };
+}
+
+async function readOddsCache(filePath: string): Promise<{ cache: OddsCacheFile; updatedAt: Date | null }> {
+  let raw: string;
+  try {
+    raw = await readFile(filePath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { cache: emptyOddsCache(), updatedAt: null };
+    throw error;
+  }
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { return { cache: emptyOddsCache(), updatedAt: null }; }
+  if (!parsed || typeof parsed !== 'object') return { cache: emptyOddsCache(), updatedAt: null };
+  const value = parsed as Partial<OddsCacheFile>;
+  const updatedAt = typeof value.updatedAt === 'string' && Number.isFinite(Date.parse(value.updatedAt))
+    ? new Date(value.updatedAt) : null;
+  const snapshots = Array.isArray(value.snapshots)
+    ? value.snapshots.filter((row): row is OddsCacheSnapshot => Boolean(
+      row && typeof row === 'object' && typeof row.date === 'string' &&
+      Array.isArray(row.events) && SPORTSBOOK_LEAGUES.some((league) => league.key === row.league),
+    ))
+    : [];
+  return { cache: { version: 1, updatedAt: updatedAt?.toISOString() ?? null, snapshots }, updatedAt };
+}
+
+/** Replace atomically so a restart can never leave a half-written cooldown/cache file. */
+async function writeOddsCache(filePath: string, cache: OddsCacheFile): Promise<void> {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  const temporary = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporary, JSON.stringify(cache), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+    await rename(temporary, filePath);
+  } catch (error) {
+    await unlink(temporary).catch(() => {});
+    throw error;
+  }
+}
 
 export type ProviderErrorKind = 'AUTH' | 'RATE_LIMITED' | 'HTTP' | 'NETWORK' | 'PAYLOAD';
 
@@ -349,8 +403,10 @@ export async function checkSportsbookResult(
 }
 
 export interface SportsbookRefreshResult {
-  skipped: 'NO_KEY' | 'BUSY' | null;
+  skipped: 'NO_KEY' | 'BUSY' | 'CACHE_FRESH' | null;
   oddsPolled: boolean;
+  cacheUpdatedAt: string | null;
+  nextOddsPollAt: string | null;
   snapshots: number;
   failedSnapshots: number;
   pulled: number;
@@ -371,9 +427,13 @@ export async function refreshSportsbookCache(
   options: FeedDeps & { minIntervalMs?: number } = {},
 ): Promise<SportsbookRefreshResult> {
   const result: SportsbookRefreshResult = {
-    skipped: null, oddsPolled: false, snapshots: 0, failedSnapshots: 0, pulled: 0, resultChecks: 0, settled: 0, errors: [],
+    skipped: null, oddsPolled: false, cacheUpdatedAt: null, nextOddsPollAt: null, snapshots: 0, failedSnapshots: 0, pulled: 0, resultChecks: 0, settled: 0, errors: [],
   };
   if (!apiKey) return { ...result, skipped: 'NO_KEY' };
+
+  const cacheFilePath = options.cacheFilePath ?? DEFAULT_ODDS_CACHE_FILE;
+  const { cache: initialCache, updatedAt: fileUpdatedAt } = await readOddsCache(cacheFilePath);
+  const cachedSnapshots = new Map(initialCache.snapshots.map((snapshot) => [`${snapshot.league}:${snapshot.date}`, snapshot]));
 
   await prisma.sportsbookProviderState.upsert({ where: { id: SPORTSBOOK_PROVIDER_ID }, create: { id: SPORTSBOOK_PROVIDER_ID }, update: {} });
   // Another instance (or a slow previous run) holding the feed means this run spends nothing.
@@ -387,18 +447,31 @@ export async function refreshSportsbookCache(
           : []),
       ],
     },
-    data: { pollLeaseUntil: new Date(now.getTime() + LEASE_MS), lastAttemptAt: now },
+    data: { pollLeaseUntil: new Date(now.getTime() + LEASE_MS) },
   });
   if (!claimed.count) return { ...result, skipped: 'BUSY' };
 
   const state = await prisma.sportsbookProviderState.findUniqueOrThrow({ where: { id: SPORTSBOOK_PROVIDER_ID } });
   const session = ProviderSession.fromState(apiKey, state, now, options);
   const leagues = parseLeagueStatus(state.leagueStatus);
+  const latestOddsAt = [fileUpdatedAt, state.lastAttemptAt, state.lastPolledAt]
+    .filter((date): date is Date => date !== null)
+    .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+  const minOddsIntervalMs = Math.max(SPORTSBOOK_ODDS_CACHE_INTERVAL_MS, options.minIntervalMs ?? 0);
+  const oddsCacheDue = sportsbookOddsCacheDue(latestOddsAt, now, minOddsIntervalMs);
+  result.cacheUpdatedAt = latestOddsAt?.toISOString() ?? null;
+  result.nextOddsPollAt = latestOddsAt ? new Date(latestOddsAt.getTime() + minOddsIntervalMs).toISOString() : null;
   let crash: unknown = null;
 
   try {
-    result.oddsPolled = !session.quotaBelow(SPORTSBOOK_QUOTA_ODDS_FLOOR);
-    if (!result.oddsPolled) result.errors.push('Odds polling paused: provider quota is near its limit.');
+    result.oddsPolled = oddsCacheDue && !session.quotaBelow(SPORTSBOOK_QUOTA_ODDS_FLOOR);
+    if (!oddsCacheDue) result.skipped = 'CACHE_FRESH';
+    if (oddsCacheDue && !result.oddsPolled) result.errors.push('Odds polling paused: provider quota is near its limit.');
+    if (result.oddsPolled) {
+      // Persist the cooldown before spending. If a process stops mid-poll, restart/manual requests still wait.
+      await prisma.sportsbookProviderState.update({ where: { id: SPORTSBOOK_PROVIDER_ID }, data: { lastAttemptAt: now } });
+      await writeOddsCache(cacheFilePath, { ...initialCache, updatedAt: iso(now) });
+    }
     const dates = sportsbookPollDates(now);
     for (const league of result.oddsPolled ? SPORTSBOOK_LEAGUES : []) {
       const status: SportsbookLeagueFeedStatus = leagues[league.key] ?? { lastAttemptAt: null, lastSuccessAt: null, lastError: '', lastErrorAt: null, eventsSeen: 0 };
@@ -416,6 +489,7 @@ export async function refreshSportsbookCache(
             market_ids: '1', affiliate_ids: '3', main_line: 'true', hide_closed: 'true',
           });
           if (!Array.isArray(payload.events)) throw new ProviderError('PAYLOAD', 'Snapshot has no events list.');
+          cachedSnapshots.set(`${league.key}:${date}`, { league: league.key, date, events: payload.events });
           seen += await storeSnapshot(prisma, league.key, payload.events, now);
           result.snapshots += 1;
         } catch (error) {
@@ -434,6 +508,17 @@ export async function refreshSportsbookCache(
         result.errors.push(`${league.key} ${failure}`);
       }
       leagues[league.key] = status;
+    }
+
+    if (result.oddsPolled && result.snapshots > 0) {
+      // Keep provider responses on disk; Postgres remains the transactional player-facing projection.
+      const completedAt = new Date(Math.max(now.getTime(), Date.now()));
+      const nextCache: OddsCacheFile = {
+        version: 1, updatedAt: completedAt.toISOString(), snapshots: [...cachedSnapshots.values()],
+      };
+      await writeOddsCache(cacheFilePath, nextCache);
+      result.cacheUpdatedAt = nextCache.updatedAt;
+      result.nextOddsPollAt = new Date(completedAt.getTime() + minOddsIntervalMs).toISOString();
     }
 
     // Results only for games with open tickets, each on its own schedule, oldest due first.

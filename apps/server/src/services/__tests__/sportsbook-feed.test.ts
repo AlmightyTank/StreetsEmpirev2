@@ -8,6 +8,7 @@ import {
   resultBackoffMinutes,
   retryAfterMs,
   snapshotCoverage,
+  sportsbookOddsCacheDue,
   sportsbookPollDates,
 } from '../sportsbook-feed.service.js';
 
@@ -106,6 +107,13 @@ describe('1.8.0-C sportsbook feed', () => {
     const next = new Date('2026-10-11T05:00:00.000Z');
     expect(isResultCheckDue({ sport: 'NBA', startsAt, nextResultCheckAt: next }, new Date('2026-10-11T04:59:00.000Z'))).toBe(false);
     expect(isResultCheckDue({ sport: 'NBA', startsAt, nextResultCheckAt: next }, next)).toBe(true);
+  });
+
+  it('allows an odds refresh only 30 minutes after the cached file timestamp', () => {
+    const updatedAt = new Date('2026-10-11T15:00:00.000Z');
+    expect(sportsbookOddsCacheDue(updatedAt, new Date('2026-10-11T15:29:59.999Z'))).toBe(false);
+    expect(sportsbookOddsCacheDue(updatedAt, new Date('2026-10-11T15:30:00.000Z'))).toBe(true);
+    expect(sportsbookOddsCacheDue(null, new Date('2026-10-11T15:00:00.000Z'))).toBe(true);
   });
 
   it('reads provider status codes, words and flags into one outcome', () => {

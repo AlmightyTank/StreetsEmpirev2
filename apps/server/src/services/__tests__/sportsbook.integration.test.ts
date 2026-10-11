@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { Prisma } from '@prisma/client';
@@ -19,6 +22,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
   const providerPrefix = 'c-' + randomUUID().slice(0, 8) + '-';
   const roundIds: string[] = [];
   const eventIds: string[] = [];
+  const cacheFilePaths = new Set<string>();
   let savedProviderState: Awaited<ReturnType<FastifyInstance['prisma']['sportsbookProviderState']['findUnique']>> = null;
   const now = new Date('2030-03-01T18:00:00.000Z');
   const minutes = (count: number) => new Date(now.getTime() + count * 60_000);
@@ -89,6 +93,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     }
     if (accountId) await app.prisma.account.delete({ where: { id: accountId } });
     await app?.close();
+    await Promise.all([...cacheFilePaths].map((filePath) => rm(filePath, { force: true })));
   });
 
   it('explains every closed line with the same checks a wager enforces', async () => {
@@ -209,7 +214,9 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
       if (result) return handlers.result?.(decodeURIComponent(result[1]!)) ?? reply(200, { event: { status: 'STATUS_SCHEDULED' } });
       return reply(404, {});
     }) as typeof fetch;
-    return { fetch: fetchImpl, sleep: noSleep, calls };
+    const cacheFilePath = join(tmpdir(), `streets-sportsbook-${randomUUID()}.json`);
+    cacheFilePaths.add(cacheFilePath);
+    return { fetch: fetchImpl, sleep: noSleep, calls, cacheFilePath };
   }
 
   async function resetFeedState(data: Prisma.SportsbookProviderStateUncheckedUpdateInput = {}) {
@@ -271,7 +278,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
 
     // The game comes back on the next snapshot and reopens.
     const back = provider({ odds: (league, date) => reply(200, { events: league === 'NBA' && date === today ? [listing(providerPrefix + 'gone', at(180))] : [] }) });
-    await refreshSportsbookCache(app.prisma, 'test-key', at(1), back);
+    await refreshSportsbookCache(app.prisma, 'test-key', at(31), back);
     expect((await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: gone.id } })).status).toBe('PRE');
   });
 
@@ -656,6 +663,17 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(stored).toMatchObject({ status: 'PRE', homeOdds: -160, awayOdds: 140, oddsUpdatedAt: eNow });
     const board = await SportsbookService.board(app.prisma, { configured: true, pollMinutes: 30 }, eNow);
     expect(board.events.find((row) => row.id === stored.id)?.lineState).toBe('OPEN');
+
+    const stillFresh = await AdminSportsbookService.pullNow(app.prisma, config, actor, eAt(29), feed);
+    expect(stillFresh.message).toContain('no provider request was made');
+    expect(feed.calls).toHaveLength(8);
+    const diskCache = JSON.parse(await readFile(feed.cacheFilePath, 'utf8')) as { version: number; updatedAt: string; snapshots: Array<{ league: string; date: string }> };
+    expect(diskCache).toMatchObject({ version: 1, updatedAt: eNow.toISOString() });
+    expect(diskCache.snapshots).toContainEqual(expect.objectContaining({ league: 'NFL', date: today }));
+
+    const dueAgain = await AdminSportsbookService.pullNow(app.prisma, config, actor, eAt(30), feed);
+    expect(dueAgain.message).toContain('8 snapshots fetched');
+    expect(feed.calls).toHaveLength(16);
 
     const audit = await app.prisma.adminAuditLog.findFirst({
       where: { action: 'sportsbook.manual-pull', targetId: 'therundown', actorAccountId: accountId },

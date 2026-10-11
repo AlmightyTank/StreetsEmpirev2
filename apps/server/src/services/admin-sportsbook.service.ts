@@ -204,8 +204,8 @@ export const AdminSportsbookService = {
   },
 
   /**
-   * Run the normal cached odds poll on demand. This bypasses only the scheduled interval; the
-   * provider lease and quota floor still apply, and the whole operation is audited.
+   * Run the normal odds refresh on demand. The shared file cache still enforces its 30-minute
+   * cooldown; the provider lease and quota floor also apply, and the operation is audited.
    */
   async pullNow(
     prisma: PrismaClient,
@@ -219,6 +219,8 @@ export const AdminSportsbookService = {
     let message: string;
     if (result.skipped === 'BUSY') {
       message = 'A sportsbook feed pull is already running; no second pull was started.';
+    } else if (result.skipped === 'CACHE_FRESH') {
+      message = `The sportsbook odds cache was updated at ${result.cacheUpdatedAt}; no provider request was made. Next refresh is eligible at ${result.nextOddsPollAt}.`;
     } else if (!result.oddsPolled) {
       message = result.errors.join(' · ') || 'The manual pull was skipped because provider quota is near its limit.';
     } else if (!result.snapshots) {

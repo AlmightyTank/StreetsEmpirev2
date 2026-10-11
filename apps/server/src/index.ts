@@ -50,10 +50,9 @@ const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
   await RoundService.settleTurfClock(app.prisma, new Date());
 }, (message, error) => app.log.error(error, message));
 
-// 1.8.0-A: one bounded provider poll populates the shared pregame cache. Player requests never
-// call TheRundown. Free-plan odds are delayed, so refresh no faster than every 15 minutes.
-// 1.8.0-C: the feed records its own health for admins, and its lease plus the minimum interval
-// keep a second server instance from polling (and spending datapoints) on top of this one.
+// 1.8.0-A/C: player requests read the shared pregame cache and never call TheRundown. Provider
+// snapshots are persisted in .runtime/sportsbook-odds.json with a hard 30-minute refresh window;
+// the database lease and interval keep concurrent instances from spending datapoints.
 const stopSportsbook = env.THERUNDOWN_API_KEY
   ? startPoller('Sportsbook odds cache', env.SPORTSBOOK_POLL_MINUTES * 60_000, async () => {
       const result = await refreshSportsbookCache(app.prisma, env.THERUNDOWN_API_KEY, new Date(), {
