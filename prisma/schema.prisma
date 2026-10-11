@@ -200,6 +200,8 @@ model AccountProfile {
   activeAvatarFrameKey  String?
   /// Signature Profile Card surface finish: brushed, carbon or engine-turned. Null shows brushed.
   profileSurface        String?
+  /// Supporter thank-you list on the public site. Opt-in, so off by default.
+  showOnSupporterList   Boolean @default(false)
   activeSiteThemeKey    String?
   /// Player-selected visual skin per inventory item key. Cosmetic only.
   itemCosmetics         Json    @default("{}")

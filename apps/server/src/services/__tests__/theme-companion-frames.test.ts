@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rulesets, SITE_THEME_COMPANION_FRAMES, STREET_PASS_S1_COSMETICS, SUPPORTER_COSMETICS, siteThemeCompanionLook } from '@streets/rulesets';
+import { rulesets, SITE_THEME_COMPANION_FRAMES, STREET_PASS_S1_COSMETICS, siteThemeCompanionLook } from '@streets/rulesets';
 import { withThemeCompanionFrames } from '../quest-cosmetic.service.js';
 import { PROFILE_EFFECTS } from '../account-profile.service.js';
 

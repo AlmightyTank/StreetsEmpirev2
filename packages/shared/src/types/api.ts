@@ -2073,6 +2073,17 @@ export interface SupporterStatusDto {
   /** When the account first got supporter rewards. */
   since: string | null;
   membership: SupporterMembershipDto | null;
+  /** Shown on the public supporter thank-you list. Off unless the player turns it on. */
+  listed: boolean;
+  /** This month's supporter drop, and whether the account has it. Null when the month has none. */
+  drop: { month: string; name: string; held: boolean } | null;
+  /** Monthly drops the account holds, newest first. */
+  dropsHeld: { month: string; name: string }[];
+}
+
+/** The public supporter thank-you list: only players who chose to be on it. */
+export interface PublicSupportersDto {
+  supporters: { name: string; /** The month they started supporting, as YYYY-MM. */ since: string }[];
 }
 
 /** Where to send the player: Stripe Checkout or the Stripe billing portal. */

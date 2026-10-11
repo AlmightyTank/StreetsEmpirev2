@@ -43,6 +43,7 @@ import { AdminSurveyService } from '../services/admin-survey.service.js';
 import { AdminSurveyResultsService } from '../services/admin-survey-results.service.js';
 import { AdminSupporterService } from '../services/admin-supporter.service.js';
 import { SupporterBillingService } from '../services/supporter-billing.service.js';
+import { SupporterDropService } from '../services/supporter-drop.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
@@ -815,6 +816,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(supporterGrantSchema, request.body ?? {});
     return AdminSupporterService.grant(fastify.prisma, request.auth!.account, body);
   });
+
+  /** Gives this month's drop to everyone supporting now, without waiting for the hourly run. */
+  fastify.post('/supporters/drops/release', async () => SupporterDropService.sweep(fastify.prisma, new Date()));
 
   fastify.post('/supporters/backfill', async (request) => {
     const body = parseBody(supporterBackfillSchema, request.body ?? {});

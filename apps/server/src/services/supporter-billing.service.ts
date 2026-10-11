@@ -1,5 +1,6 @@
 import type { Account, PrismaClient, SupporterMembership } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify';
+import { SUPPORTER_DROP_SOURCE, supporterDropFor, supporterMonth } from '@streets/rulesets';
 import type { SupporterMembershipDto, SupporterRedirectDto, SupporterStatusDto } from '@streets/shared';
 import { env } from '../config/env.js';
 import type { Db } from '../utils/db.js';
@@ -132,9 +133,14 @@ async function applyMembership(tx: Db, accountId: string, change: MembershipChan
   });
 }
 
-/** Gives the rewards the account is missing and records it in the audit log as Stripe. */
-async function grantRewards(tx: Db, accountId: string, reason: string): Promise<string[]> {
+/**
+ * Gives the rewards the account is missing, plus the drop for the month the
+ * payment landed in, and records it in the audit log as Stripe.
+ */
+async function grantRewards(tx: Db, accountId: string, reason: string, paidAt: Date): Promise<string[]> {
   const granted = await SupporterService.grant(tx, accountId);
+  const drop = await SupporterService.grantDrop(tx, accountId, supporterMonth(paidAt), paidAt);
+  if (drop) granted.push(drop);
   if (granted.length) {
     await tx.adminAuditLog.create({
       data: {
@@ -184,7 +190,7 @@ async function applyEvent(tx: Db, event: StripeEvent, context: { disputedCustome
         ...(paid ? { status: 'active' } : {}),
       }, eventAt);
       if (!paid) return 'applied';
-      const granted = await grantRewards(tx, accountId, `Stripe checkout ${text(data.id) ?? ''}`.trim());
+      const granted = await grantRewards(tx, accountId, `Stripe checkout ${text(data.id) ?? ''}`.trim(), eventAt);
       return granted.length ? 'granted' : 'applied';
     }
 
@@ -216,7 +222,7 @@ async function applyEvent(tx: Db, event: StripeEvent, context: { disputedCustome
         },
         update: {},
       });
-      const granted = await grantRewards(tx, accountId, `Stripe invoice ${invoiceId}`);
+      const granted = await grantRewards(tx, accountId, `Stripe invoice ${invoiceId}`, paidAt);
       return granted.length ? 'granted' : 'applied';
     }
 
@@ -266,17 +272,41 @@ async function applyEvent(tx: Db, event: StripeEvent, context: { disputedCustome
  * takes rewards back: refunds and disputes are recorded for admins only.
  */
 export const SupporterBillingService = {
-  async status(prisma: PrismaClient, accountId: string): Promise<SupporterStatusDto> {
-    const [since, membership] = await Promise.all([
+  async status(prisma: PrismaClient, accountId: string, now = new Date()): Promise<SupporterStatusDto> {
+    const month = supporterMonth(now);
+    const drop = supporterDropFor(month);
+    const [since, membership, profile, drops] = await Promise.all([
       SupporterService.since(prisma, accountId),
       prisma.supporterMembership.findUnique({ where: { accountId } }),
+      prisma.accountProfile.findUnique({ where: { accountId }, select: { showOnSupporterList: true } }),
+      prisma.accountCosmeticUnlock.findMany({
+        where: { accountId, sourceRulesetId: SUPPORTER_DROP_SOURCE },
+        select: { key: true, title: true, sourceRulesetVersion: true },
+        orderBy: { sourceRulesetVersion: 'desc' },
+      }),
     ]);
     return {
       checkoutEnabled: env.stripe.enabled,
       hasRewards: since !== null,
       since: since?.toISOString() ?? null,
       membership: membership ? membershipDto(membership) : null,
+      listed: since !== null && (profile?.showOnSupporterList ?? false),
+      drop: drop ? { month, name: drop.name, held: drops.some((row) => row.key === drop.key) } : null,
+      dropsHeld: drops.map((row) => ({ month: row.sourceRulesetVersion, name: row.title })),
     };
+  },
+
+  /** Puts the account on the public thank-you list, or takes it off. Only supporters can be listed. */
+  async setListed(prisma: PrismaClient, accountId: string, listed: boolean): Promise<SupporterStatusDto> {
+    if (listed && !(await SupporterService.since(prisma, accountId))) {
+      throw AppError.conflict('NOT_A_SUPPORTER', 'The thank-you list is for supporters. Support StreetsEmpire first.');
+    }
+    await prisma.accountProfile.upsert({
+      where: { accountId },
+      create: { accountId, showOnSupporterList: listed },
+      update: { showOnSupporterList: listed },
+    });
+    return SupporterBillingService.status(prisma, accountId);
   },
 
   /** A Stripe Checkout link for the supporter subscription, tied to this account. */

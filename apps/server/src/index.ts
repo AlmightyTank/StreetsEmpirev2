@@ -20,6 +20,7 @@ import { LawOfficialService } from './services/law-official.service.js';
 import { PlayerStateService } from './services/player-state.service.js';
 import { NpcGangService } from './services/npc-gang.service.js';
 import { refreshSportsbookCache } from './services/sportsbook-feed.service.js';
+import { SupporterDropService } from './services/supporter-drop.service.js';
 
 const app = await buildApp();
 
@@ -61,6 +62,12 @@ const stopSportsbook = env.THERUNDOWN_API_KEY
       if (result.errors.length) app.log.warn({ sportsbook: result }, 'Sportsbook feed run finished with errors');
     }, (message, error) => app.log.error(error, message))
   : () => {};
+
+// Monthly supporter drops: once a month starts, everyone supporting gets its drop within the hour.
+const stopSupporterDrops = startPoller('Supporter drops', 60 * 60_000, async () => {
+  const result = await SupporterDropService.sweep(app.prisma, new Date());
+  if (result.granted) app.log.info({ supporterDrop: result }, 'Supporter drop given out');
+}, (message, error) => app.log.error(error, message));
 
 // Phase G NPC gangs: weighted archetype-driven restocks, economy moves and attacks.
 const stopNpcGangs = startPoller('NPC gangs', 60_000, async () => {
@@ -109,6 +116,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     stopAlerts();
     stopSportsbook();
     stopNpcGangs();
+    stopSupporterDrops();
     stopTurfWars();
     await app.close();
     process.exit(0);

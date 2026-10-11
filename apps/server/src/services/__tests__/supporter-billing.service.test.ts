@@ -17,8 +17,12 @@ function fakeDb(accountIds: string[] = ['acc_1']) {
     events: new Set<string>(),
     unlocks: [] as Row[],
     audit: [] as Row[],
+    profiles: [] as Row[],
   };
-  const matches = (row: Row, where: Row) => Object.entries(where).every(([key, value]) => row[key] === value);
+  const matches = (row: Row, where: Row) => Object.entries(where).every(([key, value]) => {
+    if (value && typeof value === 'object' && 'in' in value) return (value.in as unknown[]).includes(row[key]);
+    return row[key] === value;
+  });
   const db: Row = {
     state,
     $transaction: async (fn: (tx: unknown) => unknown) => fn(db),
@@ -49,9 +53,18 @@ function fakeDb(accountIds: string[] = ['acc_1']) {
       update: async ({ where, data }: Row) => Object.assign(state.payments.find((row) => row.id === where.id)!, data),
     },
     accountCosmeticUnlock: {
-      findMany: async ({ where }: Row) => state.unlocks.filter((row) => row.accountId === where.accountId && where.key.in.includes(row.key)),
+      findMany: async ({ where }: Row) => state.unlocks.filter((row) => matches(row, where)),
       create: async ({ data }: Row) => { state.unlocks.push(data); return data; },
-      findFirst: async ({ where }: Row) => state.unlocks.find((row) => row.accountId === where.accountId) ?? null,
+      findFirst: async ({ where }: Row) => state.unlocks.find((row) => matches(row, where)) ?? null,
+    },
+    accountProfile: {
+      findUnique: async ({ where }: Row) => state.profiles.find((row) => row.accountId === where.accountId) ?? null,
+      upsert: async ({ where, create, update }: Row) => {
+        const found = state.profiles.find((row) => row.accountId === where.accountId);
+        if (found) return Object.assign(found, update);
+        state.profiles.push({ ...create });
+        return create;
+      },
     },
     adminAuditLog: { create: async ({ data }: Row) => { state.audit.push(data); return data; } },
   };
@@ -182,6 +195,35 @@ describe('SupporterBillingService.handleEvent', () => {
 
     await expect(handle(db, failing)).rejects.toThrow('database went away');
     expect(db.state.events.has(failing.id)).toBe(false);
+  });
+});
+
+describe('monthly drops and the thank-you list', () => {
+  const OCTOBER_2026 = Date.UTC(2026, 9, 14) / 1000;
+
+  it("adds the drop for the month a payment lands in", async () => {
+    const db = fakeDb();
+    await handle(db, event('invoice.paid', {
+      id: 'in_oct', customer: 'cus_1', amount_paid: 500, currency: 'usd', status_transitions: { paid_at: OCTOBER_2026 },
+      subscription_details: { metadata: { accountId: 'acc_1' } }, subscription: 'sub_1',
+    }, OCTOBER_2026));
+
+    expect(db.state.unlocks.map((row) => row.key)).toEqual([...ALL, 'supporter-drop-2026-10']);
+    expect(db.state.audit[0]?.after).toEqual({ granted: [...ALL, 'supporter-drop-2026-10'] });
+  });
+
+  it('reports the drop and lets only a supporter join the list', async () => {
+    const db = fakeDb();
+    const prisma = db as unknown as PrismaClient;
+    await expect(SupporterBillingService.setListed(prisma, 'acc_1', true)).rejects.toMatchObject({ code: 'NOT_A_SUPPORTER' });
+
+    await handle(db, paidCheckout());
+    const listed = await SupporterBillingService.setListed(prisma, 'acc_1', true);
+    expect(listed.listed).toBe(true);
+
+    const status = await SupporterBillingService.status(prisma, 'acc_1', new Date(OCTOBER_2026 * 1000));
+    expect(status.drop).toEqual({ month: '2026-10', name: 'Supporter · October 2026', held: false });
+    expect((await SupporterBillingService.setListed(prisma, 'acc_1', false)).listed).toBe(false);
   });
 });
 
