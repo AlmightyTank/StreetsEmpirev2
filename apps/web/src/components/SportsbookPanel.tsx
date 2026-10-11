@@ -109,16 +109,6 @@ function openTicketStage(bet: SportsbookBetDto, now: number): string {
   return Date.parse(bet.startsAt) <= now ? 'Awaiting game update' : 'Upcoming';
 }
 
-function settledCash(bet: SportsbookBetDto): string {
-  switch (bet.status) {
-    case 'WON': return `${signedCents(bet.returnCents)} paid (${signedCents(bet.returnCents - bet.stakeCents)} profit)`;
-    case 'LOST': return `${signedCents(-bet.stakeCents)} stake lost`;
-    case 'PUSH': return `${signedCents(0)} push`;
-    case 'VOID': return `${signedCents(0)} void`;
-    default: return 'Pending';
-  }
-}
-
 function settledChips(bet: SportsbookBetDto): string {
   switch (bet.status) {
     case 'WON': return `${signedCents(bet.returnCents)} paid (${signedCents(bet.returnCents - bet.stakeCents)} profit)`;
