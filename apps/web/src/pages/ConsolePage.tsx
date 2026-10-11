@@ -1083,7 +1083,7 @@ export function ConsolePage() {
                           ))}
                         </div>
                       ) : recipientQuery.trim().length >= 2 && !recipientSearching && !recipientPlayer ? (
-                        <small className="se-muted">No player selected. Choose a match to continue.</small>
+                        <small className="se-muted">No player found. Try their name or #PimpID.</small>
                       ) : null}
                       {recipientPlayer ? (
                         <div className="se-console-recipient__selected">
