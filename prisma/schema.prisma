@@ -1889,6 +1889,8 @@ model DealerCrew {
   salesSettledAt     DateTime?
   /// 1.6.0-F. The part of a unit sold but not yet whole, carried to the next batch.
   salesCarry         Float            @default(0)
+  /// 1.8.6-F. Runners leave this many units of the crew's product in same-city storage.
+  runnerReserveUnits Int              @default(0)
   staff              DealerStaff[]
   inventory          DealerStock[]
   sales              DealerSale[]
@@ -2030,6 +2032,8 @@ enum CrewAssignmentKind {
 }
 
 enum CrewJobPostKind {
+  DEALER
+  TURF
   CORNER_ENFORCER
   CORNER_LOOKOUT
   STASH_GUARD

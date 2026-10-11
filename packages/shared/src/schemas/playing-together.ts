@@ -94,6 +94,9 @@ const runProduct = z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$
 const wholeCount = (what: string) => z.number({ invalid_type_error: `Enter ${what}.` }).int(`${what} must be a whole number.`).min(0).safe();
 /** 1.0.0-C. Goods and crew, as opposed to cash: capped like any other order. */
 const unitCount = (what: string) => wholeCount(what).max(MAX_ORDER_QUANTITY, 'That order is too large.');
+const travelCrewMemberIds = z.array(z.string().trim().min(1).max(64))
+  .max(50, 'Choose up to 50 crew members.')
+  .refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.');
 
 const runId = z.string().trim().min(1).max(64);
 export const travelRoutesSchema = z.object({ to: citySlug, runId: runId.optional() }).strict();
@@ -115,6 +118,8 @@ export const runLaunchSchema = z.object({
   marketQuotes: z.record(runProduct, z.number().int().positive().safe()).optional(),
   /** Trips B. The boss rides along. */
   rideAlong: z.boolean().default(false),
+  /** 1.8.6-G. Optional named escorts; when present, count must match escortThugs. */
+  escortMemberIds: travelCrewMemberIds.optional(),
   actionId: actionIdSchema,
 }).strict();
 export type RunLaunchInput = z.infer<typeof runLaunchSchema>;
@@ -204,6 +209,8 @@ export const tripLaunchSchema = z.object({
   bankrollCents: wholeCount('a bankroll'),
   /** Trips D. Fit thugs flying with the boss. */
   bodyguards: wholeCount('bodyguards').default(0),
+  /** 1.8.6-G. Optional named bodyguards; when present, count must match bodyguards. */
+  bodyguardMemberIds: travelCrewMemberIds.optional(),
   actionId: actionIdSchema,
 }).strict();
 export type TripLaunchInput = z.infer<typeof tripLaunchSchema>;

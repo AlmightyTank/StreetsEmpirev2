@@ -41,6 +41,7 @@ import { BossPresenceService } from './boss-presence.service.js';
 import { totalAwayWorth } from './run-settle.service.js';
 import { LawOfficialService } from './law-official.service.js';
 import { FactionService } from './faction.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 
@@ -251,6 +252,9 @@ export const BossTripService = {
         // Trips B: one boss. A boss riding with a run cannot also be on a plane.
         if (await bossRun(tx, roundPlayerId)) throw AppError.conflict('BOSS_ON_RUN', 'The boss is riding with your run. Bring it home first.');
         const ticketNudge = input.bodyguards > 0 ? await FactionService.nudge(tx, roundPlayerId, base, 'BODYGUARD_TICKETS') : null;
+        if ((input.bodyguardMemberIds?.length ?? 0) > 0 && input.bodyguardMemberIds!.length !== input.bodyguards) {
+          throw AppError.badRequest('CREW_SELECTION_COUNT', `Choose exactly ${input.bodyguards} bodyguard${input.bodyguards === 1 ? '' : 's'}.`);
+        }
         const check = checkTrip(base, {
           from: player.city.slug,
           to: input.to,
@@ -279,6 +283,7 @@ export const BossTripService = {
         if (!to?.isEnabled) throw AppError.badRequest('UNKNOWN_CITY', 'That city is not on the map.', { to: 'Pick a city.' });
 
         const rules = requireTrips(base);
+        if (input.bodyguardMemberIds?.length) await CrewRosterService.sync(tx, roundPlayerId, base, now, current);
         // Trips D2: a hot boss can be pulled aside on the way out. Rolled once, from the action.
         // 1.3.0-D: Customs on the payroll at home looks the other way more often. The no-fly line above still holds.
         const customs = base.law?.officials ? await LawOfficialService.working(tx, roundPlayerId, player.cityId, 'CUSTOMS', now) : null;
@@ -306,6 +311,15 @@ export const BossTripService = {
             airportDelayMinutes: airport.delayMinutes,
             ...times,
           },
+        });
+        await CrewRosterService.assignTravelMembers(tx, {
+          roundPlayerId,
+          ruleset: base,
+          kind: 'BODYGUARD',
+          assignmentRef: trip.id,
+          count: input.bodyguards,
+          memberIds: input.bodyguardMemberIds,
+          now,
         });
         const result: TripLaunchResult = {
           tripId: trip.id,

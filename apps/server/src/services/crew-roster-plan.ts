@@ -36,6 +36,12 @@ export interface CrewRefs {
   businesses: ReadonlyArray<{ id: string; role: CrewRole; staff: number }>;
   /** Corners this player holds, and the thugs posted on each. */
   turf: ReadonlyArray<{ id: string; thugs: number; lookouts?: number; stashGuards?: number }>;
+  /** Dealer crews with named runners attached. */
+  runners?: ReadonlyArray<{ crewId: string; count: number }>;
+  /** Boss trips carrying named bodyguards. */
+  bodyguards?: ReadonlyArray<{ tripId: string; count: number }>;
+  /** Runs carrying named escorts. */
+  escorts?: ReadonlyArray<{ runId: string; count: number }>;
 }
 
 export interface CrewPlace {
@@ -170,7 +176,17 @@ export function crewTargets(counts: CrewCounts, refs: CrewRefs): CrewTarget[] {
 
   const dealerCount = whole(counts.dealerThugs);
   const careers = refs.dealers.slice(0, dealerCount);
-  build('THUG', counts.thugs, [
+  const bodyguards = refs.bodyguards ?? [];
+  const escorts = refs.escorts ?? [];
+  const physicalAway = bodyguards.reduce((sum, row) => sum + whole(row.count), 0) + escorts.reduce((sum, row) => sum + whole(row.count), 0);
+  let busyLeft = whole(counts.busyThugs);
+  const takeBusy = <T extends { count: number }>(rows: readonly T[]) => rows.flatMap((row) => {
+    const count = Math.min(whole(row.count), busyLeft);
+    busyLeft -= count;
+    return count > 0 ? [{ ...row, count }] : [];
+  });
+  const runners = takeBusy(refs.runners ?? []);
+  build('THUG', counts.thugs + physicalAway, [
     ...careers.map((career) => ({
       status: 'ASSIGNED' as const, assignmentKind: 'DEALER' as const, assignmentRef: career.crewId, count: 1,
       staffId: career.staffId, staffExperience: career.experiencePoints,
@@ -180,7 +196,10 @@ export function crewTargets(counts: CrewCounts, refs: CrewRefs): CrewTarget[] {
       .map(({ ref, count }) => ({ status: 'ASSIGNED' as const, assignmentKind: 'BUSINESS' as const, assignmentRef: ref, count })),
     ...allocateTurf(refs.turf, whole(counts.postedThugs))
       .map(({ ref, kind, count }) => ({ status: 'ASSIGNED' as const, assignmentKind: kind, assignmentRef: ref, count })),
-    { status: 'IN_TRANSIT', assignmentKind: null, assignmentRef: null, count: counts.busyThugs },
+    ...bodyguards.map((row) => ({ status: 'ASSIGNED' as const, assignmentKind: 'BODYGUARD' as const, assignmentRef: row.tripId, count: row.count })),
+    ...escorts.map((row) => ({ status: 'ASSIGNED' as const, assignmentKind: 'ESCORT' as const, assignmentRef: row.runId, count: row.count })),
+    ...runners.map((row) => ({ status: 'ASSIGNED' as const, assignmentKind: 'RUNNER' as const, assignmentRef: row.crewId, count: row.count })),
+    { status: 'IN_TRANSIT', assignmentKind: null, assignmentRef: null, count: busyLeft },
     { status: 'RECOVERING', assignmentKind: null, assignmentRef: null, count: counts.woundedThugs },
   ]);
   build('WORKER', counts.whores, allocate(

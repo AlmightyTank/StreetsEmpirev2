@@ -13,6 +13,7 @@ import { NetWorthService } from '../net-worth.service.js';
 import { PlayerStateService } from '../player-state.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { RoundService } from '../round.service.js';
+import { CrewStaffingOrderService } from '../crew-staffing-order.service.js';
 
 /**
  * 1.7.0-A gate, live: migrating a crew into members keeps every count, assignment,
@@ -237,6 +238,106 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
     expect(await app.prisma.crewMemberEvent.count({ where: { roundPlayerId: player.id, kind: 'JOINED' } })).toBe(6);
     // The dealers kept their places through all of it.
     expect(thugs.filter((entry) => entry.assignmentKind === 'DEALER').map((entry) => entry.id).sort()).toEqual(dealers.map((entry) => entry.id).sort());
+  });
+
+  it('replays staffing actions once and refills a runner vacancy without count drift', async () => {
+    const rules = classicOgV17A;
+    const player = await seasonedPlayer(rules);
+    const crew = (await DealerCrewService.establish(app.prisma, player.id, {
+      citySlug: rules.round.startingCitySlug,
+      districtKey: 'CASINO',
+      dealers: 1,
+      actionId: randomUUID(),
+    })).result.crew!;
+    await CrewStaffingOrderService.set(app.prisma, player.id, {
+      kind: 'RUNNER',
+      targetRef: crew.id,
+      headcount: 2,
+      keepTurns: 10,
+      actionId: randomUUID(),
+    }, rules);
+
+    const now = new Date();
+    const actionId = randomUUID();
+    const runAction = (id: string) => ActionService.run(app.prisma, player.id, {
+      action: 'TEST_STAFFING_ORDER',
+      actionId: id,
+      execute: ({ current }) => ({ next: current, result: null }),
+    }, now);
+    const first = await runAction(actionId);
+    const replay = await runAction(actionId);
+    const runners = () => app.prisma.crewMember.findMany({
+      where: { roundPlayerId: player.id, role: 'THUG', status: 'ASSIGNED', assignmentKind: 'RUNNER', assignmentRef: crew.id },
+    });
+
+    expect(first.staffingOrders).toEqual([expect.objectContaining({ kind: 'RUNNER', assigned: 2 })]);
+    expect(replay).toEqual(first);
+    expect(await runners()).toHaveLength(2);
+
+    const lostRunner = (await runners())[0]!;
+    await app.prisma.crewMember.delete({ where: { id: lostRunner.id } });
+    await app.prisma.roundPlayer.update({
+      where: { id: player.id },
+      data: { thugs: { decrement: 1 }, busyThugs: { decrement: 1 } },
+    });
+    const refill = await runAction(randomUUID());
+    const updated = await fresh(player.id);
+
+    expect(refill.staffingOrders).toEqual([expect.objectContaining({ kind: 'RUNNER', assigned: 1 })]);
+    expect(updated).toMatchObject({ thugs: 59, busyThugs: 2 });
+    expect(await runners()).toHaveLength(2);
+    expect(await active(player.id, 'THUG')).toHaveLength(updated.thugs);
+  });
+
+  it('keeps the staffing turn floor on the action path and charges the turf cost once', async () => {
+    const rules = classicOgV17A;
+    const player = await seasonedPlayer(rules);
+    const now = new Date();
+    const turf = await app.prisma.turf.findFirst({ where: { roundId: player.roundId, cityId: homeCityId, district: 'URBAN_GHETTO' } })
+      ?? await app.prisma.turf.create({ data: { roundId: player.roundId, cityId: homeCityId, district: 'URBAN_GHETTO', localsThugs: 5 } });
+    await app.prisma.turf.update({
+      where: { id: turf.id },
+      data: { holderId: player.id, cornerThugs: 0, pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0, heldSince: now },
+    });
+    const before = await app.prisma.roundPlayer.update({
+      where: { id: player.id },
+      data: {
+        thugs: 2, woundedThugs: 0, busyThugs: 0, postedThugs: 0, businessThugs: 0, dealerThugs: 0,
+        turns: 13, pistols: 2, shotguns: 0, tek9s: 0, ak47s: 0, postedNetWorthCents: 0n,
+        lastTurnCalculationAt: now,
+      },
+    });
+    await app.prisma.roundPlayer.update({
+      where: { id: player.id },
+      data: { netWorthCents: NetWorthService.calculate(before, rules) },
+    });
+    await CrewStaffingOrderService.set(app.prisma, player.id, {
+      kind: 'TURF',
+      targetRef: turf.id,
+      headcount: 2,
+      keepTurns: 10,
+      actionId: randomUUID(),
+    }, rules, now);
+    const runAction = (actionId: string) => ActionService.run(app.prisma, player.id, {
+      action: 'TEST_TURF_STAFFING_ORDER',
+      actionId,
+      execute: ({ current }) => ({ next: current, result: null }),
+    }, now);
+
+    const belowFloor = await runAction(randomUUID());
+    expect(belowFloor.staffingOrders).toBeUndefined();
+    expect((await fresh(player.id)).turns).toBe(13);
+
+    await app.prisma.roundPlayer.update({ where: { id: player.id }, data: { turns: 14, lastTurnCalculationAt: now } });
+    const atFloor = await runAction(randomUUID());
+    const updated = await fresh(player.id);
+
+    expect(atFloor.staffingOrders).toEqual([expect.objectContaining({ kind: 'TURF', assigned: 2, turnsUsed: 4 })]);
+    expect(updated).toMatchObject({ turns: 10, postedThugs: 2, pistols: 0 });
+    expect((await app.prisma.turf.findUniqueOrThrow({ where: { id: turf.id } })).cornerThugs).toBe(2);
+    expect(await app.prisma.crewMember.count({
+      where: { roundPlayerId: player.id, role: 'THUG', status: 'ASSIGNED', assignmentKind: 'TURF', assignmentRef: turf.id },
+    })).toBe(2);
   });
 
   it('reads 1.7.0-B profiles through the API with filters and career history', async () => {

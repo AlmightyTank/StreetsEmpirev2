@@ -252,7 +252,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
               <div className="se-pass-theme-preview__cosmetic-profile">
                 <i />
                 <strong>AMIGHTYTANK</strong>
-                <small>{active.kind === 'frame' ? 'Profile frame preview' : 'Featured badge preview'}</small>
+                <small>{active.kind === 'frame' ? 'Avatar frame preview' : 'Featured badge preview'}</small>
               </div>
             )}
           </div>

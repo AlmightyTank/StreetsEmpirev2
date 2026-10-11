@@ -251,6 +251,112 @@ export const CrewAssignmentService = {
     });
   },
 
+  assignRunners(prisma: PrismaClient, roundPlayerId: string, crewId: string, input: CrewDealerMembersInput) {
+    return ActionService.run<CrewPutToWorkResult>(prisma, roundPlayerId, {
+      action: 'CREW_RUNNER_ASSIGN',
+      actionId: input.actionId,
+      execute: async ({ tx, current, ruleset, now }) => {
+        requireRoster(ruleset);
+        if (!ruleset.supplyNetwork?.enabled) throw AppError.notFound('SUPPLY_DISABLED', 'Runner assignments are not available in this round.');
+        if (!dealerRules(ruleset)) throw AppError.notFound('DEALERS_DISABLED', 'Dealer crews are not available in this round.');
+        await CrewRosterService.sync(tx, roundPlayerId, ruleset, now, current);
+        const crew = await tx.dealerCrew.findFirst({ where: { id: crewId, roundPlayerId, status: { in: ['ACTIVE', 'PAUSED'] } } });
+        if (!crew) throw AppError.notFound('DEALER_CREW_NOT_FOUND', 'That dealer crew is not yours.');
+        if (fitThugs(current) < input.memberIds.length) throw AppError.conflict('NO_AVAILABLE_THUGS', `You only have ${fitThugs(current)} available thug${fitThugs(current) === 1 ? '' : 's'} at home.`);
+        const members = await loadMembers(tx, roundPlayerId, input.memberIds);
+        assertAvailableThugs(members);
+
+        await tx.crewMember.updateMany({
+          where: { roundPlayerId, id: { in: input.memberIds } },
+          data: { status: 'ASSIGNED', assignmentKind: 'RUNNER', assignmentRef: crew.id, statusSince: now, releasedAt: null },
+        });
+        await tx.crewMemberEvent.createMany({
+          data: members.map((member) => ({ memberId: member.id, roundPlayerId, kind: 'ASSIGNED' as const, assignmentKind: 'RUNNER' as const, assignmentRef: crew.id, summary: 'Assigned as a dealer runner.', at: now })),
+        });
+        const next = { ...current, busyThugs: current.busyThugs + members.length };
+        return {
+          next,
+          result: result({
+            kind: 'RUNNER_ASSIGN', memberIds: input.memberIds, assigned: members.length, released: 0, moved: 0,
+            from: null, to: crew.id, dealerThugs: next.dealerThugs, postedThugs: next.postedThugs, availableThugs: fitThugs(next), turnsUsed: 0,
+            message: `${members.length} runner${members.length === 1 ? '' : 's'} assigned.`,
+          }),
+          ledger: [],
+        };
+      },
+    });
+  },
+
+  releaseRunners(prisma: PrismaClient, roundPlayerId: string, input: CrewDealerMembersInput) {
+    return ActionService.run<CrewPutToWorkResult>(prisma, roundPlayerId, {
+      action: 'CREW_RUNNER_RELEASE',
+      actionId: input.actionId,
+      execute: async ({ tx, current, ruleset, now }) => {
+        requireRoster(ruleset);
+        if (!ruleset.supplyNetwork?.enabled) throw AppError.notFound('SUPPLY_DISABLED', 'Runner assignments are not available in this round.');
+        await CrewRosterService.sync(tx, roundPlayerId, ruleset, now, current);
+        const members = await loadMembers(tx, roundPlayerId, input.memberIds);
+        const bad = members.find((member) => member.role !== 'THUG' || member.status !== 'ASSIGNED' || member.assignmentKind !== 'RUNNER' || !member.assignmentRef);
+        if (bad) throw AppError.conflict('CREW_MEMBER_UNAVAILABLE', 'Choose active runners to bring home.');
+        await tx.crewMember.updateMany({
+          where: { roundPlayerId, id: { in: input.memberIds } },
+          data: { status: 'AVAILABLE', assignmentKind: null, assignmentRef: null, statusSince: now, releasedAt: null },
+        });
+        await tx.crewMemberEvent.createMany({
+          data: members.map((member) => ({ memberId: member.id, roundPlayerId, kind: 'UNASSIGNED' as const, assignmentKind: 'RUNNER' as const, assignmentRef: member.assignmentRef, summary: 'Returned from runner work.', at: now })),
+        });
+        const next = { ...current, busyThugs: Math.max(0, current.busyThugs - members.length) };
+        return {
+          next,
+          result: result({
+            kind: 'RUNNER_RELEASE', memberIds: input.memberIds, assigned: 0, released: members.length, moved: 0,
+            from: null, to: null, dealerThugs: next.dealerThugs, postedThugs: next.postedThugs, availableThugs: fitThugs(next), turnsUsed: 0,
+            message: `${members.length} runner${members.length === 1 ? '' : 's'} returned home.`,
+          }),
+          ledger: [],
+        };
+      },
+    });
+  },
+
+  moveRunners(prisma: PrismaClient, roundPlayerId: string, crewId: string, input: CrewDealerMembersInput) {
+    return ActionService.run<CrewPutToWorkResult>(prisma, roundPlayerId, {
+      action: 'CREW_RUNNER_MOVE',
+      actionId: input.actionId,
+      execute: async ({ tx, current, ruleset, now }) => {
+        requireRoster(ruleset);
+        if (!ruleset.supplyNetwork?.enabled) throw AppError.notFound('SUPPLY_DISABLED', 'Runner assignments are not available in this round.');
+        if (!dealerRules(ruleset)) throw AppError.notFound('DEALERS_DISABLED', 'Dealer crews are not available in this round.');
+        await CrewRosterService.sync(tx, roundPlayerId, ruleset, now, current);
+        const target = await tx.dealerCrew.findFirst({ where: { id: crewId, roundPlayerId, status: { in: ['ACTIVE', 'PAUSED'] } } });
+        if (!target) throw AppError.notFound('DEALER_CREW_NOT_FOUND', 'That destination dealer crew is not yours.');
+        const members = await loadMembers(tx, roundPlayerId, input.memberIds);
+        const bad = members.find((member) => member.role !== 'THUG' || member.status !== 'ASSIGNED' || member.assignmentKind !== 'RUNNER' || !member.assignmentRef || member.assignmentRef === target.id);
+        if (bad) throw AppError.conflict('CREW_MEMBER_UNAVAILABLE', 'Choose runners from another crew.');
+        await tx.crewMember.updateMany({
+          where: { roundPlayerId, id: { in: input.memberIds } },
+          data: { assignmentRef: target.id, statusSince: now },
+        });
+        await tx.crewMemberEvent.createMany({
+          data: members.flatMap((member) => [
+            { memberId: member.id, roundPlayerId, kind: 'UNASSIGNED' as const, assignmentKind: 'RUNNER' as const, assignmentRef: member.assignmentRef, summary: 'Moved between dealer runner routes.', at: now },
+            { memberId: member.id, roundPlayerId, kind: 'ASSIGNED' as const, assignmentKind: 'RUNNER' as const, assignmentRef: target.id, summary: 'Moved to this dealer runner route.', at: now },
+          ]),
+        });
+        return {
+          next: current,
+          result: result({
+            kind: 'RUNNER_MOVE', memberIds: input.memberIds, assigned: 0, released: 0, moved: members.length,
+            from: new Set(members.map((member) => member.assignmentRef)).size === 1 ? members[0]!.assignmentRef : null, to: target.id,
+            dealerThugs: current.dealerThugs, postedThugs: current.postedThugs, availableThugs: fitThugs(current), turnsUsed: 0,
+            message: `${members.length} runner${members.length === 1 ? '' : 's'} moved.`,
+          }),
+          ledger: [],
+        };
+      },
+    });
+  },
+
   postTurf(prisma: PrismaClient, roundPlayerId: string, input: CrewTurfMembersInput) {
     return ActionService.run<CrewPutToWorkResult>(prisma, roundPlayerId, {
       action: 'CREW_TURF_POST',

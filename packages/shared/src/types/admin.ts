@@ -125,6 +125,7 @@ export interface AdminCrewRosterDto {
   generatedAt: string;
   players: { total: number; migrated: number; pending: number };
   members: { total: number; experienceMin: number | null; experienceMax: number | null; experienceAverage: number | null };
+  staffingOrders: { total: number; active: number; byKind: Array<{ kind: string; count: number }> };
   byRole: Array<{ role: 'THUG' | 'WORKER'; count: number }>;
   bySpecialty: Array<{ specialty: 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE'; count: number }>;
   byStatus: Array<{ status: 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED'; count: number }>;

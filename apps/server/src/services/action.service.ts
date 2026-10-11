@@ -45,6 +45,7 @@ import { StreetPassCredService } from './street-pass-cred.service.js';
 import { LawService, type CaseEvidence } from './law.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
+import { CrewStaffingOrderService } from './crew-staffing-order.service.js';
 import { fitThugs } from './crew-availability.js';
 
 export { fitThugs, workingWhores } from './crew-availability.js';
@@ -529,7 +530,14 @@ export const ActionService = {
         turns: Math.max(0, current.turns - outcome.next.turns),
         now,
       }, trigger) : undefined;
-      const next = actionEncounter?.next ?? outcome.next;
+      const staffing = await CrewStaffingOrderService.apply(tx, {
+        roundPlayerId,
+        ruleset,
+        now,
+        state: actionEncounter?.next ?? outcome.next,
+        player,
+      });
+      const next = staffing.next;
       assertPlayerState(next, ruleset, 'after');
       assertLoanDebtChange(current.loanDebtCents, next.loanDebtCents, ruleset);
 
@@ -672,6 +680,7 @@ export const ActionService = {
         changes: diff(before, after),
         result: outcome.result,
         ...(actionEncounter?.encounter ? { encounter: actionEncounter.encounter } : {}),
+        ...(staffing.fills.length ? { staffingOrders: staffing.fills } : {}),
         rankChanges,
       };
 

@@ -17,11 +17,9 @@ const CARD_HEIGHT = 370;
 const HOVER_LOOK_ITEMS = ['AK47', 'LOW_RIDER'] as const;
 const PROFILE_EFFECT_FRAME_ART = {
   snowstorm: {
-    popup: '/profile-frames/snowstorm-popup.webp',
     avatar: '/profile-frames/snowstorm-avatar.webp',
   },
   inferno: {
-    popup: '/profile-frames/inferno-popup.webp',
     avatar: '/profile-frames/inferno-avatar.webp',
   },
 } as const;
@@ -242,11 +240,9 @@ export function PlayerProfileHoverLayer() {
   if (!target) return null;
   const to = `/game/players/${target.id}`;
   const frameArt = profile ? PROFILE_EFFECT_FRAME_ART[profile.cosmetics.effect as keyof typeof PROFILE_EFFECT_FRAME_ART] : null;
-  const avatarFrame = profile?.cosmetics.avatarFrame === undefined ? profile?.cosmetics.frame ?? null : profile.cosmetics.avatarFrame;
-  // The Signature card owns the card surface, so it replaces any effect's popup art; the chrome ring replaces its avatar art.
-  const signature = profile?.cosmetics.frame === SIGNATURE_CARD_FRAME_KEY;
-  const chromeRing = avatarFrame === SIGNATURE_CARD_FRAME_KEY;
-  const surface = profile?.cosmetics.surface ?? 'brushed';
+  const avatarFrame = profile?.cosmetics.avatarFrame === undefined
+    ? profile?.cosmetics.frame ?? null
+    : profile.cosmetics.avatarFrame ?? null;
   return createPortal(
     <aside
       ref={cardRef}
@@ -254,9 +250,8 @@ export function PlayerProfileHoverLayer() {
       className={`se-profile-hover-card${profile ? ` se-profile-effect se-profile-effect--${profile.cosmetics.effect}` : ''}${profile?.cosmetics.siteTheme ? ` se-site-theme--${profile.cosmetics.siteTheme}` : ''}${signature ? ' se-signature-card' : ''}`}
       data-theme={profile?.cosmetics.siteTheme ?? 'none'}
       data-accent={profile?.cosmetics.accent ?? 'default'}
-      data-frame={profile?.cosmetics.frame ?? 'none'}
+      data-frame="none"
       data-avatar-frame={avatarFrame ?? 'none'}
-      data-surface={signature ? surface : undefined}
       data-touch={touch ? 'true' : 'false'}
       style={touch ? undefined : { top: position.top, left: position.left, width: position.width }}
       aria-label={`${profile?.displayName ?? target.label} profile preview`}
@@ -268,7 +263,6 @@ export function PlayerProfileHoverLayer() {
         if (!event.currentTarget.contains(next) && !target.anchor.contains(next)) scheduleClose();
       }}
     >
-      {frameArt && !signature ? <img className="se-profile-hover-card__frame-art" src={frameArt.popup} alt="" aria-hidden="true" /> : null}
       <div
         className="se-profile-hover-card__banner"
         aria-hidden="true"
@@ -336,13 +330,11 @@ export function PlayerProfileHoverLayer() {
               ))}
             </div>
           ) : null}
-          {profile.cosmetics.frame || profile.cosmetics.avatarFrame || profile.cosmetics.accent !== 'default' || profile.cosmetics.effect !== 'none' || profile.cosmetics.siteThemeLabel ? (
+          {avatarFrame || profile.cosmetics.accent !== 'default' || profile.cosmetics.effect !== 'none' || profile.cosmetics.siteThemeLabel ? (
             <div className="se-profile-hover-card__effects">
               <small>PROFILE LOOK</small>
               {profile.cosmetics.siteThemeLabel ? <span>{profile.cosmetics.siteThemeLabel} theme</span> : null}
-              {profile.cosmetics.frame ? <span>{frameChip(profile.cosmetics.frame, 'popup')}</span> : null}
-              {signature ? <span>{surface.replace('-', ' ')} surface</span> : null}
-              {profile.cosmetics.avatarFrame ? <span>{frameChip(profile.cosmetics.avatarFrame, 'avatar')}</span> : null}
+              {avatarFrame ? <span>{avatarFrame.replaceAll('-', ' ')} avatar frame</span> : null}
               {profile.cosmetics.accent !== 'default' ? <span>{profile.cosmetics.accent.replaceAll('-', ' ')} accent</span> : null}
               {profile.cosmetics.effect !== 'none' ? <span>{profile.cosmetics.effect === 'midnight-chrome' ? 'chrome glint' : `${profile.cosmetics.effect.replaceAll('-', ' ')} animation`}</span> : null}
             </div>

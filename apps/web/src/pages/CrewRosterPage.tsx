@@ -24,6 +24,7 @@ const effectLabels: Record<CrewMemberDto['specialty'], string> = {
 
 type AssignmentTarget =
   | { key: string; kind: 'DEALER'; id: string; title: string; meta: string; count: number; capacity: number }
+  | { key: string; kind: 'RUNNER'; id: string; title: string; meta: string; count: number }
   | { key: string; kind: 'TURF'; id: string; district: TurfBlockDto['district']; title: string; meta: string; count: number; guns: number; postTurnCost: number; pullTurnCost: number };
 
 function shortMember(member: CrewMemberDto): string {
@@ -61,6 +62,14 @@ function CrewJobsBoard({
     count: crew.dealers.length,
     capacity: dealers.rules!.maxDealersPerCrew,
   })) : [];
+  const runnerTargets: AssignmentTarget[] = dealers?.enabled && dealers.rules ? dealers.crews.map((crew) => ({
+    key: `runner:${crew.id}`,
+    kind: 'RUNNER' as const,
+    id: crew.id,
+    title: `${crew.districtName} · ${crew.cityName}`,
+    meta: `Moves ${formatNumber(crew.runnerUnitsPerHour)} units/hour · keeps ${formatNumber(crew.runnerReserveUnits)} stored`,
+    count: crew.runnerCount,
+  })) : [];
   const turfTargets: AssignmentTarget[] = (cities?.enabled ? cities.cities : [])
     .filter((city) => city.isHome)
     .flatMap((city) => city.turf?.blocks.filter((block) => block.isMine).map((block) => ({
@@ -75,7 +84,7 @@ function CrewJobsBoard({
       postTurnCost: city.turf!.postTurnCost,
       pullTurnCost: city.turf!.pullTurnCost,
     })) ?? []);
-  const targets = [...dealerTargets, ...turfTargets];
+  const targets = [...dealerTargets, ...runnerTargets, ...turfTargets];
 
   const toggle = (id: string) => setSelectedIds((current) => current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]);
   const clear = () => setSelectedIds([]);
@@ -130,7 +139,7 @@ function CrewJobsBoard({
                       : target.kind === 'TURF' && turns < target.postTurnCost ? `Posting costs ${target.postTurnCost} turns.`
                         : null;
             const moveBlock = action.busy ? 'Working.'
-              : !selectedElsewhere.length ? `Choose ${target.kind === 'DEALER' ? 'dealers' : 'corner thugs'} from another slot.`
+              : !selectedElsewhere.length ? `Choose ${target.kind === 'DEALER' ? 'dealers' : target.kind === 'RUNNER' ? 'runners' : 'corner thugs'} from another slot.`
                 : target.kind === 'DEALER' && selectedElsewhere.length > room ? `This crew has room for ${formatNumber(room)}.`
                   : target.kind === 'TURF' && turns < target.postTurnCost ? `Moving costs ${target.postTurnCost} turns.`
                     : null;
@@ -142,7 +151,7 @@ function CrewJobsBoard({
               <article key={target.key} className="se-crew-board__target">
                 <div className="se-crew-board__target-head">
                   <div>
-                    <span className="se-eyebrow">{target.kind === 'DEALER' ? 'Dealer crew' : 'Corner'}</span>
+                    <span className="se-eyebrow">{target.kind === 'DEALER' ? 'Dealer crew' : target.kind === 'RUNNER' ? 'Runners' : 'Corner'}</span>
                     <h3>{target.title}</h3>
                     <p>{target.meta}</p>
                   </div>
@@ -165,18 +174,24 @@ function CrewJobsBoard({
                   <Button className="se-btn se-btn--sm" disabledReason={assignBlock}
                     onClick={() => void run((actionId) => target.kind === 'DEALER'
                       ? crewApi.assignDealers(target.id, selectedAvailable.map((member) => member.id), actionId)
+                      : target.kind === 'RUNNER'
+                        ? crewApi.assignRunners(target.id, selectedAvailable.map((member) => member.id), actionId)
                       : crewApi.postTurf(target.district, selectedAvailable.map((member) => member.id), actionId))}>
                     Send selected
                   </Button>
                   <Button className="se-btn se-btn--ghost se-btn--sm" disabledReason={moveBlock}
                     onClick={() => void run((actionId) => target.kind === 'DEALER'
                       ? crewApi.moveDealers(target.id, selectedElsewhere.map((member) => member.id), actionId)
+                      : target.kind === 'RUNNER'
+                        ? crewApi.moveRunners(target.id, selectedElsewhere.map((member) => member.id), actionId)
                       : crewApi.moveTurf(target.district, selectedElsewhere.map((member) => member.id), actionId))}>
                     Move selected
                   </Button>
                   <Button className="se-btn se-btn--ghost se-btn--sm" disabledReason={returnBlock}
                     onClick={() => void run((actionId) => target.kind === 'DEALER'
                       ? crewApi.releaseDealers(selectedHere.map((member) => member.id), actionId)
+                      : target.kind === 'RUNNER'
+                        ? crewApi.releaseRunners(selectedHere.map((member) => member.id), actionId)
                       : crewApi.pullTurf(target.district, selectedHere.map((member) => member.id), actionId))}>
                     Bring home
                   </Button>

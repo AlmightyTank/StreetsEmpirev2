@@ -156,6 +156,30 @@ describe('1.7.0-A crew targets', () => {
     expect(assigned.reduce((sum, row) => sum + row.count, 0)).toBe(8);
     expect(targets.find((row) => row.status === 'AVAILABLE')).toMatchObject({ count: 4 });
   });
+
+  it('preserves dealer runners inside the thug count', () => {
+    const targets = crewTargets(
+      { ...none, thugs: 10, busyThugs: 5 },
+      { ...noRefs, runners: [{ crewId: 'crew-1', count: 2 }, { crewId: 'crew-2', count: 1 }] },
+    );
+    expect(targets.filter((row) => row.assignmentKind === 'RUNNER')).toEqual([
+      expect.objectContaining({ assignmentRef: 'crew-1', count: 2 }),
+      expect.objectContaining({ assignmentRef: 'crew-2', count: 1 }),
+    ]);
+    expect(targets.find((row) => row.status === 'IN_TRANSIT')).toMatchObject({ count: 2 });
+    expect(targets.find((row) => row.status === 'AVAILABLE')).toMatchObject({ count: 5 });
+  });
+
+  it('keeps trip bodyguards and run escorts attached beyond the home thug count', () => {
+    const targets = crewTargets(
+      { ...none, thugs: 8 },
+      { ...noRefs, bodyguards: [{ tripId: 'trip-1', count: 2 }], escorts: [{ runId: 'run-1', count: 3 }] },
+    );
+    expect(targets.filter((row) => row.assignmentKind === 'BODYGUARD')).toEqual([expect.objectContaining({ assignmentRef: 'trip-1', count: 2 })]);
+    expect(targets.filter((row) => row.assignmentKind === 'ESCORT')).toEqual([expect.objectContaining({ assignmentRef: 'run-1', count: 3 })]);
+    expect(targets.find((row) => row.status === 'AVAILABLE')).toMatchObject({ count: 8 });
+    expect(targets.filter((row) => row.role === 'THUG').reduce((sum, row) => sum + row.count, 0)).toBe(13);
+  });
 });
 
 describe('1.7.0-A roster migration', () => {

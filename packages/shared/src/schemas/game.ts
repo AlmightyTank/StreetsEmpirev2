@@ -237,6 +237,9 @@ export type SupplyOrderInput = z.infer<typeof supplyOrderSchema>;
 
 const pickupCount = (what: string) => z.number({ invalid_type_error: `Say how many ${what}.` })
   .int(`${what} must be a whole number.`).min(0, `${what} cannot be negative.`).max(MAX_ORDER_QUANTITY, 'That is too many.');
+const supplyCrewMemberIdsSchema = z.array(z.string().trim().min(1).max(64))
+  .max(50, 'Choose up to 50 crew members.')
+  .refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.');
 
 /** 1.6.0-C. Send vehicles to collect one load of a paid order. */
 export const supplyPickupSchema = z.object({
@@ -248,6 +251,8 @@ export const supplyPickupSchema = z.object({
   route: z.number().int().min(0).max(9).default(0),
   /** 1.6.0-D. The warehouse the load goes to. Absent: the home stash. */
   warehouseId: z.string().trim().min(1).max(64).optional(),
+  /** 1.8.6-G. Optional named escorts; when present, count must match escortThugs. */
+  escortMemberIds: supplyCrewMemberIdsSchema.optional(),
   /** Durable pickup idempotency key, like an order's. */
   requestKey: actionIdSchema,
   actionId: actionIdSchema,
@@ -263,6 +268,8 @@ export const supplyShipmentSchema = z.object({
   quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int().positive().max(MAX_ORDER_QUANTITY),
   vehicleLoadout: z.object({ LOW_RIDER: pickupCount('Low-Riders').optional(), SEDAN: pickupCount('Sedans').optional(), VAN: pickupCount('Vans').optional() }).strict(),
   escortThugs: pickupCount('escorts').default(0),
+  /** 1.8.6-G. Optional named escorts; when present, count must match escortThugs. */
+  escortMemberIds: supplyCrewMemberIdsSchema.optional(),
   route: z.number().int().min(0).max(9).default(0),
   requestKey: actionIdSchema,
   actionId: actionIdSchema,
@@ -323,6 +330,12 @@ export const dealerCrewStockSchema = z.object({
   actionId: actionIdSchema,
 }).strict();
 
+/** 1.8.6-F. How much same-city storage runners must leave behind for this crew. */
+export const dealerCrewRunnerReserveSchema = z.object({
+  reserveUnits: z.number().int().min(0).max(MAX_ORDER_QUANTITY),
+  actionId: actionIdSchema,
+}).strict();
+
 /** 1.6.0-E. Pause, resume, move or close a crew. */
 export const dealerCrewManageSchema = z.object({
   action: z.enum(['PAUSE', 'RESUME', 'MOVE', 'CLOSE']),
@@ -334,6 +347,7 @@ export const dealerCrewManageSchema = z.object({
 export type DealerCrewEstablishInput = z.infer<typeof dealerCrewEstablishSchema>;
 export type DealerCrewOfferInput = z.infer<typeof dealerCrewOfferSchema>;
 export type DealerCrewStockInput = z.infer<typeof dealerCrewStockSchema>;
+export type DealerCrewRunnerReserveInput = z.infer<typeof dealerCrewRunnerReserveSchema>;
 export type DealerCrewManageInput = z.infer<typeof dealerCrewManageSchema>;
 
 export type SupplyPropertyBuyInput = z.infer<typeof supplyPropertyBuySchema>;
@@ -373,6 +387,17 @@ export const crewCornerJobSchema = z.object({
 }).strict();
 
 export type CrewCornerJobInput = z.infer<typeof crewCornerJobSchema>;
+
+/** 1.8.6-H. Keep a standing headcount filled on player-triggered actions. */
+export const crewStaffingOrderSchema = z.object({
+  kind: z.enum(['DEALER', 'TURF', 'CORNER_LOOKOUT', 'STASH_GUARD', 'RUNNER']),
+  targetRef: z.string().trim().min(1).max(64),
+  headcount: z.number().int().min(0).max(50),
+  keepTurns: z.number().int().min(0).max(10_000).default(10),
+  actionId: actionIdSchema,
+}).strict();
+
+export type CrewStaffingOrderInput = z.infer<typeof crewStaffingOrderSchema>;
 
 /** 1.7.0-D. Train an available member who already earned the selected specialty. */
 export const crewTrainingSchema = z.object({

@@ -2939,6 +2939,16 @@ a:hover { color: var(--se-accent-hover); }
   }
 }
 
+/* Popup animations are an opening treatment; public profile pages keep the theme motion on the avatar. */
+.se-profile-pagehead:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant, .se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion) {
+  box-shadow: none;
+  animation: none;
+}
+.se-profile-pagehead:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant, .se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--high-roller)::after,
+.se-profile-pagehead.se-profile-effect--turf-claim::after {
+  content: none;
+}
+
 .se-ach-filters {
   display: grid;
   gap: 10px;

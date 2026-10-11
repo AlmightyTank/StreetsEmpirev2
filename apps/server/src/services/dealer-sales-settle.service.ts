@@ -13,6 +13,7 @@ import type { Db } from '../utils/db.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { LawService } from './law.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
+import { runnerCrewStats } from './dealer-crew.service.js';
 
 /**
  * 1.6.0-F. Dealer sales, settled lazily under the player's lock before anything reads cash.
@@ -32,6 +33,67 @@ const productName = (ruleset: Ruleset, key: string) => (key === 'CRACK'
   : ruleset.products?.[key]?.name ?? key);
 const districtName = (ruleset: Ruleset, city: string, key: string) => ruleset.cities?.[city]?.districts?.[key as DistrictKey]?.name
   ?? ruleset.districts[key as DistrictKey]?.name ?? key;
+
+async function runnerRestock(tx: Db, input: {
+  roundPlayerId: string;
+  crewId: string;
+  citySlug: string;
+  productKey: string;
+  capacityUnits: number;
+  inventoryUnits: number;
+  reserveUnits: number;
+  allowanceUnits: number;
+  batchKey: string;
+  at: Date;
+}): Promise<number> {
+  const room = Math.max(0, input.capacityUnits - input.inventoryUnits);
+  let remaining = Math.min(room, input.allowanceUnits);
+  if (remaining <= 0) return 0;
+  const warehouses = await tx.supplyWarehouse.findMany({
+    where: { roundPlayerId: input.roundPlayerId, citySlug: input.citySlug, isActive: true },
+    include: { stock: { where: { productKey: input.productKey } } },
+    orderBy: { createdAt: 'asc' },
+  });
+  const totalStored = warehouses.reduce((sum, warehouse) => sum + (warehouse.stock[0]?.quantity ?? 0), 0);
+  remaining = Math.min(remaining, Math.max(0, totalStored - input.reserveUnits));
+  if (remaining <= 0) return 0;
+
+  let moved = 0;
+  for (const warehouse of warehouses) {
+    const stock = warehouse.stock[0];
+    const take = Math.min(stock?.quantity ?? 0, remaining);
+    if (take <= 0) continue;
+    const decremented = await tx.supplyStock.updateMany({
+      where: { warehouseId: warehouse.id, productKey: input.productKey, quantity: { gte: take } },
+      data: { quantity: { decrement: take } },
+    });
+    if (decremented.count !== 1) break;
+    await tx.dealerStock.upsert({
+      where: { dealerCrewId_productKey: { dealerCrewId: input.crewId, productKey: input.productKey } },
+      create: { dealerCrewId: input.crewId, productKey: input.productKey, quantity: take },
+      update: { quantity: { increment: take } },
+    });
+    await tx.supplyMovement.create({
+      data: {
+        roundPlayerId: input.roundPlayerId,
+        kind: 'ASSIGNED_TO_DEALER',
+        productKey: input.productKey,
+        quantityDelta: take,
+        fromLocation: `warehouse:${warehouse.id}`,
+        toLocation: `crew:${input.crewId}`,
+        warehouseId: warehouse.id,
+        dealerCrewId: input.crewId,
+        requestKey: `dealer-runner:${input.crewId}:${input.batchKey}:${warehouse.id}`,
+        metadata: { runner: true, reserveUnits: input.reserveUnits },
+        createdAt: input.at,
+      },
+    });
+    moved += take;
+    remaining -= take;
+    if (remaining <= 0) break;
+  }
+  return moved;
+}
 
 export const DealerSalesSettleService = {
   /** Settle every working crew. Returns the cash left, or null when nothing moved. */
@@ -67,6 +129,7 @@ export const DealerSalesSettleService = {
       const pressure = dealerPressure(ruleset, crew.citySlug);
       const experience = crew.staff.map((row) => row.experiencePoints);
       let inventory = product ? crew.inventory.find((row) => row.productKey === product)?.quantity ?? 0 : 0;
+      const runners = product ? await runnerCrewStats(tx, ruleset, roundPlayerId, crew.id) : { count: 0, unitsPerHour: 0 };
       let at = crew.salesSettledAt;
       let carry = crew.salesCarry;
       let sold = 0;
@@ -79,6 +142,21 @@ export const DealerSalesSettleService = {
       while (intervals > 0) {
         const count = Math.min(intervals, sales.maxBatchIntervals);
         const hours = count * interval / HOUR;
+        const batchKey = at.toISOString();
+        if (product && runners.count > 0) {
+          inventory += await runnerRestock(tx, {
+            roundPlayerId,
+            crewId: crew.id,
+            citySlug: crew.citySlug,
+            productKey: product,
+            capacityUnits: crew.capacityUnits,
+            inventoryUnits: inventory,
+            reserveUnits: crew.runnerReserveUnits,
+            allowanceUnits: Math.floor(runners.unitsPerHour * hours),
+            batchKey,
+            at: new Date(at.getTime() + count * interval),
+          });
+        }
         const pace = dealerPace({ rules, demand, district: crew.districtKey as DistrictKey, dealers: experience, priceCents: price, streetPriceCents: street, pressure });
         const batch = settleDealerSales({ pace, priceCents: price, inventory, hours, carry });
         const batchNet = BigInt(batch.grossCents - batch.cutCents);
@@ -94,7 +172,6 @@ export const DealerSalesSettleService = {
           cash = cash + batchNet - owed;
         }
         if (batch.sold > 0 && product) {
-          const batchKey = at.toISOString();
           await tx.dealerSale.create({
             data: { dealerCrewId: crew.id, productKey: product, batchKey, quantity: batch.sold, unitPriceCents: price, grossCents: BigInt(batch.grossCents), crewCutCents: BigInt(batch.cutCents), netCents: batchNet, createdAt: new Date(at.getTime() + count * interval) },
           });

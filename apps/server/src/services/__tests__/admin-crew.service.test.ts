@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 import { AdminCrewService } from '../admin-crew.service.js';
 
+vi.mock('@streets/rules-engine', () => ({
+  loadRulesetForRound: () => ({ crewRoster: { enabled: true } }),
+}));
+
 const actor = { id: 'admin-1', username: 'Staff' };
 const baseMember = { id: 'member-1', roundPlayerId: 'player-1', experiencePoints: 25, specialty: 'SCOUT', specialtyExperiencePoints: 20 };
 
@@ -49,5 +53,35 @@ describe('1.7.0-F admin crew tools', () => {
       experiencePoints: 1_000_001, specialty: 'SCOUT', specialtyExperiencePoints: 25, reason: 'Correct a bad value.',
     })).rejects.toMatchObject({ code: 'CREW_CORRECTION_INVALID' });
     expect(tx.$queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('includes active staffing-order counts in the roster health report', async () => {
+    const prisma = {
+      round: { findUnique: vi.fn().mockResolvedValue({ id: 'round-1', name: 'Round', status: 'ACTIVE', rulesetId: 'test-ruleset', rulesetVersion: '1.8.6-I' }) },
+      roundPlayer: { count: vi.fn().mockResolvedValue(2) },
+      crewRosterMigration: { count: vi.fn().mockResolvedValue(1) },
+      crewMember: {
+        count: vi.fn().mockResolvedValue(20),
+        aggregate: vi.fn().mockResolvedValue({ _min: { experiencePoints: 0 }, _max: { experiencePoints: 50 }, _avg: { experiencePoints: 10 } }),
+        groupBy: vi.fn()
+          .mockResolvedValueOnce([{ role: 'THUG', _count: { _all: 12 } }])
+          .mockResolvedValueOnce([{ specialty: 'GENERALIST', _count: { _all: 20 } }])
+          .mockResolvedValueOnce([{ status: 'AVAILABLE', _count: { _all: 8 } }])
+          .mockResolvedValueOnce([{ assignmentKind: 'RUNNER', _count: { _all: 2 } }]),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      crewJobPost: {
+        count: vi.fn().mockResolvedValueOnce(4).mockResolvedValueOnce(3),
+        groupBy: vi.fn().mockResolvedValue([{ kind: 'RUNNER', _count: { _all: 2 } }, { kind: 'TURF', _count: { _all: 1 } }]),
+      },
+    } as unknown as PrismaClient;
+
+    const report = await AdminCrewService.report(prisma, 'round-1', new Date('2026-10-11T00:00:00Z'));
+
+    expect(report.staffingOrders).toEqual({
+      total: 4,
+      active: 3,
+      byKind: [{ kind: 'RUNNER', count: 2 }, { kind: 'TURF', count: 1 }],
+    });
   });
 });

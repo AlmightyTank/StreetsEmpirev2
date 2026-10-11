@@ -20,8 +20,6 @@ import {
   type CrewRole,
 } from './crew-roster-plan.js';
 
-/** 1.7.0-E selected operation teams, carried forward by every later ruleset that builds on it. */
-const SELECTED_TEAM_RULESETS: ReadonlySet<string> = new Set(['classic-og-v1.7-e', 'classic-og-v1.8-e', 'classic-og-v1.8-f', 'classic-og-v1.8-g']);
 const CORNER_JOB_KINDS = ['CORNER_LOOKOUT', 'STASH_GUARD'] as const;
 type CornerJobKind = typeof CORNER_JOB_KINDS[number];
 const CORNER_JOB_LIMITS: Record<CornerJobKind, number> = { CORNER_LOOKOUT: 3, STASH_GUARD: 5 };
@@ -88,7 +86,7 @@ export interface CrewRosterSync {
 }
 
 async function loadRefs(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<CrewRefs> {
-  const [dealers, businesses, turf, cornerJobs] = await Promise.all([
+  const [dealers, businesses, turf, cornerJobs, runners, bodyguards, escorts] = await Promise.all([
     tx.dealerStaff.findMany({
       where: { roundPlayerId, dealerCrewId: { not: null }, releasedAt: null },
       select: { id: true, dealerCrewId: true, experiencePoints: true },
@@ -107,6 +105,13 @@ async function loadRefs(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promis
       },
       _count: { _all: true },
     }) as unknown as Promise<Array<{ assignmentKind: CornerJobKind; assignmentRef: string | null; _count: { _all: number } }>>,
+    tx.crewMember.groupBy({
+      by: ['assignmentRef'],
+      where: { roundPlayerId, role: 'THUG', status: 'ASSIGNED', assignmentKind: 'RUNNER', assignmentRef: { not: null } },
+      _count: { _all: true },
+    }) as unknown as Promise<Array<{ assignmentRef: string | null; _count: { _all: number } }>>,
+    tx.bossTrip.findMany({ where: { roundPlayerId, status: 'ACTIVE', bodyguards: { gt: 0 } }, select: { id: true, bodyguards: true }, orderBy: { departedAt: 'asc' } }),
+    tx.run.findMany({ where: { roundPlayerId, status: 'ACTIVE', escortThugs: { gt: 0 } }, select: { id: true, escortThugs: true }, orderBy: { launchedAt: 'asc' } }),
   ]);
   const jobCounts = new Map<string, { lookouts: number; stashGuards: number }>();
   for (const job of cornerJobs) {
@@ -124,6 +129,9 @@ async function loadRefs(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promis
       staff: row.staff,
     })),
     turf: turf.map((row) => ({ id: row.id, thugs: row.cornerThugs, ...(jobCounts.get(row.id) ?? {}) })),
+    runners: runners.flatMap((row) => row.assignmentRef ? [{ crewId: row.assignmentRef, count: row._count._all }] : []),
+    bodyguards: bodyguards.map((row) => ({ tripId: row.id, count: row.bodyguards })),
+    escorts: escorts.map((row) => ({ runId: row.id, count: row.escortThugs })),
   };
 }
 
@@ -136,7 +144,10 @@ function rosterKey(counts: CrewCounts, refs: CrewRefs): string {
   const business = [...refs.businesses].sort((x, y) => x.id.localeCompare(y.id)).map((row) => `${row.id}:${row.role}:${row.staff}`);
   const turf = [...refs.turf].sort((x, y) => x.id.localeCompare(y.id)).map((row) => `${row.id}:${row.thugs}:${row.lookouts ?? 0}:${row.stashGuards ?? 0}`);
   const dealers = refs.dealers.map((row) => `${row.staffId}:${row.crewId}:${row.experiencePoints}`);
-  return createHash('sha1').update(JSON.stringify([fields, business, turf, dealers])).digest('base64');
+  const runners = [...(refs.runners ?? [])].sort((x, y) => x.crewId.localeCompare(y.crewId)).map((row) => `${row.crewId}:${row.count}`);
+  const bodyguards = [...(refs.bodyguards ?? [])].sort((x, y) => x.tripId.localeCompare(y.tripId)).map((row) => `${row.tripId}:${row.count}`);
+  const escorts = [...(refs.escorts ?? [])].sort((x, y) => x.runId.localeCompare(y.runId)).map((row) => `${row.runId}:${row.count}`);
+  return createHash('sha1').update(JSON.stringify([fields, business, turf, dealers, runners, bodyguards, escorts])).digest('base64');
 }
 
 type PlaceGroup = { role: CrewRole; status: CrewMemberStatusDto; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null; _count: { _all: number } };
@@ -448,6 +459,100 @@ export const CrewRosterService = {
   async stashGuardLootReductionPercent(tx: Db, roundPlayerId: string, turfId: string): Promise<number> {
     const count = await tx.crewMember.count({ where: { roundPlayerId, role: 'THUG', status: 'ASSIGNED', assignmentKind: 'STASH_GUARD', assignmentRef: turfId } });
     return Math.min(CORNER_JOB_LIMITS.STASH_GUARD, count) * STASH_GUARD_LOOT_REDUCTION_PERCENT;
+  },
+
+  /** 1.8.6-G. Pin chosen people to a trip/run before the post-action sync fills the rest. */
+  async assignTravelMembers(tx: Db, input: { roundPlayerId: string; ruleset: Ruleset; kind: Extract<CrewAssignmentKindDto, 'BODYGUARD' | 'ESCORT'>; assignmentRef: string; count: number; memberIds?: string[]; now: Date }): Promise<void> {
+    if (!input.ruleset.crewRoster?.enabled || !input.count) return;
+    const memberIds = input.memberIds ?? [];
+    if (!memberIds.length) return;
+    if (memberIds.length !== input.count) {
+      throw AppError.badRequest('CREW_SELECTION_COUNT', `Choose exactly ${input.count} ${input.kind === 'BODYGUARD' ? 'bodyguard' : 'escort'}${input.count === 1 ? '' : 's'}.`);
+    }
+    const members = await tx.crewMember.findMany({
+      where: { roundPlayerId: input.roundPlayerId, id: { in: memberIds } },
+      select: { id: true, role: true, status: true, dealerStaffId: true },
+    });
+    if (members.length !== memberIds.length) throw AppError.notFound('CREW_MEMBER_NOT_FOUND', 'One or more selected members are not on your roster.');
+    if (members.some((member) => member.role !== 'THUG' || member.status !== 'AVAILABLE' || member.dealerStaffId)) {
+      throw AppError.conflict('CREW_MEMBER_UNAVAILABLE', 'Choose available thugs at home.');
+    }
+    await tx.crewMember.updateMany({
+      where: { roundPlayerId: input.roundPlayerId, id: { in: memberIds } },
+      data: { status: 'ASSIGNED', assignmentKind: input.kind, assignmentRef: input.assignmentRef, statusSince: input.now, releasedAt: null } as Prisma.CrewMemberUpdateManyMutationInput,
+    });
+    await tx.crewMemberEvent.createMany({
+      data: memberIds.map((memberId) => ({
+        memberId,
+        roundPlayerId: input.roundPlayerId,
+        kind: 'ASSIGNED',
+        assignmentKind: input.kind,
+        assignmentRef: input.assignmentRef,
+        summary: input.kind === 'BODYGUARD' ? 'Went with the boss as a bodyguard.' : 'Rode out as a run escort.',
+        at: input.now,
+      })),
+    });
+  },
+
+  /** 1.8.6-G. Resolve named trip/run members home, wounded by name when needed. */
+  async completeTravelMembers(tx: Db, input: { roundPlayerId: string; ruleset: Ruleset; kind: Extract<CrewAssignmentKindDto, 'BODYGUARD' | 'ESCORT'>; assignmentRef: string; wounded: number; recoverAt: Date | null; at: Date; label: string }): Promise<number> {
+    if (!input.ruleset.crewRoster?.enabled) return 0;
+    const members = await tx.crewMember.findMany({
+      where: { roundPlayerId: input.roundPlayerId, role: 'THUG', status: 'ASSIGNED', assignmentKind: input.kind, assignmentRef: input.assignmentRef },
+      orderBy: [{ statusSince: 'asc' }, { serial: 'asc' }],
+      select: { id: true, specialty: true, specialtyExperiencePoints: true },
+    });
+    if (!members.length) return 0;
+    const woundedIds = new Set(members.slice(0, Math.max(0, Math.min(input.wounded, members.length))).map((member) => member.id));
+    const healthyIds = members.filter((member) => !woundedIds.has(member.id)).map((member) => member.id);
+    const points = input.ruleset.crewRoster?.experiencePerCompletedJob ?? 0;
+    const specialty = input.kind === 'BODYGUARD' ? 'ENFORCER' as const : 'WHEELMAN' as const;
+    const tier = input.ruleset.crewRoster?.specialtyUnlockExperience ?? Number.MAX_SAFE_INTEGER;
+
+    if (healthyIds.length) await tx.crewMember.updateMany({
+      where: { roundPlayerId: input.roundPlayerId, id: { in: healthyIds } },
+      data: { status: 'AVAILABLE', assignmentKind: null, assignmentRef: null, statusSince: input.at, releasedAt: null },
+    });
+    if (woundedIds.size) await tx.crewMember.updateMany({
+      where: { roundPlayerId: input.roundPlayerId, id: { in: [...woundedIds] } },
+      data: { status: 'RECOVERING', assignmentKind: null, assignmentRef: null, statusSince: input.at, releasedAt: null },
+    });
+    for (const member of members) {
+      if (points > 0) {
+        const nextPoints = member.specialtyExperiencePoints + points;
+        await tx.crewMember.update({
+          where: { id: member.id },
+          data: {
+            experiencePoints: { increment: points },
+            specialtyExperiencePoints: { increment: points },
+            specialty: member.specialty === 'GENERALIST' && nextPoints >= tier ? specialty : member.specialty,
+          },
+        });
+      }
+    }
+    await tx.crewMemberEvent.createMany({
+      data: members.flatMap((member) => [
+        {
+          memberId: member.id,
+          roundPlayerId: input.roundPlayerId,
+          kind: 'UNASSIGNED' as const,
+          assignmentKind: input.kind,
+          assignmentRef: input.assignmentRef,
+          summary: woundedIds.has(member.id) ? `${input.label}; wounded.` : input.label,
+          at: input.at,
+        },
+        ...(points > 0 ? [{
+          memberId: member.id,
+          roundPlayerId: input.roundPlayerId,
+          kind: 'WORK_COMPLETED' as const,
+          assignmentKind: input.kind,
+          assignmentRef: input.assignmentRef,
+          summary: `${input.label} · +${points} XP.`,
+          at: input.at,
+        }] : []),
+      ]),
+    });
+    return members.length;
   },
   /**
    * Bring the player's members in line with their counts. `counts` may be passed when the

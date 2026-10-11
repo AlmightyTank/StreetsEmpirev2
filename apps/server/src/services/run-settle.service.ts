@@ -341,7 +341,19 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     });
   }
   await tx.run.update({ where: { id: run.id }, data: { status: 'RETURNED', returnedAt } });
-  await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'THUG', specialty: 'WHEELMAN', at: returnedAt, label: 'Run completed' });
+  const recovery = ruleset.combat?.wounds.recoveryMinutes ?? 0;
+  const recoverAt = run.woundedEscorts > 0 && run.lastHitAt ? new Date(run.lastHitAt.getTime() + recovery * 60_000) : null;
+  const namedEscorts = await CrewRosterService.completeTravelMembers(tx, {
+    roundPlayerId,
+    ruleset,
+    kind: 'ESCORT',
+    assignmentRef: run.id,
+    wounded: run.woundedEscorts,
+    recoverAt,
+    at: returnedAt,
+    label: 'Returned from run escort duty',
+  });
+  if (namedEscorts === 0) await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'THUG', specialty: 'WHEELMAN', at: returnedAt, label: 'Run completed' });
   const awayNetWorthCents = await totalAwayWorth(tx, roundPlayerId, ruleset);
   await tx.roundPlayer.update({
     where: { id: roundPlayerId },
@@ -368,9 +380,7 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     },
   });
   // 0.5.0-E: escorts wounded on the road come home still healing, if their wounds have not run out.
-  const recovery = ruleset.combat?.wounds.recoveryMinutes ?? 0;
-  if (run.woundedEscorts > 0 && run.lastHitAt) {
-    const recoverAt = new Date(run.lastHitAt.getTime() + recovery * 60_000);
+  if (run.woundedEscorts > 0 && recoverAt) {
     if (recoverAt > returnedAt) await CombatRecoveryService.add(tx, roundPlayerId, null, run.woundedEscorts, recoverAt);
   }
   const incidents = await tx.runIncident.findMany({ where: { runId: run.id }, orderBy: { at: 'asc' } });

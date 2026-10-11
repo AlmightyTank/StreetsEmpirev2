@@ -1052,13 +1052,13 @@ export const CommunityService = {
     const title = titleAward
       ? profileTitleForAward(titleAward)
       : activeTitleKey && isBuiltInProfileTitle(activeTitleKey) ? profileTitleForKey(activeTitleKey) : null;
-    const frame = frameOptions.some((option) => option.key === profileSettings?.activeProfileFrameKey)
+    const savedFrame = frameOptions.some((option) => option.key === profileSettings?.activeProfileFrameKey)
       ? profileSettings!.activeProfileFrameKey
       : null;
     const requestedAvatarFrame = profileSettings?.activeAvatarFrameKey ?? null;
     const avatarFrame = frameOptions.some((option) => option.key === requestedAvatarFrame)
       ? requestedAvatarFrame
-      : null;
+      : savedFrame;
     const showcase = await profileShowcase(prisma, player.accountId, profileSettings);
     const profileEffect = profileSettings?.profileEffect;
     const publicProfileEffects = new Set<string>([
@@ -1074,7 +1074,7 @@ export const CommunityService = {
         title,
         titlePlacement: profileSettings?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
         accent: profileAccent(profileSettings?.profileAccent),
-        frame,
+        frame: null,
         avatarFrame,
         effect: profileEffect && publicProfileEffects.has(profileEffect)
           ? profileEffect as ProfileEffect

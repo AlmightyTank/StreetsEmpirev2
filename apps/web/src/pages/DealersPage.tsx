@@ -111,6 +111,10 @@ function CrewCard({ crew, data, onDone }: { crew: DealerCrewDto; data: DealerPag
   const warehouse = crew.warehouses.find((entry) => entry.id === warehouseId) ?? crew.warehouses[0] ?? null;
   const [units, setUnits] = useState<number | ''>('');
   const quantity = typeof units === 'number' ? units : 0;
+  const [reserveText, setReserveText] = useState(String(crew.runnerReserveUnits));
+  useEffect(() => { setReserveText(String(crew.runnerReserveUnits)); }, [crew.runnerReserveUnits]);
+  const reserveUnits = whole(reserveText);
+  const reserve = typeof reserveUnits === 'number' ? reserveUnits : 0;
   const room = crew.capacityUnits - crew.inventoryUnits;
   const [moveTo, setMoveTo] = useState('');
   const city = data.cities.find((entry) => entry.citySlug === crew.citySlug);
@@ -128,6 +132,7 @@ function CrewCard({ crew, data, onDone }: { crew: DealerCrewDto; data: DealerPag
     : quantity < 1 ? 'Enter units.' : quantity > room ? `The crew can hold ${formatNumber(room)} more.` : quantity > warehouse.available ? `${warehouse.name} holds ${formatNumber(warehouse.available)}.` : null;
   const returnBlock = action.busy ? 'Working.' : !warehouse ? 'No storage in this city.'
     : quantity < 1 ? 'Enter units.' : quantity > crew.inventoryUnits ? `The crew holds ${formatNumber(crew.inventoryUnits)}.` : quantity > warehouse.roomUnits ? `${warehouse.name} has room for ${formatNumber(warehouse.roomUnits)}.` : null;
+  const reserveBlock = action.busy ? 'Working.' : reserveUnits === '' ? 'Enter units.' : reserve === crew.runnerReserveUnits ? 'That is the reserve already.' : null;
 
   return (
     <Panel title={`${crew.districtName} · ${crew.cityName}`} aside={paused ? 'Paused' : 'Working'}>
@@ -138,6 +143,7 @@ function CrewCard({ crew, data, onDone }: { crew: DealerCrewDto; data: DealerPag
           <Row label="Selling" value={crew.productName ? `${crew.productName} at ${price(crew.priceCents ?? 0)}` : 'Nothing yet'} strong />
           {crew.demand ? <Row label="The street" value={`${DEMAND_WORDS[crew.demand]} · ${trafficWord(crew.traffic)} foot traffic · street price ${price(crew.streetPriceCents ?? 0)}`} /> : null}
           <Row label="Holding" value={`${formatNumber(crew.inventoryUnits)} of ${formatNumber(crew.capacityUnits)}`} />
+          <Row label="Runners" value={`${formatNumber(crew.runnerCount)} posted · ${formatNumber(crew.runnerUnitsPerHour)} units/hour · keep ${formatNumber(crew.runnerReserveUnits)} stored`} />
           <Row label="Would sell" value={crew.pace.unitsPerHour > 0 ? `${crew.pace.unitsPerHour.toFixed(1)} an hour · out in ${hoursText(crew.pace.hoursToSellOut ?? 0)}` : paused ? 'Nothing: paused' : 'Nothing: needs a product, a price and stock'} />
           <Row label="An hour" tooltip={rules.selling ? 'Gross at this price, less the dealers\u2019 cut and wages. Wages are owed every hour the crew works, even with nothing to sell: pause an empty crew.' : 'Gross at this price, less the dealers\u2019 cut and wages. Sales and payouts open in the next update.'}
             value={`${money(crew.pace.grossCentsPerHour)} gross · ${crew.pace.cutPercent.toFixed(0)}% cut · ${money(crew.pace.operatingCentsPerHour)} wages · ${money(crew.pace.netCentsPerHour)} net`} />
@@ -207,6 +213,17 @@ function CrewCard({ crew, data, onDone }: { crew: DealerCrewDto; data: DealerPag
             <div className="se-actions-row">
               <Button className="se-btn se-btn--sm" disabledReason={loadBlock} onClick={() => void run((actionId) => dealersApi.stock(crew.id, { warehouseId: warehouse!.id, direction: 'LOAD', quantity, actionId }))}>Load</Button>
               <Button className="se-btn se-btn--ghost se-btn--sm" disabledReason={returnBlock} onClick={() => void run((actionId) => dealersApi.stock(crew.id, { warehouseId: warehouse!.id, direction: 'RETURN', quantity, actionId }))}>Return</Button>
+            </div>
+            <div className="se-launch__grid se-mt">
+              <div className="se-field">
+                <label htmlFor={`crew-runner-reserve-${crew.id}`}>Runner reserve</label>
+                <input id={`crew-runner-reserve-${crew.id}`} className="se-input" type="number" inputMode="numeric" min={0} value={reserveText} onChange={(event) => setReserveText(event.target.value)} />
+                <small className="se-muted">Runners leave this many units in {crew.cityName} storage before restocking this crew.</small>
+              </div>
+              <Button className="se-btn se-btn--sm" disabledReason={reserveBlock}
+                onClick={() => void run((actionId) => dealersApi.runnerReserve(crew.id, { reserveUnits: reserve, actionId }))}>
+                Set reserve
+              </Button>
             </div>
           </>
         )}

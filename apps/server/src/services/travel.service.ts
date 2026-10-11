@@ -95,6 +95,7 @@ import {
   type LoadedRun,
 } from './run-settle.service.js';
 import { assertNotSupplyRun, assertSupplyRunMayHeadHome, runSupplyPickups } from './supply-pickup-settle.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 /** Engine refusals become player-facing errors, pointing at the field that caused them. */
 function refuse(error: unknown): never {
@@ -690,6 +691,9 @@ export const TravelService = {
           const why = input.escortThugs > seats ? `This vehicle loadout seats ${seats} thugs.` : `You have ${fit} fit thugs at home.`;
           throw AppError.badRequest('TOO_MANY_ESCORTS', why, { escortThugs: why });
         }
+        if ((input.escortMemberIds?.length ?? 0) > 0 && input.escortMemberIds!.length !== input.escortThugs) {
+          throw AppError.badRequest('CREW_SELECTION_COUNT', `Choose exactly ${input.escortThugs} escort${input.escortThugs === 1 ? '' : 's'}.`);
+        }
         const cashCents = BigInt(input.cashCents);
         if (cashCents > current.cashCents) {
           throw AppError.badRequest('NOT_ENOUGH_CASH', 'You cannot take more cash than you have.', { cashCents: 'More than you have.' });
@@ -743,6 +747,7 @@ export const TravelService = {
         if (cargoUnits(cargo) + input.beer > capacity) {
           throw AppError.badRequest('TRUNK_FULL', `This vehicle loadout carries ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
         }
+        if (input.escortMemberIds?.length) await CrewRosterService.sync(tx, roundPlayerId, ruleset, now, current);
 
         const openRoad = await SingleUseFavorService.matching(
           tx,
@@ -777,6 +782,15 @@ export const TravelService = {
             bossAboard: Boolean(rideAlong),
             cargo: { create: productKeys(ruleset).filter((key) => (cargo[key] ?? 0) > 0).map((key) => ({ productKey: key, quantity: cargo[key]!, startQuantity: cargo[key]! })) },
           },
+        });
+        await CrewRosterService.assignTravelMembers(tx, {
+          roundPlayerId,
+          ruleset,
+          kind: 'ESCORT',
+          assignmentRef: run.id,
+          count: input.escortThugs,
+          memberIds: input.escortMemberIds,
+          now,
         });
         await writeStops(tx, run.id, plan.stops);
         for (const trade of marketTrades) {

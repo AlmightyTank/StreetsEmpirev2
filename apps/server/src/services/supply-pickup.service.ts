@@ -404,7 +404,7 @@ export const SupplyPickupService = {
           };
         }
 
-        const launched = await launchSupplyRun(tx, { roundPlayerId, ruleset, player, current, now, loadout, vehicleCount, escortThugs: input.escortThugs, route: input.route, origin: order.supplierCitySlug, destination: destination.citySlug });
+        const launched = await launchSupplyRun(tx, { roundPlayerId, ruleset, player, current, now, loadout, vehicleCount, escortThugs: input.escortThugs, escortMemberIds: input.escortMemberIds, route: input.route, origin: order.supplierCitySlug, destination: destination.citySlug });
         const created = await tx.supplyPickup.create({
           data: { ...base, runId: launched.runId, routeKey: launched.plan.stops.map((stop) => stop.city).join('>'), status: 'PLANNED', expectedArrivalAt: launched.plan.stops[launched.plan.unloadStop]!.arriveAt },
           include: { order: true },
@@ -467,7 +467,7 @@ export const SupplyPickupService = {
           throw AppError.conflict('SUPPLY_STASH_FULL', `That warehouse has room for ${formatNumber(room)} more, counting loads on the way. ${formatNumber(input.quantity - room)} would not fit.`);
         }
         const product = productName(ruleset, input.productKey);
-        const launched = await launchSupplyRun(tx, { roundPlayerId, ruleset, player, current, now, loadout, vehicleCount, escortThugs: input.escortThugs, route: input.route, origin: source.citySlug, destination: destination.citySlug });
+        const launched = await launchSupplyRun(tx, { roundPlayerId, ruleset, player, current, now, loadout, vehicleCount, escortThugs: input.escortThugs, escortMemberIds: input.escortMemberIds, route: input.route, origin: source.citySlug, destination: destination.citySlug });
         // The units leave the source now, so nothing else can claim them.
         const taken = await tx.supplyStock.updateMany({ where: { warehouseId: source.id, productKey: input.productKey, quantity: { gte: input.quantity } }, data: { quantity: { decrement: input.quantity } } });
         if (taken.count !== 1) throw AppError.badRequest('NOT_ENOUGH_STOCK', `That warehouse does not hold ${formatNumber(input.quantity)} ${product}.`, { quantity: 'Not that much stored.' });
@@ -527,7 +527,7 @@ function assertFleet(ruleset: Ruleset, current: PlayerState, loadout: Loadout): 
  */
 async function launchSupplyRun(tx: Db, input: {
   roundPlayerId: string; ruleset: Ruleset; player: RoundPlayer; current: PlayerState; now: Date;
-  loadout: Loadout; vehicleCount: number; escortThugs: number; route: number; origin: string; destination: string;
+  loadout: Loadout; vehicleCount: number; escortThugs: number; escortMemberIds?: string[]; route: number; origin: string; destination: string;
 }) {
   const { roundPlayerId, ruleset, player, current, now, loadout, vehicleCount, escortThugs } = input;
   const home = (await tx.city.findUniqueOrThrow({ where: { id: player.cityId }, select: { slug: true } })).slug;
@@ -550,16 +550,29 @@ async function launchSupplyRun(tx: Db, input: {
     const why = escortThugs > seats ? `These vehicles seat ${seats} thugs.` : `You have ${fit} fit thugs at home.`;
     throw AppError.badRequest('TOO_MANY_ESCORTS', why, { escortThugs: why });
   }
+  if ((input.escortMemberIds?.length ?? 0) > 0 && input.escortMemberIds!.length !== escortThugs) {
+    throw AppError.badRequest('CREW_SELECTION_COUNT', `Choose exactly ${escortThugs} escort${escortThugs === 1 ? '' : 's'}.`);
+  }
   // Escorts ride armed, one gun each, the best first, as on any run.
   const guns = ruleset.travel?.convoys
     ? armEscorts(ruleset, escortThugs, current, hideoutWeaponPriority(ruleset, current))
     : { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
+  if (input.escortMemberIds?.length) await CrewRosterService.sync(tx, roundPlayerId, ruleset, now, current);
   const run = await tx.run.create({
     data: {
       roundPlayerId, homeCity: home, lowRiders: vehicleCount, vehicleLoadout: loadout, escortThugs, ...guns,
       cashCents: 0n, startCashCents: 0n, turnsSpent: plan.turns, launchedAt: now,
       wheelmanBonusPercent: await CrewRosterService.specialtyBonusPercent(tx, roundPlayerId, ruleset, 'THUG', 'WHEELMAN'),
     },
+  });
+  await CrewRosterService.assignTravelMembers(tx, {
+    roundPlayerId,
+    ruleset,
+    kind: 'ESCORT',
+    assignmentRef: run.id,
+    count: escortThugs,
+    memberIds: input.escortMemberIds,
+    now,
   });
   await writeRunStops(tx, run.id, plan.stops);
   const first = plan.stops[0]!;

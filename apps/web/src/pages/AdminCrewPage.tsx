@@ -39,16 +39,17 @@ export function AdminCrewPage() {
           <Stat label="Players migrated" value={`${formatNumber(data.players.migrated)} / ${formatNumber(data.players.total)}`} />
           <Stat label="Migration pending" value={formatNumber(data.players.pending)} />
           <Stat label="Crew members" value={formatNumber(data.members.total)} />
+          <Stat label="Active staffing orders" value={`${formatNumber(data.staffingOrders.active)} / ${formatNumber(data.staffingOrders.total)}`} />
           <Stat label="Career XP · min / avg / max" value={data.members.experienceMin === null ? '—' : `${formatNumber(data.members.experienceMin)} / ${formatNumber(data.members.experienceAverage ?? 0)} / ${formatNumber(data.members.experienceMax ?? 0)}`} />
         </div>
       </Panel>
       <Panel title="Roster distribution" className="se-mb">
         <div className="se-grid se-grid--2">
-          {[['Roles', data.byRole], ['Specialties', data.bySpecialty], ['Status', data.byStatus], ['Assignments', data.byAssignment]].map(([title, rows]) => (
+          {[['Roles', data.byRole], ['Specialties', data.bySpecialty], ['Status', data.byStatus], ['Assignments', data.byAssignment], ['Staffing orders', data.staffingOrders.byKind]].map(([title, rows]) => (
             <section key={String(title)} aria-label={String(title)}>
               <h2 className="se-eyebrow">{String(title)}</h2>
-              <ul className="se-admin-list">{(rows as Array<{ count: number; role?: string; specialty?: string; status?: string; assignment?: string }>).map((row) => {
-                const value = row.role ?? row.specialty ?? row.status ?? row.assignment ?? '';
+              <ul className="se-admin-list">{(rows as Array<{ count: number; role?: string; specialty?: string; status?: string; assignment?: string; kind?: string }>).map((row) => {
+                const value = row.role ?? row.specialty ?? row.status ?? row.assignment ?? row.kind ?? '';
                 return <li key={value}>{label(value)} <strong>{formatNumber(row.count)}</strong></li>;
               })}</ul>
             </section>

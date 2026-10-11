@@ -535,7 +535,7 @@ export function ProfilePage() {
           </div>
         ) : null}
         <div
-          className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player?.cosmetics.frame ? ` se-profile-frame se-profile-frame--${player.cosmetics.frame}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}${signature ? ' se-signature-card' : ''}`}
+          className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}`}
           data-avatar-frame={avatarFrame ?? 'none'}
           data-surface={signature ? player?.cosmetics.surface ?? 'brushed' : undefined}
         >

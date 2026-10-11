@@ -23,11 +23,14 @@ export const AdminCrewService = {
     const round = await prisma.round.findUnique({ where: { id: roundId }, select: { id: true, name: true, status: true, rulesetId: true, rulesetVersion: true } });
     if (!round) throw AppError.notFound('ROUND_NOT_FOUND', 'That round does not exist.');
     const ruleset = loadRulesetForRound(round);
-    const [players, migrations, totals, experience, roles, specialties, statuses, assignments, veterans] = await Promise.all([
+    const [players, migrations, totals, experience, orders, activeOrders, orderKinds, roles, specialties, statuses, assignments, veterans] = await Promise.all([
       prisma.roundPlayer.count({ where: { roundId } }),
       prisma.crewRosterMigration.count({ where: { roundPlayer: { roundId } } }),
       prisma.crewMember.count({ where: { roundPlayer: { roundId } } }),
       prisma.crewMember.aggregate({ where: { roundPlayer: { roundId } }, _min: { experiencePoints: true }, _max: { experiencePoints: true }, _avg: { experiencePoints: true } }),
+      prisma.crewJobPost.count({ where: { roundPlayer: { roundId } } }),
+      prisma.crewJobPost.count({ where: { roundPlayer: { roundId }, isActive: true, headcount: { gt: 0 } } }),
+      prisma.crewJobPost.groupBy({ by: ['kind'], where: { roundPlayer: { roundId }, isActive: true, headcount: { gt: 0 } }, _count: { _all: true } }),
       prisma.crewMember.groupBy({ by: ['role'], where: { roundPlayer: { roundId } }, _count: { _all: true } }),
       prisma.crewMember.groupBy({ by: ['specialty'], where: { roundPlayer: { roundId } }, _count: { _all: true } }),
       prisma.crewMember.groupBy({ by: ['status'], where: { roundPlayer: { roundId } }, _count: { _all: true } }),
@@ -43,6 +46,7 @@ export const AdminCrewService = {
       enabled: Boolean(ruleset.crewRoster?.enabled), generatedAt: now.toISOString(),
       players: { total: players, migrated: migrations, pending: Math.max(0, players - migrations) },
       members: { total: totals, experienceMin: experience._min.experiencePoints, experienceMax: experience._max.experiencePoints, experienceAverage: experience._avg.experiencePoints === null ? null : Math.round(experience._avg.experiencePoints) },
+      staffingOrders: { total: orders, active: activeOrders, byKind: orderKinds.map((row) => ({ kind: row.kind, count: row._count._all })) },
       byRole: roles.map((row) => ({ role: row.role, count: row._count._all })),
       bySpecialty: specialties.map((row) => ({ specialty: row.specialty, count: row._count._all })),
       byStatus: statuses.map((row) => ({ status: row.status, count: row._count._all })),

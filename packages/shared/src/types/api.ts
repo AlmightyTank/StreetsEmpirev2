@@ -685,7 +685,7 @@ export interface DealerStaffActionResult {
 }
 
 export interface CrewPutToWorkResult {
-  kind: 'DEALER_ASSIGN' | 'DEALER_RELEASE' | 'DEALER_MOVE' | 'TURF_POST' | 'TURF_PULL' | 'TURF_MOVE';
+  kind: 'DEALER_ASSIGN' | 'DEALER_RELEASE' | 'DEALER_MOVE' | 'RUNNER_ASSIGN' | 'RUNNER_RELEASE' | 'RUNNER_MOVE' | 'TURF_POST' | 'TURF_PULL' | 'TURF_MOVE';
   memberIds: string[];
   assigned: number;
   released: number;
@@ -734,6 +734,10 @@ export interface DealerCrewDto {
   traffic: number;
   capacityUnits: number;
   inventoryUnits: number;
+  /** Named runners attached to this crew, and how much stock they can move from storage. */
+  runnerCount: number;
+  runnerUnitsPerHour: number;
+  runnerReserveUnits: number;
   dealers: DealerCareerDto[];
   /** What it would do now, at this price, with this stock. Sales themselves begin in 1.6.0-F. */
   pace: {
@@ -793,7 +797,7 @@ export interface DealerCrewActionResult {
 /** 1.7.0-A. Where a crew member is. Every status but RELEASED is counted in the crew. */
 export type CrewMemberStatusDto = 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED';
 export type CrewAssignmentKindDto = 'BUSINESS' | 'DEALER' | 'TURF' | 'CORNER_ENFORCER' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'RUNNER' | 'BODYGUARD' | 'ESCORT';
-export type CrewJobPostKindDto = 'CORNER_ENFORCER' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'RUNNER' | 'BODYGUARD' | 'ESCORT';
+export type CrewJobPostKindDto = 'DEALER' | 'TURF' | 'CORNER_ENFORCER' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'RUNNER' | 'BODYGUARD' | 'ESCORT';
 export type CrewMemberSpecialtyDto = 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE';
 
 export interface CrewMemberHistoryDto {
@@ -845,6 +849,32 @@ export interface CrewRosterDto {
   members: CrewMemberDto[];
   /** Members in the crew matching the filter, for paging. */
   total: number;
+}
+
+export interface CrewStaffingOrderDto {
+  id: string;
+  kind: CrewJobPostKindDto;
+  targetRef: string;
+  citySlug: string | null;
+  districtKey: string | null;
+  headcount: number;
+  keepTurns: number;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface CrewStaffingOrderResult {
+  order: CrewStaffingOrderDto;
+  message: string;
+}
+
+export interface CrewStaffingOrderFillDto {
+  orderId: string;
+  kind: CrewJobPostKindDto;
+  targetRef: string;
+  assigned: number;
+  turnsUsed: number;
+  message: string;
 }
 
 /** One line of the happiness sum, so a low number can explain itself. */
@@ -1067,6 +1097,8 @@ export interface GameActionResult<T> {
   result: T;
   /** Action-triggered street encounter attached to this receipt. */
   encounter?: RandomEncounterDto;
+  /** Standing crew orders filled after this action. */
+  staffingOrders?: CrewStaffingOrderFillDto[];
   rankChanges?: RankChanges;
 }
 

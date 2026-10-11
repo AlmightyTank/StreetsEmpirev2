@@ -15,6 +15,7 @@ import {
   dealerCrewEstablishSchema,
   dealerCrewManageSchema,
   dealerCrewOfferSchema,
+  dealerCrewRunnerReserveSchema,
   dealerCrewStockSchema,
   formatCents,
   formatNumber,
@@ -39,6 +40,7 @@ import { supplyFootholds } from './supply-property-settle.service.js';
 type LoadedCrew = DealerCrew & { staff: DealerStaff[]; inventory: DealerStock[] };
 const CREW_INCLUDE = { staff: { where: { releasedAt: null }, orderBy: { assignedAt: 'asc' } }, inventory: true } as const;
 const LIVE = ['ACTIVE', 'PAUSED'] as const;
+const RUNNER_UNITS_PER_HOUR = 20;
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 const productName = (ruleset: Ruleset, key: string) => (key === 'CRACK'
@@ -67,6 +69,26 @@ export function careerDto(rules: DealerRules, row: Pick<DealerStaff, 'id' | 'dea
 
 const held = (crew: LoadedCrew) => crew.inventory.reduce((sum, row) => sum + row.quantity, 0);
 
+function runnerBonusPercent(ruleset: Ruleset, runner: { specialty: string; specialtyExperiencePoints: number }): number {
+  const career = ruleset.crewRoster;
+  if (!career?.enabled || runner.specialty !== 'WHEELMAN') return 0;
+  const percent = runner.specialtyExperiencePoints >= (career.specialtyTierTwoExperience ?? Number.MAX_SAFE_INTEGER)
+    ? career.specialtyBonusPercent?.tierTwo ?? 0
+    : career.specialtyBonusPercent?.tierOne ?? 0;
+  return Math.min(percent, career.specialtyBonusPercent?.cap ?? 0);
+}
+
+export async function runnerCrewStats(db: Db | PrismaClient, ruleset: Ruleset, roundPlayerId: string, crewId: string): Promise<{ count: number; unitsPerHour: number }> {
+  const runners = await db.crewMember.findMany({
+    where: { roundPlayerId, role: 'THUG', status: 'ASSIGNED', assignmentKind: 'RUNNER', assignmentRef: crewId },
+    select: { specialty: true, specialtyExperiencePoints: true },
+  });
+  return {
+    count: runners.length,
+    unitsPerHour: Math.round(runners.reduce((sum, runner) => sum + RUNNER_UNITS_PER_HOUR * (1 + runnerBonusPercent(ruleset, runner) / 100), 0) * 10) / 10,
+  };
+}
+
 /** Storage in a city with its stock and free room: inbound loads hold their room. */
 async function cityStorage(db: Db | PrismaClient, roundPlayerId: string, citySlug: string) {
   const rows = await db.supplyWarehouse.findMany({ where: { roundPlayerId, citySlug, isActive: true }, include: { stock: true }, orderBy: { createdAt: 'asc' } });
@@ -86,6 +108,7 @@ export async function crewDto(db: Db | PrismaClient, ruleset: Ruleset, rules: De
   const street = product ? dealerStreetPriceCents(ruleset, rules, city, product) : null;
   const demand = product ? dealerDemand(ruleset, city, product) : 0;
   const inventory = held(crew);
+  const runners = await runnerCrewStats(db, ruleset, crew.roundPlayerId, crew.id);
   const pace = dealerPace({
     rules,
     demand,
@@ -132,6 +155,9 @@ export async function crewDto(db: Db | PrismaClient, ruleset: Ruleset, rules: De
     traffic: rules.districtTraffic[crew.districtKey as DistrictKey] ?? 1,
     capacityUnits: crew.capacityUnits,
     inventoryUnits: inventory,
+    runnerCount: runners.count,
+    runnerUnitsPerHour: runners.unitsPerHour,
+    runnerReserveUnits: crew.runnerReserveUnits,
     dealers: crew.staff.map((row) => careerDto(rules, row)),
     pace: {
       unitsPerHour: selling ? pace.unitsPerHour : 0,
@@ -365,6 +391,25 @@ export const DealerCrewService = {
           next: current,
           result: await result(tx, ruleset, rules, roundPlayerId, player.city.slug, crew.id, now,
             loading ? `Loaded ${formatNumber(input.quantity)} ${name} from ${warehouse.name}.` : `Returned ${formatNumber(input.quantity)} ${name} to ${warehouse.name}.`),
+          ledger: [],
+        };
+      },
+    });
+  },
+
+  /** 1.8.6-F. Reserve stock that runners must leave behind in same-city storage. */
+  runnerReserve(prisma: PrismaClient, roundPlayerId: string, crewId: string, rawInput: unknown) {
+    const input = dealerCrewRunnerReserveSchema.parse(rawInput);
+    return ActionService.run<DealerCrewActionResult>(prisma, roundPlayerId, {
+      action: 'DEALER_CREW_RUNNER_RESERVE',
+      actionId: input.actionId,
+      execute: async ({ tx, current, ruleset, player, now }) => {
+        const rules = requireRules(ruleset);
+        const crew = await loadCrew(tx, roundPlayerId, crewId);
+        await tx.dealerCrew.update({ where: { id: crew.id }, data: { runnerReserveUnits: input.reserveUnits } });
+        return {
+          next: current,
+          result: await result(tx, ruleset, rules, roundPlayerId, player.city.slug, crew.id, now, `Runners will leave at least ${formatNumber(input.reserveUnits)} units in ${cityName(ruleset, crew.citySlug)} storage.`),
           ledger: [],
         };
       },

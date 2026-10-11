@@ -227,7 +227,7 @@ function toSettingsDto(
   const savedAvatarFrameKey = profile?.activeAvatarFrameKey ?? null;
   const activeAvatarFrameKey = savedAvatarFrameKey && frameKeys.has(savedAvatarFrameKey)
     ? savedAvatarFrameKey
-    : null;
+    : activeProfileFrameKey;
   const activeSiteThemeKey = profile?.activeSiteThemeKey && themeKeys.has(profile.activeSiteThemeKey)
     ? profile.activeSiteThemeKey
     : null;
@@ -381,17 +381,8 @@ export const AccountProfileService = {
       });
     }
     const frameKeys = new Set(appearance.frames.map((option) => option.key));
-    const activeProfileFrameKey = input.activeProfileFrameKey && frameKeys.has(input.activeProfileFrameKey)
-      ? input.activeProfileFrameKey
-      : null;
-    if (input.activeProfileFrameKey && !activeProfileFrameKey) {
-      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick a profile frame you have already earned.', {
-        activeProfileFrameKey: 'That profile frame is not unlocked.',
-      });
-    }
-    const requestedAvatarFrameKey = input.activeAvatarFrameKey === undefined
-      ? activeProfileFrameKey
-      : input.activeAvatarFrameKey;
+    const activeProfileFrameKey = null;
+    const requestedAvatarFrameKey = input.activeAvatarFrameKey ?? null;
     const activeAvatarFrameKey = requestedAvatarFrameKey && frameKeys.has(requestedAvatarFrameKey)
       ? requestedAvatarFrameKey
       : null;

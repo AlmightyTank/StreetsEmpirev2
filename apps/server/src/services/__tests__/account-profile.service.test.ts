@@ -154,7 +154,7 @@ describe('AccountProfileService admin site theme QA', () => {
     expect(saved.options.effects.map((option) => option.key)).toEqual(['none', 'snowstorm', 'inferno']);
   });
 
-  it('unlocks a theme\'s frame, avatar frame and popup animation with the theme', async () => {
+  it('unlocks a theme\'s avatar frame and popup animation with the theme', async () => {
     const prisma = prismaFor(false, [themeUnlock('dragon-fire')]);
     const saved = await AccountProfileService.update(prisma, 'account-1', {
       ...updateInput,
@@ -165,7 +165,7 @@ describe('AccountProfileService admin site theme QA', () => {
     });
 
     expect(saved.options.frames.map((option) => option.key)).toEqual(['inferno-drake']);
-    expect(saved.settings.activeProfileFrameKey).toBe('inferno-drake');
+    expect(saved.settings.activeProfileFrameKey).toBeNull();
     expect(saved.settings.activeAvatarFrameKey).toBe('inferno-drake');
     expect(saved.settings.profileEffect).toBe('inferno');
   });
@@ -203,7 +203,7 @@ describe('AccountProfileService animated profile frames', () => {
       .toEqual(PROFILE_EFFECTS.map((option) => option.key));
   });
 
-  it('saves popup and avatar frames independently and only when both are earned', async () => {
+  it('saves avatar frames and ignores the retired profile frame field', async () => {
     const prisma = prismaFor(false, [frameUnlock('popup-frame'), frameUnlock('avatar-frame')]);
     const saved = await AccountProfileService.update(prisma, 'account-1', {
       ...updateInput,
@@ -213,7 +213,7 @@ describe('AccountProfileService animated profile frames', () => {
     });
 
     expect(saved.settings).toMatchObject({
-      activeProfileFrameKey: 'popup-frame',
+      activeProfileFrameKey: null,
       activeAvatarFrameKey: 'avatar-frame',
     });
     const withoutAvatarFrame = await AccountProfileService.update(prisma, 'account-1', {
@@ -223,7 +223,7 @@ describe('AccountProfileService animated profile frames', () => {
       activeAvatarFrameKey: null,
     });
     expect(withoutAvatarFrame.settings).toMatchObject({
-      activeProfileFrameKey: 'popup-frame',
+      activeProfileFrameKey: null,
       activeAvatarFrameKey: null,
     });
     await expect(AccountProfileService.update(prisma, 'account-1', {
