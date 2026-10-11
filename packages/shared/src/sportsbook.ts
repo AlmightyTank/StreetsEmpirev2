@@ -29,6 +29,7 @@ export function sportsbookLineReason(state: SportsbookLineState): string | null 
     case 'NO_LINE': return 'No moneyline is posted for this game yet.';
     case 'STALE_ODDS': return 'This line is waiting on a fresh price before it reopens.';
     case 'FEED_UNAVAILABLE': return 'The odds feed is catching up. Lines reopen after the next refresh.';
+    case 'PULLED': return 'The book took this line down. It reopens if the game returns to the board.';
     case 'STARTED': return 'Betting closed at the scheduled start.';
   }
 }
@@ -39,3 +40,7 @@ export function sportsbookReturnCents(status: SportsbookBetStatus, stakeCents: n
   if (status === 'PUSH' || status === 'VOID') return stakeCents;
   return 0;
 }
+
+/** 1.8.0-C. Below these remaining datapoints the feed stops optional odds polls, then result checks. */
+export const SPORTSBOOK_QUOTA_ODDS_FLOOR = 500;
+export const SPORTSBOOK_QUOTA_RESULTS_FLOOR = 50;

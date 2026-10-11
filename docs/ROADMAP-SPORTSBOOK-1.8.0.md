@@ -25,7 +25,7 @@ The first release uses TheRundown for pregame odds across NFL, NBA, MLB, and NHL
 | --- | --- | --- |
 | **1.8.0-A — Pregame Moneyline Foundation** | Ship the first usable sportsbook | Cache NFL, NBA, MLB, and NHL pregame moneylines; add the Sports Betting casino destination; let players wager game cash without turns; close at kickoff; store and settle tickets. Implemented on beta; provider and result payload verification remains a release gate. |
 | **1.8.0-B — Ticket Clarity & Board Polish** | Make picks and outcomes easy to follow | Improve league selection, event grouping, cache freshness, open-ticket details, and settled-ticket history. Keep the board useful on mobile and explain why a line is closed or unavailable. Implemented on beta. |
-| **1.8.0-C — Feed Reliability & Operations** | Make polling and settlement supportable | Harden retries and stale-cache handling; expose last successful poll, provider quota, and errors to admins; safely recheck unresolved results without duplicate settlement. |
+| **1.8.0-C — Feed Reliability & Operations** | Make polling and settlement supportable | Harden retries and stale-cache handling; expose last successful poll, provider quota, and errors to admins; safely recheck unresolved results without duplicate settlement. Implemented on beta. |
 | **1.8.0-D — Limits & Economy Balance** | Keep game-cash risk bounded | Tune minimum/maximum stakes and exposure controls through simulations; test repeat requests, concurrent wagers, cash-location changes, pushes, cancellations, and late provider updates. Keep the no-turn rule. |
 | **1.8.0-E — Market Expansion & Release** | Expand only after the first market is proven | Review provider usage and grading accuracy, then decide whether to add leagues or pregame spreads/totals. Keep live betting, parlays, and player props out until separately designed and budgeted. Finish accessibility, mobile, migration, historical-ruleset, and release checks. |
 
@@ -49,6 +49,16 @@ The first release uses TheRundown for pregame odds across NFL, NBA, MLB, and NHL
 - Picking a side opens a bet slip instead of placing immediately. The slip shows the matchup, price, stake, quick stakes, to-win and total payout (the same rounding the server pins), cash on hand, and why the ticket cannot be placed yet. On phones the slip stays pinned above the tab bar while the board scrolls.
 - Wagers send the price the player saw as `expectedOdds`. If the line moved, the server refuses with `SPORTSBOOK_ODDS_CHANGED` and charges nothing; the slip reloads and shows the move.
 - My tickets splits Open (kickoff order, stake, to win, payout, "Awaiting result" after the start) from Settled (result, final score, stake, cash returned or lost, settled time) with a lifetime record and net result.
+
+## Slice C details
+
+- The provider client lives in `sportsbook-feed.service.ts`. Each request retries up to 3 times on network errors, timeouts and 5xx (2s, then 4s), and on 429 after `Retry-After` (capped at 30s). A rejected key (401/403) or a 429 that persists stops the rest of the run so it does not waste datapoints. Other 4xx responses are not retried.
+- A failing league records its own error and the other leagues still poll; result checks run either way. `lastPolledAt` means the last run with at least one successful snapshot. Per-event `oddsUpdatedAt` still closes any league that missed the refresh.
+- A database lease (`pollLeaseUntil`), plus a minimum interval of the poll period less one minute, means a second server instance never polls on top of the first. A crashed run's lease expires after 10 minutes.
+- Before 10:00 UTC the poll also requests yesterday's date, so US evening games stay covered if the provider dates events in a US time zone. After a complete league snapshot, an upcoming game the provider no longer lists becomes `PULLED`: closed to betting at once with a reason, and reopened if it comes back. This only applies to start times the snapshot is certain to contain, whatever the provider's date offset. Cancelled or postponed listings are also `PULLED`. A settled event is never reopened by a late listing.
+- Results are checked only for started games with open tickets, beginning once a final is plausible (NFL 3h, MLB 2.5h, NBA/NHL 2h15m after the start), then backing off 30m, 30m, 1h, 2h, 4h, then every 6h. Each check records its time, count, next check and any error. Provider statuses such as `STATUS_FINAL`, `STATUS_CANCELED` and `STATUS_IN_PROGRESS` are recognised; a suspended game is treated as live, not void.
+- Settlement takes a row lock and checks `settledAt` inside one transaction, so the poller, an admin recheck and an admin void can race without paying twice (covered by a concurrency test).
+- Admin › Casino Operations has a Sportsbook feed panel: feed status, last success and attempt, consecutive failed runs, last error, datapoint quota with pause flags, per-league health, open exposure, 24-hour settlements, and started games still waiting on a result. **Recheck result** asks the provider now. **Void and refund** needs a reason and a confirmation. Both are written to the admin audit log.
 
 ## Release gates
 

@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { lockRoundPlayer } from '../utils/db.js';
+import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import {
@@ -28,8 +28,8 @@ export const SPORTSBOOK_LEAGUES = [
 
 const ODDS_MAX_AGE_MS = SPORTSBOOK_ODDS_MAX_AGE_MINUTES * 60_000;
 
-type JsonRecord = Record<string, unknown>;
-type ProviderEvent = {
+export type JsonRecord = Record<string, unknown>;
+export type ProviderEvent = {
   event_id?: unknown;
   starts_at?: unknown;
   event_date?: unknown;
@@ -44,15 +44,15 @@ type ProviderEvent = {
   final?: unknown;
 };
 
-function record(value: unknown): JsonRecord | null {
+export function record(value: unknown): JsonRecord | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : null;
 }
 
-function str(value: unknown): string | null {
+export function str(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-function num(value: unknown): number | null {
+export function num(value: unknown): number | null {
   const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -82,11 +82,11 @@ export function eventOdds(event: ProviderEvent): { home: string; away: string; h
   return { home: homeName, away: awayName, homeOdds, awayOdds };
 }
 
-function dateKey(date: Date): string {
+export function dateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function isSameQuotaWindow(first: Date, second: Date, period: string): boolean {
+export function isSameQuotaWindow(first: Date, second: Date, period: string): boolean {
   if (period.toLowerCase().includes('month')) return first.toISOString().slice(0, 7) === second.toISOString().slice(0, 7);
   return dateKey(first) === dateKey(second);
 }
@@ -131,7 +131,8 @@ export function sportsbookLineState(
   feedFresh: boolean,
   now = new Date(),
 ): SportsbookLineState {
-  if (event.status !== 'PRE' || event.startsAt.getTime() <= now.getTime()) return 'STARTED';
+  if (event.startsAt.getTime() <= now.getTime() || (event.status !== 'PRE' && event.status !== 'PULLED')) return 'STARTED';
+  if (event.status === 'PULLED') return 'PULLED';
   if (!feedFresh) return 'FEED_UNAVAILABLE';
   if (!isSportsbookBettingOpen(event, now)) return 'STALE_ODDS';
   if (event.homeOdds === null && event.awayOdds === null) return 'NO_LINE';
@@ -161,165 +162,75 @@ export function sportsbookTicketDto(bet: TicketRow): SportsbookBetDto {
   };
 }
 
-/** Polls narrow, pregame moneyline snapshots and persists a shared cache for all players. */
-export async function refreshSportsbookCache(prisma: PrismaClient, apiKey: string, now = new Date()): Promise<void> {
-  if (!apiKey) return;
-  const dates = [dateKey(now), dateKey(new Date(now.getTime() + 86_400_000))];
-  const state = await prisma.sportsbookProviderState.upsert({ where: { id: 'therundown' }, create: { id: 'therundown' }, update: {} });
-  let latestDataPoints = 0;
-  let latestLimit = state.datapointsLimit;
-  let latestPeriod = state.datapointsPeriod;
-  let latestUsed = state.datapointsUsed;
-  let latestRemaining: number | null = state.datapointsRemaining
-    ?? (state.datapointsLimit > 0 ? Math.max(0, state.datapointsLimit - state.datapointsUsed) : null);
-  const sameQuotaWindow = state.quotaObservedAt && isSameQuotaWindow(state.quotaObservedAt, now, state.datapointsPeriod);
-  const oddsPollAllowed = !(sameQuotaWindow && latestRemaining !== null && latestRemaining <= 500);
-
-  pollOdds: for (const league of oddsPollAllowed ? SPORTSBOOK_LEAGUES : []) {
-    for (const date of dates) {
-      const url = new URL(`https://therundown.io/api/v2/sports/${league.sportId}/events/${date}`);
-      url.searchParams.set('market_ids', '1');
-      url.searchParams.set('affiliate_ids', '3');
-      url.searchParams.set('main_line', 'true');
-      url.searchParams.set('hide_closed', 'true');
-      const response = await fetch(url, { headers: { 'X-TheRundown-Key': apiKey }, signal: AbortSignal.timeout(15_000) });
-      if (!response.ok) throw new Error(`TheRundown returned ${response.status} for ${league.key} ${date}.`);
-      const pointHeader = num(response.headers.get('x-datapoints')) ?? 0;
-      const usedHeader = num(response.headers.get('x-datapoints-used'));
-      const limitHeader = num(response.headers.get('x-datapoints-limit'));
-      const remainingHeader = num(response.headers.get('x-datapoints-remaining'));
-      if (pointHeader !== null) latestDataPoints += pointHeader;
-      if (usedHeader !== null) latestUsed = usedHeader;
-      if (limitHeader !== null) latestLimit = limitHeader;
-      if (remainingHeader !== null) latestRemaining = remainingHeader;
-      latestPeriod = response.headers.get('x-datapoints-period') ?? latestPeriod;
-      await prisma.sportsbookProviderState.update({ where: { id: 'therundown' }, data: {
-        lastDatapoints: latestDataPoints, datapointsUsed: latestUsed, datapointsLimit: latestLimit,
-        datapointsRemaining: latestRemaining, datapointsPeriod: latestPeriod, quotaObservedAt: now,
-      } });
-
-      const payload = record(await response.json());
-      const events = payload && Array.isArray(payload.events) ? payload.events as ProviderEvent[] : [];
-      for (const event of events) {
-        const providerEventId = str(event.event_id);
-        const startsAt = new Date(String(event.starts_at ?? event.event_date ?? ''));
-        const odds = eventOdds(event);
-        if (!providerEventId || !Number.isFinite(startsAt.getTime()) || !odds) continue;
-        const score = record(event.score);
-        const homeScore = score ? num(score.score_home) : null;
-        const awayScore = score ? num(score.score_away) : null;
-        const providerStatus = (str(event.status) ?? str(event.event_status) ?? '').toLowerCase();
-        const status = event.is_live === true || event.live === true || ['live', 'in progress', 'in_progress'].includes(providerStatus)
-          ? 'LIVE'
-          : 'PRE';
-        await prisma.sportsbookEvent.upsert({
-          where: { providerEventId },
-          create: {
-            providerEventId, sport: league.key, homeTeam: odds.home, awayTeam: odds.away,
-            startsAt, status, homeOdds: odds.homeOdds, awayOdds: odds.awayOdds,
-            homeScore, awayScore, oddsUpdatedAt: now, lastSeenAt: now,
-          },
-          update: {
-            sport: league.key, homeTeam: odds.home, awayTeam: odds.away, startsAt,
-            ...(status === 'PRE' ? { homeOdds: odds.homeOdds, awayOdds: odds.awayOdds, oddsUpdatedAt: now } : {}),
-            status, homeScore, awayScore, lastSeenAt: now,
-          },
-        });
-      }
-      if (latestRemaining !== null && latestRemaining <= 500) break pollOdds;
-    }
-  }
-
-  // Fetch results only for events with open player tickets; this keeps score polling bounded
-  // by actual outstanding bets rather than every scheduled event in the four leagues.
-  const toSettle = await prisma.sportsbookEvent.findMany({
-    where: { startsAt: { lte: now }, status: { in: ['PRE', 'LIVE'] }, bets: { some: { status: 'OPEN' } } },
-    select: { id: true, providerEventId: true },
-    take: 200,
-  });
-  for (const cached of toSettle) {
-    if (latestRemaining !== null && latestRemaining <= 50) break;
-    const url = new URL(`https://therundown.io/api/v2/events/${encodeURIComponent(cached.providerEventId)}`);
-    const response = await fetch(url, { headers: { 'X-TheRundown-Key': apiKey }, signal: AbortSignal.timeout(15_000) });
-    if (!response.ok) continue;
-    const points = num(response.headers.get('x-datapoints')) ?? 0;
-    const used = num(response.headers.get('x-datapoints-used'));
-    const limit = num(response.headers.get('x-datapoints-limit'));
-    const remaining = num(response.headers.get('x-datapoints-remaining'));
-    if (points !== null) latestDataPoints += points;
-    if (used !== null) latestUsed = used;
-    if (limit !== null) latestLimit = limit;
-    if (remaining !== null) latestRemaining = remaining;
-    latestPeriod = response.headers.get('x-datapoints-period') ?? latestPeriod;
-    await prisma.sportsbookProviderState.update({ where: { id: 'therundown' }, data: {
-      lastDatapoints: latestDataPoints, datapointsUsed: latestUsed, datapointsLimit: latestLimit,
-      datapointsRemaining: latestRemaining, datapointsPeriod: latestPeriod, quotaObservedAt: now,
-    } });
-    const payload = record(await response.json());
-    const providerEvent = (payload?.event ? record(payload.event) : payload) as ProviderEvent | null;
-    if (!providerEvent) continue;
-    const status = (str(providerEvent.status) ?? str(providerEvent.event_status) ?? '').toLowerCase();
-    const score = record(providerEvent.score);
-    const homeScore = score ? num(score.score_home) : null;
-    const awayScore = score ? num(score.score_away) : null;
-    const final = providerEvent.is_final === true || providerEvent.final === true || ['final', 'completed', 'complete'].includes(status);
-    const cancelled = ['cancelled', 'canceled', 'postponed', 'void'].includes(status);
-    if (cancelled) {
-      await settleSportsbookEvent(prisma, cached.id, 'VOID', null, null, now);
-    } else if (final && homeScore !== null && awayScore !== null) {
-      await settleSportsbookEvent(prisma, cached.id, 'FINAL', homeScore, awayScore, now);
-    }
-  }
-  await prisma.sportsbookProviderState.update({
-    where: { id: 'therundown' },
-    data: {
-      lastPolledAt: oddsPollAllowed ? now : state.lastPolledAt, lastDatapoints: latestDataPoints, datapointsUsed: latestUsed,
-      datapointsLimit: latestLimit, datapointsRemaining: latestRemaining, datapointsPeriod: latestPeriod, quotaObservedAt: now,
-      lastError: '', lastErrorAt: null,
-    },
-  });
+export interface SportsbookSettlement {
+  tickets: number;
+  won: number;
+  lost: number;
+  push: number;
+  void: number;
+  creditedCents: bigint;
 }
 
-async function settleSportsbookEvent(
+/**
+ * Settles one event and every open ticket on it, inside the caller's transaction. The event row
+ * lock plus `settledAt` make this exactly-once: a second caller (the poller, an admin recheck or
+ * an admin void racing it) waits on the lock, then sees the event settled and returns null.
+ */
+export async function settleSportsbookEventTx(
+  tx: Db,
+  eventId: string,
+  status: 'FINAL' | 'VOID',
+  homeScore: number | null,
+  awayScore: number | null,
+  now: Date,
+): Promise<SportsbookSettlement | null> {
+  await tx.$queryRaw`SELECT "id" FROM "SportsbookEvent" WHERE "id" = ${eventId} FOR UPDATE`;
+  const event = await tx.sportsbookEvent.findUnique({ where: { id: eventId } });
+  if (!event || event.settledAt) return null;
+  await tx.sportsbookEvent.update({ where: { id: eventId }, data: {
+    status, homeScore, awayScore, settledAt: now, nextResultCheckAt: null, resultError: '',
+  } });
+  const summary: SportsbookSettlement = { tickets: 0, won: 0, lost: 0, push: 0, void: 0, creditedCents: 0n };
+  const tickets = await tx.sportsbookBet.findMany({ where: { eventId, status: 'OPEN' } });
+  for (const ticket of tickets) {
+    await lockRoundPlayer(tx, ticket.roundPlayerId);
+    let ticketStatus: 'WON' | 'LOST' | 'PUSH' | 'VOID';
+    let credit = 0n;
+    if (status === 'VOID') {
+      ticketStatus = 'VOID';
+      credit = ticket.stakeCents;
+    } else if (homeScore === awayScore) {
+      ticketStatus = 'PUSH';
+      credit = ticket.stakeCents;
+    } else if ((ticket.selection === 'HOME' && homeScore! > awayScore!) || (ticket.selection === 'AWAY' && awayScore! > homeScore!)) {
+      ticketStatus = 'WON';
+      credit = ticket.payoutCents;
+    } else {
+      ticketStatus = 'LOST';
+    }
+    const changed = await tx.sportsbookBet.updateMany({ where: { id: ticket.id, status: 'OPEN' }, data: { status: ticketStatus, settledAt: now } });
+    if (!changed.count) continue;
+    summary.tickets += 1;
+    summary[ticketStatus === 'WON' ? 'won' : ticketStatus === 'LOST' ? 'lost' : ticketStatus === 'PUSH' ? 'push' : 'void'] += 1;
+    if (credit > 0n) {
+      const player = await tx.roundPlayer.findUnique({ where: { id: ticket.roundPlayerId }, include: { round: true } });
+      if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'A sportsbook ticket owner no longer exists.');
+      await moveSportsbookCash(tx, ticket.roundPlayerId, loadRulesetForRound(player.round), credit, now);
+      summary.creditedCents += credit;
+    }
+  }
+  return summary;
+}
+
+export function settleSportsbookEvent(
   prisma: PrismaClient,
   eventId: string,
   status: 'FINAL' | 'VOID',
   homeScore: number | null,
   awayScore: number | null,
   now: Date,
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "SportsbookEvent" WHERE "id" = ${eventId} FOR UPDATE`;
-    const event = await tx.sportsbookEvent.findUnique({ where: { id: eventId } });
-    if (!event || event.settledAt) return;
-    await tx.sportsbookEvent.update({ where: { id: eventId }, data: {
-      status, homeScore, awayScore, settledAt: now,
-    } });
-    const tickets = await tx.sportsbookBet.findMany({ where: { eventId, status: 'OPEN' } });
-    for (const ticket of tickets) {
-      await lockRoundPlayer(tx, ticket.roundPlayerId);
-      let ticketStatus: string;
-      let credit = 0n;
-      if (status === 'VOID') {
-        ticketStatus = 'VOID';
-        credit = ticket.stakeCents;
-      } else if (homeScore === awayScore) {
-        ticketStatus = 'PUSH';
-        credit = ticket.stakeCents;
-      } else if ((ticket.selection === 'HOME' && homeScore! > awayScore!) || (ticket.selection === 'AWAY' && awayScore! > homeScore!)) {
-        ticketStatus = 'WON';
-        credit = ticket.payoutCents;
-      } else {
-        ticketStatus = 'LOST';
-      }
-      const changed = await tx.sportsbookBet.updateMany({ where: { id: ticket.id, status: 'OPEN' }, data: { status: ticketStatus, settledAt: now } });
-      if (changed.count && credit > 0n) {
-        const player = await tx.roundPlayer.findUnique({ where: { id: ticket.roundPlayerId }, include: { round: true } });
-        if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'A sportsbook ticket owner no longer exists.');
-        await moveSportsbookCash(tx, ticket.roundPlayerId, loadRulesetForRound(player.round), credit, now);
-      }
-    }
-  });
+): Promise<SportsbookSettlement | null> {
+  return prisma.$transaction((tx) => settleSportsbookEventTx(tx, eventId, status, homeScore, awayScore, now));
 }
 
 export const SportsbookService = {
@@ -330,7 +241,8 @@ export const SportsbookService = {
   ): Promise<SportsbookBoardDto> {
     const [events, state] = await Promise.all([
       prisma.sportsbookEvent.findMany({
-        where: { startsAt: { gt: now }, status: 'PRE' },
+        // 1.8.0-C: a pulled line stays listed (closed, with a reason) until it returns or starts.
+        where: { startsAt: { gt: now }, status: { in: ['PRE', 'PULLED'] } },
         // Today and tomorrow across four leagues; large enough that a league filter never hides games.
         orderBy: [{ startsAt: 'asc' }, { sport: 'asc' }], take: 300,
       }),
@@ -383,6 +295,7 @@ export const SportsbookService = {
       const ruleset = loadRulesetForRound(player.round);
       if (!ruleset.casino?.enabled) throw AppError.conflict('SPORTSBOOK_CLOSED', 'Sports betting is not open in this round.');
       const event = await tx.sportsbookEvent.findUnique({ where: { id: input.eventId } });
+      if (event?.status === 'PULLED' && event.startsAt > now) throw AppError.conflict('SPORTSBOOK_LINE_PULLED', 'The book took this line down. Try another game.');
       if (!event || event.status !== 'PRE' || event.startsAt <= now) throw AppError.conflict('SPORTSBOOK_CLOSED', 'That game is no longer open for betting.');
       if (!isSportsbookBettingOpen(event, now)) throw AppError.conflict('SPORTSBOOK_STALE_ODDS', 'The line is being refreshed. Try again shortly.');
       const providerState = await tx.sportsbookProviderState.findUnique({ where: { id: 'therundown' } });

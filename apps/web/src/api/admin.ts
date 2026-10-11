@@ -1,4 +1,6 @@
 import type {
+  AdminSportsbookActionDto,
+  AdminSportsbookDto,
   AdminCrewCorrectionInput,
   AdminCrewCorrectionResult,
   AdminCrewPlayerDto,
@@ -245,6 +247,11 @@ export const adminApi = {
   adjustPlayerSupply: (roundPlayerId: string, input: { target: 'WAREHOUSE' | 'CREW'; targetId: string; productKey: string; quantity: number; reason: string }) =>
     api.post<AdminSupplyCorrectionResult>(`/admin/players/${enc(roundPlayerId)}/supply/adjust`, input),
   casino: (roundId: string) => api.get<AdminCasinoDto>(roundPath(roundId, 'casino')),
+  /** 1.8.0-C. Sportsbook feed health (global, not per round), an on-demand result check and an audited void. */
+  sportsbook: () => api.get<AdminSportsbookDto>('/admin/sportsbook'),
+  sportsbookRecheck: (eventId: string) => api.post<AdminSportsbookActionDto>(`/admin/sportsbook/events/${enc(eventId)}/recheck`, {}),
+  sportsbookVoid: (eventId: string, reason: string) =>
+    api.post<AdminSportsbookActionDto>(`/admin/sportsbook/events/${enc(eventId)}/void`, { reason }),
   /** 1.6.5-F. Loan shark health for a round, one player's loans, and an audited correction. */
   loans: (roundId: string) => api.get<AdminLoansDto>(roundPath(roundId, 'loans')),
   playerLoans: (roundPlayerId: string) => api.get<AdminLoanPlayerDto>(`/admin/players/${enc(roundPlayerId)}/loans`),
