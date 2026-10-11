@@ -132,7 +132,7 @@ export function CrewRosterPage() {
         </header>
 
         {error ? <Alert>{error}</Alert> : null}
-        {!data?.enabled && !loading ? <Alert>This round does not use individual crew profiles.</Alert> : null}
+        {data && !data.enabled && !loading ? <Alert>This round does not use individual crew profiles.</Alert> : null}
 
         {data?.enabled ? (
           <Panel title="Crew at a glance" aside="Live roster">
