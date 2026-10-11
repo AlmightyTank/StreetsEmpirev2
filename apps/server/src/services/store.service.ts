@@ -55,6 +55,30 @@ import { FactionService } from './faction.service.js';
 import { tradeProductLine } from './product-market.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import type { Db } from '../utils/db.js';
+import { CityConditionService } from './city-condition.service.js';
+
+const MAX_CITY_CONDITION_CASH_CENTS = BigInt(Number.MAX_SAFE_INTEGER);
+
+function citySaleBonus<T extends { unitCents: number; totalCents: bigint; cashChangeCents: bigint }>(
+  trade: T,
+  percent: number,
+  cashBalance: bigint,
+  quantity: number,
+): T {
+  if (percent <= 0 || trade.cashChangeCents <= 0n) return trade;
+  const unitBonus = Math.floor(trade.unitCents * percent / 100);
+  if (unitBonus <= 0) return trade;
+  const bonus = BigInt(unitBonus) * BigInt(quantity);
+  if (cashBalance + trade.cashChangeCents + bonus > MAX_CITY_CONDITION_CASH_CENTS) {
+    throw AppError.badRequest('CASH_LIMIT', 'That sale would exceed the cash limit.');
+  }
+  return {
+    ...trade,
+    unitCents: trade.unitCents + unitBonus,
+    totalCents: trade.totalCents + bonus,
+    cashChangeCents: trade.cashChangeCents + bonus,
+  };
+}
 
 type CatalogPlayer = RoundPlayer & { city: { slug: string } };
 
@@ -627,7 +651,7 @@ export const StoreService = {
     return ActionService.run<StoreTradeResult>(prisma, roundPlayerId, {
       action: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
       actionId: input.actionId,
-      execute: async ({ tx, current, player, ruleset, standings, now }) => {
+      execute: async ({ tx, current, player, round, ruleset, standings, now }) => {
         const foundStore = findStore(ruleset, input.store);
         const normalizedItem = input.item.trim().toUpperCase();
         const normalizedInput = { ...input, store: foundStore?.key ?? input.store.trim().toUpperCase(), item: normalizedItem };
@@ -665,6 +689,12 @@ export const StoreService = {
               error.field ? { [error.field]: error.message } : undefined);
           }
           throw error;
+        }
+        if (input.direction === 'sell') {
+          const condition = await CityConditionService.bonuses(tx, {
+            round, cityId: player.cityId, ruleset, action: 'STORE_SELL', district: 'CITY', now,
+          });
+          trade = citySaleBonus(trade, condition.cashGainPercent, current.cashCents, input.quantity);
         }
         const { stockField, stockTaken, ...priced } = trade;
 
@@ -832,6 +862,11 @@ export const StoreService = {
         const ledger: EconomyLedgerWrite[] = [];
         const reputation: ReputationChange[] = [];
         const creditedTraders = new Set<TraderKey>();
+        const cityCashGainPercent = input.lines.some((line) => line.direction === 'sell')
+          ? (await CityConditionService.bonuses(tx, {
+              round, cityId: player.cityId, ruleset, action: 'STORE_SELL', district: 'CITY', now,
+            })).cashGainPercent
+          : 0;
 
         for (const [index, line] of input.lines.entries()) {
           const { foundStore, normalized } = normalizeStoreLine(ruleset, line);
@@ -845,6 +880,16 @@ export const StoreService = {
               throw error;
             });
             creditedTraders.add('PIP');
+            const productTrade = product.result.direction === 'sell'
+              ? citySaleBonus({
+                  unitCents: product.result.unitCents,
+                  totalCents: BigInt(product.result.totalCents),
+                  cashChangeCents: BigInt(product.result.cashChangeCents),
+                }, cityCashGainPercent, next.cashCents, product.result.quantity)
+              : null;
+            const productCashChangeCents = productTrade?.cashChangeCents ?? product.cashChangeCents;
+            const productTotalCents = productTrade?.totalCents ?? BigInt(product.result.totalCents);
+            const productUnitCents = productTrade?.unitCents ?? product.result.unitCents;
             results.push({
               reputationGained: product.result.reputationGained,
               storeKey: 'PIP',
@@ -854,15 +899,15 @@ export const StoreService = {
               quantityAfter: product.result.quantityAfter,
               direction: product.result.direction,
               quantity: product.result.quantity,
-              unitCents: product.result.unitCents,
-              totalCents: product.result.totalCents,
-              cashChangeCents: product.result.cashChangeCents,
+              unitCents: productUnitCents,
+              totalCents: Number(productTotalCents),
+              cashChangeCents: Number(productCashChangeCents),
               quantityChange: product.result.direction === 'buy' ? product.result.quantity : -product.result.quantity,
               ...(product.result.factionDiscount ? { factionDiscount: product.result.factionDiscount } : {}),
             });
-            ledger.push(product.ledger);
+            ledger.push({ ...product.ledger, amountCents: productCashChangeCents });
             if (product.reputation) reputation.push(product.reputation);
-            next.cashCents += product.cashChangeCents;
+            next.cashCents += productCashChangeCents;
             continue;
           }
           const lineItem = foundStore && Object.hasOwn(foundStore.store.items, normalized.item) ? foundStore.store.items[normalized.item] : undefined;
@@ -888,6 +933,9 @@ export const StoreService = {
               throw storeTradeBadRequest(error, index + 1);
             }
             throw error;
+          }
+          if (normalized.direction === 'sell') {
+            trade = citySaleBonus(trade, cityCashGainPercent, next.cashCents, normalized.quantity);
           }
           const { stockField, stockTaken, ...priced } = trade;
           const trader = normalized.store as TraderKey;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07AA, classicOgV07T, classicOgV16F, classicOgV18F, classicOgV18G, classicOgV18H, classicOgV18I } from '../index.js';
+import { classicOgV07AA, classicOgV07T, classicOgV16F, classicOgV18F, classicOgV18G, classicOgV18H, classicOgV18I, classicOgV18J } from '../index.js';
 import { activeRoundEventTime, eventCatalogForRuleset } from '../event-system.js';
 
 describe('first-class event catalog adapter', () => {
@@ -12,6 +12,14 @@ describe('first-class event catalog adapter', () => {
     expect(classicOgV18I.meta.eventSystem).toEqual({ communityEvents: 'FIRST_CLASS', seasonalEvents: 'FIRST_CLASS', randomEncounters: 'FIRST_CLASS' });
     expect(eventCatalogForRuleset(classicOgV18I).filter((entry) => entry.type === 'RANDOM_ENCOUNTER').length)
       .toBeGreaterThan(eventCatalogForRuleset(classicOgV18H).filter((entry) => entry.type === 'RANDOM_ENCOUNTER').length);
+    expect(classicOgV18J.meta.eventSystem?.cityConditions).toBe('FIRST_CLASS');
+    const conditions = eventCatalogForRuleset(classicOgV18J).filter((entry) => entry.type === 'CITY_CONDITION');
+    expect(conditions).toHaveLength(5);
+    expect(conditions.every((entry) => entry.scope === 'CITY' && entry.legacySource.kind === 'CITY_CONDITION')).toBe(true);
+    expect(conditions.find((entry) => entry.key === 'CITY:money-in-motion-follow-up')?.schedule).toEqual({
+      kind: 'EVENT_FOLLOW_UP', parentType: 'COMMUNITY', parentKey: 'EVENT_MONEY_IN_MOTION', durationMinutes: 360,
+    });
+    expect(eventCatalogForRuleset(classicOgV18I).filter((entry) => entry.type === 'CITY_CONDITION')).toHaveLength(0);
     expect(classicOgV18H.randomEncounters).toEqual(classicOgV16F.randomEncounters);
   });
 

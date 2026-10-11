@@ -694,7 +694,27 @@ export interface RulesetMeta {
     readonly communityEvents?: 'FIRST_CLASS';
     readonly seasonalEvents?: 'FIRST_CLASS';
     readonly randomEncounters?: 'FIRST_CLASS';
+    readonly cityConditions?: 'FIRST_CLASS';
   };
+}
+
+/** First-class, time-bounded modifiers shared by players in one round city. */
+export type CityConditionAction = 'SCOUT' | 'PRODUCE_CRACK' | 'STORE_SELL';
+
+export interface CityConditionRules {
+  readonly key: string;
+  readonly title: string;
+  readonly description: string;
+  readonly districts: readonly DistrictKey[];
+  readonly actions: readonly CityConditionAction[];
+  readonly effects: {
+    readonly cashGainPercent?: number;
+    readonly recruitPercent?: number;
+    readonly productPercent?: number;
+  };
+  readonly schedule?: { readonly startFraction: number; readonly endFraction: number };
+  readonly followUpFrom?: { readonly type: 'COMMUNITY' | 'SEASONAL'; readonly key: string };
+  readonly durationMinutes?: number;
 }
 
 /** 1.5.0-A. Player-facing vehicle identities; A maps the legacy counter without changing play. */
@@ -1547,6 +1567,8 @@ export interface Ruleset {
     };
   };
   readonly meta: RulesetMeta;
+  /** 1.8.5-F. Bounded citywide modifiers and optional event follow-ups. */
+  readonly cityConditions?: readonly CityConditionRules[];
   readonly round: RoundRules;
   readonly turns: TurnRules;
   readonly economy: EconomyRules;

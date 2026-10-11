@@ -1152,6 +1152,7 @@ export interface ScoutResult {
   lieutenantCutCents?: number;
   favorIncomePercent?: number;
   favorRecruitmentPercent?: number;
+  cityConditionBonusPercent?: number;
   payoutPercent: number;
 
   /** Crack-only compatibility field. On product rounds, this is the Crack slice of productsFound. */
@@ -1206,6 +1207,7 @@ export interface ProduceCrackResult {
   productProduced: number;
   hideoutBonusProduct?: number;
   favorProductionPercent?: number;
+  cityConditionBonusPercent?: number;
   crackProduced: number;
   hideoutBonusCrack?: number;
   ingredientCents: number;
@@ -1681,6 +1683,8 @@ export interface QuestPageDto {
     slots: number;
     resetAt: string | null;
   };
+  /** 1.8.5-F. Scheduled first-class conditions for the player's city. */
+  cityConditions?: CityConditionDto[];
   trackedLimit: number;
   /** Daily, weekly and city board work starts itself while this is on. Absent from older servers. */
   autoAccept?: boolean;
@@ -1698,6 +1702,19 @@ export interface QuestPageDto {
   armedFavors: QuestArmedFavorDto[];
   favors: QuestFavorDto[];
   quests: PlayerQuestDto[];
+}
+
+export interface CityConditionDto {
+  key: string;
+  title: string;
+  description: string;
+  status: 'ACTIVE' | 'UPCOMING';
+  startsAt: string | null;
+  endsAt: string | null;
+  districts: string[];
+  actions: string[];
+  effects: Record<string, unknown>;
+  followUpFrom?: { type: string; key: string };
 }
 
 /** Street Pass: one tier of the track and whether this player has reached and claimed it. */

@@ -34,11 +34,18 @@ export type GameEventSchedule =
       readonly cooldownMinutes: number;
       readonly perKeyCooldownMinutes: number;
       readonly minTurns: number;
+    }
+  | {
+      readonly kind: 'EVENT_FOLLOW_UP';
+      readonly parentType: 'COMMUNITY' | 'SEASONAL';
+      readonly parentKey: string;
+      readonly durationMinutes: number;
     };
 
 export type GameEventLegacySource =
   | { readonly kind: 'QUEST_DEFINITION'; readonly key: string }
-  | { readonly kind: 'RANDOM_ENCOUNTER_ENTRY'; readonly key: string };
+  | { readonly kind: 'RANDOM_ENCOUNTER_ENTRY'; readonly key: string }
+  | { readonly kind: 'CITY_CONDITION'; readonly key: string };
 
 export interface GameEventCatalogEntry {
   readonly key: string;
@@ -159,6 +166,35 @@ export function eventCatalogForRuleset(ruleset: Ruleset): GameEventCatalogEntry[
         });
       }
     }
+  }
+
+  for (const condition of ruleset.cityConditions ?? []) {
+    result.push({
+      key: `CITY:${condition.key}`,
+      rulesetId,
+      rulesetVersion,
+      type: 'CITY_CONDITION',
+      scope: 'CITY',
+      title: condition.title,
+      description: condition.description,
+      schedule: condition.schedule
+        ? { kind: 'ROUND_FRACTION', ...condition.schedule }
+        : {
+            kind: 'EVENT_FOLLOW_UP',
+            parentType: condition.followUpFrom?.type ?? 'COMMUNITY',
+            parentKey: condition.followUpFrom?.key ?? '',
+            durationMinutes: condition.durationMinutes ?? 0,
+          },
+      legacySource: { kind: 'CITY_CONDITION', key: condition.key },
+      config: dataObject({
+        districts: condition.districts,
+        actions: condition.actions,
+        effects: condition.effects,
+        schedule: condition.schedule ?? null,
+        followUpFrom: condition.followUpFrom ?? null,
+        durationMinutes: condition.durationMinutes ?? null,
+      }),
+    });
   }
 
   return result.sort((left, right) =>

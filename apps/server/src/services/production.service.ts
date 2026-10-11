@@ -17,6 +17,7 @@ import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { encounterActivityPayload, RandomEncounterService } from './random-encounter.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
+import { CityConditionService } from './city-condition.service.js';
 
 export interface ProduceInput {
   turns: number;
@@ -91,13 +92,27 @@ export const ProductionService = {
           ? baseRecipe
           : { ...baseRecipe, ingredientCentsPerUnit: effectiveIngredientCentsPerUnit };
         const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
-        const recipe = favorBonuses.productionOutputPercent > 0
+        let recipe = favorBonuses.productionOutputPercent > 0
           ? {
               ...workshopRecipe,
               perThugPerTurn: workshopRecipe.perThugPerTurn
                 * (100 + favorBonuses.productionOutputPercent) / 100,
             }
           : workshopRecipe;
+        const cityConditionBonuses = await CityConditionService.bonuses(tx, {
+          round,
+          cityId: player.cityId,
+          ruleset,
+          action: 'PRODUCE_CRACK',
+          district: ruleset.scouting.produceDistrict,
+          now,
+        });
+        if (cityConditionBonuses.productPercent > 0) {
+          recipe = {
+            ...recipe,
+            perThugPerTurn: recipe.perThugPerTurn * (100 + cityConditionBonuses.productPercent) / 100,
+          };
+        }
         const productType = ruleset.productEconomy ? recipe.product : requested;
         const productName = ruleset.productEconomy ? recipe.name : LEGACY_PRODUCT_NAMES[requested] ?? 'Product';
 
@@ -230,6 +245,7 @@ export const ProductionService = {
           productProduced,
           hideoutBonusProduct,
           ...(favorBonuses.productionOutputPercent > 0 ? { favorProductionPercent: favorBonuses.productionOutputPercent } : {}),
+          ...(cityConditionBonuses.productPercent > 0 ? { cityConditionBonusPercent: cityConditionBonuses.productPercent } : {}),
           crackProduced,
           hideoutBonusCrack,
           ingredientCents: Number(outcome.ingredientCents),
