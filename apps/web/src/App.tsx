@@ -38,6 +38,7 @@ import { ConsolePage } from './pages/ConsolePage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { HallOfFamePage } from './pages/HallOfFamePage.js';
+import { RoundAftermathPage } from './pages/RoundAftermathPage.js';
 import { HideoutPage } from './pages/HideoutPage.js';
 import { JoinPage } from './pages/JoinPage.js';
 import { LoginPage } from './pages/LoginPage.js';
@@ -190,6 +191,7 @@ export function App() {
         {/* 0.5.0-A had a Cities page; the road map still lives on Travel. */}
         <Route path="cities" element={<Navigate to="/game/travel" replace />} />
         <Route path="rankings" element={<Protected><LiveRound><RankingsPage /></LiveRound></Protected>} />
+        <Route path="rounds/:roundId/aftermath" element={<RoundAftermathPage />} />
         <Route path="alliance" element={<Protected><LiveRound><AlliancePage /></LiveRound></Protected>} />
         <Route path="alliances" element={<Protected><LiveRound><Navigate to="/game/alliance#alliance-rankings" replace /></LiveRound></Protected>} />
         <Route path="contacts" element={<Protected><LiveRound><Navigate to="/game/players#contacts" replace /></LiveRound></Protected>} />

@@ -24,6 +24,7 @@ import './styles/quests.css';
 import './styles/events.css';
 import './styles/surveys.css';
 import './styles/rankings.css';
+import './styles/aftermath.css';
 import './styles/players.css';
 import './styles/console.css';
 import './styles/alliance.css';

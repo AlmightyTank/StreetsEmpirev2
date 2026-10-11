@@ -22,6 +22,7 @@ export * from './types/survey.js';
 export * from './types/public-site.js';
 export * from './types/hideout-v2.js';
 export * from './types/loans.js';
+export * from './types/aftermath.js';
 export * from './cosmetics.js';
 export * from './money.js';
 export * from './progression.js';

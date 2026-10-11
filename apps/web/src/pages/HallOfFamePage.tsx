@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { HallOfFameDto, HallOfFameRoundDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
@@ -124,6 +125,9 @@ export function HallOfFamePage() {
                 <div><span>Ruleset</span><strong>{round.rulesetVersion}</strong></div>
                 <div><span>Window</span><strong>{seasonWindow(round)}</strong></div>
               </div>
+              <Link className="se-aftermath-archive-link" to={`/game/rounds/${encodeURIComponent(round.id)}/aftermath`}>
+                View full round aftermath <span aria-hidden="true">→</span>
+              </Link>
 
               {round.territory && (round.territory.crews.length || round.territory.alliances.length) ? (
                 <div className="se-mt">

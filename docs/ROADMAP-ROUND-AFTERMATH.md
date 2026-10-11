@@ -1,7 +1,7 @@
 # StreetsEmpire — Round Aftermath & Statistics Roadmap
 
 **Target:** beta · future feature release (version to be assigned)  
-**Status:** Slice A implemented; slices B–H planned
+**Status:** Slices A–B implemented; slices C–H planned
 **Goal:** Replace the bare “round ended / top standings” experience with a permanent, compelling end-of-round report covering **every city** and the complete criminal economy, with a personal performance view and a compact Discord recap.
 
 ## Player experience
@@ -62,10 +62,14 @@ At round close, show a new **Round Aftermath** page. A player can switch between
 - Report corrections/rebuilds are not exposed; a future rebuild must be an explicit audited operation.
 
 ### Slice B — Global Aftermath dashboard
-- Add read-only APIs for report overview, global categories, leaderboard pages; status responses while preparing.
-- Build `/game/rounds/:roundId/aftermath` with sticky/present tabs for seven pillars and overall summary, final top 10, award highlights, clear units and accessible comparisons.
-- Server pagination for large leaderboards; mobile-first cards, skeleton states, reduced motion, proper error/empty states.
-- **Done when:** all available round-wide stats render from frozen data, not mock data.
+**Status: Complete.** Public, read-only report APIs and `/game/rounds/:roundId/aftermath` now read only the canonical frozen report. Preparing and unavailable states never expose partial totals.
+
+- Overview and category endpoints expose frozen global/city stats and the seven pillar states; paged leaderboards expose only display names, public pimp IDs and report metrics, never stable account or round-player IDs.
+- The dashboard includes the overall summary, final wealth top 10, supported record highlights and accessible category tabs/comparison meters.
+- Rankings and Hall of Fame link to the aftermath and past-round archive.
+- Mobile layouts, loading/error/empty states, keyboard tab navigation and reduced-motion styles are included.
+- Leaderboards are paginated server-side with stable tie ordering; supported counters and frozen final placement only are used.
+- Unit coverage verifies exact-cent ordering, tie ranks, pagination and absence of private identifiers in the response projection.
 
 ### Slice C — Every city and alliance breakdown
 - Derive list from actual round participation/available city data, not hard-coded examples.

@@ -34,7 +34,7 @@ export interface RoundAftermathAggregates {
 
 function leaders<T extends { id: string }>(rows: T[], score: (row: T) => number): { ids: string[]; value: number } {
   const value = rows.reduce((highest, row) => Math.max(highest, score(row)), 0);
-  return { ids: rows.filter((row) => score(row) === value).map((row) => row.id), value };
+  return { ids: value > 0 ? rows.filter((row) => score(row) === value).map((row) => row.id) : [], value };
 }
 
 export function buildRoundAftermathAggregates(
