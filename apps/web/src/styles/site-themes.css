@@ -773,6 +773,18 @@
     linear-gradient(180deg, rgba(62, 26, 17, 0.44), transparent 60%);
 }
 
+:is(.se-site-theme--dragon-ice, .se-site-theme--dragon-fire) {
+  /* The shared theme contract, so the sidebar shell (app-shell.css) can read it. */
+  --se-theme-panel-glow: rgba(var(--se-accent-rgb), 0.08);
+  --se-theme-topbar-bg: color-mix(in srgb, var(--se-bg) 90%, #000);
+  --se-theme-topbar-layer: linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.12), transparent 58%);
+  --se-theme-panel-fill: linear-gradient(145deg, rgba(var(--se-accent-rgb), 0.055), transparent 58%), linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+  --se-theme-stat-fill: linear-gradient(145deg, rgba(var(--se-accent-rgb), 0.08), transparent 58%), var(--se-panel);
+  --se-theme-head-fill: linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.12), transparent 70%);
+  --se-theme-button-fill: color-mix(in srgb, var(--se-panel-hi) 84%, #07090c);
+  --se-theme-border-style: solid;
+}
+
 :is(.se-site-theme--dragon-ice, .se-site-theme--dragon-fire) .se-topbar {
   background: linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.12), transparent 58%), color-mix(in srgb, var(--se-bg) 90%, #000);
   border-bottom-color: color-mix(in srgb, var(--se-accent) 50%, var(--se-line));
@@ -1255,6 +1267,17 @@
     radial-gradient(850px 520px at 88% 0%, rgba(45, 212, 191, 0.17), transparent 58%),
     radial-gradient(760px 480px at 8% -6%, rgba(167, 139, 250, 0.18), transparent 57%),
     linear-gradient(180deg, rgba(18, 18, 38, 0.5), transparent 54%);
+}
+.se-site-theme--street-pass-s1-night-drive {
+  /* The shared theme contract, so the sidebar shell (app-shell.css) can read it. */
+  --se-theme-panel-glow: rgba(45, 212, 191, 0.1);
+  --se-theme-topbar-bg: color-mix(in srgb, var(--se-bg) 92%, #000);
+  --se-theme-topbar-layer: linear-gradient(90deg, rgba(45, 212, 191, 0.13), transparent 34%, rgba(167, 139, 250, 0.17));
+  --se-theme-panel-fill: linear-gradient(135deg, rgba(167, 139, 250, 0.07), transparent 44%), linear-gradient(180deg, rgba(28, 29, 49, 0.94), rgba(13, 14, 27, 0.95));
+  --se-theme-stat-fill: linear-gradient(135deg, rgba(45, 212, 191, 0.09), transparent 50%), rgba(19, 20, 36, 0.95);
+  --se-theme-head-fill: linear-gradient(90deg, rgba(45, 212, 191, 0.13), rgba(167, 139, 250, 0.08) 58%, transparent);
+  --se-theme-button-fill: color-mix(in srgb, var(--se-panel-hi) 82%, #000);
+  --se-theme-border-style: solid;
 }
 .se-site-theme--street-pass-s1-night-drive .se-topbar {
   background:

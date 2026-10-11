@@ -703,7 +703,8 @@ a.se-nav__link--active:hover {
     font-size: 17px;
   }
 
-  .se-app--sidebar .se-topbar {
+  /* House top bar. A site theme keeps its own (site-themes.css). */
+  .se-app--sidebar.se-site-theme--none .se-topbar {
     border-bottom: 1px solid rgba(var(--se-accent-rgb), 0.2);
     background: linear-gradient(180deg, color-mix(in srgb, var(--se-panel) 70%, var(--se-bg)), color-mix(in srgb, var(--se-bg) 90%, transparent));
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
@@ -915,16 +916,77 @@ a.se-nav__link--active:hover {
 
 .se-app .se-panel {
   border-radius: 7px;
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035), 0 8px 20px rgba(0, 0, 0, 0.14);
 }
 
 .se-app .se-panel__head {
   border-radius: 7px 7px 0 0;
+}
+
+/* House panel finish. A site theme keeps its own fills and glows. */
+.se-app.se-site-theme--none .se-panel {
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035), 0 8px 20px rgba(0, 0, 0, 0.14);
+}
+
+.se-app.se-site-theme--none .se-panel__head {
   background: linear-gradient(180deg, color-mix(in srgb, var(--se-panel-hi) 95%, #fff 2%), var(--se-panel));
 }
 
 @media (max-width: 899px) {
   .se-tabbar {
     border-top-color: rgba(var(--se-accent-rgb), 0.3);
+  }
+}
+
+/* --- site themes on the sidebar shell -------------------------------------- */
+
+/*
+ * Site themes were drawn for the old top-bar-only shell. Every theme describes
+ * itself with the same --se-theme-* contract in site-themes.css (fills, top-bar
+ * layer, glow, border style), so the parts the old shell never had read that
+ * contract here instead of each theme restyling them.
+ *
+ * Panel, top-bar and head fills are gradients only; stat fills may end in a
+ * solid colour, so they are only ever the whole background.
+ */
+@media (min-width: 900px) {
+  .se-app--sidebar:not(.se-site-theme--none) .se-sidebar {
+    border-right-color: color-mix(in srgb, var(--se-accent) 42%, var(--se-line));
+    background: var(--se-theme-panel-fill), var(--se-bg);
+    box-shadow: 1px 0 0 rgba(var(--se-accent-rgb), 0.1), 6px 0 26px var(--se-theme-panel-glow);
+  }
+
+  .se-app--sidebar:not(.se-site-theme--none) .se-sidebar__brand {
+    border-bottom-color: color-mix(in srgb, var(--se-accent) 48%, var(--se-line));
+    background: var(--se-theme-topbar-layer), color-mix(in srgb, var(--se-theme-topbar-bg) 96%, #000);
+  }
+
+  .se-app--sidebar:not(.se-site-theme--none) a.se-statusbar__item {
+    border-style: var(--se-theme-border-style);
+    border-color: color-mix(in srgb, var(--se-accent) 30%, var(--se-line));
+    background: var(--se-theme-stat-fill);
+  }
+
+  .se-app--sidebar:not(.se-site-theme--none) a.se-statusbar__item:hover {
+    border-color: color-mix(in srgb, var(--se-accent) 60%, var(--se-line));
+  }
+}
+
+.se-app:not(.se-site-theme--none) .se-seasoncard {
+  border-style: var(--se-theme-border-style);
+  border-color: color-mix(in srgb, var(--se-accent) 36%, var(--se-line));
+  background: var(--se-theme-stat-fill);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035), 0 0 16px var(--se-theme-panel-glow);
+}
+
+.se-app:not(.se-site-theme--none) .se-account__menu {
+  border-color: color-mix(in srgb, var(--se-accent) 40%, var(--se-line));
+  background: var(--se-theme-panel-fill), var(--se-panel);
+}
+
+@media (max-width: 899px) {
+  /* A tint, not the top-bar layer: patterned layers (Motor City's hazard stripes) crowd the small tab labels. */
+  .se-app:not(.se-site-theme--none) .se-tabbar {
+    border-top-color: color-mix(in srgb, var(--se-accent) 44%, var(--se-line));
+    background: linear-gradient(0deg, rgba(var(--se-accent-rgb), 0.08), transparent), color-mix(in srgb, var(--se-theme-topbar-bg) 97%, #000);
   }
 }
