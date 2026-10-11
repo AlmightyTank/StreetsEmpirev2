@@ -734,3 +734,107 @@
 .se-console-restriction {
   margin: 8px 0 0;
 }
+
+
+/* Street Wire: conversation-first navigation and player-aware composing. */
+.se-console-hero h1 { text-transform: uppercase; }
+.se-console-bar { display: grid; gap: 8px; }
+.se-console-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: stretch; }
+.se-console-tab--link { display: flex; text-decoration: none; }
+.se-console-more { position: relative; min-width: 0; }
+.se-console-more > summary { list-style: none; display: flex; }
+.se-console-more > summary::-webkit-details-marker { display: none; }
+.se-console-more__menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 5px);
+  right: 0;
+  display: grid;
+  min-width: 220px;
+  padding: 5px;
+  border: 1px solid var(--se-line);
+  border-radius: 6px;
+  background: var(--se-panel-hi);
+  box-shadow: 0 12px 28px rgba(0,0,0,.38);
+}
+.se-console-more__menu button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--se-text);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+.se-console-more__menu button:hover,
+.se-console-more__menu button.is-active { background: rgba(var(--se-accent-rgb),.1); color: var(--se-accent-hover); }
+.se-console-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.se-console-subtabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.se-console-subtabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--se-line);
+  border-radius: 5px;
+  background: var(--se-panel);
+  color: var(--se-text-dim);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.se-console-subtabs button[aria-selected="true"] { border-color: var(--se-accent); color: var(--se-accent-hover); background: rgba(var(--se-accent-rgb),.07); }
+.se-console-subtabs strong { font-family: var(--se-mono); font-size: 9px; }
+.se-console-person-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 11px;
+  border: 1px solid var(--se-line);
+  border-radius: 6px;
+  background: linear-gradient(100deg, rgba(var(--se-accent-rgb),.055), transparent);
+}
+.se-console-person-card > div { display: grid; gap: 3px; }
+.se-console-person-card strong { color: var(--se-text); font-size: 13px; }
+.se-console-person-card span { color: var(--se-muted); font-size: 9px; }
+.se-console-recipient { position: relative; }
+.se-console-recipient__results {
+  display: grid;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--se-line);
+  border-radius: 5px;
+  background: var(--se-panel-hi);
+}
+.se-console-recipient__results button {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--se-line);
+  background: transparent;
+  color: var(--se-text);
+  text-align: left;
+  cursor: pointer;
+}
+.se-console-recipient__results button:hover { background: rgba(var(--se-accent-rgb),.09); }
+.se-console-recipient__name { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; font-weight: 800; }
+.se-console-recipient__name small, .se-console-recipient__meta { color: var(--se-muted); font-size: 9px; font-weight: 500; }
+.se-console-recipient__selected { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--se-line); border-radius: 5px; background: rgba(var(--se-accent-rgb),.055); font-size: 10px; }
+.se-console-recipient__selected small { color: var(--se-muted); }
+.se-console-recipient__selected a { color: var(--se-accent-hover); }
+@media (max-width: 760px) {
+  .se-console-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .se-console-toolbar { align-items: stretch; flex-direction: column; }
+  .se-console-subtabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .se-console-subtabs button { justify-content: space-between; }
+}
