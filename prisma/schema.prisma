@@ -2017,6 +2017,8 @@ enum CrewAssignmentKind {
   BUSINESS
   DEALER
   TURF
+  CORNER_LOOKOUT
+  STASH_GUARD
 }
 
 enum CrewMemberEventKind {

@@ -142,6 +142,20 @@ describe('1.7.0-A crew targets', () => {
     ]);
     expect(targets.find((row) => row.assignmentKind === 'TURF')).toMatchObject({ assignmentRef: null, count: 3 });
   });
+
+  it('preserves corner specialty jobs inside the posted-thug count', () => {
+    const targets = crewTargets(
+      { ...none, thugs: 12, postedThugs: 8 },
+      { ...noRefs, turf: [{ id: 't1', thugs: 8, lookouts: 3, stashGuards: 5 }] },
+    );
+    const assigned = targets.filter((row) => row.status === 'ASSIGNED');
+    expect(assigned).toEqual([
+      expect.objectContaining({ assignmentKind: 'CORNER_LOOKOUT', assignmentRef: 't1', count: 3 }),
+      expect.objectContaining({ assignmentKind: 'STASH_GUARD', assignmentRef: 't1', count: 5 }),
+    ]);
+    expect(assigned.reduce((sum, row) => sum + row.count, 0)).toBe(8);
+    expect(targets.find((row) => row.status === 'AVAILABLE')).toMatchObject({ count: 4 });
+  });
 });
 
 describe('1.7.0-A roster migration', () => {

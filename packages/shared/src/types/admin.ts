@@ -128,7 +128,7 @@ export interface AdminCrewRosterDto {
   byRole: Array<{ role: 'THUG' | 'WORKER'; count: number }>;
   bySpecialty: Array<{ specialty: 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE'; count: number }>;
   byStatus: Array<{ status: 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED'; count: number }>;
-  byAssignment: Array<{ assignment: 'BUSINESS' | 'DEALER' | 'TURF' | 'UNASSIGNED'; count: number }>;
+  byAssignment: Array<{ assignment: 'BUSINESS' | 'DEALER' | 'TURF' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'UNASSIGNED'; count: number }>;
   topVeterans: Array<{ roundPlayerId: string; displayName: string; memberId: string; role: 'THUG' | 'WORKER'; serial: number; experiencePoints: number; specialty: string; specialtyExperiencePoints: number }>;
 }
 

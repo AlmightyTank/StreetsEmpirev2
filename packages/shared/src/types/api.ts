@@ -767,7 +767,7 @@ export interface DealerCrewActionResult {
 
 /** 1.7.0-A. Where a crew member is. Every status but RELEASED is counted in the crew. */
 export type CrewMemberStatusDto = 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED';
-export type CrewAssignmentKindDto = 'BUSINESS' | 'DEALER' | 'TURF';
+export type CrewAssignmentKindDto = 'BUSINESS' | 'DEALER' | 'TURF' | 'CORNER_LOOKOUT' | 'STASH_GUARD';
 export type CrewMemberSpecialtyDto = 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE';
 
 export interface CrewMemberHistoryDto {

@@ -49,6 +49,7 @@ import { EconomyLedgerService } from './economy-ledger.service.js';
 import { turfRevengeByAttacker } from './turf-revenge.service.js';
 import { endTurfHold } from './turf-history.service.js';
 import { FactionService } from './faction.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 import {
   controlFromRows,
   recordTerritoryControlChange,
@@ -942,8 +943,9 @@ export const TurfService = {
           })
         : null;
       const tier = tierKey ? { tier: tierKey, lotsOpen: lotsOpen(ruleset, tierKey) } : null;
+      const cornerWarningMinutes = isMine ? await CrewRosterService.cornerPushWarningMinutes(db as Db, player.id, row.id) : 0;
       const defenderSees = pending?.defenderId === player.id &&
-        pending.landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) * 60_000);
+        pending.landsAt <= new Date(now.getTime() + (headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) + cornerWarningMinutes) * 60_000);
       const allySees = Boolean(
         pending?.alliesCalledAt &&
         player.allianceId &&

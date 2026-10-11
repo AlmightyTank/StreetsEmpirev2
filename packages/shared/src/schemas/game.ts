@@ -355,13 +355,24 @@ export type DealerStaffReleaseInput = z.infer<typeof dealerStaffReleaseSchema>;
 export const crewRosterQuerySchema = z.object({
   role: z.enum(['THUG', 'WORKER']).optional(),
   status: z.enum(['AVAILABLE', 'ASSIGNED', 'IN_TRANSIT', 'RECOVERING', 'RELEASED']).optional(),
-  assignment: z.enum(['BUSINESS', 'DEALER', 'TURF']).optional(),
+  assignment: z.enum(['BUSINESS', 'DEALER', 'TURF', 'CORNER_LOOKOUT', 'STASH_GUARD']).optional(),
   specialty: z.enum(['GENERALIST', 'ENFORCER', 'WHEELMAN', 'SCOUT', 'DEALER', 'SERVICE']).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
 }).strict();
 
 export type CrewRosterQuery = z.infer<typeof crewRosterQuerySchema>;
+
+/** 1.8.6-E. Move already-posted corner thugs into or out of corner specialty jobs. */
+export const crewCornerJobSchema = z.object({
+  district: z.string().trim().min(1, 'Pick a turf block.').max(64),
+  kind: z.enum(['CORNER_LOOKOUT', 'STASH_GUARD']),
+  memberIds: z.array(z.string().trim().min(1).max(64)).min(1).max(50)
+    .refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.'),
+  actionId: actionIdSchema,
+}).strict();
+
+export type CrewCornerJobInput = z.infer<typeof crewCornerJobSchema>;
 
 /** 1.7.0-D. Train an available member who already earned the selected specialty. */
 export const crewTrainingSchema = z.object({

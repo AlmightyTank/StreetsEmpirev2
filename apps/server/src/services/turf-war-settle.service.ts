@@ -31,6 +31,7 @@ import {
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
 import { endTurfHold, startTurfHold } from './turf-history.service.js';
 import { BlockWarSettleService } from './block-war-settle.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 type Weapons = Record<WeaponKey, number>;
 type PushModel = NonNullable<ReturnType<typeof turfPushCombatModel>>;
@@ -58,6 +59,7 @@ interface StoredPushResult {
   shieldUntil: string | null;
   recoverAt: string | null;
   outpostLoot: OutpostLoot | null;
+  stashGuardLootReductionPercent?: number;
 }
 
 const EMPTY: CornerGuns = { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
@@ -96,24 +98,26 @@ function committedWeapons(snapshot: CrewSnapshot, count: number, model: PushMode
 function outpostCaptureLoot(
   ruleset: ReturnType<typeof loadRulesetForRound>,
   box: { cashCents: bigint; beer: number; products: Prisma.JsonValue },
+  guardReductionPercent = 0,
 ): OutpostLoot {
   const rules = ruleset.turf?.outposts;
   if (!rules) return { cashCents: 0, beer: 0, products: {} };
+  const lootShare = rules.lootShare * Math.max(0, 1 - guardReductionPercent / 100);
   const products = box.products as Record<string, number>;
   let productRoom = rules.lootProductCap;
   const lootedProducts: Record<string, number> = {};
   for (const key of Object.keys(products).sort()) {
     if (productRoom <= 0) break;
     const quantity = Math.max(0, products[key] ?? 0);
-    const take = Math.min(productRoom, Math.floor(quantity * rules.lootShare));
+    const take = Math.min(productRoom, Math.floor(quantity * lootShare));
     if (take > 0) {
       lootedProducts[key] = take;
       productRoom -= take;
     }
   }
   return {
-    cashCents: Math.min(rules.lootCashCapCents, Math.floor(Number(box.cashCents) * rules.lootShare)),
-    beer: Math.min(rules.lootBeerCap, Math.floor(box.beer * rules.lootShare)),
+    cashCents: Math.min(rules.lootCashCapCents, Math.floor(Number(box.cashCents) * lootShare)),
+    beer: Math.min(rules.lootBeerCap, Math.floor(box.beer * lootShare)),
     products: lootedProducts,
   };
 }
@@ -275,7 +279,10 @@ export const TurfWarSettlementService = {
       const attackerPostedThugs = won ? Math.max(0, loaded.squad - attackerWounds) : 0;
 
       const capturedOutpost = won && stillDefended && turf.outpost ? turf.outpost : null;
-      const outpostLoot = capturedOutpost ? outpostCaptureLoot(base, capturedOutpost) : null;
+      const stashGuardLootReductionPercent = capturedOutpost
+        ? await CrewRosterService.stashGuardLootReductionPercent(tx, defender.id, turf.id)
+        : 0;
+      const outpostLoot = capturedOutpost ? outpostCaptureLoot(base, capturedOutpost, stashGuardLootReductionPercent) : null;
       const capturedOutpostWorth = capturedOutpost
         ? outpostBoxWorthCents(base, {
             cashCents: capturedOutpost.cashCents,
@@ -383,6 +390,7 @@ export const TurfWarSettlementService = {
         attackerPostedThugs, attackerPostedGuns, attackerReturnedGuns,
         strength, shieldUntil: shieldUntil?.toISOString() ?? null, recoverAt: recoverAt?.toISOString() ?? null,
         outpostLoot,
+        ...(stashGuardLootReductionPercent > 0 ? { stashGuardLootReductionPercent } : {}),
       };
       await tx.turfPush.update({
         where: { id: loaded.id },
@@ -391,7 +399,7 @@ export const TurfWarSettlementService = {
       await ActivityService.log(tx, defender.id, 'TURF_PUSH_DEFENSE', json({
         pushId: loaded.id, district: turf.district, held: !won, unopposed, stale,
         attackerWounds, defenderWounds, cornerWounds, ownerBackupWounds, allyBackup: allyShown, strength,
-        outpostLoot,
+        outpostLoot, stashGuardLootReductionPercent,
       }));
       return true;
     };

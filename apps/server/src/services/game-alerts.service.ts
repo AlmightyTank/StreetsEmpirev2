@@ -6,6 +6,7 @@ import { CATEGORY_COLUMN, channelsFor, recipientSelect, rowsFor, type ChannelSwi
 import { PlayerStateService } from './player-state.service.js';
 import { gameUrl } from './standings.js';
 import { settleSurveySchedules } from './survey-schedule.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 /**
  * 0.9.0-G. The alerts that happen by the clock or by someone else's hand: a push
@@ -107,7 +108,8 @@ async function incomingPushes(tx: Tx, now: Date, switches: ChannelSwitches): Pro
       continue;
     }
     // Exactly the turf page's rule: nothing until the Lookouts see it coming.
-    const seeUntil = now.getTime() + headsUpMinutes(ruleset, push.defender.hideoutLookoutsLevel, push.defender.racketEffects) * 60_000;
+    const cornerWarningMinutes = await CrewRosterService.cornerPushWarningMinutes(tx, push.defenderId, push.turfId);
+    const seeUntil = now.getTime() + (headsUpMinutes(ruleset, push.defender.hideoutLookoutsLevel, push.defender.racketEffects) + cornerWarningMinutes) * 60_000;
     if (push.landsAt.getTime() > seeUntil) continue;
 
     const claimed = await tx.turfPush.updateMany({ where: { id: push.id, defenderAlertedAt: null }, data: { defenderAlertedAt: now } });
