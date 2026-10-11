@@ -66,6 +66,12 @@
 .se-profile-hover-card[data-accent="saints-chrome"] { --se-hover-accent: #c3cbd6; }
 .se-profile-hover-card[data-accent="cartel-jade"] { --se-hover-accent: #3fbf93; }
 .se-profile-hover-card[data-accent="civic-seal"] { --se-hover-accent: #9aa1ee; }
+.se-profile-hover-card[data-accent="original-neon"] { --se-hover-accent: #b6ff3a; }
+.se-profile-hover-card[data-accent="neon-sign-pink"] { --se-hover-accent: #ff63d2; }
+.se-profile-hover-card[data-accent="gavel-bronze"] { --se-hover-accent: #d4a56e; }
+.se-profile-hover-card[data-accent="clean-books-ivory"] { --se-hover-accent: #e9e0cb; }
+.se-profile-hover-card[data-accent="sunset-coral"] { --se-hover-accent: #ff9a84; }
+.se-profile-hover-card[data-accent="night-map-plum"] { --se-hover-accent: #bf78ff; }
 .se-profile-hover-card__banner {
   position: relative;
   display: flex;

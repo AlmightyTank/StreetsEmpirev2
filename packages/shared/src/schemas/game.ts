@@ -355,13 +355,24 @@ export type DealerStaffReleaseInput = z.infer<typeof dealerStaffReleaseSchema>;
 export const crewRosterQuerySchema = z.object({
   role: z.enum(['THUG', 'WORKER']).optional(),
   status: z.enum(['AVAILABLE', 'ASSIGNED', 'IN_TRANSIT', 'RECOVERING', 'RELEASED']).optional(),
-  assignment: z.enum(['BUSINESS', 'DEALER', 'TURF']).optional(),
+  assignment: z.enum(['BUSINESS', 'DEALER', 'TURF', 'CORNER_ENFORCER', 'CORNER_LOOKOUT', 'STASH_GUARD', 'RUNNER', 'BODYGUARD', 'ESCORT']).optional(),
   specialty: z.enum(['GENERALIST', 'ENFORCER', 'WHEELMAN', 'SCOUT', 'DEALER', 'SERVICE']).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
 }).strict();
 
 export type CrewRosterQuery = z.infer<typeof crewRosterQuerySchema>;
+
+/** 1.8.6-E. Move already-posted corner thugs into or out of corner specialty jobs. */
+export const crewCornerJobSchema = z.object({
+  district: z.string().trim().min(1, 'Pick a turf block.').max(64),
+  kind: z.enum(['CORNER_LOOKOUT', 'STASH_GUARD']),
+  memberIds: z.array(z.string().trim().min(1).max(64)).min(1).max(50)
+    .refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.'),
+  actionId: actionIdSchema,
+}).strict();
+
+export type CrewCornerJobInput = z.infer<typeof crewCornerJobSchema>;
 
 /** 1.7.0-D. Train an available member who already earned the selected specialty. */
 export const crewTrainingSchema = z.object({
@@ -377,6 +388,34 @@ export const crewAssignmentSchema = z.object({
   actionId: actionIdSchema,
 }).strict();
 export type CrewAssignmentInput = z.infer<typeof crewAssignmentSchema>;
+
+const crewMemberIdsSchema = z.array(z.string().trim().min(1).max(64))
+  .min(1, 'Choose at least one crew member.')
+  .max(50, 'Move up to 50 crew members at a time.')
+  .refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.');
+
+/** 1.8.6-B. Put named members on a dealer crew, or move named dealers to another crew. */
+export const crewDealerMembersSchema = z.object({
+  memberIds: crewMemberIdsSchema,
+  actionId: actionIdSchema,
+}).strict();
+export type CrewDealerMembersInput = z.infer<typeof crewDealerMembersSchema>;
+
+/** 1.8.6-B. Put named members on a corner, or bring named corner defenders home. */
+export const crewTurfMembersSchema = z.object({
+  district: z.string().trim().min(1, 'Pick a turf block.'),
+  memberIds: crewMemberIdsSchema,
+  actionId: actionIdSchema,
+}).strict();
+export type CrewTurfMembersInput = z.infer<typeof crewTurfMembersSchema>;
+
+/** 1.8.6-B. Move named corner defenders from their current corner to another held corner. */
+export const crewTurfMoveMembersSchema = z.object({
+  toDistrict: z.string().trim().min(1, 'Pick a destination turf block.'),
+  memberIds: crewMemberIdsSchema,
+  actionId: actionIdSchema,
+}).strict();
+export type CrewTurfMoveMembersInput = z.infer<typeof crewTurfMoveMembersSchema>;
 
 /** 0.4.0-D. Pip's counter for a non-crack product. */
 export const productTradeSchema = z.object({

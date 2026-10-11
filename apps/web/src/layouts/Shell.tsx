@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { APP_VERSION, formatCents, formatCentsCompact } from '@streets/shared';
 import { rulesets } from '@streets/rulesets';
@@ -77,6 +77,9 @@ function Brand() {
 
   return (
     <Link className="se-brand" to="/" title={buildLine(platform, rulesetVersion)}>
+      <svg className="se-brand__crown" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M3 7.5 7.5 11 12 4l4.5 7L21 7.5 19.2 18H4.8zM5 19.5h14V21H5z" />
+      </svg>
       <span className="se-brand__mark">
         Streets<span className="se-accent">Empire</span>
       </span>
@@ -127,6 +130,26 @@ function nextTurnActionPath(pathname: string) {
   return TURN_ACTION_PAGES[0];
 }
 
+/** Small solid glyphs for the HUD chips, so each number reads at a glance. */
+const HUD_ICONS = {
+  cash: 'M2 6h20v12H2zM12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM5 9v6M19 9v6',
+  turns: 'M13 2 4 14h7l-1 8 9-12h-7z',
+  heat: 'M12 22a7 7 0 0 0 7-7c0-4-3-6.5-4-10-2 1.5-3 3.5-3 5.5C11 9 10 8 9.5 6.5 7 9 5 11.7 5 15a7 7 0 0 0 7 7z',
+  worth: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+} as const;
+
+function HudIcon({ name }: { name: keyof typeof HUD_ICONS }) {
+  const solid = name === 'turns' || name === 'heat';
+  return (
+    <svg className={`se-statusbar__icon se-statusbar__icon--${name}`} viewBox="0 0 24 24" width="18" height="18"
+      aria-hidden="true" focusable="false"
+      fill={solid ? 'currentColor' : 'none'} stroke={solid ? 'none' : 'currentColor'}
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d={HUD_ICONS[name]} />
+    </svg>
+  );
+}
+
 /**
  * Top bar. Section 23: cash, turns and net worth stay visible on every
  * authenticated page, and collapse to short form on a phone. Each number is
@@ -171,6 +194,7 @@ function StatusBar() {
   return (
     <div className="se-statusbar">
       <Link className="se-statusbar__item" to="/game" title="Cash: open the dashboard">
+        <HudIcon name="cash" />
         <span className="se-statusbar__k">Cash</span>
         <span className="se-num se-statusbar__v se-statusbar__v--wide">
           {money(me.resources.cashCents)}
@@ -180,6 +204,7 @@ function StatusBar() {
         </span>
       </Link>
       <Link className="se-statusbar__item" to={turnActionPath} title="Turns: cycle Scout, Produce and Raids">
+        <HudIcon name="turns" />
         <span className="se-statusbar__k">Turns</span>
         <span className="se-num se-statusbar__v">
           {me.turns.turns}
@@ -191,6 +216,7 @@ function StatusBar() {
       </Link>
       {heat ? (
         <Link className="se-statusbar__item" to="/game#heat" title={heatTitle}>
+          <HudIcon name="heat" />
           <span className="se-statusbar__k se-statusbar__k--keep">
             {heat.lockedUntil ? 'Locked' : arresting ? 'Arrest' : busting ? 'Bust' : 'Heat'}
           </span>
@@ -200,6 +226,7 @@ function StatusBar() {
         </Link>
       ) : null}
       <Link className="se-statusbar__item se-statusbar__item--worth" to="/game/rankings" title="Net worth: see where it ranks">
+        <HudIcon name="worth" />
         <span className="se-statusbar__k">Net Worth</span>
         <span className="se-num se-statusbar__v se-statusbar__v--wide">
           {money(me.netWorthCents)}
@@ -208,6 +235,76 @@ function StatusBar() {
           {formatCentsCompact(me.netWorthCents)}
         </span>
       </Link>
+    </div>
+  );
+}
+
+function initialsOf(name: string): string {
+  const parts = name.replace(/([a-z])([A-Z])/g, '$1 $2').split(/[\s_.-]+/).filter(Boolean);
+  const letters = parts.length > 1 ? parts[0]![0]! + parts[1]![0]! : name.slice(0, 2);
+  return letters.toUpperCase();
+}
+
+/**
+ * Who is signed in, as an avatar chip. Opens a short menu for the profile,
+ * account settings and signing out, so the bar no longer carries a bare Log out button.
+ */
+function AccountMenu({ onLogout }: { onLogout: () => void }) {
+  const account = useSession((s) => s.account);
+  const me = useSession((s) => s.me);
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const { pathname } = useLocation();
+
+  useEffect(() => setOpen(false), [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(event: PointerEvent) {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKey(event: globalThis.KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      button.current?.focus();
+    }
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  if (!account) return null;
+
+  return (
+    <div ref={root} className={`se-account${open ? ' se-account--open' : ''}`}>
+      <button ref={button} type="button" className="se-account__button"
+        aria-label={`Account menu, ${account.username}`}
+        aria-expanded={open} aria-controls="se-account-menu" onClick={() => setOpen((value) => !value)}>
+        <span className="se-account__avatar" aria-hidden="true">{initialsOf(account.username)}</span>
+        <span className="se-account__name">
+          {me?.alliance ? <span className="se-alliance-tag" title={me.alliance.name}>[{me.alliance.tag}]</span> : null}
+          {account.username}
+        </span>
+        <svg className="se-account__chevron" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"
+          fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open ? (
+        <div id="se-account-menu" className="se-account__menu">
+          <div className="se-account__head">
+            <strong>{account.username}</strong>
+            {me ? <span className="se-muted">{me.city?.name ?? 'In the game'}</span> : <span className="se-muted">Not in a season</span>}
+          </div>
+          {me ? <Link className="se-account__item" to="/game/profile">Your profile</Link> : null}
+          <Link className="se-account__item" to="/account">Account settings</Link>
+          <button type="button" className="se-account__item se-account__item--out" onClick={onLogout}>Log out</button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -384,14 +481,8 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
         <div className="se-topbar__right">
           {account ? (
             <>
-              <Link className="se-eyebrow se-topbar__who se-topbar__account" to="/account">
-                {me?.alliance ? <span className="se-alliance-tag" title={me.alliance.name}>[{me.alliance.tag}]</span> : null}
-                {account.username}
-              </Link>
               {me ? <NotificationBell /> : null}
-              <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={handleLogout}>
-                Log out
-              </button>
+              <AccountMenu onLogout={handleLogout} />
             </>
           ) : (
             <>

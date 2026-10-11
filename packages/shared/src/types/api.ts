@@ -193,7 +193,13 @@ export type ProfileAccent =
   | 'outfit-oxblood'
   | 'saints-chrome'
   | 'cartel-jade'
-  | 'civic-seal';
+  | 'civic-seal'
+  | 'original-neon'
+  | 'neon-sign-pink'
+  | 'gavel-bronze'
+  | 'clean-books-ivory'
+  | 'sunset-coral'
+  | 'night-map-plum';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
@@ -678,6 +684,22 @@ export interface DealerStaffActionResult {
   replayed: boolean;
 }
 
+export interface CrewPutToWorkResult {
+  kind: 'DEALER_ASSIGN' | 'DEALER_RELEASE' | 'DEALER_MOVE' | 'TURF_POST' | 'TURF_PULL' | 'TURF_MOVE';
+  memberIds: string[];
+  assigned: number;
+  released: number;
+  moved: number;
+  from: string | null;
+  to: string | null;
+  dealerThugs: number;
+  postedThugs: number;
+  availableThugs: number;
+  turnsUsed: number;
+  message: string;
+  replayed: boolean;
+}
+
 export type DemandWordDto = 'STRONG' | 'STEADY' | 'MODEST' | 'THIN';
 
 /** 1.6.0-E. One dealer's career: his experience, the tier it earns him, and his cut. */
@@ -770,7 +792,8 @@ export interface DealerCrewActionResult {
 
 /** 1.7.0-A. Where a crew member is. Every status but RELEASED is counted in the crew. */
 export type CrewMemberStatusDto = 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED';
-export type CrewAssignmentKindDto = 'BUSINESS' | 'DEALER' | 'TURF';
+export type CrewAssignmentKindDto = 'BUSINESS' | 'DEALER' | 'TURF' | 'CORNER_ENFORCER' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'RUNNER' | 'BODYGUARD' | 'ESCORT';
+export type CrewJobPostKindDto = 'CORNER_ENFORCER' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'RUNNER' | 'BODYGUARD' | 'ESCORT';
 export type CrewMemberSpecialtyDto = 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE';
 
 export interface CrewMemberHistoryDto {

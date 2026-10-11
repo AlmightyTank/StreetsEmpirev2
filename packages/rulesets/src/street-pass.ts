@@ -1,5 +1,6 @@
 import type {
   QuestCosmeticCatalog,
+  QuestCosmeticDefinition,
   QuestRewardDefinition,
   Ruleset,
   StreetPassRules,
@@ -225,6 +226,55 @@ export const STREET_PASS_S1_COSMETICS = {
  * qa:street-pass`: an active player finishes in the last week, a hardcore one
  * no sooner than day 18, and a casual one lands around tier 18.
  */
+/**
+ * Each site theme's matching frame. Owning a theme also unlocks its frame for
+ * the profile and the avatar, and through the frame its popup animation, however
+ * the theme was earned. Keyed by the theme's style key; themes with no frame art
+ * (Back Office, Winter Lights, Halloween Moon) are absent.
+ */
+export const SITE_THEME_COMPANION_FRAMES = {
+  'motor-city-iron': 'street-pass-s1-chrome-serpent-frame',
+  'open-road': 'street-pass-s1-phantom-convoy-frame',
+  'neon-vice': 'street-pass-s1-lantern-district-frame',
+  'blue-heat': 'street-pass-s1-siren-breaker-frame',
+  'rain-city-wire': 'street-pass-s1-block-sovereign-frame',
+  'casino-floor': 'street-pass-s1-gilded-house-frame',
+  'federal-case': 'street-pass-s1-dead-or-alive-frame',
+  'midnight-market': 'street-pass-s1-laurel-ascendant-frame',
+  'dragon-ice': 'street-pass-s1-snowstorm-frame',
+  'dragon-fire': 'street-pass-s1-inferno-frame',
+} as const satisfies Record<string, keyof typeof STREET_PASS_S1_COSMETICS>;
+
+/** Each companion frame's popup animation (the profile effect key it unlocks). */
+export const SITE_THEME_COMPANION_EFFECTS = {
+  'motor-city-iron': 'chrome-serpent',
+  'open-road': 'phantom-convoy',
+  'neon-vice': 'lantern-district',
+  'blue-heat': 'siren-breaker',
+  'rain-city-wire': 'block-sovereign',
+  'casino-floor': 'gilded-house',
+  'federal-case': 'dead-or-alive',
+  'midnight-market': 'laurel-ascendant',
+  'dragon-ice': 'snowstorm',
+  'dragon-fire': 'inferno',
+} as const satisfies Record<keyof typeof SITE_THEME_COMPANION_FRAMES, string>;
+
+/**
+ * The matched look for a site theme: the frame option key (its style key) and
+ * the popup animation. Settings pre-select these when the theme is picked.
+ */
+export function siteThemeCompanionLook(themeStyleKey: string): { frameKey: string; effect: string } | undefined {
+  const frame = siteThemeCompanionFrame(themeStyleKey);
+  const effect = (SITE_THEME_COMPANION_EFFECTS as Record<string, string>)[themeStyleKey];
+  return frame && effect ? { frameKey: frame.styleKey ?? frame.key, effect } : undefined;
+}
+
+/** The frame that comes with a site theme, by the theme's style key. */
+export function siteThemeCompanionFrame(themeStyleKey: string): QuestCosmeticDefinition | undefined {
+  const frameKey = (SITE_THEME_COMPANION_FRAMES as Record<string, keyof typeof STREET_PASS_S1_COSMETICS>)[themeStyleKey];
+  return frameKey ? STREET_PASS_S1_COSMETICS[frameKey] : undefined;
+}
+
 export const STREET_PASS_S1 = {
   key: 'street-pass-s1',
   name: 'Street Pass · Season 1',

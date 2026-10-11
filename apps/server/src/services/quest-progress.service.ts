@@ -27,6 +27,7 @@ import {
   syncSeasonalEventAttempts,
   usesFirstClassSeasonalEvents,
 } from './seasonal-event.service.js';
+import { fitThugs as availableThugs } from './crew-availability.js';
 
 const ACTIVE_STATUSES = ['ACTIVE', 'READY_TO_TURN_IN'] as const;
 const OBJECTIVE_KINDS = new Set<QuestObjectiveKind>([
@@ -161,7 +162,7 @@ async function playerState(db: Db, roundPlayerId: string): Promise<QuestDataObje
   // 1.2.0-F. Round-to-date rated theo, for casino status Jobs (cents x bps basis / 10,000).
   const casino = await db.casinoRating.aggregate({ where: { roundPlayerId }, _sum: { theoBasis: true } });
 
-  const fitThugs = Math.max(0, row.thugs - row.woundedThugs - row.busyThugs - row.postedThugs - row.businessThugs - row.dealerThugs);
+  const fitThugs = availableThugs(row);
   const weapons = row.pistols + row.shotguns + row.tek9s + row.ak47s;
 
   return {

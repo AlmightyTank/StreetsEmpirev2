@@ -31,7 +31,7 @@ import { AppError } from '../utils/errors.js';
 import { CommunityService, permanentAwardsForAccount } from './community.service.js';
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
-import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { QuestCosmeticService, withThemeCompanionFrames } from './quest-cosmetic.service.js';
 import { isPermanentAward } from './profile-badges.js';
 import { profileTitleForAward } from './profile-titles.js';
 import { crewCosmeticLoadout, itemCosmeticLoadout } from './profile-showcase.service.js';
@@ -75,8 +75,7 @@ const honorificTitles: BadgeCosmeticOptionDto[] = [
 const honorificTitleKeys = honorificTitles.map((option) => option.key);
 
 export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
-  { key: 'default', label: 'StreetsEmpire', description: 'The classic neon-green profile accent.' },
-  { key: 'crimson', label: 'Crimson', description: 'A deep red profile accent.' },
+  { key: 'default', label: 'StreetsEmpire', description: 'The house crimson accent.' },
   { key: 'gold', label: 'Goldenrod', description: 'A bright goldenrod profile accent.' },
   { key: 'green', label: 'Emerald', description: 'A rich emerald-green profile accent.' },
   { key: 'blue', label: 'Cornflower', description: 'A soft cornflower-blue profile accent.' },
@@ -326,7 +325,7 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
     }
     for (const style of RELEASED_ITEM_COSMETIC_STYLES) collections.add(style.key);
   }
-  return { accents, frames, themes: themeOptions, collections };
+  return { accents, frames: withThemeCompanionFrames(frames, themeOptions), themes: themeOptions, collections };
 }
 
 export const AccountProfileService = {

@@ -292,7 +292,7 @@
 .se-slots__machine small, .se-casino-picker__opt small { color: var(--se-muted); font-size: .66rem; white-space: nowrap; }
 .se-slots__machine:hover, .se-casino-picker__opt:hover { color: var(--se-text); background: color-mix(in srgb, var(--se-accent) 6%, transparent); }
 .se-slots__machine.is-selected, .se-casino-picker__opt.is-selected { color: var(--se-bg); background: var(--se-accent); }
-.se-slots__machine.is-selected small, .se-casino-picker__opt.is-selected small { color: color-mix(in srgb, var(--se-bg) 75%, transparent); }
+.se-slots__machine.is-selected small, .se-casino-picker__opt.is-selected small { color: var(--se-bg); }
 .se-slots__machine.is-away:not(.is-selected) strong, .se-casino-picker__opt.is-away:not(.is-selected) strong { opacity: .7; }
 .se-slots__machine:disabled, .se-casino-picker__opt:disabled { cursor: not-allowed; opacity: .6; }
 

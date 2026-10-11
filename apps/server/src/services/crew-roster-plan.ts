@@ -11,7 +11,7 @@
 
 export type CrewRole = 'THUG' | 'WORKER';
 export type CrewStatus = 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED';
-export type CrewAssignment = 'BUSINESS' | 'DEALER' | 'TURF';
+export type CrewAssignment = 'BUSINESS' | 'DEALER' | 'TURF' | 'CORNER_ENFORCER' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'RUNNER' | 'BODYGUARD' | 'ESCORT';
 export type CrewEventKind = 'JOINED' | 'ASSIGNED' | 'UNASSIGNED' | 'RELEASED' | 'REHIRED';
 
 /** The player's columns the roster mirrors. */
@@ -35,7 +35,7 @@ export interface CrewRefs {
   /** Businesses this player staffs, and with whom. */
   businesses: ReadonlyArray<{ id: string; role: CrewRole; staff: number }>;
   /** Corners this player holds, and the thugs posted on each. */
-  turf: ReadonlyArray<{ id: string; thugs: number }>;
+  turf: ReadonlyArray<{ id: string; thugs: number; lookouts?: number; stashGuards?: number }>;
 }
 
 export interface CrewPlace {
@@ -131,6 +131,25 @@ function allocate(rows: ReadonlyArray<{ id: string; count: number }>, total: num
   return out;
 }
 
+/** Share posted thugs across corners, preserving any corner-specialty slots inside each block. */
+function allocateTurf(rows: CrewRefs['turf'], total: number): Array<{ ref: string | null; kind: Extract<CrewAssignment, 'TURF' | 'CORNER_LOOKOUT' | 'STASH_GUARD'>; count: number }> {
+  const out: Array<{ ref: string | null; kind: Extract<CrewAssignment, 'TURF' | 'CORNER_LOOKOUT' | 'STASH_GUARD'>; count: number }> = [];
+  let left = total;
+  for (const row of [...rows].sort((a, b) => a.id.localeCompare(b.id))) {
+    const posted = Math.min(whole(row.thugs), left);
+    if (posted <= 0) continue;
+    const lookouts = Math.min(whole(row.lookouts ?? 0), posted);
+    const guards = Math.min(whole(row.stashGuards ?? 0), posted - lookouts);
+    const defenders = posted - lookouts - guards;
+    if (lookouts > 0) out.push({ ref: row.id, kind: 'CORNER_LOOKOUT', count: lookouts });
+    if (guards > 0) out.push({ ref: row.id, kind: 'STASH_GUARD', count: guards });
+    if (defenders > 0) out.push({ ref: row.id, kind: 'TURF', count: defenders });
+    left -= posted;
+  }
+  if (left > 0) out.push({ ref: null, kind: 'TURF', count: left });
+  return out;
+}
+
 /**
  * Every place the counts call for, by role. Places are filled in a fixed order and each is
  * held to what is left of the role's total, so a roster never has more members than the
@@ -159,8 +178,8 @@ export function crewTargets(counts: CrewCounts, refs: CrewRefs): CrewTarget[] {
     { status: 'ASSIGNED', assignmentKind: 'DEALER', assignmentRef: null, count: dealerCount - careers.length },
     ...allocate(refs.businesses.filter((row) => row.role === 'THUG').map((row) => ({ id: row.id, count: row.staff })), whole(counts.businessThugs))
       .map(({ ref, count }) => ({ status: 'ASSIGNED' as const, assignmentKind: 'BUSINESS' as const, assignmentRef: ref, count })),
-    ...allocate(refs.turf.map((row) => ({ id: row.id, count: row.thugs })), whole(counts.postedThugs))
-      .map(({ ref, count }) => ({ status: 'ASSIGNED' as const, assignmentKind: 'TURF' as const, assignmentRef: ref, count })),
+    ...allocateTurf(refs.turf, whole(counts.postedThugs))
+      .map(({ ref, kind, count }) => ({ status: 'ASSIGNED' as const, assignmentKind: kind, assignmentRef: ref, count })),
     { status: 'IN_TRANSIT', assignmentKind: null, assignmentRef: null, count: counts.busyThugs },
     { status: 'RECOVERING', assignmentKind: null, assignmentRef: null, count: counts.woundedThugs },
   ]);

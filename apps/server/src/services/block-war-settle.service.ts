@@ -49,6 +49,7 @@ import {
 } from './turf.service.js';
 import { endTurfHold, startTurfHold } from './turf-history.service.js';
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 /**
  * 1.1.0-D. Block wars settle lazily, the way turf pushes do: whenever anyone in the war
@@ -90,24 +91,26 @@ const addWeapons = (a: Weapons, b: Weapons): Weapons => ({ PISTOL: a.PISTOL + b.
 function outpostCaptureLoot(
   ruleset: Ruleset,
   box: Pick<TurfOutpost, 'cashCents' | 'beer' | 'products'>,
+  guardReductionPercent = 0,
 ): OutpostLoot {
   const rules = ruleset.turf?.outposts;
   if (!rules) return { cashCents: 0, beer: 0, products: {} };
+  const lootShare = rules.lootShare * Math.max(0, 1 - guardReductionPercent / 100);
   const products = box.products as Record<string, number>;
   let productRoom = rules.lootProductCap;
   const lootedProducts: Record<string, number> = {};
   for (const key of Object.keys(products).sort()) {
     if (productRoom <= 0) break;
     const quantity = Math.max(0, products[key] ?? 0);
-    const take = Math.min(productRoom, Math.floor(quantity * rules.lootShare));
+    const take = Math.min(productRoom, Math.floor(quantity * lootShare));
     if (take > 0) {
       lootedProducts[key] = take;
       productRoom -= take;
     }
   }
   return {
-    cashCents: Math.min(rules.lootCashCapCents, Math.floor(Number(box.cashCents) * rules.lootShare)),
-    beer: Math.min(rules.lootBeerCap, Math.floor(box.beer * rules.lootShare)),
+    cashCents: Math.min(rules.lootCashCapCents, Math.floor(Number(box.cashCents) * lootShare)),
+    beer: Math.min(rules.lootBeerCap, Math.floor(box.beer * lootShare)),
     products: lootedProducts,
   };
 }
@@ -468,7 +471,10 @@ async function endWar(tx: Db, state: WarState, at: Date, ending: WarEnding): Pro
         products: capturedOutpost.products as Record<string, number>,
       })
     : 0n;
-  const capturedOutpostLoot = capturedOutpost ? outpostCaptureLoot(base, capturedOutpost) : null;
+  const stashGuardLootReductionPercent = capturedOutpost
+    ? await CrewRosterService.stashGuardLootReductionPercent(tx, defender.id, turf.id)
+    : 0;
+  const capturedOutpostLoot = capturedOutpost ? outpostCaptureLoot(base, capturedOutpost, stashGuardLootReductionPercent) : null;
   const result: Record<string, unknown> = { winner: ending.winner, reason: ending.reason, goal: war.goal, fatigue: Math.round(fatigue), fights: war.fights, siegeHours: Math.round(war.siegeHours * 10) / 10 };
   let turfData: Prisma.TurfUncheckedUpdateInput = { fatigue, fatigueAt: at, siegedSince: null };
 
@@ -529,6 +535,7 @@ async function endWar(tx: Db, state: WarState, at: Date, ending: WarEnding): Pro
       if (capturedOutpostLoot && hasOutpostLoot(capturedOutpostLoot)) {
         await payout(tx, war.id, war.attackerId, 'ATTACKER', 'OUTPOST_LOOT', capturedOutpostLoot.cashCents, 0, capturedOutpostLoot);
         result.outpostLoot = capturedOutpostLoot;
+        if (stashGuardLootReductionPercent > 0) result.stashGuardLootReductionPercent = stashGuardLootReductionPercent;
       }
     }
     await endTurfHold(tx, turf.id, at);

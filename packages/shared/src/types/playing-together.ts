@@ -331,6 +331,8 @@ export interface TurfOutpostDto {
 }
 
 export interface TurfBlockDto {
+  /** Internal block id, used when matching named crew assignments to this corner. */
+  id: string;
   city: string;
   district: 'CASINO' | 'NIGHTCLUB' | 'LOW_RENT' | 'URBAN_GHETTO' | 'WINO_SLUMS';
   districtName: string;

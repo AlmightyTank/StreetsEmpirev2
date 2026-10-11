@@ -21,6 +21,7 @@ import {
   cornerGunWorthCents,
   type CornerGuns,
 } from './turf.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 const json = (value: unknown): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -70,8 +71,9 @@ function districtName(ruleset: Ruleset, city: string, district: DistrictKey): st
   return ruleset.cities?.[city]?.districts?.[district]?.name ?? ruleset.districts[district].name;
 }
 
-function seesPush(ruleset: Ruleset, player: { hideoutLookoutsLevel: number; racketEffects?: unknown }, landsAt: Date, now: Date): boolean {
-  return landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) * 60_000);
+async function seesPush(tx: any, ruleset: Ruleset, player: { id: string; hideoutLookoutsLevel: number; racketEffects?: unknown }, turfId: string, landsAt: Date, now: Date): Promise<boolean> {
+  const cornerWarningMinutes = await CrewRosterService.cornerPushWarningMinutes(tx, player.id, turfId);
+  return landsAt <= new Date(now.getTime() + (headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) + cornerWarningMinutes) * 60_000);
 }
 
 /**
@@ -222,7 +224,7 @@ export const TurfWarService = {
 
         const kind: 'OWNER' | 'ALLY' = push.defenderId === senderId ? 'OWNER' : 'ALLY';
         if (kind === 'OWNER') {
-          if (!seesPush(ruleset, player, push.landsAt, now)) {
+          if (!await seesPush(tx, ruleset, player, push.turf.id, push.landsAt, now)) {
             throw AppError.notFound('TURF_PUSH_NOT_FOUND', 'Your Lookouts have not spotted that push yet.');
           }
         } else {
@@ -298,7 +300,7 @@ export const TurfWarService = {
         }
         if (push.status !== 'PENDING' || push.landsAt <= now) throw AppError.conflict('TURF_PUSH_OVER', 'Too late: that push has already landed.');
         if (push.turf.holderId !== defenderId) throw AppError.conflict('TURF_ABANDONED', 'You already abandoned that corner.');
-        if (!seesPush(ruleset, player, push.landsAt, now)) {
+        if (!await seesPush(tx, ruleset, player, push.turf.id, push.landsAt, now)) {
           throw AppError.notFound('TURF_PUSH_NOT_FOUND', 'Your Lookouts have not spotted that push yet.');
         }
         if (!player.allianceId || player.allianceId !== push.defender.allianceId) {

@@ -35,14 +35,14 @@ This is a proposed roadmap. It does not change live or historical rulesets until
 
 ## Slice status and roadmap
 
-Slice A is implemented on beta as the access foundation. Slice B is implemented in ruleset `classic-og-v1.8-f`. Slice C is the next implementation slice.
+Slice A is implemented on beta as the access foundation. Slice B is implemented in ruleset `classic-og-v1.8-f` and Slice C in `classic-og-v1.8-m`. Slice D is the next implementation slice.
 
 | Slice | Status | Theme | Outcome |
 | --- | --- | --- | --- |
 | **A — Quest Access Foundation** | **Complete on beta** | Unlock recipes and districts through quests | Add permanent recipe access plus district access for Scout and Turf, server-side checks, visible locked-state data, and direct links to unlocking quests. Existing purchase unlocks keep their current behavior. |
 | **B — Pip's Cookhouse Ladder** | **Implemented (1.8.0-F)** | Start on Crack, earn the rest | Gate Ecstasy and Meth production behind quests in the new ruleset, then add quest chains for Weed, Cocaine, and Heroin. Each chain requires the previous one and opens one recipe in the current round. Quests use existing actions and award no free ingredients, stock, or crew. |
-| **C — Product Identity & Balance** | **Next** | Make each recipe a real choice | Define per-product production costs, output, variance, and Heat in the pinned ruleset. Confirm a Crack-only opening is viable, then simulate production, market sales, Heat, city demand, and supply so no product becomes a universal best pick. |
-| **D — Quest Presentation** | Planned | Show the progression clearly | Present recipe locks and their unlocking quest in Products and Produce. Keep Available quests limited to quests that are actually available; show future progression on the existing quest progression view. |
+| **C — Product Identity & Balance** | **Implemented (1.8.0-M)** | Make each recipe a real choice | Define per-product production costs, output, variance, and Heat in the pinned ruleset. Confirm a Crack-only opening is viable, then simulate production, market sales, Heat, city demand, and supply so no product becomes a universal best pick. |
+| **D — Quest Presentation** | **Next** | Show the progression clearly | Present recipe locks and their unlocking quest in Products and Produce. Keep Available quests limited to quests that are actually available; show future progression on the existing quest progression view. |
 | **E — Admin, Tests & Release** | Planned | Verify access and economy | Add unlock, objective, exploit, and balance coverage; expose recipe access in admin quest inspection; release behind the new ruleset only after the gates pass. |
 
 ## Slice details
@@ -96,15 +96,15 @@ Recipe identity is expressed only through game rules. No real-world production i
 **Implemented in 1.8.0-F** (`classic-og-v1.8-f`, built on 1.8.0-E, so new rounds also get the sportsbook):
 
 - **Recipe gates.** The ruleset adds `PRODUCT_ECSTASY_RECIPE`, `PRODUCT_METH_RECIPE`, `PRODUCT_WEED_RECIPE`, `PRODUCT_COCAINE_RECIPE` and `PRODUCT_HEROIN_RECIPE`. Crack has no gate. Purchase access keys are unchanged.
-- **Provisional recipes.** Weed, Cocaine and Heroin had no recipe, so 1.8.0-F gives each a provisional one for Slice C to tune: Weed 0.6 per thug a turn, $3.00 ingredients, 0.02 Heat; Cocaine 0.1, $20.00, 0.15 Heat; Heroin 0.2, $9.00, 0.12 Heat. Each keeps ingredients at or above Pip's buyback and net-worth value, so `productLoops` finds no cash loop. Crack, Ecstasy and Meth recipes are unchanged.
+- **Recipes.** Weed, Cocaine and Heroin had no recipe, so 1.8.0-F adds a provisional one for each. Slice C sets the final values in 1.8.0-M; see below.
 - **Party Favors:** Cookhouse and Pip rep 12; produce 150 Crack and sell 100 Crack to Pip. Pays $12,500, Pip rep 15, Ecstasy purchase access, the Ecstasy recipe and a Pip Connection favor. The old 50-crack reward is removed, because a recipe job pays no free stock.
 - **Bulk Order:** requires Party Favors; produce 100 Ecstasy and sell 50 Ecstasy to Pip, with the existing 50-Crack bonus. Pays its existing rewards plus the Meth recipe.
 - **Green Thumb** (`PIP_GREEN_THUMB`): requires Bulk Order; sell 150 Weed to Pip. Pays $15,000, Pip rep 15 and the Weed recipe.
-- **A Better Cut** (`PIP_A_BETTER_CUT`): requires Green Thumb; sell 100 Meth and $60,000 of product to Pip. Pays $20,000, Pip rep 20 and the Cocaine recipe.
+- **A Better Cut** (`PIP_A_BETTER_CUT`): requires Green Thumb. In 1.8.0-F, sell 100 Meth and $60,000 of product to Pip; from 1.8.0-M, sell 100 Meth and 60 Ecstasy to Pip, because Pip's buyback is below cooking cost and the $60,000 target lost a player about $40,000. Pays $20,000, Pip rep 20 and the Cocaine recipe.
 - **Pip's Red Ledger** (`PIP_RED_LEDGER`): requires A Better Cut; produce 40 Cocaine and sell 40 Cocaine to Pip. Pays $25,000, Pip rep 20 and the Heroin recipe.
 - **Daily board.** The board stays dealt from the round's shared deck. A card that cooks a product whose recipe the player lacks (Meth Cook, Party Pack) is replaced by the next card in the same deck, so a player with every recipe sees the shared board. A recipe that opens mid-day never adds a fourth card; the full board returns at the next reset.
 - **Tests.** `cookhouse-ladder.test.ts` checks the gates, ladder order, the rep 12 rung, separate purchase access, no stock rewards, that no non-daily job cooks a product before its recipe can be open, and that no earlier ruleset is gated. `daily-contract-recipes.test.ts` covers the daily substitution and the mid-day cap. `cookhouse-ladder.integration.test.ts` (`PRODUCT_INTEGRATION=1`) plays the first rung through the real API on PostgreSQL: every locked recipe is refused, Party Favors opens at rep 12, ordinary Crack production and Pip sales complete it, Ecstasy cooks immediately after the claim, only Bulk Order opens next, and a 1.7.0-E round still cooks Meth from the start.
-- Selected operation teams, enabled by exact ruleset ID, are enabled for 1.8.0-F as well.
+- Selected operation teams carry over. (They were enabled by an exact list of ruleset IDs that later stopped at 1.8.0-G; Slice C replaced the list with a `crewRoster.selectedTeams` flag set in 1.7.0-E, so every later ruleset inherits it, including 1.8.0-H to 1.8.0-L.)
 
 ### C — Product Identity & Balance
 
@@ -122,6 +122,24 @@ Recipe identity is expressed only through game rules. No real-world production i
 - Check results across different city markets, crew sizes, production boosts, and the 1.6 supply loop. Sourcing and dealer distribution remain separate decisions; a recipe does not bypass orders, capacity, or delivery.
 
 **Gate:** No recipe generates stock or cash from a retry, no recipe creates a guaranteed sell profit, and multiple products remain viable in different situations.
+
+**Implemented in 1.8.0-M** (`classic-og-v1.8-m`, built on 1.8.0-L; `npm run qa:recipes`; report in [RECIPE-BALANCE-1.8.0-M.md](RECIPE-BALANCE-1.8.0-M.md)). 1.8.0-F had shipped, with 1.8.0-G to 1.8.0-L built on it, so its provisional recipes stay as they were:
+
+| Recipe | Per thug a turn | Ingredients | Heat a unit | Variance | Identity |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Crack | 0.5 | $5.00 | 0 | 0.2 | Unchanged. The starter, and the only cook with no Heat. |
+| Weed | 0.6 | $4.20 | 0.01 | 0.15 | Steady, the least Heat of any other cook, modest value. |
+| Ecstasy | 0.15 | **$17.00** (was $15.00) | 0.1 | 0.2 | A step up in value; where it sells best depends on the city. |
+| Cocaine | 0.06 | $28.00 | 0.15 | 0.2 | The slowest and dearest cook with the most Heat, and the most value a unit. |
+| Meth | 0.4 | **$8.00** (was $7.00) | 0.05 | 0.2 | High output, more Heat than Weed. |
+| Heroin | 0.25 | $8.50 | 0.06 | 0.3 | Limited output and the widest swings; best where its demand is strong. |
+
+- **No guaranteed sell profit.** Pip's home buyback never follows the city, but a player can stack full Pip standing (+5%), a store-price racket (+8% on Ecstasy) and full market pressure (+25% on products), and a top workshop with a Drug Lab cuts ingredients 8% and adds 20% free output. At the 1.8.0-E prices that let Ecstasy and Meth be cooked and sold back at home for a profit. `recipeResaleLoops` checks that worst case, and 1.8.0-F raises Ecstasy and Meth just enough to pass. Pip's counters in other cities pay their city's price, but reaching them takes a run with road risk, so that is a trade rather than a guaranteed profit.
+- **Multiple products remain viable.** `recipeBalance` runs a day of cooking and dealer sales for every recipe in every city at three stages (25 thugs and 2 dealers, 80 thugs and a 6-dealer crew with workshop 2, 250 thugs and three crews with workshop 5 and a Drug Lab). The crew cooks what its dealers can sell, up to its turns, and cooks past its free Heat only when the margin pays the bribe. Every recipe is within 85% of the best earner somewhere, and none is the best in more than half of the 33 situations: Ecstasy 11, Cocaine 9, Meth 5, Heroin 5, Crack 2, Weed 1. Cheap, low-Heat recipes win once Heat is expensive or dealers are many; dear ones win where turns or dealers are scarce. The result holds with turns, dealers, thugs, net worth and the workshop pushed both ways.
+- **Crack-only opening.** Crack alone earns money a day from the start in every city. Party Favors needs 20 turns of cooking with 15 thugs and costs about $950 against $12,500 paid.
+- **Ladder pacing.** `ladderPacing` costs each rung for a player at that stage. Every rung cooks within a day of turns and costs less than its cash reward (the dearest is Bulk Order, about $2,100 against $10,000).
+- **Supply loop.** Cooking undercuts every supplier (Weed $4.20 against $6.00, Ecstasy $17.00 against $25.00, Cocaine $28.00 against $31.00, Meth $8.00 against $12.50, Heroin $8.50 against $13.00) but costs turns and thugs. Once dealers can sell more than the crew can cook, product still comes from orders and pickups. A recipe changes no order, capacity or delivery rule.
+- **Retries.** Production stays inside the existing idempotent action. The PostgreSQL suite replays an Ecstasy cook with the same action id and checks that the result is identical, with no extra stock, cash or turns.
 
 ### D — Quest Presentation
 

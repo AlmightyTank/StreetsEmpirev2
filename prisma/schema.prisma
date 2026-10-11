@@ -1480,6 +1480,8 @@ model RoundPlayer {
   crewMembers           CrewMember[]
   crewMemberEvents      CrewMemberEvent[]
   crewRosterMigration   CrewRosterMigration?
+  /// 1.8.6-A. Durable targets for person-first crew assignment jobs.
+  crewJobPosts          CrewJobPost[]
   /// 0.5.0-B. Runs out of town, Pip's shelves in other cities, and what the crew saw there.
   runs                  Run[]
   cityShelves           CityShelf[]
@@ -2019,6 +2021,21 @@ enum CrewAssignmentKind {
   BUSINESS
   DEALER
   TURF
+  CORNER_ENFORCER
+  CORNER_LOOKOUT
+  STASH_GUARD
+  RUNNER
+  BODYGUARD
+  ESCORT
+}
+
+enum CrewJobPostKind {
+  CORNER_ENFORCER
+  CORNER_LOOKOUT
+  STASH_GUARD
+  RUNNER
+  BODYGUARD
+  ESCORT
 }
 
 enum CrewMemberEventKind {
@@ -2084,6 +2101,30 @@ model CrewMemberEvent {
 
   @@index([memberId, at])
   @@index([roundPlayerId, at(sort: Desc)])
+}
+
+/// 1.8.6-A. A durable assignment target for crew jobs. Later slices attach selected
+/// members by `CrewMember.assignmentKind` and `assignmentRef`; this slice only creates
+/// the inert post records and assignment vocabulary.
+model CrewJobPost {
+  id            String          @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer     @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  kind        CrewJobPostKind
+  /// Stable gameplay target: turf id, dealer crew id, trip/run id, or another slice-owned id.
+  targetRef   String?
+  citySlug    String?
+  districtKey String?
+  headcount   Int             @default(0)
+  settings    Json            @default("{}")
+  isActive    Boolean         @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roundPlayerId, kind, isActive])
+  @@index([roundPlayerId, targetRef])
 }
 
 /// 1.7.0-A. The audit of a player's first roster build: the counts it read, and what it made.

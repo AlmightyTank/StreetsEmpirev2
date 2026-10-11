@@ -82,8 +82,9 @@
     font-size: 15px;
   }
 
-  /* The build line is in the brand's title and the footer; the badge matters more here. */
-  .se-sidebar__brand .se-brand__ver {
+  /* The build line is in the brand's title and the footer; the environment ribbon above every page names the server. */
+  .se-sidebar__brand .se-brand__ver,
+  .se-sidebar__brand .se-env-badge {
     display: none;
   }
 
@@ -97,11 +98,6 @@
 @media (min-width: 900px) and (max-width: 1199px) {
   :root {
     --se-sidebar-w: 208px;
-  }
-
-  /* No room beside the collapse button; the environment ribbon above every page says it already. */
-  .se-sidebar__brand .se-env-badge {
-    display: none;
   }
 
   .se-frame__main > .se-shell {
@@ -660,5 +656,337 @@ a.se-nav__link--active:hover {
 @media (max-width: 899px) {
   .se-sidebar__toggle {
     display: none;
+  }
+}
+
+/* --- house chrome ---------------------------------------------------------- */
+
+/*
+ * Black, crimson and chrome. The sidebar edge carries a lit seam, the active
+ * page reads as a lit plate, panels pick up a faint top highlight. Everything
+ * runs off the accent, so a player's own accent or site theme still wins.
+ */
+
+.se-brand__crown {
+  flex: none;
+  align-self: center;
+  color: var(--se-accent);
+  filter: drop-shadow(0 0 6px rgba(var(--se-accent-rgb), 0.45));
+}
+
+.se-brand__mark {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+
+.se-brand__mark .se-accent {
+  font-style: italic;
+  text-shadow: 0 0 14px rgba(var(--se-accent-rgb), 0.35);
+}
+
+@media (min-width: 900px) {
+  .se-app--sidebar .se-sidebar {
+    border-right-color: rgba(var(--se-accent-rgb), 0.38);
+    background:
+      linear-gradient(180deg, rgba(var(--se-accent-rgb), 0.06), transparent 260px),
+      linear-gradient(90deg, color-mix(in srgb, var(--se-panel) 92%, #000), var(--se-bg));
+    box-shadow: 1px 0 0 rgba(var(--se-accent-rgb), 0.12), 6px 0 26px rgba(var(--se-accent-rgb), 0.07);
+  }
+
+  .se-app--sidebar .se-sidebar__brand {
+    border-bottom-color: rgba(var(--se-accent-rgb), 0.24);
+  }
+
+  .se-app--sidebar .se-sidebar__brand .se-brand__mark {
+    font-size: 17px;
+  }
+
+  /* House top bar. A site theme keeps its own (site-themes.css). */
+  .se-app--sidebar.se-site-theme--none .se-topbar {
+    border-bottom: 1px solid rgba(var(--se-accent-rgb), 0.2);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--se-panel) 70%, var(--se-bg)), color-mix(in srgb, var(--se-bg) 90%, transparent));
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  /* HUD chips: icon, label over value. */
+  .se-app--sidebar a.se-statusbar__item {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 9px;
+    row-gap: 0;
+    padding: 6px 14px 7px 11px;
+    border-color: var(--se-line);
+    border-radius: 7px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01));
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.04);
+  }
+
+  .se-app--sidebar a.se-statusbar__item > .se-statusbar__icon {
+    grid-row: 1 / span 2;
+  }
+
+  .se-app--sidebar .se-statusbar__k {
+    color: var(--se-text-dim);
+    letter-spacing: 0.08em;
+  }
+}
+
+.se-statusbar__icon {
+  flex: none;
+}
+
+.se-statusbar__icon--cash { color: var(--se-good); }
+.se-statusbar__icon--turns { color: #f5c542; }
+.se-statusbar__icon--heat { color: var(--se-warn); }
+.se-statusbar__icon--worth { color: var(--se-accent-2); }
+
+/* Phones keep the compact number row; the icons would crowd it. */
+@media (max-width: 899px) {
+  .se-statusbar__icon {
+    display: none;
+  }
+}
+
+/* --- sidebar nav plates ---------------------------------------------------- */
+
+.se-nav__link {
+  min-height: 40px;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+a.se-nav__link:hover {
+  border-color: rgba(var(--se-accent-rgb), 0.2);
+  background: color-mix(in srgb, var(--se-accent) 7%, var(--se-panel));
+}
+
+.se-nav__link--active,
+a.se-nav__link--active:hover {
+  color: #fff;
+  border-color: rgba(var(--se-accent-rgb), 0.7);
+  background: linear-gradient(100deg, rgba(var(--se-accent-rgb), 0.2), rgba(var(--se-accent-rgb), 0.04));
+  box-shadow: inset 3px 0 0 var(--se-accent), 0 0 18px rgba(var(--se-accent-rgb), 0.18);
+}
+
+.se-nav__link--active .se-navicon {
+  color: var(--se-accent-hover);
+}
+
+/* --- account menu ---------------------------------------------------------- */
+
+.se-account {
+  position: relative;
+}
+
+.se-account__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 3px 8px 3px 3px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  appearance: none;
+  background: transparent;
+  color: var(--se-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.se-account__button:hover,
+.se-account--open .se-account__button {
+  border-color: var(--se-line);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.se-account__button:focus-visible {
+  outline: 2px solid var(--se-accent-hover);
+  outline-offset: 2px;
+}
+
+.se-account__avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--se-accent);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #2a2f38, #0d0f13 70%);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6), 0 0 12px rgba(var(--se-accent-rgb), 0.45);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.se-account__name {
+  display: inline-flex;
+  gap: 5px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.se-account__chevron {
+  color: var(--se-muted);
+  transition: transform 0.15s ease;
+}
+
+.se-account--open .se-account__chevron {
+  transform: rotate(180deg);
+}
+
+.se-account__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 90;
+  display: grid;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid rgba(var(--se-accent-rgb), 0.3);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--se-panel) 94%, #000);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 22px rgba(var(--se-accent-rgb), 0.1);
+}
+
+.se-account__head {
+  display: grid;
+  gap: 1px;
+  margin-bottom: 4px;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--se-line-soft);
+  font-size: 12px;
+}
+
+.se-account__head strong {
+  color: #fff;
+  font-size: 14px;
+}
+
+.se-account__item {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 6px;
+  appearance: none;
+  background: transparent;
+  color: var(--se-text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.se-account__item:hover,
+.se-account__item:focus-visible {
+  outline: none;
+  background: rgba(var(--se-accent-rgb), 0.1);
+  color: #fff;
+}
+
+.se-account__item--out {
+  margin-top: 4px;
+  border-top: 1px solid var(--se-line-soft);
+  border-radius: 0 0 6px 6px;
+  color: var(--se-accent-hover);
+}
+
+/* Phones: the avatar alone; the name is in the menu. */
+@media (max-width: 900px) {
+  .se-account__name,
+  .se-account__chevron {
+    display: none;
+  }
+
+  .se-account__button {
+    padding: 2px;
+  }
+}
+
+/* --- panels ---------------------------------------------------------------- */
+
+.se-app .se-panel {
+  border-radius: 7px;
+}
+
+.se-app .se-panel__head {
+  border-radius: 7px 7px 0 0;
+}
+
+/* House panel finish. A site theme keeps its own fills and glows. */
+.se-app.se-site-theme--none .se-panel {
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035), 0 8px 20px rgba(0, 0, 0, 0.14);
+}
+
+.se-app.se-site-theme--none .se-panel__head {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--se-panel-hi) 95%, #fff 2%), var(--se-panel));
+}
+
+@media (max-width: 899px) {
+  .se-tabbar {
+    border-top-color: rgba(var(--se-accent-rgb), 0.3);
+  }
+}
+
+/* --- site themes on the sidebar shell -------------------------------------- */
+
+/*
+ * Site themes were drawn for the old top-bar-only shell. Every theme describes
+ * itself with the same --se-theme-* contract in site-themes.css (fills, top-bar
+ * layer, glow, border style), so the parts the old shell never had read that
+ * contract here instead of each theme restyling them.
+ *
+ * Panel, top-bar and head fills are gradients only; stat fills may end in a
+ * solid colour, so they are only ever the whole background.
+ */
+@media (min-width: 900px) {
+  .se-app--sidebar:not(.se-site-theme--none) .se-sidebar {
+    border-right-color: color-mix(in srgb, var(--se-accent) 42%, var(--se-line));
+    background: var(--se-theme-panel-fill), var(--se-bg);
+    box-shadow: 1px 0 0 rgba(var(--se-accent-rgb), 0.1), 6px 0 26px var(--se-theme-panel-glow);
+  }
+
+  .se-app--sidebar:not(.se-site-theme--none) .se-sidebar__brand {
+    border-bottom-color: color-mix(in srgb, var(--se-accent) 48%, var(--se-line));
+    background: var(--se-theme-topbar-layer), color-mix(in srgb, var(--se-theme-topbar-bg) 96%, #000);
+  }
+
+  .se-app--sidebar:not(.se-site-theme--none) a.se-statusbar__item {
+    border-style: var(--se-theme-border-style);
+    border-color: color-mix(in srgb, var(--se-accent) 30%, var(--se-line));
+    background: var(--se-theme-stat-fill);
+  }
+
+  .se-app--sidebar:not(.se-site-theme--none) a.se-statusbar__item:hover {
+    border-color: color-mix(in srgb, var(--se-accent) 60%, var(--se-line));
+  }
+}
+
+.se-app:not(.se-site-theme--none) .se-seasoncard {
+  border-style: var(--se-theme-border-style);
+  border-color: color-mix(in srgb, var(--se-accent) 36%, var(--se-line));
+  background: var(--se-theme-stat-fill);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035), 0 0 16px var(--se-theme-panel-glow);
+}
+
+.se-app:not(.se-site-theme--none) .se-account__menu {
+  border-color: color-mix(in srgb, var(--se-accent) 40%, var(--se-line));
+  background: var(--se-theme-panel-fill), var(--se-panel);
+}
+
+@media (max-width: 899px) {
+  /* A tint, not the top-bar layer: patterned layers (Motor City's hazard stripes) crowd the small tab labels. */
+  .se-app:not(.se-site-theme--none) .se-tabbar {
+    border-top-color: color-mix(in srgb, var(--se-accent) 44%, var(--se-line));
+    background: linear-gradient(0deg, rgba(var(--se-accent-rgb), 0.08), transparent), color-mix(in srgb, var(--se-theme-topbar-bg) 97%, #000);
   }
 }

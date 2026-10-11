@@ -141,7 +141,7 @@ describe('AccountProfileService admin site theme QA', () => {
   });
 
   it('lets an earned dragon shell theme and popup animation be equipped independently', async () => {
-    const prisma = prismaFor(false, [themeUnlock('dragon-ice'), themeUnlock('dragon-fire'), frameUnlock('inferno-drake')]);
+    const prisma = prismaFor(false, [themeUnlock('dragon-ice'), themeUnlock('dragon-fire')]);
     const saved = await AccountProfileService.update(prisma, 'account-1', {
       ...updateInput,
       activeSiteThemeKey: 'dragon-ice',
@@ -151,14 +151,30 @@ describe('AccountProfileService admin site theme QA', () => {
     expect(saved.settings.activeSiteThemeKey).toBe('dragon-ice');
     expect(saved.settings.profileEffect).toBe('inferno');
     expect(saved.options.themes.map((option) => option.key)).toEqual(['dragon-ice', 'dragon-fire']);
-    expect(saved.options.effects.map((option) => option.key)).toEqual(['none', 'inferno']);
+    expect(saved.options.effects.map((option) => option.key)).toEqual(['none', 'snowstorm', 'inferno']);
   });
 
-  it('keeps animated popup choices locked until the matching Street Pass frame is earned', async () => {
+  it('unlocks a theme\'s frame, avatar frame and popup animation with the theme', async () => {
     const prisma = prismaFor(false, [themeUnlock('dragon-fire')]);
-    await expect(AccountProfileService.update(prisma, 'account-1', {
+    const saved = await AccountProfileService.update(prisma, 'account-1', {
       ...updateInput,
       activeSiteThemeKey: 'dragon-fire',
+      activeProfileFrameKey: 'inferno-drake',
+      activeAvatarFrameKey: 'inferno-drake',
+      profileEffect: 'inferno',
+    });
+
+    expect(saved.options.frames.map((option) => option.key)).toEqual(['inferno-drake']);
+    expect(saved.settings.activeProfileFrameKey).toBe('inferno-drake');
+    expect(saved.settings.activeAvatarFrameKey).toBe('inferno-drake');
+    expect(saved.settings.profileEffect).toBe('inferno');
+  });
+
+  it('keeps animated popup choices locked for a theme with no matching frame', async () => {
+    const prisma = prismaFor(false, [themeUnlock('back-office')]);
+    await expect(AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: 'back-office',
       profileEffect: 'inferno',
     })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
   });
