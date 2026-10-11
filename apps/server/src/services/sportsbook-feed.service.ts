@@ -49,9 +49,11 @@ const RESULT_FIRST_CHECK_MINUTES: Record<SportsbookLeagueKey, number> = { NFL: 1
 const PROVIDER_DATE_OFFSET_HOURS = 10;
 /** Hard provider-request cooldown. Manual admin pulls share the same file-backed window. */
 export const SPORTSBOOK_ODDS_CACHE_INTERVAL_MS = 30 * 60_000;
+/** Recheck empty future slates less often; populated slates keep the 30-minute cadence. */
+export const SPORTSBOOK_EMPTY_FUTURE_RECHECK_MS = 2 * 60 * 60_000;
 const DEFAULT_ODDS_CACHE_FILE = path.resolve(process.cwd(), '.runtime', 'sportsbook-odds.json');
 
-type OddsCacheSnapshot = { league: SportsbookLeagueKey; date: string; events: unknown[] };
+type OddsCacheSnapshot = { league: SportsbookLeagueKey; date: string; events: unknown[]; fetchedAt?: string };
 type OddsCacheFile = { version: 1; updatedAt: string | null; snapshots: OddsCacheSnapshot[] };
 
 export type FeedDeps = { fetch?: typeof fetch; sleep?: (ms: number) => Promise<void>; cacheFilePath?: string };
@@ -161,6 +163,16 @@ export function providerOutcome(event: ProviderEvent): ProviderOutcome {
 }
 
 /** The UTC dates to request: today and tomorrow, plus yesterday while US evening games are still ahead. */
+/** Only skip a future date when its most recent successful snapshot was empty and is recent.
+ * Never skip today: new lines and schedule changes must remain visible promptly.
+ */
+export function shouldPollSportsbookDate(date: string, now: Date, cached?: { events: unknown[]; fetchedAt?: string }): boolean {
+  if (date <= dateKey(now)) return true;
+  if (!cached || cached.events.length > 0 || !cached.fetchedAt) return true;
+  const fetchedAt = Date.parse(cached.fetchedAt);
+  return !Number.isFinite(fetchedAt) || now.getTime() - fetchedAt >= SPORTSBOOK_EMPTY_FUTURE_RECHECK_MS || now.getTime() < fetchedAt;
+}
+
 export function sportsbookPollDates(now: Date): string[] {
   const dates = [dateKey(now), dateKey(new Date(now.getTime() + 86_400_000))];
   if (now.getUTCHours() < PROVIDER_DATE_OFFSET_HOURS) dates.unshift(dateKey(new Date(now.getTime() - 86_400_000)));
@@ -478,7 +490,13 @@ export async function refreshSportsbookCache(
       let complete = true;
       let seen = 0;
       let failure = '';
+      let allDatesFetched = true;
       for (const date of dates) {
+        const cached = cachedSnapshots.get(`${league.key}:${date}`);
+        if (!shouldPollSportsbookDate(date, now, cached)) {
+          allDatesFetched = false;
+          continue;
+        }
         if (session.stopped || session.quotaBelow(SPORTSBOOK_QUOTA_ODDS_FLOOR)) {
           complete = false;
           failure ||= session.stopped ? session.stopped.message : 'Skipped: provider quota is near its limit.';
@@ -489,7 +507,7 @@ export async function refreshSportsbookCache(
             market_ids: '1', affiliate_ids: '3', main_line: 'true', hide_closed: 'true',
           });
           if (!Array.isArray(payload.events)) throw new ProviderError('PAYLOAD', 'Snapshot has no events list.');
-          cachedSnapshots.set(`${league.key}:${date}`, { league: league.key, date, events: payload.events });
+          cachedSnapshots.set(`${league.key}:${date}`, { league: league.key, date, events: payload.events, fetchedAt: iso(now) });
           seen += await storeSnapshot(prisma, league.key, payload.events, now);
           result.snapshots += 1;
         } catch (error) {
@@ -501,7 +519,8 @@ export async function refreshSportsbookCache(
       }
       status.lastAttemptAt = iso(now);
       if (complete) {
-        result.pulled += await pullMissingLines(prisma, league.key, dates, now);
+        // A skipped empty future snapshot is not proof that the full date range is complete.
+        if (allDatesFetched) result.pulled += await pullMissingLines(prisma, league.key, dates, now);
         Object.assign(status, { lastSuccessAt: iso(now), lastError: '', eventsSeen: seen });
       } else {
         Object.assign(status, { lastError: failure, lastErrorAt: iso(now) });

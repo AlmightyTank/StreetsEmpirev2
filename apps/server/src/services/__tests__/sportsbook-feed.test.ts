@@ -10,6 +10,7 @@ import {
   snapshotCoverage,
   sportsbookOddsCacheDue,
   sportsbookPollDates,
+  shouldPollSportsbookDate,
 } from '../sportsbook-feed.service.js';
 
 function reply(status: number, body: unknown = { events: [] }, headers: Record<string, string> = {}): Response {
@@ -33,6 +34,15 @@ function scripted(...steps: Array<Response | Error>) {
 }
 
 describe('1.8.0-C sportsbook feed', () => {
+  it('avoids repeatedly fetching recently empty future slates without skipping today', () => {
+    const now = new Date('2026-10-11T15:00:00.000Z');
+    const empty = { events: [], fetchedAt: '2026-10-11T14:30:00.000Z' };
+    expect(shouldPollSportsbookDate('2026-10-12', now, empty)).toBe(false);
+    expect(shouldPollSportsbookDate('2026-10-11', now, empty)).toBe(true);
+    expect(shouldPollSportsbookDate('2026-10-12', now, { events: [{}], fetchedAt: empty.fetchedAt })).toBe(true);
+    expect(shouldPollSportsbookDate('2026-10-12', now, { events: [], fetchedAt: '2026-10-11T12:00:00.000Z' })).toBe(true);
+    expect(shouldPollSportsbookDate('2026-10-12', now)).toBe(true);
+  });
   it('retries a server error with backoff, then returns the snapshot', async () => {
     const { session, calls, sleeps } = scripted(reply(503), reply(200, { events: [1] }));
     await expect(session.get('/sports/4/events/2026-10-11')).resolves.toEqual({ events: [1] });

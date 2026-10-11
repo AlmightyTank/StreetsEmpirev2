@@ -662,7 +662,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(board.events.find((row) => row.id === stored.id)?.lineState).toBe('OPEN');
 
     const stillFresh = await AdminSportsbookService.pullNow(app.prisma, config, actor, eAt(29), feed);
-    expect(stillFresh.message).toContain('no provider request was made');
+    expect(stillFresh.message).toContain('no odds snapshot requests were made');
     expect(feed.calls).toHaveLength(8);
     const diskCache = JSON.parse(await readFile(feed.cacheFilePath, 'utf8')) as { version: number; updatedAt: string; snapshots: Array<{ league: string; date: string }> };
     expect(diskCache).toMatchObject({ version: 1, updatedAt: eNow.toISOString() });

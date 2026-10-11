@@ -101,6 +101,24 @@ const RESULT_LABEL: Record<SportsbookBetDto['status'], string> = {
   OPEN: 'Open', WON: 'Won', LOST: 'Lost', PUSH: 'Push', VOID: 'Void',
 };
 
+/** An open ticket is not necessarily an unstarted game. Show the provider's stage. */
+function openTicketStage(bet: SportsbookBetDto, now: number): string {
+  if (bet.eventStatus === 'LIVE') return 'Game in progress';
+  if (bet.eventStatus === 'PULLED') return 'Game unavailable · awaiting review';
+  if (bet.eventStatus === 'FINAL') return 'Final · awaiting settlement';
+  return Date.parse(bet.startsAt) <= now ? 'Awaiting game update' : 'Upcoming';
+}
+
+function settledCash(bet: SportsbookBetDto): string {
+  switch (bet.status) {
+    case 'WON': return `${signedCents(bet.returnCents)} paid (${signedCents(bet.returnCents - bet.stakeCents)} profit)`;
+    case 'LOST': return `${signedCents(-bet.stakeCents)} stake lost`;
+    case 'PUSH': return `${signedCents(0)} push`;
+    case 'VOID': return `${signedCents(0)} void`;
+    default: return 'Pending';
+  }
+}
+
 function settledChips(bet: SportsbookBetDto): string {
   switch (bet.status) {
     case 'WON': return `${signedCents(bet.returnCents)} paid (${signedCents(bet.returnCents - bet.stakeCents)} profit)`;
@@ -423,9 +441,14 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
               </div>
             </div>
             <p className="se-sportsbook__summary">
-              {ticketView === 'open'
-                ? `${summary.openCount} open · ${formatCentsExact(summary.openStakeCents)} at stake · pays up to ${formatCentsExact(summary.openPayoutCents)}`
-                : `Record ${summary.won}-${summary.lost}-${summary.push}${summary.void ? ` · ${summary.void} void` : ''} · Net ${signedCents(summary.netCents)}`}
+              {ticketView === 'open' ? (
+                <>
+                  <span>{summary.openCount} open · {formatCentsExact(summary.openStakeCents)} at stake · pays up to {formatCentsExact(summary.openPayoutCents)}</span>
+                  <span>Record {summary.won}-{summary.lost}-{summary.push}{summary.void ? ` · ${summary.void} void` : ''} · Net {signedCents(summary.netCents)}</span>
+                </>
+              ) : (
+                `Record ${summary.won}-${summary.lost}-${summary.push}${summary.void ? ` · ${summary.void} void` : ''} · Net ${signedCents(summary.netCents)}`
+              )}
             </p>
             <div className="se-sportsbook__ticket-list" id="sb-ticket-list" role="tabpanel" aria-labelledby={`sb-tab-${ticketView}`}>
               {shownTickets.length === 0 ? (
@@ -439,7 +462,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                     <header>
                       <strong>{bet.pickTeam} <b>{formatAmericanOdds(bet.oddsAmerican)}</b></strong>
                       <span className="se-sportsbook__result">
-                        {bet.status === 'OPEN' ? (started ? 'Awaiting result' : 'Open') : RESULT_LABEL[bet.status]}
+                        {bet.status === 'OPEN' ? openTicketStage(bet, now) : RESULT_LABEL[bet.status]}
                       </span>
                     </header>
                     <span className="se-sportsbook__ticket-meta">
