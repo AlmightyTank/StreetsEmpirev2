@@ -96,6 +96,9 @@ export function ConsolePage() {
   const [recipientMatches, setRecipientMatches] = useState<PlayerDirectoryEntryDto[]>([]);
   const [recipientPlayer, setRecipientPlayer] = useState<PlayerDirectoryEntryDto | null>(null);
   const [recipientSearching, setRecipientSearching] = useState(false);
+  const [recipientPage, setRecipientPage] = useState(1);
+  const [recipientTotalPages, setRecipientTotalPages] = useState(1);
+  const [recipientSearchError, setRecipientSearchError] = useState<string | null>(null);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [reporting, setReporting] = useState(false);
@@ -129,6 +132,7 @@ export function ConsolePage() {
     setRecipient(to);
     setRecipientPlayer(null);
     setRecipientQuery(`#${to}`);
+    setRecipientPage(1);
     setMode('compose');
   }, [searchParams]);
 
@@ -141,9 +145,12 @@ export function ConsolePage() {
       return () => { live = false; };
     }
     setRecipientSearching(true);
+    setRecipientMatches([]);
+    setRecipientSearchError(null);
     const timer = window.setTimeout(() => {
-      void playersApi.list('all', query, 1).then((result) => {
+      void playersApi.list('all', query, recipientPage).then((result) => {
         if (!live) return;
+        setRecipientTotalPages(result.pagination.totalPages);
         const normalized = query.replace(/^#/, '');
         const exactId = /^\d+$/.test(normalized) ? Number(normalized) : null;
         const exact = exactId === null ? null : result.players.find((player) => player.publicPimpId === exactId) ?? null;
@@ -156,13 +163,16 @@ export function ConsolePage() {
           setRecipientMatches(result.players);
         }
       }).catch(() => {
-        if (live) setRecipientMatches([]);
+        if (live) {
+          setRecipientMatches([]);
+          setRecipientSearchError('Could not search players. Try again.');
+        }
       }).finally(() => {
         if (live) setRecipientSearching(false);
       });
     }, 220);
     return () => { live = false; window.clearTimeout(timer); };
-  }, [mode, recipientQuery, recipientPlayer]);
+  }, [mode, recipientQuery, recipientPlayer, recipientPage]);
 
   useEffect(() => {
     let live = true;
@@ -645,6 +655,7 @@ export function ConsolePage() {
     navigateView('threads');
     setRecipient('');
     setRecipientQuery('');
+    setRecipientPage(1);
     setRecipientPlayer(null);
     setRecipientMatches([]);
     setSubject('');
@@ -703,7 +714,7 @@ export function ConsolePage() {
         <section className="se-console-bar">
           <nav className="se-console-tabs" aria-label="Street Wire sections">
             <button type="button" aria-pressed={activeLane === 'messages'} className={`se-console-tab${activeLane === 'messages' ? ' se-console-tab--active' : ''}`} onClick={() => navigateView('threads')}>
-              <span>Messages</span><strong>{data?.total ?? 0}</strong>
+              <span>Messages</span><strong>{data?.folder === 'active' ? data.total : (counts ? counts.inbox + counts.sent : 0)}</strong>
               {(counts?.unread ?? 0) > 0 ? <em>{counts!.unread} unread</em> : null}
             </button>
             <button type="button" aria-pressed={activeLane === 'dispatch'} className={`se-console-tab${activeLane === 'dispatch' ? ' se-console-tab--active' : ''}`} onClick={() => navigateView('activity')}>
@@ -1066,6 +1077,9 @@ export function ConsolePage() {
                         onChange={(event) => {
                           const value = event.target.value;
                           setRecipientQuery(value);
+                          setRecipientPage(1);
+                          setRecipientTotalPages(1);
+                          setRecipientSearchError(null);
                           setRecipient('');
                           setRecipientPlayer(null);
                           setRecipientMatches([]);
@@ -1082,8 +1096,16 @@ export function ConsolePage() {
                             </button>
                           ))}
                         </div>
-                      ) : recipientQuery.trim().length >= 2 && !recipientSearching && !recipientPlayer ? (
+                      ) : recipientQuery.trim().length >= 2 && !recipientSearching && !recipientPlayer && !recipientSearchError ? (
                         <small className="se-muted">No player found. Try their name or #PimpID.</small>
+                      ) : null}
+                      {recipientSearchError ? <small role="alert">{recipientSearchError}</small> : null}
+                      {!recipientPlayer && recipientQuery.trim().length >= 2 && recipientTotalPages > 1 ? (
+                        <div className="se-console-pagination">
+                          <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={recipientSearching || recipientPage <= 1} onClick={() => setRecipientPage((current) => current - 1)}>Previous matches</button>
+                          <span className="se-num">Page {recipientPage} / {recipientTotalPages}</span>
+                          <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={recipientSearching || recipientPage >= recipientTotalPages} onClick={() => setRecipientPage((current) => current + 1)}>Next matches</button>
+                        </div>
                       ) : null}
                       {recipientPlayer ? (
                         <div className="se-console-recipient__selected">
