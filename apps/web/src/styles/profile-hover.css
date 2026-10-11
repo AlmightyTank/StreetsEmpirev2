@@ -1,10 +1,10 @@
 .se-profile-hover-card {
-  --se-hover-accent: #a4cf5b;
-  --se-hover-bg: #171b16;
-  --se-hover-panel: #20261e;
-  --se-hover-line: #3a4435;
-  --se-hover-text: #f0f2eb;
-  --se-hover-muted: #aab3a0;
+  --se-hover-accent: var(--se-accent, #ef4657);
+  --se-hover-bg: var(--se-panel, #111419);
+  --se-hover-panel: var(--se-panel-hi, #171c23);
+  --se-hover-line: var(--se-line, #2a3039);
+  --se-hover-text: var(--se-text, #e8edf4);
+  --se-hover-muted: var(--se-text-dim, #a7b0bc);
   position: fixed;
   z-index: 3000;
   max-height: min(430px, calc(100vh - 24px));
