@@ -29,15 +29,17 @@ This is a proposed roadmap. It does not change live or historical rulesets until
 7. **Preserve old rounds.** Add recipe access and new production behavior only to a new pinned ruleset. Do not reinterpret existing `PlayerUnlock` records or alter earlier rounds.
 8. **Keep objectives rooted in play.** Quests observe normal production, orders, travel, sales, and Heat events; they do not introduce quest-only actions.
 
-## Proposed slices
+## Slice status and roadmap
 
-| Slice | Theme | Outcome |
-| --- | --- | --- |
-| **A — Quest Access Foundation** | Unlock recipes and Scout districts through quests | Add permanent recipe and district access for scouting and Turf effects, server-side checks, visible locked-state data, and direct links to the unlocking quests. Existing purchase unlocks keep their current behavior. |
-| **B — Pip's Cookhouse Ladder** | Earn three new recipes | Add quest chains for Weed, Cocaine, and Heroin. Completing each chain opens that product's recipe in the current round. Quests use existing actions and award no free ingredients, stock, or crew. |
-| **C — Product Identity & Balance** | Make each recipe a real choice | Define per-product production costs, output, variance, and Heat in the pinned ruleset. Simulate production, market sales, Heat, city demand, and supply so no product becomes a universal best pick. |
-| **D — Quest Presentation** | Show the progression clearly | Present recipe locks and their unlocking quest in Products and Produce. Keep Available quests limited to quests that are actually available; show future progression on the existing quest progression view. |
-| **E — Admin, Tests & Release** | Verify access and economy | Add unlock, migration, objective, exploit, and balance coverage; expose recipe access in admin quest inspection; release behind the new ruleset only after the gates pass. |
+Slice A is implemented on beta as the access foundation. The remaining work is sequenced below; Slice B is the next implementation slice.
+
+| Slice | Status | Theme | Outcome |
+| --- | --- | --- | --- |
+| **A — Quest Access Foundation** | **Complete on beta** | Unlock recipes and districts through quests | Add permanent recipe access plus district access for Scout and Turf, server-side checks, visible locked-state data, and direct links to unlocking quests. Existing purchase unlocks keep their current behavior. |
+| **B — Pip's Cookhouse Ladder** | **Next** | Earn three new recipes | Add quest chains for Weed, Cocaine, and Heroin. Completing each chain opens that product's recipe in the current round. Quests use existing actions and award no free ingredients, stock, or crew. |
+| **C — Product Identity & Balance** | Planned | Make each recipe a real choice | Define per-product production costs, output, variance, and Heat in the pinned ruleset. Simulate production, market sales, Heat, city demand, and supply so no product becomes a universal best pick. |
+| **D — Quest Presentation** | Planned | Show the progression clearly | Present recipe locks and their unlocking quest in Products and Produce. Keep Available quests limited to quests that are actually available; show future progression on the existing quest progression view. |
+| **E — Admin, Tests & Release** | Planned | Verify access and economy | Add unlock, objective, exploit, and balance coverage; expose recipe access in admin quest inspection; release behind the new ruleset only after the gates pass. |
 
 ## Slice details
 
