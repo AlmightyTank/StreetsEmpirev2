@@ -93,9 +93,12 @@ describe('pregame sportsbook', () => {
     const { sportsbook: _sportsbook, ...casinoWithoutBook } = classicOgV18E.casino;
     const { classicOgV17E } = { classicOgV17E: rulesets['classic-og-v1.7-e']! };
     expect(casinoWithoutBook).toEqual(classicOgV17E.casino);
-    for (const ruleset of Object.values(rulesets)) {
-      if (ruleset.meta.id === classicOgV18E.meta.id) continue;
-      expect(ruleset.casino?.sportsbook, ruleset.meta.id).toBeUndefined();
+    // Rulesets registered after 1.8.0-E build on it and carry the same book.
+    const all = Object.values(rulesets);
+    const pinned = all.indexOf(classicOgV18E);
+    for (const [index, ruleset] of all.entries()) {
+      if (index < pinned) expect(ruleset.casino?.sportsbook, ruleset.meta.id).toBeUndefined();
+      else expect(ruleset.casino?.sportsbook, ruleset.meta.id).toBe(classicOgV18E.casino.sportsbook);
     }
   });
 

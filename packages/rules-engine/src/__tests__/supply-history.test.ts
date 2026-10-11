@@ -57,7 +57,7 @@ describe('1.6.0 never reaches a round pinned before it', () => {
     }
   });
 
-  it('makes the 1.8.0-E sportsbook ruleset the newest season ruleset', () => {
-    expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v1.8-e');
+  it('makes the 1.8.0-F cookhouse ladder ruleset the newest season ruleset', () => {
+    expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v1.8-f');
   });
 });

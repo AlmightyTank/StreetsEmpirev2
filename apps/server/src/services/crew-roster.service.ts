@@ -9,7 +9,7 @@ import { crewMemberName, crewMemberSpecialty, crewMemberTraits } from './crew-pr
 import { IdempotencyService } from './idempotency.service.js';
 
 /** 1.7.0-E selected operation teams, carried forward by every later ruleset that builds on it. */
-const SELECTED_TEAM_RULESETS: ReadonlySet<string> = new Set(['classic-og-v1.7-e', 'classic-og-v1.8-e']);
+const SELECTED_TEAM_RULESETS: ReadonlySet<string> = new Set(['classic-og-v1.7-e', 'classic-og-v1.8-e', 'classic-og-v1.8-f']);
 import {
   crewPlaceCounts,
   crewPlaceKey,
