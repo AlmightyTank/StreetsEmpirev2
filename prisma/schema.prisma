@@ -3242,7 +3242,7 @@ model GameEventDefinition {
   updatedAt DateTime @updatedAt
 
   @@unique([rulesetId, rulesetVersion, key])
-  @@index([rulesetId, rulesetVersion, type, isEnabled])
+  @@index([rulesetId, rulesetVersion, type, isEnabled], map: "GameEventDefinition_ruleset_type_idx")
   @@index([sourceKind, sourceKey])
 }
 
@@ -3325,7 +3325,7 @@ model GameEventProgressReceipt {
   recordedAt  DateTime @default(now())
 
   @@unique([participationId, sourceKey])
-  @@index([participationId, objectiveKey, recordedAt])
+  @@index([participationId, objectiveKey, recordedAt], map: "GameEventProgressReceipt_lookup_idx")
 }
 
 /// One durable reward claim per participation and reward key. The idempotency

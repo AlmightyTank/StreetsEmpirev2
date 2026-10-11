@@ -27,7 +27,7 @@ CREATE TABLE "GameEventDefinition" (
 );
 CREATE UNIQUE INDEX "GameEventDefinition_rulesetId_rulesetVersion_key_key"
   ON "GameEventDefinition"("rulesetId", "rulesetVersion", "key");
-CREATE INDEX "GameEventDefinition_rulesetId_rulesetVersion_type_isEnabled_idx"
+CREATE INDEX "GameEventDefinition_ruleset_type_idx"
   ON "GameEventDefinition"("rulesetId", "rulesetVersion", "type", "isEnabled");
 CREATE INDEX "GameEventDefinition_sourceKind_sourceKey_idx"
   ON "GameEventDefinition"("sourceKind", "sourceKey");
@@ -92,7 +92,7 @@ CREATE TABLE "GameEventProgressReceipt" (
 );
 CREATE UNIQUE INDEX "GameEventProgressReceipt_participationId_sourceKey_key"
   ON "GameEventProgressReceipt"("participationId", "sourceKey");
-CREATE INDEX "GameEventProgressReceipt_participationId_objectiveKey_recordedAt_idx"
+CREATE INDEX "GameEventProgressReceipt_lookup_idx"
   ON "GameEventProgressReceipt"("participationId", "objectiveKey", "recordedAt");
 
 CREATE TABLE "GameEventRewardClaim" (

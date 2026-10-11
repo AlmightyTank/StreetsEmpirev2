@@ -7,12 +7,13 @@ describe('first-class event catalog adapter', () => {
     const entries = eventCatalogForRuleset(classicOgV07T).filter((entry) => entry.type === 'COMMUNITY');
 
     expect(entries).toHaveLength(4);
-    expect(entries.map((entry) => entry.schedule)).toEqual([
-      { kind: 'ROUND_FRACTION', startFraction: 0, endFraction: 0.25 },
-      { kind: 'ROUND_FRACTION', startFraction: 0.25, endFraction: 0.5 },
-      { kind: 'ROUND_FRACTION', startFraction: 0.5, endFraction: 0.75 },
-      { kind: 'ROUND_FRACTION', startFraction: 0.75, endFraction: 1 },
-    ]);
+    const windows = Object.fromEntries(entries.map((entry) => [entry.key, entry.schedule]));
+    expect(windows).toMatchObject({
+      EVENT_OPENING_RUSH: { kind: 'ROUND_FRACTION', startFraction: 0, endFraction: 0.25 },
+      EVENT_MONEY_IN_MOTION: { kind: 'ROUND_FRACTION', startFraction: 0.25, endFraction: 0.5 },
+      EVENT_INTERSTATE_PUSH: { kind: 'ROUND_FRACTION', startFraction: 0.5, endFraction: 0.75 },
+      EVENT_LAST_CALL: { kind: 'ROUND_FRACTION', startFraction: 0.75, endFraction: 1 },
+    });
     expect(entries.every((entry) => entry.scope === 'ROUND' && entry.legacySource.kind === 'QUEST_DEFINITION')).toBe(true);
     expect(entries.find((entry) => entry.key === 'EVENT_MONEY_IN_MOTION')?.config).toMatchObject({
       personalContributionTarget: 1_000_000,
