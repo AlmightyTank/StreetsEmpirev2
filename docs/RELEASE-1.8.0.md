@@ -31,7 +31,7 @@
 | Gate | Evidence |
 | --- | --- |
 | Migration applies; service starts with and without a key | Migration check above; poller only starts with a key; board shows OFF without one. |
-| Actual TheRundown fields for ids, league, teams, start, prices, final status, scores | **Beta, manual:** provider check per league (snapshot fields and status mapping) and the first graded games (result fields). Results so far: _pending a beta key_. |
+| Actual TheRundown fields for ids, league, teams, start, prices, final status, scores | **Beta, manual:** provider check per league (snapshot fields and status mapping) and the first graded games (result fields). First beta run showed every NFL/NHL moneyline as Off: v2 nests prices at `participants[].lines[].prices[affiliate].price` (0.0001 = off the board), splits team city and mascot, and keeps the status at `score.event_status`. The parser now reads that shape (unit and end-to-end tests); re-run the provider check per league to confirm. |
 | Auth, usage headers, cadence, quota stop, recovery after failure | `sportsbook-feed.test.ts` (retries, 401 stop, 429 Retry-After, headers); integration tests for league isolation, the poll lease, outage recording and recovery; quota on the admin panel. |
 | Board shows the latest snapshot; refuses stale, missing, live and started lines | `sportsbook.service.test.ts` line states; integration tests for stale, pulled, no-line and feed-down lines. |
 | Wager debits the right wallet, spends no turns, pins odds, idempotent retry | 1.8.0-D tests: trip bankroll vs home cash, turns unchanged, pinned price after the line moves, raced retries make one ticket. |
