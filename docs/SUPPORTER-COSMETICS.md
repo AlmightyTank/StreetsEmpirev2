@@ -18,10 +18,59 @@ Both come from `SUPPORTER_COSMETICS` in `packages/rulesets/src/supporter.ts`.
 
 `SupporterService.grant(db, accountId)` writes the missing `AccountCosmeticUnlock`
 rows with `sourceQuestKey = 'supporter'` and returns the keys it added. Granting
-twice adds nothing. Until checkout exists, an admin grants it from the account
-page ("Grant supporter rewards", `POST /admin/accounts/:id/supporter`) or from
-Admin → Supporters. Every grant is audited as `account.grant-supporter`. A
-payment hook can later call the same service.
+twice adds nothing. A paid Stripe checkout or invoice grants it automatically
+(see "Payments" below), and an admin can also grant it from the account page
+("Grant supporter rewards", `POST /admin/accounts/:id/supporter`) or from
+Admin → Supporters. Every grant is audited as `account.grant-supporter`; Stripe
+grants show the actor "Stripe".
+
+## Payments (Stripe)
+
+Players support from Account → Supporting, which opens Stripe Checkout for a
+recurring subscription (`POST /api/supporter/checkout`). The checkout session
+and the subscription both carry the account id (`client_reference_id` and
+`metadata.accountId`), so every payment matches its account. Stripe's billing
+portal (`POST /api/supporter/portal`) handles card changes, receipts and
+cancelling.
+
+Stripe calls `POST /api/internal/stripe/webhook`. The route checks the
+`Stripe-Signature` header against the raw body, then
+`SupporterBillingService.handleEvent` applies the event once: its id is stored
+in `StripeWebhookEvent` in the same transaction as its changes, so a failure
+rolls back and Stripe's retry applies it cleanly.
+
+| Event | What happens |
+| --- | --- |
+| `checkout.session.completed` (paid) | Membership saved as active; rewards granted at once |
+| `invoice.paid` (amount above 0) | Payment recorded; membership active; any missing rewards granted |
+| `customer.subscription.created`, `.updated`, `.deleted` | Status, renewal date and "cancels at period end" kept current |
+| `charge.refunded` (full) | The newest payment from that customer is marked refunded |
+| `charge.dispute.created` | The newest payment from that customer is marked disputed |
+
+Refunds, disputes, cancellation and failed payments never take rewards back. A
+free trial or 100% coupon invoice records and grants nothing. Events for
+customers we cannot match are acknowledged and logged as a warning. Deleting an
+account (by the player or an admin) cancels its subscription right after the
+deletion commits; if Stripe cannot be reached, the error is logged so an admin
+can cancel it in the Stripe dashboard.
+
+`SupporterMembership` holds the current status (active and trialing count as
+supporting now; past_due and unpaid show as "payment failing"). `SupporterPayment`
+keeps each paid invoice, and keeps it, unlinked, if the account is deleted.
+
+### Setup
+
+1. In Stripe, create a product with a recurring price. Copy the price id.
+2. Add a webhook endpoint at `https://<site>/api/internal/stripe/webhook` for
+   the events in the table above. Copy its signing secret.
+3. Turn on the customer portal in Stripe's billing settings.
+4. Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and
+   `STRIPE_SUPPORTER_PRICE_ID`, then restart the API. Supporting stays off
+   until all three are set, and it is always off in tests.
+
+Use test-mode keys on dev and beta. For local testing, `stripe listen
+--forward-to localhost:3001/api/internal/stripe/webhook` prints a signing
+secret to use as `STRIPE_WEBHOOK_SECRET`.
 
 ## Admin → Supporters
 
@@ -39,8 +88,10 @@ which rewards it has and whether it wears the card.
 - **Recent grants** shows the last ten `account.grant-supporter` audit entries.
   The audit log's action filter also has "Supporter grants".
 
-There is no "currently supporting" status yet: a supporter is anyone who was
-ever granted, because rewards are permanent.
+The roster shows each supporter's Stripe subscription (Active, Ends <date>,
+Payment failing, Ended, or Manual for an admin grant with no subscription), and a
+Payments panel lists the newest paid, refunded and disputed invoices. A notice
+says when Stripe checkout is not configured.
 
 ## Midnight Chrome collection
 

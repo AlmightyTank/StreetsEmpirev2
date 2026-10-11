@@ -23,6 +23,7 @@ import { YourDataPanel } from '../components/YourDataPanel.js';
 import { TwoFactorPanel } from '../components/TwoFactorPanel.js';
 import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
+import { SupporterPanel } from '../components/SupporterPanel.js';
 import { ItemCrewCosmeticsEditor } from '../components/ItemCrewCosmeticsEditor.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
@@ -550,6 +551,8 @@ export function AccountSettingsPage() {
         <p>Replay the first-login intro, see every page intro again and bring back the getting-started goals. Every page also has a "How this page works" panel.</p>
         <ReplayTutorial className="se-btn se-btn--ghost" />
       </Panel>
+
+      <SupporterPanel />
 
       <Panel title="Cosmetics & interface">
         {!profileSettings ? (

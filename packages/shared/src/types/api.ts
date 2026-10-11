@@ -2049,3 +2049,33 @@ export interface ProductsDto {
   economy?: boolean;
   products: ProductStockDto[];
 }
+
+/** A supporter's Stripe subscription, as the account page and the admin roster show it. */
+export interface SupporterMembershipDto {
+  /** Stripe's subscription status, for example active, past_due or canceled. */
+  status: string;
+  /** Supporting right now: active or trialing. */
+  active: boolean;
+  /** The last payment failed and Stripe is retrying it. */
+  paymentFailing: boolean;
+  /** When the current paid period ends, which is the renewal date unless it is set to cancel. */
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  startedAt: string;
+  endedAt: string | null;
+}
+
+/** Account → Supporting. Rewards are kept for good; the membership says whether they support now. */
+export interface SupporterStatusDto {
+  /** Stripe checkout is set up on this server. */
+  checkoutEnabled: boolean;
+  hasRewards: boolean;
+  /** When the account first got supporter rewards. */
+  since: string | null;
+  membership: SupporterMembershipDto | null;
+}
+
+/** Where to send the player: Stripe Checkout or the Stripe billing portal. */
+export interface SupporterRedirectDto {
+  url: string;
+}

@@ -29,11 +29,9 @@ describe('site theme companion frames', () => {
       .filter((cosmetic) => cosmetic.kind === 'PROFILE_FRAME' && cosmetic.key !== 'street-pass-s1-frame')
       .map((cosmetic) => cosmetic.key);
     expect(new Set(Object.values(SITE_THEME_COMPANION_FRAMES))).toEqual(new Set(animatedFrames));
-    // Every popup effect but "none" comes with one animated Street Pass frame, except the ones a
-    // supporter cosmetic brings (the Midnight Chrome glint rides on the Signature card frame).
-    const supporterStyles = new Set(Object.values(SUPPORTER_COSMETICS).map((cosmetic) => cosmetic.styleKey));
-    const frameEffects = PROFILE_EFFECTS.filter((effect) => effect.key !== 'none' && !supporterStyles.has(effect.key));
-    expect(frameEffects.length).toBe(animatedFrames.length);
+    // Neither 'none' nor the supporter card's Chrome Glint is a theme's popup animation.
+    const themeEffects = PROFILE_EFFECTS.filter((effect) => effect.key !== 'none' && effect.key !== 'midnight-chrome');
+    expect(themeEffects.length).toBe(animatedFrames.length);
   });
 
   it('names a real popup animation and frame option for each theme\'s matched look', () => {

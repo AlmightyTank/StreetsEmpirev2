@@ -5,6 +5,7 @@ import type {
   AdminSupporterGrantResultDto,
   AdminSupporterGrantStatus,
   AdminSupportersDto,
+  SupporterMembershipDto,
 } from '@streets/shared';
 import { ADMIN_SUPPORTER_GRANT_MAX, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
@@ -33,6 +34,29 @@ const STATUS: Record<AdminSupporterGrantStatus, { label: string; tone: string }>
   self: { label: 'Your own account', tone: 'se-tag--bad' },
   duplicate: { label: 'Listed twice', tone: '' },
 };
+
+const PAYMENT_TONE: Record<string, string> = { paid: 'se-tag--good', refunded: 'se-tag--warn', disputed: 'se-tag--bad' };
+
+function money(cents: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100);
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`;
+  }
+}
+
+/** The Stripe subscription in a few words: supporting now, ending, failing or ended. */
+function MembershipTag({ membership }: { membership: SupporterMembershipDto | null }) {
+  if (!membership) return <span className="se-muted" title="Granted by an admin, no Stripe subscription">Manual</span>;
+  const until = membership.currentPeriodEnd ? new Date(membership.currentPeriodEnd).toLocaleDateString(undefined, { dateStyle: 'medium' }) : null;
+  if (membership.paymentFailing) return <span className="se-tag se-tag--bad" title={membership.status}>Payment failing</span>;
+  if (membership.active) {
+    return membership.cancelAtPeriodEnd
+      ? <span className="se-tag se-tag--warn">Ends {until ?? 'soon'}</span>
+      : <span className="se-tag se-tag--good" title={until ? `Renews ${until}` : undefined}>Active</span>;
+  }
+  return <span className="se-tag" title={membership.status}>{membership.status === 'canceled' ? 'Ended' : membership.status.replaceAll('_', ' ')}</span>;
+}
 
 /** One name per line, or separated by commas or spaces, as pasted from a supporter export. */
 function parseNames(text: string): string[] {
@@ -184,7 +208,7 @@ export function AdminSupportersPage() {
       <div className="se-pagehead se-admin-pagehead">
         <div>
           <h1 className="se-title">Supporters</h1>
-          <p className="se-eyebrow">Admin · cosmetic supporter rewards, kept for good</p>
+          <p className="se-eyebrow">Admin · Stripe supporters and cosmetic rewards, kept for good</p>
         </div>
         <div className="se-cta">
           <Link className="se-btn se-btn--ghost" to={`/game/admin/audit?action=${GRANT_ACTION}`}>All supporter grants</Link>
@@ -193,9 +217,16 @@ export function AdminSupportersPage() {
 
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <p className="se-admin-notice" role="status">{notice}</p> : null}
+      {data && !data.checkoutEnabled ? (
+        <Alert tone="info">
+          Stripe checkout is off on this server, so players cannot support yet. Set STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+          and STRIPE_SUPPORTER_PRICE_ID to turn it on. Grants below still work.
+        </Alert>
+      ) : null}
 
       <div className="se-stats se-mb">
         <Stat label="Supporters" value={data ? formatNumber(supporters.length) : '-'} />
+        <Stat label="Supporting now" value={data ? formatNumber(data.activeCount) : '-'} />
         <Stat label="Wearing the card" value={data ? formatNumber(supporters.filter((supporter) => supporter.wearingCard).length) : '-'} />
         <Stat label="Missing rewards" value={data ? formatNumber(data.missingCount) : '-'} />
       </div>
@@ -321,6 +352,7 @@ export function AdminSupportersPage() {
                   <th>Account</th>
                   <th>Supporter since</th>
                   <th>Last login</th>
+                  <th>Subscription</th>
                   <th>Rewards</th>
                   <th>Card</th>
                 </tr>
@@ -334,11 +366,49 @@ export function AdminSupportersPage() {
                     </td>
                     <td data-label="Supporter since">{adminWhen(supporter.since)}</td>
                     <td data-label="Last login">{adminWhen(supporter.lastLoginAt)}</td>
+                    <td data-label="Subscription"><MembershipTag membership={supporter.membership} /></td>
                     <td data-label="Rewards">
                       {formatNumber(supporter.rewardKeys.length)} of {formatNumber(data.rewards.length)}
                       {supporter.missingKeys.length ? <> <span className="se-tag se-tag--warn" title={supporter.missingKeys.map(rewardName).join(', ')}>Missing {formatNumber(supporter.missingKeys.length)}</span></> : null}
                     </td>
                     <td data-label="Card">{supporter.wearingCard ? <span className="se-tag se-tag--good">Wearing</span> : <span className="se-muted">-</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Payments" aside={data ? `Newest ${formatNumber(data.payments.length)}` : undefined} flush className="se-mb">
+        {!data ? (
+          <p className="se-muted se-admin-pad">Loading payments...</p>
+        ) : !data.payments.length ? (
+          <p className="se-muted se-admin-pad">No supporter payments yet.</p>
+        ) : (
+          <div className="se-tablewrap">
+            <table className="se-table se-table--cards">
+              <thead>
+                <tr>
+                  <th>Account</th>
+                  <th>Paid</th>
+                  <th className="se-table__number">Amount</th>
+                  <th>Status</th>
+                  <th>Stripe invoice</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.payments.map((payment) => (
+                  <tr key={payment.id}>
+                    <td className="se-td--title">
+                      {payment.accountId
+                        ? <Link to={`/game/admin/accounts/${payment.accountId}`}><strong>{payment.username}</strong></Link>
+                        : <span className="se-muted">Deleted account</span>}
+                    </td>
+                    <td data-label="Paid">{adminWhen(payment.paidAt)}</td>
+                    <td className="se-table__number" data-label="Amount">{money(payment.amountCents, payment.currency)}</td>
+                    <td data-label="Status"><span className={`se-tag ${PAYMENT_TONE[payment.status] ?? ''}`}>{payment.status}</span></td>
+                    <td data-label="Stripe invoice"><code>{payment.stripeInvoiceId}</code></td>
                   </tr>
                 ))}
               </tbody>

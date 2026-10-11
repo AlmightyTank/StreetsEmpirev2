@@ -1,4 +1,4 @@
-import type { ActivityDto, RoundDto, RoundStatus } from './api.js';
+import type { ActivityDto, RoundDto, RoundStatus, SupporterMembershipDto } from './api.js';
 import type { BattleReportDto } from './combat.js';
 import type { LawPageDto, WantedStageDto } from './law.js';
 import type { LoanAccountDto, LoanCollectionState, LoanDto, LoanHistoryDto, LoanReceiptDto } from './loans.js';
@@ -1708,14 +1708,29 @@ export interface AdminSupporterDto {
   accountId: string;
   username: string;
   isActive: boolean;
-  /** When the account was first given supporter rewards. */
-  since: string;
+  /** When the account was first given supporter rewards; null for a subscriber still waiting on a payment. */
+  since: string | null;
   lastLoginAt: string | null;
   rewardKeys: string[];
   /** Catalogue rewards it does not hold yet, for example one added after it was granted. */
   missingKeys: string[];
   /** Wearing the Signature Profile Card as its avatar frame. */
   wearingCard: boolean;
+  /** The Stripe subscription, if the account ever started one. */
+  membership: SupporterMembershipDto | null;
+}
+
+/** One paid supporter invoice from Stripe. */
+export interface AdminSupporterPaymentDto {
+  id: string;
+  accountId: string | null;
+  username: string | null;
+  amountCents: number;
+  currency: string;
+  /** paid, refunded or disputed. Rewards are kept either way. */
+  status: string;
+  paidAt: string;
+  stripeInvoiceId: string;
 }
 
 export interface AdminSupportersDto {
@@ -1723,6 +1738,12 @@ export interface AdminSupportersDto {
   supporters: AdminSupporterDto[];
   /** Supporters missing at least one reward. */
   missingCount: number;
+  /** Subscriptions supporting right now (active or trialing). */
+  activeCount: number;
+  /** Stripe checkout is set up on this server. */
+  checkoutEnabled: boolean;
+  /** The newest supporter payments. */
+  payments: AdminSupporterPaymentDto[];
 }
 
 /** The most usernames one bulk grant takes. */

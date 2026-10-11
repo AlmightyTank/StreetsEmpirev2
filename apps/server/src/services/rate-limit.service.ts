@@ -92,6 +92,8 @@ export function rateLimitPolicyFor(method: string, path: string): RateLimitPolic
   // The Discord bot's server-to-server API: one trusted caller behind a 64+ character
   // bearer token, and full role syncs on big servers would otherwise hit the per-IP limit.
   if (path.startsWith('/api/internal/discord/')) return null;
+  // Stripe's webhook: signed, and a backlog of retries arrives in bursts from Stripe's addresses.
+  if (path === '/api/internal/stripe/webhook') return null;
 
   if (
     (method === 'POST' && (path === '/api/auth/register' ||

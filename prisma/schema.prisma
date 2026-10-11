@@ -95,6 +95,8 @@ model Account {
   pushSubscriptions      PushSubscription[]
   profile                AccountProfile?
   cosmeticUnlocks        AccountCosmeticUnlock[]
+  supporterMembership    SupporterMembership?
+  supporterPayments      SupporterPayment[]
   roundPlayers           RoundPlayer[]
   aftermathRewardClaims RoundAftermathRewardClaim[]
   authoredNews           GameNews[]              @relation("GameNewsAuthor")
@@ -246,6 +248,56 @@ model AccountCosmeticUnlock {
   @@unique([accountId, key])
   @@index([accountId, awardedAt])
   @@index([key])
+}
+
+/// Supporter billing through Stripe: one row per account that started a
+/// subscription. The rewards themselves are AccountCosmeticUnlock rows and stay
+/// forever; this only says whether the account is supporting right now.
+model SupporterMembership {
+  accountId            String    @id
+  account              Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  stripeCustomerId     String    @unique
+  stripeSubscriptionId String?   @unique
+  /// Stripe's subscription status: active, trialing, past_due, unpaid, canceled,
+  /// incomplete, incomplete_expired or paused.
+  status               String
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  startedAt            DateTime  @default(now())
+  endedAt              DateTime?
+  /// When the newest Stripe event applied here was created, so an older,
+  /// late-arriving event never overwrites a newer status.
+  stripeEventAt        DateTime?
+  updatedAt            DateTime  @updatedAt
+
+  @@index([status])
+}
+
+/// One paid Stripe invoice for a supporter subscription. Kept when the account
+/// is deleted (the link is cleared), since it is a financial record.
+model SupporterPayment {
+  id               String   @id @default(cuid())
+  accountId        String?
+  account          Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  stripeInvoiceId  String   @unique
+  stripeCustomerId String
+  amountCents      Int
+  currency         String
+  /// paid, refunded or disputed. Refunds and disputes never take rewards back.
+  status           String
+  paidAt           DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([accountId, paidAt])
+  @@index([stripeCustomerId, paidAt])
+}
+
+/// Stripe webhook events already applied, so a redelivered event changes nothing.
+model StripeWebhookEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now())
 }
 
 /// Verified public profile connection; owned by the permanent account.

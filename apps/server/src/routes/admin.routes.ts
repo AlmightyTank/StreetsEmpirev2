@@ -42,6 +42,7 @@ import { AdminSignalsService } from '../services/admin-signals.service.js';
 import { AdminSurveyService } from '../services/admin-survey.service.js';
 import { AdminSurveyResultsService } from '../services/admin-survey-results.service.js';
 import { AdminSupporterService } from '../services/admin-supporter.service.js';
+import { SupporterBillingService } from '../services/supporter-billing.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
@@ -847,13 +848,17 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/accounts/:accountId/delete', async (request) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(deleteAccountSchema, request.body ?? {});
-    return AdminAccountService.deleteAccount(
+    const subscription = await SupporterBillingService.subscriptionToCancel(fastify.prisma, accountId);
+    const result = await AdminAccountService.deleteAccount(
       fastify.prisma,
       request.auth!.account,
       accountId,
       body.confirmation,
       body.reason,
     );
+    // A deleted account must not keep being billed.
+    await SupporterBillingService.cancelAfterErasure(subscription, request.log);
+    return result;
   });
 
   // Quest content controls (Phase X)
