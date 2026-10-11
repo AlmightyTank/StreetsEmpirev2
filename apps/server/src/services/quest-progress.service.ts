@@ -22,6 +22,11 @@ import {
   recordFirstClassCommunityEventProgress,
   syncCommunityEventAttemptsForPlayer,
 } from './community-event.service.js';
+import {
+  recordFirstClassSeasonalEventProgress,
+  syncSeasonalEventAttempts,
+  usesFirstClassSeasonalEvents,
+} from './seasonal-event.service.js';
 
 const ACTIVE_STATUSES = ['ACTIVE', 'READY_TO_TURN_IN'] as const;
 const OBJECTIVE_KINDS = new Set<QuestObjectiveKind>([
@@ -235,6 +240,7 @@ export const QuestProgressService = {
     };
 
     const communityRuleset = await syncCommunityEventAttemptsForPlayer(db, roundPlayerId, at);
+    if (communityRuleset) await syncSeasonalEventAttempts(db, roundPlayerId, communityRuleset, at);
 
     const directCandidates = await db.playerQuest.findMany({
       where: {
@@ -251,6 +257,9 @@ export const QuestProgressService = {
         .filter((candidate) => !(
           communityRuleset?.meta.eventSystem?.communityEvents === 'FIRST_CLASS'
           && isCommunityEventDefinition(communityRuleset.questDefinitions?.[candidate.questDefinition.key])
+        ) && !(
+          communityRuleset?.meta.eventSystem?.seasonalEvents === 'FIRST_CLASS'
+          && communityRuleset.questDefinitions?.[candidate.questDefinition.key]?.availability.seasonalEvent
         ))
         .map((candidate) => candidate.id),
       ...allianceCandidateIds,
@@ -272,6 +281,16 @@ export const QuestProgressService = {
       result.matched += eventProgress.matched;
       result.advanced += eventProgress.advanced;
       result.duplicate += eventProgress.duplicate;
+    }
+    if (communityRuleset && usesFirstClassSeasonalEvents(communityRuleset)) {
+      const seasonalProgress = await recordFirstClassSeasonalEventProgress(db, roundPlayerId, communityRuleset, { sourceKey: signal.sourceKey, event, at });
+      result.matched += seasonalProgress.matched;
+      result.advanced += seasonalProgress.advanced;
+      result.duplicate += seasonalProgress.duplicate;
+      result.readied += seasonalProgress.readied.length;
+      for (const ready of seasonalProgress.readied) {
+        await createPlayerActivity(db, roundPlayerId, 'QUEST_READY', json({ questKey: ready.key, title: ready.title, contactKey: null }));
+      }
     }
 
     for (const candidate of candidates) {

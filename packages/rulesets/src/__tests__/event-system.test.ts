@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07AA, classicOgV07T, classicOgV16F, classicOgV18F, classicOgV18G } from '../index.js';
+import { classicOgV07AA, classicOgV07T, classicOgV16F, classicOgV18F, classicOgV18G, classicOgV18H } from '../index.js';
 import { activeRoundEventTime, eventCatalogForRuleset } from '../event-system.js';
 
 describe('first-class event catalog adapter', () => {
@@ -7,6 +7,8 @@ describe('first-class event catalog adapter', () => {
     expect('eventSystem' in classicOgV18F.meta).toBe(false);
     expect(classicOgV18G.meta.eventSystem?.communityEvents).toBe('FIRST_CLASS');
     expect(eventCatalogForRuleset(classicOgV18G).filter((entry) => entry.type === 'COMMUNITY')).toHaveLength(4);
+    expect(classicOgV18H.meta.eventSystem).toEqual({ communityEvents: 'FIRST_CLASS', seasonalEvents: 'FIRST_CLASS' });
+    expect(eventCatalogForRuleset(classicOgV18H).filter((entry) => entry.type === 'SEASONAL')).toHaveLength(2);
   });
 
   it('maps Phase U community jobs to round-scoped quarter windows', () => {

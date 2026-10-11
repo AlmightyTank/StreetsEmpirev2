@@ -80,6 +80,14 @@ import {
   syncCommunityEventAttempts,
   type CommunityEventSnapshot,
 } from './community-event.service.js';
+import {
+  acceptSeasonalEvent,
+  assertSeasonalEventClaim,
+  isSeasonalEventDefinition,
+  recordSeasonalEventClaim,
+  syncSeasonalEventAttempts,
+  usesFirstClassSeasonalEvents,
+} from './seasonal-event.service.js';
 
 const TRACKED_LIMIT = 3;
 /** Shared-board work: not counted as a personal job and not abandonable. Personal jobs have no cap. */
@@ -636,6 +644,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   newlyAvailable.push(...await syncSeasonContractAttempts(db, roundPlayerId, ruleset));
   newlyAvailable.push(...await syncAllianceContractAttempts(db, roundPlayerId, ruleset, now));
   await syncCommunityEventAttempts(db, roundPlayerId, ruleset, now);
+  await syncSeasonalEventAttempts(db, roundPlayerId, ruleset, now);
   await refreshCommunityEventReadinessForPlayer(db, roundPlayerId, ruleset, now);
   newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
   await autoAcceptBoardWork(db, roundPlayerId, ruleset, now);
@@ -666,6 +675,13 @@ async function startQuest(db: Db, roundPlayerId: string, row: QuestRow, ruleset:
       isTracked: track,
     },
   });
+  const definition = ruleset.questDefinitions?.[row.questDefinition.key];
+  if (isSeasonalEventDefinition(definition)) {
+    const expiresAt = definition.expiresAfterMinutes
+      ? new Date(acceptedAt.getTime() + definition.expiresAfterMinutes * 60_000)
+      : null;
+    await acceptSeasonalEvent(db, roundPlayerId, ruleset, definition.key, acceptedAt, expiresAt);
+  }
   await QuestProgressService.emit(db, roundPlayerId, {
     sourceKey: `quest-accept:${row.id}:${acceptedAt.getTime()}`,
     type: 'QUEST_ACCEPTED',
@@ -1046,10 +1062,12 @@ export const HandcraftedQuestService = {
       idempotencyScope: `QUEST_CLAIM:${key}`,
       execute: async ({ tx, current, now, player }) => {
         const communityEvent = isCommunityEventDefinition(ruleset.questDefinitions?.[key]);
+        const seasonalEvent = usesFirstClassSeasonalEvents(ruleset) && isSeasonalEventDefinition(ruleset.questDefinitions?.[key]);
         if (communityEvent) {
           await syncCommunityEventAttempts(tx, roundPlayerId, ruleset, now);
           await refreshCommunityEventReadinessForPlayer(tx, roundPlayerId, ruleset, now);
         }
+        if (seasonalEvent) await syncSeasonalEventAttempts(tx, roundPlayerId, ruleset, now);
         const row = await loadQuest(tx, roundPlayerId, ruleset, key);
         if (row.expiresAt && row.expiresAt.getTime() <= now.getTime()) {
           throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
@@ -1071,6 +1089,7 @@ export const HandcraftedQuestService = {
         if (communityEvent) {
           await assertCommunityEventClaim(tx, row);
         }
+        if (seasonalEvent) await assertSeasonalEventClaim(tx, roundPlayerId, ruleset, key);
         const selectedBranch = resolveQuestBranchForClaim(
           rulesetDefinition,
           input.branchKey,
@@ -1139,6 +1158,7 @@ export const HandcraftedQuestService = {
         if (communityEvent) {
           await recordCommunityEventClaim(tx, row, questRewards, now);
         }
+        if (seasonalEvent) await recordSeasonalEventClaim(tx, roundPlayerId, ruleset, key, now);
         const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now);
         const dtoRewards = visibleRewards(questRewards).map((reward) => rewardDto(reward, ruleset));
 
