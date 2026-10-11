@@ -1,15 +1,15 @@
 # StreetsEmpire 1.8.0 release gate — Pregame Sportsbook
 
-1.8.0 adds a pregame moneyline sportsbook to the casino: NFL, NBA, MLB and NHL from TheRundown, paid in game cash, no turns spent, closed at the scheduled start. Slices A–E are on beta. This page is the release checklist and records the market expansion decision.
+1.8.0 adds a pregame moneyline sportsbook to the casino: NFL, NBA, MLB and NHL from TheRundown, paid in casino chips, no turns spent, closed at the scheduled start. Slices A–E are on beta. This page is the release checklist and records the market expansion decision.
 
 ## What ships
 
 | Slice | In short |
 | --- | --- |
-| A — Foundation | Shared odds cache polled by the server, Sports Betting in the casino, game-cash tickets with pinned odds, exactly-once settlement. |
+| A — Foundation | Shared odds cache polled by the server, Sports Betting in the casino, casino-chip tickets with pinned odds, exactly-once settlement. |
 | B — Ticket clarity | League filter, day grouping, kickoff countdowns, feed freshness, a bet slip with payout preview and moved-price protection, open/settled ticket history. |
 | C — Feed reliability | Retries and run-wide stops, one poller at a time, pulled lines, paced result checks, admin feed panel with audited recheck and void. |
-| D — Limits | `SPORTSBOOK_LIMITS` tuned by `npm run qa:sportsbook`; concurrency, cash-location and settlement-edge tests. |
+| D — Limits | `SPORTSBOOK_LIMITS` tuned by `npm run qa:sportsbook`; concurrency, casino-bankroll and settlement-edge tests. |
 | E — Release | Sportsbook pinned to `classic-og-v1.8-e`; feed-run log and grading source; market expansion readiness; provider payload check; this checklist. |
 
 ## Run the gates
@@ -35,7 +35,7 @@
 | Auth, usage headers, cadence, quota stop, recovery after failure | `sportsbook-feed.test.ts` (retries, 401 stop, 429 Retry-After, headers); integration tests for league isolation, the poll lease, outage recording and recovery; quota on the admin panel. |
 | Board shows the latest snapshot; refuses stale, missing, live and started lines | `sportsbook.service.test.ts` line states; integration tests for stale, pulled, no-line and feed-down lines. |
 | Wager debits the right wallet, spends no turns, pins odds, idempotent retry | 1.8.0-D tests: trip bankroll vs home cash, turns unchanged, pinned price after the line moves, raced retries make one ticket. |
-| Simultaneous wagers cannot overspend; no wager after kickoff via clock or body | Concurrent wager tests against cash and the daily limit; the server checks `startsAt` against its own clock and ignores the client's. |
+| Simultaneous wagers cannot overspend; no wager after kickoff via clock or body | Concurrent wager tests against casino chips and the daily limit; the server checks `startsAt` against its own clock and ignores the client's. |
 | Win, loss, push, void and repeated settlement exactly once | Settlement race test (three concurrent settlements, one payout), push/void/loss/late-correction tests. |
 | Button, switcher, route, board and closed-line messages on desktop, mobile, keyboard | UI audit above; slice B and E browser checks. |
 | Sportsbook stays out of earlier pinned rulesets | Every ruleset except `classic-og-v1.8-e` has no `casino.sportsbook` (unit test); a 1.7.0-E round refuses tickets but still settles old ones (integration test). |

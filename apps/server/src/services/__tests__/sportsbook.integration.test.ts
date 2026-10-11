@@ -8,7 +8,6 @@ import type { Prisma } from '@prisma/client';
 import { classicOgV17E, classicOgV18E, type Ruleset } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import { ReputationService } from '../reputation.service.js';
-import { refreshAwayWorth } from '../run-settle.service.js';
 import { SportsbookService, settleSportsbookEvent } from '../sportsbook.service.js';
 import { refreshSportsbookCache } from '../sportsbook-feed.service.js';
 import { AdminSportsbookService } from '../admin-sportsbook.service.js';
@@ -38,7 +37,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     });
     roundIds.push(round.id);
     const city = await app.prisma.city.findUniqueOrThrow({ where: { slug: 'new-york-city' } });
-    return app.prisma.roundPlayer.create({
+    const player = await app.prisma.roundPlayer.create({
       data: {
         ...ruleset.round.startingPlayer,
         ...startingStock(ruleset),
@@ -49,6 +48,10 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
         reputation: { create: ReputationService.seedFor(ruleset) },
       },
     });
+    await app.prisma.casinoSession.create({
+      data: { roundPlayerId: player.id, cityId: city.id, bankrollCents: 500_000n, openedAt: now },
+    });
+    return player;
   }
 
   async function event(data: Partial<{ providerEventId: string; sport: string; startsAt: Date; oddsUpdatedAt: Date | null; homeOdds: number | null; awayOdds: number | null; status: string; homeScore: number; awayScore: number; lastSeenAt: Date; settledAt: Date }> = {}) {
@@ -143,10 +146,11 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
       eventId: game.id, selection: 'AWAY', stakeCents: 10_000, actionId: randomUUID(), expectedOdds: 130,
     }, now);
     expect(placed.bet).toMatchObject({ oddsAmerican: 130, stakeCents: 10_000, payoutCents: 23_000 });
-    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).cashCents).toBe(490_000n);
+    expect((await app.prisma.casinoSession.findFirstOrThrow({ where: { roundPlayerId: player.id, status: 'OPEN' } })).bankrollCents).toBe(490_000n);
+    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).cashCents).toBe(500_000n);
   });
 
-  it('splits open tickets from settled history with a lifetime record and cash returned', async () => {
+  it('splits open tickets from settled history with a lifetime chip record', async () => {
     const player = await fixture();
     const upcoming = await event({ startsAt: minutes(60) });
     const later = await event({ startsAt: minutes(240) });
@@ -389,17 +393,18 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     await app.prisma.adminAuditLog.deleteMany({ where: { targetId: { in: [stuck.id, pulled.id] } } });
   });
 
-  // ---- 1.8.0-D: limits, repeat and concurrent wagers, cash location, settlement edges ------
+  // ---- 1.8.0-D: limits, repeat and concurrent wagers, casino chips, settlement edges --------
 
   const dNow = new Date('2032-02-01T16:00:00.000Z');
   const dAt = (count: number) => new Date(dNow.getTime() + count * 60_000);
   const openGame = (data: Parameters<typeof event>[0] = {}) => event({ startsAt: dAt(180), oddsUpdatedAt: dAt(-5), ...data });
-  const cashOf = async (id: string) => (await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id } })).cashCents;
+  const chipsOf = async (id: string) => (await app.prisma.casinoSession.findFirstOrThrow({ where: { roundPlayerId: id, status: 'OPEN' } })).bankrollCents;
   const wager = (playerId: string, eventId: string, stakeCents: number, extra: Partial<{ selection: 'HOME' | 'AWAY'; actionId: string; expectedOdds: number }> = {}) =>
     SportsbookService.placeBet(app.prisma, playerId, { eventId, selection: 'AWAY', stakeCents, actionId: randomUUID(), ...extra }, dNow);
-  async function playerWith(cashCents: bigint) {
+  async function playerWith(bankrollCents: bigint) {
     const player = await fixture();
-    return app.prisma.roundPlayer.update({ where: { id: player.id }, data: { cashCents } });
+    await app.prisma.casinoSession.updateMany({ where: { roundPlayerId: player.id, status: 'OPEN' }, data: { bankrollCents } });
+    return player;
   }
 
   it('turns a repeated or raced request into one ticket and one debit', async () => {
@@ -410,7 +415,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     const raced = await Promise.all([1, 2, 3].map(() => SportsbookService.placeBet(app.prisma, player.id, input, dNow)));
     expect(raced.filter((result) => !result.replayed)).toHaveLength(1);
     expect(new Set(raced.map((result) => result.bet.id)).size).toBe(1);
-    expect(await cashOf(player.id)).toBe(990_000n);
+    expect(await chipsOf(player.id)).toBe(990_000n);
 
     // A retry after the line moved still returns the ticket as accepted, at its pinned price.
     await app.prisma.sportsbookEvent.update({ where: { id: game.id }, data: { awayOdds: 175 } });
@@ -419,18 +424,18 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     await expect(SportsbookService.placeBet(app.prisma, player.id, { ...input, stakeCents: 20_000 }, dNow))
       .rejects.toMatchObject({ code: 'ACTION_ID_REUSED' });
     expect(await app.prisma.sportsbookBet.count({ where: { roundPlayerId: player.id } })).toBe(1);
-    expect(await cashOf(player.id)).toBe(990_000n);
+    expect(await chipsOf(player.id)).toBe(990_000n);
   });
 
-  it('never lets concurrent wagers overspend cash or the daily limit', async () => {
+  it('never lets concurrent wagers overspend casino chips or the daily limit', async () => {
     await resetFeedState({ lastPolledAt: dAt(-5) });
     const short = await playerWith(3_000_000n);
     const games = await Promise.all(Array.from({ length: 5 }, () => openGame()));
     const spent = await Promise.allSettled(games.map((game) => wager(short.id, game.id, 1_000_000)));
     expect(spent.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(3);
     expect(spent.filter((outcome) => outcome.status === 'rejected').map((outcome) => (outcome as PromiseRejectedResult).reason.code))
-      .toEqual(['NOT_ENOUGH_CASH', 'NOT_ENOUGH_CASH']);
-    expect(await cashOf(short.id)).toBe(0n);
+      .toEqual(['NOT_ENOUGH_BANKROLL', 'NOT_ENOUGH_BANKROLL']);
+    expect(await chipsOf(short.id)).toBe(0n);
 
     const rich = await playerWith(100_000_000n);
     const slate = await Promise.all(Array.from({ length: 8 }, () => openGame()));
@@ -439,7 +444,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(daily.filter((outcome) => outcome.status === 'rejected').every((outcome) => (outcome as PromiseRejectedResult).reason.code === 'SPORTSBOOK_DAILY_LIMIT')).toBe(true);
     const staked = await app.prisma.sportsbookBet.aggregate({ where: { roundPlayerId: rich.id }, _sum: { stakeCents: true } });
     expect(staked._sum.stakeCents).toBe(12_000_000n);
-    expect(await cashOf(rich.id)).toBe(88_000_000n);
+    expect(await chipsOf(rich.id)).toBe(88_000_000n);
   });
 
   it('caps long-shot winnings, one game, open tickets and one side of the book', async () => {
@@ -475,38 +480,29 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(limits).toMatchObject({ openTickets: 20, openStakeCents: 20_000, dailyStakeCents: 0 });
   });
 
-  it('spends and pays the cash where the boss actually is', async () => {
+  it('spends an open casino bankroll and returns a later payout to its casino wallet', async () => {
     await resetFeedState({ lastPolledAt: dAt(-5) });
-    const traveler = await fixture();
-    const trip = await app.prisma.bossTrip.create({ data: {
-      roundPlayerId: traveler.id, homeCity: 'new-york-city', city: 'las-vegas',
-      bankrollCents: 300_000n, startBankrollCents: 300_000n, ticketCents: 0n, hotelCents: 0n, turnsSpent: 0,
-      departedAt: dAt(-120), arrivesAt: dAt(-60), stayUntil: dAt(600), returnsAt: dAt(720),
-    } });
-    await app.prisma.$transaction((tx) => refreshAwayWorth(tx, traveler.id, classicOgV18E));
+    const player = await fixture();
     const first = await openGame();
     const second = await openGame();
-    await wager(traveler.id, first.id, 100_000);
-    await wager(traveler.id, second.id, 50_000, { selection: 'HOME' });
-    expect((await app.prisma.bossTrip.findUniqueOrThrow({ where: { id: trip.id } })).bankrollCents).toBe(150_000n);
-    expect(await cashOf(traveler.id)).toBe(500_000n);
+    await wager(player.id, first.id, 100_000);
+    await wager(player.id, second.id, 50_000, { selection: 'HOME' });
+    expect(await chipsOf(player.id)).toBe(350_000n);
+    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).cashCents).toBe(500_000n);
 
-    // Still in Vegas when the first result lands: winnings go to the trip bankroll.
+    // A result credits the same open floor bankroll.
     await settleSportsbookEvent(app.prisma, first.id, 'FINAL', 90, 100, dAt(240));
-    expect((await app.prisma.bossTrip.findUniqueOrThrow({ where: { id: trip.id } })).bankrollCents).toBe(380_000n);
-    // Home again for the second: it lands in home cash.
-    await app.prisma.bossTrip.update({ where: { id: trip.id }, data: { status: 'RETURNED', returnedAt: dAt(250) } });
-    await settleSportsbookEvent(app.prisma, second.id, 'FINAL', 110, 100, dAt(260));
-    expect(await cashOf(traveler.id)).toBe(583_333n);
+    expect(await chipsOf(player.id)).toBe(580_000n);
 
-    // Mid-relocation the boss has no cash on hand to bet, but a result still pays home cash.
-    const mover = await fixture();
-    const game = await openGame();
-    await wager(mover.id, game.id, 10_000);
-    await app.prisma.roundPlayer.update({ where: { id: mover.id }, data: { movingUntil: dAt(300) } });
-    await expect(wager(mover.id, (await openGame()).id, 10_000)).rejects.toMatchObject({ code: 'NOT_ENOUGH_CASH' });
-    await settleSportsbookEvent(app.prisma, game.id, 'FINAL', 1, 2, dAt(240));
-    expect(await cashOf(mover.id)).toBe(513_000n);
+    // If the player has left the floor, the payout waits in that casino city's chip wallet.
+    const session = await app.prisma.casinoSession.findFirstOrThrow({ where: { roundPlayerId: player.id, status: 'OPEN' } });
+    await app.prisma.casinoSession.update({ where: { id: session.id }, data: { status: 'CLOSED', bankrollCents: 0n, closedAt: dAt(250) } });
+    await app.prisma.casinoWallet.create({ data: { roundPlayerId: player.id, cityId: session.cityId, chipsCents: 580_000n } });
+    await settleSportsbookEvent(app.prisma, second.id, 'FINAL', 110, 100, dAt(260));
+    expect((await app.prisma.casinoWallet.findUniqueOrThrow({ where: { roundPlayerId_cityId: { roundPlayerId: player.id, cityId: session.cityId } } })).chipsCents).toBe(663_333n);
+    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).cashCents).toBe(500_000n);
+
+    await expect(wager(player.id, (await openGame()).id, 10_000)).rejects.toMatchObject({ code: 'CASINO_SESSION_REQUIRED' });
   });
 
   it('settles pushes, cancellations and late corrections exactly once, without touching turns', async () => {
@@ -518,7 +514,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     await wager(player.id, cancelled.id, 20_000);
     await wager(player.id, lost.id, 30_000);
     await wager(player.id, moved.id, 40_000);
-    expect(await cashOf(player.id)).toBe(900_000n);
+    expect(await chipsOf(player.id)).toBe(900_000n);
 
     // Line movement after acceptance never touches a pinned ticket.
     await app.prisma.sportsbookEvent.update({ where: { id: moved.id }, data: { awayOdds: 200, homeOdds: -240, oddsUpdatedAt: dAt(30) } });
@@ -535,7 +531,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(settled[lost.id]!.status).toBe('LOST');
     expect(settled[moved.id]).toMatchObject({ status: 'WON', oddsAmerican: 130, payoutCents: 92_000n });
     // Stakes back on the push and void, nothing on the loss, the pinned payout on the win.
-    expect(await cashOf(player.id)).toBe(1_022_000n);
+    expect(await chipsOf(player.id)).toBe(1_022_000n);
 
     // The provider corrects every score afterwards: nothing is graded or paid again.
     const late = await Promise.all([
@@ -546,7 +542,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     ]);
     expect(late).toEqual([null, null, null, null]);
     expect(await statuses()).toEqual(settled);
-    expect(await cashOf(player.id)).toBe(1_022_000n);
+    expect(await chipsOf(player.id)).toBe(1_022_000n);
     expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).turns).toBe(turns);
   });
 
@@ -565,13 +561,14 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(await SportsbookService.limits(app.prisma, older.id, eNow)).toMatchObject({ available: false });
     expect(await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: older.id } })).toMatchObject({ cashCents: 500_000n });
 
-    // A ticket from before the switch (written directly: 1.7 rounds took them under 1.8.0-A) still pays.
+    // A ticket from before chip origins were stored still settles as casino chips, never cash.
     await app.prisma.sportsbookBet.create({ data: {
       roundPlayerId: older.id, eventId: game.id, actionId: randomUUID(), selection: 'AWAY', oddsAmerican: 130,
       stakeCents: 10_000n, payoutCents: 23_000n, createdAt: eAt(-60),
     } });
     await settleSportsbookEvent(app.prisma, game.id, 'FINAL', 1, 4, eAt(300));
-    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: older.id } })).cashCents).toBe(523_000n);
+    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: older.id } })).cashCents).toBe(500_000n);
+    expect((await app.prisma.casinoSession.findFirstOrThrow({ where: { roundPlayerId: older.id, status: 'OPEN' } })).bankrollCents).toBe(523_000n);
     expect((await SportsbookService.tickets(app.prisma, older.id)).settled[0]).toMatchObject({ status: 'WON', returnCents: 23_000 });
 
     const current = await fixture();
@@ -716,6 +713,6 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     await refreshSportsbookCache(app.prisma, 'test-key', new Date(now2.getTime() + 7 * 3_600_000), feed);
     expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: stored.id } })).toMatchObject({ status: 'FINAL', homeScore: 24, awayScore: 17, settledVia: 'FEED' });
     // $100 at +145 pays $245.
-    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).cashCents).toBe(514_500n);
+    expect((await app.prisma.casinoSession.findFirstOrThrow({ where: { roundPlayerId: player.id, status: 'OPEN' } })).bankrollCents).toBe(514_500n);
   });
 });

@@ -4,7 +4,7 @@ import type { SportsbookBetStatus, SportsbookLineState } from './types/sportsboo
 export const SPORTSBOOK_ODDS_MAX_AGE_MINUTES = 45;
 
 /**
- * 1.8.0-D. Game-cash risk limits, tuned with `npm run qa:sportsbook` (docs/SPORTSBOOK-SIMULATION-1.8.0-D.md).
+ * 1.8.0-D. Sportsbook risk limits, tuned with `npm run qa:sportsbook` (docs/SPORTSBOOK-SIMULATION-1.8.0-D.md).
  * Every limit is checked on the server inside the wager transaction; the bet slip uses the same
  * function only to show the player their largest allowed stake before they press the button.
  */
@@ -70,7 +70,7 @@ export function sportsbookLineReason(state: SportsbookLineState): string | null 
   }
 }
 
-/** Game cash a ticket hands back when it settles. */
+/** Casino chips a ticket hands back when it settles. */
 export function sportsbookReturnCents(status: SportsbookBetStatus, stakeCents: number, payoutCents: number): number {
   if (status === 'WON') return payoutCents;
   if (status === 'PUSH' || status === 'VOID') return stakeCents;
@@ -83,8 +83,8 @@ export const SPORTSBOOK_QUOTA_RESULTS_FLOOR = 50;
 
 /** What a player (and the book) already has riding, for the limit check. */
 export interface SportsbookStakeUsage {
-  /** Cash on hand where the boss is now. The server leaves this unbounded and lets the debit decide. */
-  readonly cashCents: number;
+  /** Chips in the open floor bankroll. The server leaves this unbounded and lets the locked debit decide. */
+  readonly bankrollCents: number;
   readonly openStakeCents: number;
   readonly openTickets: number;
   readonly dailyStakeCents: number;
@@ -102,7 +102,7 @@ export type SportsbookLimitCode =
   | 'SPORTSBOOK_OPEN_TICKETS'
   | 'SPORTSBOOK_DAILY_LIMIT'
   | 'SPORTSBOOK_SIDE_LIMIT'
-  | 'NOT_ENOUGH_CASH';
+  | 'NOT_ENOUGH_BANKROLL';
 
 export function sportsbookProfitCents(stakeCents: number, odds: number): number {
   return sportsbookPayoutCents(stakeCents, odds) - stakeCents;
@@ -136,7 +136,7 @@ export function sportsbookMaxStake(
     ['SPORTSBOOK_OPEN_LIMIT', limits.openStakeCents - usage.openStakeCents],
     ['SPORTSBOOK_DAILY_LIMIT', limits.dailyStakeCents - usage.dailyStakeCents],
     ['SPORTSBOOK_SIDE_LIMIT', sportsbookStakeForProfit(limits.sideLiabilityCents - usage.sideLiabilityCents, odds, ceiling)],
-    ['NOT_ENOUGH_CASH', usage.cashCents],
+    ['NOT_ENOUGH_BANKROLL', usage.bankrollCents],
   ];
   let best = candidates[0]!;
   for (const candidate of candidates) if (candidate[1] < best[1]) best = candidate;
@@ -178,7 +178,7 @@ export function sportsbookStakeCheck(
     SPORTSBOOK_SIDE_LIMIT: maxStakeCents
       ? `This side is near the book's limit and can take ${left} more.`
       : 'This side has reached the book\'s limit for this game.',
-    NOT_ENOUGH_CASH: `You have ${money(usage.cashCents)} cash on hand.`,
+    NOT_ENOUGH_BANKROLL: `You have ${money(usage.bankrollCents)} in casino chips on the floor.`,
   }[binding];
   return { code: binding, message, maxStakeCents };
 }

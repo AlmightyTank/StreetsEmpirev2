@@ -276,6 +276,32 @@ function ledgerDisplay(entry: {
       tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
     };
   }
+  if (entry.kind === 'SPORTSBOOK_BET' || entry.kind === 'SPORTSBOOK_SETTLEMENT') {
+    const meta = entry.metadata as unknown as {
+      pickTeam?: string;
+      oddsAmerican?: number;
+      stakeCents?: number;
+      returnCents?: number;
+      status?: string;
+    };
+    const placed = entry.kind === 'SPORTSBOOK_BET';
+    const stake = typeof meta.stakeCents === 'number' ? meta.stakeCents : abs(entry.sessionChipDeltaCents);
+    const returned = typeof meta.returnCents === 'number'
+      ? meta.returnCents
+      : Math.max(0, Number(entry.sessionChipDeltaCents || entry.walletChipDeltaCents));
+    const team = typeof meta.pickTeam === 'string' ? meta.pickTeam : 'Sports ticket';
+    const odds = typeof meta.oddsAmerican === 'number' ? ` ${meta.oddsAmerican > 0 ? '+' : ''}${meta.oddsAmerican}` : '';
+    const status = typeof meta.status === 'string' ? meta.status.toLowerCase() : 'settled';
+    return {
+      title: placed ? `Sports ticket · ${team}` : `Sports ticket ${status} · ${team}`,
+      detail: placed
+        ? `Staked ${formatLedgerMoney(stake)} in casino chips at ${team}${odds}.`
+        : `${formatLedgerMoney(returned)} returned to casino chips.`,
+      amountLabel: placed ? 'Wagered' : meta.status === 'WON' ? 'Paid' : 'Returned',
+      amountCents: placed ? stake : returned,
+      tone: placed ? 'negative' : 'positive',
+    };
+  }
   if (entry.kind === 'POKER_BUY_IN' || entry.kind === 'POKER_CASH_OUT') {
     const meta = entry.metadata as unknown as { action?: string; buyInCents?: number; returnCents?: number; outcome?: string };
     const buying = entry.kind === 'POKER_BUY_IN';
@@ -422,27 +448,143 @@ async function moveLocalCash(
   await refreshAwayWorth(tx, roundPlayerId, ruleset);
 }
 
-/** Move sportsbook cash from the boss's current physical wallet without touching turns. */
-export async function moveSportsbookCash(
+/**
+ * Debit a sportsbook ticket from the open casino-floor bankroll. Sports betting
+ * uses the same chips, venue rules and session location as every other game.
+ */
+export async function debitSportsbookChips(
   tx: Db,
   roundPlayerId: string,
   ruleset: Ruleset,
-  deltaCents: bigint,
+  amountCents: bigint,
+  actionId: string,
+  metadata: Prisma.InputJsonValue,
   now: Date,
-): Promise<void> {
+): Promise<{ casinoSessionId: string; casinoCityId: string; bankrollAfterCents: bigint }> {
   const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, include: { city: true, round: true } });
   if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
-  const location = await casinoCashLocation(tx, ruleset, player, now);
-  if (!location) {
-    if (deltaCents < 0n) throw AppError.conflict('NOT_ENOUGH_CASH', 'The boss does not have available cash on hand for that wager.');
-    // A result may settle while the boss is between locations; credit safe home cash.
-    await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { cashCents: { increment: deltaCents } } });
+  const casino = requireCasino(ruleset);
+  const { city, venue } = await currentVenue(tx, ruleset, casino, player, now);
+  const session = await tx.casinoSession.findFirst({
+    where: { roundPlayerId, status: 'OPEN' },
+    orderBy: { openedAt: 'desc' },
+  });
+  if (!session) throw AppError.conflict('CASINO_SESSION_REQUIRED', 'Open a casino bankroll before placing a sports ticket.');
+  if (session.cityId !== city.id) {
+    throw AppError.conflict('CASINO_SESSION_ELSEWHERE', 'Your open bankroll belongs to another casino. Close it before betting here.');
+  }
+  if (session.bankrollCents < amountCents) {
+    throw AppError.conflict('NOT_ENOUGH_BANKROLL', 'There are not enough chips in the open bankroll for that ticket.');
+  }
+
+  const bankrollAfterCents = session.bankrollCents - amountCents;
+  await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfterCents } });
+  const wallet = await tx.casinoWallet.findUnique({
+    where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } },
+  });
+  await tx.casinoLedgerEntry.create({
+    data: {
+      roundPlayerId,
+      cityId: city.id,
+      sessionId: session.id,
+      actionId,
+      kind: 'SPORTSBOOK_BET',
+      sessionChipDeltaCents: -amountCents,
+      walletChipsAfterCents: wallet?.chipsCents ?? 0n,
+      sessionChipsAfterCents: bankrollAfterCents,
+      metadata: { ...(metadata as Prisma.JsonObject), venue: venue.name },
+    },
+  });
+  return { casinoSessionId: session.id, casinoCityId: city.id, bankrollAfterCents };
+}
+
+/**
+ * Return a sportsbook result as chips. An open originating session receives
+ * the credit on the floor; otherwise it waits in that casino city's wallet.
+ */
+export async function creditSportsbookChips(
+  tx: Db,
+  input: {
+    roundPlayerId: string;
+    casinoSessionId: string | null;
+    casinoCityId: string;
+    amountCents: bigint;
+    actionId: string;
+    metadata: Prisma.InputJsonValue;
+  },
+): Promise<void> {
+  const session = input.casinoSessionId
+    ? await tx.casinoSession.findUnique({ where: { id: input.casinoSessionId } })
+    : null;
+  const wallet = await tx.casinoWallet.findUnique({
+    where: { roundPlayerId_cityId: { roundPlayerId: input.roundPlayerId, cityId: input.casinoCityId } },
+  });
+
+  if (session?.status === 'OPEN' && session.roundPlayerId === input.roundPlayerId && session.cityId === input.casinoCityId) {
+    const bankrollAfterCents = session.bankrollCents + input.amountCents;
+    await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfterCents } });
+    await tx.casinoLedgerEntry.create({
+      data: {
+        roundPlayerId: input.roundPlayerId,
+        cityId: input.casinoCityId,
+        sessionId: session.id,
+        actionId: input.actionId,
+        kind: 'SPORTSBOOK_SETTLEMENT',
+        sessionChipDeltaCents: input.amountCents,
+        walletChipsAfterCents: wallet?.chipsCents ?? 0n,
+        sessionChipsAfterCents: bankrollAfterCents,
+        metadata: input.metadata,
+      },
+    });
     return;
   }
-  if (deltaCents < 0n && location.cashCents < -deltaCents) {
-    throw AppError.conflict('NOT_ENOUGH_CASH', 'The boss does not have enough cash on hand for that wager.');
-  }
-  await moveLocalCash(tx, roundPlayerId, ruleset, location, deltaCents);
+
+  const nextWallet = await tx.casinoWallet.upsert({
+    where: { roundPlayerId_cityId: { roundPlayerId: input.roundPlayerId, cityId: input.casinoCityId } },
+    update: { chipsCents: { increment: input.amountCents } },
+    create: { roundPlayerId: input.roundPlayerId, cityId: input.casinoCityId, chipsCents: input.amountCents },
+  });
+  await tx.casinoLedgerEntry.create({
+    data: {
+      roundPlayerId: input.roundPlayerId,
+      cityId: input.casinoCityId,
+      sessionId: session?.id ?? null,
+      actionId: input.actionId,
+      kind: 'SPORTSBOOK_SETTLEMENT',
+      walletChipDeltaCents: input.amountCents,
+      walletChipsAfterCents: nextWallet.chipsCents,
+      sessionChipsAfterCents: 0n,
+      metadata: input.metadata,
+    },
+  });
+}
+
+/**
+ * Finish a legacy sportsbook ticket that predates persisted casino origins.
+ * Even those tickets settle as casino chips now: an open floor bankroll receives
+ * the result, otherwise the player's home/current city chip wallet does.
+ */
+export async function creditLegacySportsbookChips(
+  tx: Db,
+  roundPlayerId: string,
+  amountCents: bigint,
+  actionId: string,
+  metadata: Prisma.InputJsonValue,
+): Promise<void> {
+  const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, include: { city: true } });
+  if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
+  const session = await tx.casinoSession.findFirst({
+    where: { roundPlayerId, status: 'OPEN' },
+    orderBy: { openedAt: 'desc' },
+  });
+  await creditSportsbookChips(tx, {
+    roundPlayerId,
+    casinoSessionId: session?.id ?? null,
+    casinoCityId: session?.cityId ?? player.cityId,
+    amountCents,
+    actionId,
+    metadata,
+  });
 }
 
 function venueDto(
@@ -495,7 +637,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const currentCitySlug = cashLocation?.citySlug ?? null;
   const citySlugs = Object.keys(casino.venues);
   const slotRules = casino.slots?.machines ?? [];
-  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow, blackjackCommitted, streetDiceCommitted, pokerCommitted] = await Promise.all([
+  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow, blackjackCommitted, streetDiceCommitted, sportsbookCommitted, pokerCommitted] = await Promise.all([
     db.city.findMany({ where: { slug: { in: citySlugs }, isEnabled: true }, orderBy: { sortOrder: 'asc' } }),
     db.casinoWallet.findMany({ where: { roundPlayerId }, include: { city: true } }),
     db.casinoSession.findFirst({
@@ -520,6 +662,10 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     db.casinoStreetDiceRound.aggregate({
       where: { roundPlayerId, status: 'ACTIVE' },
       _sum: { lineWagerCents: true, oddsWagerCents: true },
+    }),
+    db.sportsbookBet.aggregate({
+      where: { roundPlayerId, status: 'OPEN', casinoCityId: { not: null } },
+      _sum: { stakeCents: true },
     }),
     pokerCommittedCents(db, roundPlayerId),
   ]);
@@ -635,6 +781,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const blackjackCommittedTotal = blackjackCommitted._sum.committedWagerCents ?? 0n;
   const streetDiceCommittedTotal =
     (streetDiceCommitted._sum.lineWagerCents ?? 0n) + (streetDiceCommitted._sum.oddsWagerCents ?? 0n);
+  const sportsbookCommittedTotal = sportsbookCommitted._sum.stakeCents ?? 0n;
   const status = await CasinoStatusService.page(db, ruleset, player, currentCitySlug, now);
 
   return {
@@ -647,7 +794,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     slotMachines,
     freeSpinBonus,
     recentLedger,
-    totalCasinoValueCents: Number(walletTotal + sessionTotal + blackjackCommittedTotal + streetDiceCommittedTotal + pokerCommitted),
+    totalCasinoValueCents: Number(walletTotal + sessionTotal + blackjackCommittedTotal + streetDiceCommittedTotal + sportsbookCommittedTotal + pokerCommitted),
     limits: {
       chipUnitCents: casino.chipUnitCents,
       cashierMinCents: casino.cashier.minExchangeCents,

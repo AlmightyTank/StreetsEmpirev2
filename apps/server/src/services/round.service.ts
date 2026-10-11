@@ -10,15 +10,14 @@ import { StreetPassService } from './street-pass.service.js';
 import { RoundAftermathService } from './round-aftermath.service.js';
 
 /**
- * A round is joinable while it is taking registrations or already running,
- * and only until its end date passes.
+ * Any current round is joinable until it ends. The lifecycle status is the
+ * gate: SCHEDULED rounds are not current, while REGISTRATION and ACTIVE rounds
+ * always accept new players. `registrationOpensAt` is retained as lifecycle
+ * metadata, but must never leave a current game visible while refusing entry.
  */
 export function isJoinable(round: Round, now = new Date()): boolean {
   if (round.status !== 'ACTIVE' && round.status !== 'REGISTRATION') return false;
   if (round.endsAt.getTime() <= now.getTime()) return false;
-  if (round.registrationOpensAt && round.registrationOpensAt.getTime() > now.getTime()) {
-    return false;
-  }
   return true;
 }
 
@@ -30,12 +29,6 @@ export function assertJoinable(round: Round, now = new Date()): void {
     throw AppError.conflict('ROUND_ENDED', `${round.name} has ended.`);
   }
   if (round.status === 'SCHEDULED') {
-    throw AppError.conflict(
-      'ROUND_NOT_OPEN',
-      `${round.name} has not opened for registration yet.`,
-    );
-  }
-  if (round.registrationOpensAt && round.registrationOpensAt.getTime() > now.getTime()) {
     throw AppError.conflict(
       'ROUND_NOT_OPEN',
       `${round.name} has not opened for registration yet.`,

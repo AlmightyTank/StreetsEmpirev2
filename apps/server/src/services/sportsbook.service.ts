@@ -18,7 +18,7 @@ import {
   type SportsbookSelection,
   type SportsbookTicketsDto,
 } from '@streets/shared';
-import { moveSportsbookCash } from './casino.service.js';
+import { creditLegacySportsbookChips, creditSportsbookChips, debitSportsbookChips } from './casino.service.js';
 
 export const SPORTSBOOK_LEAGUES = [
   { key: 'NFL', name: 'NFL', sportId: 2 },
@@ -313,7 +313,37 @@ export async function settleSportsbookEventTx(
     if (credit > 0n) {
       const player = await tx.roundPlayer.findUnique({ where: { id: ticket.roundPlayerId }, include: { round: true } });
       if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'A sportsbook ticket owner no longer exists.');
-      await moveSportsbookCash(tx, ticket.roundPlayerId, loadRulesetForRound(player.round), credit, now);
+      const pickTeam = ticket.selection === 'HOME' ? event.homeTeam : event.awayTeam;
+      if (ticket.casinoCityId) {
+        await creditSportsbookChips(tx, {
+          roundPlayerId: ticket.roundPlayerId,
+          casinoSessionId: ticket.casinoSessionId,
+          casinoCityId: ticket.casinoCityId,
+          amountCents: credit,
+          actionId: `sportsbook:settlement:${ticket.id}`,
+          metadata: {
+            betId: ticket.id,
+            eventId: ticket.eventId,
+            pickTeam,
+            oddsAmerican: ticket.oddsAmerican,
+            stakeCents: Number(ticket.stakeCents),
+            returnCents: Number(credit),
+            status: ticketStatus,
+          },
+        });
+      } else {
+        // Legacy tickets without an originating casino still settle as casino chips.
+        await creditLegacySportsbookChips(tx, ticket.roundPlayerId, credit, `sportsbook:settlement:${ticket.id}`, {
+          betId: ticket.id,
+          eventId: ticket.eventId,
+          pickTeam,
+          oddsAmerican: ticket.oddsAmerican,
+          stakeCents: Number(ticket.stakeCents),
+          returnCents: Number(credit),
+          status: ticketStatus,
+          legacy: true,
+        });
+      }
       summary.creditedCents += credit;
     }
   }
@@ -392,6 +422,11 @@ export const SportsbookService = {
         }
         return { bet: { id: replay.id, status: replay.status, stakeCents: Number(replay.stakeCents), payoutCents: Number(replay.payoutCents), oddsAmerican: replay.oddsAmerican }, replayed: true };
       }
+      const casinoReplay = await tx.casinoLedgerEntry.findUnique({
+        where: { roundPlayerId_actionId: { roundPlayerId, actionId: input.actionId } },
+        select: { id: true },
+      });
+      if (casinoReplay) throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to another casino action.');
       const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, include: { round: true } });
       if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
       const ruleset = loadRulesetForRound(player.round);
@@ -413,16 +448,24 @@ export const SportsbookService = {
         throw AppError.conflict('SPORTSBOOK_ODDS_CHANGED', `The line moved to ${odds > 0 ? '+' + odds : odds}. Review the new price and place the ticket again.`);
       }
       const usage = await sportsbookUsage(tx, roundPlayerId, now, { eventId: event.id, selection: input.selection });
-      // Cash is checked by the debit below, against wherever the boss actually is.
-      const breach = sportsbookStakeCheck(input.stakeCents, odds, book.limits, { ...usage, cashCents: Number.MAX_SAFE_INTEGER });
+      // The open casino bankroll is checked by the debit below under the player lock.
+      const breach = sportsbookStakeCheck(input.stakeCents, odds, book.limits, { ...usage, bankrollCents: Number.MAX_SAFE_INTEGER });
       if (breach) throw AppError.conflict(breach.code, breach.message);
       const payout = americanPayout(stake, odds);
-      await moveSportsbookCash(tx, player.id, ruleset, -stake, now);
+      const pickTeam = input.selection === 'HOME' ? event.homeTeam : event.awayTeam;
+      const source = await debitSportsbookChips(tx, player.id, ruleset, stake, input.actionId, {
+        eventId: event.id,
+        pickTeam,
+        oddsAmerican: odds,
+        stakeCents: input.stakeCents,
+        payoutCents: Number(payout),
+      }, now);
       const bet = await tx.sportsbookBet.create({ data: {
         roundPlayerId, eventId: event.id, actionId: input.actionId, selection: input.selection,
         oddsAmerican: odds, stakeCents: stake, payoutCents: payout, createdAt: now,
+        casinoSessionId: source.casinoSessionId, casinoCityId: source.casinoCityId,
       } });
-      // This transaction only moves game cash and writes a ticket; it never reads or changes turns.
+      // This transaction only moves casino chips and writes a ticket; it never reads or changes turns.
       return { bet: { id: bet.id, status: bet.status, stakeCents: Number(bet.stakeCents), payoutCents: Number(bet.payoutCents), oddsAmerican: bet.oddsAmerican }, replayed: false };
     });
   },

@@ -682,7 +682,7 @@ export function CasinoPage() {
                           {entry.display.tone === 'positive' ? '+' : entry.display.tone === 'negative' ? '−' : ''}
                           {formatCents(entry.display.amountCents)}
                         </strong>
-                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'STREET_DICE' ? (
+                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'STREET_DICE' || entry.kind === 'SPORTSBOOK_BET' || (entry.kind === 'SPORTSBOOK_SETTLEMENT' && entry.sessionChipDeltaCents !== 0) ? (
                           <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
                         ) : entry.kind === 'BUY_CHIPS' || entry.kind === 'REDEEM_CHIPS' ? (
                           <span>Wallet {formatCents(entry.walletChipsAfterCents)}</span>
@@ -1224,10 +1224,11 @@ export function CasinoPage() {
 
                 {activeGame === 'sportsbook' ? (
                   <SportsbookPanel
-                    cashCents={data.cashCents}
+                    bankrollCents={data.openSession?.bankrollCents ?? null}
                     onPlaced={async () => {
                       const next = await casinoApi.page();
                       setData(next);
+                      setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
                       await refreshSnapshot({ background: false });
                     }}
                   />

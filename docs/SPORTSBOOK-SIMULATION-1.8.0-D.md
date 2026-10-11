@@ -1,6 +1,6 @@
 # Sportsbook limits - 1.8.0-D
 
-`npm run qa:sportsbook` plays 2,000 seeded 28-day rounds per betting style. Each day has 24 pregame moneylines priced with a 4.5% bookmaker margin. Cash on hand grows from $5,000 toward the $11M median engaged net worth in BALANCE-1.0.0-D (about a third of it on hand), and every ticket settles before the next day. Figures are the sportsbook's own result for one player over a whole round. The script exits 1 if a 1.8.0-D band fails.
+`npm run qa:sportsbook` plays 2,000 seeded 28-day rounds per betting style. Each day has 24 pregame moneylines priced with a 4.5% bookmaker margin. Available casino chips grow from $5,000 toward the $11M median engaged net worth in BALANCE-1.0.0-D (about a third available for the casino bankroll), and every ticket settles before the next day. Figures are the sportsbook's own result for one player over a whole round. The script exits 1 if a 1.8.0-D band fails.
 
 The question is not whether the house wins (with a margin on every line it does, slowly) but how far one player can climb the leaderboard on sportsbook cash alone.
 
@@ -59,7 +59,7 @@ Tuning used `--limits '{...}'` to compare candidates against the bands. The shar
 - **Repeat requests**: three racing requests with one action ID make one ticket and one debit. A retry after the line moves returns the ticket at its pinned price, and a reused ID with a different stake is refused.
 - **Concurrent wagers**: five racing $10,000 tickets against $30,000 of cash make exactly three, leaving cash at $0 and never negative. Eight racing $20,000 tickets stop at the $125,000 daily limit.
 - **Limits**: the long-shot win cap, both sides counting toward the per-game cap, the shared side limit across players, and the open-ticket count.
-- **Cash location**: a wager spends the trip bankroll in Las Vegas, not home cash. A result paid in town goes to the trip bankroll and one paid after the trip returns goes to home cash. Mid-relocation there is no cash on hand to bet, but a result still pays home cash.
+- **Casino chips**: a wager spends the open casino bankroll. A result paid while that session is open returns to the floor bankroll; otherwise it waits in the originating casino city's chip wallet.
 - **Pushes and cancellations**: a tie refunds the stake, a void refunds the stake, a loss pays nothing, and a win pays the payout pinned at acceptance even after the line moves.
 - **Late provider updates**: re-grading every settled game with corrected scores changes nothing and pays nothing.
 - **No-turn rule**: placing and settling tickets leaves turns untouched.

@@ -9,7 +9,7 @@
  * that margin by betting delayed lines, which is the realistic abuse case for a cached free feed.
  *
  * The question is not whether the house wins (it does, slowly) but how far one player can move
- * up the leaderboard with sportsbook cash alone. Results are compared with the median engaged
+ * up the leaderboard with sportsbook chips alone. Results are compared with the median engaged
  * end-of-round net worth from docs/BALANCE-1.0.0-D.md. Exits 1 if a 1.8.0-D band fails.
  */
 import { seededRng } from '@streets/rules-engine';
@@ -30,8 +30,8 @@ const MARGIN = 0.045;
 const SHARP_EDGE = 0.03;
 /** Median engaged end-of-round net worth, BALANCE-1.0.0-D. */
 const REFERENCE_NET_WORTH_CENTS = 1_100_000_000;
-/** $5,000 start to ~$11M by day 28; about a third is cash on hand at any time. */
-const cashOnHandCents = (day) => Math.round(500_000 * (REFERENCE_NET_WORTH_CENTS / 500_000) ** (day / (DAYS - 1)) * 0.35);
+/** $5,000 start to ~$11M by day 28; about a third is available as casino bankroll at any time. */
+const bankrollCents = (day) => Math.round(500_000 * (REFERENCE_NET_WORTH_CENTS / 500_000) ** (day / (DAYS - 1)) * 0.35);
 
 const UNLIMITED = 1e15;
 const CONFIGS = {
@@ -69,21 +69,21 @@ const decimal = (odds) => (odds > 0 ? 1 + odds / 100 : 1 + 100 / -odds);
 
 const STYLES = {
   /** A few small bets a day on whatever looks fun. */
-  recreational: { picks: (games, rng) => Array.from({ length: 3 }, () => games[Math.floor(rng() * games.length)].sides[rng() < 0.5 ? 0 : 1]), stake: (cash) => Math.round(cash * 0.01) },
+  recreational: { picks: (games, rng) => Array.from({ length: 3 }, () => games[Math.floor(rng() * games.length)].sides[rng() < 0.5 ? 0 : 1]), stake: (bankroll) => Math.round(bankroll * 0.01) },
   /** The biggest underdogs, as much as allowed, chasing a leaderboard jump. */
-  longshot: { picks: (games) => games.flatMap((game) => game.sides).sort((a, b) => b.odds - a.odds).slice(0, 10), stake: (cash) => cash },
+  longshot: { picks: (games) => games.flatMap((game) => game.sides).sort((a, b) => b.odds - a.odds).slice(0, 10), stake: (bankroll) => bankroll },
   /** Heavy favourites, as much as allowed. */
-  favourite: { picks: (games) => games.flatMap((game) => game.sides).sort((a, b) => a.odds - b.odds).slice(0, 10), stake: (cash) => cash },
+  favourite: { picks: (games) => games.flatMap((game) => game.sides).sort((a, b) => a.odds - b.odds).slice(0, 10), stake: (bankroll) => bankroll },
   /** Bets delayed lines that have already moved elsewhere: a real +3% edge on every ticket. */
   sharp: {
     picks: (games, rng) => games.slice(0, 12).map((game) => {
       const side = game.sides[rng() < 0.5 ? 0 : 1];
       return { ...side, trueP: Math.min(0.99, (1 + SHARP_EDGE) / decimal(side.odds)) };
     }),
-    stake: (cash) => cash,
+    stake: (bankroll) => bankroll,
   },
-  /** Half of cash on one long shot every day. */
-  allIn: { picks: (games) => [games.flatMap((game) => game.sides).sort((a, b) => b.odds - a.odds)[0]], stake: (cash) => Math.round(cash * 0.5) },
+  /** Half of bankroll on one long shot every day. */
+  allIn: { picks: (games) => [games.flatMap((game) => game.sides).sort((a, b) => b.odds - a.odds)[0]], stake: (bankroll) => Math.round(bankroll * 0.5) },
 };
 
 function playRound(limits, style, seed) {
@@ -92,19 +92,19 @@ function playRound(limits, style, seed) {
   let turnover = 0;
   for (let day = 0; day < DAYS; day += 1) {
     const games = slate(rng);
-    let cash = Math.max(0, cashOnHandCents(day) + profit);
+    let bankroll = Math.max(0, bankrollCents(day) + profit);
     const usage = { openStakeCents: 0, openTickets: 0, dailyStakeCents: 0 };
     const pending = [];
     const perGame = new Map();
     for (const side of style.picks(games, rng)) {
       const game = games.find((candidate) => candidate.sides.includes(side) || candidate.sides.some((s) => s.odds === side.odds)) ?? { id: -1 };
       const { maxStakeCents } = sportsbookMaxStake(side.odds, limits, {
-        cashCents: cash, openStakeCents: usage.openStakeCents, openTickets: usage.openTickets,
+        bankrollCents: bankroll, openStakeCents: usage.openStakeCents, openTickets: usage.openTickets,
         dailyStakeCents: usage.dailyStakeCents, gameStakeCents: perGame.get(game.id) ?? 0, sideLiabilityCents: 0,
       });
-      const stake = Math.min(style.stake(cash), maxStakeCents);
+      const stake = Math.min(style.stake(bankroll), maxStakeCents);
       if (stake < limits.minStakeCents) continue;
-      cash -= stake;
+      bankroll -= stake;
       usage.openStakeCents += stake;
       usage.openTickets += 1;
       usage.dailyStakeCents += stake;

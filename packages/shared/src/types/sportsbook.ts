@@ -64,7 +64,7 @@ export interface SportsbookBetDto {
   eventStatus: SportsbookEventStatus;
   homeScore: number | null;
   awayScore: number | null;
-  /** Game cash credited at settlement: payout on a win, the stake on a push or void, 0 otherwise. */
+  /** Casino chips credited at settlement: payout on a win, the stake on a push or void, 0 otherwise. */
   returnCents: number;
   createdAt: string;
   settledAt: string | null;

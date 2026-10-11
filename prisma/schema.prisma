@@ -1289,6 +1289,7 @@ model City {
   casinoWallets     CasinoWallet[]
   casinoSessions    CasinoSession[]
   casinoLedger      CasinoLedgerEntry[]
+  sportsbookBets    SportsbookBet[] @relation("SportsbookBetCasinoCity")
   casinoRatings     CasinoRating[]
   playerCases       PlayerCase[]
   caseReceipts      PlayerCaseReceipt[]
@@ -3758,6 +3759,7 @@ model CasinoSession {
   updatedAt     DateTime  @updatedAt
 
   ledger CasinoLedgerEntry[]
+  sportsbookBets SportsbookBet[]
 
   @@index([roundPlayerId, status, openedAt(sort: Desc)])
   @@index([cityId, status])
@@ -4185,8 +4187,9 @@ model SportsbookFeedRun {
   @@index([startedAt])
 }
 
-/// An immutable game-cash wager. Price/payout are pinned at acceptance, independent of
-/// subsequent line movement, and actionId makes retries a single charge.
+/// An immutable casino-chip wager. Price/payout and the originating casino bankroll are
+/// pinned at acceptance; actionId makes retries a single charge. Nullable casino fields
+/// preserve settlement of legacy tickets created before sportsbook chip origins were stored.
 model SportsbookBet {
   id String @id @default(cuid())
 
@@ -4194,6 +4197,11 @@ model SportsbookBet {
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
   eventId       String
   event         SportsbookEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  casinoSessionId String?
+  casinoSession   CasinoSession? @relation(fields: [casinoSessionId], references: [id], onDelete: SetNull)
+  casinoCityId    String?
+  casinoCity      City?          @relation("SportsbookBetCasinoCity", fields: [casinoCityId], references: [id], onDelete: SetNull)
 
   actionId       String
   selection      String
@@ -4208,6 +4216,8 @@ model SportsbookBet {
   @@unique([roundPlayerId, actionId])
   @@index([roundPlayerId, createdAt(sort: Desc)])
   @@index([eventId, status])
+  @@index([casinoSessionId])
+  @@index([casinoCityId, status])
 }
 
 /// 0.6.0-D. The box attached to one away-held block. A home block never needs one.

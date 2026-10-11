@@ -9,7 +9,7 @@ import {
 } from '../sportsbook.js';
 
 const fresh: SportsbookStakeUsage = {
-  cashCents: 100_000_000, openStakeCents: 0, openTickets: 0, dailyStakeCents: 0, gameStakeCents: 0, sideLiabilityCents: 0,
+  bankrollCents: 100_000_000, openStakeCents: 0, openTickets: 0, dailyStakeCents: 0, gameStakeCents: 0, sideLiabilityCents: 0,
 };
 
 describe('1.8.0-D sportsbook limits', () => {
@@ -49,7 +49,7 @@ describe('1.8.0-D sportsbook limits', () => {
       code: 'SPORTSBOOK_DAILY_LIMIT', message: 'Tickets placed in the last 24 hours can total $125,000; you have $10,000 left.',
     });
     expect(check(1_000, { sideLiabilityCents: 100_000_000 }, 150)).toMatchObject({ code: 'SPORTSBOOK_SIDE_LIMIT', message: 'This side has reached the book\'s limit for this game.' });
-    expect(check(100_000, { cashCents: 50_050 })).toMatchObject({ code: 'NOT_ENOUGH_CASH', message: 'You have $500.50 cash on hand.' });
+    expect(check(100_000, { bankrollCents: 50_050 })).toMatchObject({ code: 'NOT_ENOUGH_BANKROLL', message: 'You have $500.50 in casino chips on the floor.' });
     expect(check(2_500_000, {})).toBeNull();
   });
 

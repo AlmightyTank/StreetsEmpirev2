@@ -1,11 +1,70 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import type { Round } from '@prisma/client';
 import { classicOgV01 } from '@streets/rulesets';
-import { finalStandingRanks, RoundService } from '../round.service.js';
+import { assertJoinable, finalStandingRanks, isJoinable, RoundService } from '../round.service.js';
 import { TurfWarSettlementService } from '../turf-war-settle.service.js';
 
 afterEach(() => vi.restoreAllMocks());
+
+function round(overrides: Partial<Round> = {}): Round {
+  return {
+    id: 'round-1',
+    name: 'Current game',
+    slug: 'current-game',
+    rulesetId: classicOgV01.meta.id,
+    rulesetVersion: classicOgV01.meta.version,
+    streetPassOverride: null,
+    status: 'ACTIVE',
+    startsAt: new Date('2026-10-01T00:00:00.000Z'),
+    endsAt: new Date('2026-11-01T00:00:00.000Z'),
+    pausedAt: null,
+    pauseReason: null,
+    pausedByUsername: null,
+    pausedMinutesTotal: 0,
+    registrationOpensAt: null,
+    alertsOpenedAt: null,
+    alertsEndingSoonAt: null,
+    alertsEndedAt: null,
+    discordEndedAt: null,
+    discordEndedClaimedAt: null,
+    discordEndedMessageId: null,
+    discordEndedError: null,
+    nextPublicPimpId: 1000,
+    createdAt: new Date('2026-10-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-10-01T00:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+describe('round joining', () => {
+  const now = new Date('2026-10-11T12:00:00.000Z');
+
+  it.each(['REGISTRATION', 'ACTIVE'] as const)('always allows entry to a current %s round', (status) => {
+    const current = round({
+      status,
+      registrationOpensAt: new Date('2026-10-20T00:00:00.000Z'),
+    });
+
+    expect(isJoinable(current, now)).toBe(true);
+    expect(() => assertJoinable(current, now)).not.toThrow();
+  });
+
+  it.each(['SCHEDULED', 'ENDED', 'ARCHIVED'] as const)('does not allow entry to a %s round', (status) => {
+    const unavailable = round({ status });
+
+    expect(isJoinable(unavailable, now)).toBe(false);
+    expect(() => assertJoinable(unavailable, now)).toThrow();
+  });
+
+  it('does not allow entry after the round end time', () => {
+    const expired = round({ endsAt: now });
+
+    expect(isJoinable(expired, now)).toBe(false);
+    expect(() => assertJoinable(expired, now)).toThrow();
+  });
+});
 
 describe('RoundService turf clock ordering', () => {
   it('settles the round/crackdown before the minute turf-war sweep', async () => {

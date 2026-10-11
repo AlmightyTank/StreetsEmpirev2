@@ -52,11 +52,12 @@ export { fitThugs, workingWhores } from './crew-availability.js';
 
 async function casinoCashEquivalentCents(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
   if (!ruleset.casino?.enabled) return 0n;
-  const [wallets, sessions] = await Promise.all([
+  const [wallets, sessions, sportsbook] = await Promise.all([
     tx.casinoWallet.aggregate({ where: { roundPlayerId }, _sum: { chipsCents: true } }),
     tx.casinoSession.aggregate({ where: { roundPlayerId, status: 'OPEN' }, _sum: { bankrollCents: true } }),
+    tx.sportsbookBet.aggregate({ where: { roundPlayerId, status: 'OPEN', casinoCityId: { not: null } }, _sum: { stakeCents: true } }),
   ]);
-  return (wallets._sum.chipsCents ?? 0n) + (sessions._sum.bankrollCents ?? 0n);
+  return (wallets._sum.chipsCents ?? 0n) + (sessions._sum.bankrollCents ?? 0n) + (sportsbook._sum.stakeCents ?? 0n);
 }
 
 /**

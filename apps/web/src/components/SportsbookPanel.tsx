@@ -101,7 +101,7 @@ const RESULT_LABEL: Record<SportsbookBetDto['status'], string> = {
   OPEN: 'Open', WON: 'Won', LOST: 'Lost', PUSH: 'Push', VOID: 'Void',
 };
 
-function settledCash(bet: SportsbookBetDto): string {
+function settledChips(bet: SportsbookBetDto): string {
   switch (bet.status) {
     case 'WON': return `${signedCents(bet.returnCents)} paid (${signedCents(bet.returnCents - bet.stakeCents)} profit)`;
     case 'LOST': return `${signedCents(-bet.stakeCents)} stake lost`;
@@ -116,7 +116,7 @@ function finalScore(bet: SportsbookBetDto): string | null {
   return `Final: ${bet.awayTeam} ${bet.awayScore}, ${bet.homeTeam} ${bet.homeScore}`;
 }
 
-export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; onPlaced: () => Promise<void> }) {
+export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: number | null; onPlaced: () => Promise<void> }) {
   const me = useSession((state) => state.me);
   const [page, setPage] = useState<SportsbookPageDto | null>(null);
   const [clockOffset, setClockOffset] = useState(0);
@@ -177,7 +177,7 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
   // 1.8.0-D: the same limit check the server runs, so the slip can say the top stake up front.
   const limits = page?.limits.limits ?? SPORTSBOOK_LIMITS;
   const usage = {
-    cashCents,
+    bankrollCents: bankrollCents ?? 0,
     openStakeCents: page?.limits.openStakeCents ?? 0,
     openTickets: page?.limits.openTickets ?? 0,
     dailyStakeCents: page?.limits.dailyStakeCents ?? 0,
@@ -185,12 +185,13 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
     // Other players' stake on a side is not shown; the server explains if that book limit is hit.
     sideLiabilityCents: 0,
   };
-  const topStakeCents = pickedOdds !== null ? sportsbookMaxStake(pickedOdds, limits, usage).maxStakeCents : Math.min(cashCents, limits.maxStakeCents);
+  const topStakeCents = pickedOdds !== null ? sportsbookMaxStake(pickedOdds, limits, usage).maxStakeCents : Math.min(bankrollCents ?? 0, limits.maxStakeCents);
 
   let placeReason: string | null = null;
   // 1.8.0-E: a round whose ruleset predates the sportsbook takes no new tickets.
   const available = page?.limits.available ?? true;
   if (!available) placeReason = 'Sports betting is not part of this round\'s rules.';
+  else if (bankrollCents === null) placeReason = 'Open a casino bankroll before placing a sports ticket.';
   else if (!pick) placeReason = 'Pick a side first.';
   else if (!pickedEvent) placeReason = 'This game is no longer on the board.';
   else if (pickedState !== 'OPEN') placeReason = sportsbookLineReason(pickedState ?? 'FEED_UNAVAILABLE');
@@ -216,7 +217,7 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
         eventId: pick.eventId, selection: pick.selection, stakeCents, actionId: newActionId(), expectedOdds: pickedOdds,
       });
       const team = pick.selection === 'HOME' ? pickedEvent.homeTeam : pickedEvent.awayTeam;
-      setNotice(`Ticket accepted: ${team} ${formatAmericanOdds(result.bet.oddsAmerican)}, ${formatCentsExact(result.bet.stakeCents)} to pay ${formatCentsExact(result.bet.payoutCents)}. No turns were used.`);
+      setNotice(`Ticket accepted: ${team} ${formatAmericanOdds(result.bet.oddsAmerican)}, ${formatCentsExact(result.bet.stakeCents)} in chips to pay ${formatCentsExact(result.bet.payoutCents)} in chips. No turns were used.`);
       setPick(null);
       setTicketView('open');
       await Promise.all([refresh(), onPlaced()]);
@@ -236,10 +237,10 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
   const shownTickets = ticketView === 'open' ? tickets?.open ?? [] : tickets?.settled ?? [];
 
   return (
-    <Panel title="Sportsbook" aside="Pregame · game cash · no turns">
+    <Panel title="Sportsbook" aside="Pregame · casino chips · no turns">
       <div className="se-sportsbook">
         <p className="se-hint">
-          Moneylines for today and tomorrow. Pick a side, set a stake, and the price locks when the ticket is accepted. Betting closes at the scheduled start.
+          Moneylines for today and tomorrow. Tickets use the chips in your open casino bankroll. Pick a side, set a stake, and the price locks when the ticket is accepted. Betting closes at the scheduled start.
           {' '}Tickets run {formatCents(limits.minStakeCents)} to {formatCents(limits.maxStakeCents)} and can win up to {formatCents(limits.maxProfitCents)}.
         </p>
         {feedStatus ? (
@@ -346,7 +347,7 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
               <p className="se-muted">{pick ? 'This game is no longer on the board.' : 'Pick a side on any open line to build a ticket.'}</p>
             )}
             <label className="se-sportsbook__stake">
-              <span>Stake ($)</span>
+              <span>Stake (chips)</span>
               <input
                 className="se-input"
                 inputMode="decimal"
@@ -382,9 +383,9 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
               </small>
             </div>
             <details className="se-sportsbook__limits">
-              <summary>Cash & betting limits</summary>
+              <summary>Chip bankroll & betting limits</summary>
               <small id="sb-cash" className="se-muted">
-                Cash on hand: {formatCentsExact(cashCents)} · uses no turns
+                Floor bankroll: {bankrollCents === null ? 'No session open' : formatCentsExact(bankrollCents)} · uses no turns
                 {pickedOdds !== null ? <><br />Top stake at {formatAmericanOdds(pickedOdds)}: {formatCentsExact(topStakeCents)}</> : null}
                 <br />Last 24 hours: {formatCentsExact(usage.dailyStakeCents)} of {formatCentsExact(limits.dailyStakeCents)} staked
                 <br />Open: {formatCentsExact(usage.openStakeCents)} of {formatCentsExact(limits.openStakeCents)} · {usage.openTickets} of {limits.openTickets} tickets
@@ -454,7 +455,7 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
                       <>
                         {score ? <span className="se-sportsbook__ticket-meta">{score}</span> : null}
                         <span className="se-sportsbook__cash">
-                          {formatCentsExact(bet.stakeCents)} stake · {settledCash(bet)}
+                          {formatCentsExact(bet.stakeCents)} chip stake · {settledChips(bet)}
                           {bet.settledAt ? <> · settled {formatWhen(bet.settledAt)}</> : null}
                         </span>
                       </>

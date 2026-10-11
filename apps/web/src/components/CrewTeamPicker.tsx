@@ -17,6 +17,7 @@ export function CrewTeamPicker({ role, specialty, selectedIds, onChange, disable
   const [members, setMembers] = useState<CrewMemberDto[]>([]);
   const [enabled, setEnabled] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
     let active = true;
     Promise.all([
@@ -34,9 +35,20 @@ export function CrewTeamPicker({ role, specialty, selectedIds, onChange, disable
   const recommended = [...eligible].sort((left, right) => right.specialtyEffectPercent - left.specialtyEffectPercent || right.specialtyExperiencePoints - left.specialtyExperiencePoints || left.serial - right.serial)[0];
   if (!loaded || !enabled) return null;
   const effect = Math.min(5, Math.max(0, ...eligible.filter((member) => selected.has(member.id)).map((member) => member.specialtyEffectPercent)));
+  const title = `Optional team · ${specialty === 'ENFORCER' ? 'Raid enforcers' : 'Scouts'}`;
   return (
-    <fieldset className="se-crew-team" disabled={disabled}>
-      <legend>Optional team · {specialty === 'ENFORCER' ? 'Raid enforcers' : 'Scouts'}</legend>
+    <fieldset className={`se-crew-team${collapsed ? ' is-collapsed' : ''}`} disabled={disabled}>
+      <legend>{title}</legend>
+      <div className="se-crew-team__bar">
+        <span>
+          {selectedIds.length ? `${selectedIds.length} selected` : eligible.length ? `${eligible.length} available` : 'No available specialists'}
+          {' · '}{effect}% {labels[specialty]}
+        </span>
+        <button type="button" className="se-btn se-btn--sm" onClick={() => setCollapsed((value) => !value)}>
+          {collapsed ? 'Expand' : 'Minimize'}
+        </button>
+      </div>
+      {collapsed ? null : <>
       <p>Pick up to five available {role === 'THUG' ? 'thugs' : 'workers'}. Selected specialties provide up to {effect}% {labels[specialty]}; effects do not stack. The rest of the crew still works as usual.</p>
       <div className="se-crew-team__actions">
         <button type="button" className="se-btn se-btn--sm" disabled={!recommended} onClick={() => onChange(recommended ? [recommended.id] : [])}>Recommended lineup</button>
@@ -60,6 +72,7 @@ export function CrewTeamPicker({ role, specialty, selectedIds, onChange, disable
           <small>{member.unavailableReason ?? member.assignment?.label ?? member.status.replaceAll('_', ' ').toLowerCase()}</small>
         </li>)}</ul>
       </details> : null}
+      </>}
     </fieldset>
   );
 }
