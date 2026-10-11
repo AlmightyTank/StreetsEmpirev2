@@ -17,6 +17,7 @@ import { roundsApi } from '../api/rounds.js';
 import { Alert } from '../components/Alert.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { formatDate } from '../utils/time.js';
+import { roundAftermathPublicEnabled } from '../config/features.js';
 
 type TabKey = 'summary' | 'cities' | 'alliances' | 'me' | 'records' | RoundAftermathCategoryKey;
 
@@ -34,6 +35,11 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'crime', label: 'Crime' },
   { key: 'competition', label: 'Competition' },
 ];
+
+const isTabKey = (value: string | null): value is TabKey => TABS.some((item) => item.key === value);
+const isCategoryKey = (value: string | null): value is RoundAftermathCategoryKey =>
+  TABS.some((item) => item.key === value
+    && item.key !== 'summary' && item.key !== 'cities' && item.key !== 'alliances' && item.key !== 'me' && item.key !== 'records');
 
 function cents(value: string): string {
   const amount = BigInt(value);
@@ -163,8 +169,15 @@ function StatusNotice({ overview }: { overview: RoundAftermathOverviewDto }) {
 }
 
 function AwardHighlights({ categories }: { categories: RoundAftermathCategoryDto[] }) {
+  const awardTitles: Partial<Record<RoundAftermathCategoryKey, string>> = {
+    wealth: 'Wealth King',
+    turf: 'Turf Warlord',
+    crew: 'Crew Commander',
+    drugs: 'Drug Kingpin',
+    businesses: 'Business Tycoon',
+  };
   const awards = categories.filter((category) =>
-    category.key !== 'competition' && category.status === 'AVAILABLE' && category.leaders.length > 0,
+    awardTitles[category.key] && category.status === 'AVAILABLE' && category.leaders.length > 0,
   );
   if (awards.length === 0) return <p className="se-aftermath-empty">No supported category awards were recorded.</p>;
 
@@ -172,7 +185,7 @@ function AwardHighlights({ categories }: { categories: RoundAftermathCategoryDto
     <div className="se-aftermath-awards">
       {awards.map((award) => (
         <article className="se-aftermath-award" key={award.key}>
-          <span>{award.title} leader{award.leaders.length === 1 ? '' : 's'}</span>
+          <span>{awardTitles[award.key]}</span>
           {award.leaders.map((leader) => (
             <strong key={`${award.key}-${leader.publicPimpId}`}>
               {leader.displayName}
@@ -195,10 +208,11 @@ export function RoundAftermathPage() {
   const [alliances, setAlliances] = useState<RoundAftermathAlliancesDto | null>(null);
   const [personal, setPersonal] = useState<RoundAftermathPersonalDto | null>(null);
   const [records, setRecords] = useState<RoundAftermathRecordsDto | null>(null);
-  const [tab, setTab] = useState<TabKey>(searchParams.get('view') === 'records' ? 'records' : 'summary');
-  const [recordsCategory, setRecordsCategory] = useState<RoundAftermathCategoryKey>('wealth');
-  const [recordsCitySlug, setRecordsCitySlug] = useState('');
-  const [citySlug, setCitySlug] = useState('');
+  const [tab, setTab] = useState<TabKey>(() => isTabKey(searchParams.get('view')) ? searchParams.get('view') as TabKey : 'summary');
+  const [recordsCategory, setRecordsCategory] = useState<RoundAftermathCategoryKey>(() =>
+    isCategoryKey(searchParams.get('category')) ? searchParams.get('category') as RoundAftermathCategoryKey : 'wealth');
+  const [recordsCitySlug, setRecordsCitySlug] = useState(() => searchParams.get('recordCity') ?? '');
+  const [citySlug, setCitySlug] = useState(() => searchParams.get('city') ?? '');
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [boardError, setBoardError] = useState<string | null>(null);
@@ -207,6 +221,16 @@ export function RoundAftermathPage() {
   const [personalError, setPersonalError] = useState<string | null>(null);
   const [recordsError, setRecordsError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+  const [shareMessage, setShareMessage] = useState('');
+
+  useEffect(() => {
+    const requestedTab = searchParams.get('view');
+    const requestedCategory = searchParams.get('category');
+    setTab(isTabKey(requestedTab) ? requestedTab : 'summary');
+    setRecordsCategory(isCategoryKey(requestedCategory) ? requestedCategory : 'wealth');
+    setCitySlug(searchParams.get('city') ?? '');
+    setRecordsCitySlug(searchParams.get('recordCity') ?? '');
+  }, [searchParams]);
 
   useEffect(() => {
     let current = true;
@@ -228,7 +252,11 @@ export function RoundAftermathPage() {
         if (!current) return;
         setOverview(nextOverview);
         setCategories(nextCategories);
-        setCitySlug(nextOverview.cities.find((city) => city.slug)?.slug ?? '');
+        const queryCity = searchParams.get('city');
+        setCitySlug(nextOverview.cities.find((city) => city.slug === queryCity)?.slug
+          ?? queryCity
+          ?? nextOverview.cities.find((city) => city.slug)?.slug
+          ?? '');
       })
       .catch((caught: unknown) => {
         if (current) setError(caught instanceof ApiError ? caught.message : 'Could not load the round aftermath.');
@@ -320,8 +348,31 @@ export function RoundAftermathPage() {
   function selectTab(next: TabKey) {
     setTab(next);
     setPage(1);
-    if (next === 'records') setSearchParams({ view: 'records' }, { replace: true });
-    else if (searchParams.has('view')) setSearchParams({}, { replace: true });
+    setSearchParams((current) => {
+      const params = new URLSearchParams(current);
+      params.set('view', next);
+      if (next === 'records') params.set('category', recordsCategory);
+      return params;
+    }, { replace: true });
+  }
+
+  function selectCity(slug: string) {
+    setCitySlug(slug);
+    setSearchParams((current) => {
+      const params = new URLSearchParams(current);
+      if (slug) params.set('city', slug);
+      else params.delete('city');
+      return params;
+    }, { replace: true });
+  }
+
+  async function copyReportLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setShareMessage('Report link copied.');
+    } catch {
+      setShareMessage('Could not copy the link. Copy it from your browser address bar.');
+    }
   }
 
   function moveTab(event: KeyboardEvent<HTMLDivElement>) {
@@ -345,7 +396,7 @@ export function RoundAftermathPage() {
       {selectableCities.length ? (
         <label className="se-aftermath-city-picker" htmlFor="se-aftermath-city">
           <span>Select a city</span>
-          <select id="se-aftermath-city" value={citySlug} onChange={(event) => setCitySlug(event.target.value)}>
+          <select id="se-aftermath-city" value={citySlug} onChange={(event) => selectCity(event.target.value)}>
             {selectableCities.map((city) => (
               <option key={city.slug} value={city.slug!}>{city.name ?? city.slug}</option>
             ))}
@@ -537,14 +588,21 @@ export function RoundAftermathPage() {
     <section className="se-aftermath-board" aria-labelledby="se-aftermath-records-title">
       <header className="se-aftermath-sectionhead">
         <div><span className="se-eyebrow">Frozen records · next-round bonus</span><h2 id="se-aftermath-records-title">Records & Awards</h2></div>
-        <p>National top-10 placements and supported global award distinctions earn $500 each toward the next round’s starting cash, capped at $2,500. City awards are recognition only. Tied leaders share recognition; unsupported totals are not guessed.</p>
+        <p>National top-10 placements and supported global award distinctions, including Drug Kingpin, earn $500 each toward the next round’s starting cash, capped at $2,500. Drug Kingpin measures drug inventory held at cutoff, not production or sales. City awards are recognition only. Tied leaders share recognition; unsupported totals are not guessed.</p>
       </header>
       <div className="se-aftermath-record-filters">
         <label className="se-aftermath-city-picker" htmlFor="se-aftermath-record-category">
           <span>Category</span>
           <select id="se-aftermath-record-category" value={recordsCategory} onChange={(event) => {
-            setRecordsCategory(event.target.value as RoundAftermathCategoryKey);
+            const category = event.target.value;
+            if (!isCategoryKey(category)) return;
+            setRecordsCategory(category);
             setPage(1);
+            setSearchParams((current) => {
+              const params = new URLSearchParams(current);
+              params.set('category', category);
+              return params;
+            }, { replace: true });
           }}>
             {TABS.filter((item): item is { key: RoundAftermathCategoryKey; label: string } =>
               item.key !== 'summary' && item.key !== 'cities' && item.key !== 'alliances' && item.key !== 'me' && item.key !== 'records',
@@ -554,8 +612,15 @@ export function RoundAftermathPage() {
         <label className="se-aftermath-city-picker" htmlFor="se-aftermath-record-city">
           <span>Leaderboard scope</span>
           <select id="se-aftermath-record-city" value={recordsCitySlug} onChange={(event) => {
-            setRecordsCitySlug(event.target.value);
+            const city = event.target.value;
+            setRecordsCitySlug(city);
             setPage(1);
+            setSearchParams((current) => {
+              const params = new URLSearchParams(current);
+              if (city) params.set('recordCity', city);
+              else params.delete('recordCity');
+              return params;
+            }, { replace: true });
           }}>
             <option value="">Entire round</option>
             {selectableCities.map((city) => <option key={city.slug} value={city.slug!}>{city.name ?? city.slug}</option>)}
@@ -658,11 +723,15 @@ export function RoundAftermathPage() {
             <h1>Round Aftermath</h1>
             <p>{overview?.round.name ?? 'Loading round…'} · the final ledger, recorded after settlement.</p>
           </div>
-          <div className="se-aftermath-cutoff">
-            <span>{overview?.report.status === 'READY' ? 'Frozen at' : 'Report status'}</span>
-            <strong>{overview?.report.cutoffAt ? formatDate(overview.report.cutoffAt) : overview?.report.status ?? 'Loading'}</strong>
+          <div>
+            <div className="se-aftermath-cutoff">
+              <span>{overview?.report.status === 'READY' ? 'Frozen at' : 'Report status'}</span>
+              <strong>{overview?.report.cutoffAt ? formatDate(overview.report.cutoffAt) : overview?.report.status ?? 'Loading'}</strong>
+            </div>
+            <button type="button" className="se-btn se-mt" onClick={() => void copyReportLink()}>Copy shareable report link</button>
           </div>
         </header>
+        {shareMessage ? <p className="se-round-archive-share" role="status">{shareMessage}</p> : null}
 
         {error ? (
           <section className="se-aftermath-error">
@@ -707,7 +776,7 @@ export function RoundAftermathPage() {
 
                   {competition?.leaders.length ? (
                     <section className="se-aftermath-champion" aria-label="Final champion">
-                      <span className="se-eyebrow">Top empire</span>
+                      <span className="se-eyebrow">Round Champion</span>
                       {competition.leaders.map((leader) => (
                         <strong key={leader.publicPimpId}>{leader.displayName}<small>#{formatNumber(leader.publicPimpId)} · {leader.cityName} · final rank #{leader.rank}</small></strong>
                       ))}
@@ -746,7 +815,7 @@ export function RoundAftermathPage() {
                 <span>Unsupported categories are shown as not recorded, never as zero.</span>
               </footer>
             ) : null}
-            <Link className="se-aftermath-archive-link" to="/game/hall-of-fame">Browse the round archive</Link>
+            {roundAftermathPublicEnabled ? <Link className="se-aftermath-archive-link" to="/game/round-archive">Browse the round archive</Link> : null}
           </>
         ) : null}
       </main>

@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type {
+  RoundAftermathArchiveDto,
   RoundAftermathCategoriesDto,
   RoundAftermathCategoryDto,
   RoundAftermathCategoryKey,
@@ -28,6 +29,7 @@ const playerSchema = z.object({
   localRank: z.number().int().nullable(),
   netWorthCents: z.string().regex(/^-?\d+$/),
   crewMembers: z.number().int().nonnegative(),
+  drugUnitsHeld: z.number().int().nonnegative().optional(),
   turfBlocksHeld: z.number().int().nonnegative(),
   activeBusinessesHeld: z.number().int().nonnegative(),
   turfByCity: z.array(z.object({ citySlug: z.string().nullable(), count: z.number().int().nonnegative() })).optional(),
@@ -237,7 +239,7 @@ const categoryDefinitions: Array<{
   { key: 'wealth', title: 'Wealth', recordKey: 'wealth', description: 'Final net worth at the frozen round cutoff.', unit: 'cents', valueFor: (player) => player.netWorthCents },
   { key: 'turf', title: 'Turf', recordKey: 'turf', description: 'Blocks held when the round closed; not captures or hold duration.', unit: 'blocks held', valueFor: (player) => String(player.turfBlocksHeld) },
   { key: 'crew', title: 'Crew', recordKey: 'crew', description: 'Active thug and worker headcount at the frozen cutoff.', unit: 'crew members', valueFor: (player) => String(player.crewMembers) },
-  { key: 'drugs', title: 'Drugs', recordKey: 'drugsProducedAndSold', description: 'Production and sales are not recorded as complete round totals.', unit: null, valueFor: () => '0' },
+  { key: 'drugs', title: 'Drugs', recordKey: 'drugUnitsHeld', description: 'Total drug inventory held by each player at the frozen round cutoff; not production or sales.', unit: 'units held', valueFor: (player) => String(player.drugUnitsHeld ?? 0) },
   { key: 'businesses', title: 'Businesses', recordKey: 'businesses', description: 'Active business lots held at the cutoff; not revenue or profit.', unit: 'active lots', valueFor: (player) => String(player.activeBusinessesHeld) },
   { key: 'crime', title: 'Crime', recordKey: 'crime', description: 'Attempted raids plus attempted drive-bys; not victories.', unit: 'attempts', valueFor: (player) => String(player.raidsAttempted + player.driveBysAttempted) },
   { key: 'competition', title: 'Competition', recordKey: 'competition', description: 'Frozen national placement from the final standings.', unit: 'final rank', valueFor: (player) => String(player.nationalRank ?? '') },
@@ -254,7 +256,7 @@ function recordFor(records: Prisma.JsonValue | null, key: string): AftermathReco
     throw new AppError(500, 'AFTERMATH_REPORT_INVALID', 'The finalized round report has invalid category data.');
   }
   const candidate = records[key];
-  if (candidate === undefined && key === 'competition') return null;
+  if (candidate === undefined && (key === 'competition' || key === 'drugUnitsHeld')) return null;
   const parsed = recordSchema.safeParse(candidate);
   if (!parsed.success) {
     throw new AppError(500, 'AFTERMATH_REPORT_INVALID', `The finalized round report has invalid ${key} category data.`);
@@ -322,6 +324,7 @@ function categoryValue(category: RoundAftermathCategoryKey, player: PlayerSnapsh
   if (category === 'competition') return BigInt(-(player.nationalRank ?? Number.MAX_SAFE_INTEGER));
   if (category === 'turf') return BigInt(player.turfBlocksHeld);
   if (category === 'crew') return BigInt(player.crewMembers);
+  if (category === 'drugs') return BigInt(player.drugUnitsHeld ?? 0);
   if (category === 'businesses') return BigInt(player.activeBusinessesHeld);
   if (category === 'crime') return BigInt(player.raidsAttempted + player.driveBysAttempted);
   return 0n;
@@ -349,10 +352,7 @@ export function buildRoundAftermathLeaderboard(
       entries: [],
     };
   }
-  const availableCategory = category !== 'drugs';
-  const eligible = availableCategory
-    ? rows.filter((player) => player.eligibleCompetitor && player.nationalRank !== null)
-    : [];
+  const eligible = rows.filter((player) => player.eligibleCompetitor && player.nationalRank !== null);
   const sorted = eligible.sort((a, b) => {
     const aValue = categoryValue(category, a);
     const bValue = categoryValue(category, b);
@@ -399,7 +399,7 @@ const awardDefinitions: Record<RoundAftermathCategoryKey, { title: string; formu
   wealth: { title: 'Wealth King', formula: 'All players tied at frozen national rank #1; final net worth is displayed.' },
   turf: { title: 'Turf Warlord', formula: 'Highest player-held turf blocks at cutoff; ties share the award.' },
   crew: { title: 'Crew Commander', formula: 'Highest active thug and worker headcount at cutoff; ties share the award.' },
-  drugs: { title: 'Drug Kingpin', formula: 'Complete round production and sales totals are not recorded.' },
+  drugs: { title: 'Drug Kingpin', formula: 'Highest total drug inventory held at round cutoff; ties share the award. This measures stock at cutoff, not production or sales.' },
   businesses: { title: 'Business Tycoon', formula: 'Highest active business lots held at cutoff; ties share the award.' },
   crime: { title: 'Most Feared', formula: 'Not awarded: attempted raids and drive-bys do not prove victories, defense, or fear.' },
   competition: { title: 'Round Champion', formula: 'Frozen national rank #1; tied champions are all listed.' },
@@ -439,12 +439,13 @@ export function buildRoundAftermathRecords(
     && (!citySlug || category === 'turf' || category === 'businesses' || player.localRank !== null),
   );
   const historicalCategoryMissing = Boolean(citySlug) && schemaVersion < 2;
-  const cityMetricUnavailable = Boolean(citySlug) && (category === 'drugs' || category === 'crime');
+  const cityMetricUnavailable = Boolean(citySlug) && category === 'crime';
   const cityPhysicalMetricMissing = Boolean(citySlug)
     && schemaVersion < 3
     && (category === 'turf' || category === 'businesses');
-  const supported = category !== 'drugs' && (!citySlug || category !== 'crime');
-  const categoryAvailable = supported && !historicalCategoryMissing && !cityMetricUnavailable && !cityPhysicalMetricMissing;
+  const historicalDrugMetricMissing = category === 'drugs' && schemaVersion < 4;
+  const supported = !citySlug || category !== 'crime';
+  const categoryAvailable = supported && !historicalCategoryMissing && !cityMetricUnavailable && !cityPhysicalMetricMissing && !historicalDrugMetricMissing;
   const categoryStatus: RoundAftermathRecordsDto['categoryStatus'] = reportStatus !== 'READY'
     ? reportStatus
     : categoryAvailable && eligible.length ? 'AVAILABLE' : 'NOT_RECORDED';
@@ -512,8 +513,10 @@ export function buildRoundAftermathRecords(
     cityName: entry.cityName,
     value: entry.value,
   }));
-  const unavailableReason = category === 'drugs'
-    ? 'Complete round drug production and sales are not recorded.'
+  const unavailableReason = category === 'drugs' && schemaVersion < 4
+    ? 'This report predates frozen player drug inventory totals.'
+    : category === 'drugs'
+      ? 'No eligible player held drug inventory at the round cutoff.'
     : citySlug && category === 'crime'
       ? 'Crime actions have no trustworthy event-city attribution.'
       : citySlug && schemaVersion < 3 && (category === 'turf' || category === 'businesses')
@@ -523,7 +526,9 @@ export function buildRoundAftermathRecords(
     ? 'Highest final net worth among eligible residents of this city; ties share the award.'
     : citySlug && category === 'turf'
       ? 'Highest player-held turf blocks physically located in this city at cutoff; ties share the award.'
-      : citySlug && category === 'crew'
+      : citySlug && category === 'drugs'
+        ? 'Highest drug inventory held at cutoff by eligible final residents of this city; ties share recognition. Inventory is not production or sales.'
+        : citySlug && category === 'crew'
         ? 'Highest active thug and worker headcount among eligible final residents; ties share the award.'
         : citySlug && category === 'businesses'
           ? 'Highest active business lots physically located in this city at cutoff; ties share the award.'
@@ -551,6 +556,80 @@ export function buildRoundAftermathRecords(
 }
 
 export const RoundAftermathQueryService = {
+  async archive(
+    prisma: PrismaClient,
+    options: { page: number; pageSize: number; query?: string; year?: number; reportStatus?: 'READY' | 'UNAVAILABLE' | 'PREPARING'; order: 'newest' | 'oldest' },
+  ): Promise<RoundAftermathArchiveDto> {
+    const startsAt = options.year ? new Date(Date.UTC(options.year, 0, 1)) : undefined;
+    const endsAt = options.year ? new Date(Date.UTC(options.year + 1, 0, 1)) : undefined;
+    const filters: Prisma.RoundWhereInput[] = [];
+    if (options.query) {
+      filters.push({
+        OR: [
+          { name: { contains: options.query, mode: 'insensitive' } },
+          { slug: { contains: options.query, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (options.reportStatus === 'UNAVAILABLE') {
+      filters.push({
+        OR: [
+          { aftermathReport: { is: { status: 'UNAVAILABLE' } } },
+          { aftermathReport: { is: null } },
+        ],
+      });
+    } else if (options.reportStatus) {
+      filters.push({ aftermathReport: { is: { status: options.reportStatus } } });
+    }
+    const where: Prisma.RoundWhereInput = {
+      status: { in: ['ENDED', 'ARCHIVED'] },
+      ...(startsAt && endsAt ? { endsAt: { gte: startsAt, lt: endsAt } } : {}),
+      ...(filters.length ? { AND: filters } : {}),
+    };
+    const [rounds, total] = await Promise.all([
+      prisma.round.findMany({
+        where,
+        orderBy: [{ endsAt: options.order === 'newest' ? 'desc' : 'asc' }, { id: 'asc' }],
+        skip: (options.page - 1) * options.pageSize,
+        take: options.pageSize,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          rulesetVersion: true,
+          startsAt: true,
+          endsAt: true,
+          aftermathReport: { select: { status: true, globalAggregate: true } },
+        },
+      }),
+      prisma.round.count({ where }),
+    ]);
+    const entries = rounds.map((round) => {
+      const report = round.aftermathReport;
+      const global = report?.status === 'READY' ? globalSchema.safeParse(report.globalAggregate) : null;
+      if (global && !global.success) {
+        throw new AppError(500, 'AFTERMATH_REPORT_INVALID', 'A finalized round report has invalid global totals.');
+      }
+      return {
+        id: round.id,
+        name: round.name,
+        slug: round.slug,
+        rulesetVersion: round.rulesetVersion,
+        startsAt: round.startsAt.toISOString(),
+        endedAt: round.endsAt.toISOString(),
+        reportStatus: report?.status ?? 'UNAVAILABLE',
+        global: global?.success ? global.data : null,
+      };
+    });
+    return {
+      page: options.page,
+      pageSize: options.pageSize,
+      total,
+      totalPages: Math.ceil(total / options.pageSize),
+      rounds: entries,
+    };
+  },
+
   async records(
     prisma: PrismaClient,
     roundId: string,

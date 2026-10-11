@@ -441,7 +441,35 @@ const roundEventSchema = z.object({
   endsAt: z.string(),
   url: z.string().url(),
   standings: z.array(rankingEntrySchema),
+  recap: z.object({
+    roundId: z.string(),
+    aftermathUrl: z.string().url(),
+    participants: z.number().int().nullable(),
+    eligibleCompetitors: z.number().int().nullable(),
+    cities: z.number().int().nullable(),
+    alliances: z.number().int().nullable(),
+    finalNetWorthCents: z.string().regex(/^-?\d+$/).nullable(),
+    finalCrewMembers: z.number().int().nullable(),
+    turfBlocksHeld: z.number().int().nullable(),
+    activeBusinessesHeld: z.number().int().nullable(),
+    crimeActionsAttempted: z.number().int().nullable(),
+    topPlayers: z.array(z.object({
+      rank: z.number().int(),
+      publicPimpId: z.number().int(),
+      displayName: z.string(),
+      city: z.string(),
+      netWorthCents: z.string().regex(/^-?\d+$/),
+      profileUrl: z.string().url(),
+    })),
+    champions: z.array(z.object({
+      title: z.string(),
+      value: z.union([z.number().int(), z.string().regex(/^-?\d+$/)]),
+      unit: z.string(),
+      winners: z.array(z.object({ publicPimpId: z.number().int(), displayName: z.string() })),
+    })),
+  }).nullable().optional(),
 });
+const roundPostsClaimSchema = z.object({ rounds: z.array(roundEventSchema) });
 
 const alertsClaimSchema = z.object({
   turns: z.array(z.object({
@@ -483,7 +511,6 @@ const alertsClaimSchema = z.object({
   blockWars: z.array(blockWarEventSchema).default([]),
   territory: z.array(territoryEventSchema),
   crackdowns: z.array(crackdownEventSchema),
-  rounds: z.array(roundEventSchema),
   factions: z.array(factionEventSchema).default([]),
 });
 
@@ -541,7 +568,7 @@ export type SupportTicket = z.infer<typeof ticketSchema>;
 export type SupportContext = z.infer<typeof supportContextSchema>;
 export type BugCategory = BugReportCategory;
 export type BugResolution = BugReportResolution;
-export type RoundEvent = AlertsClaim['rounds'][number];
+export type RoundEvent = z.infer<typeof roundEventSchema>;
 export type RoundStatus = z.infer<typeof statusSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;
 
@@ -655,9 +682,16 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     alertSettings: (discordId: string) => call(alertSettingsSchema, `/api/internal/discord/alerts?${query({ discordId })}`),
     setAlert: (discordId: string, type: AlertType, enabled: boolean) =>
       call(alertSettingsSchema, '/api/internal/discord/alerts', { method: 'PUT', body: { discordId, type, enabled } }),
-    /** Battles, round events, rank drops and full turns, each handed out once. */
+    /** Battles, rank drops, full turns and other alerts, each handed out once. */
     /** `feed: false` leaves raid-feed events on the server until the bot can post them. */
     claimAlerts: (options?: { feed: boolean }) => call(alertsClaimSchema, '/api/internal/discord/alerts/claim', { method: 'POST', body: options }),
+    claimRoundPosts: async () => (await call(roundPostsClaimSchema, '/api/internal/discord/round-posts/claim', { method: 'POST' })).rounds,
+    roundPostPosted: async (roundId: string, messageId: string) => {
+      await call(okSchema, `/api/internal/discord/round-posts/${encodeURIComponent(roundId)}/posted`, { method: 'POST', body: { messageId } });
+    },
+    roundPostFailed: async (roundId: string, error: string) => {
+      await call(okSchema, `/api/internal/discord/round-posts/${encodeURIComponent(roundId)}/failed`, { method: 'POST', body: { error } });
+    },
     alliances: () => call(alliancesSchema, '/api/internal/discord/alliances'),
     /** Admin-requested role resyncs, each handed out once. */
     claimResync: () => call(resyncClaimSchema, '/api/internal/discord/resync/claim', { method: 'POST' }),

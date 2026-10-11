@@ -15,6 +15,7 @@ import { useSession } from '../stores/session.js';
 import { AllianceRankingTable } from './AlliancesPage.js';
 import { formatElapsed, formatWhen } from '../utils/time.js';
 import { HallOfFamePage } from './HallOfFamePage.js';
+import { roundAftermathPublicEnabled } from '../config/features.js';
 
 type RankingView = 'national' | 'local' | 'alliances' | 'turf-crews' | 'turf-alliances';
 
@@ -237,7 +238,7 @@ export function RankingsPage() {
             <span className="se-eyebrow">Live round ledger</span>
             <h1>Rankings</h1>
             <p>See where your crew stands, who is moving, and who has held the street long enough to own the current board.</p>
-            <div className="se-rankings-archive-link">
+            {roundAftermathPublicEnabled ? <div className="se-rankings-archive-link">
               {latestEndedRound ? (
                 <Link to={`/game/rounds/${encodeURIComponent(latestEndedRound.id)}/aftermath?view=records`}>
                   Open {latestEndedRound.name} records & awards <span aria-hidden="true">→</span>
@@ -246,7 +247,7 @@ export function RankingsPage() {
                 <Link to="/game/hall-of-fame">Browse finished rounds <span aria-hidden="true">→</span></Link>
               )}
               {archiveError ? <span role="status">{archiveError}</span> : null}
-            </div>
+            </div> : null}
           </div>
         </header>
 
@@ -408,6 +409,7 @@ export function RankingsPage() {
         ) : null}
       </div>
       <section id="hall-of-fame" className="se-mt">
+        {roundAftermathPublicEnabled ? <Link className="se-aftermath-archive-link" to="/game/round-archive">Browse and compare archived round reports <span aria-hidden="true">→</span></Link> : null}
         <HallOfFamePage />
       </section>
     </GameLayout>

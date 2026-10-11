@@ -1,8 +1,10 @@
 import type { Prisma } from '@prisma/client';
+import { z } from 'zod';
+import { AppError } from '../utils/errors.js';
 import type { Db } from '../utils/db.js';
 
-export const ROUND_AFTERMATH_SCHEMA_VERSION = 3;
-export const ROUND_AFTERMATH_SOURCE_REVISION = 'round-aftermath-v3';
+export const ROUND_AFTERMATH_SCHEMA_VERSION = 4;
+export const ROUND_AFTERMATH_SOURCE_REVISION = 'round-aftermath-v4';
 
 export interface AftermathPlayerSource {
   id: string;
@@ -18,6 +20,7 @@ export interface AftermathPlayerSource {
   localRank: number | null;
   thugs: number;
   whores: number;
+  drugUnitsHeld: number;
   raidsDone: number;
   driveBysDone: number;
 }
@@ -70,23 +73,27 @@ export function buildRoundAftermathAggregates(
   const turfByCity = new Map<string, number>();
   const businessesByPlayer = new Map<string, number>();
   const businessesByCity = new Map<string, number>();
-  const turfByPlayerCity = new Map<string, number>();
-  const businessByPlayerCity = new Map<string, number>();
+  const turfCitiesByPlayer = new Map<string, Map<string, number>>();
+  const businessCitiesByPlayer = new Map<string, Map<string, number>>();
+
+  const addPlayerCityCount = (counts: Map<string, Map<string, number>>, playerId: string, cityId: string) => {
+    const cityCounts = counts.get(playerId) ?? new Map<string, number>();
+    cityCounts.set(cityId, (cityCounts.get(cityId) ?? 0) + 1);
+    counts.set(playerId, cityCounts);
+  };
 
   for (const turf of turfs) {
     if (turf.holderId) {
       turfByPlayer.set(turf.holderId, (turfByPlayer.get(turf.holderId) ?? 0) + 1);
       turfByCity.set(turf.cityId, (turfByCity.get(turf.cityId) ?? 0) + 1);
-      const key = `${turf.holderId}\u0000${turf.cityId}`;
-      turfByPlayerCity.set(key, (turfByPlayerCity.get(key) ?? 0) + 1);
+      addPlayerCityCount(turfCitiesByPlayer, turf.holderId, turf.cityId);
     }
   }
   for (const business of businesses) {
     if (business.holderId) {
       businessesByPlayer.set(business.holderId, (businessesByPlayer.get(business.holderId) ?? 0) + 1);
       businessesByCity.set(business.cityId, (businessesByCity.get(business.cityId) ?? 0) + 1);
-      const key = `${business.holderId}\u0000${business.cityId}`;
-      businessByPlayerCity.set(key, (businessByPlayerCity.get(key) ?? 0) + 1);
+      addPlayerCityCount(businessCitiesByPlayer, business.holderId, business.cityId);
     }
   }
 
@@ -116,6 +123,7 @@ export function buildRoundAftermathAggregates(
   const topCrew = leaders(eligible, (player) => player.thugs + player.whores);
   const topTurf = leaders(eligible, (player) => turfByPlayer.get(player.id) ?? 0);
   const topBusinesses = leaders(eligible, (player) => businessesByPlayer.get(player.id) ?? 0);
+  const topDrugs = leaders(eligible, (player) => player.drugUnitsHeld);
   const topCrime = leaders(eligible, (player) => player.raidsDone + player.driveBysDone);
   const noEligibleCompetitors = { status: 'NOT_RECORDED', reason: 'This round has no eligible competitors to rank.' };
   const cities = [...cityTotals.values()].map((city) => ({
@@ -216,16 +224,15 @@ export function buildRoundAftermathAggregates(
     thugs: player.thugs,
     whores: player.whores,
     crewMembers: player.thugs + player.whores,
+    drugUnitsHeld: player.drugUnitsHeld,
     turfBlocksHeld: turfByPlayer.get(player.id) ?? 0,
     activeBusinessesHeld: businessesByPlayer.get(player.id) ?? 0,
-    turfByCity: [...cityIds].flatMap((cityId) => {
-      const count = turfByPlayerCity.get(`${player.id}\u0000${cityId}`) ?? 0;
-      return count ? [{ citySlug: citySlugs.get(cityId) ?? null, count }] : [];
-    }),
-    businessesByCity: [...cityIds].flatMap((cityId) => {
-      const count = businessByPlayerCity.get(`${player.id}\u0000${cityId}`) ?? 0;
-      return count ? [{ citySlug: citySlugs.get(cityId) ?? null, count }] : [];
-    }),
+    turfByCity: [...(turfCitiesByPlayer.get(player.id) ?? [])]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([cityId, count]) => ({ citySlug: citySlugs.get(cityId) ?? null, count })),
+    businessesByCity: [...(businessCitiesByPlayer.get(player.id) ?? [])]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([cityId, count]) => ({ citySlug: citySlugs.get(cityId) ?? null, count })),
     raidsAttempted: player.raidsDone,
     driveBysAttempted: player.driveBysDone,
   }));
@@ -254,11 +261,12 @@ export function buildRoundAftermathAggregates(
       crew: eligible.length ? { status: 'AVAILABLE', ...topCrew, unit: 'members' } : noEligibleCompetitors,
       turf: eligible.length ? { status: 'AVAILABLE', ...topTurf, unit: 'blocks held at cutoff' } : noEligibleCompetitors,
       businesses: eligible.length ? { status: 'AVAILABLE', ...topBusinesses, unit: 'active lots held at cutoff' } : noEligibleCompetitors,
+      drugUnitsHeld: eligible.length ? { status: 'AVAILABLE', ...topDrugs, unit: 'drug units held at cutoff' } : noEligibleCompetitors,
       crime: eligible.length ? { status: 'AVAILABLE', ...topCrime, unit: 'attempted raids plus attempted drive-bys' } : noEligibleCompetitors,
       moneyEarnedAndSpent: { status: 'NOT_RECORDED', reason: 'The available ledgers do not provide complete, consistently scoped round totals.' },
       turfCapturesAndDefenses: { status: 'NOT_RECORDED', reason: 'Final ownership is persisted, but event sources do not yet provide a complete cross-system count.' },
       crewRecruitedAndReleased: { status: 'NOT_RECORDED', reason: 'Crew history coverage is not complete for every round and cannot be backfilled as a round total.' },
-      drugsProducedAndSold: { status: 'NOT_RECORDED', reason: 'Stock movements and sales do not provide a complete, consistently attributed production-and-sales history.' },
+      drugsProducedAndSold: { status: 'NOT_RECORDED', reason: 'Production and sales totals are not complete; Drug Kingpin instead uses frozen drug inventory held at cutoff.' },
       businessRevenueAndProfit: { status: 'NOT_RECORDED', reason: 'The register is a cutoff balance, not cumulative gross revenue or net profit.' },
       crimeWins: { status: 'NOT_RECORDED', reason: 'Raid and drive-by counters measure attempts, not victories.' },
       allianceOutcomes: { status: 'NOT_RECORDED', reason: 'Alliance state is not yet frozen as-of the round cutoff.' },
@@ -282,7 +290,8 @@ const SOURCE_PROVENANCE: Prisma.InputJsonObject = {
     finalTurf: { status: 'AVAILABLE', source: 'Turf.holderId and Turf.cityId', unit: 'blocks held', timing: 'After turf-war settlement at the round cutoff.' },
     finalBusinesses: { status: 'AVAILABLE', source: 'Business.level and Turf.holderId', unit: 'active lots held', timing: 'At the round cutoff; does not represent revenue.' },
     crimeActions: { status: 'AVAILABLE', source: 'RoundPlayer.raidsDone and RoundPlayer.driveBysDone', unit: 'attempts', timing: 'Cumulative round counters at close; not wins.' },
-    categoryRecords: { status: 'AVAILABLE', source: 'Frozen nationalRank and supported final counters', definition: 'All tied leaders are preserved; empty rounds have no champions.' },
+    categoryRecords: { status: 'AVAILABLE', source: 'Frozen nationalRank, cutoff inventory, and supported final counters', definition: 'All tied leaders are preserved; empty rounds have no champions.' },
+    drugUnitsHeld: { status: 'AVAILABLE', source: 'RoundPlayer.crack and PlayerProduct.quantity', unit: 'drug units held', timing: 'Total inventory at the round cutoff, attributed to the holder’s final city; not production or sales.' },
     alliances: { status: 'AVAILABLE', source: 'Alliance, RoundPlayer.allianceId, leaderId, Turf.holderId, and active Business lots', definition: 'Non-disbanded alliance and membership state at cutoff; combined wealth sums eligible members only; territorial counts follow members at that same cutoff.' },
     unsupported: 'See categoryRecords for metrics intentionally marked NOT_RECORDED rather than inferred.',
   },
@@ -309,11 +318,13 @@ export const RoundAftermathService = {
         localRank: true,
         thugs: true,
         whores: true,
+        crack: true,
+        products: { select: { quantity: true } },
         raidsDone: true,
         driveBysDone: true,
       },
     });
-    const [turfs, businesses, alliances] = await Promise.all([
+    const [turfs, businesses, alliances, warehouseStocks, dealerStocks, runCargo, outposts] = await Promise.all([
       tx.turf.findMany({ where: { roundId }, select: { cityId: true, holderId: true } }),
       tx.business.findMany({
         where: { roundId, level: { gt: 0 } },
@@ -323,7 +334,37 @@ export const RoundAftermathService = {
         where: { roundId, disbandedAt: null },
         select: { id: true, name: true, tag: true, leaderId: true },
       }),
+      tx.supplyStock.findMany({
+        where: { warehouse: { roundPlayer: { roundId } } },
+        select: { quantity: true, warehouse: { select: { roundPlayerId: true } } },
+      }),
+      tx.dealerStock.findMany({
+        where: { dealerCrew: { roundPlayer: { roundId } } },
+        select: { quantity: true, dealerCrew: { select: { roundPlayerId: true } } },
+      }),
+      tx.runCargo.findMany({
+        where: { run: { roundPlayer: { roundId } } },
+        select: { quantity: true, run: { select: { roundPlayerId: true } } },
+      }),
+      tx.turfOutpost.findMany({
+        where: { turf: { roundId } },
+        select: { ownerId: true, products: true },
+      }),
     ]);
+    const additionalDrugUnits = new Map<string, number>();
+    const addUnits = (roundPlayerId: string, quantity: number) => {
+      additionalDrugUnits.set(roundPlayerId, (additionalDrugUnits.get(roundPlayerId) ?? 0) + quantity);
+    };
+    for (const stock of warehouseStocks) addUnits(stock.warehouse.roundPlayerId, stock.quantity);
+    for (const stock of dealerStocks) addUnits(stock.dealerCrew.roundPlayerId, stock.quantity);
+    for (const cargo of runCargo) addUnits(cargo.run.roundPlayerId, cargo.quantity);
+    for (const outpost of outposts) {
+      const products = z.record(z.string(), z.number().int().nonnegative()).safeParse(outpost.products);
+      if (!products.success) {
+        throw new AppError(500, 'AFTERMATH_INVENTORY_INVALID', 'A turf outpost has invalid product inventory.');
+      }
+      addUnits(outpost.ownerId, Object.values(products.data).reduce((sum, quantity) => sum + quantity, 0));
+    }
     const cityIds = [...new Set([...players.map((player) => player.cityId), ...turfs.map((turf) => turf.cityId)])];
     const extraCities = cityIds.length
       ? await tx.city.findMany({ where: { id: { in: cityIds } }, select: { id: true, name: true, slug: true } })
@@ -334,6 +375,9 @@ export const RoundAftermathService = {
       ...player,
       cityName: player.city.name || cityNames.get(player.cityId) || '',
       citySlug: player.city.slug,
+      drugUnitsHeld: player.crack
+        + player.products.reduce((sum, product) => sum + product.quantity, 0)
+        + (additionalDrugUnits.get(player.id) ?? 0),
     }));
     const aggregates = buildRoundAftermathAggregates(
       sourcePlayers,

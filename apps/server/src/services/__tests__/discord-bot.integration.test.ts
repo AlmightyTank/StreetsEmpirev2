@@ -204,7 +204,12 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     const claim = async () => {
       const response = await app.inject({ method: 'POST', url: '/api/internal/discord/alerts/claim', headers: auth() });
       expect(response.statusCode, response.body).toBe(200);
-      type RoundEvent = { type: string; roundName: string; standings: Array<{ rank: number; publicPimpId: number }> };
+      type RoundEvent = {
+        type: string;
+        roundName: string;
+        standings: Array<{ rank: number; publicPimpId: number }>;
+        recap?: { roundId: string; topPlayers: Array<{ rank: number; publicPimpId: number; netWorthCents: string }> } | null;
+      };
       return response.json() as {
         battles: Array<{ id: string }>;
         attacks: Array<{ id: string; discordId: string }>;
@@ -212,6 +217,16 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
         rounds: RoundEvent[];
         roundAlerts: Array<RoundEvent & { discordId: string; rank: number | null }>;
       };
+    };
+    const claimRoundPosts = async () => {
+      const response = await app.inject({ method: 'POST', url: '/api/internal/discord/round-posts/claim', headers: auth() });
+      expect(response.statusCode, response.body).toBe(200);
+      return (response.json() as { rounds: Array<{
+        type: string;
+        roundName: string;
+        standings: Array<{ rank: number; publicPimpId: number }>;
+        recap?: { roundId: string; topPlayers: Array<{ rank: number; publicPimpId: number; netWorthCents: string }> } | null;
+      }> }).rounds;
     };
 
     const rankOn = await setAlert(first.discordId, 'rank', true);
@@ -248,6 +263,34 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
       } });
       // The second player overtakes the first: a rank drop for the first.
       await app.prisma.roundPlayer.update({ where: { id: secondPlayer.id }, data: { netWorthCents: 950_000_00n } });
+      const frozenPlayers = await app.prisma.roundPlayer.findMany({
+        where: { roundId: finalRound.id },
+        orderBy: { netWorthCents: 'desc' },
+        select: { id: true, publicPimpId: true, displayName: true, netWorthCents: true },
+      });
+      await app.prisma.roundAftermathReport.create({ data: {
+        roundId: finalRound.id,
+        schemaVersion: 4,
+        sourceRevision: 'round-aftermath-v4-test',
+        status: 'READY',
+        cutoffAt: finalRound.endsAt,
+        finalizedAt: finalRound.endsAt,
+        sourceProvenance: { schemaVersion: 4 },
+        globalAggregate: {
+          participants: 2, eligibleCompetitors: 2, citiesInRound: 1, finalNetWorthCents: '95030000',
+          finalCrewMembers: 2, playerHeldTurfBlocks: 0, activeBusinessesHeld: 0, crimeActions: 0,
+        },
+        cityAggregates: [],
+        playerAggregates: frozenPlayers.map((player, index) => ({
+          roundPlayerId: player.id, publicPimpId: player.publicPimpId, displayName: player.displayName,
+          cityName: 'Bot Test City', eligibleCompetitor: true, nationalRank: index + 1,
+          netWorthCents: player.netWorthCents.toString(),
+        })),
+        allianceAggregate: [],
+        categoryRecords: {
+          wealth: { status: 'AVAILABLE', valueCents: '95000000', roundPlayerIds: [frozenPlayers[0]!.id] },
+        },
+      } });
 
       const claimed = await claim();
       const battle = {
@@ -273,15 +316,62 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
       expect(recipients('ending-soon', 'Bot Test Round')).toEqual([{ discordId: first.discordId, rank: 2 }]);
       expect(recipients('ended', 'Bot Final Round')).toEqual([{ discordId: first.discordId, rank: 2 }]);
       // Only the round end is public.
-      const ended = claimed.rounds.filter((entry) => ['Bot Next Round', 'Bot Test Round', 'Bot Final Round'].includes(entry.roundName));
-      expect(ended.map((entry) => [entry.type, entry.roundName])).toEqual([['ended', 'Bot Final Round']]);
-      expect(ended[0]!.standings.map((entry) => [entry.rank, entry.publicPimpId])).toEqual([[1, 7302], [2, 7301]]);
+      const ended = await claimRoundPosts();
+      const publicEnded = ended.filter((entry) => ['Bot Next Round', 'Bot Test Round', 'Bot Final Round'].includes(entry.roundName));
+      expect(publicEnded.map((entry) => [entry.type, entry.roundName])).toEqual([['ended', 'Bot Final Round']]);
+      expect(publicEnded[0]!.recap).toMatchObject({
+        roundId: finalRound.id,
+        participants: 2,
+        cities: 1,
+        finalNetWorthCents: '95030000',
+        topPlayers: [{ rank: 1, publicPimpId: 7302, netWorthCents: '95000000' }],
+        champions: [
+          { title: 'Round Champion', winners: [{ publicPimpId: 7302 }] },
+          { title: 'Wealth King', winners: [{ publicPimpId: 7302 }] },
+        ],
+      });
+      expect(publicEnded[0]!.standings).toEqual([]);
+
+      const failedDelivery = await app.inject({
+        method: 'POST',
+        url: `/api/internal/discord/round-posts/${finalRound.id}/failed`,
+        headers: auth(),
+        payload: { error: 'Discord refused the send.' },
+      });
+      expect(failedDelivery.statusCode, failedDelivery.body).toBe(200);
+      expect(await app.prisma.round.findUniqueOrThrow({ where: { id: finalRound.id } }))
+        .toMatchObject({ discordEndedAt: null, discordEndedError: 'Discord refused the send.' });
+      await app.prisma.round.update({
+        where: { id: finalRound.id },
+        data: { discordEndedClaimedAt: new Date(Date.now() - 10 * 60_000) },
+      });
+
+      const retried = await claimRoundPosts();
+      expect(retried.map((entry) => entry.recap?.roundId)).toEqual([finalRound.id]);
+      const duplicateClaim = await claimRoundPosts();
+      expect(duplicateClaim).toEqual([]);
+      const delivered = await app.inject({
+        method: 'POST',
+        url: `/api/internal/discord/round-posts/${finalRound.id}/posted`,
+        headers: auth(),
+        payload: { messageId: snowflake() },
+      });
+      expect(delivered.statusCode, delivered.body).toBe(200);
+      expect(await app.prisma.round.findUniqueOrThrow({ where: { id: finalRound.id } }))
+        .toMatchObject({ discordEndedAt: expect.any(Date), discordEndedMessageId: expect.any(String), discordEndedClaimedAt: null, discordEndedError: null });
+      const duplicateReceipt = await app.inject({
+        method: 'POST',
+        url: `/api/internal/discord/round-posts/${finalRound.id}/posted`,
+        headers: auth(),
+        payload: { messageId: snowflake() },
+      });
+      expect(duplicateReceipt.statusCode).toBe(404);
 
       const again = await claim();
       expect(again.battles.some((entry) => entry.id === raid.id)).toBe(false);
       expect(again.attacks.some((entry) => entry.id === raid.id)).toBe(false);
       expect(again.ranks.some((alert) => alert.discordId === first.discordId)).toBe(false);
-      expect(again.rounds.some((entry) => ['Bot Next Round', 'Bot Test Round', 'Bot Final Round'].includes(entry.roundName))).toBe(false);
+      expect(await claimRoundPosts()).toEqual([]);
       expect(again.roundAlerts.some((entry) => ['Bot Next Round', 'Bot Test Round', 'Bot Final Round'].includes(entry.roundName))).toBe(false);
 
       // Discord DMs switched off: the next attack is collected but never reaches Discord.

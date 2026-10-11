@@ -52,6 +52,7 @@ const messageReportActionSchema = z.object({
   note: z.string().trim().min(5, 'Write a note of at least 5 characters.').max(500),
 }).strict();
 const staffPostParams = z.object({ postId: z.string().min(1).max(64) }).strict();
+const roundPostParams = z.object({ roundId: z.string().min(1).max(64) }).strict();
 const staffClaimSchema = z.object({ audience: z.enum(['staff', 'status']).optional() }).strict();
 const ticketParams = z.object({ ticketId: z.string().min(1).max(64) }).strict();
 const openTicketSchema = z.object({
@@ -224,6 +225,23 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
   // Bots from before the raid-feed check send no body, and always had their feed claimed.
   fastify.post('/alerts/claim', async (request) =>
     DiscordBotService.claimAlerts(fastify.prisma, parseBody(alertsClaimSchema, request.body ?? {})));
+
+  fastify.post('/round-posts/:roundId/posted', async (request) => {
+    const { roundId } = parseBody(roundPostParams, request.params);
+    await DiscordBotService.roundPostPosted(fastify.prisma, roundId, parseBody(staffPostedSchema, request.body).messageId);
+    return { ok: true };
+  });
+
+  fastify.post('/round-posts/claim', async () => ({
+    rounds: await DiscordBotService.claimRoundPosts(fastify.prisma),
+  }));
+
+  fastify.post('/round-posts/:roundId/failed', async (request) => {
+    const { roundId } = parseBody(roundPostParams, request.params);
+    const { error } = parseBody(newsFailedSchema, request.body ?? {});
+    await DiscordBotService.roundPostFailed(fastify.prisma, roundId, error);
+    return { ok: true };
+  });
 
   /** 0.3.0-B: role resyncs an admin asked for from the panel, each handed out once. */
   fastify.post('/resync/claim', async () => claimResyncRequests(fastify.prisma));

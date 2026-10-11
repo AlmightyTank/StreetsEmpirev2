@@ -1,7 +1,7 @@
 # StreetsEmpire — Round Aftermath & Statistics Roadmap
 
 **Target:** beta · future feature release (version to be assigned)  
-**Status:** Slices A–E implemented; slices F–H planned
+**Status:** Slices A–H implemented; production rollout checks requiring the beta database remain operational.
 **Goal:** Replace the bare “round ended / top standings” experience with a permanent, compelling end-of-round report covering **every city** and the complete criminal economy, with a personal performance view and a compact Discord recap.
 
 ## Player experience
@@ -92,33 +92,35 @@ At round close, show a new **Round Aftermath** page. A player can switch between
 - **Done when:** a player can see their full personal report and nobody else can access private fields.
 
 ### Slice E — Records, awards, and Hall of Fame
-**Status: Complete.** The Records & Awards tab exposes paginated global and city leaderboards with explicit formulas and only supported award winners.
+**Status: Complete.** The Records & Awards tab exposes paginated global and city leaderboards with explicit formulas and supported award winners.
 
-- Wealth King follows the frozen national rank; Turf Warlord, Crew Commander, and Business Tycoon use eligible players' cutoff holdings. Ties share awards.
-- Drug Kingpin remains unawarded because complete production/sales are not recorded. Most Feared remains unawarded because attempts do not prove victories or fear. City crime is not attributed.
-- National top-10 placements and supported global award distinctions earn $500 each toward next-round starting cash, capped at $2,500 per player. City awards are recognition only.
+- Wealth King follows frozen national rank; Turf Warlord, Drug Kingpin, Crew Commander, and Business Tycoon use eligible players' cutoff holdings/inventory. Round Champion follows rank #1. Ties share awards.
+- Drug Kingpin measures total drug units held at cutoff, attributed to the player's final resident city; it is explicitly not a production or sales total. Most Feared remains unawarded because attempts do not prove victories or fear. City crime is not attributed.
+- National top-10 placements and supported global award distinctions, including Drug Kingpin, earn $500 each toward next-round starting cash, capped at $2,500 per player. City awards are recognition only.
 - Claims are written atomically with the new round player, uniquely keyed per account and target round, and included in the join activity record. Only the immediately preceding ended round's `READY` report qualifies.
 - Hall of Fame and Rankings link directly to the Records & Awards view.
 - **Done when:** record holders match canonical frozen metrics, rewards are auditable/idempotent, and archives survive later seasons.
 
 ### Slice F — Discord full round recap
-- Replace the current minimal end-of-round embed with a polished **one-message** summary sourced from the finalized report: participant/city/alliance counts, wealth earned, turf captures, crew recruited, drugs produced, business revenue, criminal actions, top 3 by **final rank/net worth**, award winners and most contested city where supported.
-- Link to `/game/rounds/:roundId/aftermath`; escape Markdown/mentions and respect Discord embed field/character limits.
-- Only post when snapshot status is finalized. Reuse notification claim/delivery infrastructure and add durable idempotency/delivery receipt; retries, duplicate claims, bot restarts, missing permission and partial failures covered.
-- Optional branded banner image is separate from core delivery; generated from frozen data and has text-only fallback. Keep personal stats out of public embeds.
-- **Done when:** the existing basic post is replaced with one correct, legible, retry-safe recap per round.
+- **Status: Complete.** Replaced the minimal post with one compact embed sourced only from a `READY` aftermath report. It includes final participants, ranked competitors, cities, alliances, final net worth, final crew, cutoff turf/business holdings, attempted crime actions, the top three and supported Round Champion, Wealth King, Turf Warlord, Drug Kingpin, Crew Commander and Business Tycoon winners.
+- Unsupported earnings/spending, captures/defenses, recruiting, drug production/sales, business revenue and contested-city totals are explicitly labeled not recorded; the embed does not infer them. Drug Kingpin uses cutoff inventory held.
+- Links directly to `/game/rounds/:roundId/aftermath`, escapes player text and mentions, disables Discord mentions, and keeps exact cents when formatting money.
+- Round posts use a dedicated claim endpoint and a five-minute delivery lease; only a Discord message receipt marks delivery. Failures are persisted and retried, and the bot checks recent channel history using a stable report marker before retrying to recover a send whose receipt was interrupted by a restart. Posts are not claimed without a usable news channel and read-history permission.
+- Personal stats and the optional banner image are intentionally excluded from the public embed.
+- **Done when:** one correct, legible, retry-safe recap is delivered per round.
 
 ### Slice G — Round archive and shareability
-- Add archive index/filters for closed rounds and permanent report URLs, including old rounds with partial data.
-- Shareable public report/category links and optional player-approved share card; public/private fields cannot leak in previews.
-- Ensure archive cross-links from landing site, Hall of Fame, Rankings and round-end screen.
+- **Status: Complete.** Added a paginated public archive for ended/archived rounds, with name, year, report-state and sort filters. Historical rounds without a canonical frozen report remain discoverable and are explicitly marked unavailable; their metrics are neither shown as zero nor reconstructed.
+- The archive URL preserves filters, pagination and up to two comparison selections. Its side-by-side comparison reads only the selected rounds' frozen overview reports, while unavailable reports show no fabricated totals.
+- Permanent report URLs support shareable view/category/city query parameters and a copy-link action. Cross-links are available from the public landing-site navigation, Hall of Fame, Rankings, and the report itself.
 - **Done when:** old recaps remain readable and linkable through later rounds.
 
 ### Slice H — QA, scale, rollout and operations
-- Integration tests for aggregations vs database fixtures, entire-round/city reconciliation, money precision, tie rules, cross-city activities, deleted/deactivated players, high player counts, early endings and bot delivery.
-- Verify report snapshot cost on large rounds; no per-player N+1, limit API payloads, cache immutable snapshots; report progress visible to admins, retry without duplicate awards/posts.
-- Beta UX pass at desktop and mobile, accessibility, fallback labels for missing fields, metrics validation and bot preview in admin round tools.
-- Feature flag for staged beta release, dry-run backfill and rollout checklist; keep the aftermath bonus capped and separate from final ranking rules.
+- **Status: Implementation complete.** Close-time source reads remain batched (no per-player queries); player-by-city holdings are accumulated sparsely rather than scanning every city for every player. Public frozen report/archive responses use short shared-cache headers; personal reports remain `private, no-store`.
+- Public aftermath/archive endpoints can be staged with `ROUND_AFTERMATH_PUBLIC_ENABLED`; web/site builds use the matching `VITE_ROUND_AFTERMATH_PUBLIC_ENABLED`. Both default to enabled for existing deployments. Disabling these flags hides public navigation and removes the public report routes without disabling report capture, Discord delivery or next-round rewards.
+- Responsive archive controls and report cards collapse for mobile; comparison tables stay inside scroll containers, and reduced-motion preferences are respected. Loading, error, empty, unavailable and preparing states are explicit; report links are present on the round-over handoff.
+- Focused tests cover aggregation ties/precision and archived, unavailable and invalid reports. Database-backed close/restart, production-scale load and Discord delivery checks require the beta integration environment and must be run before production rollout.
+- **Release checklist:** set matching server/web/site flag values; apply pending Prisma migrations; confirm ended rounds have `READY` or explicit `UNAVAILABLE` reports (never reconstruct history); smoke-test archive search, pagination, unavailable rounds, two-report comparison, shareable category/city URLs and the round-over link; verify the same frozen totals in the Discord recap; exercise a retry after bot interruption; verify next-round awards remain capped/idempotent; repeat on a narrow viewport with keyboard navigation and reduced motion.
 - **Done when:** round-close, public archives and Discord can ship with reproducible end-to-end checks.
 
 ## Proposed data/API contracts
@@ -130,8 +132,8 @@ At round close, show a new **Round Aftermath** page. A player can switch between
 - `GET /api/rounds/:roundId/aftermath/alliances`: frozen cutoff alliance roster, leadership, wealth and control.
 - `GET /api/rounds/:roundId/aftermath/records?category=...`: paginated ranking.
 - `GET /api/rounds/:roundId/aftermath/me`: authenticated account's owned data only.
-- `GET /api/rounds/aftermath/archive`: public index.
-- These are intended contracts, not existing API claims; align naming with current Fastify route conventions.
+- `GET /api/rounds/aftermath/archive`: public index with closed-round paging and filters.
+- `GET /api/rounds/:roundId/aftermath`: permanent public report; view/category/city state is URL-addressable.
 
 ## Discord embed structure (compact and within Discord limits)
 

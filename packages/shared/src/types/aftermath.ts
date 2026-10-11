@@ -9,6 +9,27 @@ export type RoundAftermathCategoryKey =
   | 'crime'
   | 'competition';
 
+export type RoundAftermathArchiveReportStatus = 'READY' | 'UNAVAILABLE' | 'PREPARING';
+
+export interface RoundAftermathArchiveEntryDto {
+  id: string;
+  name: string;
+  slug: string;
+  rulesetVersion: string;
+  startsAt: string;
+  endedAt: string;
+  reportStatus: RoundAftermathArchiveReportStatus;
+  global: NonNullable<RoundAftermathOverviewDto['global']> | null;
+}
+
+export interface RoundAftermathArchiveDto {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  rounds: RoundAftermathArchiveEntryDto[];
+}
+
 export interface RoundAftermathRoundDto {
   id: string;
   name: string;

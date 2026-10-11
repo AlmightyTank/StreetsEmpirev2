@@ -54,7 +54,7 @@ const PLAYER_PAGES = [
   '/game/stores', '/game/stores/pip', '/game/stores/charlie', '/game/stores/iron-maya',
   '/game/travel', '/game/turf', '/game/crew', '/game/blocks', '/game/cities', '/game/rankings', '/game/players',
   '/game/alliance', '/game/alliances', '/game/contacts', '/game/console', '/game/profile',
-  '/game/activity', '/game/reputation', '/game/news', '/game/status', '/game/rules', '/game/hall-of-fame', '/account',
+  '/game/activity', '/game/reputation', '/game/news', '/game/status', '/game/rules', '/game/hall-of-fame', '/game/round-archive', '/account',
 ];
 const ADMIN_PAGES = [
   '/game/admin', '/game/admin/monitoring', '/game/admin/news', '/game/admin/accounts', '/game/admin/quests', '/game/admin/surveys',

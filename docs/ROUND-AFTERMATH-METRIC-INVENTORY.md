@@ -1,8 +1,8 @@
 # Round aftermath metric inventory
 
-Slice A freezes metrics only when their source is durable and their cutoff meaning is clear. Version 1 is `round-aftermath-v1`; Slice C adds version 2 (`round-aftermath-v2`) with stable city keys, local standings, and an as-of-cutoff alliance snapshot. Version 3 (`round-aftermath-v3`) adds per-player physical-city turf and business holdings. Monetary values inside report JSON are base-10 integer-cent strings; UI conversion must happen after reading the report.
+Slice A freezes metrics only when their source is durable and their cutoff meaning is clear. Version 1 is `round-aftermath-v1`; Slice C adds version 2 (`round-aftermath-v2`) with stable city keys, local standings, and an as-of-cutoff alliance snapshot. Version 3 (`round-aftermath-v3`) adds per-player physical-city turf and business holdings. Version 4 (`round-aftermath-v4`) freezes each player's total drug units held at cutoff. Monetary values inside report JSON are base-10 integer-cent strings; UI conversion must happen after reading the report.
 
-## Version 1: recorded at round close
+## Frozen metrics recorded at round close
 
 Eligibility for competitive aggregates is the frozen `RoundPlayer.nationalRank IS NOT NULL`. Final standing calculation already excludes inactive accounts and NPC gangs. All round-player rows remain in the personal snapshot, but do not enter eligible global totals or category records when ineligible.
 
@@ -20,6 +20,7 @@ Eligibility for competitive aggregates is the frozen `RoundPlayer.nationalRank I
 | City keys and local standings (v2) | `City.slug` and frozen `RoundPlayer.localRank` | Public stable slug and final eligible local rankings | Local totals use final resident city; physical city remains the attribution for turf/businesses. No city-scoped crime totals are inferred. |
 | Alliance roster and control (v2) | Non-disbanded `Alliance`, each `RoundPlayer.allianceId`/`leaderId`, final `Turf.holderId`, and active businesses | Combined eligible net worth, roster counts, member public summaries, turf and businesses at cutoff | Membership/leadership and territory attribution are sampled in the close transaction. Net worth includes eligible members only; no capture history or time-held claims are made. |
 | Per-player physical-city holdings (v3) | Final turf and active business lots grouped by holder and stable city slug | Turf blocks and active business lots per player/city | Supports accurate city-scoped boards without assigning holdings to a player's final resident city. |
+| Drug inventory held (v4) | `RoundPlayer.crack`, `PlayerProduct`, `SupplyStock`, `DealerStock`, `RunCargo`, and `TurfOutpost.products` | Drug units held across player storage locations at cutoff | Drug Kingpin is the highest cutoff stock; ties share the award. City boards attribute each player's inventory to their final resident city. This is not cumulative production or sales. |
 
 ## Not recorded in version 1
 
@@ -38,6 +39,12 @@ These values remain `NOT_RECORDED`, not zero, until a complete source and attrib
 
 The report is written in the same transaction that settles and closes a round. The source rows, cutoff, finalized aggregates and `READY` status therefore commit together or not at all. A unique `roundId` and the round lifecycle lock prevent retries from replacing a published snapshot. Version 1 reports remain readable for global data, but city detail and alliance tabs explicitly report unavailable when their version-2 frozen keys/data are absent. There is no public rebuild path; future corrections require an explicit audited workflow.
 
+## Discord round recap
+
+The public end-of-round embed reads only a `READY` report. It displays final participation, city/alliance counts, final net worth, final crew, held turf, active businesses, attempted crime actions, the frozen top three and supported category champions. It does not present unsupported earned/spent money, captures/defenses, crew recruiting, drug production/sales, business revenue or contested-city totals as if they were recorded; those are labeled unavailable in the embed. Money remains an integer-cent string until formatted for display.
+
+Delivery is tracked separately from the immutable report through a dedicated claim endpoint. A round is considered delivered only after the bot records Discord's message ID. Claims have a five-minute lease, failed sends keep the claim retryable after that lease, and a stable embed footer lets the bot find a recently sent message if it restarted before storing the receipt. A missing/unusable news channel or missing read-history permission leaves the post unclaimed.
+
 ## Records, awards, and next-round cash
 
-National top-10 finishers and winners of supported global awards (Wealth King, Turf Warlord, Crew Commander, Business Tycoon, and Round Champion) qualify for $500 per distinction, capped at $2,500 per account for the next round. Awards can stack as distinct qualifications; unsupported Drug Kingpin and Most Feared awards and city-scoped awards do not grant cash. Tied eligible global leaders all qualify. A claim is stored once per account/target round and committed in the same transaction as the new round player and starting cash; its source is only the immediately previous ended round when that round has a `READY` frozen report.
+National top-10 finishers and winners of supported global awards (Wealth King, Turf Warlord, Drug Kingpin, Crew Commander, Business Tycoon, and Round Champion) qualify for $500 per distinction, capped at $2,500 per account for the next round. Drug Kingpin is based on inventory held at cutoff, not cumulative production or sales. Awards can stack as distinct qualifications; Most Feared remains unsupported, and city-scoped awards do not grant cash. Tied eligible global leaders all qualify. A claim is stored once per account/target round and committed in the same transaction as the new round player and starting cash; its source is only the immediately previous ended round when that round has a `READY` frozen report.

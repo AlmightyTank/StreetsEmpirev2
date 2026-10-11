@@ -302,7 +302,7 @@ export function AdminPage() {
                   </div>
                   <p>{item.detail}</p>
                   {item.key === 'round-end-post' && item.status !== 'done' ? (
-                    <p className="se-hint">The Discord bot claims this on its next check. Nothing to press here.</p>
+                    <p className="se-hint">The Discord bot retries delivery automatically; check its logs and news-channel permissions if this remains pending.</p>
                   ) : item.key === 'news-post' && item.status !== 'done' ? (
                     <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/admin/news">Write a wrap-up post</Link>
                   ) : item.key === 'next-round-ready' && item.status !== 'done' ? (

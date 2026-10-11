@@ -4,6 +4,7 @@ import { useOnboarding } from '../stores/onboarding.js';
 import { CONSOLE_UPDATED_EVENT, consoleApi } from '../api/console.js';
 import { SURVEYS_CHANGED_EVENT, surveysApi } from '../api/surveys.js';
 import { formatWhen } from '../utils/time.js';
+import { roundAftermathPublicEnabled } from '../config/features.js';
 
 /** One page in the game menu. `key` is what the phone tab bar stores. */
 export interface NavPage {
@@ -69,7 +70,7 @@ export const SECTIONS: NavSection[] = [
     title: 'People',
     pages: [
       { key: 'players', label: 'Players', to: '/game/players', icon: 'contacts', aliases: ['/game/contacts'], prefix: '/game/players/', prefixes: ['/game/forum/'] },
-      { key: 'rankings', label: 'Rankings', short: 'Ranks', to: '/game/rankings', icon: 'rankings', aliases: ['/game/hall-of-fame'] },
+      { key: 'rankings', label: 'Rankings', short: 'Ranks', to: '/game/rankings', icon: 'rankings', aliases: roundAftermathPublicEnabled ? ['/game/hall-of-fame', '/game/round-archive'] : ['/game/hall-of-fame'] },
       { key: 'alliance', label: 'Alliance', to: '/game/alliance', icon: 'alliance', aliases: ['/game/alliances'], prefix: '/game/alliances/' },
       { key: 'profile', label: 'Profile', to: '/game/profile', icon: 'profile' },
       { key: 'console', label: 'Console', to: '/game/console', icon: 'activity', aliases: ['/game/activity'] },

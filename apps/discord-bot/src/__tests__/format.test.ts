@@ -20,6 +20,7 @@ import {
   rankingsEmbed,
   reminderText,
   roundEmbed,
+  roundEventEmbed,
   syncAllText,
   syncMemberText,
   territoryFeedEmbed,
@@ -115,10 +116,61 @@ describe('rankingsEmbed', () => {
     }, origin);
     expect(embed.description).toBe(`**#1** [\\[evil\\]\\(http://x\\)](${origin}/game/players/1) · $500 · Detroit ▼2`);
   });
-
   it('handles no round and an empty round', () => {
     expect(rankingsEmbed({ round: null, entries: [] }, origin).title).toBe('No game running');
     expect(rankingsEmbed({ round: { name: 'R', status: 'ACTIVE', endsAt: '' }, entries: [] }, origin).description).toBe('Nobody has joined this round yet.');
+  });
+});
+
+describe('roundEventEmbed', () => {
+  it('renders a one-embed frozen recap with escaped names, exact money and unsupported metrics labeled', () => {
+      const embed = roundEventEmbed({
+        type: 'ended',
+        roundName: 'Round @everyone *One*',
+        status: 'ENDED',
+        startsAt: '2026-01-01T00:00:00.000Z',
+        endsAt: '2026-02-01T00:00:00.000Z',
+        url: `${origin}/game/rankings`,
+        standings: [],
+        recap: {
+          roundId: 'round-1',
+          aftermathUrl: `${origin}/game/rounds/round-1/aftermath`,
+          participants: 20,
+          eligibleCompetitors: 18,
+          cities: 4,
+          alliances: 3,
+          finalNetWorthCents: '9007199254740993123',
+          finalCrewMembers: 90,
+          turfBlocksHeld: 12,
+          activeBusinessesHeld: 7,
+          crimeActionsAttempted: 42,
+          topPlayers: [{
+            rank: 1,
+            publicPimpId: 1001,
+            displayName: '@here [Boss]',
+            city: 'Detroit',
+            netWorthCents: '123456789012345678',
+            profileUrl: `${origin}/game/players/1001`,
+          }],
+          champions: [{
+            title: 'Drug Kingpin',
+            value: 50,
+            unit: 'drug units held at cutoff',
+            winners: [{ publicPimpId: 1001, displayName: '@everyone Boss' }],
+          }],
+        },
+      });
+
+      expect(embed.url).toBe(`${origin}/game/rounds/round-1/aftermath`);
+      expect(embed.title).toContain('@\u200beveryone');
+      expect(embed.fields).toHaveLength(3);
+      expect(embed.fields![0]!.value).toContain('Eligible final net worth: $90,071,992,547,409,931.23');
+      expect(embed.fields![0]!.value).toContain('Earned/spent, captures/defenses, recruiting, drug production/sales, business revenue and contested-city totals: Not recorded.');
+      expect(embed.fields![1]!.value).toContain('@\u200bhere');
+      expect(embed.fields![1]!.value).toContain('$1,234,567,890,123,456.78');
+      expect(embed.fields![2]!.value).toContain('@\u200beveryone');
+      expect(embed.footer?.text).toBe('round-recap:round-1');
+      expect(JSON.stringify(embed)).not.toContain('@everyone');
   });
 });
 

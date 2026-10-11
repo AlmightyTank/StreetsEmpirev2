@@ -41,6 +41,73 @@ export function escapeMarkdown(text: string): string {
   return text.replace(/[\\`*_~|>[\]()#-]/g, (char) => `\\${char}`);
 }
 
+function escapeRoundName(text: string): string {
+  return escapeMarkdown(text).replace(/@/g, '@\u200b');
+}
+
+function formatCentsString(cents: string): string {
+  const amount = BigInt(cents);
+  const absolute = amount < 0n ? -amount : amount;
+  const whole = new Intl.NumberFormat('en-US').format(absolute / 100n);
+  const fraction = (absolute % 100n).toString().padStart(2, '0');
+  return `${amount < 0n ? '-$' : '$'}${whole}.${fraction}`;
+}
+
+function roundRecapEmbed(event: RoundEvent): APIEmbed | null {
+  const recap = event.recap;
+  if (!recap) return null;
+  const metric = (value: number | null, label: string) => value === null ? `${label}: Not recorded` : `${label}: ${formatNumber(value)}`;
+  const champValueLimit = 1024;
+  const champions: string[] = [];
+  let championsLength = 0;
+  for (const award of recap.champions) {
+    const names = award.winners.slice(0, 2).map((winner) => escapeRoundName(winner.displayName));
+    const more = award.winners.length > names.length ? ` +${award.winners.length - names.length} more` : '';
+    const value = award.unit === 'cents'
+      ? formatCentsString(String(award.value))
+      : `${formatNumber(Number(award.value))} ${escapeRoundName(award.unit)}`;
+    const line = `**${escapeRoundName(award.title)}** · ${value} — ${names.join(', ')}${more}`;
+    if (championsLength + line.length + (champions.length ? 1 : 0) > champValueLimit) break;
+    champions.push(line);
+    championsLength += line.length + (champions.length > 1 ? 1 : 0);
+  }
+  const topPlayers: string[] = [];
+  let topPlayersLength = 0;
+  for (const player of recap.topPlayers) {
+    const line = `**#${player.rank}** [${escapeRoundName(player.displayName)}](${player.profileUrl}) · ${formatCentsString(player.netWorthCents)} · ${escapeRoundName(player.city)}`;
+    if (topPlayersLength + line.length + (topPlayers.length ? 1 : 0) > 1024) break;
+    topPlayers.push(line);
+    topPlayersLength += line.length + (topPlayers.length > 1 ? 1 : 0);
+  }
+
+  return {
+    title: `${truncate(escapeRoundName(event.roundName), 220)} · Round Aftermath`,
+    url: recap.aftermathUrl,
+    color: MUTED_COLOR,
+    description: 'The final bell has rung. The full frozen report is ready.',
+    fields: [
+      {
+        name: 'Final Snapshot',
+        value: [
+          metric(recap.participants, 'Players'),
+          metric(recap.eligibleCompetitors, 'Ranked competitors'),
+          metric(recap.cities, 'Cities'),
+          metric(recap.alliances, 'Alliances'),
+          recap.finalNetWorthCents === null ? 'Eligible final net worth: Not recorded' : `Eligible final net worth: ${formatCentsString(recap.finalNetWorthCents)}`,
+          metric(recap.finalCrewMembers, 'Crew at cutoff'),
+          metric(recap.turfBlocksHeld, 'Turf blocks held'),
+          metric(recap.activeBusinessesHeld, 'Active businesses held'),
+          metric(recap.crimeActionsAttempted, 'Crime actions attempted'),
+          'Earned/spent, captures/defenses, recruiting, drug production/sales, business revenue and contested-city totals: Not recorded.',
+        ].join('\n'),
+      },
+      { name: 'Top Empires', value: topPlayers.length ? topPlayers.join('\n') : 'No eligible competitors were recorded.' },
+      { name: 'Round Champions', value: champions.length ? champions.join('\n') : 'No supported category champions were recorded.' },
+    ],
+    footer: { text: `round-recap:${recap.roundId}` },
+  };
+}
+
 /**
  * A staff-written news body keeps its markdown, which Discord renders itself.
  * Headings become bold lines so they read the same in every Discord client.
@@ -683,6 +750,8 @@ export function rankAlertEmbed(alert: RankAlert): APIEmbed {
 }
 
 export function roundEventEmbed(event: RoundEvent): APIEmbed {
+  const recap = roundRecapEmbed(event);
+  if (recap) return recap;
   const title = event.type === 'opened'
     ? `${event.roundName} is open`
     : event.type === 'ending-soon'

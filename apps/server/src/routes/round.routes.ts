@@ -238,14 +238,16 @@ const roundRoutes: FastifyPluginAsync = async (fastify) => {
       }),
       item({
         key: 'round-end-post',
-        label: 'Round-end post claimed',
+        label: 'Round-end post delivered',
         status: !latestEnded ? 'warning' : latestEnded.discordEndedAt ? 'done' : 'todo',
         detail: !latestEnded
           ? 'No ended season exists yet.'
           : latestEnded.discordEndedAt
-            ? `Discord round-end post claimed ${latestEnded.discordEndedAt.toISOString()}.`
-            : `${latestEnded.name} has not been claimed for the Discord round-end feed.`,
-        action: latestEnded && !latestEnded.discordEndedAt ? 'Run the Discord claim job so the round-end feed posts once.' : null,
+            ? `Discord confirmed the round-end post ${latestEnded.discordEndedAt.toISOString()}.`
+            : latestEnded.discordEndedError
+              ? `Last delivery failed: ${latestEnded.discordEndedError}. It will retry automatically.`
+              : `${latestEnded.name} has not been delivered to the Discord round-end feed.`,
+        action: null,
         href: null,
       }),
       item({

@@ -1,4 +1,5 @@
 import type {
+  RoundAftermathArchiveDto,
   AdminSeasonChecklistDto,
   CurrentRoundDto,
   GameNewsFeedDto,
@@ -21,6 +22,24 @@ export const roundsApi = {
   adminSeasonChecklist: () => api.get<AdminSeasonChecklistDto>('/rounds/admin/season-checklist'),
   news: () => api.get<GameNewsFeedDto>('/rounds/current/news'),
   aftermath: (roundId: string) => api.get<RoundAftermathOverviewDto>(`/rounds/${encodeURIComponent(roundId)}/aftermath`),
+  aftermathArchive: (filters: {
+    page: number;
+    pageSize: number;
+    q?: string;
+    year?: number;
+    reportStatus?: 'READY' | 'UNAVAILABLE' | 'PREPARING';
+    order: 'newest' | 'oldest';
+  }) => {
+    const query = new URLSearchParams({
+      page: String(filters.page),
+      pageSize: String(filters.pageSize),
+      order: filters.order,
+    });
+    if (filters.q) query.set('q', filters.q);
+    if (filters.year) query.set('year', String(filters.year));
+    if (filters.reportStatus) query.set('reportStatus', filters.reportStatus);
+    return api.get<RoundAftermathArchiveDto>(`/rounds/aftermath/archive?${query.toString()}`);
+  },
   aftermathCategories: (roundId: string) => api.get<RoundAftermathCategoriesDto>(`/rounds/${encodeURIComponent(roundId)}/aftermath/categories`),
   aftermathCity: (roundId: string, citySlug: string) => api.get<RoundAftermathCityDetailDto>(
     `/rounds/${encodeURIComponent(roundId)}/aftermath/cities/${encodeURIComponent(citySlug)}`,

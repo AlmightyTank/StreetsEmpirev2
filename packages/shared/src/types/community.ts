@@ -599,6 +599,36 @@ export interface DiscordRoundEventDto {
   url: string;
   /** Final top 10, for "ended" only. */
   standings: DiscordRankingEntryDto[];
+  /** Frozen public report data for the retry-safe round-end post; absent on DMs. */
+  recap?: DiscordRoundRecapDto | null;
+}
+
+export interface DiscordRoundRecapDto {
+  roundId: string;
+  aftermathUrl: string;
+  participants: number | null;
+  eligibleCompetitors: number | null;
+  cities: number | null;
+  alliances: number | null;
+  finalNetWorthCents: string | null;
+  finalCrewMembers: number | null;
+  turfBlocksHeld: number | null;
+  activeBusinessesHeld: number | null;
+  crimeActionsAttempted: number | null;
+  topPlayers: Array<{
+    rank: number;
+    publicPimpId: number;
+    displayName: string;
+    city: string;
+    netWorthCents: string;
+    profileUrl: string;
+  }>;
+  champions: Array<{
+    title: string;
+    value: number | string;
+    unit: string;
+    winners: Array<{ publicPimpId: number; displayName: string }>;
+  }>;
 }
 
 /** A battle DM for the defender. */
@@ -613,8 +643,8 @@ export interface DiscordRoundAlertDto extends DiscordRoundEventDto {
 }
 
 /**
- * Everything the bot sends, each handed out once. battles and rounds feed the
- * public channels; the rest are private DMs.
+ * Player alerts and raid-feed events. The empty `rounds` field remains for older bot compatibility;
+ * public round recaps use their own delivery receipt.
  */
 export interface DiscordAlertsClaimDto {
   turns: DiscordTurnReminderDto[];

@@ -312,15 +312,25 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
     }
   }
 
-  for (const event of claimed.rounds) {
-    if (event.type === 'ended' && channels.news) {
+  if (channels.news) for (const event of await api.claimRoundPosts()) {
+    if (event.type === 'ended') {
       try {
-        const message = await channels.news.send({ embeds: [roundEventEmbed(event)], allowedMentions: { parse: [] } });
-        if (channels.news.type === ChannelType.GuildAnnouncement) {
+        const marker = event.recap ? `round-recap:${event.recap.roundId}` : null;
+        const recentMessages = marker ? await channels.news.messages.fetch({ limit: 50 }) : null;
+        const previous = marker && recentMessages
+          ? recentMessages.find((message) => message.author.id === client.user?.id && message.embeds.some((embed) => embed.footer?.text === marker))
+          : null;
+        const message = previous ?? await channels.news.send({ embeds: [roundEventEmbed(event)], allowedMentions: { parse: [] } });
+        if (event.recap) await api.roundPostPosted(event.recap.roundId, message.id);
+        if (!previous && channels.news.type === ChannelType.GuildAnnouncement) {
           await message.crosspost().catch((error: unknown) => console.warn('Could not publish round-end post to following servers:', error));
         }
       } catch (error) {
         console.error(`Could not post round event "${event.roundName}" to #${channels.news.name}:`, error);
+        if (event.recap) {
+          await api.roundPostFailed(event.recap.roundId, describeDiscordError(error, channels.news.name))
+            .catch((reportError: unknown) => console.error(`Could not report the failed round-end post "${event.roundName}" to the game API:`, reportError));
+        }
       }
     }
   }
@@ -405,6 +415,7 @@ client.once(Events.ClientReady, async (ready) => {
     // Also checked on every run. While a configured feed channel is unusable its events stay
     // on the server, since a claimed event counts as posted; with no channel set they are dropped.
     let raidFeedProblem: string | null | undefined;
+    let roundNewsProblem: string | null | undefined;
     const runAlerts = serialTask('Discord alerts', async () => {
       const configured = Boolean(config.DISCORD_RAID_FEED_CHANNEL_ID);
       const check = configured
@@ -415,7 +426,14 @@ client.once(Events.ClientReady, async (ready) => {
         else if (check.channel) console.log(`Posting raid feed events to #${check.channel.name}.`);
         raidFeedProblem = check.problem;
       }
-      await sendAlerts({ news: newsChannel, raidFeed: check.channel }, !check.problem);
+      const recapCheck = newsChannel
+        ? await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID', [PermissionFlagsBits.ReadMessageHistory])
+        : { channel: null, problem: null };
+      if (recapCheck.problem !== roundNewsProblem) {
+        if (recapCheck.problem) console.warn(`Round aftermath posts are paused until fixed: ${recapCheck.problem}`);
+        roundNewsProblem = recapCheck.problem;
+      }
+      await sendAlerts({ news: recapCheck.channel, raidFeed: check.channel }, !check.problem);
     });
     const runAdminResync = serialTask('Admin role resync', async () => {
       const claim = await api.claimResync();

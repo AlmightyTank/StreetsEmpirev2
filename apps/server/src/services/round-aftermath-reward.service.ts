@@ -8,6 +8,7 @@ const qualificationSchema = z.enum([
   'NATIONAL_TOP_10',
   'WEALTH_KING',
   'TURF_WARLORD',
+  'DRUG_KINGPIN',
   'CREW_COMMANDER',
   'BUSINESS_TYCOON',
   'ROUND_CHAMPION',
@@ -18,6 +19,7 @@ const playerSchema = z.object({
   eligibleCompetitor: z.boolean(),
   nationalRank: z.number().int().nullable(),
   crewMembers: z.number().int().nonnegative(),
+  drugUnitsHeld: z.number().int().nonnegative().optional(),
   turfBlocksHeld: z.number().int().nonnegative(),
   activeBusinessesHeld: z.number().int().nonnegative(),
 }).passthrough();
@@ -26,6 +28,7 @@ export type AftermathRewardQualification =
   | 'NATIONAL_TOP_10'
   | 'WEALTH_KING'
   | 'TURF_WARLORD'
+  | 'DRUG_KINGPIN'
   | 'CREW_COMMANDER'
   | 'BUSINESS_TYCOON'
   | 'ROUND_CHAMPION';
@@ -51,10 +54,12 @@ export function calculateAftermathReward(
   const topTurf = players.reduce((highest, candidate) => Math.max(highest, candidate.turfBlocksHeld), 0);
   const topCrew = players.reduce((highest, candidate) => Math.max(highest, candidate.crewMembers), 0);
   const topBusinesses = players.reduce((highest, candidate) => Math.max(highest, candidate.activeBusinessesHeld), 0);
+  const topDrugs = players.reduce((highest, candidate) => Math.max(highest, candidate.drugUnitsHeld ?? 0), 0);
   const qualifications: AftermathRewardQualification[] = [];
   if (player.nationalRank! <= 10) qualifications.push('NATIONAL_TOP_10');
   if (player.nationalRank === 1) qualifications.push('WEALTH_KING');
   if (topTurf > 0 && player.turfBlocksHeld === topTurf) qualifications.push('TURF_WARLORD');
+  if (topDrugs > 0 && (player.drugUnitsHeld ?? 0) === topDrugs) qualifications.push('DRUG_KINGPIN');
   if (topCrew > 0 && player.crewMembers === topCrew) qualifications.push('CREW_COMMANDER');
   if (topBusinesses > 0 && player.activeBusinessesHeld === topBusinesses) qualifications.push('BUSINESS_TYCOON');
   if (player.nationalRank === 1) qualifications.push('ROUND_CHAMPION');

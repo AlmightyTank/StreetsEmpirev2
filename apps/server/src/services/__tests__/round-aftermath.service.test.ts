@@ -32,6 +32,7 @@ function player(overrides: Partial<AftermathPlayerSource> = {}): AftermathPlayer
     localRank: 1,
     thugs: 3,
     whores: 2,
+    drugUnitsHeld: 4,
     raidsDone: 2,
     driveBysDone: 1,
     ...overrides,
@@ -71,8 +72,14 @@ describe('buildRoundAftermathAggregates', () => {
     ]);
     expect(JSON.stringify(aggregates.cityAggregates)).not.toContain('"crimeActions"');
     expect(aggregates.playerAggregates).toEqual(expect.arrayContaining([
-      expect.objectContaining({ roundPlayerId: 'npc', eligibleCompetitor: false, netWorthCents: highValue.toString(), crewMembers: 198 }),
+      expect.objectContaining({ roundPlayerId: 'npc', eligibleCompetitor: false, netWorthCents: highValue.toString(), crewMembers: 198, drugUnitsHeld: 4 }),
+      expect.objectContaining({
+        roundPlayerId: 'p1',
+        turfByCity: [{ citySlug: 'city-a', count: 1 }],
+        businessesByCity: [{ citySlug: 'city-a', count: 1 }],
+      }),
     ]));
+    expect(aggregates.categoryRecords.drugUnitsHeld).toMatchObject({ status: 'AVAILABLE', value: 4, ids: ['p1', 'p2'] });
     expect(aggregates.categoryRecords.wealth).toMatchObject({ status: 'AVAILABLE', valueCents: highValue.toString(), roundPlayerIds: ['p1', 'p2'] });
     expect(aggregates.categoryRecords.crew).toMatchObject({ status: 'AVAILABLE', value: 5, ids: ['p1', 'p2'] });
     expect(aggregates.categoryRecords.turf).toMatchObject({ status: 'AVAILABLE', value: 1, ids: ['p1', 'p2'] });
@@ -207,6 +214,7 @@ describe('buildRoundAftermathLeaderboard', () => {
         localRank: 1,
         netWorthCents: '1000',
         crewMembers: 10,
+        drugUnitsHeld: 4,
         turfBlocksHeld: 4,
         activeBusinessesHeld: 2,
         raidsAttempted: 1,
@@ -249,10 +257,36 @@ describe('buildRoundAftermathLeaderboard', () => {
       });
 
       it('keeps unsupported drug totals unavailable', () => {
+        expect(buildRoundAftermathRecords([
+          snapshot({ publicPimpId: 1001, drugUnitsHeld: 20 }),
+          snapshot({ roundPlayerId: 'other', publicPimpId: 1002, nationalRank: 2, drugUnitsHeld: 20 }),
+          snapshot({ roundPlayerId: 'empty', publicPimpId: 1003, nationalRank: 3, drugUnitsHeld: 0 }),
+        ], 'drugs', 1, 10, 'READY', null, 4)).toMatchObject({
+          categoryStatus: 'AVAILABLE',
+          total: 3,
+          award: {
+            title: 'Drug Kingpin',
+            status: 'AVAILABLE',
+            formula: expect.stringContaining('not production or sales'),
+            leaders: [{ publicPimpId: 1001 }, { publicPimpId: 1002 }],
+          },
+        });
         expect(buildRoundAftermathRecords([], 'drugs', 1, 10, 'READY', null, 3)).toMatchObject({
           categoryStatus: 'NOT_RECORDED',
-          total: 0,
-          award: { status: 'NOT_RECORDED', leaders: [] },
+          award: { status: 'NOT_RECORDED', formula: expect.stringContaining('predates') },
+        });
+      });
+
+      it('supports resident-city drug boards but marks them as recognition-only', () => {
+        const result = buildRoundAftermathRecords([
+          snapshot({ publicPimpId: 1001, drugUnitsHeld: 12 }),
+          snapshot({ roundPlayerId: 'other-city', publicPimpId: 1002, citySlug: 'uptown', drugUnitsHeld: 99 }),
+        ], 'drugs', 1, 10, 'READY', 'metro', 4);
+
+        expect(result.award).toMatchObject({
+          status: 'AVAILABLE',
+          formula: expect.stringContaining('recognition'),
+          leaders: [{ publicPimpId: 1001 }],
         });
       });
     });
@@ -264,6 +298,7 @@ describe('buildRoundAftermathLeaderboard', () => {
           eligibleCompetitor: true,
           nationalRank: 1,
           crewMembers: 10,
+          drugUnitsHeld: 10,
           turfBlocksHeld: 5,
           activeBusinessesHeld: 2,
         },
@@ -272,6 +307,7 @@ describe('buildRoundAftermathLeaderboard', () => {
           eligibleCompetitor: true,
           nationalRank: 2,
           crewMembers: 10,
+          drugUnitsHeld: 10,
           turfBlocksHeld: 5,
           activeBusinessesHeld: 2,
         },
@@ -290,6 +326,7 @@ describe('buildRoundAftermathLeaderboard', () => {
           'NATIONAL_TOP_10',
           'WEALTH_KING',
           'TURF_WARLORD',
+          'DRUG_KINGPIN',
           'CREW_COMMANDER',
           'BUSINESS_TYCOON',
           'ROUND_CHAMPION',
@@ -297,6 +334,7 @@ describe('buildRoundAftermathLeaderboard', () => {
         expect(calculateAftermathReward(rows, 'tied-winner')).toEqual([
           'NATIONAL_TOP_10',
           'TURF_WARLORD',
+          'DRUG_KINGPIN',
           'CREW_COMMANDER',
           'BUSINESS_TYCOON',
         ]);

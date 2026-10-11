@@ -14,6 +14,7 @@ const primaryNav = [
 
 const exploreLinks = [
   { to: '/hall-of-fame', label: 'Hall of Fame' },
+  ...(import.meta.env.VITE_ROUND_AFTERMATH_PUBLIC_ENABLED === 'false' ? [] : [{ to: '/game/round-archive', label: 'Round archive' }]),
   { to: '/alliances', label: 'Alliances' },
   { to: '/stats', label: 'Statistics' },
   { to: '/roadmap', label: 'Roadmap' },

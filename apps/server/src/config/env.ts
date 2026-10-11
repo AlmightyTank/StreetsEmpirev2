@@ -42,6 +42,8 @@ const envSchema = z.object({
   FRONTEND_ORIGIN: z.string().url().optional(),
   /** Invite-only gate for isolated beta deployments. */
   BETA_INVITE_ONLY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  /** Staged release switch for public aftermath/archive endpoints; report capture and rewards are unaffected. */
+  ROUND_AFTERMATH_PUBLIC_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
   /** Non-production admin QA mode: expose seasonal event quests outside their real-world window. */
   SEASONAL_EVENT_ADMIN_TEST_MODE: z.enum(['true', 'false']).optional(),
 
@@ -237,6 +239,9 @@ export const env = {
   },
   betaAccess: {
     inviteOnly: parsed.data.BETA_INVITE_ONLY,
+  },
+  roundAftermath: {
+    publicEnabled: parsed.data.ROUND_AFTERMATH_PUBLIC_ENABLED,
   },
   seasonalEvents: {
     adminTestMode: seasonalEventAdminTestMode,

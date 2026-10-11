@@ -1175,8 +1175,12 @@ model Round {
   alertsOpenedAt     DateTime?
   alertsEndingSoonAt DateTime?
   alertsEndedAt      DateTime?
-  /// When the Discord bot claimed the public round-end post.
-  discordEndedAt     DateTime?
+  /// When Discord confirmed the public round-end post.
+  discordEndedAt          DateTime?
+  /// Lease for the public round-end post; stale claims are retried.
+  discordEndedClaimedAt   DateTime?
+  discordEndedMessageId   String?
+  discordEndedError       String?
 
   /// Next OG-style public pimp id to hand out. Raw database ids are never
   /// exposed; players see e.g. BigDaddy (#1842).
@@ -1208,6 +1212,7 @@ model Round {
   supplySupplierStocks SupplySupplierStock[]
 
   @@index([status])
+  @@index([discordEndedAt, discordEndedClaimedAt])
 }
 
 /// Immutable end-of-round report. A round gets one report for its schema
