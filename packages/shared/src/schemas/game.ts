@@ -241,10 +241,12 @@ const supplyCrewMemberIdsSchema = z.array(z.string().trim().min(1).max(64))
   .max(50, 'Choose up to 50 crew members.')
   .refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.');
 
-/** 1.6.0-C. Send vehicles to collect one load of a paid order. */
+/** Send vehicles for one load, or keep them shuttling until the requested balance is collected. */
 export const supplyPickupSchema = z.object({
   orderId: z.string().trim().min(1).max(64),
   quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int().positive().max(MAX_ORDER_QUANTITY),
+  /** Keep the selected crew and fleet running full loads until this quantity is collected. */
+  continuous: z.boolean().default(false),
   vehicleLoadout: z.object({ LOW_RIDER: pickupCount('Low-Riders').optional(), SEDAN: pickupCount('Sedans').optional(), VAN: pickupCount('Vans').optional() }).strict(),
   escortThugs: pickupCount('escorts').default(0),
   /** Which of the ways to the supplier. Ignored for a supplier in the player's own city. */

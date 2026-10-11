@@ -1903,6 +1903,12 @@ model SupplyPickup {
   deliveredAt         DateTime?
   /// 1.6.0-C. What made it into storage; `quantity` less this was lost on the road.
   deliveredQuantity   Int                @default(0)
+  /// A continuous pickup assignment may use the same run for several back-and-forth loads.
+  /// These stop indexes say exactly where this load is put aboard and taken off.
+  loadStopOrder        Int?
+  unloadStopOrder      Int?
+  tripNumber          Int                @default(1)
+  tripCount           Int                @default(1)
   /// 1.6.0-C. Where the load is headed: held against the warehouse's room until it lands.
   warehouseId         String?
   warehouse           SupplyWarehouse?   @relation("PickupDestination", fields: [warehouseId], references: [id], onDelete: SetNull)

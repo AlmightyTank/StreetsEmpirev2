@@ -471,6 +471,9 @@ export interface SupplyPickupDto {
   warehouseName: string;
   /** Loaded, or to be loaded at the supplier. */
   quantity: number;
+  /** This load's place in a continuous back-and-forth pickup assignment. */
+  tripNumber: number;
+  tripCount: number;
   /** In storage once the pickup is home. */
   deliveredQuantity: number;
   /** Lost on the road: only known once the pickup is home. */
