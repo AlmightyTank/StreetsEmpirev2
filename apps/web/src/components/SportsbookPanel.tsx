@@ -101,6 +101,14 @@ const RESULT_LABEL: Record<SportsbookBetDto['status'], string> = {
   OPEN: 'Open', WON: 'Won', LOST: 'Lost', PUSH: 'Push', VOID: 'Void',
 };
 
+/** An open ticket is not necessarily an unstarted game. Show the provider's stage. */
+function openTicketStage(bet: SportsbookBetDto, now: number): string {
+  if (bet.eventStatus === 'LIVE') return 'Game in progress';
+  if (bet.eventStatus === 'PULLED') return 'Game unavailable · awaiting review';
+  if (bet.eventStatus === 'FINAL') return 'Final · awaiting settlement';
+  return Date.parse(bet.startsAt) <= now ? 'Awaiting game update' : 'Upcoming';
+}
+
 function settledCash(bet: SportsbookBetDto): string {
   switch (bet.status) {
     case 'WON': return `${signedCents(bet.returnCents)} paid (${signedCents(bet.returnCents - bet.stakeCents)} profit)`;
@@ -443,7 +451,7 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
                     <header>
                       <strong>{bet.pickTeam} <b>{formatAmericanOdds(bet.oddsAmerican)}</b></strong>
                       <span className="se-sportsbook__result">
-                        {bet.status === 'OPEN' ? (started ? 'Awaiting result' : 'Open') : RESULT_LABEL[bet.status]}
+                        {bet.status === 'OPEN' ? openTicketStage(bet, now) : RESULT_LABEL[bet.status]}
                       </span>
                     </header>
                     <span className="se-sportsbook__ticket-meta">
