@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { formatCentsExact, formatNumber, type AdminSportsbookDto, type SportsbookFeedStatus } from '@streets/shared';
+import {
+  formatAmericanOdds,
+  formatCentsExact,
+  formatNumber,
+  type AdminSportsbookDto,
+  type AdminSportsbookProviderCheckDto,
+  type SportsbookFeedStatus,
+  type SportsbookLeagueKey,
+} from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { confirmAction } from '../stores/confirm.js';
@@ -25,6 +33,22 @@ export function AdminSportsbookPanel() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  const [checkLeague, setCheckLeague] = useState<SportsbookLeagueKey>('NBA');
+  const [check, setCheck] = useState<AdminSportsbookProviderCheckDto | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  async function providerCheck() {
+    setChecking(true);
+    setError(null);
+    try {
+      setCheck(await adminApi.sportsbookProviderCheck(checkLeague));
+      await load();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'The provider check did not go through.');
+    } finally {
+      setChecking(false);
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -166,6 +190,79 @@ export function AdminSportsbookPanel() {
               </div>
             </>
           ) : <p className="se-muted">Every started game with open tickets has settled.</p>}
+
+          <h3 className="se-label se-mt">Market expansion readiness · last {data.review.windowDays} days</h3>
+          <p className="se-hint">
+            {data.review.ready
+              ? 'The first market has earned an expansion review: plan new leagues or pregame spreads/totals one at a time (RELEASE-1.8.0.md).'
+              : 'Keep the first market as it is. Add a league or a pregame market only when every check below passes on real beta data.'}
+            {' '}Live betting, parlays and player props stay out until separately designed and budgeted.
+          </p>
+          <div className="se-tablewrap">
+            <table className="se-table se-table--cards se-sportsbook-admin">
+              <caption className="se-sr">Market expansion readiness checks</caption>
+              <thead><tr><th>Check</th><th>Now</th><th>Needs</th><th>Result</th></tr></thead>
+              <tbody>{data.review.criteria.map((criterion) => (
+                <tr key={criterion.key}>
+                  <td className="se-td--title">{criterion.label}</td>
+                  <td data-label="Now">{criterion.value}</td>
+                  <td data-label="Needs">{criterion.target}</td>
+                  <td data-label="Result"><span className={criterion.pass ? 'se-good' : 'se-bad'}>{criterion.pass ? 'Pass' : 'Not yet'}</span></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+          <p className="se-hint se-mt">
+            {formatNumber(data.review.runs)} feed runs · {formatNumber(data.review.datapointsPerDay)} datapoints a day ·
+            {' '}graded {formatNumber(data.review.settled.feed)} by the feed ({formatNumber(data.review.settled.voidedByFeed)} provider voids),
+            {' '}{formatNumber(data.review.settled.adminRecheck)} by admin recheck, {formatNumber(data.review.settled.adminVoid)} by admin void
+            {data.review.hoursToSettle.median !== null ? <> · settled {data.review.hoursToSettle.median}h after the start (median), {data.review.hoursToSettle.p90}h (p90)</> : null}
+          </p>
+
+          <h3 className="se-label se-mt">Provider check</h3>
+          <p className="se-hint">Fetches today&apos;s snapshot for one league and shows what the feed makes of it, without storing anything. Costs one request.</p>
+          <div className="se-actions-row">
+            <label className="se-sr" htmlFor="sportsbook-check-league">League</label>
+            <select id="sportsbook-check-league" className="se-input se-input--sm" value={checkLeague} onChange={(event) => setCheckLeague(event.target.value as SportsbookLeagueKey)}>
+              {data.leagues.map((league) => <option key={league.key} value={league.key}>{league.name}</option>)}
+            </select>
+            <Button type="button" className="se-btn se-btn--sm" onClick={() => void providerCheck()}
+              disabledReason={checking ? 'The check is running.' : !data.configured ? 'No provider key on this server.' : null}>
+              {checking ? 'Checking…' : 'Check provider payload'}
+            </Button>
+          </div>
+          {check ? (
+            <div className="se-mt">
+              {check.error ? <Alert>{check.league} {check.date}: {check.error}</Alert> : null}
+              {check.summary ? (
+                <>
+                  <p className="se-hint">
+                    {check.league} {check.date}: {formatNumber(check.summary.events)} listings, {formatNumber(check.summary.parsed)} stored by the feed
+                    {check.summary.withoutPrices ? ` (${formatNumber(check.summary.withoutPrices)} without a price yet)` : ''}.
+                    {' '}Skipped: {Object.entries(check.summary.skipped).filter(([, value]) => value).map(([key, value]) => `${key.toLowerCase().replaceAll('_', ' ')} ${value}`).join(', ') || 'none'}.
+                    {' '}Statuses: {check.summary.statuses.map((row) => `${row.raw} → ${row.outcome.toLowerCase()} (${row.count})`).join(', ') || 'none'}.
+                    {' '}Used {formatNumber(check.quota.datapoints)} datapoints; {check.quota.remaining === null ? 'remaining not reported' : `${formatNumber(check.quota.remaining)} left`}.
+                  </p>
+                  {check.summary.samples.length ? (
+                    <div className="se-tablewrap">
+                      <table className="se-table se-table--cards se-sportsbook-admin">
+                        <caption className="se-sr">Sample parsed listings</caption>
+                        <thead><tr><th>Game</th><th>Starts</th><th>Moneyline</th><th>Status</th></tr></thead>
+                        <tbody>{check.summary.samples.map((row) => (
+                          <tr key={row.providerEventId}>
+                            <td className="se-td--title">{row.awayTeam} at {row.homeTeam}<br /><span className="se-muted">{row.providerEventId}</span></td>
+                            <td data-label="Starts">{adminWhen(row.startsAt)}</td>
+                            <td data-label="Moneyline">{formatAmericanOdds(row.awayOdds)} / {formatAmericanOdds(row.homeOdds)}</td>
+                            <td data-label="Status">{row.rawStatus} → {row.outcome.toLowerCase()}</td>
+                          </tr>
+                        ))}</tbody>
+                      </table>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          ) : null}
         </>
       )}
     </Panel>

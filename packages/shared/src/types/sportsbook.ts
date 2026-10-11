@@ -90,6 +90,8 @@ export interface SportsbookTicketsDto {
 
 /** 1.8.0-D. The player's limits and how much of each they have used. */
 export interface SportsbookLimitsDto {
+  /** 1.8.0-E. False when the round's ruleset predates the sportsbook: no new tickets, old ones still settle. */
+  available: boolean;
   limits: import('../sportsbook.js').SportsbookLimits;
   openStakeCents: number;
   openTickets: number;
@@ -163,6 +165,55 @@ export interface AdminSportsbookDto {
   exposure: { openTickets: number; openStakeCents: number; openPayoutCents: number };
   settledLast24h: { events: number; tickets: number };
   unresolved: AdminSportsbookUnresolvedDto[];
+  review: AdminSportsbookReviewDto;
+}
+
+/** 1.8.0-E. One test the first market must pass before leagues or markets are added. */
+export interface AdminSportsbookReviewCriterion {
+  key: 'history' | 'sample' | 'auto' | 'stuck' | 'failures' | 'quota';
+  label: string;
+  value: string;
+  target: string;
+  pass: boolean;
+}
+
+/** 1.8.0-E. Provider usage and grading accuracy over the review window, and whether expansion is earned. */
+export interface AdminSportsbookReviewDto {
+  windowDays: number;
+  runs: number;
+  failedRuns: number;
+  daysWithSnapshots: number;
+  datapoints: number;
+  datapointsPerDay: number;
+  /** Datapoints a full quota period would use at this rate; null before any run. */
+  projectedPerPeriod: number | null;
+  period: string;
+  settled: { total: number; feed: number; voidedByFeed: number; adminRecheck: number; adminVoid: number };
+  hoursToSettle: { median: number | null; p90: number | null };
+  stuckOver24h: number;
+  criteria: AdminSportsbookReviewCriterion[];
+  ready: boolean;
+}
+
+/** 1.8.0-E release gate: what the feed makes of one live provider snapshot. */
+export interface AdminSportsbookProviderCheckDto {
+  league: SportsbookLeagueKey;
+  date: string;
+  checkedAt: string;
+  ok: boolean;
+  error: string;
+  summary: {
+    events: number;
+    parsed: number;
+    withoutPrices: number;
+    skipped: Record<'NO_EVENT_ID' | 'BAD_START' | 'NO_TEAMS' | 'NO_MONEYLINE', number>;
+    statuses: Array<{ raw: string; outcome: 'PRE' | 'LIVE' | 'FINAL' | 'CANCELLED'; count: number }>;
+    samples: Array<{
+      providerEventId: string; startsAt: string; homeTeam: string; awayTeam: string;
+      homeOdds: number | null; awayOdds: number | null; rawStatus: string; outcome: 'PRE' | 'LIVE' | 'FINAL' | 'CANCELLED';
+    }>;
+  } | null;
+  quota: { datapoints: number; used: number; limit: number; remaining: number | null; period: string };
 }
 
 export interface AdminSportsbookActionDto {

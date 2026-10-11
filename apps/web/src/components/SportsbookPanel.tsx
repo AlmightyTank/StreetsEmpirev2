@@ -182,7 +182,10 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
   const topStakeCents = pickedOdds !== null ? sportsbookMaxStake(pickedOdds, limits, usage).maxStakeCents : Math.min(cashCents, limits.maxStakeCents);
 
   let placeReason: string | null = null;
-  if (!pick) placeReason = 'Pick a side first.';
+  // 1.8.0-E: a round whose ruleset predates the sportsbook takes no new tickets.
+  const available = page?.limits.available ?? true;
+  if (!available) placeReason = 'Sports betting is not part of this round\'s rules.';
+  else if (!pick) placeReason = 'Pick a side first.';
   else if (!pickedEvent) placeReason = 'This game is no longer on the board.';
   else if (pickedState !== 'OPEN') placeReason = sportsbookLineReason(pickedState ?? 'FEED_UNAVAILABLE');
   else if (pickedOdds === null) placeReason = 'That side has no moneyline right now.';
@@ -238,6 +241,9 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
             <span className="se-sportsbook__dot" aria-hidden="true" />
             {feedStatus.text}
           </p>
+        ) : null}
+        {!available ? (
+          <p className="se-alert se-alert--info" role="status">Sports betting is not part of this round&apos;s rules, so no new tickets can be placed. Tickets you already hold still settle here.</p>
         ) : null}
         {error ? <p className="se-alert se-alert--error" role="alert">{error}</p> : null}
         {notice ? <p className="se-alert se-alert--success" role="status">{notice}</p> : null}
@@ -297,7 +303,7 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
                               type="button"
                               className={`se-sportsbook__price${selected ? ' is-selected' : ''}`}
                               aria-pressed={selected}
-                              disabled={busy || state !== 'OPEN' || odds === null}
+                              disabled={busy || !available || state !== 'OPEN' || odds === null}
                               title={odds === null ? 'No moneyline for this side.' : undefined}
                               onClick={() => choose(event, selection)}
                             >

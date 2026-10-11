@@ -4,6 +4,9 @@ import {
   SPORTSBOOK_QUOTA_RESULTS_FLOOR,
   type AdminSportsbookActionDto,
   type AdminSportsbookDto,
+  type AdminSportsbookProviderCheckDto,
+  type AdminSportsbookReviewCriterion,
+  type AdminSportsbookReviewDto,
   type SportsbookEventStatus,
   type SportsbookLeagueKey,
 } from '@streets/shared';
@@ -12,15 +15,83 @@ import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import {
   ProviderSession,
   SPORTSBOOK_PROVIDER_ID,
+  ProviderError,
   checkSportsbookResult,
   parseLeagueStatus,
+  summarizeSnapshot,
   type FeedDeps,
 } from './sportsbook-feed.service.js';
-import { SPORTSBOOK_LEAGUES, settleSportsbookEventTx, sportsbookFeedStatus } from './sportsbook.service.js';
+import { SPORTSBOOK_LEAGUES, dateKey, settleSportsbookEventTx, sportsbookFeedStatus } from './sportsbook.service.js';
 
 type FeedConfig = { configured: boolean; pollMinutes: number; apiKey?: string };
 
 const isoOrNull = (date: Date | null | undefined) => date?.toISOString() ?? null;
+
+/**
+ * 1.8.0-E. What the first market has to show before a league or market is added: enough real
+ * history, results the feed grades on its own, nothing stuck, a reliable poller, and quota to spare
+ * (a second market roughly doubles each snapshot). Values are the release decision's thresholds.
+ */
+export const SPORTSBOOK_EXPANSION_THRESHOLDS = {
+  windowDays: 30,
+  minDaysWithSnapshots: 14,
+  minGradedGames: 50,
+  minFeedGradedShare: 0.98,
+  maxStuckOver24h: 0,
+  maxFailedRunShare: 0.05,
+  maxProjectedQuotaShare: 0.5,
+} as const;
+
+const quantile = (sorted: number[], q: number) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]! : null);
+const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+const round1 = (value: number | null) => (value === null ? null : Math.round(value * 10) / 10);
+
+async function marketReview(
+  prisma: PrismaClient,
+  quota: { limit: number; period: string },
+  now: Date,
+): Promise<AdminSportsbookReviewDto> {
+  const t = SPORTSBOOK_EXPANSION_THRESHOLDS;
+  const since = new Date(now.getTime() - t.windowDays * 86_400_000);
+  const [runs, graded, feedSettled, stuckOver24h] = await Promise.all([
+    prisma.sportsbookFeedRun.findMany({ where: { startedAt: { gte: since, lte: now } }, orderBy: { startedAt: 'asc' }, select: { startedAt: true, datapoints: true, snapshots: true, failed: true } }),
+    prisma.sportsbookEvent.groupBy({ by: ['settledVia', 'status'], where: { settledAt: { gte: since, lte: now } }, _count: { _all: true } }),
+    prisma.sportsbookEvent.findMany({ where: { settledAt: { gte: since, lte: now }, settledVia: 'FEED' }, select: { startsAt: true, settledAt: true }, take: 2_000 }),
+    prisma.sportsbookEvent.count({ where: { settledAt: null, startsAt: { lte: new Date(now.getTime() - 86_400_000) }, bets: { some: { status: 'OPEN' } } } }),
+  ]);
+  const count = (via: string, status?: string) => graded.filter((row) => row.settledVia === via && (!status || row.status === status)).reduce((sum, row) => sum + row._count._all, 0);
+  const settled = {
+    total: graded.reduce((sum, row) => sum + row._count._all, 0),
+    feed: count('FEED'), voidedByFeed: count('FEED', 'VOID'), adminRecheck: count('ADMIN_RECHECK'), adminVoid: count('ADMIN_VOID'),
+  };
+  const hours = feedSettled.map((row) => (row.settledAt!.getTime() - row.startsAt.getTime()) / 3_600_000).sort((a, b) => a - b);
+  const failedRuns = runs.filter((run) => run.failed).length;
+  const daysWithSnapshots = new Set(runs.filter((run) => run.snapshots > 0).map((run) => dateKey(run.startedAt))).size;
+  const datapoints = runs.reduce((sum, run) => sum + run.datapoints, 0);
+  // Spread over the days the feed has actually been running, so a new feed is not flattered.
+  const spanDays = runs.length ? Math.min(t.windowDays, Math.max(1, (now.getTime() - runs[0]!.startedAt.getTime()) / 86_400_000)) : 0;
+  const datapointsPerDay = spanDays ? datapoints / spanDays : 0;
+  const daily = quota.period.toLowerCase().includes('day');
+  const projectedPerPeriod = runs.length ? Math.round(datapointsPerDay * (daily ? 1 : 30)) : null;
+  const feedShare = settled.total ? settled.feed / settled.total : 0;
+  const failedShare = runs.length ? failedRuns / runs.length : 1;
+  const quotaShare = projectedPerPeriod !== null && quota.limit > 0 ? projectedPerPeriod / quota.limit : null;
+
+  const criteria: AdminSportsbookReviewCriterion[] = [
+    { key: 'history', label: 'Days with a successful odds snapshot', value: `${daysWithSnapshots} days`, target: `at least ${t.minDaysWithSnapshots}`, pass: daysWithSnapshots >= t.minDaysWithSnapshots },
+    { key: 'sample', label: 'Games graded', value: `${settled.total}`, target: `at least ${t.minGradedGames}`, pass: settled.total >= t.minGradedGames },
+    { key: 'auto', label: 'Graded by the feed without an admin', value: settled.total ? percent(feedShare) : 'no games yet', target: `at least ${percent(t.minFeedGradedShare)}`, pass: settled.total > 0 && feedShare >= t.minFeedGradedShare },
+    { key: 'stuck', label: 'Games still waiting 24 hours after the start', value: `${stuckOver24h}`, target: `${t.maxStuckOver24h}`, pass: stuckOver24h <= t.maxStuckOver24h },
+    { key: 'failures', label: 'Feed runs that got no odds', value: runs.length ? `${failedRuns} of ${runs.length} (${percent(failedShare)})` : 'no runs yet', target: `at most ${percent(t.maxFailedRunShare)}`, pass: runs.length > 0 && failedShare <= t.maxFailedRunShare },
+    { key: 'quota', label: `Projected datapoints per ${daily ? 'day' : 'month'}`, value: quotaShare === null ? (quota.limit ? 'no runs yet' : 'quota limit not reported') : `${projectedPerPeriod!.toLocaleString('en-US')} (${percent(quotaShare)} of quota)`, target: `at most ${percent(t.maxProjectedQuotaShare)} of quota`, pass: quotaShare !== null && quotaShare <= t.maxProjectedQuotaShare },
+  ];
+  return {
+    windowDays: t.windowDays, runs: runs.length, failedRuns, daysWithSnapshots, datapoints,
+    datapointsPerDay: Math.round(datapointsPerDay), projectedPerPeriod, period: quota.period,
+    settled, hoursToSettle: { median: round1(quantile(hours, 0.5)), p90: round1(quantile(hours, 0.9)) },
+    stuckOver24h, criteria, ready: criteria.every((criterion) => criterion.pass),
+  };
+}
 
 /** 1.8.0-C. Feed health, quota and unresolved results for staff, plus two audited repairs. */
 export const AdminSportsbookService = {
@@ -41,6 +112,7 @@ export const AdminSportsbookService = {
       prisma.sportsbookBet.count({ where: { settledAt: { gte: dayAgo } } }),
     ]);
     const leagues = parseLeagueStatus(state?.leagueStatus);
+    const review = await marketReview(prisma, { limit: state?.datapointsLimit ?? 0, period: state?.datapointsPeriod ?? '' }, now);
     const count = (sport: string, status: string) => upcoming.find((row) => row.sport === sport && row.status === status)?._count._all ?? 0;
     const remaining = state?.datapointsRemaining ?? null;
     return {
@@ -83,6 +155,7 @@ export const AdminSportsbookService = {
         openPayoutCents: Number(openTotals._sum.payoutCents ?? 0n),
       },
       settledLast24h: { events: settledEvents, tickets: settledTickets },
+      review,
       unresolved: unresolved.map((event) => ({
         id: event.id, sport: event.sport as SportsbookLeagueKey, homeTeam: event.homeTeam, awayTeam: event.awayTeam,
         startsAt: event.startsAt.toISOString(), status: event.status as SportsbookEventStatus,
@@ -117,7 +190,7 @@ export const AdminSportsbookService = {
     await prisma.sportsbookProviderState.upsert({ where: { id: SPORTSBOOK_PROVIDER_ID }, create: { id: SPORTSBOOK_PROVIDER_ID }, update: {} });
     const state = await prisma.sportsbookProviderState.findUniqueOrThrow({ where: { id: SPORTSBOOK_PROVIDER_ID } });
     const session = ProviderSession.fromState(config.apiKey, state, now, deps);
-    const checked = await checkSportsbookResult(prisma, session, event, now);
+    const checked = await checkSportsbookResult(prisma, session, event, now, 'ADMIN_RECHECK');
     await prisma.sportsbookProviderState.update({
       where: { id: SPORTSBOOK_PROVIDER_ID }, data: { ...session.usageData(now), lastResultCheckAt: now },
     });
@@ -127,6 +200,47 @@ export const AdminSportsbookService = {
       after: checked,
     });
     return { message: checked.detail, report: await this.report(prisma, config, now) };
+  },
+
+  /**
+   * 1.8.0-E release gate: fetch one league's live snapshot for today and report what the feed makes
+   * of it, without storing events. One request, so a few datapoints.
+   */
+  async providerCheck(
+    prisma: PrismaClient,
+    config: FeedConfig,
+    actor: AuditActor,
+    leagueKey: SportsbookLeagueKey,
+    now = new Date(),
+    deps: FeedDeps = {},
+  ): Promise<AdminSportsbookProviderCheckDto> {
+    if (!config.apiKey) throw AppError.conflict('SPORTSBOOK_FEED_OFF', 'The odds feed has no provider key on this server.');
+    const league = SPORTSBOOK_LEAGUES.find((row) => row.key === leagueKey)!;
+    await prisma.sportsbookProviderState.upsert({ where: { id: SPORTSBOOK_PROVIDER_ID }, create: { id: SPORTSBOOK_PROVIDER_ID }, update: {} });
+    const state = await prisma.sportsbookProviderState.findUniqueOrThrow({ where: { id: SPORTSBOOK_PROVIDER_ID } });
+    const session = ProviderSession.fromState(config.apiKey, state, now, deps);
+    const date = dateKey(now);
+    let summary: AdminSportsbookProviderCheckDto['summary'] = null;
+    let error = '';
+    try {
+      const payload = await session.get(`/sports/${league.sportId}/events/${date}`, {
+        market_ids: '1', affiliate_ids: '3', main_line: 'true', hide_closed: 'true',
+      });
+      if (!Array.isArray(payload.events)) error = 'The response has no events list.';
+      else summary = summarizeSnapshot(payload.events);
+    } catch (caught) {
+      if (!(caught instanceof ProviderError)) throw caught;
+      error = caught.message;
+    }
+    await prisma.sportsbookProviderState.update({ where: { id: SPORTSBOOK_PROVIDER_ID }, data: session.usageData(now) });
+    await AdminAuditService.record(prisma, actor, {
+      action: 'sportsbook.provider-check', targetType: 'sportsbook-league', targetId: league.key,
+      after: { date, error, events: summary?.events ?? 0, parsed: summary?.parsed ?? 0, datapoints: session.datapoints },
+    });
+    return {
+      league: league.key, date, checkedAt: now.toISOString(), ok: !error, error, summary,
+      quota: { datapoints: session.datapoints, used: session.used, limit: session.limit, remaining: session.remaining, period: session.period },
+    };
   },
 
   /** Refund every open ticket on a game the provider will never grade. Cannot be undone. */
@@ -141,7 +255,7 @@ export const AdminSportsbookService = {
     const message = await prisma.$transaction(async (tx) => {
       const before = await tx.sportsbookEvent.findUnique({ where: { id: eventId } });
       if (!before) throw AppError.notFound('SPORTSBOOK_EVENT_NOT_FOUND', 'That sportsbook game does not exist.');
-      const settled = await settleSportsbookEventTx(tx, eventId, 'VOID', null, null, now);
+      const settled = await settleSportsbookEventTx(tx, eventId, 'VOID', null, null, now, 'ADMIN_VOID');
       if (!settled) throw AppError.conflict('SPORTSBOOK_ALREADY_SETTLED', 'That game is already settled.');
       await AdminAuditService.record(tx, actor, {
         action: 'sportsbook.void', targetType: 'sportsbook-event', targetId: eventId, reason,

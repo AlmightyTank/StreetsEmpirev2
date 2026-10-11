@@ -189,6 +189,9 @@ async function sportsbookUsage(
   };
 }
 
+/** 1.8.0-E. Who graded a result, for the market review's grading-accuracy figures. */
+export type SportsbookSettledVia = 'FEED' | 'ADMIN_RECHECK' | 'ADMIN_VOID';
+
 export interface SportsbookSettlement {
   tickets: number;
   won: number;
@@ -210,12 +213,13 @@ export async function settleSportsbookEventTx(
   homeScore: number | null,
   awayScore: number | null,
   now: Date,
+  via: SportsbookSettledVia = 'FEED',
 ): Promise<SportsbookSettlement | null> {
   await tx.$queryRaw`SELECT "id" FROM "SportsbookEvent" WHERE "id" = ${eventId} FOR UPDATE`;
   const event = await tx.sportsbookEvent.findUnique({ where: { id: eventId } });
   if (!event || event.settledAt) return null;
   await tx.sportsbookEvent.update({ where: { id: eventId }, data: {
-    status, homeScore, awayScore, settledAt: now, nextResultCheckAt: null, resultError: '',
+    status, homeScore, awayScore, settledAt: now, settledVia: via, nextResultCheckAt: null, resultError: '',
   } });
   const summary: SportsbookSettlement = { tickets: 0, won: 0, lost: 0, push: 0, void: 0, creditedCents: 0n };
   const tickets = await tx.sportsbookBet.findMany({ where: { eventId, status: 'OPEN' } });
@@ -256,8 +260,9 @@ export function settleSportsbookEvent(
   homeScore: number | null,
   awayScore: number | null,
   now: Date,
+  via: SportsbookSettledVia = 'FEED',
 ): Promise<SportsbookSettlement | null> {
-  return prisma.$transaction((tx) => settleSportsbookEventTx(tx, eventId, status, homeScore, awayScore, now));
+  return prisma.$transaction((tx) => settleSportsbookEventTx(tx, eventId, status, homeScore, awayScore, now, via));
 }
 
 export const SportsbookService = {
@@ -323,7 +328,9 @@ export const SportsbookService = {
       const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, include: { round: true } });
       if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
       const ruleset = loadRulesetForRound(player.round);
-      if (!ruleset.casino?.enabled) throw AppError.conflict('SPORTSBOOK_CLOSED', 'Sports betting is not open in this round.');
+      // 1.8.0-E: the sportsbook and its limits are pinned to the round's ruleset.
+      const book = ruleset.casino?.enabled ? ruleset.casino.sportsbook : undefined;
+      if (!book) throw AppError.conflict('SPORTSBOOK_CLOSED', 'Sports betting is not part of this round\'s rules.');
       const event = await tx.sportsbookEvent.findUnique({ where: { id: input.eventId } });
       if (event?.status === 'PULLED' && event.startsAt > now) throw AppError.conflict('SPORTSBOOK_LINE_PULLED', 'The book took this line down. Try another game.');
       if (!event || event.status !== 'PRE' || event.startsAt <= now) throw AppError.conflict('SPORTSBOOK_CLOSED', 'That game is no longer open for betting.');
@@ -340,7 +347,7 @@ export const SportsbookService = {
       }
       const usage = await sportsbookUsage(tx, roundPlayerId, now, { eventId: event.id, selection: input.selection });
       // Cash is checked by the debit below, against wherever the boss actually is.
-      const breach = sportsbookStakeCheck(input.stakeCents, odds, SPORTSBOOK_LIMITS, { ...usage, cashCents: Number.MAX_SAFE_INTEGER });
+      const breach = sportsbookStakeCheck(input.stakeCents, odds, book.limits, { ...usage, cashCents: Number.MAX_SAFE_INTEGER });
       if (breach) throw AppError.conflict(breach.code, breach.message);
       const payout = americanPayout(stake, odds);
       await moveSportsbookCash(tx, player.id, ruleset, -stake, now);
@@ -355,8 +362,18 @@ export const SportsbookService = {
 
   /** 1.8.0-D. The limits and what this player has used of them, for the bet slip. */
   async limits(prisma: PrismaClient, roundPlayerId: string, now = new Date()): Promise<SportsbookLimitsDto> {
-    const usage = await sportsbookUsage(prisma, roundPlayerId, now);
-    return { limits: SPORTSBOOK_LIMITS, openStakeCents: usage.openStakeCents, openTickets: usage.openTickets, dailyStakeCents: usage.dailyStakeCents };
+    const [player, usage] = await Promise.all([
+      prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, include: { round: true } }),
+      sportsbookUsage(prisma, roundPlayerId, now),
+    ]);
+    const ruleset = player ? loadRulesetForRound(player.round) : null;
+    const book = ruleset?.casino?.enabled ? ruleset.casino.sportsbook : undefined;
+    return {
+      available: Boolean(book),
+      // A round without the sportsbook still shows its tickets; the current limits are only for display.
+      limits: book?.limits ?? SPORTSBOOK_LIMITS,
+      openStakeCents: usage.openStakeCents, openTickets: usage.openTickets, dailyStakeCents: usage.dailyStakeCents,
+    };
   },
 
   /** Every open ticket plus recent settled history and a lifetime record for the player. */

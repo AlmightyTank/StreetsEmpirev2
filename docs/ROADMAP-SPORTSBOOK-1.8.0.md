@@ -27,7 +27,7 @@ The first release uses TheRundown for pregame odds across NFL, NBA, MLB, and NHL
 | **1.8.0-B — Ticket Clarity & Board Polish** | Make picks and outcomes easy to follow | Improve league selection, event grouping, cache freshness, open-ticket details, and settled-ticket history. Keep the board useful on mobile and explain why a line is closed or unavailable. Implemented on beta. |
 | **1.8.0-C — Feed Reliability & Operations** | Make polling and settlement supportable | Harden retries and stale-cache handling; expose last successful poll, provider quota, and errors to admins; safely recheck unresolved results without duplicate settlement. Implemented on beta. |
 | **1.8.0-D — Limits & Economy Balance** | Keep game-cash risk bounded | Tune minimum/maximum stakes and exposure controls through simulations; test repeat requests, concurrent wagers, cash-location changes, pushes, cancellations, and late provider updates. Keep the no-turn rule. Implemented on beta; see SPORTSBOOK-SIMULATION-1.8.0-D.md. |
-| **1.8.0-E — Market Expansion & Release** | Expand only after the first market is proven | Review provider usage and grading accuracy, then decide whether to add leagues or pregame spreads/totals. Keep live betting, parlays, and player props out until separately designed and budgeted. Finish accessibility, mobile, migration, historical-ruleset, and release checks. |
+| **1.8.0-E — Market Expansion & Release** | Expand only after the first market is proven | Review provider usage and grading accuracy, then decide whether to add leagues or pregame spreads/totals. Keep live betting, parlays, and player props out until separately designed and budgeted. Finish accessibility, mobile, migration, historical-ruleset, and release checks. Implemented on beta; expansion deferred until the readiness checks pass on real data (RELEASE-1.8.0.md). |
 
 ## Slice A details
 
@@ -67,6 +67,14 @@ The first release uses TheRundown for pregame odds across NFL, NBA, MLB, and NHL
 - One shared check (`sportsbookStakeCheck`) runs on the server inside the wager transaction, and on the bet slip to show the top stake for the selected price, the daily and open usage, and the reason a ticket cannot be placed.
 - A wager locks the game row, then the player, in the same order as settlement. Tickets are stamped with the transaction clock so the 24-hour window is exact.
 - PostgreSQL tests cover repeat and racing requests, concurrent wagers against cash and the daily limit, every limit, cash location (trip bankroll, return home, mid-relocation), pushes, cancellations, pinned odds after line movement, late score corrections and the no-turn rule.
+
+## Slice E details
+
+- The sportsbook and its limits are pinned to **classic-og-v1.8-e**: 1.7.0-E plus `casino.sportsbook.limits`, equal to the simulated `SPORTSBOOK_LIMITS`. A round on an earlier ruleset takes no new tickets and says so on the board; tickets it already holds still settle and stay visible. Crew selected teams, which were keyed to the exact 1.7.0-E id, now carry forward to 1.8.0-E.
+- Every feed run that holds the lease is logged (`SportsbookFeedRun`, kept 90 days), and every settled game records who graded it (`settledVia`: FEED, ADMIN_RECHECK or ADMIN_VOID, backfilled from the audit log).
+- Admin › Casino Operations › Sportsbook feed adds **Market expansion readiness**: provider usage and grading accuracy over 30 days, scored against `SPORTSBOOK_EXPANSION_THRESHOLDS`. It also adds **Check provider payload**, which fetches one league's live snapshot and reports listings stored or skipped (with reasons), how each raw status maps, sample rows and quota, without storing anything (audited).
+- Decision: no new leagues or markets in 1.8.0 until the readiness checks pass on real beta data. Live betting, parlays and player props stay out. See [RELEASE-1.8.0.md](RELEASE-1.8.0.md) for the checklist, deploy steps and what spreads/totals would need.
+- `npm run qa:release` now runs the sportsbook limit gates. The sportsbook and admin casino pages pass the mobile/keyboard/axe audit at 360, 390 and desktop widths.
 
 ## Release gates
 

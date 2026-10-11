@@ -151,6 +151,7 @@ const npcGangControlBody = z.discriminatedUnion('action', [
 ]);
 const reasonBody = z.object({ reason }).strict();
 const sportsbookEventParams = z.object({ eventId: id }).strict();
+const sportsbookProviderCheckBody = z.object({ league: z.enum(['NFL', 'NBA', 'MLB', 'NHL']) }).strict();
 // 1.0.0-E: resuming extends the season by the pause unless told not to.
 const resumeRoundSchema = z.object({ extend: z.boolean().optional(), reason: reason.optional() }).strict();
 // 0.9.0-H moderation.
@@ -954,6 +955,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { eventId } = parseBody(sportsbookEventParams, request.params);
     parseBody(emptyBody, request.body ?? {});
     return AdminSportsbookService.recheck(fastify.prisma, sportsbookFeed(), request.auth!.account, eventId);
+  });
+
+  /** 1.8.0-E release gate: parse one league's live snapshot without storing it. */
+  fastify.post('/sportsbook/provider-check', async (request) => {
+    const { league } = parseBody(sportsbookProviderCheckBody, request.body ?? {});
+    return AdminSportsbookService.providerCheck(fastify.prisma, sportsbookFeed(), request.auth!.account, league);
   });
 
   fastify.post('/sportsbook/events/:eventId/void', async (request) => {

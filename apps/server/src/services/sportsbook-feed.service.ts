@@ -16,6 +16,7 @@ import {
   str,
   type JsonRecord,
   type ProviderEvent,
+  type SportsbookSettledVia,
 } from './sportsbook.service.js';
 
 /**
@@ -30,6 +31,8 @@ const REQUEST_TIMEOUT_MS = 15_000;
 export const FEED_MAX_ATTEMPTS = 3;
 const RETRY_BASE_MS = 2_000;
 const RETRY_AFTER_CAP_MS = 30_000;
+/** 1.8.0-E. Feed runs kept for the market review. */
+const FEED_RUN_RETENTION_DAYS = 90;
 /** A crashed poller cannot hold the feed for longer than this. */
 const LEASE_MS = 10 * 60_000;
 const RESULT_CHECKS_PER_RUN = 40;
@@ -304,6 +307,7 @@ export async function checkSportsbookResult(
   session: ProviderSession,
   event: { id: string; providerEventId: string; resultCheckCount: number },
   now: Date,
+  via: SportsbookSettledVia = 'FEED',
 ): Promise<ResultCheckOutcome> {
   let payload: JsonRecord;
   try {
@@ -316,7 +320,7 @@ export async function checkSportsbookResult(
   const providerEvent = (record(payload.event) ?? payload) as ProviderEvent;
   const outcome = providerOutcome(providerEvent);
   if (outcome === 'CANCELLED') {
-    const settled = await settleSportsbookEvent(prisma, event.id, 'VOID', null, null, now);
+    const settled = await settleSportsbookEvent(prisma, event.id, 'VOID', null, null, now, via);
     return settled ? { outcome: 'VOIDED', detail: `Voided; ${settled.tickets} ticket(s) refunded.` } : { outcome: 'ALREADY_SETTLED', detail: 'Already settled.' };
   }
   const score = record(providerEvent.score);
@@ -328,7 +332,7 @@ export async function checkSportsbookResult(
       await recordResultCheck(prisma, event, now, detail, false);
       return { outcome: 'ERROR', detail };
     }
-    const settled = await settleSportsbookEvent(prisma, event.id, 'FINAL', homeScore, awayScore, now);
+    const settled = await settleSportsbookEvent(prisma, event.id, 'FINAL', homeScore, awayScore, now, via);
     return settled
       ? { outcome: 'SETTLED', detail: `Final ${awayScore}-${homeScore}; ${settled.tickets} ticket(s) settled.` }
       : { outcome: 'ALREADY_SETTLED', detail: 'Already settled.' };
@@ -465,10 +469,80 @@ export async function refreshSportsbookCache(
         ...(result.errors.length ? { lastErrorAt: now } : {}),
       },
     });
+    // 1.8.0-E: one row per run that held the lease, so admins can review real provider usage.
+    await prisma.sportsbookFeedRun.create({ data: {
+      startedAt: now, oddsPolled: result.oddsPolled, requests: session.requests, datapoints: session.datapoints,
+      snapshots: result.snapshots, failedSnapshots: result.failedSnapshots, pulled: result.pulled,
+      resultChecks: result.resultChecks, settled: result.settled, failed, error: result.errors.join(' · ').slice(0, 500),
+    } });
+    await prisma.sportsbookFeedRun.deleteMany({ where: { startedAt: { lt: new Date(now.getTime() - FEED_RUN_RETENTION_DAYS * 86_400_000) } } });
   }
   if (crash) throw crash;
   if (session.stopped?.kind === 'AUTH' || (result.oddsPolled && result.snapshots === 0)) {
     throw new Error(`Sportsbook feed produced no odds snapshot: ${result.errors.join(' · ')}`);
   }
   return result;
+}
+
+export type SnapshotSkipReason = 'NO_EVENT_ID' | 'BAD_START' | 'NO_TEAMS' | 'NO_MONEYLINE';
+
+/**
+ * 1.8.0-E release gate. Why the feed would skip one provider listing, or null when it stores it.
+ * Mirrors `storeSnapshot`, which only needs an id, a start time, both team names and a moneyline market.
+ */
+export function diagnoseProviderEvent(raw: unknown): SnapshotSkipReason | null {
+  const event = record(raw) as ProviderEvent | null;
+  if (!event || !str(event.event_id)) return 'NO_EVENT_ID';
+  if (!Number.isFinite(new Date(String(event.starts_at ?? event.event_date ?? '')).getTime())) return 'BAD_START';
+  if (eventOdds(event)) return null;
+  const teams = Array.isArray(event.teams) ? event.teams.map(record) : [];
+  const named = (test: (team: JsonRecord) => boolean) => teams.some((team) => team && test(team) && str(team.name));
+  if (!named((team) => team.is_away === true) || !named((team) => team.is_away === false || team.is_home === true)) return 'NO_TEAMS';
+  return 'NO_MONEYLINE';
+}
+
+export interface SnapshotSummary {
+  events: number;
+  parsed: number;
+  /** Stored, but with no moneyline price on either side yet. */
+  withoutPrices: number;
+  skipped: Record<SnapshotSkipReason, number>;
+  statuses: Array<{ raw: string; outcome: ProviderOutcome; count: number }>;
+  samples: Array<{
+    providerEventId: string; startsAt: string; homeTeam: string; awayTeam: string;
+    homeOdds: number | null; awayOdds: number | null; rawStatus: string; outcome: ProviderOutcome;
+  }>;
+}
+
+/** What the feed makes of one real snapshot: the evidence the release gate asks for. */
+export function summarizeSnapshot(events: unknown[]): SnapshotSummary {
+  const summary: SnapshotSummary = {
+    events: events.length, parsed: 0, withoutPrices: 0,
+    skipped: { NO_EVENT_ID: 0, BAD_START: 0, NO_TEAMS: 0, NO_MONEYLINE: 0 }, statuses: [], samples: [],
+  };
+  const statuses = new Map<string, { outcome: ProviderOutcome; count: number }>();
+  for (const raw of events) {
+    const reason = diagnoseProviderEvent(raw);
+    const event = (record(raw) ?? {}) as ProviderEvent;
+    const rawStatus = str(event.status) ?? str(event.event_status) ?? '(none)';
+    const outcome = providerOutcome(event);
+    const seen = statuses.get(rawStatus) ?? { outcome, count: 0 };
+    seen.count += 1;
+    statuses.set(rawStatus, seen);
+    if (reason) {
+      summary.skipped[reason] += 1;
+      continue;
+    }
+    const odds = eventOdds(event)!;
+    summary.parsed += 1;
+    if (odds.homeOdds === null && odds.awayOdds === null) summary.withoutPrices += 1;
+    if (summary.samples.length < 5) {
+      summary.samples.push({
+        providerEventId: str(event.event_id)!, startsAt: new Date(String(event.starts_at ?? event.event_date)).toISOString(),
+        homeTeam: odds.home, awayTeam: odds.away, homeOdds: odds.homeOdds, awayOdds: odds.awayOdds, rawStatus, outcome,
+      });
+    }
+  }
+  summary.statuses = [...statuses].map(([raw, value]) => ({ raw, ...value })).sort((a, b) => b.count - a.count);
+  return summary;
 }

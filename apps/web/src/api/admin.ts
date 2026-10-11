@@ -1,5 +1,7 @@
 import type {
+  SportsbookLeagueKey,
   AdminSportsbookActionDto,
+  AdminSportsbookProviderCheckDto,
   AdminSportsbookDto,
   AdminCrewCorrectionInput,
   AdminCrewCorrectionResult,
@@ -250,6 +252,8 @@ export const adminApi = {
   /** 1.8.0-C. Sportsbook feed health (global, not per round), an on-demand result check and an audited void. */
   sportsbook: () => api.get<AdminSportsbookDto>('/admin/sportsbook'),
   sportsbookRecheck: (eventId: string) => api.post<AdminSportsbookActionDto>(`/admin/sportsbook/events/${enc(eventId)}/recheck`, {}),
+  /** 1.8.0-E release gate: parse one league's live provider snapshot without storing it. */
+  sportsbookProviderCheck: (league: SportsbookLeagueKey) => api.post<AdminSportsbookProviderCheckDto>('/admin/sportsbook/provider-check', { league }),
   sportsbookVoid: (eventId: string, reason: string) =>
     api.post<AdminSportsbookActionDto>(`/admin/sportsbook/events/${enc(eventId)}/void`, { reason }),
   /** 1.6.5-F. Loan shark health for a round, one player's loans, and an audited correction. */

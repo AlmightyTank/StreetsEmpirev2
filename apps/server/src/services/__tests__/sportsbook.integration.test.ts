@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { Prisma } from '@prisma/client';
-import { classicOgV12A } from '@streets/rulesets';
+import { classicOgV17E, classicOgV18E, type Ruleset } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import { ReputationService } from '../reputation.service.js';
 import { refreshAwayWorth } from '../run-settle.service.js';
@@ -23,11 +23,12 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
   const now = new Date('2030-03-01T18:00:00.000Z');
   const minutes = (count: number) => new Date(now.getTime() + count * 60_000);
 
-  async function fixture() {
+  /** 1.8.0-E: the sportsbook is pinned to its ruleset, so fixtures play 1.8.0-E unless told otherwise. */
+  async function fixture(ruleset: Ruleset = classicOgV18E) {
     const round = await app.prisma.round.create({
       data: {
-        name: 'Sportsbook B fixture', slug: 'sportsbook-b-' + randomUUID(),
-        rulesetId: classicOgV12A.meta.id, rulesetVersion: classicOgV12A.meta.version, status: 'ACTIVE',
+        name: 'Sportsbook fixture', slug: 'sportsbook-' + randomUUID(),
+        rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version, status: 'ACTIVE',
         startsAt: new Date('2000-01-01'), endsAt: new Date('2099-01-01'),
       },
     });
@@ -35,13 +36,13 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     const city = await app.prisma.city.findUniqueOrThrow({ where: { slug: 'new-york-city' } });
     return app.prisma.roundPlayer.create({
       data: {
-        ...classicOgV12A.round.startingPlayer,
-        ...startingStock(classicOgV12A),
+        ...ruleset.round.startingPlayer,
+        ...startingStock(ruleset),
         cashCents: 500_000n,
         roundId: round.id, accountId, cityId: city.id,
         displayName: 'book_' + randomUUID().slice(0, 6),
         publicPimpId: 9800 + roundIds.length,
-        reputation: { create: ReputationService.seedFor(classicOgV12A) },
+        reputation: { create: ReputationService.seedFor(ruleset) },
       },
     });
   }
@@ -78,6 +79,8 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
   afterAll(async () => {
     for (const id of roundIds) await app.prisma.round.delete({ where: { id } });
     await app.prisma.sportsbookEvent.deleteMany({ where: { OR: [{ id: { in: eventIds } }, { providerEventId: { startsWith: providerPrefix } }] } });
+    // Feed runs these tests made carry their fixed future clocks.
+    await app.prisma.sportsbookFeedRun.deleteMany({ where: { startedAt: { gte: new Date('2030-01-01T00:00:00.000Z') } } });
     if (savedProviderState) {
       const { id, updatedAt: _updatedAt, leagueStatus, ...rest } = savedProviderState;
       await app.prisma.sportsbookProviderState.update({ where: { id }, data: { ...rest, leagueStatus: leagueStatus as Prisma.InputJsonValue } });
@@ -316,6 +319,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(resultCalls()).toBe(2);
     expect(settledRun.settled).toBe(1);
     expect(await app.prisma.sportsbookBet.findFirstOrThrow({ where: { eventId: game.id } })).toMatchObject({ status: 'WON' });
+    expect((await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: game.id } })).settledVia).toBe('FEED');
     expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).cashCents).toBe(523_000n);
 
     // A settled game is never checked or paid again.
@@ -361,10 +365,12 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     const feed = provider({ result: () => reply(200, { event: { status: 'STATUS_POSTPONED' } }) });
     const rechecked = await AdminSportsbookService.recheck(app.prisma, config, actor, stuck.id, feedNow, feed);
     expect(rechecked.message).toBe('Voided; 1 ticket(s) refunded.');
+    expect((await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: stuck.id } })).settledVia).toBe('ADMIN_RECHECK');
     expect(rechecked.report.unresolved.some((row) => row.id === stuck.id)).toBe(false);
 
     const voided = await AdminSportsbookService.void(app.prisma, config, actor, pulled.id, 'Provider dropped the game for good.', feedNow);
     expect(voided.message).toContain('1 ticket(s) refunded');
+    expect((await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: pulled.id } })).settledVia).toBe('ADMIN_VOID');
     await expect(AdminSportsbookService.void(app.prisma, config, actor, pulled.id, 'Provider dropped the game for good.', feedNow))
       .rejects.toMatchObject({ code: 'SPORTSBOOK_ALREADY_SETTLED' });
     // Both stakes came back; nothing was paid twice.
@@ -470,7 +476,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
       bankrollCents: 300_000n, startBankrollCents: 300_000n, ticketCents: 0n, hotelCents: 0n, turnsSpent: 0,
       departedAt: dAt(-120), arrivesAt: dAt(-60), stayUntil: dAt(600), returnsAt: dAt(720),
     } });
-    await app.prisma.$transaction((tx) => refreshAwayWorth(tx, traveler.id, classicOgV12A));
+    await app.prisma.$transaction((tx) => refreshAwayWorth(tx, traveler.id, classicOgV18E));
     const first = await openGame();
     const second = await openGame();
     await wager(traveler.id, first.id, 100_000);
@@ -535,5 +541,100 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(await statuses()).toEqual(settled);
     expect(await cashOf(player.id)).toBe(1_022_000n);
     expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).turns).toBe(turns);
+  });
+
+  // ---- 1.8.0-E: historical rulesets, market review and the provider release gate ----------
+
+  const eNow = new Date('2033-03-01T15:00:00.000Z');
+  const eAt = (count: number) => new Date(eNow.getTime() + count * 60_000);
+
+  it('keeps the sportsbook out of rounds pinned before 1.8.0-E, while their old tickets still settle', async () => {
+    await resetFeedState({ lastPolledAt: eAt(-5) });
+    const older = await fixture(classicOgV17E);
+    const game = await event({ startsAt: eAt(120), oddsUpdatedAt: eAt(-5) });
+    await expect(SportsbookService.placeBet(app.prisma, older.id, {
+      eventId: game.id, selection: 'AWAY', stakeCents: 10_000, actionId: randomUUID(),
+    }, eNow)).rejects.toMatchObject({ code: 'SPORTSBOOK_CLOSED', message: "Sports betting is not part of this round's rules." });
+    expect(await SportsbookService.limits(app.prisma, older.id, eNow)).toMatchObject({ available: false });
+    expect(await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: older.id } })).toMatchObject({ cashCents: 500_000n });
+
+    // A ticket from before the switch (written directly: 1.7 rounds took them under 1.8.0-A) still pays.
+    await app.prisma.sportsbookBet.create({ data: {
+      roundPlayerId: older.id, eventId: game.id, actionId: randomUUID(), selection: 'AWAY', oddsAmerican: 130,
+      stakeCents: 10_000n, payoutCents: 23_000n, createdAt: eAt(-60),
+    } });
+    await settleSportsbookEvent(app.prisma, game.id, 'FINAL', 1, 4, eAt(300));
+    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: older.id } })).cashCents).toBe(523_000n);
+    expect((await SportsbookService.tickets(app.prisma, older.id)).settled[0]).toMatchObject({ status: 'WON', returnCents: 23_000 });
+
+    const current = await fixture();
+    expect(await SportsbookService.limits(app.prisma, current.id, eNow)).toMatchObject({ available: true, limits: classicOgV18E.casino.sportsbook.limits });
+  });
+
+  it('scores the first market against the expansion checks from real runs and grading', async () => {
+    await resetFeedState({ datapointsLimit: 20_000, datapointsPeriod: 'month' });
+    const config = { configured: true, pollMinutes: 30, apiKey: 'test-key' };
+    // Nothing yet: every check that needs history fails, so expansion stays closed.
+    const empty = await AdminSportsbookService.report(app.prisma, config, eNow);
+    expect(empty.review.ready).toBe(false);
+
+    // 20 days of runs, two a day from 15:00 UTC (so 21 calendar dates), one failure; 300 datapoints a day projects 9,000 a month.
+    await app.prisma.sportsbookFeedRun.createMany({ data: Array.from({ length: 40 }, (_, index) => ({
+      startedAt: eAt(-(20 * 24 * 60) + index * 12 * 60), oddsPolled: true, requests: 8, datapoints: 150,
+      snapshots: index === 7 ? 0 : 8, failedSnapshots: index === 7 ? 8 : 0, pulled: 0, resultChecks: 2, settled: 2, failed: index === 7, error: '',
+    })) });
+    const graded = await Promise.all(Array.from({ length: 60 }, (_, index) => event({
+      providerEventId: providerPrefix + 'graded-' + index, startsAt: eAt(-3 * 24 * 60), status: index === 59 ? 'VOID' : 'FINAL',
+    })));
+    await app.prisma.sportsbookEvent.updateMany({ where: { id: { in: graded.map((row) => row.id) } }, data: { settledAt: eAt(-3 * 24 * 60 + 200), settledVia: 'FEED' } });
+
+    const ready = await AdminSportsbookService.report(app.prisma, config, eNow);
+    const result = (key: string) => ready.review.criteria.find((criterion) => criterion.key === key)?.pass;
+    expect(ready.review).toMatchObject({
+      runs: 40, failedRuns: 1, daysWithSnapshots: 21, datapoints: 6_000, datapointsPerDay: 300, projectedPerPeriod: 9_000,
+      settled: { total: 60, feed: 60, voidedByFeed: 1, adminRecheck: 0, adminVoid: 0 },
+      hoursToSettle: { median: 3.3, p90: 3.3 },
+    });
+    expect(['history', 'sample', 'auto', 'failures', 'quota'].map(result)).toEqual([true, true, true, true, true]);
+    expect(ready.review.ready).toBe(result('stuck'));
+
+    // Two admin voids out of 62 drop the feed's share below 98%.
+    const voided = await Promise.all([1, 2].map((n) => event({ providerEventId: providerPrefix + 'admin-' + n, startsAt: eAt(-2 * 24 * 60), status: 'VOID' })));
+    await app.prisma.sportsbookEvent.updateMany({ where: { id: { in: voided.map((row) => row.id) } }, data: { settledAt: eAt(-2 * 24 * 60 + 60), settledVia: 'ADMIN_VOID' } });
+    const shaky = await AdminSportsbookService.report(app.prisma, config, eNow);
+    expect(shaky.review.criteria.find((criterion) => criterion.key === 'auto')).toMatchObject({ pass: false, value: '96.8%' });
+    expect(shaky.review.ready).toBe(false);
+  });
+
+  it('checks a live provider snapshot for the release gate without storing it', async () => {
+    await resetFeedState();
+    const actor = { id: accountId, username: accountName };
+    const config = { configured: true, pollMinutes: 30, apiKey: 'test-key' };
+    const today = eNow.toISOString().slice(0, 10);
+    const feed = provider({ odds: (league, date) => reply(200, { events: league === 'NHL' && date === today ? [
+      listing(providerPrefix + 'check-1', eAt(240)),
+      listing(providerPrefix + 'check-2', eAt(300), 'STATUS_POSTPONED'),
+      { event_id: providerPrefix + 'check-3', event_date: eAt(360).toISOString(), teams: [], markets: [] },
+    ] : [] }) });
+    const check = await AdminSportsbookService.providerCheck(app.prisma, config, actor, 'NHL', eNow, feed);
+    expect(check).toMatchObject({
+      league: 'NHL', date: today, ok: true, error: '',
+      summary: { events: 3, parsed: 2, withoutPrices: 0, skipped: { NO_TEAMS: 1 } },
+      quota: { datapoints: 3, remaining: 19_000 },
+    });
+    expect(check.summary!.statuses).toEqual(expect.arrayContaining([
+      { raw: 'STATUS_SCHEDULED', outcome: 'PRE', count: 1 },
+      { raw: 'STATUS_POSTPONED', outcome: 'CANCELLED', count: 1 },
+    ]));
+    expect(feed.calls).toEqual(['/api/v2/sports/6/events/' + today]);
+    expect(await app.prisma.sportsbookEvent.count({ where: { providerEventId: { startsWith: providerPrefix + 'check-' } } })).toBe(0);
+    expect((await app.prisma.sportsbookProviderState.findUniqueOrThrow({ where: { id: 'therundown' } })).datapointsRemaining).toBe(19_000);
+
+    const failing = await AdminSportsbookService.providerCheck(app.prisma, config, actor, 'NFL', eNow, provider({ odds: () => reply(401, {}) }));
+    expect(failing).toMatchObject({ ok: false, summary: null, error: expect.stringContaining('rejected the API key') });
+    await expect(AdminSportsbookService.providerCheck(app.prisma, { ...config, apiKey: '' }, actor, 'NFL', eNow)).rejects.toMatchObject({ code: 'SPORTSBOOK_FEED_OFF' });
+    const audits = await app.prisma.adminAuditLog.findMany({ where: { action: 'sportsbook.provider-check', actorAccountId: accountId } });
+    expect(audits).toHaveLength(2);
+    await app.prisma.adminAuditLog.deleteMany({ where: { action: 'sportsbook.provider-check', actorAccountId: accountId } });
   });
 });

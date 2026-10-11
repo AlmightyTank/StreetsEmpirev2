@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { sportsbookLineReason, sportsbookPayoutCents, sportsbookReturnCents } from '@streets/shared';
+import { SPORTSBOOK_LIMITS, sportsbookLineReason, sportsbookPayoutCents, sportsbookReturnCents } from '@streets/shared';
+import { classicOgV18E, rulesets } from '@streets/rulesets';
 import {
   americanPayout,
   eventOdds,
@@ -83,5 +84,17 @@ describe('pregame sportsbook', () => {
     expect(sportsbookReturnCents('VOID', 1_000, 2_300)).toBe(1_000);
     expect(sportsbookReturnCents('LOST', 1_000, 2_300)).toBe(0);
     expect(sportsbookReturnCents('OPEN', 1_000, 2_300)).toBe(0);
+  });
+
+  it('pins the simulated limits to 1.8.0-E and keeps every earlier ruleset free of the sportsbook', () => {
+    // docs/SPORTSBOOK-SIMULATION-1.8.0-D.md tuned SPORTSBOOK_LIMITS; the pinned ruleset must match it.
+    expect(classicOgV18E.casino.sportsbook.limits).toEqual(SPORTSBOOK_LIMITS);
+    const { sportsbook: _sportsbook, ...casinoWithoutBook } = classicOgV18E.casino;
+    const { classicOgV17E } = { classicOgV17E: rulesets['classic-og-v1.7-e']! };
+    expect(casinoWithoutBook).toEqual(classicOgV17E.casino);
+    for (const ruleset of Object.values(rulesets)) {
+      if (ruleset.meta.id === classicOgV18E.meta.id) continue;
+      expect(ruleset.casino?.sportsbook, ruleset.meta.id).toBeUndefined();
+    }
   });
 });
