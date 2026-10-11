@@ -6,4 +6,5 @@ export const supporterApi = {
   status: () => api.get<SupporterStatusDto>('/supporter'),
   checkout: () => api.post<SupporterRedirectDto>('/supporter/checkout', {}),
   portal: () => api.post<SupporterRedirectDto>('/supporter/portal', {}),
+  setListed: (listed: boolean) => api.post<SupporterStatusDto>('/supporter/listing', { listed }),
 };

@@ -219,6 +219,8 @@ export const adminApi = {
   supporters: () => api.get<AdminSupportersDto>('/admin/supporters'),
   grantSupporters: (usernames: string[], reason: string, dryRun: boolean) =>
     api.post<AdminSupporterGrantResultDto>('/admin/supporters/grant', dryRun ? { usernames, dryRun } : { usernames, reason, dryRun }),
+  /** Gives this month's supporter drop to everyone supporting now. */
+  releaseSupporterDrop: () => api.post<{ month: string; granted: number }>('/admin/supporters/drops/release', {}),
   backfillSupporters: (reason: string, dryRun: boolean) =>
     api.post<AdminSupporterGrantResultDto>('/admin/supporters/backfill', dryRun ? { dryRun } : { reason, dryRun }),
   resendVerification: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/resend'), { reason }),

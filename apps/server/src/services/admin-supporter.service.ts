@@ -12,6 +12,7 @@ import { AppError } from '../utils/errors.js';
 import { AdminAccountService } from './admin-account.service.js';
 import type { AuditActor } from './admin-audit.service.js';
 import { membershipDto } from './supporter-billing.service.js';
+import { SupporterDropService } from './supporter-drop.service.js';
 
 const REWARD_KEYS: readonly string[] = Object.keys(SUPPORTER_COSMETICS);
 /** How many of the newest supporter payments the tab shows. */
@@ -67,7 +68,7 @@ async function commit(
  */
 export const AdminSupporterService = {
   async list(prisma: PrismaClient): Promise<AdminSupportersDto> {
-    const [unlocks, memberships, payments] = await Promise.all([
+    const [unlocks, memberships, payments, drops] = await Promise.all([
       prisma.accountCosmeticUnlock.findMany({
         where: { sourceQuestKey: SUPPORTER_SOURCE },
         select: { accountId: true, awardedAt: true },
@@ -79,13 +80,14 @@ export const AdminSupporterService = {
         take: RECENT_PAYMENTS,
         include: { account: { select: { username: true } } },
       }),
+      SupporterDropService.summary(prisma),
     ]);
     const since = new Map<string, Date>();
     for (const unlock of unlocks) if (!since.has(unlock.accountId)) since.set(unlock.accountId, unlock.awardedAt);
     const membershipBy = new Map(memberships.map((membership) => [membership.accountId, membership]));
     // A subscriber still waiting on a first payment has no rewards yet, but belongs on the roster.
     const ids = [...new Set([...since.keys(), ...membershipBy.keys()])];
-    const [accounts, profiles, held] = await Promise.all([
+    const [accounts, profiles, held, listedCount] = await Promise.all([
       ids.length
         ? prisma.account.findMany({ where: { id: { in: ids } }, select: { id: true, username: true, isActive: true, lastLoginAt: true } })
         : [],
@@ -93,6 +95,7 @@ export const AdminSupporterService = {
         ? prisma.accountProfile.findMany({ where: { accountId: { in: ids } }, select: { accountId: true, activeAvatarFrameKey: true } })
         : [],
       heldRewards(prisma, ids),
+      ids.length ? prisma.accountProfile.count({ where: { accountId: { in: ids }, showOnSupporterList: true } }) : 0,
     ]);
     const wearing = new Set(profiles.filter((profile) => profile.activeAvatarFrameKey === SIGNATURE_CARD_FRAME_KEY).map((profile) => profile.accountId));
     const supporters: AdminSupporterDto[] = accounts
@@ -118,6 +121,8 @@ export const AdminSupporterService = {
       missingCount: supporters.filter((supporter) => supporter.since && supporter.missingKeys.length).length,
       activeCount: supporters.filter((supporter) => supporter.membership?.active).length,
       checkoutEnabled: env.stripe.enabled,
+      drops,
+      listedCount,
       payments: payments.map((payment) => ({
         id: payment.id,
         accountId: payment.accountId,

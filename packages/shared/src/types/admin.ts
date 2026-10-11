@@ -1744,6 +1744,20 @@ export interface AdminSupportersDto {
   checkoutEnabled: boolean;
   /** The newest supporter payments. */
   payments: AdminSupporterPaymentDto[];
+  /** Every monthly drop in the catalogue, oldest first. */
+  drops: AdminSupporterDropDto[];
+  /** Supporters who chose to appear on the public thank-you list. */
+  listedCount: number;
+}
+
+/** One monthly supporter drop and how many accounts hold it. */
+export interface AdminSupporterDropDto {
+  /** YYYY-MM, UTC. */
+  month: string;
+  key: string;
+  name: string;
+  holders: number;
+  when: 'past' | 'current' | 'upcoming';
 }
 
 /** The most usernames one bulk grant takes. */

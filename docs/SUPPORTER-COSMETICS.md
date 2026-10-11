@@ -72,6 +72,42 @@ Use test-mode keys on dev and beta. For local testing, `stripe listen
 --forward-to localhost:3001/api/internal/stripe/webhook` prints a signing
 secret to use as `STRIPE_WEBHOOK_SECRET`.
 
+## Monthly drops
+
+`SUPPORTER_MONTHLY_DROPS` in `packages/rulesets/src/supporter.ts` sets one drop
+per UTC month (`YYYY-MM`). Each is a `TITLE_BADGE`, so it needs no art: the
+player can wear it as a title or feature it as a profile badge. Anyone
+supporting during a month gets that month's drop and keeps it:
+
+- **Active subscribers** (`active` or `trialing`) get it within an hour of the
+  month starting, from the hourly "Supporter drops" job
+  (`SupporterDropService.sweep`). An admin can run it at once from Admin →
+  Supporters ("Give this month's drop now").
+- **Anyone whose payment lands during the month** gets it with that payment,
+  through the same Stripe grant as the other rewards. A failed renewal that
+  Stripe retries successfully later in the month still brings it.
+- A month that has passed is not given out later, so a new supporter does not
+  get earlier drops. Admin grants (manual supporters with no subscription) do
+  not include drops.
+
+Drop unlocks use `sourceQuestKey = 'supporter'`, `sourceRulesetId =
+'supporter-drop'` and the month as `sourceRulesetVersion`. The audit actor is
+"Monthly drop" (or "Stripe" when it came with a payment). Add the next months to
+the catalogue before they start; the admin tab warns when the current month has
+none.
+
+## Public thank-you list
+
+`/supporters` on the public site lists supporters who opted in from Account →
+Supporting ("Thank me on the public supporter list"), stored as
+`AccountProfile.showOnSupporterList` (off by default). It shows only the name
+and the month they started supporting: nothing about payments or whether they
+still support. Closed and banned accounts drop off, and deleting an account
+erases the choice with the profile. The data comes from
+`GET /api/public/supporters` (`PublicSupportersService`). The Support page
+describes what supporters get and links here, and the Privacy page names Stripe
+and the list.
+
 ## Admin → Supporters
 
 `/game/admin/supporters` (`AdminSupportersPage`, `AdminSupporterService`) lists

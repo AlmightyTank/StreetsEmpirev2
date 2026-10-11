@@ -33,6 +33,7 @@ function fakePrisma(accounts: Account[], unlocks: Unlock[], avatarFrames: Record
             && (!where.accountId || where.accountId.in.includes(row.accountId))
             && (!where.key || where.key.in.includes(row.key)))
           .sort((a, b) => a.awardedAt.getTime() - b.awardedAt.getTime()),
+      groupBy: async () => [],
     },
     account: {
       findMany: async ({ where }: { where: { id?: { in: string[] }; usernameNormalized?: { in: string[] } } }) =>
@@ -42,6 +43,7 @@ function fakePrisma(accounts: Account[], unlocks: Unlock[], avatarFrames: Record
     supporterMembership: { findMany: async () => [] },
     supporterPayment: { findMany: async () => [] },
     accountProfile: {
+      count: async () => 0,
       findMany: async ({ where }: { where: { accountId: { in: string[] } } }) =>
         where.accountId.in.map((accountId) => ({ accountId, activeAvatarFrameKey: avatarFrames[accountId] ?? null })),
     },
