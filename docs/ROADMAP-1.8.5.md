@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Make 1.8.5 the release that takes ownership of StreetsEmpire's event systems.
+Make 1.8.5 the release that takes ownership of StreetsEmpire's event systems and upgrades the current random encounters.
 
-The existing round-based Community Events and calendar Seasonal Event Jobs become first-class features of a unified event system. That system will own event schedules, participation, progress, rewards, history, and admin controls. Action-triggered random encounters and future city conditions will use the same event foundation.
+The existing round-based Community Events, calendar Seasonal Event Jobs, and action-triggered random encounters become first-class features of one event system. That system will own event schedules, triggers, participation, progress, outcomes, rewards, history, and admin controls. The current encounter behavior is audited, moved into the new event catalog, and improved; it is not merely connected to a new screen.
 
 This is a modernization and migration of real gameplay—not just a new page that links to the current features.
 
@@ -35,7 +35,7 @@ Phase Y-F currently provides holiday Event Jobs on real-world UTC windows, inclu
 
 ### Random Encounters and City Events
 
-Random encounters are action-triggered opportunities currently being extended across Scout, Produce, Travel, Stores, Turf, and Combat. They become another event type in the shared system, with action-based eligibility and short-lived choices.
+Random encounters are action-triggered opportunities currently available across Scout, Produce, Travel, Stores, Turf, and Combat. 1.8.5 takes over their trigger rules, event pool, odds, cooldowns, outcomes, receipts, and tuning. The current encounter implementation is the migration baseline; the new event system becomes the single source of truth for newly versioned rounds. Keep action-based eligibility and short-lived choices, while improving variety, clarity, and balance.
 
 Citywide conditions—such as a festival, product shortage, trader shipment, or economic boom—become scheduled event types whose affected districts, actions, modifiers, and end times are visible to players.
 
@@ -59,7 +59,7 @@ Citywide conditions—such as a festival, product shortage, trader shipment, or 
 | **1.8.5-B — Community Event Takeover** | Move the quarter-season loop | Move the four Phase U events to the event system. Preserve automatic participation, four round-derived windows, shared progress, personal contribution floors, 8-Job-limit exemption, modest rewards, and concurrency-safe aggregation. Remove duplicate legacy ownership for new supported rulesets. |
 | **1.8.5-C — Seasonal Event Takeover** | Move holiday windows and rewards | Move Phase Y-F scheduling, UTC eligibility, personal objectives, permanent cosmetic rewards, event history, and non-production admin test mode to the event system. Preserve progress and prevent double-granting during transition. |
 | **1.8.5-D — Player Event Center** | Make the new system visible | Add a responsive Events center for active, upcoming, completed, and claimed events. Show event type, schedule, shared and personal progress, objectives, choices, deadlines, rewards, and history. Use one consistent entry point while clearly labeling each event's rules. |
-| **1.8.5-E — Random Encounters** | Bring action events onto the same foundation | Connect Scout, Produce, Travel, Stores, Turf, and Combat encounters to first-class event identity, action receipts, cooldowns, idempotency, expiry, and reward settlement. Keep their action-triggered lifecycle. |
+| **1.8.5-E — Random Encounter Takeover & Upgrade** | Replace and improve the current encounter system | Move current Scout, Produce, Travel, Stores, Turf, and Combat encounters into first-class event definitions. Rework trigger weights, cooldowns, duplicate protection, encounter variety, choices, outcomes, receipts, and reward settlement. Keep encounters tied to the action that triggered them, and retire duplicate legacy ownership for new rulesets. |
 | **1.8.5-F — City Conditions & Event Chains** | Make events shape the season | Add bounded citywide conditions and optional event follow-ups. Show affected districts/actions and end times. Community and seasonal objectives may point to a follow-up, but the original event remains the source of truth for its progress and reward. |
 | **1.8.5-G — Migration, Admin & Release** | Finish the takeover safely | Add permission-checked event authoring/tuning, calendar controls, QA preview, migration verification, duplicate-handler removal, audit views, balance simulation, compatibility checks, and release verification. |
 
@@ -85,6 +85,7 @@ A city festival card shows which districts and actions it affects and when those
 
 ## Release gates
 
+- Inventory current encounter triggers, odds, outcomes, cooldowns, receipts, and ledger effects before changing them. Confirm the new definitions cover Scout, Produce, Travel, Stores, Turf, and Combat.
 - Confirm Community Event windows remain contiguous, round-derived, and mutually exclusive.
 - Confirm each community event still auto-enrolls qualifying activity without requiring the player to open the Events center first.
 - Confirm shared totals use authoritative per-player contributions without cross-player fan-out writes; claims recheck the shared goal and personal floor.
@@ -96,6 +97,8 @@ A city festival card shows which districts and actions it affects and when those
 - Confirm retries, concurrent actions, and repeated claims cannot duplicate progress or rewards.
 - Confirm paused rounds cannot advance event windows or settle progress through read paths.
 - Confirm random encounter expiry creates no penalty and consumes no hidden turns or cash.
+- Compare old and new encounter behavior in simulations. Verify the upgraded pool has useful variety, visible outcomes, controlled frequency, no repeatable reward exploit, and no unintended reduction in normal action rewards.
+- Confirm the old and new handlers cannot both award the same action.
 - Simulate repeated events and overlapping conditions for cash, XP, supplies, turf, and combat reward farming.
 - Verify event authoring, tuning, calendar controls, and QA tools are permission-checked and logged.
 - Test desktop, mobile, keyboard navigation, accessibility, stale data, and retry behavior.
@@ -103,7 +106,7 @@ A city festival card shows which districts and actions it affects and when those
 
 ## Explicitly deferred
 
-- Rebuilding the general Jobs system, story quests, contacts, or all contracts under the event service.
+- Rebuilding the general Jobs system, story quests, contacts, or all contracts under the event service. The takeover is limited to Community Events, Seasonal Event Jobs, and random encounters.
 - Letting two schedulers or settlement paths own the same Community or Seasonal Event.
 - Live betting, parlays, and sportsbook market expansion; see the separate sportsbook roadmap.
 - Permanent competitive power for community event placement.
