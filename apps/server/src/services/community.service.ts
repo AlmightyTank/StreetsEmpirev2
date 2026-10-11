@@ -1083,8 +1083,8 @@ export const CommunityService = {
         bannerUrl: profileSettings?.profileBannerUrl ?? null,
         siteTheme: showcase.siteTheme,
         siteThemeLabel: showcase.siteThemeLabel,
-        // The surface belongs to the Signature card, so it is public only while the card is equipped.
-        surface: frame === SIGNATURE_CARD_FRAME_KEY ? profileSurfaceKey(profileSettings?.profileSurface) : null,
+        // The surface belongs to the Signature card, so it is public only while its avatar frame is equipped.
+        surface: avatarFrame === SIGNATURE_CARD_FRAME_KEY ? profileSurfaceKey(profileSettings?.profileSurface) : null,
       },
       look: showcase.look,
       experience: playerExperienceDto(player.account.experiencePoints),

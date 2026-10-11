@@ -45,9 +45,10 @@ to 94% about the canvas centre, which keeps at least 40px of clear space on the
 
 ## Signature Profile Card
 
-The card turns on while `midnight-chrome-frame` is the popup frame. It restyles
-the existing profile header, hover card and settings preview. It is not a
-separate component.
+The card turns on while `midnight-chrome-frame` is the avatar frame. Popup
+frames are retired, so the avatar frame carries the whole card: equipping it
+restyles the existing profile header, hover card and settings preview and adds
+the chrome ring. It is not a separate component.
 
 - **Plate:** `midnight-chrome-plate.webp`, a 9-slice border image (slice 96,
   drawn at 24px). It is painted on the element's border box, so it fits any
@@ -57,8 +58,7 @@ separate component.
 - **Nameplate:** the honorific in chrome small caps, the supporter mark
   (`midnight-chrome-mark.svg`), and a chrome rule with a crimson tick. The mark
   shows only with the card.
-- **Avatar ring:** `midnight-chrome-avatar.webp` when `midnight-chrome-frame` is
-  the avatar frame. Its inner edge sits on the avatar at every size (68px hover,
+- **Avatar ring:** `midnight-chrome-avatar.webp`, drawn with the card. Its inner edge sits on the avatar at every size (68px hover,
   88px and 64px header, 76px settings preview).
 - **Effect:** `midnight-chrome` ("Chrome Glint"), offered once the frame is
   owned. One glint crosses the ring every 9s. It is masked to the ring art and

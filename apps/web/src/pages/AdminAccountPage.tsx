@@ -406,6 +406,7 @@ export function AdminAccountPage() {
             <Row label="Profile title" value={detail.profile.activeTitleKey ?? '-'} />
             <Row label="Title position" value={detail.profile.titlePlacement} />
             <Row label="Retired profile frame" value={detail.profile.activeProfileFrameKey ?? '-'} />
+            <Row label="Supporter" value={detail.supporterSince ? `Since ${new Date(detail.supporterSince).toLocaleDateString()}` : '-'} />
             <Row label="Site theme" value={detail.profile.activeSiteThemeKey ?? '-'} />
             <Row label="Accent" value={detail.profile.profileAccent} />
             <Row label="Featured badges" value={formatNumber(detail.profile.featuredBadgeKeys.length)} />
