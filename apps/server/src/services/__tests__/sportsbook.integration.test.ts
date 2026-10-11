@@ -638,6 +638,31 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     await app.prisma.adminAuditLog.deleteMany({ where: { action: 'sportsbook.provider-check', actorAccountId: accountId } });
   });
 
+  it('manually pulls provider odds into the shared player cache', async () => {
+    await resetFeedState();
+    const config = { configured: true, pollMinutes: 30, apiKey: 'test-key' };
+    const today = eNow.toISOString().slice(0, 10);
+    const feed = provider({
+      odds: (league, date) => reply(200, {
+        events: league === 'NFL' && date === today ? [listing(providerPrefix + 'manual-pull', eAt(180))] : [],
+      }),
+    });
+
+    const result = await AdminSportsbookService.pullNow(app.prisma, config, actor, eNow, feed);
+    expect(result.message).toContain('8 snapshots fetched');
+    expect(feed.calls).toHaveLength(8);
+    const stored = await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { providerEventId: providerPrefix + 'manual-pull' } });
+    expect(stored).toMatchObject({ status: 'PRE', homeOdds: -160, awayOdds: 140, oddsUpdatedAt: eNow });
+    const board = await SportsbookService.board(app.prisma, { configured: true, pollMinutes: 30 }, eNow);
+    expect(board.events.find((row) => row.id === stored.id)?.lineState).toBe('OPEN');
+
+    const audit = await app.prisma.adminAuditLog.findFirst({
+      where: { action: 'sportsbook.manual-pull', targetId: 'therundown', actorAccountId: accountId },
+    });
+    expect(audit).toBeTruthy();
+    await app.prisma.adminAuditLog.deleteMany({ where: { action: 'sportsbook.manual-pull', targetId: 'therundown', actorAccountId: accountId } });
+  });
+
   it('prices and settles a game from TheRundown v2 payloads end to end', async () => {
     await resetFeedState();
     const now2 = new Date('2033-06-01T15:00:00.000Z');

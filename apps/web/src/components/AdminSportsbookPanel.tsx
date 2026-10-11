@@ -219,6 +219,15 @@ export function AdminSportsbookPanel() {
             {data.review.hoursToSettle.median !== null ? <> · settled {data.review.hoursToSettle.median}h after the start (median), {data.review.hoursToSettle.p90}h (p90)</> : null}
           </p>
 
+          <h3 className="se-label se-mt">Manual odds pull</h3>
+          <p className="se-hint">Fetches and stores the normal shared odds snapshots for NFL, NBA, MLB, and NHL now. Uses provider datapoints and respects the feed lease and quota safeguards.</p>
+          <div className="se-actions-row">
+            <Button type="button" className="se-btn se-btn--sm" onClick={() => void run('manual-pull', () => adminApi.sportsbookPull())}
+              disabledReason={busy ? 'Another sportsbook admin action is running.' : !data.configured ? 'No provider key on this server.' : data.feed.pollInProgress ? 'A sportsbook feed pull is already running.' : data.quota.oddsPaused ? 'Odds polling is paused near the provider quota limit.' : null}>
+              {busy === 'manual-pull' ? 'Pulling odds…' : 'Pull odds now'}
+            </Button>
+          </div>
+
           <h3 className="se-label se-mt">Provider check</h3>
           <p className="se-hint">Fetches today&apos;s snapshot for one league and shows what the feed makes of it, without storing anything. Costs one request.</p>
           <div className="se-actions-row">
