@@ -239,8 +239,8 @@ export function RankingsPage() {
             <p>See where your crew stands, who is moving, and who has held the street long enough to own the current board.</p>
             <div className="se-rankings-archive-link">
               {latestEndedRound ? (
-                <Link to={`/game/rounds/${encodeURIComponent(latestEndedRound.id)}/aftermath`}>
-                  Open {latestEndedRound.name} aftermath <span aria-hidden="true">→</span>
+                <Link to={`/game/rounds/${encodeURIComponent(latestEndedRound.id)}/aftermath?view=records`}>
+                  Open {latestEndedRound.name} records & awards <span aria-hidden="true">→</span>
                 </Link>
               ) : (
                 <Link to="/game/hall-of-fame">Browse finished rounds <span aria-hidden="true">→</span></Link>

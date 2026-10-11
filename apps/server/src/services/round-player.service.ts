@@ -6,6 +6,10 @@ import { NetWorthService } from './net-worth.service.js';
 import { RankingService } from './ranking.service.js';
 import { ReputationService } from './reputation.service.js';
 import { assertJoinable } from './round.service.js';
+import {
+  parseAftermathRewardQualifications,
+  RoundAftermathRewardService,
+} from './round-aftermath-reward.service.js';
 
 export type RoundPlayerWithCity = Awaited<
   ReturnType<typeof RoundPlayerService.find>
@@ -57,6 +61,17 @@ export const RoundPlayerService = {
     }
 
     return prisma.$transaction(async (tx) => {
+      const existingRewardClaim = await tx.roundAftermathRewardClaim.findUnique({
+        where: { targetRoundId_accountId: { targetRoundId: round.id, accountId: account.id } },
+      });
+      const reward = existingRewardClaim
+        ? {
+          sourceRoundId: existingRewardClaim.sourceRoundId,
+          amountCents: existingRewardClaim.amountCents,
+          qualifications: parseAftermathRewardQualifications(existingRewardClaim.qualificationKeys),
+        }
+        : await RoundAftermathRewardService.forNextRound(tx, round, account.id);
+
       // Updating the counter row serialises concurrent joins, so two players
       // can never be handed the same public id.
       const counter = await tx.round.update({
@@ -79,7 +94,7 @@ export const RoundPlayerService = {
         ak47s: start.ak47s,
         lowRiders: start.lowRiders,
         payoutPercent: start.payoutPercent,
-        cashCents: BigInt(start.cashCents),
+        cashCents: BigInt(start.cashCents) + reward.amountCents,
       };
 
       const happiness = HappinessService.recalculate(seed, ruleset);
@@ -130,6 +145,21 @@ export const RoundPlayerService = {
         },
       });
 
+      if (reward.amountCents > 0n && !existingRewardClaim) {
+        if (!reward.sourceRoundId) {
+          throw new AppError(500, 'AFTERMATH_REWARD_SOURCE_MISSING', 'A qualifying aftermath reward has no source round.');
+        }
+        await tx.roundAftermathRewardClaim.create({
+          data: {
+            targetRoundId: round.id,
+            sourceRoundId: reward.sourceRoundId,
+            accountId: account.id,
+            amountCents: reward.amountCents,
+            qualificationKeys: reward.qualifications,
+          },
+        });
+      }
+
       await tx.playerActivity.create({
         data: {
           roundPlayerId: player.id,
@@ -139,6 +169,9 @@ export const RoundPlayerService = {
             publicPimpId,
             city: city.name,
             startingCashCents: start.cashCents,
+            aftermathRewardCents: Number(reward.amountCents),
+            aftermathRewardQualifications: reward.qualifications,
+            totalStartingCashCents: seed.cashCents.toString(),
             startingTurns: start.turns,
           },
         },

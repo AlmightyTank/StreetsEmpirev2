@@ -96,6 +96,7 @@ model Account {
   profile                AccountProfile?
   cosmeticUnlocks        AccountCosmeticUnlock[]
   roundPlayers           RoundPlayer[]
+  aftermathRewardClaims RoundAftermathRewardClaim[]
   authoredNews           GameNews[]              @relation("GameNewsAuthor")
   adminAuditEntries      AdminAuditLog[]         @relation("AdminAuditActor")
   messageBlocksMade      PlayerBlock[]           @relation("PlayerBlocker")
@@ -1134,6 +1135,8 @@ model Round {
 
   players              RoundPlayer[]
   aftermathReport      RoundAftermathReport?
+  aftermathRewardsReceived RoundAftermathRewardClaim[] @relation("AftermathRewardTarget")
+  aftermathRewardsSource   RoundAftermathRewardClaim[] @relation("AftermathRewardSource")
   eventOccurrences     GameEventOccurrence[]
   news                 GameNews[]
   alliances            Alliance[]
@@ -1179,6 +1182,25 @@ model RoundAftermathReport {
   createdAt DateTime @default(now())
 
   @@index([status, finalizedAt])
+}
+
+/// One auditable next-round cash grant per account and target round.
+model RoundAftermathRewardClaim {
+  id String @id @default(cuid())
+
+  targetRoundId String
+  targetRound   Round   @relation("AftermathRewardTarget", fields: [targetRoundId], references: [id], onDelete: Cascade)
+  sourceRoundId String
+  sourceRound   Round   @relation("AftermathRewardSource", fields: [sourceRoundId], references: [id], onDelete: Cascade)
+  accountId     String
+  account       Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  amountCents       BigInt
+  qualificationKeys Json
+  createdAt         DateTime @default(now())
+
+  @@unique([targetRoundId, accountId])
+  @@index([sourceRoundId])
 }
 
 // ---------------------------------------------------------------------------

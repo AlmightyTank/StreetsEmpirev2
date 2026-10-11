@@ -1,7 +1,7 @@
 # StreetsEmpire — Round Aftermath & Statistics Roadmap
 
 **Target:** beta · future feature release (version to be assigned)  
-**Status:** Slices A–B implemented; slices C–H planned
+**Status:** Slices A–E implemented; slices F–H planned
 **Goal:** Replace the bare “round ended / top standings” experience with a permanent, compelling end-of-round report covering **every city** and the complete criminal economy, with a personal performance view and a compact Discord recap.
 
 ## Player experience
@@ -72,22 +72,34 @@ At round close, show a new **Round Aftermath** page. A player can switch between
 - Unit coverage verifies exact-cent ordering, tie ranks, pagination and absence of private identifiers in the response projection.
 
 ### Slice C — Every city and alliance breakdown
-- Derive list from actual round participation/available city data, not hard-coded examples.
-- Implement city selector, city-specific metric definitions and local ranking; cross-city attribution and travel edge cases tested.
-- Alliance final/timed control and competitive highlights only where historic join/control evidence is available.
+**Status: Complete.** Schema version 2 freezes stable city slugs/local standings and alliance membership, leadership, eligible combined wealth, and member turf/business control in the round-close transaction.
+
+- City selection is derived from frozen participant/turf cities; city details and local standings use only the report snapshot and expose no stable player/city database IDs.
+- City wealth and crew use eligible residents' final city once; turf/businesses use physical city. Crime attempts remain unattributed because their source has no event city.
+- Alliance roster/leader and member-held territory reflect exact cutoff state. Alliance wealth is integer-cent summed over eligible members; ties share ranks. Historical timed control, captures, defenses and war outcomes remain unrecorded.
+- Version-1 ready reports remain available globally; their absent city keys and alliance cutoff data are reported unavailable rather than reconstructed from mutable state.
+- Unit coverage checks city slugs/local rank projection, alliance membership/wealth/control, and private identifier omission.
 - **Done when:** any represented city can be selected and city totals reconcile with global totals where additive.
 
 ### Slice D — Personal empire after-action report
-- Secure player-owned personal report endpoint with final rank, wealth, turf, crew, drugs, business, crime, category ranks, percentile and comparisons.
-- Highlight milestones, category-specific personal bests from archived reports, and distinctions earned.
-- Preserve privacy of sensitive operational data, even after a round; public pages reveal only approved public counters.
+**Status: Complete.** Authenticated `GET /rounds/:roundId/aftermath/me` resolves the signed-in account only against the frozen report and returns a sanitized personal projection.
+
+- Personal view shows frozen final rank/percentile, wealth, turf, crew, businesses, attempted crime actions, available category ranks/ties and explicit unrecorded drug totals. Percentile is `(eligible competitors - rank) / (eligible competitors - 1)`; a sole eligible player is at the 100th percentile.
+- Milestones include national podium/top-ten, local champion and supported category leadership; personal bests compare eligible results across earlier ready reports.
+- A ready report with no account row is explicitly `NOT_PLAYED`; preparing and unavailable reports have unknown participation and no partial data.
+- The endpoint requires authentication and does not return account, round-player, or city database IDs or another player's personal aggregates.
+- **Done when:** a player can see their full personal report and nobody else can access private fields.
 - **Done when:** a player can see their full personal report and nobody else can access private fields.
 
 ### Slice E — Records, awards, and Hall of Fame
-- Define transparent, reproducible award formulas: Wealth King, Turf Warlord, Crew Commander, Drug Kingpin, Business Tycoon, Most Feared; optionally Casino King and other verified categories.
-- Deterministic ties and eligibility; no grants of spendable power. Permanent badges/titles only after explicit product decision; otherwise awards are historical display records.
-- Add global and city top-10 drilldowns and permanent links from Hall of Fame and Rankings.
-- **Done when:** record holders match canonical stored metrics and archives survive later seasons.
+**Status: Complete.** The Records & Awards tab exposes paginated global and city leaderboards with explicit formulas and only supported award winners.
+
+- Wealth King follows the frozen national rank; Turf Warlord, Crew Commander, and Business Tycoon use eligible players' cutoff holdings. Ties share awards.
+- Drug Kingpin remains unawarded because complete production/sales are not recorded. Most Feared remains unawarded because attempts do not prove victories or fear. City crime is not attributed.
+- National top-10 placements and supported global award distinctions earn $500 each toward next-round starting cash, capped at $2,500 per player. City awards are recognition only.
+- Claims are written atomically with the new round player, uniquely keyed per account and target round, and included in the join activity record. Only the immediately preceding ended round's `READY` report qualifies.
+- Hall of Fame and Rankings link directly to the Records & Awards view.
+- **Done when:** record holders match canonical frozen metrics, rewards are auditable/idempotent, and archives survive later seasons.
 
 ### Slice F — Discord full round recap
 - Replace the current minimal end-of-round embed with a polished **one-message** summary sourced from the finalized report: participant/city/alliance counts, wealth earned, turf captures, crew recruited, drugs produced, business revenue, criminal actions, top 3 by **final rank/net worth**, award winners and most contested city where supported.
@@ -106,7 +118,7 @@ At round close, show a new **Round Aftermath** page. A player can switch between
 - Integration tests for aggregations vs database fixtures, entire-round/city reconciliation, money precision, tie rules, cross-city activities, deleted/deactivated players, high player counts, early endings and bot delivery.
 - Verify report snapshot cost on large rounds; no per-player N+1, limit API payloads, cache immutable snapshots; report progress visible to admins, retry without duplicate awards/posts.
 - Beta UX pass at desktop and mobile, accessibility, fallback labels for missing fields, metrics validation and bot preview in admin round tools.
-- Feature flag for staged beta release, dry-run backfill and rollout checklist; do not change game rewards or final ranking rules.
+- Feature flag for staged beta release, dry-run backfill and rollout checklist; keep the aftermath bonus capped and separate from final ranking rules.
 - **Done when:** round-close, public archives and Discord can ship with reproducible end-to-end checks.
 
 ## Proposed data/API contracts
@@ -114,7 +126,8 @@ At round close, show a new **Round Aftermath** page. A player can switch between
 - `RoundAftermathSnapshot` (conceptual): roundId, version, state (PENDING/BUILDING/READY/FAILED), cutoffAt, finalizedAt, metricCatalogVersion, sourceRunId, globalTotals, citySummaries, allianceSummaries, awardRecords, validationNotes.
 - `RoundAftermathPlayer`: snapshotId, roundPlayerId, city-at-cutoff, metrics, categoryRanks, privacy/publicSummary.
 - `GET /api/rounds/:roundId/aftermath`: sanitized public overview + preparation state.
-- `GET /api/rounds/:roundId/aftermath/cities/:cityId`: city metrics.
+- `GET /api/rounds/:roundId/aftermath/cities/:citySlug`: frozen city metrics and local standings.
+- `GET /api/rounds/:roundId/aftermath/alliances`: frozen cutoff alliance roster, leadership, wealth and control.
 - `GET /api/rounds/:roundId/aftermath/records?category=...`: paginated ranking.
 - `GET /api/rounds/:roundId/aftermath/me`: authenticated account's owned data only.
 - `GET /api/rounds/aftermath/archive`: public index.

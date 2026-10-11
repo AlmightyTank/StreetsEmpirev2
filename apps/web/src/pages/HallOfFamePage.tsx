@@ -125,8 +125,8 @@ export function HallOfFamePage() {
                 <div><span>Ruleset</span><strong>{round.rulesetVersion}</strong></div>
                 <div><span>Window</span><strong>{seasonWindow(round)}</strong></div>
               </div>
-              <Link className="se-aftermath-archive-link" to={`/game/rounds/${encodeURIComponent(round.id)}/aftermath`}>
-                View full round aftermath <span aria-hidden="true">→</span>
+              <Link className="se-aftermath-archive-link" to={`/game/rounds/${encodeURIComponent(round.id)}/aftermath?view=records`}>
+                View round records & awards <span aria-hidden="true">→</span>
               </Link>
 
               {round.territory && (round.territory.crews.length || round.territory.alliances.length) ? (

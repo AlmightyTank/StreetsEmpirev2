@@ -64,6 +64,15 @@ function productMovementSummary(value: unknown): string[] {
   });
 }
 
+const AFTERMATH_REWARD_LABELS: Record<string, string> = {
+  NATIONAL_TOP_10: 'national top 10',
+  WEALTH_KING: 'Wealth King',
+  TURF_WARLORD: 'Turf Warlord',
+  CREW_COMMANDER: 'Crew Commander',
+  BUSINESS_TYCOON: 'Business Tycoon',
+  ROUND_CHAMPION: 'Round Champion',
+};
+
 /** The opponent as the feed names them: "[WC] Iron Maya", or just the name for solo players and older entries. */
 function opponent(p: Record<string, unknown>, fallback = ''): string {
   const name = str(p.opponent, fallback);
@@ -151,11 +160,19 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         text: `Recon on ${str(p.target)}.`,
         detail: `${formatNumber(num(p.turns))} turns · intel expires ${str(p.expiresAt) ? formatWhen(str(p.expiresAt)) : 'soon'}`,
       };
-    case 'ROUND_JOINED':
+    case 'ROUND_JOINED': {
+      const rewardCents = num(p.aftermathRewardCents);
+      const rewardQualifications = Array.isArray(p.aftermathRewardQualifications)
+        ? p.aftermathRewardQualifications.flatMap((qualification) => {
+          const label = typeof qualification === 'string' ? AFTERMATH_REWARD_LABELS[qualification] : undefined;
+          return label ? [label] : [];
+        })
+        : [];
       return {
         text: `Entered ${str(p.roundName, 'the round')} as #${num(p.publicPimpId)}.`,
-        detail: `${formatCents(num(p.startingCashCents))}, ${formatNumber(num(p.startingTurns))} turns, ${str(p.city)}`,
+        detail: `${formatCents(num(p.startingCashCents) + rewardCents)}, ${formatNumber(num(p.startingTurns))} turns, ${str(p.city)}${rewardCents > 0 ? ` · includes ${formatCents(rewardCents)} aftermath bonus${rewardQualifications.length ? ` (${rewardQualifications.join(', ')})` : ''}` : ''}`,
       };
+    }
 
     case 'AWAY_BONUS':
       return {
