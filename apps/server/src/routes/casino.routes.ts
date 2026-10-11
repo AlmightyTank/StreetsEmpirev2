@@ -49,11 +49,12 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/sportsbook', { preHandler: fastify.requireAuth }, async (request) => {
     const player = await requirePlayer(request.auth!.account.id);
-    const [board, tickets] = await Promise.all([
+    const [board, tickets, limits] = await Promise.all([
       SportsbookService.board(fastify.prisma, { configured: Boolean(env.THERUNDOWN_API_KEY), pollMinutes: env.SPORTSBOOK_POLL_MINUTES }),
       SportsbookService.tickets(fastify.prisma, player.id),
+      SportsbookService.limits(fastify.prisma, player.id),
     ]);
-    return { ...board, tickets };
+    return { ...board, tickets, limits };
   });
 
   fastify.post('/sportsbook/bets', { preHandler: fastify.requireAuth }, async (request) => {

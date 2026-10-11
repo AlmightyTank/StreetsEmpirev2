@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  SPORTSBOOK_MAX_STAKE_CENTS,
-  SPORTSBOOK_MIN_STAKE_CENTS,
+  SPORTSBOOK_LIMITS,
   formatAmericanOdds,
   formatCents,
   formatCentsExact,
   sportsbookLineReason,
+  sportsbookMaxStake,
   sportsbookPayoutCents,
+  sportsbookStakeCheck,
   type SportsbookBetDto,
   type SportsbookEventDto,
   type SportsbookFeedDto,
@@ -167,15 +168,26 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
   const stakeCents = stakeToCents(stake);
   const payoutCents = stakeCents !== null && pickedOdds !== null ? sportsbookPayoutCents(stakeCents, pickedOdds) : null;
 
+  // 1.8.0-D: the same limit check the server runs, so the slip can say the top stake up front.
+  const limits = page?.limits.limits ?? SPORTSBOOK_LIMITS;
+  const usage = {
+    cashCents,
+    openStakeCents: page?.limits.openStakeCents ?? 0,
+    openTickets: page?.limits.openTickets ?? 0,
+    dailyStakeCents: page?.limits.dailyStakeCents ?? 0,
+    gameStakeCents: (page?.tickets.open ?? []).filter((bet) => bet.eventId === pick?.eventId).reduce((sum, bet) => sum + bet.stakeCents, 0),
+    // Other players' stake on a side is not shown; the server explains if that book limit is hit.
+    sideLiabilityCents: 0,
+  };
+  const topStakeCents = pickedOdds !== null ? sportsbookMaxStake(pickedOdds, limits, usage).maxStakeCents : Math.min(cashCents, limits.maxStakeCents);
+
   let placeReason: string | null = null;
   if (!pick) placeReason = 'Pick a side first.';
   else if (!pickedEvent) placeReason = 'This game is no longer on the board.';
   else if (pickedState !== 'OPEN') placeReason = sportsbookLineReason(pickedState ?? 'FEED_UNAVAILABLE');
   else if (pickedOdds === null) placeReason = 'That side has no moneyline right now.';
   else if (stakeCents === null) placeReason = 'Enter a stake in dollars, such as 25 or 25.00.';
-  else if (stakeCents < SPORTSBOOK_MIN_STAKE_CENTS) placeReason = `The minimum ticket is ${formatCentsExact(SPORTSBOOK_MIN_STAKE_CENTS)}.`;
-  else if (stakeCents > SPORTSBOOK_MAX_STAKE_CENTS) placeReason = `The maximum ticket is ${formatCentsExact(SPORTSBOOK_MAX_STAKE_CENTS)}.`;
-  else if (stakeCents > cashCents) placeReason = `You have ${formatCentsExact(cashCents)} cash on hand.`;
+  else placeReason = sportsbookStakeCheck(stakeCents, pickedOdds, limits, usage)?.message ?? null;
 
   function choose(event: SportsbookEventDto, selection: SportsbookSelection) {
     const odds = sideOdds(event, selection);
@@ -217,7 +229,10 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
   return (
     <Panel title="Sportsbook" aside="Pregame · game cash · no turns">
       <div className="se-sportsbook">
-        <p className="se-hint">Moneylines for today and tomorrow. Pick a side, set a stake, and the price locks when the ticket is accepted. Betting closes at the scheduled start.</p>
+        <p className="se-hint">
+          Moneylines for today and tomorrow. Pick a side, set a stake, and the price locks when the ticket is accepted. Betting closes at the scheduled start.
+          {' '}Tickets run {formatCents(limits.minStakeCents)} to {formatCents(limits.maxStakeCents)} and can win up to {formatCents(limits.maxProfitCents)}.
+        </p>
         {feedStatus ? (
           <p className={`se-sportsbook__feed is-${feedStatus.tone}`} role="status">
             <span className="se-sportsbook__dot" aria-hidden="true" />
@@ -337,8 +352,8 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
               <button
                 type="button"
                 className="se-sportsbook__chip"
-                disabled={cashCents < SPORTSBOOK_MIN_STAKE_CENTS}
-                onClick={() => setStake(centsToStake(Math.min(cashCents, SPORTSBOOK_MAX_STAKE_CENTS)))}
+                disabled={topStakeCents < limits.minStakeCents}
+                onClick={() => setStake(centsToStake(topStakeCents))}
               >
                 Max
               </button>
@@ -347,7 +362,12 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
               <div><dt>To win</dt><dd>{payoutCents !== null && stakeCents !== null ? formatCentsExact(payoutCents - stakeCents) : '—'}</dd></div>
               <div><dt>Total payout</dt><dd>{payoutCents !== null ? formatCentsExact(payoutCents) : '—'}</dd></div>
             </dl>
-            <small id="sb-cash" className="se-muted">Cash on hand: {formatCentsExact(cashCents)} · uses no turns</small>
+            <small id="sb-cash" className="se-muted">
+              Cash on hand: {formatCentsExact(cashCents)} · uses no turns
+              {pickedOdds !== null ? <><br />Top stake at {formatAmericanOdds(pickedOdds)}: {formatCentsExact(topStakeCents)}</> : null}
+              <br />Last 24 hours: {formatCentsExact(usage.dailyStakeCents)} of {formatCentsExact(limits.dailyStakeCents)} staked
+              <br />Open: {formatCentsExact(usage.openStakeCents)} of {formatCentsExact(limits.openStakeCents)} · {usage.openTickets} of {limits.openTickets} tickets
+            </small>
             <div className="se-sportsbook__slip-actions">
               <Button type="button" className="se-btn se-btn--primary se-btn--block" disabled={busy} disabledReason={busy ? null : placeReason} onClick={() => void place()}>
                 {busy ? 'Placing…' : 'Place ticket'}

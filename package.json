@@ -28,6 +28,7 @@
     "qa:trips": "node --import tsx scripts/qa/trips-sim.mjs",
     "qa:slots": "node --import tsx scripts/qa/slots-sim.mjs",
     "qa:casino": "node --import tsx scripts/qa/casino-sim.mjs",
+    "qa:sportsbook": "node --import tsx scripts/qa/sportsbook-sim.mjs",
     "qa:law": "node --import tsx scripts/qa/law-sim.mjs",
     "qa:factions": "node --import tsx scripts/qa/faction-sim.mjs",
     "qa:vehicles": "node --import tsx scripts/qa/vehicle-sim.mjs",

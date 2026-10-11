@@ -26,7 +26,7 @@ The first release uses TheRundown for pregame odds across NFL, NBA, MLB, and NHL
 | **1.8.0-A — Pregame Moneyline Foundation** | Ship the first usable sportsbook | Cache NFL, NBA, MLB, and NHL pregame moneylines; add the Sports Betting casino destination; let players wager game cash without turns; close at kickoff; store and settle tickets. Implemented on beta; provider and result payload verification remains a release gate. |
 | **1.8.0-B — Ticket Clarity & Board Polish** | Make picks and outcomes easy to follow | Improve league selection, event grouping, cache freshness, open-ticket details, and settled-ticket history. Keep the board useful on mobile and explain why a line is closed or unavailable. Implemented on beta. |
 | **1.8.0-C — Feed Reliability & Operations** | Make polling and settlement supportable | Harden retries and stale-cache handling; expose last successful poll, provider quota, and errors to admins; safely recheck unresolved results without duplicate settlement. Implemented on beta. |
-| **1.8.0-D — Limits & Economy Balance** | Keep game-cash risk bounded | Tune minimum/maximum stakes and exposure controls through simulations; test repeat requests, concurrent wagers, cash-location changes, pushes, cancellations, and late provider updates. Keep the no-turn rule. |
+| **1.8.0-D — Limits & Economy Balance** | Keep game-cash risk bounded | Tune minimum/maximum stakes and exposure controls through simulations; test repeat requests, concurrent wagers, cash-location changes, pushes, cancellations, and late provider updates. Keep the no-turn rule. Implemented on beta; see SPORTSBOOK-SIMULATION-1.8.0-D.md. |
 | **1.8.0-E — Market Expansion & Release** | Expand only after the first market is proven | Review provider usage and grading accuracy, then decide whether to add leagues or pregame spreads/totals. Keep live betting, parlays, and player props out until separately designed and budgeted. Finish accessibility, mobile, migration, historical-ruleset, and release checks. |
 
 ## Slice A details
@@ -59,6 +59,14 @@ The first release uses TheRundown for pregame odds across NFL, NBA, MLB, and NHL
 - Results are checked only for started games with open tickets, beginning once a final is plausible (NFL 3h, MLB 2.5h, NBA/NHL 2h15m after the start), then backing off 30m, 30m, 1h, 2h, 4h, then every 6h. Each check records its time, count, next check and any error. Provider statuses such as `STATUS_FINAL`, `STATUS_CANCELED` and `STATUS_IN_PROGRESS` are recognised; a suspended game is treated as live, not void.
 - Settlement takes a row lock and checks `settledAt` inside one transaction, so the poller, an admin recheck and an admin void can race without paying twice (covered by a concurrency test).
 - Admin › Casino Operations has a Sportsbook feed panel: feed status, last success and attempt, consecutive failed runs, last error, datapoint quota with pause flags, per-league health, open exposure, 24-hour settlements, and started games still waiting on a result. **Recheck result** asks the provider now. **Void and refund** needs a reason and a confirmation. Both are written to the admin audit log.
+
+## Slice D details
+
+- `npm run qa:sportsbook` compares the 1.8.0-A limits with the 1.8.0-D limits over 28-day rounds for five betting styles, and fails if a band is broken. Results and reasoning: [SPORTSBOOK-SIMULATION-1.8.0-D.md](SPORTSBOOK-SIMULATION-1.8.0-D.md).
+- `SPORTSBOOK_LIMITS`: $10 to $25,000 per ticket; at most $50,000 to win per ticket; $25,000 per game per player; $125,000 placed per rolling 24 hours; $150,000 and 20 tickets open; $1,000,000 potential winnings per side of a game across all players.
+- One shared check (`sportsbookStakeCheck`) runs on the server inside the wager transaction, and on the bet slip to show the top stake for the selected price, the daily and open usage, and the reason a ticket cannot be placed.
+- A wager locks the game row, then the player, in the same order as settlement. Tickets are stamped with the transaction clock so the 24-hour window is exact.
+- PostgreSQL tests cover repeat and racing requests, concurrent wagers against cash and the daily limit, every limit, cash location (trip bankroll, return home, mid-relocation), pushes, cancellations, pinned odds after line movement, late score corrections and the no-turn rule.
 
 ## Release gates
 

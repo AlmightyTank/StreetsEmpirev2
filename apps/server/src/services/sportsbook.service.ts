@@ -3,9 +3,10 @@ import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import {
-  SPORTSBOOK_MAX_STAKE_CENTS,
-  SPORTSBOOK_MIN_STAKE_CENTS,
+  SPORTSBOOK_LIMITS,
   SPORTSBOOK_ODDS_MAX_AGE_MINUTES,
+  sportsbookStakeCheck,
+  type SportsbookLimitsDto,
   sportsbookReturnCents,
   type SportsbookBetDto,
   type SportsbookBetStatus,
@@ -140,7 +141,7 @@ export function sportsbookLineState(
 }
 
 type TicketRow = {
-  id: string; selection: string; oddsAmerican: number; stakeCents: bigint; payoutCents: bigint;
+  id: string; eventId: string; selection: string; oddsAmerican: number; stakeCents: bigint; payoutCents: bigint;
   status: string; createdAt: Date; settledAt: Date | null;
   event: { sport: string; homeTeam: string; awayTeam: string; startsAt: Date; status: string; homeScore: number | null; awayScore: number | null };
 };
@@ -151,7 +152,7 @@ export function sportsbookTicketDto(bet: TicketRow): SportsbookBetDto {
   const stakeCents = Number(bet.stakeCents);
   const payoutCents = Number(bet.payoutCents);
   return {
-    id: bet.id, sport: bet.event.sport as SportsbookLeagueKey, homeTeam: bet.event.homeTeam, awayTeam: bet.event.awayTeam,
+    id: bet.id, eventId: bet.eventId, sport: bet.event.sport as SportsbookLeagueKey, homeTeam: bet.event.homeTeam, awayTeam: bet.event.awayTeam,
     startsAt: bet.event.startsAt.toISOString(), selection,
     pickTeam: selection === 'HOME' ? bet.event.homeTeam : bet.event.awayTeam,
     oddsAmerican: bet.oddsAmerican, stakeCents, payoutCents, status,
@@ -159,6 +160,32 @@ export function sportsbookTicketDto(bet: TicketRow): SportsbookBetDto {
     homeScore: bet.event.homeScore, awayScore: bet.event.awayScore,
     returnCents: sportsbookReturnCents(status, stakeCents, payoutCents),
     createdAt: bet.createdAt.toISOString(), settledAt: bet.settledAt?.toISOString() ?? null,
+  };
+}
+
+/**
+ * 1.8.0-D. What a player already has riding, and (for a wager) what is already on this game and
+ * on this side of it from every player. The daily window counts every ticket placed in the last
+ * 24 hours, whatever happened to it since.
+ */
+async function sportsbookUsage(
+  db: Db | PrismaClient,
+  roundPlayerId: string,
+  now: Date,
+  wager?: { eventId: string; selection: string },
+) {
+  const [open, daily, game, side] = await Promise.all([
+    db.sportsbookBet.aggregate({ where: { roundPlayerId, status: 'OPEN' }, _count: { _all: true }, _sum: { stakeCents: true } }),
+    db.sportsbookBet.aggregate({ where: { roundPlayerId, createdAt: { gt: new Date(now.getTime() - 86_400_000) } }, _sum: { stakeCents: true } }),
+    wager ? db.sportsbookBet.aggregate({ where: { roundPlayerId, eventId: wager.eventId, status: 'OPEN' }, _sum: { stakeCents: true } }) : null,
+    wager ? db.sportsbookBet.aggregate({ where: { eventId: wager.eventId, selection: wager.selection, status: 'OPEN' }, _sum: { stakeCents: true, payoutCents: true } }) : null,
+  ]);
+  return {
+    openStakeCents: Number(open._sum.stakeCents ?? 0n),
+    openTickets: open._count._all,
+    dailyStakeCents: Number(daily._sum.stakeCents ?? 0n),
+    gameStakeCents: Number(game?._sum.stakeCents ?? 0n),
+    sideLiabilityCents: Number((side?._sum.payoutCents ?? 0n) - (side?._sum.stakeCents ?? 0n)),
   };
 }
 
@@ -282,6 +309,9 @@ export const SportsbookService = {
   ) {
     const stake = BigInt(input.stakeCents);
     return prisma.$transaction(async (tx) => {
+      // 1.8.0-D: game row first, then the player, the same order settlement takes them, so a wager
+      // and a settlement can never deadlock. The game lock also serialises the per-side book limit.
+      await tx.$queryRaw`SELECT "id" FROM "SportsbookEvent" WHERE "id" = ${input.eventId} FOR UPDATE`;
       await lockRoundPlayer(tx, roundPlayerId);
       const replay = await tx.sportsbookBet.findUnique({ where: { roundPlayerId_actionId: { roundPlayerId, actionId: input.actionId } } });
       if (replay) {
@@ -302,22 +332,31 @@ export const SportsbookService = {
       if (!isSportsbookFeedFresh(providerState?.lastPolledAt, now)) {
         throw AppError.conflict('SPORTSBOOK_STALE_ODDS', 'The odds feed is temporarily unavailable. Try again shortly.');
       }
-      if (stake < BigInt(SPORTSBOOK_MIN_STAKE_CENTS) || stake > BigInt(SPORTSBOOK_MAX_STAKE_CENTS)) throw AppError.badRequest('SPORTSBOOK_STAKE', 'Stake must be between $1 and $1,000,000.');
       const odds = input.selection === 'HOME' ? event.homeOdds : event.awayOdds;
       if (odds === null || odds === undefined) throw AppError.conflict('SPORTSBOOK_LINE_UNAVAILABLE', 'That side does not have an available moneyline.');
       // 1.8.0-B: never take a ticket at a price the player did not see on their slip.
       if (input.expectedOdds !== undefined && input.expectedOdds !== odds) {
         throw AppError.conflict('SPORTSBOOK_ODDS_CHANGED', `The line moved to ${odds > 0 ? '+' + odds : odds}. Review the new price and place the ticket again.`);
       }
+      const usage = await sportsbookUsage(tx, roundPlayerId, now, { eventId: event.id, selection: input.selection });
+      // Cash is checked by the debit below, against wherever the boss actually is.
+      const breach = sportsbookStakeCheck(input.stakeCents, odds, SPORTSBOOK_LIMITS, { ...usage, cashCents: Number.MAX_SAFE_INTEGER });
+      if (breach) throw AppError.conflict(breach.code, breach.message);
       const payout = americanPayout(stake, odds);
       await moveSportsbookCash(tx, player.id, ruleset, -stake, now);
       const bet = await tx.sportsbookBet.create({ data: {
         roundPlayerId, eventId: event.id, actionId: input.actionId, selection: input.selection,
-        oddsAmerican: odds, stakeCents: stake, payoutCents: payout,
+        oddsAmerican: odds, stakeCents: stake, payoutCents: payout, createdAt: now,
       } });
       // This transaction only moves game cash and writes a ticket; it never reads or changes turns.
       return { bet: { id: bet.id, status: bet.status, stakeCents: Number(bet.stakeCents), payoutCents: Number(bet.payoutCents), oddsAmerican: bet.oddsAmerican }, replayed: false };
     });
+  },
+
+  /** 1.8.0-D. The limits and what this player has used of them, for the bet slip. */
+  async limits(prisma: PrismaClient, roundPlayerId: string, now = new Date()): Promise<SportsbookLimitsDto> {
+    const usage = await sportsbookUsage(prisma, roundPlayerId, now);
+    return { limits: SPORTSBOOK_LIMITS, openStakeCents: usage.openStakeCents, openTickets: usage.openTickets, dailyStakeCents: usage.dailyStakeCents };
   },
 
   /** Every open ticket plus recent settled history and a lifetime record for the player. */

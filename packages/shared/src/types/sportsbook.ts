@@ -50,6 +50,7 @@ export interface SportsbookBoardDto {
 
 export interface SportsbookBetDto {
   id: string;
+  eventId: string;
   sport: SportsbookLeagueKey;
   homeTeam: string;
   awayTeam: string;
@@ -87,8 +88,17 @@ export interface SportsbookTicketsDto {
   summary: SportsbookTicketSummaryDto;
 }
 
+/** 1.8.0-D. The player's limits and how much of each they have used. */
+export interface SportsbookLimitsDto {
+  limits: import('../sportsbook.js').SportsbookLimits;
+  openStakeCents: number;
+  openTickets: number;
+  dailyStakeCents: number;
+}
+
 export interface SportsbookPageDto extends SportsbookBoardDto {
   tickets: SportsbookTicketsDto;
+  limits: SportsbookLimitsDto;
 }
 
 export interface SportsbookBetInput {
