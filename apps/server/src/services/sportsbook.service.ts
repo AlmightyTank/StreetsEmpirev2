@@ -2,6 +2,21 @@ import type { PrismaClient } from '@prisma/client';
 import { lockRoundPlayer } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { loadRulesetForRound } from '@streets/rules-engine';
+import {
+  SPORTSBOOK_MAX_STAKE_CENTS,
+  SPORTSBOOK_MIN_STAKE_CENTS,
+  SPORTSBOOK_ODDS_MAX_AGE_MINUTES,
+  sportsbookReturnCents,
+  type SportsbookBetDto,
+  type SportsbookBetStatus,
+  type SportsbookBoardDto,
+  type SportsbookEventStatus,
+  type SportsbookFeedStatus,
+  type SportsbookLeagueKey,
+  type SportsbookLineState,
+  type SportsbookSelection,
+  type SportsbookTicketsDto,
+} from '@streets/shared';
 import { moveSportsbookCash } from './casino.service.js';
 
 export const SPORTSBOOK_LEAGUES = [
@@ -10,6 +25,8 @@ export const SPORTSBOOK_LEAGUES = [
   { key: 'MLB', name: 'MLB', sportId: 3 },
   { key: 'NHL', name: 'NHL', sportId: 6 },
 ] as const;
+
+const ODDS_MAX_AGE_MS = SPORTSBOOK_ODDS_MAX_AGE_MINUTES * 60_000;
 
 type JsonRecord = Record<string, unknown>;
 type ProviderEvent = {
@@ -87,7 +104,61 @@ export function isSportsbookBettingOpen(
 ): boolean {
   return event.status === 'PRE'
     && event.startsAt.getTime() > now.getTime()
-    && Boolean(event.oddsUpdatedAt && now.getTime() - event.oddsUpdatedAt.getTime() <= 45 * 60_000);
+    && Boolean(event.oddsUpdatedAt && now.getTime() - event.oddsUpdatedAt.getTime() <= ODDS_MAX_AGE_MS);
+}
+
+/** Whether the shared snapshot is recent enough to take tickets at all. */
+export function isSportsbookFeedFresh(lastPolledAt: Date | null | undefined, now = new Date()): boolean {
+  return Boolean(lastPolledAt && now.getTime() - lastPolledAt.getTime() <= ODDS_MAX_AGE_MS);
+}
+
+export function sportsbookFeedStatus(
+  input: { configured: boolean; lastPolledAt: Date | null | undefined },
+  now = new Date(),
+): SportsbookFeedStatus {
+  if (isSportsbookFeedFresh(input.lastPolledAt, now)) return 'FRESH';
+  if (!input.configured) return 'OFF';
+  return input.lastPolledAt ? 'STALE' : 'WAITING';
+}
+
+/**
+ * 1.8.0-B. The board explains a closed line with the same checks `placeBet` enforces, so a
+ * line shown as OPEN is one the server will accept. A stale feed is reported ahead of a stale
+ * line because it is the reason every line went stale together.
+ */
+export function sportsbookLineState(
+  event: { status: string; startsAt: Date; oddsUpdatedAt: Date | null; homeOdds: number | null; awayOdds: number | null },
+  feedFresh: boolean,
+  now = new Date(),
+): SportsbookLineState {
+  if (event.status !== 'PRE' || event.startsAt.getTime() <= now.getTime()) return 'STARTED';
+  if (!feedFresh) return 'FEED_UNAVAILABLE';
+  if (!isSportsbookBettingOpen(event, now)) return 'STALE_ODDS';
+  if (event.homeOdds === null && event.awayOdds === null) return 'NO_LINE';
+  return 'OPEN';
+}
+
+type TicketRow = {
+  id: string; selection: string; oddsAmerican: number; stakeCents: bigint; payoutCents: bigint;
+  status: string; createdAt: Date; settledAt: Date | null;
+  event: { sport: string; homeTeam: string; awayTeam: string; startsAt: Date; status: string; homeScore: number | null; awayScore: number | null };
+};
+
+export function sportsbookTicketDto(bet: TicketRow): SportsbookBetDto {
+  const status = bet.status as SportsbookBetStatus;
+  const selection = bet.selection as SportsbookSelection;
+  const stakeCents = Number(bet.stakeCents);
+  const payoutCents = Number(bet.payoutCents);
+  return {
+    id: bet.id, sport: bet.event.sport as SportsbookLeagueKey, homeTeam: bet.event.homeTeam, awayTeam: bet.event.awayTeam,
+    startsAt: bet.event.startsAt.toISOString(), selection,
+    pickTeam: selection === 'HOME' ? bet.event.homeTeam : bet.event.awayTeam,
+    oddsAmerican: bet.oddsAmerican, stakeCents, payoutCents, status,
+    eventStatus: bet.event.status as SportsbookEventStatus,
+    homeScore: bet.event.homeScore, awayScore: bet.event.awayScore,
+    returnCents: sportsbookReturnCents(status, stakeCents, payoutCents),
+    createdAt: bet.createdAt.toISOString(), settledAt: bet.settledAt?.toISOString() ?? null,
+  };
 }
 
 /** Polls narrow, pregame moneyline snapshots and persists a shared cache for all players. */
@@ -252,27 +323,51 @@ async function settleSportsbookEvent(
 }
 
 export const SportsbookService = {
-  async board(prisma: PrismaClient, now = new Date()) {
+  async board(
+    prisma: PrismaClient,
+    options: { configured: boolean; pollMinutes: number },
+    now = new Date(),
+  ): Promise<SportsbookBoardDto> {
     const [events, state] = await Promise.all([
       prisma.sportsbookEvent.findMany({
         where: { startsAt: { gt: now }, status: 'PRE' },
-        orderBy: [{ startsAt: 'asc' }, { sport: 'asc' }], take: 100,
+        // Today and tomorrow across four leagues; large enough that a league filter never hides games.
+        orderBy: [{ startsAt: 'asc' }, { sport: 'asc' }], take: 300,
       }),
       prisma.sportsbookProviderState.findUnique({ where: { id: 'therundown' } }),
     ]);
+    const feedFresh = isSportsbookFeedFresh(state?.lastPolledAt, now);
+    const rows = events.map((event) => ({
+      id: event.id, sport: event.sport as SportsbookLeagueKey, homeTeam: event.homeTeam, awayTeam: event.awayTeam,
+      startsAt: event.startsAt.toISOString(), oddsUpdatedAt: event.oddsUpdatedAt?.toISOString() ?? null,
+      homeOdds: event.homeOdds, awayOdds: event.awayOdds,
+      lineState: sportsbookLineState(event, feedFresh, now),
+    }));
     return {
-      enabled: Boolean(state?.lastPolledAt && now.getTime() - state.lastPolledAt.getTime() <= 45 * 60_000),
+      enabled: feedFresh,
       refreshedAt: state?.lastPolledAt?.toISOString() ?? null,
-      leagues: SPORTSBOOK_LEAGUES.map(({ key, name }) => ({ key, name })),
-      events: events.map((event) => ({
-        id: event.id, sport: event.sport, homeTeam: event.homeTeam, awayTeam: event.awayTeam,
-        startsAt: event.startsAt.toISOString(), oddsUpdatedAt: event.oddsUpdatedAt?.toISOString() ?? null,
-        homeOdds: event.homeOdds, awayOdds: event.awayOdds,
+      serverTime: now.toISOString(),
+      feed: {
+        status: sportsbookFeedStatus({ configured: options.configured, lastPolledAt: state?.lastPolledAt }, now),
+        refreshedAt: state?.lastPolledAt?.toISOString() ?? null,
+        pollMinutes: options.pollMinutes,
+        oddsMaxAgeMinutes: SPORTSBOOK_ODDS_MAX_AGE_MINUTES,
+      },
+      leagues: SPORTSBOOK_LEAGUES.map(({ key, name }) => ({
+        key, name,
+        eventCount: rows.filter((event) => event.sport === key).length,
+        openCount: rows.filter((event) => event.sport === key && event.lineState === 'OPEN').length,
       })),
+      events: rows,
     };
   },
 
-  async placeBet(prisma: PrismaClient, roundPlayerId: string, input: { eventId: string; selection: 'HOME' | 'AWAY'; stakeCents: number; actionId: string }, now = new Date()) {
+  async placeBet(
+    prisma: PrismaClient,
+    roundPlayerId: string,
+    input: { eventId: string; selection: 'HOME' | 'AWAY'; stakeCents: number; actionId: string; expectedOdds?: number | undefined },
+    now = new Date(),
+  ) {
     const stake = BigInt(input.stakeCents);
     return prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, roundPlayerId);
@@ -291,12 +386,16 @@ export const SportsbookService = {
       if (!event || event.status !== 'PRE' || event.startsAt <= now) throw AppError.conflict('SPORTSBOOK_CLOSED', 'That game is no longer open for betting.');
       if (!isSportsbookBettingOpen(event, now)) throw AppError.conflict('SPORTSBOOK_STALE_ODDS', 'The line is being refreshed. Try again shortly.');
       const providerState = await tx.sportsbookProviderState.findUnique({ where: { id: 'therundown' } });
-      if (!providerState?.lastPolledAt || now.getTime() - providerState.lastPolledAt.getTime() > 45 * 60_000) {
+      if (!isSportsbookFeedFresh(providerState?.lastPolledAt, now)) {
         throw AppError.conflict('SPORTSBOOK_STALE_ODDS', 'The odds feed is temporarily unavailable. Try again shortly.');
       }
-      if (stake < 100n || stake > 100_000_000n) throw AppError.badRequest('SPORTSBOOK_STAKE', 'Stake must be between $1 and $1,000,000.');
+      if (stake < BigInt(SPORTSBOOK_MIN_STAKE_CENTS) || stake > BigInt(SPORTSBOOK_MAX_STAKE_CENTS)) throw AppError.badRequest('SPORTSBOOK_STAKE', 'Stake must be between $1 and $1,000,000.');
       const odds = input.selection === 'HOME' ? event.homeOdds : event.awayOdds;
       if (odds === null || odds === undefined) throw AppError.conflict('SPORTSBOOK_LINE_UNAVAILABLE', 'That side does not have an available moneyline.');
+      // 1.8.0-B: never take a ticket at a price the player did not see on their slip.
+      if (input.expectedOdds !== undefined && input.expectedOdds !== odds) {
+        throw AppError.conflict('SPORTSBOOK_ODDS_CHANGED', `The line moved to ${odds > 0 ? '+' + odds : odds}. Review the new price and place the ticket again.`);
+      }
       const payout = americanPayout(stake, odds);
       await moveSportsbookCash(tx, player.id, ruleset, -stake, now);
       const bet = await tx.sportsbookBet.create({ data: {
@@ -308,15 +407,35 @@ export const SportsbookService = {
     });
   },
 
-  async recentBets(prisma: PrismaClient, roundPlayerId: string) {
-    const bets = await prisma.sportsbookBet.findMany({
-      where: { roundPlayerId }, include: { event: true }, orderBy: { createdAt: 'desc' }, take: 25,
-    });
-    return bets.map((bet) => ({
-      id: bet.id, sport: bet.event.sport, homeTeam: bet.event.homeTeam, awayTeam: bet.event.awayTeam,
-      startsAt: bet.event.startsAt.toISOString(), selection: bet.selection, oddsAmerican: bet.oddsAmerican,
-      stakeCents: Number(bet.stakeCents), payoutCents: Number(bet.payoutCents), status: bet.status,
-      createdAt: bet.createdAt.toISOString(),
-    }));
+  /** Every open ticket plus recent settled history and a lifetime record for the player. */
+  async tickets(prisma: PrismaClient, roundPlayerId: string): Promise<SportsbookTicketsDto> {
+    const [open, settled, totals] = await Promise.all([
+      prisma.sportsbookBet.findMany({
+        where: { roundPlayerId, status: 'OPEN' }, include: { event: true },
+        orderBy: [{ event: { startsAt: 'asc' } }, { createdAt: 'asc' }], take: 100,
+      }),
+      prisma.sportsbookBet.findMany({
+        where: { roundPlayerId, status: { not: 'OPEN' } }, include: { event: true },
+        orderBy: [{ settledAt: 'desc' }, { createdAt: 'desc' }], take: 25,
+      }),
+      prisma.sportsbookBet.groupBy({
+        by: ['status'], where: { roundPlayerId },
+        _count: { _all: true }, _sum: { stakeCents: true, payoutCents: true },
+      }),
+    ]);
+    const total = (status: SportsbookBetStatus) => totals.find((row) => row.status === status);
+    const count = (status: SportsbookBetStatus) => total(status)?._count._all ?? 0;
+    const sum = (status: SportsbookBetStatus, field: 'stakeCents' | 'payoutCents') => Number(total(status)?._sum[field] ?? 0n);
+    return {
+      open: open.map(sportsbookTicketDto),
+      settled: settled.map(sportsbookTicketDto),
+      summary: {
+        openCount: count('OPEN'),
+        openStakeCents: sum('OPEN', 'stakeCents'),
+        openPayoutCents: sum('OPEN', 'payoutCents'),
+        won: count('WON'), lost: count('LOST'), push: count('PUSH'), void: count('VOID'),
+        netCents: sum('WON', 'payoutCents') - sum('WON', 'stakeCents') - sum('LOST', 'stakeCents'),
+      },
+    };
   },
 };

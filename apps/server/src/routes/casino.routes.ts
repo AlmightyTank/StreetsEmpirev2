@@ -29,6 +29,7 @@ import { CasinoPokerService } from '../services/casino-poker.service.js';
 import { CasinoTournamentsService } from '../services/casino-tournaments.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
+import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 import { SportsbookService } from '../services/sportsbook.service.js';
@@ -48,11 +49,11 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/sportsbook', { preHandler: fastify.requireAuth }, async (request) => {
     const player = await requirePlayer(request.auth!.account.id);
-    const [board, bets] = await Promise.all([
-      SportsbookService.board(fastify.prisma),
-      SportsbookService.recentBets(fastify.prisma, player.id),
+    const [board, tickets] = await Promise.all([
+      SportsbookService.board(fastify.prisma, { configured: Boolean(env.THERUNDOWN_API_KEY), pollMinutes: env.SPORTSBOOK_POLL_MINUTES }),
+      SportsbookService.tickets(fastify.prisma, player.id),
     ]);
-    return { ...board, bets };
+    return { ...board, tickets };
   });
 
   fastify.post('/sportsbook/bets', { preHandler: fastify.requireAuth }, async (request) => {

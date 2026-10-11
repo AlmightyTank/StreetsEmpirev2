@@ -24,7 +24,7 @@ The first release uses TheRundown for pregame odds across NFL, NBA, MLB, and NHL
 | Slice | Theme | Outcome |
 | --- | --- | --- |
 | **1.8.0-A — Pregame Moneyline Foundation** | Ship the first usable sportsbook | Cache NFL, NBA, MLB, and NHL pregame moneylines; add the Sports Betting casino destination; let players wager game cash without turns; close at kickoff; store and settle tickets. Implemented on beta; provider and result payload verification remains a release gate. |
-| **1.8.0-B — Ticket Clarity & Board Polish** | Make picks and outcomes easy to follow | Improve league selection, event grouping, cache freshness, open-ticket details, and settled-ticket history. Keep the board useful on mobile and explain why a line is closed or unavailable. |
+| **1.8.0-B — Ticket Clarity & Board Polish** | Make picks and outcomes easy to follow | Improve league selection, event grouping, cache freshness, open-ticket details, and settled-ticket history. Keep the board useful on mobile and explain why a line is closed or unavailable. Implemented on beta. |
 | **1.8.0-C — Feed Reliability & Operations** | Make polling and settlement supportable | Harden retries and stale-cache handling; expose last successful poll, provider quota, and errors to admins; safely recheck unresolved results without duplicate settlement. |
 | **1.8.0-D — Limits & Economy Balance** | Keep game-cash risk bounded | Tune minimum/maximum stakes and exposure controls through simulations; test repeat requests, concurrent wagers, cash-location changes, pushes, cancellations, and late provider updates. Keep the no-turn rule. |
 | **1.8.0-E — Market Expansion & Release** | Expand only after the first market is proven | Review provider usage and grading accuracy, then decide whether to add leagues or pregame spreads/totals. Keep live betting, parlays, and player props out until separately designed and budgeted. Finish accessibility, mobile, migration, historical-ruleset, and release checks. |
@@ -40,6 +40,15 @@ The first release uses TheRundown for pregame odds across NFL, NBA, MLB, and NHL
 - Use an idempotent action ID and an immutable ticket snapshot to prevent duplicate debits or odds changes on retry.
 - Poll results only for events with open tickets. Settle wins/losses, push ties, and void cancelled events by adjusting game cash exactly once.
 - The Sports Betting board reads StreetsEmpire's cached snapshot and the player's tickets. It does not call TheRundown from the browser.
+
+## Slice B details
+
+- League filter (All, NFL, NBA, MLB, NHL) with game counts, remembered per player. Games are grouped by local day (Today, Tomorrow) with a kickoff countdown that turns urgent in the last 15 minutes and follows the server clock rather than the device clock.
+- A feed banner shows when lines were last refreshed and the poll cadence, or why betting is paused: waiting for the first snapshot, stale snapshot, or feed offline.
+- Every line carries a server-computed state (`OPEN`, `NO_LINE`, `STALE_ODDS`, `FEED_UNAVAILABLE`) from the same checks a wager runs; the board adds `STARTED` once kickoff passes on screen. Closed lines say why in one sentence. A side with no price shows "Off".
+- Picking a side opens a bet slip instead of placing immediately. The slip shows the matchup, price, stake, quick stakes, to-win and total payout (the same rounding the server pins), cash on hand, and why the ticket cannot be placed yet. On phones the slip stays pinned above the tab bar while the board scrolls.
+- Wagers send the price the player saw as `expectedOdds`. If the line moved, the server refuses with `SPORTSBOOK_ODDS_CHANGED` and charges nothing; the slip reloads and shows the move.
+- My tickets splits Open (kickoff order, stake, to win, payout, "Awaiting result" after the start) from Settled (result, final score, stake, cash returned or lost, settled time) with a lifetime record and net result.
 
 ## Release gates
 
