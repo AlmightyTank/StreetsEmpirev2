@@ -41,6 +41,9 @@ const MEMBER_FIELDS = {
 /** Rows per statement, well inside Postgres' bind-parameter limit. */
 const CHUNK = 1_000;
 
+/** 1.7.0-E selected operation teams carry forward into later 1.7 rulesets built on it. */
+const SELECTED_TEAM_RULESETS: ReadonlySet<string> = new Set(['classic-og-v1.7-e', 'classic-og-v1.7-g']);
+
 function chunks<T>(rows: readonly T[]): T[][] {
   const out: T[][] = [];
   for (let index = 0; index < rows.length; index += CHUNK) out.push(rows.slice(index, index + CHUNK));
@@ -441,7 +444,7 @@ export const CrewRosterService = {
   /** A chosen operation team must still be available and eligible under the player's lock. */
   async selectedSpecialtyBonusPercent(tx: Db, roundPlayerId: string, ruleset: Ruleset, role: 'THUG' | 'WORKER', specialty: 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'SERVICE', memberIds: string[]): Promise<number> {
     if (!memberIds.length) return 0;
-    if (ruleset.meta.id !== 'classic-og-v1.7-e') throw AppError.badRequest('TEAM_SELECTION_UNAVAILABLE', 'Selected operation teams are not available in this ruleset.');
+    if (!SELECTED_TEAM_RULESETS.has(ruleset.meta.id)) throw AppError.badRequest('TEAM_SELECTION_UNAVAILABLE', 'Selected operation teams are not available in this ruleset.');
     const career = ruleset.crewRoster;
     if (!career?.enabled || specialty === 'SERVICE') return 0;
     const members = await tx.crewMember.findMany({
@@ -535,7 +538,7 @@ export const CrewRosterService = {
       }
       return {
         enabled: true,
-        supportsSelectedTeams: ruleset.meta.id === 'classic-og-v1.7-e',
+        supportsSelectedTeams: SELECTED_TEAM_RULESETS.has(ruleset.meta.id),
         migratedAt: migration?.createdAt.toISOString() ?? null,
         totals,
         members: members.map((member) => memberDto(

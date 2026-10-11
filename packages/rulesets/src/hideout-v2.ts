@@ -441,6 +441,7 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v1.7-c': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.7-d': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.7-e': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.7-g': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */

@@ -35,13 +35,13 @@ This is a proposed roadmap. It does not change live or historical rulesets until
 
 ## Slice status and roadmap
 
-Slice A is implemented on beta as the access foundation. The remaining work is sequenced below; Slice B is the next implementation slice.
+Slice A is implemented on beta as the access foundation. Slice B is implemented in ruleset `classic-og-v1.7-g`. Slice C is the next implementation slice.
 
 | Slice | Status | Theme | Outcome |
 | --- | --- | --- | --- |
 | **A — Quest Access Foundation** | **Complete on beta** | Unlock recipes and districts through quests | Add permanent recipe access plus district access for Scout and Turf, server-side checks, visible locked-state data, and direct links to unlocking quests. Existing purchase unlocks keep their current behavior. |
-| **B — Pip's Cookhouse Ladder** | **Next** | Start on Crack, earn the rest | Gate Ecstasy and Meth production behind quests in the new ruleset, then add quest chains for Weed, Cocaine, and Heroin. Each chain requires the previous one and opens one recipe in the current round. Quests use existing actions and award no free ingredients, stock, or crew. |
-| **C — Product Identity & Balance** | Planned | Make each recipe a real choice | Define per-product production costs, output, variance, and Heat in the pinned ruleset. Confirm a Crack-only opening is viable, then simulate production, market sales, Heat, city demand, and supply so no product becomes a universal best pick. |
+| **B — Pip's Cookhouse Ladder** | **Implemented (1.7.0-G)** | Start on Crack, earn the rest | Gate Ecstasy and Meth production behind quests in the new ruleset, then add quest chains for Weed, Cocaine, and Heroin. Each chain requires the previous one and opens one recipe in the current round. Quests use existing actions and award no free ingredients, stock, or crew. |
+| **C — Product Identity & Balance** | **Next** | Make each recipe a real choice | Define per-product production costs, output, variance, and Heat in the pinned ruleset. Confirm a Crack-only opening is viable, then simulate production, market sales, Heat, city demand, and supply so no product becomes a universal best pick. |
 | **D — Quest Presentation** | Planned | Show the progression clearly | Present recipe locks and their unlocking quest in Products and Produce. Keep Available quests limited to quests that are actually available; show future progression on the existing quest progression view. |
 | **E — Admin, Tests & Release** | Planned | Verify access and economy | Add unlock, objective, exploit, and balance coverage; expose recipe access in admin quest inspection; release behind the new ruleset only after the gates pass. |
 
@@ -92,6 +92,19 @@ Party Favors and Bulk Order each grant two separate unlocks: the recipe and purc
 Recipe identity is expressed only through game rules. No real-world production instructions or ingredients are part of quest text or the UI.
 
 **Gate:** A new round starts with only Crack cookable. Party Favors opens Ecstasy, Bulk Order opens Meth, and each later recipe opens only after its quest, in ladder order. No available quest or daily contract requires cooking a locked product. Historical rounds keep their existing recipes and the old Party Favors and Bulk Order objectives.
+
+**Implemented in 1.7.0-G** (`classic-og-v1.7-g`, built on 1.7.0-E):
+
+- **Recipe gates.** The ruleset adds `PRODUCT_ECSTASY_RECIPE`, `PRODUCT_METH_RECIPE`, `PRODUCT_WEED_RECIPE`, `PRODUCT_COCAINE_RECIPE` and `PRODUCT_HEROIN_RECIPE`. Crack has no gate. Purchase access keys are unchanged.
+- **Provisional recipes.** Weed, Cocaine and Heroin had no recipe, so 1.7.0-G gives each a provisional one for Slice C to tune: Weed 0.6 per thug a turn, $3.00 ingredients, 0.02 Heat; Cocaine 0.1, $20.00, 0.15 Heat; Heroin 0.2, $9.00, 0.12 Heat. Each keeps ingredients at or above Pip's buyback and net-worth value, so `productLoops` finds no cash loop. Crack, Ecstasy and Meth recipes are unchanged.
+- **Party Favors:** Cookhouse and Pip rep 12; produce 150 Crack and sell 100 Crack to Pip. Pays $12,500, Pip rep 15, Ecstasy purchase access, the Ecstasy recipe and a Pip Connection favor. The old 50-crack reward is removed, because a recipe job pays no free stock.
+- **Bulk Order:** requires Party Favors; produce 100 Ecstasy and sell 50 Ecstasy to Pip, with the existing 50-Crack bonus. Pays its existing rewards plus the Meth recipe.
+- **Green Thumb** (`PIP_GREEN_THUMB`): requires Bulk Order; sell 150 Weed to Pip. Pays $15,000, Pip rep 15 and the Weed recipe.
+- **A Better Cut** (`PIP_A_BETTER_CUT`): requires Green Thumb; sell 100 Meth and $60,000 of product to Pip. Pays $20,000, Pip rep 20 and the Cocaine recipe.
+- **Pip's Red Ledger** (`PIP_RED_LEDGER`): requires A Better Cut; produce 40 Cocaine and sell 40 Cocaine to Pip. Pays $25,000, Pip rep 20 and the Heroin recipe.
+- **Daily board.** The board stays dealt from the round's shared deck. A card that cooks a product whose recipe the player lacks (Meth Cook, Party Pack) is replaced by the next card in the same deck, so a player with every recipe sees the shared board. A recipe that opens mid-day never adds a fourth card; the full board returns at the next reset.
+- **Tests.** `cookhouse-ladder.test.ts` checks the gates, ladder order, the rep 12 rung, separate purchase access, no stock rewards, that no non-daily job cooks a product before its recipe can be open, and that no earlier ruleset is gated. `daily-contract-recipes.test.ts` covers the daily substitution and the mid-day cap. `cookhouse-ladder.integration.test.ts` (`PRODUCT_INTEGRATION=1`) plays the first rung through the real API on PostgreSQL: every locked recipe is refused, Party Favors opens at rep 12, ordinary Crack production and Pip sales complete it, Ecstasy cooks immediately after the claim, only Bulk Order opens next, and a 1.7.0-E round still cooks Meth from the start.
+- Selected operation teams, which 1.7.0-E enabled by exact ruleset ID, are enabled for 1.7.0-G as well.
 
 ### C — Product Identity & Balance
 
