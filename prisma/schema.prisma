@@ -740,6 +740,36 @@ enum RoundStatus {
   ARCHIVED
 }
 
+enum GameEventType {
+  COMMUNITY
+  SEASONAL
+  RANDOM_ENCOUNTER
+  CITY_CONDITION
+}
+
+enum GameEventScope {
+  ROUND
+  PLAYER
+  CITY
+}
+
+enum GameEventOccurrenceStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+enum GameEventParticipationStatus {
+  OFFERED
+  ACTIVE
+  COMPLETED
+  CLAIMED
+  EXPIRED
+  WITHDRAWN
+}
+
 enum QuestStatus {
   LOCKED
   AVAILABLE
@@ -1095,6 +1125,7 @@ model Round {
   updatedAt DateTime @updatedAt
 
   players              RoundPlayer[]
+  eventOccurrences     GameEventOccurrence[]
   news                 GameNews[]
   alliances            Alliance[]
   highMarkets          HighMarket[]
@@ -1307,6 +1338,7 @@ model RoundPlayer {
   tips                    PlayerTip[]
   npcGang                 NpcGang?
   randomEncounters        RandomEncounter[]
+  eventParticipations     GameEventParticipation[]
   casinoFreeSpinBonus     CasinoFreeSpinBonus?
   casinoBlackjackShoes    CasinoBlackjackShoe[]
   casinoBlackjackHands    CasinoBlackjackHand[]
@@ -3178,6 +3210,162 @@ model RandomEncounter {
   @@index([roundPlayerId, status, createdAt(sort: Desc)])
   @@index([roundPlayerId, trigger, createdAt(sort: Desc)])
   @@index([expiresAt, status])
+}
+
+/// 1.8.5-A. Versioned source-of-truth definition for community, seasonal,
+/// action-triggered, and city-condition events. Runtime adapters migrate these
+/// definitions gradually; pinned rulesets keep their own definition versions.
+model GameEventDefinition {
+  id String @id @default(cuid())
+
+  rulesetId      String
+  rulesetVersion String
+  key            String
+  type           GameEventType
+  scope          GameEventScope
+  title          String
+  description    String
+  /// ROUND_FRACTION, UTC_WINDOW or ACTION_TRIGGER. The typed source contract
+  /// lives in packages/rulesets; JSON keeps definitions extensible by version.
+  schedule       Json
+  objectives     Json @default("[]")
+  rewards        Json @default("[]")
+  config         Json @default("{}")
+  /// Identifies the legacy owner while a migration adapter is in use.
+  sourceKind     String?
+  sourceKey      String?
+  isEnabled      Boolean @default(true)
+
+  occurrences GameEventOccurrence[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([rulesetId, rulesetVersion, key])
+  @@index([rulesetId, rulesetVersion, type, isEnabled])
+  @@index([sourceKind, sourceKey])
+}
+
+/// One scheduled window or one action-triggered event occurrence. Snapshots
+/// prevent later definition edits from rewriting a live or historical event.
+model GameEventOccurrence {
+  id String @id @default(cuid())
+
+  definitionId String
+  definition   GameEventDefinition @relation(fields: [definitionId], references: [id], onDelete: Restrict)
+
+  /// Null for calendar-wide seasonal windows; set for round-derived events.
+  roundId String?
+  round   Round? @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  occurrenceKey String
+  scopeKey      String @default("")
+  status        GameEventOccurrenceStatus @default(SCHEDULED)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  schedule      Json @default("{}")
+  config        Json @default("{}")
+  activatedAt  DateTime?
+  completedAt  DateTime?
+  expiredAt    DateTime?
+
+  participations GameEventParticipation[]
+  history        GameEventHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([definitionId, occurrenceKey])
+  @@index([roundId, status, startsAt])
+  @@index([status, startsAt, endsAt])
+  @@index([scopeKey, status])
+}
+
+/// Per-player progress and lifecycle state for an event occurrence.
+model GameEventParticipation {
+  id String @id @default(cuid())
+
+  occurrenceId String
+  occurrence   GameEventOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  status      GameEventParticipationStatus @default(OFFERED)
+  progress    Json @default("{}")
+  state       Json @default("{}")
+  acceptedAt  DateTime?
+  completedAt DateTime?
+  claimedAt   DateTime?
+  expiredAt   DateTime?
+
+  progressReceipts GameEventProgressReceipt[]
+  rewardClaims     GameEventRewardClaim[]
+  history          GameEventHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([occurrenceId, roundPlayerId])
+  @@index([roundPlayerId, status, updatedAt(sort: Desc)])
+  @@index([occurrenceId, status])
+}
+
+/// Idempotent authoritative progress receipt. sourceKey is stable for the
+/// underlying action or domain transition and unique per participation.
+model GameEventProgressReceipt {
+  id String @id @default(cuid())
+
+  participationId String
+  participation   GameEventParticipation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+
+  sourceKey   String
+  objectiveKey String?
+  payload     Json @default("{}")
+  recordedAt  DateTime @default(now())
+
+  @@unique([participationId, sourceKey])
+  @@index([participationId, objectiveKey, recordedAt])
+}
+
+/// One durable reward claim per participation and reward key. The idempotency
+/// key lets the reward grant and claim receipt commit in the same transaction.
+model GameEventRewardClaim {
+  id String @id @default(cuid())
+
+  participationId String
+  participation   GameEventParticipation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+
+  rewardKey      String
+  idempotencyKey String @unique
+  reward         Json
+  claimedAt      DateTime @default(now())
+
+  @@unique([participationId, rewardKey])
+  @@index([claimedAt(sort: Desc)])
+}
+
+/// Append-only event lifecycle and outcome history. Admin changes should also
+/// write AdminAuditLog so operational actions retain actor/reason snapshots.
+model GameEventHistory {
+  id String @id @default(cuid())
+
+  occurrenceId String
+  occurrence   GameEventOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+
+  participationId String?
+  participation   GameEventParticipation? @relation(fields: [participationId], references: [id], onDelete: Cascade)
+
+  action       String
+  actorLabel   String?
+  dedupeKey    String? @unique
+  before       Json?
+  after        Json?
+  payload      Json @default("{}")
+  happenedAt   DateTime @default(now())
+
+  @@index([occurrenceId, happenedAt(sort: Desc)])
+  @@index([participationId, happenedAt(sort: Desc)])
 }
 
 /// Durable in-game notification receipt for a toast-worthy activity.

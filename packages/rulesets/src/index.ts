@@ -254,6 +254,7 @@ export { classicOgV18E };
 export { classicOgV18F };
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
+export * from './event-system.js';
 export * from './combat-prototype.js';
 export * from './hideout-v2.js';
 export * from './quest-definitions.js';
