@@ -180,10 +180,10 @@ describe('AccountProfileService animated profile frames', () => {
   it('keeps the dragon effect catalog and locks choices until their frames are earned', async () => {
     expect(PROFILE_EFFECTS.map((option) => option.key)).toEqual([
       'none', 'chrome-serpent', 'phantom-convoy', 'lantern-district', 'siren-breaker',
-      'block-sovereign', 'gilded-house', 'dead-or-alive', 'laurel-ascendant', 'snowstorm', 'inferno',
+      'block-sovereign', 'gilded-house', 'dead-or-alive', 'laurel-ascendant', 'snowstorm', 'inferno', 'midnight-chrome',
     ]);
     expect((await AccountProfileService.settings(prismaFor(false), 'account-1')).options.effects.map((option) => option.key)).toEqual(['none']);
-    expect((await AccountProfileService.settings(prismaFor(false, [frameUnlock('chrome-serpent-frame'), frameUnlock('phantom-convoy-frame'), frameUnlock('lantern-district-frame'), frameUnlock('siren-breaker-frame'), frameUnlock('block-sovereign-frame'), frameUnlock('gilded-house-frame'), frameUnlock('dead-or-alive-frame'), frameUnlock('laurel-ascendant-frame'), frameUnlock('snowstorm-drake'), frameUnlock('inferno-drake')]), 'account-1')).options.effects.map((option) => option.key))
+    expect((await AccountProfileService.settings(prismaFor(false, [frameUnlock('chrome-serpent-frame'), frameUnlock('phantom-convoy-frame'), frameUnlock('lantern-district-frame'), frameUnlock('siren-breaker-frame'), frameUnlock('block-sovereign-frame'), frameUnlock('gilded-house-frame'), frameUnlock('dead-or-alive-frame'), frameUnlock('laurel-ascendant-frame'), frameUnlock('snowstorm-drake'), frameUnlock('inferno-drake'), frameUnlock('midnight-chrome-frame')]), 'account-1')).options.effects.map((option) => option.key))
       .toEqual(PROFILE_EFFECTS.map((option) => option.key));
   });
 
@@ -232,6 +232,7 @@ describe('AccountProfileService Street Pass collection unlocks', () => {
       ['midnight-ops', true],
       ['urban-ghost', false],
       ['cartel-gold', true],
+      ['midnight-chrome', true],
     ]);
     expect(response.options.crewStyles?.find((option) => option.key === 'cartel-gold')).toMatchObject({
       locked: true,
@@ -253,6 +254,7 @@ describe('AccountProfileService Street Pass collection unlocks', () => {
       'urban-ghost': 'Street Pass · Season 1, tier 8',
       'midnight-ops': 'Street Pass · Season 1, tier 18',
       'cartel-gold': 'Street Pass · Season 1, tier 28',
+      'midnight-chrome': 'Supporter reward.',
     });
   });
 
@@ -318,5 +320,66 @@ describe('AccountProfileService profile showcase toggles', () => {
     });
 
     expect(saved.settings).toMatchObject({ showThemeOnProfile: false, showLookOnProfile: false });
+  });
+});
+
+describe('AccountProfileService Midnight Chrome supporter rewards', () => {
+  const supporterUnlocks = (): UnlockRow[] => [
+    { key: 'supporter-midnight-chrome', kind: 'ITEM_COLLECTION', title: 'Midnight Chrome Collection', description: '', styleKey: 'midnight-chrome', awardedAt: new Date(0) },
+    frameUnlock('midnight-chrome-frame'),
+  ];
+  const input = { ...updateInput, activeSiteThemeKey: null };
+
+  beforeEach(() => {
+    vi.mocked(RoundService.getCurrent).mockResolvedValue(null);
+  });
+
+  it('says how a locked supporter collection is earned', async () => {
+    const response = await AccountProfileService.settings(prismaFor(false), 'account-1');
+
+    expect(response.options.crewStyles?.find((option) => option.key === 'midnight-chrome')).toMatchObject({
+      locked: true,
+      unlockHint: 'Supporter reward.',
+    });
+  });
+
+  it('keeps the collection on the crew and rides it has art for', async () => {
+    const prisma = prismaFor(false, supporterUnlocks());
+    const saved = await AccountProfileService.update(prisma, 'account-1', {
+      ...input,
+      // The route schema refuses AK47 here; a stale saved value must still read back as Classic.
+      itemCosmetics: { SEDAN: 'midnight-chrome', AK47: 'midnight-chrome' },
+      crewCosmetics: { THUG: 'midnight-chrome', HOE: 'midnight-chrome' },
+    });
+
+    expect(saved.settings.itemCosmetics).toEqual({ SEDAN: 'midnight-chrome' });
+    expect(saved.settings.crewCosmetics).toEqual({ THUG: 'midnight-chrome', HOE: 'midnight-chrome' });
+  });
+
+  it('offers card surfaces and the chrome glint only with the Signature card', async () => {
+    const without = await AccountProfileService.settings(prismaFor(false), 'account-1');
+    expect(without.options.surfaces).toEqual([]);
+    expect(without.options.effects.map((option) => option.key)).not.toContain('midnight-chrome');
+    await expect(AccountProfileService.update(prismaFor(false), 'account-1', { ...input, profileSurface: 'carbon' }))
+      .rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+
+    const prisma = prismaFor(false, supporterUnlocks());
+    const settings = await AccountProfileService.settings(prisma, 'account-1');
+    expect(settings.options.surfaces?.map((option) => option.key)).toEqual(['brushed', 'carbon', 'engine-turned']);
+    expect(settings.options.effects.map((option) => option.key)).toContain('midnight-chrome');
+
+    const saved = await AccountProfileService.update(prisma, 'account-1', {
+      ...input,
+      activeProfileFrameKey: 'midnight-chrome-frame',
+      activeAvatarFrameKey: 'midnight-chrome-frame',
+      profileEffect: 'midnight-chrome',
+      profileSurface: 'engine-turned',
+    });
+    expect(saved.settings).toMatchObject({
+      activeProfileFrameKey: 'midnight-chrome-frame',
+      activeAvatarFrameKey: 'midnight-chrome-frame',
+      profileEffect: 'midnight-chrome',
+      profileSurface: 'engine-turned',
+    });
   });
 });

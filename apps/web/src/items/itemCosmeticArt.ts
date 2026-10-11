@@ -33,6 +33,7 @@ export const SLICE_A_ART_FILES = {
     'midnight-ops': 'cosmetics/rides/low-rider-midnight-ops.webp',
     'urban-ghost': 'cosmetics/rides/low-rider-urban-ghost.webp',
     'cartel-gold': 'cosmetics/rides/low-rider-cartel-gold.webp',
+    'midnight-chrome': 'cosmetics/rides/low-rider-midnight-chrome.webp',
   },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
@@ -88,17 +89,19 @@ export const SLICE_B_ART_FILES = {
   },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
-/** Slice C authored crew outfits, relative to public/items/. */
+/** Slice C authored crew outfits, relative to public/items/. Midnight Chrome (supporter) covers crew and rides only. */
 export const SLICE_C_ART_FILES = {
   THUG: {
     'midnight-ops': 'cosmetics/crew/thug-midnight-ops.webp',
     'urban-ghost': 'cosmetics/crew/thug-urban-ghost.webp',
     'cartel-gold': 'cosmetics/crew/thug-cartel-gold.webp',
+    'midnight-chrome': 'cosmetics/crew/thug-midnight-chrome.webp',
   },
   HOE: {
     'midnight-ops': 'cosmetics/crew/hoe-midnight-ops.webp',
     'urban-ghost': 'cosmetics/crew/hoe-urban-ghost.webp',
     'cartel-gold': 'cosmetics/crew/hoe-cartel-gold.webp',
+    'midnight-chrome': 'cosmetics/crew/hoe-midnight-chrome.webp',
   },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
@@ -108,11 +111,13 @@ export const VEHICLE_ART_FILES = {
     'midnight-ops': 'cosmetics/rides/sedan-midnight-ops.webp',
     'urban-ghost': 'cosmetics/rides/sedan-urban-ghost.webp',
     'cartel-gold': 'cosmetics/rides/sedan-cartel-gold.webp',
+    'midnight-chrome': 'cosmetics/rides/sedan-midnight-chrome.webp',
   },
   VAN: {
     'midnight-ops': 'cosmetics/rides/van-midnight-ops.webp',
     'urban-ghost': 'cosmetics/rides/van-urban-ghost.webp',
     'cartel-gold': 'cosmetics/rides/van-cartel-gold.webp',
+    'midnight-chrome': 'cosmetics/rides/van-midnight-chrome.webp',
   },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 

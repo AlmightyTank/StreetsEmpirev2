@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- Supporter mark: the Midnight Chrome diamond. -->
+  <defs>
+    <linearGradient id="chrome" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".35" stop-color="#c3cad3"/><stop offset=".6" stop-color="#6b737e"/><stop offset="1" stop-color="#d5dbe1"/></linearGradient>
+    <linearGradient id="chromeV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".45" stop-color="#c3cad3"/><stop offset=".55" stop-color="#6b737e"/><stop offset="1" stop-color="#d5dbe1"/></linearGradient>
+    <linearGradient id="crimson" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e0404f"/><stop offset=".55" stop-color="#b3192b"/><stop offset="1" stop-color="#6e0c18"/></linearGradient>
+  </defs>
+  <path d="M12 1.6 L20.6 12 L12 22.4 L3.4 12 Z" fill="url(#chrome)" stroke="#07080a" stroke-width="1.3" stroke-linejoin="round"/>
+  <path d="M12 6.4 L16.6 12 L12 17.6 L7.4 12 Z" fill="url(#crimson)" stroke="#3a060d" stroke-width=".7" stroke-linejoin="round"/>
+  <path d="M9.6 10.6 L12 7.6" stroke="#ffd0d5" stroke-width=".8" stroke-linecap="round"/>
+</svg>

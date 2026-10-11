@@ -233,6 +233,7 @@ export type AdminAccountAction =
   | 'revoke-admin'
   | 'approve-beta'
   | 'revoke-beta'
+  | 'grant-supporter'
   | 'resend-verification'
   | 'mark-email-verified'
   | 'reset-2fa'
@@ -467,6 +468,8 @@ export interface AdminAccountDetailDto {
   notes: AdminModerationNoteDto[];
   /** 0.9.0-H. Reports and flags against messages this account sent. */
   reportsAgainst: { open: number; total: number };
+  /** When supporter rewards were first granted, or null. Optional for older servers. */
+  supporterSince?: string | null;
 }
 
 /** Discord caps a timeout at 28 days. */

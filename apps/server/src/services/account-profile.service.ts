@@ -7,6 +7,8 @@ import {
   collectionOptions,
   isOwnedCollection,
   isReleasedItemCosmeticStyle,
+  SIGNATURE_CARD_FRAME_KEY,
+  SUPPORTER_UNLOCK_HINT,
 } from '@streets/shared';
 import type {
   AccountProfileSettingsDto,
@@ -18,11 +20,12 @@ import type {
   MoneyFormat,
   ProfileAccent,
   ProfileEffect,
+  ProfileSurface,
   PublicAwardDto,
   UiDensity,
   UpdateAccountProfileSettingsInput,
 } from '@streets/shared';
-import { rulesets, type QuestCosmeticDefinition, type Ruleset } from '@streets/rulesets';
+import { rulesets, SUPPORTER_COSMETICS, type QuestCosmeticDefinition, type Ruleset } from '@streets/rulesets';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { CommunityService, permanentAwardsForAccount } from './community.service.js';
@@ -41,6 +44,9 @@ export const PROFILE_BADGE_FEATURE_LIMIT = 6;
  */
 function collectionUnlockHints(ruleset: Ruleset | null): Partial<Record<ItemCosmeticStyleKey, string>> {
   const hints: Partial<Record<ItemCosmeticStyleKey, string>> = {};
+  for (const cosmetic of Object.values(SUPPORTER_COSMETICS)) {
+    if (cosmetic.kind === 'ITEM_COLLECTION' && isReleasedItemCosmeticStyle(cosmetic.styleKey)) hints[cosmetic.styleKey] = SUPPORTER_UNLOCK_HINT;
+  }
   const pass = ruleset?.streetPass;
   if (!ruleset || !pass) return hints;
   for (const tier of pass.tiers) {
@@ -106,7 +112,19 @@ export const PROFILE_EFFECTS: CosmeticOptionDto[] = [
   { key: 'laurel-ascendant', label: 'Laurel Ascendant', description: 'A medal turns as gold laurel leaves unfurl around the profile.' },
   { key: 'snowstorm', label: 'Snowstorm', description: 'A living ice-dragon frame sweeps through snow and frost.' },
   { key: 'inferno', label: 'Inferno', description: 'A living fire-dragon frame moves through flame and rising embers.' },
+  { key: 'midnight-chrome', label: 'Chrome Glint', description: 'One slow glint crosses the Midnight Chrome avatar ring every few seconds.' },
 ];
+
+/** Signature Profile Card surfaces. Each is its own authored tile in public/profile-frames/. */
+export const PROFILE_SURFACES: CosmeticOptionDto[] = [
+  { key: 'brushed', label: 'Brushed', description: 'Charcoal with a fine horizontal grain.' },
+  { key: 'carbon', label: 'Carbon', description: 'A tight charcoal twill weave.' },
+  { key: 'engine-turned', label: 'Engine-turned', description: 'Overlapping machined swirls, low contrast.' },
+];
+
+function profileSurface(value: string | null | undefined): ProfileSurface | null {
+  return PROFILE_SURFACES.some((option) => option.key === value) ? value as ProfileSurface : null;
+}
 
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
@@ -129,6 +147,7 @@ function profileEffectsForFrames(frames: CosmeticOptionDto[]): CosmeticOptionDto
     'laurel-ascendant': 'laurel-ascendant-frame',
     snowstorm: 'snowstorm-drake',
     inferno: 'inferno-drake',
+    'midnight-chrome': SIGNATURE_CARD_FRAME_KEY,
   };
   return PROFILE_EFFECTS.filter((effect) => effect.key === 'none'
     || (frameByEffect[effect.key] !== undefined && earnedFrames.has(frameByEffect[effect.key]!)));
@@ -236,6 +255,7 @@ function toSettingsDto(
     profileEffect,
     activeProfileFrameKey,
     activeAvatarFrameKey,
+    profileSurface: frameKeys.has(SIGNATURE_CARD_FRAME_KEY) ? profileSurface(profile?.profileSurface) : null,
     activeSiteThemeKey,
     itemCosmetics: itemCosmeticLoadout(profile?.itemCosmetics, ownedCollections),
     crewCosmetics: crewCosmeticLoadout(profile?.crewCosmetics, ownedCollections),
@@ -332,6 +352,7 @@ export const AccountProfileService = {
         frames: appearance.frames,
         themes: appearance.themes,
         effects: profileEffectsForFrames(appearance.frames),
+        surfaces: appearance.frames.some((frame) => frame.key === SIGNATURE_CARD_FRAME_KEY) ? PROFILE_SURFACES : [],
         itemStyles: collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, appearance.collections, hints),
         crewStyles: collectionOptions(RELEASED_CREW_COSMETIC_STYLES, appearance.collections, hints),
         densities: UI_DENSITIES,
@@ -380,6 +401,11 @@ export const AccountProfileService = {
         activeAvatarFrameKey: 'That avatar frame is not unlocked.',
       });
     }
+    if (input.profileSurface && !frameKeys.has(SIGNATURE_CARD_FRAME_KEY)) {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'The surface finish comes with the Signature Profile Card.', {
+        profileSurface: 'That surface is not unlocked.',
+      });
+    }
     const effectOptions = profileEffectsForFrames(appearance.frames);
     if (input.profileEffect && !effectOptions.some((option) => option.key === input.profileEffect)) {
       throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Unlock the matching animated frame before equipping its popup animation.', {
@@ -402,12 +428,12 @@ export const AccountProfileService = {
       });
     }
     if (Object.values(input.itemCosmetics ?? {}).some((style) => !isOwnedCollection(style, appearance.collections))) {
-      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick a collection you have already earned on the Street Pass.', {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick a collection you have already unlocked.', {
         itemCosmetics: 'That collection is not unlocked.',
       });
     }
     if (Object.values(input.crewCosmetics ?? {}).some((style) => !isOwnedCollection(style, appearance.collections))) {
-      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick an outfit collection you have already earned on the Street Pass.', {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick an outfit collection you have already unlocked.', {
         crewCosmetics: 'That outfit collection is not unlocked.',
       });
     }
@@ -425,6 +451,7 @@ export const AccountProfileService = {
     const profileImageUrl = input.profileImageUrl === undefined ? undefined : input.profileImageUrl;
     const profileBannerUrl = input.profileBannerUrl === undefined ? undefined : input.profileBannerUrl;
     const profileEffect = input.profileEffect === undefined ? undefined : input.profileEffect;
+    const surface = input.profileSurface === undefined ? undefined : input.profileSurface;
 
     await prisma.accountProfile.upsert({
       where: { accountId },
@@ -437,6 +464,7 @@ export const AccountProfileService = {
         profileImageUrl: profileImageUrl ?? null,
         profileBannerUrl: profileBannerUrl ?? null,
         profileEffect: profileEffect ?? 'none',
+        profileSurface: surface ?? null,
         activeProfileFrameKey,
         activeAvatarFrameKey,
         activeSiteThemeKey,
@@ -459,6 +487,7 @@ export const AccountProfileService = {
         ...(profileImageUrl !== undefined ? { profileImageUrl } : {}),
         ...(profileBannerUrl !== undefined ? { profileBannerUrl } : {}),
         ...(profileEffect !== undefined ? { profileEffect } : {}),
+        ...(surface !== undefined ? { profileSurface: surface } : {}),
         activeProfileFrameKey,
         activeAvatarFrameKey,
         activeSiteThemeKey,

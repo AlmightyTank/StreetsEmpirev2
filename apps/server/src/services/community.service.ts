@@ -15,10 +15,11 @@ import type {
   PublicSeasonStatsDto,
   ProfileAccent,
   ProfileEffect,
+  ProfileSurface,
   RankingEntryDto,
   RankingsDto,
 } from '@streets/shared';
-import { playerExperienceDto } from '@streets/shared';
+import { playerExperienceDto, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { env } from '../config/env.js';
 import { toCityDto, toSeasonHideoutDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
@@ -566,6 +567,10 @@ function jsonStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
+function profileSurfaceKey(value: string | null | undefined): ProfileSurface {
+  return value === 'carbon' || value === 'engine-turned' ? value : 'brushed';
+}
+
 function profileAccent(value: string | null | undefined): ProfileAccent {
   return [
     'default',
@@ -1050,7 +1055,7 @@ export const CommunityService = {
     const profileEffect = profileSettings?.profileEffect;
     const publicProfileEffects = new Set<string>([
       'snowstorm', 'inferno', 'chrome-serpent', 'phantom-convoy', 'lantern-district', 'siren-breaker',
-      'block-sovereign', 'gilded-house', 'dead-or-alive', 'laurel-ascendant',
+      'block-sovereign', 'gilded-house', 'dead-or-alive', 'laurel-ascendant', 'midnight-chrome',
     ]);
 
     return {
@@ -1070,6 +1075,8 @@ export const CommunityService = {
         bannerUrl: profileSettings?.profileBannerUrl ?? null,
         siteTheme: showcase.siteTheme,
         siteThemeLabel: showcase.siteThemeLabel,
+        // The surface belongs to the Signature card, so it is public only while the card is equipped.
+        surface: frame === SIGNATURE_CARD_FRAME_KEY ? profileSurfaceKey(profileSettings?.profileSurface) : null,
       },
       look: showcase.look,
       experience: playerExperienceDto(player.account.experiencePoints),

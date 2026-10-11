@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Renders the authored cosmetic SVG masters in apps/web/art/cosmetics/ to the
- * runtime WebP files in apps/web/public/items/cosmetics/.
+ * runtime WebP files in apps/web/public/items/cosmetics/, and the profile-frame
+ * masters in apps/web/art/profile-frames/ to apps/web/public/profile-frames/.
  *
  * Masters are drawn on the same 128×128 / 256×128 grid as the Classic item art
  * so orientation and scale match; this script rasterises them at 4× to the
@@ -11,6 +12,7 @@
  *
  *   node scripts/art/render-cosmetic-art.mjs            # render every master
  *   node scripts/art/render-cosmetic-art.mjs ak47 rides # only matching names
+ *   node scripts/art/render-cosmetic-art.mjs profile-frames
  *
  * Uses CHROMIUM_PATH when set, otherwise the installed Chrome or Edge.
  * Needs Python 3 with Pillow (`pip install pillow`); PYTHON overrides the
@@ -27,6 +29,9 @@ import { chromium } from 'playwright-core';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const sourceDir = path.join(root, 'apps/web/art/cosmetics');
 const outputDir = path.join(root, 'apps/web/public/items/cosmetics');
+// Profile frames (avatar rings, card plates, surfaces) sit flat in their own folder.
+const frameSourceDir = path.join(root, 'apps/web/art/profile-frames');
+const frameOutputDir = path.join(root, 'apps/web/public/profile-frames');
 const SCALE = 4;
 const filters = process.argv.slice(2);
 
@@ -50,13 +55,21 @@ function viewBoxSize(svg, file) {
 }
 
 const jobs = [];
+function addJob(rel, src, out) {
+  if (filters.length && !filters.some((f) => rel.includes(f))) return;
+  jobs.push({ rel, src, out });
+}
 for (const group of await readdir(sourceDir, { withFileTypes: true })) {
   if (!group.isDirectory()) continue;
   for (const name of await readdir(path.join(sourceDir, group.name))) {
     if (!name.endsWith('.svg')) continue;
-    const rel = `${group.name}/${name}`;
-    if (filters.length && !filters.some((f) => rel.includes(f))) continue;
-    jobs.push(rel);
+    addJob(`${group.name}/${name}`, path.join(sourceDir, group.name, name), path.join(outputDir, group.name, name.replace(/\.svg$/, '.webp')));
+  }
+}
+if (existsSync(frameSourceDir)) {
+  for (const name of await readdir(frameSourceDir)) {
+    if (!name.endsWith('.svg')) continue;
+    addJob(`profile-frames/${name}`, path.join(frameSourceDir, name), path.join(frameOutputDir, name.replace(/\.svg$/, '.webp')));
   }
 }
 if (!jobs.length) {
@@ -78,8 +91,8 @@ const browser = await launch();
 const page = await browser.newPage();
 await page.setContent('<!doctype html><html><body></body></html>');
 
-for (const rel of jobs.sort()) {
-  const svg = await readFile(path.join(sourceDir, rel), 'utf8');
+for (const { rel, src, out } of jobs.sort((a, b) => a.rel.localeCompare(b.rel))) {
+  const svg = await readFile(src, 'utf8');
   const [vw, vh] = viewBoxSize(svg, rel);
   const width = vw * SCALE;
   const height = vh * SCALE;
@@ -98,7 +111,6 @@ for (const rel of jobs.sort()) {
   }, { markup: sized, w: width, h: height });
   const png = path.join(scratch, rel.replaceAll('/', '_').replace(/\.svg$/, '.png'));
   await writeFile(png, Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64'));
-  const out = path.join(outputDir, rel.replace(/\.svg$/, '.webp'));
   await mkdir(path.dirname(out), { recursive: true });
   encodeWebp(png, out);
   const bytes = await readFile(out);

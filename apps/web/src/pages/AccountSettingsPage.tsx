@@ -7,12 +7,14 @@ import type {
   MoneyFormat,
   ProfileAccent,
   ProfileEffect,
+  ProfileSurface,
   UiDensity,
 } from '@streets/shared';
-import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts } from '@streets/shared';
+import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
+import { NameWithSupporterMark } from '../components/SupporterMark.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { CloseAccountPanel } from '../components/CloseAccountPanel.js';
@@ -338,6 +340,11 @@ export function AccountSettingsPage() {
   const selectedFrame = profileSettings?.options.frames.find((option) => option.key === cosmetics.activeProfileFrameKey);
   const selectedAvatarFrame = profileSettings?.options.frames.find((option) => option.key === cosmetics.activeAvatarFrameKey);
   const profileEffectFrameArt = PROFILE_EFFECT_FRAME_ART[cosmetics.profileEffect];
+  // Signature Profile Card (supporter reward): on while its frame is the popup frame.
+  const signature = cosmetics.activeProfileFrameKey === SIGNATURE_CARD_FRAME_KEY;
+  const chromeRing = cosmetics.activeAvatarFrameKey === SIGNATURE_CARD_FRAME_KEY;
+  const surfaceOptions = profileSettings?.options.surfaces ?? [];
+  const selectedSurface = surfaceOptions.find((option) => option.key === (cosmetics.profileSurface ?? 'brushed'));
   const displayName = me?.displayName ?? account.username;
   const previewCity = me?.city.name ?? 'Your city';
   const previewRank = me ? `#${me.publicPimpId.toLocaleString()}` : 'Preview';
@@ -722,6 +729,28 @@ export function AccountSettingsPage() {
                     : <p className="se-hint">Choose a separate frame for the avatar, using frames you have already earned.</p>}
                 </div>
 
+                {surfaceOptions.length ? (
+                  <div className="se-field">
+                    <label className="se-label" htmlFor="profile-surface">Card surface</label>
+                    <select
+                      id="profile-surface"
+                      className="se-input"
+                      value={cosmetics.profileSurface ?? 'brushed'}
+                      onChange={(event) => setCosmetics((current) => ({
+                        ...current,
+                        profileSurface: event.target.value as ProfileSurface,
+                      }))}
+                    >
+                      {surfaceOptions.map((option) => (
+                        <option value={option.key} key={option.key}>{option.label}</option>
+                      ))}
+                    </select>
+                    {fields.profileSurface
+                      ? <p className="se-error" role="alert">{fields.profileSurface}</p>
+                      : <p className="se-hint">The finish behind your Signature Profile Card. It shows while the Midnight Chrome Signature Card is your profile frame.</p>}
+                  </div>
+                ) : null}
+
                 <div className="se-field">
                   <label className="se-label" htmlFor="profile-effect">Popup animation</label>
                   <select
@@ -766,11 +795,12 @@ export function AccountSettingsPage() {
 
               <div className="se-account-cosmetics__side">
                 <div
-                  className={`se-profile-card-preview se-profile-accent se-profile-accent--${cosmetics.profileAccent}${cosmetics.activeProfileFrameKey ? ` se-profile-frame se-profile-frame--${cosmetics.activeProfileFrameKey}` : ''} se-profile-effect se-profile-effect--${cosmetics.profileEffect}`}
+                  className={`se-profile-card-preview se-profile-accent se-profile-accent--${cosmetics.profileAccent}${cosmetics.activeProfileFrameKey ? ` se-profile-frame se-profile-frame--${cosmetics.activeProfileFrameKey}` : ''} se-profile-effect se-profile-effect--${cosmetics.profileEffect}${signature ? ' se-signature-card' : ''}`}
                   data-avatar-frame={cosmetics.activeAvatarFrameKey ?? 'none'}
+                  data-surface={signature ? cosmetics.profileSurface ?? 'brushed' : undefined}
                   data-popup-frame={cosmetics.activeProfileFrameKey ?? 'none'}
                 >
-                  {profileEffectFrameArt ? <img className="se-profile-card-preview__frame-art" src={profileEffectFrameArt.popup} alt="" aria-hidden="true" /> : null}
+                  {profileEffectFrameArt && !signature ? <img className="se-profile-card-preview__frame-art" src={profileEffectFrameArt.popup} alt="" aria-hidden="true" /> : null}
                   <div
                     className="se-profile-card-preview__banner"
                     style={cosmetics.profileBannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 8, 0.52), rgba(5, 8, 8, 0.86)), url("${cosmetics.profileBannerUrl}")` } : undefined}
@@ -781,11 +811,15 @@ export function AccountSettingsPage() {
                     <span className="se-profile-card-preview__avatar" aria-hidden="true" title={selectedAvatarFrame?.label}>
                       {cosmetics.profileImageUrl ? <img src={cosmetics.profileImageUrl} alt="" /> : initials(displayName)}
                     </span>
-                    {profileEffectFrameArt ? <img className="se-profile-card-preview__avatar-art" src={profileEffectFrameArt.avatar} alt="" aria-hidden="true" /> : null}
+                    {chromeRing
+                      ? <img className="se-profile-card-preview__avatar-art se-profile-card-preview__avatar-art--midnight-chrome" src="/profile-frames/midnight-chrome-avatar.webp" alt="" aria-hidden="true" />
+                      : profileEffectFrameArt ? <img className="se-profile-card-preview__avatar-art" src={profileEffectFrameArt.avatar} alt="" aria-hidden="true" /> : null}
                     <div>
                       <strong className="se-profile-card-preview__name">
-                        {profileNameParts(displayName, selectedTitle?.label).map((part, index) => (
-                          <span className={`se-profile-card-preview__namepart se-profile-card-preview__namepart--${part.kind}`} key={index}>{part.text}</span>
+                        {profileNameParts(displayName, selectedTitle?.label).map((part, index, parts) => (
+                          <span className={`se-profile-card-preview__namepart se-profile-card-preview__namepart--${part.kind}`} key={index}>
+                            {signature && index === parts.length - 1 ? <NameWithSupporterMark text={part.text} /> : part.text}
+                          </span>
                         ))}
                       </strong>
                       <small>Player {previewRank}</small>
@@ -795,7 +829,8 @@ export function AccountSettingsPage() {
                   <p>{previewCity}{round ? ` · ${round.name}` : ''}</p>
                   <div className="se-profile-card-preview__chips">
                     <span>{selectedAccent?.label ?? 'StreetsEmpire'} accent</span>
-                    {selectedFrame ? <span>{selectedFrame.label} popup frame</span> : null}
+                    {selectedFrame ? <span>{signature ? selectedFrame.label : `${selectedFrame.label} popup frame`}</span> : null}
+                    {signature && selectedSurface ? <span>{selectedSurface.label} surface</span> : null}
                     {selectedAvatarFrame ? <span>{selectedAvatarFrame.label} avatar frame</span> : null}
                     {cosmetics.profileEffect !== 'none' ? <span>{profileSettings.options.effects.find((option) => option.key === cosmetics.profileEffect)?.label ?? 'Frame animation'}</span> : null}
                   </div>

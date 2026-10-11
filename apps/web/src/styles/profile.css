@@ -1033,3 +1033,53 @@
 .se-profile .se-badge--group strong {
   color: var(--se-badge-color, var(--se-text-dim));
 }
+
+/* Signature Profile Card on the profile header. Tokens, the supporter mark and the
+   glint live in profile-hover.css; this is the header layout. The plate is a 9-slice
+   border image, so it fits any width; the rail stays within 8px of the edge. */
+.se-profile-pagehead.se-signature-card {
+  border: 1px solid transparent;
+  border-radius: 9px;
+  border-image: url("/profile-frames/midnight-chrome-plate.webp") 96 / 24px stretch;
+  padding: 18px 20px;
+  background:
+    linear-gradient(90deg, rgba(10, 11, 13, .9), rgba(10, 11, 13, .5) 55%, rgba(10, 11, 13, .82)),
+    var(--sig-surface) 0 0 / 256px 256px,
+    var(--sig-plate);
+}
+/* An uploaded banner still shows, inset inside the rail. */
+.se-profile-pagehead.se-signature-card .se-profile-pagehead__banner { display: none; }
+.se-profile-pagehead.se-signature-card .se-profile-pagehead__banner--uploaded { display: block; inset: 8px; border-radius: 4px; }
+.se-signature-card .se-profile-name__part--title {
+  color: var(--sig-chrome);
+  font-size: .62em;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  vertical-align: .18em;
+}
+.se-signature-card .se-profile-nameplate-rule {
+  display: block;
+  width: min(320px, 100%);
+  height: 1px;
+  margin: 8px 0 2px;
+  background: linear-gradient(90deg, var(--sig-crimson) 0 18px, transparent 18px 22px, var(--sig-chrome) 22px, rgba(195, 202, 211, 0) 100%);
+}
+.se-signature-card .se-profile-pagehead__avatar {
+  border-color: var(--sig-plate);
+  color: #0e1013;
+  background: linear-gradient(145deg, var(--sig-chrome-hi), var(--sig-chrome-lo));
+}
+
+/* Midnight Chrome avatar ring: the art is the avatar grown 16% each way, so the
+   ring's inner edge meets the avatar at 88px and at the 64px phone size. */
+.se-profile-pagehead__avatar--midnight-chrome-frame { border-color: #14161a; box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+.se-profile-pagehead__avatar--midnight-chrome-frame::before { display: none; }
+.se-profile-pagehead__avatar--midnight-chrome-frame::after {
+  inset: -16%;
+  border: 0;
+  border-radius: 0;
+  opacity: 1;
+  background: url("/profile-frames/midnight-chrome-avatar.webp") center / contain no-repeat;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
+}

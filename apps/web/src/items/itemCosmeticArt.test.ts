@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  COLLECTION_COVERAGE,
   CREW_COSMETIC_KEYS,
   CUSTOMIZABLE_ITEM_KEYS,
   ITEM_COSMETIC_GROUPS,
@@ -21,14 +22,22 @@ import {
   SLICE_C_ART_FILES,
   VEHICLE_ART_FILES,
 } from './itemCosmeticArt.js';
-import { STREET_PASS_S1, STREET_PASS_S1_COSMETICS } from '@streets/rulesets';
+import { STREET_PASS_S1, STREET_PASS_S1_COSMETICS, SUPPORTER_COSMETICS } from '@streets/rulesets';
 import { ITEM_ART } from './itemArt.js';
 
 const ITEMS_DIR = path.resolve(import.meta.dirname, '../../public/items');
 const MASTERS_DIR = path.resolve(import.meta.dirname, '../../art/cosmetics');
-const AUTHORED_STYLES = ['midnight-ops', 'urban-ghost', 'cartel-gold'] as const;
+const AUTHORED_STYLES = ['midnight-ops', 'urban-ghost', 'cartel-gold', 'midnight-chrome'] as const;
 /** Items (Slices A and B) and crew (Slice C). */
 const AUTHORED_KEYS = [...CUSTOMIZABLE_ITEM_KEYS, ...CREW_COSMETIC_KEYS] as const;
+type AuthoredKey = typeof AUTHORED_KEYS[number];
+/** The authored collections for one key: every collection, less those whose coverage leaves it out. */
+function stylesFor(key: AuthoredKey): ItemCosmeticStyleKey[] {
+  return AUTHORED_STYLES.filter((style) => COLLECTION_COVERAGE[style]?.includes(key) ?? true);
+}
+function fileFor(key: AuthoredKey, style: ItemCosmeticStyleKey): string {
+  return (AUTHORED_ITEM_ART_FILES[key] as Partial<Record<ItemCosmeticStyleKey, string>>)[style]!;
+}
 
 /** Width, height and alpha flag from a lossless (VP8L) WebP header. */
 function readLosslessWebp(file: string) {
@@ -52,15 +61,19 @@ describe('item cosmetic art resolver', () => {
     }
   });
 
-  it('locks three authored files per item and crew type, split by slice', () => {
+  it('locks one authored file per covered collection for each item and crew type, split by slice', () => {
     expect(Object.keys(SLICE_A_ART_FILES)).toEqual([...WEAPON_RIDE_COSMETIC_KEYS]);
     expect(Object.keys(SLICE_B_ART_FILES)).toEqual([...PRODUCT_SUPPLY_COSMETIC_KEYS]);
     expect(Object.keys(SLICE_C_ART_FILES)).toEqual([...CREW_COSMETIC_KEYS]);
     // 1.5.0-F: the Sedan and Van.
     expect(Object.keys(VEHICLE_ART_FILES)).toEqual([...VEHICLE_COSMETIC_KEYS]);
     for (const key of AUTHORED_KEYS) {
-      expect(Object.keys(AUTHORED_ITEM_ART_FILES[key])).toEqual([...AUTHORED_STYLES]);
+      expect(Object.keys(AUTHORED_ITEM_ART_FILES[key])).toEqual(stylesFor(key));
     }
+    // Midnight Chrome is drawn for crew and rides only.
+    expect(stylesFor('AK47')).not.toContain('midnight-chrome');
+    expect(stylesFor('VAN')).toContain('midnight-chrome');
+    expect(stylesFor('HOE')).toContain('midnight-chrome');
   });
 
   it('shows every customizable item in exactly one locker section', () => {
@@ -73,9 +86,9 @@ describe('item cosmetic art resolver', () => {
 
   it('resolves every released style to its own explicit asset', () => {
     for (const key of AUTHORED_KEYS) {
-      for (const style of AUTHORED_STYLES) {
-        expect(itemCosmeticArtFile(key, style)).toBe(AUTHORED_ITEM_ART_FILES[key][style]);
-        expect(itemCosmeticArtUrl(key, style)).toBe(`/items/${AUTHORED_ITEM_ART_FILES[key][style]}`);
+      for (const style of stylesFor(key)) {
+        expect(itemCosmeticArtFile(key, style)).toBe(fileFor(key, style));
+        expect(itemCosmeticArtUrl(key, style)).toBe(`/items/${fileFor(key, style)}`);
       }
     }
   });
@@ -88,8 +101,8 @@ describe('item cosmetic art resolver', () => {
 
   it('ships every authored file as a lossless WebP with alpha on a 512px-per-cell canvas', () => {
     for (const key of AUTHORED_KEYS) {
-      for (const style of AUTHORED_STYLES) {
-        const file = path.join(ITEMS_DIR, AUTHORED_ITEM_ART_FILES[key][style]);
+      for (const style of stylesFor(key)) {
+        const file = path.join(ITEMS_DIR, fileFor(key, style));
         expect(existsSync(file), file).toBe(true);
         const header = readLosslessWebp(file);
         expect(header, file).toEqual({
@@ -102,7 +115,7 @@ describe('item cosmetic art resolver', () => {
   });
 
   it('keeps a source master for every authored file and no orphan renders', () => {
-    const expected = AUTHORED_KEYS.flatMap((key) => AUTHORED_STYLES.map((style) => AUTHORED_ITEM_ART_FILES[key][style]))
+    const expected = AUTHORED_KEYS.flatMap((key) => stylesFor(key).map((style) => fileFor(key, style)))
       .map((file) => file.replace(/^cosmetics\//, ''))
       .sort();
     const list = (dir: string, ext: string) => readdirSync(dir, { withFileTypes: true })
@@ -116,14 +129,18 @@ describe('item cosmetic art resolver', () => {
     expect(list(path.join(ITEMS_DIR, 'cosmetics'), '.webp')).toEqual(expected);
   });
 
-  it('makes every non-classic collection earnable on the Season 1 Street Pass', () => {
+  it('makes every non-classic collection earnable on the Season 1 Street Pass or as a supporter reward', () => {
     const paid = STREET_PASS_S1.tiers.flatMap((tier) => tier.rewards)
       .filter((reward) => reward.kind === 'COSMETIC_UNLOCK')
       .map((reward) => STREET_PASS_S1_COSMETICS[reward.key as keyof typeof STREET_PASS_S1_COSMETICS])
       .filter((cosmetic) => cosmetic.kind === 'ITEM_COLLECTION')
       .map((cosmetic) => ('styleKey' in cosmetic ? cosmetic.styleKey : null));
+    const supporter = Object.values(SUPPORTER_COSMETICS)
+      .filter((cosmetic) => cosmetic.kind === 'ITEM_COLLECTION')
+      .map((cosmetic) => cosmetic.styleKey);
 
-    expect([...paid].sort()).toEqual([...AUTHORED_STYLES].sort());
-    for (const key of paid) expect(ITEM_COSMETIC_STYLE_KEYS).toContain(key);
+    expect([...paid, ...supporter].sort()).toEqual([...AUTHORED_STYLES].sort());
+    for (const key of [...paid, ...supporter]) expect(ITEM_COSMETIC_STYLE_KEYS).toContain(key);
+    expect(paid).not.toContain('midnight-chrome');
   });
 });

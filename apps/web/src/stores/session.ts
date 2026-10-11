@@ -34,6 +34,7 @@ export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   profileEffect: 'none',
   activeProfileFrameKey: null,
   activeAvatarFrameKey: null,
+  profileSurface: null,
   activeSiteThemeKey: null,
   itemCosmetics: {},
   crewCosmetics: { THUG: 'classic', HOE: 'classic' },

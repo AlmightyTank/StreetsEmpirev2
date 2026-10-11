@@ -76,7 +76,8 @@ type CosmeticPreviewKind = 'theme' | 'frame' | 'badge' | 'title' | 'item';
 
 const COSMETIC_PREVIEW_ITEMS = ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN'] as const;
 type CosmeticPreviewItemKey = typeof COSMETIC_PREVIEW_ITEMS[number];
-type CosmeticCollectionStyleKey = Exclude<ItemCosmeticStyleKey, 'classic'>;
+/** Collections the Street Pass pays out; Midnight Chrome is a supporter reward, not a pass reward. */
+type CosmeticCollectionStyleKey = Exclude<ItemCosmeticStyleKey, 'classic' | 'midnight-chrome'>;
 
 function cosmeticCollectionStyle(key: string): CosmeticCollectionStyleKey | null {
   if (key === 'street-pass-s1-urban-ghost') return 'urban-ghost';

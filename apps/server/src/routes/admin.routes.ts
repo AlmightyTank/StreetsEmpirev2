@@ -789,6 +789,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminAccountService.setBetaApproved(fastify.prisma, request.auth!.account, accountId, body.approved, body.reason);
   });
 
+  fastify.post('/accounts/:accountId/supporter', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.grantSupporter(fastify.prisma, request.auth!.account, accountId, body.reason);
+  });
+
   fastify.post('/accounts/:accountId/email/resend', async (request) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(reasonBody, request.body ?? {});

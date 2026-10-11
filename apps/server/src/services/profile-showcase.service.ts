@@ -1,5 +1,6 @@
 import type { AccountProfile, PrismaClient } from '@prisma/client';
 import {
+  collectionCovers,
   CUSTOMIZABLE_ITEM_KEYS,
   DEFAULT_CREW_COSMETICS,
   isOwnedCollection,
@@ -29,7 +30,7 @@ export function itemCosmeticLoadout(value: unknown, owned: ReadonlySet<string>):
   const loadout: ItemCosmeticLoadout = {};
   for (const key of CUSTOMIZABLE_ITEM_KEYS) {
     const style = raw[key];
-    if (style && isReleasedItemCosmeticStyle(style) && isOwnedCollection(style, owned)) loadout[key] = style;
+    if (style && isReleasedItemCosmeticStyle(style) && isOwnedCollection(style, owned) && collectionCovers(style, key)) loadout[key] = style;
   }
   return loadout;
 }
@@ -38,7 +39,7 @@ export function crewCosmeticLoadout(value: unknown, owned: ReadonlySet<string>):
   const raw = stringRecord(value);
   const style = (key: keyof CrewCosmeticLoadout): CrewCosmeticStyleKey => {
     const candidate = raw[key];
-    return candidate && isReleasedItemCosmeticStyle(candidate) && isOwnedCollection(candidate, owned)
+    return candidate && isReleasedItemCosmeticStyle(candidate) && isOwnedCollection(candidate, owned) && collectionCovers(candidate, key)
       ? candidate
       : DEFAULT_CREW_COSMETICS[key];
   };

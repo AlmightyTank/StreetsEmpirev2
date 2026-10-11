@@ -5,7 +5,7 @@ import type {
   CustomizableItemKey,
   ItemCosmeticStyleKey,
 } from '@streets/shared';
-import { CREW_COSMETIC_KEYS, DEFAULT_CREW_COSMETICS, ITEM_COSMETIC_GROUPS } from '@streets/shared';
+import { collectionCovers, CREW_COSMETIC_KEYS, DEFAULT_CREW_COSMETICS, ITEM_COSMETIC_GROUPS } from '@streets/shared';
 import { ITEM_ART } from '../items/itemArt.js';
 import { ItemTile } from './ItemTile.js';
 
@@ -109,7 +109,7 @@ export function ItemCrewCosmeticsEditor({
                   <StylePicker
                     id={`item-cosmetic-${key.toLowerCase()}`}
                     value={style}
-                    styles={styles}
+                    styles={styles.filter((option) => collectionCovers(option.key, key))}
                     onChange={(next) => setItemStyle(key, next)}
                   />
                 </div>
@@ -133,7 +133,7 @@ export function ItemCrewCosmeticsEditor({
                 <StylePicker
                   id={`crew-cosmetic-${key.toLowerCase()}`}
                   value={style}
-                  styles={crewStyles}
+                  styles={crewStyles.filter((option) => collectionCovers(option.key, key))}
                   onChange={(next) => setCrewStyle(key, next)}
                 />
               </div>

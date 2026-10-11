@@ -7,7 +7,7 @@ import type {
   PublicSeasonResultDto,
   PublicStatSheetDto,
 } from '@streets/shared';
-import { formatCents, formatNumber, profileNameParts } from '@streets/shared';
+import { formatCents, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
@@ -16,6 +16,7 @@ import { ContactButton } from '../components/ContactButton.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { ProfileBadgeArt } from '../components/ProfileBadgeArt.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
+import { NameWithSupporterMark } from '../components/SupporterMark.js';
 import { hasProfileLook, ProfileLook } from '../components/ProfileLook.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -455,6 +456,8 @@ export function ProfilePage() {
   const avatarFrame = player?.cosmetics.avatarFrame === undefined
     ? player?.cosmetics.frame ?? null
     : player.cosmetics.avatarFrame ?? null;
+  // The Signature Profile Card (a supporter reward) is on while its frame is equipped; the mark comes with it.
+  const signature = player?.cosmetics.frame === SIGNATURE_CARD_FRAME_KEY;
   const ownerTheme = player && !isYou ? player.cosmetics.siteTheme ?? null : null;
   const shownTheme = useMyTheme ? null : ownerTheme;
 
@@ -532,12 +535,13 @@ export function ProfilePage() {
           </div>
         ) : null}
         <div
-          className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player?.cosmetics.frame ? ` se-profile-frame se-profile-frame--${player.cosmetics.frame}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}`}
+          className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player?.cosmetics.frame ? ` se-profile-frame se-profile-frame--${player.cosmetics.frame}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}${signature ? ' se-signature-card' : ''}`}
           data-avatar-frame={avatarFrame ?? 'none'}
+          data-surface={signature ? player?.cosmetics.surface ?? 'brushed' : undefined}
         >
           {player ? (
             <div
-              className="se-profile-pagehead__banner"
+              className={`se-profile-pagehead__banner${player.cosmetics.bannerUrl ? ' se-profile-pagehead__banner--uploaded' : ''}`}
               aria-hidden="true"
               style={player.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 12, 0.9), rgba(5, 8, 12, 0.58) 48%, rgba(5, 8, 12, 0.78)), url("${player.cosmetics.bannerUrl}")` } : undefined}
             />
@@ -552,12 +556,15 @@ export function ProfilePage() {
               <h1 className="se-title">
                 {player ? <AllianceTag alliance={player.alliance} /> : null}
                 {player
-                  ? <><span className="se-profile-name">{profileNameParts(player.displayName, player.cosmetics.title).map((part, index) => (
-                    <span className={`se-profile-name__part se-profile-name__part--${part.kind}`} key={index}>{part.text}</span>
+                  ? <><span className="se-profile-name">{profileNameParts(player.displayName, player.cosmetics.title).map((part, index, parts) => (
+                    <span className={`se-profile-name__part se-profile-name__part--${part.kind}`} key={index}>
+                      {signature && index === parts.length - 1 ? <NameWithSupporterMark text={part.text} /> : part.text}
+                    </span>
                   ))}</span>{' '}</>
                   : account?.username ?? 'Profile'}
                 {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
               </h1>
+              {signature ? <span className="se-profile-nameplate-rule" aria-hidden="true" /> : null}
               {player?.crewName ? <p className="se-profile-crew">Crew · <strong>{player.crewName}</strong></p> : null}
               {player?.factionAlignment?.length ? (
                 <p className="se-profile-alignment" aria-label="Faction alignment">

@@ -209,7 +209,12 @@ export type ProfileEffect =
   | 'dead-or-alive'
   | 'laurel-ascendant'
   | 'snowstorm'
-  | 'inferno';
+  | 'inferno'
+  | 'midnight-chrome';
+/** Surface finish for the Midnight Chrome Signature Profile Card. */
+export type ProfileSurface = 'brushed' | 'carbon' | 'engine-turned';
+/** The popup frame key that turns on the Signature Profile Card. */
+export const SIGNATURE_CARD_FRAME_KEY = 'midnight-chrome-frame';
 
 export interface CosmeticOptionDto {
   key: string;
@@ -244,6 +249,8 @@ export interface AccountProfileSettingsDto {
   activeProfileFrameKey: string | null;
   /** Independently equipped avatar frame. Optional for older clients. */
   activeAvatarFrameKey?: string | null;
+  /** Signature Profile Card surface. Null until chosen (Brushed is shown). Optional for older clients. */
+  profileSurface?: ProfileSurface | null;
   activeSiteThemeKey: string | null;
   /** Player-selected skin per item. Optional for backward-compatible clients. */
   itemCosmetics?: ItemCosmeticLoadout;
@@ -270,6 +277,8 @@ export interface AccountProfileSettingsResponseDto {
     frames: CosmeticOptionDto[];
     themes: CosmeticOptionDto[];
     effects: CosmeticOptionDto[];
+    /** Signature Profile Card surfaces, offered once the card is owned. Optional for older servers. */
+    surfaces?: CosmeticOptionDto[];
     /** Universal item/crew skins, locked ones included. Optional so older fixture payloads stay valid. */
     itemStyles?: CollectionOptionDto[];
     crewStyles?: CollectionOptionDto[];

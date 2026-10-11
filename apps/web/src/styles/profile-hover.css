@@ -872,3 +872,165 @@
 }
 .se-profile-hover-card:is([data-avatar-frame="chrome-serpent-frame"], [data-avatar-frame="phantom-convoy-frame"], [data-avatar-frame="lantern-district-frame"], [data-avatar-frame="siren-breaker-frame"], [data-avatar-frame="block-sovereign-frame"], [data-avatar-frame="gilded-house-frame"], [data-avatar-frame="dead-or-alive-frame"], [data-avatar-frame="laurel-ascendant-frame"]) .se-profile-hover-card__avatar,
 .se-profile-card-preview:is([data-avatar-frame="chrome-serpent-frame"], [data-avatar-frame="phantom-convoy-frame"], [data-avatar-frame="lantern-district-frame"], [data-avatar-frame="siren-breaker-frame"], [data-avatar-frame="block-sovereign-frame"], [data-avatar-frame="gilded-house-frame"], [data-avatar-frame="dead-or-alive-frame"], [data-avatar-frame="laurel-ascendant-frame"]) .se-profile-card-preview__avatar { box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--se-theme-frame), 0 0 18px color-mix(in srgb, var(--se-theme-frame) 62%, transparent); }
+
+/* Signature Profile Card · Midnight Chrome (supporter reward).
+   Turned on by the midnight-chrome-frame popup frame; the avatar ring follows the
+   avatar-frame choice and the glint follows the effect choice, so each stays optional.
+   Every image is an authored asset in public/profile-frames/, rendered from
+   apps/web/art/profile-frames/ by scripts/art/render-cosmetic-art.mjs. */
+.se-signature-card {
+  --sig-chrome: #c3cad3;
+  --sig-chrome-hi: #f4f6f8;
+  --sig-chrome-lo: #6b737e;
+  --sig-crimson: #b3192b;
+  --sig-plate: #14161a;
+  --sig-surface: url("/profile-frames/midnight-chrome-surface-brushed.webp");
+}
+.se-signature-card[data-surface="carbon"] { --sig-surface: url("/profile-frames/midnight-chrome-surface-carbon.webp"); }
+.se-signature-card[data-surface="engine-turned"] { --sig-surface: url("/profile-frames/midnight-chrome-surface-engine-turned.webp"); }
+
+/* Supporter mark: an authored SVG sized to the nameplate text. */
+.se-supporter-nameend { white-space: nowrap; }
+.se-supporter-mark {
+  display: inline-block;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  margin-left: .3em;
+  vertical-align: -.12em;
+}
+
+/* Hover card. The plate is painted on the card's own border box, so it fits any
+   height and stays put while a long card scrolls; content keeps its 16px gutters. */
+.se-profile-hover-card.se-signature-card {
+  --se-hover-accent: var(--sig-chrome);
+  --se-hover-bg: var(--sig-plate);
+  --se-hover-panel: rgba(27, 30, 35, .86);
+  --se-hover-line: #2e333b;
+  --se-hover-text: #eef1f4;
+  --se-hover-muted: #9aa3ae;
+  border: 1px solid transparent;
+  border-image: url("/profile-frames/midnight-chrome-plate.webp") 96 / 24px stretch;
+  background:
+    linear-gradient(180deg, rgba(20, 22, 26, .78), rgba(14, 16, 19, .94) 38%),
+    var(--sig-surface) 0 0 / 256px 256px,
+    var(--sig-plate);
+  box-shadow: 0 18px 54px #000b;
+}
+/* The banner sits inside the rail like a window; an uploaded banner (inline style) still wins. */
+.se-signature-card .se-profile-hover-card__banner {
+  margin: 7px 7px 0;
+  border: 1px solid #2e333b;
+  border-radius: 5px 5px 0 0;
+  background:
+    linear-gradient(90deg, rgba(10, 11, 13, .12), rgba(10, 11, 13, .62)),
+    var(--sig-surface) 0 0 / 256px 256px;
+}
+.se-signature-card .se-profile-hover-card__banner::before,
+.se-signature-card .se-profile-hover-card__banner::after { background: rgba(14, 16, 19, .72); }
+.se-signature-card .se-profile-hover-card__banner > span { border-color: #3e444c; color: var(--sig-chrome); background: rgba(14, 16, 19, .8); }
+.se-signature-card .se-profile-hover-card__spark { display: none; }
+.se-signature-card .se-profile-hover-card__footer,
+.se-signature-card .se-profile-hover-card__dismiss { margin-inline: 7px; }
+.se-signature-card .se-profile-hover-card__avatar {
+  border-color: var(--sig-plate);
+  color: #0e1013;
+  background: linear-gradient(145deg, var(--sig-chrome-hi), var(--sig-chrome-lo));
+  box-shadow: none;
+  animation: none;
+}
+/* Nameplate: honorific in chrome small caps, name and supporter mark, then a chrome rule with a crimson tick. */
+.se-signature-card .se-profile-hover-card__title {
+  color: var(--sig-chrome);
+  font-size: 9px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  text-shadow: none;
+}
+.se-signature-card .se-profile-hover-card__identity-copy strong { display: flex; align-items: baseline; min-width: 0; }
+.se-signature-card .se-profile-hover-card__identity-copy strong > span { overflow: hidden; text-overflow: ellipsis; }
+.se-signature-card .se-profile-hover-card__identity-copy::after {
+  content: "";
+  height: 1px;
+  margin-top: 6px;
+  background: linear-gradient(90deg, var(--sig-crimson) 0 14px, transparent 14px 17px, var(--sig-chrome) 17px, rgba(195, 202, 211, 0) 100%);
+}
+.se-signature-card .se-profile-hover-card__stats > div { border: 1px solid #2a2e35; }
+.se-signature-card .se-profile-hover-card__xp-track { background: #262a30; }
+.se-signature-card .se-profile-hover-card__xp-track span { background: linear-gradient(90deg, var(--sig-chrome-lo), var(--sig-chrome-hi)); }
+.se-signature-card .se-alliance-tag { color: var(--sig-chrome); }
+.se-signature-card .se-profile-hover-card__view { border-color: #4a5058; background: rgba(195, 202, 211, .06); }
+/* Beat the generic equipped-frame rules, which add a 2px accent-coloured glow. */
+.se-profile-hover-card.se-signature-card[data-frame] { box-shadow: 0 18px 54px #000b; }
+
+/* Midnight Chrome avatar ring: the ring's inner edge sits on the avatar's edge. */
+.se-profile-hover-card__avatar-art--midnight-chrome,
+.se-profile-card-preview__avatar-art--midnight-chrome { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+.se-profile-hover-card[data-avatar-frame="midnight-chrome-frame"] .se-profile-hover-card__avatar { box-shadow: none; animation: none; }
+.se-profile-card-preview__avatar-art--midnight-chrome { top: 50%; left: -12px; width: 100px; height: 100px; transform: translateY(-50%); }
+.se-profile-card-preview[data-avatar-frame="midnight-chrome-frame"] .se-profile-card-preview__avatar { box-shadow: none; }
+
+/* Settings preview card, so a supporter sees the card they are choosing. */
+.se-profile-card-preview.se-signature-card {
+  border: 1px solid transparent;
+  border-image: url("/profile-frames/midnight-chrome-plate.webp") 96 / 24px stretch;
+  background:
+    linear-gradient(180deg, rgba(20, 22, 26, .78), rgba(14, 16, 19, .94) 38%),
+    var(--sig-surface) 0 0 / 256px 256px,
+    var(--sig-plate);
+}
+.se-profile-card-preview.se-signature-card::before { display: none; }
+.se-profile-card-preview.se-signature-card[data-popup-frame] { box-shadow: 0 18px 38px rgba(0, 0, 0, .24); }
+.se-signature-card .se-profile-card-preview__chips span { border-color: #3e444c; color: var(--sig-chrome); background: rgba(195, 202, 211, .06); }
+.se-signature-card .se-profile-card-preview__banner {
+  margin: -11px -11px 0;
+  border: 1px solid #2e333b;
+  border-radius: 5px 5px 0 0;
+  background:
+    linear-gradient(90deg, rgba(10, 11, 13, .12), rgba(10, 11, 13, .62)),
+    var(--sig-surface) 0 0 / 256px 256px;
+}
+.se-signature-card .se-profile-card-preview__banner span { border-color: #3e444c; color: var(--sig-chrome); }
+.se-signature-card .se-profile-card-preview__avatar {
+  border-color: var(--sig-plate);
+  color: #0e1013;
+  background: linear-gradient(145deg, var(--sig-chrome-hi), var(--sig-chrome-lo));
+}
+.se-signature-card .se-profile-card-preview__namepart--title {
+  color: var(--sig-chrome);
+  font-size: .5em;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+/* Optional effect: one slow glint across the Midnight Chrome ring, masked to the ring
+   artwork so it can never cross the name or stats. Off under reduced motion. */
+.se-profile-effect--midnight-chrome[data-avatar-frame="midnight-chrome-frame"] .se-profile-hover-card__identity::before,
+.se-profile-effect--midnight-chrome[data-avatar-frame="midnight-chrome-frame"] .se-profile-card-preview__identity::before,
+.se-profile-effect--midnight-chrome .se-profile-pagehead__avatar--midnight-chrome-frame::before {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  display: block;
+  border: 0;
+  border-radius: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, .9) 50%, transparent 58%) 0 0 / 300% 100% no-repeat;
+  -webkit-mask: url("/profile-frames/midnight-chrome-avatar.webp") center / contain no-repeat;
+  mask: url("/profile-frames/midnight-chrome-avatar.webp") center / contain no-repeat;
+  animation: se-chrome-glint 9s ease-in-out infinite;
+}
+.se-profile-effect--midnight-chrome[data-avatar-frame="midnight-chrome-frame"] .se-profile-hover-card__identity::before { top: -12px; left: 5px; width: 90px; height: 90px; }
+.se-profile-effect--midnight-chrome[data-avatar-frame="midnight-chrome-frame"] .se-profile-card-preview__identity::before { top: 50%; left: -12px; width: 100px; height: 100px; transform: translateY(-50%); }
+.se-profile-effect--midnight-chrome .se-profile-pagehead__avatar--midnight-chrome-frame::before { inset: -16%; }
+@keyframes se-chrome-glint {
+  0%, 74% { background-position: 120% 0; opacity: 0; }
+  76% { opacity: 1; }
+  90% { background-position: -20% 0; opacity: 1; }
+  92%, 100% { background-position: -20% 0; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .se-profile-effect--midnight-chrome .se-profile-hover-card__identity::before,
+  .se-profile-effect--midnight-chrome .se-profile-card-preview__identity::before,
+  .se-profile-effect--midnight-chrome .se-profile-pagehead__avatar--midnight-chrome-frame::before { animation: none; opacity: 0; }
+}

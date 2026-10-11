@@ -1,7 +1,7 @@
 import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
 import type { AllianceDetailDto, AllianceTagDto } from './alliance.js';
 import type { NoticeCategory, NotificationCategory } from '../notifications.js';
-import type { ActivityDto, CityDto, PlayerExperienceDto, ProfileAccent, ProfileEffect, RoundDto, SeasonHideoutDto } from './api.js';
+import type { ActivityDto, CityDto, PlayerExperienceDto, ProfileAccent, ProfileEffect, ProfileSurface, RoundDto, SeasonHideoutDto } from './api.js';
 
 export type PublicAchievementCategory =
   | 'rank'
@@ -264,6 +264,8 @@ export interface PublicPlayerProfileDto {
     siteTheme?: string | null;
     /** Display name for `siteTheme`, e.g. "Night Drive · Season 1". */
     siteThemeLabel?: string | null;
+    /** Signature Profile Card surface. Set only while the card frame is equipped. Optional for older servers. */
+    surface?: ProfileSurface | null;
   };
   /** Slice E. Null when the owner hides their look. Optional for older servers. */
   look?: ProfileLookDto | null;

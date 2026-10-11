@@ -26,6 +26,7 @@ import { AdminAuditService, toAuditEntryDto, type AuditActor } from './admin-aud
 import { sendCurrentEmailVerification, sendTwoFactorNotice } from './email.service.js';
 import { TwoFactorService } from './two-factor.service.js';
 import { deletedAccountIdentity, eraseAccount } from './account-data.service.js';
+import { SupporterService } from './supporter.service.js';
 
 export { deletedAccountIdentity };
 
@@ -279,7 +280,7 @@ export const AdminAccountService = {
     });
     if (!account) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
 
-    const [audit, notes, openAgainst, totalAgainst] = await Promise.all([
+    const [audit, notes, openAgainst, totalAgainst, supporterSince] = await Promise.all([
       prisma.adminAuditLog.findMany({
         where: { targetType: 'account', targetId: account.id },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -292,6 +293,7 @@ export const AdminAccountService = {
       }),
       prisma.playerMessageReport.count({ where: { resolvedAt: null, message: { sender: { accountId: account.id } } } }),
       prisma.playerMessageReport.count({ where: { message: { sender: { accountId: account.id } } } }),
+      SupporterService.since(prisma, account.id),
     ]);
 
     return {
@@ -353,6 +355,7 @@ export const AdminAccountService = {
         createdAt: note.createdAt.toISOString(),
       })),
       reportsAgainst: { open: openAgainst, total: totalAgainst },
+      supporterSince: supporterSince?.toISOString() ?? null,
     };
   },
 
@@ -613,7 +616,7 @@ export const AdminAccountService = {
       if (profile) {
         await tx.accountProfile.update({
           where: { accountId: before.id },
-          data: { activeTitleKey: null, titlePlacement: 'prefix', crewName: null, profileBio: null, profileImageUrl: null, profileBannerUrl: null, profileEffect: 'none', activeProfileFrameKey: null, activeAvatarFrameKey: null, activeSiteThemeKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
+          data: { activeTitleKey: null, titlePlacement: 'prefix', crewName: null, profileBio: null, profileImageUrl: null, profileBannerUrl: null, profileEffect: 'none', profileSurface: null, activeProfileFrameKey: null, activeAvatarFrameKey: null, activeSiteThemeKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
         });
       }
       return {
@@ -656,6 +659,21 @@ export const AdminAccountService = {
       }
       const account = await tx.account.update({ where: { id: before.id }, data: { betaApproved: approved } });
       return { account };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /**
+   * Supporter rewards (the Midnight Chrome collection and Signature Profile
+   * Card). Permanent and cosmetic only; there is no revoke.
+   */
+  async grantSupporter(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'grant-supporter', reason, async (tx, before) => {
+      const granted = await SupporterService.grant(tx, before.id);
+      if (!granted.length) {
+        throw AppError.conflict('SUPPORTER_ALREADY_GRANTED', `${before.username} already has every supporter reward.`);
+      }
+      return { account: before, detail: { granted } };
     });
     return AdminAccountService.detail(prisma, accountId);
   },

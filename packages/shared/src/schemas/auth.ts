@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { isValidTimeZone, NOTIFICATION_CATEGORIES } from '../notifications.js';
-import { CUSTOMIZABLE_ITEM_KEYS, isReleasedItemCosmeticStyle } from '../cosmetics.js';
+import { collectionCovers, CUSTOMIZABLE_ITEM_KEYS, isReleasedItemCosmeticStyle } from '../cosmetics.js';
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
@@ -133,7 +133,11 @@ export const profileEffectSchema = z.enum([
   'laurel-ascendant',
   'snowstorm',
   'inferno',
+  'midnight-chrome',
 ]);
+
+/** Signature Profile Card surface finish (supporter card only). */
+export const profileSurfaceSchema = z.enum(['brushed', 'carbon', 'engine-turned']);
 
 export const profileBioSchema = z
   .string()
@@ -164,6 +168,7 @@ export const itemCosmeticStyleSchema = z.enum([
   'midnight-ops',
   'urban-ghost',
   'cartel-gold',
+  'midnight-chrome',
 ]);
 
 export const crewCosmeticStyleSchema = itemCosmeticStyleSchema.refine(
@@ -188,6 +193,12 @@ export const itemCosmeticLoadoutSchema = z
           path: [key],
           message: 'That cosmetic artwork has not been released yet.',
         });
+      } else if (!collectionCovers(style, key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: 'That collection has no artwork for this item.',
+        });
       }
     }
   })
@@ -196,7 +207,13 @@ export const itemCosmeticLoadoutSchema = z
 export const crewCosmeticLoadoutSchema = z.object({
   THUG: crewCosmeticStyleSchema.default('classic'),
   HOE: crewCosmeticStyleSchema.default('classic'),
-}).strict().default({ THUG: 'classic', HOE: 'classic' });
+}).strict().superRefine((value, ctx) => {
+  for (const [key, style] of Object.entries(value)) {
+    if (!collectionCovers(style, key)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: 'That collection has no outfit for this crew type.' });
+    }
+  }
+}).default({ THUG: 'classic', HOE: 'classic' });
 
 export const updateAccountProfileSettingsSchema = z.object({
   activeTitleKey: z.string().trim().min(1).max(80).nullable(),
@@ -209,6 +226,8 @@ export const updateAccountProfileSettingsSchema = z.object({
   profileEffect: profileEffectSchema.optional(),
   activeProfileFrameKey: z.string().trim().min(1).max(80).nullable(),
   activeAvatarFrameKey: z.string().trim().min(1).max(80).nullable().optional(),
+  /** Omitted keeps the current surface; the server ignores it unless the card is owned. */
+  profileSurface: profileSurfaceSchema.nullable().optional(),
   activeSiteThemeKey: z.string().trim().min(1).max(80).nullable().default(null),
   itemCosmetics: itemCosmeticLoadoutSchema,
   crewCosmetics: crewCosmeticLoadoutSchema,

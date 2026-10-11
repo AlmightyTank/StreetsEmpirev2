@@ -30,6 +30,7 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'revoke-admin': { label: 'Remove admin', copy: 'Removes admin panel access.' },
   'approve-beta': { label: 'Approve beta', copy: 'Allows this account to log in and play when the beta server is invite-only.' },
   'revoke-beta': { label: 'Revoke beta', copy: 'Removes this account from the invite-only beta. Existing sessions stop working on their next request.' },
+  'grant-supporter': { label: 'Grant supporter rewards', copy: 'Unlocks the Midnight Chrome collection and the Signature Profile Card for good. Cosmetic only, and there is no revoke.' },
   'resend-verification': { label: 'Resend verification email', copy: 'Sends a fresh verification link to their current email address.' },
   'mark-email-verified': { label: 'Mark email verified', copy: 'Marks their current email as verified without a link. Only do this once you have confirmed they own it.' },
   'reset-2fa': { label: 'Turn off two-step sign-in', copy: 'For a player who lost their phone and their recovery codes. Only once you are sure it is them. They are emailed, and can set it up again.' },
@@ -193,6 +194,7 @@ export function AdminAccountPage() {
         case 'revoke-admin': updated = await adminApi.setAdmin(accountId, false, why); break;
         case 'approve-beta': updated = await adminApi.setBetaApproved(accountId, true, why); break;
         case 'revoke-beta': updated = await adminApi.setBetaApproved(accountId, false, why); break;
+        case 'grant-supporter': updated = await adminApi.grantSupporter(accountId, why); break;
         case 'resend-verification': updated = await adminApi.resendVerification(accountId, why); break;
         case 'mark-email-verified': updated = await adminApi.markEmailVerified(accountId, why); break;
         case 'reset-2fa': updated = await adminApi.resetTwoFactor(accountId, why); break;
@@ -239,6 +241,7 @@ export function AdminAccountPage() {
     'reset-profile',
     ...(account.isAdmin ? ['revoke-admin' as const] : account.isActive ? ['grant-admin' as const] : []),
     account.betaApproved ? 'revoke-beta' : 'approve-beta',
+    ...(detail.supporterSince ? [] : ['grant-supporter' as const]),
   ];
   const linkActions: AdminAccountAction[] = [
     ...(!email.verifiedAt && email.sendingEnabled ? ['resend-verification' as const] : []),
@@ -403,6 +406,7 @@ export function AdminAccountPage() {
             <Row label="Profile title" value={detail.profile.activeTitleKey ?? '-'} />
             <Row label="Title position" value={detail.profile.titlePlacement} />
             <Row label="Profile frame" value={detail.profile.activeProfileFrameKey ?? '-'} />
+            <Row label="Supporter" value={detail.supporterSince ? `Since ${new Date(detail.supporterSince).toLocaleDateString()}` : '-'} />
             <Row label="Site theme" value={detail.profile.activeSiteThemeKey ?? '-'} />
             <Row label="Accent" value={detail.profile.profileAccent} />
             <Row label="Featured badges" value={formatNumber(detail.profile.featuredBadgeKeys.length)} />
