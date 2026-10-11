@@ -16,6 +16,13 @@ const localDateTime = (value: string | null): string => {
 
 const showDate = (value: string | null): string => value ? new Date(value).toLocaleString() : 'Not scheduled';
 
+function parseJsonField(value: string, label: string, array: boolean): unknown {
+  const parsed: unknown = JSON.parse(value);
+  const valid = array ? Array.isArray(parsed) : parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed);
+  if (!valid) throw new Error(`${label} must be valid JSON ${array ? 'array' : 'object'}.`);
+  return parsed;
+}
+
 export function AdminEventsPage() {
   const [report, setReport] = useState<AdminEventReleaseReportDto | null>(null);
   const [preview, setPreview] = useState<AdminEventPreviewDto | null>(null);
@@ -25,8 +32,9 @@ export function AdminEventsPage() {
   const [endsAt, setEndsAt] = useState('');
   const [reason, setReason] = useState('');
   const [draft, setDraft] = useState({ key: '', title: '', description: '', type: 'CITY_CONDITION', scope: 'CITY' });
+  const [draftJson, setDraftJson] = useState({ schedule: '{\n  "kind": "QA_DRAFT"\n}', objectives: '[]', rewards: '[]', config: '{}' });
   const [tuningDraftId, setTuningDraftId] = useState<string | null>(null);
-  const [tuneDraft, setTuneDraft] = useState({ title: '', description: '', reason: '' });
+  const [tuneDraft, setTuneDraft] = useState({ title: '', description: '', schedule: '{}', objectives: '[]', rewards: '[]', config: '{}', reason: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -87,15 +95,18 @@ export function AdminEventsPage() {
         description: draft.description,
         type: draft.type,
         scope: draft.scope,
-        schedule: { kind: 'QA_DRAFT' },
-        objectives: [], rewards: [], config: {},
+        schedule: parseJsonField(draftJson.schedule, 'Schedule', false) as Record<string, unknown>,
+        objectives: parseJsonField(draftJson.objectives, 'Objectives', true) as unknown[],
+        rewards: parseJsonField(draftJson.rewards, 'Rewards', true) as unknown[],
+        config: parseJsonField(draftJson.config, 'Config', false) as Record<string, unknown>,
       });
       setNotice('QA draft saved disabled. To put it in a live event catalog, add it to a new pinned ruleset.');
       setDraft({ key: '', title: '', description: '', type: 'CITY_CONDITION', scope: 'CITY' });
+      setDraftJson({ schedule: '{\n  "kind": "QA_DRAFT"\n}', objectives: '[]', rewards: '[]', config: '{}' });
       setReason('');
       await refresh();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not save that event draft.');
+      setError(caught instanceof Error ? caught.message : 'Could not save that event draft.');
     } finally {
       setBusy(false);
     }
@@ -108,13 +119,21 @@ export function AdminEventsPage() {
     setError(null);
     setNotice(null);
     try {
-      await adminApi.tuneEventDraft(tuningDraftId, tuneDraft);
+      await adminApi.tuneEventDraft(tuningDraftId, {
+        title: tuneDraft.title,
+        description: tuneDraft.description,
+        reason: tuneDraft.reason,
+        schedule: parseJsonField(tuneDraft.schedule, 'Schedule', false) as Record<string, unknown>,
+        objectives: parseJsonField(tuneDraft.objectives, 'Objectives', true) as unknown[],
+        rewards: parseJsonField(tuneDraft.rewards, 'Rewards', true) as unknown[],
+        config: parseJsonField(tuneDraft.config, 'Config', false) as Record<string, unknown>,
+      });
       setNotice('Disabled QA draft updated and recorded in the audit log.');
       setTuningDraftId(null);
-      setTuneDraft({ title: '', description: '', reason: '' });
+      setTuneDraft({ title: '', description: '', schedule: '{}', objectives: '[]', rewards: '[]', config: '{}', reason: '' });
       await refresh();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not update that event draft.');
+      setError(caught instanceof Error ? caught.message : 'Could not update that event draft.');
     } finally {
       setBusy(false);
     }
@@ -184,15 +203,17 @@ export function AdminEventsPage() {
               {['ROUND', 'PLAYER', 'CITY'].map((scope) => <option key={scope}>{scope}</option>)}
             </select></div>
             <div className="se-field se-admin-event-description"><label className="se-label" htmlFor="admin-event-draft-description">Description</label><textarea id="admin-event-draft-description" className="se-input se-admin-textarea" maxLength={2000} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></div>
+            {(['schedule', 'objectives', 'rewards', 'config'] as const).map((key) => <div className="se-field" key={key}><label className="se-label" htmlFor={`admin-event-json-${key}`}>{key[0]!.toUpperCase() + key.slice(1)} JSON</label><textarea id={`admin-event-json-${key}`} className="se-input se-admin-textarea" value={draftJson[key]} onChange={(event) => setDraftJson({ ...draftJson, [key]: event.target.value })} /></div>)}
             <Field label="Reason" id="admin-event-reason" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} />
             <Button className="se-btn se-btn--primary" disabled={busy || reason.trim().length < 5 || !draft.key.trim() || !draft.title.trim()}>Save disabled draft</Button>
           </form>
           {drafts.length ? <div className="se-tablewrap"><table className="se-table"><thead><tr><th>QA draft</th><th>State</th><th /></tr></thead><tbody>
-            {drafts.map((item) => <tr key={item.id}><td>{item.title}<small>{item.key}</small></td><td>{item.isEnabled ? 'Enabled' : 'Disabled'}</td><td><Button className="se-btn se-btn--secondary" onClick={() => { setTuningDraftId(item.id); setTuneDraft({ title: item.title, description: item.description, reason: '' }); }}>Tune</Button></td></tr>)}
+            {drafts.map((item) => <tr key={item.id}><td>{item.title}<small>{item.key}</small></td><td>{item.isEnabled ? 'Enabled' : 'Disabled'}</td><td><Button className="se-btn se-btn--secondary" onClick={() => { setTuningDraftId(item.id); setTuneDraft({ title: item.title, description: item.description, schedule: JSON.stringify(item.schedule, null, 2), objectives: JSON.stringify(item.objectives, null, 2), rewards: JSON.stringify(item.rewards, null, 2), config: JSON.stringify(item.config, null, 2), reason: '' }); }}>Tune</Button></td></tr>)}
           </tbody></table></div> : null}
           {tuningDraftId ? <form className="se-admin-filters se-event-admin-calendar" onSubmit={(event) => void saveDraftTune(event)}>
             <Field label="Draft title" value={tuneDraft.title} onChange={(event) => setTuneDraft({ ...tuneDraft, title: event.target.value })} maxLength={120} />
             <div className="se-field se-admin-event-description"><label className="se-label" htmlFor="admin-event-tune-description">Description</label><textarea id="admin-event-tune-description" className="se-input se-admin-textarea" maxLength={2000} value={tuneDraft.description} onChange={(event) => setTuneDraft({ ...tuneDraft, description: event.target.value })} /></div>
+            {(['schedule', 'objectives', 'rewards', 'config'] as const).map((key) => <div className="se-field" key={key}><label className="se-label" htmlFor={`admin-event-tune-json-${key}`}>{key[0]!.toUpperCase() + key.slice(1)} JSON</label><textarea id={`admin-event-tune-json-${key}`} className="se-input se-admin-textarea" value={tuneDraft[key]} onChange={(event) => setTuneDraft({ ...tuneDraft, [key]: event.target.value })} /></div>)}
             <Field label="Reason" value={tuneDraft.reason} onChange={(event) => setTuneDraft({ ...tuneDraft, reason: event.target.value })} maxLength={500} />
             <div className="se-actions"><Button className="se-btn se-btn--primary" disabled={busy || !tuneDraft.title.trim() || tuneDraft.reason.trim().length < 5}>Save tuning</Button><Button type="button" className="se-btn se-btn--secondary" onClick={() => setTuningDraftId(null)}>Close</Button></div>
           </form> : null}
