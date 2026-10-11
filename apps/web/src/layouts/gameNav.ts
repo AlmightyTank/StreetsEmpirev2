@@ -60,6 +60,7 @@ export const SECTIONS: NavSection[] = [
     pages: [
       { key: 'xp-progress', label: 'XP Progress', short: 'XP', to: '/game/xp-progress', icon: 'profile' },
       { key: 'quests', label: 'Quests', to: '/game/quests', icon: 'activity', aliases: ['/game/reputation'] },
+      { key: 'events', label: 'Events', to: '/game/events', icon: 'activity' },
       { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
     ],
   },

@@ -19,8 +19,14 @@ import {
 import {
   isCommunityEventDefinition,
   refreshCommunityEventReadinessForPlayer,
+  recordFirstClassCommunityEventProgress,
   syncCommunityEventAttemptsForPlayer,
 } from './community-event.service.js';
+import {
+  recordFirstClassSeasonalEventProgress,
+  syncSeasonalEventAttempts,
+  usesFirstClassSeasonalEvents,
+} from './seasonal-event.service.js';
 
 const ACTIVE_STATUSES = ['ACTIVE', 'READY_TO_TURN_IN'] as const;
 const OBJECTIVE_KINDS = new Set<QuestObjectiveKind>([
@@ -234,6 +240,7 @@ export const QuestProgressService = {
     };
 
     const communityRuleset = await syncCommunityEventAttemptsForPlayer(db, roundPlayerId, at);
+    if (communityRuleset) await syncSeasonalEventAttempts(db, roundPlayerId, communityRuleset, at);
 
     const directCandidates = await db.playerQuest.findMany({
       where: {
@@ -241,23 +248,50 @@ export const QuestProgressService = {
         status: { in: [...ACTIVE_STATUSES] },
         questDefinition: { type: { not: 'ALLIANCE' }, isEnabled: true },
       },
-      select: { id: true },
+      select: { id: true, questDefinition: { select: { key: true } } },
       orderBy: { id: 'asc' },
     });
     const allianceCandidateIds = await allianceContractProgressCandidateIds(db, roundPlayerId);
     const candidateIds = [...new Set([
-      ...directCandidates.map((candidate) => candidate.id),
+      ...directCandidates
+        .filter((candidate) => !(
+          communityRuleset?.meta.eventSystem?.communityEvents === 'FIRST_CLASS'
+          && isCommunityEventDefinition(communityRuleset.questDefinitions?.[candidate.questDefinition.key])
+        ) && !(
+          communityRuleset?.meta.eventSystem?.seasonalEvents === 'FIRST_CLASS'
+          && communityRuleset.questDefinitions?.[candidate.questDefinition.key]?.availability.seasonalEvent
+        ))
+        .map((candidate) => candidate.id),
       ...allianceCandidateIds,
     ])].sort();
     const candidates = candidateIds.map((id) => ({ id }));
-    if (candidates.length === 0) return result;
-
     const state = await playerState(db, roundPlayerId);
     const event: QuestProgressEvent = {
       type: signal.type,
       payload: signal.payload,
       ...(state ? { state } : {}),
     };
+
+    if (communityRuleset?.meta.eventSystem?.communityEvents === 'FIRST_CLASS') {
+      const eventProgress = await recordFirstClassCommunityEventProgress(db, roundPlayerId, communityRuleset, {
+        sourceKey: signal.sourceKey,
+        event,
+        at,
+      });
+      result.matched += eventProgress.matched;
+      result.advanced += eventProgress.advanced;
+      result.duplicate += eventProgress.duplicate;
+    }
+    if (communityRuleset && usesFirstClassSeasonalEvents(communityRuleset)) {
+      const seasonalProgress = await recordFirstClassSeasonalEventProgress(db, roundPlayerId, communityRuleset, { sourceKey: signal.sourceKey, event, at });
+      result.matched += seasonalProgress.matched;
+      result.advanced += seasonalProgress.advanced;
+      result.duplicate += seasonalProgress.duplicate;
+      result.readied += seasonalProgress.readied.length;
+      for (const ready of seasonalProgress.readied) {
+        await createPlayerActivity(db, roundPlayerId, 'QUEST_READY', json({ questKey: ready.key, title: ready.title, contactKey: null }));
+      }
+    }
 
     for (const candidate of candidates) {
       await lockPlayerQuest(db, candidate.id);

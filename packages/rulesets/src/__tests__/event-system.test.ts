@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07AA, classicOgV07T, classicOgV16F } from '../index.js';
+import { classicOgV07AA, classicOgV07T, classicOgV16F, classicOgV18F, classicOgV18G, classicOgV18H, classicOgV18I } from '../index.js';
 import { activeRoundEventTime, eventCatalogForRuleset } from '../event-system.js';
 
 describe('first-class event catalog adapter', () => {
+  it('pins first-class community ownership to the new ruleset version', () => {
+    expect('eventSystem' in classicOgV18F.meta).toBe(false);
+    expect(classicOgV18G.meta.eventSystem?.communityEvents).toBe('FIRST_CLASS');
+    expect(eventCatalogForRuleset(classicOgV18G).filter((entry) => entry.type === 'COMMUNITY')).toHaveLength(4);
+    expect(classicOgV18H.meta.eventSystem).toEqual({ communityEvents: 'FIRST_CLASS', seasonalEvents: 'FIRST_CLASS' });
+    expect(eventCatalogForRuleset(classicOgV18H).filter((entry) => entry.type === 'SEASONAL')).toHaveLength(2);
+    expect(classicOgV18I.meta.eventSystem).toEqual({ communityEvents: 'FIRST_CLASS', seasonalEvents: 'FIRST_CLASS', randomEncounters: 'FIRST_CLASS' });
+    expect(eventCatalogForRuleset(classicOgV18I).filter((entry) => entry.type === 'RANDOM_ENCOUNTER').length)
+      .toBeGreaterThan(eventCatalogForRuleset(classicOgV18H).filter((entry) => entry.type === 'RANDOM_ENCOUNTER').length);
+    expect(classicOgV18H.randomEncounters).toEqual(classicOgV16F.randomEncounters);
+  });
+
   it('maps Phase U community jobs to round-scoped quarter windows', () => {
     const entries = eventCatalogForRuleset(classicOgV07T).filter((entry) => entry.type === 'COMMUNITY');
 
@@ -45,6 +57,25 @@ describe('first-class event catalog adapter', () => {
     expect(new Set(entries.map((entry) => entry.scope))).toEqual(new Set(['PLAYER']));
     expect(entries.some((entry) => entry.key === 'SCOUT:scout-back-alley-choice')).toBe(true);
     expect(entries.some((entry) => entry.key === 'COMBAT:combat-block-watch')).toBe(true);
+  });
+
+  it('upgrades all six encounter triggers only in the new pinned ruleset', () => {
+    const expected = {
+      SCOUT: 'scout-bus-stop-whisper',
+      PRODUCE: 'produce-supplier-shortfall',
+      TRAVEL: 'travel-bridge-detour',
+      STORE: 'store-miscounted-crate',
+      TURF: 'turf-block-cleanup',
+      COMBAT: 'combat-witness-at-the-deli',
+    };
+    for (const [trigger, entryKey] of Object.entries(expected)) {
+      const upgraded = classicOgV18I.randomEncounters!.triggers[trigger as keyof typeof expected]!;
+      const baseline = classicOgV18H.randomEncounters!.triggers[trigger as keyof typeof expected]!;
+      expect(upgraded.entries.some((entry) => entry.key === entryKey), trigger).toBe(true);
+      expect(upgraded.chance, trigger).toBeLessThan(baseline.chance);
+      expect(upgraded.cooldownMinutes, trigger).toBeGreaterThanOrEqual(baseline.cooldownMinutes ?? 0);
+      expect(upgraded.entries.find((entry) => entry.key === entryKey)?.choices?.length, trigger).toBeGreaterThan(1);
+    }
   });
 });
 
