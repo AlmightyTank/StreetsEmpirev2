@@ -235,6 +235,9 @@ export const adminApi = {
     api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/quests/${enc(playerQuestId)}/complete`, { reason }),
   adjustFavor: (roundPlayerId: string, key: string, delta: number, reason: string) =>
     api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/favors/adjust`, { key, delta, reason }),
+  /** Quest Recipe Unlocks E. */
+  setUnlock: (roundPlayerId: string, key: string, held: boolean, reason: string) =>
+    api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/unlocks`, { key, held, reason }),
   voidBattle: (battleId: string, reason: string) => api.post<AdminVoidBattleResultDto>(`/admin/battles/${enc(battleId)}/void`, { reason }),
   signals: () => api.get<AdminSignalsDto>('/admin/signals'),
   /** 0.5.0-E. */

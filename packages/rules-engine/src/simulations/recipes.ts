@@ -27,6 +27,21 @@ export interface RecipeScenario {
   /** Turns a day the player spends producing. */
   readonly turnsPerDay: number;
   readonly netWorthCents: number;
+  /** Slice E. A production favor's extra output (Cookhouse Rush), in percent. Extra output costs ingredients. */
+  readonly favorOutputPercent?: number;
+  /** Slice E. The cooks' output while a crew supply policy feeds them a product, 1 for none. */
+  readonly cookSupplyMultiplier?: number;
+}
+
+/** Slice E. The biggest production favor the ruleset offers, in percent of output. */
+export function productionFavorPercent(ruleset: Ruleset): number {
+  return Math.max(0, ...Object.values(ruleset.favors ?? {}).map((favor) =>
+    favor?.effect.kind === 'PRODUCTION_BOOST' ? favor.effect.outputPercent : 0));
+}
+
+/** Slice E. The most a crew supply policy can raise the cooks' output: the best product's thug output effect. */
+export function bestCookSupply(ruleset: Ruleset): number {
+  return Math.max(1, ...Object.values(ruleset.products ?? {}).map((product) => product.effects?.thugs?.output ?? 1));
 }
 
 /** Three stages of an operation: a new crew, a growing one, and a large boosted one. */
@@ -66,7 +81,9 @@ export function recipeDay(ruleset: Ruleset, scenario: RecipeScenario, city: stri
     + (scenario.drugLab ? hideoutV2For(ruleset)?.specializationEffects?.workshop.drugLabOutputBonusPercent ?? 0 : 0);
   const modifier = ruleset.cities?.[city]?.modifiers.crack ?? 1;
 
-  const cookCapacity = Math.floor(scenario.thugs * recipe.perThugPerTurn * modifier * scenario.turnsPerDay * (100 + bonus) / 100);
+  // A favor and a fed crew cook more, and every extra unit is paid for; the workshop's bonus comes on top, free.
+  const paidOutput = (100 + (scenario.favorOutputPercent ?? 0)) / 100 * (scenario.cookSupplyMultiplier ?? 1);
+  const cookCapacity = Math.floor(scenario.thugs * recipe.perThugPerTurn * modifier * scenario.turnsPerDay * paidOutput * (100 + bonus) / 100);
   const pace = dealerPace({
     rules,
     demand: dealerDemand(ruleset, city, recipe.product),

@@ -13,7 +13,7 @@
 import { writeFile } from 'node:fs/promises';
 import { rulesets, type Ruleset } from '@streets/rulesets';
 import {
-  RECIPE_SCENARIOS, VIABLE_SHARE, MAX_WIN_SHARE, ladderPacing, productRecipes, recipeBalance, recipeResale, type RecipeScenario,
+  RECIPE_SCENARIOS, VIABLE_SHARE, MAX_WIN_SHARE, bestCookSupply, ladderPacing, productionFavorPercent, productRecipes, recipeBalance, recipeResale, type RecipeScenario,
 } from '@streets/rules-engine';
 
 const args = process.argv.slice(2);
@@ -93,6 +93,10 @@ const variations: Array<[string, (scenario: RecipeScenario) => RecipeScenario]> 
   ['A tenth of the net worth', (s) => ({ ...s, netWorthCents: s.netWorthCents / 10 })],
   ['Ten times the net worth', (s) => ({ ...s, netWorthCents: s.netWorthCents * 10 })],
   ['No workshop', (s) => ({ ...s, workshopLevel: 0, drugLab: false })],
+  // Slice E: a production favor and a crew supply policy both raise what the cooks make.
+  [`Production favor (+${productionFavorPercent(ruleset)}% output)`, (s) => ({ ...s, favorOutputPercent: productionFavorPercent(ruleset) })],
+  [`Cooks fed the best supply (x${bestCookSupply(ruleset)} output)`, (s) => ({ ...s, cookSupplyMultiplier: bestCookSupply(ruleset) })],
+  ['Favor and fed cooks together', (s) => ({ ...s, favorOutputPercent: productionFavorPercent(ruleset), cookSupplyMultiplier: bestCookSupply(ruleset) })],
 ];
 lines.push('## Sensitivity', '', `| Assumption | ${recipes.map((recipe) => recipe.name).join(' | ')} | Gate |`, `| --- | ${recipes.map(() => '---:').join(' | ')} | --- |`);
 for (const [label, change] of variations) {

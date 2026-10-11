@@ -706,6 +706,11 @@ export interface AdminPlayerDto {
     tek9: boolean;
     ak47: boolean;
     permanent: Array<{ key: string; sourceQuestKey: string | null; awardedAt: string }>;
+    /**
+     * Quest Recipe Unlocks E. Every permanent unlock the round's ruleset defines, held or not, with
+     * what granted it. Recipe unlocks carry their product and ladder step. Absent from older servers.
+     */
+    catalog?: AdminUnlockDto[];
   };
   favors: Array<{
     key: string;
@@ -1670,4 +1675,22 @@ export interface AdminLoanCorrectionResult {
   dueAgainAt: string | null;
   auditId: string | null;
   problems: string[];
+}
+
+/** Quest Recipe Unlocks E. One permanent unlock in a player's round, for support inspection and correction. */
+export interface AdminUnlockDto {
+  key: string;
+  name: string;
+  description: string;
+  category: string;
+  held: boolean;
+  /** The quest that granted it, `ADMIN` for a support grant, or null when not held or granted by the system. */
+  sourceQuestKey: string | null;
+  /** The granting quest's title, "Support grant" for `ADMIN`. */
+  sourceLabel: string | null;
+  awardedAt: string | null;
+  /** The job that normally grants it in this ruleset. */
+  grantedBy: { key: string; title: string } | null;
+  /** Present on recipe unlocks. */
+  recipe?: { product: string; productName: string; step: number | null };
 }
