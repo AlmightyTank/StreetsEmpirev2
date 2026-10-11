@@ -19,9 +19,28 @@ Both come from `SUPPORTER_COSMETICS` in `packages/rulesets/src/supporter.ts`.
 `SupporterService.grant(db, accountId)` writes the missing `AccountCosmeticUnlock`
 rows with `sourceQuestKey = 'supporter'` and returns the keys it added. Granting
 twice adds nothing. Until checkout exists, an admin grants it from the account
-page ("Grant supporter rewards", `POST /admin/accounts/:id/supporter`). The
-action is audited as `account.grant-supporter`. A payment hook can later call
-the same service.
+page ("Grant supporter rewards", `POST /admin/accounts/:id/supporter`) or from
+Admin → Supporters. Every grant is audited as `account.grant-supporter`. A
+payment hook can later call the same service.
+
+## Admin → Supporters
+
+`/game/admin/supporters` (`AdminSupportersPage`, `AdminSupporterService`) lists
+every account holding a supporter reward, with when it started, its last login,
+which rewards it has and whether it wears the card.
+
+- **Grant** (`POST /admin/supporters/grant`) takes up to 100 pasted usernames.
+  A preview (`dryRun`) sorts them into new, missing rewards, already done, not
+  found, self and listed twice. The commit grants the first two, one audited
+  account action each, and keeps any failure on its own row.
+- **Backfill** (`POST /admin/supporters/backfill`) gives every supporter the
+  catalogue rewards they lack. Run it after adding a reward to
+  `SUPPORTER_COSMETICS`; existing supporters do not get a new reward otherwise.
+- **Recent grants** shows the last ten `account.grant-supporter` audit entries.
+  The audit log's action filter also has "Supporter grants".
+
+There is no "currently supporting" status yet: a supporter is anyone who was
+ever granted, because rewards are permanent.
 
 ## Midnight Chrome collection
 
@@ -45,9 +64,10 @@ to 94% about the canvas centre, which keeps at least 40px of clear space on the
 
 ## Signature Profile Card
 
-The card turns on while `midnight-chrome-frame` is the popup frame. It restyles
-the existing profile header, hover card and settings preview. It is not a
-separate component.
+The card turns on while `midnight-chrome-frame` is the avatar frame. Popup
+frames are retired, so the avatar frame carries the whole card: equipping it
+restyles the existing profile header, hover card and settings preview and adds
+the chrome ring. It is not a separate component.
 
 - **Plate:** `midnight-chrome-plate.webp`, a 9-slice border image (slice 96,
   drawn at 24px). It is painted on the element's border box, so it fits any
@@ -57,8 +77,7 @@ separate component.
 - **Nameplate:** the honorific in chrome small caps, the supporter mark
   (`midnight-chrome-mark.svg`), and a chrome rule with a crimson tick. The mark
   shows only with the card.
-- **Avatar ring:** `midnight-chrome-avatar.webp` when `midnight-chrome-frame` is
-  the avatar frame. Its inner edge sits on the avatar at every size (68px hover,
+- **Avatar ring:** `midnight-chrome-avatar.webp`, drawn with the card. Its inner edge sits on the avatar at every size (68px hover,
   88px and 64px header, 76px settings preview).
 - **Effect:** `midnight-chrome` ("Chrome Glint"), offered once the frame is
   owned. One glint crosses the ring every 9s. It is masked to the ring art and

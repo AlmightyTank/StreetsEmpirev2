@@ -25,10 +25,10 @@ const PROFILE_EFFECT_FRAME_ART = {
 } as const;
 const MIDNIGHT_CHROME_RING = '/profile-frames/midnight-chrome-avatar.webp';
 
-/** Chip text for an equipped frame; the Signature card reads as a card, not a frame key. */
-function frameChip(key: string, slot: 'popup' | 'avatar'): string {
-  if (key === SIGNATURE_CARD_FRAME_KEY) return slot === 'popup' ? 'Midnight Chrome card' : 'Midnight Chrome ring';
-  return `${key.replaceAll('-', ' ')} ${slot} frame`;
+/** Chip text for the equipped avatar frame; the Signature card reads as a card, not a frame key. */
+function frameChip(key: string): string {
+  if (key === SIGNATURE_CARD_FRAME_KEY) return 'Midnight Chrome card';
+  return `${key.replaceAll('-', ' ')} avatar frame`;
 }
 
 function getProfile(id: number): Promise<PublicPlayerProfileDto> {
@@ -243,6 +243,9 @@ export function PlayerProfileHoverLayer() {
   const avatarFrame = profile?.cosmetics.avatarFrame === undefined
     ? profile?.cosmetics.frame ?? null
     : profile.cosmetics.avatarFrame ?? null;
+  // The Signature card comes with its avatar frame: equipping the frame restyles the whole card and adds the chrome ring.
+  const signature = avatarFrame === SIGNATURE_CARD_FRAME_KEY;
+  const surface = profile?.cosmetics.surface ?? 'brushed';
   return createPortal(
     <aside
       ref={cardRef}
@@ -252,6 +255,7 @@ export function PlayerProfileHoverLayer() {
       data-accent={profile?.cosmetics.accent ?? 'default'}
       data-frame="none"
       data-avatar-frame={avatarFrame ?? 'none'}
+      data-surface={signature ? surface : undefined}
       data-touch={touch ? 'true' : 'false'}
       style={touch ? undefined : { top: position.top, left: position.left, width: position.width }}
       aria-label={`${profile?.displayName ?? target.label} profile preview`}
@@ -276,7 +280,7 @@ export function PlayerProfileHoverLayer() {
         <span className="se-profile-hover-card__avatar" aria-hidden="true">
           {profile?.cosmetics.imageUrl ? <img src={profile.cosmetics.imageUrl} alt="" /> : initials(profile?.displayName ?? target.label)}
         </span>
-        {chromeRing
+        {signature
           ? <img className="se-profile-hover-card__avatar-art se-profile-hover-card__avatar-art--midnight-chrome" src={MIDNIGHT_CHROME_RING} alt="" aria-hidden="true" />
           : frameArt ? <img className="se-profile-hover-card__avatar-art" src={frameArt.avatar} alt="" aria-hidden="true" /> : null}
         <span className="se-profile-hover-card__identity-copy">
@@ -334,7 +338,8 @@ export function PlayerProfileHoverLayer() {
             <div className="se-profile-hover-card__effects">
               <small>PROFILE LOOK</small>
               {profile.cosmetics.siteThemeLabel ? <span>{profile.cosmetics.siteThemeLabel} theme</span> : null}
-              {avatarFrame ? <span>{avatarFrame.replaceAll('-', ' ')} avatar frame</span> : null}
+              {avatarFrame ? <span>{frameChip(avatarFrame)}</span> : null}
+              {signature ? <span>{surface.replace('-', ' ')} surface</span> : null}
               {profile.cosmetics.accent !== 'default' ? <span>{profile.cosmetics.accent.replaceAll('-', ' ')} accent</span> : null}
               {profile.cosmetics.effect !== 'none' ? <span>{profile.cosmetics.effect === 'midnight-chrome' ? 'chrome glint' : `${profile.cosmetics.effect.replaceAll('-', ' ')} animation`}</span> : null}
             </div>

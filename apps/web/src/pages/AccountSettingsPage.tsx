@@ -339,9 +339,8 @@ export function AccountSettingsPage() {
   const selectedTitle = profileSettings?.options.titles.find((option) => option.key === cosmetics.activeTitleKey);
   const selectedAvatarFrame = profileSettings?.options.frames.find((option) => option.key === cosmetics.activeAvatarFrameKey);
   const profileEffectFrameArt = PROFILE_EFFECT_FRAME_ART[cosmetics.profileEffect];
-  // Signature Profile Card (supporter reward): on while its frame is the popup frame.
-  const signature = cosmetics.activeProfileFrameKey === SIGNATURE_CARD_FRAME_KEY;
-  const chromeRing = cosmetics.activeAvatarFrameKey === SIGNATURE_CARD_FRAME_KEY;
+  // Signature Profile Card (supporter reward): on while its frame is the avatar frame.
+  const signature = cosmetics.activeAvatarFrameKey === SIGNATURE_CARD_FRAME_KEY;
   const surfaceOptions = profileSettings?.options.surfaces ?? [];
   const selectedSurface = surfaceOptions.find((option) => option.key === (cosmetics.profileSurface ?? 'brushed'));
   const displayName = me?.displayName ?? account.username;
@@ -725,7 +724,7 @@ export function AccountSettingsPage() {
                     </select>
                     {fields.profileSurface
                       ? <p className="se-error" role="alert">{fields.profileSurface}</p>
-                      : <p className="se-hint">The finish behind your Signature Profile Card. It shows while the Midnight Chrome Signature Card is your profile frame.</p>}
+                      : <p className="se-hint">The finish behind your Signature Profile Card. It shows while the Midnight Chrome Signature Card is your avatar frame.</p>}
                   </div>
                 ) : null}
 
@@ -782,8 +781,9 @@ export function AccountSettingsPage() {
 
               <div className="se-account-cosmetics__side">
                 <div
-                  className={`se-profile-card-preview se-profile-accent se-profile-accent--${cosmetics.profileAccent} se-profile-effect se-profile-effect--${cosmetics.profileEffect}`}
+                  className={`se-profile-card-preview se-profile-accent se-profile-accent--${cosmetics.profileAccent} se-profile-effect se-profile-effect--${cosmetics.profileEffect}${signature ? ' se-signature-card' : ''}`}
                   data-avatar-frame={cosmetics.activeAvatarFrameKey ?? 'none'}
+                  data-surface={signature ? cosmetics.profileSurface ?? 'brushed' : undefined}
                 >
                   <div
                     className="se-profile-card-preview__banner"
@@ -795,7 +795,7 @@ export function AccountSettingsPage() {
                     <span className="se-profile-card-preview__avatar" aria-hidden="true" title={selectedAvatarFrame?.label}>
                       {cosmetics.profileImageUrl ? <img src={cosmetics.profileImageUrl} alt="" /> : initials(displayName)}
                     </span>
-                    {chromeRing
+                    {signature
                       ? <img className="se-profile-card-preview__avatar-art se-profile-card-preview__avatar-art--midnight-chrome" src="/profile-frames/midnight-chrome-avatar.webp" alt="" aria-hidden="true" />
                       : profileEffectFrameArt ? <img className="se-profile-card-preview__avatar-art" src={profileEffectFrameArt.avatar} alt="" aria-hidden="true" /> : null}
                     <div>
@@ -813,7 +813,8 @@ export function AccountSettingsPage() {
                   <p>{previewCity}{round ? ` · ${round.name}` : ''}</p>
                   <div className="se-profile-card-preview__chips">
                     <span>{selectedAccent?.label ?? 'StreetsEmpire'} accent</span>
-                    {selectedAvatarFrame ? <span>{selectedAvatarFrame.label} avatar frame</span> : null}
+                    {selectedAvatarFrame ? <span>{signature ? selectedAvatarFrame.label : `${selectedAvatarFrame.label} avatar frame`}</span> : null}
+                    {signature && selectedSurface ? <span>{selectedSurface.label} surface</span> : null}
                     {cosmetics.profileEffect !== 'none' ? <span>{profileSettings.options.effects.find((option) => option.key === cosmetics.profileEffect)?.label ?? 'Frame animation'}</span> : null}
                   </div>
                 </div>

@@ -668,14 +668,22 @@ export const AdminAccountService = {
    * Card). Permanent and cosmetic only; there is no revoke.
    */
   async grantSupporter(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminAccountDetailDto> {
+    await AdminAccountService.grantSupporterRewards(prisma, actor, accountId, reason);
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /** The audited supporter grant on its own, for the Supporters tab. Returns the reward keys it added. */
+  async grantSupporterRewards(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<string[]> {
+    let added: string[] = [];
     await moderate(prisma, actor, accountId, 'grant-supporter', reason, async (tx, before) => {
       const granted = await SupporterService.grant(tx, before.id);
       if (!granted.length) {
         throw AppError.conflict('SUPPORTER_ALREADY_GRANTED', `${before.username} already has every supporter reward.`);
       }
+      added = granted;
       return { account: before, detail: { granted } };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return added;
   },
 
   /** A fresh verification link to the account's current email. The mail goes out after the audited change commits. */

@@ -1694,3 +1694,61 @@ export interface AdminUnlockDto {
   /** Present on recipe unlocks. */
   recipe?: { product: string; productName: string; step: number | null };
 }
+
+/** Admin → Supporters. One supporter reward from the catalogue. */
+export interface AdminSupporterRewardDto {
+  key: string;
+  name: string;
+  kind: string;
+  rarity: string;
+}
+
+/** An account that holds supporter rewards. Rewards are permanent, so this is "ever supported". */
+export interface AdminSupporterDto {
+  accountId: string;
+  username: string;
+  isActive: boolean;
+  /** When the account was first given supporter rewards. */
+  since: string;
+  lastLoginAt: string | null;
+  rewardKeys: string[];
+  /** Catalogue rewards it does not hold yet, for example one added after it was granted. */
+  missingKeys: string[];
+  /** Wearing the Signature Profile Card as its avatar frame. */
+  wearingCard: boolean;
+}
+
+export interface AdminSupportersDto {
+  rewards: AdminSupporterRewardDto[];
+  supporters: AdminSupporterDto[];
+  /** Supporters missing at least one reward. */
+  missingCount: number;
+}
+
+/** The most usernames one bulk grant takes. */
+export const ADMIN_SUPPORTER_GRANT_MAX = 100;
+
+/**
+ * new: no rewards yet. missing-rewards: a supporter without every reward. already: nothing to add.
+ * not-found: no such account. self: admins cannot grant to their own account. duplicate: named twice.
+ */
+export type AdminSupporterGrantStatus = 'new' | 'missing-rewards' | 'already' | 'not-found' | 'self' | 'duplicate';
+
+export interface AdminSupporterGrantRowDto {
+  /** The name as given, or the username for a backfill. */
+  input: string;
+  status: AdminSupporterGrantStatus;
+  accountId: string | null;
+  username: string | null;
+  /** Rewards this row would add (preview) or did add (commit). */
+  rewardKeys: string[];
+  /** Set when a committed grant for this row failed; the other rows still went through. */
+  error: string | null;
+}
+
+export interface AdminSupporterGrantResultDto {
+  dryRun: boolean;
+  rows: AdminSupporterGrantRowDto[];
+  /** Accounts given at least one reward. Always 0 for a preview. */
+  granted: number;
+}

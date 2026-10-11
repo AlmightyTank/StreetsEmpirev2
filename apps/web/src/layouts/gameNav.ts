@@ -99,6 +99,7 @@ export const ADMIN_SECTION: NavSection = {
   pages: [
     { key: 'admin-law', label: 'Law', to: '/game/admin/law', icon: 'admin' },
     { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefix: '/game/admin/accounts/' },
+    { key: 'admin-supporters', label: 'Supporters', to: '/game/admin/supporters', icon: 'admin' },
     { key: 'admin-factions', label: 'Factions', to: '/game/admin/factions', icon: 'admin' },
     { key: 'admin-crew', label: 'Crew Roster', to: '/game/admin/crew', icon: 'admin' },
     { key: 'admin-vehicles', label: 'Vehicles', to: '/game/admin/vehicles', icon: 'admin' },
