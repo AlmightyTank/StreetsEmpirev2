@@ -281,6 +281,6 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
     expect(await sync(player.id, rules)).toBeNull();
     expect(await app.prisma.crewMember.count({ where: { roundPlayerId: player.id } })).toBe(0);
     expect(await app.prisma.crewRosterMigration.count({ where: { roundPlayerId: player.id } })).toBe(0);
-    expect(await CrewRosterService.view(app.prisma, player.id, rules, { limit: 10, offset: 0 })).toEqual({ enabled: false, migratedAt: null, totals: [], members: [], total: 0 });
+    expect(await CrewRosterService.view(app.prisma, player.id, rules, { limit: 10, offset: 0 })).toEqual({ enabled: false, migratedAt: null, totals: [], members: [], total: 0, supportsSelectedTeams: false });
   });
 });

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV17E } from '../classic-og-v1.7-e/index.js';
-import { classicOgV17G } from '../classic-og-v1.7-g/index.js';
+import { classicOgV18E } from '../classic-og-v1.8-e/index.js';
+import { classicOgV18F } from '../classic-og-v1.8-f/index.js';
 import { rulesets } from '../index.js';
 import { questRequiredRecipes } from '../quest-definitions.js';
 import type { QuestDefinition, QuestDefinitionCatalog, Ruleset } from '../types.js';
 
-const quests: QuestDefinitionCatalog = classicOgV17G.questDefinitions;
-const oldQuests: QuestDefinitionCatalog = classicOgV17E.questDefinitions;
+const quests: QuestDefinitionCatalog = classicOgV18F.questDefinitions;
+const oldQuests: QuestDefinitionCatalog = classicOgV18E.questDefinitions;
 const LADDER = [
   ['PIP_PARTY_FAVORS', 'ECSTASY'],
   ['PIP_BULK_ORDER', 'METH'],
@@ -39,23 +39,23 @@ function requiredQuests(quest: QuestDefinition, seen = new Set<string>()): Set<s
   return seen;
 }
 
-describe('1.7.0-G Pip\'s Cookhouse Ladder', () => {
-  it('ships as the newest ruleset on top of 1.7.0-E', () => {
-    expect(classicOgV17G.meta).toEqual({ id: 'classic-og-v1.7-g', version: '1.7.0-G', name: 'Classic OG - Cookhouse Ladder' });
-    expect(rulesets[classicOgV17G.meta.id]).toBe(classicOgV17G);
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV17G);
+describe('1.8.0-F Pip\'s Cookhouse Ladder', () => {
+  it('ships as the newest ruleset on top of 1.8.0-E', () => {
+    expect(classicOgV18F.meta).toEqual({ id: 'classic-og-v1.8-f', version: '1.8.0-F', name: 'Classic OG - Cookhouse Ladder' });
+    expect(rulesets[classicOgV18F.meta.id]).toBe(classicOgV18F);
+    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18F);
   });
 
   it('starts a round with only Crack cookable and gates every other recipe', () => {
-    const gates = recipeGates(classicOgV17G);
+    const gates = recipeGates(classicOgV18F);
     expect([...gates.keys()].sort()).toEqual(['COCAINE', 'ECSTASY', 'HEROIN', 'METH', 'WEED']);
     expect(gates.has('CRACK')).toBe(false);
-    const products: Ruleset['products'] = classicOgV17G.products;
+    const products: Ruleset['products'] = classicOgV18F.products;
     for (const product of gates.keys()) expect(products?.[product]?.economy?.production, product).toBeTruthy();
   });
 
   it('opens each recipe through exactly one Pip job, in ladder order', () => {
-    const gates = recipeGates(classicOgV17G);
+    const gates = recipeGates(classicOgV18F);
     let previous = 'COOKHOUSE';
     for (const [questKey, product] of LADDER) {
       const granting = grantingQuests(gates.get(product)!);
@@ -94,7 +94,7 @@ describe('1.7.0-G Pip\'s Cookhouse Ladder', () => {
   });
 
   it('never asks a player to cook a product before its recipe can be open', () => {
-    const gates = recipeGates(classicOgV17G);
+    const gates = recipeGates(classicOgV18F);
     for (const quest of Object.values(quests)) {
       const needed = questRequiredRecipes(quest).filter((product) => gates.has(product));
       if (!needed.length) continue;
@@ -111,16 +111,16 @@ describe('1.7.0-G Pip\'s Cookhouse Ladder', () => {
 
   it('leaves every earlier ruleset ungated', () => {
     for (const ruleset of Object.values(rulesets) as Ruleset[]) {
-      if (ruleset === classicOgV17G) continue;
+      if (ruleset === classicOgV18F) continue;
       expect(recipeGates(ruleset).size, ruleset.meta.id).toBe(0);
     }
     expect(oldQuests.PIP_BULK_ORDER!.objectives[0]!.params).toMatchObject({ where: { productType: 'METH' } });
     expect(oldQuests.PIP_PARTY_FAVORS!.objectives[0]!.params).toMatchObject({ where: { productType: 'ECSTASY' } });
   });
 
-  it('changes nothing else from 1.7.0-E', () => {
-    const { meta: _meta, products: _products, permanentUnlocks, questDefinitions: _quests, ...next } = classicOgV17G;
-    const { meta: _baseMeta, products: _baseProducts, permanentUnlocks: baseUnlocks, questDefinitions: _baseQuests, ...base } = classicOgV17E;
+  it('changes nothing else from 1.8.0-E', () => {
+    const { meta: _meta, products: _products, permanentUnlocks, questDefinitions: _quests, ...next } = classicOgV18F;
+    const { meta: _baseMeta, products: _baseProducts, permanentUnlocks: baseUnlocks, questDefinitions: _baseQuests, ...base } = classicOgV18E;
     expect(next).toEqual(base);
     expect(permanentUnlocks).toMatchObject(baseUnlocks);
     const changed = Object.keys(quests).filter((key) => quests[key] !== oldQuests[key]);

@@ -1,4 +1,4 @@
-import { classicOgV17E } from '../classic-og-v1.7-e/index.js';
+import { classicOgV18E } from '../classic-og-v1.8-e/index.js';
 import { defineQuestCatalog } from '../quest-definitions.js';
 import type { PermanentUnlockCatalog, QuestDefinition, QuestDefinitionCatalog, QuestObjectiveDefinition } from '../types.js';
 
@@ -53,7 +53,7 @@ function sell(id: string, product: string, name: string, target: number): QuestO
 
 const after = (questKey: string) => ({ kind: 'QUEST_COMPLETED', params: { questKey } }) as const;
 
-const base: QuestDefinitionCatalog = classicOgV17E.questDefinitions;
+const base: QuestDefinitionCatalog = classicOgV18E.questDefinitions;
 const oldPartyFavors = base.PIP_PARTY_FAVORS!;
 const oldBulkOrder = base.PIP_BULK_ORDER!;
 

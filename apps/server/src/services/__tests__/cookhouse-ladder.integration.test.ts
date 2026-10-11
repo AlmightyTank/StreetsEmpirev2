@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV17E, classicOgV17G, type Ruleset } from '@streets/rulesets';
+import { classicOgV18E, classicOgV18F, type Ruleset } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import type { ProductsDto, QuestPageDto } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
@@ -9,18 +9,18 @@ import { ReputationService } from '../reputation.service.js';
 import { RoundService } from '../round.service.js';
 
 /**
- * Quest Recipe Unlocks B gate, live: a 1.7.0-G round cooks only Crack, Party Favors opens
+ * Quest Recipe Unlocks B gate, live: a 1.8.0-F round cooks only Crack, Party Favors opens
  * at Pip rep 12 and pays the Ecstasy recipe through ordinary production and sales, the
- * recipe works at once, the next rung opens in order, and a 1.7.0-E round keeps every
+ * recipe works at once, the next rung opens in order, and a 1.8.0-E round keeps every
  * recipe it always had. Opt in with PRODUCT_INTEGRATION=1.
  */
-describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('1.7.0-G cookhouse ladder with PostgreSQL', () => {
+describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('1.8.0-F cookhouse ladder with PostgreSQL', () => {
   let app: FastifyInstance;
   let roundId = '';
   let accountId = '';
   let playerId = '';
   let cookie = '';
-  const rules: Ruleset = classicOgV17G;
+  const rules: Ruleset = classicOgV18F;
 
   beforeAll(async () => {
     const { buildApp } = await import('../../app.js');
@@ -143,8 +143,8 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('1.7.0-G cookhouse ladde
     expect(products.find((row) => row.key === 'METH')!.recipeAccess?.unlocked).toBe(false);
   }, 60_000);
 
-  it('keeps every recipe open from the start in a 1.7.0-E round', async () => {
-    await app.prisma.round.update({ where: { id: roundId }, data: { rulesetId: classicOgV17E.meta.id, rulesetVersion: classicOgV17E.meta.version } });
+  it('keeps every recipe open from the start in a 1.8.0-E round', async () => {
+    await app.prisma.round.update({ where: { id: roundId }, data: { rulesetId: classicOgV18E.meta.id, rulesetVersion: classicOgV18E.meta.version } });
     try {
       const cooked = await cook('METH', 1);
       expect(cooked.statusCode, cooked.body).toBe(200);

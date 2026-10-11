@@ -51,6 +51,8 @@ run('Faction balance and audit gates', npm, ['run', 'qa:factions', '--', '--quie
 run('Vehicle balance gates', npm, ['run', 'qa:vehicles', '--', '--quiet']);
 // 1.6.5-G: affordability, debt/fee ceilings, capped collections, recovery, and pinned history.
 run('Loan Shark balance gates', npm, ['run', 'qa:loans', '--', '--quiet']);
+// 1.8.0-D/E: sportsbook limits keep any betting style's best rounds well short of a leaderboard jump.
+run('Sportsbook limit gates', npm, ['run', 'qa:sportsbook']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup

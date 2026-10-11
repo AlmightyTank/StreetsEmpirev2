@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { classicOgV17E, classicOgV17G } from '@streets/rulesets';
+import { classicOgV18E, classicOgV18F } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import {
   DAILY_CONTRACT_SLOTS,
@@ -24,13 +24,13 @@ function dayWithLockedCard(): Date {
   const start = new Date('2026-10-12T15:00:00.000Z');
   for (let day = 0; day < 60; day += 1) {
     const now = new Date(start.getTime() + day * DAY_MS);
-    if (selectedDailyContractKeys(classicOgV17G, now, undefined, ROUND).some((key) => LOCKED.includes(key))) return now;
+    if (selectedDailyContractKeys(classicOgV18F, now, undefined, ROUND).some((key) => LOCKED.includes(key))) return now;
   }
   throw new Error('No board in sixty days dealt a gated card.');
 }
 
 function fakeDb(unlocks: Set<string>) {
-  const definitions = Object.values(classicOgV17G.questDefinitions)
+  const definitions = Object.values(classicOgV18F.questDefinitions)
     .filter((definition) => definition.type === 'DAILY')
     .map((definition, index) => ({ id: 'definition-' + index, key: definition.key }));
   type Row = { id: string; questDefinitionId: string; attempt: number; status: string; expiresAt: Date | null };
@@ -53,28 +53,28 @@ function fakeDb(unlocks: Set<string>) {
   return { db, keys };
 }
 
-describe('1.7.0-G daily board around locked recipes', () => {
+describe('1.8.0-F daily board around locked recipes', () => {
   it('names the dailies that cook a locked product', () => {
-    expect([...recipeLockedDailyKeys(classicOgV17G, new Set(['METH', 'ECSTASY', 'WEED', 'COCAINE', 'HEROIN']))].sort()).toEqual(LOCKED);
-    expect([...recipeLockedDailyKeys(classicOgV17G, new Set(['METH']))]).toEqual(['DAILY_METH_COOK']);
-    expect(recipeLockedDailyKeys(classicOgV17G, new Set()).size).toBe(0);
+    expect([...recipeLockedDailyKeys(classicOgV18F, new Set(['METH', 'ECSTASY', 'WEED', 'COCAINE', 'HEROIN']))].sort()).toEqual(LOCKED);
+    expect([...recipeLockedDailyKeys(classicOgV18F, new Set(['METH']))]).toEqual(['DAILY_METH_COOK']);
+    expect(recipeLockedDailyKeys(classicOgV18F, new Set()).size).toBe(0);
   });
 
   it('swaps a locked card for the next one in the deck and keeps the rest of the board shared', () => {
     const now = dayWithLockedCard();
-    const shared = selectedDailyContractKeys(classicOgV17G, now, undefined, ROUND);
-    const locked = selectedDailyContractKeys(classicOgV17G, now, undefined, ROUND, new Set(LOCKED));
+    const shared = selectedDailyContractKeys(classicOgV18F, now, undefined, ROUND);
+    const locked = selectedDailyContractKeys(classicOgV18F, now, undefined, ROUND, new Set(LOCKED));
 
     expect(locked).toHaveLength(DAILY_CONTRACT_SLOTS);
     expect(locked.some((key) => LOCKED.includes(key))).toBe(false);
     for (const key of shared.filter((card) => !LOCKED.includes(card))) expect(locked).toContain(key);
-    expect(selectedDailyContractKeys(classicOgV17G, now, undefined, ROUND, new Set())).toEqual(shared);
+    expect(selectedDailyContractKeys(classicOgV18F, now, undefined, ROUND, new Set())).toEqual(shared);
   });
 
   it('deals a Crack-only player a full board with no locked card', async () => {
     const now = dayWithLockedCard();
     const { db, keys } = fakeDb(new Set());
-    await syncDailyContractAttempts(db, 'player-1', classicOgV17G, now);
+    await syncDailyContractAttempts(db, 'player-1', classicOgV18F, now);
 
     expect(keys()).toHaveLength(DAILY_CONTRACT_SLOTS);
     expect(keys().some((key) => LOCKED.includes(key))).toBe(false);
@@ -83,25 +83,25 @@ describe('1.7.0-G daily board around locked recipes', () => {
   it('deals the shared board to a player who holds every recipe', async () => {
     const now = dayWithLockedCard();
     const { db, keys } = fakeDb(new Set(ALL_RECIPES));
-    await syncDailyContractAttempts(db, 'player-1', classicOgV17G, now);
+    await syncDailyContractAttempts(db, 'player-1', classicOgV18F, now);
 
-    expect(keys()).toEqual(selectedDailyContractKeys(classicOgV17G, now, undefined, ROUND).sort());
+    expect(keys()).toEqual(selectedDailyContractKeys(classicOgV18F, now, undefined, ROUND).sort());
   });
 
   it('never deals a fourth card when a recipe opens mid-day', async () => {
     const now = dayWithLockedCard();
     const unlocks = new Set<string>();
     const { db, keys } = fakeDb(unlocks);
-    await syncDailyContractAttempts(db, 'player-1', classicOgV17G, now);
+    await syncDailyContractAttempts(db, 'player-1', classicOgV18F, now);
     const morning = keys();
 
     for (const key of ALL_RECIPES) unlocks.add(key);
-    await syncDailyContractAttempts(db, 'player-1', classicOgV17G, new Date(now.getTime() + 60_000));
+    await syncDailyContractAttempts(db, 'player-1', classicOgV18F, new Date(now.getTime() + 60_000));
     expect(keys()).toEqual(morning);
 
     // The next day's board deals normally again.
     const tomorrow = new Date(now.getTime() + DAY_MS);
-    await syncDailyContractAttempts(db, 'player-1', classicOgV17G, tomorrow);
+    await syncDailyContractAttempts(db, 'player-1', classicOgV18F, tomorrow);
     expect(keys()).toHaveLength(DAILY_CONTRACT_SLOTS * 2);
   });
 
@@ -111,7 +111,7 @@ describe('1.7.0-G daily board around locked recipes', () => {
     (db as unknown as { playerUnlock: unknown }).playerUnlock = {
       findMany: async () => { throw new Error('An ungated ruleset has no unlocks to read.'); },
     };
-    const ruleset = { ...classicOgV17E, questDefinitions: classicOgV17G.questDefinitions };
+    const ruleset = { ...classicOgV18E, questDefinitions: classicOgV18F.questDefinitions };
     await syncDailyContractAttempts(db, 'player-1', ruleset, now);
     expect(keys()).toEqual(selectedDailyContractKeys(ruleset, now, undefined, ROUND).sort());
   });

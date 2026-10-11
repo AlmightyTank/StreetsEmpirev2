@@ -13,8 +13,8 @@ describe('1.6.5-A debt foundation ruleset', () => {
   it('registers a new pinned ruleset and enables the loan shark only there and after', () => {
     expect(classicOgV165A.meta).toEqual({ id: 'classic-og-v1.6.5-a', version: '1.6.5-A', name: 'Classic OG - Debt Foundation' });
     expect(rulesets[classicOgV165A.meta.id]).toBe(classicOgV165A);
-    // 1.7.0 builds on the finished 1.6.5 season, so it carries the loan shark too.
-    const others = Object.values(rulesets).filter((ruleset) => !ruleset.meta.id.startsWith('classic-og-v1.6.5-') && !ruleset.meta.id.startsWith('classic-og-v1.7-')) as Ruleset[];
+    // 1.7.0 builds on the finished 1.6.5 season, and 1.8.0 on 1.7.0, so they carry the loan shark too.
+    const others = Object.values(rulesets).filter((ruleset) => !/^classic-og-v1\.(6\.5|7|8)-/.test(ruleset.meta.id)) as Ruleset[];
     expect(others.length).toBeGreaterThan(100);
     for (const ruleset of others) expect(ruleset.loanShark, ruleset.meta.id).toBeUndefined();
   });

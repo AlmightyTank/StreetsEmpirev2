@@ -19,7 +19,7 @@ import { LawWarrantService } from './services/law-warrant.service.js';
 import { LawOfficialService } from './services/law-official.service.js';
 import { PlayerStateService } from './services/player-state.service.js';
 import { NpcGangService } from './services/npc-gang.service.js';
-import { refreshSportsbookCache } from './services/sportsbook.service.js';
+import { refreshSportsbookCache } from './services/sportsbook-feed.service.js';
 
 const app = await buildApp();
 
@@ -51,17 +51,14 @@ const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
 
 // 1.8.0-A: one bounded provider poll populates the shared pregame cache. Player requests never
 // call TheRundown. Free-plan odds are delayed, so refresh no faster than every 15 minutes.
+// 1.8.0-C: the feed records its own health for admins, and its lease plus the minimum interval
+// keep a second server instance from polling (and spending datapoints) on top of this one.
 const stopSportsbook = env.THERUNDOWN_API_KEY
   ? startPoller('Sportsbook odds cache', env.SPORTSBOOK_POLL_MINUTES * 60_000, async () => {
-      try {
-        await refreshSportsbookCache(app.prisma, env.THERUNDOWN_API_KEY);
-      } catch (error) {
-        await app.prisma.sportsbookProviderState.upsert({
-          where: { id: 'therundown' }, create: { id: 'therundown', lastErrorAt: new Date(), lastError: String(error).slice(0, 500) },
-          update: { lastErrorAt: new Date(), lastError: String(error).slice(0, 500) },
-        });
-        throw error;
-      }
+      const result = await refreshSportsbookCache(app.prisma, env.THERUNDOWN_API_KEY, new Date(), {
+        minIntervalMs: Math.max(0, env.SPORTSBOOK_POLL_MINUTES * 60_000 - 60_000),
+      });
+      if (result.errors.length) app.log.warn({ sportsbook: result }, 'Sportsbook feed run finished with errors');
     }, (message, error) => app.log.error(error, message))
   : () => {};
 

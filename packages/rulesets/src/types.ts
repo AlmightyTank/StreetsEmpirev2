@@ -3103,6 +3103,26 @@ export interface CasinoRules {
   };
   readonly poker?: CasinoPokerRules;
   readonly status?: CasinoStatusRules;
+  /** 1.8.0-E. Pregame sportsbook. Absent: the round takes no sportsbook tickets. */
+  readonly sportsbook?: CasinoSportsbookRules;
+}
+
+/** 1.8.0. Game-cash limits for pregame moneyline tickets; every value is integer cents or a count. */
+export interface CasinoSportsbookRules {
+  readonly limits: {
+    readonly minStakeCents: number;
+    readonly maxStakeCents: number;
+    /** Most one ticket can win (payout minus stake). */
+    readonly maxProfitCents: number;
+    /** One player's total stake on one game, both sides. */
+    readonly perGameStakeCents: number;
+    readonly openStakeCents: number;
+    readonly openTickets: number;
+    /** Stake on tickets placed in the last 24 hours. */
+    readonly dailyStakeCents: number;
+    /** All players' potential winnings on one side of one game. */
+    readonly sideLiabilityCents: number;
+  };
 }
 export interface Ruleset {
   /** Absent on economic-only rounds. */
