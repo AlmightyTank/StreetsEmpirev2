@@ -297,7 +297,7 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
       ?? await app.prisma.turf.create({ data: { roundId: player.roundId, cityId: homeCityId, district: 'URBAN_GHETTO', localsThugs: 5 } });
     await app.prisma.turf.update({
       where: { id: turf.id },
-      data: { holderId: player.id, cornerThugs: 0, pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0, heldSince: now },
+      data: { holderId: player.id, cornerThugs: 0, cornerPistols: 0, cornerShotguns: 0, cornerTek9s: 0, cornerAk47s: 0, heldSince: now },
     });
     const before = await app.prisma.roundPlayer.update({
       where: { id: player.id },
