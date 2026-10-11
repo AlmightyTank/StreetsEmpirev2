@@ -167,7 +167,7 @@ The beta API persists TheRundown's pregame snapshots in
 `.runtime/sportsbook-odds.json` inside the beta checkout. The odds refresh is
 limited to one provider poll per 30 minutes from the latest cache file update.
 Scheduled and admin-triggered pulls share this cooldown; an admin pull within the
-window reports the next eligible refresh time without calling TheRundown. The
+window reports the next eligible refresh time without refreshing odds from TheRundown. The
 PostgreSQL sportsbook tables remain the transactional board and ticket store.
 
 ## 3. Create the beta PostgreSQL database

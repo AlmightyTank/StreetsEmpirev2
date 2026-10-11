@@ -220,7 +220,7 @@ export const AdminSportsbookService = {
     if (result.skipped === 'BUSY') {
       message = 'A sportsbook feed pull is already running; no second pull was started.';
     } else if (result.skipped === 'CACHE_FRESH') {
-      message = `The sportsbook odds cache was updated at ${result.cacheUpdatedAt}; no provider request was made. Next refresh is eligible at ${result.nextOddsPollAt}.`;
+      message = `The sportsbook odds cache was updated at ${result.cacheUpdatedAt}; no odds snapshot requests were made. Next refresh is eligible at ${result.nextOddsPollAt}.`;
     } else if (!result.oddsPolled) {
       message = result.errors.join(' · ') || 'The manual pull was skipped because provider quota is near its limit.';
     } else if (!result.snapshots) {
