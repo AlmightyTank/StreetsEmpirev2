@@ -184,6 +184,8 @@ export function SupplyPage() {
 
         {data?.enabled ? (
           <div className="se-supply__grid">
+            <div className="se-supply__columns">
+              <div className="se-supply__column">
             <Panel title="Supplier offers" aside={`${formatNumber(data.openOrderCount)} / ${formatNumber(data.maxOpenOrders)} open orders`}>
               {data.suppliers.length === 0 ? <p className="se-muted">No suppliers are open this season.</p> : (
                 <div className="se-supply__form">
@@ -222,7 +224,10 @@ export function SupplyPage() {
                 </div>
               )}
             </Panel>
+            {data.pickups ? <PickupPlanner plan={data.pickups} orders={data.orders} onDone={() => setReload((value) => value + 1)} /> : null}
+              </div>
 
+              <div className="se-supply__column">
             <Panel title="Orders waiting at suppliers" aside={`${openOrders.length} active`}>
               {openOrders.length === 0 ? <p className="se-muted">No paid orders are waiting for pickup.</p> : (
                 <div className="se-supply__orders">
@@ -242,14 +247,17 @@ export function SupplyPage() {
                 </div>
               )}
             </Panel>
+            {data.pickups ? (
+              <div className="se-supply__stack">
+                <StoragePanel plan={data.pickups} />
+                <PickupList pickups={data.pickups.pickups} />
+              </div>
+            ) : null}
+              </div>
+            </div>
 
             {data.pickups ? (
               <>
-                <PickupPlanner plan={data.pickups} orders={data.orders} onDone={() => setReload((value) => value + 1)} />
-                <div className="se-supply__stack">
-                  <StoragePanel plan={data.pickups} />
-                  <PickupList pickups={data.pickups.pickups} />
-                </div>
                 {data.pickups.lanes ? <LanePlanner lanes={data.pickups.lanes} onDone={() => setReload((value) => value + 1)} /> : null}
                 {data.pickups.shipmentLanes ? <ShipmentPlanner plan={data.pickups} onDone={() => setReload((value) => value + 1)} /> : null}
                 {data.ledger ? <LedgerPanel ledger={data.ledger} /> : null}

@@ -30,9 +30,21 @@
 
 .se-supply__grid {
   display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+.se-supply__columns {
+  display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   align-items: start;
+}
+
+.se-supply__column {
+  display: grid;
+  gap: 12px;
+  align-content: start;
 }
 
 .se-supply__form,
@@ -174,7 +186,7 @@
 }
 
 @media (max-width: 760px) {
-  .se-supply__grid {
+  .se-supply__columns {
     grid-template-columns: minmax(0, 1fr);
   }
 
