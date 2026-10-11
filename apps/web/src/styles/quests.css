@@ -1003,3 +1003,54 @@
   font-size: 12px;
   line-height: 1.5;
 }
+
+/* Quest Recipe Unlocks D: the recipe ladder on the progression desk. */
+.se-recipe-ladder {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-recipe-ladder__step {
+  padding: 10px 12px;
+  border: 1px solid var(--se-line);
+  border-left-width: 3px;
+  border-radius: var(--se-radius-sm);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.se-recipe-ladder__step--open { border-left-color: var(--se-good); }
+.se-recipe-ladder__step--ready,
+.se-recipe-ladder__step--working,
+.se-recipe-ladder__step--available { border-left-color: var(--se-accent); }
+.se-recipe-ladder__step--locked { border-left-color: var(--se-line); border-style: dashed; border-left-style: solid; }
+
+.se-recipe-ladder__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.se-recipe-ladder__state {
+  margin-left: auto;
+  color: var(--se-text-dim);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.se-recipe-ladder__step--open .se-recipe-ladder__state { color: var(--se-good); }
+.se-recipe-ladder__step--ready .se-recipe-ladder__state,
+.se-recipe-ladder__step--available .se-recipe-ladder__state { color: var(--se-accent); }
+
+.se-recipe-ladder__identity {
+  margin: 4px 0 2px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.se-recipe-ladder .se-hint { margin: 2px 0 0; }

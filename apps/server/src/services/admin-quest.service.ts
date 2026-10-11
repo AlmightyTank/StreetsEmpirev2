@@ -506,6 +506,48 @@ export const AdminQuestService = {
     return AdminPlayerService.inspect(prisma, roundPlayerId);
   },
 
+  /**
+   * Quest Recipe Unlocks E. Grant or revoke one permanent unlock (a recipe, a shelf, a rack) for
+   * support. The unlock must be in the player's ruleset; a grant is recorded as `ADMIN`, never as
+   * the job, so the job still pays normally if the player finishes it. Every change is audited.
+   */
+  async setUnlock(
+    prisma: PrismaClient,
+    actor: AuditActor,
+    roundPlayerId: string,
+    key: string,
+    held: boolean,
+    reason: string,
+  ): Promise<AdminPlayerDto> {
+    await prisma.$transaction(async (tx) => {
+      const { ruleset } = await lockedPlayerContext(tx, actor, roundPlayerId);
+      const definition = ruleset.permanentUnlocks?.[key];
+      if (!definition) throw AppError.notFound('UNLOCK_NOT_FOUND', 'That unlock is not part of this ruleset.');
+      const current = await tx.playerUnlock.findUnique({ where: { roundPlayerId_key: { roundPlayerId, key } } });
+      if (held && current) throw AppError.conflict('UNLOCK_ALREADY_HELD', `This player already has ${definition.name}.`);
+      if (!held && !current) throw AppError.conflict('UNLOCK_NOT_HELD', `This player does not have ${definition.name}.`);
+
+      const before = current
+        ? { roundPlayerId, key, name: definition.name, held: true, sourceQuestKey: current.sourceQuestKey, awardedAt: current.awardedAt }
+        : { roundPlayerId, key, name: definition.name, held: false };
+      const row = held
+        ? await tx.playerUnlock.create({ data: { roundPlayerId, key, sourceQuestKey: 'ADMIN' } })
+        : await tx.playerUnlock.delete({ where: { id: current!.id } });
+      await AdminAuditService.record(tx, actor, {
+        action: held ? 'unlock.grant' : 'unlock.revoke',
+        targetType: 'player-unlock',
+        targetId: row.id,
+        reason,
+        before,
+        after: held
+          ? { roundPlayerId, key, name: definition.name, held: true, sourceQuestKey: 'ADMIN', awardedAt: row.awardedAt }
+          : { roundPlayerId, key, name: definition.name, held: false },
+      });
+    });
+
+    return AdminPlayerService.inspect(prisma, roundPlayerId);
+  },
+
   async adjustFavor(
     prisma: PrismaClient,
     actor: AuditActor,

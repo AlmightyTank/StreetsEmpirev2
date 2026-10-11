@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07F, classicOgV07H } from '@streets/rulesets';
+import { classicOgV07F, classicOgV07H, classicOgV18M } from '@streets/rulesets';
+import { recipeLadder } from '@streets/rules-engine';
 import type { Ruleset } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import { PermanentUnlockService } from '../permanent-unlock.service.js';
@@ -104,5 +105,41 @@ describe('PermanentUnlockService', () => {
       'NOT_A_REAL_UNLOCK',
       'TEST_JOB',
     )).rejects.toMatchObject({ code: 'QUEST_REWARD_INVALID' });
+  });
+
+  it('awards every recipe on the ladder once per round player, whatever repeats it', async () => {
+    const rows = new Map<string, { key: string; sourceQuestKey: string | null }>();
+    const db = {
+      playerUnlock: {
+        upsert: async ({ where, create }: { where: { roundPlayerId_key: { roundPlayerId: string; key: string } }; create: { key: string; sourceQuestKey: string | null } }) => {
+          const id = `${where.roundPlayerId_key.roundPlayerId}:${where.roundPlayerId_key.key}`;
+          if (!rows.has(id)) rows.set(id, { key: create.key, sourceQuestKey: create.sourceQuestKey });
+          return rows.get(id)!;
+        },
+        findMany: async ({ where }: { where: { roundPlayerId: string } }) =>
+          [...rows.entries()].filter(([id]) => id.startsWith(`${where.roundPlayerId}:`)).map(([, row]) => ({ key: row.key })),
+      },
+    } as unknown as Db;
+    const ruleset = classicOgV18M as Ruleset;
+    const rungs = recipeLadder(ruleset);
+    expect(rungs).toHaveLength(5);
+
+    // Two claims of every rung (a retried claim, an admin replay): one row each, sourced to the first job.
+    for (let pass = 0; pass < 2; pass += 1) {
+      for (const rung of rungs) {
+        const unlock = PermanentUnlockService.productProductionUnlock(ruleset, rung.product)!;
+        await PermanentUnlockService.award(db, 'round-a-player', ruleset, unlock.key, pass ? 'REPLAY' : rung.questKey);
+      }
+    }
+    expect(rows.size).toBe(5);
+    expect([...rows.values()].every((row) => row.sourceQuestKey !== 'REPLAY')).toBe(true);
+    for (const rung of rungs) await expect(PermanentUnlockService.assertCanProduceProduct(db, 'round-a-player', ruleset, rung.product)).resolves.toBeUndefined();
+
+    // A player in another round (another round player row) holds none of it.
+    expect(await PermanentUnlockService.keys(db, 'round-b-player')).toEqual(new Set());
+    for (const rung of rungs) {
+      await expect(PermanentUnlockService.assertCanProduceProduct(db, 'round-b-player', ruleset, rung.product)).rejects.toMatchObject({ code: 'PRODUCT_RECIPE_LOCKED' });
+    }
+    await expect(PermanentUnlockService.assertCanProduceProduct(db, 'round-b-player', ruleset, 'CRACK')).resolves.toBeUndefined();
   });
 });

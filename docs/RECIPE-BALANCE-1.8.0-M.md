@@ -91,6 +91,9 @@ The crew cooks only what its dealers can sell, capped by its turns. Rookie deale
 | A tenth of the net worth | 2 | 1 | 11 | 9 | 5 | 5 | passes |
 | Ten times the net worth | 2 | 1 | 11 | 9 | 5 | 5 | passes |
 | No workshop | 2 | 1 | 11 | 9 | 5 | 5 | passes |
+| Production favor (+20% output) | 2 | 1 | 11 | 9 | 5 | 5 | passes |
+| Cooks fed the best supply (x1.6 output) | 2 | 1 | 8 | 12 | 5 | 5 | passes |
+| Favor and fed cooks together | 2 | 1 | 8 | 14 | 5 | 3 | passes |
 
 Each cell counts the situations where that product is the best earner.
 

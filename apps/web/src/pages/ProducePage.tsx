@@ -1,10 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, type FormEvent } from 'react';
 import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate } from 'react-router-dom';
 import type { ProduceCrackResult, ProductsDto, ProductTypeDto } from '@streets/shared';
 import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
+import { QuestLink } from '../components/QuestLink.js';
+import { useProductsCatalog } from '../hooks/useProductsCatalog.js';
+import { recipeIdentity, recipeNumbers, splitRecipes } from '../utils/recipes.js';
 import { actionsApi } from '../api/actions.js';
-import { api } from '../api/client.js';
 import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
@@ -20,18 +22,19 @@ import { useSession } from '../stores/session.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { hasItemArt } from '../items/itemArt.js';
 
-type Profile = { key: ProductTypeDto; name: string; role: string };
+type Profile = { key: ProductTypeDto; name: string; role: string; identity: string | null };
 
 /** What a round without a product economy cooks: crack, as it always has. */
-const CRACK_ONLY: Profile[] = [{ key: 'CRACK', name: 'Product', role: 'The one product this round. Cheap to cook and in every job.' }];
+const CRACK_ONLY: Profile[] = [{ key: 'CRACK', name: 'Product', role: 'The one product this round. Cheap to cook and in every job.', identity: null }];
 
-/** 0.4.0-D. The catalog's cookable products, from the round's recipes. */
+/** 0.4.0-D. The catalog's cookable products, from the round's recipes. Locked recipes are listed apart. */
 function recipeProfiles(data: ProductsDto | null): Profile[] {
   if (!data?.economy) return CRACK_ONLY;
-  return data.products.filter((product) => product.recipe && product.recipeAccess?.unlocked !== false).map((product) => ({
+  return splitRecipes(data).open.map((product) => ({
     key: product.key,
     name: product.name,
-    role: `${product.recipe!.perThugPerTurn} a thug a turn · ${formatCentsExact(product.recipe!.ingredientCentsPerUnit)} each${product.recipe!.heatPerUnit > 0 ? ' · draws Heat' : ''}`,
+    role: recipeNumbers(product.recipe!),
+    identity: recipeIdentity(product.recipe!),
   }));
 }
 
@@ -61,14 +64,11 @@ export function ProducePage() {
 
   const [turns, setTurns] = useRememberedState<number | ''>(rememberedKey('produce.turns', me?.id), 10, { accept: isTurns });
   const [productType, setProductType] = useRememberedState<ProductTypeDto>(rememberedKey('produce.product', me?.id), 'CRACK', { accept: (value): value is ProductTypeDto => isString(value) });
-  const [catalog, setCatalog] = useState<ProductsDto | null>(null);
-
-  useEffect(() => {
-    api.get<ProductsDto>('/game/products').then(setCatalog).catch(() => setCatalog(null));
-  }, []);
+  // Quest Recipe Unlocks D: reloads when a job is claimed, so a new recipe shows up at once.
+  const { catalog } = useProductsCatalog();
 
   const PRODUCT_PROFILES = recipeProfiles(catalog);
-  const lockedRecipes = catalog?.products.filter((product) => product.recipe && product.recipeAccess?.unlocked === false) ?? [];
+  const lockedRecipes = splitRecipes(catalog).locked;
 
   // A remembered product this round no longer cooks falls back to the first one on offer.
   useEffect(() => {
@@ -166,18 +166,39 @@ export function ProducePage() {
                       <ItemTile item={profile.key} size="sm" label={false} className="se-choice__art" />
                     ) : null}
                     <span className="se-choice__name">{profile.name}</span>
+                    {profile.identity ? <span className="se-choice__identity">{profile.identity}</span> : null}
                     <span className="se-choice__meta">{profile.role}</span>
                   </span>
                 </label>
               ))}
             </div>
             {lockedRecipes.length ? (
-              <Alert>
-                <strong>More recipes open through quests.</strong>
-                <ul>{lockedRecipes.map((product) => (
-                  <li key={product.key}>{product.name}: {product.recipeAccess!.unlockQuest ? <Link to={'/game/quests?focus=' + encodeURIComponent(product.recipeAccess!.unlockQuest.key)}>complete {product.recipeAccess!.unlockQuest.title}</Link> : product.recipeAccess!.unlockDescription}</li>
-                ))}</ul>
-              </Alert>
+              <div className="se-produce-locked" aria-label="Recipes still locked">
+                <div className="se-produce-locked__head">
+                  <span className="se-eyebrow">Still locked</span>
+                  <p>Pip opens each recipe through a job, one after another. Finish the job to cook it.</p>
+                </div>
+                <ul className="se-produce-locked__list">
+                  {lockedRecipes.map((locked) => (
+                    <li key={locked.product.key} className="se-choice se-choice--locked">
+                      <span className="se-choice__body">
+                        {hasItemArt(locked.product.key) ? (
+                          <ItemTile item={locked.product.key} size="sm" label={false} className="se-choice__art" />
+                        ) : null}
+                        {locked.step ? <span className="se-eyebrow">Step {formatNumber(locked.step)}{locked.steps ? ` of ${formatNumber(locked.steps)}` : ''}</span> : null}
+                        <span className="se-choice__name">{locked.product.name}</span>
+                        <span className="se-choice__identity">{recipeIdentity(locked.recipe)}</span>
+                        <span className="se-choice__meta">{recipeNumbers(locked.recipe)}</span>
+                        <span className="se-choice__unlock">
+                          {locked.quest
+                            ? <>Finish <QuestLink quest={locked.quest} /> to unlock.</>
+                            : <>{locked.unlockDescription} <Link className="se-golink" to="/game/quests">See jobs</Link></>}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
           </section>
 

@@ -11,6 +11,7 @@ import { Portrait } from '../components/Portrait.js';
 import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
 import { ProductCounter } from '../components/ProductCounter.js';
+import { ProductAccessTable } from '../components/ProductAccess.js';
 import { QuestLockNote } from '../components/QuestLink.js';
 import { ShelfArt } from '../components/ItemTile.js';
 import { QuantitySteps } from '../components/QuantitySteps.js';
@@ -414,6 +415,19 @@ function StoreView({
     api.get<ProductsDto>('/game/products').then(setProducts).catch(() => setProducts(null));
   }, [slug]);
   useEffect(loadProducts, [loadProducts, reload]);
+  // Quest Recipe Unlocks D: a claimed job can open a shelf or a recipe; show it without a reload.
+  useEffect(() => {
+    if (slug !== 'pip') return;
+    const visible = () => {
+      if (document.visibilityState === 'visible') loadProducts();
+    };
+    window.addEventListener('streets:quests-changed', loadProducts);
+    document.addEventListener('visibilitychange', visible);
+    return () => {
+      window.removeEventListener('streets:quests-changed', loadProducts);
+      document.removeEventListener('visibilitychange', visible);
+    };
+  }, [slug, loadProducts]);
   const pendingStorage = browserSessionStorage();
   const pendingKey = `store:${me?.id ?? 'signed-out'}`;
 
@@ -610,6 +624,8 @@ function StoreView({
                   </div>
                   <p>{details?.note}</p>
                 </div>
+
+                {store.key === 'PIP' ? <ProductAccessTable catalog={products} /> : null}
 
                 <div className={`se-store-items se-stores-shelves${store.key === 'PIP' && catalog.productCounter ? ' se-store-items--pair' : ''}`}>
                   {store.items.map((item) => (

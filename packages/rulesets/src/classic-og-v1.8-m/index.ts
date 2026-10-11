@@ -23,10 +23,21 @@ const production = {
   HEROIN: { perThugPerTurn: 0.25, ingredientCentsPerUnit: 850, variance: 0.3, minHappinessMultiplier: 0.25, heatPerUnit: 0.06 },
 } as const satisfies Record<string, NonNullable<ProductEconomy['production']>>;
 
+/** Quest Recipe Unlocks D. What each cook is like, in a line, before a player spends turns on it. */
+const recipeIdentity = {
+  CRACK: 'The starter: quick to cook, cheap, and no Heat.',
+  WEED: 'Steady and quiet: plenty a turn, barely any Heat, modest value.',
+  ECSTASY: 'A step up in value; where it sells best depends on the city.',
+  COCAINE: 'Slow, costly and hot, but worth the most a unit.',
+  METH: 'High output with real Heat behind it.',
+  HEROIN: 'Limited output and the widest swings; strong where demand runs high.',
+} as const;
+
 const products = classicOgV18L.products;
 const cook = <K extends keyof typeof production>(key: K) => ({
   ...products[key],
   economy: { ...products[key].economy, production: production[key] },
+  recipeIdentity: recipeIdentity[key],
 });
 
 const base: QuestDefinitionCatalog = classicOgV18L.questDefinitions;
@@ -60,6 +71,7 @@ export const classicOgV18M = {
   },
   products: {
     ...products,
+    CRACK: { ...products.CRACK, recipeIdentity: recipeIdentity.CRACK },
     WEED: cook('WEED'),
     ECSTASY: cook('ECSTASY'),
     COCAINE: cook('COCAINE'),

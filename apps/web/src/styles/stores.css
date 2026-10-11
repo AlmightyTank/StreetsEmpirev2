@@ -856,3 +856,55 @@
   float: left;
   margin: 0 16px 4px 0;
 }
+
+/* Quest Recipe Unlocks D: buying and cooking a product are separate permissions. */
+.se-product-access {
+  margin-bottom: 14px;
+}
+
+.se-product-access .se-table th[scope='row'] {
+  color: var(--se-text);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+
+.se-access-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: -4px 0 10px;
+}
+
+.se-access-badge {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  color: var(--se-text-dim);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.se-access-badge--open {
+  border-color: rgba(var(--se-good-rgb), 0.32);
+}
+
+.se-access-badge--open strong {
+  color: var(--se-good);
+}
+
+.se-access-badge--locked {
+  border-color: rgba(255, 121, 26, 0.34);
+}
+
+.se-access-badge--locked strong {
+  color: var(--se-warn);
+}

@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
-import type { AdminPlayerBattlesDto, AdminPlayerDto, AdminPlayerSearchDto } from '@streets/shared';
-import { loadRulesetForRound, productEconomy } from '@streets/rules-engine';
+import type { AdminPlayerBattlesDto, AdminPlayerDto, AdminPlayerSearchDto, AdminUnlockDto } from '@streets/shared';
+import { loadRulesetForRound, productEconomy, recipeLadder, type Ruleset } from '@streets/rules-engine';
 import { toActivityDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { ActivityService } from './activity.service.js';
@@ -8,6 +8,42 @@ import { adminFactionStandings } from './admin-faction.service.js';
 import { adminPlayerFleet } from './admin-vehicle.service.js';
 import { CombatService } from './combat.service.js';
 import { ProductInventoryService, productKeys } from './product-inventory.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
+
+/**
+ * Quest Recipe Unlocks E. Every permanent unlock in the round's ruleset with whether this player
+ * holds it and what granted it, so support can see recipe access at a glance and correct it.
+ */
+export function adminUnlockCatalog(
+  ruleset: Ruleset,
+  rows: ReadonlyArray<{ key: string; sourceQuestKey: string | null; awardedAt: Date }>,
+): AdminUnlockDto[] {
+  const ladder = recipeLadder(ruleset).map((rung) => rung.product);
+  return Object.values(ruleset.permanentUnlocks ?? {}).map((unlock) => {
+    const row = rows.find((entry) => entry.key === unlock.key);
+    const grantedBy = PermanentUnlockService.questFor(ruleset, unlock.key);
+    const source = row?.sourceQuestKey ?? null;
+    const recipe = unlock.effect.kind === 'PRODUCT_PRODUCTION_ACCESS' ? unlock.effect.productKey : null;
+    return {
+      key: unlock.key,
+      name: unlock.name,
+      description: unlock.description,
+      category: unlock.category,
+      held: Boolean(row),
+      sourceQuestKey: source,
+      sourceLabel: source === null ? null : source === 'ADMIN' ? 'Support grant' : ruleset.questDefinitions?.[source]?.title ?? source,
+      awardedAt: row?.awardedAt.toISOString() ?? null,
+      grantedBy: grantedBy ? { key: grantedBy.key, title: grantedBy.title } : null,
+      ...(recipe ? {
+        recipe: {
+          product: recipe,
+          productName: ruleset.products?.[recipe]?.name ?? recipe,
+          step: ladder.includes(recipe) ? ladder.indexOf(recipe) + 1 : null,
+        },
+      } : {}),
+    };
+  });
+}
 
 const iso = (date: Date | null) => date?.toISOString() ?? null;
 
@@ -142,6 +178,7 @@ export const AdminPlayerService = {
           sourceQuestKey: unlock.sourceQuestKey,
           awardedAt: unlock.awardedAt.toISOString(),
         })),
+        catalog: adminUnlockCatalog(loadRulesetForRound(player.round), player.permanentUnlocks),
       },
       favors: player.favorInventory.map((favor) => ({
         key: favor.key,
