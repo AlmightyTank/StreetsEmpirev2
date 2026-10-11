@@ -204,17 +204,77 @@ const staffMessageReportSchema = z.object({
 
 const staffPostSchema = z.object({
   id: z.string(),
-  kind: z.enum(['BUG_REPORT', 'BUG_REPORT_RESOLVED', 'MESSAGE_REPORT', 'MESSAGE_REPORT_RESOLVED', 'PATCH_NOTES_HELD']),
+  kind: z.enum([
+    'BUG_REPORT', 'BUG_REPORT_RESOLVED', 'MESSAGE_REPORT', 'MESSAGE_REPORT_RESOLVED', 'PATCH_NOTES_HELD',
+    'STATUS_DEPLOY_STARTED', 'STATUS_DEPLOY_FINISHED', 'STATUS_DEPLOY_FAILED', 'STATUS_MAINTENANCE',
+  ]),
   editMessageId: z.string().nullable(),
   bugReport: staffBugReportSchema.optional(),
   messageReport: staffMessageReportSchema.optional(),
   patchNotes: z.object({ id: z.string(), title: z.string(), body: z.string(), publishedAt: z.string(), url: z.string() }).optional(),
+  deploy: z.object({ phase: z.enum(['started', 'finished', 'failed']), commit: z.string(), at: z.string() }).optional(),
+  maintenance: z.object({ message: z.string(), startsAt: z.string(), endsAt: z.string() }).optional(),
 });
+
+/** Public: which build answered, and the season it is serving. */
+const metaSchema = z.object({
+  app: z.object({ version: z.string(), commit: z.string().nullable().optional() }),
+  season: z.object({ name: z.string(), status: z.string(), endsAt: z.string() }).nullable(),
+});
+
+/** Public: the live site banner, which carries any maintenance window. */
+const bannerSchema = z.object({
+  banner: z.object({
+    message: z.string(),
+    kind: z.enum(['notice', 'maintenance']),
+    maintenance: z.object({ startsAt: z.string(), endsAt: z.string() }).nullable(),
+  }).nullable(),
+});
+
+const readySchema = z.object({ ok: z.boolean() });
 
 const staffClaimSchema = z.object({ posts: z.array(staffPostSchema) });
 const bugCreatedSchema = z.object({ ok: z.literal(true), id: z.string(), message: z.string() });
 const bugResolvedSchema = z.object({ report: staffBugReportSchema });
 const reportActedSchema = z.object({ report: staffMessageReportSchema });
+
+const ticketSchema = z.object({
+  id: z.string(),
+  discordId: z.string(),
+  discordName: z.string(),
+  subject: z.string(),
+  threadId: z.string().nullable(),
+  staffMessageId: z.string().nullable(),
+  createdAt: z.string(),
+  closedAt: z.string().nullable(),
+  closedByName: z.string().nullable(),
+});
+
+/** Staff-only: posted to the staff channel, never into the ticket thread the member reads. */
+const supportContextSchema = z.object({
+  account: z.object({
+    username: z.string(),
+    createdAt: z.string(),
+    lastLoginAt: z.string().nullable(),
+    emailVerified: z.boolean(),
+    isAdmin: z.boolean(),
+    restrictions: z.array(z.string()),
+    url: z.string(),
+  }).nullable(),
+  player: z.object({ roundName: z.string(), displayName: z.string(), publicPimpId: z.number(), url: z.string() }).nullable(),
+  bugReports: z.object({ open: z.number(), recent: z.array(z.object({ summary: z.string(), resolution: z.string().nullable() })) }),
+  openReportsAgainst: z.number(),
+  pastTickets: z.number(),
+});
+
+const openTicketSchema = z.union([
+  z.object({ existing: ticketSchema }),
+  /** Another of their /support forms is making its thread right now. */
+  z.object({ pending: z.literal(true) }),
+  z.object({ ticket: ticketSchema, context: supportContextSchema }),
+]);
+const closedTicketSchema = z.object({ ticket: ticketSchema });
+const staffCheckSchema = z.object({ admin: z.boolean() });
 
 const newsCreatedSchema = z.object({ id: z.string(), title: z.string(), url: z.string().url(), roundName: z.string().nullable() });
 
@@ -472,9 +532,13 @@ export type TurfAlert = AlertsClaim['turfAlerts'][number];
 export type AllianceAlert = AlertsClaim['allianceAlerts'][number];
 export type GameNotice = AlertsClaim['notices'][number];
 export type StaffPost = z.infer<typeof staffPostSchema>;
+export type PlatformMeta = z.infer<typeof metaSchema>;
+export type SiteBanner = z.infer<typeof bannerSchema>['banner'];
 export type StaffBugReport = z.infer<typeof staffBugReportSchema>;
 export type StaffMessageReport = z.infer<typeof staffMessageReportSchema>;
 export type ReportAction = 'mute-1d' | 'dismiss';
+export type SupportTicket = z.infer<typeof ticketSchema>;
+export type SupportContext = z.infer<typeof supportContextSchema>;
 export type BugCategory = BugReportCategory;
 export type BugResolution = BugReportResolution;
 export type RoundEvent = AlertsClaim['rounds'][number];
@@ -565,8 +629,23 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     /** A staff button on a message report; the game checks the member is a linked admin. */
     actOnMessageReport: async (reportId: string, input: { discordId: string; action: ReportAction; note: string }) =>
       (await call(reportActedSchema, `/api/internal/discord/message-reports/${encodeURIComponent(reportId)}/act`, { method: 'POST', body: input })).report,
+    /** Whether a member may use staff buttons: a linked, active game admin. */
+    isStaff: async (discordId: string) => (await call(staffCheckSchema, `/api/internal/discord/staff?${query({ discordId })}`)).admin,
+    /** /support: their open ticket, or a new one with staff-only context. */
+    openTicket: (input: { discordId: string; discordName: string; subject: string }) =>
+      call(openTicketSchema, '/api/internal/discord/support-tickets', { method: 'POST', body: input }),
+    attachTicket: async (ticketId: string, input: { threadId: string; staffMessageId: string | null }) => {
+      await call(okSchema, `/api/internal/discord/support-tickets/${encodeURIComponent(ticketId)}/attach`, { method: 'POST', body: input });
+    },
+    abandonTicket: async (ticketId: string) => {
+      await call(okSchema, `/api/internal/discord/support-tickets/${encodeURIComponent(ticketId)}/abandon`, { method: 'POST' });
+    },
+    /** The member who opened it or a linked game admin; the game checks which. */
+    closeTicket: async (ticketId: string, input: { discordId: string; name: string }) =>
+      (await call(closedTicketSchema, `/api/internal/discord/support-tickets/${encodeURIComponent(ticketId)}/close`, { method: 'POST', body: input })).ticket,
     /** Staff channel posts, each handed out once. */
-    claimStaffPosts: async () => (await call(staffClaimSchema, '/api/internal/discord/staff-posts/claim', { method: 'POST' })).posts,
+    claimStaffPosts: async (audience: 'staff' | 'status' = 'staff') =>
+      (await call(staffClaimSchema, '/api/internal/discord/staff-posts/claim', { method: 'POST', body: { audience } })).posts,
     staffPostPosted: async (postId: string, messageId: string) => {
       await call(okSchema, `/api/internal/discord/staff-posts/${encodeURIComponent(postId)}/posted`, { method: 'POST', body: { messageId } });
     },
@@ -584,6 +663,10 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     claimResync: () => call(resyncClaimSchema, '/api/internal/discord/resync/claim', { method: 'POST' }),
     round: () => call(statusSchema, '/api/rounds/current/status', { auth: false }),
     news: () => call(newsSchema, '/api/rounds/current/news', { auth: false }),
+    /** Database answers and the current round loads; throws when the game is down. */
+    ready: () => call(readySchema, '/api/ready', { auth: false }),
+    meta: () => call(metaSchema, '/api/meta', { auth: false }),
+    banner: async () => (await call(bannerSchema, '/api/site/banner', { auth: false })).banner,
   };
 }
 

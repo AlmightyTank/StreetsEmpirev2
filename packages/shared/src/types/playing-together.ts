@@ -334,6 +334,8 @@ export interface TurfBlockDto {
   city: string;
   district: 'CASINO' | 'NIGHTCLUB' | 'LOW_RENT' | 'URBAN_GHETTO' | 'WINO_SLUMS';
   districtName: string;
+  /** Quest gate for Scout and Turf actions in this district; the block stays visible. */
+  districtAccess?: { unlocked: boolean; unlockName: string; unlockDescription: string; unlockQuest: QuestLinkDto | null };
   /** Null means the block is either vacant or held by the locals; localsReclaimAt distinguishes them. */
   holder: {
     publicPimpId: number;

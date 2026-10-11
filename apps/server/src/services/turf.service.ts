@@ -55,6 +55,7 @@ import {
   territoryControlForCity,
   type CityControl,
 } from './turf-territory.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 
 type TurfDb = PrismaClient | Db;
 const TIER_NAME = { FOOTHOLD: 'a Foothold', ESTABLISHED: 'Established', STRONGHOLD: 'a Stronghold' } as const;
@@ -703,6 +704,7 @@ export const TurfService = {
       },
     });
     await TurfService.ensureRound(db, player.roundId, ruleset);
+    const accessByDistrict = await PermanentUnlockService.districtAccess(db, roundPlayerId, ruleset);
     const business = businessRules(ruleset);
     const building = buildingOn(ruleset);
     const [rows, presenceRows, activeRun, pendingPushes, myRecentPushes, recentFights, revengeByAttacker, businessRows] = await Promise.all([
@@ -996,8 +998,10 @@ export const TurfService = {
         return null;
       };
 
+      const districtGate = accessByDistrict.get(row.district as DistrictKey);
       blocks.push({
         city: citySlug, district, districtName: districtName(ruleset, citySlug, row.district),
+        ...(districtGate ? { districtAccess: { unlocked: districtGate.unlocked, unlockName: districtGate.unlock.name, unlockDescription: districtGate.unlock.description, unlockQuest: PermanentUnlockService.questFor(ruleset, districtGate.unlock.key) } } : {}),
         holder: row.holder ? {
           publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName,
           alliance: row.holder.alliance ? { name: row.holder.alliance.name, tag: row.holder.alliance.tag } : null,

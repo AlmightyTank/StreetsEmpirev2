@@ -382,7 +382,24 @@ export const AdminRoundService = {
   async resume(prisma: PrismaClient, actor: AuditActor, roundId: string, input: { extend: boolean; reason?: string | undefined }, now = new Date()): Promise<AdminRoundDto> {
     const round = await prisma.$transaction(async (tx) => {
       const before = await lockedRound(tx, roundId, 'resume');
-      const minutes = Math.max(0, Math.ceil((now.getTime() - before.pausedAt!.getTime()) / 60_000));
+      const pauseMs = Math.max(0, now.getTime() - before.pausedAt!.getTime());
+      const minutes = Math.max(0, Math.ceil(pauseMs / 60_000));
+      const pendingEncounters = await tx.randomEncounter.findMany({
+        where: {
+          roundPlayer: { roundId: before.id },
+          status: 'PENDING',
+          expiresAt: { gt: before.pausedAt! },
+        },
+        select: { id: true, expiresAt: true },
+      });
+      for (const encounter of pendingEncounters) {
+        if (encounter.expiresAt) {
+          await tx.randomEncounter.update({
+            where: { id: encounter.id },
+            data: { expiresAt: new Date(encounter.expiresAt.getTime() + pauseMs) },
+          });
+        }
+      }
       const endsAt = input.extend ? new Date(before.endsAt.getTime() + minutes * 60_000) : before.endsAt;
       const resumed = await tx.round.update({
         where: { id: before.id },

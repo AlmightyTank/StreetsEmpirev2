@@ -1,4 +1,5 @@
 import type { AllianceTagDto } from './alliance.js';
+import type { RandomEncounterDto } from './api.js';
 import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
 
 /** Slice G. One side's item and crew art in a battle, captured when the battle happened. */
@@ -48,6 +49,8 @@ export interface BattleReportDto {
   modelVersion: string;
   role: 'ATTACKER' | 'DEFENDER';
   won: boolean;
+  /** Action-triggered narrative and effects for the player who initiated the battle. */
+  encounter?: RandomEncounterDto;
   /** alliance is the opponent's tag when the battle happened; absent on reports from before 0.3.0-C. */
   opponent: { publicPimpId: number; displayName: string; alliance?: AllianceTagDto | null };
   /**

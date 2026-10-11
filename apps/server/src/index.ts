@@ -19,6 +19,7 @@ import { LawWarrantService } from './services/law-warrant.service.js';
 import { LawOfficialService } from './services/law-official.service.js';
 import { PlayerStateService } from './services/player-state.service.js';
 import { NpcGangService } from './services/npc-gang.service.js';
+import { refreshSportsbookCache } from './services/sportsbook.service.js';
 
 const app = await buildApp();
 
@@ -47,6 +48,22 @@ try {
 const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
   await RoundService.settleTurfClock(app.prisma, new Date());
 }, (message, error) => app.log.error(error, message));
+
+// 1.8.0-A: one bounded provider poll populates the shared pregame cache. Player requests never
+// call TheRundown. Free-plan odds are delayed, so refresh no faster than every 15 minutes.
+const stopSportsbook = env.THERUNDOWN_API_KEY
+  ? startPoller('Sportsbook odds cache', env.SPORTSBOOK_POLL_MINUTES * 60_000, async () => {
+      try {
+        await refreshSportsbookCache(app.prisma, env.THERUNDOWN_API_KEY);
+      } catch (error) {
+        await app.prisma.sportsbookProviderState.upsert({
+          where: { id: 'therundown' }, create: { id: 'therundown', lastErrorAt: new Date(), lastError: String(error).slice(0, 500) },
+          update: { lastErrorAt: new Date(), lastError: String(error).slice(0, 500) },
+        });
+        throw error;
+      }
+    }, (message, error) => app.log.error(error, message))
+  : () => {};
 
 // Phase G NPC gangs: weighted archetype-driven restocks, economy moves and attacks.
 const stopNpcGangs = startPoller('NPC gangs', 60_000, async () => {
@@ -93,6 +110,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, async () => {
     app.log.info(`${signal} received, shutting down`);
     stopAlerts();
+    stopSportsbook();
     stopNpcGangs();
     stopTurfWars();
     await app.close();

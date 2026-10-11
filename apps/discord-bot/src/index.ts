@@ -8,6 +8,7 @@ import {
   RESTEvents,
   type Guild,
   type GuildTextBasedChannel,
+  type TextChannel,
 } from 'discord.js';
 import { commandData, handleAutocomplete, handleCommand, type CommandDeps } from './commands.js';
 import { loadConfig } from './config.js';
@@ -33,8 +34,11 @@ import { Cooldowns } from './lookup.js';
 import { betaTesterRoles, managedRoles, parseForumGroupList } from './roles.js';
 import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
+import { memberStatus, timeoutMember } from './moderation.js';
 import { startOptionalPushServer } from './push-server.js';
 import { handleStaffButton, handleStaffModal, staffPostMessage } from './staff.js';
+import { OutageWatch, outageMessage, recoveredMessage, statusPostMessage } from './status.js';
+import { handleTicketButton, handleTicketForm, type SupportDeps } from './support.js';
 
 const config = loadConfig();
 const api = createGameApi({ baseUrl: config.GAME_API_URL, token: config.DISCORD_BOT_API_TOKEN });
@@ -99,6 +103,47 @@ async function checkPostChannel(
   return { channel, problem: null };
 }
 
+let readyGuild: Guild | null = null;
+
+/** The staff channel, when it is set and the bot can post and edit there. */
+async function usableStaffChannel(): Promise<GuildTextBasedChannel | null> {
+  if (!readyGuild || !config.DISCORD_STAFF_CHANNEL_ID) return null;
+  return (await checkPostChannel(readyGuild, config.DISCORD_STAFF_CHANNEL_ID, 'DISCORD_STAFF_CHANNEL_ID', [PermissionFlagsBits.ReadMessageHistory])).channel;
+}
+
+let supportProblem: string | null | undefined;
+/**
+ * The channel /support tickets are private threads in. Checked on every ticket, so
+ * fixing it needs no restart. Members need View Channel there to see their thread.
+ */
+async function usableSupportChannel(): Promise<TextChannel | null> {
+  if (!readyGuild || !config.DISCORD_SUPPORT_CHANNEL_ID) return null;
+  const channel = await readyGuild.channels.fetch(config.DISCORD_SUPPORT_CHANNEL_ID).catch(() => null);
+  let problem: string | null = null;
+  if (!channel || channel.type !== ChannelType.GuildText) {
+    problem = `channel ${config.DISCORD_SUPPORT_CHANNEL_ID} (DISCORD_SUPPORT_CHANNEL_ID) is not a text channel the bot can see in ${readyGuild.name}. Tickets are private threads, which need a plain text channel.`;
+  } else {
+    const missing = channel.permissionsFor(await readyGuild.members.fetchMe()).missing([
+      PermissionFlagsBits.ViewChannel,
+      // Discord also wants Send Messages to start a thread, even with Create Private Threads.
+      PermissionFlagsBits.SendMessages,
+      PermissionFlagsBits.CreatePrivateThreads,
+      PermissionFlagsBits.SendMessagesInThreads,
+      PermissionFlagsBits.EmbedLinks,
+      PermissionFlagsBits.ManageThreads,
+    ]);
+    if (missing.length) problem = `the bot needs ${missing.join(', ')} in #${channel.name}.`;
+  }
+  if (problem !== supportProblem) {
+    if (problem) console.warn(`Support tickets are off until fixed: ${problem}`);
+    else console.log(`Opening /support tickets as private threads in #${(channel as TextChannel).name}.`);
+    supportProblem = problem;
+  }
+  return problem ? null : channel as TextChannel;
+}
+
+const supportDeps: SupportDeps = { api, origin: config.frontendOrigin, supportChannel: usableSupportChannel, staffChannel: usableStaffChannel };
+
 async function postNews(channel: GuildTextBasedChannel): Promise<void> {
   // Claimed posts count as posted, which is why the channel is checked before any claim.
   for (const post of await api.claimNews()) {
@@ -130,6 +175,28 @@ async function postStaff(channel: GuildTextBasedChannel): Promise<void> {
       console.error(`Could not post staff ${post.kind} ${post.id} to #${channel.name}:`, error);
       await api.staffPostFailed(post.id, describeDiscordError(error, channel.name))
         .catch((reportError: unknown) => console.error(`Could not report the failed staff post ${post.id} to the game API:`, reportError));
+    }
+  }
+}
+
+const outages = new OutageWatch(config.DISCORD_OUTAGE_MINUTES * 60_000);
+
+/** Status channel posts. A deploy's finish or failure edits its "updating" post. */
+async function postStatus(channel: GuildTextBasedChannel): Promise<void> {
+  for (const post of await api.claimStaffPosts('status')) {
+    const message = statusPostMessage(post);
+    if (!message) continue;
+    // A deploy restarts the game: outage posts wait while it runs.
+    if (post.deploy?.phase === 'started') outages.deployStarted(Date.now());
+    else if (post.deploy) outages.deployEnded();
+    try {
+      const existing = post.editMessageId ? await channel.messages.fetch(post.editMessageId).catch(() => null) : null;
+      const sent = existing ? await existing.edit(message) : await channel.send({ ...message, allowedMentions: { parse: [] } });
+      await api.staffPostPosted(post.id, sent.id);
+    } catch (error) {
+      console.error(`Could not post status ${post.kind} ${post.id} to #${channel.name}:`, error);
+      await api.staffPostFailed(post.id, describeDiscordError(error, channel.name))
+        .catch((reportError: unknown) => console.error(`Could not report the failed status post ${post.id} to the game API:`, reportError));
     }
   }
 }
@@ -301,6 +368,7 @@ client.once(Events.ClientReady, async (ready) => {
     }
 
     const guild = await ready.guilds.fetch(config.DISCORD_GUILD_ID);
+    readyGuild = guild;
     // Guild commands update immediately, unlike global ones.
     await guild.commands.set(commandData);
     void getCities();
@@ -376,11 +444,53 @@ client.once(Events.ClientReady, async (ready) => {
       }
       if (check.channel) await postStaff(check.channel);
     });
+    const statusCheck = () => checkPostChannel(guild, config.DISCORD_STATUS_CHANNEL_ID, 'DISCORD_STATUS_CHANNEL_ID', [PermissionFlagsBits.ReadMessageHistory]);
+    let statusProblem: string | null | undefined;
+    const runStatus = serialTask('Status channel', async () => {
+      if (!config.DISCORD_STATUS_CHANNEL_ID) {
+        await api.claimStaffPosts('status');
+        return;
+      }
+      const check = await statusCheck();
+      if (check.problem !== statusProblem) {
+        if (check.problem) console.warn(`Status channel posts are paused until fixed: ${check.problem}`);
+        else console.log(`Posting updates, maintenance and outages to #${check.channel!.name}.`);
+        statusProblem = check.problem;
+      }
+      if (check.channel) await postStatus(check.channel);
+    });
+
+    // The bot's own call: a down game can't post. One "down" post per outage, edited when it's back.
+    let outagePost: { channelId: string; messageId: string } | null = null;
+    const runOutageWatch = serialTask('Outage watch', async () => {
+      const ok = await api.ready().then((ready) => ready.ok).catch(() => false);
+      const event = outages.record(ok, Date.now());
+      if (!event || !config.DISCORD_STATUS_CHANNEL_ID) return;
+      const { channel } = await statusCheck();
+      if (!channel) return;
+      // A failed send throws before `posted`, so the next probe offers the same news again.
+      if (event.event === 'down') {
+        const sent = await channel.send({ ...outageMessage(event.since, Date.now()), allowedMentions: { parse: [] } });
+        outagePost = { channelId: channel.id, messageId: sent.id };
+        outages.posted(event);
+        console.warn(`The game API has not answered since ${new Date(event.since).toISOString()}; posted an outage notice.`);
+      } else {
+        const posted = outagePost?.channelId === channel.id ? await channel.messages.fetch(outagePost.messageId).catch(() => null) : null;
+        const message = recoveredMessage(event.since, event.downForMs);
+        if (posted) await posted.edit(message);
+        else await channel.send({ ...message, allowedMentions: { parse: [] } });
+        outagePost = null;
+        outages.posted(event);
+        console.log(`The game API is answering again after ${Math.round(event.downForMs / 60_000)} min.`);
+      }
+    });
+
     const runWake = serialTask('Discord push wake', async () => {
       await runNews();
       await runAlerts();
       await runAdminResync();
       await runStaff();
+      await runStatus();
     });
 
     console.log(`Checking Discord alerts every ${config.DISCORD_ALERTS_MINUTES} min.`);
@@ -390,6 +500,8 @@ client.once(Events.ClientReady, async (ready) => {
     // running covers an "everyone" request, so a skipped run is not lost work.
     startPoller('Admin role resync', config.DISCORD_ALERTS_MINUTES * 60_000, runAdminResync);
     startPoller('Staff channel', config.DISCORD_ALERTS_MINUTES * 60_000, runStaff);
+    startPoller('Status channel', config.DISCORD_ALERTS_MINUTES * 60_000, runStatus);
+    startPoller('Outage watch', 60_000, runOutageWatch);
 
     if (config.DISCORD_BOT_LISTEN_PORT > 0) {
       stopPushServer = await startOptionalPushServer({
@@ -397,6 +509,13 @@ client.once(Events.ClientReady, async (ready) => {
         port: config.DISCORD_BOT_LISTEN_PORT,
         token: config.DISCORD_BOT_API_TOKEN,
         onWake: runWake,
+        // The admin account page: a member's status, and timeouts the game has already audited.
+        onMember: (discordId) => memberStatus(guild, discordId),
+        onTimeout: async (input) => {
+          const member = await timeoutMember(guild, input);
+          console.log(`${input.minutes === null ? 'Lifted the timeout on' : `Timed out for ${input.minutes} min:`} ${input.discordId}, at the game's request.`);
+          return member;
+        },
       });
     }
   } catch (error) {
@@ -425,9 +544,12 @@ client.on(Events.InteractionCreate, (interaction) => {
   } else if (interaction.isChatInputCommand()) {
     handleCommand(interaction, deps).catch((error: unknown) => console.error(`/${interaction.commandName} crashed:`, error));
   } else if (interaction.isButton()) {
-    handleStaffButton(interaction).catch((error: unknown) => console.error(`Button ${interaction.customId} crashed:`, error));
+    // Each handler ignores buttons that are not its own.
+    Promise.all([handleStaffButton(interaction), handleTicketButton(interaction, supportDeps)])
+      .catch((error: unknown) => console.error(`Button ${interaction.customId} crashed:`, error));
   } else if (interaction.isModalSubmit()) {
-    handleStaffModal(interaction, deps).catch((error: unknown) => console.error(`Form ${interaction.customId} crashed:`, error));
+    Promise.all([handleStaffModal(interaction, deps), handleTicketForm(interaction, supportDeps)])
+      .catch((error: unknown) => console.error(`Form ${interaction.customId} crashed:`, error));
   }
 });
 

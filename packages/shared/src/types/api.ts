@@ -1033,6 +1033,8 @@ export interface GameActionResult<T> {
   after: PlayerSnapshot;
   changes: ResourceChange[];
   result: T;
+  /** Action-triggered street encounter attached to this receipt. */
+  encounter?: RandomEncounterDto;
   rankChanges?: RankChanges;
 }
 
@@ -1066,6 +1068,8 @@ export interface DistrictDto {
   /** Fit thugs without weapons; E/F rounds do not count them as street cover. */
   unarmedThugs: number;
   requiresArmedThugs: boolean;
+  /** Quest gate for Scout and Turf access. The district remains visible while locked. */
+  districtAccess?: { unlocked: boolean; unlockName: string; unlockDescription: string; unlockQuest: QuestLinkDto | null };
 }
 
 export interface DistrictsDto {
@@ -1910,6 +1914,8 @@ export interface ProductStockDto {
   } | null;
   /** 0.4.0-D. Present where Produce can cook it. */
   recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
+  /** Quest-gated recipe permission, independent from purchase access. */
+  recipeAccess?: { unlocked: boolean; unlockName: string; unlockDescription: string; unlockQuest: QuestLinkDto | null };
 }
 
 /** 0.4.0-D. POST /api/game/products/trade. */

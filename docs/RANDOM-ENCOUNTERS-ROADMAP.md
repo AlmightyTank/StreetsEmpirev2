@@ -1,6 +1,6 @@
 # Random Encounters Roadmap
 
-Status: **Phase D complete. Scout, Produce and Travel can roll action-triggered encounters, Scout has player-choice encounters, pending choices are durable/recoverable, latest rulesets use NPC crews as encounter families instead of autonomous actors, and admin telemetry reports encounter rate/impact.**
+Status: **Phase D complete. Scout, Produce, Travel, Store, Turf and Combat can roll action-triggered encounters. Scout has player-choice encounters, pending choices are durable/recoverable, latest rulesets use NPC crews as encounter families instead of autonomous actors, and admin telemetry reports encounter rate/impact.**
 
 Random Encounters are the replacement path for persistent NPC pressure. Instead of server-run crews acting off-screen, the street reacts when a player takes an ordinary action: scouting, traveling, producing, shopping, working turf or fighting.
 
@@ -64,14 +64,14 @@ Next:
 
 Delivered:
 
-- Converted named NPC roster crews into encounter families across Scout, Produce and Travel.
+- Converted named NPC roster crews into encounter families across Scout, Produce, Travel, Store, Turf and Combat.
 - Latest ruleset disables autonomous NPC gang spawning/actions while keeping old rulesets and old data intact.
 - NPC balance telemetry now includes encounter volume, pending/resolved/expired counts, rate per active human per day and rolled cash/Heat/supply impact.
 
 Next:
 
-- Add more crew-family coverage for Store, Turf and Combat triggers before retiring the old admin NPC controls UI.
 - Watch encounter rate and impact data before raising chances or adding sharper downside effects.
+- Retire the old admin NPC controls UI after playtesting confirms the new trigger coverage.
 
 ## Open Balance Questions
 

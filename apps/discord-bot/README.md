@@ -55,12 +55,14 @@ the person who ran the command.
 | `/halloffame` | Public | Final top 3 of the five most recently finished rounds |
 | `/round` | Public | Round status, time left, players, turn rate |
 | `/news` | Public | Latest five news posts |
+| `/status` | Public | Whether the game is answering, the running version, the season and any planned maintenance. Answers even while the game is down. |
 | `/invite` | Public | How to register, join the current round and get roles, with the round's status |
 | `/link` | Private | Your game account, current-round player, forum link, and the roles you qualify for, or how to link |
 | `/stats` | Private | Your own cash, crew, weapons, supplies, happiness, turns and ranks |
 | `/alerts` | Private | Turns on DMs for attacks, round events, rank drops or full turns. See below. |
 | `/remind` | Private | Compatibility shortcut for `/alerts type:turns` |
 | `/bug` | Private | Opens a form to report a bug from the member's linked account; same limit as the game form (5 an hour). They hear back when staff resolve it. |
+| `/support` | Private | Opens a private ticket thread with staff. Works without a linked account. One open ticket per member. |
 | `/sync` | Private | Updates your roles now instead of at the next scheduled sync; once a minute per member |
 | `/help` | Private | Every command |
 | `/announce` | Private | Game admins: create a news post from Discord |
@@ -122,10 +124,58 @@ channel once.
   panel's 1-day comms mute, recorded before the report closes as actioned. Closing
   one report closes every report on that message, and all of their posts update.
 - Patch notes a deploy holds for review, with when they will publish on their own.
+- A post for every new `/support` ticket (see below).
 - Make the channel private to staff. The bot needs **View Channel**, **Send
   Messages**, **Embed Links** and **Read Message History** there (the last one
   lets it edit its own posts). While any is missing, posts wait on the server and
   the bot logs what to fix; with no channel set, posts are dropped.
+
+**Status channel.** When `DISCORD_STATUS_CHANNEL_ID` is set, the bot posts there:
+- **Updates:** "Updating StreetsEmpire" when a deploy starts, edited to "Update
+  finished" or "Update hit a problem" when it ends. The deploy workflow sends these
+  through `scripts/ops/deploy-status.mjs`, using the game's `PATCH_NOTES_API_TOKEN`
+  (see [docs/AUTO-DEPLOY.md](../../docs/AUTO-DEPLOY.md)).
+- **Planned maintenance:** every maintenance banner scheduled in **Admin → News**,
+  announced or not, with its window in each reader's own time zone.
+- **Outages:** the bot checks the game every minute. After
+  `DISCORD_OUTAGE_MINUTES` (default 3) without an answer it posts that the game
+  isn't responding, and edits that post when it is back, with how long it was
+  down. It stays quiet for up to 20 minutes after posting that an update started,
+  since restarts are expected then. A bot restart mid-outage forgets its post, so
+  it posts the recovery as a new message.
+- Make it a read-only channel members can see. The bot needs **View Channel**,
+  **Send Messages**, **Embed Links** and **Read Message History** there.
+
+**Moderation from the game.** The admin account page's **Community** panel
+shows a linked player's Discord status (in the server, display name, any timeout)
+and can time them out or lift a timeout. The game audits who did it; the bot
+records the reason in Discord's audit log too. The game reaches the bot through
+`DISCORD_BOT_PUSH_URL`, so that must be set. The bot needs **Moderate Members**,
+and its role must sit above the player's highest role; Discord never times out
+the server owner or members with **Administrator**. The panel says which applies.
+Ticking "Time out on Discord" on a game suspension or ban does the same in one go,
+for as long as fits (Discord allows at most 28 days).
+
+**Support tickets.** When `DISCORD_SUPPORT_CHANNEL_ID` is set, `/support` opens a
+form and turns it into a private thread in that channel:
+- Only the member and staff can see the thread. The bot adds the member and posts
+  their message with a **Close ticket** button; the member or a game admin closes
+  it, and the bot locks and archives the thread.
+- What staff should know about the member goes to the staff channel only, never
+  into the thread: their game account (or that they have none), current round,
+  restrictions such as bans, suspensions and mutes, bug reports, open reports
+  against them and past tickets. **Join ticket** adds a linked game admin to the
+  thread. Server members with **Manage Threads** in the support channel can see
+  every ticket thread anyway.
+- Members without a linked game account can open tickets too.
+- Each member has one open ticket at a time; `/support` links them to it.
+- Make the support channel visible to members (they need **View Channel** to see
+  their thread) but stop them posting in it directly: deny **Send Messages** and
+  **Create Public Threads**, keep **Send Messages in Threads**. The bot needs **View
+  Channel**, **Send Messages** (Discord requires it to start any thread, so give the
+  bot's role an allow that beats the members' deny), **Create Private Threads**,
+  **Send Messages in Threads**, **Embed Links** and **Manage Threads** (to lock
+  closed tickets). It logs what is missing.
 
 ## 1. Create the bot in Discord
 
@@ -137,12 +187,16 @@ You can reuse the application you already use for Discord login
    Treat it like a password.
 2. On the same tab, under **Privileged Gateway Intents**, turn on **Server
    Members Intent** and save. Role sync can't list members without it.
-3. Invite the bot with this URL, using your application ID. The permission
-   requested is **Manage Roles** only:
+3. Invite the bot with this URL, using your application ID. The permissions
+   requested are **Manage Roles** and **Moderate Members** (for timeouts from the
+   admin account page; leave it off and timeouts say what is missing):
 
    ```text
-   https://discord.com/oauth2/authorize?client_id=YOUR_APPLICATION_ID&scope=bot%20applications.commands&permissions=268435456
+   https://discord.com/oauth2/authorize?client_id=YOUR_APPLICATION_ID&scope=bot%20applications.commands&permissions=1099780063232
    ```
+
+   An already-invited bot keeps its old permissions: add **Moderate Members** to
+   its role in **Server Settings → Roles** instead.
 
 4. In **Server Settings → Roles**, drag the bot's role above the roles it
    manages. Discord doesn't let a bot assign roles that sit above its own.
@@ -187,6 +241,9 @@ DISCORD_NEWS_CHANNEL_ID="<channel id, or empty for no auto-posting>"
 DISCORD_NEWS_MINUTES=1
 DISCORD_RAID_FEED_CHANNEL_ID="<channel id, or empty for no raid feed>"
 DISCORD_STAFF_CHANNEL_ID="<private staff channel id, or empty for no staff posts>"
+DISCORD_SUPPORT_CHANNEL_ID="<text channel for /support ticket threads, or empty for no tickets>"
+DISCORD_STATUS_CHANNEL_ID="<public status channel id, or empty for no status posts>"
+DISCORD_OUTAGE_MINUTES=3
 DISCORD_ALERTS_MINUTES=1
 ```
 
@@ -209,6 +266,11 @@ DISCORD_ALERTS_MINUTES=1
   Leave it empty to keep the feed off.
 - `DISCORD_STAFF_CHANNEL_ID` is the private staff channel for bug reports, message reports and held
   patch notes. Leave it empty to keep staff posts off.
+- `DISCORD_SUPPORT_CHANNEL_ID` is the text channel `/support` tickets are private
+  threads in. Leave it empty to keep `/support` off.
+- `DISCORD_STATUS_CHANNEL_ID` is the public channel for updates, maintenance and
+  outages. Leave it empty to keep status posts off. `DISCORD_OUTAGE_MINUTES` is how
+  long the game must be unreachable before it says so.
 
 Restart the game API after setting `DISCORD_BOT_API_TOKEN`.
 

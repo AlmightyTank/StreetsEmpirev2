@@ -26,6 +26,18 @@
 .se-casino__ledger-amount strong { font-size: 1.08rem; }
 .se-casino__ledgerrow.is-positive .se-casino__ledger-amount strong { color: var(--se-accent); }
 .se-casino__ledgerrow.is-negative .se-casino__ledger-amount strong { font-weight: 700; }
+.se-sportsbook { display: grid; gap: .65rem; }
+.se-sportsbook > p { margin: 0; }
+.se-sportsbook__event { display: grid; gap: .55rem; padding: .75rem; border: 1px solid var(--se-border); border-radius: .7rem; background: var(--se-surface); }
+.se-sportsbook__event > header { display: flex; justify-content: space-between; gap: .75rem; color: var(--se-muted); font-size: .85rem; }
+.se-sportsbook__matchup { font-weight: 650; }
+.se-sportsbook__prices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+.se-sportsbook__prices .se-btn { display: flex; justify-content: space-between; gap: .5rem; }
+.se-sportsbook__stake { display: grid; grid-template-columns: auto minmax(5rem, 12rem) 1fr; gap: .6rem; align-items: center; }
+.se-sportsbook__stake small { color: var(--se-muted); justify-self: end; }
+.se-sportsbook__tickets { display: grid; gap: .45rem; border-top: 1px solid var(--se-border); padding-top: .7rem; }
+.se-sportsbook__tickets h3 { margin: 0; font-size: 1rem; }
+.se-sportsbook__ticket { display: flex; justify-content: space-between; gap: .7rem; color: var(--se-muted); font-size: .88rem; }
 @media (max-width: 900px) {
   .se-casino__venues { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -37,6 +49,10 @@
   .se-casino__ledger-amount { width: 100%; grid-template-columns: auto 1fr auto; align-items: baseline; justify-items: start; text-align: left; border-top: 1px solid var(--se-border); padding-top: .55rem; }
   .se-casino__ledger-amount strong { justify-self: center; }
   .se-casino__ledger-amount span { justify-self: end; }
+  .se-sportsbook__prices { grid-template-columns: 1fr; }
+  .se-sportsbook__stake { grid-template-columns: 1fr 1fr; }
+  .se-sportsbook__stake small { grid-column: 1 / -1; justify-self: start; }
+  .se-sportsbook__ticket { align-items: start; flex-direction: column; gap: .15rem; }
 }
 
 /* Casino floor game switcher */

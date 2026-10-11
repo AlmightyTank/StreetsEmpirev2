@@ -29,12 +29,17 @@ import type {
   CasinoPokerTableDto,
   CasinoPokerTablePlayInput,
   CasinoPokerTableViewDto,
+  SportsbookBoardDto,
+  SportsbookBetDto,
+  SportsbookBetInput,
 } from '@streets/shared';
 import { api } from './client.js';
 
 export const casinoApi = {
   page: () => api.get<CasinoPageDto>('/game/casino'),
   tournaments: () => api.get<CasinoTournamentPageDto>('/game/casino/tournaments'),
+  sportsbook: () => api.get<SportsbookBoardDto & { bets: SportsbookBetDto[] }>('/game/casino/sportsbook'),
+  sportsbookBet: (input: SportsbookBetInput) => api.post<{ bet: { id: string; status: string; stakeCents: number; payoutCents: number; oddsAmerican: number }; replayed: boolean }>('/game/casino/sportsbook/bets', input),
   buy: (input: CasinoCashierInput) => api.post<CasinoPageDto>('/game/casino/chips/buy', input),
   redeem: (input: CasinoCashierInput) => api.post<CasinoPageDto>('/game/casino/chips/redeem', input),
   openSession: (input: CasinoSessionStartInput) => api.post<CasinoPageDto>('/game/casino/sessions', input),

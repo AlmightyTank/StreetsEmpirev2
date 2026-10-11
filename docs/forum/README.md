@@ -56,6 +56,19 @@ title follows; if the alliance disbands the thread is retitled `(disbanded)` and
 locked. Locking uses Flarum's bundled **Lock** extension, so keep it enabled. A
 forum outage never blocks the game: the leader sees the error and can retry.
 
+## Suspensions from the game
+
+With forum linking on and `FORUM_API_KEY` set, the admin account page's
+**Community** panel shows whether a linked player is suspended on the forum and
+can suspend them (1 to 90 days) or lift it, with the reason shown to them on the
+forum. Ticking "Suspend on the forum" on a game suspension or ban does the same
+in one go. Each change is audited in the game.
+
+- Enable Flarum's bundled **Suspend** extension.
+- `FORUM_API_USER_ID` must be a forum admin (or a group allowed to suspend users).
+- The game reads every change back, so a disabled extension or a key without the
+  permission shows as an error on the panel instead of silently doing nothing.
+
 ## Beta access
 
 Forum groups are optional for private beta categories, but the game title and

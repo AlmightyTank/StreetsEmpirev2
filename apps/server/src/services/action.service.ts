@@ -18,6 +18,7 @@ import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { annotateLogContext } from '../utils/request-context.js';
 import { ActivityService } from './activity.service.js';
+import { RandomEncounterService, encounterActivityPayload } from './random-encounter.service.js';
 import { HappinessService } from './happiness.service.js';
 import { IdempotencyService } from './idempotency.service.js';
 import { assertLoanDebtChange, assertPlayerState } from './invariant.service.js';
@@ -196,6 +197,19 @@ export interface ActionOutcome<T> {
    * the action id, so a replay never adds evidence twice.
    */
   caseEvidence?: Array<Omit<CaseEvidence, 'sourceKey'>>;
+}
+
+function encounterTriggerForAction(action: string): 'STORE' | 'TURF' | null {
+  if (action.startsWith('STORE_')) return 'STORE';
+  if (action.startsWith('TURF_')) return 'TURF';
+  return null;
+}
+
+function activityPayloadWithEncounter(payload: Prisma.InputJsonValue, encounter: import('@streets/shared').RandomEncounterDto): Prisma.InputJsonValue {
+  const base = typeof payload === 'object' && payload !== null && !Array.isArray(payload)
+    ? payload as Prisma.InputJsonObject
+    : { value: payload };
+  return { ...base, randomEncounter: encounterActivityPayload(encounter) };
 }
 
 export interface RunActionOptions<T> {
@@ -513,7 +527,16 @@ export const ActionService = {
         netWorthCents: beforeNetWorth,
       });
 
-      const next = outcome.next;
+      const trigger = encounterTriggerForAction(options.action);
+      const actionEncounter = trigger ? await RandomEncounterService.action({
+        tx,
+        roundPlayerId,
+        next: outcome.next,
+        ruleset,
+        turns: Math.max(0, current.turns - outcome.next.turns),
+        now,
+      }, trigger) : undefined;
+      const next = actionEncounter?.next ?? outcome.next;
       assertPlayerState(next, ruleset, 'after');
       assertLoanDebtChange(current.loanDebtCents, next.loanDebtCents, ruleset);
 
@@ -602,7 +625,9 @@ export const ActionService = {
           tx,
           roundPlayerId,
           outcome.activity.type,
-          outcome.activity.payload,
+          actionEncounter?.encounter
+            ? activityPayloadWithEncounter(outcome.activity.payload, actionEncounter.encounter)
+            : outcome.activity.payload,
         );
       }
       if (outcome.questProgress) {
@@ -653,6 +678,7 @@ export const ActionService = {
         after,
         changes: diff(before, after),
         result: outcome.result,
+        ...(actionEncounter?.encounter ? { encounter: actionEncounter.encounter } : {}),
         rankChanges,
       };
 

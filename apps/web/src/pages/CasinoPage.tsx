@@ -11,6 +11,7 @@ import { RoulettePanel } from '../components/RoulettePanel.js';
 import { StreetDicePanel } from '../components/StreetDicePanel.js';
 import { PokerPanel } from '../components/PokerPanel.js';
 import { CasinoStatusPanel } from '../components/CasinoStatusPanel.js';
+import { SportsbookPanel } from '../components/SportsbookPanel.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -598,6 +599,14 @@ export function CasinoPage() {
 
             {!activeGame ? (
               <>
+                <SportsbookPanel
+                  cashCents={data.cashCents}
+                  onPlaced={async () => {
+                    const next = await casinoApi.page();
+                    setData(next);
+                    await refreshSnapshot({ background: false });
+                  }}
+                />
                 <section className="se-casino-lobby" aria-label="Casino games">
                   {CASINO_GAMES.map((game) => (
                     <Link key={game.key} to={'/game/casino/' + game.key} className={'se-casino-gamecard se-casino-gamecard--' + game.key}>
