@@ -7,6 +7,7 @@ import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { crewMemberName, crewMemberSpecialty, crewMemberTraits } from './crew-profile.js';
 import { IdempotencyService } from './idempotency.service.js';
+
 import {
   crewPlaceCounts,
   crewPlaceKey,
@@ -660,7 +661,7 @@ export const CrewRosterService = {
   /** A chosen operation team must still be available and eligible under the player's lock. */
   async selectedSpecialtyBonusPercent(tx: Db, roundPlayerId: string, ruleset: Ruleset, role: 'THUG' | 'WORKER', specialty: 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'SERVICE', memberIds: string[]): Promise<number> {
     if (!memberIds.length) return 0;
-    if (!SELECTED_TEAM_RULESETS.has(ruleset.meta.id)) throw AppError.badRequest('TEAM_SELECTION_UNAVAILABLE', 'Selected operation teams are not available in this ruleset.');
+    if (!ruleset.crewRoster?.selectedTeams) throw AppError.badRequest('TEAM_SELECTION_UNAVAILABLE', 'Selected operation teams are not available in this ruleset.');
     const career = ruleset.crewRoster;
     if (!career?.enabled || specialty === 'SERVICE') return 0;
     const members = await tx.crewMember.findMany({
@@ -759,7 +760,7 @@ export const CrewRosterService = {
       }
       return {
         enabled: true,
-        supportsSelectedTeams: SELECTED_TEAM_RULESETS.has(ruleset.meta.id),
+        supportsSelectedTeams: ruleset.crewRoster?.selectedTeams === true,
         migratedAt: migration?.createdAt.toISOString() ?? null,
         totals,
         members: members.map((member) => memberDto(

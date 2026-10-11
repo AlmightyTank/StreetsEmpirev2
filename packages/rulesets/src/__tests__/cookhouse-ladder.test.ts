@@ -6,6 +6,7 @@ import { classicOgV18I } from '../classic-og-v1.8-i/index.js';
 import { classicOgV18J } from '../classic-og-v1.8-j/index.js';
 import { classicOgV18K } from '../classic-og-v1.8-k/index.js';
 import { classicOgV18L } from '../classic-og-v1.8-l/index.js';
+import { classicOgV18M } from '../classic-og-v1.8-m/index.js';
 import { classicOgV18G } from '../classic-og-v1.8-g/index.js';
 import { rulesets } from '../index.js';
 import { questRequiredRecipes } from '../quest-definitions.js';
@@ -118,7 +119,7 @@ describe('1.8.0-F Pip\'s Cookhouse Ladder', () => {
 
   it('leaves every earlier ruleset ungated', () => {
     for (const ruleset of Object.values(rulesets) as Ruleset[]) {
-      if (ruleset === classicOgV18F || ruleset === classicOgV18G || ruleset === classicOgV18H || ruleset === classicOgV18I || ruleset === classicOgV18J || ruleset === classicOgV18K || ruleset === classicOgV18L) continue;
+      if (ruleset === classicOgV18F || ruleset === classicOgV18G || ruleset === classicOgV18H || ruleset === classicOgV18I || ruleset === classicOgV18J || ruleset === classicOgV18K || ruleset === classicOgV18L || ruleset === classicOgV18M) continue;
       expect(recipeGates(ruleset).size, ruleset.meta.id).toBe(0);
     }
     expect(oldQuests.PIP_BULK_ORDER!.objectives[0]!.params).toMatchObject({ where: { productType: 'METH' } });
@@ -132,5 +133,37 @@ describe('1.8.0-F Pip\'s Cookhouse Ladder', () => {
     expect(permanentUnlocks).toMatchObject(baseUnlocks);
     const changed = Object.keys(quests).filter((key) => quests[key] !== oldQuests[key]);
     expect(changed.sort()).toEqual(['PIP_A_BETTER_CUT', 'PIP_BULK_ORDER', 'PIP_GREEN_THUMB', 'PIP_PARTY_FAVORS', 'PIP_RED_LEDGER']);
+  });
+});
+
+describe('1.8.0-M recipe balance', () => {
+  it('ships as the newest ruleset on top of 1.8.0-L', () => {
+    expect(classicOgV18M.meta).toMatchObject({ id: 'classic-og-v1.8-m', version: '1.8.0-M', name: 'Classic OG - Recipe Balance' });
+    expect(rulesets[classicOgV18M.meta.id]).toBe(classicOgV18M);
+    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18M);
+  });
+
+  it('keeps the ladder, its gates and its unlocks from 1.8.0-F', () => {
+    expect(recipeGates(classicOgV18M)).toEqual(recipeGates(classicOgV18F));
+    expect(classicOgV18M.permanentUnlocks).toBe(classicOgV18L.permanentUnlocks);
+  });
+
+  it('changes only the five recipes and A Better Cut from 1.8.0-L', () => {
+    const { meta: _meta, products, questDefinitions: next, ...rest } = classicOgV18M;
+    const { meta: _baseMeta, products: baseProducts, questDefinitions: base, ...baseRest } = classicOgV18L;
+    expect(rest).toEqual(baseRest);
+    const changedProducts = Object.keys(products).filter((key) => products[key as keyof typeof products] !== baseProducts[key as keyof typeof baseProducts]);
+    expect(changedProducts.sort()).toEqual(['COCAINE', 'ECSTASY', 'HEROIN', 'METH', 'WEED']);
+    for (const key of changedProducts) {
+      const { economy, ...product } = products[key as keyof typeof products] as { economy: { production: unknown } };
+      const { economy: baseEconomy, ...baseProduct } = baseProducts[key as keyof typeof baseProducts] as { economy: { production: unknown } };
+      expect(product, key).toEqual(baseProduct);
+      expect({ ...economy, production: null }, key).toEqual({ ...baseEconomy, production: null });
+    }
+    const nextQuests: QuestDefinitionCatalog = next;
+    const baseQuests: QuestDefinitionCatalog = base;
+    expect(Object.keys(nextQuests).filter((key) => nextQuests[key] !== baseQuests[key])).toEqual(['PIP_A_BETTER_CUT']);
+    expect(nextQuests.PIP_A_BETTER_CUT!.objectives.map((objective) => objective.id)).toEqual(['sell_meth', 'sell_ecstasy']);
+    expect(nextQuests.PIP_A_BETTER_CUT!.rewards).toEqual(baseQuests.PIP_A_BETTER_CUT!.rewards);
   });
 });

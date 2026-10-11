@@ -1,26 +1,29 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV18E, classicOgV18F, type Ruleset } from '@streets/rulesets';
+import { classicOgV18E, classicOgV18M, type Ruleset } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import type { ProductsDto, QuestPageDto } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
+import { ProductInventoryService } from '../product-inventory.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { RoundService } from '../round.service.js';
 
 /**
- * Quest Recipe Unlocks B gate, live: a 1.8.0-F round cooks only Crack, Party Favors opens
+ * Quest Recipe Unlocks B gate, live: a 1.8.0-M round (the ladder from 1.8.0-F) cooks only Crack, Party Favors opens
  * at Pip rep 12 and pays the Ecstasy recipe through ordinary production and sales, the
  * recipe works at once, the next rung opens in order, and a 1.8.0-E round keeps every
- * recipe it always had. Opt in with PRODUCT_INTEGRATION=1.
+ * recipe it always had. Slice C: a tuned recipe charges its new ingredient cost once, and a
+ * replayed request returns the stored result without cooking, charging or spending again.
+ * Opt in with PRODUCT_INTEGRATION=1.
  */
-describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('1.8.0-F cookhouse ladder with PostgreSQL', () => {
+describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('cookhouse ladder with PostgreSQL', () => {
   let app: FastifyInstance;
   let roundId = '';
   let accountId = '';
   let playerId = '';
   let cookie = '';
-  const rules: Ruleset = classicOgV18F;
+  const rules: Ruleset = classicOgV18M;
 
   beforeAll(async () => {
     const { buildApp } = await import('../../app.js');
@@ -141,6 +144,27 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('1.8.0-F cookhouse ladde
     const products = (await get('/products')).json<ProductsDto>().products;
     expect(products.find((row) => row.key === 'ECSTASY')!.recipeAccess?.unlocked).toBe(true);
     expect(products.find((row) => row.key === 'METH')!.recipeAccess?.unlocked).toBe(false);
+  }, 60_000);
+
+  it('charges the tuned recipe once and makes nothing on a replayed request', async () => {
+    const actionId = randomUUID();
+    const before = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    const first = await post('/produce-crack', { turns: 3, productType: 'ECSTASY', actionId });
+    expect(first.statusCode, first.body).toBe(200);
+    const result = first.json().result;
+    // 1.8.0-M Ecstasy costs $17.00 a unit to cook; the workshop's bonus units cost nothing.
+    expect(result.ingredientCents).toBe((result.productProduced - (result.hideoutBonusProduct ?? 0)) * 1_700);
+    const afterFirst = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    const stockAfterFirst = await ProductInventoryService.read(app.prisma, playerId, rules);
+
+    const replay = await post('/produce-crack', { turns: 3, productType: 'ECSTASY', actionId });
+    expect(replay.statusCode, replay.body).toBe(200);
+    expect(replay.json().result).toEqual(result);
+    const afterReplay = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    expect(afterReplay.cashCents).toBe(afterFirst.cashCents);
+    expect(afterReplay.turns).toBe(afterFirst.turns);
+    expect(await ProductInventoryService.read(app.prisma, playerId, rules)).toEqual(stockAfterFirst);
+    expect(afterFirst.turns).toBe(before.turns - 3);
   }, 60_000);
 
   it('keeps every recipe open from the start in a 1.8.0-E round', async () => {

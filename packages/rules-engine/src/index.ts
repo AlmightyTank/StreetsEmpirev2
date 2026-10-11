@@ -61,3 +61,4 @@ export * from './simulations/business.js';
 export * from './simulations/business-release.js';
 export * from './simulations/block-wars.js';
 export * from './simulations/slots.js';
+export * from './simulations/recipes.js';
