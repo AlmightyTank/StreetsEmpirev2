@@ -140,6 +140,7 @@ export function AdminAuditPage() {
               <option value="account.rename">Renames</option>
               <option value="account.grant-admin">Admin grants</option>
               <option value="account.revoke-admin">Admin removals</option>
+              <option value="account.grant-supporter">Supporter grants</option>
             </select>
           </div>
           <div className="se-field">
