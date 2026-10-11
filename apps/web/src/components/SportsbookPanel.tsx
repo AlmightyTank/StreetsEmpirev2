@@ -61,6 +61,12 @@ function dayLabel(iso: string, now: number): string {
   return label;
 }
 
+/** "Sun, Oct 11 · 8:30 AM": the day stays on the card even when its day heading has scrolled away. */
+function kickoffLabel(iso: string): string {
+  const date = new Date(iso);
+  return `${date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · ${formatClockTime(date)}`;
+}
+
 /** The server decides a line's state; the screen only adds what the clock changed since. */
 function liveLineState(event: SportsbookEventDto, feed: SportsbookFeedDto, now: number): SportsbookLineState {
   if (Date.parse(event.startsAt) <= now) return 'STARTED';
@@ -287,7 +293,7 @@ export function SportsbookPanel({ cashCents, onPlaced }: { cashCents: number; on
                     <article className={`se-sportsbook__event${state === 'OPEN' ? '' : ' is-closed'}`} key={event.id}>
                       <header>
                         <span className="se-sportsbook__tag">{event.sport}</span>
-                        <time dateTime={event.startsAt}>{formatClockTime(event.startsAt)}</time>
+                        <time dateTime={event.startsAt}>{kickoffLabel(event.startsAt)}</time>
                         <span className={`se-sportsbook__countdown${soon ? ' is-soon' : ''}`}>
                           {state === 'STARTED' ? 'Closed' : `Closes in ${formatDuration(untilStart)}`}
                         </span>
