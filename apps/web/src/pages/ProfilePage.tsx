@@ -184,6 +184,34 @@ function AwardStrip({ title, awards, empty, className }: { title: string; awards
   );
 }
 
+function styleLabel(value: string | null | undefined, fallback: string): string {
+  if (!value) return fallback;
+  return value.replace(/[-_]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function ProfileStylePanel({ player }: { player: PublicPlayerProfileDto }) {
+  const cosmetics = player.cosmetics;
+  const rows = [
+    { label: 'Site theme', value: cosmetics.siteThemeLabel ?? styleLabel(cosmetics.siteTheme, 'StreetsEmpire') },
+    { label: 'Avatar frame', value: styleLabel(cosmetics.avatarFrame ?? cosmetics.frame, 'Standard frame') },
+    { label: 'Profile effect', value: styleLabel(cosmetics.effect, 'No effect') },
+    { label: 'Honorific', value: cosmetics.title ?? 'No title selected' },
+  ];
+  return (
+    <Panel title="Current style" className="se-profile-panel se-profile-style">
+      <p className="se-profile-style__intro">The look players see on your profile and hover card.</p>
+      <div className="se-profile-style__grid">
+        {rows.map((row) => (
+          <div className="se-profile-style__item" key={row.label}>
+            <span>{row.label}</span>
+            <strong>{row.value}</strong>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
 function rankLabel(rank: number | null): string {
   return rank === null ? '-' : `#${formatNumber(rank)}`;
 }
@@ -622,6 +650,7 @@ export function ProfilePage() {
 
         {player ? (
           <>
+            <div className="se-profile-overview">
             <section className="se-profile-section">
               <div className="se-profile-sectionhead">
                 <div>
@@ -650,6 +679,8 @@ export function ProfilePage() {
                 />
               </div>
             </section>
+            <ProfileStylePanel player={player} />
+            </div>
 
             <section className="se-profile-section">
               <div className="se-profile-sectionhead">
