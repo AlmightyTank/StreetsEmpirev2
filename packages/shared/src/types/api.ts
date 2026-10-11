@@ -1762,10 +1762,22 @@ export interface QuestPageDto {
   /** 1.4.0-A. The round's factions, or null before 1.4. */
   factions: FactionDto[] | null;
   permanentUnlocks: QuestPermanentUnlockDto[];
+  /** Quest Recipe Unlocks D. The jobs that open recipes, in order. Absent or empty without recipe gates. */
+  recipeLadder?: RecipeLadderStepDto[];
   activeFavors: QuestActiveFavorDto[];
   armedFavors: QuestArmedFavorDto[];
   favors: QuestFavorDto[];
   quests: PlayerQuestDto[];
+}
+
+/** Quest Recipe Unlocks D. One rung of the recipe ladder; its status and requirements are on the job in `quests`. */
+export interface RecipeLadderStepDto {
+  step: number;
+  questKey: string;
+  product: string;
+  productName: string;
+  /** The recipe's one-line identity, when the ruleset gives one. */
+  identity: string | null;
 }
 
 export interface CityConditionDto {
@@ -1994,9 +2006,23 @@ export interface ProductStockDto {
     factionDiscount?: FactionDiscountDto;
   } | null;
   /** 0.4.0-D. Present where Produce can cook it. */
-  recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
+  recipe?: {
+    perThugPerTurn: number;
+    ingredientCentsPerUnit: number;
+    heatPerUnit: number;
+    /** Quest Recipe Unlocks D. What cooking it is like, in a line. Absent where the ruleset gives none. */
+    identity?: string;
+  } | null;
   /** Quest-gated recipe permission, independent from purchase access. */
-  recipeAccess?: { unlocked: boolean; unlockName: string; unlockDescription: string; unlockQuest: QuestLinkDto | null };
+  recipeAccess?: {
+    unlocked: boolean;
+    unlockName: string;
+    unlockDescription: string;
+    unlockQuest: QuestLinkDto | null;
+    /** Quest Recipe Unlocks D. This recipe's place on the recipe ladder, from 1, and the ladder's length. */
+    step?: number;
+    steps?: number;
+  };
 }
 
 /** 0.4.0-D. POST /api/game/products/trade. */

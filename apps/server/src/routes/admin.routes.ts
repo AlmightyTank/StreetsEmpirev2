@@ -213,6 +213,8 @@ const supportFavorSchema = z.object({
   key: contentKey,
   delta: z.number().int().min(-1000).max(1000).refine((value) => value !== 0, 'Use a non-zero adjustment.'),
 }).strict();
+/** Quest Recipe Unlocks E. Grant (held: true) or revoke one permanent unlock. */
+const supportUnlockSchema = z.object({ reason, key: contentKey, held: z.boolean() }).strict();
 
 const eventDraftParams = z.object({ definitionId: id }).strict();
 const eventOccurrenceParams = z.object({ occurrenceId: id }).strict();
@@ -951,6 +953,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       body.delta,
       body.reason,
     );
+  });
+
+  /** Quest Recipe Unlocks E: grant or revoke a recipe, shelf or rack unlock, audited. */
+  fastify.post('/players/:roundPlayerId/unlocks', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    const body = parseBody(supportUnlockSchema, request.body ?? {});
+    return AdminQuestService.setUnlock(fastify.prisma, request.auth!.account, roundPlayerId, body.key, body.held, body.reason);
   });
 
   fastify.post('/battles/:battleId/void', async (request) => {

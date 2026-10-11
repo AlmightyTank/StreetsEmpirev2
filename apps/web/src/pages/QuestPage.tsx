@@ -14,6 +14,7 @@ import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { questHref } from '../components/QuestLink.js';
+import { RecipeLadderPanel } from '../components/RecipeLadder.js';
 import { RewardChip } from '../components/RewardChip.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -735,9 +736,12 @@ export function QuestPage() {
     try {
       const result = await questsApi.claim(key, crypto.randomUUID(), branchKey);
       const locked = result.result.standingChanges.flatMap((change) => change.locked ?? []);
+      // Quest Recipe Unlocks D: say which recipe the job opened; Produce and Pip's counter reload on the event below.
+      const opened = page?.recipeLadder?.find((rung) => rung.questKey === key);
       setNotice(
         result.result.title
         + ' complete — payment collected.'
+        + (opened ? ' The ' + opened.productName + ' recipe is open: cook it on Produce.' : '')
         + (result.result.chosenBranch ? ' Choice locked: ' + (branchTitle ?? result.result.chosenBranch) + '.' : '')
         + (locked.length ? ' Inner Circle locked for the season: ' + locked.join(', ') + '.' : ''),
       );
@@ -1189,6 +1193,8 @@ export function QuestPage() {
                       )) : <Row label="Earned this round" value="None yet" />}
                     </div>
                   </Panel>
+
+                  <RecipeLadderPanel page={page} />
                 </div>
 
                 <div className="se-quests-stack">

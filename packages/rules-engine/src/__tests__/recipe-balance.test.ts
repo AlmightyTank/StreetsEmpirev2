@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV18E, classicOgV18F, classicOgV18M, type Ruleset } from '@streets/rulesets';
 import { productRecipes, recipeResale, recipeResaleLoops } from '../calculations/product-economy.js';
-import { RECIPE_SCENARIOS, ladderPacing, recipeBalance, recipeDay } from '../simulations/recipes.js';
+import { RECIPE_SCENARIOS, bestCookSupply, ladderPacing, productionFavorPercent, recipeBalance, recipeDay } from '../simulations/recipes.js';
 
 function withProduction(ruleset: Ruleset, product: string, change: Record<string, number>): Ruleset {
   const row = ruleset.products![product]!;
@@ -91,5 +91,27 @@ describe('Quest Recipe Unlocks C: the ladder pays its way', () => {
       },
     } as Ruleset;
     expect(ladderPacing(ruleset).problems).toEqual(['A Better Cut costs more to finish than it pays.']);
+  });
+});
+
+describe('Quest Recipe Unlocks E: favors and crew supply', () => {
+  it('reads the production favor and the best cook supply from the ruleset', () => {
+    expect(productionFavorPercent(classicOgV18M)).toBe(20);
+    expect(bestCookSupply(classicOgV18M)).toBe(1.6);
+  });
+
+  it('charges ingredients on every unit a favor or a fed crew adds', () => {
+    const start = RECIPE_SCENARIOS.find((scenario) => scenario.key === 'START')!;
+    const cocaine = productRecipes(classicOgV18M).find((recipe) => recipe.product === 'COCAINE')!;
+    const plain = recipeDay(classicOgV18M, start, 'san-francisco', cocaine)!;
+    const boosted = recipeDay(classicOgV18M, { ...start, favorOutputPercent: 20, cookSupplyMultiplier: 1.6 }, 'san-francisco', cocaine)!;
+    expect(boosted.cookCapacity).toBeGreaterThan(plain.cookCapacity);
+    expect(boosted.ingredientCents / boosted.sold).toBeCloseTo(plain.ingredientCents / plain.sold, 0);
+  });
+
+  it('keeps the balance gate with the favor, a fed crew, and both', () => {
+    for (const change of [{ favorOutputPercent: 20 }, { cookSupplyMultiplier: 1.6 }, { favorOutputPercent: 20, cookSupplyMultiplier: 1.6 }]) {
+      expect(recipeBalance(classicOgV18M, RECIPE_SCENARIOS.map((scenario) => ({ ...scenario, ...change }))).problems, JSON.stringify(change)).toEqual([]);
+    }
   });
 });

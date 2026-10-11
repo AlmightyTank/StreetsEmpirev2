@@ -4,6 +4,7 @@ import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, type AdminCrewPlayerDto, typ
 import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
+import { AdminUnlocksPanel } from '../components/AdminUnlocksPanel.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
@@ -523,6 +524,8 @@ export function AdminPlayerPage() {
           </div>
         </Panel>
       </div>
+
+      <AdminUnlocksPanel player={player} onUpdated={(updated, message) => void refreshSupport(updated, message)} />
 
       {player.factions.length ? (
         <Panel title="Faction standing correction" aside={<Link to={`/game/admin/audit?targetType=player-faction-standing`}>Audit log</Link>} className="se-mb">

@@ -27,6 +27,21 @@ export interface RecipeScenario {
   /** Turns a day the player spends producing. */
   readonly turnsPerDay: number;
   readonly netWorthCents: number;
+  /** Slice E. A production favor's extra output (Cookhouse Rush), in percent. Extra output costs ingredients. */
+  readonly favorOutputPercent?: number;
+  /** Slice E. The cooks' output while a crew supply policy feeds them a product, 1 for none. */
+  readonly cookSupplyMultiplier?: number;
+}
+
+/** Slice E. The biggest production favor the ruleset offers, in percent of output. */
+export function productionFavorPercent(ruleset: Ruleset): number {
+  return Math.max(0, ...Object.values(ruleset.favors ?? {}).map((favor) =>
+    favor?.effect.kind === 'PRODUCTION_BOOST' ? favor.effect.outputPercent : 0));
+}
+
+/** Slice E. The most a crew supply policy can raise the cooks' output: the best product's thug output effect. */
+export function bestCookSupply(ruleset: Ruleset): number {
+  return Math.max(1, ...Object.values(ruleset.products ?? {}).map((product) => product.effects?.thugs?.output ?? 1));
 }
 
 /** Three stages of an operation: a new crew, a growing one, and a large boosted one. */
@@ -66,7 +81,9 @@ export function recipeDay(ruleset: Ruleset, scenario: RecipeScenario, city: stri
     + (scenario.drugLab ? hideoutV2For(ruleset)?.specializationEffects?.workshop.drugLabOutputBonusPercent ?? 0 : 0);
   const modifier = ruleset.cities?.[city]?.modifiers.crack ?? 1;
 
-  const cookCapacity = Math.floor(scenario.thugs * recipe.perThugPerTurn * modifier * scenario.turnsPerDay * (100 + bonus) / 100);
+  // A favor and a fed crew cook more, and every extra unit is paid for; the workshop's bonus comes on top, free.
+  const paidOutput = (100 + (scenario.favorOutputPercent ?? 0)) / 100 * (scenario.cookSupplyMultiplier ?? 1);
+  const cookCapacity = Math.floor(scenario.thugs * recipe.perThugPerTurn * modifier * scenario.turnsPerDay * paidOutput * (100 + bonus) / 100);
   const pace = dealerPace({
     rules,
     demand: dealerDemand(ruleset, city, recipe.product),
@@ -178,28 +195,46 @@ export const LADDER_THUGS: readonly number[] = [15, 25, 40, 60, 80];
 /** A rung's cooking should fit in one day of turn regeneration. */
 const DAY_OF_TURNS = (ruleset: Ruleset) => DAY_MINUTES / ruleset.turns.intervalMinutes * ruleset.turns.amountPerInterval;
 
+export interface RecipeRung {
+  readonly questKey: string;
+  /** The product whose recipe the job opens. */
+  readonly product: string;
+}
+
+/**
+ * Quest Recipe Unlocks D. The jobs that open recipes, in the order a player meets them: each
+ * one's prerequisites name the rung before it. Empty for a round with no recipe gates.
+ */
+export function recipeLadder(ruleset: Ruleset): RecipeRung[] {
+  const unlocks = ruleset.permanentUnlocks ?? {};
+  const rungs = Object.values(ruleset.questDefinitions ?? {}).flatMap((quest) => {
+    const product = quest.rewards.flatMap((reward) => {
+      const effect = reward.kind === 'PERMANENT_UNLOCK' && reward.key ? unlocks[reward.key]?.effect : undefined;
+      return effect?.kind === 'PRODUCT_PRODUCTION_ACCESS' ? [effect.productKey] : [];
+    })[0];
+    return product ? [{ quest, product }] : [];
+  });
+  const ordered: typeof rungs = [];
+  const placed = (key: unknown) => ordered.some((rung) => rung.quest.key === key);
+  const isRung = (key: unknown) => rungs.some((rung) => rung.quest.key === key);
+  while (ordered.length < rungs.length) {
+    const next = rungs.find((rung) => !placed(rung.quest.key)
+      && rung.quest.prerequisites.every((row) => row.kind !== 'QUEST_COMPLETED' || !isRung(row.params?.questKey) || placed(row.params?.questKey)));
+    if (!next) break;
+    ordered.push(next);
+  }
+  return ordered.map((rung) => ({ questKey: rung.quest.key, product: rung.product }));
+}
+
 /**
  * The recipe ladder in order, costed for a player at that stage. A unit sold to Pip costs
  * what it costs to cook if the recipe is already open, else the cheapest supplier or Pip's
  * own price; a dollar target is met with whichever open recipe loses least a dollar.
  */
 export function ladderPacing(ruleset: Ruleset): { rungs: LadderRung[]; problems: string[] } {
-  const quests = Object.values(ruleset.questDefinitions ?? {});
-  const unlocks = ruleset.permanentUnlocks ?? {};
   const recipes = new Map(productRecipes(ruleset).map((recipe) => [recipe.product, recipe]));
-  const opens = (quest: (typeof quests)[number]) => quest.rewards.flatMap((reward) => {
-    const effect = reward.kind === 'PERMANENT_UNLOCK' && reward.key ? unlocks[reward.key]?.effect : undefined;
-    return effect?.kind === 'PRODUCT_PRODUCTION_ACCESS' ? [effect.productKey] : [];
-  })[0];
-  const ladder = quests.filter((quest) => opens(quest));
-  // Order the rungs by their prerequisites: each one requires the rung before it.
-  const ordered: typeof ladder = [];
-  while (ordered.length < ladder.length) {
-    const next = ladder.find((quest) => !ordered.includes(quest)
-      && quest.prerequisites.every((row) => row.kind !== 'QUEST_COMPLETED' || !ladder.some((rung) => rung.key === row.params?.questKey) || ordered.some((rung) => rung.key === row.params?.questKey)));
-    if (!next) break;
-    ordered.push(next);
-  }
+  const gated = Object.values(ruleset.permanentUnlocks ?? {}).filter((unlock) => unlock.effect.kind === 'PRODUCT_PRODUCTION_ACCESS').length;
+  const ordered = recipeLadder(ruleset).map((rung) => ({ quest: ruleset.questDefinitions![rung.questKey]!, product: rung.product }));
 
   const cookable = new Set(['CRACK']);
   const pipSell = (product: string) => product === 'CRACK' ? ruleset.stores.PIP.items.CRACK?.sellCents ?? 0 : ruleset.products?.[product]?.economy?.pip?.sellCents ?? 0;
@@ -209,7 +244,7 @@ export function ladderPacing(ruleset: Ruleset): { rungs: LadderRung[]; problems:
 
   const rungs: LadderRung[] = [];
   const problems: string[] = [];
-  ordered.forEach((quest, index) => {
+  ordered.forEach(({ quest, product }, index) => {
     const thugs = LADDER_THUGS[Math.min(index, LADDER_THUGS.length - 1)]!;
     let cookTurns = 0;
     let costCents = 0;
@@ -229,12 +264,15 @@ export function ladderPacing(ruleset: Ruleset): { rungs: LadderRung[]; problems:
       }
     }
     const rewardCents = quest.rewards.reduce((sum, reward) => sum + (reward.kind === 'CASH' ? reward.amount ?? 0 : 0), 0);
-    const rung = { questKey: quest.key, title: quest.title, opens: opens(quest)!, thugs, cookTurns: Math.ceil(cookTurns), costCents: Math.round(costCents), rewardCents };
+    const rung = { questKey: quest.key, title: quest.title, opens: product, thugs, cookTurns: Math.ceil(cookTurns), costCents: Math.round(costCents), rewardCents };
     rungs.push(rung);
     if (rung.costCents > rung.rewardCents) problems.push(`${quest.title} costs more to finish than it pays.`);
     if (rung.cookTurns > DAY_OF_TURNS(ruleset)) problems.push(`${quest.title} takes more than a day of turns to cook.`);
     cookable.add(rung.opens);
   });
-  if (ordered.length < ladder.length) problems.push('The recipe jobs do not form one ladder.');
+  const granting = Object.values(ruleset.questDefinitions ?? {}).filter((quest) => quest.rewards.some((reward) =>
+    reward.kind === 'PERMANENT_UNLOCK' && reward.key && ruleset.permanentUnlocks?.[reward.key]?.effect.kind === 'PRODUCT_PRODUCTION_ACCESS')).length;
+  if (ordered.length < granting) problems.push('The recipe jobs do not form one ladder.');
+  if (gated > ordered.length) problems.push('A locked recipe has no job that opens it.');
   return { rungs, problems };
 }

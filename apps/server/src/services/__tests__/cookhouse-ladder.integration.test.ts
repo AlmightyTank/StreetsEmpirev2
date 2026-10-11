@@ -4,6 +4,8 @@ import type { FastifyInstance } from 'fastify';
 import { classicOgV18E, classicOgV18M, type Ruleset } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import type { ProductsDto, QuestPageDto } from '@streets/shared';
+import { AdminPlayerService } from '../admin-player.service.js';
+import { AdminQuestService } from '../admin-quest.service.js';
 import { NetWorthService } from '../net-worth.service.js';
 import { ProductInventoryService } from '../product-inventory.service.js';
 import { ReputationService } from '../reputation.service.js';
@@ -90,6 +92,9 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('cookhouse ladder with P
     expect(access('WEED')).toMatchObject({ unlocked: false, unlockQuest: { key: 'PIP_GREEN_THUMB' } });
     expect(access('COCAINE')).toMatchObject({ unlocked: false, unlockQuest: { key: 'PIP_A_BETTER_CUT' } });
     expect(access('HEROIN')).toMatchObject({ unlocked: false, unlockQuest: { key: 'PIP_RED_LEDGER' } });
+    // Slice D: each locked recipe knows its place on the ladder, and every recipe says what it is like.
+    expect(['ECSTASY', 'METH', 'WEED', 'COCAINE', 'HEROIN'].map((key) => [access(key)?.step, access(key)?.steps])).toEqual([[1, 5], [2, 5], [3, 5], [4, 5], [5, 5]]);
+    for (const product of products.filter((row) => row.recipe)) expect(product.recipe!.identity, product.key).toBeTruthy();
 
     for (const product of ['ECSTASY', 'METH', 'WEED', 'COCAINE', 'HEROIN']) {
       const refused = await cook(product, 1);
@@ -99,6 +104,11 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('cookhouse ladder with P
     expect((await cook('CRACK', 1)).statusCode).toBe(200);
 
     const page = await quests();
+    expect(page.recipeLadder?.map((rung) => [rung.step, rung.questKey, rung.product])).toEqual([
+      [1, 'PIP_PARTY_FAVORS', 'ECSTASY'], [2, 'PIP_BULK_ORDER', 'METH'], [3, 'PIP_GREEN_THUMB', 'WEED'], [4, 'PIP_A_BETTER_CUT', 'COCAINE'], [5, 'PIP_RED_LEDGER', 'HEROIN'],
+    ]);
+    // Locked rungs stay off the Available board; the ladder is where they are shown.
+    for (const rung of page.recipeLadder!) expect(page.quests.find((row) => row.key === rung.questKey)!.status, rung.questKey).toBe('LOCKED');
     const dailies = page.quests.filter((row) => row.type === 'DAILY').map((row) => row.key);
     expect(dailies).toHaveLength(3);
     expect(dailies).not.toContain('DAILY_METH_COOK');
@@ -167,6 +177,52 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('cookhouse ladder with P
     expect(afterFirst.turns).toBe(before.turns - 3);
   }, 60_000);
 
+  it('lets support inspect recipe access and grant or revoke an unlock, audited', async () => {
+    const adminName = `ladder_admin_${randomUUID().slice(0, 6)}`;
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: adminName, email: `${adminName}@example.invalid`, password: randomUUID() } });
+    const admin = registered.json().account as { id: string; username: string };
+    try {
+      const recipe = (player: Awaited<ReturnType<typeof AdminPlayerService.inspect>>, product: string) =>
+        player.unlocks.catalog!.find((unlock) => unlock.recipe?.product === product)!;
+      const inspected = await AdminPlayerService.inspect(app.prisma, playerId);
+      expect(recipe(inspected, 'ECSTASY')).toMatchObject({ held: true, sourceQuestKey: 'PIP_PARTY_FAVORS', sourceLabel: 'Party Favors', recipe: { step: 1 } });
+      expect(recipe(inspected, 'METH')).toMatchObject({ held: false, sourceQuestKey: null, grantedBy: { key: 'PIP_BULK_ORDER' }, recipe: { step: 2 } });
+
+      const granted = await AdminQuestService.setUnlock(app.prisma, admin, playerId, 'PRODUCT_METH_RECIPE', true, 'Lost the claim in an outage');
+      expect(recipe(granted, 'METH')).toMatchObject({ held: true, sourceQuestKey: 'ADMIN', sourceLabel: 'Support grant' });
+      expect((await cook('METH', 1)).statusCode).toBe(200);
+      await expect(AdminQuestService.setUnlock(app.prisma, admin, playerId, 'PRODUCT_METH_RECIPE', true, 'Granting it twice'))
+        .rejects.toMatchObject({ code: 'UNLOCK_ALREADY_HELD' });
+
+      const revoked = await AdminQuestService.setUnlock(app.prisma, admin, playerId, 'PRODUCT_METH_RECIPE', false, 'Granted to the wrong player');
+      expect(recipe(revoked, 'METH').held).toBe(false);
+      expect((await cook('METH', 1)).json().error.code).toBe('PRODUCT_RECIPE_LOCKED');
+
+      const audit = await app.prisma.adminAuditLog.findMany({ where: { actorAccountId: admin.id, targetType: 'player-unlock' }, orderBy: { createdAt: 'asc' } });
+      expect(audit.map((row) => [row.action, row.reason])).toEqual([
+        ['unlock.grant', 'Lost the claim in an outage'],
+        ['unlock.revoke', 'Granted to the wrong player'],
+      ]);
+      expect(audit[0]!.before).toMatchObject({ key: 'PRODUCT_METH_RECIPE', held: false });
+      expect(audit[1]!.before).toMatchObject({ key: 'PRODUCT_METH_RECIPE', held: true, sourceQuestKey: 'ADMIN' });
+
+      await expect(AdminQuestService.setUnlock(app.prisma, admin, playerId, 'NOT_AN_UNLOCK', true, 'Typo in the key'))
+        .rejects.toMatchObject({ code: 'UNLOCK_NOT_FOUND' });
+      await expect(AdminQuestService.setUnlock(app.prisma, { id: accountId, username: 'self' }, playerId, 'PRODUCT_METH_RECIPE', true, 'Helping myself'))
+        .rejects.toMatchObject({ code: 'ADMIN_SELF_ACTION' });
+      await app.prisma.round.update({ where: { id: roundId }, data: { status: 'ENDED' } });
+      try {
+        await expect(AdminQuestService.setUnlock(app.prisma, admin, playerId, 'PRODUCT_METH_RECIPE', true, 'After the round ended'))
+          .rejects.toMatchObject({ code: 'ROUND_FINISHED' });
+      } finally {
+        await app.prisma.round.update({ where: { id: roundId }, data: { status: 'ACTIVE' } });
+      }
+    } finally {
+      await app.prisma.adminAuditLog.deleteMany({ where: { actorAccountId: admin.id } });
+      await app.prisma.account.delete({ where: { id: admin.id } });
+    }
+  }, 60_000);
+
   it('keeps every recipe open from the start in a 1.8.0-E round', async () => {
     await app.prisma.round.update({ where: { id: roundId }, data: { rulesetId: classicOgV18E.meta.id, rulesetVersion: classicOgV18E.meta.version } });
     try {
@@ -174,6 +230,7 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('cookhouse ladder with P
       expect(cooked.statusCode, cooked.body).toBe(200);
       const products = (await get('/products')).json<ProductsDto>().products;
       expect(products.every((row) => row.recipeAccess === undefined || row.recipeAccess === null || row.recipeAccess.unlocked)).toBe(true);
+      expect((await quests()).recipeLadder).toEqual([]);
     } finally {
       await app.prisma.round.update({ where: { id: roundId }, data: { rulesetId: rules.meta.id, rulesetVersion: rules.meta.version } });
     }

@@ -409,3 +409,87 @@
 .se-choice--on .se-choice__body > .se-choice__art {
   border-color: rgba(var(--se-accent-rgb), 0.7);
 }
+
+/* Quest Recipe Unlocks D: what a recipe is like, and the recipes still to earn. */
+.se-produce-choices .se-choice__identity,
+.se-produce-locked .se-choice__identity {
+  color: var(--se-text);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.se-produce-locked {
+  margin-top: 14px;
+}
+
+.se-produce-locked__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+
+.se-produce-locked__head p {
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 11px;
+}
+
+.se-produce-locked__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-produce-locked .se-choice--locked {
+  min-width: 0;
+  margin: 0;
+  border: 1px dashed var(--se-line);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.008);
+  cursor: default;
+}
+
+.se-produce-locked .se-choice--locked:hover {
+  border-color: var(--se-line);
+  background: rgba(255, 255, 255, 0.008);
+}
+
+.se-produce-locked .se-choice__body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 12px 12px 14px;
+}
+
+.se-produce-locked .se-choice__art {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
+.se-produce-locked .se-choice__name {
+  color: var(--se-text-dim);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.se-produce-locked .se-choice__meta {
+  color: var(--se-muted);
+  font-family: var(--se-mono);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.se-choice__unlock {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+@media (max-width: 720px) {
+  .se-produce-locked__list { grid-template-columns: 1fr; }
+}
