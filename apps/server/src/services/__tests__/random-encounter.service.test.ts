@@ -103,12 +103,59 @@ const ruleset = {
   },
 } as never;
 
+const firstClassRuleset = {
+  meta: { id: 'test-event-ruleset', version: '1.0' , eventSystem: { randomEncounters: 'FIRST_CLASS' } },
+  randomEncounters: {
+    enabled: true,
+    triggers: {
+      SCOUT: {
+        enabled: true,
+        chance: 1,
+        cooldownMinutes: 30,
+        perKeyCooldownMinutes: 60,
+        minTurns: 1,
+        entries: [{
+          key: 'first-class-choice',
+          title: 'Street choice',
+          text: 'A small choice arrives with the crew.',
+          tone: 'neutral',
+          weight: 1,
+          choices: [
+            { key: 'pay', label: 'Pay $5', text: 'Pay the fee and keep it quiet.', cash: { minCents: -500, maxCents: -500 } },
+            { key: 'pass', label: 'Pass', text: 'Keep moving.' },
+          ],
+        }],
+      },
+    },
+  },
+} as any;
+
 function tx(rows: unknown[] = []): any {
   return {
     randomEncounter: {
       findMany: vi.fn(async () => rows),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'encounter-1', ...data })),
     },
+  };
+}
+
+function firstClassTx(receiptCount = 1): any {
+  return {
+    roundPlayer: { findUnique: vi.fn(async () => ({ roundId: 'round-1' })) },
+    randomEncounter: { create: vi.fn() },
+    gameEventOccurrence: {
+      findMany: vi.fn(async () => []),
+      upsert: vi.fn(async () => ({ id: 'occurrence-1' })),
+    },
+    gameEventDefinition: {
+      upsert: vi.fn(async () => ({ id: 'definition-1' })),
+    },
+    gameEventParticipation: {
+      upsert: vi.fn(async () => ({ id: 'participation-1' })),
+    },
+    gameEventProgressReceipt: { createMany: vi.fn(async () => ({ count: receiptCount })) },
+    gameEventRewardClaim: { createMany: vi.fn(async () => ({ count: 1 })) },
+    gameEventHistory: { createMany: vi.fn(async () => ({ count: 2 })) },
   };
 }
 
@@ -200,6 +247,169 @@ describe('RandomEncounterService', () => {
 
     expect(settled.next.cashCents).toBe(0n);
     expect(settled.encounter?.effects.cashCents).toBe(-1_000);
+  });
+
+  it('writes a pending action encounter to first-class event records with a choice receipt', async () => {
+    const db = firstClassTx();
+    const settled = await RandomEncounterService.scout({
+      tx: db,
+      roundPlayerId: 'player-1',
+      next: state,
+      ruleset: firstClassRuleset,
+      district: 'LOW_RENT',
+      turns: 2,
+      now: new Date('2026-10-09T00:00:00Z'),
+      rng: () => 0,
+    });
+
+    expect(settled.next).toEqual(state);
+    expect(settled.encounter).toMatchObject({ id: 'event_participation-1', key: 'first-class-choice', status: 'PENDING' });
+    expect(db.randomEncounter.create).not.toHaveBeenCalled();
+    expect(db.gameEventDefinition.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ type: 'RANDOM_ENCOUNTER', key: 'SCOUT:first-class-choice', sourceKind: 'RANDOM_ENCOUNTER_ENTRY' }),
+    }));
+    expect(db.gameEventProgressReceipt.createMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: [expect.objectContaining({ sourceKey: 'encounter:player-1:SCOUT:1791504000000', objectiveKey: 'TRIGGERED' })],
+      skipDuplicates: true,
+    }));
+  });
+
+  it('settles immediate first-class encounter effects with a reward claim receipt', async () => {
+    const db = firstClassTx();
+    const cashRuleset = {
+      ...firstClassRuleset,
+      randomEncounters: { ...firstClassRuleset.randomEncounters, triggers: {
+        SCOUT: { ...firstClassRuleset.randomEncounters.triggers.SCOUT, entries: [{
+          key: 'quick-score', title: 'Quick score', text: 'A customer pays early.', tone: 'good', weight: 1,
+          cash: { minCents: 500, maxCents: 500 },
+        }] },
+      } },
+    } as never;
+    const settled = await RandomEncounterService.scout({
+      tx: db,
+      roundPlayerId: 'player-1',
+      next: state,
+      ruleset: cashRuleset,
+      district: 'LOW_RENT',
+      turns: 2,
+      now: new Date('2026-10-09T00:00:00Z'),
+      rng: () => 0,
+    });
+
+    expect(settled.next.cashCents).toBe(state.cashCents + 500n);
+    expect(settled.encounter).toMatchObject({ key: 'quick-score', status: 'RESOLVED', effects: { cashCents: 500 } });
+    expect(db.gameEventRewardClaim.createMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: [expect.objectContaining({ rewardKey: 'settlement', reward: { cashCents: 500 } })],
+      skipDuplicates: true,
+    }));
+  });
+
+  it('does not apply an encounter when the unique first-class trigger receipt already exists', async () => {
+    const db = firstClassTx(0);
+    const settled = await RandomEncounterService.scout({
+      tx: db,
+      roundPlayerId: 'player-1',
+      next: state,
+      ruleset: { ...firstClassRuleset, randomEncounters: { ...firstClassRuleset.randomEncounters, triggers: {
+        SCOUT: { ...firstClassRuleset.randomEncounters.triggers.SCOUT, entries: [{ key: 'cash', title: 'Cash', text: 'A small score.', tone: 'good', weight: 1, cash: { minCents: 500, maxCents: 500 } }] },
+      } } } as never,
+      district: 'LOW_RENT',
+      turns: 2,
+      now: new Date('2026-10-09T00:00:00Z'),
+      rng: () => 0,
+    });
+
+    expect(settled).toEqual({ next: state });
+    expect(db.gameEventRewardClaim.createMany).not.toHaveBeenCalled();
+  });
+
+  it('enforces the first-class trigger cooldown from event occurrences', async () => {
+    const db = firstClassTx();
+    db.gameEventOccurrence.findMany.mockResolvedValue([{ definition: { key: 'SCOUT:first-class-choice' } }]);
+    const settled = await RandomEncounterService.scout({
+      tx: db,
+      roundPlayerId: 'player-1',
+      next: state,
+      ruleset: firstClassRuleset,
+      district: 'LOW_RENT',
+      turns: 2,
+      now: new Date('2026-10-09T00:00:00Z'),
+      rng: () => 0,
+    });
+
+    expect(settled).toEqual({ next: state });
+    expect(db.gameEventOccurrence.findMany).toHaveBeenCalledTimes(1);
+    expect(db.gameEventDefinition.upsert).not.toHaveBeenCalled();
+  });
+
+  it('settles a selected first-class choice once and records its outcome', async () => {
+    const participation = {
+      id: 'participation-1',
+      progress: { effects: {} },
+      state: { choices: [{ key: 'pay', label: 'Pay $5', text: 'Pay the fee and keep it quiet.', effects: { cashCents: -500 } }] },
+      occurrence: { id: 'occurrence-1', endsAt: new Date(Date.now() + 60_000), config: { entryKey: 'first-class-choice' }, definition: { key: 'SCOUT:first-class-choice', title: 'Street choice' } },
+    };
+    const db = {
+      roundPlayer: { findUnique: vi.fn(async () => ({ round: { pausedAt: null } })) },
+      gameEventParticipation: {
+        findFirst: vi.fn(async () => participation),
+        update: vi.fn(async () => undefined),
+        updateMany: vi.fn(async () => ({ count: 0 })),
+      },
+      gameEventOccurrence: { update: vi.fn(async () => undefined), updateMany: vi.fn(async () => ({ count: 0 })) },
+      gameEventProgressReceipt: { createMany: vi.fn(async () => ({ count: 1 })) },
+      gameEventRewardClaim: { createMany: vi.fn(async () => ({ count: 1 })) },
+      gameEventHistory: { createMany: vi.fn(async () => ({ count: 2 })) },
+    } as any;
+    runMock.mockImplementationOnce(async (_prisma, _roundPlayerId, options) => {
+      const outcome = await options.execute({ tx: db, current: state, now: new Date(), round: { pausedAt: null } });
+      return { success: true, action: 'RANDOM_ENCOUNTER_CHOICE', before: {} as never, after: {} as never, changes: [], result: outcome.result };
+    });
+
+    const result = await RandomEncounterChoiceService.resolve(db, 'player-1', 'event_participation-1', { choice: 'pay', actionId: 'choice-1' });
+
+    expect(result.result?.effects.cashCents).toBe(-500);
+    expect(db.gameEventParticipation.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'CLAIMED', progress: { effects: { cashCents: -500 } } }) }));
+    expect(db.gameEventRewardClaim.createMany).toHaveBeenCalledWith(expect.objectContaining({ data: [expect.objectContaining({ rewardKey: 'pay', idempotencyKey: 'encounter:participation-1:choice:pay' })] }));
+    expect(db.gameEventHistory.createMany).toHaveBeenCalled();
+  });
+
+  it('expires first-class choices without a penalty after the 24-hour window', async () => {
+    const expiredAt = new Date(Date.now() - 60_000);
+    const db = {
+      roundPlayer: { findUnique: vi.fn(async () => ({ round: { pausedAt: null } })) },
+      gameEventParticipation: {
+        findFirst: vi.fn(async () => ({ id: 'participation-1', occurrence: { id: 'occurrence-1', endsAt: expiredAt } })),
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
+      gameEventOccurrence: { updateMany: vi.fn(async () => ({ count: 1 })) },
+      gameEventHistory: { createMany: vi.fn(async () => ({ count: 1 })) },
+    } as any;
+
+    await expect(RandomEncounterChoiceService.resolve(db, 'player-1', 'event_participation-1', { choice: 'pay', actionId: 'choice-expired' }))
+      .rejects.toMatchObject({ code: 'ENCOUNTER_EXPIRED' });
+    expect(runMock).not.toHaveBeenCalled();
+    expect(db.gameEventParticipation.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'EXPIRED', expiredAt: expect.any(Date) } }));
+    expect(db.gameEventHistory.createMany).toHaveBeenCalled();
+  });
+
+  it('recovers first-class pending choices and ignores the retired legacy table for the new ruleset', async () => {
+    const db = {
+      roundPlayer: { findUnique: vi.fn(async () => ({ round: { pausedAt: null } })) },
+      randomEncounter: { findMany: vi.fn(async () => []) },
+      gameEventParticipation: { findMany: vi.fn(async () => [{
+        id: 'participation-1',
+        progress: { effects: {} },
+        state: { choices: [{ key: 'pay', label: 'Pay', text: 'Pay a small fee.', effects: { cashCents: -100 } }] },
+        occurrence: { config: { entryKey: 'first-class-choice', title: 'Street choice', text: 'A small choice.', tone: 'neutral' }, definition: { key: 'SCOUT:first-class-choice' } },
+      }]) },
+    } as any;
+
+    const pending = await RandomEncounterService.pendingForPlayer(db, 'player-1', new Date('2026-10-09T00:00:00Z'), firstClassRuleset);
+
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toMatchObject({ id: 'event_participation-1', key: 'first-class-choice', status: 'PENDING', choices: [{ key: 'pay' }] });
+    expect(db.randomEncounter.findMany).not.toHaveBeenCalled();
   });
 
   it('caps supply losses and applies heat effects', async () => {

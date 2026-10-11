@@ -118,7 +118,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       ActivityService.recent(fastify.prisma, existing.id, RECENT_ACTIVITY_LIMIT),
       StreetPassService.summary(fastify.prisma, existing.id, settled.ruleset),
       LawService.summary(fastify.prisma, existing.id, settled.ruleset),
-      RandomEncounterService.pendingForPlayer(fastify.prisma, existing.id),
+      RandomEncounterService.pendingForPlayer(fastify.prisma, existing.id, new Date(), settled.ruleset),
     ]);
 
     const snapshot = toGameSnapshotDto({
