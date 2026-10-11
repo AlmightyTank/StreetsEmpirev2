@@ -83,6 +83,10 @@ const envSchema = z.object({
   VAPID_SUBJECT: z.union([z.literal(''), z.string().regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT must start with mailto: or https://.')]).default(''),
 
   RESEND_API_KEY: z.string().default(''),
+  // Supporter payments through Stripe Checkout. All three, or supporting is turned off.
+  STRIPE_SECRET_KEY: z.union([z.literal(''), z.string().regex(/^(sk|rk)_(test|live)_/, 'STRIPE_SECRET_KEY must be a Stripe secret or restricted key.')]).default(''),
+  STRIPE_WEBHOOK_SECRET: z.union([z.literal(''), z.string().startsWith('whsec_', 'STRIPE_WEBHOOK_SECRET must start with whsec_.')]).default(''),
+  STRIPE_SUPPORTER_PRICE_ID: z.union([z.literal(''), z.string().startsWith('price_', 'STRIPE_SUPPORTER_PRICE_ID must start with price_.')]).default(''),
   EMAIL_FROM: z.string().default(''),
   /** How long admin audit entries are kept. 0 keeps them forever. */
   ADMIN_AUDIT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(365),
@@ -278,6 +282,14 @@ export const env = {
       timeoutMs: parsed.data.DISCORD_BOT_PUSH_TIMEOUT_MS,
       enabled: Boolean(parsed.data.DISCORD_BOT_API_TOKEN && parsed.data.DISCORD_BOT_PUSH_URL),
     },
+  },
+  stripe: {
+    secretKey: parsed.data.STRIPE_SECRET_KEY,
+    webhookSecret: parsed.data.STRIPE_WEBHOOK_SECRET,
+    supporterPriceId: parsed.data.STRIPE_SUPPORTER_PRICE_ID,
+    /** Off in tests so no test run ever calls Stripe. */
+    enabled: parsed.data.NODE_ENV !== 'test'
+      && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET && parsed.data.STRIPE_SUPPORTER_PRICE_ID),
   },
   patchNotes: {
     apiToken: parsed.data.PATCH_NOTES_API_TOKEN,

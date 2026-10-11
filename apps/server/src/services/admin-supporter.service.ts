@@ -7,11 +7,15 @@ import {
   type AdminSupporterGrantRowDto,
   type AdminSupportersDto,
 } from '@streets/shared';
+import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAccountService } from './admin-account.service.js';
 import type { AuditActor } from './admin-audit.service.js';
+import { membershipDto } from './supporter-billing.service.js';
 
 const REWARD_KEYS: readonly string[] = Object.keys(SUPPORTER_COSMETICS);
+/** How many of the newest supporter payments the tab shows. */
+const RECENT_PAYMENTS = 25;
 
 /** Reward keys each account already holds, from any source, as SupporterService.grant counts them. */
 async function heldRewards(prisma: PrismaClient, accountIds: string[]): Promise<Map<string, Set<string>>> {
@@ -63,14 +67,24 @@ async function commit(
  */
 export const AdminSupporterService = {
   async list(prisma: PrismaClient): Promise<AdminSupportersDto> {
-    const unlocks = await prisma.accountCosmeticUnlock.findMany({
-      where: { sourceQuestKey: SUPPORTER_SOURCE },
-      select: { accountId: true, awardedAt: true },
-      orderBy: { awardedAt: 'asc' },
-    });
+    const [unlocks, memberships, payments] = await Promise.all([
+      prisma.accountCosmeticUnlock.findMany({
+        where: { sourceQuestKey: SUPPORTER_SOURCE },
+        select: { accountId: true, awardedAt: true },
+        orderBy: { awardedAt: 'asc' },
+      }),
+      prisma.supporterMembership.findMany(),
+      prisma.supporterPayment.findMany({
+        orderBy: { paidAt: 'desc' },
+        take: RECENT_PAYMENTS,
+        include: { account: { select: { username: true } } },
+      }),
+    ]);
     const since = new Map<string, Date>();
     for (const unlock of unlocks) if (!since.has(unlock.accountId)) since.set(unlock.accountId, unlock.awardedAt);
-    const ids = [...since.keys()];
+    const membershipBy = new Map(memberships.map((membership) => [membership.accountId, membership]));
+    // A subscriber still waiting on a first payment has no rewards yet, but belongs on the roster.
+    const ids = [...new Set([...since.keys(), ...membershipBy.keys()])];
     const [accounts, profiles, held] = await Promise.all([
       ids.length
         ? prisma.account.findMany({ where: { id: { in: ids } }, select: { id: true, username: true, isActive: true, lastLoginAt: true } })
@@ -88,18 +102,32 @@ export const AdminSupporterService = {
           accountId: account.id,
           username: account.username,
           isActive: account.isActive,
-          since: since.get(account.id)!.toISOString(),
+          since: since.get(account.id)?.toISOString() ?? null,
           lastLoginAt: account.lastLoginAt?.toISOString() ?? null,
           rewardKeys: REWARD_KEYS.filter((key) => keys?.has(key)),
           missingKeys: missingFrom(keys),
           wearingCard: wearing.has(account.id),
+          membership: membershipBy.has(account.id) ? membershipDto(membershipBy.get(account.id)!) : null,
         };
       })
-      .sort((a, b) => b.since.localeCompare(a.since) || a.username.localeCompare(b.username));
+      .sort((a, b) => (b.since ?? '').localeCompare(a.since ?? '') || a.username.localeCompare(b.username));
     return {
       rewards: Object.values(SUPPORTER_COSMETICS).map((reward) => ({ key: reward.key, name: reward.name, kind: reward.kind, rarity: reward.rarity })),
       supporters,
-      missingCount: supporters.filter((supporter) => supporter.missingKeys.length).length,
+      // Only reward holders can be missing a reward; a subscriber waiting on payment gets everything when it lands.
+      missingCount: supporters.filter((supporter) => supporter.since && supporter.missingKeys.length).length,
+      activeCount: supporters.filter((supporter) => supporter.membership?.active).length,
+      checkoutEnabled: env.stripe.enabled,
+      payments: payments.map((payment) => ({
+        id: payment.id,
+        accountId: payment.accountId,
+        username: payment.account?.username ?? null,
+        amountCents: payment.amountCents,
+        currency: payment.currency,
+        status: payment.status,
+        paidAt: payment.paidAt.toISOString(),
+        stripeInvoiceId: payment.stripeInvoiceId,
+      })),
     };
   },
 
@@ -151,7 +179,7 @@ export const AdminSupporterService = {
     if (!dryRun && !input.reason) throw AppError.badRequest('REASON_REQUIRED', 'Give a reason for the backfill.', { reason: 'Give a reason of at least 5 characters.' });
     const { supporters } = await AdminSupporterService.list(prisma);
     const rows: AdminSupporterGrantRowDto[] = supporters
-      .filter((supporter) => supporter.missingKeys.length)
+      .filter((supporter) => supporter.since && supporter.missingKeys.length)
       .map((supporter) => ({
         input: supporter.username,
         status: supporter.accountId === actor.id ? 'self' as const : 'missing-rewards' as const,

@@ -39,6 +39,8 @@ function fakePrisma(accounts: Account[], unlocks: Unlock[], avatarFrames: Record
         accounts.filter((row) => (!where.id || where.id.in.includes(row.id))
           && (!where.usernameNormalized || where.usernameNormalized.in.includes(row.usernameNormalized))),
     },
+    supporterMembership: { findMany: async () => [] },
+    supporterPayment: { findMany: async () => [] },
     accountProfile: {
       findMany: async ({ where }: { where: { accountId: { in: string[] } } }) =>
         where.accountId.in.map((accountId) => ({ accountId, activeAvatarFrameKey: avatarFrames[accountId] ?? null })),
@@ -70,6 +72,8 @@ describe('AdminSupporterService.list', () => {
     ]);
     expect(result.supporters[1]!.since).toBe('2026-10-01T12:00:00.000Z');
     expect(result.missingCount).toBe(1);
+    expect(result.supporters.every((row) => row.membership === null)).toBe(true);
+    expect(result).toMatchObject({ activeCount: 0, checkoutEnabled: false, payments: [] });
   });
 });
 

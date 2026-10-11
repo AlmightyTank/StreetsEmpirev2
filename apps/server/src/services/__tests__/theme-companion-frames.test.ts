@@ -29,7 +29,9 @@ describe('site theme companion frames', () => {
       .filter((cosmetic) => cosmetic.kind === 'PROFILE_FRAME' && cosmetic.key !== 'street-pass-s1-frame')
       .map((cosmetic) => cosmetic.key);
     expect(new Set(Object.values(SITE_THEME_COMPANION_FRAMES))).toEqual(new Set(animatedFrames));
-    expect(PROFILE_EFFECTS.length - 1).toBe(animatedFrames.length);
+    // Neither 'none' nor the supporter card's Chrome Glint is a theme's popup animation.
+    const themeEffects = PROFILE_EFFECTS.filter((effect) => effect.key !== 'none' && effect.key !== 'midnight-chrome');
+    expect(themeEffects.length).toBe(animatedFrames.length);
   });
 
   it('names a real popup animation and frame option for each theme\'s matched look', () => {
