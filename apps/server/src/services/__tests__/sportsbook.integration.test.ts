@@ -640,6 +640,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
 
   it('manually pulls provider odds into the shared player cache', async () => {
     await resetFeedState();
+    const actor = { id: accountId, username: accountName };
     const config = { configured: true, pollMinutes: 30, apiKey: 'test-key' };
     const today = eNow.toISOString().slice(0, 10);
     const feed = provider({
