@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { QuestCosmeticDefinition, Ruleset } from '@streets/rulesets';
+import { siteThemeCompanionFrame, type QuestCosmeticDefinition, type Ruleset } from '@streets/rulesets';
 import type { CosmeticOptionDto, PublicAwardDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
@@ -10,6 +10,27 @@ function definition(ruleset: Ruleset, key: string): QuestCosmeticDefinition {
     throw AppError.conflict('QUEST_COSMETIC_UNKNOWN', 'That quest cosmetic is not available in this ruleset.');
   }
   return cosmetic;
+}
+
+/**
+ * Frames plus the frame that comes with each owned site theme. A theme unlocks
+ * its frame for the profile and avatar (and so its popup animation) however
+ * the theme was earned, including themes held before the pairing existed.
+ */
+export function withThemeCompanionFrames(
+  frames: CosmeticOptionDto[],
+  themes: CosmeticOptionDto[],
+): CosmeticOptionDto[] {
+  const result = [...frames];
+  const known = new Set(result.map((option) => option.key));
+  for (const theme of themes) {
+    const frame = siteThemeCompanionFrame(theme.key);
+    const key = frame?.styleKey ?? frame?.key;
+    if (!frame || !key || known.has(key)) continue;
+    result.push({ key, label: frame.name, description: frame.description });
+    known.add(key);
+  }
+  return result;
 }
 
 export const QuestCosmeticService = {

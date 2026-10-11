@@ -28,7 +28,7 @@ import { AppError } from '../utils/errors.js';
 import { CommunityService, permanentAwardsForAccount } from './community.service.js';
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
-import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { QuestCosmeticService, withThemeCompanionFrames } from './quest-cosmetic.service.js';
 import { isPermanentAward } from './profile-badges.js';
 import { profileTitleForAward } from './profile-titles.js';
 import { crewCosmeticLoadout, itemCosmeticLoadout } from './profile-showcase.service.js';
@@ -305,7 +305,7 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
     }
     for (const style of RELEASED_ITEM_COSMETIC_STYLES) collections.add(style.key);
   }
-  return { accents, frames, themes: themeOptions, collections };
+  return { accents, frames: withThemeCompanionFrames(frames, themeOptions), themes: themeOptions, collections };
 }
 
 export const AccountProfileService = {

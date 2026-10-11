@@ -698,7 +698,7 @@ export function AccountSettingsPage() {
                   </select>
                   {fields.activeProfileFrameKey
                     ? <p className="se-error" role="alert">{fields.activeProfileFrameKey}</p>
-                    : <p className="se-hint">{profileSettings.options.frames.length ? 'Frames are permanent quest-earned profile cosmetics.' : 'Complete qualifying Contact finales to unlock profile frames.'}</p>}
+                    : <p className="se-hint">{profileSettings.options.frames.length ? 'Frames are permanent. Contact finales award them, and each site theme brings its matching frame.' : 'Complete qualifying Contact finales or unlock a site theme to earn profile frames.'}</p>}
                 </div>
 
                 <div className="se-field">
@@ -739,7 +739,7 @@ export function AccountSettingsPage() {
                   </select>
                   {fields.profileEffect
                     ? <p className="se-error" role="alert">{fields.profileEffect}</p>
-                    : <p className="se-hint">This changes the hover popup and avatar effect only. Choose a separate shell theme below to match it or mix Ice Dragon and Fire Dragon. Reduced-motion visitors see still artwork.</p>}
+                    : <p className="se-hint">This changes the hover popup and avatar effect only. Each animation unlocks with its site theme; wear it with that theme or mix, like Ice Dragon with Fire Dragon. Reduced-motion visitors see still artwork.</p>}
                 </div>
 
                 <div className="se-field">
@@ -760,7 +760,7 @@ export function AccountSettingsPage() {
                   </select>
                   {fields.activeSiteThemeKey
                     ? <p className="se-error" role="alert">{fields.activeSiteThemeKey}</p>
-                    : <p className="se-hint">{profileSettings.options.themes.length ? 'Choose the whole game-shell look independently from your popup animation. Dragon themes add matching ambient artwork and motion.' : 'Seasonal and event themes will appear here after you unlock them.'}</p>}
+                    : <p className="se-hint">{profileSettings.options.themes.length ? 'Choose the whole game-shell look. Unlocking a theme also unlocks its matching frame and popup animation, which you can wear separately.' : 'Seasonal and event themes will appear here after you unlock them, with their matching frame and popup animation.'}</p>}
                 </div>
               </div>
 
