@@ -23,6 +23,8 @@ CREATE TABLE "CrewMember" (
     "assignmentKind" "CrewAssignmentKind",
     "assignmentRef" TEXT,
     "experiencePoints" INTEGER NOT NULL DEFAULT 0,
+    "specialty" "CrewMemberSpecialty" NOT NULL DEFAULT 'GENERALIST',
+    "specialtyExperiencePoints" INTEGER NOT NULL DEFAULT 0,
     "dealerStaffId" TEXT,
     "joinedAt" TIMESTAMP(3) NOT NULL,
     "statusSince" TIMESTAMP(3) NOT NULL,
@@ -32,6 +34,12 @@ CREATE TABLE "CrewMember" (
 
     CONSTRAINT "CrewMember_pkey" PRIMARY KEY ("id")
 );
+
+-- 1.7.0-B specialties are present when members are first created. Carry the
+-- existing dealer career and experience into the new roster member.
+UPDATE "CrewMember"
+SET "specialty" = 'DEALER', "specialtyExperiencePoints" = "experiencePoints"
+WHERE "dealerStaffId" IS NOT NULL;
 
 -- CreateTable
 CREATE TABLE "CrewMemberEvent" (
