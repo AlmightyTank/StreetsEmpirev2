@@ -637,4 +637,41 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(audits).toHaveLength(2);
     await app.prisma.adminAuditLog.deleteMany({ where: { action: 'sportsbook.provider-check', actorAccountId: accountId } });
   });
+
+  it('prices and settles a game from TheRundown v2 payloads end to end', async () => {
+    await resetFeedState();
+    const now2 = new Date('2033-06-01T15:00:00.000Z');
+    const today = now2.toISOString().slice(0, 10);
+    const id = providerPrefix + 'v2';
+    const v2Listing = (status: string, score: Record<string, unknown> = {}) => ({
+      event_id: id, sport_id: 2, event_date: new Date(now2.getTime() + 180 * 60_000).toISOString(),
+      score: { event_status: status, score_away: 0, score_home: 0, ...score },
+      teams: [
+        { team_id: 31, name: 'Philadelphia', mascot: 'Eagles', abbreviation: 'PHI', is_away: true, is_home: false },
+        { team_id: 15, name: 'Jacksonville', mascot: 'Jaguars', abbreviation: 'JAX', is_away: false, is_home: true },
+      ],
+      markets: [{ market_id: 1, period_id: 0, name: 'moneyline', participants: [
+        { id: 31, type: 'TYPE_TEAM', name: 'Philadelphia Eagles', lines: [{ id: 1, value: '', prices: { 3: { price: -175, is_main_line: true } } }] },
+        { id: 15, type: 'TYPE_TEAM', name: 'Jacksonville Jaguars', lines: [{ id: 2, value: '', prices: { 3: { price: 145, is_main_line: true } } }] },
+      ] }],
+    });
+    let result = v2Listing('STATUS_SCHEDULED');
+    const feed = provider({
+      odds: (league, date) => reply(200, { events: league === 'NFL' && date === today ? [v2Listing('STATUS_SCHEDULED')] : [] }),
+      result: (eventId) => reply(200, eventId === id ? { event: result } : { event: { status: 'STATUS_SCHEDULED' } }),
+    });
+    await refreshSportsbookCache(app.prisma, 'test-key', now2, feed);
+    const stored = await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { providerEventId: id } });
+    expect(stored).toMatchObject({ homeTeam: 'Jacksonville Jaguars', awayTeam: 'Philadelphia Eagles', homeOdds: 145, awayOdds: -175, status: 'PRE' });
+    const board = await SportsbookService.board(app.prisma, { configured: true, pollMinutes: 30 }, now2);
+    expect(board.events.find((row) => row.id === stored.id)?.lineState).toBe('OPEN');
+
+    const player = await fixture();
+    await SportsbookService.placeBet(app.prisma, player.id, { eventId: stored.id, selection: 'HOME', stakeCents: 10_000, actionId: randomUUID(), expectedOdds: 145 }, now2);
+    result = v2Listing('STATUS_FINAL', { score_away: 17, score_home: 24 });
+    await refreshSportsbookCache(app.prisma, 'test-key', new Date(now2.getTime() + 7 * 3_600_000), feed);
+    expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: stored.id } })).toMatchObject({ status: 'FINAL', homeScore: 24, awayScore: 17, settledVia: 'FEED' });
+    // $100 at +145 pays $245.
+    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).cashCents).toBe(514_500n);
+  });
 });

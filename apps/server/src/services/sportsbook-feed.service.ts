@@ -9,6 +9,7 @@ import {
   SPORTSBOOK_LEAGUES,
   dateKey,
   eventOdds,
+  eventTeams,
   isSameQuotaWindow,
   num,
   record,
@@ -90,9 +91,15 @@ export function isResultCheckDue(
 
 export type ProviderOutcome = 'PRE' | 'LIVE' | 'FINAL' | 'CANCELLED';
 
+/** The provider's own status string, wherever the payload puts it. */
+export function rawProviderStatus(event: ProviderEvent): string {
+  return str(event.status) ?? str(event.event_status) ?? str(record(event.score)?.event_status) ?? '';
+}
+
 /** Reads `STATUS_FINAL`, `final`, `In Progress`, flags and the like into one of four outcomes. */
 export function providerOutcome(event: ProviderEvent): ProviderOutcome {
-  const status = (str(event.status) ?? str(event.event_status) ?? '').toLowerCase().replace(/^status_/, '').replaceAll('_', ' ');
+  // TheRundown v2 keeps the game status on the score object.
+  const status = rawProviderStatus(event).toLowerCase().replace(/^status_/, '').replaceAll('_', ' ');
   if (['cancelled', 'canceled', 'postponed', 'void', 'abandoned'].includes(status)) return 'CANCELLED';
   if (event.is_final === true || event.final === true || status.startsWith('final') || ['completed', 'complete'].includes(status)) return 'FINAL';
   if (event.is_live === true || event.live === true || ['live', 'in progress', 'halftime', 'end period', 'end of period', 'delayed', 'rain delay', 'suspended'].includes(status)) return 'LIVE';
@@ -495,10 +502,7 @@ export function diagnoseProviderEvent(raw: unknown): SnapshotSkipReason | null {
   if (!event || !str(event.event_id)) return 'NO_EVENT_ID';
   if (!Number.isFinite(new Date(String(event.starts_at ?? event.event_date ?? '')).getTime())) return 'BAD_START';
   if (eventOdds(event)) return null;
-  const teams = Array.isArray(event.teams) ? event.teams.map(record) : [];
-  const named = (test: (team: JsonRecord) => boolean) => teams.some((team) => team && test(team) && str(team.name));
-  if (!named((team) => team.is_away === true) || !named((team) => team.is_away === false || team.is_home === true)) return 'NO_TEAMS';
-  return 'NO_MONEYLINE';
+  return eventTeams(event) ? 'NO_MONEYLINE' : 'NO_TEAMS';
 }
 
 export interface SnapshotSummary {
@@ -524,7 +528,7 @@ export function summarizeSnapshot(events: unknown[]): SnapshotSummary {
   for (const raw of events) {
     const reason = diagnoseProviderEvent(raw);
     const event = (record(raw) ?? {}) as ProviderEvent;
-    const rawStatus = str(event.status) ?? str(event.event_status) ?? '(none)';
+    const rawStatus = rawProviderStatus(event) || '(none)';
     const outcome = providerOutcome(event);
     const seen = statuses.get(rawStatus) ?? { outcome, count: 0 };
     seen.count += 1;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SPORTSBOOK_LIMITS, sportsbookLineReason, sportsbookPayoutCents, sportsbookReturnCents } from '@streets/shared';
 import { classicOgV18E, rulesets } from '@streets/rulesets';
+import { providerOutcome, summarizeSnapshot } from '../sportsbook-feed.service.js';
 import {
   americanPayout,
   eventOdds,
@@ -96,5 +97,63 @@ describe('pregame sportsbook', () => {
       if (ruleset.meta.id === classicOgV18E.meta.id) continue;
       expect(ruleset.casino?.sportsbook, ruleset.meta.id).toBeUndefined();
     }
+  });
+
+  describe('TheRundown v2 payloads', () => {
+    const v2 = (overrides: Record<string, unknown> = {}) => ({
+      event_id: 'evt-v2', sport_id: 2, event_date: '2026-10-11T13:30:00Z',
+      score: { event_status: 'STATUS_SCHEDULED', score_away: 0, score_home: 0 },
+      teams: [
+        { team_id: 31, name: 'Philadelphia', mascot: 'Eagles', abbreviation: 'PHI', is_away: true, is_home: false },
+        { team_id: 15, name: 'Jacksonville', mascot: 'Jaguars', abbreviation: 'JAX', is_away: false, is_home: true },
+      ],
+      markets: [{
+        market_id: 1, period_id: 0, name: 'moneyline',
+        participants: [
+          { id: 31, type: 'TYPE_TEAM', name: 'Philadelphia Eagles', lines: [{ id: 1, value: '', prices: { 3: { id: 7, price: -175, is_main_line: true } } }] },
+          { id: 15, type: 'TYPE_TEAM', name: 'Jacksonville Jaguars', lines: [{ id: 2, value: '', prices: { 3: { id: 8, price: 145, is_main_line: true } } }] },
+        ],
+      }],
+      ...overrides,
+    });
+    const market = (participants: unknown[], extra: Record<string, unknown> = {}) => ({ market_id: 1, period_id: 0, name: 'moneyline', participants, ...extra });
+    const side = (id: number, name: string, prices: Record<string, unknown>, more: unknown[] = []) =>
+      ({ id, type: 'TYPE_TEAM', name, lines: [...more, { id: id * 10, value: '', prices }] });
+
+    it('reads the moneyline nested under lines and prices, with full team names', () => {
+      expect(eventOdds(v2())).toEqual({ home: 'Jacksonville Jaguars', away: 'Philadelphia Eagles', homeOdds: 145, awayOdds: -175 });
+    });
+
+    it('matches participants by team id even when their names differ from the team record', () => {
+      const event = v2({ markets: [market([side(31, 'PHI Eagles', { 3: { price: 120 } }), side(15, 'JAX Jaguars', { 3: { price: -140 } })])] });
+      expect(eventOdds(event)).toMatchObject({ awayOdds: 120, homeOdds: -140 });
+    });
+
+    it('keeps a line our book took off the board off, and prefers the main line', () => {
+      const event = v2({ markets: [market([
+        side(31, 'Philadelphia Eagles', { 3: { price: 0.0001, is_main_line: true }, 19: { price: -180 } }),
+        side(15, 'Jacksonville Jaguars', { 3: { price: 150, is_main_line: true } }, [{ id: 99, value: '', prices: { 3: { price: 400, is_main_line: false } } }]),
+      ])] });
+      expect(eventOdds(event)).toMatchObject({ awayOdds: null, homeOdds: 150 });
+    });
+
+    it('uses the full-game moneyline over a period one, and the provider order when teams carry no flags', () => {
+      const event = v2({
+        teams: [{ team_id: 31, name: 'Philadelphia', mascot: 'Eagles' }, { team_id: 15, name: 'Jacksonville', mascot: 'Jaguars' }],
+        markets: [
+          market([side(31, 'Philadelphia Eagles', { 3: { price: -110 } }), side(15, 'Jacksonville Jaguars', { 3: { price: -110 } })], { period_id: 1 }),
+          market([side(31, 'Philadelphia Eagles', { 3: { price: -175 } }), side(15, 'Jacksonville Jaguars', { 3: { price: 145 } })]),
+        ],
+      });
+      expect(eventOdds(event)).toEqual({ home: 'Jacksonville Jaguars', away: 'Philadelphia Eagles', homeOdds: 145, awayOdds: -175 });
+    });
+
+    it('reads the game status from the score object', () => {
+      expect(providerOutcome(v2())).toBe('PRE');
+      expect(providerOutcome(v2({ score: { event_status: 'STATUS_IN_PROGRESS' } }))).toBe('LIVE');
+      expect(providerOutcome(v2({ score: { event_status: 'STATUS_FINAL', score_away: 24, score_home: 17 } }))).toBe('FINAL');
+      expect(providerOutcome(v2({ score: { event_status: 'STATUS_POSTPONED' } }))).toBe('CANCELLED');
+      expect(summarizeSnapshot([v2()])).toMatchObject({ parsed: 1, withoutPrices: 0, statuses: [{ raw: 'STATUS_SCHEDULED', outcome: 'PRE', count: 1 }] });
+    });
   });
 });

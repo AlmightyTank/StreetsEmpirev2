@@ -58,29 +58,96 @@ export function num(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function eventOdds(event: ProviderEvent): { home: string; away: string; homeOdds: number | null; awayOdds: number | null } | null {
-  if (!Array.isArray(event.teams) || !Array.isArray(event.markets)) return null;
+/** The affiliate (sportsbook) whose moneylines the feed requests. */
+export const SPORTSBOOK_AFFILIATE_ID = '3';
+
+/** "Philadelphia" + "Eagles": TheRundown v2 splits the city from the mascot; the board shows both. */
+function teamDisplayName(team: JsonRecord): string | null {
+  const name = str(team.name) ?? str(team.team_name);
+  if (!name) return null;
+  const mascot = str(team.mascot);
+  return mascot && !name.toLowerCase().includes(mascot.toLowerCase()) ? `${name} ${mascot}` : name;
+}
+
+/** Away and home team records: by flag, else TheRundown's order (away first, home second). */
+export function eventTeams(event: ProviderEvent): { home: JsonRecord; away: JsonRecord } | null {
+  if (!Array.isArray(event.teams)) return null;
   const teams = event.teams.map(record).filter((team): team is JsonRecord => Boolean(team));
-  const home = teams.find((team) => team.is_away === false || team.is_home === true);
-  const away = teams.find((team) => team.is_away === true);
-  const homeName = home ? str(home.name) : null;
-  const awayName = away ? str(away.name) : null;
-  if (!homeName || !awayName) return null;
-  const market = event.markets.map(record).find((item) => item && (num(item.market_id) === 1 || str(item.name)?.toLowerCase() === 'moneyline'));
+  let away = teams.find((team) => team.is_away === true) ?? teams.find((team) => team.is_home === false);
+  let home = teams.find((team) => team.is_home === true) ?? teams.find((team) => team.is_away === false);
+  if (!away && !home && teams.length === 2) [away, home] = teams;
+  if (!home || !away || home === away || !teamDisplayName(home) || !teamDisplayName(away)) return null;
+  return { home, away };
+}
+
+const teamIds = (team: JsonRecord) => [team.team_id, team.id, team.team_normalized_id]
+  .filter((value) => typeof value === 'string' || typeof value === 'number').map(String);
+const teamNames = (team: JsonRecord) => [str(team.name), str(team.team_name), teamDisplayName(team), str(team.abbreviation)]
+  .filter((value): value is string => Boolean(value)).map((value) => value.toLowerCase());
+
+/** Which team a market participant is: by team id first, then by an exact name, full name or abbreviation. */
+function participantSide(participant: JsonRecord, teams: { home: JsonRecord; away: JsonRecord }): 'HOME' | 'AWAY' | null {
+  const id = participant.team_id ?? participant.id;
+  if (typeof id === 'string' || typeof id === 'number') {
+    if (teamIds(teams.home).includes(String(id))) return 'HOME';
+    if (teamIds(teams.away).includes(String(id))) return 'AWAY';
+  }
+  const label = (str(participant.name) ?? str(participant.participant_name) ?? str(participant.team_name) ?? str(participant.label))?.toLowerCase();
+  if (!label) return null;
+  if (teamNames(teams.home).includes(label)) return 'HOME';
+  if (teamNames(teams.away).includes(label)) return 'AWAY';
+  return null;
+}
+
+/** A whole-number American price; TheRundown sends 0.0001 for a line that is off the board. */
+function americanPrice(value: unknown): number | null {
+  const price = num(value);
+  return price !== null && Number.isInteger(price) && Math.abs(price) >= 100 ? price : null;
+}
+
+/**
+ * One participant's moneyline. TheRundown v2 nests it as `lines[].prices[affiliateId].price` with an
+ * `is_main_line` flag; older payloads put `price` on the participant. If our affiliate lists the line
+ * at all, only its price counts, so a line it has taken off the board stays off.
+ */
+export function participantPrice(participant: JsonRecord, affiliateId = SPORTSBOOK_AFFILIATE_ID): number | null {
+  const flat = americanPrice(participant.price) ?? americanPrice(participant.odds) ?? americanPrice(participant.american_odds);
+  if (flat !== null) return flat;
+  const offers: Array<{ price: number | null; ours: boolean; main: boolean }> = [];
+  for (const rawLine of Array.isArray(participant.lines) ? participant.lines : []) {
+    const line = record(rawLine);
+    if (!line) continue;
+    const entries: Array<[string, unknown]> = Array.isArray(line.prices)
+      ? line.prices.map((entry): [string, unknown] => [String(record(entry)?.affiliate_id ?? ''), entry])
+      : Object.entries(record(line.prices) ?? {});
+    for (const [key, raw] of entries) {
+      const entry = record(raw);
+      const price = entry ? americanPrice(entry.price) ?? americanPrice(entry.price_american) ?? americanPrice(entry.american) : americanPrice(raw);
+      offers.push({ price, ours: key === affiliateId || String(entry?.affiliate_id ?? '') === affiliateId, main: entry?.is_main_line !== false });
+    }
+  }
+  const pool = offers.some((offer) => offer.ours) ? offers.filter((offer) => offer.ours) : offers;
+  const priced = pool.filter((offer) => offer.price !== null).sort((a, b) => Number(b.main) - Number(a.main));
+  return priced[0]?.price ?? null;
+}
+
+export function eventOdds(event: ProviderEvent): { home: string; away: string; homeOdds: number | null; awayOdds: number | null } | null {
+  const teams = eventTeams(event);
+  if (!teams || !Array.isArray(event.markets)) return null;
+  // The full-game moneyline (period 0 or none), not a period or half line.
+  const moneylines = event.markets.map(record).filter((item): item is JsonRecord => Boolean(item && (num(item.market_id) === 1 || str(item.name)?.toLowerCase() === 'moneyline')));
+  const market = moneylines.find((item) => (num(item.period_id) ?? 0) === 0) ?? moneylines[0];
   if (!market || !Array.isArray(market.participants)) return null;
   let homeOdds: number | null = null;
   let awayOdds: number | null = null;
   for (const raw of market.participants) {
     const participant = record(raw);
     if (!participant) continue;
-    const label = str(participant.name) ?? str(participant.participant_name) ?? str(participant.team_name) ?? str(participant.label);
-    const price = num(participant.price) ?? num(participant.odds) ?? num(participant.american_odds);
-    if (!label || price === null || !Number.isInteger(price) || Math.abs(price) < 100) continue;
-    const normalized = label.toLowerCase();
-    if (normalized === homeName.toLowerCase()) homeOdds = price;
-    if (normalized === awayName.toLowerCase()) awayOdds = price;
+    const side = participantSide(participant, teams);
+    if (side === 'HOME') homeOdds ??= participantPrice(participant);
+    if (side === 'AWAY') awayOdds ??= participantPrice(participant);
   }
-  return { home: homeName, away: awayName, homeOdds, awayOdds };
+  return { home: teamDisplayName(teams.home)!, away: teamDisplayName(teams.away)!, homeOdds, awayOdds };
 }
 
 export function dateKey(date: Date): string {
