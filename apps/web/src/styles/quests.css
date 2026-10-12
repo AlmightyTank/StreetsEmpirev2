@@ -1054,3 +1054,309 @@
 }
 
 .se-recipe-ladder .se-hint { margin: 2px 0 0; }
+
+/* v2 Quest desk: one scrollable story-first board, no internal tab bar. */
+.se-quests {
+  gap: 14px;
+}
+
+.se-quests-primary,
+.se-quests-board {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.se-quests-primary > .se-quest-card {
+  border-color: rgba(var(--se-accent-rgb), .48);
+  background:
+    linear-gradient(135deg, rgba(var(--se-accent-rgb), .085), transparent 55%),
+    var(--se-panel);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, .16), inset 3px 0 0 var(--se-accent);
+}
+
+.se-quests-primary .se-quest-card .se-panel__title {
+  color: var(--se-text);
+  font-size: clamp(16px, 1.45vw, 21px);
+  letter-spacing: -.015em;
+  text-transform: none;
+}
+
+.se-quests-primary .se-quest-card__desc {
+  font-size: 13px;
+  max-width: 72ch;
+}
+
+.se-quests-board {
+  padding-top: 4px;
+}
+
+.se-quests-group,
+.se-quests-resources {
+  border: 1px solid var(--se-line);
+  border-radius: 10px;
+  background: var(--se-panel);
+  scroll-margin-top: 94px;
+  overflow: clip;
+}
+
+.se-quests-group > details,
+.se-quests-resources {
+  min-width: 0;
+}
+
+.se-quests-group__summary,
+.se-quests-resources__summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 63px;
+  padding: 13px 16px;
+  cursor: pointer;
+  list-style: none;
+  background: linear-gradient(90deg, rgba(var(--se-accent-rgb), .035), transparent 65%);
+}
+
+.se-quests-group__summary::-webkit-details-marker,
+.se-quests-resources__summary::-webkit-details-marker {
+  display: none;
+}
+
+.se-quests-group__summary:hover,
+.se-quests-resources__summary:hover {
+  background: rgba(var(--se-accent-rgb), .075);
+}
+
+.se-quests-group__summary:focus-visible,
+.se-quests-resources__summary:focus-visible,
+.se-quest-detail-toggle:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: -2px;
+}
+
+.se-quests-group__heading,
+.se-quests-resources__summary > span:first-child {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+}
+
+.se-quests-group__heading strong,
+.se-quests-resources__summary strong {
+  color: var(--se-text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.se-quests-group__heading small,
+.se-quests-resources__summary small {
+  color: var(--se-text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.se-quests-group__count {
+  flex: 0 0 auto;
+  min-width: 30px;
+  padding: 5px 8px;
+  border: 1px solid var(--se-line);
+  border-radius: 999px;
+  color: var(--se-text);
+  font-family: var(--se-mono);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.se-quests-group__chevron,
+.se-quests-resources__summary > span:last-child {
+  flex: none;
+  color: var(--se-text-dim);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.se-quests-group details[open] > .se-quests-group__summary,
+.se-quests-resources[open] > .se-quests-resources__summary {
+  border-bottom: 1px solid var(--se-line);
+}
+
+.se-quests-group > details > .se-quests-list {
+  padding: 12px;
+}
+
+.se-quests-group .se-quests-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 10px;
+}
+
+.se-quests-group .se-quests-boardclock {
+  grid-column: 1 / -1;
+}
+
+.se-quests-group .se-quest-card .se-panel__title {
+  color: var(--se-text);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.se-quests .se-quest-card {
+  min-width: 0;
+  border-radius: 9px;
+  scroll-margin-top: 94px;
+}
+
+.se-quests .se-quest-card .se-panel__head {
+  align-items: center;
+}
+
+.se-quests .se-quest-card .se-panel__body {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.se-quests .se-quest-card__desc {
+  margin: 0;
+}
+
+.se-quest-card__preview {
+  padding: 9px 11px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 7px;
+  background: rgba(var(--se-accent-rgb), .025);
+}
+
+.se-quest-detail-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 11px;
+  border: 1px solid var(--se-line);
+  border-radius: 7px;
+  background: var(--se-panel-hi);
+  color: var(--se-text-dim);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.se-quest-detail-toggle:hover {
+  border-color: rgba(var(--se-accent-rgb), .4);
+  color: var(--se-text);
+}
+
+.se-quest-card__details {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--se-line-soft);
+}
+
+.se-quest-card__details[hidden] {
+  display: none !important;
+}
+
+.se-quests .se-quest-card .se-quest-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+.se-quests .se-quest-card .se-quest-actions .se-btn {
+  min-height: 38px;
+}
+
+.se-quests-resources__summary {
+  min-height: 62px;
+}
+
+.se-quests-work__rail--expanded {
+  position: static;
+  top: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 12px;
+  align-items: start;
+}
+
+.se-quests-work__rail--expanded #contact-standing,
+.se-quests-work__rail--expanded #factions {
+  min-width: 0;
+}
+
+.se-quests-work__rail--expanded .se-quests-contacts {
+  grid-template-columns: 1fr;
+}
+
+.se-quests-resources > .se-quests-progression {
+  padding: 14px;
+}
+
+.se-quests-options__body {
+  padding: 14px;
+}
+
+.se-quests-options__body .se-checkrow {
+  margin-bottom: 10px;
+}
+
+@media (max-width: 1120px) {
+  .se-quests-group .se-quests-list {
+    grid-template-columns: 1fr;
+  }
+  .se-quests-work__rail--expanded {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .se-quests-primary,
+  .se-quests-board {
+    gap: 8px;
+  }
+  .se-quests-group__summary,
+  .se-quests-resources__summary {
+    min-height: 58px;
+    padding: 12px;
+    gap: 9px;
+  }
+  .se-quests-group__heading strong,
+  .se-quests-resources__summary strong {
+    font-size: 13px;
+  }
+  .se-quests-group > details > .se-quests-list {
+    padding: 8px;
+  }
+  .se-quests-primary .se-quest-card .se-panel__title {
+    font-size: 17px;
+  }
+  .se-quests .se-quest-card .se-panel__head {
+    flex-wrap: wrap;
+  }
+  .se-quests .se-quest-card .se-quest-actions .se-btn {
+    min-height: 44px;
+  }
+  .se-quests-work__rail--expanded,
+  .se-quests-resources > .se-quests-progression,
+  .se-quests-options__body {
+    padding: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-quest-detail-toggle,
+  .se-quests-group__summary {
+    transition: none;
+  }
+}
