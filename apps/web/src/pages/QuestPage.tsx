@@ -546,16 +546,8 @@ export function QuestPage() {
   const focusKey = focusedQuestKey(location.search, location.hash);
   const board = useMemo(() => buildQuestBoard(page?.quests ?? [], focusKey), [page, focusKey]);
 
-  const readyToday = useMemo(
-    () => page?.quests.filter((quest) => quest.status === 'READY_TO_TURN_IN') ?? [],
-    [page],
-  );
   const trackedToday = useMemo(
     () => page?.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)) ?? [],
-    [page],
-  );
-  const activeQuestCount = useMemo(
-    () => page?.quests.filter((quest) => quest.status === 'ACTIVE').length ?? 0,
     [page],
   );
 
