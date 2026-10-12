@@ -51,7 +51,20 @@ export function CityDistrictMap({
 
   return (
     <div className={`se-citymap${disabled ? ' se-citymap--disabled' : ''}`} role="group" aria-label={`${cityName} district map`}>
-      <img className="se-citymap__base" src="/maps/fictional-city-street-map.svg" alt="Fictional city street grid with a river and parks" />
+      <img
+        className="se-citymap__base"
+        src="/maps/fictional-city-street-map.svg"
+        alt="Coastal city street plan with neighborhoods, river crossings, parks, rail yards, and docks"
+      />
+      <div className="se-citymap__chrome" aria-hidden="true">
+        <span>City grid</span>
+        <strong>{cityName}</strong>
+        <small>5 districts · live control</small>
+      </div>
+      <div className="se-citymap__compass" aria-hidden="true">
+        <span>N</span>
+        <i />
+      </div>
       <svg className="se-citymap__zones" viewBox="0 0 880 700" preserveAspectRatio="none" aria-hidden="true">
         {mappedDistricts.map((entry) => {
           const district = entry.district as MappedDistrictKey;
@@ -96,6 +109,10 @@ export function CityDistrictMap({
               onBlur={() => setHoveredDistrict((current) => current === district ? null : current)}
               onClick={() => onSelect(district)}
             >
+              <span className="se-citymap__marker" aria-hidden="true">
+                <span className="se-citymap__marker-number">{String(index + 1).padStart(2, '0')}</span>
+                <span className="se-citymap__marker-name">{entry.name}</span>
+              </span>
               <span className="se-citymap__card">
                 <span className="se-citymap__block-number">BLOCK 0{index + 1}</span>
                 <strong>{entry.name}</strong>

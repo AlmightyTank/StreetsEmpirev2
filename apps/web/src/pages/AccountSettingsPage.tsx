@@ -388,16 +388,52 @@ export function AccountSettingsPage() {
 
   return (
     <Frame>
-      <div className="se-pagehead">
-        <div>
-          <p className="se-eyebrow">Private account</p>
-          <h1 className="se-title">Login & settings</h1>
+      <header className="se-settings-hero">
+        <div className="se-settings-hero__copy">
+          <p className="se-eyebrow">Private account · Command center</p>
+          <h1 className="se-title">Your settings</h1>
+          <p>Shape how StreetsEmpire looks, feels and reaches you. Your criminal record stays on the streets; everything here is yours alone.</p>
         </div>
-        {me ? <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/profile">Public profile</Link> : null}
-      </div>
+        <div className="se-settings-hero__identity">
+          <span className="se-settings-hero__avatar" aria-hidden="true">
+            <AvatarFace imageUrl={cosmetics.profileImageUrl} avatar={cosmetics.profileAvatar} fallback={initials(displayName)} />
+          </span>
+          <div className="se-settings-hero__player">
+            <span className="se-settings-hero__label">Signed in as</span>
+            <strong>{displayName}</strong>
+            <small>{previewCity}{round ? ` · ${round.name}` : ''}</small>
+          </div>
+          <div className="se-settings-hero__status" aria-label="Account status">
+            <span className={account.emailVerifiedAt ? 'is-ready' : 'is-attention'}>{account.emailVerifiedAt ? 'Email verified' : 'Verify email'}</span>
+            <span className={account.twoFactorEnabled ? 'is-ready' : ''}>{account.twoFactorEnabled ? '2-step on' : '2-step off'}</span>
+          </div>
+          {me ? <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/profile">View public profile</Link> : null}
+        </div>
+      </header>
 
       {message ? <Alert tone={tone}>{message}</Alert> : null}
 
+      <div className="se-settings-layout">
+        <aside className="se-settings-nav" aria-label="Settings categories">
+          <span className="se-settings-nav__eyebrow">Settings index</span>
+          <nav>
+            <a href="#settings-account"><span>01</span>Account</a>
+            <a href="#settings-connections"><span>02</span>Connections</a>
+            <a href="#settings-alerts"><span>03</span>Alerts</a>
+            <a href="#settings-security"><span>04</span>Security</a>
+            <a href="#settings-game"><span>05</span>Game</a>
+            <a href="#settings-profile"><span>06</span>Profile & look</a>
+            <a href="#settings-data"><span>07</span>Data & privacy</a>
+          </nav>
+          <p>Changes to your look and interface are saved together. Account and alert actions save as you make them.</p>
+        </aside>
+
+        <div className="se-settings-content">
+      <section id="settings-account" className="se-settings-section" aria-labelledby="settings-account-title">
+        <header className="se-settings-section__head">
+          <div><span>01</span><h2 id="settings-account-title">Account</h2></div>
+          <p>Your identity, sign-in details and recovery address.</p>
+        </header>
       <div className="se-account-columns">
         <div className="se-account-column">
           <Panel title="Login identity" flush>
@@ -472,12 +508,16 @@ export function AccountSettingsPage() {
         </div>
 
         <div className="se-account-column">
-          <ConnectedAccountsPanel
-            account={account}
-            onConnectionsChanged={() => setConnectionsVersion((current) => current + 1)}
-          />
+          <div id="settings-connections" className="se-settings-anchor">
+            <ConnectedAccountsPanel
+              account={account}
+              onConnectionsChanged={() => setConnectionsVersion((current) => current + 1)}
+            />
+          </div>
 
-          <NotificationsPanel refreshKey={connectionsVersion} />
+          <div id="settings-alerts" className="se-settings-anchor">
+            <NotificationsPanel refreshKey={connectionsVersion} />
+          </div>
 
           <Panel title="Current email verification">
             <p>
@@ -521,7 +561,13 @@ export function AccountSettingsPage() {
           </Panel>
         </div>
       </div>
+      </section>
 
+      <section id="settings-security" className="se-settings-section" aria-labelledby="settings-security-title">
+        <header className="se-settings-section__head">
+          <div><span>04</span><h2 id="settings-security-title">Security</h2></div>
+          <p>Protect the account and review every place it is signed in.</p>
+        </header>
       <TwoFactorPanel focusCodes={searchParams.get('twoFactor') === 'codes'} />
 
       <Panel title="Login sessions">
@@ -584,14 +630,26 @@ export function AccountSettingsPage() {
           <p className="se-muted">Session details are not available right now.</p>
         )}
       </Panel>
+      </section>
 
+      <section id="settings-game" className="se-settings-section" aria-labelledby="settings-game-title">
+        <header className="se-settings-section__head">
+          <div><span>05</span><h2 id="settings-game-title">Game</h2></div>
+          <p>Reset guidance and manage the extras that travel with your account.</p>
+        </header>
       <Panel title="Tutorial">
         <p>Replay the first-login intro, see every page intro again and bring back the getting-started goals. Every page also has a "How this page works" panel.</p>
         <ReplayTutorial className="se-btn se-btn--ghost" />
       </Panel>
 
       <SupporterPanel />
+      </section>
 
+      <section id="settings-profile" className="se-settings-section" aria-labelledby="settings-profile-title">
+        <header className="se-settings-section__head">
+          <div><span>06</span><h2 id="settings-profile-title">Profile & look</h2></div>
+          <p>Build your public identity, collection loadout and everyday interface.</p>
+        </header>
       <Panel title="Cosmetics & interface">
         {!profileSettings ? (
           <p className="se-muted">Loading your unlocked badges...</p>
@@ -1031,10 +1089,19 @@ export function AccountSettingsPage() {
           </form>
         )}
       </Panel>
+      </section>
 
+      <section id="settings-data" className="se-settings-section se-settings-section--danger" aria-labelledby="settings-data-title">
+        <header className="se-settings-section__head">
+          <div><span>07</span><h2 id="settings-data-title">Data & privacy</h2></div>
+          <p>Take a copy of your records or make permanent account changes.</p>
+        </header>
       <YourDataPanel />
 
       <CloseAccountPanel />
+      </section>
+        </div>
+      </div>
     </Frame>
   );
 }

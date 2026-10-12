@@ -11,7 +11,7 @@ export const TURF_MAP_ZONES: Record<'CASINO' | 'NIGHTCLUB' | 'LOW_RENT' | 'URBAN
   },
   LOW_RENT: {
     path: 'M440,455 L650,455 L650,642 L440,642 Z',
-    x: 545,
+    x: 580,
     y: 545,
   },
   URBAN_GHETTO: {

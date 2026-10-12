@@ -14,8 +14,8 @@ export function RankingsPage() {
       {!data && !failed ? <PublicLoading label="Loading rankings…" /> : null}
       {failed ? <PublicError title="Rankings are temporarily unavailable." /> : null}
       {data ? <div className="site-panel"><div className="site-panel__head public-panel-title"><div><span className="site-card__eyebrow">{data.round?.name ?? 'No current game'}</span><h2>National leaderboard</h2></div></div>
-        <div className="archive-table-wrap"><table className="archive-table"><thead><tr><th>Rank</th><th>Player</th><th>City</th><th>Alliance</th><th>Movement</th><th>Net Worth</th></tr></thead><tbody>
-        {data.rankings.map((row)=><tr key={row.publicPimpId}><td>#{row.rank}</td><td><Link to={`/players/${row.publicPimpId}`}>{row.displayName} <small>#{row.publicPimpId}</small></Link></td><td>{row.city.name}</td><td>{row.alliance ? `[${row.alliance.tag}] ${row.alliance.name}` : 'Independent'}</td><td>{movementText(row.movement)}</td><td>{formatCentsCompact(row.netWorthCents)}</td></tr>)}
+        <div className="archive-table-wrap"><table className="archive-table archive-table--stack"><thead><tr><th>Rank</th><th>Player</th><th>City</th><th>Alliance</th><th>Movement</th><th>Net Worth</th></tr></thead><tbody>
+        {data.rankings.map((row)=><tr key={row.publicPimpId}><td data-label="Rank">#{row.rank}</td><td data-label="Player"><Link to={`/players/${row.publicPimpId}`}>{row.displayName} <small>#{row.publicPimpId}</small></Link></td><td data-label="City">{row.city.name}</td><td data-label="Alliance">{row.alliance ? `[${row.alliance.tag}] ${row.alliance.name}` : 'Independent'}</td><td data-label="Movement">{movementText(row.movement)}</td><td data-label="Net worth">{formatCentsCompact(row.netWorthCents)}</td></tr>)}
         </tbody></table></div></div> : null}
     </div></section>
   </div>;
