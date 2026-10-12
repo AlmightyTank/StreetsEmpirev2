@@ -618,6 +618,11 @@ export interface DiscordRoundRecapDto {
   turfBlocksHeld: number | null;
   activeBusinessesHeld: number | null;
   crimeActionsAttempted: number | null;
+  /** Aggregate final drug inventory, never confused with cumulative drug production. */
+  drugsHeldAtCutoff?: number | null;
+  /** Cutoff turf leaders; null indicates that the historical data was not recorded. */
+  cityTurfLeaders?: Array<{ cityName: string; blocksHeld: number }> | null;
+  allianceTurfLeaders?: Array<{ name: string; tag: string; blocksHeld: number }> | null;
   topPlayers: Array<{
     rank: number;
     publicPimpId: number;
