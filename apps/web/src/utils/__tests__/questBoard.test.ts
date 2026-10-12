@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildQuestBoard, legacyQuestGroup, type QuestBoardItem } from '../questBoard.js';
 
 const quest = (key: string, type: QuestBoardItem['type'], status: QuestBoardItem['status'], tracked = false): QuestBoardItem =>
-  ({ key, type, category: null, status, isTracked: tracked });
+  ({ key, type, category: type, status, isTracked: tracked });
 
 describe('single-page quest board', () => {
   it('always features the current story ahead of ready non-story jobs', () => {
