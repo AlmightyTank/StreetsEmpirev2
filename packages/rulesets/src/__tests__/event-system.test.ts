@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07AA, classicOgV07T, classicOgV16F, classicOgV18F, classicOgV18G, classicOgV18H, classicOgV18I, classicOgV18J, classicOgV18K } from '../index.js';
+import { classicOgV07AA, classicOgV07T, classicOgV16F, classicOgV18F, classicOgV18G, classicOgV18H, classicOgV18I, classicOgV18J, classicOgV18K, classicOgV18M, classicOgV18N } from '../index.js';
 import { activeRoundEventTime, eventCatalogForRuleset } from '../event-system.js';
 
 describe('first-class event catalog adapter', () => {
@@ -106,5 +106,28 @@ describe('active round event clock', () => {
       { pausedAt: new Date('2026-10-10T11:30:00.000Z'), pausedMinutesTotal: 15 },
       new Date('2026-10-10T12:00:00.000Z'),
     )).toEqual(new Date('2026-10-10T11:15:00.000Z'));
+  });
+});
+
+describe('1.8.0-N per-turn encounters', () => {
+  it('rolls Scout, Produce and Travel per turn and changes nothing else from 1.8.0-M', () => {
+    const triggers = classicOgV18N.randomEncounters.triggers;
+    const prior = classicOgV18M.randomEncounters!.triggers;
+    for (const key of ['SCOUT', 'PRODUCE', 'TRAVEL'] as const) {
+      const { chance, chanceBasis, ...rest } = triggers[key];
+      const { chance: _chance, ...priorRest } = prior[key]!;
+      expect(chanceBasis, key).toBe('TURN');
+      expect(rest, key).toEqual(priorRest);
+      // A full 144-turn action now meets the street more often than not one roll did.
+      expect(1 - (1 - chance) ** 144, key).toBeGreaterThan(prior[key]!.chance);
+    }
+    for (const key of ['STORE', 'TURF', 'COMBAT'] as const) expect(triggers[key], key).toBe(prior[key]);
+
+    const { meta: _meta, randomEncounters: _encounters, ...rest } = classicOgV18N;
+    const { meta: _baseMeta, randomEncounters: _baseEncounters, ...baseRest } = classicOgV18M;
+    expect(rest).toEqual(baseRest);
+    expect(classicOgV18N.meta.eventSystem).toEqual(classicOgV18M.meta.eventSystem);
+    const scout = eventCatalogForRuleset(classicOgV18N).find((entry) => entry.key === 'SCOUT:scout-street-tip');
+    expect(scout?.schedule).toMatchObject({ kind: 'ACTION_TRIGGER', chanceBasis: 'TURN', chance: 0.006 });
   });
 });

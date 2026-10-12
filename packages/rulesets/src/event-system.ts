@@ -31,6 +31,7 @@ export type GameEventSchedule =
       readonly kind: 'ACTION_TRIGGER';
       readonly trigger: RandomEncounterTrigger;
       readonly chance: number;
+      readonly chanceBasis?: 'TURN';
       readonly cooldownMinutes: number;
       readonly perKeyCooldownMinutes: number;
       readonly minTurns: number;
@@ -149,6 +150,7 @@ export function eventCatalogForRuleset(ruleset: Ruleset): GameEventCatalogEntry[
             kind: 'ACTION_TRIGGER',
             trigger: triggerKey,
             chance: trigger.chance,
+            ...(trigger.chanceBasis === 'TURN' ? { chanceBasis: 'TURN' as const } : {}),
             cooldownMinutes: trigger.cooldownMinutes ?? 0,
             perKeyCooldownMinutes: trigger.perKeyCooldownMinutes ?? 0,
             minTurns: trigger.minTurns ?? 1,

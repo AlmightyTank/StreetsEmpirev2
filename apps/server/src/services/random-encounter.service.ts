@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient, RandomEncounter } from '@prisma/client';
-import type { DistrictKey, RandomEncounterEntryRules, RandomEncounterTrigger, Ruleset } from '@streets/rulesets';
+import type { DistrictKey, RandomEncounterEntryRules, RandomEncounterTrigger, RandomEncounterTriggerRules, Ruleset } from '@streets/rulesets';
 import type { RandomEncounterDto } from '@streets/shared';
 import { eventCatalogForRuleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
@@ -61,6 +61,17 @@ const FIRST_CLASS_ENCOUNTER_ID_PREFIX = 'event_';
 
 export function usesFirstClassRandomEncounters(ruleset: Ruleset): boolean {
   return ruleset.meta?.eventSystem?.randomEncounters === 'FIRST_CLASS';
+}
+
+/**
+ * Odds that one action draws an encounter from this trigger. A TURN trigger rolls each
+ * turn spent and stops at the first hit, which comes to 1 - (1 - chance)^turns, so it is
+ * settled with one draw against that.
+ */
+export function triggerChance(trigger: Pick<RandomEncounterTriggerRules, 'chance' | 'chanceBasis'>, turns: number): number {
+  const chance = Math.min(1, Math.max(0, trigger.chance));
+  if (trigger.chanceBasis !== 'TURN') return chance;
+  return 1 - (1 - chance) ** Math.max(1, Math.floor(turns));
 }
 
 function randomInt(min: number, max: number, rng: () => number): number {
@@ -433,7 +444,7 @@ async function rollFirstClassEncounter(input: ActionEncounterInput & { district?
   if (recentAny.size > 0) return { next: input.next };
   const recentKeys = await recentFirstClassEncounterKeys(input, triggerKey, trigger.perKeyCooldownMinutes ?? 0);
   const rng = input.rng ?? Math.random;
-  if (rng() >= trigger.chance) return { next: input.next };
+  if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
   const eligible = trigger.entries.filter((entry) =>
     (!entry.districts || !input.district || entry.districts.includes(input.district))
     && !recentKeys.has(encounterDefinitionKey(triggerKey, entry.key)),
@@ -458,7 +469,7 @@ async function rollActionTrigger(input: ActionEncounterInput, triggerKey: Random
   const recentKeys = trigger.perKeyCooldownMinutes
     ? await recentEncounterKeys(input, triggerKey, trigger.perKeyCooldownMinutes)
     : new Set<string>();
-  if (rng() >= trigger.chance) return { next: input.next };
+  if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
   const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
   const picked = pickWeighted(eligible, rng);
@@ -538,7 +549,7 @@ export const RandomEncounterService = {
       ? await recentEncounterKeys(input, 'SCOUT', trigger.perKeyCooldownMinutes)
       : new Set<string>();
 
-    if (rng() >= trigger.chance) return { next: input.next };
+    if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
     const eligible = trigger.entries.filter((entry) =>
       (!entry.districts || entry.districts.includes(input.district)) &&
@@ -564,7 +575,7 @@ export const RandomEncounterService = {
       ? await recentEncounterKeys(input, 'PRODUCE', trigger.perKeyCooldownMinutes)
       : new Set<string>();
 
-    if (rng() >= trigger.chance) return { next: input.next };
+    if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
     const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
     const picked = pickWeighted(eligible, rng);
@@ -592,7 +603,7 @@ export const RandomEncounterService = {
       ? await recentEncounterKeys(input, 'TRAVEL', trigger.perKeyCooldownMinutes)
       : new Set<string>();
 
-    if (rng() >= trigger.chance) return { next: input.next };
+    if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
     const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
     const picked = pickWeighted(eligible, rng);

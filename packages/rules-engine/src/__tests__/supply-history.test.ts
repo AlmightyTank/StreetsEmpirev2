@@ -57,7 +57,7 @@ describe('1.6.0 never reaches a round pinned before it', () => {
     }
   });
 
-  it('makes the 1.8.0-M recipe balance ruleset the newest season ruleset', () => {
-    expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v1.8-m');
+  it('makes the 1.8.0-N per-turn encounters ruleset the newest season ruleset', () => {
+    expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v1.8-n');
   });
 });

@@ -73,6 +73,16 @@ Next:
 - Watch encounter rate and impact data before raising chances or adding sharper downside effects.
 - Retire the old admin NPC controls UI after playtesting confirms the new trigger coverage.
 
+### 1.8.0-N: Per-Turn Rolls
+
+Before 1.8.0-N, a trigger rolled `chance` once per action, so a 144-turn scout met the street as often as a 5-turn one. Triggers can now set `chanceBasis: 'TURN'`. That rolls each turn spent, stops at the first hit (at most one encounter per action), and comes to `1 - (1 - chance)^turns`.
+
+- Scout 0.6% a turn: 20 turns 11%, 144 turns 58%.
+- Produce 0.5% a turn: 20 turns 10%, 144 turns 51%.
+- Travel 0.8% a turn: a 10-turn run 8%, a 34-turn run 24%.
+- Store, Turf and Combat cost a few fixed turns and keep per-action odds. Cooldowns are unchanged.
+- Older rulesets leave `chanceBasis` unset and keep the one-roll behaviour.
+
 ## Open Balance Questions
 
 - How often should a player see any encounter during normal play?
