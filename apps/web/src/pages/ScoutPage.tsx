@@ -8,7 +8,7 @@ import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
-import { CityDistrictMap } from '../components/CityDistrictMap.js';
+import { CityDistrictMap, type CityDistrictMapEntry } from '../components/CityDistrictMap.js';
 import { DistrictPicker } from '../components/DistrictPicker.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
@@ -85,7 +85,10 @@ export function ScoutPage() {
   const districtTone = coverageTone(selectedDistrict);
   const chosenTurns = typeof turns === 'number' ? turns : 0;
   const remainingTurns = Math.max(0, available - chosenTurns);
-  const mapDistricts = districts.map((entry) => {
+  const mapDistricts = districts.map((entry): CityDistrictMapEntry => {
+    if (entry.districtAccess?.unlocked === false) {
+      return { district: entry.key, name: entry.name, status: 'locked', statusText: 'Locked', detail: `Unlock with ${entry.districtAccess.unlockName}` };
+    }
     const exposure = Math.round(entry.exposedFraction * 100);
     const tone = coverageTone(entry);
     return {
@@ -94,7 +97,7 @@ export function ScoutPage() {
       status: tone === 'good' ? 'coverage-covered' : tone === 'warn' ? 'coverage-warn' : 'coverage-bad',
       statusText: exposure === 0 ? 'Covered' : `${exposure}% exposed`,
       detail: `${100 - exposure}% crew covered`,
-    } as const;
+    };
   });
   const supplyJobs = district
     ? [{ job: district, label: selectedDistrict?.name ?? 'This district' }]
@@ -153,13 +156,14 @@ export function ScoutPage() {
         {loadError ? <Alert>{loadError}</Alert> : null}
         {action.error ? <Alert>{action.error}</Alert> : null}
 
-        <details className="se-scout-map-details">
+        <details className="se-scout-map-details" open>
           <summary>
-            <span><span className="se-eyebrow">City overview · {me.city.name}</span><strong>Open the district map</strong></span>
+            <span><span className="se-eyebrow">City overview · {me.city.name}</span><strong>District map</strong></span>
             <span>{selectedDistrict?.name ?? 'Choose an area'} · {coveredPercent}% covered</span>
           </summary>
           <div className="se-citymap-layout">
             <CityDistrictMap
+              citySlug={me.city.slug}
               cityName={me.city.name}
               districts={mapDistricts}
               selectedDistrict={district}

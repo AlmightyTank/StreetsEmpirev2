@@ -15,7 +15,7 @@ import { useCountdown } from '../hooks/useCountdown.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen } from '../utils/time.js';
-import { CityDistrictMap } from '../components/CityDistrictMap.js';
+import { CityDistrictMap, type CityDistrictMapEntry } from '../components/CityDistrictMap.js';
 
 const ORDER: Record<TurfBlockDto['district'], number> = {
   CASINO: 0,
@@ -200,29 +200,34 @@ function CityTurfMap({
   const blocks = [...(city.turf?.blocks ?? [])].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
   const cityController = city.turf?.control?.alliance.tag;
   const blocksHeldByController = city.turf?.control?.blocksHeld ?? 0;
-  const mapDistricts = blocks.map((block) => {
+  const mapDistricts = blocks.map((block): CityDistrictMapEntry => {
+    const locked = block.districtAccess?.unlocked === false;
     const activePush = Boolean(block.push || block.war);
-    const status = activePush ? 'pressure' : block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
-    const owner = block.holder
-      ? `${block.holder.alliance ? `[${block.holder.alliance.tag}] ` : ''}${block.holder.displayName}`
-      : block.localsReclaimAt ? 'Vacant · locals rebuilding' : 'Locals hold this block';
+    const status = locked ? 'locked' : activePush ? 'pressure' : block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
+    const owner = locked
+      ? `Unlock with ${block.districtAccess?.unlockName ?? 'a quest'}`
+      : block.holder
+        ? `${block.holder.alliance ? `[${block.holder.alliance.tag}] ` : ''}${block.holder.displayName}`
+        : block.localsReclaimAt ? 'Vacant · locals rebuilding' : 'Locals hold this block';
     return {
       district: block.district,
       name: block.districtName,
       status,
-      statusText: activePush ? 'Conflict' : block.isMine ? 'Your crew' : block.holder ? 'Player-held' : block.localsReclaimAt ? 'Rebuilding' : 'Local control',
+      statusText: locked ? 'Locked' : activePush ? 'Conflict' : block.isMine ? 'Your crew' : block.holder ? 'Player-held' : block.localsReclaimAt ? 'Rebuilding' : 'Local control',
       detail: owner,
-    } as const;
+      tag: !locked && !block.isMine ? block.holder?.alliance?.tag ?? null : null,
+      lots: locked ? undefined : block.businesses?.map((lot) => lot.level > 0),
+    };
   });
 
   return (
-    <details className="se-cityblocks-mapdetails">
+    <details className="se-cityblocks-mapdetails" open>
       <summary>
-        <span><span className="se-eyebrow">City overview · {city.name}</span><strong>Open the district map</strong></span>
+        <span><span className="se-eyebrow">City overview · {city.name}</span><strong>District map</strong></span>
         <span>{selectedDistrict ? `Focused: ${blocks.find((block) => block.district === selectedDistrict)?.districtName ?? 'district'}` : 'Five districts · select to focus'}</span>
       </summary>
       <div className="se-citymap-layout">
-        <CityDistrictMap cityName={city.name} districts={mapDistricts} selectedDistrict={selectedDistrict} onSelect={(district) => onSelect(district as TurfBlockDto['district'])} />
+        <CityDistrictMap citySlug={city.slug} cityName={city.name} districts={mapDistricts} selectedDistrict={selectedDistrict} onSelect={(district) => onSelect(district as TurfBlockDto['district'])} />
 
         <aside className="se-citymap-brief" aria-label="City control summary">
           <div className="se-citymap-brief__control">
@@ -236,6 +241,7 @@ function CityTurfMap({
             <span><i className="se-citymap__legend-dot se-citymap__legend-dot--locals" />Locals</span>
             <span><i className="se-citymap__legend-dot se-citymap__legend-dot--vacant" />Rebuilding</span>
             <span><i className="se-citymap__legend-dot se-citymap__legend-dot--pressure" />Active conflict</span>
+            <span><i className="se-citymap__legend-dot se-citymap__legend-dot--lot" />Business built</span>
           </div>
           {selectedDistrict ? (
             <a className="se-citymap-brief__action" href={`#turf-block-${selectedDistrict}`}>
