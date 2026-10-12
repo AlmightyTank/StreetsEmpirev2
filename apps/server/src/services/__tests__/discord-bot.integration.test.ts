@@ -277,7 +277,8 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
         finalizedAt: finalRound.endsAt,
         sourceProvenance: { schemaVersion: 4 },
         globalAggregate: {
-          participants: 2, eligibleCompetitors: 2, citiesInRound: 1, finalNetWorthCents: '95030000',
+          // The frozen numbers agree with the final round's players: $500 and $300.
+          participants: 2, eligibleCompetitors: 2, citiesInRound: 1, finalNetWorthCents: '80000',
           finalCrewMembers: 2, playerHeldTurfBlocks: 0, activeBusinessesHeld: 0, crimeActions: 0,
         },
         cityAggregates: [],
@@ -288,7 +289,7 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
         })),
         allianceAggregate: [],
         categoryRecords: {
-          wealth: { status: 'AVAILABLE', valueCents: '95000000', roundPlayerIds: [frozenPlayers[0]!.id] },
+          wealth: { status: 'AVAILABLE', valueCents: '50000', roundPlayerIds: [frozenPlayers[0]!.id] },
         },
       } });
 
@@ -323,8 +324,9 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
         roundId: finalRound.id,
         participants: 2,
         cities: 1,
-        finalNetWorthCents: '95030000',
-        topPlayers: [{ rank: 1, publicPimpId: 7302, netWorthCents: '95000000' }],
+        finalNetWorthCents: '80000',
+        // Up to three players, in frozen rank order, at their frozen net worth.
+        topPlayers: [{ rank: 1, publicPimpId: 7302, netWorthCents: '50000' }, { rank: 2, publicPimpId: 7301, netWorthCents: '30000' }],
         champions: [
           { title: 'Round Champion', winners: [{ publicPimpId: 7302 }] },
           { title: 'Wealth King', winners: [{ publicPimpId: 7302 }] },

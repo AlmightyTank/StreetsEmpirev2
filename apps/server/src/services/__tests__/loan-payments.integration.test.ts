@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV165C } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
@@ -112,6 +112,10 @@ describe.runIf(process.env.LOAN_INTEGRATION === '1')('1.6.5-D repayment and deli
     const loan = await takeQuick();
     await age(loan.id, 6);
     const before = await player(playerId);
+    // The fee is earned by the second, so hold the clock still between the preview and the
+    // payment; otherwise a slow run moves a cent from principal to fee.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date() });
+    onTestFinished(() => { vi.useRealTimers(); });
     const shown = await preview(loan.id, 300_000);
     // A quarter through the term, a quarter of the fee is earned (the test's own few seconds
     // round up a cent or so): the fee share goes first, the rest to principal.
