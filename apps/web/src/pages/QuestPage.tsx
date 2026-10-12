@@ -698,7 +698,7 @@ export function QuestPage() {
           <div className="se-quests-hero__copy">
             <span className="se-eyebrow">Underworld contract desk</span>
             <h1>Quests</h1>
-            <p>Pick work, track live objectives, collect finished jobs, and manage the favors and permanent access your contacts have paid out this round.</p>
+            <p>Your main story is always first. Continue your mission, collect rewards, then take on other work when you are ready.</p>
           </div>
 
           <div className="se-quests-hero__side">
@@ -738,185 +738,79 @@ export function QuestPage() {
 
         {page ? (
           <>
-            <section className="se-quests-boardnav">
+
+            <section className="se-quests-primary" aria-labelledby="se-quests-story-title">
               <div className="se-quests-sectionhead">
                 <div>
-                  <span className="se-eyebrow">Contract board</span>
-                  <h2>Choose your work</h2>
+                  <span className="se-eyebrow">Your main storyline</span>
+                  <h2 id="se-quests-story-title">Next story mission</h2>
                 </div>
-                <p>Take on as many jobs as you can handle. Board resets are listed beside the jobs.</p>
+                {board.featuredStory?.story?.chapter ? <span className="se-quests-sectionhead__meta">{board.featuredStory.story.chapter}</span> : null}
               </div>
-
-              <label className="se-checkrow se-checkrow--toggle se-quests-autoaccept">
-                <input
-                  type="checkbox"
-                  checked={page.autoAccept ?? true}
-                  disabled={busy !== null}
-                  onChange={(event) => {
-                    const enabled = event.target.checked;
-                    void mutate('auto-accept', () => questsApi.setAutoAccept(enabled), enabled
-                      ? 'Auto-accept is on. New daily, weekly and city work starts by itself.'
-                      : 'Auto-accept is off. Accept board work yourself.');
-                  }}
-                />
-                <span>
-                  <strong>Auto-accept board work</strong>
-                  <small>Daily, weekly and city contracts start as soon as they appear. Community events always start on their own. A job you abandon stays off until you take it again.</small>
-                </span>
-              </label>
-
-              <div className="se-quests-tabs" role="tablist" aria-label="Quest view">
-                {([
-                  ['available', 'Available', standardAvailableCount],
-                  ['active', 'Active', activeQuestCount],
-                  ['ready', 'Ready', readyToday.length],
-                  ['tracked', 'Tracked', trackedToday.length],
-                  ...(page.dailyContracts.enabled ? [['daily', 'Daily', dailyToday.length] as const] : []),
-                  ...(page.weeklyContracts.enabled ? [['weekly', 'Weekly', weeklyToday.length] as const] : []),
-                  ...(page.cityContracts.enabled ? [['city', 'City', cityToday.length] as const] : []),
-                  ...(page.seasonContracts?.enabled ? [['season', 'Season', seasonToday.length] as const] : []),
-                  ...(allianceToday.length ? [['alliance', 'Alliance', allianceToday.length] as const] : []),
-                  ...(eventToday.length ? [['events', 'Community', eventToday.length] as const] : []),
-                  ['completed', 'Completed', page.counts.completed],
-                ] as const).map(([key, label, count]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === key}
-                    className={`se-quests-tabs__tab${tab === key ? ' se-quests-tabs__tab--active' : ''}${key === 'ready' && readyToday.length ? ' se-quests-tabs__tab--ready' : ''}`}
-                    onClick={() => selectTab(key)}
-                  >
-                    <span>{label}</span>
-                    <strong>{formatNumber(count)}</strong>
-                  </button>
-                ))}
-              </div>
+              {board.featuredStory ? renderQuest(board.featuredStory, true) : (
+                <div className="se-quests-empty">
+                  <strong>Your main story is up to date.</strong>
+                  <span>Check back for the next chapter. Other work is listed below.</span>
+                </div>
+              )}
             </section>
 
-            <section className="se-quests-work">
-              <div className="se-quests-work__main">
-                <div className="se-quests-sectionhead">
-                  <div>
-                    <span className="se-eyebrow">Selected board</span>
-                    <h2>{
-                      tab === 'available' ? 'Available jobs'
-                        : tab === 'active' ? 'Active jobs'
-                          : tab === 'ready' ? 'Ready to collect'
-                            : tab === 'tracked' ? 'Tracked jobs'
-                              : tab === 'daily' ? 'Daily contracts'
-                                : tab === 'weekly' ? 'Weekly contracts'
-                                  : tab === 'city' ? 'City contracts'
-                                  : tab === 'season' ? 'Season contracts'
-                                    : tab === 'alliance' ? 'Alliance contracts'
-                                      : tab === 'events' ? 'Community events'
-                                        : 'Completed jobs'
-                    }</h2>
-                  </div>
-                  <span className="se-quests-sectionhead__meta">{formatNumber(sortedShown.length)} shown</span>
+            <section className="se-quests-board" aria-labelledby="se-quests-work-title">
+              <div className="se-quests-sectionhead">
+                <div>
+                  <span className="se-eyebrow">Other work</span>
+                  <h2 id="se-quests-work-title">Your jobs &amp; contracts</h2>
                 </div>
-
-                {(tab === 'daily' && page.dailyContracts.resetAt)
-                  || (tab === 'weekly' && page.weeklyContracts.resetAt)
-                  || (tab === 'city' && page.cityContracts.resetAt)
-                  || (tab === 'season' && page.seasonContracts?.resetAt)
-                  ? (
-                    <div className="se-quests-boardclock">
-                      <span>{
-                        tab === 'daily' ? 'Daily board resets'
-                          : tab === 'weekly' ? 'Weekly board resets'
-                            : tab === 'season' ? 'Season ends'
-                              : 'City board refreshes'
-                      }</span>
-                      <strong>{
-                        timeRemaining(
-                          tab === 'daily'
-                            ? page.dailyContracts.resetAt!
-                            : tab === 'weekly'
-                              ? page.weeklyContracts.resetAt!
-                              : tab === 'season'
-                                ? page.seasonContracts!.resetAt!
-                                : page.cityContracts.resetAt!,
-                          nowMs,
-                        )
-                      }</strong>
-                    </div>
-                  ) : null}
-
-                <div className="se-quest-list se-quests-list">
-                  {sortedShown.length ? sortedShown.map((quest) => (
-                    <QuestCard
-                      key={quest.key + ':' + quest.attempt}
-                      quest={quest}
-                      page={page}
-                      busy={busy ? 'Another job update is still going through.' : null}
-                      nowMs={nowMs}
-                      onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.')}
-                      onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
-                      onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
-                      onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
-                    />
-                  )) : (
-                    <div className="se-quests-empty">
-                      <strong>No jobs in this section.</strong>
-                      <span>Pick another board above or check back after its next rotation.</span>
-                    </div>
-                  )}
-                </div>
+                <span className="se-quests-sectionhead__meta">{formatNumber(board.groups.reduce((sum, group) => sum + (group.key === 'history' ? 0 : group.quests.length), 0))} current</span>
               </div>
+              {board.groups.length ? board.groups.map((group) => {
+                const open = expandedGroups[group.key] ?? group.defaultOpen;
+                const resetAt = group.key === 'daily' ? page.dailyContracts.resetAt
+                  : group.key === 'weekly' ? page.weeklyContracts.resetAt
+                    : group.key === 'city' ? page.cityContracts.resetAt
+                      : group.key === 'season' ? page.seasonContracts?.resetAt
+                        : null;
+                return (
+                  <section id={'quest-board-' + group.key} className="se-quests-group" key={group.key}>
+                    <details
+                      open={open}
+                      onToggle={(event) => {
+                        const next = event.currentTarget.open;
+                        setExpandedGroups((current) => current[group.key] === next ? current : { ...current, [group.key]: next });
+                      }}
+                    >
+                      <summary className="se-quests-group__summary">
+                        <span className="se-quests-group__heading">
+                          <strong>{group.title}</strong>
+                          <small>{group.description}</small>
+                        </span>
+                        <span className="se-quests-group__count">{formatNumber(group.quests.length)}</span>
+                        <span className="se-quests-group__chevron" aria-hidden="true">{open ? '−' : '+'}</span>
+                      </summary>
+                      {open ? (
+                        <div className="se-quest-list se-quests-list">
+                          {resetAt ? (
+                            <div className="se-quests-boardclock">
+                              <span>Board resets</span>
+                              <strong>{timeRemaining(resetAt, nowMs)}</strong>
+                            </div>
+                          ) : null}
+                          {group.quests.map((quest) => renderQuest(quest))}
+                        </div>
+                      ) : null}
+                    </details>
+                  </section>
+                );
+              }) : <div className="se-quests-empty"><strong>No other jobs right now.</strong><span>Complete a story step or check back for fresh contracts.</span></div>}
+            </section>
 
-              <aside className="se-quests-work__rail">
-                <Panel title="Board status" className="se-quests-panel">
-                  <div className="se-quests-boardstatus">
-                    <div>
-                      <span>Available</span>
-                      <strong>{formatNumber(standardAvailableCount)}</strong>
-                    </div>
-                    {page.dailyContracts.enabled ? (
-                      <button type="button" onClick={() => selectTab('daily')}>
-                        <span>Daily board</span>
-                        <strong>{formatNumber(dailyToday.length)} / {formatNumber(page.dailyContracts.slots)}</strong>
-                        {page.dailyContracts.resetAt ? <small>{timeRemaining(page.dailyContracts.resetAt, nowMs)}</small> : null}
-                      </button>
-                    ) : null}
-                    {page.weeklyContracts.enabled ? (
-                      <button type="button" onClick={() => selectTab('weekly')}>
-                        <span>Weekly board</span>
-                        <strong>{formatNumber(weeklyToday.length)} / {formatNumber(page.weeklyContracts.slots)}</strong>
-                        {page.weeklyContracts.resetAt ? <small>{timeRemaining(page.weeklyContracts.resetAt, nowMs)}</small> : null}
-                      </button>
-                    ) : null}
-                    {page.cityContracts.enabled ? (
-                      <button type="button" onClick={() => selectTab('city')}>
-                        <span>City board</span>
-                        <strong>{formatNumber(cityToday.length)} / {formatNumber(page.cityContracts.slots)}</strong>
-                        {page.cityContracts.resetAt ? <small>{timeRemaining(page.cityContracts.resetAt, nowMs)}</small> : null}
-                      </button>
-                    ) : null}
-                    {page.seasonContracts?.enabled ? (
-                      <button type="button" onClick={() => selectTab('season')}>
-                        <span>Season board</span>
-                        <strong>{formatNumber(seasonToday.length)} / {formatNumber(page.seasonContracts.slots)}</strong>
-                        {page.seasonContracts.resetAt ? <small>{timeRemaining(page.seasonContracts.resetAt, nowMs)}</small> : null}
-                      </button>
-                    ) : null}
-                    {allianceToday.length ? (
-                      <button type="button" onClick={() => selectTab('alliance')}>
-                        <span>Alliance</span>
-                        <strong>{formatNumber(allianceToday.length)}</strong>
-                        <small>shared contracts</small>
-                      </button>
-                    ) : null}
-                    {eventToday.length ? (
-                      <button type="button" onClick={() => selectTab('events')}>
-                        <span>Community</span>
-                        <strong>{formatNumber(eventToday.length)}</strong>
-                        <small>shared events</small>
-                      </button>
-                    ) : null}
-                  </div>
-                </Panel>
-
+            <details className="se-quests-resources" open={showConnections}
+              onToggle={(event) => setShowConnections(event.currentTarget.open)}>
+              <summary className="se-quests-resources__summary">
+                <span><strong>Contacts &amp; factions</strong><small>Reputation, relationships and faction benefits</small></span>
+                <span aria-hidden="true">{showConnections ? '−' : '+'}</span>
+              </summary>
+              {showConnections ? <div className="se-quests-work__rail se-quests-work__rail--expanded">
                 <div id="contact-standing">
                   <Panel title="Contact standing" className="se-quests-panel">
                     <div className="se-quests-contacts">
@@ -986,9 +880,17 @@ export function QuestPage() {
                     </Panel>
                   </div>
                 ) : null}
-              </aside>
-            </section>
 
+              </div> : null}
+            </details>
+
+            <details className="se-quests-resources" id="quest-progression" open={showProgression}
+              onToggle={(event) => setShowProgression(event.currentTarget.open)}>
+              <summary className="se-quests-resources__summary">
+                <span><strong>Favors &amp; permanent unlocks</strong><small>Stored advantages, active favors, recipes and rewards</small></span>
+                <span aria-hidden="true">{showProgression ? '−' : '+'}</span>
+              </summary>
+              {showProgression ? (
             <section className="se-quests-progression">
               <div className="se-quests-sectionhead">
                 <div>
@@ -1127,6 +1029,36 @@ export function QuestPage() {
                 </div>
               </div>
             </section>
+              ) : null}
+            </details>
+
+            <details className="se-quests-resources se-quests-options">
+              <summary className="se-quests-resources__summary">
+                <span><strong>Contract settings</strong><small>Automatic acceptance and board refreshes</small></span>
+                <span aria-hidden="true">+</span>
+              </summary>
+              <div className="se-quests-options__body">
+              <label className="se-checkrow se-checkrow--toggle se-quests-autoaccept">
+                <input
+                  type="checkbox"
+                  checked={page.autoAccept ?? true}
+                  disabled={busy !== null}
+                  onChange={(event) => {
+                    const enabled = event.target.checked;
+                    void mutate('auto-accept', () => questsApi.setAutoAccept(enabled), enabled
+                      ? 'Auto-accept is on. New daily, weekly and city work starts by itself.'
+                      : 'Auto-accept is off. Accept board work yourself.');
+                  }}
+                />
+                <span>
+                  <strong>Auto-accept board work</strong>
+                  <small>Daily, weekly and city contracts start as soon as they appear. Community events always start on their own. A job you abandon stays off until you take it again.</small>
+                </span>
+              </label>
+                <p className="se-hint">Daily: {page.dailyContracts.resetAt ? timeRemaining(page.dailyContracts.resetAt, nowMs) : 'No reset scheduled'} · Weekly: {page.weeklyContracts.resetAt ? timeRemaining(page.weeklyContracts.resetAt, nowMs) : 'No reset scheduled'} · City: {page.cityContracts.resetAt ? timeRemaining(page.cityContracts.resetAt, nowMs) : 'No reset scheduled'}</p>
+              </div>
+            </details>
+
           </>
         ) : !error ? (
           <div className="se-quests-loading" role="status">Checking the street for work...</div>
