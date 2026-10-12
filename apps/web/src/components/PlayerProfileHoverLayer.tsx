@@ -7,6 +7,7 @@ import { communityApi } from '../api/community.js';
 import { ItemTile } from './ItemTile.js';
 import { hasProfileLook } from './ProfileLook.js';
 import { SupporterMark } from './SupporterMark.js';
+import { AvatarFace } from './BuiltAvatar.js';
 
 type Target = { id: number; anchor: HTMLAnchorElement; label: string };
 type Position = { top: number; left: number; width: number };
@@ -278,7 +279,7 @@ export function PlayerProfileHoverLayer() {
       </div>
       <div className="se-profile-hover-card__identity">
         <span className="se-profile-hover-card__avatar" aria-hidden="true">
-          {profile?.cosmetics.imageUrl ? <img src={profile.cosmetics.imageUrl} alt="" /> : initials(profile?.displayName ?? target.label)}
+          <AvatarFace imageUrl={profile?.cosmetics.imageUrl} avatar={profile?.cosmetics.avatar} fallback={initials(profile?.displayName ?? target.label)} />
         </span>
         {signature
           ? <img className="se-profile-hover-card__avatar-art se-profile-hover-card__avatar-art--midnight-chrome" src={MIDNIGHT_CHROME_RING} alt="" aria-hidden="true" />

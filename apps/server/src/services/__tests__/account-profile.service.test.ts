@@ -1,6 +1,6 @@
-import type { AccountProfile, PrismaClient } from '@prisma/client';
+import { Prisma, type AccountProfile, type PrismaClient } from '@prisma/client';
 import { classicOgStreetPassA, classicOgV07AA } from '@streets/rulesets';
-import type { UpdateAccountProfileSettingsInput } from '@streets/shared';
+import { DEFAULT_AVATAR_PARTS, type UpdateAccountProfileSettingsInput } from '@streets/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountProfileService, PROFILE_EFFECTS } from '../account-profile.service.js';
 import { RoundService } from '../round.service.js';
@@ -44,7 +44,9 @@ function prismaFor(isAdmin: boolean, unlocks: UnlockRow[] = []): PrismaClient {
     accountProfile: {
       findUnique: async () => profile,
       upsert: async (args: { create: AccountProfile; update: AccountProfile }) => {
-        profile = { ...args.create, ...args.update } as AccountProfile;
+        // Like Prisma: update merges onto the saved row, and DbNull is stored as a plain null.
+        profile = Object.fromEntries(Object.entries(profile ? { ...profile, ...args.update } : { ...args.create })
+          .map(([key, value]) => [key, (value as unknown) === Prisma.DbNull ? null : value])) as AccountProfile;
         return profile;
       },
     },
@@ -336,6 +338,22 @@ describe('AccountProfileService profile showcase toggles', () => {
     });
 
     expect(saved.settings).toMatchObject({ showThemeOnProfile: false, showLookOnProfile: false });
+  });
+
+  it('saves a built avatar, keeps it when omitted and removes it on null', async () => {
+    const prisma = prismaFor(false);
+    const input = { ...updateInput, activeSiteThemeKey: null };
+    expect((await AccountProfileService.settings(prisma, 'account-1')).settings.profileAvatar).toBeNull();
+
+    const avatar = { ...DEFAULT_AVATAR_PARTS.girl, hair: 'braids' as const, shirtColor: 'gold' as const };
+    const saved = await AccountProfileService.update(prisma, 'account-1', { ...input, profileImageUrl: null, profileAvatar: avatar });
+    expect(saved.settings).toMatchObject({ profileImageUrl: null, profileAvatar: avatar });
+
+    const kept = await AccountProfileService.update(prisma, 'account-1', input);
+    expect(kept.settings.profileAvatar).toEqual(avatar);
+
+    const cleared = await AccountProfileService.update(prisma, 'account-1', { ...input, profileAvatar: null });
+    expect(cleared.settings.profileAvatar).toBeNull();
   });
 });
 

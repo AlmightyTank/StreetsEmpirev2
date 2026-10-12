@@ -1,6 +1,7 @@
 import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
 import type { LawSummaryDto } from './law.js';
 import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
+import type { AvatarParts } from '../avatar-builder.js';
 /**
  * The contract between apps/server and apps/web.
  *
@@ -249,6 +250,8 @@ export interface AccountProfileSettingsDto {
   profileBio: string | null;
   /** Direct HTTPS image URL used for the profile avatar. */
   profileImageUrl: string | null;
+  /** Avatar built from face pieces, used when there is no image. Optional for older clients. */
+  profileAvatar?: AvatarParts | null;
   /** Direct HTTPS image URL used for the public profile banner/background. */
   profileBannerUrl: string | null;
   profileEffect: ProfileEffect;

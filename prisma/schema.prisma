@@ -194,6 +194,8 @@ model AccountProfile {
   crewName              String?
   profileBio            String?
   profileImageUrl       String?
+  /// Avatar built from face pieces (base, hair, eyes, shirt, ...). Shown when there is no image.
+  profileAvatar         Json?
   profileBannerUrl      String?
   profileEffect         String  @default("none")
   activeProfileFrameKey String?

@@ -19,6 +19,7 @@ import { ProfileBadges } from '../components/ProfileBadges.js';
 import { NameWithSupporterMark } from '../components/SupporterMark.js';
 import { hasProfileLook, ProfileLook } from '../components/ProfileLook.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
+import { AvatarFace } from '../components/BuiltAvatar.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { usePageTheme } from '../stores/pageTheme.js';
 import { useSession } from '../stores/session.js';
@@ -549,7 +550,7 @@ export function ProfilePage() {
           <div className="se-profile-pagehead__main">
             {player ? (
               <span className={`se-profile-pagehead__avatar${avatarFrame ? ` se-profile-pagehead__avatar--framed se-profile-pagehead__avatar--${avatarFrame}` : ''}`} aria-hidden="true">
-                {player.cosmetics.imageUrl ? <img src={player.cosmetics.imageUrl} alt="" /> : initials(player.displayName)}
+                <AvatarFace imageUrl={player.cosmetics.imageUrl} avatar={player.cosmetics.avatar} fallback={initials(player.displayName)} />
               </span>
             ) : null}
             <div>

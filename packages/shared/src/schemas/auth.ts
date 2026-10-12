@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { isValidTimeZone, NOTIFICATION_CATEGORIES } from '../notifications.js';
 import { collectionCovers, CUSTOMIZABLE_ITEM_KEYS, isReleasedItemCosmeticStyle } from '../cosmetics.js';
+import { avatarPartsSchema } from '../avatar-builder.js';
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
@@ -229,6 +230,8 @@ export const updateAccountProfileSettingsSchema = z.object({
   crewName: crewNameSchema.nullable().optional(),
   profileBio: profileBioSchema.nullable().optional(),
   profileImageUrl: profileImageUrlSchema.nullable().optional(),
+  /** Omitted keeps the built avatar; null removes it. */
+  profileAvatar: avatarPartsSchema.nullable().optional(),
   profileBannerUrl: profileImageUrlSchema.nullable().optional(),
   profileEffect: profileEffectSchema.optional(),
   activeProfileFrameKey: z.string().trim().min(1).max(80).nullable(),
