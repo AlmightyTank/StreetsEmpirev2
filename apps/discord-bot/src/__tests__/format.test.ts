@@ -164,15 +164,15 @@ describe('roundEventEmbed', () => {
     });
 
     expect(embed.url).toBe(`${origin}/game/rounds/round-1/aftermath`);
-    expect(embed.title).toContain('@\\u200beveryone');
+    expect(embed.title).toContain('@\u200beveryone');
     expect(embed.color).toBe(0xd3a654);
     expect(embed.fields?.find((f) => f.name === '💰 Final net worth')?.value).toBe('**$90,071,992,547,409,931.23**');
     expect(embed.fields?.find((f) => f.name === '📦 Drugs held at cutoff')?.value).toBe('**1,500**');
     expect(embed.fields?.find((f) => f.name === '🏆 TOP 3 EMPIRES')?.value).toContain('$1,234,567,890,123,456.78');
-    expect(embed.fields?.find((f) => f.name === '👑 LEGENDS OF THE ROUND')?.value).toContain('@\\u200beveryone Boss');
+    expect(embed.fields?.find((f) => f.name === '👑 LEGENDS OF THE ROUND')?.value).toContain('@\u200beveryone Boss');
     expect(embed.fields?.find((f) => f.name === '👑 LEGENDS OF THE ROUND')?.value).not.toContain('Round Champion');
     expect(embed.fields?.find((f) => f.name === '🏙️ THE CITY WARS')?.value).toContain('Chicago');
-    expect(embed.fields?.find((f) => f.name === '🏙️ THE CITY WARS')?.value).toContain('@\\u200beveryone Kings');
+    expect(embed.fields?.find((f) => f.name === '🏙️ THE CITY WARS')?.value).toContain('@\u200beveryone Kings');
     expect(embed.fields?.find((f) => f.name === '📜 THE FULL AFTERMATH IS AVAILABLE')?.value).toContain('/game/rounds/round-1/aftermath');
     expect(embed.footer?.text).toBe('round-recap:round-1');
     expect(embed.fields?.length).toBeLessThanOrEqual(25);
