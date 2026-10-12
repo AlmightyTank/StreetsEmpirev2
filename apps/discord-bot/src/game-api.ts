@@ -453,6 +453,9 @@ const roundEventSchema = z.object({
     turfBlocksHeld: z.number().int().nullable(),
     activeBusinessesHeld: z.number().int().nullable(),
     crimeActionsAttempted: z.number().int().nullable(),
+    drugsHeldAtCutoff: z.number().int().nonnegative().nullable().optional(),
+    cityTurfLeaders: z.array(z.object({ cityName: z.string(), blocksHeld: z.number().int().nonnegative() })).nullable().optional(),
+    allianceTurfLeaders: z.array(z.object({ name: z.string(), tag: z.string(), blocksHeld: z.number().int().nonnegative() })).nullable().optional(),
     topPlayers: z.array(z.object({
       rank: z.number().int(),
       publicPimpId: z.number().int(),
