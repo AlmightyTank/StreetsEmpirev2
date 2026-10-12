@@ -591,6 +591,12 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       };
     }
 
+    case 'EASTER_EGG_FOUND':
+      return {
+        text: `You found an Easter egg: ${str(p.title, 'a secret')}.`,
+        detail: `${str(p.description)} New title unlocked`,
+      };
+
     case 'LOAN_COLLECTIONS': {
       // 1.6.5-E: into collections, out into recovery, or borrowing restored.
       const to = str(p.to);
@@ -849,6 +855,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     LOAN_PAYMENT: 'Loan payment',
     LOAN_INSTALLMENT_MISSED: 'Missed installment',
     LOAN_COLLECTIONS: 'Collections',
+    EASTER_EGG_FOUND: 'Easter egg',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();

@@ -22,6 +22,7 @@ import {
   type RaidInputDto,
   type CombatSpecialRaidDto,
   type SpecialRaidInputDto,
+  LITTLE_FRIEND_MAX_ODDS,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
@@ -37,6 +38,7 @@ import { npcRules } from './npc-gang-rules.js';
 import { npcIdentity, npcPersonality, npcReputation, storedHistory } from './npc-gang-personality.js';
 import { npcBattleNotes, npcBattleOutcome, npcCityRelief, npcWanted, storedRetirement } from './npc-gang-rewards.js';
 import { ActivityService } from './activity.service.js';
+import { EasterEggService } from './easter-egg.service.js';
 import { RandomEncounterService, encounterActivityPayload } from './random-encounter.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
@@ -1156,6 +1158,10 @@ export const CombatService = {
       const id = randomUUID();
       // Phase N: NPC sides are flagged for reports and contracts, and beating a wanted crew pays a bounty.
       const npc = await npcBattleOutcome(tx, { battleId: id, attackerId, defenderId: target.id, attackerWon: result.winner === 'ATTACKER', kind: 'RAID', ruleset, now });
+      // Easter egg: a raid won with at most half the defender's fit thugs.
+      if (result.winner === 'ATTACKER' && input.attackingThugs > 0 && input.attackingThugs <= fitThugs(defender) * LITTLE_FRIEND_MAX_ODDS) {
+        await EasterEggService.discoverForPlayer(tx, attackerId, 'LITTLE_FRIEND', now);
+      }
       const tags = await battleTags(tx, attacker, defender);
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;

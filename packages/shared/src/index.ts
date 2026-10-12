@@ -25,6 +25,7 @@ export * from './types/loans.js';
 export * from './cosmetics.js';
 export * from './money.js';
 export * from './progression.js';
+export * from './easter-eggs.js';
 export * from './profile-title.js';
 export * from './notifications.js';
 export * from './platform.js';

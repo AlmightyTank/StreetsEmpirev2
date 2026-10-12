@@ -53,6 +53,8 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'LOAN_INSTALLMENT_MISSED',
   // 1.6.5-E. Into collections, out into recovery, and borrowing restored.
   'LOAN_COLLECTIONS',
+  // An Easter egg found.
+  'EASTER_EGG_FOUND',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {

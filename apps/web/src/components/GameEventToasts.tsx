@@ -318,6 +318,14 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
           ? { title: 'Out of collections', detail, tone: 'warn', href: '/game/loans' }
           : { title: 'Back in good standing', detail, tone: 'good', href: '/game/loans' };
 
+    case 'EASTER_EGG_FOUND':
+      return {
+        title: `Easter egg: ${str(p.title, 'a secret')}`,
+        detail: `${str(p.description)} New title unlocked. Equip it from Account settings.`,
+        tone: 'good',
+        href: '/account',
+      };
+
     case 'LOAN_INSTALLMENT_MISSED':
       return { title: 'Loan installment missed', detail, tone: 'bad', href: '/game/loans' };
 

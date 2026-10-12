@@ -1,7 +1,15 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import type { GameActionResult, RandomEncounterChoiceResult } from '@streets/shared';
+import {
+  STATUE_ENCOUNTER_KEY,
+  STATUE_STARE_SECONDS,
+  easterEggForEncounterChoice,
+  type GameActionResult,
+  type RandomEncounterChoiceResult,
+} from '@streets/shared';
+import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
+import { EasterEggService } from './easter-egg.service.js';
 import { applyRandomEncounterEffects, capRandomEncounterEffects } from './random-encounter.service.js';
 
 const FIRST_CLASS_ENCOUNTER_ID_PREFIX = 'event_';
@@ -27,6 +35,29 @@ interface PendingChoice {
 
 function object(value: Prisma.JsonValue | unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+/**
+ * Easter eggs hidden in encounter choices (ruleset 1.8.0-M). A stare at the
+ * statue only counts if it was made soon after the statue appeared; a player
+ * who comes back to it later blinked, and gets a different ending instead.
+ */
+async function encounterEasterEgg(
+  tx: Db,
+  roundPlayerId: string,
+  encounterKey: string,
+  choiceKey: string,
+  offeredAt: Date,
+  now: Date,
+): Promise<Pick<RandomEncounterChoiceResult, 'easterEgg'> & { text?: string }> {
+  const id = easterEggForEncounterChoice(encounterKey, choiceKey);
+  if (!id) return {};
+  if (encounterKey === STATUE_ENCOUNTER_KEY && choiceKey === 'dont-blink'
+    && now.getTime() - offeredAt.getTime() > STATUE_STARE_SECONDS * 1_000) {
+    return { text: 'You blinked. When you look again the alley is empty, and your watch is an hour slow.' };
+  }
+  const found = await EasterEggService.discoverForPlayer(tx, roundPlayerId, id, now);
+  return found ? { easterEgg: { title: found.egg.title, description: found.egg.description, isNew: found.isNew } } : {};
 }
 
 function choicesOf(choices: Prisma.JsonValue): PendingChoice[] {
@@ -99,6 +130,7 @@ async function resolveFirstClassEncounter(
           id: true,
           progress: true,
           state: true,
+          createdAt: true,
           occurrence: { select: { id: true, endsAt: true, config: true, definition: { select: { key: true, title: true } } } },
         },
       });
@@ -112,15 +144,18 @@ async function resolveFirstClassEncounter(
       const effects = capRandomEncounterEffects(effectsOf(choice.effects) ?? {}, state);
       const next = applyRandomEncounterEffects(state, effects);
       const settledState = { ...savedState, selectedChoice: choice.key, selectedAt: now.toISOString(), selectedEffects: effects };
+      const encounterKey = String((object(participation.occurrence.config) ?? {}).entryKey ?? participation.occurrence.definition.key);
+      const egg = await encounterEasterEgg(tx, roundPlayerId, encounterKey, choice.key, participation.createdAt, now);
       const result = {
         encounterId,
-        encounterKey: String((object(participation.occurrence.config) ?? {}).entryKey ?? participation.occurrence.definition.key),
+        encounterKey,
         title: participation.occurrence.definition.title,
         choice: choice.key,
         choiceLabel: choice.label,
-        text: choice.text,
+        text: egg.text ?? choice.text,
         cashCents: effects.cashCents ?? 0,
         effects,
+        ...(egg.easterEgg ? { easterEgg: egg.easterEgg } : {}),
       };
       await tx.gameEventParticipation.update({
         where: { id: participation.id },
@@ -181,7 +216,7 @@ export const RandomEncounterChoiceService = {
       action: 'RANDOM_ENCOUNTER_CHOICE',
       actionId: input.actionId,
       idempotencyScope: `RANDOM_ENCOUNTER_CHOICE:${encounterId}`,
-      execute: async ({ tx, current }) => {
+      execute: async ({ tx, current, now }) => {
         const encounter = await tx.randomEncounter.findFirst({
           where: { id: encounterId, roundPlayerId, status: 'PENDING' },
         });
@@ -197,6 +232,8 @@ export const RandomEncounterChoiceService = {
 
         const effects = capRandomEncounterEffects(effectsOf(choice.effects) ?? {}, current);
         const next = applyRandomEncounterEffects(current, effects);
+        const egg = await encounterEasterEgg(tx, roundPlayerId, encounter.key, choice.key, encounter.createdAt, now);
+        const text = egg.text ?? choice.text;
 
         await tx.randomEncounter.update({
           where: { id: encounter.id },
@@ -208,7 +245,7 @@ export const RandomEncounterChoiceService = {
             result: {
               choice: choice.key,
               choiceLabel: choice.label,
-              text: choice.text,
+              text,
               cashCents: effects.cashCents ?? 0,
               effects,
             },
@@ -223,9 +260,10 @@ export const RandomEncounterChoiceService = {
             title: encounter.title,
             choice: choice.key,
             choiceLabel: choice.label,
-            text: choice.text,
+            text,
             cashCents: effects.cashCents ?? 0,
             effects,
+            ...(egg.easterEgg ? { easterEgg: egg.easterEgg } : {}),
           },
         };
       },

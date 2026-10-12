@@ -410,6 +410,9 @@ export function produceReceiptLines(action: GameActionResult<ProduceCrackResult>
     ...heatReceiptLines(result.heat, false),
     { label: 'Turns used', value: formatNumber(result.turnsUsed) },
     ...produceProductLines(result, action.after, me),
+    ...(result.heisenbergBatch
+      ? [{ label: 'Purity', value: '99.1%', detail: 'Blue as the sky. Say my name.' }]
+      : []),
     ...(workshopBonusProduct > 0
       ? [{
           label: 'Workshop output',

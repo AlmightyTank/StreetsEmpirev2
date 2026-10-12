@@ -28,6 +28,7 @@ import {
   favorActivateSchema,
   favorArmSchema,
   streetPassClaimSchema,
+  CLIENT_EASTER_EGG_IDS,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
@@ -64,8 +65,11 @@ import { CrewRosterService } from '../services/crew-roster.service.js';
 import { CrewTrainingService } from '../services/crew-training.service.js';
 import { RandomEncounterChoiceService } from '../services/random-encounter-choice.service.js';
 import { RandomEncounterService } from '../services/random-encounter.service.js';
+import { EasterEggService } from '../services/easter-egg.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
+
+const easterEggParams = z.object({ id: z.enum(CLIENT_EASTER_EGG_IDS) });
 
 const gameRoutes: FastifyPluginAsync = async (fastify) => {
   /**
@@ -93,6 +97,16 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
    * player being at the keyboard, which is what keeps a tab left open
    * overnight eligible for the away bonus.
    */
+  /**
+   * Easter eggs the browser finds (the Konami code, a 404, the joke days).
+   * The answer only says whether this was the first find; it never lists eggs.
+   */
+  fastify.post('/easter-eggs/:id', { preHandler: fastify.requireAuth }, async (request) => {
+    const { id } = parseBody(easterEggParams, request.params);
+    const found = await EasterEggService.discoverFromClient(fastify.prisma, request.auth!.account.id, id);
+    return { isNew: found.isNew, title: found.egg.title, description: found.egg.description };
+  });
+
   /** Account-wide XP is available even between seasons. */
   fastify.get('/experience', { preHandler: fastify.requireAuth }, async (request) => {
     const accountId = request.auth!.account.id;
