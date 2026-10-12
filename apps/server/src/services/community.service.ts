@@ -19,7 +19,7 @@ import type {
   RankingEntryDto,
   RankingsDto,
 } from '@streets/shared';
-import { playerExperienceDto, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
+import { playerExperienceDto, readAvatarParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { env } from '../config/env.js';
 import { toCityDto, toSeasonHideoutDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
@@ -1080,6 +1080,7 @@ export const CommunityService = {
           ? profileEffect as ProfileEffect
           : 'none',
         imageUrl: profileSettings?.profileImageUrl ?? null,
+        avatar: readAvatarParts(profileSettings?.profileAvatar),
         bannerUrl: profileSettings?.profileBannerUrl ?? null,
         siteTheme: showcase.siteTheme,
         siteThemeLabel: showcase.siteThemeLabel,

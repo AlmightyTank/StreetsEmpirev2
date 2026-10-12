@@ -30,6 +30,7 @@ export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   crewName: null,
   profileBio: null,
   profileImageUrl: null,
+  profileAvatar: null,
   profileBannerUrl: null,
   profileEffect: 'none',
   activeProfileFrameKey: null,

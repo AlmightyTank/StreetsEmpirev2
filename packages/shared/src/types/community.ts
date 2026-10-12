@@ -1,4 +1,5 @@
 import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
+import type { AvatarParts } from '../avatar-builder.js';
 import type { AllianceDetailDto, AllianceTagDto } from './alliance.js';
 import type { NoticeCategory, NotificationCategory } from '../notifications.js';
 import type { ActivityDto, CityDto, PlayerExperienceDto, ProfileAccent, ProfileEffect, ProfileSurface, RoundDto, SeasonHideoutDto } from './api.js';
@@ -259,6 +260,8 @@ export interface PublicPlayerProfileDto {
     avatarFrame?: string | null;
     effect: ProfileEffect;
     imageUrl: string | null;
+    /** Built avatar, shown when there is no image. Optional for older servers. */
+    avatar?: AvatarParts | null;
     bannerUrl: string | null;
     /** Slice E. The owner's site theme, when they share it and own it. Optional for older servers. */
     siteTheme?: string | null;

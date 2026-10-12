@@ -7,6 +7,7 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { rewardText } from '../components/RewardChip.js';
+import { BuiltAvatar } from '../components/BuiltAvatar.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { ITEM_ART, itemArtUrl, rewardArtKey } from '../items/itemArt.js';
 import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
@@ -143,6 +144,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const displayName = useSession((state) => state.me?.displayName ?? state.account?.username ?? 'AMIGHTYTANK');
   const profileImageUrl = useSession((state) => state.profileSettings.profileImageUrl);
+  const profileAvatar = useSession((state) => state.profileSettings.profileAvatar);
   const active = previews[Math.min(activeIndex, Math.max(0, previews.length - 1))];
   const [collectionPreviewItems] = useState<Record<CosmeticCollectionStyleKey, CosmeticPreviewItemKey>>(() => ({
     'urban-ghost': randomCosmeticPreviewItem(),
@@ -220,6 +222,10 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
             <img className="se-pass-theme-preview__frame-art" src={itemArtUrl(active.art)} alt="" />
             {profileImageUrl ? (
               <img className="se-pass-theme-preview__frame-avatar" src={profileImageUrl} alt="" />
+            ) : profileAvatar ? (
+              <span className="se-pass-theme-preview__frame-avatar" aria-hidden="true">
+                <BuiltAvatar parts={profileAvatar} />
+              </span>
             ) : (
               <span className="se-pass-theme-preview__frame-avatar se-pass-theme-preview__frame-avatar--initials" aria-hidden="true">
                 {playerInitials(displayName)}

@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type {
+  AccountProfileSettingsDto,
   AccountProfileSettingsResponseDto,
   AccountSessionDto,
+  AvatarParts,
   DefaultLanding,
   MoneyFormat,
   ProfileAccent,
@@ -10,7 +12,7 @@ import type {
   ProfileSurface,
   UiDensity,
 } from '@streets/shared';
-import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
+import { CREW_NAME_MAX, DEFAULT_AVATAR_PARTS, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { siteThemeCompanionLook } from '@streets/rulesets';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
@@ -25,6 +27,8 @@ import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js'
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { SupporterPanel } from '../components/SupporterPanel.js';
 import { ItemCrewCosmeticsEditor } from '../components/ItemCrewCosmeticsEditor.js';
+import { AvatarBuilder } from '../components/AvatarBuilder.js';
+import { AvatarFace } from '../components/BuiltAvatar.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -45,6 +49,19 @@ const PROFILE_EFFECT_FRAME_ART: Partial<Record<ProfileEffect, { avatar: string }
     avatar: '/profile-frames/inferno-avatar.webp',
   },
 };
+
+type AvatarMode = 'initials' | 'image' | 'built';
+
+const AVATAR_MODES: { key: AvatarMode; label: string }[] = [
+  { key: 'initials', label: 'Initials' },
+  { key: 'image', label: 'Image link' },
+  { key: 'built', label: 'Build one' },
+];
+
+function avatarModeOf(settings: AccountProfileSettingsDto): AvatarMode {
+  if (settings.profileImageUrl) return 'image';
+  return settings.profileAvatar ? 'built' : 'initials';
+}
 
 function formatDate(value: string | null): string {
   return value ? formatWhen(value) : 'Never';
@@ -95,6 +112,10 @@ export function AccountSettingsPage() {
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [profileSettings, setProfileSettings] = useState<AccountProfileSettingsResponseDto | null>(null);
   const [cosmetics, setCosmetics] = useState(DEFAULT_PROFILE_SETTINGS);
+  const [avatarMode, setAvatarMode] = useState<AvatarMode>('initials');
+  // What each avatar choice holds, so trying another one and coming back loses nothing.
+  const [imageDraft, setImageDraft] = useState('');
+  const [avatarDraft, setAvatarDraft] = useState<AvatarParts>(DEFAULT_AVATAR_PARTS.boy);
 
   useEffect(() => {
     let active = true;
@@ -103,6 +124,9 @@ export function AccountSettingsPage() {
         if (!active) return;
         setProfileSettings(response);
         setCosmetics(response.settings);
+        setAvatarMode(avatarModeOf(response.settings));
+        setImageDraft(response.settings.profileImageUrl ?? '');
+        if (response.settings.profileAvatar) setAvatarDraft(response.settings.profileAvatar);
       })
       .catch(() => {
         if (active) {
@@ -250,6 +274,20 @@ export function AccountSettingsPage() {
     } finally {
       setBusy(null);
     }
+  }
+
+  function chooseAvatarMode(mode: AvatarMode) {
+    setAvatarMode(mode);
+    setCosmetics((current) => ({
+      ...current,
+      profileImageUrl: mode === 'image' ? imageDraft : null,
+      profileAvatar: mode === 'built' ? avatarDraft : null,
+    }));
+  }
+
+  function changeBuiltAvatar(parts: AvatarParts) {
+    setAvatarDraft(parts);
+    setCosmetics((current) => ({ ...current, profileAvatar: parts }));
   }
 
   function toggleFeaturedBadge(key: string) {
@@ -598,23 +636,54 @@ export function AccountSettingsPage() {
                 </div>
 
                 <div className="se-field">
-                  <label className="se-label" htmlFor="profile-image-url">Profile image URL</label>
-                  <input
-                    id="profile-image-url"
-                    className="se-input"
-                    value={cosmetics.profileImageUrl ?? ''}
-                    maxLength={PROFILE_IMAGE_URL_MAX}
-                    placeholder="https://i.imgur.com/your-avatar.png"
-                    inputMode="url"
-                    autoComplete="off"
-                    onChange={(event) => setCosmetics((current) => ({
-                      ...current,
-                      profileImageUrl: event.target.value,
-                    }))}
-                  />
-                  {fields.profileImageUrl
-                    ? <p className="se-error" role="alert">{fields.profileImageUrl}</p>
-                    : <p className="se-hint">Use a direct HTTPS image link from Imgur or your own host. Leave blank for initials.</p>}
+                  <span className="se-label" id="avatar-mode-label">Avatar</span>
+                  <div className="se-avatar-mode" role="radiogroup" aria-labelledby="avatar-mode-label">
+                    {AVATAR_MODES.map((mode) => (
+                      <button
+                        type="button"
+                        role="radio"
+                        key={mode.key}
+                        aria-checked={avatarMode === mode.key}
+                        className={`se-avatar-mode__option${avatarMode === mode.key ? ' is-active' : ''}`}
+                        onClick={() => chooseAvatarMode(mode.key)}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+                  {avatarMode === 'image' ? (
+                    <>
+                      <input
+                        id="profile-image-url"
+                        aria-label="Profile image URL"
+                        className="se-input"
+                        value={cosmetics.profileImageUrl ?? ''}
+                        maxLength={PROFILE_IMAGE_URL_MAX}
+                        placeholder="https://i.imgur.com/your-avatar.png"
+                        inputMode="url"
+                        autoComplete="off"
+                        onChange={(event) => {
+                          setImageDraft(event.target.value);
+                          setCosmetics((current) => ({
+                            ...current,
+                            profileImageUrl: event.target.value,
+                          }));
+                        }}
+                      />
+                      {fields.profileImageUrl
+                        ? <p className="se-error" role="alert">{fields.profileImageUrl}</p>
+                        : <p className="se-hint">Use a direct HTTPS image link from Imgur or your own host.</p>}
+                    </>
+                  ) : avatarMode === 'built' ? (
+                    <>
+                      <AvatarBuilder value={cosmetics.profileAvatar ?? avatarDraft} onChange={changeBuiltAvatar} />
+                      {fields.profileAvatar
+                        ? <p className="se-error" role="alert">{fields.profileAvatar}</p>
+                        : <p className="se-hint">No picture needed. Pick a boy or girl base, then mix face pieces, hair and a shirt. Save settings to put it on.</p>}
+                    </>
+                  ) : (
+                    <p className="se-hint">Your initials sit in the avatar circle.</p>
+                  )}
                 </div>
 
                 <div className="se-field">
@@ -796,7 +865,7 @@ export function AccountSettingsPage() {
                   </div>
                   <div className="se-profile-card-preview__identity">
                     <span className="se-profile-card-preview__avatar" aria-hidden="true" title={selectedAvatarFrame?.label}>
-                      {cosmetics.profileImageUrl ? <img src={cosmetics.profileImageUrl} alt="" /> : initials(displayName)}
+                      <AvatarFace imageUrl={cosmetics.profileImageUrl} avatar={cosmetics.profileAvatar} fallback={initials(displayName)} />
                     </span>
                     {signature
                       ? <img className="se-profile-card-preview__avatar-art se-profile-card-preview__avatar-art--midnight-chrome" src="/profile-frames/midnight-chrome-avatar.webp" alt="" aria-hidden="true" />

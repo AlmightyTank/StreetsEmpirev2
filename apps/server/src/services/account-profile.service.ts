@@ -1,4 +1,4 @@
-import type { AccountProfile, PrismaClient } from '@prisma/client';
+import { Prisma, type AccountProfile, type PrismaClient } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import {
   DEFAULT_CREW_COSMETICS,
@@ -7,6 +7,7 @@ import {
   collectionOptions,
   isOwnedCollection,
   isReleasedItemCosmeticStyle,
+  readAvatarParts,
   SIGNATURE_CARD_FRAME_KEY,
   SUPPORTER_UNLOCK_HINT,
 } from '@streets/shared';
@@ -250,6 +251,7 @@ function toSettingsDto(
     crewName: profile?.crewName ?? null,
     profileBio: profile?.profileBio ?? null,
     profileImageUrl: profile?.profileImageUrl ?? null,
+    profileAvatar: readAvatarParts(profile?.profileAvatar),
     profileBannerUrl: profile?.profileBannerUrl ?? null,
     profileEffect,
     activeProfileFrameKey,
@@ -439,6 +441,9 @@ export const AccountProfileService = {
     const crewName = input.crewName === undefined ? undefined : input.crewName;
     const profileBio = input.profileBio === undefined ? undefined : input.profileBio;
     const profileImageUrl = input.profileImageUrl === undefined ? undefined : input.profileImageUrl;
+    const profileAvatar = input.profileAvatar === undefined
+      ? undefined
+      : input.profileAvatar ?? Prisma.DbNull;
     const profileBannerUrl = input.profileBannerUrl === undefined ? undefined : input.profileBannerUrl;
     const profileEffect = input.profileEffect === undefined ? undefined : input.profileEffect;
     const surface = input.profileSurface === undefined ? undefined : input.profileSurface;
@@ -452,6 +457,7 @@ export const AccountProfileService = {
         crewName: crewName ?? null,
         profileBio: profileBio ?? null,
         profileImageUrl: profileImageUrl ?? null,
+        ...(profileAvatar !== undefined ? { profileAvatar } : {}),
         profileBannerUrl: profileBannerUrl ?? null,
         profileEffect: profileEffect ?? 'none',
         profileSurface: surface ?? null,
@@ -475,6 +481,7 @@ export const AccountProfileService = {
         ...(crewName !== undefined ? { crewName } : {}),
         ...(profileBio !== undefined ? { profileBio } : {}),
         ...(profileImageUrl !== undefined ? { profileImageUrl } : {}),
+        ...(profileAvatar !== undefined ? { profileAvatar } : {}),
         ...(profileBannerUrl !== undefined ? { profileBannerUrl } : {}),
         ...(profileEffect !== undefined ? { profileEffect } : {}),
         ...(surface !== undefined ? { profileSurface: surface } : {}),
