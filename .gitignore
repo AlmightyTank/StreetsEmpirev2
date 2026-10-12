@@ -19,3 +19,6 @@ email-previews/
 /.agents/
 /.opencode/
 /skills-lock.json
+/.claude
+/.continue
+/openspec
