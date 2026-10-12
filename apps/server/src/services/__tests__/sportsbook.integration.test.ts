@@ -234,6 +234,13 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     });
   }
 
+  /** Settlements pay casino chips into the open floor bankroll; round cash never moves. */
+  async function chipsAndCash(playerId: string) {
+    const session = await app.prisma.casinoSession.findFirstOrThrow({ where: { roundPlayerId: playerId, status: 'OPEN' } });
+    const player = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    return { bankrollCents: session.bankrollCents, cashCents: player.cashCents };
+  }
+
   async function ticketOn(playerId: string, eventId: string, selection = 'AWAY') {
     return app.prisma.sportsbookBet.create({ data: {
       roundPlayerId: playerId, eventId, actionId: randomUUID(), selection, oddsAmerican: 130, stakeCents: 10_000n, payoutCents: 23_000n,
@@ -331,7 +338,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(settledRun.settled).toBe(1);
     expect(await app.prisma.sportsbookBet.findFirstOrThrow({ where: { eventId: game.id } })).toMatchObject({ status: 'WON' });
     expect((await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: game.id } })).settledVia).toBe('FEED');
-    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).cashCents).toBe(523_000n);
+    expect(await chipsAndCash(player.id)).toEqual({ bankrollCents: 523_000n, cashCents: 500_000n });
 
     // A settled game is never checked or paid again.
     await refreshSportsbookCache(app.prisma, 'test-key', at(400), feed);
@@ -345,7 +352,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
       settleSportsbookEvent(app.prisma, raced.id, 'FINAL', 3, 2, feedNow),
     ]);
     expect(outcomes.filter(Boolean)).toHaveLength(1);
-    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).cashCents).toBe(546_000n);
+    expect(await chipsAndCash(player.id)).toEqual({ bankrollCents: 546_000n, cashCents: 500_000n });
   });
 
   it('shows admins the stuck games, rechecks one on demand, and voids with an audit trail', async () => {
@@ -385,7 +392,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     await expect(AdminSportsbookService.void(app.prisma, config, actor, pulled.id, 'Provider dropped the game for good.', feedNow))
       .rejects.toMatchObject({ code: 'SPORTSBOOK_ALREADY_SETTLED' });
     // Both stakes came back; nothing was paid twice.
-    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).cashCents).toBe(520_000n);
+    expect(await chipsAndCash(player.id)).toEqual({ bankrollCents: 520_000n, cashCents: 500_000n });
 
     const audits = await app.prisma.adminAuditLog.findMany({ where: { targetId: { in: [stuck.id, pulled.id] } }, orderBy: { createdAt: 'asc' } });
     expect(audits.map((row) => row.action)).toEqual(['sportsbook.recheck', 'sportsbook.void']);
@@ -653,9 +660,11 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
       }),
     });
 
+    // A pull also checks results for games earlier tests left open; count only the odds snapshots.
+    const snapshots = () => feed.calls.filter((path) => /\/sports\/\d+\/events\/\d{4}-\d{2}-\d{2}$/.test(path));
     const result = await AdminSportsbookService.pullNow(app.prisma, config, actor, eNow, feed);
     expect(result.message).toContain('8 snapshots fetched');
-    expect(feed.calls).toHaveLength(8);
+    expect(snapshots()).toHaveLength(8);
     const stored = await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { providerEventId: providerPrefix + 'manual-pull' } });
     expect(stored).toMatchObject({ status: 'PRE', homeOdds: -160, awayOdds: 140, oddsUpdatedAt: eNow });
     const board = await SportsbookService.board(app.prisma, { configured: true, pollMinutes: 30 }, eNow);
@@ -663,14 +672,17 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
 
     const stillFresh = await AdminSportsbookService.pullNow(app.prisma, config, actor, eAt(29), feed);
     expect(stillFresh.message).toContain('no odds snapshot requests were made');
-    expect(feed.calls).toHaveLength(8);
+    expect(snapshots()).toHaveLength(8);
     const diskCache = JSON.parse(await readFile(feed.cacheFilePath, 'utf8')) as { version: number; updatedAt: string; snapshots: Array<{ league: string; date: string }> };
     expect(diskCache).toMatchObject({ version: 1, updatedAt: eNow.toISOString() });
     expect(diskCache.snapshots).toContainEqual(expect.objectContaining({ league: 'NFL', date: today }));
 
+    // Today is always due again; tomorrow's slates came back empty, so they wait out the
+    // longer empty-future recheck window (SPORTSBOOK_EMPTY_FUTURE_RECHECK_MS).
     const dueAgain = await AdminSportsbookService.pullNow(app.prisma, config, actor, eAt(30), feed);
-    expect(dueAgain.message).toContain('8 snapshots fetched');
-    expect(feed.calls).toHaveLength(16);
+    expect(dueAgain.message).toContain('4 snapshots fetched');
+    expect(snapshots()).toHaveLength(12);
+    expect(snapshots().slice(8).every((path) => path.endsWith('/' + today))).toBe(true);
 
     const audit = await app.prisma.adminAuditLog.findFirst({
       where: { action: 'sportsbook.manual-pull', targetId: 'therundown', actorAccountId: accountId },

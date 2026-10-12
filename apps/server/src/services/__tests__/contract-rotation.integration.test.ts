@@ -102,9 +102,11 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-B2 contract rotation
     const player = await join(classicOgV14B2, round.id);
     let page = await HandcraftedQuestService.page(app.prisma, player.id, classicOgV14B2);
     const seasons = page.quests.filter((quest) => quest.type === 'SEASON');
+    // Auto-accept starts the day's daily and weekly work; season contracts add nothing to the count.
+    const activeBefore = page.counts.active;
     for (const quest of seasons) page = await HandcraftedQuestService.accept(app.prisma, player.id, classicOgV14B2, quest.key);
     expect(page.quests.filter((quest) => quest.type === 'SEASON').every((quest) => quest.status === 'ACTIVE')).toBe(true);
-    expect(page.counts.active).toBe(0);
+    expect(page.counts.active).toBe(activeBefore);
 
     const target = seasons[0]!;
     const objective = classicOgV14B2.questDefinitions[target.key as keyof typeof classicOgV14B2.questDefinitions].objectives[0]!;
@@ -129,9 +131,8 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-B2 contract rotation
     const round = await newRound(classicOgV14B2);
     const player = await join(classicOgV14B2, round.id);
     let page = await HandcraftedQuestService.page(app.prisma, player.id, classicOgV14B2);
-    const job = page.quests.find((quest) => quest.key === 'CITY_JOB_C')!;
-    expect(job.status).toBe('AVAILABLE');
-    page = await HandcraftedQuestService.accept(app.prisma, player.id, classicOgV14B2, job.key);
+    // City work starts itself for a player who leaves auto-accept on (the default).
+    expect(page.quests.find((quest) => quest.key === 'CITY_JOB_C')!.status).toBe('ACTIVE');
 
     const stored = await app.prisma.playerQuest.findFirstOrThrow({
       where: { roundPlayerId: player.id, questDefinition: { key: 'CITY_JOB_C' } },

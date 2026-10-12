@@ -200,7 +200,8 @@ describe.runIf(process.env.SUPPLY_INTEGRATION === '1')('1.6.0-C supply pickups w
     const sum = (kind: string) => movements.filter((movement) => movement.kind === kind).reduce((total, movement) => total + movement.quantityDelta, 0);
     expect(sum('PICKED_UP')).toBe(2_000);
     expect(sum('STORED')).toBe(await stash());
-    expect(await app.prisma.economyLedgerEntry.count({ where: { roundPlayerId: playerId, source: 'SUPPLY_ORDER' } })).toBe(1);
+    // Charged once for this order (earlier tests in the suite place their own).
+    expect(await app.prisma.economyLedgerEntry.count({ where: { roundPlayerId: playerId, source: 'SUPPLY_ORDER', metadata: { path: ['orderId'], equals: orderId } } })).toBe(1);
   });
 
   it('credits only what survives the road and never more than was loaded', async () => {

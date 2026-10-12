@@ -243,6 +243,8 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
   it('replays staffing actions once and refills a runner vacancy without count drift', async () => {
     const rules = classicOgV17A;
     const player = await seasonedPlayer(rules);
+    // A seasoned player already has thugs out on other work.
+    const busyAtStart = (await fresh(player.id)).busyThugs;
     const crew = (await DealerCrewService.establish(app.prisma, player.id, {
       citySlug: rules.round.startingCitySlug,
       districtKey: 'CASINO',
@@ -284,7 +286,7 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
     const updated = await fresh(player.id);
 
     expect(refill.staffingOrders).toEqual([expect.objectContaining({ kind: 'RUNNER', assigned: 1 })]);
-    expect(updated).toMatchObject({ thugs: 59, busyThugs: 2 });
+    expect(updated).toMatchObject({ thugs: 59, busyThugs: busyAtStart + 2 });
     expect(await runners()).toHaveLength(2);
     expect(await active(player.id, 'THUG')).toHaveLength(updated.thugs);
   });
@@ -297,12 +299,13 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
       ?? await app.prisma.turf.create({ data: { roundId: player.roundId, cityId: homeCityId, district: 'URBAN_GHETTO', localsThugs: 5 } });
     await app.prisma.turf.update({
       where: { id: turf.id },
-      data: { holderId: player.id, cornerThugs: 0, cornerPistols: 0, cornerShotguns: 0, cornerTek9s: 0, cornerAk47s: 0, heldSince: now },
+      // A held block always keeps at least one thug on the corner (Turf_holder_check).
+      data: { holderId: player.id, cornerThugs: 1, cornerPistols: 1, cornerShotguns: 0, cornerTek9s: 0, cornerAk47s: 0, heldSince: now },
     });
     const before = await app.prisma.roundPlayer.update({
       where: { id: player.id },
       data: {
-        thugs: 2, woundedThugs: 0, busyThugs: 0, postedThugs: 0, businessThugs: 0, dealerThugs: 0,
+        thugs: 3, woundedThugs: 0, busyThugs: 0, postedThugs: 1, businessThugs: 0, dealerThugs: 0,
         turns: 13, pistols: 2, shotguns: 0, tek9s: 0, ak47s: 0, postedNetWorthCents: 0n,
         lastTurnCalculationAt: now,
       },
@@ -314,7 +317,7 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
     await CrewStaffingOrderService.set(app.prisma, player.id, {
       kind: 'TURF',
       targetRef: turf.id,
-      headcount: 2,
+      headcount: 3,
       keepTurns: 10,
       actionId: randomUUID(),
     }, rules, now);
@@ -333,11 +336,11 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
     const updated = await fresh(player.id);
 
     expect(atFloor.staffingOrders).toEqual([expect.objectContaining({ kind: 'TURF', assigned: 2, turnsUsed: 4 })]);
-    expect(updated).toMatchObject({ turns: 10, postedThugs: 2, pistols: 0 });
-    expect((await app.prisma.turf.findUniqueOrThrow({ where: { id: turf.id } })).cornerThugs).toBe(2);
+    expect(updated).toMatchObject({ turns: 10, postedThugs: 3, pistols: 0 });
+    expect((await app.prisma.turf.findUniqueOrThrow({ where: { id: turf.id } })).cornerThugs).toBe(3);
     expect(await app.prisma.crewMember.count({
       where: { roundPlayerId: player.id, role: 'THUG', status: 'ASSIGNED', assignmentKind: 'TURF', assignmentRef: turf.id },
-    })).toBe(2);
+    })).toBe(3);
   });
 
   it('reads 1.7.0-B profiles through the API with filters and career history', async () => {

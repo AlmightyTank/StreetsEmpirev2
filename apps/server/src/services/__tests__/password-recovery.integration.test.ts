@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 
 function hashAuthToken(token: string): string {
@@ -112,6 +112,12 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account email auth with Po
   });
 
   it('lets an unverified account fix its email at once, then confirms a verified change by link', async () => {
+    // A fresh verification link is only issued when mail credentials are set. Delivery stays off
+    // under NODE_ENV=test either way, so stand in for them rather than need a real key.
+    const { env } = await import('../../config/env.js');
+    const configured = env.email.configured;
+    env.email.configured = true;
+    onTestFinished(() => { env.email.configured = configured; });
     await app.prisma.account.update({
       where: { id: accountId },
       data: { emailVerifiedAt: null },
