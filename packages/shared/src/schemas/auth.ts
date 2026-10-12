@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { isValidTimeZone, NOTIFICATION_CATEGORIES } from '../notifications.js';
-import { collectionCovers, CUSTOMIZABLE_ITEM_KEYS, isReleasedItemCosmeticStyle } from '../cosmetics.js';
+import { collectionCovers, CUSTOMIZABLE_ITEM_KEYS, isFullCollectionStyle, isReleasedItemCosmeticStyle, styleFitsItem } from '../cosmetics.js';
 import { avatarPartsSchema } from '../avatar-builder.js';
 
 export const USERNAME_MIN = 3;
@@ -177,10 +177,13 @@ export const itemCosmeticStyleSchema = z.enum([
   'urban-ghost',
   'cartel-gold',
   'midnight-chrome',
+  'eight-bit',
+  'time-machine',
+  'blue-sky',
 ]);
 
 export const crewCosmeticStyleSchema = itemCosmeticStyleSchema.refine(
-  isReleasedItemCosmeticStyle,
+  (style) => isReleasedItemCosmeticStyle(style) && isFullCollectionStyle(style),
   'That outfit has not been released yet.',
 );
 
@@ -200,6 +203,12 @@ export const itemCosmeticLoadoutSchema = z
           code: z.ZodIssueCode.custom,
           path: [key],
           message: 'That cosmetic artwork has not been released yet.',
+        });
+      } else if (!styleFitsItem(style, key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: 'That look was drawn for a different item.',
         });
       } else if (!collectionCovers(style, key)) {
         ctx.addIssue({

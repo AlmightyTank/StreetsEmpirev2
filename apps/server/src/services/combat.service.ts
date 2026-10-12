@@ -22,6 +22,14 @@ import {
   type RaidInputDto,
   type CombatSpecialRaidDto,
   type SpecialRaidInputDto,
+  LITTLE_FRIEND_MAX_ODDS,
+} from '@streets/shared';
+import { RingService, ringInvisibilityBlock } from './ring.service.js';
+import {
+  RING_DESTROY_REWARD_CENTS,
+  RING_DESTROY_TURN_COST,
+  RING_FOUNDRY_CITY_SLUG,
+  isRingInvisible,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
@@ -32,6 +40,7 @@ import { assertNotPaused, fitThugs, toState, workingWhores } from './action.serv
 import { BusinessService } from './business.service.js';
 import { TurfService } from './turf.service.js';
 import { ActivityService } from './activity.service.js';
+import { EasterEggService } from './easter-egg.service.js';
 import { RandomEncounterService, encounterActivityPayload } from './random-encounter.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
@@ -259,6 +268,8 @@ export function combatTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, 
   const allied = allianceTargetBlock(attacker, defender, now);
   if (allied) return allied;
   if (attacker.cityId !== defender.cityId) return 'Pick a player in your city.';
+  const ringBlock = ringInvisibilityBlock(defender, now);
+  if (ringBlock) return ringBlock;
   const retaliationRules = model.strategy?.retaliation;
   if (combatProtectionUntil(defender, model) > now && !(retaliation && retaliationRules?.bypassProtection)) return 'This player is protected.';
   if (defender.lastRaidedAt && defender.lastActiveAt <= defender.lastRaidedAt) return 'This player has not returned since the last raid.';
@@ -293,6 +304,8 @@ export function driveByTargetBlock(attacker: RoundPlayer, defender: RoundPlayer,
   if (attacker.cityId !== defender.cityId) return 'Pick a player in your city.';
   const retaliationRules = model.strategy?.retaliation;
   const bypassProtection = retaliation && retaliationRules?.bypassProtection;
+  const ringBlock = ringInvisibilityBlock(defender, now);
+  if (ringBlock) return ringBlock;
   if (combatProtectionUntil(defender, model) > now && !bypassProtection) return 'This player is protected.';
   if (defender.driveByProtectedUntil && defender.driveByProtectedUntil > now && !bypassProtection) return 'Their block was shot up recently. Let it cool off.';
   // The same anti-drain rule as raids: an offline player is hit once, not every shield.
@@ -346,12 +359,14 @@ function specialRaidAttackerBlock(player: RoundPlayer, model: CombatRules, kind:
   return null;
 }
 
-function specialRaidTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, model: CombatRules, kind: SpecialRaidKind, now: Date, retaliation = false, lureCorners = false): string | null {
+export function specialRaidTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, model: CombatRules, kind: SpecialRaidKind, now: Date, retaliation = false, lureCorners = false): string | null {
   if (attacker.id === defender.id || attacker.accountId === defender.accountId) return 'You cannot hit your own block.';
   if (attacker.roundId !== defender.roundId) return 'Pick a player in your round.';
   const allied = allianceTargetBlock(attacker, defender, now);
   if (allied) return allied;
   if (attacker.cityId !== defender.cityId) return 'Pick a player in your city.';
+  const ringBlock = ringInvisibilityBlock(defender, now);
+  if (ringBlock) return ringBlock;
   const retaliationRules = model.strategy?.retaliation;
   if (combatProtectionUntil(defender, model) > now && !(retaliation && retaliationRules?.bypassProtection)) return 'This player is protected.';
   if (defender.lastRaidedAt && defender.lastActiveAt <= defender.lastRaidedAt) return 'This player has not returned since the last raid.';
@@ -850,6 +865,17 @@ export const CombatService = {
       ? await SingleUseFavorService.matching(prisma, playerId, ruleset, 'FREE_RECON')
       : null;
     const gangIntel = await encounterGangIntelDto(prisma, player, ruleset, now);
+    const npcGangIntel = await npcGangIntelDto(prisma, player, ruleset, now);
+    // The Ring: lazy surface tick, so no cron is needed. Idempotent.
+    await prisma.$transaction((tx) => RingService.maybeSurface(tx, round.id, now));
+    const ringState = await prisma.ringState.findUnique({
+      where: { roundId: round.id },
+      include: { holder: { select: { id: true, publicPimpId: true, displayName: true, invisibleUntil: true } } },
+    });
+    const ringHolderInvisible = isRingInvisible(ringState?.holder?.invisibleUntil ?? null, now);
+    const ringRevealedHolderId = ringState && ringState.status === 'SURFACED' && ringState.holder && !ringHolderInvisible
+      ? ringState.holder.id
+      : null;
     return {
       ...base, enabled: true, blockedReason,
       protectedUntil: combatProtectionUntil(player, model) > now ? iso(combatProtectionUntil(player, model)) : null,
@@ -893,8 +919,21 @@ export const CombatService = {
         ...(model.strategy ? { revengeAvailable: revengeIds.has(target.id), intel: intelByTarget.get(target.id) ?? null } : {}),
         ...(model.driveBy ? { driveByBlockedReason: truces.get(target.id) ?? driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
         ...(model.specialRaids ? { specialRaidBlockedReasons: Object.fromEntries((Object.keys(model.specialRaids) as SpecialRaidKind[]).map((kind) => [kind, truces.get(target.id) ?? specialRaidTargetBlock(player, target, model, kind, now, revengeIds.has(target.id), Boolean(ruleset.turf?.corner.desertTurnsPerHour))])) } : {}),
+        ...(ringRevealedHolderId === target.id ? { hasRing: true as const } : {}),
       })),
       nextTarget: targets.length > 25 ? targets[24]!.publicPimpId : null,
+      ...(ringState && ringState.holder && ringState.status === 'SURFACED' ? {
+        ring: {
+          iHold: ringState.holder.id === playerId,
+          holderPublicPimpId: ringRevealedHolderId ? ringState.holder.publicPimpId : null,
+          holderDisplayName: ringRevealedHolderId ? ringState.holder.displayName : null,
+          invisibleUntil: ringHolderInvisible && ringState.holder.invisibleUntil ? ringState.holder.invisibleUntil.toISOString() : null,
+          destroyRewardCents: RING_DESTROY_REWARD_CENTS,
+          destroyTurnCost: RING_DESTROY_TURN_COST,
+          foundryCitySlug: RING_FOUNDRY_CITY_SLUG,
+          surfacedAt: ringState.surfacedAt.toISOString(),
+        },
+      } : {}),
       ...(model.specialRaids ? { specialRaids: specialRaidDtos(player, model, now) } : {}),
       ...(model.driveBy ? { driveBy: driveByDto(player, model, model.driveBy, now) } : {}),
       ...(gangIntel ? { gangIntel } : {}),
@@ -1002,12 +1041,23 @@ export const CombatService = {
       await tx.roundPlayer.update({ where: { id: target.id }, data: { heat: nextD.heat, cashCents: nextD.cashCents, crack: nextD.crack, woundedThugs: nextD.woundedThugs,
         whoreHappiness: happinessD.whoreHappiness, thugHappiness: happinessD.thugHappiness,
         netWorthCents: NetWorthService.calculate({ ...nextD, products: productsD }, ruleset), raidProtectedUntil: shield, lastRaidedAt: now } });
+      // The Ring: attacking breaks the spell, and a won raid takes it from a revealed bearer.
+      await RingService.breakInvisibility(tx, attackerId, now);
+      if (result.winner === 'ATTACKER') {
+        await RingService.transferOnRaidWin(tx, original.roundId, attackerId, target.id, now);
+      }
       // Both final worths are in the transaction before either rank is calculated.
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate({ ...nextA, products: productsA }, ruleset) });
       const afterD = await RankingService.ranksFor(tx, { ...defender, netWorthCents: NetWorthService.calculate({ ...nextD, products: productsD }, ruleset) });
       await writeRanks(tx, ruleset, now, [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]]);
       const trophyCallouts = trophyCalloutsFor({ kind: 'RAID', won: result.winner === 'ATTACKER' }, await attackerTrophyProgress(tx, attackerId));
       const id = randomUUID();
+      // Phase N: NPC sides are flagged for reports and contracts, and beating a wanted crew pays a bounty.
+      const npc = await npcBattleOutcome(tx, { battleId: id, attackerId, defenderId: target.id, attackerWon: result.winner === 'ATTACKER', kind: 'RAID', ruleset, now });
+      // Easter egg: a raid won with at most half the defender's fit thugs.
+      if (result.winner === 'ATTACKER' && input.attackingThugs > 0 && input.attackingThugs <= fitThugs(defender) * LITTLE_FRIEND_MAX_ODDS) {
+        await EasterEggService.discoverForPlayer(tx, attackerId, 'LITTLE_FRIEND', now);
+      }
       const tags = await battleTags(tx, attacker, defender);
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;
@@ -1191,6 +1241,8 @@ export const CombatService = {
       await tx.roundPlayer.update({ where: { id: target.id }, data: { heat: nextD.heat, crack: nextD.crack, woundedThugs: nextD.woundedThugs, whores: nextD.whores,
         whoreHappiness: happinessD.whoreHappiness, thugHappiness: happinessD.thugHappiness,
         netWorthCents: NetWorthService.calculate({ ...nextD, products: productsD }, ruleset), driveByProtectedUntil: shield, lastDrivenByAt: now } });
+      // The Ring: attacking breaks the spell.
+      await RingService.breakInvisibility(tx, attackerId, now);
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate({ ...nextA, products: productsA }, ruleset) });
       const afterD = await RankingService.ranksFor(tx, { ...defender, netWorthCents: NetWorthService.calculate({ ...nextD, products: productsD }, ruleset) });
       await writeRanks(tx, ruleset, now, [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]]);
@@ -1404,6 +1456,8 @@ export const CombatService = {
         businessWhores: nextD.businessWhores, businessThugs: nextD.businessThugs, postedThugs: nextD.postedThugs,
         lowRiders: nextD.lowRiders, whoreHappiness: happinessD.whoreHappiness, thugHappiness: happinessD.thugHappiness,
         netWorthCents: NetWorthService.calculate({ ...nextD, products: productsD }, ruleset), raidProtectedUntil: shield, lastRaidedAt: now } });
+      // The Ring: attacking breaks the spell.
+      await RingService.breakInvisibility(tx, attackerId, now);
       // 1.1.0-B: lured corner thugs leave their corners; their guns go back to the arsenal.
       if (cornerThugsLured > 0) await TurfService.shedCornerThugs(tx, target.id, ruleset, cornerThugsLured, now);
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate({ ...nextA, products: productsA }, ruleset) });

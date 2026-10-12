@@ -5,6 +5,8 @@ import {
   DEFAULT_CREW_COSMETICS,
   isOwnedCollection,
   isReleasedItemCosmeticStyle,
+  isFullCollectionStyle,
+  styleFitsItem,
 } from '@streets/shared';
 import type { BattleLookDto, CrewCosmeticLoadout, CrewCosmeticStyleKey, ItemCosmeticLoadout, ProfileLookDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';

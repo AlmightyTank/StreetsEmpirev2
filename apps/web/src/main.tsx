@@ -39,6 +39,7 @@ import './styles/ux.css';
 import './styles/dock.css';
 import './styles/app-shell.css';
 import './styles/account-settings.css';
+import './styles/easter-eggs.css';
 import { App } from './App.js';
 // Before React mounts: Android can offer the install prompt immediately.
 import './utils/install.js';

@@ -107,6 +107,14 @@ export type ActivityType =
   | 'LOAN_INSTALLMENT_MISSED'
   /** 1.6.5-E. Into collections, or out of it into recovery or good standing. */
   | 'LOAN_COLLECTIONS'
+  /** An Easter egg found: a permanent account title. */
+  | 'EASTER_EGG_FOUND'
+  /** The Ring has surfaced in this round (round news + bell). */
+  | 'RING_SURFACED'
+  /** The Ring changed hands in a raid. */
+  | 'RING_STOLEN'
+  /** The Ring was destroyed at the foundry. */
+  | 'RING_DESTROYED'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'
@@ -1207,6 +1215,8 @@ export interface RandomEncounterChoiceResult {
   text: string;
   cashCents: number;
   effects: RandomEncounterDto['effects'];
+  /** The choice found an Easter egg. isNew is false when the title was already held. */
+  easterEgg?: { title: string; description: string; isNew: boolean };
 }
 
 export interface ScoutResult {
@@ -1275,6 +1285,8 @@ export interface ScoutResult {
  * fraction of a scouted night, because nobody is out there running them.
  */
 export interface ProduceCrackResult {
+  /** Easter egg: this meth batch came out 99.1% pure. */
+  heisenbergBatch?: true;
   /** 0.4.0-B. How the girls' shift was supplied, on rounds with work supply. */
   supply?: WorkSupplyPlanDto;
   /** 0.4.0-C. On rounds with Heat. */

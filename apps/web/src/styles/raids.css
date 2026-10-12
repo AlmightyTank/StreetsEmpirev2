@@ -449,6 +449,18 @@
   flex-wrap: wrap;
 }
 
+.se-raids-ring {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.se-raids-ring img {
+  flex: none;
+  border-radius: 8px;
+}
+
 .se-raids-panel--reports .se-panel__body {
   display: grid;
   gap: 10px;

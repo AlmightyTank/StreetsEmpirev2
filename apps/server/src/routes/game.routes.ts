@@ -34,6 +34,7 @@ import {
   favorActivateSchema,
   favorArmSchema,
   streetPassClaimSchema,
+  CLIENT_EASTER_EGG_IDS,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
@@ -72,8 +73,12 @@ import { CrewTrainingService } from '../services/crew-training.service.js';
 import { CrewStaffingOrderService } from '../services/crew-staffing-order.service.js';
 import { RandomEncounterChoiceService } from '../services/random-encounter-choice.service.js';
 import { RandomEncounterService } from '../services/random-encounter.service.js';
+import { EasterEggService } from '../services/easter-egg.service.js';
+import { RingService } from '../services/ring.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
+
+const easterEggParams = z.object({ id: z.enum(CLIENT_EASTER_EGG_IDS) });
 
 const gameRoutes: FastifyPluginAsync = async (fastify) => {
   /**
@@ -101,6 +106,33 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
    * player being at the keyboard, which is what keeps a tab left open
    * overnight eligible for the away bonus.
    */
+  /**
+   * Easter eggs the browser finds (the Konami code, a 404, the joke days).
+   * The answer only says whether this was the first find; it never lists eggs.
+   */
+  fastify.post('/easter-eggs/:id', { preHandler: fastify.requireAuth }, async (request) => {
+    const { id } = parseBody(easterEggParams, request.params);
+    const found = await EasterEggService.discoverFromClient(fastify.prisma, request.auth!.account.id, id);
+    return { isNew: found.isNew, title: found.egg.title, description: found.egg.description, ...(found.collection ? { collection: found.collection.label } : {}) };
+  });
+
+  /**
+   * The Ring. GET reads this viewer's status (surfacing it first when the
+   * round is old enough); POST destroys it at the Detroit foundry for the
+   * reward plus the Ring-bearer title. Neither ever names an unfound egg.
+   */
+  fastify.get('/ring', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    await fastify.prisma.$transaction((tx) => RingService.maybeSurface(tx, round.id, now));
+    return RingService.status(fastify.prisma, round.id, player.id, now);
+  });
+  fastify.post('/ring/destroy', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    return fastify.prisma.$transaction((tx) => RingService.destroy(tx, player.id, now));
+  });
+
   /** Account-wide XP is available even between seasons. */
   fastify.get('/experience', { preHandler: fastify.requireAuth }, async (request) => {
     const accountId = request.auth!.account.id;

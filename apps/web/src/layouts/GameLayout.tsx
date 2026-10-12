@@ -11,6 +11,7 @@ import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
+import { JokeDayBanner } from '../components/EasterEggs.js';
 import { formatDuration } from '../utils/time.js';
 import {
   isCurrent,
@@ -435,6 +436,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       </>
     }>
       <ConnectionBanner />
+      <JokeDayBanner />
       {isBetaEnvironment ? (
         <div className="se-beta-banner" role="status">
           <strong>BETA ENVIRONMENT</strong>

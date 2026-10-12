@@ -805,6 +805,13 @@ enum RoundAftermathStatus {
   UNAVAILABLE
 }
 
+enum RingStatus {
+  HIDDEN
+  SURFACED
+  DESTROYED
+}
+}
+
 enum GameEventType {
   COMMUNITY
   SEASONAL
@@ -1194,6 +1201,7 @@ model Round {
   updatedAt DateTime @updatedAt
 
   players                  RoundPlayer[]
+  ringState                RingState?
   aftermathReport          RoundAftermathReport?
   aftermathRewardsReceived RoundAftermathRewardClaim[] @relation("AftermathRewardTarget")
   aftermathRewardsSource   RoundAftermathRewardClaim[] @relation("AftermathRewardSource")
@@ -1546,6 +1554,7 @@ model RoundPlayer {
   combatInjuries        CombatInjury[]
   observedIntel         CombatIntel[]        @relation("IntelObserver")
   targetedIntel         CombatIntel[]        @relation("IntelTarget")
+  heldRing              RingState[]          @relation("RingHolder")
   raidProtectedUntil    DateTime?
   raidCooldownUntil     DateTime?
   lastRaidedAt          DateTime?
@@ -1553,6 +1562,9 @@ model RoundPlayer {
   driveByCooldownUntil  DateTime?
   driveByProtectedUntil DateTime?
   lastDrivenByAt        DateTime?
+  /// The Ring: while this is in the future the crew has vanished and cannot
+  /// be raided, driven by, or specially raided. Attacking breaks the spell.
+  invisibleUntil        DateTime?
 
   /// Seasonal hideout rooms. These reset naturally because each round creates
   /// a fresh RoundPlayer row, while ended rows keep the final build archived.
@@ -3067,6 +3079,27 @@ model GameNews {
   @@index([roundId, isPinned, publishedAt(sort: Desc)])
 }
 
+/// The Ring: at most one row per round. The holder is hidden while invisible
+/// and named once revealed; a destroyed Ring stays as a record.
+model RingState {
+  id     String @id @default(cuid())
+  roundId String @unique
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  status RingStatus @default(SURFACED)
+
+  holderRoundPlayerId String?
+  holder              RoundPlayer? @relation("RingHolder", fields: [holderRoundPlayerId], references: [id], onDelete: SetNull)
+
+  surfacedAt  DateTime @default(now())
+  destroyedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roundId])
+}
+
 /// What the Discord bot last reported about its news channel, one row per
 /// feature ("news"). Lets the admin panel say why posts are not reaching Discord.
 model DiscordBotStatus {
@@ -3225,6 +3258,14 @@ enum ActivityType {
   LOAN_INSTALLMENT_MISSED
   /// 1.6.5-E. Into collections, or out of it into recovery or good standing.
   LOAN_COLLECTIONS
+  /// An Easter egg found: a permanent account title.
+  EASTER_EGG_FOUND
+  /// The Ring has surfaced in this round.
+  RING_SURFACED
+  /// The Ring changed hands in a raid.
+  RING_STOLEN
+  /// The Ring was destroyed at the foundry.
+  RING_DESTROYED
 }
 
 enum BattleKind {

@@ -5,16 +5,20 @@ import {
   COLLECTION_COVERAGE,
   CREW_COSMETIC_KEYS,
   CUSTOMIZABLE_ITEM_KEYS,
+  isHiddenStyle,
   ITEM_COSMETIC_GROUPS,
   ITEM_COSMETIC_STYLE_KEYS,
   PRODUCT_SUPPLY_COSMETIC_KEYS,
   RELEASED_ITEM_COSMETIC_STYLES,
+  styleFitsItem,
   VEHICLE_COSMETIC_KEYS,
   WEAPON_RIDE_COSMETIC_KEYS,
   type ItemCosmeticStyleKey,
 } from '@streets/shared';
 import {
   AUTHORED_ITEM_ART_FILES,
+  EIGHT_BIT_ART_FILES,
+  SINGLE_ITEM_ART_FILES,
   itemCosmeticArtFile,
   itemCosmeticArtUrl,
   SLICE_A_ART_FILES,
@@ -27,16 +31,21 @@ import { ITEM_ART } from './itemArt.js';
 
 const ITEMS_DIR = path.resolve(import.meta.dirname, '../../public/items');
 const MASTERS_DIR = path.resolve(import.meta.dirname, '../../art/cosmetics');
-const AUTHORED_STYLES = ['midnight-ops', 'urban-ghost', 'cartel-gold', 'midnight-chrome'] as const;
+const AUTHORED_STYLES = ['midnight-ops', 'urban-ghost', 'cartel-gold', 'midnight-chrome', 'eight-bit', 'time-machine', 'blue-sky'] as const;
 /** Items (Slices A and B) and crew (Slice C). */
 const AUTHORED_KEYS = [...CUSTOMIZABLE_ITEM_KEYS, ...CREW_COSMETIC_KEYS] as const;
 type AuthoredKey = typeof AUTHORED_KEYS[number];
-/** The authored collections for one key: every collection, less those whose coverage leaves it out. */
+/**
+ * The authored collections for one key: every collection, less single-item
+ * looks drawn for another item and collections with no art for this key.
+ */
 function stylesFor(key: AuthoredKey): ItemCosmeticStyleKey[] {
-  return AUTHORED_STYLES.filter((style) => COLLECTION_COVERAGE[style]?.includes(key) ?? true);
+  return AUTHORED_STYLES.filter((style) => styleFitsItem(style, key) && (COLLECTION_COVERAGE[style]?.includes(key) ?? true));
 }
 function fileFor(key: AuthoredKey, style: ItemCosmeticStyleKey): string {
-  return (AUTHORED_ITEM_ART_FILES[key] as Partial<Record<ItemCosmeticStyleKey, string>>)[style]!;
+  return (AUTHORED_ITEM_ART_FILES[key] as Partial<Record<ItemCosmeticStyleKey, string>>)[style]
+    ?? (EIGHT_BIT_ART_FILES[key as keyof typeof EIGHT_BIT_ART_FILES] as Partial<Record<ItemCosmeticStyleKey, string>> | undefined)?.[style]
+    ?? (SINGLE_ITEM_ART_FILES[key as keyof typeof SINGLE_ITEM_ART_FILES] as Partial<Record<ItemCosmeticStyleKey, string>> | undefined)?.[style]!;
 }
 
 /** Width, height and alpha flag from a lossless (VP8L) WebP header. */
@@ -68,12 +77,18 @@ describe('item cosmetic art resolver', () => {
     // 1.5.0-F: the Sedan and Van.
     expect(Object.keys(VEHICLE_ART_FILES)).toEqual([...VEHICLE_COSMETIC_KEYS]);
     for (const key of AUTHORED_KEYS) {
-      expect(Object.keys(AUTHORED_ITEM_ART_FILES[key])).toEqual(stylesFor(key));
+      for (const style of stylesFor(key)) {
+        expect(fileFor(key, style), `${key} ${style}`).toBeDefined();
+      }
     }
-    // Midnight Chrome is drawn for crew and rides only.
+    // Midnight Chrome is drawn for crew and rides only; single-item looks stay on their own item.
     expect(stylesFor('AK47')).not.toContain('midnight-chrome');
     expect(stylesFor('VAN')).toContain('midnight-chrome');
     expect(stylesFor('HOE')).toContain('midnight-chrome');
+    expect(stylesFor('SEDAN')).toContain('time-machine');
+    expect(stylesFor('VAN')).not.toContain('time-machine');
+    expect(stylesFor('METH')).toContain('blue-sky');
+    expect(stylesFor('CRACK')).not.toContain('blue-sky');
   });
 
   it('shows every customizable item in exactly one locker section', () => {
@@ -114,6 +129,22 @@ describe('item cosmetic art resolver', () => {
     }
   });
 
+  it('ships the Easter egg looks: 8-Bit for everything, Time Machine and Blue Sky for one item each', () => {
+    const eggFiles = [
+      ...AUTHORED_KEYS.map((key) => [key, 'eight-bit', EIGHT_BIT_ART_FILES[key]['eight-bit']] as const),
+      ['SEDAN', 'time-machine', SINGLE_ITEM_ART_FILES.SEDAN['time-machine']] as const,
+      ['METH', 'blue-sky', SINGLE_ITEM_ART_FILES.METH['blue-sky']] as const,
+    ];
+    for (const [key, style, file] of eggFiles) {
+      expect(itemCosmeticArtFile(key, style)).toBe(file);
+      const header = readLosslessWebp(path.join(ITEMS_DIR, file));
+      expect(header, file).toEqual({ width: 512 * ITEM_ART[key].cells[0], height: 512 * ITEM_ART[key].cells[1], alpha: true });
+    }
+    // A single-item look never leaks onto another item.
+    expect(itemCosmeticArtFile('VAN', 'time-machine')).toBe(ITEM_ART.VAN.file);
+    expect(itemCosmeticArtFile('CRACK', 'blue-sky')).toBe(ITEM_ART.CRACK.file);
+  });
+
   it('keeps a source master for every authored file and no orphan renders', () => {
     const expected = AUTHORED_KEYS.flatMap((key) => stylesFor(key).map((style) => fileFor(key, style)))
       .map((file) => file.replace(/^cosmetics\//, ''))
@@ -139,7 +170,9 @@ describe('item cosmetic art resolver', () => {
       .filter((cosmetic) => cosmetic.kind === 'ITEM_COLLECTION')
       .map((cosmetic) => cosmetic.styleKey);
 
-    expect([...paid, ...supporter].sort()).toEqual([...AUTHORED_STYLES].sort());
+    // Easter egg looks are hidden until found, never on the pass or a supporter drop.
+    const earnable = AUTHORED_STYLES.filter((style) => !isHiddenStyle(style));
+    expect([...paid, ...supporter].sort()).toEqual([...earnable].sort());
     for (const key of [...paid, ...supporter]) expect(ITEM_COSMETIC_STYLE_KEYS).toContain(key);
     expect(paid).not.toContain('midnight-chrome');
   });

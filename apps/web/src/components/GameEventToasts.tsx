@@ -318,6 +318,25 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
           ? { title: 'Out of collections', detail, tone: 'warn', href: '/game/loans' }
           : { title: 'Back in good standing', detail, tone: 'good', href: '/game/loans' };
 
+    case 'EASTER_EGG_FOUND':
+      return {
+        title: `Easter egg: ${str(p.title, 'a secret')}`,
+        detail: `${str(p.description)} New title${p.collection ? ` and the ${str(p.collection)} look` : ''} unlocked. Equip from Account settings.`,
+        tone: 'good',
+        href: '/account',
+      };
+
+    case 'RING_SURFACED':
+      return { title: 'A strange Ring has surfaced', detail: 'Its bearer cannot be found for a day — unless they attack.', tone: 'warn', href: '/game/combat' };
+
+    case 'RING_STOLEN':
+      return p.role === 'LOSER'
+        ? { title: 'The Ring was taken from you', detail: 'Win it back in a raid.', tone: 'bad', href: '/game/combat' }
+        : { title: 'You took the Ring', detail: 'Carry it to the old foundry in Detroit — or hold it until the round ends.', tone: 'good', href: '/game/combat' };
+
+    case 'RING_DESTROYED':
+      return { title: 'The Ring is destroyed', detail: 'Ring-bearer title unlocked.', tone: 'good', href: '/game/combat' };
+
     case 'LOAN_INSTALLMENT_MISSED':
       return { title: 'Loan installment missed', detail, tone: 'bad', href: '/game/loans' };
 

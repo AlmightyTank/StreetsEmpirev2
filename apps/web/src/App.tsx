@@ -1,6 +1,8 @@
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
+import { NotFoundPage } from './pages/NotFoundPage.js';
+import { KonamiCode } from './components/EasterEggs.js';
 import { AdminAccountPage } from './pages/AdminAccountPage.js';
 import { AdminAccountsPage } from './pages/AdminAccountsPage.js';
 import { AdminAuditPage } from './pages/AdminAuditPage.js';
@@ -155,6 +157,8 @@ export function App() {
   if (phase === 'booting') return <Booting />;
 
   return (
+    <>
+    <KonamiCode />
     <Routes>
       <Route path="/" element={<GameEntry />} />
       <Route path="/register" element={<RegisterPage />} />
@@ -244,7 +248,8 @@ export function App() {
         <Route path="admin/monitoring" element={admin(<AdminMonitoringPage />)} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </>
   );
 }
