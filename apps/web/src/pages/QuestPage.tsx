@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   formatCents,
   formatNumber,
@@ -24,7 +24,6 @@ import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs }
 import { confirmAction } from '../stores/confirm.js';
 import { buildQuestBoard, legacyQuestGroup, type QuestBoardGroupKey } from '../utils/questBoard.js';
 
-type Tab = 'available' | 'active' | 'ready' | 'tracked' | 'daily' | 'weekly' | 'city' | 'season' | 'alliance' | 'events' | 'completed';
 const BOARD_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
 
 /** City, alliance, season and community work: shared boards, not personal jobs, and never abandoned. */
@@ -32,24 +31,6 @@ function isBoardQuest(quest: PlayerQuestDto): boolean {
   return BOARD_QUEST_TYPES.includes(quest.type as typeof BOARD_QUEST_TYPES[number])
     || quest.category === 'CITY_CONTRACT';
 }
-
-function tabFromSearch(search: string): Tab {
-  const requested = new URLSearchParams(search).get('tab');
-  return requested === 'daily'
-    || requested === 'weekly'
-    || requested === 'city'
-    || requested === 'season'
-    || requested === 'alliance'
-    || requested === 'events'
-    || requested === 'active'
-    || requested === 'ready'
-    || requested === 'tracked'
-    || requested === 'completed'
-    || requested === 'available'
-    ? requested
-    : 'available';
-}
-
 
 function focusedQuestKey(search: string, hash: string): string | null {
   const fromSearch = new URLSearchParams(search).get('focus');
@@ -60,19 +41,6 @@ function focusedQuestKey(search: string, hash: string): string | null {
   } catch {
     return hash.slice('#quest-'.length);
   }
-}
-
-function tabForQuest(quest: PlayerQuestDto): Tab {
-  if (quest.status === 'READY_TO_TURN_IN') return 'ready';
-  if (quest.status === 'ACTIVE') return 'active';
-  if (quest.status === 'COMPLETED' || quest.status === 'FAILED' || quest.status === 'EXPIRED') return 'completed';
-  if (quest.type === 'DAILY') return 'daily';
-  if (quest.type === 'WEEKLY') return 'weekly';
-  if (quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT') return 'city';
-  if (quest.type === 'SEASON') return 'season';
-  if (quest.type === 'ALLIANCE') return 'alliance';
-  if (quest.type === 'EVENT') return 'events';
-  return 'available';
 }
 
 function statusLabel(quest: PlayerQuestDto): string {
@@ -462,11 +430,12 @@ function FavorArt({ favorKey }: { favorKey: string }) {
 
 export function QuestPage() {
   const location = useLocation();
-  const navigate = useNavigate();
   const me = useSession((state) => state.me);
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
   const [page, setPage] = useState<QuestPageDto | null>(null);
-  const [tab, setTab] = useState<Tab>(() => tabFromSearch(location.search));
+  const [expandedGroups, setExpandedGroups] = useState<Partial<Record<QuestBoardGroupKey, boolean>>>({});
+  const [showConnections, setShowConnections] = useState(false);
+  const [showProgression, setShowProgression] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -521,27 +490,20 @@ export function QuestPage() {
   }, [clockOffsetMs]);
 
   useEffect(() => {
+    if (!page) return;
     const focusKey = focusedQuestKey(location.search, location.hash);
-    const focused = focusKey && page
-      ? page.quests.find((quest) => quest.key === focusKey)
-      : null;
-    const nextTab = focused ? tabForQuest(focused) : tabFromSearch(location.search);
-    setTab(nextTab);
-
-    // Notification links may only know a quest key. Once the page is loaded,
-    // resolve that quest to the board it actually belongs on and keep the URL
-    // honest so a refresh lands in the same place.
-    if (focused && tabFromSearch(location.search) !== nextTab) {
-      const params = new URLSearchParams(location.search);
-      params.set('tab', nextTab);
-      params.set('focus', focused.key);
-      navigate({
-        pathname: location.pathname,
-        search: '?' + params.toString(),
-        hash: '#quest-' + encodeURIComponent(focused.key),
-      }, { replace: true });
+    const board = buildQuestBoard(page.quests, focusKey);
+    const targetGroup = focusKey
+      ? board.groups.find((group) => group.quests.some((quest) => quest.key === focusKey))?.key
+      : legacyQuestGroup(location.search);
+    if (targetGroup) {
+      setExpandedGroups((previous) => previous[targetGroup] ? previous : { ...previous, [targetGroup]: true });
     }
-  }, [location.hash, location.pathname, location.search, navigate, page]);
+    if (location.hash === '#contact-standing' || location.hash === '#factions') {
+      setShowConnections(true);
+    }
+    if (location.hash === '#quest-progression') setShowProgression(true);
+  }, [page, location.search, location.hash]);
 
   useEffect(() => {
     const serverNow = serverAdjustedNowMs(Date.now(), clockOffsetMs);
@@ -566,168 +528,41 @@ export function QuestPage() {
   }, [page?.dailyContracts.resetAt, page?.weeklyContracts.resetAt, page?.cityContracts.resetAt, page?.quests, clockOffsetMs, load]);
 
   useEffect(() => {
-    if (!page || !location.hash) return;
-    const id = decodeURIComponent(location.hash.slice(1));
-    // The selected board can change in the same render as a notification
-    // deep-link. Wait one frame for the quest card to exist, then land on the
-    // card itself. CSS scroll-margin keeps it clear of the sticky phone header.
+    if (!page) return;
+    const focusKey = focusedQuestKey(location.search, location.hash);
+    const id = location.hash ? decodeURIComponent(location.hash.slice(1))
+      : focusKey ? 'quest-' + focusKey : null;
+    if (!id) return;
+    // Wait until a deep-linked accordion has opened and the focused card exists.
     const frame = window.requestAnimationFrame(() => {
       const target = document.getElementById(id);
-      if (!target) return;
+      if (!target || target.closest('details:not([open])')) return;
       target.scrollIntoView({ block: 'start' });
       target.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [page, tab, location.hash]);
+  }, [page, location.hash, location.search, expandedGroups, showConnections, showProgression]);
 
-  const dailyToday = useMemo(
-    () => page?.quests.filter((quest) =>
-      quest.type === 'DAILY'
-      && quest.expiresAt !== null
-      && new Date(quest.expiresAt).getTime() > nowMs
-    ) ?? [],
-    [page, nowMs],
-  );
-
-  const weeklyToday = useMemo(
-    () => page?.quests.filter((quest) =>
-      quest.type === 'WEEKLY'
-      && quest.expiresAt !== null
-      && new Date(quest.expiresAt).getTime() > nowMs
-    ) ?? [],
-    [page, nowMs],
-  );
-
-  const cityToday = useMemo(
-    () => page?.quests.filter((quest) =>
-      (quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT')
-      && quest.expiresAt !== null
-      && new Date(quest.expiresAt).getTime() > nowMs
-    ) ?? [],
-    [page, nowMs],
-  );
-
-  const seasonToday = useMemo(
-    () => page?.quests.filter((quest) =>
-      quest.type === 'SEASON'
-      && ['AVAILABLE', 'ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)
-    ) ?? [],
-    [page],
-  );
-
-  const allianceToday = useMemo(
-    () => page?.quests.filter((quest) =>
-      quest.type === 'ALLIANCE'
-      && !['EXPIRED', 'FAILED'].includes(quest.status)
-      && quest.expiresAt !== null
-      && new Date(quest.expiresAt).getTime() > nowMs
-    ) ?? [],
-    [page, nowMs],
-  );
-
-  const eventToday = useMemo(
-    () => page?.quests.filter((quest) =>
-      quest.type === 'EVENT'
-      && !['EXPIRED', 'FAILED'].includes(quest.status)
-      && (
-        (quest.seasonalEvent && quest.status === 'AVAILABLE')
-        || (quest.expiresAt !== null && new Date(quest.expiresAt).getTime() > nowMs)
-      )
-    ) ?? [],
-    [page, nowMs],
-  );
-
-  const standardAvailableCount = useMemo(
-    () => page?.quests.filter((quest) =>
-      quest.status === 'AVAILABLE'
-      && quest.type !== 'DAILY'
-      && quest.type !== 'WEEKLY'
-      && quest.type !== 'SEASON'
-      && quest.type !== 'ALLIANCE'
-      && quest.type !== 'CITY_CONTRACT'
-      && quest.type !== 'EVENT'
-      && quest.category !== 'CITY_CONTRACT'
-    ).length ?? 0,
-    [page],
-  );
-
-  const activeQuestCount = useMemo(
-    () => page?.quests.filter((quest) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)).length ?? 0,
-    [page],
-  );
+  const focusKey = focusedQuestKey(location.search, location.hash);
+  const board = useMemo(() => buildQuestBoard(page?.quests ?? [], focusKey), [page, focusKey]);
 
   const readyToday = useMemo(
     () => page?.quests.filter((quest) => quest.status === 'READY_TO_TURN_IN') ?? [],
     [page],
   );
-
   const trackedToday = useMemo(
     () => page?.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)) ?? [],
     [page],
   );
-
-  const shown = useMemo(() => {
-    if (!page) return [];
-    if (tab === 'daily') return dailyToday;
-    if (tab === 'weekly') return weeklyToday;
-    if (tab === 'city') return cityToday;
-    if (tab === 'season') return seasonToday;
-    if (tab === 'alliance') return allianceToday;
-    if (tab === 'events') return eventToday;
-    if (tab === 'active') return page.quests.filter((quest) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status));
-    if (tab === 'ready') return readyToday;
-    if (tab === 'tracked') return trackedToday;
-    if (tab === 'completed') return page.quests.filter((quest) => ['COMPLETED', 'FAILED', 'EXPIRED'].includes(quest.status));
-    // 1.5.0-E2: a locked shelf links to the Job that opens it. That Job may still be locked
-    // itself, so it is pinned at the top of the list with what it waits for.
-    const focusKey = focusedQuestKey(location.search, location.hash);
-    const pinned = focusKey ? page.quests.find((quest) => quest.key === focusKey && quest.status === 'LOCKED') : undefined;
-    return [...(pinned ? [pinned] : []), ...page.quests.filter((quest) =>
-      quest.status === 'AVAILABLE'
-      && quest.type !== 'DAILY'
-      && quest.type !== 'WEEKLY'
-      && quest.type !== 'SEASON'
-      && quest.type !== 'ALLIANCE'
-      && quest.type !== 'CITY_CONTRACT'
-      && quest.type !== 'EVENT'
-      && quest.category !== 'CITY_CONTRACT'
-    )];
-  }, [page, tab, dailyToday, weeklyToday, cityToday, seasonToday, allianceToday, eventToday, readyToday, trackedToday, location.search, location.hash]);
-
-  const sortedShown = useMemo(
-    () => [...shown].sort((left, right) => {
-      // A locked Job only reaches a list when a link pinned it there, so it leads.
-      const weight = (quest: PlayerQuestDto) =>
-        quest.status === 'LOCKED' ? -1
-          : quest.status === 'READY_TO_TURN_IN' ? 0
-          : quest.isTracked ? 1
-            : quest.status === 'ACTIVE' ? 2
-              : quest.status === 'AVAILABLE' ? 3
-                : 4;
-      return weight(left) - weight(right) || left.title.localeCompare(right.title);
-    }),
-    [shown],
+  const activeQuestCount = useMemo(
+    () => page?.quests.filter((quest) => quest.status === 'ACTIVE').length ?? 0,
+    [page],
   );
 
   const liveFavors = useMemo(
     () => page?.activeFavors.filter((favor) => new Date(favor.expiresAt).getTime() > nowMs) ?? [],
     [page, nowMs],
   );
-
-  function selectTab(next: Tab) {
-    setTab(next);
-    const params = new URLSearchParams(location.search);
-    params.set('tab', next);
-    // A notification deep-link can leave ?focus=<quest> behind. Once the
-    // player deliberately chooses another board, that focus must stop
-    // overriding their tab selection.
-    params.delete('focus');
-    navigate({
-      pathname: location.pathname,
-      search: '?' + params.toString(),
-      hash: '',
-    }, { replace: true });
-  }
 
   async function mutate(key: string, action: () => Promise<QuestPageDto>, success?: string) {
     setBusy(key);
@@ -837,6 +672,22 @@ export function QuestPage() {
       setBusy(null);
     }
   }
+
+  const renderQuest = (quest: PlayerQuestDto, featured = false) => page ? (
+    <QuestCard
+      key={quest.key + ':' + quest.attempt}
+      quest={quest}
+      page={page}
+      featured={featured}
+      focused={focusKey === quest.key}
+      busy={busy ? 'Another job update is still going through.' : null}
+      nowMs={nowMs}
+      onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.')}
+      onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
+      onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
+      onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
+    />
+  ) : null;
 
   if (!me) return <Navigate to="/join" replace />;
 
