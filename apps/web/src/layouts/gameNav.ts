@@ -198,6 +198,19 @@ export function isCurrent(page: NavPage, pathname: string): boolean {
   return pathMatches(pathname, page.to, page.aliases, page.prefix, page.prefixes);
 }
 
+/** Shared desktop/sidebar and mobile-directory search without changing route access. */
+export function filterNavSections(sections: readonly NavSection[], query: string): NavSection[] {
+  const term = query.trim().toLocaleLowerCase();
+  if (!term) return [...sections];
+  return sections.map((section) => ({
+    ...section,
+    pages: section.pages.filter((page) =>
+      page.label.toLocaleLowerCase().includes(term)
+      || page.short?.toLocaleLowerCase().includes(term)
+      || section.title.toLocaleLowerCase().includes(term)),
+  })).filter((section) => section.pages.length > 0);
+}
+
 /* ---------- Phone tab bar slots ---------- */
 
 export const TAB_COUNT = 4;
