@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCurrent, newPlayerSectionsFor, SECTIONS } from './gameNav.js';
+import { DEFAULT_TABS, filterNavSections, isCurrent, newPlayerSectionsFor, SECTIONS } from './gameNav.js';
 
 const pages = SECTIONS.flatMap((section) => section.pages);
 const page = (key: string) => {
@@ -8,64 +8,69 @@ const page = (key: string) => {
   return found;
 };
 
+describe('consolidated game navigation', () => {
+  it('makes the core loop immediately accessible and gives Quests a primary shortcut', () => {
+    expect(SECTIONS[0]).toMatchObject({ id: 'command', title: 'Command' });
+    expect(SECTIONS[0]!.pages.map((item) => item.key)).toEqual(['dashboard', 'quests', 'scout', 'produce', 'raids']);
+    expect(DEFAULT_TABS).toEqual(['dashboard', 'quests', 'scout', 'stores']);
+  });
+
+  it('does not duplicate or lose a page while reorganizing', () => {
+    expect(new Set(pages.map((item) => item.key)).size).toBe(pages.length);
+    expect(new Set(pages.map((item) => item.to)).size).toBe(pages.length);
+    expect(SECTIONS.map((section) => section.title)).toEqual([
+      'Command', 'Build Your Empire', 'Competition', 'Progress & Rewards', 'Messages & News', 'Help & Settings',
+    ]);
+  });
+
+  it('searches by section or page without mutating menu contents', () => {
+    expect(filterNavSections(SECTIONS, '  piP  ')).toEqual([]);
+    expect(filterNavSections(SECTIONS, ' STORES ').flatMap((section) => section.pages.map((item) => item.key))).toEqual(['stores']);
+    expect(filterNavSections(SECTIONS, 'your empire').flatMap((section) => section.pages.map((item) => item.key)))
+      .toEqual(['hideout', 'crew-roster', 'dealers', 'stores', 'supply', 'loans', 'travel', 'turf']);
+    expect(filterNavSections(SECTIONS, '').flatMap((section) => section.pages)).toEqual(pages);
+  });
+});
+
 describe('game navigation route matching', () => {
-  it('keeps the Casino nav and phone tab active on casino game routes', () => {
-    expect(isCurrent(page('casino'), '/game/casino')).toBe(true);
-    expect(isCurrent(page('casino'), '/game/casino/slots')).toBe(true);
+  it('keeps game-specific nested routes with their destination', () => {
     expect(isCurrent(page('casino'), '/game/casino/blackjack')).toBe(true);
-  });
-
-  it('does not let the Casino tab claim other casino-labeled pages', () => {
-    expect(isCurrent(page('casino'), '/game/admin/casino')).toBe(false);
-  });
-
-  it('still keeps other detail routes attached to their top-level tabs', () => {
     expect(isCurrent(page('stores'), '/game/stores/pip')).toBe(true);
     expect(isCurrent(page('players'), '/game/players/123')).toBe(true);
     expect(isCurrent(page('alliance'), '/game/alliances/kings')).toBe(true);
+    expect(isCurrent(page('casino'), '/game/admin/casino')).toBe(false);
+  });
+
+  it('preserves legacy route aliases and direct navigation', () => {
+    expect(isCurrent(page('quests'), '/game/reputation')).toBe(true);
+    expect(isCurrent(page('console'), '/game/activity')).toBe(true);
+    expect(isCurrent(page('news'), '/game/surveys')).toBe(true);
+    expect(isCurrent(page('rankings'), '/game/hall-of-fame')).toBe(true);
   });
 });
 
 describe('new player navigation model', () => {
-  it('puts the core loop in the first open section', () => {
+  it('keeps the story quest in the first open section', () => {
     const sections = newPlayerSectionsFor(SECTIONS);
-    expect(sections[0]).toMatchObject({
-      id: 'new-player-core',
-      title: 'Start Here',
-    });
+    expect(sections[0]).toMatchObject({ id: 'new-player-core', title: 'Start Here', defaultOpen: true });
     expect(sections[0]!.pages.map((item) => item.key)).toEqual([
-      'dashboard',
-      'scout',
-      'stores',
-      'supply',
-      'produce',
-      'raids',
-      'quests',
+      'dashboard', 'quests', 'scout', 'produce', 'raids', 'stores',
     ]);
+    expect(sections.slice(1).every((section) => section.defaultOpen === false)).toBe(true);
   });
 
-  it('tucks later systems away without removing them from the nav directory', () => {
-    const sections = newPlayerSectionsFor(SECTIONS);
-    const next = sections.find((section) => section.id === 'new-player-next');
-    expect(next?.defaultOpen).toBe(false);
-    expect(next?.pages.map((item) => item.key)).toEqual([
-      'dealers',
-      'crew-roster',
-      'loans',
-      'hideout',
-      'travel',
-      'turf',
-      'casino',
-      'events',
-      'street-pass',
-    ]);
+  it('keeps every full-menu page reachable exactly once', () => {
+    const shown = newPlayerSectionsFor(SECTIONS).flatMap((section) => section.pages.map((item) => item.key));
+    expect(shown).toHaveLength(pages.length);
+    expect(new Set(shown)).toEqual(new Set(pages.map((item) => item.key)));
   });
 
-  it('keeps every full-menu page reachable', () => {
-    const shown = new Set(newPlayerSectionsFor(SECTIONS).flatMap((section) => section.pages.map((item) => item.key)));
-    // XP Progress opens from the level badge in the season bar.
-    const missing = SECTIONS.flatMap((section) => section.pages.map((item) => item.key))
-      .filter((key) => key !== 'xp-progress' && !shown.has(key));
-    expect(missing).toEqual([]);
+  it('does not add empty gated groups for players without a Street Pass', () => {
+    const withoutPass = SECTIONS.map((section) => ({
+      ...section,
+      pages: section.pages.filter((item) => item.key !== 'street-pass'),
+    }));
+    expect(newPlayerSectionsFor(withoutPass).flatMap((section) => section.pages.map((item) => item.key)))
+      .not.toContain('street-pass');
   });
 });
