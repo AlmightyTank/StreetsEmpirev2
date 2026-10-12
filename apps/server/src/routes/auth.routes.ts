@@ -286,7 +286,8 @@ async function uniqueUsername(prisma: PrismaClient, base: string): Promise<strin
       where: { usernameNormalized: normalizeUsername(candidate) },
       select: { id: true },
     });
-    if (!existing) return candidate;
+    // A name someone just gave up is held for them; Discord sign-up skips it like a taken one.
+    if (!existing && !(await UsernameChangeService.isHeld(prisma, candidate))) return candidate;
   }
 
   return `discord_${randomBytes(5).toString('hex')}`.slice(0, 20);
@@ -520,6 +521,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         { email: 'That email is already registered.' },
       );
     }
+    // Free of other accounts, but it may still be held for whoever just gave it up.
+    await UsernameChangeService.assertAvailable(fastify.prisma, body.username, null);
 
     // rc.2: one address may only make so many accounts a day (a household or a school
     // can share one, so the cap is generous). Going over is refused and flagged.

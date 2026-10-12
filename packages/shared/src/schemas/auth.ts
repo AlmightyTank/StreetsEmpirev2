@@ -33,6 +33,8 @@ export function normalizeUsername(username: string): string {
 export const USERNAME_CHANGE_COOLDOWN_ROUNDS = 3;
 /** ...or once this many days have passed, whichever comes first. The first change is free. */
 export const USERNAME_CHANGE_COOLDOWN_DAYS = 90;
+/** A name a player gives up is held this long so only they can take it back. */
+export const USERNAME_HOLD_DAYS = 30;
 
 export interface UsernameChangeStatusDto {
   canChange: boolean;
@@ -44,11 +46,19 @@ export interface UsernameChangeStatusDto {
   roundsSinceChange: number;
   cooldownRounds: number;
   cooldownDays: number;
+  holdDays: number;
+  /** The name the player just gave up, held for them: taking it back is free until `until`. */
+  reclaim: { username: string; until: string } | null;
 }
 
 /** Whether a player may change their name now: free the first time, then 3 rounds or 90 days. */
-export function usernameChangeStatus(input: { lastChangedAt: Date | null; roundsStartedSince: number; now: Date }): UsernameChangeStatusDto {
-  const base = { cooldownRounds: USERNAME_CHANGE_COOLDOWN_ROUNDS, cooldownDays: USERNAME_CHANGE_COOLDOWN_DAYS };
+export function usernameChangeStatus(input: {
+  lastChangedAt: Date | null;
+  roundsStartedSince: number;
+  now: Date;
+  reclaim?: UsernameChangeStatusDto['reclaim'];
+}): UsernameChangeStatusDto {
+  const base = { cooldownRounds: USERNAME_CHANGE_COOLDOWN_ROUNDS, cooldownDays: USERNAME_CHANGE_COOLDOWN_DAYS, holdDays: USERNAME_HOLD_DAYS, reclaim: input.reclaim ?? null };
   if (!input.lastChangedAt) return { ...base, canChange: true, lastChangedAt: null, availableAt: null, roundsSinceChange: 0 };
   const availableAt = new Date(input.lastChangedAt.getTime() + USERNAME_CHANGE_COOLDOWN_DAYS * 86_400_000);
   const canChange = input.now >= availableAt || input.roundsStartedSince >= USERNAME_CHANGE_COOLDOWN_ROUNDS;

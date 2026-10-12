@@ -65,9 +65,87 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('Player name changes with P
     expect(unchanged.usernameChangedAt).toBeNull();
   });
 
+  it('holds a given-up name for its previous owner for 30 days', async () => {
+    const owner = await account('Owner');
+    const other = await account('Other');
+    const original = owner.username;
+    await UsernameChangeService.change(prisma, owner.id, `Moved${randomUUID().slice(0, 6)}`, t0);
+
+    const during = new Date(t0.getTime() + 29 * DAY);
+    await expect(UsernameChangeService.change(prisma, other.id, original.toLowerCase(), during)).rejects.toMatchObject({ code: 'USERNAME_HELD' });
+    await expect(UsernameChangeService.assertAvailable(prisma, original, null, during)).rejects.toMatchObject({ code: 'USERNAME_HELD' });
+    expect(await UsernameChangeService.isHeld(prisma, original, during)).toBe(true);
+
+    const after = new Date(t0.getTime() + 31 * DAY);
+    expect(await UsernameChangeService.isHeld(prisma, original, after)).toBe(false);
+    const taken = await UsernameChangeService.change(prisma, other.id, original, after);
+    expect(taken.account.username).toBe(original);
+  });
+
+  it('lets the owner take their old name back for free, once', async () => {
+    const owner = await account('Back');
+    const original = owner.username;
+    const moved = `Moved${randomUUID().slice(0, 6)}`;
+    const first = await UsernameChangeService.change(prisma, owner.id, moved, t0);
+    expect(first.status).toMatchObject({ canChange: false, reclaim: { username: original } });
+
+    const later = new Date(t0.getTime() + 5 * DAY);
+    const back = await UsernameChangeService.change(prisma, owner.id, original, later);
+    expect(back.account.username).toBe(original);
+    // The take-back does not restart the cooldown clock, and cannot be repeated.
+    expect(back.account.usernameChangedAt?.toISOString()).toBe(t0.toISOString());
+    expect(back.status.reclaim).toBeNull();
+    await expect(UsernameChangeService.change(prisma, owner.id, moved, later)).rejects.toMatchObject({ code: 'USERNAME_CHANGE_COOLDOWN' });
+
+    const sources = await prisma.accountUsernameChange.findMany({ where: { accountId: owner.id }, orderBy: { createdAt: 'asc' }, select: { source: true } });
+    expect(sources.map((row) => row.source)).toEqual(['PLAYER', 'REVERT']);
+  });
+
+  it('keeps a name staff took away from everyone, its old owner included', async () => {
+    const owner = await account('Retired');
+    const original = owner.username;
+    const replacement = `Staff${randomUUID().slice(0, 6)}`;
+    await prisma.account.update({ where: { id: owner.id }, data: { username: replacement, usernameNormalized: replacement.toLowerCase() } });
+    await prisma.accountUsernameChange.create({
+      data: { accountId: owner.id, fromUsername: original, fromUsernameNormalized: original.toLowerCase(), toUsername: replacement, source: 'STAFF', createdAt: t0 },
+    });
+    const during = new Date(t0.getTime() + DAY);
+    const status = await UsernameChangeService.status(prisma, owner.id, during);
+    expect(status.reclaim).toBeNull();
+    await expect(UsernameChangeService.change(prisma, owner.id, original, during)).rejects.toMatchObject({ code: 'USERNAME_HELD' });
+  });
+
   it('lets a player change only the capitals of their own name', async () => {
     const player = await account('mighty');
     const { account: renamed } = await UsernameChangeService.change(prisma, player.id, player.username.toUpperCase(), t0);
     expect(renamed.username).toBe(player.username.toUpperCase());
+  });
+});
+
+describe.runIf(process.env.AUTH_INTEGRATION === '1')('Name holds at sign-up and over the API', () => {
+  let app: import('fastify').FastifyInstance;
+  const accountIds: string[] = [];
+
+  beforeAll(async () => { app = await (await import('../../app.js')).buildApp(); });
+  afterAll(async () => {
+    await app.prisma.account.deleteMany({ where: { id: { in: accountIds } } });
+    await app.close();
+  });
+
+  it('refuses to sign anyone up as a name its owner just gave up', async () => {
+    const original = `Gone${randomUUID().slice(0, 8)}`;
+    const owner = await app.prisma.account.create({
+      data: { username: original, usernameNormalized: original.toLowerCase(), email: `${randomUUID()}@example.invalid`, passwordHash: 'x' },
+    });
+    accountIds.push(owner.id);
+    await UsernameChangeService.change(app.prisma, owner.id, `New${randomUUID().slice(0, 8)}`);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: original.toUpperCase(), email: `${randomUUID()}@example.invalid`, password: `Pw-${randomUUID()}` },
+    });
+    expect(response.statusCode, response.body).toBe(409);
+    expect(response.json().error.code).toBe('USERNAME_HELD');
   });
 });

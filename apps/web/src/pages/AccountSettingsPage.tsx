@@ -80,7 +80,7 @@ function sessionDevice(session: AccountSessionDto): string {
 /** The name-change rule in one line, with when the player may change it next. */
 function usernameChangeHint(status: UsernameChangeStatusDto | null): string {
   if (!status) return 'Letters, numbers, underscores and hyphens. You can change it again after 3 new rounds or 90 days.';
-  const rule = `After a change, you can change it again once ${status.cooldownRounds} new rounds start or ${status.cooldownDays} days pass, whichever comes first.`;
+  const rule = `After a change, you can change it again once ${status.cooldownRounds} new rounds start or ${status.cooldownDays} days pass, whichever comes first. Your old name is held for you for ${status.holdDays} days.`;
   if (status.canChange) return status.lastChangedAt ? `You can change your name now. ${rule}` : `Your first change is free. ${rule}`;
   const left = status.cooldownRounds - status.roundsSinceChange;
   return `Next change after ${left} more round${left === 1 ? '' : 's'} start, or on ${formatDate(status.availableAt)}.`;
@@ -266,14 +266,13 @@ export function AccountSettingsPage() {
     }
   }
 
-  async function changeUsername(event: FormEvent) {
-    event.preventDefault();
+  async function changeUsername(username: string) {
     setBusy('username');
     setMessage(null);
     setFields({});
 
     try {
-      const response = await authApi.changeUsername({ username: newUsername });
+      const response = await authApi.changeUsername({ username });
       useSession.setState({ account: response.account });
       setUsernameStatus(response.status);
       // The name in the current round changes too.
@@ -494,7 +493,7 @@ export function AccountSettingsPage() {
           </Panel>
 
           <Panel title="Change pimp name">
-            <form onSubmit={changeUsername} noValidate>
+            <form onSubmit={(event) => { event.preventDefault(); void changeUsername(newUsername); }} noValidate>
               <Field
                 label="New pimp name"
                 name="username"
@@ -513,6 +512,22 @@ export function AccountSettingsPage() {
                 {busy === 'username' ? 'Changing...' : 'Change name'}
               </Button>
             </form>
+            {usernameStatus?.reclaim ? (
+              <>
+                <p className="se-hint">
+                  <strong>{usernameStatus.reclaim.username}</strong> is held for you until {formatDate(usernameStatus.reclaim.until)}.
+                  Nobody else can take it, and taking it back is free.
+                </p>
+                <Button
+                  type="button"
+                  className="se-btn se-btn--ghost se-btn--block"
+                  onClick={() => void changeUsername(usernameStatus.reclaim!.username)}
+                  disabledReason={busy !== null ? working : null}
+                >
+                  {`Take back ${usernameStatus.reclaim.username}`}
+                </Button>
+              </>
+            ) : null}
           </Panel>
 
           <Panel title="Set a password by email">

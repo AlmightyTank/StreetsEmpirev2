@@ -127,12 +127,16 @@ model AccountUsernameChange {
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   fromUsername String
+  /// lower(fromUsername). A name given up is held for its previous owner for 30 days.
+  fromUsernameNormalized String
   toUsername   String
-  /// PLAYER for a self-service change, STAFF for an admin rename.
+  /// PLAYER for a self-service change, REVERT for a player taking back the name they just
+  /// gave up, STAFF for an admin rename (whose old name nobody may take for 30 days).
   source       String
   createdAt    DateTime @default(now())
 
   @@index([accountId, createdAt])
+  @@index([fromUsernameNormalized, createdAt])
 }
 
 /// Permanent account progress, separate from season resources and Street Pass Cred.

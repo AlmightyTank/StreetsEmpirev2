@@ -606,7 +606,7 @@ export const AdminAccountService = {
       if (clash) throw AppError.conflict('USERNAME_TAKEN', `${username} is already taken.`, { username: 'That pimp name is taken.' });
       const account = await tx.account.update({ where: { id: before.id }, data: { username, usernameNormalized } });
       const { count } = await tx.roundPlayer.updateMany({ where: { accountId: before.id }, data: { displayName: username } });
-      await tx.accountUsernameChange.create({ data: { accountId: before.id, fromUsername: before.username, toUsername: username, source: 'STAFF' } });
+      await tx.accountUsernameChange.create({ data: { accountId: before.id, fromUsername: before.username, fromUsernameNormalized: before.usernameNormalized, toUsername: username, source: 'STAFF' } });
       return { account, detail: { roundNamesUpdated: count } };
     });
     return AdminAccountService.detail(prisma, accountId);
