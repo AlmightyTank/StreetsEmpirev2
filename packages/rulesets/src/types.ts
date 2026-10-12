@@ -984,10 +984,22 @@ export interface RandomEncounterEntryRules {
   readonly districts?: readonly DistrictKey[];
 }
 
+/**
+ * 1.8.0-N. What one `chance` roll covers. ACTION rolls once for the whole action;
+ * TURN rolls once for every turn the action spends.
+ */
+export type RandomEncounterChanceBasis = 'ACTION' | 'TURN';
+
 export interface RandomEncounterTriggerRules {
   readonly enabled: boolean;
-  /** Chance per eligible action, 0..1. */
+  /** Chance per eligible action, 0..1, or per turn spent when `chanceBasis` is TURN. */
   readonly chance: number;
+  /**
+   * Left out, the trigger rolls `chance` once per action however many turns it spends.
+   * TURN rolls each turn and stops at the first hit, so an action draws at most one
+   * encounter, with odds 1 - (1 - chance)^turns. A zero-turn action rolls once.
+   */
+  readonly chanceBasis?: RandomEncounterChanceBasis;
   /** Minimum time before another encounter of this trigger can appear for the same player. */
   readonly cooldownMinutes?: number;
   /** Minimum time before this exact encounter key can repeat for the same player. */

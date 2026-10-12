@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { classicOgV16F } from '@streets/rulesets';
-import { RandomEncounterService } from '../random-encounter.service.js';
+import { RandomEncounterService, triggerChance } from '../random-encounter.service.js';
 import type { PlayerState } from '../action.service.js';
 
 const runMock = vi.hoisted(() => vi.fn());
@@ -509,6 +509,48 @@ describe('RandomEncounterService', () => {
 
     expect(settled).toEqual({ next: state });
     expect(db.randomEncounter.create).not.toHaveBeenCalled();
+  });
+
+  it('rolls a per-turn trigger once for every turn spent', () => {
+    const perTurn = { chance: 0.01, chanceBasis: 'TURN' as const };
+    expect(triggerChance(perTurn, 1)).toBeCloseTo(0.01);
+    expect(triggerChance(perTurn, 144)).toBeCloseTo(1 - 0.99 ** 144);
+    // A zero-turn action still gets one roll.
+    expect(triggerChance(perTurn, 0)).toBeCloseTo(0.01);
+    // Without a basis the chance covers the whole action, however long it is.
+    expect(triggerChance({ chance: 0.01 }, 144)).toBe(0.01);
+    expect(triggerChance({ chance: 1.5, chanceBasis: 'TURN' }, 3)).toBe(1);
+  });
+
+  it('lands a per-turn encounter on a long action that one roll would miss', async () => {
+    const ruleset = (chanceBasis?: 'TURN') => ({
+      randomEncounters: {
+        enabled: true,
+        triggers: {
+          SCOUT: {
+            enabled: true,
+            chance: 0.01,
+            ...(chanceBasis ? { chanceBasis } : {}),
+            minTurns: 1,
+            entries: [{ key: 'hit', title: 'Hit', text: 'A long night pays off.', tone: 'good', weight: 1, cash: { minCents: 100, maxCents: 100 } }],
+          },
+        },
+      },
+    }) as never;
+    const scout = (rules: never) => RandomEncounterService.scout({
+      tx: tx(),
+      roundPlayerId: 'player-1',
+      next: state,
+      ruleset: rules,
+      district: 'LOW_RENT',
+      turns: 144,
+      now: new Date('2026-10-09T00:00:00Z'),
+      // 0.5 misses a single 1% roll but not 144 of them (about 76%).
+      rng: () => 0.5,
+    });
+
+    expect((await scout(ruleset())).encounter).toBeUndefined();
+    expect((await scout(ruleset('TURN'))).encounter?.key).toBe('hit');
   });
 
   it('honors district eligibility before picking an encounter', async () => {
