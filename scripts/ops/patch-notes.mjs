@@ -27,6 +27,7 @@ export const BODY_MAX = 4000;
 const HEADING = /^#{1,6}\s/;
 const SECTION = /^#{2,3}\s*patch notes\s*:?\s*$/i;
 const NOTHING = /^(none|n\/?a|no|nothing|-+)\.?$/i;
+const GENERATED_BYLINE = /(?:generated\s+(?:with|by)\s+\[?claude code|claude\.com\/claude-code|claude\.ai\/code\/session_|discord\.com\/assets\/[\w-]+\.svg)/i;
 
 /** The player-facing bullets under a PR body's "## Patch notes" heading; empty when there are none. */
 export function extractPatchNotes(body) {
@@ -39,7 +40,7 @@ export function extractPatchNotes(body) {
     const line = raw.trim();
     if (HEADING.test(line)) break;
     const text = line.replace(/^(?:[-*+]|\d+[.)])\s+/, '').trim();
-    if (text && !NOTHING.test(text)) notes.push(text);
+    if (text && !NOTHING.test(text) && !GENERATED_BYLINE.test(text)) notes.push(text);
   }
   return notes;
 }
