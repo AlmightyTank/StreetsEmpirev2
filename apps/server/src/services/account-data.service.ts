@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
-import { APP_VERSION } from '@streets/shared';
+import { APP_VERSION, normalizeUsername } from '@streets/shared';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { lockAccount, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
@@ -54,13 +54,14 @@ export async function eraseAccount(tx: Db, before: Account, replacementPasswordH
   await tx.loginChallenge.deleteMany({ where: { accountId: before.id } });
   await tx.trustedDevice.deleteMany({ where: { accountId: before.id } });
   await tx.accountDevice.deleteMany({ where: { accountId: before.id } });
+  await tx.accountUsernameChange.deleteMany({ where: { accountId: before.id } });
 
   const tombstone = deletedAccountIdentity(before.id);
   await tx.account.update({
     where: { id: before.id },
     data: {
       username: tombstone.username,
-      usernameNormalized: tombstone.username.toLowerCase(),
+      usernameNormalized: normalizeUsername(tombstone.username),
       email: tombstone.email,
       emailVerifiedAt: null,
       passwordHash: replacementPasswordHash,
@@ -113,6 +114,7 @@ export const AccountDataService = {
       orderBy: { createdAt: 'asc' },
     });
     const playerIds = players.map((row) => row.id);
+    const nameChanges = await prisma.accountUsernameChange.findMany({ where: { accountId }, orderBy: { createdAt: 'asc' }, select: { fromUsername: true, toUsername: true, createdAt: true } });
     const [profile, cosmetics, notifications, sessions, trustedDevices, devices, forumLink, sent, received, contacts, mutes, messageReports, bugReports, supportTickets, supporterMembership, supporterPayments] = await Promise.all([
       prisma.accountProfile.findUnique({ where: { accountId } }),
       prisma.accountCosmeticUnlock.findMany({ where: { accountId } }),
@@ -139,6 +141,7 @@ export const AccountDataService = {
       account: {
         id: account.id,
         username: account.username,
+        nameChanges,
         email: account.email,
         emailVerifiedAt: account.emailVerifiedAt,
         createdAt: account.createdAt,

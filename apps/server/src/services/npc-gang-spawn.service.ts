@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient, Round } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import type { NpcGangProgressionRules, NpcGangRosterEntry, NpcGangSpawnRules } from '@streets/rulesets';
+import { normalizeUsername } from '@streets/shared';
 import { npcRules } from './npc-gang-rules.js';
 import { RoundPlayerService } from './round-player.service.js';
 
@@ -64,7 +65,7 @@ async function spawn(prisma: PrismaClient, round: Round, entry: NpcGangRosterEnt
     update: { isActive: true },
     create: {
       username,
-      usernameNormalized: username,
+      usernameNormalized: normalizeUsername(username),
       email,
       passwordHash: NO_LOGIN,
       isActive: true,

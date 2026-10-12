@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { RULES_VERSION, changeEmailSchema, closeAccountSchema, deleteAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
+import { RULES_VERSION, changeEmailSchema, changeUsernameSchema, closeAccountSchema, deleteAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, normalizeUsername, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
 import { adminNeedsSecondFactor } from '../auth/play-access.js';
@@ -11,6 +11,7 @@ import { createSession, destroySession, sessionHardEnd } from '../auth/sessions.
 import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
 import { AccountProfileService } from '../services/account-profile.service.js';
+import { UsernameChangeService } from '../services/username-change.service.js';
 import { AccountClosureService } from '../services/support.service.js';
 import { AccountDataService } from '../services/account-data.service.js';
 import { noteSignIn, notePasswordChanged } from '../services/sign-in-notice.service.js';
@@ -282,10 +283,11 @@ async function uniqueUsername(prisma: PrismaClient, base: string): Promise<strin
     const suffix = i === 0 ? '' : String(i);
     const candidate = `${fallback.slice(0, 20 - suffix.length)}${suffix}`;
     const existing = await prisma.account.findUnique({
-      where: { usernameNormalized: candidate.toLowerCase() },
+      where: { usernameNormalized: normalizeUsername(candidate) },
       select: { id: true },
     });
-    if (!existing) return candidate;
+    // A name someone just gave up is held for them; Discord sign-up skips it like a taken one.
+    if (!existing && !(await UsernameChangeService.isHeld(prisma, candidate))) return candidate;
   }
 
   return `discord_${randomBytes(5).toString('hex')}`.slice(0, 20);
@@ -418,7 +420,7 @@ async function accountForDiscordUser(
   return prisma.account.create({
     data: {
       username,
-      usernameNormalized: username.toLowerCase(),
+      usernameNormalized: normalizeUsername(username),
       email,
       emailVerifiedAt: now,
       passwordHash: await hashPassword(randomBytes(32).toString('base64url')),
@@ -496,7 +498,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(registerSchema, request.body);
     // rc.5: the bot check comes first, before anything touches the database.
     await assertHuman(body.captchaToken, request.ip, request.log);
-    const usernameNormalized = body.username.toLowerCase();
+    const usernameNormalized = normalizeUsername(body.username);
 
     const clash = await fastify.prisma.account.findFirst({
       where: {
@@ -519,6 +521,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         { email: 'That email is already registered.' },
       );
     }
+    // Free of other accounts, but it may still be held for whoever just gave it up.
+    await UsernameChangeService.assertAvailable(fastify.prisma, body.username, null);
 
     // rc.2: one address may only make so many accounts a day (a household or a school
     // can share one, so the cap is generous). Going over is refused and flagged.
@@ -1309,6 +1313,17 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put('/profile-settings', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(updateAccountProfileSettingsSchema, request.body);
     return AccountProfileService.update(fastify.prisma, request.auth!.account.id, body);
+  });
+
+  /** Whether the player may change their own name now, and if not, when. */
+  fastify.get('/username', { preHandler: fastify.requireAuth }, async (request) =>
+    ({ status: await UsernameChangeService.status(fastify.prisma, request.auth!.account.id) }));
+
+  /** The player renames themselves: free the first time, then once 3 rounds start or 90 days pass. */
+  fastify.post('/username', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(changeUsernameSchema, request.body);
+    const { account, status } = await UsernameChangeService.change(fastify.prisma, request.auth!.account.id, body.username);
+    return { account: toAccountDto(account, request.auth!.session), status, message: `You are now ${account.username}.` };
   });
 
   fastify.get('/me', { preHandler: fastify.requireAuth }, async (request) => {

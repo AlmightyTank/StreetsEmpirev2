@@ -11,8 +11,9 @@ import type {
   ProfileEffect,
   ProfileSurface,
   UiDensity,
+  UsernameChangeStatusDto,
 } from '@streets/shared';
-import { CREW_NAME_MAX, DEFAULT_AVATAR_PARTS, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
+import { USERNAME_MAX, CREW_NAME_MAX, DEFAULT_AVATAR_PARTS, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { siteThemeCompanionLook } from '@streets/rulesets';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
@@ -76,6 +77,15 @@ function sessionDevice(session: AccountSessionDto): string {
   return session.userAgent ? 'Browser session' : 'Unknown device';
 }
 
+/** The name-change rule in one line, with when the player may change it next. */
+function usernameChangeHint(status: UsernameChangeStatusDto | null): string {
+  if (!status) return 'Letters, numbers, underscores and hyphens. You can change it again after 3 new rounds or 90 days.';
+  const rule = `After a change, you can change it again once ${status.cooldownRounds} new rounds start or ${status.cooldownDays} days pass, whichever comes first. Your old name is held for you for ${status.holdDays} days.`;
+  if (status.canChange) return status.lastChangedAt ? `You can change your name now. ${rule}` : `Your first change is free. ${rule}`;
+  const left = status.cooldownRounds - status.roundsSinceChange;
+  return `Next change after ${left} more round${left === 1 ? '' : 's'} start, or on ${formatDate(status.availableAt)}.`;
+}
+
 function initials(name: string): string {
   return name
     .split(/\s+/)
@@ -97,6 +107,8 @@ export function AccountSettingsPage() {
   const accountMessage = searchParams.get('accountMessage');
 
   const [newEmail, setNewEmail] = useState('');
+  const [newUsername, setNewUsername] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<UsernameChangeStatusDto | null>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [revokeOtherSessionsOnPasswordChange, setRevokeOtherSessionsOnPasswordChange] = useState(true);
@@ -104,7 +116,7 @@ export function AccountSettingsPage() {
   const [message, setMessage] = useState<string | null>(accountMessage);
   const [tone, setTone] = useState<'error' | 'info'>('info');
   const [fields, setFields] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState<'recovery' | 'verify' | 'email' | 'password' | 'sessions' | 'cosmetics' | null>(null);
+  const [busy, setBusy] = useState<'recovery' | 'verify' | 'email' | 'username' | 'password' | 'sessions' | 'cosmetics' | null>(null);
   /** One line for every button while another request is in flight. */
   const working = 'Finishing the last thing you asked for.';
   const [sessions, setSessions] = useState<AccountSessionDto[]>([]);
@@ -176,6 +188,14 @@ export function AccountSettingsPage() {
 
   useEffect(() => {
     let active = true;
+    authApi.usernameStatus()
+      .then((response) => { if (active) setUsernameStatus(response.status); })
+      .catch(() => { if (active) setUsernameStatus(null); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
     authApi.sessions()
       .then((response) => {
         if (active) setSessions(response.sessions);
@@ -233,6 +253,33 @@ export function AccountSettingsPage() {
       setTone('info');
       setMessage(response.message);
       setNewEmail('');
+    } catch (error) {
+      setTone('error');
+      if (error instanceof ApiError) {
+        setMessage(error.message);
+        setFields(error.fields ?? {});
+      } else {
+        setMessage('Something went wrong. Try that again.');
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function changeUsername(username: string) {
+    setBusy('username');
+    setMessage(null);
+    setFields({});
+
+    try {
+      const response = await authApi.changeUsername({ username });
+      useSession.setState({ account: response.account });
+      setUsernameStatus(response.status);
+      // The name in the current round changes too.
+      if (me) await useSession.getState().refreshRound();
+      setTone('info');
+      setMessage(response.message);
+      setNewUsername('');
     } catch (error) {
       setTone('error');
       if (error instanceof ApiError) {
@@ -443,6 +490,44 @@ export function AccountSettingsPage() {
               <Row label="Email status" value={account.emailVerifiedAt ? 'Verified' : 'Unverified'} />
               <Row label="Discord" value={account.discordLinked ? account.discordUsername ?? 'Linked' : 'Not linked'} />
             </div>
+          </Panel>
+
+          <Panel title="Change pimp name">
+            <form onSubmit={(event) => { event.preventDefault(); void changeUsername(newUsername); }} noValidate>
+              <Field
+                label="New pimp name"
+                name="username"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                autoComplete="username"
+                required
+                maxLength={USERNAME_MAX}
+                error={fields.username}
+                hint={usernameChangeHint(usernameStatus)}
+              />
+              <Button
+                className="se-btn se-btn--primary se-btn--block"
+                disabledReason={busy !== null ? working : usernameStatus && !usernameStatus.canChange ? usernameChangeHint(usernameStatus) : null}
+              >
+                {busy === 'username' ? 'Changing...' : 'Change name'}
+              </Button>
+            </form>
+            {usernameStatus?.reclaim ? (
+              <>
+                <p className="se-hint">
+                  <strong>{usernameStatus.reclaim.username}</strong> is held for you until {formatDate(usernameStatus.reclaim.until)}.
+                  Nobody else can take it, and taking it back is free.
+                </p>
+                <Button
+                  type="button"
+                  className="se-btn se-btn--ghost se-btn--block"
+                  onClick={() => void changeUsername(usernameStatus.reclaim!.username)}
+                  disabledReason={busy !== null ? working : null}
+                >
+                  {`Take back ${usernameStatus.reclaim.username}`}
+                </Button>
+              </>
+            ) : null}
           </Panel>
 
           <Panel title="Set a password by email">

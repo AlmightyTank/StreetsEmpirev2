@@ -6,6 +6,7 @@ import {
   type AdminSupporterGrantResultDto,
   type AdminSupporterGrantRowDto,
   type AdminSupportersDto,
+  normalizeUsername,
 } from '@streets/shared';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
@@ -149,7 +150,7 @@ export const AdminSupporterService = {
     const dryRun = input.dryRun ?? false;
     if (!dryRun && !input.reason) throw AppError.badRequest('REASON_REQUIRED', 'Give a reason for the grant.', { reason: 'Give a reason of at least 5 characters.' });
     const names = input.usernames.map((name) => name.trim().replace(/^@/, '')).filter(Boolean);
-    const normalized = [...new Set(names.map((name) => name.toLowerCase()))];
+    const normalized = [...new Set(names.map(normalizeUsername))];
     const accounts = normalized.length
       ? await prisma.account.findMany({ where: { usernameNormalized: { in: normalized } }, select: { id: true, username: true, usernameNormalized: true } })
       : [];
@@ -158,7 +159,7 @@ export const AdminSupporterService = {
 
     const seen = new Set<string>();
     const rows: AdminSupporterGrantRowDto[] = names.map((name) => {
-      const key = name.toLowerCase();
+      const key = normalizeUsername(name);
       const account = byName.get(key) ?? null;
       const base = { input: name, accountId: account?.id ?? null, username: account?.username ?? null, rewardKeys: [] as string[], error: null };
       if (seen.has(key)) return { ...base, status: 'duplicate' as const };
