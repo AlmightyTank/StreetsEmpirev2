@@ -104,7 +104,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/easter-eggs/:id', { preHandler: fastify.requireAuth }, async (request) => {
     const { id } = parseBody(easterEggParams, request.params);
     const found = await EasterEggService.discoverFromClient(fastify.prisma, request.auth!.account.id, id);
-    return { isNew: found.isNew, title: found.egg.title, description: found.egg.description };
+    return { isNew: found.isNew, title: found.egg.title, description: found.egg.description, ...(found.collection ? { collection: found.collection.label } : {}) };
   });
 
   /** Account-wide XP is available even between seasons. */

@@ -6,6 +6,17 @@
  * authored image; CSS color filters are not part of the contract. Crew outfit
  * keys arrive separately in Slice C.
  */
+export interface ItemCosmeticStyleDefinition {
+  readonly key: string;
+  readonly label: string;
+  readonly description: string;
+  readonly released: boolean;
+  /** Easter egg styles: left out of every list until the account owns them. */
+  readonly hidden?: boolean;
+  /** A style drawn for these items only. Absent: every item and both crew outfits. */
+  readonly items?: readonly string[];
+}
+
 export const ITEM_COSMETIC_STYLES = [
   {
     key: 'classic',
@@ -31,7 +42,50 @@ export const ITEM_COSMETIC_STYLES = [
     description: 'Engraved metal, polished gold trim and high-roller presentation.',
     released: true,
   },
-] as const;
+  // Easter eggs (see docs/EASTER-EGGS.md).
+  {
+    key: 'eight-bit',
+    label: '8-Bit',
+    description: 'Chunky pixel art straight off the cartridge. Thirty lives not included.',
+    released: true,
+    hidden: true,
+  },
+  {
+    key: 'time-machine',
+    label: 'Time Machine',
+    description: 'Brushed stainless, a gull-wing door, a reactor on the back and copper cable down the flank. Sedan only.',
+    released: true,
+    hidden: true,
+    items: ['SEDAN'],
+  },
+  {
+    key: 'blue-sky',
+    label: 'Blue Sky',
+    description: 'Blue glass in a clear bag. 99.1% pure. Meth only.',
+    released: true,
+    hidden: true,
+    items: ['METH'],
+  },
+] as const satisfies readonly ItemCosmeticStyleDefinition[];
+
+const STYLE_DEFINITIONS = new Map<string, ItemCosmeticStyleDefinition>(ITEM_COSMETIC_STYLES.map((style) => [style.key, style]));
+
+/** Can this item wear this style? Full collections fit everything; single-item styles fit their own items. */
+export function styleFitsItem(style: string, item: string): boolean {
+  const definition = STYLE_DEFINITIONS.get(style);
+  if (!definition) return false;
+  return !definition.items || definition.items.includes(item);
+}
+
+/** A full collection, which also dresses the crew. */
+export function isFullCollectionStyle(style: string): boolean {
+  const definition = STYLE_DEFINITIONS.get(style);
+  return Boolean(definition && !definition.items);
+}
+
+export function isHiddenStyle(style: string): boolean {
+  return STYLE_DEFINITIONS.get(style)?.hidden === true;
+}
 
 export type ItemCosmeticStyleKey = typeof ITEM_COSMETIC_STYLES[number]['key'];
 export const ITEM_COSMETIC_STYLE_KEYS = ITEM_COSMETIC_STYLES.map((style) => style.key) as readonly ItemCosmeticStyleKey[];
@@ -94,18 +148,23 @@ export type CrewCosmeticKey = typeof CREW_COSMETIC_KEYS[number];
 export const CREW_COSMETIC_STYLE_KEYS = ITEM_COSMETIC_STYLE_KEYS;
 export type CrewCosmeticStyleKey = ItemCosmeticStyleKey;
 
-const CREW_OUTFIT_DESCRIPTIONS: Record<ItemCosmeticStyleKey, string> = {
+const CREW_OUTFIT_DESCRIPTIONS: Partial<Record<ItemCosmeticStyleKey, string>> = {
   classic: 'The original crew artwork.',
   'midnight-ops': 'Blacked-out night fits: hood up, leather, matte black with teal accents.',
   'urban-ghost': 'Concrete-grey streetwear: camo puffers, beanies and caps, silver chains.',
   'cartel-gold': 'High-roller dress: cream suit and fedora, velvet and fur, heavy gold.',
+  'eight-bit': 'Sixteen colours and a lot of squares.',
 };
 
-export const RELEASED_CREW_COSMETIC_STYLES = RELEASED_ITEM_COSMETIC_STYLES.map((style) => ({
-  key: style.key,
-  label: style.label,
-  description: CREW_OUTFIT_DESCRIPTIONS[style.key],
-}));
+/** Only full collections dress the crew. */
+export const RELEASED_CREW_COSMETIC_STYLES = RELEASED_ITEM_COSMETIC_STYLES
+  .filter((style) => isFullCollectionStyle(style.key))
+  .map((style) => ({
+    key: style.key,
+    label: style.label,
+    description: CREW_OUTFIT_DESCRIPTIONS[style.key] ?? style.description,
+    ...(isHiddenStyle(style.key) ? { hidden: true } : {}),
+  }));
 
 export const DEFAULT_CREW_COSMETICS = {
   THUG: 'classic',
@@ -131,11 +190,12 @@ export function isOwnedCollection(key: string, owned: ReadonlySet<string>): bool
 }
 
 export function collectionOptions(
-  styles: readonly { key: ItemCosmeticStyleKey; label: string; description: string }[],
+  styles: readonly { key: ItemCosmeticStyleKey; label: string; description: string; hidden?: boolean }[],
   owned: ReadonlySet<string>,
   hints: Partial<Record<ItemCosmeticStyleKey, string>> = {},
 ): { key: ItemCosmeticStyleKey; label: string; description: string; locked: boolean; unlockHint: string | null }[] {
-  return styles.map((style) => {
+  // A hidden (Easter egg) style is not offered, or even hinted at, until it is owned.
+  return styles.filter((style) => !style.hidden || isOwnedCollection(style.key, owned)).map((style) => {
     const locked = !isOwnedCollection(style.key, owned);
     return {
       key: style.key,

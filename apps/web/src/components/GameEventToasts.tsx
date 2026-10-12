@@ -321,7 +321,7 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'EASTER_EGG_FOUND':
       return {
         title: `Easter egg: ${str(p.title, 'a secret')}`,
-        detail: `${str(p.description)} New title unlocked. Equip it from Account settings.`,
+        detail: `${str(p.description)} New title${p.collection ? ` and the ${str(p.collection)} look` : ''} unlocked. Equip from Account settings.`,
         tone: 'good',
         href: '/account',
       };

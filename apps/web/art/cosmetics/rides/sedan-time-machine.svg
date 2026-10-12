@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128">
-  <!-- Time Machine: brushed stainless wedge, gull-wing door, black louvers and lower trim, rear reactor and vent stack, copper flux cabling down the flank, turbine wheels. -->
+  <!-- Time Machine Sedan (Easter egg, Back to the Future Day): brushed stainless wedge, gull-wing door, black louvers and lower trim, rear reactor and vent stack, copper flux cabling down the flank, turbine wheels. -->
   <defs>
     <filter id="s" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.2"/></filter>

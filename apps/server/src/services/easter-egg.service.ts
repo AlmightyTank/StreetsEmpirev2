@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import {
   EASTER_EGGS,
+  ITEM_COSMETIC_STYLES,
   easterEggDayNear,
   type ClientEasterEggId,
   type EasterEggDefinition,
@@ -26,6 +27,14 @@ export interface EasterEggDiscovery {
   egg: EasterEggDefinition;
   /** False when the account already had it: nothing was written. */
   isNew: boolean;
+  /** The item style the egg unlocks, if any. */
+  collection?: { key: string; label: string };
+}
+
+function collectionFor(egg: EasterEggDefinition): { key: string; label: string; description: string } | null {
+  if (!egg.collection) return null;
+  const style = ITEM_COSMETIC_STYLES.find((candidate) => candidate.key === egg.collection);
+  return style ? { key: style.key, label: style.label, description: style.description } : null;
 }
 
 export const EasterEggService = {
@@ -53,15 +62,37 @@ export const EasterEggService = {
       skipDuplicates: true,
     });
     const isNew = inserted.count > 0;
+    // Its own row, so an account that found the egg before the style shipped
+    // still gets the style the next time it finds the egg.
+    const collection = collectionFor(egg);
+    if (collection) {
+      await db.accountCosmeticUnlock.createMany({
+        data: [{
+          accountId: input.accountId,
+          key: `${egg.key}:${collection.key}`,
+          kind: 'ITEM_COLLECTION',
+          title: collection.label,
+          description: collection.description,
+          rarity: egg.rarity,
+          styleKey: collection.key,
+          sourceQuestKey: `EASTER_EGG:${input.id}`,
+          sourceRulesetId: SOURCE_RULESET_ID,
+          sourceRulesetVersion: SOURCE_RULESET_VERSION,
+          awardedAt: at,
+        }],
+        skipDuplicates: true,
+      });
+    }
     if (isNew && input.roundPlayerId) {
       await createPlayerActivity(db, input.roundPlayerId, 'EASTER_EGG_FOUND', {
         key: egg.key,
         title: egg.title,
         description: egg.description,
         rarity: egg.rarity,
+        ...(collection ? { collection: collection.label } : {}),
       });
     }
-    return { egg, isNew };
+    return { egg, isNew, ...(collection ? { collection: { key: collection.key, label: collection.label } } : {}) };
   },
 
   /** discover() for a round player, looking up the account. */
@@ -82,6 +113,9 @@ export const EasterEggService = {
     }
     if (id === 'FRIDAY_THE_13TH' && !easterEggDayNear(at, 'FRIDAY_THE_13TH')) {
       throw AppError.badRequest('EASTER_EGG_NOT_TODAY', 'Nice try. Come back on Friday the 13th.');
+    }
+    if (id === 'GREAT_SCOTT' && !easterEggDayNear(at, 'BACK_TO_THE_FUTURE')) {
+      throw AppError.badRequest('EASTER_EGG_NOT_TODAY', 'Wrong year, Doc. Come back on the 21st of October.');
     }
     const player = await prisma.roundPlayer.findFirst({
       where: { accountId, round: { status: 'ACTIVE' } },

@@ -17,6 +17,8 @@ export interface EasterEggDefinition {
   /** What the player did, shown on the badge once found. */
   readonly description: string;
   readonly rarity: EasterEggRarity;
+  /** An item style the egg also unlocks (a hidden style in ITEM_COSMETIC_STYLES). */
+  readonly collection?: string;
 }
 
 export const EASTER_EGGS = {
@@ -25,6 +27,7 @@ export const EASTER_EGGS = {
     title: 'Up Up Down Down',
     description: 'Entered the old code. Thirty lives not included.',
     rarity: 'rare',
+    collection: 'eight-bit',
   },
   WRONG_TURN: {
     key: 'egg-wrong-turn',
@@ -49,6 +52,7 @@ export const EASTER_EGGS = {
     title: 'Heisenberg',
     description: 'Cooked a batch at 99.1% purity. Say my name.',
     rarity: 'legendary',
+    collection: 'blue-sky',
   },
   LITTLE_FRIEND: {
     key: 'egg-little-friend',
@@ -98,6 +102,25 @@ export const EASTER_EGGS = {
     description: 'Went out on the street on Friday the 13th. The masks were not for hockey.',
     rarity: 'uncommon',
   },
+  GREAT_SCOTT: {
+    key: 'egg-great-scott',
+    title: 'Great Scott',
+    description: 'Hit 88 miles per hour on Back to the Future Day.',
+    rarity: 'epic',
+    collection: 'time-machine',
+  },
+  RING_BEARER: {
+    key: 'egg-ring-bearer',
+    title: 'Ring-bearer',
+    description: 'Carried the Ring to the forge and threw it in.',
+    rarity: 'legendary',
+  },
+  MY_PRECIOUS: {
+    key: 'egg-my-precious',
+    title: 'My Precious',
+    description: 'Still had the Ring when the round ended. It has you now.',
+    rarity: 'legendary',
+  },
 } as const satisfies Record<string, EasterEggDefinition>;
 
 export type EasterEggId = keyof typeof EASTER_EGGS;
@@ -114,7 +137,7 @@ export function easterEggByKey(key: string): EasterEggDefinition | null {
  * resolves the action, so a client cannot claim it. Date eggs are still checked
  * against the server clock.
  */
-export const CLIENT_EASTER_EGG_IDS = ['KONAMI', 'WRONG_TURN', 'APRIL_FOOL', 'FRIDAY_THE_13TH'] as const satisfies readonly EasterEggId[];
+export const CLIENT_EASTER_EGG_IDS = ['KONAMI', 'WRONG_TURN', 'APRIL_FOOL', 'FRIDAY_THE_13TH', 'GREAT_SCOTT'] as const satisfies readonly EasterEggId[];
 export type ClientEasterEggId = typeof CLIENT_EASTER_EGG_IDS[number];
 
 export function isClientEasterEggId(value: string): value is ClientEasterEggId {
@@ -156,7 +179,7 @@ export const STATUE_ENCOUNTER_KEY = 'egg-the-statue';
 /** "Don't blink" only counts this soon after the statue appears. Later, you blinked. */
 export const STATUE_STARE_SECONDS = 120;
 
-export type EasterEggDay = 'APRIL_FOOLS' | 'FRIDAY_THE_13TH';
+export type EasterEggDay = 'APRIL_FOOLS' | 'FRIDAY_THE_13TH' | 'BACK_TO_THE_FUTURE';
 
 /**
  * Today's joke day, if any, in the given time zone (default: the viewer's).
@@ -174,6 +197,8 @@ export function easterEggDay(at: Date, timeZone?: string): EasterEggDay | null {
   const day = Number(parts.find((part) => part.type === 'day')?.value);
   const weekday = parts.find((part) => part.type === 'weekday')?.value;
   if (month === 4 && day === 1) return 'APRIL_FOOLS';
+  // 21 October: the day Marty lands in the future.
+  if (month === 10 && day === 21) return 'BACK_TO_THE_FUTURE';
   if (day === 13 && weekday === 'Fri') return 'FRIDAY_THE_13TH';
   return null;
 }

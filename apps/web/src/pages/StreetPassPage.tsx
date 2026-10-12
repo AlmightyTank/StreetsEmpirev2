@@ -143,7 +143,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
   const displayName = useSession((state) => state.me?.displayName ?? state.account?.username ?? 'AMIGHTYTANK');
   const profileImageUrl = useSession((state) => state.profileSettings.profileImageUrl);
   const active = previews[Math.min(activeIndex, Math.max(0, previews.length - 1))];
-  const [collectionPreviewItems] = useState<Record<CosmeticCollectionStyleKey, CosmeticPreviewItemKey>>(() => ({
+  const [collectionPreviewItems] = useState<Partial<Record<CosmeticCollectionStyleKey, CosmeticPreviewItemKey>>>(() => ({
     'urban-ghost': randomCosmeticPreviewItem(),
     'midnight-ops': randomCosmeticPreviewItem(),
     'cartel-gold': randomCosmeticPreviewItem(),

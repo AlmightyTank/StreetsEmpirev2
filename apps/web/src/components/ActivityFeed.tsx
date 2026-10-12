@@ -594,7 +594,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'EASTER_EGG_FOUND':
       return {
         text: `You found an Easter egg: ${str(p.title, 'a secret')}.`,
-        detail: `${str(p.description)} New title unlocked`,
+        detail: `${str(p.description)} New title unlocked${p.collection ? ` · ${str(p.collection)} look unlocked` : ''}`,
       };
 
     case 'LOAN_COLLECTIONS': {

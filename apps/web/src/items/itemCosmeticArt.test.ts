@@ -14,6 +14,8 @@ import {
 } from '@streets/shared';
 import {
   AUTHORED_ITEM_ART_FILES,
+  EIGHT_BIT_ART_FILES,
+  SINGLE_ITEM_ART_FILES,
   itemCosmeticArtFile,
   itemCosmeticArtUrl,
   SLICE_A_ART_FILES,
@@ -101,8 +103,29 @@ describe('item cosmetic art resolver', () => {
     }
   });
 
+  it('ships the Easter egg looks: 8-Bit for everything, Time Machine and Blue Sky for one item each', () => {
+    const eggFiles = [
+      ...AUTHORED_KEYS.map((key) => [key, 'eight-bit', EIGHT_BIT_ART_FILES[key]['eight-bit']] as const),
+      ['SEDAN', 'time-machine', SINGLE_ITEM_ART_FILES.SEDAN['time-machine']] as const,
+      ['METH', 'blue-sky', SINGLE_ITEM_ART_FILES.METH['blue-sky']] as const,
+    ];
+    for (const [key, style, file] of eggFiles) {
+      expect(itemCosmeticArtFile(key, style)).toBe(file);
+      const header = readLosslessWebp(path.join(ITEMS_DIR, file));
+      expect(header, file).toEqual({ width: 512 * ITEM_ART[key].cells[0], height: 512 * ITEM_ART[key].cells[1], alpha: true });
+    }
+    // A single-item look never leaks onto another item.
+    expect(itemCosmeticArtFile('VAN', 'time-machine')).toBe(ITEM_ART.VAN.file);
+    expect(itemCosmeticArtFile('CRACK', 'blue-sky')).toBe(ITEM_ART.CRACK.file);
+  });
+
   it('keeps a source master for every authored file and no orphan renders', () => {
-    const expected = AUTHORED_KEYS.flatMap((key) => AUTHORED_STYLES.map((style) => AUTHORED_ITEM_ART_FILES[key][style]))
+    const expected = [
+      ...AUTHORED_KEYS.flatMap((key) => AUTHORED_STYLES.map((style) => AUTHORED_ITEM_ART_FILES[key][style])),
+      ...AUTHORED_KEYS.map((key) => EIGHT_BIT_ART_FILES[key]['eight-bit']),
+      SINGLE_ITEM_ART_FILES.SEDAN['time-machine'],
+      SINGLE_ITEM_ART_FILES.METH['blue-sky'],
+    ]
       .map((file) => file.replace(/^cosmetics\//, ''))
       .sort();
     const list = (dir: string, ext: string) => readdirSync(dir, { withFileTypes: true })

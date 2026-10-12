@@ -15,8 +15,9 @@ async function reportEgg(id: ClientEasterEggId): Promise<EasterEggFoundDto | nul
 
 function toastFound(found: EasterEggFoundDto | null): void {
   if (!found) return;
+  const unlocked = found.collection ? `New title and the ${found.collection} look unlocked` : 'New title unlocked';
   showGameToast(found.isNew
-    ? { title: `Easter egg: ${found.title}`, detail: `${found.description} New title unlocked. Equip it from Account settings.`, tone: 'good', href: '/account' }
+    ? { title: `Easter egg: ${found.title}`, detail: `${found.description} ${unlocked}. Equip them from Account settings.`, tone: 'good', href: '/account' }
     : { title: found.title, detail: 'You already found this one.', tone: 'info' });
 }
 
@@ -93,6 +94,14 @@ const JOKE_DAYS: Record<EasterEggDay, { egg: ClientEasterEggId; tag: string; tex
     reveal: 'April Fool. Your cash is real. Probably.',
     className: 'se-april-fools',
   },
+  BACK_TO_THE_FUTURE: {
+    egg: 'GREAT_SCOTT',
+    tag: 'GREAT SCOTT',
+    text: 'It is the 21st of October. Somebody parked a stainless-steel car outside the garage with the engine still ticking.',
+    action: 'Hit 88 mph',
+    reveal: 'Where we’re going, we don’t need roads.',
+    className: 'se-bttf-day',
+  },
   FRIDAY_THE_13TH: {
     egg: 'FRIDAY_THE_13TH',
     tag: 'FRIDAY THE 13TH',
@@ -128,7 +137,8 @@ export function JokeDayBanner() {
   async function play() {
     if (!joke) return;
     const found = await reportEgg(joke.egg);
-    setRevealed(found?.isNew ? `${joke.reveal} Title unlocked: ${found.title}.` : joke.reveal);
+    const look = found?.collection ? ` and the ${found.collection} look` : '';
+    setRevealed(found?.isNew ? `${joke.reveal} Unlocked: the ${found.title} title${look}.` : joke.reveal);
     writeDismissed(storageKey);
   }
 

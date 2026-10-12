@@ -5,6 +5,8 @@ export interface EasterEggFoundDto {
   isNew: boolean;
   title: string;
   description: string;
+  /** Name of the item style the egg also unlocked. */
+  collection?: string;
 }
 
 export const easterEggsApi = {

@@ -8,6 +8,14 @@ import {
   easterEggDayNear,
   easterEggForEncounterChoice,
 } from '../easter-eggs.js';
+import {
+  RELEASED_CREW_COSMETIC_STYLES,
+  RELEASED_ITEM_COSMETIC_STYLES,
+  collectionOptions,
+  isFullCollectionStyle,
+  styleFitsItem,
+} from '../cosmetics.js';
+import { crewCosmeticLoadoutSchema, itemCosmeticLoadoutSchema } from '../schemas/auth.js';
 
 describe('easter egg catalog', () => {
   it('gives every egg its own title key', () => {
@@ -17,7 +25,7 @@ describe('easter egg catalog', () => {
   });
 
   it('only lets the browser report eggs it can actually see', () => {
-    expect([...CLIENT_EASTER_EGG_IDS].sort()).toEqual(['APRIL_FOOL', 'FRIDAY_THE_13TH', 'KONAMI', 'WRONG_TURN']);
+    expect([...CLIENT_EASTER_EGG_IDS].sort()).toEqual(['APRIL_FOOL', 'FRIDAY_THE_13TH', 'GREAT_SCOTT', 'KONAMI', 'WRONG_TURN']);
   });
 
   it('maps encounter choices to eggs, and other choices to nothing', () => {
@@ -31,6 +39,38 @@ describe('easter egg catalog', () => {
   });
 });
 
+describe('easter egg looks', () => {
+  it('fits single-item looks to their own item only, and keeps them off the crew', () => {
+    expect(styleFitsItem('time-machine', 'SEDAN')).toBe(true);
+    expect(styleFitsItem('time-machine', 'VAN')).toBe(false);
+    expect(styleFitsItem('blue-sky', 'METH')).toBe(true);
+    expect(styleFitsItem('blue-sky', 'CRACK')).toBe(false);
+    expect(styleFitsItem('eight-bit', 'AK47')).toBe(true);
+    expect(isFullCollectionStyle('eight-bit')).toBe(true);
+    expect(isFullCollectionStyle('time-machine')).toBe(false);
+    expect(RELEASED_CREW_COSMETIC_STYLES.map((style) => style.key)).not.toContain('blue-sky');
+  });
+
+  it('hides egg looks from the locker until they are owned', () => {
+    const keys = (owned: string[]) => collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, new Set(owned)).map((option) => option.key);
+    expect(keys([])).toEqual(['classic', 'midnight-ops', 'urban-ghost', 'cartel-gold']);
+    expect(keys(['time-machine'])).toContain('time-machine');
+    expect(keys(['time-machine'])).not.toContain('eight-bit');
+  });
+
+  it('rejects a single-item look saved on another item', () => {
+    expect(itemCosmeticLoadoutSchema.safeParse({ SEDAN: 'time-machine' }).success).toBe(true);
+    expect(itemCosmeticLoadoutSchema.safeParse({ VAN: 'time-machine' }).success).toBe(false);
+    expect(crewCosmeticLoadoutSchema.safeParse({ THUG: 'blue-sky', HOE: 'classic' }).success).toBe(false);
+    expect(crewCosmeticLoadoutSchema.safeParse({ THUG: 'eight-bit', HOE: 'classic' }).success).toBe(true);
+  });
+
+  it('pays every egg look from an egg', () => {
+    const paid = EASTER_EGG_LIST.flatMap((egg) => (egg.collection ? [egg.collection] : [])).sort();
+    expect(paid).toEqual(['blue-sky', 'eight-bit', 'time-machine']);
+  });
+});
+
 describe('easter egg days', () => {
   it('knows April Fools and Friday the 13th', () => {
     expect(easterEggDay(new Date('2027-04-01T12:00:00Z'), 'UTC')).toBe('APRIL_FOOLS');
@@ -38,6 +78,7 @@ describe('easter egg days', () => {
     // A 13th that is not a Friday, and an ordinary day.
     expect(easterEggDay(new Date('2026-10-13T12:00:00Z'), 'UTC')).toBeNull();
     expect(easterEggDay(new Date('2026-10-12T12:00:00Z'), 'UTC')).toBeNull();
+    expect(easterEggDay(new Date('2026-10-21T12:00:00Z'), 'UTC')).toBe('BACK_TO_THE_FUTURE');
   });
 
   it('allows the day somewhere on Earth, and nowhere else', () => {
