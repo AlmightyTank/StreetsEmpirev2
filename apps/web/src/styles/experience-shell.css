@@ -1,0 +1,183 @@
+/*
+ * Game experience refresh · shared navigation and interface polish.
+ * Scope to authenticated gameplay. Honor earned shell themes and accent colors
+ * by using the existing design tokens, never fixed house colors.
+ */
+.se-app--sidebar,
+.se-app--tabbar {
+  --se-game-corner: 10px;
+}
+
+.se-app--sidebar .se-gamemain,
+.se-app--tabbar .se-gamemain {
+  min-width: 0;
+}
+
+/* Readable, calm surfaces across ALL game screens, not a page-specific reskin. */
+.se-app--sidebar .se-gamemain :is(.se-panel, .se-tablewrap, .se-stats),
+.se-app--tabbar .se-gamemain :is(.se-panel, .se-tablewrap, .se-stats) {
+  border-radius: var(--se-game-corner);
+}
+
+.se-app--sidebar .se-gamemain .se-panel__head,
+.se-app--tabbar .se-gamemain .se-panel__head {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: var(--se-game-corner) var(--se-game-corner) 0 0;
+}
+
+.se-app--sidebar .se-gamemain .se-panel__title,
+.se-app--tabbar .se-gamemain .se-panel__title {
+  color: var(--se-text);
+  font-size: 12px;
+  letter-spacing: .08em;
+  line-height: 1.45;
+}
+
+.se-app--sidebar .se-gamemain .se-panel__body:not(.se-panel__body--flush),
+.se-app--tabbar .se-gamemain .se-panel__body:not(.se-panel__body--flush) {
+  padding: 14px;
+}
+
+.se-app--sidebar .se-gamemain :is(.se-pagehead, .se-info-hero),
+.se-app--tabbar .se-gamemain :is(.se-pagehead, .se-info-hero) {
+  border-radius: var(--se-game-corner);
+}
+
+/* Keep existing per-page identity and theme textures; standardize silhouette. */
+.se-app--sidebar .se-gamemain :is(
+  .se-dashboard-hero, .se-scout-hero, .se-produce-hero, .se-raids-hero,
+  .se-stores-hero, .se-quests-hero, .se-hideout-hero, .se-travel-hero,
+  .se-cityblocks-hero, .se-rankings-hero, .se-players-hero,
+  .se-alliance-hero, .se-contacts-hero, .se-console-hero,
+  .se-activity-hero, .se-profile-hero, .se-surveys-hero, .se-pass-hero
+),
+.se-app--tabbar .se-gamemain :is(
+  .se-dashboard-hero, .se-scout-hero, .se-produce-hero, .se-raids-hero,
+  .se-stores-hero, .se-quests-hero, .se-hideout-hero, .se-travel-hero,
+  .se-cityblocks-hero, .se-rankings-hero, .se-players-hero,
+  .se-alliance-hero, .se-contacts-hero, .se-console-hero,
+  .se-activity-hero, .se-profile-hero, .se-surveys-hero, .se-pass-hero
+) {
+  border-radius: 12px;
+}
+
+/* Desktop menu: fewer visible choices, accent-aware active states, quick search. */
+@media (min-width: 900px) {
+  .se-app--sidebar .se-sidebar {
+    gap: 12px;
+  }
+
+  .se-app--sidebar .se-nav {
+    gap: 8px;
+  }
+
+  .se-app--sidebar .se-nav__title {
+    min-height: 33px;
+    margin: 0;
+    padding: 7px 10px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    font-size: 10px;
+    letter-spacing: .11em;
+  }
+
+  .se-app--sidebar .se-nav__title:hover,
+  .se-app--sidebar .se-nav__title[aria-expanded='true'] {
+    background: rgba(var(--se-accent-rgb), .055);
+    border-color: rgba(var(--se-accent-rgb), .15);
+    color: var(--se-text);
+  }
+
+  .se-app--sidebar .se-nav__link {
+    min-height: 39px;
+    border-radius: 7px;
+    font-size: 12.5px;
+  }
+
+  .se-app--sidebar .se-nav__section--collapsed .se-nav__title {
+    color: var(--se-text-dim);
+  }
+
+  .se-app--sidebar .se-nav-search {
+    padding: 0 0 6px;
+  }
+
+  .se-app--sidebar .se-nav-search__input {
+    width: 100%;
+    min-height: 37px;
+    padding: 8px 10px;
+    border: 1px solid var(--se-line);
+    border-radius: 7px;
+    background: var(--se-panel);
+    color: var(--se-text);
+    font: inherit;
+    font-size: 12px;
+  }
+
+  .se-app--sidebar .se-nav-search__input::placeholder {
+    color: var(--se-muted);
+  }
+
+  .se-app--sidebar .se-nav-search__input:focus-visible {
+    outline: 2px solid var(--se-accent);
+    outline-offset: 1px;
+  }
+
+  /* Icon rail cannot fit a search box, but destinations remain accessible. */
+  .se-frame--rail .se-nav-search {
+    display: none;
+  }
+}
+
+.se-nav-search__empty {
+  margin: 8px;
+  color: var(--se-text-dim);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Mobile page directory: search before 20+ tiles, clearer groups and tap targets. */
+.se-sheet__search {
+  margin-bottom: 12px;
+}
+
+.se-sheet__search .se-input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 9px;
+  padding-inline: 12px;
+}
+
+.se-sheet__section {
+  padding: 8px 0 4px;
+}
+
+.se-sheet__heading {
+  color: var(--se-text-dim);
+  font-size: 11px;
+  letter-spacing: .10em;
+}
+
+.se-sheet__tile {
+  border-radius: 9px;
+}
+
+@media (max-width: 899px) {
+  .se-app--tabbar .se-gamemain .se-panel__body:not(.se-panel__body--flush) {
+    padding: 12px;
+  }
+  .se-sheet__grid {
+    gap: 8px;
+  }
+  .se-sheet__tile {
+    min-height: 76px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .se-app--sidebar .se-nav__link,
+  .se-sheet__tile {
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  }
+}
