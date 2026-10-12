@@ -242,18 +242,23 @@ function Shirt({ style, ctx }: { style: AvatarParts['shirt']; ctx: Ctx }) {
       return (
         <>
           <path d={bodyPath(body)} fill={ref('skin')} />
+          <BareArms body={body} skin={ctx.skin} />
           {neck}
-          <path d="M40 126 Q40 106 45 94 L52 92 Q64 106 76 92 L83 94 Q88 106 88 126 Z" fill={ref('shirt')} />
+          <path d={`M${body.left + 17} 126 Q${body.left + 20} 106 46 94 L51 92 Q64 107 77 92 L82 94 Q${108 - body.left} 106 ${111 - body.left} 126 Z`} fill={ref('shirt')} />
+          <path d="M51 92 Q64 107 77 92" fill="none" stroke={shade(shirt, -0.45)} strokeWidth="1.2" />
+          {folds}
         </>
       );
     case 'jersey':
       return (
         <>
           <path d={bodyPath(body)} fill={ref('skin')} />
+          <BareArms body={body} skin={ctx.skin} />
           {neck}
-          <path d="M34 126 Q34 104 41 94 L54 88 L64 100 L74 88 L87 94 Q94 104 94 126 Z" fill={ref('shirt')} />
-          <path d="M41 94 Q34 104 34 126 M87 94 Q94 104 94 126 M54 88 L64 100 L74 88" fill="none" stroke={contrast(shirt)} strokeWidth="2.2" />
+          <path d={`M${body.left + 14} 126 Q${body.left + 17} 105 42 93 L54 88 L64 100 L74 88 L86 93 Q${111 - body.left} 105 ${114 - body.left} 126 Z`} fill={ref('shirt')} />
+          <path d={`M${body.left + 14} 126 Q${body.left + 17} 105 42 93 M86 93 Q${111 - body.left} 105 ${114 - body.left} 126 M54 88 L64 100 L74 88`} fill="none" stroke={contrast(shirt)} strokeWidth="2.4" />
           <text x="64" y="121" textAnchor="middle" fontSize="16" fontWeight="900" fontFamily="Arial Black, Arial, sans-serif" fill={contrast(shirt)} stroke={INK} strokeWidth="1" paintOrder="stroke">1</text>
+          {folds}
         </>
       );
     case 'hoodie':
@@ -267,17 +272,25 @@ function Shirt({ style, ctx }: { style: AvatarParts['shirt']; ctx: Ctx }) {
           {folds}
         </>
       );
-    case 'collar':
+    case 'collar': {
+      // An open neck: a skin V under the neck, a collar standing round it, and a button placket.
+      const x = body.neckX - 54;
+      const y = body.neckY - 86;
       return (
         <>
           <path d={bodyPath(body)} fill={ref('shirt')} />
+          <path d={`M${body.neckX} ${body.neckY} L64 ${body.neckY + 14} L${128 - body.neckX} ${body.neckY} Z`} fill={ref('skin')} />
           {neck}
-          <path d="M54 86 L64 100 L58 104 L49 90 Z M74 86 L64 100 L70 104 L79 90 Z" fill={shade(shirt, 0.28)} />
-          <path d="M64 100 V126" fill="none" stroke={shade(shirt, -0.45)} strokeWidth="1.2" />
-          <g fill="#c9ced6" stroke="none"><circle cx="64" cy="108" r="1.2" /><circle cx="64" cy="118" r="1.2" /></g>
+          <Mirrored>
+            <path d={`M${55.5 + x} ${81 + y} L${44 + x} ${97 + y} L${61 + x} ${98.6 + y} L${54.6 + x} ${86.6 + y} Z`} fill={shade(shirt, 0.2)} />
+          </Mirrored>
+          <path d={`M64 ${body.neckY + 14} V126`} fill="none" stroke={shade(shirt, -0.45)} strokeWidth="1.2" />
+          <g fill="#e6e9ee" stroke={INK} strokeWidth=".6"><circle cx="64" cy={body.neckY + 20} r="1.3" /><circle cx="64" cy={body.neckY + 29} r="1.3" /></g>
+          <path d="M42 118 Q48 112 50 102 M86 118 Q80 112 78 102" fill="none" stroke={shade(shirt, 0.4)} strokeOpacity=".35" strokeWidth="1.2" />
           {folds}
         </>
       );
+    }
     case 'jacket': {
       const inner = luminance(shirt) > 0.7 ? '#1f2228' : '#eceff2';
       return (
@@ -302,6 +315,17 @@ function Shirt({ style, ctx }: { style: AvatarParts['shirt']; ctx: Ctx }) {
         </>
       );
   }
+}
+
+/** Upper arms for sleeveless tops: shoulder caps and the crease where each arm meets the chest. */
+function BareArms({ body, skin }: { body: Body; skin: string }) {
+  const crease = shade(skin, -0.35);
+  return (
+    <Mirrored>
+      <path d={`M${body.left + 12} 126 Q${body.left + 11} 110 ${body.left + 15} 100`} fill="none" stroke={crease} strokeWidth="1.4" strokeLinecap="round" />
+      <path d={`M${body.left + 4} 110 Q${body.left + 8} ${body.shoulderY + 5} ${body.shoulderX - 4} ${body.shoulderY + 1}`} fill="none" stroke={shade(skin, 0.4)} strokeOpacity=".5" strokeWidth="1.6" strokeLinecap="round" />
+    </Mirrored>
+  );
 }
 
 /* Face ------------------------------------------------------------------- */
