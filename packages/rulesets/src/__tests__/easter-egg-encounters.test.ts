@@ -16,8 +16,9 @@ describe('1.8.0-M Easter egg encounters', () => {
     expect(after.STORE).toBe(before.STORE);
     expect(after.COMBAT).toBe(before.COMBAT);
 
-    const { meta: _meta, randomEncounters: _encounters, ...rest } = classicOgV18M;
-    const { meta: _baseMeta, randomEncounters: _baseEncounters, ...base } = classicOgV18L;
+    // Slice M also balances recipes and A Better Cut; their differences have dedicated tests.
+    const { meta: _meta, randomEncounters: _encounters, products: _products, questDefinitions: _quests, ...rest } = classicOgV18M;
+    const { meta: _baseMeta, randomEncounters: _baseEncounters, products: _baseProducts, questDefinitions: _baseQuests, ...base } = classicOgV18L;
     expect(rest).toEqual(base);
   });
 
