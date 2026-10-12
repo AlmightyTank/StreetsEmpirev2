@@ -12,6 +12,7 @@ import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
 import { ProductCounter } from '../components/ProductCounter.js';
 import { ProductAccessTable } from '../components/ProductAccess.js';
+import { matchesStoreShelf, type StoreShelfFilter } from '../utils/storeShelfDisplay.js';
 import { QuestLockNote } from '../components/QuestLink.js';
 import { ShelfArt } from '../components/ItemTile.js';
 import { QuantitySteps } from '../components/QuantitySteps.js';
@@ -200,9 +201,9 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
 
   return (
     <Panel
-      title={`${locked ? 'Locked · ' : ''}${item.name}`}
+      title={item.name}
       className={`se-store-shelf${locked ? ' se-store-shelf--locked' : ''}${soldOut ? ' se-store-shelf--soldout' : ''}`}
-      aside={<span className={`se-store-shelf__status${soldOut ? ' se-store-shelf__status--warn' : locked ? ' se-store-shelf__status--locked' : ''}`}>{stockLabel}</span>}
+      aside={<span className={`se-store-shelf__status${soldOut ? ' se-store-shelf__status--warn' : locked ? ' se-store-shelf__status--locked' : ''}`}>{locked ? `Buy locked · ${stockLabel}` : stockLabel}</span>}
     >
       <div className="se-store-shelf__top">
         <ShelfArt itemKey={item.key} locked={locked} soldOut={soldOut} />
@@ -216,6 +217,66 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
         </div>
       </div>
       <MarketBadges market={item.market} />
+      {locked ? (
+        <p className="se-store-shelf__notice">
+          Purchases locked · ${owned > 0 ? 'You can still sell owned stock.' : 'Complete a job to start buying.'}
+        </p>
+      ) : null}
+      {!locked || owned > 0 ? <form onSubmit={submit}>
+        <div className="se-store-order">
+          <div>
+            <label className="se-label" htmlFor={`direction-${item.key}`}>Trade</label>
+            <select id={`direction-${item.key}`} className="se-input" value={direction} disabled={blocked !== null}
+              onChange={(e) => setDirection(e.target.value as 'buy' | 'sell')}>
+              <option value="buy">Buy</option>
+              {item.sellCents !== null ? <option value="sell">Sell</option> : null}
+            </select>
+          </div>
+          <div>
+            <label className="se-label" htmlFor={quantityId}>Quantity</label>
+            <input id={quantityId} className="se-input" type="number" inputMode="numeric"
+              min={1} max={max} step={1} value={quantity} disabled={blocked !== null || purchaseLocked}
+              aria-describedby={`${quantityId}-hint`}
+              onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))} />
+          </div>
+        </div>
+        <div className="se-spend__row">
+          <QuantitySteps
+            value={quantity}
+            onChange={setQuantity}
+            max={max}
+            steps={bulkHelpers}
+            disabled={blocked !== null || purchaseLocked}
+            disabledReason={blocked ?? (purchaseLocked ? `Complete the required job before buying ${item.name}.` : null)}
+            emptyReason={emptyReason}
+          />
+        </div>
+        <p id={`${quantityId}-hint`} className="se-hint">
+          {purchaseLocked ? 'Complete the required quest to unlock purchases.' : soldOut ? (
+            `Sold out. ${keeper} has none to sell you right now.`
+          ) : <>
+            {buying ? 'Can buy' : 'Can sell'} {formatNumber(max)}.
+            {buying && item.restock && max === item.restock.stock && max > 0
+              ? ' That is the whole shelf.' : ''}
+            {quantity !== '' && !valid ? ' Enter a whole quantity within that limit.' : ''}
+          </>}
+        </p>
+        <div className="se-store-actions">
+          <Button className="se-btn se-btn--primary se-btn--block" disabledReason={tradeBlock}>
+            {purchaseLocked ? 'Purchases locked' : `${buying ? 'Buy' : 'Sell'}${total !== null ? ` · ${formatCents(total)}` : ''}`}
+          </Button>
+          <Button
+            type="button"
+            className="se-btn se-btn--block"
+            disabledReason={tradeBlock ?? (unitCents === null ? 'This item cannot be added to the basket.' : null)}
+            onClick={addToBasket}
+          >
+            Add to basket
+          </Button>
+        </div>
+      </form> : null}
+      <details className="se-store-shelf__details">
+        <summary>Market, restock &amp; access details</summary>
       {item.favorDiscountPercent ? (
         <p className="se-hint se-good">
           Tommy Voucher armed — {formatNumber(item.favorDiscountPercent)}% off this eligible purchase. It is consumed only if the buy succeeds.
@@ -265,59 +326,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
           </div>
         )
       ) : null}
-      {!locked || owned > 0 ? <form onSubmit={submit}>
-        <div className="se-store-order">
-          <div>
-            <label className="se-label" htmlFor={`direction-${item.key}`}>Trade</label>
-            <select id={`direction-${item.key}`} className="se-input" value={direction} disabled={blocked !== null}
-              onChange={(e) => setDirection(e.target.value as 'buy' | 'sell')}>
-              <option value="buy">Buy</option>
-              {item.sellCents !== null ? <option value="sell">Sell</option> : null}
-            </select>
-          </div>
-          <div>
-            <label className="se-label" htmlFor={quantityId}>Quantity</label>
-            <input id={quantityId} className="se-input" type="number" inputMode="numeric"
-              min={1} max={max} step={1} value={quantity} disabled={blocked !== null || purchaseLocked}
-              aria-describedby={`${quantityId}-hint`}
-              onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))} />
-          </div>
-        </div>
-        <div className="se-spend__row">
-          <QuantitySteps
-            value={quantity}
-            onChange={setQuantity}
-            max={max}
-            steps={bulkHelpers}
-            disabled={blocked !== null || purchaseLocked}
-            disabledReason={blocked ?? (purchaseLocked ? `Complete the required job before buying ${item.name}.` : null)}
-            emptyReason={emptyReason}
-          />
-        </div>
-        <p id={`${quantityId}-hint`} className="se-hint">
-          {purchaseLocked ? 'Complete the required quest to unlock purchases.' : soldOut ? (
-            `Sold out. ${keeper} has none to sell you right now.`
-          ) : <>
-            {buying ? 'Can buy' : 'Can sell'} {formatNumber(max)}.
-            {buying && item.restock && max === item.restock.stock && max > 0
-              ? ' That is the whole shelf.' : ''}
-            {quantity !== '' && !valid ? ' Enter a whole quantity within that limit.' : ''}
-          </>}
-        </p>
-        <div className="se-store-actions">
-          <Button className="se-btn se-btn--primary se-btn--block" disabledReason={tradeBlock}>
-            {purchaseLocked ? `Unlock ${item.name} above to buy` : `${buying ? 'Buy' : 'Sell'} ${item.name}${total !== null ? ` · ${formatCents(total)}` : ''}`}
-          </Button>
-          <Button
-            type="button"
-            className="se-btn se-btn--block"
-            disabledReason={tradeBlock ?? (unitCents === null ? 'This item cannot be added to the basket.' : null)}
-            onClick={addToBasket}
-          >
-            Add to basket
-          </Button>
-        </div>
-      </form> : null}
+      </details>
     </Panel>
   );
 }
@@ -408,6 +417,8 @@ function StoreView({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const [retryOrder, setRetryOrder] = useState<PendingStoreCommand | null>(null);
+  const [shelfQuery, setShelfQuery] = useState('');
+  const [shelfFilter, setShelfFilter] = useState<StoreShelfFilter>('all');
   // 0.4.0-D: Pip deals every product. Other stores never ask.
   const [products, setProducts] = useState<ProductsDto | null>(null);
   const loadProducts = useCallback(() => {
@@ -546,6 +557,18 @@ function StoreView({
     + pipProducts.filter((product) => product.pip?.stock === 0).length;
   const lockedShelves = (store?.items.filter((item) => item.unlock && !item.unlock.unlocked).length ?? 0)
     + pipProducts.filter((product) => product.pip && !product.pip.purchaseUnlocked).length;
+  // Display filters never change the server-side purchase, sell or checkout rules.
+  const visibleStoreItems = (store?.items ?? []).filter((item) => matchesStoreShelf({
+    name: item.name,
+    purchaseUnlocked: (item.unlock === null || item.unlock.unlocked) && (item.questLock === null || item.questLock === undefined || item.questLock.unlocked),
+    soldOut: item.restock?.stock === 0,
+  }, shelfQuery, shelfFilter));
+  const visiblePipProducts = pipProducts.filter((product) => matchesStoreShelf({
+    name: product.name,
+    purchaseUnlocked: product.pip?.purchaseUnlocked ?? false,
+    soldOut: product.pip?.stock === 0,
+  }, shelfQuery, shelfFilter));
+  const visibleCount = visibleStoreItems.length + visiblePipProducts.length;
   const basketTotalCents = basket.reduce((sum, line) => {
     const signed = line.direction === 'buy' ? -1 : 1;
     return sum + signed * line.unitCents * line.quantity;
@@ -620,15 +643,57 @@ function StoreView({
                 <div className="se-stores-sectionhead">
                   <div>
                     <span className="se-eyebrow">{details?.lane ?? 'Inventory'}</span>
-                    <h2>Shop the shelves</h2>
+                    <h2>Trade &amp; supplies</h2>
                   </div>
                   <p>{details?.note}</p>
                 </div>
 
-                {store.key === 'PIP' ? <ProductAccessTable catalog={products} /> : null}
+                <div className="se-stores-toolbar">
+                  <div className="se-stores-toolbar__search">
+                    <label className="se-label" htmlFor="store-shelf-search">Find an item</label>
+                    <input
+                      id="store-shelf-search"
+                      type="search"
+                      className="se-input"
+                      placeholder="Search this store..."
+                      value={shelfQuery}
+                      onChange={(event) => setShelfQuery(event.target.value)}
+                    />
+                  </div>
+                  <div className="se-stores-toolbar__filters" role="group" aria-label="Filter store shelves">
+                    {([
+                      ['all', 'All'],
+                      ['available', 'Available'],
+                      ['locked', 'Locked'],
+                      ['sold-out', 'Sold out'],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`se-stores-filter${shelfFilter === value ? ' se-stores-filter--active' : ''}`}
+                        aria-pressed={shelfFilter === value}
+                        onClick={() => setShelfFilter(value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="se-stores-toolbar__count" role="status">
+                    {formatNumber(visibleCount)} of {formatNumber(totalShelves)} items
+                  </span>
+                </div>
 
-                <div className={`se-store-items se-stores-shelves${store.key === 'PIP' && catalog.productCounter ? ' se-store-items--pair' : ''}`}>
-                  {store.items.map((item) => (
+                {visibleCount === 0 ? (
+                  <div className="se-stores-empty">
+                    <strong>No items match your filters.</strong>
+                    <span>Try another search, or reset the shelf filters.</span>
+                    <button type="button" className="se-btn se-btn--sm" onClick={() => { setShelfQuery(''); setShelfFilter('all'); }}>
+                      Show all items
+                    </button>
+                  </div>
+                ) : null}
+                <div className="se-store-items se-stores-shelves">
+                  {visibleStoreItems.map((item) => (
                     <StoreItem
                       key={item.key}
                       // 0.4.0-D: next to the other products, Pip's Product is crack by name.
@@ -646,7 +711,7 @@ function StoreView({
                       onRestock={() => setReload((n) => n + 1)}
                     />
                   ))}
-                  {pipProducts.map((product) => (
+                  {visiblePipProducts.map((product) => (
                     <ProductCounter
                       key={product.key}
                       product={product}
@@ -659,6 +724,12 @@ function StoreView({
                     />
                   ))}
                 </div>
+                {store.key === 'PIP' ? (
+                  <details className="se-stores-access-details">
+                    <summary>Buying &amp; cooking unlocks <span>View all product requirements</span></summary>
+                    <ProductAccessTable catalog={products} />
+                  </details>
+                ) : null}
               </div>
 
               <aside className="se-stores-market__rail">
@@ -666,7 +737,7 @@ function StoreView({
                   <div className="se-store-basket__head">
                     <div>
                       <span className="se-eyebrow">Order basket</span>
-                      <h2>Checkout</h2>
+                      <h2>Checkout · {formatNumber(basket.length)}</h2>
                     </div>
                     {basket.length > 0 ? (
                       <Button
