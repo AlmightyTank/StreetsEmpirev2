@@ -109,10 +109,10 @@ export interface BattleReportDto {
   retaliation?: boolean;
   /** Defender side only: the attacker was hitting back for an earlier hit by you. */
   payback?: boolean;
-  /** Phase N. The other side is a server-run crew. */
-  opponentNpc?: boolean;
-  /** Phase N. House bounty this win paid, for beating a wanted crew. */
-  npcBounty?: { cents: number; crew: string };
+  /** The other side is a street crew from a random encounter. */
+  opponentGang?: boolean;
+  /** House bounty this win paid, for beating a wanted crew. */
+  gangBounty?: { cents: number; crew: string };
   trophyCallouts?: Array<{ key: string; title: string; description: string }>;
   /** Special raid forms only. */
   raidForm?: {
@@ -212,10 +212,10 @@ export interface CombatDriveByDto {
   };
 }
 
-export type NpcGangDangerDto = 'QUIET' | 'ACTIVE' | 'HOT';
+export type EncounterGangDangerDto = 'QUIET' | 'ACTIVE' | 'HOT';
 
-export interface NpcGangIntelDto {
-  danger: NpcGangDangerDto;
+export interface EncounterGangIntelDto {
+  danger: EncounterGangDangerDto;
   activeGangs: number;
   recentHits: number;
   recentDriveBys: number;
@@ -226,8 +226,8 @@ export interface NpcGangIntelDto {
   /** Phase I. Local crews you hit that can still hit back, and when the last grudge cools. */
   wantedBy?: number;
   wantedUntil?: string;
-  /** Phase J. Blocks server-run crews hold in this city, and whether your crew works one of them. */
-  npcBlocks?: string[];
+  /** Blocks street crews hold in this city, and whether your crew works one of them. */
+  gangBlocks?: string[];
   onTheirTurf?: boolean;
   /**
    * Phase M. The crews working this city, as the street knows them: name, tag, who runs
@@ -284,6 +284,6 @@ export interface CombatPageDto {
   specialRaids?: CombatSpecialRaidDto[];
   /** Absent where drive-bys have not shipped. */
   driveBy?: CombatDriveByDto;
-  /** Phase H. Local, fuzzy warnings about server-run gangs in your current city. */
-  npcGangIntel?: NpcGangIntelDto;
+  /** Local, fuzzy warnings about street crews in your current city. */
+  gangIntel?: EncounterGangIntelDto;
 }

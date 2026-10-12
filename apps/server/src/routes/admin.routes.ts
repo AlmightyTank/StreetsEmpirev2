@@ -28,13 +28,12 @@ import { AdminBattleService } from '../services/admin-battle.service.js';
 import { AdminCrewService } from '../services/admin-crew.service.js';
 import { AdminConvoyService } from '../services/admin-convoy.service.js';
 import { AdminDevBotsService } from '../services/admin-dev-bots.service.js';
-import { AdminNpcGangService } from '../services/admin-npc-gang.service.js';
-import { NpcGangTelemetryService } from '../services/npc-gang-telemetry.service.js';
 import { AdminDiscordService } from '../services/admin-discord.service.js';
 import { AdminGrantService } from '../services/admin-grant.service.js';
 import { AdminHealthService } from '../services/admin-health.service.js';
 import { AdminNewsService } from '../services/admin-news.service.js';
 import { AdminPlayerService } from '../services/admin-player.service.js';
+import { RoundService } from '../services/round.service.js';
 import { AdminQuestService } from '../services/admin-quest.service.js';
 import { AdminRoundService } from '../services/admin-round.service.js';
 import { AdminRulesetService } from '../services/admin-ruleset.service.js';
@@ -133,27 +132,7 @@ const bannerParams = z.object({ bannerId: id }).strict();
 const surveyParams = z.object({ surveyId: id }).strict();
 const rulesetParams = z.object({ rulesetId: id }).strict();
 const emptyBody = z.object({}).strict();
-// Phase O: NPC gang controls. Every action carries a reason for the audit log.
-const npcGangParams = z.object({ roundPlayerId: id }).strict();
-const npcTelemetryQuery = z.object({ window: z.enum(['24h', '7d', 'season']).default('7d') }).strict();
 const devBotSlugParams = z.object({ slug: z.string().trim().regex(/^[a-z][a-z0-9-]{1,40}$/) }).strict();
-const trait = z.number().int().min(0).max(100);
-const npcGangControlBody = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('ACT_NOW'), reason }).strict(),
-  z.object({ action: z.literal('DELAY'), minutes: z.number().int().min(5).max(7 * 24 * 60), reason }).strict(),
-  z.object({ action: z.literal('PAUSE'), hours: z.number().int().min(1).max(24 * 30).optional(), reason }).strict(),
-  z.object({ action: z.literal('WAKE'), reason }).strict(),
-  z.object({
-    action: z.literal('TUNE'),
-    aggression: trait.optional(),
-    ambition: trait.optional(),
-    discipline: trait.optional(),
-    tier: z.string().trim().min(1).max(20).optional(),
-    archetype: z.string().trim().min(1).max(60).optional(),
-    reason,
-  }).strict(),
-  z.object({ action: z.literal('RESET'), scope: z.enum(['MOMENTUM', 'GRUDGES', 'MIGRATION']), reason }).strict(),
-]);
 const reasonBody = z.object({ reason }).strict();
 // Supporters tab. A preview needs no reason; a commit does.
 const supporterGrantSchema = z.object({
@@ -632,21 +611,49 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminDevBotsService.removeOne(fastify.prisma, request.auth!.account, accountId, body.reason);
   });
 
-  // Registered before the :roundPlayerId route so "telemetry" is never read as an id.
-  fastify.get('/npc-gangs/telemetry', async (request) => {
-    const { window } = parseBody(npcTelemetryQuery, request.query ?? {});
-    return NpcGangTelemetryService.report(fastify.prisma, window);
-  });
-
-  fastify.get('/npc-gangs/:roundPlayerId', async (request) => {
-    const { roundPlayerId } = parseBody(npcGangParams, request.params);
-    return AdminNpcGangService.inspect(fastify.prisma, roundPlayerId);
-  });
-
-  fastify.post('/npc-gangs/:roundPlayerId/control', async (request) => {
-    const { roundPlayerId } = parseBody(npcGangParams, request.params);
-    const body = parseBody(npcGangControlBody, request.body ?? {});
-    return AdminNpcGangService.control(fastify.prisma, request.auth!.account, roundPlayerId, body);
+  // Encounter gangs: read-only summary for the current round.
+  fastify.get('/encounter-gangs/summary', async () => {
+    const round = await RoundService.getCurrent(fastify.prisma);
+    const now = new Date().toISOString();
+    if (!round) {
+      return { generatedAt: now, roundId: null, active: 0, dormant: 0, heldBlocks: 0, openGrudges: 0, cities: [] };
+    }
+    const [active, dormant, heldBlocks, openGrudges, gangs, turfs] = await Promise.all([
+      fastify.prisma.encounterGang.count({ where: { roundId: round.id, status: 'ACTIVE' } }),
+      fastify.prisma.encounterGang.count({ where: { roundId: round.id, status: 'DORMANT' } }),
+      fastify.prisma.encounterGangTurf.count({ where: { roundId: round.id, status: 'HELD' } }),
+      fastify.prisma.encounterGangGrudge.count({
+        where: { gang: { roundId: round.id }, settledAt: null, expiresAt: { gt: new Date() } },
+      }),
+      fastify.prisma.encounterGang.findMany({
+        where: { roundId: round.id },
+        select: { cityId: true, status: true, city: { select: { name: true } } },
+      }),
+      fastify.prisma.encounterGangTurf.findMany({
+        where: { roundId: round.id, status: 'HELD' },
+        select: { cityId: true },
+      }),
+    ]);
+    const cityRows = new Map<string, { city: string; activeGangs: number; dormant: number; heldBlocks: number }>();
+    for (const gang of gangs) {
+      const row = cityRows.get(gang.cityId) ?? { city: gang.city.name, activeGangs: 0, dormant: 0, heldBlocks: 0 };
+      if (gang.status === 'ACTIVE') row.activeGangs += 1;
+      if (gang.status === 'DORMANT') row.dormant += 1;
+      cityRows.set(gang.cityId, row);
+    }
+    for (const turf of turfs) {
+      const row = cityRows.get(turf.cityId);
+      if (row) row.heldBlocks += 1;
+    }
+    return {
+      generatedAt: now,
+      roundId: round.id,
+      active,
+      dormant,
+      heldBlocks,
+      openGrudges,
+      cities: Array.from(cityRows.values()).sort((left, right) => left.city.localeCompare(right.city)),
+    };
   });
 
   // Accounts

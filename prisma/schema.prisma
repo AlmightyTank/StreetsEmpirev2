@@ -1300,7 +1300,6 @@ model City {
   warrants          PlayerWarrant[]
   officials         PlayerOfficial[]
   tips              PlayerTip[]
-  npcGangs          NpcGang[]           @relation("NpcGangHomeCity")
   encounterGangsHome EncounterGang[]     @relation("EncounterGangHomeCity")
   encounterGangsHere EncounterGang[]     @relation("EncounterGangCurrentCity")
   encounterGangTurfs EncounterGangTurf[]
@@ -1460,7 +1459,6 @@ model RoundPlayer {
   /// 1.3.0-D. Corrupt officials on the payroll, and tips bought from informants.
   officials               PlayerOfficial[]
   tips                    PlayerTip[]
-  npcGang                 NpcGang?
   randomEncounters        RandomEncounter[]
   encounterGangGrudges    EncounterGangGrudge[]
   eventParticipations     GameEventParticipation[]
@@ -1653,37 +1651,6 @@ model RoundPlayer {
   @@index([roundId, netWorthCents(sort: Desc)])
   @@index([roundId, cityId, netWorthCents(sort: Desc)])
   @@index([allianceId])
-}
-
-/// Server-run street crews that use the same seasonal body as a player crew, with
-/// a small scheduler profile layered on top.
-model NpcGang {
-  id String @id @default(cuid())
-
-  roundPlayerId String      @unique
-  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
-
-  archetype String
-  tier      String
-
-  homeCityId String
-  homeCity   City   @relation("NpcGangHomeCity", fields: [homeCityId], references: [id])
-
-  aggression Int
-  ambition   Int
-  discipline Int
-
-  nextActionAt DateTime
-  lastActionAt DateTime?
-  dormantUntil DateTime?
-
-  memory Json @default("{}")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([nextActionAt])
-  @@index([homeCityId, tier])
 }
 
 // ---------------------------------------------------------------------------
@@ -3388,8 +3355,7 @@ model RandomEncounter {
   @@index([expiresAt, status])
 }
 
-/// Named street pressure used by random encounters. Unlike the retired NpcGang
-/// actor, this has no Account or RoundPlayer and never acts off-screen.
+/// Named street pressure used by random encounters. Has no Account or RoundPlayer and never acts off-screen.
 model EncounterGang {
   id String @id @default(cuid())
 

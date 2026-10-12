@@ -33,7 +33,6 @@ describe('PermanentUnlockService', () => {
     const keys = new Set<string>();
     const db = {
       playerUnlock: { findMany: async () => [...keys].map((key) => ({ key })) },
-      npcGang: { findUnique: async () => null },
     } as unknown as Db;
 
     expect(PermanentUnlockService.productProductionUnlock(ruleset, 'COCAINE')?.key).toBe('PRODUCT_COCAINE_RECIPE');
@@ -53,7 +52,6 @@ describe('PermanentUnlockService', () => {
     const keys = new Set<string>();
     const db = {
       playerUnlock: { findMany: async () => [...keys].map((key) => ({ key })) },
-      npcGang: { findUnique: async () => null },
     } as unknown as Db;
 
     const access = await PermanentUnlockService.districtAccess(db, 'player-1', ruleset);
@@ -73,14 +71,14 @@ describe('PermanentUnlockService', () => {
     await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'CASINO')).resolves.toBeUndefined();
   });
 
-  it('never gates an NPC gang, which runs no quests', async () => {
+  it('gates every human player on district unlocks, with no bypass', async () => {
     const db = {
-      playerUnlock: { findMany: async () => { throw new Error('an NPC gang needs no unlock lookup'); } },
-      npcGang: { findUnique: async () => ({ id: 'gang-1' }) },
+      playerUnlock: { findMany: async () => [] },
     } as unknown as Db;
-    const access = await PermanentUnlockService.districtAccess(db, 'npc-player', classicOgV18O as Ruleset);
-    expect([...access.values()].map((gate) => gate.unlocked)).toEqual([true, true]);
-    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'npc-player', classicOgV18O as Ruleset, 'CASINO')).resolves.toBeUndefined();
+    const access = await PermanentUnlockService.districtAccess(db, 'new-player', classicOgV18O as Ruleset);
+    expect([...access.values()].map((gate) => gate.unlocked)).toEqual([false, false]);
+    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'new-player', classicOgV18O as Ruleset, 'CASINO'))
+      .rejects.toMatchObject({ code: 'DISTRICT_ACCESS_LOCKED' });
   });
 
   it('awards one idempotent per-round unlock with its source job', async () => {

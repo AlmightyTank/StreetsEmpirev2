@@ -4,8 +4,6 @@ import type { AdminDevBotsDto, AdminDiscordStatusDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
-import { AdminNpcGangControls } from '../components/AdminNpcGangControls.js';
-import { AdminNpcTelemetryPanel } from '../components/AdminNpcTelemetryPanel.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
@@ -33,7 +31,7 @@ const pendingCopy: Record<Pending, { title: string; copy: string; needsReason: b
   },
   'remove-bot': {
     title: 'Remove this dev bot',
-    copy: 'Deletes this one seed-rival account, and with it its NPC gang and its players in every round.',
+    copy: 'Deletes this one seed-rival account, and with it its players in every round.',
     needsReason: true,
   },
 };
@@ -41,16 +39,6 @@ const pendingCopy: Record<Pending, { title: string; copy: string; needsReason: b
 function age(iso: string | null): string {
   if (!iso) return 'nothing waiting';
   return `oldest ${formatDuration(Math.max(0, Date.now() - Date.parse(iso)))} ago`;
-}
-
-function timing(iso: string | null): string {
-  if (!iso) return 'not scheduled';
-  const delta = Date.parse(iso) - Date.now();
-  return delta <= 0 ? `due ${formatDuration(Math.abs(delta))} ago` : `in ${formatDuration(delta)}`;
-}
-
-function ago(iso: string): string {
-  return `${formatDuration(Math.max(0, Date.now() - Date.parse(iso)))} ago`;
 }
 
 export function AdminIntegrationsPage() {
@@ -61,8 +49,6 @@ export function AdminIntegrationsPage() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
-  // Phase O: the gang whose controls are open, and the bot a single removal is aimed at.
-  const [managing, setManaging] = useState<string | null>(null);
   const [removing, setRemoving] = useState<{ accountId: string; username: string } | null>(null);
   const working = 'The last admin action is still going through.';
 
@@ -117,11 +103,9 @@ export function AdminIntegrationsPage() {
       } else if (pending === 'remove-bot' && removing) {
         setBots(await adminApi.removeDevBot(removing.accountId, reason.trim()));
         setNotice(`${removing.username} removed.`);
-        setManaging(null);
       } else {
         setBots(await adminApi.removeDevBots(reason.trim()));
         setNotice('Dev bots removed.');
-        setManaging(null);
       }
       setPending(null);
     } catch (caught) {
@@ -245,32 +229,20 @@ export function AdminIntegrationsPage() {
                   </>
                 )}
                 <div className="se-rows se-mt">
-                  <Row label="NPC gangs active" value={formatNumber(bots.npcGangSummary.active)} />
-                  <Row label="Ready to move" value={formatNumber(bots.npcGangSummary.dueNow)} strong={bots.npcGangSummary.dueNow > 0} />
-                  <Row label="Moved in 24h" value={formatNumber(bots.npcGangSummary.acted24h)} />
-                  <Row label="Blocked in 24h" value={formatNumber(bots.npcGangSummary.blocked24h)} strong={bots.npcGangSummary.blocked24h > 0} />
-                  <Row label="Open grudges" value={formatNumber(bots.npcGangSummary.openGrudges)} strong={bots.npcGangSummary.openGrudges > 0} />
-                  <Row label="Paybacks in 24h" value={formatNumber(bots.npcGangSummary.revenge24h)} />
-                  <Row label="Blocks held" value={formatNumber(bots.npcGangSummary.heldBlocks)} />
-                  <Row label="Packing or moving" value={formatNumber(bots.npcGangSummary.migrating)} strong={bots.npcGangSummary.migrating > 0} />
-                  <Row label="On a run · gone to ground" value={`${formatNumber(bots.npcGangSummary.hot)} · ${formatNumber(bots.npcGangSummary.dormant)}`} strong={bots.npcGangSummary.hot > 0} />
-                  <Row label="Bounties in 24h" value={`${formatNumber(bots.npcGangSummary.bounties24h.count)} · ${formatCents(bots.npcGangSummary.bounties24h.cents)}`} />
-                  <Row label="Crews broken up" value={formatNumber(bots.npcGangSummary.retired)} />
+                  <Row label="Encounter gangs active" value={formatNumber(bots.encounterGangSummary.active)} />
+                  <Row label="Gone to ground" value={formatNumber(bots.encounterGangSummary.dormant)} strong={bots.encounterGangSummary.dormant > 0} />
+                  <Row label="Blocks held" value={formatNumber(bots.encounterGangSummary.heldBlocks)} />
+                  <Row label="Open grudges" value={formatNumber(bots.encounterGangSummary.openGrudges)} strong={bots.encounterGangSummary.openGrudges > 0} />
                 </div>
-                {bots.npcGangSummary.cities.length ? (
+                {bots.encounterGangSummary.cities.length ? (
                   <ol className="se-admin-list">
-                    {bots.npcGangSummary.cities.map((city) => (
+                    {bots.encounterGangSummary.cities.map((city) => (
                       <li key={city.city}>
                         <div className="se-admin-check__head">
                           <strong>{city.city}</strong>
-                          <span className="se-muted">{timing(city.nextActionAt)}</span>
                         </div>
                         <p className="se-hint">
-                          {formatNumber(city.activeGangs)} crew{city.activeGangs === 1 ? '' : 's'} · {formatNumber(city.dueNow)} ready · {formatNumber(city.recentHits)} hit{city.recentHits === 1 ? '' : 's'} in 24h
-                          {city.recentDriveBys || city.recentSpecialRaids ? ` · ${formatNumber(city.recentDriveBys)} drive-by · ${formatNumber(city.recentSpecialRaids)} special` : ''}
-                          {city.recentRevengeHits ? ` · ${formatNumber(city.recentRevengeHits)} payback` : ''}
-                          {city.heldBlocks.length ? ` · holding ${city.heldBlocks.join(', ')}` : ''}
-                          {city.inbound ? ` · ${formatNumber(city.inbound)} inbound` : ''}
+                          {formatNumber(city.activeGangs)} active · {formatNumber(city.dormant)} dormant · holding {formatNumber(city.heldBlocks)} block{city.heldBlocks === 1 ? '' : 's'}
                         </p>
                       </li>
                     ))}
@@ -286,7 +258,6 @@ export function AdminIntegrationsPage() {
                       <tr>
                         <th>Bot</th>
                         <th>This round</th>
-                        <th>NPC gang</th>
                         <th className="se-table__number">Net worth</th>
                         <th className="se-table__number">Rounds</th>
                       </tr>
@@ -303,93 +274,10 @@ export function AdminIntegrationsPage() {
                               ? <Link to={`/game/admin/players/${bot.inCurrentRound.roundPlayerId}`}>{bot.inCurrentRound.displayName} #{bot.inCurrentRound.publicPimpId}</Link>
                               : <span className="se-muted">Not in it</span>}
                           </td>
-                          <td data-label="NPC gang">
-                            {bot.inCurrentRound?.npcGang ? (
-                              <>
-                                <strong>{bot.inCurrentRound.npcGang.crewName} [{bot.inCurrentRound.npcGang.crewTag}]</strong>
-                                <span className="se-muted"> · {bot.inCurrentRound.npcGang.tier} · {bot.inCurrentRound.npcGang.personality}</span>
-                                <span className="se-muted"> · {bot.inCurrentRound.npcGang.archetype} · {bot.inCurrentRound.npcGang.currentCity}{bot.inCurrentRound.npcGang.currentCity !== bot.inCurrentRound.npcGang.homeCity ? ` (from ${bot.inCurrentRound.npcGang.homeCity})` : ''}</span>
-                                <p className="se-hint">
-                                  Next {timing(bot.inCurrentRound.npcGang.nextActionAt)}
-                                  {bot.inCurrentRound.npcGang.lastOutcome ? ` · last ${bot.inCurrentRound.npcGang.lastOutcome.toLowerCase().replace(/_/g, ' ')}` : ''}
-                                  {bot.inCurrentRound.npcGang.lastTarget ? ` vs ${bot.inCurrentRound.npcGang.lastTarget}` : ''}
-                                </p>
-                                {bot.inCurrentRound.npcGang.lastError ? <p className="se-hint">Blocked: {bot.inCurrentRound.npcGang.lastError}</p> : null}
-                                {bot.inCurrentRound.npcGang.grudges.map((grudge) => (
-                                  <p key={grudge.publicPimpId} className="se-hint">
-                                    Grudge: {grudge.targetName} #{grudge.publicPimpId} · {formatNumber(grudge.hits)} hit{grudge.hits === 1 ? '' : 's'}
-                                    {grudge.settledAt ? ` · paid back ${ago(grudge.settledAt)}` : ` · expires ${timing(grudge.expiresAt)}`}
-                                  </p>
-                                ))}
-                                {bot.inCurrentRound.npcGang.turf?.held.map((block) => (
-                                  <p key={block.districtName} className="se-hint">
-                                    Holds {block.districtName} · {formatNumber(block.cornerThugs)}/{formatNumber(block.minimum)} on the corner
-                                    {block.pushLandsAt ? ` · push lands ${timing(block.pushLandsAt)}` : ''}
-                                  </p>
-                                ))}
-                                {bot.inCurrentRound.npcGang.turf?.prospect ? (
-                                  <p className="se-hint">
-                                    Working {bot.inCurrentRound.npcGang.turf.prospect.districtName} · presence {bot.inCurrentRound.npcGang.turf.prospect.presence}/{bot.inCurrentRound.npcGang.turf.prospect.needed} · {formatNumber(bot.inCurrentRound.npcGang.turf.prospect.locals)} locals
-                                  </p>
-                                ) : null}
-                                {bot.inCurrentRound.npcGang.turf && (bot.inCurrentRound.npcGang.turf.recentLosses || bot.inCurrentRound.npcGang.turf.pressure) ? (
-                                  <p className="se-hint">
-                                    Turf strain: {formatNumber(bot.inCurrentRound.npcGang.turf.recentLosses)} lost fight{bot.inCurrentRound.npcGang.turf.recentLosses === 1 ? '' : 's'} · {formatNumber(bot.inCurrentRound.npcGang.turf.pressure)} crew{bot.inCurrentRound.npcGang.turf.pressure === 1 ? '' : 's'} working their block
-                                  </p>
-                                ) : null}
-                                {bot.inCurrentRound.npcGang.turf?.lastMove ? (
-                                  <p className="se-hint">
-                                    Last turf move: {bot.inCurrentRound.npcGang.turf.lastMove.kind.toLowerCase()} {bot.inCurrentRound.npcGang.turf.lastMove.districtName} {ago(bot.inCurrentRound.npcGang.turf.lastMove.at)}
-                                    {bot.inCurrentRound.npcGang.turf.lastMove.detail ? ` · ${bot.inCurrentRound.npcGang.turf.lastMove.detail}` : ''}
-                                  </p>
-                                ) : null}
-                                <p className="se-hint">
-                                  Record {formatNumber(bot.inCurrentRound.npcGang.record.wins)}-{formatNumber(bot.inCurrentRound.npcGang.record.losses)}
-                                  {bot.inCurrentRound.npcGang.record.favoriteMove ? ` · favors ${bot.inCurrentRound.npcGang.record.favoriteMove.toLowerCase().replace(/_/g, ' ')}` : ''}
-                                  {bot.inCurrentRound.npcGang.record.biggestHitCents ? ` · best ${formatCents(bot.inCurrentRound.npcGang.record.biggestHitCents)} off ${bot.inCurrentRound.npcGang.record.biggestHitTarget}` : ''}
-                                  {bot.inCurrentRound.npcGang.record.lastLossTo ? ` · last lost to ${bot.inCurrentRound.npcGang.record.lastLossTo}` : ''}
-                                </p>
-                                <p className="se-hint">
-                                  {bot.inCurrentRound.npcGang.retired ? `Broke up ${ago(bot.inCurrentRound.npcGang.retired.at)} (${bot.inCurrentRound.npcGang.retired.reason.toLowerCase().replace(/_/g, ' ')}) · ` : ''}
-                                  {bot.inCurrentRound.npcGang.dormancies ? `Grounded ${formatNumber(bot.inCurrentRound.npcGang.dormancies)}× · ` : ''}
-                                  Mood {bot.inCurrentRound.npcGang.mood.toLowerCase()} · momentum {bot.inCurrentRound.npcGang.momentum > 0 ? '+' : ''}{bot.inCurrentRound.npcGang.momentum}
-                                  {bot.inCurrentRound.npcGang.mood === 'DORMANT' && bot.inCurrentRound.npcGang.dormancy
-                                    ? ` · ${bot.inCurrentRound.npcGang.dormancy.reason.toLowerCase().replace(/_/g, ' ')}, back ${timing(bot.inCurrentRound.npcGang.dormancy.until)}`
-                                    : bot.inCurrentRound.npcGang.dormancy?.wokeAt ? ` · woke ${ago(bot.inCurrentRound.npcGang.dormancy.wokeAt)}` : ''}
-                                </p>
-                                {bot.inCurrentRound.npcGang.migration ? (
-                                  <p className="se-hint">
-                                    {bot.inCurrentRound.npcGang.migration.status === 'MOVING'
-                                      ? `On the road to ${bot.inCurrentRound.npcGang.migration.toName}, arrives ${timing(bot.inCurrentRound.npcGang.migration.arrivesAt)}`
-                                      : `Packing for ${bot.inCurrentRound.npcGang.migration.toName} since ${ago(bot.inCurrentRound.npcGang.migration.since)}`}
-                                    {` · ${bot.inCurrentRound.npcGang.migration.reason.toLowerCase()}`}
-                                  </p>
-                                ) : bot.inCurrentRound.npcGang.lastMigration ? (
-                                  <p className="se-hint">
-                                    Moved {bot.inCurrentRound.npcGang.lastMigration.fromName} to {bot.inCurrentRound.npcGang.lastMigration.toName} {ago(bot.inCurrentRound.npcGang.lastMigration.at)} · {bot.inCurrentRound.npcGang.lastMigration.reason.toLowerCase()}
-                                  </p>
-                                ) : null}
-                                {bot.inCurrentRound.npcGang.lastRevenge ? (
-                                  <p className="se-hint">
-                                    Last payback: {bot.inCurrentRound.npcGang.lastRevenge.targetName} {ago(bot.inCurrentRound.npcGang.lastRevenge.at)}
-                                    {bot.inCurrentRound.npcGang.lastRevenge.won === null ? '' : bot.inCurrentRound.npcGang.lastRevenge.won ? ' · landed' : ' · held off'}
-                                  </p>
-                                ) : null}
-                              </>
-                            ) : (
-                              <span className="se-muted">Missing</span>
-                            )}
-                          </td>
                           <td className="se-table__number se-num" data-label="Net worth">{bot.inCurrentRound ? formatCents(bot.inCurrentRound.netWorthCents) : '-'}</td>
                           <td className="se-table__number se-num" data-label="Rounds">
                             {formatNumber(bot.roundsPlayed)}
                             <div className="se-admin-moderation">
-                              {bot.inCurrentRound?.npcGang ? (
-                                <Button type="button" className="se-btn se-btn--sm se-btn--ghost"
-                                  onClick={() => setManaging(managing === bot.inCurrentRound!.roundPlayerId ? null : bot.inCurrentRound!.roundPlayerId)}>
-                                  {managing === bot.inCurrentRound.roundPlayerId ? 'Hide' : 'Manage'}
-                                </Button>
-                              ) : null}
                               {!bots.blockedReason && bot.kind === 'DEV' ? (
                                 <Button type="button" className="se-btn se-btn--sm se-btn--ghost" disabledReason={busy ? working : null}
                                   onClick={() => { setRemoving({ accountId: bot.accountId, username: bot.username }); choose('remove-bot'); }}>
@@ -404,18 +292,9 @@ export function AdminIntegrationsPage() {
                   </table>
                 </div>
               )}
-              {managing ? (
-                <AdminNpcGangControls
-                  roundPlayerId={managing}
-                  controls={bots.controls}
-                  onChanged={() => void load()}
-                  onClose={() => setManaging(null)}
-                />
-              ) : null}
             </>
           )}
         </Panel>
-        <AdminNpcTelemetryPanel />
       </div>
     </GameLayout>
   );

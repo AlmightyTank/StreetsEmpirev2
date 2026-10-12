@@ -666,8 +666,8 @@ describe('RandomEncounterService', () => {
     const triggers = classicOgV16F.randomEncounters.triggers as Record<string, { entries: readonly { key: string; title: string }[] } | undefined>;
     const entries = Object.values(triggers).flatMap((trigger) => [...(trigger?.entries ?? [])]);
 
-    expect(classicOgV16F.npcGangs?.enabled).toBe(false);
-    expect(classicOgV16F.npcGangs?.spawn?.enabled).toBe(false);
+    expect((classicOgV16F as { npcGangs?: unknown }).npcGangs).toBeUndefined();
+    expect(classicOgV16F.randomEncounters?.enabled).toBe(true);
     expect(entries.map((entry) => entry.key)).toEqual(expect.arrayContaining([
       'scout-red-hand-pressure',
       'scout-quiet-money-lead',

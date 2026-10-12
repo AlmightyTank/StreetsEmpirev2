@@ -1,5 +1,7 @@
 # NPC Gangs Roadmap
 
+> SUPERSEDED: NPC-player gangs removed in favor of the encounter-gang system (random encounters with EncounterGang state). This document is historical.
+
 Status: **Phases A-P built in beta, with real crews spawning into live rounds.**
 
 NPC gangs are server-run seasonal crews that use the same core systems players use:

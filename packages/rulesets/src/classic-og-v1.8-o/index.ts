@@ -10,7 +10,7 @@ import type { DistrictKey, PermanentUnlockCatalog, QuestDefinitionCatalog, Rules
  * Both are on the story path every player walks, so no district stays closed for good.
  *   - Nightclub: Keeping Them Happy (Lesson 3). Night Shift needs it and follows that job.
  *   - Casino: Payday (Lesson 5), once the street is paying its own way.
- * NPC gangs run no quests and are not gated (PermanentUnlockService.districtAccess).
+ * Encounter gangs run no quests and are not gated (PermanentUnlockService.districtAccess).
  */
 const DISTRICTS = [
   ['NIGHTCLUB', 'Nightclub Access', 'Mama vouches for your crew with the club doors. Scout and hold turf in the Nightclub District for the rest of this round.'],

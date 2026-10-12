@@ -23,7 +23,7 @@ async function ensureRoundState(tx: Db, roundId: string, ruleset: Ruleset, rules
   const existing = await tx.encounterGang.count({ where: { roundId } });
   if (existing > 0) return;
   const [humans, cities] = await Promise.all([
-    tx.roundPlayer.count({ where: { roundId, account: { isActive: true }, npcGang: { is: null } } }),
+    tx.roundPlayer.count({ where: { roundId, account: { isActive: true } } }),
     tx.city.findMany({ where: { isEnabled: true, slug: { in: Object.keys(ruleset.cities ?? {}) } }, select: { id: true, slug: true }, orderBy: { sortOrder: 'asc' } }),
   ]);
   if (!cities.length) return;

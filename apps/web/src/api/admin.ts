@@ -54,11 +54,6 @@ import type {
   AdminChangeRulesetInput,
   AdminCreateNewsInput,
   AdminDevBotsDto,
-  AdminNpcGangControlInput,
-  AdminNpcGangControlResultDto,
-  AdminNpcGangInspectDto,
-  AdminNpcTelemetryDto,
-  AdminNpcTelemetryWindow,
   AdminDiscordStatusDto,
   AdminGrantInput,
   AdminNewsDto,
@@ -168,10 +163,7 @@ export const adminApi = {
   removeDevBots: (reason: string) => api.post<AdminDevBotsDto>('/admin/dev-bots/remove', { reason }),
   seedDevBot: (slug: string) => api.post<AdminDevBotsDto>(`/admin/dev-bots/rivals/${enc(slug)}/seed`),
   removeDevBot: (accountId: string, reason: string) => api.post<AdminDevBotsDto>(`/admin/dev-bots/accounts/${enc(accountId)}/remove`, { reason }),
-  npcGang: (roundPlayerId: string) => api.get<AdminNpcGangInspectDto>(`/admin/npc-gangs/${enc(roundPlayerId)}`),
-  npcTelemetry: (window: AdminNpcTelemetryWindow) => api.get<AdminNpcTelemetryDto>(`/admin/npc-gangs/telemetry${queryString({ window })}`),
-  controlNpcGang: (roundPlayerId: string, input: AdminNpcGangControlInput) =>
-    api.post<AdminNpcGangControlResultDto>(`/admin/npc-gangs/${enc(roundPlayerId)}/control`, input),
+  encounterGangSummary: () => api.get<AdminDevBotsDto['encounterGangSummary']>('/admin/encounter-gangs/summary'),
 
   accounts: (params: { query?: string | undefined; status?: AdminAccountStatusFilter | undefined; limit?: number | undefined } = {}) =>
     api.get<AdminAccountSearchDto>(`/admin/accounts${queryString(params)}`),

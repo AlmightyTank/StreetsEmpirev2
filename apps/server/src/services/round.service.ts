@@ -43,7 +43,6 @@ type FinalRankPlayer = {
   localRank: number | null;
   nationalRank: number | null;
   account: { isActive: boolean };
-  npcGang?: unknown | null;
 };
 
 function finalRanks(sortedDesc: Array<{ id: string; netWorthCents: bigint }>): Map<string, number> {
@@ -60,7 +59,7 @@ function finalRanks(sortedDesc: Array<{ id: string; netWorthCents: bigint }>): M
 }
 
 export function finalStandingRanks(players: FinalRankPlayer[]): Map<string, { localRank: number | null; nationalRank: number | null }> {
-  const active = players.filter((player) => player.account.isActive && !player.npcGang);
+  const active = players.filter((player) => player.account.isActive);
   const national = finalRanks(active);
   const byCity = new Map<string, FinalRankPlayer[]>();
   for (const player of active) {
@@ -74,7 +73,7 @@ export function finalStandingRanks(players: FinalRankPlayer[]): Map<string, { lo
 
   return new Map(players.map((player) => [
     player.id,
-    player.account.isActive && !player.npcGang
+    player.account.isActive
       ? { localRank: local.get(player.id) ?? null, nationalRank: national.get(player.id) ?? null }
       : { localRank: null, nationalRank: null },
   ]));
@@ -93,7 +92,6 @@ async function freezeFinalStandings(tx: Db, roundId: string, now: Date): Promise
       localRank: true,
       nationalRank: true,
       account: { select: { isActive: true } },
-      npcGang: { select: { id: true } },
     },
   });
   const ranks = finalStandingRanks(players);
@@ -270,6 +268,6 @@ export const RoundService = {
   },
 
   playerCount(prisma: PrismaClient, roundId: string): Promise<number> {
-    return prisma.roundPlayer.count({ where: { roundId, account: { isActive: true }, npcGang: { is: null } } });
+    return prisma.roundPlayer.count({ where: { roundId, account: { isActive: true } } });
   },
 };

@@ -26,7 +26,7 @@ import { formatWhen } from '../utils/time.js';
 const date = (value: string) => formatWhen(value);
 const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 'AK-47' : key.toLowerCase();
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
-const npcDangerLabel = { QUIET: 'Quiet', ACTIVE: 'Active', HOT: 'Hot' } as const;
+const gangDangerLabel = { QUIET: 'Quiet', ACTIVE: 'Active', HOT: 'Hot' } as const;
 
 const signedUnits = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatNumber(Math.abs(value))}`;
 /**
@@ -312,7 +312,7 @@ function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?:
     {report.yourWounds > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
     {report.retaliation ? <p className="se-hint">This was retaliation for a hit on you.</p> : null}
     {report.payback ? <p className="se-hint">This was payback. You hit {report.opponent.displayName} first, and they answered inside the revenge window.</p> : null}
-    {report.npcBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.npcBounty.cents)} for beating the {report.npcBounty.crew}.</p> : null}
+    {report.gangBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.gangBounty.cents)} for beating the {report.gangBounty.crew}.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Your block is left alone by drive-bys until {date(report.protectedUntil)}. A drive-by does not stop a raid.</p> : null}
     {attacking && report.cooldownUntil ? <p className="se-hint">Next drive-by after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
@@ -357,7 +357,7 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
     {(report.yourWounds ?? 0) > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
     {report.retaliation ? <p className="se-hint">This was payback. Revenge let you answer the crew that hit you.</p> : null}
     {report.payback ? <p className="se-hint">This was payback. You hit {report.opponent.displayName} first, and they answered inside the revenge window.</p> : null}
-    {report.npcBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.npcBounty.cents)} for beating the {report.npcBounty.crew}.</p> : null}
+    {report.gangBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.gangBounty.cents)} for beating the {report.gangBounty.crew}.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Your block is protected until {date(report.protectedUntil)}. You also need your crew back before the next raid.</p> : null}
     {report.cooldownUntil ? <p className="se-hint">Next move after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
@@ -392,7 +392,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
     {(report.yourWounds ?? 0) > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
     {report.retaliation ? <p className="se-hint">This was payback. Revenge let you answer the crew that hit you.</p> : null}
     {report.payback ? <p className="se-hint">This was payback. You hit {report.opponent.displayName} first, and they answered inside the revenge window.</p> : null}
-    {report.npcBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.npcBounty.cents)} for beating the {report.npcBounty.crew}.</p> : null}
+    {report.gangBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.gangBounty.cents)} for beating the {report.gangBounty.crew}.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Your block is protected until {date(report.protectedUntil)}. You also need your crew back before the next raid.</p> : null}
     {report.cooldownUntil ? <p className="se-hint">Next raid after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
@@ -668,63 +668,63 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
 
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="info">{notice}</Alert> : null}
-      {page?.npcGangIntel ? (
-        <Panel title="Street rumors" aside={`NPC gangs · ${npcDangerLabel[page.npcGangIntel.danger]}`} className="se-raids-panel">
+      {page?.gangIntel ? (
+        <Panel title="Street rumors" aside={`Street crews · ${gangDangerLabel[page.gangIntel.danger]}`} className="se-raids-panel">
           <div className="se-rows">
-            <Row label="Local pressure" value={npcDangerLabel[page.npcGangIntel.danger]} strong={page.npcGangIntel.danger !== 'QUIET'} />
-            <Row label="Crews nearby" value={formatNumber(page.npcGangIntel.activeGangs)} />
-            <Row label="NPC hits since" value={`${date(page.npcGangIntel.seenSince)} · ${formatNumber(page.npcGangIntel.recentHits)} hit${page.npcGangIntel.recentHits === 1 ? '' : 's'}`} />
-            {page.npcGangIntel.topArchetype ? <Row label="Loudest style" value={`${page.npcGangIntel.topArchetype}${page.npcGangIntel.topTier ? ` · ${page.npcGangIntel.topTier}` : ''}`} /> : null}
-            {page.npcGangIntel.npcBlocks?.length ? (
+            <Row label="Local pressure" value={gangDangerLabel[page.gangIntel.danger]} strong={page.gangIntel.danger !== 'QUIET'} />
+            <Row label="Crews nearby" value={formatNumber(page.gangIntel.activeGangs)} />
+            <Row label="Crew hits since" value={`${date(page.gangIntel.seenSince)} · ${formatNumber(page.gangIntel.recentHits)} hit${page.gangIntel.recentHits === 1 ? '' : 's'}`} />
+            {page.gangIntel.topArchetype ? <Row label="Loudest style" value={`${page.gangIntel.topArchetype}${page.gangIntel.topTier ? ` · ${page.gangIntel.topTier}` : ''}`} /> : null}
+            {page.gangIntel.gangBlocks?.length ? (
               <Row
                 label="Crew-held blocks"
-                value={`${page.npcGangIntel.npcBlocks.join(', ')}${page.npcGangIntel.onTheirTurf ? ' · you work there' : ''}`}
-                strong={page.npcGangIntel.onTheirTurf}
+                value={`${page.gangIntel.gangBlocks.join(', ')}${page.gangIntel.onTheirTurf ? ' · you work there' : ''}`}
+                strong={page.gangIntel.onTheirTurf}
                 tooltip="Server-run crews hold these corners like anyone else. They lean on crews that work their blocks, and you can push them off."
               />
             ) : null}
-            {page.npcGangIntel.relief ? (
+            {page.gangIntel.relief ? (
               <Row
                 label="Street relief"
-                value={`${page.npcGangIntel.relief.crew} went to ground · quiet until ${date(page.npcGangIntel.relief.until)}`}
+                value={`${page.gangIntel.relief.crew} went to ground · quiet until ${date(page.gangIntel.relief.until)}`}
                 tooltip="When crews like you send a server-run crew to ground, the other crews in town stand down for a while."
               />
             ) : null}
-            {page.npcGangIntel.mood ? (
+            {page.gangIntel.mood ? (
               <Row
                 label="Crew mood"
                 value={[
-                  page.npcGangIntel.mood.hot ? `${formatNumber(page.npcGangIntel.mood.hot)} on a run` : null,
-                  page.npcGangIntel.mood.cooled ? `${formatNumber(page.npcGangIntel.mood.cooled)} licking wounds` : null,
-                  page.npcGangIntel.mood.dormant ? `${formatNumber(page.npcGangIntel.mood.dormant)} gone to ground` : null,
+                  page.gangIntel.mood.hot ? `${formatNumber(page.gangIntel.mood.hot)} on a run` : null,
+                  page.gangIntel.mood.cooled ? `${formatNumber(page.gangIntel.mood.cooled)} licking wounds` : null,
+                  page.gangIntel.mood.dormant ? `${formatNumber(page.gangIntel.mood.dormant)} gone to ground` : null,
                 ].filter(Boolean).join(' · ')}
-                strong={page.npcGangIntel.mood.hot > 0}
+                strong={page.gangIntel.mood.hot > 0}
                 tooltip="Crews that keep winning get bolder and move faster. Beat them enough, or keep hitting them, and they go to ground for a while."
               />
             ) : null}
-            {page.npcGangIntel.movement?.inbound.length ? (
+            {page.gangIntel.movement?.inbound.length ? (
               <Row
                 label="Crews inbound"
-                value={page.npcGangIntel.movement.inbound.map((move) => `${move.fromName} · ${date(move.arrivesAt)}`).join(', ')}
+                value={page.gangIntel.movement.inbound.map((move) => `${move.fromName} · ${date(move.arrivesAt)}`).join(', ')}
                 strong
                 tooltip="Server-run crews moving here. They land when their truck does and start working the city like anyone new."
               />
             ) : null}
-            {page.npcGangIntel.wantedBy && page.npcGangIntel.wantedUntil ? (
+            {page.gangIntel.wantedBy && page.gangIntel.wantedUntil ? (
               <Row
                 label="Payback risk"
-                value={`${formatNumber(page.npcGangIntel.wantedBy)} crew${page.npcGangIntel.wantedBy === 1 ? '' : 's'} · cools ${date(page.npcGangIntel.wantedUntil)}`}
+                value={`${formatNumber(page.gangIntel.wantedBy)} crew${page.gangIntel.wantedBy === 1 ? '' : 's'} · cools ${date(page.gangIntel.wantedUntil)}`}
                 strong
-                tooltip="NPC crews you hit can hit you back until then. They still respect your shields, cool-offs and the dogpile limit."
+                tooltip="Street crews you hit can hit you back until then. They still respect your shields, cool-offs and the dogpile limit."
               />
             ) : null}
           </div>
           <ul className="se-city__talk">
-            {page.npcGangIntel.rumors.map((rumor) => <li key={rumor}>{rumor}</li>)}
+            {page.gangIntel.rumors.map((rumor) => <li key={rumor}>{rumor}</li>)}
           </ul>
-          {page.npcGangIntel.crews?.length ? (
+          {page.gangIntel.crews?.length ? (
             <ol className="se-admin-list">
-              {page.npcGangIntel.crews.map((crew) => (
+              {page.gangIntel.crews.map((crew) => (
                 <li key={crew.publicPimpId}>
                   <div className="se-admin-check__head">
                     <strong>{crew.name} [{crew.tag}]</strong>

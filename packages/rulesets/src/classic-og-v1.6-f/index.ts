@@ -1,18 +1,5 @@
 import { classicOgV16E } from '../classic-og-v1.6-e/index.js';
-import { NPC_GANG_ROSTER } from '../npc-gang-personalities.js';
 import type { Ruleset } from '../types.js';
-
-const crew = (slug: string) => {
-  const found = NPC_GANG_ROSTER.find((entry) => entry.slug === slug);
-  if (!found) throw new Error(`Missing NPC crew ${slug}`);
-  return found;
-};
-
-const RED_HAND = crew('red-hand');
-const QUIET_MONEY = crew('quiet-money');
-const BACK_ALLEY = crew('back-alley');
-const COOKHOUSE = crew('cookhouse');
-const HOT_WIRE = crew('hot-wire');
 
 /**
  * 1.6.0-F — sales, restocking and the ledger. Working crews sell on the server's clock in
@@ -34,10 +21,6 @@ export const classicOgV16F = {
       pressureWeight: 0.5,
       sales: { intervalMinutes: 60, maxBatchIntervals: 24, experiencePerUnit: 1 },
     },
-  },
-  npcGangs: {
-    enabled: false,
-    spawn: { enabled: false },
   },
   randomEncounters: {
     enabled: true,
@@ -76,8 +59,8 @@ export const classicOgV16F = {
           },
           {
             key: 'scout-red-hand-pressure',
-            title: `${RED_HAND.crewName} pressure`,
-            text: `${RED_HAND.crewName} hitters lean on the corner and make your crew pay to keep the night quiet.`,
+            title: 'Red Hand Crew pressure',
+            text: 'Red Hand Crew hitters lean on the corner and make your crew pay to keep the night quiet.',
             tone: 'warn',
             weight: 2,
             cash: { minCents: -18_000, maxCents: -4_000 },
@@ -103,16 +86,16 @@ export const classicOgV16F = {
           },
           {
             key: 'scout-quiet-money-lead',
-            title: `${QUIET_MONEY.crewName} lead`,
-            text: `${QUIET_MONEY.bossName}'s people pass along a quiet customer list before a louder crew finds it.`,
+            title: 'Quiet Money Crew lead',
+            text: `Penny Vance's people pass along a quiet customer list before a louder crew finds it.`,
             tone: 'good',
             weight: 2,
             cash: { minCents: 7_500, maxCents: 22_500 },
           },
           {
             key: 'scout-back-alley-choice',
-            title: `${BACK_ALLEY.crewName} whisper`,
-            text: `${BACK_ALLEY.crewName} offers a tip on a distracted corner, but the play could draw attention.`,
+            title: 'Back Alley Crew whisper',
+            text: 'Back Alley Crew offers a tip on a distracted corner, but the play could draw attention.',
             tone: 'neutral',
             weight: 2,
             choices: [
@@ -190,8 +173,8 @@ export const classicOgV16F = {
           },
           {
             key: 'produce-cookhouse-spare-bag',
-            title: `${COOKHOUSE.crewName} spare bag`,
-            text: `${COOKHOUSE.bossName}'s cooks trade a little extra stock for staying out of their kitchen's way.`,
+            title: 'Cookhouse Crew spare bag',
+            text: `Mama Reyes's cooks trade a little extra stock for staying out of their kitchen's way.`,
             tone: 'good',
             weight: 2,
             supplies: {
@@ -200,8 +183,8 @@ export const classicOgV16F = {
           },
           {
             key: 'produce-cookhouse-smoke',
-            title: `${COOKHOUSE.crewName} smoke`,
-            text: `${COOKHOUSE.crewName} stirs noise around the batch and forces your lookouts to cool the room down.`,
+            title: 'Cookhouse Crew smoke',
+            text: 'Cookhouse Crew stirs noise around the batch and forces your lookouts to cool the room down.',
             tone: 'bad',
             weight: 2,
             heat: { min: 1, max: 2 },
@@ -233,16 +216,16 @@ export const classicOgV16F = {
           },
           {
             key: 'travel-hot-wire-toll',
-            title: `${HOT_WIRE.crewName} toll`,
-            text: `${HOT_WIRE.crewName} spots the convoy and taxes the route before anyone starts shooting.`,
+            title: 'Hot Wire Gang toll',
+            text: 'Hot Wire Gang spots the convoy and taxes the route before anyone starts shooting.',
             tone: 'warn',
             weight: 3,
             cash: { minCents: -20_000, maxCents: -5_000 },
           },
           {
             key: 'travel-quiet-money-detour',
-            title: `${QUIET_MONEY.crewName} detour`,
-            text: `${QUIET_MONEY.crewName} sends the crew around a known checkpoint and keeps the plates colder than usual.`,
+            title: 'Quiet Money Crew detour',
+            text: 'Quiet Money Crew sends the crew around a known checkpoint and keeps the plates colder than usual.',
             tone: 'good',
             weight: 2,
             heat: { min: -2, max: -1 },

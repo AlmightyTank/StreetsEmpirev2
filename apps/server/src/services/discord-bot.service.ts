@@ -148,12 +148,12 @@ type PlayerQuery = { discordId: string } | { name: string };
 async function findRoundPlayer(prisma: PrismaClient, round: Round, query: PlayerQuery): Promise<{ publicPimpId: number }> {
   if ('discordId' in query) {
     const account = await findLinkedAccount(prisma, query.discordId);
-    const player = await prisma.roundPlayer.findFirst({ where: { roundId: round.id, accountId: account.id, npcGang: { is: null } }, select: { publicPimpId: true } });
+    const player = await prisma.roundPlayer.findFirst({ where: { roundId: round.id, accountId: account.id }, select: { publicPimpId: true } });
     if (!player) throw AppError.notFound('PLAYER_NOT_IN_ROUND', `That player has not joined ${round.name} yet.`);
     return player;
   }
   const player = await prisma.roundPlayer.findFirst({
-    where: { roundId: round.id, displayName: { equals: query.name, mode: 'insensitive' }, account: { isActive: true }, npcGang: { is: null } },
+    where: { roundId: round.id, displayName: { equals: query.name, mode: 'insensitive' }, account: { isActive: true } },
     select: { publicPimpId: true },
   });
   // The name stays out of the message; the bot echoes it safely itself.
@@ -607,7 +607,7 @@ export const DiscordBotService = {
     const [standings, legacyByAccount, forumGroups] = await Promise.all([
       round
         ? prisma.roundPlayer.findMany({
-          where: { roundId: round.id, account: { isActive: true }, npcGang: { is: null } },
+          where: { roundId: round.id, account: { isActive: true } },
           select: { accountId: true, netWorthCents: true, alliance: { select: { tag: true, disbandedAt: true } } },
           orderBy: { netWorthCents: 'desc' },
         })
@@ -862,7 +862,7 @@ export const DiscordBotService = {
     if (!round) return { round: null, city: null, entries: [] };
 
     const rows = await prisma.roundPlayer.findMany({
-      where: { roundId: round.id, account: { isActive: true }, npcGang: { is: null } },
+      where: { roundId: round.id, account: { isActive: true } },
       orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
       take: limit,
       select: { publicPimpId: true, displayName: true, netWorthCents: true, dailyStartingNationalRank: true, city: { select: { name: true } } },
@@ -895,7 +895,7 @@ export const DiscordBotService = {
 
     await RelocationService.settleDue(prisma, round.id, new Date());
     const rows = await prisma.roundPlayer.findMany({
-      where: { roundId: round.id, cityId: city.id, account: { isActive: true }, npcGang: { is: null } },
+      where: { roundId: round.id, cityId: city.id, account: { isActive: true } },
       orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
       take: limit,
       select: { publicPimpId: true, displayName: true, netWorthCents: true, dailyStartingLocalRank: true },
@@ -914,7 +914,7 @@ export const DiscordBotService = {
     if (!round) return { round: null, stat, label: definition.label, entries: [] };
 
     const players = await prisma.roundPlayer.findMany({
-      where: { roundId: round.id, account: { isActive: true }, npcGang: { is: null } },
+      where: { roundId: round.id, account: { isActive: true } },
       select: { id: true, accountId: true, publicPimpId: true, displayName: true, city: { select: { name: true } } },
     });
     const contexts = await loadPublicContexts(prisma, round.id, players);
@@ -949,7 +949,7 @@ export const DiscordBotService = {
         name: true,
         endsAt: true,
         players: {
-          where: { nationalRank: { not: null, lte: podiumSize }, account: { isActive: true }, npcGang: { is: null } },
+          where: { nationalRank: { not: null, lte: podiumSize }, account: { isActive: true } },
           orderBy: [{ nationalRank: 'asc' }, { netWorthCents: 'desc' }],
           select: { nationalRank: true, displayName: true, netWorthCents: true, city: { select: { name: true } } },
         },
@@ -976,7 +976,7 @@ export const DiscordBotService = {
       accountId = (await findLinkedAccount(prisma, query.discordId)).id;
     } else {
       const named = await prisma.roundPlayer.findFirst({
-        where: { displayName: { equals: query.name, mode: 'insensitive' }, account: { isActive: true }, npcGang: { is: null } },
+        where: { displayName: { equals: query.name, mode: 'insensitive' }, account: { isActive: true } },
         orderBy: { createdAt: 'desc' },
         select: { accountId: true },
       });

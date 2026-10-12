@@ -18,7 +18,7 @@ import {
   type CombatReconResultDto,
   type CombatTreatmentInputDto,
   type DriveByInputDto,
-  type NpcGangIntelDto,
+  type EncounterGangIntelDto,
   type RaidInputDto,
   type CombatSpecialRaidDto,
   type SpecialRaidInputDto,
@@ -31,11 +31,6 @@ import { RelocationService } from './relocation.service.js';
 import { assertNotPaused, fitThugs, toState, workingWhores } from './action.service.js';
 import { BusinessService } from './business.service.js';
 import { TurfService } from './turf.service.js';
-import { storedMigrationPlan } from './npc-gang-migration.js';
-import { npcMood, storedMomentum } from './npc-gang-momentum.js';
-import { npcRules } from './npc-gang-rules.js';
-import { npcIdentity, npcPersonality, npcReputation, storedHistory } from './npc-gang-personality.js';
-import { npcBattleNotes, npcBattleOutcome, npcCityRelief, npcWanted, storedRetirement } from './npc-gang-rewards.js';
 import { ActivityService } from './activity.service.js';
 import { RandomEncounterService, encounterActivityPayload } from './random-encounter.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
@@ -689,264 +684,123 @@ async function recoveryDto(
 }
 
 /**
- * Phase N. Activity flags for a battle with an NPC side: `opponentNpc` lets contracts
- * target NPC crews with an ordinary `where`, and `npcBounty` is the cash a win paid.
+ * Encounter-gang intel for the combat page. Reads only EncounterGang tables;
+ * encounter crews never act off-screen, so there is no movement, relief or
+ * breakup state. Returns the EncounterGangIntelDto shape for the web UI.
  */
-function npcActivity(npc: Parameters<typeof npcBattleNotes>[0], playerId: string, isAttacker: boolean) {
-  const notes = npcBattleNotes(npc, playerId, isAttacker);
-  return {
-    ...(notes.opponentNpc ? { opponentNpc: true } : {}),
-    ...(notes.npcBounty ? { npcBounty: notes.npcBounty.cents } : {}),
-  };
-}
-
-function storedReportKind(battle: Pick<Prisma.RaidBattleGetPayload<{ select: { kind: true; attackerReport: true } }>, 'kind' | 'attackerReport'>): string {
-  const report = battle.attackerReport && typeof battle.attackerReport === 'object' && !Array.isArray(battle.attackerReport)
-    ? battle.attackerReport as Prisma.JsonObject
-    : {};
-  return typeof report.kind === 'string' ? report.kind : battle.kind;
-}
-
-/**
- * Phase I. Local NPC gangs this player hit inside the gang's memory window that
- * have not hit back since. Mirrors the scheduler's grudge rule from the other side.
- */
-async function npcGrudgesAgainst(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date): Promise<{ wantedBy: number; wantedUntil: Date | null }> {
-  const hours = Math.max(1, ruleset.npcGangs?.retaliationHours ?? 24);
-  const since = new Date(now.getTime() - hours * 3_600_000);
-  const hits = await prisma.raidBattle.findMany({
-    where: {
-      attackerId: player.id,
-      createdAt: { gte: since },
-      voidedAt: null,
-      defender: { roundId: player.roundId, cityId: player.cityId, npcGang: { isNot: null } },
-    },
-    select: { defenderId: true, createdAt: true },
-    orderBy: { createdAt: 'desc' },
-    take: 25,
-  });
-  if (!hits.length) return { wantedBy: 0, wantedUntil: null };
-  const latest = new Map<string, Date>();
-  for (const hit of hits) if (!latest.has(hit.defenderId)) latest.set(hit.defenderId, hit.createdAt);
-  const paybacks = await prisma.raidBattle.findMany({
-    where: { defenderId: player.id, attackerId: { in: [...latest.keys()] }, createdAt: { gte: since }, voidedAt: null },
-    select: { attackerId: true, createdAt: true },
-  });
-  let wantedBy = 0;
-  let wantedUntil: Date | null = null;
-  for (const [gangPlayerId, hitAt] of latest) {
-    if (paybacks.some((payback) => payback.attackerId === gangPlayerId && payback.createdAt > hitAt)) continue;
-    const until = new Date(hitAt.getTime() + hours * 3_600_000);
-    wantedBy += 1;
-    if (!wantedUntil || until > wantedUntil) wantedUntil = until;
-  }
-  return { wantedBy, wantedUntil };
-}
-
-/**
- * Phase J. Blocks server-run crews hold in the player's city, and whether the
- * player's own crew has live presence on one, which is what draws their raids.
- */
-async function npcTurfAround(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date): Promise<{ blocks: string[]; onTheirTurf: boolean }> {
-  if (!ruleset.turf?.holding || ruleset.npcGangs?.turf?.enabled === false) return { blocks: [], onTheirTurf: false };
-  const held = await prisma.turf.findMany({
-    where: { roundId: player.roundId, cityId: player.cityId, holder: { npcGang: { isNot: null } } },
-    select: { district: true },
-    orderBy: { district: 'asc' },
-  });
-  let onTheirTurf = false;
-  for (const row of held) {
-    if (await TurfService.presenceFor(prisma, player.id, player.cityId, row.district, ruleset, now) >= 1) onTheirTurf = true;
-  }
-  const blocks = held.map((row) => {
-    const key = row.district as DistrictKey;
-    return ruleset.cities?.[player.city.slug]?.districts?.[key]?.name ?? ruleset.districts[key]?.name ?? row.district;
-  });
-  return { blocks, onTheirTurf };
-}
-
-/**
- * Phase K. Crews on the move around this city: trucks inbound, crews that just set
- * up, local crews gone quiet to pack, and crews already on the road out.
- */
-async function npcMovementAround(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date) {
-  const slug = player.city.slug;
-  const npcInRound = { roundId: player.roundId, npcGang: { isNot: null } };
-  const [moves, newArrivals, locals] = await Promise.all([
-    prisma.relocation.findMany({
-      where: { arrivedAt: null, arrivesAt: { gt: now }, roundPlayer: npcInRound, OR: [{ toCity: slug }, { fromCity: slug }] },
-      select: { fromCity: true, toCity: true, arrivesAt: true },
-      orderBy: { arrivesAt: 'asc' },
-    }),
-    prisma.relocation.count({
-      where: { toCity: slug, arrivedAt: { gte: new Date(now.getTime() - 12 * 3_600_000) }, roundPlayer: npcInRound },
-    }),
-    prisma.npcGang.findMany({
-      where: { roundPlayer: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true }, OR: [{ movingUntil: null }, { movingUntil: { lte: now } }] } },
-      select: { memory: true },
-    }),
-  ]);
-  const cityName = (city: string) => ruleset.cities?.[city]?.name ?? city;
-  return {
-    inbound: moves.filter((move) => move.toCity === slug).map((move) => ({ fromName: cityName(move.fromCity), arrivesAt: move.arrivesAt.toISOString() })),
-    leaving: moves.filter((move) => move.fromCity === slug).length,
-    packing: locals.filter((gang) => storedMigrationPlan(gang.memory)).length,
-    newArrivals,
-  };
-}
-
-async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date): Promise<NpcGangIntelDto | undefined> {
-  if (ruleset.npcGangs?.enabled === false) return undefined;
+async function encounterGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date): Promise<EncounterGangIntelDto | undefined> {
+  if (ruleset.randomEncounters?.gangs?.enabled !== true) return undefined;
   const seenSince = new Date(now.getTime() - 24 * 3_600_000);
-  const [gangs, recentRows, grudges, turf, movement, dormant, relief, grounded] = await Promise.all([
-    prisma.npcGang.findMany({
-      where: {
-        // Phase K: a crew on the road out is not a local problem any more.
-        roundPlayer: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true }, OR: [{ movingUntil: null }, { movingUntil: { lte: now } }] },
-        OR: [{ dormantUntil: null }, { dormantUntil: { lte: now } }],
-      },
+  const [gangs, turfs, grudges, dormant, recentEncounters] = await Promise.all([
+    prisma.encounterGang.findMany({
+      where: { roundId: player.roundId, cityId: player.cityId, status: 'ACTIVE' },
       select: {
-        id: true,
-        roundPlayerId: true,
-        archetype: true,
-        tier: true,
-        aggression: true,
-        ambition: true,
-        discipline: true,
-        lastActionAt: true,
-        memory: true,
-        roundPlayer: { select: { displayName: true, publicPimpId: true } },
+        id: true, crewName: true, crewTag: true, bossName: true, personality: true,
+        tier: true, momentum: true, wantedUntil: true,
+        grudges: { where: { roundPlayerId: player.id, expiresAt: { gt: now } }, select: { expiresAt: true, settledAt: true } },
       },
-      orderBy: [{ aggression: 'desc' }, { ambition: 'desc' }],
+      orderBy: [{ momentum: 'desc' }, { crewName: 'asc' }],
       take: 8,
     }),
-    prisma.raidBattle.findMany({
-      where: {
-        createdAt: { gte: seenSince },
-        voidedAt: null,
-        defender: { roundId: player.roundId, cityId: player.cityId },
-      },
-      select: {
-        kind: true,
-        attackerReport: true,
-        attacker: {
-          select: {
-            displayName: true,
-            npcGang: { select: { id: true, archetype: true, tier: true, aggression: true } },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 25,
+    prisma.encounterGangTurf.findMany({
+      where: { roundId: player.roundId, cityId: player.cityId, status: 'HELD' },
+      select: { district: true },
+      orderBy: { district: 'asc' },
     }),
-    npcGrudgesAgainst(prisma, player, ruleset, now),
-    npcTurfAround(prisma, player, ruleset, now),
-    npcMovementAround(prisma, player, ruleset, now),
-    // Phase L: crews gone to ground still live here; they are just not moving.
-    prisma.npcGang.count({ where: { dormantUntil: { gt: now }, roundPlayer: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } } } }),
-    // Phase N: a crew humans just sent to ground keeps the rest quiet; broken crews are news.
-    npcCityRelief(prisma, { roundId: player.roundId, cityId: player.cityId, ruleset, now }),
-    prisma.npcGang.findMany({
-      where: { dormantUntil: { gt: now }, roundPlayer: { roundId: player.roundId, cityId: player.cityId } },
-      select: { id: true, archetype: true, memory: true },
+    prisma.encounterGangGrudge.findMany({
+      where: { roundPlayerId: player.id, expiresAt: { gt: now }, settledAt: null, gang: { roundId: player.roundId, cityId: player.cityId } },
+      select: { expiresAt: true },
+    }),
+    prisma.encounterGang.count({ where: { roundId: player.roundId, cityId: player.cityId, status: 'DORMANT' } }),
+    prisma.randomEncounter.findMany({
+      where: { createdAt: { gte: seenSince }, key: { startsWith: 'street-gang' }, roundPlayer: { roundId: player.roundId, cityId: player.cityId } },
+      select: { key: true },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
     }),
   ]);
-  const gangRules = npcRules(ruleset);
-  const escalation = gangRules.escalation;
-  const moods = gangs.map((gang) => npcMood(storedMomentum(gang.memory), escalation));
+  const personalities = ruleset.randomEncounters?.gangs?.personalities as Readonly<Record<string, { label: string; style: string }>> | undefined;
+  const moodFor = (momentum: number): 'HOT' | 'STEADY' | 'COOLED' => momentum >= 10 ? 'HOT' : momentum <= -5 ? 'COOLED' : 'STEADY';
+  const moods = gangs.map((gang) => moodFor(gang.momentum));
   const hot = moods.filter((mood) => mood === 'HOT').length;
   const cooled = moods.filter((mood) => mood === 'COOLED').length;
 
-  const recent = recentRows.filter((battle) => Boolean(battle.attacker.npcGang));
-  const recentDriveBys = recent.filter((battle) => storedReportKind(battle) === 'DRIVE_BY').length;
-  const recentSpecialRaids = recent.filter((battle) => ['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW'].includes(storedReportKind(battle))).length;
-  const maxAggression = Math.max(0, ...gangs.map((gang) => gang.aggression), ...recent.map((battle) => battle.attacker.npcGang?.aggression ?? 0));
-  const dangerScore = gangs.length + recent.length * 2 + recentDriveBys * 2 + recentSpecialRaids + grudges.wantedBy * 2 + turf.blocks.length + (turf.onTheirTurf ? 2 : 0)
-    + movement.inbound.length * 2 + movement.newArrivals * 2 + hot * 2 - cooled + Math.floor(maxAggression / 25);
-  const danger: NpcGangIntelDto['danger'] = dangerScore >= 8 ? 'HOT' : dangerScore >= 3 ? 'ACTIVE' : 'QUIET';
-  const top = gangs[0] ?? recent.find((battle) => battle.attacker.npcGang)?.attacker.npcGang ?? null;
-  // Phase M: crews are known by name and habit.
+  const blocks = turfs.map((row) => {
+    const key = row.district as DistrictKey;
+    return ruleset.cities?.[player.city.slug]?.districts?.[key]?.name ?? ruleset.districts[key]?.name ?? row.district;
+  });
+  let onTheirTurf = false;
+  for (const row of turfs) {
+    if (await TurfService.presenceFor(prisma, player.id, player.cityId, row.district, ruleset, now) >= 1) { onTheirTurf = true; break; }
+  }
+
+  const wantedBy = grudges.length;
+  const wantedUntil = grudges.length ? grudges.reduce((max, grudge) => (grudge.expiresAt > max ? grudge.expiresAt : max), grudges[0]!.expiresAt) : null;
+
+  const recentHits = recentEncounters.length;
+  const recentDriveBys = recentEncounters.filter((row) => row.key.includes(':drive_by')).length;
+  const recentSpecialRaids = recentEncounters.filter((row) => /:(drug_hoes|steal_ride|lure_crew)/.test(row.key)).length;
+  const dangerScore = gangs.length + wantedBy * 2 + blocks.length + (onTheirTurf ? 2 : 0) + hot * 2 - cooled;
+  const danger: EncounterGangIntelDto['danger'] = dangerScore >= 8 ? 'HOT' : dangerScore >= 3 ? 'ACTIVE' : 'QUIET';
+
   const shown = gangs.slice(0, 4);
-  const wanted = await Promise.all(shown.map((gang) => npcWanted(prisma, gang.roundPlayerId, gangRules.rewards, now)));
-  const crewName = (gang: { id: string; archetype: string; memory: Prisma.JsonValue }) => npcIdentity(npcPersonality(gangRules, gang.archetype), gang.id, gang.memory).name;
-  const reliefCrew = relief ? crewName({ id: relief.gangId, archetype: relief.archetype, memory: relief.memory }) : null;
-  const brokeUp = grounded
-    .filter((gang) => {
-      const retired = storedRetirement(gang.memory);
-      return retired && now.getTime() - Date.parse(retired.at) < 48 * 3_600_000;
-    })
-    .map(crewName);
-  const crews = shown.map((gang, index) => {
-    const view = npcPersonality(gangRules, gang.archetype);
-    const identity = npcIdentity(view, gang.id, gang.memory);
+  const crews: NonNullable<EncounterGangIntelDto['crews']> = shown.map((gang, index) => {
+    const personality = personalities?.[gang.personality];
+    const label = personality?.label ?? gang.personality;
+    const style = personality?.style ?? gang.personality;
     return {
-      wanted: wanted[index] === true && gangRules.rewards.enabled,
-      ...identity,
-      boss: gang.roundPlayer.displayName,
-      publicPimpId: gang.roundPlayer.publicPimpId,
-      label: view.personality.label,
-      style: view.personality.style,
+      name: gang.crewName,
+      tag: gang.crewTag,
+      boss: gang.bossName,
+      publicPimpId: 0,
+      label,
+      style,
       mood: moods[index]!,
-      reputation: npcReputation(storedHistory(gang.memory), now),
+      reputation: [`${gang.tier} crew`],
+      wanted: Boolean(gang.wantedUntil && gang.wantedUntil > now),
     };
   });
-  const topLabel = top ? npcPersonality(gangRules, top.archetype).personality.label : null;
+  const top = gangs[0] ?? null;
+  const topPersonality = top ? personalities?.[top.personality] : undefined;
   const rumors: string[] = [];
-
-  if (grudges.wantedBy) {
-    rumors.push(grudges.wantedBy === 1
-      ? 'A crew you hit is still talking about payback. Shields and cool-offs still hold them back.'
-      : `${grudges.wantedBy} crews you hit are still talking about payback. Shields and cool-offs still hold them back.`);
+  if (wantedBy) {
+    rumors.push(wantedBy === 1
+      ? 'A crew you crossed is still talking about payback. Shields and cool-offs still hold them back.'
+      : `${wantedBy} crews you crossed are still talking about payback. Shields and cool-offs still hold them back.`);
   }
-  if (turf.onTheirTurf) {
-    rumors.push('You have been working a block a server-run crew holds. Expect them to lean on you first.');
-  } else if (turf.blocks.length) {
-    rumors.push(`A server-run crew is holding ${turf.blocks.join(' and ')}. Working there puts you on their radar.`);
+  if (onTheirTurf) {
+    rumors.push('You have been working a block a street crew holds. Expect them to lean on you first.');
+  } else if (blocks.length) {
+    rumors.push(`A street crew is holding ${blocks.join(' and ')}. Working there puts you on their radar.`);
   }
-  if (reliefCrew) rumors.push(`Streets went quiet when the ${reliefCrew} went to ground. The other crews are lying low for now.`);
-  if (brokeUp.length) rumors.push(`The ${brokeUp.join(' and the ')} broke up. Their blocks are up for grabs.`);
   const wantedCrew = crews.find((crew) => crew.wanted);
   if (wantedCrew) rumors.push(`There is a price on the ${wantedCrew.name}. Beat them and the street pays.`);
   if (hot) rumors.push(`${hot === 1 ? 'A local crew is' : `${hot} local crews are`} on a run and getting bolder by the day.`);
   if (cooled) rumors.push(`${cooled === 1 ? 'A local crew took' : `${cooled} local crews took`} some beatings and ${cooled === 1 ? 'is' : 'are'} keeping their heads down.`);
   if (dormant) rumors.push(`${dormant === 1 ? 'A crew has' : `${dormant} crews have`} gone to ground after one beating too many. They will be back.`);
-  if (movement.inbound.length) {
-    const from = [...new Set(movement.inbound.map((move) => move.fromName))].join(' and ');
-    rumors.push(movement.inbound.length === 1
-      ? `Word is a crew out of ${from} is on the road here.`
-      : `Word is ${movement.inbound.length} crews out of ${from} are on the road here.`);
-  }
-  if (movement.newArrivals) rumors.push('A fresh crew just set up in town and is still sizing up the blocks.');
-  if (movement.packing) rumors.push(`${movement.packing === 1 ? 'A local crew has' : `${movement.packing} local crews have`} gone quiet. Word is they are packing up.`);
-  if (movement.leaving) rumors.push(`${movement.leaving === 1 ? 'A crew' : `${movement.leaving} crews`} just rolled out of town.`);
-  if (recent.length) {
-    rumors.push(`${recent.length} NPC gang hit${recent.length === 1 ? '' : 's'} made noise in the last day.`);
+  if (recentHits) {
+    rumors.push(`${recentHits} street-gang encounter${recentHits === 1 ? '' : 's'} made noise in the last day.`);
   } else if (gangs.length) {
-    rumors.push('No fresh NPC hits on the wire, but crews are still moving locally.');
+    rumors.push('No fresh street-gang encounters on the wire, but crews are still moving locally.');
   } else {
-    rumors.push('No server-run crews are making noise in this city right now.');
+    rumors.push('No street crews are making noise in this city right now.');
   }
-  if (recentDriveBys) rumors.push(`${recentDriveBys} drive-by${recentDriveBys === 1 ? '' : 's'} had engines talking.`);
-  if (recentSpecialRaids) rumors.push(`${recentSpecialRaids} old-school move${recentSpecialRaids === 1 ? '' : 's'} showed up in street chatter.`);
   if (crews[0]) rumors.push(`The ${crews[0].name} (${crews[0].label.toLowerCase()}) look like the loudest local problem.`);
-  else if (topLabel) rumors.push(`${topLabel} look like the loudest local problem.`);
+  else if (topPersonality) rumors.push(`${topPersonality.label} look like the loudest local problem.`);
   if (danger === 'HOT') rumors.push('Keep medicine, rides and backup ready before picking a fight here.');
   else if (danger === 'ACTIVE') rumors.push('Watch the target list. A quiet block can turn noisy fast.');
 
   return {
     danger,
     activeGangs: gangs.length,
-    recentHits: recent.length,
+    recentHits,
     recentDriveBys,
     recentSpecialRaids,
     seenSince: seenSince.toISOString(),
-    ...(top && topLabel ? { topArchetype: topLabel, topTier: top.tier } : {}),
+    ...(top && topPersonality ? { topArchetype: topPersonality.label, topTier: top.tier } : {}),
     ...(crews.length ? { crews } : {}),
-    ...(relief && reliefCrew ? { relief: { crew: reliefCrew, until: relief.until.toISOString() } } : {}),
-    ...(brokeUp.length ? { brokeUp } : {}),
-    ...(grudges.wantedBy && grudges.wantedUntil ? { wantedBy: grudges.wantedBy, wantedUntil: grudges.wantedUntil.toISOString() } : {}),
-    ...(turf.blocks.length ? { npcBlocks: turf.blocks, onTheirTurf: turf.onTheirTurf } : {}),
-    ...(movement.inbound.length || movement.leaving || movement.packing || movement.newArrivals ? { movement } : {}),
+    ...(wantedBy && wantedUntil ? { wantedBy, wantedUntil: wantedUntil.toISOString() } : {}),
+    ...(blocks.length ? { gangBlocks: blocks, onTheirTurf } : {}),
     ...(hot || cooled || dormant ? { mood: { hot, cooled, dormant } } : {}),
     rumors: rumors.slice(0, 5),
   };
@@ -995,7 +849,7 @@ export const CombatService = {
     const burnerFavor = model.strategy
       ? await SingleUseFavorService.matching(prisma, playerId, ruleset, 'FREE_RECON')
       : null;
-    const npcGangIntel = await npcGangIntelDto(prisma, player, ruleset, now);
+    const gangIntel = await encounterGangIntelDto(prisma, player, ruleset, now);
     return {
       ...base, enabled: true, blockedReason,
       protectedUntil: combatProtectionUntil(player, model) > now ? iso(combatProtectionUntil(player, model)) : null,
@@ -1043,7 +897,7 @@ export const CombatService = {
       nextTarget: targets.length > 25 ? targets[24]!.publicPimpId : null,
       ...(model.specialRaids ? { specialRaids: specialRaidDtos(player, model, now) } : {}),
       ...(model.driveBy ? { driveBy: driveByDto(player, model, model.driveBy, now) } : {}),
-      ...(npcGangIntel ? { npcGangIntel } : {}),
+      ...(gangIntel ? { gangIntel } : {}),
     };
   },
 
@@ -1154,8 +1008,6 @@ export const CombatService = {
       await writeRanks(tx, ruleset, now, [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]]);
       const trophyCallouts = trophyCalloutsFor({ kind: 'RAID', won: result.winner === 'ATTACKER' }, await attackerTrophyProgress(tx, attackerId));
       const id = randomUUID();
-      // Phase N: NPC sides are flagged for reports and contracts, and beating a wanted crew pays a bounty.
-      const npc = await npcBattleOutcome(tx, { battleId: id, attackerId, defenderId: target.id, attackerWon: result.winner === 'ATTACKER', kind: 'RAID', ruleset, now });
       const tags = await battleTags(tx, attacker, defender);
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;
@@ -1208,7 +1060,6 @@ export const CombatService = {
           retaliation: isAttacker ? retaliation : false,
           ...(!isAttacker && retaliation ? { payback: true } : {}),
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
-          ...npcBattleNotes(npc, isAttacker ? attackerId : target.id, isAttacker),
           ...(isAttacker && combatEncounter ? { encounter: combatEncounter } : {}),
         };
       };
@@ -1255,7 +1106,6 @@ export const CombatService = {
           inventoryChanges: report.inventoryChanges ?? [],
           ...(type === 'RAID_DEFENSE' && retaliation ? { payback: true } : {}),
           ...(type === 'RAID_ATTACK' && combatEncounter ? { randomEncounter: encounterActivityPayload(combatEncounter) } : {}),
-          ...npcActivity(npc, playerId, type === 'RAID_ATTACK'),
         }));
       }
       // Reserve the action namespace for the lifetime of this raid, including other action types.
@@ -1347,7 +1197,6 @@ export const CombatService = {
       const trophyCallouts = trophyCalloutsFor({ kind: 'DRIVE_BY', won: result.winner === 'ATTACKER' }, await attackerTrophyProgress(tx, attackerId));
 
       const id = randomUUID();
-      const npc = await npcBattleOutcome(tx, { battleId: id, attackerId, defenderId: target.id, attackerWon: result.winner === 'ATTACKER', kind: 'DRIVE_BY', ruleset, now });
       const tags = await battleTags(tx, attacker, defender);
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;
@@ -1381,7 +1230,6 @@ export const CombatService = {
           retaliation: isAttacker ? retaliation : false,
           ...(!isAttacker && retaliation ? { payback: true } : {}),
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
-          ...npcBattleNotes(npc, isAttacker ? attackerId : target.id, isAttacker),
           ...(isAttacker && combatEncounter ? { encounter: combatEncounter } : {}),
           driveBy: isAttacker
             ? { whoresKilled: result.whoresKilled, carsSent: result.cars.length, lowRidersLost: result.lowRidersLost, lowRidersAfter: nextA.lowRiders }
@@ -1411,7 +1259,7 @@ export const CombatService = {
           lowRidersLost: type === 'DRIVE_BY_ATTACK' ? result.lowRidersLost : 0, turns: report.turnsSpent,
           ...(type === 'DRIVE_BY_DEFENSE' && retaliation ? { payback: true } : {}),
           ...(type === 'DRIVE_BY_ATTACK' && combatEncounter ? { randomEncounter: encounterActivityPayload(combatEncounter) } : {}),
-          ...npcActivity(npc, playerId, type === 'DRIVE_BY_ATTACK') }));
+        }));
       }
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: 'DRIVE_BY', result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });
       return attackerReport;
@@ -1570,7 +1418,6 @@ export const CombatService = {
       }, await attackerTrophyProgress(tx, attackerId));
 
       const id = randomUUID();
-      const npc = await npcBattleOutcome(tx, { battleId: id, attackerId, defenderId: target.id, attackerWon: won, kind: input.kind, ruleset, now });
       const tags = await battleTags(tx, attacker, defender);
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;
@@ -1624,7 +1471,6 @@ export const CombatService = {
           retaliation: isAttacker ? retaliation : false,
           ...(!isAttacker && retaliation ? { payback: true } : {}),
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
-          ...npcBattleNotes(npc, isAttacker ? attackerId : target.id, isAttacker),
           ...(isAttacker && combatEncounter ? { encounter: combatEncounter } : {}),
           raidForm: {
             title: rule.title,
@@ -1667,7 +1513,6 @@ export const CombatService = {
           beerSpent,
           ...(type === 'RAID_DEFENSE' && retaliation ? { payback: true } : {}),
           ...(type === 'RAID_ATTACK' && combatEncounter ? { randomEncounter: encounterActivityPayload(combatEncounter) } : {}),
-          ...npcActivity(npc, playerId, type === 'RAID_ATTACK'),
         }));
       }
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: input.kind, result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });

@@ -77,8 +77,8 @@ export const PermanentUnlockService = {
     const access = new Map<DistrictKey, { unlock: PermanentUnlockDefinition; unlocked: boolean }>();
     const gated = Object.values(ruleset.permanentUnlocks ?? {}).filter((definition) => definition.effect.kind === 'DISTRICT_ACCESS');
     if (!gated.length) return access;
-    // NPC gangs run no quests, so a district gate would only stall them. They work every district.
-    const npc = await db.npcGang.findUnique({ where: { roundPlayerId }, select: { id: true } });
+    // Every player is human; district gates always apply via quest unlocks.
+    const npc = null as null | { id: string };
     const keys = npc ? null : await PermanentUnlockService.keys(db, roundPlayerId);
     for (const definition of gated) if (definition.effect.kind === 'DISTRICT_ACCESS') access.set(definition.effect.districtKey, { unlock: definition, unlocked: !keys || keys.has(definition.key) });
     return access;
