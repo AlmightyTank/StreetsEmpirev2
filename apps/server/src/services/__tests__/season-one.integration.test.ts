@@ -120,8 +120,9 @@ describe.runIf(enabled)('1.0.0-H Season One on a scratch database', () => {
   });
 
   it('a player builds a crew, trades and works the streets', async () => {
-    const districts = await ok<{ districts: Array<{ key: string; slug?: string; locked?: boolean }> }>('ann', 'GET', '/game/districts');
-    const district = districts.districts.find((row) => !row.locked) ?? districts.districts[0]!;
+    const districts = await ok<{ districts: Array<{ key: string; slug?: string; districtAccess?: { unlocked: boolean } }> }>('ann', 'GET', '/game/districts');
+    // A new player works a district that is open to them; story jobs open the rest.
+    const district = districts.districts.find((row) => row.districtAccess?.unlocked !== false)!;
     const before = await me('ann');
     const scouted = await ok<{ result: unknown }>('ann', 'POST', '/game/scout', { district: district.key ?? district.slug, turns: 5, actionId: randomUUID() });
     expect(scouted.result).toBeTruthy();

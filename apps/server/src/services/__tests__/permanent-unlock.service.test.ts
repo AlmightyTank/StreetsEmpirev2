@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07F, classicOgV07H, classicOgV18M } from '@streets/rulesets';
+import { classicOgV07F, classicOgV07H, classicOgV18M, classicOgV18O } from '@streets/rulesets';
 import { recipeLadder } from '@streets/rules-engine';
 import type { Ruleset } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
@@ -31,7 +31,10 @@ describe('PermanentUnlockService', () => {
       },
     } as Ruleset;
     const keys = new Set<string>();
-    const db = { playerUnlock: { findMany: async () => [...keys].map((key) => ({ key })) } } as unknown as Db;
+    const db = {
+      playerUnlock: { findMany: async () => [...keys].map((key) => ({ key })) },
+      npcGang: { findUnique: async () => null },
+    } as unknown as Db;
 
     expect(PermanentUnlockService.productProductionUnlock(ruleset, 'COCAINE')?.key).toBe('PRODUCT_COCAINE_RECIPE');
     expect((await PermanentUnlockService.districtAccess(db, 'player-1', ruleset)).get('URBAN_GHETTO')?.unlocked).toBe(false);
@@ -43,6 +46,41 @@ describe('PermanentUnlockService', () => {
     keys.add('URBAN_GHETTO_SCOUT_ACCESS');
     await expect(PermanentUnlockService.assertCanProduceProduct(db, 'player-1', ruleset, 'COCAINE')).resolves.toBeUndefined();
     await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'URBAN_GHETTO')).resolves.toBeUndefined();
+  });
+
+  it('gates the Nightclub and Casino on 1.8.0-O until the story jobs that open them are claimed', async () => {
+    const ruleset = classicOgV18O as Ruleset;
+    const keys = new Set<string>();
+    const db = {
+      playerUnlock: { findMany: async () => [...keys].map((key) => ({ key })) },
+      npcGang: { findUnique: async () => null },
+    } as unknown as Db;
+
+    const access = await PermanentUnlockService.districtAccess(db, 'player-1', ruleset);
+    expect([...access.keys()].sort()).toEqual(['CASINO', 'NIGHTCLUB']);
+    for (const district of ['WINO_SLUMS', 'LOW_RENT', 'URBAN_GHETTO'] as const) {
+      await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, district)).resolves.toBeUndefined();
+    }
+    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'NIGHTCLUB'))
+      .rejects.toMatchObject({ code: 'DISTRICT_ACCESS_LOCKED', message: expect.stringContaining('Keeping Them Happy') });
+    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'CASINO'))
+      .rejects.toMatchObject({ code: 'DISTRICT_ACCESS_LOCKED', message: expect.stringContaining('Payday') });
+
+    keys.add('DISTRICT_NIGHTCLUB_ACCESS');
+    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'NIGHTCLUB')).resolves.toBeUndefined();
+    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'CASINO')).rejects.toMatchObject({ code: 'DISTRICT_ACCESS_LOCKED' });
+    keys.add('DISTRICT_CASINO_ACCESS');
+    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'player-1', ruleset, 'CASINO')).resolves.toBeUndefined();
+  });
+
+  it('never gates an NPC gang, which runs no quests', async () => {
+    const db = {
+      playerUnlock: { findMany: async () => { throw new Error('an NPC gang needs no unlock lookup'); } },
+      npcGang: { findUnique: async () => ({ id: 'gang-1' }) },
+    } as unknown as Db;
+    const access = await PermanentUnlockService.districtAccess(db, 'npc-player', classicOgV18O as Ruleset);
+    expect([...access.values()].map((gate) => gate.unlocked)).toEqual([true, true]);
+    await expect(PermanentUnlockService.assertCanAccessDistrict(db, 'npc-player', classicOgV18O as Ruleset, 'CASINO')).resolves.toBeUndefined();
   });
 
   it('awards one idempotent per-round unlock with its source job', async () => {

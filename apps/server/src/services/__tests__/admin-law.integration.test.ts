@@ -121,8 +121,9 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('1.3.0-G admin law tools w
 
   it('offers every city for a correction, not only those with a Case', async () => {
     const view = (await get(`/api/admin/players/${playerId}/law`)).json<AdminLawPlayerDto>();
-    const enabled = await app.prisma.city.count({ where: { isEnabled: true } });
-    expect(view.cities).toHaveLength(enabled);
+    // 1.5.0-E3: only the enabled cities on this round's map.
+    const enabled = await app.prisma.city.findMany({ where: { isEnabled: true }, select: { slug: true } });
+    expect(view.cities).toHaveLength(enabled.filter((city) => !ruleset.cities || city.slug in ruleset.cities).length);
     expect(view.cities.length).toBeGreaterThan(view.page!.cases.length);
   });
 

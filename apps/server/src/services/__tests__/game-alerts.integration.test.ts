@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import type { NotificationPayload } from '@streets/shared';
+import { NOTIFICATION_CATEGORIES, type NotificationPayload } from '@streets/shared';
 import { classicOgV08H } from '@streets/rulesets';
 import { headsUpMinutes, startingStock } from '@streets/rules-engine';
 import { GameAlertService, REVENGE_REMINDER_HOURS } from '../game-alerts.service.js';
@@ -306,7 +306,7 @@ describe.runIf(process.env.GAME_ALERTS_INTEGRATION === '1')('0.9.0-G notificatio
     expect(feed.unreadCount).toBe(2);
 
     const settings = await app.inject({ method: 'GET', url: '/api/notifications/settings', headers: { cookie: players.attacker.cookie } });
-    // 1.3.0-B added the Case stage category.
-    expect(Object.keys(settings.json().categories)).toHaveLength(15);
+    // Every category the player can set, including ones added after this suite (1.3.0-B Case stage, and on).
+    expect(Object.keys(settings.json().categories).sort()).toEqual([...NOTIFICATION_CATEGORIES].sort());
   });
 });

@@ -396,6 +396,8 @@ export const BlockWarService = {
         const { business, model } = requireWars(ruleset);
         const war = await loadWar(tx, input.warId, round.id);
         if (war.attackerId === allyId || war.defenderId === allyId) throw AppError.conflict('BLOCK_WAR_OWN', 'This is your own war.');
+        // An ally fights on the block too, so a district the ally has not opened stays closed to them.
+        await PermanentUnlockService.assertCanAccessDistrict(tx, allyId, ruleset, war.turf.district as DistrictKey);
         const attackerSide = input.side === 'ATTACKER';
         const callerId = attackerSide ? war.attackerId : war.defenderId;
         const enemyId = attackerSide ? war.defenderId : war.attackerId;

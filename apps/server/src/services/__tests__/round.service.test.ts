@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Round } from '@prisma/client';
 import { classicOgV01 } from '@streets/rulesets';
 import { assertJoinable, finalStandingRanks, isJoinable, RoundService } from '../round.service.js';
+import { ROUND_AFTERMATH_SCHEMA_VERSION, ROUND_AFTERMATH_SOURCE_REVISION } from '../round-aftermath.service.js';
 import { TurfWarSettlementService } from '../turf-war-settle.service.js';
 
 afterEach(() => vi.restoreAllMocks());
@@ -199,8 +200,8 @@ describe.runIf(process.env.ROUND_INTEGRATION === '1')('RoundService season end w
     const aftermath = await app.prisma.roundAftermathReport.findUniqueOrThrow({ where: { roundId: round.id } });
     expect(aftermath).toMatchObject({
       status: 'READY',
-      schemaVersion: 1,
-      sourceRevision: 'round-aftermath-v1',
+      schemaVersion: ROUND_AFTERMATH_SCHEMA_VERSION,
+      sourceRevision: ROUND_AFTERMATH_SOURCE_REVISION,
       cutoffAt: round.endsAt,
     });
     const snapshotPlayers = aftermath.playerAggregates as Array<{ roundPlayerId: string; nationalRank: number | null; netWorthCents: string }>;

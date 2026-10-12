@@ -35,7 +35,7 @@ This is a proposed roadmap. It does not change live or historical rulesets until
 
 ## Slice status and roadmap
 
-Slice A is implemented on beta as the access foundation. Slice B is implemented in ruleset `classic-og-v1.8-f` and Slice C in `classic-og-v1.8-m`. Slice D is implemented on top of them. Slice E is the next implementation slice.
+Slice A is implemented on beta as the access foundation; ruleset `classic-og-v1.8-o` is the first to define district gates. Slice B is implemented in ruleset `classic-og-v1.8-f` and Slice C in `classic-og-v1.8-m`. Slice D is implemented on top of them. Slice E is the next implementation slice.
 
 | Slice | Status | Theme | Outcome |
 | --- | --- | --- | --- |
@@ -56,6 +56,9 @@ Slice A is implemented on beta as the access foundation. Slice B is implemented 
 - Show locked recipes as visible future options, with their role and the required quest. Do not offer them as selectable batches.
 - Keep old rulesets ungated unless they already define a production unlock. Historical players retain the behavior their round began with.
 - Support `DISTRICT_ACCESS`, keyed by district, as a separate effect that gates Scout and Turf actions only. Keep every district visible on the Scout and Turf pages and explain which quest opens a locked district; Turf controls in a locked district remain unavailable until the quest is complete.
+- **1.8.0-O district gates.** Until this ruleset no ruleset defined a `DISTRICT_ACCESS` unlock, so every district stayed open. A 1.8.0-O round starts in Wino Slums, Low Rent and the Urban Ghetto. Mama's story jobs open the two upscale districts: *Keeping Them Happy* (Lesson 3) opens the Nightclub, ahead of Night Shift, which works it; *Payday* (Lesson 5) opens the Casino. Both jobs are on the story path every player walks.
+- The daily board skips a card that scouts a locked district and deals the next card in the round's deck, as it does for a locked recipe. Weeklies stay on the shared board: Night Owl runs seven days and the Nightclub opens on Lesson 3.
+- NPC gangs run no quests and are never district-gated.
 
 **Gate:** A locked recipe cannot be produced through a direct or replayed API request, and locked districts reject Scout and Turf actions through direct or replayed API requests. Locked options remain visible with their quest path. Unlocked actions retain the existing turn, ingredient, crew, Heat, turf, and idempotency checks.
 

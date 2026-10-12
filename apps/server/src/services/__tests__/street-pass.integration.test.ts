@@ -211,8 +211,8 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
       'street-pass-s1-dead-or-alive-frame', 'street-pass-s1-dead-or-alive-theme', 'street-pass-s1-fire-dragon-theme',
       'street-pass-s1-frame', 'street-pass-s1-fresh-face', 'street-pass-s1-gilded-house-frame', 'street-pass-s1-gilded-house-theme',
       'street-pass-s1-ice-dragon-theme', 'street-pass-s1-inferno-frame', 'street-pass-s1-kingpin',
-      'street-pass-s1-laurel-ascendant-frame', 'street-pass-s1-laurel-ascendant-theme', 'street-pass-s1-lantern-district-frame',
-      'street-pass-s1-lantern-district-theme', 'street-pass-s1-made-man', 'street-pass-s1-midnight-ops',
+      'street-pass-s1-lantern-district-frame', 'street-pass-s1-lantern-district-theme', 'street-pass-s1-laurel-ascendant-frame',
+      'street-pass-s1-laurel-ascendant-theme', 'street-pass-s1-made-man', 'street-pass-s1-midnight-ops',
       'street-pass-s1-phantom-convoy-frame', 'street-pass-s1-phantom-convoy-theme', 'street-pass-s1-siren-breaker-frame',
       'street-pass-s1-siren-breaker-theme', 'street-pass-s1-snowstorm-frame', 'street-pass-s1-urban-ghost',
     ]);
