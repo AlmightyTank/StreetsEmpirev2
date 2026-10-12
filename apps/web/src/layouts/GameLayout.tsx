@@ -65,9 +65,13 @@ function Badge({ badge }: { badge: NavBadge | null | undefined }) {
 function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathname: string; badges: Record<string, NavBadge> }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => readNavState());
   const [query, setQuery] = useState('');
-  const visible = filterNavSections(sections, query);
-  // Folded to icons, every page shows and each link names itself on hover.
+  // An icon rail must always contain every destination: the search field is hidden there.
   const rail = useSidebarRail();
+  const visible = filterNavSections(sections, rail ? '' : query);
+
+  useEffect(() => {
+    if (rail) setQuery('');
+  }, [rail]);
 
   useEffect(() => {
     writeNavState(expanded);
@@ -274,7 +278,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onE
     }
     if (event.key !== 'Tab' || !sheet.current) return;
     // Keep focus inside the sheet while it is open.
-    const focusable = [...sheet.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')];
+    const focusable = [...sheet.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])')];
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
