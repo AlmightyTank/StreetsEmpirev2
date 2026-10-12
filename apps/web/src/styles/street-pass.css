@@ -1668,10 +1668,13 @@
 
 .se-pass-theme-preview__frame-avatar {
   position: absolute;
-  z-index: 1;
+  top: 28%;
+  left: 28%;
+  z-index: 3;
   display: grid;
   place-items: center;
   aspect-ratio: 1;
+  width: 44%;
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.76);
   border-radius: 50%;

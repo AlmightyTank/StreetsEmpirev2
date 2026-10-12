@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
   CONTACTS_MAX,
+  readAvatarParts,
   type PlayerActivityBand,
   type PlayerDirectoryDto,
   type PlayerDirectoryView,
@@ -28,7 +29,18 @@ const directorySelect = {
   lastActiveAt: true,
   city: { select: { slug: true, name: true } },
   alliance: { select: { name: true, tag: true } },
-  account: { select: { profile: { select: { crewName: true } } } },
+  account: {
+    select: {
+      profile: {
+        select: {
+          crewName: true,
+          profileImageUrl: true,
+          profileAvatar: true,
+          activeAvatarFrameKey: true,
+        },
+      },
+    },
+  },
 } satisfies Prisma.RoundPlayerSelect;
 
 type DirectoryRow = Prisma.RoundPlayerGetPayload<{ select: typeof directorySelect }>;
@@ -341,6 +353,9 @@ export const PlayerDirectoryService = {
         publicPimpId: row.publicPimpId,
         displayName: row.displayName,
         crewName: row.account.profile?.crewName ?? null,
+        imageUrl: row.account.profile?.profileImageUrl ?? null,
+        avatar: readAvatarParts(row.account.profile?.profileAvatar),
+        avatarFrame: row.account.profile?.activeAvatarFrameKey ?? null,
         alliance: allianceTagDto(row.alliance),
         city: row.city,
         netWorthCents: Number(row.netWorthCents),

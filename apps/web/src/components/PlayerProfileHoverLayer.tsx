@@ -7,24 +7,17 @@ import { communityApi } from '../api/community.js';
 import { ItemTile } from './ItemTile.js';
 import { hasProfileLook } from './ProfileLook.js';
 import { SupporterMark } from './SupporterMark.js';
-import { AvatarFace } from './BuiltAvatar.js';
+import { AvatarPortrait } from './BuiltAvatar.js';
 
-type Target = { id: number; anchor: HTMLAnchorElement; label: string };
+type Target = { id: number; anchor: HTMLAnchorElement; hoverRoot: HTMLElement; label: string };
 type Position = { top: number; left: number; width: number };
 const cache = new Map<number, Promise<PublicPlayerProfileDto>>();
 const CARD_WIDTH = 330;
-const CARD_HEIGHT = 370;
+const CARD_FALLBACK_HEIGHT = 370;
+const VIEWPORT_GUTTER = 12;
+const ANCHOR_GAP = 10;
 /** Slice F: the hover card's look strip, a gun and the ride (plus both crew) in the owner's art. */
 const HOVER_LOOK_ITEMS = ['AK47', 'LOW_RIDER'] as const;
-const PROFILE_EFFECT_FRAME_ART = {
-  snowstorm: {
-    avatar: '/profile-frames/snowstorm-avatar.webp',
-  },
-  inferno: {
-    avatar: '/profile-frames/inferno-avatar.webp',
-  },
-} as const;
-const MIDNIGHT_CHROME_RING = '/profile-frames/midnight-chrome-avatar.webp';
 
 /** Chip text for the equipped avatar frame; the Signature card reads as a card, not a frame key. */
 function frameChip(key: string): string {
@@ -52,6 +45,15 @@ function profileLink(target: EventTarget | null): HTMLAnchorElement | null {
   if (url.origin !== window.location.origin) return null;
   const match = url.pathname.match(/^\/game\/players\/(\d+)\/?$/);
   return match ? anchor : null;
+}
+
+function profileTrigger(target: EventTarget | null): { anchor: HTMLAnchorElement; hoverRoot: HTMLElement } | null {
+  if (!(target instanceof Element)) return null;
+  const hoverRoot = target.closest<HTMLElement>('[data-profile-hover-trigger]');
+  const anchor = profileLink(target)
+    ?? (hoverRoot ? Array.from(hoverRoot.querySelectorAll<HTMLAnchorElement>('a[href]')).find((candidate) => profileLink(candidate) === candidate) ?? null : null);
+  if (!anchor) return null;
+  return { anchor, hoverRoot: hoverRoot ?? anchor };
 }
 
 function playerId(anchor: HTMLAnchorElement): number | null {
@@ -98,12 +100,12 @@ export function PlayerProfileHoverLayer() {
     setFailed(false);
   }
 
-  function activate(anchor: HTMLAnchorElement) {
+  function activate(anchor: HTMLAnchorElement, hoverRoot: HTMLElement = anchor) {
     const id = playerId(anchor);
     if (!id) return;
     clearCloseTimer();
     if (targetRef.current?.anchor === anchor) return;
-    const next = { id, anchor, label: anchor.textContent?.trim() || `Player #${id}` };
+    const next = { id, anchor, hoverRoot, label: anchor.textContent?.trim() || `Player #${id}` };
     targetRef.current?.anchor.removeAttribute('aria-expanded');
     targetRef.current?.anchor.removeAttribute('aria-controls');
     anchor.setAttribute('aria-expanded', 'true');
@@ -131,21 +133,21 @@ export function PlayerProfileHoverLayer() {
 
     function onPointerOver(event: PointerEvent) {
       if (media.matches || !(event.target instanceof Element)) return;
-      const anchor = profileLink(event.target);
-      if (anchor && !anchor.contains(event.relatedTarget as Node | null)) activate(anchor);
+      const trigger = profileTrigger(event.target);
+      if (trigger && !trigger.hoverRoot.contains(event.relatedTarget as Node | null)) activate(trigger.anchor, trigger.hoverRoot);
       if (cardRef.current?.contains(event.target)) clearCloseTimer();
     }
     function onPointerOut(event: PointerEvent) {
       if (media.matches || !(event.target instanceof Element)) return;
-      const anchor = profileLink(event.target);
-      if (anchor && !anchor.contains(event.relatedTarget as Node | null)
+      const trigger = profileTrigger(event.target);
+      if (trigger && !trigger.hoverRoot.contains(event.relatedTarget as Node | null)
         && !cardRef.current?.contains(event.relatedTarget as Node | null)) scheduleClose();
       if (cardRef.current?.contains(event.target) && !cardRef.current.contains(event.relatedTarget as Node | null)) scheduleClose();
     }
     function onFocusIn(event: FocusEvent) {
       if (suppressFocus.current) return;
-      const anchor = profileLink(event.target);
-      if (anchor) activate(anchor);
+      const trigger = profileTrigger(event.target);
+      if (trigger) activate(trigger.anchor, trigger.hoverRoot);
       if (cardRef.current?.contains(event.target as Node)) clearCloseTimer();
     }
     function onFocusOut(event: FocusEvent) {
@@ -165,7 +167,7 @@ export function PlayerProfileHoverLayer() {
       }
       event.preventDefault();
       lastTap.current = anchor;
-      activate(anchor);
+      activate(anchor, anchor.closest<HTMLElement>('[data-profile-hover-trigger]') ?? anchor);
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape' && targetRef.current) {
@@ -216,23 +218,35 @@ export function PlayerProfileHoverLayer() {
 
   useLayoutEffect(() => {
     if (!target || touch) return;
-    const anchor = target.anchor;
+    const hoverRoot = target.hoverRoot;
+    let animationFrame = 0;
     function updatePosition() {
-      const rect = anchor.getBoundingClientRect();
-      const width = Math.min(CARD_WIDTH, window.innerWidth - 24);
-      const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
-      const below = rect.bottom + 10;
-      const top = below + CARD_HEIGHT < window.innerHeight - 12
-        ? below
-        : Math.max(12, rect.top - CARD_HEIGHT - 10);
+      const rect = hoverRoot.getBoundingClientRect();
+      const width = Math.min(CARD_WIDTH, window.innerWidth - VIEWPORT_GUTTER * 2);
+      const left = Math.max(VIEWPORT_GUTTER, Math.min(rect.left, window.innerWidth - width - VIEWPORT_GUTTER));
+      const measuredHeight = cardRef.current?.getBoundingClientRect().height ?? CARD_FALLBACK_HEIGHT;
+      const height = Math.min(measuredHeight, window.innerHeight - VIEWPORT_GUTTER * 2);
+      const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_GUTTER;
+      const spaceAbove = rect.top - VIEWPORT_GUTTER;
+      const placeBelow = spaceBelow >= height + ANCHOR_GAP || spaceBelow >= spaceAbove;
+      const preferredTop = placeBelow ? rect.bottom + ANCHOR_GAP : rect.top - height - ANCHOR_GAP;
+      const top = Math.max(VIEWPORT_GUTTER, Math.min(preferredTop, window.innerHeight - height - VIEWPORT_GUTTER));
       setPosition({ top, left, width });
     }
+    function queuePositionUpdate() {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(updatePosition);
+    }
     updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
+    const observer = new ResizeObserver(queuePositionUpdate);
+    if (cardRef.current) observer.observe(cardRef.current);
+    window.addEventListener('resize', queuePositionUpdate);
+    window.addEventListener('scroll', queuePositionUpdate, true);
     return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
+      observer.disconnect();
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener('resize', queuePositionUpdate);
+      window.removeEventListener('scroll', queuePositionUpdate, true);
     };
   }, [target, touch]);
 
@@ -240,7 +254,6 @@ export function PlayerProfileHoverLayer() {
 
   if (!target) return null;
   const to = `/game/players/${target.id}`;
-  const frameArt = profile ? PROFILE_EFFECT_FRAME_ART[profile.cosmetics.effect as keyof typeof PROFILE_EFFECT_FRAME_ART] : null;
   const avatarFrame = profile?.cosmetics.avatarFrame === undefined
     ? profile?.cosmetics.frame ?? null
     : profile.cosmetics.avatarFrame ?? null;
@@ -279,11 +292,13 @@ export function PlayerProfileHoverLayer() {
       </div>
       <div className="se-profile-hover-card__identity">
         <span className="se-profile-hover-card__avatar" aria-hidden="true">
-          <AvatarFace imageUrl={profile?.cosmetics.imageUrl} avatar={profile?.cosmetics.avatar} fallback={initials(profile?.displayName ?? target.label)} />
+          <AvatarPortrait
+            imageUrl={profile?.cosmetics.imageUrl}
+            avatar={profile?.cosmetics.avatar}
+            fallback={initials(profile?.displayName ?? target.label)}
+            frameKey={avatarFrame}
+          />
         </span>
-        {signature
-          ? <img className="se-profile-hover-card__avatar-art se-profile-hover-card__avatar-art--midnight-chrome" src={MIDNIGHT_CHROME_RING} alt="" aria-hidden="true" />
-          : frameArt ? <img className="se-profile-hover-card__avatar-art" src={frameArt.avatar} alt="" aria-hidden="true" /> : null}
         <span className="se-profile-hover-card__identity-copy">
           {profile?.cosmetics.title ? <span className="se-profile-hover-card__title">{profile.cosmetics.title}</span> : null}
           <strong><span>{profile?.displayName ?? target.label}</span>{signature ? <SupporterMark /> : null}</strong>

@@ -91,6 +91,16 @@
   object-fit: cover;
 }
 
+.se-settings-hero__avatar--framed {
+  overflow: visible;
+  width: 72px;
+  height: 72px;
+  margin: -7px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .se-settings-hero__player {
   display: grid;
   min-width: 0;

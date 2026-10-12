@@ -161,6 +161,9 @@
   object-fit: cover;
 }
 .se-profile-hover-card[data-avatar-frame]:not([data-avatar-frame="none"]) .se-profile-hover-card__avatar {
+  overflow: visible;
+  border-color: transparent;
+  background: transparent;
   box-shadow: 0 0 0 3px var(--se-hover-accent), 0 0 18px color-mix(in srgb, var(--se-hover-accent) 65%, transparent);
   animation: se-profile-frame-pulse 3.4s ease-in-out infinite;
 }
@@ -511,6 +514,9 @@
    Keep the motion slow and mostly on opacity/box-shadow so it stays light in long lists. */
 .se-profile-hover-card[data-avatar-frame]:not([data-avatar-frame="none"]) .se-profile-hover-card__avatar,
 .se-profile-card-preview[data-avatar-frame]:not([data-avatar-frame="none"]) .se-profile-card-preview__avatar {
+  overflow: visible;
+  border-color: transparent;
+  background: transparent;
   box-shadow:
     0 0 0 2px var(--se-hover-accent, #a4cf5b),
     0 0 0 5px color-mix(in srgb, var(--se-hover-accent, #a4cf5b) 30%, transparent);
@@ -1026,6 +1032,9 @@
 .se-profile-hover-card.se-signature-card[data-avatar-frame="midnight-chrome-frame"] .se-profile-hover-card__avatar { box-shadow: none; animation: none; }
 .se-profile-card-preview__avatar-art--midnight-chrome { top: 50%; left: -12px; width: 100px; height: 100px; transform: translateY(-50%); }
 .se-profile-card-preview.se-signature-card[data-avatar-frame="midnight-chrome-frame"] .se-profile-card-preview__avatar { box-shadow: none; }
+
+/* Cosmetic effects decorate the popup but must never change its viewport anchoring. */
+.se-profile-hover-card.se-profile-effect { position: fixed; }
 
 /* Settings preview card, so a supporter sees the card they are choosing. */
 .se-profile-card-preview.se-signature-card {

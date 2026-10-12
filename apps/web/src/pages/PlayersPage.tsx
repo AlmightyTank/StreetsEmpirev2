@@ -9,6 +9,7 @@ import { AllianceTag } from '../components/AllianceTag.js';
 import { ThemeSwatch } from '../components/ThemeSwatch.js';
 import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
+import { AvatarPortrait } from '../components/BuiltAvatar.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { ContactsPage } from './ContactsPage.js';
 
@@ -32,6 +33,11 @@ function activityClass(activity: PlayerActivityBand): string {
   if (activity === 'online') return 'se-tag se-tag--good';
   if (activity === 'recent') return 'se-tag se-players-status--recent';
   return 'se-tag se-tag--dim';
+}
+
+function initials(name: string): string {
+  const parts = name.replace(/([a-z])([A-Z])/g, '$1 $2').split(/[\s_.-]+/).filter(Boolean);
+  return (parts.length > 1 ? `${parts[0]![0]}${parts[1]![0]}` : name.slice(0, 2)).toUpperCase();
 }
 
 export function PlayersPage() {
@@ -179,17 +185,22 @@ export function PlayersPage() {
                     {data.players.map((player) => (
                       <tr key={player.publicPimpId} className={player.isYou ? 'se-players-row--you' : undefined}>
                         <td className="se-td--title" data-label="Player">
-                          <div className="se-players-person">
-                            <div className="se-players-person__name">
-                              <AllianceTag alliance={player.alliance} />
-                              <Link className="se-playerlink" to={`/game/players/${player.publicPimpId}`}>
-                                {player.displayName}
-                              </Link>
-                              <span className="se-muted se-num">#{player.publicPimpId}</span>
-                              <ThemeSwatch theme={player.siteTheme} label={player.siteThemeLabel} />
-                              {player.isYou ? <span className="se-tag se-tag--good">You</span> : null}
+                          <div className="se-players-person" data-profile-hover-trigger="">
+                            <span className={`se-players-person__avatar${player.avatarFrame ? ' se-players-person__avatar--framed' : ''}`} aria-hidden="true">
+                              <AvatarPortrait imageUrl={player.imageUrl} avatar={player.avatar} fallback={initials(player.displayName)} frameKey={player.avatarFrame} />
+                            </span>
+                            <div className="se-players-person__identity">
+                              <div className="se-players-person__name">
+                                <AllianceTag alliance={player.alliance} />
+                                <Link className="se-playerlink" to={`/game/players/${player.publicPimpId}`}>
+                                  {player.displayName}
+                                </Link>
+                                <span className="se-muted se-num">#{player.publicPimpId}</span>
+                                <ThemeSwatch theme={player.siteTheme} label={player.siteThemeLabel} />
+                                {player.isYou ? <span className="se-tag se-tag--good">You</span> : null}
+                              </div>
+                              {player.crewName ? <span className="se-players-person__crew se-muted">{player.crewName}</span> : null}
                             </div>
-                            {player.crewName ? <span className="se-players-person__crew se-muted">{player.crewName}</span> : null}
                           </div>
                         </td>
                         <td className="se-table__number se-num" data-label="National">

@@ -181,6 +181,49 @@
   vertical-align: middle;
 }
 
+.se-players-person {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.se-players-person__avatar {
+  display: inline-grid;
+  flex: 0 0 28px;
+  place-items: center;
+  overflow: hidden;
+  width: 28px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 72%, var(--se-line));
+  border-radius: 50%;
+  background: var(--se-panel-2);
+  color: var(--se-text);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+}
+
+.se-players-person__avatar > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.se-players-person__avatar--framed {
+  flex-basis: 36px;
+  overflow: visible;
+  width: 36px;
+  height: 36px;
+  margin-block: -4px;
+  border: 0;
+  background: transparent;
+}
+
+.se-players-person__identity { min-width: 0; }
+
 .se-players-person__name {
   display: flex;
   flex-wrap: wrap;

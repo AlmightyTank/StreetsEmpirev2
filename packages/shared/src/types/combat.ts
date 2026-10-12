@@ -288,8 +288,6 @@ export interface CombatPageDto {
   driveBy?: CombatDriveByDto;
   /** Local, fuzzy warnings about street crews in your current city. */
   gangIntel?: EncounterGangIntelDto;
-  /** Phase H. Local, fuzzy warnings about server-run gangs in your current city. */
-  npcGangIntel?: NpcGangIntelDto;
   /** The Ring in this round, when it has surfaced and not been destroyed. */
   ring?: CombatRingDto;
 }
@@ -304,5 +302,4 @@ export interface CombatRingDto {
   destroyTurnCost: number;
   foundryCitySlug: string;
   surfacedAt: string | null;
->>>>>>> 31d001fb
 }

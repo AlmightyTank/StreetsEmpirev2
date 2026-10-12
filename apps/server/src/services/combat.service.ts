@@ -865,7 +865,6 @@ export const CombatService = {
       ? await SingleUseFavorService.matching(prisma, playerId, ruleset, 'FREE_RECON')
       : null;
     const gangIntel = await encounterGangIntelDto(prisma, player, ruleset, now);
-    const npcGangIntel = await npcGangIntelDto(prisma, player, ruleset, now);
     // The Ring: lazy surface tick, so no cron is needed. Idempotent.
     await prisma.$transaction((tx) => RingService.maybeSurface(tx, round.id, now));
     const ringState = await prisma.ringState.findUnique({
@@ -1052,8 +1051,6 @@ export const CombatService = {
       await writeRanks(tx, ruleset, now, [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]]);
       const trophyCallouts = trophyCalloutsFor({ kind: 'RAID', won: result.winner === 'ATTACKER' }, await attackerTrophyProgress(tx, attackerId));
       const id = randomUUID();
-      // Phase N: NPC sides are flagged for reports and contracts, and beating a wanted crew pays a bounty.
-      const npc = await npcBattleOutcome(tx, { battleId: id, attackerId, defenderId: target.id, attackerWon: result.winner === 'ATTACKER', kind: 'RAID', ruleset, now });
       // Easter egg: a raid won with at most half the defender's fit thugs.
       if (result.winner === 'ATTACKER' && input.attackingThugs > 0 && input.attackingThugs <= fitThugs(defender) * LITTLE_FRIEND_MAX_ODDS) {
         await EasterEggService.discoverForPlayer(tx, attackerId, 'LITTLE_FRIEND', now);

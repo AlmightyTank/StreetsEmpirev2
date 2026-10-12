@@ -810,7 +810,6 @@ enum RingStatus {
   SURFACED
   DESTROYED
 }
-}
 
 enum GameEventType {
   COMMUNITY

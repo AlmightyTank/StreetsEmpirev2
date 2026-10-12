@@ -1092,6 +1092,96 @@
   border-radius: inherit;
 }
 
+/* Equipped avatar frames follow the face into every identity surface. */
+.se-avatar-portrait {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  border-radius: inherit;
+}
+
+.se-avatar-portrait__face {
+  position: absolute;
+  z-index: 1;
+  top: 28%;
+  left: 28%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  width: 44%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--se-accent) 18%, #111722);
+}
+
+.se-avatar-portrait__face > img,
+.se-avatar-portrait__face > .se-built-avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.se-avatar-portrait__art {
+  position: absolute !important;
+  z-index: 2 !important;
+  inset: 0;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  object-fit: contain !important;
+  pointer-events: none;
+}
+
+.se-avatar-portrait[data-avatar-frame="lantern-district-frame"] .se-avatar-portrait__face {
+  top: 21%;
+  left: 27%;
+  width: 46%;
+}
+
+.se-avatar-portrait[data-avatar-frame="street-pass-s1-frame"] .se-avatar-portrait__face {
+  top: 25%;
+  left: 25%;
+  width: 50%;
+}
+
+.se-avatar-frame {
+  --se-avatar-frame-color: var(--se-accent);
+  position: relative;
+  isolation: isolate;
+}
+
+.se-avatar-portrait.se-avatar-frame .se-avatar-portrait__face {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.se-avatar-frame::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.92),
+    inset 0 0 0 3px var(--se-avatar-frame-color),
+    inset 0 0 9px color-mix(in srgb, var(--se-avatar-frame-color) 62%, transparent);
+  pointer-events: none;
+}
+
+.se-avatar-frame[data-avatar-frame="ghost-frame"] { --se-avatar-frame-color: #a78bfa; }
+.se-avatar-frame[data-avatar-frame="top-shelf-frame"] { --se-avatar-frame-color: #2dd4bf; }
+.se-avatar-frame[data-avatar-frame="full-rack-frame"] { --se-avatar-frame-color: #f43f5e; }
+.se-avatar-frame[data-avatar-frame="open-road-frame"] { --se-avatar-frame-color: #38bdf8; }
+.se-avatar-frame[data-avatar-frame="clean-slate-frame"] { --se-avatar-frame-color: #a5f3fc; }
+.se-avatar-frame[data-avatar-frame="corner-boss-frame"] { --se-avatar-frame-color: #f59e0b; }
+.se-avatar-frame[data-avatar-frame="velvet-rope-frame"] { --se-avatar-frame-color: #e0607e; }
+.se-avatar-frame[data-avatar-frame="case-file-frame"] { --se-avatar-frame-color: #d6b578; }
+
 .se-avatar-mode {
   display: inline-flex;
   flex-wrap: wrap;

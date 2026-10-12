@@ -28,7 +28,7 @@ import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { SupporterPanel } from '../components/SupporterPanel.js';
 import { ItemCrewCosmeticsEditor } from '../components/ItemCrewCosmeticsEditor.js';
 import { AvatarBuilder } from '../components/AvatarBuilder.js';
-import { AvatarFace } from '../components/BuiltAvatar.js';
+import { AvatarPortrait } from '../components/BuiltAvatar.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -41,15 +41,6 @@ const SESSIONS_SHOWN = 5;
 /** Used when settings fail to load: only Classic is known to be owned. */
 const FALLBACK_ITEM_STYLES = collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, new Set());
 const FALLBACK_CREW_STYLES = collectionOptions(RELEASED_CREW_COSMETIC_STYLES, new Set());
-const PROFILE_EFFECT_FRAME_ART: Partial<Record<ProfileEffect, { avatar: string }>> = {
-  snowstorm: {
-    avatar: '/profile-frames/snowstorm-avatar.webp',
-  },
-  inferno: {
-    avatar: '/profile-frames/inferno-avatar.webp',
-  },
-};
-
 type AvatarMode = 'initials' | 'image' | 'built';
 
 const AVATAR_MODES: { key: AvatarMode; label: string }[] = [
@@ -377,7 +368,6 @@ export function AccountSettingsPage() {
   const selectedAccent = profileSettings?.options.accents.find((option) => option.key === cosmetics.profileAccent);
   const selectedTitle = profileSettings?.options.titles.find((option) => option.key === cosmetics.activeTitleKey);
   const selectedAvatarFrame = profileSettings?.options.frames.find((option) => option.key === cosmetics.activeAvatarFrameKey);
-  const profileEffectFrameArt = PROFILE_EFFECT_FRAME_ART[cosmetics.profileEffect];
   // Signature Profile Card (supporter reward): on while its frame is the avatar frame.
   const signature = cosmetics.activeAvatarFrameKey === SIGNATURE_CARD_FRAME_KEY;
   const surfaceOptions = profileSettings?.options.surfaces ?? [];
@@ -395,8 +385,8 @@ export function AccountSettingsPage() {
           <p>Shape how StreetsEmpire looks, feels and reaches you. Your criminal record stays on the streets; everything here is yours alone.</p>
         </div>
         <div className="se-settings-hero__identity">
-          <span className="se-settings-hero__avatar" aria-hidden="true">
-            <AvatarFace imageUrl={cosmetics.profileImageUrl} avatar={cosmetics.profileAvatar} fallback={initials(displayName)} />
+          <span className={`se-settings-hero__avatar${cosmetics.activeAvatarFrameKey ? ' se-settings-hero__avatar--framed' : ''}`} aria-hidden="true">
+            <AvatarPortrait imageUrl={cosmetics.profileImageUrl} avatar={cosmetics.profileAvatar} fallback={initials(displayName)} frameKey={cosmetics.activeAvatarFrameKey} />
           </span>
           <div className="se-settings-hero__player">
             <span className="se-settings-hero__label">Signed in as</span>
@@ -923,11 +913,13 @@ export function AccountSettingsPage() {
                   </div>
                   <div className="se-profile-card-preview__identity">
                     <span className="se-profile-card-preview__avatar" aria-hidden="true" title={selectedAvatarFrame?.label}>
-                      <AvatarFace imageUrl={cosmetics.profileImageUrl} avatar={cosmetics.profileAvatar} fallback={initials(displayName)} />
+                      <AvatarPortrait
+                        imageUrl={cosmetics.profileImageUrl}
+                        avatar={cosmetics.profileAvatar}
+                        fallback={initials(displayName)}
+                        frameKey={cosmetics.activeAvatarFrameKey}
+                      />
                     </span>
-                    {signature
-                      ? <img className="se-profile-card-preview__avatar-art se-profile-card-preview__avatar-art--midnight-chrome" src="/profile-frames/midnight-chrome-avatar.webp" alt="" aria-hidden="true" />
-                      : profileEffectFrameArt ? <img className="se-profile-card-preview__avatar-art" src={profileEffectFrameArt.avatar} alt="" aria-hidden="true" /> : null}
                     <div>
                       <strong className="se-profile-card-preview__name">
                         {profileNameParts(displayName, selectedTitle?.label).map((part, index, parts) => (

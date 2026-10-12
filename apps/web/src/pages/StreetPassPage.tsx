@@ -219,7 +219,6 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
             role="img"
             aria-label={`${displayName}'s avatar shown with ${active.label}`}
           >
-            <img className="se-pass-theme-preview__frame-art" src={itemArtUrl(active.art)} alt="" />
             {profileImageUrl ? (
               <img className="se-pass-theme-preview__frame-avatar" src={profileImageUrl} alt="" />
             ) : profileAvatar ? (
@@ -231,6 +230,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
                 {playerInitials(displayName)}
               </span>
             )}
+            <img className="se-pass-theme-preview__frame-art" src={itemArtUrl(active.art)} alt="" />
           </div>
         ) : active.kind === 'item' && activeCollectionStyle && activeWeapon ? (
           <div className="se-pass-theme-preview__weapon-stage">
