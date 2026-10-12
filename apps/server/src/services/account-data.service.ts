@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
-import { APP_VERSION } from '@streets/shared';
+import { APP_VERSION, normalizeUsername } from '@streets/shared';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { lockAccount, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
@@ -60,7 +60,7 @@ export async function eraseAccount(tx: Db, before: Account, replacementPasswordH
     where: { id: before.id },
     data: {
       username: tombstone.username,
-      usernameNormalized: tombstone.username.toLowerCase(),
+      usernameNormalized: normalizeUsername(tombstone.username),
       email: tombstone.email,
       emailVerifiedAt: null,
       passwordHash: replacementPasswordHash,

@@ -22,7 +22,8 @@ datasource db {
 model Account {
   id                          String    @id @default(cuid())
   username                    String
-  /// Lowercased username. Enforces case-insensitive uniqueness.
+  /// Lowercased username. Enforces case-insensitive uniqueness. A database CHECK
+  /// (Account_usernameNormalized_lowercase) refuses any row where this is not lower(username).
   usernameNormalized          String    @unique
   /// Lowercased email. Private account recovery and login address.
   email                       String    @unique

@@ -89,8 +89,8 @@ try {
     const username = `seed-rival-${rival.slug}`;
     const account = await prisma.account.upsert({
       where: { email: `${username}@streets.local` },
-      update: { username, usernameNormalized: username, isActive: false },
-      create: { username, usernameNormalized: username, email: `${username}@streets.local`, passwordHash: 'seeded-local-rival-account', isActive: false },
+      update: { username, usernameNormalized: username.toLowerCase(), isActive: false },
+      create: { username, usernameNormalized: username.toLowerCase(), email: `${username}@streets.local`, passwordHash: 'seeded-local-rival-account', isActive: false },
     });
     const existing = await prisma.roundPlayer.findUnique({ where: { roundId_accountId: { roundId: round.id, accountId: account.id } }, select: { id: true } });
     if (existing) {

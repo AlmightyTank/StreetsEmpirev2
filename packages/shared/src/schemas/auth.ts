@@ -19,6 +19,16 @@ export const usernameSchema = z
     'Pimp name can only use letters, numbers, underscores and hyphens.',
   );
 
+/**
+ * The one key a pimp name is unique by. AMightyTank and amightytank are the same player,
+ * so every lookup and every write of Account.usernameNormalized goes through this. The
+ * database refuses a row whose usernameNormalized is not lower(username), so it must stay
+ * a plain lowercase to match Postgres.
+ */
+export function normalizeUsername(username: string): string {
+  return username.toLowerCase();
+}
+
 export const emailSchema = z
   .string()
   .trim()

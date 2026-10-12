@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { RULES_VERSION, changeEmailSchema, closeAccountSchema, deleteAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
+import { RULES_VERSION, changeEmailSchema, closeAccountSchema, deleteAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, normalizeUsername, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
 import { adminNeedsSecondFactor } from '../auth/play-access.js';
@@ -282,7 +282,7 @@ async function uniqueUsername(prisma: PrismaClient, base: string): Promise<strin
     const suffix = i === 0 ? '' : String(i);
     const candidate = `${fallback.slice(0, 20 - suffix.length)}${suffix}`;
     const existing = await prisma.account.findUnique({
-      where: { usernameNormalized: candidate.toLowerCase() },
+      where: { usernameNormalized: normalizeUsername(candidate) },
       select: { id: true },
     });
     if (!existing) return candidate;
@@ -418,7 +418,7 @@ async function accountForDiscordUser(
   return prisma.account.create({
     data: {
       username,
-      usernameNormalized: username.toLowerCase(),
+      usernameNormalized: normalizeUsername(username),
       email,
       emailVerifiedAt: now,
       passwordHash: await hashPassword(randomBytes(32).toString('base64url')),
@@ -496,7 +496,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(registerSchema, request.body);
     // rc.5: the bot check comes first, before anything touches the database.
     await assertHuman(body.captchaToken, request.ip, request.log);
-    const usernameNormalized = body.username.toLowerCase();
+    const usernameNormalized = normalizeUsername(body.username);
 
     const clash = await fastify.prisma.account.findFirst({
       where: {

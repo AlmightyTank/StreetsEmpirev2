@@ -15,6 +15,7 @@ import {
   ADMIN_SUSPENSION_LENGTHS,
   type AdminCommsMuteLength,
   type AdminSuspensionLength,
+  normalizeUsername,
 } from '@streets/shared';
 import { commsMuted } from './communication-guard.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
@@ -236,7 +237,7 @@ export const AdminAccountService = {
       ...(query
         ? {
             OR: [
-              { usernameNormalized: { contains: query.toLowerCase() } },
+              { usernameNormalized: { contains: normalizeUsername(query) } },
               { email: { contains: query.toLowerCase() } },
               { discordUsername: { contains: query, mode: 'insensitive' } },
               { id: query },
@@ -600,7 +601,7 @@ export const AdminAccountService = {
       if (before.username === username) {
         throw AppError.badRequest('USERNAME_UNCHANGED', `${before.username} already has that name.`, { username: 'Pick a different name.' });
       }
-      const usernameNormalized = username.toLowerCase();
+      const usernameNormalized = normalizeUsername(username);
       const clash = await tx.account.findFirst({ where: { usernameNormalized, id: { not: before.id } }, select: { id: true } });
       if (clash) throw AppError.conflict('USERNAME_TAKEN', `${username} is already taken.`, { username: 'That pimp name is taken.' });
       const account = await tx.account.update({ where: { id: before.id }, data: { username, usernameNormalized } });
