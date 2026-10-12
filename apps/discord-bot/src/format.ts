@@ -53,58 +53,89 @@ function formatCentsString(cents: string): string {
   return `${amount < 0n ? '-$' : '$'}${whole}.${fraction}`;
 }
 
+/** Discord supports flat embed fields, not nested cards: use paired inline stats and themed sections. */
 function roundRecapEmbed(event: RoundEvent): APIEmbed | null {
   const recap = event.recap;
   if (!recap) return null;
-  const metric = (value: number | null, label: string) => value === null ? `${label}: Not recorded` : `${label}: ${formatNumber(value)}`;
-  const champValueLimit = 1024;
-  const champions: string[] = [];
-  let championsLength = 0;
-  for (const award of recap.champions) {
-    const names = award.winners.slice(0, 2).map((winner) => escapeRoundName(winner.displayName));
-    const more = award.winners.length > names.length ? ` +${award.winners.length - names.length} more` : '';
-    const value = award.unit === 'cents'
-      ? formatCentsString(String(award.value))
-      : `${formatNumber(Number(award.value))} ${escapeRoundName(award.unit)}`;
-    const line = `**${escapeRoundName(award.title)}** · ${value} — ${names.join(', ')}${more}`;
-    if (championsLength + line.length + (champions.length ? 1 : 0) > champValueLimit) break;
-    champions.push(line);
-    championsLength += line.length + (champions.length > 1 ? 1 : 0);
-  }
+
+  const number = (value: number | null | undefined) => value == null ? 'Not recorded' : formatNumber(value);
+  const money = (value: string | null) => value == null ? 'Not recorded' : formatCentsString(value);
+  const stats: Array<[string, string]> = [
+    ['👥 Players', number(recap.participants)],
+    ['🌆 Cities', number(recap.cities)],
+    ['🤝 Alliances', number(recap.alliances)],
+    ['💰 Final net worth', money(recap.finalNetWorthCents)],
+    ['🏴 Turf blocks held', number(recap.turfBlocksHeld)],
+    ['🧑‍🤝‍🧑 Crew at cutoff', number(recap.finalCrewMembers)],
+    ['📦 Drugs held at cutoff', number(recap.drugsHeldAtCutoff)],
+    ['🏢 Active businesses', number(recap.activeBusinessesHeld)],
+    ['⚔️ Crime attempts', number(recap.crimeActionsAttempted)],
+    ['🏅 Ranked competitors', number(recap.eligibleCompetitors)],
+  ];
+
   const topPlayers: string[] = [];
-  let topPlayersLength = 0;
-  for (const player of recap.topPlayers) {
-    const line = `**#${player.rank}** [${escapeRoundName(player.displayName)}](${player.profileUrl}) · ${formatCentsString(player.netWorthCents)} · ${escapeRoundName(player.city)}`;
-    if (topPlayersLength + line.length + (topPlayers.length ? 1 : 0) > 1024) break;
+  for (const player of recap.topPlayers.slice(0, 3)) {
+    const medal = ['🥇', '🥈', '🥉'][topPlayers.length] ?? '🏅';
+    const name = escapeRoundName(truncate(player.displayName, 70));
+    const line = `${medal} **#${player.rank}** [${name}](${player.profileUrl}) — **${formatCentsString(player.netWorthCents)}**`;
+    if ([...topPlayers, line].join('\n').length > 1024) break;
     topPlayers.push(line);
-    topPlayersLength += line.length + (topPlayers.length > 1 ? 1 : 0);
   }
 
+  const championIcons: Record<string, string> = {
+    'Wealth King': '👑',
+    'Turf Warlord': '🏴',
+    'Crew Commander': '🛡️',
+    'Drug Kingpin': '📦',
+    'Business Tycoon': '🏢',
+    'Most Feared (attempts)': '⚔️',
+  };
+  const champions: string[] = [];
+  for (const award of recap.champions) {
+    if (award.title === 'Round Champion') continue; // Top Empire already honors the winner.
+    const winners = award.winners.slice(0, 2).map((winner) => escapeRoundName(truncate(winner.displayName, 44)));
+    const extra = award.winners.length > winners.length ? ` +${award.winners.length - winners.length} tied` : '';
+    const score = award.unit === 'cents'
+      ? formatCentsString(String(award.value))
+      : `${formatNumber(Number(award.value))} ${escapeRoundName(award.unit)}`;
+    const line = `${championIcons[award.title] ?? '🏅'} **${escapeRoundName(award.title)}** — ${winners.join(', ')}${extra} · ${score}`;
+    if ([...champions, line].join('\n').length > 1024) break;
+    champions.push(line);
+  }
+
+  const cityWars: string[] = [];
+  const cityLeaders = recap.cityTurfLeaders;
+  const allianceLeaders = recap.allianceTurfLeaders;
+  cityWars.push(cityLeaders == null
+    ? 'Top turf city: Not recorded'
+    : cityLeaders.length
+      ? `🏙️ **Most turf held in a city:** ${cityLeaders.map((row) => `${escapeRoundName(truncate(row.cityName, 50))} (${formatNumber(row.blocksHeld)})`).join(' · ')}`
+      : '🏙️ No player-held city turf at the cutoff.');
+  cityWars.push(allianceLeaders == null
+    ? 'Top turf alliance: Not recorded'
+    : allianceLeaders.length
+      ? `🤝 **Leading turf alliance:** ${allianceLeaders.map((row) => `[${escapeRoundName(truncate(row.tag, 12))}] ${escapeRoundName(truncate(row.name, 40))} (${formatNumber(row.blocksHeld)})`).join(' · ')}`
+      : '🤝 No alliance-held turf at the cutoff.');
+
   return {
-    title: `${truncate(escapeRoundName(event.roundName), 220)} · Round Aftermath`,
+    title: `🏁 ${truncate(escapeRoundName(event.roundName), 200)} — AFTERMATH`,
     url: recap.aftermathUrl,
-    color: MUTED_COLOR,
-    description: 'The final bell has rung. The full frozen report is ready.',
+    color: 0xd3a654, // End-of-round gold; live game notices keep their normal theme.
+    description: 'The streets have gone quiet. The empires have been counted. Only legends remain.',
     fields: [
+      { name: '📊 THE FINAL NUMBERS', value: 'Across every city in the round.' },
+      ...stats.map(([name, value]) => ({ name, value: `**${value}**`, inline: true })),
+      { name: '🏆 TOP 3 EMPIRES', value: topPlayers.join('\n') || 'No ranked competitors were recorded.' },
+      { name: '👑 LEGENDS OF THE ROUND', value: champions.join('\n') || 'No supported record holders were recorded.' },
+      { name: '🏙️ THE CITY WARS', value: truncate(cityWars.join('\n'), 1024) },
       {
-        name: 'Final Snapshot',
-        value: [
-          metric(recap.participants, 'Players'),
-          metric(recap.eligibleCompetitors, 'Ranked competitors'),
-          metric(recap.cities, 'Cities'),
-          metric(recap.alliances, 'Alliances'),
-          recap.finalNetWorthCents === null ? 'Eligible final net worth: Not recorded' : `Eligible final net worth: ${formatCentsString(recap.finalNetWorthCents)}`,
-          metric(recap.finalCrewMembers, 'Crew at cutoff'),
-          metric(recap.turfBlocksHeld, 'Turf blocks held'),
-          metric(recap.activeBusinessesHeld, 'Active businesses held'),
-          metric(recap.crimeActionsAttempted, 'Crime actions attempted'),
-          'Earned/spent, captures/defenses, recruiting, drug production/sales, business revenue and contested-city totals: Not recorded.',
-        ].join('\n'),
+        name: '📜 THE FULL AFTERMATH IS AVAILABLE',
+        value: `Explore every city's final wealth, turf, crew, drug inventory, businesses, crime and records.\n[**↗ View Full Round Aftermath**](${recap.aftermathUrl})`,
       },
-      { name: 'Top Empires', value: topPlayers.length ? topPlayers.join('\n') : 'No eligible competitors were recorded.' },
-      { name: 'Round Champions', value: champions.length ? champions.join('\n') : 'No supported category champions were recorded.' },
     ],
+    // This stable receipt marker is required to avoid duplicate posts after bot restarts.
     footer: { text: `round-recap:${recap.roundId}` },
+    timestamp: event.endsAt,
   };
 }
 
