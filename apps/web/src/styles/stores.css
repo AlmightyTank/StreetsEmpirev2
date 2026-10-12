@@ -949,19 +949,6 @@
   container-type: inline-size;
 }
 
-/* Account for the actual game content width, not just the viewport (desktop has sidebars). */
-@container (max-width: 700px) {
-  .se-stores-shelves {
-    grid-template-columns: 1fr;
-  }
-  .se-stores-toolbar {
-    grid-template-columns: 1fr;
-  }
-  .se-stores-toolbar__count {
-    grid-column: auto;
-  }
-}
-
 .se-stores-market__rail {
   gap: 10px;
 }
@@ -1400,3 +1387,17 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Account for the actual game content width, not just the viewport (desktop has sidebars). */
+@container (max-width: 700px) {
+  .se-stores-shelves {
+    grid-template-columns: 1fr;
+  }
+  .se-stores-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .se-stores-toolbar__count {
+    grid-column: auto;
+  }
+}
+
