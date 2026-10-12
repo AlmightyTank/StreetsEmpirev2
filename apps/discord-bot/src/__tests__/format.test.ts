@@ -123,54 +123,79 @@ describe('rankingsEmbed', () => {
 });
 
 describe('roundEventEmbed', () => {
-  it('renders a one-embed frozen recap with escaped names, exact money and unsupported metrics labeled', () => {
-      const embed = roundEventEmbed({
-        type: 'ended',
-        roundName: 'Round @everyone *One*',
-        status: 'ENDED',
-        startsAt: '2026-01-01T00:00:00.000Z',
-        endsAt: '2026-02-01T00:00:00.000Z',
-        url: `${origin}/game/rankings`,
-        standings: [],
-        recap: {
-          roundId: 'round-1',
-          aftermathUrl: `${origin}/game/rounds/round-1/aftermath`,
-          participants: 20,
-          eligibleCompetitors: 18,
-          cities: 4,
-          alliances: 3,
-          finalNetWorthCents: '9007199254740993123',
-          finalCrewMembers: 90,
-          turfBlocksHeld: 12,
-          activeBusinessesHeld: 7,
-          crimeActionsAttempted: 42,
-          topPlayers: [{
-            rank: 1,
-            publicPimpId: 1001,
-            displayName: '@here [Boss]',
-            city: 'Detroit',
-            netWorthCents: '123456789012345678',
-            profileUrl: `${origin}/game/players/1001`,
-          }],
-          champions: [{
-            title: 'Drug Kingpin',
-            value: 50,
-            unit: 'drug units held at cutoff',
-            winners: [{ publicPimpId: 1001, displayName: '@everyone Boss' }],
-          }],
-        },
-      });
+  it('renders screenshot-inspired Discord sections with accurate cutoff labels and a report link', () => {
+    const embed = roundEventEmbed({
+      type: 'ended',
+      roundName: 'Round @everyone *One*',
+      status: 'ENDED',
+      startsAt: '2026-01-01T00:00:00.000Z',
+      endsAt: '2026-02-01T00:00:00.000Z',
+      url: `${origin}/game/rankings`,
+      standings: [],
+      recap: {
+        roundId: 'round-1',
+        aftermathUrl: `${origin}/game/rounds/round-1/aftermath`,
+        participants: 20,
+        eligibleCompetitors: 18,
+        cities: 4,
+        alliances: 3,
+        finalNetWorthCents: '9007199254740993123',
+        finalCrewMembers: 90,
+        turfBlocksHeld: 12,
+        activeBusinessesHeld: 7,
+        crimeActionsAttempted: 42,
+        drugsHeldAtCutoff: 1_500,
+        cityTurfLeaders: [{ cityName: 'Chicago', blocksHeld: 7 }],
+        allianceTurfLeaders: [{ name: '@everyone Kings', tag: 'KING', blocksHeld: 5 }],
+        topPlayers: [{
+          rank: 1,
+          publicPimpId: 1001,
+          displayName: '@here [Boss]',
+          city: 'Detroit',
+          netWorthCents: '123456789012345678',
+          profileUrl: `${origin}/game/players/1001`,
+        }],
+        champions: [
+          { title: 'Round Champion', value: '123456789012345678', unit: 'cents', winners: [{ publicPimpId: 1001, displayName: '@here Boss' }] },
+          { title: 'Drug Kingpin', value: 50, unit: 'drug units held at cutoff', winners: [{ publicPimpId: 1001, displayName: '@everyone Boss' }] },
+          { title: 'Most Feared (attempts)', value: 42, unit: 'attempted raids and drive-bys', winners: [{ publicPimpId: 1001, displayName: 'Boss' }] },
+        ],
+      },
+    });
 
-      expect(embed.url).toBe(`${origin}/game/rounds/round-1/aftermath`);
-      expect(embed.title).toContain('@\u200beveryone');
-      expect(embed.fields).toHaveLength(3);
-      expect(embed.fields![0]!.value).toContain('Eligible final net worth: $90,071,992,547,409,931.23');
-      expect(embed.fields![0]!.value).toContain('Earned/spent, captures/defenses, recruiting, drug production/sales, business revenue and contested-city totals: Not recorded.');
-      expect(embed.fields![1]!.value).toContain('@\u200bhere');
-      expect(embed.fields![1]!.value).toContain('$1,234,567,890,123,456.78');
-      expect(embed.fields![2]!.value).toContain('@\u200beveryone');
-      expect(embed.footer?.text).toBe('round-recap:round-1');
-      expect(JSON.stringify(embed)).not.toContain('@everyone');
+    expect(embed.url).toBe(`${origin}/game/rounds/round-1/aftermath`);
+    expect(embed.title).toContain('@\\u200beveryone');
+    expect(embed.color).toBe(0xd3a654);
+    expect(embed.fields?.find((f) => f.name === '💰 Final net worth')?.value).toBe('**$90,071,992,547,409,931.23**');
+    expect(embed.fields?.find((f) => f.name === '📦 Drugs held at cutoff')?.value).toBe('**1,500**');
+    expect(embed.fields?.find((f) => f.name === '🏆 TOP 3 EMPIRES')?.value).toContain('$1,234,567,890,123,456.78');
+    expect(embed.fields?.find((f) => f.name === '👑 LEGENDS OF THE ROUND')?.value).toContain('@\\u200beveryone Boss');
+    expect(embed.fields?.find((f) => f.name === '👑 LEGENDS OF THE ROUND')?.value).not.toContain('Round Champion');
+    expect(embed.fields?.find((f) => f.name === '🏙️ THE CITY WARS')?.value).toContain('Chicago');
+    expect(embed.fields?.find((f) => f.name === '🏙️ THE CITY WARS')?.value).toContain('@\\u200beveryone Kings');
+    expect(embed.fields?.find((f) => f.name === '📜 THE FULL AFTERMATH IS AVAILABLE')?.value).toContain('/game/rounds/round-1/aftermath');
+    expect(embed.footer?.text).toBe('round-recap:round-1');
+    expect(embed.fields?.length).toBeLessThanOrEqual(25);
+    for (const field of embed.fields ?? []) {
+      expect(field.name.length).toBeLessThanOrEqual(256);
+      expect(field.value.length).toBeLessThanOrEqual(1024);
+    }
+    expect(JSON.stringify(embed)).not.toContain('@everyone');
+  });
+
+  it('uses honest unavailable values rather than fabricating historical totals', () => {
+    const embed = roundEventEmbed({
+      type: 'ended', roundName: 'Old round', status: 'ENDED', startsAt: '2026-01-01T00:00:00.000Z',
+      endsAt: '2026-02-01T00:00:00.000Z', url: origin, standings: [],
+      recap: {
+        roundId: 'old', aftermathUrl: origin, participants: 0, eligibleCompetitors: 0,
+        cities: 0, alliances: null, finalNetWorthCents: null, finalCrewMembers: null,
+        turfBlocksHeld: null, activeBusinessesHeld: null, crimeActionsAttempted: null,
+        topPlayers: [], champions: [],
+      },
+    });
+    expect(embed.fields?.find((field) => field.name === '💰 Final net worth')?.value).toBe('**Not recorded**');
+    expect(embed.fields?.find((field) => field.name === '🏙️ THE CITY WARS')?.value).toContain('Not recorded');
   });
 });
 
