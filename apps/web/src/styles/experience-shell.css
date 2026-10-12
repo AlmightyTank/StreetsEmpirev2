@@ -181,3 +181,13 @@
     transition: background-color .15s ease, border-color .15s ease, color .15s ease;
   }
 }
+
+/* Player-selected Compact mode must still win over the shared visual refresh. */
+.se-app.se-density--compact .se-gamemain .se-panel__head {
+  min-height: 0;
+  padding: 6px 10px;
+}
+
+.se-app.se-density--compact .se-gamemain .se-panel__body:not(.se-panel__body--flush) {
+  padding: 9px 10px;
+}
