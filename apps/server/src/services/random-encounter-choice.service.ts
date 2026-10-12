@@ -3,6 +3,7 @@ import type { GameActionResult, RandomEncounterChoiceResult } from '@streets/sha
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
 import { applyRandomEncounterEffects, capRandomEncounterEffects } from './random-encounter.service.js';
+import { EncounterGangService } from './encounter-gang.service.js';
 
 const FIRST_CLASS_ENCOUNTER_ID_PREFIX = 'event_';
 
@@ -22,6 +23,11 @@ interface PendingChoice {
     medicine?: number;
     crack?: number;
     beer?: number;
+    turns?: number;
+    thugs?: number;
+    woundedThugs?: number;
+    whores?: number;
+    lowRiders?: number;
   };
 }
 
@@ -49,6 +55,11 @@ function effectsOf(value: Prisma.JsonValue | unknown): PendingChoice['effects'] 
     ...(typeof source?.medicine === 'number' ? { medicine: source.medicine } : {}),
     ...(typeof source?.crack === 'number' ? { crack: source.crack } : {}),
     ...(typeof source?.beer === 'number' ? { beer: source.beer } : {}),
+    ...(typeof source?.turns === 'number' ? { turns: source.turns } : {}),
+    ...(typeof source?.thugs === 'number' ? { thugs: source.thugs } : {}),
+    ...(typeof source?.woundedThugs === 'number' ? { woundedThugs: source.woundedThugs } : {}),
+    ...(typeof source?.whores === 'number' ? { whores: source.whores } : {}),
+    ...(typeof source?.lowRiders === 'number' ? { lowRiders: source.lowRiders } : {}),
   };
 }
 
@@ -142,6 +153,7 @@ async function resolveFirstClassEncounter(
         ],
         skipDuplicates: true,
       });
+      await EncounterGangService.recordChoice(tx, roundPlayerId, result.encounterKey, choice.key, now);
       return { next, result };
     },
   }, requestedAt);
@@ -214,6 +226,7 @@ export const RandomEncounterChoiceService = {
             },
           },
         });
+        await EncounterGangService.recordChoice(tx, roundPlayerId, encounter.key, choice.key, new Date());
 
         return {
           next,

@@ -18,7 +18,6 @@ import { metrics } from './services/metrics.service.js';
 import { LawWarrantService } from './services/law-warrant.service.js';
 import { LawOfficialService } from './services/law-official.service.js';
 import { PlayerStateService } from './services/player-state.service.js';
-import { NpcGangService } from './services/npc-gang.service.js';
 import { refreshSportsbookCache } from './services/sportsbook-feed.service.js';
 import { SupporterDropService } from './services/supporter-drop.service.js';
 
@@ -50,15 +49,16 @@ const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
   await RoundService.settleTurfClock(app.prisma, new Date());
 }, (message, error) => app.log.error(error, message));
 
-// 1.8.0-A/C: player requests read the shared pregame cache and never call TheRundown. Provider
+// 1.8.0-A/C: player requests read the shared pregame cache and never call a provider. Provider
 // snapshots are persisted in .runtime/sportsbook-odds.json with a hard 30-minute refresh window;
 // the database lease and interval keep concurrent instances from spending datapoints.
-const stopSportsbook = env.THERUNDOWN_API_KEY
+const sportsbookKeys = { therundown: env.THERUNDOWN_API_KEY, theoddsapi: env.THE_ODDS_API_KEY };
+const stopSportsbook = Object.values(sportsbookKeys).some(Boolean)
   ? startPoller('Sportsbook odds cache', env.SPORTSBOOK_POLL_MINUTES * 60_000, async () => {
-      const result = await refreshSportsbookCache(app.prisma, env.THERUNDOWN_API_KEY, new Date(), {
+      const result = await refreshSportsbookCache(app.prisma, sportsbookKeys, new Date(), {
         minIntervalMs: Math.max(0, env.SPORTSBOOK_POLL_MINUTES * 60_000 - 60_000),
       });
-      if (result.errors.length) app.log.warn({ sportsbook: result }, 'Sportsbook feed run finished with errors');
+      if (result.errors.length || result.warnings.length) app.log.warn({ sportsbook: result }, 'Sportsbook feed run finished with issues');
     }, (message, error) => app.log.error(error, message))
   : () => {};
 
@@ -66,11 +66,6 @@ const stopSportsbook = env.THERUNDOWN_API_KEY
 const stopSupporterDrops = startPoller('Supporter drops', 60 * 60_000, async () => {
   const result = await SupporterDropService.sweep(app.prisma, new Date());
   if (result.granted) app.log.info({ supporterDrop: result }, 'Supporter drop given out');
-}, (message, error) => app.log.error(error, message));
-
-// Phase G NPC gangs: weighted archetype-driven restocks, economy moves and attacks.
-const stopNpcGangs = startPoller('NPC gangs', 60_000, async () => {
-  await NpcGangService.sweep(app.prisma, new Date());
 }, (message, error) => app.log.error(error, message));
 
 // Alerts: collect what is due, then send push. The Discord bot also collects before it claims.
@@ -114,7 +109,6 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     app.log.info(`${signal} received, shutting down`);
     stopAlerts();
     stopSportsbook();
-    stopNpcGangs();
     stopSupporterDrops();
     stopTurfWars();
     await app.close();

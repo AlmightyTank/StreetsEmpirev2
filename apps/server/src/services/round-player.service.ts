@@ -10,6 +10,7 @@ import {
   parseAftermathRewardQualifications,
   RoundAftermathRewardService,
 } from './round-aftermath-reward.service.js';
+import { EncounterGangService } from './encounter-gang.service.js';
 
 export type RoundPlayerWithCity = Awaited<
   ReturnType<typeof RoundPlayerService.find>
@@ -176,6 +177,10 @@ export const RoundPlayerService = {
           },
         },
       });
+
+      // Seed encounter-only crews with the first human join, before players can
+      // take locals' turf. These records never receive an Account or RoundPlayer.
+      await EncounterGangService.ensureRound(tx, round.id, ruleset, now);
 
       return player;
     });

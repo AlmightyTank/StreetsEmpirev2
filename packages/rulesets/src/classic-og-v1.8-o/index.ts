@@ -1,4 +1,5 @@
 import { classicOgV18N } from '../classic-og-v1.8-n/index.js';
+import { ENCOUNTER_GANG_RULES } from '../encounter-gangs.js';
 import { defineQuestCatalog } from '../quest-definitions.js';
 import type { DistrictKey, PermanentUnlockCatalog, QuestDefinitionCatalog, Ruleset } from '../types.js';
 
@@ -49,5 +50,9 @@ export const classicOgV18O = {
     name: 'Classic OG - District Access',
   },
   permanentUnlocks: { ...classicOgV18N.permanentUnlocks, ...districtUnlocks },
+  randomEncounters: {
+    ...classicOgV18N.randomEncounters,
+    gangs: ENCOUNTER_GANG_RULES,
+  },
   questDefinitions,
 } as const satisfies Ruleset;

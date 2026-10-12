@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { SPORTSBOOK_LIMITS, sportsbookLineReason, sportsbookPayoutCents, sportsbookReturnCents } from '@streets/shared';
 import { classicOgV18E, rulesets } from '@streets/rulesets';
-import { providerOutcome, summarizeSnapshot } from '../sportsbook-feed.service.js';
+import { eventOdds, providerOutcome, summarizeSnapshot } from '../sportsbook/therundown.provider.js';
 import {
   americanPayout,
-  eventOdds,
   isSportsbookBettingOpen,
   sportsbookFeedStatus,
   sportsbookLineState,

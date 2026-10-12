@@ -44,6 +44,11 @@ A chain of free tiers may cover pregame moneylines for four leagues. A paid plan
 
 ## Slice A details
 
+**Status: Implemented.** The feed and admin paths now use the provider interface and normalized
+event/result shapes. TheRundown owns its URL, authentication, sport ids, payload parsing, quota
+headers and diagnostics in its adapter; the generic session retains the existing retry and spend
+behavior.
+
 - `SportsbookProvider` has an `id`, the leagues and markets it covers (`capabilities`), and three calls:
   - `listEvents(league, dates)` returns normalized events: provider event id, league, home and away team, start time, status (`PRE`, `LIVE`, `FINAL`, `CANCELLED`), prices and scores.
   - `getResult(providerEventId)` returns one normalized result.
@@ -54,6 +59,11 @@ A chain of free tiers may cover pregame moneylines for four leagues. A paid plan
 - Exit check: `sportsbook-feed.test.ts` and the PostgreSQL suites pass with no changes beyond imports, and a beta run spends the same data points as before.
 
 ## Slice B details
+
+**Status: Implemented.** Canonical events now own provider source rows, pricing and settlement
+attribution is persisted through wagers and feed runs, and shared team aliases drive a strict
+league/team/±3-hour matcher. TheRundown events are backfilled into the source table; ambiguous
+listings stay unmatched, while only the active odds source may create a canonical event.
 
 - New `SportsbookEventSource` table: `(provider, providerEventId)` is unique and points at `SportsbookEvent`. Each row keeps that provider's last listing: status, prices, scores, `lastSeenAt`, and result-check pacing.
 - `SportsbookEvent.providerEventId` stays during migration and is backfilled as a `therundown` source. A later migration makes it nullable once nothing reads it.
@@ -67,6 +77,12 @@ A chain of free tiers may cover pregame moneylines for four leagues. A paid plan
   - Only the active odds source for a league may create a new canonical game. Other providers can only attach to existing games.
 
 ## Slice C details
+
+**Status: Implemented.** The Odds API is the first fallback behind per-league, server-owned chains.
+Leagues stay on their active source until it fails, return to the primary only after two healthy
+runs, and can be pinned by an admin. Provider quota floors, three-run circuit breakers, suspicious
+empty-slate detection, and one-per-league/two-per-run fallback limits bound spend; player and admin
+views show which provider is serving each league.
 
 - Each league has an ordered odds chain, set in server config rather than rulesets. The default is TheRundown, then The Odds API. Each league also stores its active provider, when it became active, and an optional admin pin.
 - A provider fails a league for this run on:
@@ -84,6 +100,11 @@ A chain of free tiers may cover pregame moneylines for four leagues. A paid plan
 
 ## Slice D details
 
+**Status: Implemented.** Result checks now walk TheRundown, The Odds API, then the public ESPN
+scoreboard. Bulk score calls are shared across every due game in a league for the run. Every
+terminal report is retained on its provider source row; only a non-ESPN final can grade a game,
+and already-recorded disagreement blocks settlement.
+
 - Results checks follow the results chain: TheRundown, then The Odds API, then ESPN. A provider with `listResults` grades every open game in a league with one call, so grading cost stops growing with open tickets.
 - "No result yet" or a request error moves on to the next provider. A `LIVE` answer stops the walk until the next check, and the existing backoff applies.
 - Settlement is safe when:
@@ -93,9 +114,30 @@ A chain of free tiers may cover pregame moneylines for four leagues. A paid plan
 - When two sources report different final scores, the game is held as `DISPUTED`. Settlement waits, and the admin panel lists the game with each source's score. An admin settles it with a chosen score, or voids it, both audited.
 - An automatic void needs two sources to agree the game was cancelled or postponed. A single source saying so marks the game `PULLED` for betting and flags it, but does not refund. Admin void stays available.
 - A game with no final from any source 72 hours after its start is flagged for admin review, not voided.
-- Settlement keeps its row lock and `settledAt` check, so the poller, an admin recheck and an admin resolution can still race without paying twice. Add tests for each source agreeing, disagreeing and racing.
+- Settlement keeps its row lock and `settledAt` check, so the poller, an admin recheck and an admin resolution can still race without paying twice. Tests cover agreeing sources, disagreement, bulk-call reuse, cancellation quorum and settlement races.
+
+The admin unresolved-results table shows every checked provider's state and score. Disputes expose
+one audited settle button per complete provider score plus an audited void. A single cancellation
+pulls the line and opens review; two independent cancellation reports refund through the same
+locked settlement path. Events still lacking a final 72 hours after kickoff are flagged for staff
+instead of being silently voided.
 
 ## Slice E details
+
+**Status: Implemented (expansion remains evidence-gated).** Every provider run now keeps 90 days
+of per-league service, source-switch and canonical-matcher evidence. The admin review turns that
+record into failovers by league, the share of successful polls served off primary, uncovered polls,
+matcher misses, dispute outcomes, and requests/units projected against each provider's reported
+plan. The release check requires a full 30-day observation window; it cannot mistake two good weeks
+for a completed beta.
+
+The recorded decision starts at **hold**: do not add SportsGameOdds, spreads/totals, or a paid plan
+before the 30-day record is complete. After that window, SportsGameOdds is **not needed** when the
+two-provider moneyline chain covered every observed poll, and moves to **review** only when both
+providers left a league poll uncovered. Spreads/totals move to a scoped review only after every
+reliability, matching, grading and quota check passes. A paid plan moves to review only when measured
+usage projects above half of a provider's reported allowance. The live admin report is the spend
+record and decision of record; plan terms must still be rechecked with the vendor before purchase.
 
 - Over 30 days of beta: failovers per league, time spent off the primary, disputes and how they were resolved, units spent per provider against each plan, and matcher misses.
 - Add SportsGameOdds only if the first two providers leave a real gap: a league or market they miss, or outages that overlap.

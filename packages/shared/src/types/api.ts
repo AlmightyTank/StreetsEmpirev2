@@ -1171,6 +1171,11 @@ export interface RandomEncounterDto {
     medicine?: number;
     crack?: number;
     beer?: number;
+    turns?: number;
+    thugs?: number;
+    woundedThugs?: number;
+    whores?: number;
+    lowRiders?: number;
   };
   choices?: Array<{
     key: string;
@@ -1183,6 +1188,11 @@ export interface RandomEncounterDto {
       medicine?: number;
       crack?: number;
       beer?: number;
+      turns?: number;
+      thugs?: number;
+      woundedThugs?: number;
+      whores?: number;
+      lowRiders?: number;
     };
   }>;
   status?: 'PENDING' | 'RESOLVED';

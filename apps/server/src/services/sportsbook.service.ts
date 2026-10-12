@@ -19,31 +19,18 @@ import {
   type SportsbookTicketsDto,
 } from '@streets/shared';
 import { creditLegacySportsbookChips, creditSportsbookChips, debitSportsbookChips } from './casino.service.js';
+import { DEFAULT_SPORTSBOOK_PROVIDER_ID, sportsbookProviderName } from './sportsbook/sportsbook-providers.js';
 
 export const SPORTSBOOK_LEAGUES = [
-  { key: 'NFL', name: 'NFL', sportId: 2 },
-  { key: 'NBA', name: 'NBA', sportId: 4 },
-  { key: 'MLB', name: 'MLB', sportId: 3 },
-  { key: 'NHL', name: 'NHL', sportId: 6 },
+  { key: 'NFL', name: 'NFL' },
+  { key: 'NBA', name: 'NBA' },
+  { key: 'MLB', name: 'MLB' },
+  { key: 'NHL', name: 'NHL' },
 ] as const;
 
 const ODDS_MAX_AGE_MS = SPORTSBOOK_ODDS_MAX_AGE_MINUTES * 60_000;
 
 export type JsonRecord = Record<string, unknown>;
-export type ProviderEvent = {
-  event_id?: unknown;
-  starts_at?: unknown;
-  event_date?: unknown;
-  teams?: unknown;
-  markets?: unknown;
-  score?: unknown;
-  status?: unknown;
-  event_status?: unknown;
-  is_live?: unknown;
-  live?: unknown;
-  is_final?: unknown;
-  final?: unknown;
-};
 
 export function record(value: unknown): JsonRecord | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : null;
@@ -56,98 +43,6 @@ export function str(value: unknown): string | null {
 export function num(value: unknown): number | null {
   const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-/** The affiliate (sportsbook) whose moneylines the feed requests. */
-export const SPORTSBOOK_AFFILIATE_ID = '3';
-
-/** "Philadelphia" + "Eagles": TheRundown v2 splits the city from the mascot; the board shows both. */
-function teamDisplayName(team: JsonRecord): string | null {
-  const name = str(team.name) ?? str(team.team_name);
-  if (!name) return null;
-  const mascot = str(team.mascot);
-  return mascot && !name.toLowerCase().includes(mascot.toLowerCase()) ? `${name} ${mascot}` : name;
-}
-
-/** Away and home team records: by flag, else TheRundown's order (away first, home second). */
-export function eventTeams(event: ProviderEvent): { home: JsonRecord; away: JsonRecord } | null {
-  if (!Array.isArray(event.teams)) return null;
-  const teams = event.teams.map(record).filter((team): team is JsonRecord => Boolean(team));
-  let away = teams.find((team) => team.is_away === true) ?? teams.find((team) => team.is_home === false);
-  let home = teams.find((team) => team.is_home === true) ?? teams.find((team) => team.is_away === false);
-  if (!away && !home && teams.length === 2) [away, home] = teams;
-  if (!home || !away || home === away || !teamDisplayName(home) || !teamDisplayName(away)) return null;
-  return { home, away };
-}
-
-const teamIds = (team: JsonRecord) => [team.team_id, team.id, team.team_normalized_id]
-  .filter((value) => typeof value === 'string' || typeof value === 'number').map(String);
-const teamNames = (team: JsonRecord) => [str(team.name), str(team.team_name), teamDisplayName(team), str(team.abbreviation)]
-  .filter((value): value is string => Boolean(value)).map((value) => value.toLowerCase());
-
-/** Which team a market participant is: by team id first, then by an exact name, full name or abbreviation. */
-function participantSide(participant: JsonRecord, teams: { home: JsonRecord; away: JsonRecord }): 'HOME' | 'AWAY' | null {
-  const id = participant.team_id ?? participant.id;
-  if (typeof id === 'string' || typeof id === 'number') {
-    if (teamIds(teams.home).includes(String(id))) return 'HOME';
-    if (teamIds(teams.away).includes(String(id))) return 'AWAY';
-  }
-  const label = (str(participant.name) ?? str(participant.participant_name) ?? str(participant.team_name) ?? str(participant.label))?.toLowerCase();
-  if (!label) return null;
-  if (teamNames(teams.home).includes(label)) return 'HOME';
-  if (teamNames(teams.away).includes(label)) return 'AWAY';
-  return null;
-}
-
-/** A whole-number American price; TheRundown sends 0.0001 for a line that is off the board. */
-function americanPrice(value: unknown): number | null {
-  const price = num(value);
-  return price !== null && Number.isInteger(price) && Math.abs(price) >= 100 ? price : null;
-}
-
-/**
- * One participant's moneyline. TheRundown v2 nests it as `lines[].prices[affiliateId].price` with an
- * `is_main_line` flag; older payloads put `price` on the participant. If our affiliate lists the line
- * at all, only its price counts, so a line it has taken off the board stays off.
- */
-export function participantPrice(participant: JsonRecord, affiliateId = SPORTSBOOK_AFFILIATE_ID): number | null {
-  const flat = americanPrice(participant.price) ?? americanPrice(participant.odds) ?? americanPrice(participant.american_odds);
-  if (flat !== null) return flat;
-  const offers: Array<{ price: number | null; ours: boolean; main: boolean }> = [];
-  for (const rawLine of Array.isArray(participant.lines) ? participant.lines : []) {
-    const line = record(rawLine);
-    if (!line) continue;
-    const entries: Array<[string, unknown]> = Array.isArray(line.prices)
-      ? line.prices.map((entry): [string, unknown] => [String(record(entry)?.affiliate_id ?? ''), entry])
-      : Object.entries(record(line.prices) ?? {});
-    for (const [key, raw] of entries) {
-      const entry = record(raw);
-      const price = entry ? americanPrice(entry.price) ?? americanPrice(entry.price_american) ?? americanPrice(entry.american) : americanPrice(raw);
-      offers.push({ price, ours: key === affiliateId || String(entry?.affiliate_id ?? '') === affiliateId, main: entry?.is_main_line !== false });
-    }
-  }
-  const pool = offers.some((offer) => offer.ours) ? offers.filter((offer) => offer.ours) : offers;
-  const priced = pool.filter((offer) => offer.price !== null).sort((a, b) => Number(b.main) - Number(a.main));
-  return priced[0]?.price ?? null;
-}
-
-export function eventOdds(event: ProviderEvent): { home: string; away: string; homeOdds: number | null; awayOdds: number | null } | null {
-  const teams = eventTeams(event);
-  if (!teams || !Array.isArray(event.markets)) return null;
-  // The full-game moneyline (period 0 or none), not a period or half line.
-  const moneylines = event.markets.map(record).filter((item): item is JsonRecord => Boolean(item && (num(item.market_id) === 1 || str(item.name)?.toLowerCase() === 'moneyline')));
-  const market = moneylines.find((item) => (num(item.period_id) ?? 0) === 0) ?? moneylines[0];
-  if (!market || !Array.isArray(market.participants)) return null;
-  let homeOdds: number | null = null;
-  let awayOdds: number | null = null;
-  for (const raw of market.participants) {
-    const participant = record(raw);
-    if (!participant) continue;
-    const side = participantSide(participant, teams);
-    if (side === 'HOME') homeOdds ??= participantPrice(participant);
-    if (side === 'AWAY') awayOdds ??= participantPrice(participant);
-  }
-  return { home: teamDisplayName(teams.home)!, away: teamDisplayName(teams.away)!, homeOdds, awayOdds };
 }
 
 export function dateKey(date: Date): string {
@@ -257,7 +152,7 @@ async function sportsbookUsage(
 }
 
 /** 1.8.0-E. Who graded a result, for the market review's grading-accuracy figures. */
-export type SportsbookSettledVia = 'FEED' | 'ADMIN_RECHECK' | 'ADMIN_VOID';
+export type SportsbookSettledVia = 'FEED' | 'ADMIN_RECHECK' | 'ADMIN_RESOLUTION' | 'ADMIN_VOID';
 
 export interface SportsbookSettlement {
   tickets: number;
@@ -281,12 +176,14 @@ export async function settleSportsbookEventTx(
   awayScore: number | null,
   now: Date,
   via: SportsbookSettledVia = 'FEED',
+  provider = '',
 ): Promise<SportsbookSettlement | null> {
   await tx.$queryRaw`SELECT "id" FROM "SportsbookEvent" WHERE "id" = ${eventId} FOR UPDATE`;
   const event = await tx.sportsbookEvent.findUnique({ where: { id: eventId } });
   if (!event || event.settledAt) return null;
   await tx.sportsbookEvent.update({ where: { id: eventId }, data: {
-    status, homeScore, awayScore, settledAt: now, settledVia: via, nextResultCheckAt: null, resultError: '',
+    status, homeScore, awayScore, settledAt: now, settledVia: via, settledProvider: provider,
+    nextResultCheckAt: null, resultError: '', resultReviewReason: '', resultReviewAt: null,
   } });
   const summary: SportsbookSettlement = { tickets: 0, won: 0, lost: 0, push: 0, void: 0, creditedCents: 0n };
   const tickets = await tx.sportsbookBet.findMany({ where: { eventId, status: 'OPEN' } });
@@ -358,8 +255,9 @@ export function settleSportsbookEvent(
   awayScore: number | null,
   now: Date,
   via: SportsbookSettledVia = 'FEED',
+  provider = '',
 ): Promise<SportsbookSettlement | null> {
-  return prisma.$transaction((tx) => settleSportsbookEventTx(tx, eventId, status, homeScore, awayScore, now, via));
+  return prisma.$transaction((tx) => settleSportsbookEventTx(tx, eventId, status, homeScore, awayScore, now, via, provider));
 }
 
 export const SportsbookService = {
@@ -368,37 +266,52 @@ export const SportsbookService = {
     options: { configured: boolean; pollMinutes: number },
     now = new Date(),
   ): Promise<SportsbookBoardDto> {
-    const [events, state] = await Promise.all([
+    const [events, providerStates, leagueProviderStates] = await Promise.all([
       prisma.sportsbookEvent.findMany({
         // 1.8.0-C: a pulled line stays listed (closed, with a reason) until it returns or starts.
         where: { startsAt: { gt: now }, status: { in: ['PRE', 'PULLED'] } },
         // Today and tomorrow across four leagues; large enough that a league filter never hides games.
         orderBy: [{ startsAt: 'asc' }, { sport: 'asc' }], take: 300,
       }),
-      prisma.sportsbookProviderState.findUnique({ where: { id: 'therundown' } }),
+      prisma.sportsbookProviderState.findMany(),
+      prisma.sportsbookLeagueProviderState.findMany(),
     ]);
-    const feedFresh = isSportsbookFeedFresh(state?.lastPolledAt, now);
+    const providers = new Map(providerStates.map((state) => [state.id, state]));
+    const leagueProviders = new Map(leagueProviderStates.map((state) => [state.league, state]));
     const rows = events.map((event) => ({
       id: event.id, sport: event.sport as SportsbookLeagueKey, homeTeam: event.homeTeam, awayTeam: event.awayTeam,
       startsAt: event.startsAt.toISOString(), oddsUpdatedAt: event.oddsUpdatedAt?.toISOString() ?? null,
-      homeOdds: event.homeOdds, awayOdds: event.awayOdds,
-      lineState: sportsbookLineState(event, feedFresh, now),
+      homeOdds: event.homeOdds, awayOdds: event.awayOdds, oddsProvider: event.oddsProvider,
+      oddsProviderName: sportsbookProviderName(event.oddsProvider),
+      lineState: sportsbookLineState(event, isSportsbookFeedFresh(providers.get(event.oddsProvider)?.lastPolledAt, now), now),
     }));
+    const refreshedAt = providerStates.map((state) => state.lastPolledAt).filter((date): date is Date => date !== null)
+      .sort((left, right) => right.getTime() - left.getTime())[0] ?? null;
+    const fallbackLeagues = SPORTSBOOK_LEAGUES.flatMap(({ key }) => {
+      const provider = leagueProviders.get(key)?.activeOddsProvider ?? DEFAULT_SPORTSBOOK_PROVIDER_ID;
+      return provider === DEFAULT_SPORTSBOOK_PROVIDER_ID ? [] : [{ league: key, provider, providerName: sportsbookProviderName(provider) }];
+    });
+    const feedFresh = providerStates.some((state) => isSportsbookFeedFresh(state.lastPolledAt, now));
     return {
       enabled: feedFresh,
-      refreshedAt: state?.lastPolledAt?.toISOString() ?? null,
+      refreshedAt: refreshedAt?.toISOString() ?? null,
       serverTime: now.toISOString(),
       feed: {
-        status: sportsbookFeedStatus({ configured: options.configured, lastPolledAt: state?.lastPolledAt }, now),
-        refreshedAt: state?.lastPolledAt?.toISOString() ?? null,
+        status: sportsbookFeedStatus({ configured: options.configured, lastPolledAt: refreshedAt }, now),
+        refreshedAt: refreshedAt?.toISOString() ?? null,
         pollMinutes: options.pollMinutes,
         oddsMaxAgeMinutes: SPORTSBOOK_ODDS_MAX_AGE_MINUTES,
+        fallbacks: fallbackLeagues,
       },
-      leagues: SPORTSBOOK_LEAGUES.map(({ key, name }) => ({
-        key, name,
-        eventCount: rows.filter((event) => event.sport === key).length,
-        openCount: rows.filter((event) => event.sport === key && event.lineState === 'OPEN').length,
-      })),
+      leagues: SPORTSBOOK_LEAGUES.map(({ key, name }) => {
+        const activeProvider = leagueProviders.get(key)?.activeOddsProvider ?? DEFAULT_SPORTSBOOK_PROVIDER_ID;
+        return {
+          key, name, activeProvider, activeProviderName: sportsbookProviderName(activeProvider),
+          isFallback: activeProvider !== DEFAULT_SPORTSBOOK_PROVIDER_ID,
+          eventCount: rows.filter((event) => event.sport === key).length,
+          openCount: rows.filter((event) => event.sport === key && event.lineState === 'OPEN').length,
+        };
+      }),
       events: rows,
     };
   },
@@ -437,7 +350,7 @@ export const SportsbookService = {
       if (event?.status === 'PULLED' && event.startsAt > now) throw AppError.conflict('SPORTSBOOK_LINE_PULLED', 'The book took this line down. Try another game.');
       if (!event || event.status !== 'PRE' || event.startsAt <= now) throw AppError.conflict('SPORTSBOOK_CLOSED', 'That game is no longer open for betting.');
       if (!isSportsbookBettingOpen(event, now)) throw AppError.conflict('SPORTSBOOK_STALE_ODDS', 'The line is being refreshed. Try again shortly.');
-      const providerState = await tx.sportsbookProviderState.findUnique({ where: { id: 'therundown' } });
+      const providerState = await tx.sportsbookProviderState.findUnique({ where: { id: event.oddsProvider } });
       if (!isSportsbookFeedFresh(providerState?.lastPolledAt, now)) {
         throw AppError.conflict('SPORTSBOOK_STALE_ODDS', 'The odds feed is temporarily unavailable. Try again shortly.');
       }
@@ -462,7 +375,7 @@ export const SportsbookService = {
       }, now);
       const bet = await tx.sportsbookBet.create({ data: {
         roundPlayerId, eventId: event.id, actionId: input.actionId, selection: input.selection,
-        oddsAmerican: odds, stakeCents: stake, payoutCents: payout, createdAt: now,
+        oddsAmerican: odds, oddsProvider: event.oddsProvider, stakeCents: stake, payoutCents: payout, createdAt: now,
         casinoSessionId: source.casinoSessionId, casinoCityId: source.casinoCityId,
       } });
       // This transaction only moves casino chips and writes a ticket; it never reads or changes turns.

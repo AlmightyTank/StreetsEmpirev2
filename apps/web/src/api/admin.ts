@@ -166,7 +166,6 @@ export const adminApi = {
   devBots: () => api.get<AdminDevBotsDto>('/admin/dev-bots'),
   seedDevBots: () => api.post<AdminDevBotsDto>('/admin/dev-bots/seed'),
   removeDevBots: (reason: string) => api.post<AdminDevBotsDto>('/admin/dev-bots/remove', { reason }),
-  spawnNpcCrew: () => api.post<AdminDevBotsDto>('/admin/npc-gangs/spawn'),
   seedDevBot: (slug: string) => api.post<AdminDevBotsDto>(`/admin/dev-bots/rivals/${enc(slug)}/seed`),
   removeDevBot: (accountId: string, reason: string) => api.post<AdminDevBotsDto>(`/admin/dev-bots/accounts/${enc(accountId)}/remove`, { reason }),
   npcGang: (roundPlayerId: string) => api.get<AdminNpcGangInspectDto>(`/admin/npc-gangs/${enc(roundPlayerId)}`),
@@ -281,9 +280,15 @@ export const adminApi = {
   /** Pulls all league odds into the shared player cache now, using normal lease and quota guards. */
   sportsbookPull: () => api.post<AdminSportsbookActionDto>('/admin/sportsbook/pull', {}),
   /** 1.8.0-E release gate: parse one league's live provider snapshot without storing it. */
-  sportsbookProviderCheck: (league: SportsbookLeagueKey) => api.post<AdminSportsbookProviderCheckDto>('/admin/sportsbook/provider-check', { league }),
+  sportsbookProviderCheck: (league: SportsbookLeagueKey, provider: string) => api.post<AdminSportsbookProviderCheckDto>('/admin/sportsbook/provider-check', { league, provider }),
+  sportsbookPinProvider: (league: SportsbookLeagueKey, provider: string, reason?: string) =>
+    api.post<AdminSportsbookActionDto>(`/admin/sportsbook/leagues/${enc(league)}/pin`, { provider, ...(reason ? { reason } : {}) }),
+  sportsbookClearProviderPin: (league: SportsbookLeagueKey) =>
+    api.post<AdminSportsbookActionDto>(`/admin/sportsbook/leagues/${enc(league)}/clear-pin`, {}),
   sportsbookVoid: (eventId: string, reason: string) =>
     api.post<AdminSportsbookActionDto>(`/admin/sportsbook/events/${enc(eventId)}/void`, { reason }),
+  sportsbookResolve: (eventId: string, input: { action: 'SETTLE'; provider: string; reason: string } | { action: 'VOID'; reason: string }) =>
+    api.post<AdminSportsbookActionDto>(`/admin/sportsbook/events/${enc(eventId)}/resolve`, input),
   /** 1.6.5-F. Loan shark health for a round, one player's loans, and an audited correction. */
   loans: (roundId: string) => api.get<AdminLoansDto>(roundPath(roundId, 'loans')),
   playerLoans: (roundPlayerId: string) => api.get<AdminLoanPlayerDto>(`/admin/players/${enc(roundPlayerId)}/loans`),

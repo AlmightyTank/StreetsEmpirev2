@@ -969,6 +969,11 @@ export interface RandomEncounterChoiceRules {
   readonly cash?: RandomEncounterCashEffectRules;
   readonly heat?: RandomEncounterNumberEffectRules;
   readonly supplies?: RandomEncounterSupplyEffectRules;
+  readonly turns?: RandomEncounterNumberEffectRules;
+  readonly thugs?: RandomEncounterNumberEffectRules;
+  readonly woundedThugs?: RandomEncounterNumberEffectRules;
+  readonly whores?: RandomEncounterNumberEffectRules;
+  readonly lowRiders?: RandomEncounterNumberEffectRules;
 }
 
 export interface RandomEncounterEntryRules {
@@ -980,6 +985,11 @@ export interface RandomEncounterEntryRules {
   readonly cash?: RandomEncounterCashEffectRules;
   readonly heat?: RandomEncounterNumberEffectRules;
   readonly supplies?: RandomEncounterSupplyEffectRules;
+  readonly turns?: RandomEncounterNumberEffectRules;
+  readonly thugs?: RandomEncounterNumberEffectRules;
+  readonly woundedThugs?: RandomEncounterNumberEffectRules;
+  readonly whores?: RandomEncounterNumberEffectRules;
+  readonly lowRiders?: RandomEncounterNumberEffectRules;
   readonly choices?: readonly RandomEncounterChoiceRules[];
   readonly districts?: readonly DistrictKey[];
 }
@@ -1016,6 +1026,50 @@ export interface RandomEncounterTriggerRules {
 export interface RandomEncounterRules {
   readonly enabled: boolean;
   readonly triggers: Readonly<Partial<Record<RandomEncounterTrigger, RandomEncounterTriggerRules>>>;
+  /** Named street crews represented as encounter state, never as player accounts. */
+  readonly gangs?: EncounterGangRules;
+}
+
+export type EncounterGangTier = 'SCRUB' | 'STREET' | 'VETERAN' | 'KINGPIN';
+export type EncounterGangTargeting = 'RICHEST' | 'WEAKEST' | 'RIDES' | 'PRODUCT' | 'DISTRACTED';
+
+export interface EncounterGangPersonality {
+  readonly label: string;
+  readonly style: string;
+  readonly targeting: EncounterGangTargeting;
+  readonly favoriteMove: 'CASH_RAID' | 'DRIVE_BY' | 'STEAL_RIDE' | 'DRUG_HOES' | 'LURE_CREW';
+}
+
+export interface EncounterGangRosterEntry {
+  readonly slug: string;
+  readonly bossName: string;
+  readonly crewName: string;
+  readonly crewTag: string;
+  readonly personality: string;
+  readonly aggression: number;
+  readonly ambition: number;
+  readonly discipline: number;
+}
+
+/**
+ * Persistent context for gang-flavored random encounters. These crews never receive
+ * accounts, turns, inventory, rankings or a RoundPlayer body.
+ */
+export interface EncounterGangRules {
+  readonly enabled: boolean;
+  readonly minCrews: number;
+  readonly maxCrews: number;
+  readonly humansPerCrew: number;
+  readonly startingTurfChance: number;
+  readonly pushBelowReputation: number;
+  readonly retaliationHours: number;
+  readonly wantedHours: number;
+  readonly dormantBelowMomentum: number;
+  readonly dormantHours: number;
+  readonly migrateAfterHours: number;
+  readonly bountyCents: Readonly<Record<EncounterGangTier, number>>;
+  readonly personalities: Readonly<Record<string, EncounterGangPersonality>>;
+  readonly roster: readonly EncounterGangRosterEntry[];
 }
 
 /**

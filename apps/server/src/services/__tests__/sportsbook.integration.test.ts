@@ -9,8 +9,10 @@ import { classicOgV17E, classicOgV18E, type Ruleset } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import { ReputationService } from '../reputation.service.js';
 import { SportsbookService, settleSportsbookEvent } from '../sportsbook.service.js';
-import { refreshSportsbookCache } from '../sportsbook-feed.service.js';
+import { checkSportsbookResultChain, evaluateSportsbookResultEvidence, refreshSportsbookCache, type ResultBulkCache } from '../sportsbook-feed.service.js';
 import { AdminSportsbookService } from '../admin-sportsbook.service.js';
+import { ProviderSession, type NormalizedSportsbookResult, type SportsbookProvider } from '../sportsbook/sportsbook-provider.js';
+import type { SportsbookProviderId } from '../sportsbook/sportsbook-providers.js';
 
 // Slices B and C share one provider-state row, so they run in one file, one test at a time.
 describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook board, tickets, feed and limits with PostgreSQL', () => {
@@ -23,6 +25,9 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
   const eventIds: string[] = [];
   const cacheFilePaths = new Set<string>();
   let savedProviderState: Awaited<ReturnType<FastifyInstance['prisma']['sportsbookProviderState']['findUnique']>> = null;
+  let savedOddsApiState: Awaited<ReturnType<FastifyInstance['prisma']['sportsbookProviderState']['findUnique']>> = null;
+  let savedEspnState: Awaited<ReturnType<FastifyInstance['prisma']['sportsbookProviderState']['findUnique']>> = null;
+  let savedLeagueProviderStates: Awaited<ReturnType<FastifyInstance['prisma']['sportsbookLeagueProviderState']['findMany']>> = [];
   const now = new Date('2030-03-01T18:00:00.000Z');
   const minutes = (count: number) => new Date(now.getTime() + count * 60_000);
 
@@ -54,7 +59,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     return player;
   }
 
-  async function event(data: Partial<{ providerEventId: string; sport: string; startsAt: Date; oddsUpdatedAt: Date | null; homeOdds: number | null; awayOdds: number | null; status: string; homeScore: number; awayScore: number; lastSeenAt: Date; settledAt: Date }> = {}) {
+  async function event(data: Partial<{ providerEventId: string; sport: string; homeTeam: string; awayTeam: string; startsAt: Date; oddsUpdatedAt: Date | null; homeOdds: number | null; awayOdds: number | null; status: string; homeScore: number; awayScore: number; lastSeenAt: Date; settledAt: Date }> = {}) {
     const created = await app.prisma.sportsbookEvent.create({
       data: {
         providerEventId: 'test-' + randomUUID(), sport: 'NBA', homeTeam: 'Home Club', awayTeam: 'Away Club',
@@ -75,6 +80,9 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     const { buildApp } = await import('../../app.js');
     app = await buildApp();
     savedProviderState = await app.prisma.sportsbookProviderState.findUnique({ where: { id: 'therundown' } });
+    savedOddsApiState = await app.prisma.sportsbookProviderState.findUnique({ where: { id: 'theoddsapi' } });
+    savedEspnState = await app.prisma.sportsbookProviderState.findUnique({ where: { id: 'espn' } });
+    savedLeagueProviderStates = await app.prisma.sportsbookLeagueProviderState.findMany();
     accountName = 'book_' + randomUUID().slice(0, 6);
     const registered = await app.inject({
       method: 'POST', url: '/api/auth/register',
@@ -93,6 +101,22 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
       await app.prisma.sportsbookProviderState.update({ where: { id }, data: { ...rest, leagueStatus: leagueStatus as Prisma.InputJsonValue } });
     } else {
       await app.prisma.sportsbookProviderState.deleteMany({ where: { id: 'therundown' } });
+    }
+    if (savedOddsApiState) {
+      const { id, updatedAt: _updatedAt, leagueStatus, ...rest } = savedOddsApiState;
+      await app.prisma.sportsbookProviderState.update({ where: { id }, data: { ...rest, leagueStatus: leagueStatus as Prisma.InputJsonValue } });
+    } else {
+      await app.prisma.sportsbookProviderState.deleteMany({ where: { id: 'theoddsapi' } });
+    }
+    if (savedEspnState) {
+      const { id, updatedAt: _updatedAt, leagueStatus, ...rest } = savedEspnState;
+      await app.prisma.sportsbookProviderState.update({ where: { id }, data: { ...rest, leagueStatus: leagueStatus as Prisma.InputJsonValue } });
+    } else {
+      await app.prisma.sportsbookProviderState.deleteMany({ where: { id: 'espn' } });
+    }
+    for (const saved of savedLeagueProviderStates) {
+      const { league, updatedAt: _updatedAt, ...data } = saved;
+      await app.prisma.sportsbookLeagueProviderState.upsert({ where: { league }, create: { league, ...data }, update: data });
     }
     if (accountId) await app.prisma.account.delete({ where: { id: accountId } });
     await app?.close();
@@ -146,6 +170,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
       eventId: game.id, selection: 'AWAY', stakeCents: 10_000, actionId: randomUUID(), expectedOdds: 130,
     }, now);
     expect(placed.bet).toMatchObject({ oddsAmerican: 130, stakeCents: 10_000, payoutCents: 23_000 });
+    expect(await app.prisma.sportsbookBet.findUniqueOrThrow({ where: { id: placed.bet.id } })).toMatchObject({ oddsProvider: 'therundown' });
     expect((await app.prisma.casinoSession.findFirstOrThrow({ where: { roundPlayerId: player.id, status: 'OPEN' } })).bankrollCents).toBe(490_000n);
     expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).cashCents).toBe(500_000n);
   });
@@ -216,6 +241,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
       if (odds) return handlers.odds?.(LEAGUE_BY_SPORT_ID[odds[1]!]!, odds[2]!) ?? reply(200, { events: [] });
       const result = url.pathname.match(/\/events\/([^/]+)$/);
       if (result) return handlers.result?.(decodeURIComponent(result[1]!)) ?? reply(200, { meta: null, events: [{ status: 'STATUS_SCHEDULED' }] });
+      if (url.hostname === 'site.api.espn.com' && url.pathname.endsWith('/scoreboard')) return reply(200, { events: [] });
       return reply(404, {});
     }) as typeof fetch;
     const cacheFilePath = join(tmpdir(), `streets-sportsbook-${randomUUID()}.json`);
@@ -228,8 +254,19 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
       where: { id: 'therundown' },
       create: { id: 'therundown' },
       update: {
-        pollLeaseUntil: null, lastAttemptAt: null, lastPolledAt: null, consecutiveFailures: 0, leagueStatus: {},
+        pollLeaseUntil: null, lastAttemptAt: null, lastPolledAt: null, consecutiveFailures: 0,
+        consecutiveSuccesses: 0, circuitOpenUntil: null, leagueStatus: {},
         datapointsRemaining: null, quotaObservedAt: null, lastError: '', ...data,
+      },
+    });
+    await app.prisma.sportsbookLeagueProviderState.updateMany({
+      data: { activeOddsProvider: 'therundown', pinnedOddsProvider: null, activeSince: feedNow },
+    });
+    await app.prisma.sportsbookProviderState.upsert({
+      where: { id: 'theoddsapi' }, create: { id: 'theoddsapi' }, update: {
+        pollLeaseUntil: null, lastAttemptAt: null, lastPolledAt: null, consecutiveFailures: 0,
+        consecutiveSuccesses: 0, circuitOpenUntil: null, leagueStatus: {},
+        datapointsRemaining: null, quotaObservedAt: null, lastError: '',
       },
     });
   }
@@ -244,6 +281,13 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
   async function ticketOn(playerId: string, eventId: string, selection = 'AWAY') {
     return app.prisma.sportsbookBet.create({ data: {
       roundPlayerId: playerId, eventId, actionId: randomUUID(), selection, oddsAmerican: 130, stakeCents: 10_000n, payoutCents: 23_000n,
+    } });
+  }
+
+  async function resultSource(eventId: string, providerName: string, status: 'PRE' | 'LIVE' | 'FINAL' | 'CANCELLED', homeScore: number | null, awayScore: number | null, checkedAt = feedNow) {
+    return app.prisma.sportsbookEventSource.create({ data: {
+      eventId, provider: providerName, providerEventId: `${providerName}-${randomUUID()}`,
+      status, homeScore, awayScore, resultCheckedAt: checkedAt, lastSeenAt: checkedAt,
     } });
   }
 
@@ -262,11 +306,11 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     });
 
     const result = await refreshSportsbookCache(app.prisma, 'test-key', feedNow, feed);
-    expect(result).toMatchObject({ skipped: null, oddsPolled: true, snapshots: 6, failedSnapshots: 2 });
+    expect(result).toMatchObject({ skipped: null, oddsPolled: true, snapshots: 6, failedSnapshots: 1 });
     expect(result.pulled).toBeGreaterThanOrEqual(1);
     expect(result.errors.join(' ')).toContain('MLB');
-    // Two dates × three attempts for MLB, one request per date for the other three leagues.
-    expect(feed.calls.filter((path) => path.startsWith('/api/v2/sports/3/'))).toHaveLength(6);
+    // A league stops after its first exhausted retry set instead of spending again on the next date.
+    expect(feed.calls.filter((path) => path.startsWith('/api/v2/sports/3/'))).toHaveLength(3);
 
     const state = await app.prisma.sportsbookProviderState.findUniqueOrThrow({ where: { id: 'therundown' } });
     expect(state).toMatchObject({ lastPolledAt: feedNow, lastAttemptAt: feedNow, pollLeaseUntil: null, consecutiveFailures: 0, datapointsRemaining: 19_000 });
@@ -275,7 +319,11 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(leagues.MLB!.lastError).toContain('500');
 
     const fresh = await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { providerEventId: providerPrefix + 'fresh' } });
-    expect(fresh).toMatchObject({ status: 'PRE', homeOdds: -160, awayOdds: 140, oddsUpdatedAt: feedNow });
+    expect(fresh).toMatchObject({ status: 'PRE', homeOdds: -160, awayOdds: 140, oddsUpdatedAt: feedNow, oddsProvider: 'therundown' });
+    expect(await app.prisma.sportsbookEventSource.findUniqueOrThrow({
+      where: { provider_providerEventId: { provider: 'therundown', providerEventId: providerPrefix + 'fresh' } },
+    })).toMatchObject({ eventId: fresh.id, status: 'PRE', homeOdds: -160, awayOdds: 140, lastSeenAt: feedNow });
+    expect(await app.prisma.sportsbookFeedRun.findFirstOrThrow({ where: { provider: 'therundown' }, orderBy: { startedAt: 'desc' } })).toMatchObject({ provider: 'therundown' });
     expect((await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: settled.id } })).status).toBe('VOID');
     expect((await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: gone.id } })).status).toBe('PULLED');
 
@@ -293,6 +341,108 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect((await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: gone.id } })).status).toBe('PRE');
   });
 
+  it('fails over at most twice, stays sticky, and returns to a recovered primary after two healthy runs', async () => {
+    await resetFeedState();
+    const today = feedNow.toISOString().slice(0, 10);
+    const legacyId = providerPrefix + 'chain-nfl';
+    const kickoff = at(300);
+    const canonical = await event({
+      providerEventId: legacyId, sport: 'NFL', startsAt: kickoff,
+      homeOdds: -125, awayOdds: 110, homeTeam: 'New England Patriots', awayTeam: 'Miami Dolphins',
+    });
+    let primaryHealthy = false;
+    const calls: string[] = [];
+    const fetchImpl = (async (input: Parameters<typeof fetch>[0]) => {
+      const url = new URL(String(input));
+      calls.push(url.pathname);
+      const rundown = url.pathname.match(/\/api\/v2\/sports\/(\d+)\/events\/([\d-]+)$/);
+      if (rundown) {
+        const league = LEAGUE_BY_SPORT_ID[rundown[1]!]!;
+        if (!primaryHealthy && (league === 'NFL' || league === 'NBA')) return reply(503, {});
+        if (primaryHealthy && league === 'NFL') {
+          return reply(200, { events: [{
+            event_id: legacyId, event_date: kickoff.toISOString(), status: 'STATUS_SCHEDULED',
+            teams: [{ name: 'Miami Dolphins', is_away: true }, { name: 'New England Patriots', is_home: true }],
+            markets: [{ market_id: 1, participants: [
+              { name: 'Miami Dolphins', price: 115 }, { name: 'New England Patriots', price: -135 },
+            ] }],
+          }] });
+        }
+        if (primaryHealthy && league === 'NBA') {
+          return reply(200, { events: [{
+            event_id: providerPrefix + 'primary-nba', event_date: at(240).toISOString(), status: 'STATUS_SCHEDULED',
+            teams: [{ name: 'Boston Celtics', is_away: true }, { name: 'Chicago Bulls', is_home: true }],
+            markets: [{ market_id: 1, participants: [
+              { name: 'Boston Celtics', price: 115 }, { name: 'Chicago Bulls', price: -135 },
+            ] }],
+          }] });
+        }
+        return reply(200, { events: [] });
+      }
+      const odds = url.pathname.match(/\/v4\/sports\/([^/]+)\/odds$/);
+      if (odds) {
+        const date = url.searchParams.get('commenceTimeFrom')?.slice(0, 10);
+        const games = odds[1] === 'americanfootball_nfl' && date === today ? [{
+          id: providerPrefix + 'odds-nfl', commence_time: new Date(kickoff.getTime() + 20 * 60_000).toISOString(),
+          home_team: 'New England Patriots', away_team: 'Miami Dolphins',
+          bookmakers: [{ key: 'book', markets: [{ key: 'h2h', outcomes: [
+            { name: 'Miami Dolphins', price: 125 }, { name: 'New England Patriots', price: -145 },
+          ] }] }],
+        }] : odds[1] === 'basketball_nba' && date === today ? [{
+          id: providerPrefix + 'odds-nba', commence_time: at(240).toISOString(),
+          home_team: 'Chicago Bulls', away_team: 'Boston Celtics',
+          bookmakers: [{ key: 'book', markets: [{ key: 'h2h', outcomes: [
+            { name: 'Boston Celtics', price: 120 }, { name: 'Chicago Bulls', price: -140 },
+          ] }] }],
+        }] : [];
+        return new Response(JSON.stringify(games), { status: 200, headers: { 'x-requests-last': '1', 'x-requests-used': '1000', 'x-requests-remaining': '19000' } });
+      }
+      return reply(404, {});
+    }) as typeof fetch;
+    const cacheFilePath = join(tmpdir(), `streets-sportsbook-${randomUUID()}.json`);
+    cacheFilePaths.add(cacheFilePath);
+    const deps = { fetch: fetchImpl, sleep: noSleep, cacheFilePath };
+    const keys = { therundown: 'primary-key', theoddsapi: 'fallback-key' };
+
+    const first = await refreshSportsbookCache(app.prisma, keys, feedNow, deps);
+    expect(first.failovers).toBe(2);
+    expect(first.failedSnapshots).toBeGreaterThanOrEqual(2);
+    expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: canonical.id } })).toMatchObject({
+      oddsProvider: 'theoddsapi', homeOdds: -145, awayOdds: 125,
+    });
+    expect(await app.prisma.sportsbookEventSource.findUniqueOrThrow({
+      where: { provider_providerEventId: { provider: 'theoddsapi', providerEventId: providerPrefix + 'odds-nfl' } },
+    })).toMatchObject({ eventId: canonical.id });
+    expect((await app.prisma.sportsbookLeagueProviderState.findUniqueOrThrow({ where: { league: 'NFL' } })).activeOddsProvider).toBe('theoddsapi');
+    const chainRuns = await app.prisma.sportsbookFeedRun.findMany({
+      where: { startedAt: feedNow, provider: { in: ['therundown', 'theoddsapi'] } }, select: { provider: true },
+    });
+    expect(new Set(chainRuns.map((run) => run.provider))).toEqual(new Set(['therundown', 'theoddsapi']));
+    const fallbackBoard = await SportsbookService.board(app.prisma, { configured: true, pollMinutes: 30 }, feedNow);
+    expect(fallbackBoard.feed.fallbacks).toContainEqual({ league: 'NFL', provider: 'theoddsapi', providerName: 'The Odds API' });
+    expect(fallbackBoard.leagues.find((row) => row.key === 'NFL')).toMatchObject({ activeProvider: 'theoddsapi', isFallback: true });
+
+    calls.length = 0;
+    const sticky = await refreshSportsbookCache(app.prisma, keys, at(31), deps);
+    expect(sticky.failovers).toBe(0);
+    expect(calls.some((path) => path.includes('/sports/2/events/'))).toBe(false);
+    expect(calls.some((path) => path.includes('/americanfootball_nfl/odds'))).toBe(true);
+
+    primaryHealthy = true;
+    // Two successful primary runs on the leagues it still serves make it eligible for a probe.
+    await app.prisma.sportsbookProviderState.update({ where: { id: 'therundown' }, data: { consecutiveSuccesses: 2, circuitOpenUntil: null } });
+    await refreshSportsbookCache(app.prisma, keys, at(62), deps);
+    expect((await app.prisma.sportsbookLeagueProviderState.findUniqueOrThrow({ where: { league: 'NFL' } })).activeOddsProvider).toBe('therundown');
+    expect((await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: canonical.id } })).oddsProvider).toBe('therundown');
+
+    const config = { configured: true, pollMinutes: 30, keys };
+    const actor = { id: accountId, username: accountName };
+    const pinned = await AdminSportsbookService.pinLeague(app.prisma, config, actor, 'NFL', 'theoddsapi', 'Testing the fallback pin.', at(63));
+    expect(pinned.report.leagues.find((row) => row.key === 'NFL')).toMatchObject({ activeProvider: 'theoddsapi', pinnedProvider: 'theoddsapi' });
+    const cleared = await AdminSportsbookService.clearLeaguePin(app.prisma, config, actor, 'NFL', at(64));
+    expect(cleared.report.leagues.find((row) => row.key === 'NFL')?.pinnedProvider).toBeNull();
+  });
+
   it('spends nothing while another poller holds the feed, and records a run that got no odds', async () => {
     const quiet = provider({});
     await resetFeedState({ pollLeaseUntil: at(5) });
@@ -306,7 +456,13 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     await expect(refreshSportsbookCache(app.prisma, 'test-key', feedNow, down)).rejects.toThrow(/no odds snapshot/);
     const afterOutage = await app.prisma.sportsbookProviderState.findUniqueOrThrow({ where: { id: 'therundown' } });
     expect(afterOutage).toMatchObject({ lastPolledAt: at(-30), consecutiveFailures: 3, pollLeaseUntil: null, lastErrorAt: feedNow });
+    expect(afterOutage.circuitOpenUntil).toEqual(at(30));
     expect(afterOutage.lastError).toContain('503');
+    down.calls.length = 0;
+    await expect(refreshSportsbookCache(app.prisma, 'test-key', at(31), down)).rejects.toThrow(/no odds snapshot/);
+    // Once the 30-minute circuit expires, one league probes it; a failed probe blocks further spend this run.
+    expect(down.calls).toHaveLength(3);
+    expect((await app.prisma.sportsbookProviderState.findUniqueOrThrow({ where: { id: 'therundown' } })).circuitOpenUntil).toEqual(at(61));
 
     await resetFeedState();
     const badKey = provider({ odds: () => reply(401, {}) });
@@ -337,7 +493,10 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(resultCalls()).toBe(2);
     expect(settledRun.settled).toBe(1);
     expect(await app.prisma.sportsbookBet.findFirstOrThrow({ where: { eventId: game.id } })).toMatchObject({ status: 'WON' });
-    expect((await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: game.id } })).settledVia).toBe('FEED');
+    expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: game.id } })).toMatchObject({ settledVia: 'FEED', settledProvider: 'therundown' });
+    expect(await app.prisma.sportsbookEventSource.findFirstOrThrow({ where: { eventId: game.id, provider: 'therundown' } })).toMatchObject({
+      status: 'FINAL', homeScore: 99, awayScore: 101, resultCheckCount: 2, nextResultCheckAt: null,
+    });
     expect(await chipsAndCash(player.id)).toEqual({ bankrollCents: 523_000n, cashCents: 500_000n });
 
     // A settled game is never checked or paid again.
@@ -353,6 +512,90 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     ]);
     expect(outcomes.filter(Boolean)).toHaveLength(1);
     expect(await chipsAndCash(player.id)).toEqual({ bankrollCents: 546_000n, cashCents: 500_000n });
+  });
+
+  it('settles agreeing results, holds disagreements, and lets an admin choose the audited score', async () => {
+    const actor = { id: accountId, username: accountName };
+    const config = { configured: true, pollMinutes: 30, apiKey: 'test-key' };
+    const player = await fixture();
+    const agreed = await event({ startsAt: at(-300) });
+    await ticketOn(player.id, agreed.id, 'AWAY');
+    await resultSource(agreed.id, 'therundown', 'FINAL', 99, 101);
+    await resultSource(agreed.id, 'espn', 'FINAL', 99, 101);
+    await expect(evaluateSportsbookResultEvidence(app.prisma, agreed, feedNow)).resolves.toMatchObject({ outcome: 'SETTLED' });
+    expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: agreed.id } })).toMatchObject({
+      status: 'FINAL', homeScore: 99, awayScore: 101, settledProvider: 'therundown,espn',
+    });
+
+    const disputed = await event({ startsAt: at(-300) });
+    await ticketOn(player.id, disputed.id, 'HOME');
+    await resultSource(disputed.id, 'therundown', 'FINAL', 108, 101);
+    await resultSource(disputed.id, 'espn', 'FINAL', 107, 101);
+    await expect(evaluateSportsbookResultEvidence(app.prisma, disputed, feedNow)).resolves.toMatchObject({ outcome: 'DISPUTED' });
+    expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: disputed.id } })).toMatchObject({ status: 'DISPUTED', settledAt: null });
+    expect(await app.prisma.sportsbookBet.findFirstOrThrow({ where: { eventId: disputed.id } })).toMatchObject({ status: 'OPEN' });
+
+    const resolved = await AdminSportsbookService.resolve(app.prisma, config, actor, disputed.id, {
+      action: 'SETTLE', provider: 'therundown', reason: 'Official box score confirms the home win.',
+    }, at(1));
+    expect(resolved.message).toContain('TheRundown at 101-108');
+    expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: disputed.id } })).toMatchObject({
+      status: 'FINAL', homeScore: 108, awayScore: 101, settledVia: 'ADMIN_RESOLUTION', settledProvider: 'therundown',
+    });
+    await expect(AdminSportsbookService.resolve(app.prisma, config, actor, disputed.id, {
+      action: 'VOID', reason: 'A second attempt must not pay twice.',
+    }, at(2))).rejects.toMatchObject({ code: 'SPORTSBOOK_ALREADY_SETTLED' });
+    const audit = await app.prisma.adminAuditLog.findFirstOrThrow({ where: { action: 'sportsbook.resolve', targetId: disputed.id } });
+    expect(audit.reason).toBe('Official box score confirms the home win.');
+    await app.prisma.adminAuditLog.deleteMany({ where: { targetId: disputed.id } });
+  });
+
+  it('shares one bulk result call per provider and league across open games', async () => {
+    const player = await fixture();
+    const first = await event({ startsAt: at(-300), homeTeam: 'Chicago Bulls', awayTeam: 'Boston Celtics' });
+    const second = await event({ startsAt: at(-240), homeTeam: 'Los Angeles Lakers', awayTeam: 'Golden State Warriors' });
+    await ticketOn(player.id, first.id);
+    await ticketOn(player.id, second.id);
+    const result = (eventId: string, game: { homeTeam: string; awayTeam: string; startsAt: Date }, provider: string): NormalizedSportsbookResult => ({
+      providerEventId: `${provider}-${eventId}`, league: 'NBA', homeTeam: game.homeTeam, awayTeam: game.awayTeam,
+      startsAt: game.startsAt, status: 'FINAL', scores: { home: 108, away: 101 },
+    });
+    const calls = new Map<string, number>();
+    const makeProvider = (id: SportsbookProviderId, rows: NormalizedSportsbookResult[]): SportsbookProvider => ({
+      id, name: id, capabilities: { leagues: ['NBA'], markets: [], odds: false, results: true, bulkResults: true },
+      session: new ProviderSession({ id, name: id, baseUrl: 'https://example.invalid', authHeaders: () => ({}), usage: () => ({ units: 0 }) }, '', { used: 0, limit: 0, remaining: null, period: '' }),
+      listEvents: async () => [], getResult: async () => null,
+      listResults: async () => { calls.set(id, (calls.get(id) ?? 0) + 1); return rows; },
+    });
+    const oddsRows = [result(first.id, first, 'odds'), result(second.id, second, 'odds')];
+    const espnRows = [result(first.id, first, 'espn'), result(second.id, second, 'espn')];
+    const providers = new Map<SportsbookProviderId, SportsbookProvider>([
+      ['theoddsapi', makeProvider('theoddsapi', oddsRows)], ['espn', makeProvider('espn', espnRows)],
+    ]);
+    const cache: ResultBulkCache = new Map();
+    await expect(checkSportsbookResultChain(app.prisma, providers, { ...first, sources: [] }, feedNow, 'FEED', cache)).resolves.toMatchObject({ outcome: 'SETTLED' });
+    await expect(checkSportsbookResultChain(app.prisma, providers, { ...second, sources: [] }, feedNow, 'FEED', cache)).resolves.toMatchObject({ outcome: 'SETTLED' });
+    expect(Object.fromEntries(calls)).toEqual({ theoddsapi: 1, espn: 1 });
+  });
+
+  it('requires two cancellation reports and flags a missing result after 72 hours', async () => {
+    const player = await fixture();
+    const cancelled = await event({ startsAt: at(-300) });
+    await ticketOn(player.id, cancelled.id);
+    await resultSource(cancelled.id, 'therundown', 'CANCELLED', null, null);
+    await expect(evaluateSportsbookResultEvidence(app.prisma, cancelled, feedNow)).resolves.toMatchObject({ outcome: 'REVIEW' });
+    expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: cancelled.id } })).toMatchObject({ status: 'PULLED', settledAt: null });
+    expect(await app.prisma.sportsbookBet.findFirstOrThrow({ where: { eventId: cancelled.id } })).toMatchObject({ status: 'OPEN' });
+    await resultSource(cancelled.id, 'espn', 'CANCELLED', null, null);
+    await expect(evaluateSportsbookResultEvidence(app.prisma, cancelled, at(1))).resolves.toMatchObject({ outcome: 'VOIDED' });
+    expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: cancelled.id } })).toMatchObject({ status: 'VOID', settledProvider: 'therundown,espn' });
+
+    const overdue = await event({ startsAt: at(-73 * 60) });
+    await ticketOn(player.id, overdue.id);
+    await expect(evaluateSportsbookResultEvidence(app.prisma, overdue, feedNow)).resolves.toMatchObject({ outcome: 'REVIEW' });
+    expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: overdue.id } })).toMatchObject({
+      settledAt: null, resultReviewAt: feedNow, resultReviewReason: expect.stringContaining('72 hours'),
+    });
   });
 
   it('shows admins the stuck games, rechecks one on demand, and voids with an audit trail', async () => {
@@ -382,9 +625,12 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
 
     const feed = provider({ result: () => reply(200, { meta: null, events: [{ status: 'STATUS_POSTPONED' }] }) });
     const rechecked = await AdminSportsbookService.recheck(app.prisma, config, actor, stuck.id, feedNow, feed);
-    expect(rechecked.message).toBe('Voided; 1 ticket(s) refunded.');
-    expect((await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: stuck.id } })).settledVia).toBe('ADMIN_RECHECK');
-    expect(rechecked.report.unresolved.some((row) => row.id === stuck.id)).toBe(false);
+    expect(rechecked.message).toContain('second source is required');
+    expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: stuck.id } })).toMatchObject({ status: 'PULLED', settledAt: null });
+    expect(rechecked.report.unresolved.find((row) => row.id === stuck.id)?.sources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ provider: 'therundown', status: 'CANCELLED' }),
+    ]));
+    await AdminSportsbookService.resolve(app.prisma, config, actor, stuck.id, { action: 'VOID', reason: 'League confirms the postponed game will not resume.' }, feedNow);
 
     const voided = await AdminSportsbookService.void(app.prisma, config, actor, pulled.id, 'Provider dropped the game for good.', feedNow);
     expect(voided.message).toContain('1 ticket(s) refunded');
@@ -395,8 +641,8 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(await chipsAndCash(player.id)).toEqual({ bankrollCents: 520_000n, cashCents: 500_000n });
 
     const audits = await app.prisma.adminAuditLog.findMany({ where: { targetId: { in: [stuck.id, pulled.id] } }, orderBy: { createdAt: 'asc' } });
-    expect(audits.map((row) => row.action)).toEqual(['sportsbook.recheck', 'sportsbook.void']);
-    expect(audits[1]).toMatchObject({ reason: 'Provider dropped the game for good.', after: expect.objectContaining({ tickets: 1, refundedCents: '10000' }) });
+    expect(audits.map((row) => row.action)).toEqual(['sportsbook.recheck', 'sportsbook.resolve', 'sportsbook.void']);
+    expect(audits[2]).toMatchObject({ reason: 'Provider dropped the game for good.', after: expect.objectContaining({ tickets: 1, refundedCents: '10000' }) });
     await app.prisma.adminAuditLog.deleteMany({ where: { targetId: { in: [stuck.id, pulled.id] } } });
   });
 
@@ -589,10 +835,14 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     const empty = await AdminSportsbookService.report(app.prisma, config, eNow);
     expect(empty.review.ready).toBe(false);
 
-    // 20 days of runs, two a day from 15:00 UTC (so 21 calendar dates), one failure; 300 datapoints a day projects 9,000 a month.
-    await app.prisma.sportsbookFeedRun.createMany({ data: Array.from({ length: 40 }, (_, index) => ({
-      startedAt: eAt(-(20 * 24 * 60) + index * 12 * 60), oddsPolled: true, requests: 8, datapoints: 150,
+    // A full 30 days, two runs a day from 15:00 UTC (31 calendar dates), one uncovered primary run;
+    // the fallback serves the final five days. 200 units a day projects 6,000 a month.
+    await app.prisma.sportsbookFeedRun.createMany({ data: Array.from({ length: 60 }, (_, index) => ({
+      startedAt: eAt(-(30 * 24 * 60) + index * 12 * 60), provider: index >= 50 ? 'theoddsapi' : 'therundown',
+      oddsPolled: true, requests: 8, datapoints: 100,
       snapshots: index === 7 ? 0 : 8, failedSnapshots: index === 7 ? 8 : 0, pulled: 0, resultChecks: 2, settled: 2, failed: index === 7, error: '',
+      matcherMisses: 0,
+      leagueActivity: { NFL: { attempted: true, served: index !== 7, primary: index < 50, switched: index === 50, matcherMisses: 0 } },
     })) });
     const graded = await Promise.all(Array.from({ length: 60 }, (_, index) => event({
       providerEventId: providerPrefix + 'graded-' + index, startsAt: eAt(-3 * 24 * 60), status: index === 59 ? 'VOID' : 'FINAL',
@@ -602,12 +852,19 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     const ready = await AdminSportsbookService.report(app.prisma, config, eNow);
     const result = (key: string) => ready.review.criteria.find((criterion) => criterion.key === key)?.pass;
     expect(ready.review).toMatchObject({
-      runs: 40, failedRuns: 1, daysWithSnapshots: 21, datapoints: 6_000, datapointsPerDay: 300, projectedPerPeriod: 9_000,
+      observedDays: 30, runs: 60, failedRuns: 1, daysWithSnapshots: 31, datapoints: 6_000, datapointsPerDay: 200, projectedPerPeriod: 6_000,
       settled: { total: 60, feed: 60, voidedByFeed: 1, adminRecheck: 0, adminVoid: 0 },
       hoursToSettle: { median: 3.3, p90: 3.3 },
+      matcherMisses: 0,
+      recommendation: { sportsGameOdds: 'REVIEW' },
     });
-    expect(['history', 'sample', 'auto', 'failures', 'quota'].map(result)).toEqual([true, true, true, true, true]);
-    expect(ready.review.ready).toBe(result('stuck'));
+    expect(ready.review.providers.find((provider) => provider.id === 'therundown')).toMatchObject({ runs: 50, units: 5_000 });
+    expect(ready.review.providers.find((provider) => provider.id === 'theoddsapi')).toMatchObject({ runs: 10, units: 1_000 });
+    expect(ready.review.leagues.find((league) => league.key === 'NFL')).toMatchObject({
+      servedRuns: 59, uncoveredRuns: 1, failovers: 1, offPrimaryRuns: 10, matcherMisses: 0,
+    });
+    expect(['history', 'coverage', 'sample', 'auto', 'failures', 'matching', 'quota'].map(result)).toEqual([true, true, true, true, true, true, true]);
+    expect(ready.review.ready).toBe(ready.review.criteria.every((criterion) => criterion.pass));
 
     // Two admin voids out of 62 drop the feed's share below 98%.
     const voided = await Promise.all([1, 2].map((n) => event({ providerEventId: providerPrefix + 'admin-' + n, startsAt: eAt(-2 * 24 * 60), status: 'VOID' })));
@@ -720,10 +977,11 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(board.events.find((row) => row.id === stored.id)?.lineState).toBe('OPEN');
 
     const player = await fixture();
-    await SportsbookService.placeBet(app.prisma, player.id, { eventId: stored.id, selection: 'HOME', stakeCents: 10_000, actionId: randomUUID(), expectedOdds: 145 }, now2);
+    const ticket = await SportsbookService.placeBet(app.prisma, player.id, { eventId: stored.id, selection: 'HOME', stakeCents: 10_000, actionId: randomUUID(), expectedOdds: 145 }, now2);
+    expect(await app.prisma.sportsbookBet.findUniqueOrThrow({ where: { id: ticket.bet.id } })).toMatchObject({ oddsProvider: 'therundown' });
     result = v2Listing('STATUS_FINAL', { score_away: 17, score_home: 24 });
     await refreshSportsbookCache(app.prisma, 'test-key', new Date(now2.getTime() + 7 * 3_600_000), feed);
-    expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: stored.id } })).toMatchObject({ status: 'FINAL', homeScore: 24, awayScore: 17, settledVia: 'FEED' });
+    expect(await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: stored.id } })).toMatchObject({ status: 'FINAL', homeScore: 24, awayScore: 17, settledVia: 'FEED', settledProvider: 'therundown' });
     // $100 at +145 pays $245.
     expect((await app.prisma.casinoSession.findFirstOrThrow({ where: { roundPlayerId: player.id, status: 'OPEN' } })).bankrollCents).toBe(514_500n);
   });

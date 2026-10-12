@@ -1,44 +1,59 @@
-import type { Prisma, PrismaClient, SportsbookProviderState } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
-  SPORTSBOOK_QUOTA_ODDS_FLOOR,
-  SPORTSBOOK_QUOTA_RESULTS_FLOOR,
   type SportsbookLeagueFeedStatus,
   type SportsbookLeagueKey,
 } from '@streets/shared';
 import {
   SPORTSBOOK_LEAGUES,
   dateKey,
-  eventOdds,
-  eventTeams,
-  isSameQuotaWindow,
   num,
   record,
   settleSportsbookEvent,
   str,
-  type JsonRecord,
-  type ProviderEvent,
   type SportsbookSettledVia,
 } from './sportsbook.service.js';
+import {
+  ProviderError,
+  type NormalizedSportsbookEvent,
+  type NormalizedSportsbookResult,
+  type ProviderSessionDeps,
+  type SportsbookProvider,
+} from './sportsbook/sportsbook-provider.js';
+import {
+  createSportsbookProvider,
+  DEFAULT_SPORTSBOOK_PROVIDER_ID,
+  SPORTSBOOK_ODDS_CHAINS,
+  SPORTSBOOK_ODDS_PROVIDER_IDS,
+  SPORTSBOOK_PROVIDER_IDS,
+  SPORTSBOOK_PROVIDER_QUOTA_FLOORS,
+  SPORTSBOOK_RESULT_CHAINS,
+  sportsbookProviderName,
+  type SportsbookProviderId,
+  type SportsbookProviderKeys,
+} from './sportsbook/sportsbook-providers.js';
+import {
+  SPORTSBOOK_EVENT_MATCH_WINDOW_MS,
+  matchSportsbookEvent,
+  resolveSportsbookListingTeams,
+} from './sportsbook/sportsbook-event-matcher.js';
 
 /**
- * 1.8.0-C. Everything that talks to TheRundown: bounded retries, one poller at a time, a league
- * failure that never takes the other leagues (or settlement) down with it, and result checks
- * paced per event. Player requests still only ever read the database cache.
+ * Provider-neutral feed orchestration: one poller at a time, league-isolated failures, persisted
+ * quota/health, and per-event result pacing. Player requests only ever read the database cache.
  */
 
-export const SPORTSBOOK_PROVIDER_ID = 'therundown';
-const API_BASE = 'https://therundown.io/api/v2';
-const REQUEST_TIMEOUT_MS = 15_000;
-export const FEED_MAX_ATTEMPTS = 3;
-const RETRY_BASE_MS = 2_000;
-const RETRY_AFTER_CAP_MS = 30_000;
+export const SPORTSBOOK_PROVIDER_ID = DEFAULT_SPORTSBOOK_PROVIDER_ID;
 /** 1.8.0-E. Feed runs kept for the market review. */
 const FEED_RUN_RETENTION_DAYS = 90;
 /** A crashed poller cannot hold the feed for longer than this. */
 const LEASE_MS = 10 * 60_000;
+export const SPORTSBOOK_CIRCUIT_FAILURES = 3;
+export const SPORTSBOOK_CIRCUIT_OPEN_MS = 30 * 60_000;
+export const SPORTSBOOK_FALLBACKS_PER_LEAGUE = 1;
+export const SPORTSBOOK_FALLBACKS_PER_RUN = 2;
 const RESULT_CHECKS_PER_RUN = 40;
 /** The earliest a final score is plausible after the scheduled start. */
 const RESULT_FIRST_CHECK_MINUTES: Record<SportsbookLeagueKey, number> = { NFL: 180, NBA: 135, MLB: 150, NHL: 135 };
@@ -53,10 +68,11 @@ export const SPORTSBOOK_ODDS_CACHE_INTERVAL_MS = 30 * 60_000;
 export const SPORTSBOOK_EMPTY_FUTURE_RECHECK_MS = 2 * 60 * 60_000;
 const DEFAULT_ODDS_CACHE_FILE = path.resolve(process.cwd(), '.runtime', 'sportsbook-odds.json');
 
-type OddsCacheSnapshot = { league: SportsbookLeagueKey; date: string; events: unknown[]; fetchedAt?: string };
+type OddsCacheSnapshot = { provider?: string; league: SportsbookLeagueKey; date: string; events: unknown[]; fetchedAt?: string };
 type OddsCacheFile = { version: 1; updatedAt: string | null; snapshots: OddsCacheSnapshot[] };
 
-export type FeedDeps = { fetch?: typeof fetch; sleep?: (ms: number) => Promise<void>; cacheFilePath?: string };
+export type FeedDeps = ProviderSessionDeps & { cacheFilePath?: string };
+export type SportsbookFeedKeys = SportsbookProviderKeys;
 
 /** The boundary is inclusive: a fresh provider poll is allowed exactly 30 minutes later. */
 export function sportsbookOddsCacheDue(updatedAt: Date | null, now: Date, intervalMs = SPORTSBOOK_ODDS_CACHE_INTERVAL_MS): boolean {
@@ -103,32 +119,8 @@ async function writeOddsCache(filePath: string, cache: OddsCacheFile): Promise<v
   }
 }
 
-export type ProviderErrorKind = 'AUTH' | 'RATE_LIMITED' | 'HTTP' | 'NETWORK' | 'PAYLOAD';
-
-export class ProviderError extends Error {
-  constructor(readonly kind: ProviderErrorKind, message: string, readonly status?: number) {
-    super(message);
-    this.name = 'ProviderError';
-  }
-
-  /** After these, every further request this run would fail the same way. */
-  get stopsRun(): boolean {
-    return this.kind === 'AUTH' || this.kind === 'RATE_LIMITED';
-  }
-}
-
-const sleepFor = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error)).slice(0, 240);
 const iso = (date: Date) => date.toISOString();
-
-/** Retry-After as seconds or an HTTP date, capped so one header cannot stall the poller. */
-export function retryAfterMs(header: string | null, now = Date.now()): number | null {
-  if (!header) return null;
-  const seconds = Number(header);
-  if (header.trim() !== '' && Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, RETRY_AFTER_CAP_MS);
-  const at = Date.parse(header);
-  return Number.isFinite(at) ? Math.min(Math.max(0, at - now), RETRY_AFTER_CAP_MS) : null;
-}
 
 /** Minutes until the next result check after `checks` checks: 30, 30, 60, 120, 240, then every 6 hours. */
 export function resultBackoffMinutes(checks: number): number {
@@ -143,23 +135,6 @@ export function isResultCheckDue(
   if (event.nextResultCheckAt) return event.nextResultCheckAt.getTime() <= now.getTime();
   const firstCheck = RESULT_FIRST_CHECK_MINUTES[event.sport as SportsbookLeagueKey] ?? 180;
   return event.startsAt.getTime() + firstCheck * 60_000 <= now.getTime();
-}
-
-export type ProviderOutcome = 'PRE' | 'LIVE' | 'FINAL' | 'CANCELLED';
-
-/** The provider's own status string, wherever the payload puts it. */
-export function rawProviderStatus(event: ProviderEvent): string {
-  return str(event.status) ?? str(event.event_status) ?? str(record(event.score)?.event_status) ?? '';
-}
-
-/** Reads `STATUS_FINAL`, `final`, `In Progress`, flags and the like into one of four outcomes. */
-export function providerOutcome(event: ProviderEvent): ProviderOutcome {
-  // TheRundown v2 keeps the game status on the score object.
-  const status = rawProviderStatus(event).toLowerCase().replace(/^status_/, '').replaceAll('_', ' ');
-  if (['cancelled', 'canceled', 'postponed', 'void', 'abandoned'].includes(status)) return 'CANCELLED';
-  if (event.is_final === true || event.final === true || status.startsWith('final') || ['completed', 'complete'].includes(status)) return 'FINAL';
-  if (event.is_live === true || event.live === true || ['live', 'in progress', 'halftime', 'end period', 'end of period', 'delayed', 'rain delay', 'suspended'].includes(status)) return 'LIVE';
-  return 'PRE';
 }
 
 /** The UTC dates to request: today and tomorrow, plus yesterday while US evening games are still ahead. */
@@ -191,105 +166,6 @@ export function snapshotCoverage(dates: string[]): { from: Date; to: Date } {
   return { from, to };
 }
 
-type Quota = { used: number; limit: number; remaining: number | null; period: string };
-
-/** One run's connection to TheRundown: retries, quota headers and a run-wide stop. */
-export class ProviderSession {
-  datapoints = 0;
-  requests = 0;
-  observed = false;
-  stopped: ProviderError | null = null;
-  used: number;
-  limit: number;
-  remaining: number | null;
-  period: string;
-
-  constructor(private readonly apiKey: string, quota: Quota, private readonly deps: FeedDeps = {}) {
-    this.used = quota.used;
-    this.limit = quota.limit;
-    this.remaining = quota.remaining;
-    this.period = quota.period;
-  }
-
-  static fromState(apiKey: string, state: SportsbookProviderState, now: Date, deps: FeedDeps = {}): ProviderSession {
-    // A quota figure from an earlier window says nothing about this one.
-    const sameWindow = Boolean(state.quotaObservedAt && isSameQuotaWindow(state.quotaObservedAt, now, state.datapointsPeriod));
-    const remaining = state.datapointsRemaining ?? (state.datapointsLimit > 0 ? Math.max(0, state.datapointsLimit - state.datapointsUsed) : null);
-    return new ProviderSession(apiKey, {
-      used: state.datapointsUsed, limit: state.datapointsLimit, period: state.datapointsPeriod,
-      remaining: sameWindow ? remaining : null,
-    }, deps);
-  }
-
-  quotaBelow(floor: number): boolean {
-    return this.remaining !== null && this.remaining <= floor;
-  }
-
-  private observe(headers: Headers): void {
-    this.observed = true;
-    this.datapoints += num(headers.get('x-datapoints')) ?? 0;
-    this.used = num(headers.get('x-datapoints-used')) ?? this.used;
-    this.limit = num(headers.get('x-datapoints-limit')) ?? this.limit;
-    this.remaining = num(headers.get('x-datapoints-remaining')) ?? this.remaining;
-    this.period = headers.get('x-datapoints-period') ?? this.period;
-  }
-
-  async get(path: string, params: Record<string, string> = {}): Promise<JsonRecord> {
-    if (this.stopped) throw this.stopped;
-    const url = new URL(API_BASE + path);
-    for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
-    const fetchImpl = this.deps.fetch ?? fetch;
-    const sleep = this.deps.sleep ?? sleepFor;
-    let last = new ProviderError('NETWORK', 'TheRundown did not respond.');
-    let wait = 0;
-    for (let attempt = 1; attempt <= FEED_MAX_ATTEMPTS; attempt += 1) {
-      if (attempt > 1) await sleep(wait);
-      const backoff = RETRY_BASE_MS * 2 ** (attempt - 1);
-      let response: Response;
-      try {
-        this.requests += 1;
-        response = await fetchImpl(url, { headers: { 'X-TheRundown-Key': this.apiKey }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-      } catch (error) {
-        last = new ProviderError('NETWORK', `TheRundown request failed: ${errorText(error)}`);
-        wait = backoff;
-        continue;
-      }
-      this.observe(response.headers);
-      if (response.ok) {
-        const body = record(await response.json().catch(() => null));
-        if (!body) throw new ProviderError('PAYLOAD', 'TheRundown returned something other than a JSON object.');
-        return body;
-      }
-      if (response.status === 401 || response.status === 403) {
-        this.stopped = new ProviderError('AUTH', `TheRundown rejected the API key (${response.status}).`, response.status);
-        throw this.stopped;
-      }
-      if (response.status === 429) {
-        last = new ProviderError('RATE_LIMITED', 'TheRundown rate limit or datapoint quota reached (429).', 429);
-        if (this.remaining === 0) break;
-        wait = retryAfterMs(response.headers.get('retry-after')) ?? backoff;
-        continue;
-      }
-      if (response.status >= 500) {
-        last = new ProviderError('HTTP', `TheRundown returned ${response.status}.`, response.status);
-        wait = backoff;
-        continue;
-      }
-      throw new ProviderError('HTTP', `TheRundown returned ${response.status}.`, response.status);
-    }
-    if (last.stopsRun) this.stopped = last;
-    throw last;
-  }
-
-  usageData(now: Date) {
-    if (!this.observed) return {};
-    return {
-      lastDatapoints: this.datapoints, datapointsUsed: this.used, datapointsLimit: this.limit,
-      datapointsRemaining: this.remaining, datapointsPeriod: this.period, quotaObservedAt: now,
-    };
-  }
-}
-
 type LeagueStatusMap = Partial<Record<SportsbookLeagueKey, SportsbookLeagueFeedStatus>>;
 
 export function parseLeagueStatus(value: unknown): LeagueStatusMap {
@@ -306,130 +182,404 @@ export function parseLeagueStatus(value: unknown): LeagueStatusMap {
   return out;
 }
 
-/** Writes one league/date snapshot. A settled event is never reopened by a late listing. */
-async function storeSnapshot(prisma: PrismaClient, league: SportsbookLeagueKey, events: unknown[], now: Date): Promise<number> {
+type SnapshotStoreResult = { seen: number; unmatched: string[] };
+
+const sourceListingData = (event: NormalizedSportsbookEvent, now: Date) => ({
+  status: event.status,
+  homeOdds: event.prices.moneyline.home,
+  awayOdds: event.prices.moneyline.away,
+  homeScore: event.scores.home,
+  awayScore: event.scores.away,
+  lastSeenAt: now,
+});
+
+/** Writes normalized listings and attaches each provider source to one canonical event. */
+async function storeSnapshot(
+  prisma: PrismaClient,
+  providerId: string,
+  league: SportsbookLeagueKey,
+  events: NormalizedSportsbookEvent[],
+  now: Date,
+  isActiveOddsProvider: boolean,
+): Promise<SnapshotStoreResult> {
   let seen = 0;
-  for (const raw of events) {
-    const event = record(raw) as ProviderEvent | null;
-    if (!event) continue;
-    const providerEventId = str(event.event_id);
-    const startsAt = new Date(String(event.starts_at ?? event.event_date ?? ''));
-    const odds = eventOdds(event);
-    if (!providerEventId || !Number.isFinite(startsAt.getTime()) || !odds) continue;
-    seen += 1;
-    const outcome = providerOutcome(event);
-    const status = outcome === 'PRE' ? 'PRE' : outcome === 'CANCELLED' ? 'PULLED' : 'LIVE';
-    const score = record(event.score);
-    const homeScore = score ? num(score.score_home) : null;
-    const awayScore = score ? num(score.score_away) : null;
-    const existing = await prisma.sportsbookEvent.findUnique({ where: { providerEventId }, select: { id: true, settledAt: true } });
-    if (existing?.settledAt) continue;
-    if (existing) {
-      await prisma.sportsbookEvent.update({ where: { id: existing.id }, data: {
-        sport: league, homeTeam: odds.home, awayTeam: odds.away, startsAt,
-        ...(status === 'PRE' ? { homeOdds: odds.homeOdds, awayOdds: odds.awayOdds, oddsUpdatedAt: now } : {}),
-        status, homeScore, awayScore, lastSeenAt: now,
-      } });
+  const unmatched: string[] = [];
+  for (const event of events) {
+    if (event.league !== league) continue;
+    let source = await prisma.sportsbookEventSource.findUnique({
+      where: { provider_providerEventId: { provider: providerId, providerEventId: event.providerEventId } },
+      include: { event: true },
+    });
+    let canonical = source?.event ?? null;
+    // During Slice B the legacy id remains populated; repair rows created after the SQL backfill.
+    if (!canonical) {
+      const legacy = await prisma.sportsbookEvent.findUnique({ where: { providerEventId: event.providerEventId } });
+      if (legacy?.oddsProvider === providerId) canonical = legacy;
+    }
+    if (!canonical) {
+      const candidates = await prisma.sportsbookEvent.findMany({
+        where: {
+          sport: league,
+          startsAt: {
+            gte: new Date(event.startsAt.getTime() - SPORTSBOOK_EVENT_MATCH_WINDOW_MS),
+            lte: new Date(event.startsAt.getTime() + SPORTSBOOK_EVENT_MATCH_WINDOW_MS),
+          },
+        },
+        select: { id: true, sport: true, homeTeam: true, awayTeam: true, startsAt: true },
+      });
+      const match = matchSportsbookEvent(event, candidates);
+      if (match.kind === 'MATCHED') {
+        canonical = await prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: match.event.id } });
+      } else if (match.kind === 'AMBIGUOUS') {
+        unmatched.push(`${providerId}:${event.providerEventId} ambiguous between ${match.candidateIds.join(', ')}`);
+        continue;
+      } else if (!isActiveOddsProvider) {
+        unmatched.push(`${providerId}:${event.providerEventId} has no canonical match`);
+        continue;
+      } else {
+        const teams = match.kind === 'NO_MATCH'
+          ? match.teams
+          : resolveSportsbookListingTeams(league, event.homeTeam, event.awayTeam);
+        if (!teams) unmatched.push(`${providerId}:${event.providerEventId} uses unknown teams ${event.awayTeam} at ${event.homeTeam}`);
+        canonical = await prisma.sportsbookEvent.create({ data: {
+          providerEventId: event.providerEventId,
+          sport: league,
+          homeTeam: teams?.homeTeam ?? event.homeTeam,
+          awayTeam: teams?.awayTeam ?? event.awayTeam,
+          startsAt: event.startsAt,
+          status: event.status === 'PRE' ? 'PRE' : event.status === 'CANCELLED' ? 'PULLED' : 'LIVE',
+          homeOdds: event.prices.moneyline.home,
+          awayOdds: event.prices.moneyline.away,
+          homeScore: event.scores.home,
+          awayScore: event.scores.away,
+          oddsUpdatedAt: now,
+          oddsProvider: providerId,
+          lastSeenAt: now,
+        } });
+      }
+    }
+
+    if (source) {
+      await prisma.sportsbookEventSource.update({
+        where: { id: source.id },
+        data: sourceListingData(event, now),
+      });
     } else {
-      await prisma.sportsbookEvent.create({ data: {
-        providerEventId, sport: league, homeTeam: odds.home, awayTeam: odds.away, startsAt, status,
-        homeOdds: odds.homeOdds, awayOdds: odds.awayOdds, homeScore, awayScore, oddsUpdatedAt: now, lastSeenAt: now,
+      await prisma.sportsbookEventSource.create({ data: {
+        eventId: canonical.id,
+        provider: providerId,
+        providerEventId: event.providerEventId,
+        ...sourceListingData(event, now),
       } });
     }
+
+    seen += 1;
+    const status = event.status === 'PRE' ? 'PRE' : event.status === 'CANCELLED' ? 'PULLED' : 'LIVE';
+    if (canonical.settledAt || !isActiveOddsProvider) continue;
+    await prisma.sportsbookEvent.update({ where: { id: canonical.id }, data: {
+        sport: league, startsAt: event.startsAt,
+        ...(status === 'PRE' ? { homeOdds: event.prices.moneyline.home, awayOdds: event.prices.moneyline.away, oddsUpdatedAt: now } : {}),
+        status, homeScore: event.scores.home, awayScore: event.scores.away, lastSeenAt: now, oddsProvider: providerId,
+    } });
   }
-  return seen;
+  return { seen, unmatched };
 }
 
 /**
  * After a complete league snapshot, an upcoming game the provider no longer lists closes at once
  * instead of staying bettable on its last price until that price goes stale.
  */
-async function pullMissingLines(prisma: PrismaClient, league: SportsbookLeagueKey, dates: string[], now: Date): Promise<number> {
+async function pullMissingLines(prisma: PrismaClient, provider: string, league: SportsbookLeagueKey, dates: string[], now: Date): Promise<number> {
   const coverage = snapshotCoverage(dates);
   const from = coverage.from.getTime() > now.getTime() ? coverage.from : now;
   const pulled = await prisma.sportsbookEvent.updateMany({
-    where: { sport: league, status: 'PRE', settledAt: null, lastSeenAt: { lt: now }, startsAt: { gt: from, lt: coverage.to } },
+    where: {
+      sport: league, status: 'PRE', settledAt: null, oddsProvider: provider,
+      startsAt: { gt: from, lt: coverage.to },
+      OR: [
+        { sources: { some: { provider, lastSeenAt: { lt: now } } } },
+        { sources: { none: {} }, lastSeenAt: { lt: now } },
+      ],
+    },
     data: { status: 'PULLED' },
   });
   return pulled.count;
 }
 
-export type ResultCheckOutcome = { outcome: 'SETTLED' | 'VOIDED' | 'ALREADY_SETTLED' | 'PENDING' | 'ERROR'; detail: string };
+export type ResultCheckOutcome = { outcome: 'SETTLED' | 'VOIDED' | 'ALREADY_SETTLED' | 'DISPUTED' | 'REVIEW' | 'PENDING' | 'ERROR'; detail: string };
+
+type ResultSource = { id: string; provider: string; providerEventId: string; resultCheckCount: number };
 
 async function recordResultCheck(
   prisma: PrismaClient,
-  event: { id: string; resultCheckCount: number },
+  event: { id: string },
+  source: ResultSource,
   now: Date,
   error: string,
-  live: boolean,
+  result: NormalizedSportsbookResult | null,
 ): Promise<void> {
-  const checks = event.resultCheckCount + 1;
-  await prisma.sportsbookEvent.updateMany({
-    where: { id: event.id, settledAt: null },
-    data: {
-      resultCheckCount: checks, resultCheckedAt: now, resultError: error,
-      nextResultCheckAt: new Date(now.getTime() + resultBackoffMinutes(checks) * 60_000),
-      ...(live ? { status: 'LIVE' } : {}),
-    },
-  });
+  const checks = source.resultCheckCount + 1;
+  const terminal = result?.status === 'FINAL' || result?.status === 'CANCELLED';
+  const nextResultCheckAt = terminal ? null : new Date(now.getTime() + resultBackoffMinutes(checks) * 60_000);
+  await prisma.$transaction([
+    prisma.sportsbookEventSource.update({ where: { id: source.id }, data: {
+      resultCheckCount: checks,
+      resultCheckedAt: now,
+      resultError: error,
+      nextResultCheckAt,
+      ...(result ? { status: result.status, homeScore: result.scores.home, awayScore: result.scores.away } : {}),
+    } }),
+    prisma.sportsbookEvent.updateMany({
+      where: { id: event.id, settledAt: null },
+      data: {
+        resultCheckCount: { increment: 1 },
+        resultCheckedAt: now,
+        resultError: error,
+        nextResultCheckAt,
+        ...(result?.status === 'LIVE' ? { status: 'LIVE' } : {}),
+      },
+    }),
+  ]);
 }
 
-/**
- * The event inside a single-event response. TheRundown v2 wraps it as `{ meta, events: [event] }`;
- * reading the wrapper itself finds no score, so every finished game looked like it had no result.
- */
-export function singleEventFromPayload(payload: JsonRecord, providerEventId: string): ProviderEvent | null {
-  if (Array.isArray(payload.events)) {
-    const events = payload.events.map(record).filter((row): row is JsonRecord => row !== null) as ProviderEvent[];
-    return events.find((row) => str(row.event_id) === providerEventId) ?? (events.length === 1 ? events[0]! : null);
-  }
-  return (record(payload.event) ?? payload) as ProviderEvent;
-}
+const reviewAt = (now: Date) => new Date(now.getTime() + 6 * 60 * 60_000);
 
-/** Asks the provider for one event's result and settles it if final. Safe to repeat or race. */
-export async function checkSportsbookResult(
+/** Decide from persisted source evidence. It never trusts ESPN alone and all payouts retain the row lock. */
+export async function evaluateSportsbookResultEvidence(
   prisma: PrismaClient,
-  session: ProviderSession,
-  event: { id: string; providerEventId: string; resultCheckCount: number },
+  event: { id: string; startsAt: Date },
   now: Date,
   via: SportsbookSettledVia = 'FEED',
 ): Promise<ResultCheckOutcome> {
-  let payload: JsonRecord;
-  try {
-    // affiliate_ids=0 asks for score and status only: no markets, and far fewer datapoints.
-    payload = await session.get(`/events/${encodeURIComponent(event.providerEventId)}`, { affiliate_ids: '0' });
-  } catch (error) {
-    const detail = errorText(error);
-    await recordResultCheck(prisma, event, now, detail, false);
-    return { outcome: 'ERROR', detail };
+  const current = await prisma.sportsbookEvent.findUnique({ where: { id: event.id }, include: { sources: true } });
+  if (!current || current.settledAt) return { outcome: 'ALREADY_SETTLED', detail: 'Already settled.' };
+  const checked = current.sources.filter((source) => source.resultCheckedAt !== null);
+  const finals = checked.filter((source) => source.status === 'FINAL' && source.homeScore !== null && source.awayScore !== null);
+  const cancellations = checked.filter((source) => source.status === 'CANCELLED');
+  const scoreKeys = new Set(finals.map((source) => `${source.homeScore}:${source.awayScore}`));
+
+  if (scoreKeys.size > 1 || (finals.length > 0 && cancellations.length > 0)) {
+    const evidence = [...finals, ...cancellations]
+      .map((source) => source.status === 'FINAL'
+        ? `${sportsbookProviderName(source.provider)} ${source.awayScore}-${source.homeScore}`
+        : `${sportsbookProviderName(source.provider)} cancelled`)
+      .join('; ');
+    const detail = `Result sources disagree: ${evidence}.`;
+    await prisma.sportsbookEvent.updateMany({ where: { id: event.id, settledAt: null }, data: {
+      status: 'DISPUTED', resultReviewReason: detail, resultReviewAt: now, nextResultCheckAt: null,
+    } });
+    return { outcome: 'DISPUTED', detail };
   }
-  const providerEvent = singleEventFromPayload(payload, event.providerEventId);
-  if (!providerEvent) {
-    const detail = 'Provider response did not include this event.';
-    await recordResultCheck(prisma, event, now, detail, false);
-    return { outcome: 'ERROR', detail };
-  }
-  const outcome = providerOutcome(providerEvent);
-  if (outcome === 'CANCELLED') {
-    const settled = await settleSportsbookEvent(prisma, event.id, 'VOID', null, null, now, via);
-    return settled ? { outcome: 'VOIDED', detail: `Voided; ${settled.tickets} ticket(s) refunded.` } : { outcome: 'ALREADY_SETTLED', detail: 'Already settled.' };
-  }
-  const score = record(providerEvent.score);
-  const homeScore = score ? num(score.score_home) : null;
-  const awayScore = score ? num(score.score_away) : null;
-  if (outcome === 'FINAL') {
-    if (homeScore === null || awayScore === null) {
-      const detail = 'Provider marked the game final without both scores.';
-      await recordResultCheck(prisma, event, now, detail, false);
-      return { outcome: 'ERROR', detail };
+
+  if (finals.length) {
+    const grading = finals.find((source) => source.provider !== 'espn');
+    if (grading) {
+      const providers = [...new Set(finals.map((source) => source.provider))].join(',');
+      const settled = await settleSportsbookEvent(prisma, event.id, 'FINAL', grading.homeScore, grading.awayScore, now, via, providers);
+      return settled
+        ? { outcome: 'SETTLED', detail: `Final ${grading.awayScore}-${grading.homeScore}; ${settled.tickets} ticket(s) settled.` }
+        : { outcome: 'ALREADY_SETTLED', detail: 'Already settled.' };
     }
-    const settled = await settleSportsbookEvent(prisma, event.id, 'FINAL', homeScore, awayScore, now, via);
+    const detail = 'ESPN has a final score, but an official results provider has not confirmed it.';
+    await prisma.sportsbookEvent.updateMany({ where: { id: event.id, settledAt: null }, data: {
+      resultReviewReason: detail, resultReviewAt: now, nextResultCheckAt: reviewAt(now),
+    } });
+    return { outcome: 'REVIEW', detail };
+  }
+
+  if (new Set(cancellations.map((source) => source.provider)).size >= 2) {
+    const providers = [...new Set(cancellations.map((source) => source.provider))].join(',');
+    const settled = await settleSportsbookEvent(prisma, event.id, 'VOID', null, null, now, via, providers);
     return settled
-      ? { outcome: 'SETTLED', detail: `Final ${awayScore}-${homeScore}; ${settled.tickets} ticket(s) settled.` }
+      ? { outcome: 'VOIDED', detail: `Two sources confirmed cancellation; ${settled.tickets} ticket(s) refunded.` }
       : { outcome: 'ALREADY_SETTLED', detail: 'Already settled.' };
   }
-  await recordResultCheck(prisma, event, now, '', outcome === 'LIVE');
-  return { outcome: 'PENDING', detail: outcome === 'LIVE' ? 'Game is still in progress.' : 'No result posted yet.' };
+
+  if (cancellations.length === 1) {
+    const detail = `${sportsbookProviderName(cancellations[0]!.provider)} reports the game cancelled; a second source is required before refunding.`;
+    await prisma.sportsbookEvent.updateMany({ where: { id: event.id, settledAt: null }, data: {
+      status: 'PULLED', resultReviewReason: detail, resultReviewAt: now, nextResultCheckAt: reviewAt(now),
+    } });
+    return { outcome: 'REVIEW', detail };
+  }
+
+  if (now.getTime() - event.startsAt.getTime() >= 72 * 60 * 60_000) {
+    const detail = 'No provider has reported a final result within 72 hours of the scheduled start.';
+    await prisma.sportsbookEvent.updateMany({ where: { id: event.id, settledAt: null }, data: {
+      resultReviewReason: detail, resultReviewAt: now, nextResultCheckAt: reviewAt(now),
+    } });
+    return { outcome: 'REVIEW', detail };
+  }
+  return { outcome: 'PENDING', detail: current.status === 'LIVE' ? 'Game is still in progress.' : 'No result posted yet.' };
+}
+
+/** Transitional repair for events created by old fixtures or between deploy and migration. */
+export async function ensureSportsbookEventSource(
+  prisma: PrismaClient,
+  providerId: string,
+  event: {
+    id: string; providerEventId: string; status: string; homeOdds: number | null; awayOdds: number | null;
+    homeScore: number | null; awayScore: number | null; lastSeenAt: Date; resultCheckCount: number;
+    resultCheckedAt: Date | null; nextResultCheckAt: Date | null; resultError: string;
+  },
+) {
+  const existing = await prisma.sportsbookEventSource.findFirst({
+    where: { eventId: event.id, provider: providerId },
+    orderBy: { lastSeenAt: 'desc' },
+  });
+  if (existing) return existing;
+  const sourceStatus = event.status === 'VOID' ? 'CANCELLED' : event.status === 'PULLED' ? 'PRE' : event.status;
+  return prisma.sportsbookEventSource.upsert({
+    where: { provider_providerEventId: { provider: providerId, providerEventId: event.providerEventId } },
+    create: {
+      eventId: event.id, provider: providerId, providerEventId: event.providerEventId, status: sourceStatus,
+      homeOdds: event.homeOdds, awayOdds: event.awayOdds, homeScore: event.homeScore, awayScore: event.awayScore,
+      lastSeenAt: event.lastSeenAt, resultCheckCount: event.resultCheckCount, resultCheckedAt: event.resultCheckedAt,
+      nextResultCheckAt: event.nextResultCheckAt, resultError: event.resultError,
+    },
+    update: {},
+  });
+}
+
+/** Asks one provider for a result, records its evidence, then applies the cross-source safety rules. */
+export async function checkSportsbookResult(
+  prisma: PrismaClient,
+  provider: SportsbookProvider,
+  event: { id: string; sport: string; startsAt?: Date },
+  source: ResultSource,
+  now: Date,
+  via: SportsbookSettledVia = 'FEED',
+): Promise<ResultCheckOutcome> {
+  let providerResult: NormalizedSportsbookResult | null;
+  try {
+    providerResult = await provider.getResult(source.providerEventId, event.sport as SportsbookLeagueKey);
+  } catch (error) {
+    const detail = errorText(error);
+    await recordResultCheck(prisma, event, source, now, detail, null);
+    return { outcome: 'ERROR', detail };
+  }
+  if (!providerResult) {
+    const detail = 'Provider response did not include this event.';
+    await recordResultCheck(prisma, event, source, now, detail, null);
+    return { outcome: 'ERROR', detail };
+  }
+  if (providerResult.status === 'CANCELLED') {
+    await recordResultCheck(prisma, event, source, now, '', providerResult);
+    return evaluateSportsbookResultEvidence(prisma, { id: event.id, startsAt: event.startsAt ?? now }, now, via);
+  }
+  const homeScore = providerResult.scores.home;
+  const awayScore = providerResult.scores.away;
+  if (providerResult.status === 'FINAL') {
+    if (homeScore === null || awayScore === null) {
+      const detail = 'Provider marked the game final without both scores.';
+      await recordResultCheck(prisma, event, source, now, detail, { ...providerResult, status: 'PRE' });
+      return { outcome: 'ERROR', detail };
+    }
+    await recordResultCheck(prisma, event, source, now, '', providerResult);
+    return evaluateSportsbookResultEvidence(prisma, { id: event.id, startsAt: event.startsAt ?? now }, now, via);
+  }
+  await recordResultCheck(prisma, event, source, now, '', providerResult);
+  return { outcome: 'PENDING', detail: providerResult.status === 'LIVE' ? 'Game is still in progress.' : 'No result posted yet.' };
+}
+
+type ResultChainEvent = {
+  id: string; sport: string; homeTeam: string; awayTeam: string; startsAt: Date;
+  sources: ResultSource[];
+};
+export type ResultBulkCache = Map<string, Promise<NormalizedSportsbookResult[]>>;
+
+function resultMatchesEvent(result: NormalizedSportsbookResult, event: ResultChainEvent): boolean {
+  if (!result.league || !result.homeTeam || !result.awayTeam || !result.startsAt) return false;
+  const exact = result.league === event.sport
+    && result.homeTeam.trim().toLowerCase() === event.homeTeam.trim().toLowerCase()
+    && result.awayTeam.trim().toLowerCase() === event.awayTeam.trim().toLowerCase()
+    && Math.abs(result.startsAt.getTime() - event.startsAt.getTime()) <= SPORTSBOOK_EVENT_MATCH_WINDOW_MS;
+  if (exact) return true;
+  const match = matchSportsbookEvent({
+    ...result,
+    league: result.league,
+    homeTeam: result.homeTeam,
+    awayTeam: result.awayTeam,
+    startsAt: result.startsAt,
+    prices: { moneyline: { home: null, away: null } },
+  }, [event]);
+  return match.kind === 'MATCHED';
+}
+
+/** Walk the league's result chain. Bulk calls are shared by every event in this run. */
+export async function checkSportsbookResultChain(
+  prisma: PrismaClient,
+  providers: ReadonlyMap<SportsbookProviderId, SportsbookProvider>,
+  event: ResultChainEvent,
+  now: Date,
+  via: SportsbookSettledVia = 'FEED',
+  bulkCache: ResultBulkCache = new Map(),
+): Promise<ResultCheckOutcome & { checks: number; providerErrors: Array<{ provider: SportsbookProviderId; detail: string }> }> {
+  const league = event.sport as SportsbookLeagueKey;
+  let checks = 0;
+  let lastError = '';
+  let sawLive = false;
+  let sawTerminal = false;
+  const providerErrors: Array<{ provider: SportsbookProviderId; detail: string }> = [];
+
+  for (const providerId of SPORTSBOOK_RESULT_CHAINS[league] ?? []) {
+    const provider = providers.get(providerId);
+    if (!provider || provider.session.stopped || provider.session.quotaBelow(SPORTSBOOK_PROVIDER_QUOTA_FLOORS[providerId].results)) continue;
+    let source = event.sources.find((row) => row.provider === providerId);
+    let providerResult: NormalizedSportsbookResult | null = null;
+    try {
+      if (provider.capabilities.bulkResults && provider.listResults) {
+        const cacheKey = `${providerId}:${league}`;
+        let pending = bulkCache.get(cacheKey);
+        if (!pending) {
+          pending = provider.listResults(league, new Date(now.getTime() - 3 * 86_400_000));
+          bulkCache.set(cacheKey, pending);
+        }
+        const results = await pending;
+        providerResult = source
+          ? results.find((row) => row.providerEventId === source!.providerEventId) ?? null
+          : results.find((row) => resultMatchesEvent(row, event)) ?? null;
+      } else if (source) {
+        providerResult = await provider.getResult(source.providerEventId, league);
+      }
+    } catch (error) {
+      lastError = errorText(error);
+      providerErrors.push({ provider: providerId, detail: lastError });
+      if (source) await recordResultCheck(prisma, event, source, now, lastError, null);
+      checks += 1;
+      continue;
+    }
+
+    if (!providerResult) {
+      lastError = `${provider.name} did not include this event.`;
+      if (source) await recordResultCheck(prisma, event, source, now, lastError, null);
+      checks += 1;
+      continue;
+    }
+    if (!source) {
+      source = await prisma.sportsbookEventSource.upsert({
+        where: { provider_providerEventId: { provider: providerId, providerEventId: providerResult.providerEventId } },
+        create: { eventId: event.id, provider: providerId, providerEventId: providerResult.providerEventId, lastSeenAt: now },
+        update: {},
+      });
+      event.sources.push(source);
+    }
+    checks += 1;
+    if (providerResult.status === 'FINAL' && (providerResult.scores.home === null || providerResult.scores.away === null)) {
+      lastError = `${provider.name} marked the game final without both scores.`;
+      await recordResultCheck(prisma, event, source, now, lastError, { ...providerResult, status: 'PRE' });
+      continue;
+    }
+    await recordResultCheck(prisma, event, source, now, '', providerResult);
+    if (providerResult.status === 'LIVE') { sawLive = true; break; }
+    if (providerResult.status === 'FINAL' || providerResult.status === 'CANCELLED') sawTerminal = true;
+    // PRE and null walk down the chain. Terminal evidence also walks on for a cheap cross-check.
+  }
+
+  if (sawLive) return { outcome: 'PENDING', detail: 'Game is still in progress.', checks, providerErrors };
+  const evaluated = await evaluateSportsbookResultEvidence(prisma, event, now, via);
+  if (!sawTerminal && evaluated.outcome === 'PENDING' && lastError) return { outcome: 'ERROR', detail: lastError, checks, providerErrors };
+  return { ...evaluated, checks, providerErrors };
 }
 
 export interface SportsbookRefreshResult {
@@ -442,7 +592,9 @@ export interface SportsbookRefreshResult {
   pulled: number;
   resultChecks: number;
   settled: number;
+  failovers: number;
   errors: string[];
+  warnings: string[];
 }
 
 /**
@@ -452,20 +604,35 @@ export interface SportsbookRefreshResult {
  */
 export async function refreshSportsbookCache(
   prisma: PrismaClient,
-  apiKey: string,
+  keyOrKeys: string | SportsbookFeedKeys,
   now = new Date(),
   options: FeedDeps & { minIntervalMs?: number } = {},
 ): Promise<SportsbookRefreshResult> {
   const result: SportsbookRefreshResult = {
-    skipped: null, oddsPolled: false, cacheUpdatedAt: null, nextOddsPollAt: null, snapshots: 0, failedSnapshots: 0, pulled: 0, resultChecks: 0, settled: 0, errors: [],
+    skipped: null, oddsPolled: false, cacheUpdatedAt: null, nextOddsPollAt: null, snapshots: 0, failedSnapshots: 0, pulled: 0, resultChecks: 0, settled: 0, failovers: 0, errors: [], warnings: [],
   };
-  if (!apiKey) return { ...result, skipped: 'NO_KEY' };
+  const keys: SportsbookFeedKeys = {
+    ...(typeof keyOrKeys === 'string' ? { [SPORTSBOOK_PROVIDER_ID]: keyOrKeys } : keyOrKeys),
+    espn: 'public',
+  };
+  const configuredOddsIds = SPORTSBOOK_ODDS_PROVIDER_IDS.filter((id) => Boolean(keys[id]));
+  const configuredIds = SPORTSBOOK_PROVIDER_IDS.filter((id) => Boolean(keys[id]));
+  if (!configuredOddsIds.length) return { ...result, skipped: 'NO_KEY' };
 
   const cacheFilePath = options.cacheFilePath ?? DEFAULT_ODDS_CACHE_FILE;
   const { cache: initialCache, updatedAt: fileUpdatedAt } = await readOddsCache(cacheFilePath);
-  const cachedSnapshots = new Map(initialCache.snapshots.map((snapshot) => [`${snapshot.league}:${snapshot.date}`, snapshot]));
+  const cacheKey = (provider: string, league: SportsbookLeagueKey, date: string) => `${provider}:${league}:${date}`;
+  const cachedSnapshots = new Map(initialCache.snapshots.map((snapshot) => [
+    cacheKey(snapshot.provider ?? SPORTSBOOK_PROVIDER_ID, snapshot.league, snapshot.date), snapshot,
+  ]));
 
   await prisma.sportsbookProviderState.upsert({ where: { id: SPORTSBOOK_PROVIDER_ID }, create: { id: SPORTSBOOK_PROVIDER_ID }, update: {} });
+  for (const id of configuredIds) {
+    await prisma.sportsbookProviderState.upsert({ where: { id }, create: { id }, update: {} });
+  }
+  for (const { key } of SPORTSBOOK_LEAGUES) {
+    await prisma.sportsbookLeagueProviderState.upsert({ where: { league: key }, create: { league: key }, update: {} });
+  }
   // Another instance (or a slow previous run) holding the feed means this run spends nothing.
   const claimed = await prisma.sportsbookProviderState.updateMany({
     where: {
@@ -481,10 +648,16 @@ export async function refreshSportsbookCache(
   });
   if (!claimed.count) return { ...result, skipped: 'BUSY' };
 
-  const state = await prisma.sportsbookProviderState.findUniqueOrThrow({ where: { id: SPORTSBOOK_PROVIDER_ID } });
-  const session = ProviderSession.fromState(apiKey, state, now, options);
-  const leagues = parseLeagueStatus(state.leagueStatus);
-  const latestOddsAt = [fileUpdatedAt, state.lastAttemptAt, state.lastPolledAt]
+  const stateRows = await prisma.sportsbookProviderState.findMany({ where: { id: { in: configuredIds } } });
+  const states = new Map(stateRows.map((state) => [state.id, state]));
+  const providers = new Map<SportsbookProviderId, SportsbookProvider>();
+  for (const id of configuredIds) {
+    providers.set(id, createSportsbookProvider(id, keys[id]!, states.get(id)!, now, options));
+  }
+  const leagueRows = await prisma.sportsbookLeagueProviderState.findMany();
+  const leagueStates = new Map(leagueRows.map((state) => [state.league as SportsbookLeagueKey, state]));
+  const latestOddsAt = [fileUpdatedAt, ...stateRows.filter((state) => configuredOddsIds.includes(state.id as typeof configuredOddsIds[number]))
+    .flatMap((state) => [state.lastAttemptAt, state.lastPolledAt])]
     .filter((date): date is Date => date !== null)
     .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
   const minOddsIntervalMs = Math.max(SPORTSBOOK_ODDS_CACHE_INTERVAL_MS, options.minIntervalMs ?? 0);
@@ -493,58 +666,181 @@ export async function refreshSportsbookCache(
   result.nextOddsPollAt = latestOddsAt ? new Date(latestOddsAt.getTime() + minOddsIntervalMs).toISOString() : null;
   let crash: unknown = null;
 
+  type RunLeagueActivity = {
+    attempted: boolean; served: boolean; primary: boolean; switched: boolean; matcherMisses: number;
+  };
+  type ProviderRun = {
+    attempted: boolean; snapshots: number; failedSnapshots: number; pulled: number;
+    successfulLeagues: number; resultChecks: number; settled: number; matcherMisses: number;
+    errors: string[]; leagues: LeagueStatusMap; leagueActivity: Partial<Record<SportsbookLeagueKey, RunLeagueActivity>>;
+  };
+  const providerRuns = new Map<SportsbookProviderId, ProviderRun>();
+  for (const id of configuredIds) {
+    providerRuns.set(id, {
+      attempted: false, snapshots: 0, failedSnapshots: 0, pulled: 0,
+      successfulLeagues: 0, resultChecks: 0, settled: 0, matcherMisses: 0,
+      errors: [], leagues: parseLeagueStatus(states.get(id)!.leagueStatus), leagueActivity: {},
+    });
+  }
+
+  const circuitOpen = (id: SportsbookProviderId) => {
+    const until = states.get(id)?.circuitOpenUntil;
+    return Boolean(until && until > now);
+  };
+  const halfOpen = (id: SportsbookProviderId) => {
+    const state = states.get(id);
+    return Boolean(state?.circuitOpenUntil && state.circuitOpenUntil <= now && state.consecutiveFailures >= SPORTSBOOK_CIRCUIT_FAILURES);
+  };
+  const halfOpenOutcome = new Map<SportsbookProviderId, 'PASSED' | 'FAILED'>();
+  let usableLeagues = 0;
+
+  const suspiciousEmpty = async (league: SportsbookLeagueKey, date: string, events: NormalizedSportsbookEvent[]) => {
+    if (events.some((event) => event.prices.moneyline.home !== null || event.prices.moneyline.away !== null)) return false;
+    const day = new Date(`${date}T00:00:00.000Z`);
+    const known = await prisma.sportsbookEvent.count({ where: {
+      sport: league, status: 'PRE', settledAt: null,
+      startsAt: { gte: new Date(day.getTime() - PROVIDER_DATE_OFFSET_HOURS * 3_600_000), lt: new Date(day.getTime() + 86_400_000) },
+      OR: [{ homeOdds: { not: null } }, { awayOdds: { not: null } }],
+      sources: { some: {} },
+    } });
+    return known > 0;
+  };
+
   try {
-    result.oddsPolled = oddsCacheDue && !session.quotaBelow(SPORTSBOOK_QUOTA_ODDS_FLOOR);
+    result.oddsPolled = oddsCacheDue && configuredOddsIds.some((id) => {
+      const provider = providers.get(id)!;
+      return !circuitOpen(id) && !provider.session.quotaBelow(SPORTSBOOK_PROVIDER_QUOTA_FLOORS[id].odds);
+    });
     if (!oddsCacheDue) result.skipped = 'CACHE_FRESH';
-    if (oddsCacheDue && !result.oddsPolled) result.errors.push('Odds polling paused: provider quota is near its limit.');
+    if (oddsCacheDue && !result.oddsPolled) result.errors.push('Odds polling paused: every configured provider is circuit-open or near its quota floor.');
     if (result.oddsPolled) {
       // Persist the cooldown before spending. If a process stops mid-poll, restart/manual requests still wait.
       await prisma.sportsbookProviderState.update({ where: { id: SPORTSBOOK_PROVIDER_ID }, data: { lastAttemptAt: now } });
       await writeOddsCache(cacheFilePath, { ...initialCache, updatedAt: iso(now) });
     }
     const dates = sportsbookPollDates(now);
+    let fallbacksThisRun = 0;
     for (const league of result.oddsPolled ? SPORTSBOOK_LEAGUES : []) {
-      const status: SportsbookLeagueFeedStatus = leagues[league.key] ?? { lastAttemptAt: null, lastSuccessAt: null, lastError: '', lastErrorAt: null, eventsSeen: 0 };
-      let complete = true;
-      let seen = 0;
-      let failure = '';
-      let allDatesFetched = true;
-      for (const date of dates) {
-        const cached = cachedSnapshots.get(`${league.key}:${date}`);
-        if (!shouldPollSportsbookDate(date, now, cached)) {
-          allDatesFetched = false;
+      const leagueState = leagueStates.get(league.key)!;
+      const chain = SPORTSBOOK_ODDS_CHAINS[league.key].filter((id) => providers.has(id));
+      const primary = chain[0];
+      if (!primary) continue;
+      const pinned = leagueState.pinnedOddsProvider as SportsbookProviderId | null;
+      const active = chain.includes(leagueState.activeOddsProvider as SportsbookProviderId)
+        ? leagueState.activeOddsProvider as SportsbookProviderId
+        : primary;
+      const primaryRecovered = active !== primary && (states.get(primary)?.consecutiveSuccesses ?? 0) >= 2;
+      const preferred = pinned && chain.includes(pinned) ? pinned : primaryRecovered ? primary : active;
+      const order = pinned ? [preferred] : [preferred, ...chain.filter((id) => id !== preferred)];
+      let selected: SportsbookProviderId | null = null;
+      let leagueFailure = '';
+      let alternates = 0;
+
+      for (const id of order) {
+        if (id !== preferred) {
+          if (alternates >= SPORTSBOOK_FALLBACKS_PER_LEAGUE || fallbacksThisRun >= SPORTSBOOK_FALLBACKS_PER_RUN) break;
+          alternates += 1;
+          fallbacksThisRun += 1;
+          result.failovers += 1;
+        }
+        const provider = providers.get(id)!;
+        const run = providerRuns.get(id)!;
+        const status: SportsbookLeagueFeedStatus = run.leagues[league.key]
+          ?? { lastAttemptAt: null, lastSuccessAt: null, lastError: '', lastErrorAt: null, eventsSeen: 0 };
+        if (halfOpen(id) && halfOpenOutcome.get(id) === 'FAILED') {
+          leagueFailure = `${sportsbookProviderName(id)} half-open probe already failed this run`;
+          Object.assign(status, { lastError: leagueFailure, lastErrorAt: iso(now) });
+          run.leagues[league.key] = status;
           continue;
         }
-        if (session.stopped || session.quotaBelow(SPORTSBOOK_QUOTA_ODDS_FLOOR)) {
-          complete = false;
-          failure ||= session.stopped ? session.stopped.message : 'Skipped: provider quota is near its limit.';
-          break;
+        if (circuitOpen(id)) {
+          leagueFailure = `${sportsbookProviderName(id)} circuit is open until ${states.get(id)!.circuitOpenUntil!.toISOString()}`;
+          Object.assign(status, { lastError: leagueFailure, lastErrorAt: iso(now) });
+          run.leagues[league.key] = status;
+          run.errors.push(`${league.key} ${leagueFailure}`);
+          continue;
         }
-        try {
-          const payload = await session.get(`/sports/${league.sportId}/events/${date}`, {
-            market_ids: '1', affiliate_ids: '3', main_line: 'true', hide_closed: 'true',
+        if (provider.session.quotaBelow(SPORTSBOOK_PROVIDER_QUOTA_FLOORS[id].odds)) {
+          leagueFailure = `${sportsbookProviderName(id)} quota is near its floor`;
+          Object.assign(status, { lastError: leagueFailure, lastErrorAt: iso(now) });
+          run.leagues[league.key] = status;
+          run.errors.push(`${league.key} ${leagueFailure}`);
+          continue;
+        }
+        run.attempted = true;
+        const activity = run.leagueActivity[league.key] ?? {
+          attempted: false, served: false, primary: id === primary, switched: false, matcherMisses: 0,
+        };
+        activity.attempted = true;
+        run.leagueActivity[league.key] = activity;
+        status.lastAttemptAt = iso(now);
+
+        const snapshots: NormalizedSportsbookEvent[] = [];
+        let complete = true;
+        let allDatesFetched = true;
+        for (const date of dates) {
+          const cached = cachedSnapshots.get(cacheKey(id, league.key, date));
+          if (!shouldPollSportsbookDate(date, now, cached)) {
+            allDatesFetched = false;
+            continue;
+          }
+          try {
+            const events = await provider.listEvents(league.key, [date]);
+            const day = new Date(`${date}T00:00:00.000Z`);
+            const attemptCoversWindow = [...snapshots, ...events].some((event) =>
+              event.startsAt >= new Date(day.getTime() - PROVIDER_DATE_OFFSET_HOURS * 3_600_000)
+              && event.startsAt < new Date(day.getTime() + 86_400_000)
+              && (event.prices.moneyline.home !== null || event.prices.moneyline.away !== null));
+            if (!attemptCoversWindow && await suspiciousEmpty(league.key, date, events)) {
+              throw new ProviderError('PAYLOAD', 'Suspicious empty snapshot while another source still has future priced games.');
+            }
+            cachedSnapshots.set(cacheKey(id, league.key, date), { provider: id, league: league.key, date, events, fetchedAt: iso(now) });
+            snapshots.push(...events);
+            run.snapshots += 1;
+            result.snapshots += 1;
+          } catch (error) {
+            if (!(error instanceof ProviderError)) throw error;
+            complete = false;
+            run.failedSnapshots += 1;
+            result.failedSnapshots += 1;
+            leagueFailure = `${date}: ${error.message}`;
+            run.errors.push(`${league.key} ${leagueFailure}`);
+            if (halfOpen(id)) halfOpenOutcome.set(id, 'FAILED');
+            break;
+          }
+        }
+        if (!complete) {
+          Object.assign(status, { lastError: leagueFailure, lastErrorAt: iso(now) });
+          run.leagues[league.key] = status;
+          continue;
+        }
+
+        const stored = await storeSnapshot(prisma, id, league.key, snapshots, now, true);
+        result.warnings.push(...stored.unmatched);
+        run.matcherMisses += stored.unmatched.length;
+        activity.matcherMisses += stored.unmatched.length;
+        if (allDatesFetched) {
+          const pulled = await pullMissingLines(prisma, id, league.key, dates, now);
+          run.pulled += pulled;
+          result.pulled += pulled;
+        }
+        Object.assign(status, { lastSuccessAt: iso(now), lastError: '', eventsSeen: stored.seen });
+        run.leagues[league.key] = status;
+        if (halfOpen(id)) halfOpenOutcome.set(id, 'PASSED');
+        selected = id;
+        run.successfulLeagues += 1;
+        activity.served = true;
+        activity.switched = id !== active;
+        usableLeagues += 1;
+        if (id !== active) {
+          await prisma.sportsbookLeagueProviderState.update({
+            where: { league: league.key }, data: { activeOddsProvider: id, activeSince: now },
           });
-          if (!Array.isArray(payload.events)) throw new ProviderError('PAYLOAD', 'Snapshot has no events list.');
-          cachedSnapshots.set(`${league.key}:${date}`, { league: league.key, date, events: payload.events, fetchedAt: iso(now) });
-          seen += await storeSnapshot(prisma, league.key, payload.events, now);
-          result.snapshots += 1;
-        } catch (error) {
-          complete = false;
-          result.failedSnapshots += 1;
-          failure = `${date}: ${errorText(error)}`;
-          if (!(error instanceof ProviderError)) throw error;
+          result.warnings.push(`${league.key} odds switched from ${sportsbookProviderName(active)} to ${sportsbookProviderName(id)}.`);
         }
+        break;
       }
-      status.lastAttemptAt = iso(now);
-      if (complete) {
-        // A skipped empty future snapshot is not proof that the full date range is complete.
-        if (allDatesFetched) result.pulled += await pullMissingLines(prisma, league.key, dates, now);
-        Object.assign(status, { lastSuccessAt: iso(now), lastError: '', eventsSeen: seen });
-      } else {
-        Object.assign(status, { lastError: failure, lastErrorAt: iso(now) });
-        result.errors.push(`${league.key} ${failure}`);
-      }
-      leagues[league.key] = status;
+      if (!selected) result.errors.push(`${league.key} ${leagueFailure || 'no configured provider could supply a complete snapshot'}`);
     }
 
     if (result.oddsPolled && result.snapshots > 0) {
@@ -558,117 +854,91 @@ export async function refreshSportsbookCache(
       result.nextOddsPollAt = new Date(completedAt.getTime() + minOddsIntervalMs).toISOString();
     }
 
-    // Results only for games with open tickets, each on its own schedule, oldest due first.
+    // Results only for games with open tickets. Bulk provider calls are shared across the league.
     const candidates = await prisma.sportsbookEvent.findMany({
       where: {
         settledAt: null, status: { in: ['PRE', 'LIVE', 'PULLED'] }, startsAt: { lte: now },
         bets: { some: { status: 'OPEN' } },
-        OR: [{ nextResultCheckAt: null }, { nextResultCheckAt: { lte: now } }],
       },
       orderBy: [{ startsAt: 'asc' }],
-      select: { id: true, providerEventId: true, sport: true, startsAt: true, nextResultCheckAt: true, resultCheckCount: true },
+      include: { sources: { orderBy: { lastSeenAt: 'desc' } } },
       take: 200,
     });
-    for (const event of candidates.filter((candidate) => isResultCheckDue(candidate, now)).slice(0, RESULT_CHECKS_PER_RUN)) {
-      if (session.stopped) break;
-      if (session.quotaBelow(SPORTSBOOK_QUOTA_RESULTS_FLOOR)) {
-        result.errors.push('Result checks paused: provider quota is nearly exhausted.');
-        break;
+    const due: Array<(typeof candidates)[number]> = [];
+    for (const event of candidates) {
+      if (!event.sources.some((source) => source.provider === event.oddsProvider)
+        && providers.has(event.oddsProvider as SportsbookProviderId)) {
+        event.sources.push(await ensureSportsbookEventSource(prisma, event.oddsProvider, event));
       }
-      const checked = await checkSportsbookResult(prisma, session, event, now);
-      result.resultChecks += 1;
+      if (isResultCheckDue(event, now)) due.push(event);
+      if (due.length >= RESULT_CHECKS_PER_RUN) break;
+    }
+    const bulkResults: ResultBulkCache = new Map();
+    const resultProviders = new Map([...providers].filter(([id]) => !circuitOpen(id)));
+    for (const event of due) {
+      const requestCounts = new Map([...providers].map(([id, provider]) => [id, provider.session.requests]));
+      const checked = await checkSportsbookResultChain(prisma, resultProviders, event, now, 'FEED', bulkResults);
+      result.resultChecks += checked.checks;
       if (checked.outcome === 'SETTLED' || checked.outcome === 'VOIDED') result.settled += 1;
-      if (checked.outcome === 'ERROR') result.errors.push(`Result ${event.providerEventId}: ${checked.detail}`);
+      if (checked.outcome === 'ERROR') {
+        const detail = `Result ${event.id}: ${checked.detail}`;
+        result.errors.push(detail);
+      }
+      if (checked.outcome === 'DISPUTED') result.warnings.push(`${event.awayTeam} at ${event.homeTeam}: ${checked.detail}`);
+      for (const error of checked.providerErrors) {
+        providerRuns.get(error.provider)?.errors.push(`Result ${event.id}: ${error.detail}`);
+      }
+      for (const [id, provider] of providers) {
+        const run = providerRuns.get(id)!;
+        const requests = provider.session.requests - (requestCounts.get(id) ?? 0);
+        if (requests > 0) { run.attempted = true; run.resultChecks += requests; }
+        if ((checked.outcome === 'SETTLED' || checked.outcome === 'VOIDED') && requests > 0) run.settled += 1;
+      }
     }
   } catch (error) {
     crash = error;
     result.errors.push(`Feed run crashed: ${errorText(error)}`);
   } finally {
-    const failed = Boolean(crash) || session.stopped?.kind === 'AUTH' || (result.oddsPolled && result.snapshots === 0);
-    await prisma.sportsbookProviderState.update({
-      where: { id: SPORTSBOOK_PROVIDER_ID },
-      data: {
-        pollLeaseUntil: null,
-        ...(result.snapshots > 0 ? { lastPolledAt: now } : {}),
-        ...(result.resultChecks > 0 ? { lastResultCheckAt: now } : {}),
-        ...session.usageData(now),
-        leagueStatus: leagues as Prisma.InputJsonValue,
-        consecutiveFailures: failed ? { increment: 1 } : 0,
-        lastError: result.errors.join(' · ').slice(0, 500),
-        ...(result.errors.length ? { lastErrorAt: now } : {}),
-      },
-    });
-    // 1.8.0-E: one row per run that held the lease, so admins can review real provider usage.
-    await prisma.sportsbookFeedRun.create({ data: {
-      startedAt: now, oddsPolled: result.oddsPolled, requests: session.requests, datapoints: session.datapoints,
-      snapshots: result.snapshots, failedSnapshots: result.failedSnapshots, pulled: result.pulled,
-      resultChecks: result.resultChecks, settled: result.settled, failed, error: result.errors.join(' · ').slice(0, 500),
-    } });
+    for (const id of configuredIds) {
+      const provider = providers.get(id)!;
+      const run = providerRuns.get(id)!;
+      const previous = states.get(id)!;
+      const succeeded = run.successfulLeagues > 0;
+      const failed = run.attempted && !succeeded && (Boolean(crash) || run.errors.length > 0 || provider.session.stopped !== null);
+      const failures = failed ? previous.consecutiveFailures + 1 : succeeded ? 0 : previous.consecutiveFailures;
+      const openCircuit = failed && failures >= SPORTSBOOK_CIRCUIT_FAILURES;
+      await prisma.sportsbookProviderState.update({ where: { id }, data: {
+        ...(id === SPORTSBOOK_PROVIDER_ID ? { pollLeaseUntil: null } : {}),
+        ...(run.attempted ? { lastAttemptAt: now } : {}),
+        ...(succeeded ? { lastPolledAt: now, lastSuccessAt: now } : {}),
+        ...(run.resultChecks > 0 ? { lastResultCheckAt: now } : {}),
+        ...provider.session.usageData(now),
+        leagueStatus: run.leagues as Prisma.InputJsonValue,
+        consecutiveFailures: failures,
+        consecutiveSuccesses: succeeded ? previous.consecutiveSuccesses + 1 : failed ? 0 : previous.consecutiveSuccesses,
+        circuitOpenUntil: succeeded ? null : openCircuit ? new Date(now.getTime() + SPORTSBOOK_CIRCUIT_OPEN_MS) : previous.circuitOpenUntil,
+        lastError: run.attempted ? run.errors.join(' · ').slice(0, 500) : previous.lastError,
+        ...(run.errors.length ? { lastErrorAt: now } : {}),
+      } });
+      if (run.attempted) {
+        await prisma.sportsbookFeedRun.create({ data: {
+          startedAt: now, provider: id, oddsPolled: run.snapshots > 0 || run.failedSnapshots > 0,
+          requests: provider.session.requests, datapoints: provider.session.datapoints,
+          snapshots: run.snapshots, failedSnapshots: run.failedSnapshots, pulled: run.pulled,
+          resultChecks: run.resultChecks, settled: run.settled, matcherMisses: run.matcherMisses,
+          leagueActivity: run.leagueActivity as Prisma.InputJsonValue, failed,
+          error: run.errors.join(' · ').slice(0, 500),
+        } });
+      }
+    }
+    if (!configuredIds.includes(SPORTSBOOK_PROVIDER_ID)) {
+      await prisma.sportsbookProviderState.update({ where: { id: SPORTSBOOK_PROVIDER_ID }, data: { pollLeaseUntil: null } });
+    }
     await prisma.sportsbookFeedRun.deleteMany({ where: { startedAt: { lt: new Date(now.getTime() - FEED_RUN_RETENTION_DAYS * 86_400_000) } } });
   }
   if (crash) throw crash;
-  if (session.stopped?.kind === 'AUTH' || (result.oddsPolled && result.snapshots === 0)) {
+  if (result.oddsPolled && usableLeagues === 0) {
     throw new Error(`Sportsbook feed produced no odds snapshot: ${result.errors.join(' · ')}`);
   }
   return result;
-}
-
-export type SnapshotSkipReason = 'NO_EVENT_ID' | 'BAD_START' | 'NO_TEAMS' | 'NO_MONEYLINE';
-
-/**
- * 1.8.0-E release gate. Why the feed would skip one provider listing, or null when it stores it.
- * Mirrors `storeSnapshot`, which only needs an id, a start time, both team names and a moneyline market.
- */
-export function diagnoseProviderEvent(raw: unknown): SnapshotSkipReason | null {
-  const event = record(raw) as ProviderEvent | null;
-  if (!event || !str(event.event_id)) return 'NO_EVENT_ID';
-  if (!Number.isFinite(new Date(String(event.starts_at ?? event.event_date ?? '')).getTime())) return 'BAD_START';
-  if (eventOdds(event)) return null;
-  return eventTeams(event) ? 'NO_MONEYLINE' : 'NO_TEAMS';
-}
-
-export interface SnapshotSummary {
-  events: number;
-  parsed: number;
-  /** Stored, but with no moneyline price on either side yet. */
-  withoutPrices: number;
-  skipped: Record<SnapshotSkipReason, number>;
-  statuses: Array<{ raw: string; outcome: ProviderOutcome; count: number }>;
-  samples: Array<{
-    providerEventId: string; startsAt: string; homeTeam: string; awayTeam: string;
-    homeOdds: number | null; awayOdds: number | null; rawStatus: string; outcome: ProviderOutcome;
-  }>;
-}
-
-/** What the feed makes of one real snapshot: the evidence the release gate asks for. */
-export function summarizeSnapshot(events: unknown[]): SnapshotSummary {
-  const summary: SnapshotSummary = {
-    events: events.length, parsed: 0, withoutPrices: 0,
-    skipped: { NO_EVENT_ID: 0, BAD_START: 0, NO_TEAMS: 0, NO_MONEYLINE: 0 }, statuses: [], samples: [],
-  };
-  const statuses = new Map<string, { outcome: ProviderOutcome; count: number }>();
-  for (const raw of events) {
-    const reason = diagnoseProviderEvent(raw);
-    const event = (record(raw) ?? {}) as ProviderEvent;
-    const rawStatus = rawProviderStatus(event) || '(none)';
-    const outcome = providerOutcome(event);
-    const seen = statuses.get(rawStatus) ?? { outcome, count: 0 };
-    seen.count += 1;
-    statuses.set(rawStatus, seen);
-    if (reason) {
-      summary.skipped[reason] += 1;
-      continue;
-    }
-    const odds = eventOdds(event)!;
-    summary.parsed += 1;
-    if (odds.homeOdds === null && odds.awayOdds === null) summary.withoutPrices += 1;
-    if (summary.samples.length < 5) {
-      summary.samples.push({
-        providerEventId: str(event.event_id)!, startsAt: new Date(String(event.starts_at ?? event.event_date)).toISOString(),
-        homeTeam: odds.home, awayTeam: odds.away, homeOdds: odds.homeOdds, awayOdds: odds.awayOdds, rawStatus, outcome,
-      });
-    }
-  }
-  summary.statuses = [...statuses].map(([raw, value]) => ({ raw, ...value })).sort((a, b) => b.count - a.count);
-  return summary;
 }

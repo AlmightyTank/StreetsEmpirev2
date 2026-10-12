@@ -165,7 +165,15 @@ const supporterGrantSchema = z.object({
 }).strict();
 const supporterBackfillSchema = z.object({ reason: reason.optional(), dryRun: z.boolean().optional() }).strict();
 const sportsbookEventParams = z.object({ eventId: id }).strict();
-const sportsbookProviderCheckBody = z.object({ league: z.enum(['NFL', 'NBA', 'MLB', 'NHL']) }).strict();
+const sportsbookProviderId = z.enum(['therundown', 'theoddsapi']);
+const sportsbookLeague = z.enum(['NFL', 'NBA', 'MLB', 'NHL']);
+const sportsbookProviderCheckBody = z.object({ league: sportsbookLeague, provider: sportsbookProviderId.optional() }).strict();
+const sportsbookProviderPinBody = z.object({ provider: sportsbookProviderId, reason: reason.optional() }).strict();
+const sportsbookResolveBody = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('SETTLE'), provider: z.enum(['therundown', 'theoddsapi', 'espn']), reason }).strict(),
+  z.object({ action: z.literal('VOID'), reason }).strict(),
+]);
+const sportsbookLeagueParams = z.object({ league: sportsbookLeague }).strict();
 // 1.0.0-E: resuming extends the season by the pause unless told not to.
 const resumeRoundSchema = z.object({ extend: z.boolean().optional(), reason: reason.optional() }).strict();
 // 0.9.0-H moderation.
@@ -624,11 +632,6 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminDevBotsService.removeOne(fastify.prisma, request.auth!.account, accountId, body.reason);
   });
 
-  fastify.post('/npc-gangs/spawn', async (request) => {
-    parseBody(emptyBody, request.body ?? {});
-    return AdminDevBotsService.spawnCrew(fastify.prisma, request.auth!.account);
-  });
-
   // Registered before the :roundPlayerId route so "telemetry" is never read as an id.
   fastify.get('/npc-gangs/telemetry', async (request) => {
     const { window } = parseBody(npcTelemetryQuery, request.query ?? {});
@@ -1030,7 +1033,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
   /** 1.8.0-C: sportsbook feed health, quota and unresolved results. The feed is global, not per round. */
   const sportsbookFeed = () => ({
-    configured: Boolean(env.THERUNDOWN_API_KEY), pollMinutes: env.SPORTSBOOK_POLL_MINUTES, apiKey: env.THERUNDOWN_API_KEY,
+    configured: Boolean(env.THERUNDOWN_API_KEY || env.THE_ODDS_API_KEY), pollMinutes: env.SPORTSBOOK_POLL_MINUTES,
+    apiKey: env.THERUNDOWN_API_KEY,
+    keys: { therundown: env.THERUNDOWN_API_KEY, theoddsapi: env.THE_ODDS_API_KEY },
   });
   fastify.get('/sportsbook', async () => AdminSportsbookService.report(fastify.prisma, sportsbookFeed()));
 
@@ -1047,14 +1052,32 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.post('/sportsbook/provider-check', async (request) => {
-    const { league } = parseBody(sportsbookProviderCheckBody, request.body ?? {});
-    return AdminSportsbookService.providerCheck(fastify.prisma, sportsbookFeed(), request.auth!.account, league);
+    const { league, provider } = parseBody(sportsbookProviderCheckBody, request.body ?? {});
+    return AdminSportsbookService.providerCheck(fastify.prisma, sportsbookFeed(), request.auth!.account, league, new Date(), {}, provider);
+  });
+
+  fastify.post('/sportsbook/leagues/:league/pin', async (request) => {
+    const { league } = parseBody(sportsbookLeagueParams, request.params);
+    const { provider, reason } = parseBody(sportsbookProviderPinBody, request.body ?? {});
+    return AdminSportsbookService.pinLeague(fastify.prisma, sportsbookFeed(), request.auth!.account, league, provider, reason);
+  });
+
+  fastify.post('/sportsbook/leagues/:league/clear-pin', async (request) => {
+    const { league } = parseBody(sportsbookLeagueParams, request.params);
+    parseBody(emptyBody, request.body ?? {});
+    return AdminSportsbookService.clearLeaguePin(fastify.prisma, sportsbookFeed(), request.auth!.account, league);
   });
 
   fastify.post('/sportsbook/events/:eventId/void', async (request) => {
     const { eventId } = parseBody(sportsbookEventParams, request.params);
     const body = parseBody(reasonBody, request.body ?? {});
     return AdminSportsbookService.void(fastify.prisma, sportsbookFeed(), request.auth!.account, eventId, body.reason);
+  });
+
+  fastify.post('/sportsbook/events/:eventId/resolve', async (request) => {
+    const { eventId } = parseBody(sportsbookEventParams, request.params);
+    const body = parseBody(sportsbookResolveBody, request.body ?? {});
+    return AdminSportsbookService.resolve(fastify.prisma, sportsbookFeed(), request.auth!.account, eventId, body);
   });
 
   /** 1.3.0-G: law health for a round. Read-only; Cases are shown only to staff. */
