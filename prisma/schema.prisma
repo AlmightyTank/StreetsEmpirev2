@@ -112,8 +112,27 @@ model Account {
   surveySubmissions      SurveySubmission[]
   experienceEvents       PlayerExperienceEvent[]
   experiencePoints       Int                     @default(0)
+  /// When the player last changed their own pimp name. Null until the first change, which is free.
+  usernameChangedAt      DateTime?
+  usernameChanges        AccountUsernameChange[]
 
   @@index([registeredIp, createdAt])
+}
+
+/// Every pimp name an account has had, so staff can tell who a player used to be.
+model AccountUsernameChange {
+  id String @id @default(cuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  fromUsername String
+  toUsername   String
+  /// PLAYER for a self-service change, STAFF for an admin rename.
+  source       String
+  createdAt    DateTime @default(now())
+
+  @@index([accountId, createdAt])
 }
 
 /// Permanent account progress, separate from season resources and Street Pass Cred.

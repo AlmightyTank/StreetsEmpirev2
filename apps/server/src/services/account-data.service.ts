@@ -54,6 +54,7 @@ export async function eraseAccount(tx: Db, before: Account, replacementPasswordH
   await tx.loginChallenge.deleteMany({ where: { accountId: before.id } });
   await tx.trustedDevice.deleteMany({ where: { accountId: before.id } });
   await tx.accountDevice.deleteMany({ where: { accountId: before.id } });
+  await tx.accountUsernameChange.deleteMany({ where: { accountId: before.id } });
 
   const tombstone = deletedAccountIdentity(before.id);
   await tx.account.update({
@@ -113,6 +114,7 @@ export const AccountDataService = {
       orderBy: { createdAt: 'asc' },
     });
     const playerIds = players.map((row) => row.id);
+    const nameChanges = await prisma.accountUsernameChange.findMany({ where: { accountId }, orderBy: { createdAt: 'asc' }, select: { fromUsername: true, toUsername: true, createdAt: true } });
     const [profile, cosmetics, notifications, sessions, trustedDevices, devices, forumLink, sent, received, contacts, mutes, messageReports, bugReports, supportTickets, supporterMembership, supporterPayments] = await Promise.all([
       prisma.accountProfile.findUnique({ where: { accountId } }),
       prisma.accountCosmeticUnlock.findMany({ where: { accountId } }),
@@ -139,6 +141,7 @@ export const AccountDataService = {
       account: {
         id: account.id,
         username: account.username,
+        nameChanges,
         email: account.email,
         emailVerifiedAt: account.emailVerifiedAt,
         createdAt: account.createdAt,

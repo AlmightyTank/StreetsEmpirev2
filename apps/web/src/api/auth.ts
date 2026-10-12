@@ -5,6 +5,7 @@ import type {
   AccountProfileSettingsResponseDto,
   ChangeEmailInput,
   ChangePasswordInput,
+  ChangeUsernameInput,
   ForgotPasswordInput,
   LoginInput,
   RegisterInput,
@@ -14,6 +15,7 @@ import type {
   TwoFactorSetupDto,
   TwoFactorStatusDto,
   UpdateAccountProfileSettingsInput,
+  UsernameChangeStatusDto,
   VerifyEmailTokenInput,
 } from '@streets/shared';
 import { api } from './client.js';
@@ -79,6 +81,13 @@ export const authApi = {
 
   requestEmailVerification: () =>
     api.post<MessageResponse>('/auth/email/verify/request'),
+
+  /** Whether the player may change their pimp name now, and if not, when. */
+  usernameStatus: () =>
+    api.get<{ status: UsernameChangeStatusDto }>('/auth/username'),
+
+  changeUsername: (input: ChangeUsernameInput) =>
+    api.post<{ account: AccountDto; status: UsernameChangeStatusDto; message: string }>('/auth/username', input),
 
   requestEmailChange: (input: ChangeEmailInput) =>
     api.post<OptionalAccountResponse>('/auth/email/change/request', input),
