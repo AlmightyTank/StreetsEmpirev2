@@ -66,6 +66,7 @@ import { CrewTrainingService } from '../services/crew-training.service.js';
 import { RandomEncounterChoiceService } from '../services/random-encounter-choice.service.js';
 import { RandomEncounterService } from '../services/random-encounter.service.js';
 import { EasterEggService } from '../services/easter-egg.service.js';
+import { RingService } from '../services/ring.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
 
@@ -105,6 +106,23 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = parseBody(easterEggParams, request.params);
     const found = await EasterEggService.discoverFromClient(fastify.prisma, request.auth!.account.id, id);
     return { isNew: found.isNew, title: found.egg.title, description: found.egg.description, ...(found.collection ? { collection: found.collection.label } : {}) };
+  });
+
+  /**
+   * The Ring. GET reads this viewer's status (surfacing it first when the
+   * round is old enough); POST destroys it at the Detroit foundry for the
+   * reward plus the Ring-bearer title. Neither ever names an unfound egg.
+   */
+  fastify.get('/ring', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    await fastify.prisma.$transaction((tx) => RingService.maybeSurface(tx, round.id, now));
+    return RingService.status(fastify.prisma, round.id, player.id, now);
+  });
+  fastify.post('/ring/destroy', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    return fastify.prisma.$transaction((tx) => RingService.destroy(tx, player.id, now));
   });
 
   /** Account-wide XP is available even between seasons. */

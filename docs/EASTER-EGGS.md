@@ -23,6 +23,8 @@ rows with source `easter-eggs` / `EASTER_EGG:<ID>`.
 | The Wire | Heard the Whistle | Whistling encounter (Produce): “Get off the corner” | as above |
 | April Fools | April Fool | 1 April (player’s time zone): press “Wait, what?” on the banner | Browser; the server checks the date |
 | Friday the 13th | Camp Counselor | Any Friday the 13th: press “Go out anyway” on the banner | Browser; the server checks the date |
+| The Ring (destroy it) | Ring-bearer | Carry the Ring to the old foundry in Detroit and throw it in | `ring.service.ts` destroy |
+| The Ring (keep it) | My Precious | Still hold the Ring when the round ends | Round close, `grantMyPreciousAtClose` |
 
 The four encounter eggs are ruleset content, added in `classic-og-v1.8-m`
 (1.8.0-M) at weight 1 beside the ordinary entries; a live round finds them once
@@ -45,7 +47,31 @@ The 8-Bit masters are generated from the Classic art:
 
 ## The Ring
 
-See the section below.
+One Ring per round, Lord-of-the-Rings style. The art master is
+`apps/web/art/easter-eggs/the-ring.svg`.
+
+- **Surfacing.** Once the round is 48 hours old (`RING_SURFACE_HOURS` in
+  `packages/shared/src/ring.ts`), the next combat-page read or Ring-status
+  read picks a random active player as bearer and posts round news
+  (“A strange Ring has surfaced”), which the Discord bot auto-posts like any
+  other news. No cron: `RingService.maybeSurface` is a lazy, idempotent tick.
+- **Invisibility.** The bearer gets 24 hours of invisibility
+  (`RoundPlayer.invisibleUntil`). Raid, drive-by and special-raid target
+  checks (`ringInvisibilityBlock` in `combat.service.ts`) fail with
+  “This crew has vanished.” Revenge does not bypass it. Attacking with any of
+  the three breaks the spell early (`breakInvisibility`).
+- **Revealed.** After the spell lapses the bearer is named on the combat page
+  (`hasRing` on the target, `ring` on the page). Scouting never reveals them:
+  scouting reads districts, not players.
+- **Stealing.** Winning a raid against the revealed bearer takes the Ring
+  (`transferOnRaidWin`, no fresh invisibility). Both sides get a `RING_STOLEN`
+  bell notice. Drive-bys and special raids never move it.
+- **Destroying.** The bearer can throw it into the old foundry in Detroit
+  (`POST /api/game/ring/destroy`, `RING_DESTROY_TURN_COST` turns): $100,000
+  (`RING_DESTROY_REWARD_CENTS`, ledger source `RING_DESTROY`) plus the
+  **Ring-bearer** title, with round news for the act.
+- **Round end.** Whoever still holds a live Ring when the round closes gets
+  **My Precious** (`grantMyPreciousAtClose` in `closeRoundInTransaction`).
 
 Date eggs accept the day anywhere from UTC−12 to UTC+14, so a player is never
 refused on their own calendar day.

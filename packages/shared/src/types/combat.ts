@@ -181,6 +181,8 @@ export interface CombatTargetDto {
   driveByBlockedReason?: string | null;
   /** Per-form blocks for optional raid forms. */
   specialRaidBlockedReasons?: Partial<Record<SpecialRaidKindDto, string | null>>;
+  /** True when this target openly holds the Ring (revealed holder). */
+  hasRing?: boolean;
 }
 
 
@@ -286,4 +288,18 @@ export interface CombatPageDto {
   driveBy?: CombatDriveByDto;
   /** Phase H. Local, fuzzy warnings about server-run gangs in your current city. */
   npcGangIntel?: NpcGangIntelDto;
+  /** The Ring in this round, when it has surfaced and not been destroyed. */
+  ring?: CombatRingDto;
+}
+
+/** Ring state as the combat page shows it. The holder is only named once revealed. */
+export interface CombatRingDto {
+  iHold: boolean;
+  holderPublicPimpId: number | null;
+  holderDisplayName: string | null;
+  invisibleUntil: string | null;
+  destroyRewardCents: number;
+  destroyTurnCost: number;
+  foundryCitySlug: string;
+  surfacedAt: string | null;
 }

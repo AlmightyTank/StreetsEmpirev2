@@ -55,6 +55,10 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'LOAN_COLLECTIONS',
   // An Easter egg found.
   'EASTER_EGG_FOUND',
+  // The Ring: surfacing, changing hands, and being destroyed all ring the bell.
+  'RING_SURFACED',
+  'RING_STOLEN',
+  'RING_DESTROYED',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {

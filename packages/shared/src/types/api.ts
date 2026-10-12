@@ -108,6 +108,12 @@ export type ActivityType =
   | 'LOAN_COLLECTIONS'
   /** An Easter egg found: a permanent account title. */
   | 'EASTER_EGG_FOUND'
+  /** The Ring has surfaced in this round (round news + bell). */
+  | 'RING_SURFACED'
+  /** The Ring changed hands in a raid. */
+  | 'RING_STOLEN'
+  /** The Ring was destroyed at the foundry. */
+  | 'RING_DESTROYED'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'

@@ -7,6 +7,7 @@ import { PlayerStateService } from './player-state.service.js';
 import { TurfCrackdownService } from './turf-crackdown.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { StreetPassService } from './street-pass.service.js';
+import { RingService } from './ring.service.js';
 
 /**
  * A round is joinable while it is taking registrations or already running,
@@ -192,6 +193,8 @@ export const RoundService = {
     await freezeFinalStandings(tx, round.id, freezeAt);
     // Street Pass: a reached, unclaimed permanent cosmetic tier is granted; gameplay rewards expire.
     await StreetPassService.grantUnclaimedCosmetics(tx, round.id, loadRulesetForRound(round), freezeAt);
+    // The Ring: whoever still holds a live Ring gets My Precious.
+    await RingService.grantMyPreciousAtClose(tx, round.id, freezeAt);
 
     const closedAt = options.endsAt && options.endsAt.getTime() < freezeAt.getTime() ? options.endsAt : freezeAt;
     const endsAt = closedAt.getTime() < round.endsAt.getTime() ? closedAt : null;

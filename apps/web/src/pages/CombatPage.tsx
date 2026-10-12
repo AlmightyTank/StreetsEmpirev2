@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate } from 'react-router-dom';
-import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatSpecialRaidDto, type CombatTargetDto, type CustomizableItemKey, type ItemCosmeticStyleKey, type SpecialRaidKindDto } from '@streets/shared';
+import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatRingDto, type CombatSpecialRaidDto, type CombatTargetDto, type CustomizableItemKey, type ItemCosmeticStyleKey, type SpecialRaidKindDto } from '@streets/shared';
 import { combatApi } from '../api/combat.js';
+import { ringApi } from '../api/ring.js';
 import { ApiError } from '../api/client.js';
 import { ActionDock, deltaChip, type ResultChip } from '../components/ActionDock.js';
 import { Alert } from '../components/Alert.js';
@@ -253,13 +254,13 @@ function TargetCard({ target, selectedBlock, driving }: { target: CombatTargetDt
     <div className={`se-target-card${selectedBlock ? ' se-target-card--blocked' : ''}`}>
       <div className="se-target-card__head">
         <div>
-          <p className="se-target-card__name"><AllianceTag alliance={target.alliance} />{target.displayName} <span className="se-muted se-num">(#{target.publicPimpId})</span></p>
-          <p className="se-target-card__sub">
+          <p className="se-target-card__name"><AllianceTag alliance={target.alliance} />{target.displayName} <span className="se-muted se-num">(#{target.publicPimpId})</span></p>          <p className="se-target-card__sub">
             {selectedBlock ?? (target.revengeAvailable ? 'Payback is open.' : driving ? 'Street crew spotted outside.' : 'Home block advantage.')}
           </p>
         </div>
         <div className="se-tags" aria-label="Target tags">
           <span className={`se-tag${target.strength === 'Weaker' ? ' se-tag--good' : target.strength === 'Stronger' ? ' se-tag--bad' : ''}`}>{target.strength}</span>
+          {target.hasRing ? <span className="se-tag se-tag--warn">Has the Ring</span> : null}
           {target.intel ? <span className="se-tag se-tag--good">Scouted</span> : <span className="se-tag">Unscouted</span>}
           {target.revengeAvailable ? <span className="se-tag se-tag--warn">Payback</span> : null}
         </div>
@@ -289,8 +290,52 @@ function TargetCard({ target, selectedBlock, driving }: { target: CombatTargetDt
   );
 }
 
-function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?: () => void }) {
-  const d = report.driveBy!;
+/** The Ring, when it is live in this round. The bearer is only named once revealed. */
+function RingCard({ ring, busy, pending, onDestroy }: { ring: CombatRingDto; busy: boolean; pending: boolean; onDestroy: () => void }) {
+  const revealed = ring.holderPublicPimpId !== null && ring.holderDisplayName !== null;
+  return (
+    <Panel title="The Ring" aside={ring.iHold ? 'You hold it' : revealed ? 'Revealed' : 'Hidden'} className="se-raids-panel">
+      <div className="se-raids-ring">
+        <img src="/items/easter-eggs/the-ring.svg" alt="The Ring: a heavy gold band" width={64} height={64} loading="lazy" />
+        <p className="se-hint">Surfaced {ring.surfacedAt ? date(ring.surfacedAt) : 'recently'}. {ring.iHold ? 'Keep it until the round ends, or destroy it below.' : 'Take it in a raid, or be in Detroit to destroy it if you hold it.'}</p>
+      </div>
+      <div className="se-rows">
+        {ring.iHold ? (
+          <Row label="Bearer" value={ring.invisibleUntil ? `You — vanished until ${date(ring.invisibleUntil)}` : 'You — the street knows your name'} strong />
+        ) : revealed ? (
+          <Row label="Bearer" value={`${ring.holderDisplayName} (#${ring.holderPublicPimpId})`} strong />
+        ) : (
+          <Row label="Bearer" value={ring.invisibleUntil ? `Vanished until ${date(ring.invisibleUntil)}` : 'Somewhere on the street'} strong />
+        )}
+        <Row label="Take it" value="Win a raid against the revealed bearer" />
+        <Row label="Destroy it" value={`${formatCents(ring.destroyRewardCents)} · ${formatNumber(ring.destroyTurnCost)} turns · old foundry in Detroit`} />
+      </div>
+      {ring.iHold ? (
+        <div className="se-raids-panel__action">
+          <Button
+            type="button"
+            className="se-btn se-btn--primary se-btn--sm"
+            disabledReason={
+              busy ? 'Your last hit is still going through.'
+                : pending ? 'Get the report for your unsettled hit first.'
+                : null
+            }
+            onClick={onDestroy}
+          >
+            Destroy it in Detroit
+          </Button>
+          <p className="se-hint">You must be in Detroit. Destroying it pays the reward and the Ring-bearer title.</p>
+        </div>
+      ) : revealed ? (
+        <p className="se-hint">Win a raid against {ring.holderDisplayName} to take it — then carry it to Detroit or hold it until the round ends.</p>
+      ) : (
+        <p className="se-hint">Its bearer cannot be found while the spell holds. Attacking breaks it.</p>
+      )}
+    </Panel>
+  );
+}
+
+function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?: () => void }) {  const d = report.driveBy!;
   const attacking = report.role === 'ATTACKER';
   const landed = attacking === report.won;
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They hit you') : (attacking ? 'They shot back' : 'Seen off')} · ${reportLabel(report)}`}>
@@ -626,8 +671,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     }
   }
 
-  async function treatWounded() {
-    if (!page?.recovery || page.recovery.maxTreatableThugs <= 0 || busy) return;
+  async function treatWounded() {    if (!page?.recovery || page.recovery.maxTreatableThugs <= 0 || busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -642,6 +686,27 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not patch up the wounded.');
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function destroyRing() {
+    if (inFlight.current || busy || pending) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await ringApi.destroy();
+      setNotice(`The Ring is destroyed. ${formatCents(result.rewardCents)} reward · Ring-bearer title unlocked.`);
+      await refresh(true);
+      try { await useSession.getState().refreshSnapshot(); }
+      catch { /* The notice above already says what landed. */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The foundry fire would not take it.');
+      void refresh(true);
+    } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
@@ -776,6 +841,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
         <Alert>{page.blockedReason}</Alert>
       ) : (
         <>
+          {page.ring ? <RingCard ring={page.ring} busy={busy} pending={!!pending} onDestroy={() => void destroyRing()} /> : null}
           <section className="se-raids-plan">
             <div className="se-raids-plan__main">
               <div className="se-raids-sectionhead">
@@ -840,7 +906,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                         <option value="">Choose a mark</option>
                         {page.targets.map((target) => (
                           <option key={target.publicPimpId} value={target.publicPimpId}>
-                            {target.alliance ? `[${target.alliance.tag}] ` : ''}{target.displayName} (#{target.publicPimpId}) · {target.strength}{target.intel ? ' · scouted' : ''}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
+                            {target.alliance ? `[${target.alliance.tag}] ` : ''}{target.displayName} (#{target.publicPimpId}) · {target.strength}{target.hasRing ? ' · has the Ring' : ''}{target.intel ? ' · scouted' : ''}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
                           </option>
                         ))}
                       </select>
