@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV11D } from '@streets/rulesets';
 import {
@@ -14,8 +14,10 @@ import { BlockWarService } from '../block-war.service.js';
 import { BlockWarSettleService } from '../block-war-settle.service.js';
 import { BusinessService } from '../business.service.js';
 import { DiscordBotService } from '../discord-bot.service.js';
+import { PermanentUnlockService } from '../permanent-unlock.service.js';
 import { PlayerStateService } from '../player-state.service.js';
 import { ReputationService } from '../reputation.service.js';
+import { RoundService } from '../round.service.js';
 import { TurfActionService } from '../turf-action.service.js';
 import { TurfService } from '../turf.service.js';
 import { TurfWarService } from '../turf-war.service.js';
@@ -86,6 +88,10 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.1.0-D block wars with Po
       },
     });
     roundId = round.id;
+    // The Discord feed reads the current round; without this a newer seeded round supersedes and closes the fixture.
+    const current = async () => app.prisma.round.findUniqueOrThrow({ where: { id: roundId } });
+    vi.spyOn(RoundService, 'requireCurrent').mockImplementation(current);
+    vi.spyOn(RoundService, 'getCurrent').mockImplementation(current);
     cityId = (await app.prisma.city.findUniqueOrThrow({ where: { slug: home } })).id;
     holderId = await player(await account(), 8600);
     attackerId = await player(await account(), 8601);
@@ -104,6 +110,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.1.0-D block wars with Po
   });
 
   afterAll(async () => {
+    vi.restoreAllMocks();
     if (roundId) await app.prisma.round.delete({ where: { id: roundId } });
     for (const id of accountIds) await app.prisma.account.delete({ where: { id } });
     await app?.close();
@@ -253,6 +260,25 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.1.0-D block wars with Po
     expect(allyAfter.cashCents - allyBefore.cashCents).toBe(BigInt(cut));
     expect(attackerAfter.heat).toBeGreaterThanOrEqual(wars.sackHeat!);
     expect(allyAfter.busyThugs).toBe(0);
+  });
+
+  it('refuses an ally who has not opened the war\'s district, and commits nothing', async () => {
+    const id = await declare('SACK', 30);
+    await BlockWarService.callAlly(app.prisma, attackerId, { warId: id, cutPercent: 30, actionId: actionId() }, t0);
+    // Only the ally is locked out of the Casino; the declarer opened it.
+    const locked = vi.spyOn(PermanentUnlockService, 'districtAccess').mockImplementation(async (_db, playerId) => new Map(playerId === allyId ? [[
+      'CASINO', { unlocked: false, unlock: { key: 'DISTRICT_CASINO_ACCESS', name: 'Casino Access', description: 'A story job opens it.', category: 'TRAVEL', effect: { kind: 'DISTRICT_ACCESS', districtKey: 'CASINO' } } },
+    ] as const] : []));
+    onTestFinished(() => locked.mockRestore());
+    const before = await read(allyId);
+    await expect(BlockWarService.answer(app.prisma, allyId, { warId: id, side: 'ATTACKER', thugs: 20, actionId: actionId() }, t0))
+      .rejects.toMatchObject({ code: 'DISTRICT_ACCESS_LOCKED' });
+    expect((await war(id)).attackerAllyId).toBeNull();
+    expect((await read(allyId)).busyThugs).toBe(before.busyThugs);
+
+    locked.mockRestore();
+    await BlockWarService.answer(app.prisma, allyId, { warId: id, side: 'ATTACKER', thugs: 20, actionId: actionId() }, t0);
+    expect((await war(id)).attackerAllyId).toBe(allyId);
   });
 
   it('a side that loses pays its ally nothing; a holder who wins shares the truce income', async () => {

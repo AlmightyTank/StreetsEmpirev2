@@ -232,6 +232,7 @@ export const TurfWarService = {
             throw AppError.conflict('NOT_ALLIED', 'Only the holder\'s allies can answer this call.');
           }
           if (player.cityId !== push.turf.cityId) throw AppError.conflict('WRONG_CITY', 'Only allies living in this city can answer.');
+          await PermanentUnlockService.assertCanAccessDistrict(tx, senderId, ruleset, push.turf.district as DistrictKey);
           if (!push.alliesCalledAt) throw AppError.conflict('NOT_CALLED', 'The holder has not called the alliance for help.');
           const helpers = push.backups.filter((row) => row.kind === 'ALLY').length;
           if (helpers >= rules.push.allies.maxHelpers) {
