@@ -374,6 +374,18 @@ async function recordResultCheck(
   });
 }
 
+/**
+ * The event inside a single-event response. TheRundown v2 wraps it as `{ meta, events: [event] }`;
+ * reading the wrapper itself finds no score, so every finished game looked like it had no result.
+ */
+export function singleEventFromPayload(payload: JsonRecord, providerEventId: string): ProviderEvent | null {
+  if (Array.isArray(payload.events)) {
+    const events = payload.events.map(record).filter((row): row is JsonRecord => row !== null) as ProviderEvent[];
+    return events.find((row) => str(row.event_id) === providerEventId) ?? (events.length === 1 ? events[0]! : null);
+  }
+  return (record(payload.event) ?? payload) as ProviderEvent;
+}
+
 /** Asks the provider for one event's result and settles it if final. Safe to repeat or race. */
 export async function checkSportsbookResult(
   prisma: PrismaClient,
@@ -384,13 +396,19 @@ export async function checkSportsbookResult(
 ): Promise<ResultCheckOutcome> {
   let payload: JsonRecord;
   try {
-    payload = await session.get(`/events/${encodeURIComponent(event.providerEventId)}`);
+    // affiliate_ids=0 asks for score and status only: no markets, and far fewer datapoints.
+    payload = await session.get(`/events/${encodeURIComponent(event.providerEventId)}`, { affiliate_ids: '0' });
   } catch (error) {
     const detail = errorText(error);
     await recordResultCheck(prisma, event, now, detail, false);
     return { outcome: 'ERROR', detail };
   }
-  const providerEvent = (record(payload.event) ?? payload) as ProviderEvent;
+  const providerEvent = singleEventFromPayload(payload, event.providerEventId);
+  if (!providerEvent) {
+    const detail = 'Provider response did not include this event.';
+    await recordResultCheck(prisma, event, now, detail, false);
+    return { outcome: 'ERROR', detail };
+  }
   const outcome = providerOutcome(providerEvent);
   if (outcome === 'CANCELLED') {
     const settled = await settleSportsbookEvent(prisma, event.id, 'VOID', null, null, now, via);

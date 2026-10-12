@@ -215,7 +215,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
       const odds = url.pathname.match(/\/sports\/(\d+)\/events\/([\d-]+)$/);
       if (odds) return handlers.odds?.(LEAGUE_BY_SPORT_ID[odds[1]!]!, odds[2]!) ?? reply(200, { events: [] });
       const result = url.pathname.match(/\/events\/([^/]+)$/);
-      if (result) return handlers.result?.(decodeURIComponent(result[1]!)) ?? reply(200, { event: { status: 'STATUS_SCHEDULED' } });
+      if (result) return handlers.result?.(decodeURIComponent(result[1]!)) ?? reply(200, { meta: null, events: [{ status: 'STATUS_SCHEDULED' }] });
       return reply(404, {});
     }) as typeof fetch;
     const cacheFilePath = join(tmpdir(), `streets-sportsbook-${randomUUID()}.json`);
@@ -320,7 +320,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     const game = await event({ providerEventId: providerPrefix + 'result', sport: 'NBA', startsAt: at(-150) });
     await ticketOn(player.id, game.id, 'AWAY');
     let result = { status: 'STATUS_IN_PROGRESS', score: { score_away: 50, score_home: 48 } };
-    const feed = provider({ result: (id) => (id === providerPrefix + 'result' ? reply(200, { event: result }) : reply(200, { event: { status: 'STATUS_SCHEDULED' } })) });
+    const feed = provider({ result: (id) => (id === providerPrefix + 'result' ? reply(200, { meta: null, events: [result] }) : reply(200, { meta: null, events: [{ status: 'STATUS_SCHEDULED' }] })) });
     const resultCalls = () => feed.calls.filter((path) => path.endsWith('/events/' + providerPrefix + 'result')).length;
 
     await refreshSportsbookCache(app.prisma, 'test-key', feedNow, feed);
@@ -380,7 +380,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     await expect(AdminSportsbookService.recheck(app.prisma, { ...config, apiKey: '' }, actor, stuck.id, feedNow))
       .rejects.toMatchObject({ code: 'SPORTSBOOK_FEED_OFF' });
 
-    const feed = provider({ result: () => reply(200, { event: { status: 'STATUS_POSTPONED' } }) });
+    const feed = provider({ result: () => reply(200, { meta: null, events: [{ status: 'STATUS_POSTPONED' }] }) });
     const rechecked = await AdminSportsbookService.recheck(app.prisma, config, actor, stuck.id, feedNow, feed);
     expect(rechecked.message).toBe('Voided; 1 ticket(s) refunded.');
     expect((await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { id: stuck.id } })).settledVia).toBe('ADMIN_RECHECK');
@@ -711,7 +711,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     let result = v2Listing('STATUS_SCHEDULED');
     const feed = provider({
       odds: (league, date) => reply(200, { events: league === 'NFL' && date === today ? [v2Listing('STATUS_SCHEDULED')] : [] }),
-      result: (eventId) => reply(200, eventId === id ? { event: result } : { event: { status: 'STATUS_SCHEDULED' } }),
+      result: (eventId) => reply(200, eventId === id ? { meta: null, events: [result] } : { meta: null, events: [{ status: 'STATUS_SCHEDULED' }] }),
     });
     await refreshSportsbookCache(app.prisma, 'test-key', now2, feed);
     const stored = await app.prisma.sportsbookEvent.findUniqueOrThrow({ where: { providerEventId: id } });

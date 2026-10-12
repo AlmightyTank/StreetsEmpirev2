@@ -11,6 +11,7 @@ import {
   sportsbookOddsCacheDue,
   sportsbookPollDates,
   shouldPollSportsbookDate,
+  singleEventFromPayload,
 } from '../sportsbook-feed.service.js';
 
 function reply(status: number, body: unknown = { events: [] }, headers: Record<string, string> = {}): Response {
@@ -84,6 +85,16 @@ describe('1.8.0-C sportsbook feed', () => {
     expect(missing.calls).toHaveLength(1);
     const garbled = scripted(reply(200, ['not', 'an', 'object']));
     await expect(garbled.session.get('/x')).rejects.toMatchObject({ kind: 'PAYLOAD' });
+  });
+
+  it('finds the event inside a v2 single-event response', () => {
+    const final = { event_id: 'abc', score: { event_status: 'STATUS_FINAL', score_away: 107, score_home: 110 } };
+    const unwrapped = singleEventFromPayload({ meta: null, events: [final] }, 'abc');
+    expect(unwrapped).toBe(final);
+    expect(providerOutcome(unwrapped!)).toBe('FINAL');
+    expect(singleEventFromPayload({ events: [{ event_id: 'other' }, final] }, 'abc')).toBe(final);
+    expect(singleEventFromPayload({ events: [] }, 'abc')).toBeNull();
+    expect(singleEventFromPayload({ event: final }, 'abc')).toBe(final);
   });
 
   it('tracks datapoint headers across requests, including retried ones', async () => {
