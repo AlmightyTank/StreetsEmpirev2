@@ -1104,7 +1104,7 @@
 
 .se-avatar-portrait__face {
   position: absolute;
-  z-index: 1;
+  z-index: 3;
   top: 28%;
   left: 28%;
   display: grid;

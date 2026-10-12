@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Ruleset } from '@streets/rules-engine';
 import type { TerritoryBoardDto } from '@streets/shared';
+import { readAvatarParts } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 
 type TurfDb = PrismaClient | Db;
@@ -154,6 +155,17 @@ export const TurfHistoryService = {
           displayName: true,
           allianceId: true,
           alliance: { select: { name: true, tag: true } },
+          account: {
+            select: {
+              profile: {
+                select: {
+                  profileImageUrl: true,
+                  profileAvatar: true,
+                  activeAvatarFrameKey: true,
+                },
+              },
+            },
+          },
         },
       }),
     ]);
@@ -247,6 +259,9 @@ export const TurfHistoryService = {
         rank: crewRanks[index]!,
         publicPimpId: row.publicPimpId,
         displayName: row.displayName,
+        imageUrl: playersById.get(row.id)?.account.profile?.profileImageUrl ?? null,
+        avatar: readAvatarParts(playersById.get(row.id)?.account.profile?.profileAvatar),
+        avatarFrame: playersById.get(row.id)?.account.profile?.activeAvatarFrameKey ?? null,
         alliance: row.alliance,
         heldSeconds: row.heldSeconds,
         currentBlocks: row.currentBlocks,

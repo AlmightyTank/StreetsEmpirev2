@@ -927,13 +927,41 @@ export const CommunityService = {
     const [nationalRows, localRows] = await Promise.all([
       prisma.roundPlayer.findMany({
         where: { roundId: player.roundId, account: { isActive: true } },
-        include: { city: true, alliance: { select: { name: true, tag: true } } },
+        include: {
+          city: true,
+          alliance: { select: { name: true, tag: true } },
+          account: {
+            select: {
+              profile: {
+                select: {
+                  profileImageUrl: true,
+                  profileAvatar: true,
+                  activeAvatarFrameKey: true,
+                },
+              },
+            },
+          },
+        },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: topCount,
       }),
       prisma.roundPlayer.findMany({
         where: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } },
-        include: { city: true, alliance: { select: { name: true, tag: true } } },
+        include: {
+          city: true,
+          alliance: { select: { name: true, tag: true } },
+          account: {
+            select: {
+              profile: {
+                select: {
+                  profileImageUrl: true,
+                  profileAvatar: true,
+                  activeAvatarFrameKey: true,
+                },
+              },
+            },
+          },
+        },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: topCount,
       }),
@@ -955,8 +983,20 @@ export const CommunityService = {
     }, now);
 
     return {
-      national: national.map((entry, index) => ({ ...entry, ...themeTagFields(themeTags.get(nationalRows[index]!.accountId)) })),
-      local: local.map((entry, index) => ({ ...entry, ...themeTagFields(themeTags.get(localRows[index]!.accountId)) })),
+      national: national.map((entry, index) => ({
+        ...entry,
+        imageUrl: nationalRows[index]!.account.profile?.profileImageUrl ?? null,
+        avatar: readAvatarParts(nationalRows[index]!.account.profile?.profileAvatar),
+        avatarFrame: nationalRows[index]!.account.profile?.activeAvatarFrameKey ?? null,
+        ...themeTagFields(themeTags.get(nationalRows[index]!.accountId)),
+      })),
+      local: local.map((entry, index) => ({
+        ...entry,
+        imageUrl: localRows[index]!.account.profile?.profileImageUrl ?? null,
+        avatar: readAvatarParts(localRows[index]!.account.profile?.profileAvatar),
+        avatarFrame: localRows[index]!.account.profile?.activeAvatarFrameKey ?? null,
+        ...themeTagFields(themeTags.get(localRows[index]!.accountId)),
+      })),
       localCity: toCityDto(player.city),
       me: {
         publicPimpId: player.publicPimpId,
