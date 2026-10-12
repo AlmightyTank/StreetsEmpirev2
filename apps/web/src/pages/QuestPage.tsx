@@ -22,6 +22,7 @@ import { Portrait } from '../components/Portrait.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 import { confirmAction } from '../stores/confirm.js';
+import { buildQuestBoard, legacyQuestGroup, type QuestBoardGroupKey } from '../utils/questBoard.js';
 
 type Tab = 'available' | 'active' | 'ready' | 'tracked' | 'daily' | 'weekly' | 'city' | 'season' | 'alliance' | 'events' | 'completed';
 const BOARD_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
@@ -207,8 +208,12 @@ function QuestCard({
   onTrack,
   onAbandon,
   nowMs,
+  featured = false,
+  focused = false,
 }: {
   quest: PlayerQuestDto;
+  featured?: boolean;
+  focused?: boolean;
   page: QuestPageDto;
   busy: string | null;
   nowMs: number;
@@ -219,11 +224,19 @@ function QuestCard({
 }) {
   const active = quest.status === 'ACTIVE' || quest.status === 'READY_TO_TURN_IN';
   const trackedCount = page.quests.filter((item) => item.isTracked).length;
+  const [showDetails, setShowDetails] = useState(featured || focused || (quest.status === 'READY_TO_TURN_IN' && quest.branchChoices.length > 0));
+  const primaryObjective = quest.objectives.find((item) => !item.bonus && !item.completed)
+    ?? quest.objectives.find((item) => !item.bonus);
+
+  useEffect(() => {
+    if (focused) setShowDetails(true);
+  }, [focused]);
 
   return (
     <Panel
       id={`quest-${quest.key}`}
       className={'se-quest-card'
+        + (featured ? ' se-quest-card--featured' : '')
         + (quest.status === 'READY_TO_TURN_IN' ? ' se-quest-card--ready' : '')
         + (quest.isTracked ? ' se-quest-card--tracked' : '')}
       title={quest.title}
@@ -237,6 +250,28 @@ function QuestCard({
       )}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
+      {primaryObjective && quest.status !== 'COMPLETED' && quest.status !== 'FAILED' && quest.status !== 'EXPIRED' ? (
+        <div className="se-quest-card__preview">
+          <ProgressLine
+            label={primaryObjective.description}
+            current={primaryObjective.current}
+            target={primaryObjective.target}
+            format={primaryObjective.kind === 'EARN_CASH' || primaryObjective.format === 'CURRENCY' ? 'CURRENCY' : 'NUMBER'}
+            completed={primaryObjective.completed}
+          />
+        </div>
+      ) : null}
+      <button
+        type="button"
+        className="se-quest-detail-toggle"
+        aria-expanded={showDetails}
+        aria-controls={`quest-details-${quest.key}`}
+        onClick={() => setShowDetails((value) => !value)}
+      >
+        <span>{showDetails ? 'Hide job details' : 'View objectives, rewards & story'}</span>
+        <span aria-hidden="true">{showDetails ? '−' : '+'}</span>
+      </button>
+      <div id={`quest-details-${quest.key}`} className="se-quest-card__details" hidden={!showDetails}>
       {quest.status === 'LOCKED' && quest.requires?.length ? (
         <div className="se-quest-card__requires">
           <span className="se-eyebrow">Opens after</span>
@@ -372,6 +407,7 @@ function QuestCard({
         </p>
       ) : null}
 
+      </div>
       <div className="se-actions se-quest-actions">
         {quest.status === 'AVAILABLE' ? (
           <Button
@@ -389,7 +425,7 @@ function QuestCard({
           </Button>
         ) : null}
 
-        {active ? (
+        {active && showDetails ? (
           <>
             <Button
               className="se-btn"
