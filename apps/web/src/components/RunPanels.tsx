@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { GameActionResult, MarketPriceDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunOutpostEstablishResult, RunOutpostTransferResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto, VehicleDamageDto } from '@streets/shared';
+import type { GameActionResult, MarketPriceDto, RandomEncounterDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunOutpostEstablishResult, RunOutpostTransferResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto, VehicleDamageDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -8,6 +8,8 @@ import { ItemLabel } from './ItemTile.js';
 import { QuestLockNote } from './QuestLink.js';
 import { routeProfileText, vehicleCountsText, vehicleTroubleText } from './GaragePanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
+import { useSession } from '../stores/session.js';
+import { rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { formatClockTime, formatDuration, formatWeekdayTime } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
@@ -17,6 +19,20 @@ import { SUPPLY_WORD, minutesText, unitPrice } from './CityMap.js';
 type Products = TravelDto['products'];
 const nameOf = (products: Products, key: string) => products.find((product) => product.key === key)?.name ?? key;
 const clock = (iso: string) => formatClockTime(iso);
+
+function encounterSummary(encounter: RandomEncounterDto | undefined): string | null {
+  if (!encounter) return null;
+  const effects = encounter.effects;
+  const details = [
+    effects.cashCents ? `${effects.cashCents > 0 ? '+' : '-'}${formatCents(Math.abs(effects.cashCents))}` : null,
+    effects.heat ? `${effects.heat > 0 ? '+' : '-'}${formatNumber(Math.abs(effects.heat))} Heat` : null,
+    effects.condoms ? `${effects.condoms > 0 ? '+' : '-'}${formatNumber(Math.abs(effects.condoms))} Condoms` : null,
+    effects.medicine ? `${effects.medicine > 0 ? '+' : '-'}${formatNumber(Math.abs(effects.medicine))} Medicine` : null,
+    effects.crack ? `${effects.crack > 0 ? '+' : '-'}${formatNumber(Math.abs(effects.crack))} Product` : null,
+    effects.beer ? `${effects.beer > 0 ? '+' : '-'}${formatNumber(Math.abs(effects.beer))} Beer` : null,
+  ].filter((part): part is string => Boolean(part));
+  return `${encounter.title}: ${encounter.text}${details.length ? ` ${details.join(' · ')}` : ''}`;
+}
 
 /** Whole numbers only; an empty box is null so the field can be cleared while typing. */
 function whole(value: string): number | '' {
@@ -290,6 +306,11 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
         ) : null}
       </form>
       {launch.error ? <Alert>{launch.error}</Alert> : null}
+      {encounterSummary(launch.result?.result.encounter) ? (
+        <p className={`se-hint ${launch.result!.result.encounter!.tone === 'bad' ? 'se-bad' : launch.result!.result.encounter!.tone === 'good' ? 'se-good' : 'se-warn'}`}>
+          {encounterSummary(launch.result!.result.encounter)}
+        </p>
+      ) : null}
     </Panel>
   );
 }
@@ -327,10 +348,14 @@ function TownCounter({ run, data, onDone }: { run: RunDto; data: TravelDto; onDo
   const trade = useGameAction<RunTradeResult>();
   const counter = run.counter!;
   const hasMarket = Boolean(data.rules.market) && counter.products.some((entry) => entry.market);
-  const [venue, setVenue] = useState<'pip' | 'market'>('pip');
+  const playerId = useSession((s) => s.me?.id);
+  const [venue, setVenue] = useRememberedState<'pip' | 'market'>(rememberedKey('run.counter.venue', playerId), 'pip',
+    { accept: (value): value is 'pip' | 'market' => value === 'pip' || (value === 'market' && hasMarket) });
   const tradable = counter.products.filter((entry) => (venue === 'pip' ? entry.supply !== null : entry.market !== null));
-  const [product, setProduct] = useState(tradable[0]?.key ?? '');
-  const [direction, setDirection] = useState<'buy' | 'sell'>('buy');
+  const [product, setProduct] = useRememberedState(rememberedKey('run.counter.product', playerId), tradable[0]?.key ?? '',
+    { accept: (value): value is string => typeof value === 'string' && tradable.some((entry) => entry.key === value) });
+  const [direction, setDirection] = useRememberedState<'buy' | 'sell'>(rememberedKey('run.counter.direction', playerId), 'buy',
+    { accept: (value): value is 'buy' | 'sell' => value === 'buy' || value === 'sell' });
   const [quantity, setQuantity] = useState<number | ''>('');
   const row = counter.products.find((entry) => entry.key === product) ?? null;
   const inTrunk = run.cargo.find((entry) => entry.key === product)?.quantity ?? 0;
@@ -479,7 +504,10 @@ export function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: Tra
   const transfer = useGameAction<RunOutpostTransferResult>();
   const openBlocks = turf?.blocks.filter((block) => !block.holder) ?? [];
   const owned = turf?.blocks.filter((block) => block.isMine && block.outpost) ?? [];
-  const [district, setDistrict] = useState(openBlocks[0]?.district ?? '');
+  // The corner you picked in this town comes back while it is still open.
+  const playerId = useSession((s) => s.me?.id);
+  const [district, setDistrict] = useRememberedState(rememberedKey(`run.outpost.${run.position.city}`, playerId), openBlocks[0]?.district ?? '',
+    { accept: (value): value is string => typeof value === 'string' && openBlocks.some((block) => block.district === value) });
   const target = openBlocks.find((block) => block.district === district) ?? openBlocks[0] ?? null;
   const [thugs, setThugs] = useState<number | ''>(target?.cornerMinimumThugs ?? 1);
   const [cash, setCash] = useState<number | ''>(0);
@@ -705,6 +733,35 @@ function MoveOn({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: (
         </Button>
       </div>
       {move.error ? <Alert>{move.error}</Alert> : null}
+      {encounterSummary(move.result?.result.encounter) ? (
+        <p className={`se-hint ${move.result!.result.encounter!.tone === 'bad' ? 'se-bad' : move.result!.result.encounter!.tone === 'good' ? 'se-good' : 'se-warn'}`}>
+          {encounterSummary(move.result!.result.encounter)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** 1.6.0-C. A pickup run only goes to the supplier and home: leaving early is all it can do. */
+function PickupHeadHome({ run, onDone }: { run: RunDto; onDone: () => void }) {
+  const move = useGameAction<RunMoveResult>();
+  const stored = run.supplyPickup && run.supplyPickup.status !== 'IN_TRANSIT';
+  return (
+    <div className="se-moveon">
+      <p className="se-hint">{stored ? 'The load is stored.' : 'The load is aboard.'} A pickup run cannot trade or drive on; it leaves when the window closes, or now.</p>
+      <Button type="button" className="se-btn" disabledReason={move.busy ? 'On the move.' : null}
+        onClick={async () => {
+          await move.run((actionId): Promise<GameActionResult<RunMoveResult>> => api.post('/game/travel/head-home', { runId: run.id, actionId }));
+          onDone();
+        }}>
+        Head home now
+      </Button>
+      {move.error ? <Alert>{move.error}</Alert> : null}
+      {encounterSummary(move.result?.result.encounter) ? (
+        <p className={`se-hint ${move.result!.result.encounter!.tone === 'bad' ? 'se-bad' : move.result!.result.encounter!.tone === 'good' ? 'se-good' : 'se-warn'}`}>
+          {encounterSummary(move.result!.result.encounter)}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -715,18 +772,34 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
   const inTown = run.position.phase === 'town';
   const stop = run.stops[run.position.stopIndex]!;
   const trunk = run.cargo.reduce((sum, entry) => sum + entry.quantity, 0);
+  const pickup = run.supplyPickup ?? null;
+  const homeSlug = run.stops[run.stops.length - 1]!.city;
+  const stopsPerPickupTrip = pickup && pickup.tripCount > 1 && run.stops.length % pickup.tripCount === 0
+    ? run.stops.length / pickup.tripCount
+    : 0;
+  const visibleTrip = stopsPerPickupTrip
+    ? Math.min(pickup!.tripCount - 1, Math.floor(Math.max(0, run.position.stopIndex) / stopsPerPickupTrip))
+    : 0;
+  const visibleStops = stopsPerPickupTrip
+    ? run.stops.slice(visibleTrip * stopsPerPickupTrip, (visibleTrip + 1) * stopsPerPickupTrip)
+    : run.stops;
+  // 1.6.0-D: a load bound for a warehouse elsewhere comes off there before the run may cut for home.
+  const unloading = Boolean(pickup && pickup.destinationCitySlug !== homeSlug && run.position.city === pickup.destinationCitySlug);
+  const mayHeadHome = Boolean(pickup && pickup.status !== 'PLANNED' && (pickup.status !== 'IN_TRANSIT' || pickup.destinationCitySlug === homeSlug));
   const headline = inTown
-    ? `In ${run.position.cityName}: ${formatDuration(msRemaining)} left to trade`
+    ? pickup
+      ? unloading ? `Unloading at your ${pickup.destinationCityName} warehouse: leaves in ${formatDuration(msRemaining)}` : `At ${pickup.supplierName} in ${run.position.cityName}: leaves in ${formatDuration(msRemaining)}`
+      : `In ${run.position.cityName}: ${formatDuration(msRemaining)} left to trade`
     : stop.isHome
       ? `Heading home: back in ${formatDuration(msRemaining)}`
       : `On the road to ${run.position.cityName}: there in ${formatDuration(msRemaining)}`;
 
   return (
-    <Panel title="Your run" aside={`${vehicleCountsText(run.vehicleLoadout ?? { LOW_RIDER: run.lowRiders, SEDAN: 0, VAN: 0 })}${run.escortThugs ? ` · ${run.escortThugs} escorts` : ''}`}>
+    <Panel title={pickup ? 'Supply pickup' : 'Your run'} aside={`${vehicleCountsText(run.vehicleLoadout ?? { LOW_RIDER: run.lowRiders, SEDAN: 0, VAN: 0 })}${run.escortThugs ? ` · ${run.escortThugs} escorts` : ''}`}>
       <p className={`se-run__headline${inTown ? ' se-run__headline--town' : ''}`}>{headline}</p>
       {run.vehicleDamage ? <p className="se-hint se-warn">{damageText(run.vehicleDamage, false)}</p> : null}
       <ol className="se-run__trip">
-        {tripNodes(run).map((node, index) => {
+        {tripNodes(run, visibleStops).map((node, index) => {
           const here = inTown && node.stop === stop;
           return (
             <li key={`${node.slug}-${index}`} className={`se-run__node${node.stop ? ' se-run__node--stop' : ' se-run__node--pass'}${here ? ' se-run__node--here' : ''}`}
@@ -752,7 +825,16 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
       ) : null}
 
       <div className="se-rows se-mt">
-        <Row label="Cash in the car" value={formatCents(run.cashCents)} strong tooltip="What the run can spend. Home cash never reaches it." />
+        {pickup ? (
+          <Row label={pickup.tripCount > 1 ? `Supply load ${pickup.tripNumber} of ${pickup.tripCount}` : 'Supply load'} strong tooltip="The assigned fleet unloads each load, turns around, and repeats until the pickup is finished. Road stops and convoy hits can take part of each load."
+            value={pickup.status === 'PLANNED'
+              ? `${formatNumber(pickup.quantity)} ${pickup.productName} waiting at ${pickup.supplierName}`
+              : pickup.status === 'IN_TRANSIT'
+                ? `${formatNumber(pickup.quantity)} ${pickup.productName} loaded${pickup.destinationCitySlug !== homeSlug ? `, for ${pickup.destinationCityName}` : ''}`
+                : `${formatNumber(pickup.deliveredQuantity)} ${pickup.productName} stored in ${pickup.destinationCityName}`} />
+        ) : (
+          <Row label="Cash in the car" value={formatCents(run.cashCents)} strong tooltip="What the run can spend. Home cash never reaches it." />
+        )}
         {run.bossAboard && run.hotel ? (
           <>
             <Row label="The boss" value="Riding along"
@@ -773,7 +855,13 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
         <Row label="Back home" value={clock(run.stops[run.stops.length - 1]!.arriveAt)} />
       </div>
 
-      {inTown ? (
+      {inTown && pickup && mayHeadHome ? (
+        <PickupHeadHome run={run} onDone={onDone} />
+      ) : inTown && pickup ? (
+        <p className="se-hint">{pickup.status === 'PLANNED' ? 'Loading.' : `The load comes off in ${pickup.destinationCityName} first.`} A pickup run cannot trade or drive on; it moves on when the window closes.</p>
+      ) : pickup ? (
+        <p className="se-hint">{pickup.status === 'PLANNED' ? 'Driving out empty. It loads when it reaches the supplier.' : pickup.status === 'IN_TRANSIT' ? `Carrying the load to ${pickup.destinationCitySlug === homeSlug ? 'the stash at home' : `your ${pickup.destinationCityName} warehouse`}.` : 'The load is stored; the run is heading home.'} Track every pickup on the <Link to="/game/supply">Supply</Link> page.</p>
+      ) : inTown ? (
         <>
           <TownCounter run={run} data={data} onDone={onDone} />
           {data.rules.outposts && !stop.isHome ? (
@@ -799,11 +887,11 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
 }
 
 /** Every city on the trip in order: stops, and towns it only drives through. */
-function tripNodes(run: RunDto): Array<{ slug: string; name: string; stop: RunDto['stops'][number] | null }> {
-  const first = run.stops[0]!.route[0]!;
+function tripNodes(run: RunDto, stops: RunDto['stops'] = run.stops): Array<{ slug: string; name: string; stop: RunDto['stops'][number] | null }> {
+  const first = stops[0]!.route[0]!;
   return [
     { slug: first.slug, name: first.name, stop: null },
-    ...run.stops.flatMap((entry) => entry.route.slice(1).map((city, index, list) => ({ slug: city.slug, name: city.name, stop: index === list.length - 1 ? entry : null }))),
+    ...stops.flatMap((entry) => entry.route.slice(1).map((city, index, list) => ({ slug: city.slug, name: city.name, stop: index === list.length - 1 ? entry : null }))),
   ];
 }
 
@@ -839,10 +927,14 @@ export function ReceiptPanel({ receipt, products }: { receipt: RunReceiptDto; pr
           <Row key={entry.key} label={nameOf(products, entry.key)} value={<span className="se-num">{formatNumber(entry.startQuantity)} → {formatNumber(entry.quantity)}</span>} />
         ))}
         {receipt.bossAboard ? <Row label="Boss's hotel" value={formatCents(receipt.hotelCents)} tooltip="The boss rode along; this came out of the cash in the car." /> : null}
+        {receipt.supplyPickup ? (
+          <Row label="Supply delivered" strong
+            value={<span className={`se-num${receipt.supplyPickup.status === 'FAILED' ? ' se-bad' : ''}`}>{formatNumber(receipt.supplyPickup.deliveredQuantity)} of {formatNumber(receipt.supplyPickup.quantity)} {receipt.supplyPickup.productName}</span>} />
+        ) : null}
         <Row label="Turns" value={formatNumber(receipt.turnsSpent)} />
       </div>
       <IncidentList incidents={receipt.incidents} products={products} />
-      {receipt.trades.length ? <TradeList trades={receipt.trades} products={products} /> : <p className="se-hint">No trades: the crew only looked.</p>}
+      {receipt.trades.length ? <TradeList trades={receipt.trades} products={products} /> : <p className="se-hint">{receipt.supplyPickup ? `A pickup from ${receipt.supplyPickup.supplierName}: it does not trade.` : 'No trades: the crew only looked.'}</p>}
     </Panel>
   );
 }

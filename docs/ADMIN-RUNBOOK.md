@@ -129,6 +129,10 @@ Notes that matter:
   target adds are laid out. It needs a reason, and the audit entry keeps the
   round before and after plus the warnings you confirmed. A finished round's
   ruleset is frozen.
+  - **Onto 1.7.0-A or later.** Each player's crew roster is built from their
+    counts on their next action. To build every roster at once and check them,
+    run `npm run ops:crew-roster -- --round <slug>` after the change. It is safe
+    to stop and run again.
 - **Round health** on the round page shows joins, active players, battles and
   the richest players, which is usually enough to tell a quiet round from a
   broken one.
@@ -382,6 +386,7 @@ explaining it. Export before purging if the rows still matter.
 | `npm run db:seed:dev-bots` | Add local dev bots to the current round (`SEED_DEV_BOTS=1`). |
 | `npm run db:dev-bots:status` | Show dev bot accounts and whether they are in the current round. |
 | `npm run db:cleanup:seed-rivals` | Remove every dev bot account. |
+| `npm run ops:crew-roster -- --round <slug>` | 1.7.0-A: build and verify every player's crew roster in a round (`--check` to verify only). |
 
 The seed and the panel create dev bots from the same definition
 (`apps/server/src/services/dev-bots.service.ts`), so the two cannot drift.

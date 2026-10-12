@@ -209,6 +209,206 @@
   min-width: 0;
 }
 
+.se-citymap-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(190px, 0.7fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.se-citymap {
+  position: relative;
+  min-width: 0;
+  height: auto;
+  aspect-ratio: 880 / 700;
+  overflow: hidden;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: #10232a;
+}
+
+/* Schematic district map (CityDistrictMap): one diagram per city, tiles carry their own status.
+   Status colors are fixed rather than taken from the site theme, whose accent can be red or orange
+   and would then read as conflict or as another crew. */
+:root {
+  --se-map-mine: #4ade80;
+  --se-map-rival: #ff8a1f;
+  --se-map-conflict: #f33f63;
+  --se-map-locals: #8d9a8c;
+  --se-map-vacant: #7b8592;
+}
+
+.se-districtmap {
+  container-type: inline-size;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: #0e1318;
+}
+
+.se-districtmap__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: inherit;
+}
+
+.se-districtmap__ground { fill: #0e1318; }
+.se-districtmap__grid line { stroke: var(--se-line-soft); stroke-width: 1; }
+.se-districtmap__water { fill: #13283a; stroke: #1f4560; stroke-width: 2; stroke-linejoin: round; }
+.se-districtmap__limits { fill: none; stroke: var(--se-line); stroke-width: 2; stroke-dasharray: 10 8; }
+.se-districtmap__road { fill: none; stroke: #2b333e; stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; }
+.se-districtmap__road--minor { stroke-width: 6; }
+
+.se-districtmap__road-label,
+.se-districtmap__water-label {
+  font-family: var(--se-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.se-districtmap__road-label { fill: #6b7684; }
+.se-districtmap__water-label { fill: #5585a6; letter-spacing: 0.3em; }
+
+.se-districtmap__tile {
+  --tile-color: var(--se-map-locals);
+  cursor: pointer;
+  outline: none;
+}
+
+.se-districtmap__tile--mine,
+.se-districtmap__tile--coverage-covered { --tile-color: var(--se-map-mine); }
+.se-districtmap__tile--held,
+.se-districtmap__tile--coverage-warn { --tile-color: var(--se-map-rival); }
+.se-districtmap__tile--vacant,
+.se-districtmap__tile--locked { --tile-color: var(--se-map-vacant); }
+.se-districtmap__tile--pressure,
+.se-districtmap__tile--coverage-bad { --tile-color: var(--se-map-conflict); }
+
+.se-districtmap__box {
+  fill: var(--se-panel);
+  stroke: var(--tile-color);
+  stroke-width: 3;
+  transition: stroke-width 120ms ease;
+}
+
+.se-districtmap__tint { fill: var(--tile-color); opacity: 0.15; pointer-events: none; }
+.se-districtmap__ring { fill: none; stroke: none; stroke-width: 2; }
+
+.se-districtmap__tile--vacant .se-districtmap__box,
+.se-districtmap__tile--locked .se-districtmap__box { stroke-dasharray: 9 6; }
+.se-districtmap__tile--locked .se-districtmap__tint { opacity: 0.05; }
+.se-districtmap__tile--locked .se-districtmap__name,
+.se-districtmap__tile--locked .se-districtmap__compact-name { fill: var(--se-text-dim); }
+
+.se-districtmap__tile--pressure .se-districtmap__box,
+.se-districtmap__tile--coverage-bad .se-districtmap__box { animation: se-districtmap-pulse 1.6s ease-in-out infinite; }
+
+@keyframes se-districtmap-pulse {
+  50% { stroke-opacity: 0.35; }
+}
+
+.se-districtmap__tile:hover .se-districtmap__box { stroke-width: 5; }
+.se-districtmap__tile--selected .se-districtmap__ring { stroke: var(--se-text); }
+.se-districtmap__tile:focus-visible .se-districtmap__ring { stroke: var(--se-accent); stroke-dasharray: 6 4; }
+.se-districtmap--disabled .se-districtmap__tile { cursor: default; }
+
+.se-districtmap__name,
+.se-districtmap__compact-name {
+  fill: var(--se-text);
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.se-districtmap__name { font-size: 22px; }
+.se-districtmap__compact-name { font-size: 32px; }
+.se-districtmap__status { fill: var(--tile-color); font-size: 13px; font-weight: 700; pointer-events: none; }
+.se-districtmap__lot { fill: none; stroke: #4a5462; stroke-width: 1.5; pointer-events: none; }
+.se-districtmap__lot--built { fill: var(--tile-color); stroke: var(--tile-color); }
+.se-districtmap__compact { display: none; }
+
+/* On a phone the tiles keep only a big name and place names drop out; the cards below the map carry the rest. */
+@container (max-width: 520px) {
+  .se-districtmap__full { display: none; }
+  .se-districtmap__compact { display: inline; }
+  .se-districtmap__road-label,
+  .se-districtmap__water-label { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-districtmap__box { animation: none !important; transition: none; }
+}
+
+.se-citymap__legend-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border: 1px solid color-mix(in srgb, currentColor 65%, transparent);
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.se-citymap-brief {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+}
+
+.se-citymap-brief__control {
+  display: grid;
+  gap: 5px;
+}
+
+.se-citymap-brief__control strong {
+  font-family: var(--se-mono);
+  font-size: 20px;
+}
+
+.se-citymap-brief__control > span:last-child,
+.se-citymap-brief > p {
+  color: var(--se-text-dim);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.se-citymap-brief__legend {
+  display: grid;
+  gap: 8px;
+  padding-top: 13px;
+  border-top: 1px solid var(--se-line);
+}
+
+.se-citymap-brief__legend > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--se-text-dim);
+  font-size: 10px;
+}
+
+.se-citymap__legend-dot--mine { color: var(--se-map-mine); }
+.se-citymap__legend-dot--held { color: var(--se-map-rival); }
+.se-citymap__legend-dot--locals { color: var(--se-map-locals); }
+.se-citymap__legend-dot--vacant { color: var(--se-map-vacant); }
+.se-citymap__legend-dot--pressure { color: var(--se-map-conflict); }
+.se-citymap__legend-dot--lot { color: var(--se-text-dim); border-radius: 1px; }
+
+.se-citymap-brief > p {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--se-line);
+}
+
 .se-cityblocks .se-turfboard {
   display: block;
   columns: 2;
@@ -241,8 +441,63 @@
   border-left-style: dashed;
 }
 
+.se-cityblocks .se-turfboard__block--selected {
+  outline: 1px solid rgba(var(--se-accent-rgb), 0.62);
+  outline-offset: 1px;
+  scroll-margin-block: 90px;
+}
+
 .se-cityblocks .se-turfboard__head {
   gap: 12px;
+}
+
+.se-cityblocks .se-turfboard__focus {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  margin: -3px 0 4px -5px;
+  padding: 3px 5px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--se-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.se-cityblocks .se-turfboard__focus strong {
+  font-size: 15px;
+}
+
+.se-cityblocks .se-turfboard__focus:hover,
+.se-cityblocks .se-turfboard__focus[aria-pressed="true"] {
+  background: rgba(var(--se-accent-rgb), 0.08);
+}
+
+.se-cityblocks .se-turfboard__focus:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: 2px;
+}
+
+.se-cityblocks .se-turfboard__scout-link {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid rgba(var(--se-accent-rgb), 0.35);
+  border-radius: 3px;
+  background: rgba(var(--se-accent-rgb), 0.045);
+  color: var(--se-accent);
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.se-cityblocks .se-turfboard__scout-link:hover {
+  border-color: var(--se-accent);
+  background: rgba(var(--se-accent-rgb), 0.09);
 }
 
 .se-cityblocks .se-turfboard__holder {
@@ -430,6 +685,24 @@
   .se-cityblocks-sectionhead > p {
     max-width: 470px;
   }
+
+  .se-citymap-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .se-citymap-brief {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .se-citymap-brief > p {
+    grid-column: 1 / -1;
+  }
+
+  .se-citymap-brief__legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -467,6 +740,22 @@
   .se-cityblocks .se-turfcitystrip__city {
     flex: 0 0 150px;
   }
+
+  .se-citymap { min-width: 0; }
+
+  .se-citymap-layout { overflow: visible; }
+
+  .se-citymap-brief {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 11px;
+  }
+
+  .se-citymap-brief__legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-citymap-brief > p { grid-column: auto; }
 
   .se-cityblocks .se-turfboard {
     columns: 1;

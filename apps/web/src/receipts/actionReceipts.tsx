@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import type {
   GameActionResult,
   ProduceCrackResult,
+  RandomEncounterDto,
   RoundPlayerDto,
   ScoutResult,
   WorkSupplyPlanDto,
@@ -246,6 +247,86 @@ function actualCashLine(
   };
 }
 
+function signedMoneyDetail(value: number, label: string): string {
+  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+  return `${sign}${formatCents(Math.abs(value))} ${label}`;
+}
+
+function signedCountDetail(value: number, label: string): string {
+  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+  return `${sign}${formatNumber(Math.abs(value))} ${label}`;
+}
+
+function encounterEffectSummary(encounter: RandomEncounterDto, me: ProductContext): string {
+  const effects = encounter.effects;
+  return [
+    effects.cashCents ? signedMoneyDetail(effects.cashCents, 'cash') : null,
+    effects.heat ? signedCountDetail(effects.heat, 'Heat') : null,
+    effects.condoms ? signedCountDetail(effects.condoms, 'Condoms') : null,
+    effects.medicine ? signedCountDetail(effects.medicine, 'Medicine') : null,
+    effects.crack ? signedCountDetail(effects.crack, productLabel(me)) : null,
+    effects.beer ? signedCountDetail(effects.beer, 'Beer') : null,
+  ].filter((part): part is string => Boolean(part)).join(' · ');
+}
+
+function encounterEffectLines(
+  encounter: RandomEncounterDto,
+  after: GameActionResult<unknown>['after'],
+  me: ProductContext,
+): ResultLine[] {
+  const effects = encounter.effects;
+  const hasNonCashEffect = Boolean(effects.heat || effects.condoms || effects.medicine || effects.crack || effects.beer);
+  if (effects.cashCents && !hasNonCashEffect) {
+    return [{
+      label: encounter.title,
+      detail: encounter.text,
+      delta: effects.cashCents,
+      remaining: after.cashCents,
+      money: true,
+    }];
+  }
+
+  const summary = encounterEffectSummary(encounter, me);
+  const intro: ResultLine = {
+    label: encounter.title,
+    value: summary ? `${encounter.text} · ${summary}` : encounter.text,
+  };
+
+  return [
+    intro,
+    ...(effects.heat ? [{
+      label: 'Encounter Heat',
+      detail: encounter.title,
+      delta: effects.heat,
+      invert: true,
+    }] : []),
+    ...(effects.condoms ? [{
+      label: 'Encounter Condoms',
+      detail: encounter.title,
+      delta: effects.condoms,
+      remaining: after.resources.condoms,
+    }] : []),
+    ...(effects.medicine ? [{
+      label: 'Encounter Medicine',
+      detail: encounter.title,
+      delta: effects.medicine,
+      remaining: after.resources.medicine,
+    }] : []),
+    ...(effects.crack ? [{
+      label: `Encounter ${productLabel(me)}`,
+      detail: encounter.title,
+      delta: effects.crack,
+      remaining: after.resources.product,
+    }] : []),
+    ...(effects.beer ? [{
+      label: 'Encounter Beer',
+      detail: encounter.title,
+      delta: effects.beer,
+      remaining: after.resources.beer,
+    }] : []),
+  ];
+}
+
 export function scoutReceiptLines(action: GameActionResult<ScoutResult>, me: ProductContext): ResultLine[] {
   const result = action.result;
   const backOfficeBonusCents = result.hideoutBonusCents ?? 0;
@@ -270,6 +351,7 @@ export function scoutReceiptLines(action: GameActionResult<ScoutResult>, me: Pro
     backOfficeBonusCents > 0 ? `+${formatCents(backOfficeBonusCents)} Back Office` : null,
     result.lieutenantCutCents ? `−${formatCents(result.lieutenantCutCents)} lieutenant (boss away)` : null,
     result.heat?.fineCents ? `−${formatCents(result.heat.fineCents)} fine` : null,
+    result.encounter?.effects.cashCents ? signedMoneyDetail(result.encounter.effects.cashCents, 'encounter') : null,
   ]);
 
   return [
@@ -288,6 +370,7 @@ export function scoutReceiptLines(action: GameActionResult<ScoutResult>, me: Pro
     ...scoutProductLines(result, action.after, me),
     ...basicSupplyLines(result, action.after),
     ...infectionLines(result, action.after),
+    ...(result.encounter ? encounterEffectLines(result.encounter, action.after, me) : []),
     {
       label: 'Armed street cover',
       value: `${formatNumber(result.armedThugs)} armed / ${formatNumber(result.unarmedThugs)} unarmed`,
@@ -318,6 +401,7 @@ export function produceReceiptLines(action: GameActionResult<ProduceCrackResult>
     backOfficeBonusCents > 0 ? `+${formatCents(backOfficeBonusCents)} Back Office` : null,
     result.lieutenantCutCents ? `−${formatCents(result.lieutenantCutCents)} lieutenant (boss away)` : null,
     result.heat?.fineCents ? `−${formatCents(result.heat.fineCents)} fine` : null,
+    result.encounter?.effects.cashCents ? signedMoneyDetail(result.encounter.effects.cashCents, 'encounter') : null,
   ]);
 
   return [
@@ -346,6 +430,7 @@ export function produceReceiptLines(action: GameActionResult<ProduceCrackResult>
     ...(thugs ? [thugs] : []),
     ...basicSupplyLines(result, action.after),
     ...infectionLines(result, action.after),
+    ...(result.encounter ? encounterEffectLines(result.encounter, action.after, me) : []),
     {
       label: 'Turns remaining',
       value: formatNumber(result.turnsRemaining),

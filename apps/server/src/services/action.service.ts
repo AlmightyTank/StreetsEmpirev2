@@ -18,9 +18,10 @@ import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { annotateLogContext } from '../utils/request-context.js';
 import { ActivityService } from './activity.service.js';
+import { RandomEncounterService, encounterActivityPayload } from './random-encounter.service.js';
 import { HappinessService } from './happiness.service.js';
 import { IdempotencyService } from './idempotency.service.js';
-import { assertPlayerState } from './invariant.service.js';
+import { assertLoanDebtChange, assertPlayerState } from './invariant.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { RankingService } from './ranking.service.js';
 import { TurnService } from './turn.service.js';
@@ -33,20 +34,30 @@ import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { RunSettleService } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
 import { BusinessService } from './business.service.js';
+import { SupplyPropertySettleService } from './supply-property-settle.service.js';
+import { DealerSalesSettleService } from './dealer-sales-settle.service.js';
+import { SupplyLaneSettleService } from './supply-lane-settle.service.js';
+import { LoanSettleService } from './loan-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
 import { LawService, type CaseEvidence } from './law.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
+import { CrewStaffingOrderService } from './crew-staffing-order.service.js';
+import { fitThugs } from './crew-availability.js';
+
+export { fitThugs, workingWhores } from './crew-availability.js';
 
 async function casinoCashEquivalentCents(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
   if (!ruleset.casino?.enabled) return 0n;
-  const [wallets, sessions] = await Promise.all([
+  const [wallets, sessions, sportsbook] = await Promise.all([
     tx.casinoWallet.aggregate({ where: { roundPlayerId }, _sum: { chipsCents: true } }),
     tx.casinoSession.aggregate({ where: { roundPlayerId, status: 'OPEN' }, _sum: { bankrollCents: true } }),
+    tx.sportsbookBet.aggregate({ where: { roundPlayerId, status: 'OPEN', casinoCityId: { not: null } }, _sum: { stakeCents: true } }),
   ]);
-  return (wallets._sum.chipsCents ?? 0n) + (sessions._sum.bankrollCents ?? 0n);
+  return (wallets._sum.chipsCents ?? 0n) + (sessions._sum.bankrollCents ?? 0n) + (sportsbook._sum.stakeCents ?? 0n);
 }
 
 /**
@@ -96,6 +107,8 @@ export interface PlayerState {
   postedNetWorthCents: bigint;
   /** 0.6.0-D. Net worth stored in away outpost boxes. */
   outpostNetWorthCents: bigint;
+  /** 1.6.5-A. Owed to the loan shark. Only loan acceptance and repayment move it. */
+  loanDebtCents: bigint;
   /** 0.5.0-C. Set by an arrest at home; left out, it is not written. */
   lockedUntil?: Date | null;
   /** 0.5.0-D. Set by a move; left out, it is not written. */
@@ -106,6 +119,8 @@ export interface PlayerState {
   postedThugs: number;
   /** 1.1.0-B. Thugs and girls working a business: counted, never fit or working at home. */
   businessThugs: number;
+  /** 1.6.0-A. Thugs assigned to dealer crews: counted, never available at home. */
+  dealerThugs: number;
   businessWhores: number;
 
   /** Quest progress that is per-player rather than per-trader. */
@@ -163,6 +178,8 @@ export interface ActionContext {
   /** Standing with each trader, as it stands before the action. */
   standings: Standings;
   recovery: RecoverySettlement;
+  /** 1.6.5-B. Net worth as it stands before the action, freshly calculated. */
+  netWorthCents: bigint;
 }
 
 export interface ActionOutcome<T> {
@@ -185,6 +202,19 @@ export interface ActionOutcome<T> {
    * the action id, so a replay never adds evidence twice.
    */
   caseEvidence?: Array<Omit<CaseEvidence, 'sourceKey'>>;
+}
+
+function encounterTriggerForAction(action: string): 'STORE' | 'TURF' | null {
+  if (action.startsWith('STORE_')) return 'STORE';
+  if (action.startsWith('TURF_')) return 'TURF';
+  return null;
+}
+
+function activityPayloadWithEncounter(payload: Prisma.InputJsonValue, encounter: import('@streets/shared').RandomEncounterDto): Prisma.InputJsonValue {
+  const base = typeof payload === 'object' && payload !== null && !Array.isArray(payload)
+    ? payload as Prisma.InputJsonObject
+    : { value: payload };
+  return { ...base, randomEncounter: encounterActivityPayload(encounter) };
 }
 
 export interface RunActionOptions<T> {
@@ -247,9 +277,11 @@ export function toState(player: RoundPlayer): PlayerState {
     awayNetWorthCents: player.awayNetWorthCents,
     postedNetWorthCents: player.postedNetWorthCents,
     outpostNetWorthCents: player.outpostNetWorthCents,
+    loanDebtCents: player.loanDebtCents,
     busyThugs: player.busyThugs,
     postedThugs: player.postedThugs,
     businessThugs: player.businessThugs,
+    dealerThugs: player.dealerThugs,
     businessWhores: player.businessWhores,
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
@@ -282,16 +314,6 @@ export function toState(player: RoundPlayer): PlayerState {
   };
 }
 
-/** Thugs who can do something at home: not wounded, busy elsewhere, posted on a corner, or working a business. */
-export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number; postedThugs?: number; businessThugs?: number }): number {
-  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0) - (player.postedThugs ?? 0) - (player.businessThugs ?? 0));
-}
-
-/** 1.1.0-B. Girls who work the street or a Produce shift: everyone not working a business. */
-export function workingWhores(player: { whores: number; businessWhores?: number }): number {
-  return Math.max(0, player.whores - (player.businessWhores ?? 0));
-}
-
 function armedThugsForSnapshot(state: PlayerState): number {
   return Math.min(fitThugs(state), totalWeapons(state));
 }
@@ -315,6 +337,7 @@ function toSnapshot(
       woundedThugs: state.woundedThugs,
       postedThugs: state.postedThugs,
       businessThugs: state.businessThugs,
+      dealerThugs: state.dealerThugs,
       businessWhores: state.businessWhores,
       armedThugs: armedThugsForSnapshot(state),
       unarmedThugs: Math.max(0, fitThugs(state) - armedThugsForSnapshot(state)),
@@ -436,10 +459,18 @@ export const ActionService = {
       const turfSettlement = await TurfService.settlePlayer(tx, roundPlayerId, ruleset, now);
       // 1.1.0-B: and business supply, income and any staff coming home from a lost block.
       const businessSettlement = await BusinessService.settlePlayer(tx, roundPlayerId, ruleset, now);
+      // 1.6.0-H: lane loads that have landed are in storage before anything reads it.
+      await SupplyLaneSettleService.settle(tx, roundPlayerId, ruleset, now);
+      // 1.6.0-F: dealer sales first, so their takings can meet the upkeep after.
+      const salesCash = await DealerSalesSettleService.settle(tx, roundPlayerId, ruleset, now);
+      // 1.6.0-D: and property upkeep that has fallen due.
+      const upkeepCash = await SupplyPropertySettleService.settleUpkeep(tx, roundPlayerId, ruleset, now);
+      // 1.6.5-A: installments that have fallen due on the server clock, after the day's takings.
+      const loanCash = await LoanSettleService.settle(tx, roundPlayerId, ruleset, now);
       // 1.3.0-C: and any warrant that is due is served before the action reads the player. A
       // personal warrant's lock-up takes hold from the next action.
       const warrantServed = await LawWarrantService.serveDue(tx, roundPlayerId, now);
-      if (turfSettlement || businessSettlement || warrantServed) {
+      if (turfSettlement || businessSettlement || warrantServed || salesCash !== null || upkeepCash !== null || loanCash !== null) {
         player = await tx.roundPlayer.findUniqueOrThrow({
           where: { id: roundPlayerId },
           include: { city: true },
@@ -488,10 +519,28 @@ export const ActionService = {
         stock,
         standings,
         recovery,
+        netWorthCents: beforeNetWorth,
       });
 
-      const next = outcome.next;
+      const trigger = encounterTriggerForAction(options.action);
+      const actionEncounter = trigger ? await RandomEncounterService.action({
+        tx,
+        roundPlayerId,
+        next: outcome.next,
+        ruleset,
+        turns: Math.max(0, current.turns - outcome.next.turns),
+        now,
+      }, trigger) : undefined;
+      const staffing = await CrewStaffingOrderService.apply(tx, {
+        roundPlayerId,
+        ruleset,
+        now,
+        state: actionEncounter?.next ?? outcome.next,
+        player,
+      });
+      const next = staffing.next;
       assertPlayerState(next, ruleset, 'after');
+      assertLoanDebtChange(current.loanDebtCents, next.loanDebtCents, ruleset);
 
       const ledgerEntries = outcome.ledger
         ?? EconomyLedgerService.defaultForAction(options.action, current.cashCents, next.cashCents);
@@ -554,6 +603,9 @@ export const ActionService = {
         },
       });
 
+      // 1.7.0-A: the crew's members follow the counts the action just wrote.
+      await CrewRosterService.sync(tx, roundPlayerId, ruleset, now, next);
+
       // Street Pass: turns spent on this action earn Cred, up to the daily cap.
       const turnsSpent = Math.max(0, current.turns - next.turns);
       if (turnsSpent > 0) {
@@ -575,7 +627,9 @@ export const ActionService = {
           tx,
           roundPlayerId,
           outcome.activity.type,
-          outcome.activity.payload,
+          actionEncounter?.encounter
+            ? activityPayloadWithEncounter(outcome.activity.payload, actionEncounter.encounter)
+            : outcome.activity.payload,
         );
       }
       if (outcome.questProgress) {
@@ -626,6 +680,8 @@ export const ActionService = {
         after,
         changes: diff(before, after),
         result: outcome.result,
+        ...(actionEncounter?.encounter ? { encounter: actionEncounter.encounter } : {}),
+        ...(staffing.fills.length ? { staffingOrders: staffing.fills } : {}),
         rankChanges,
       };
 

@@ -1,5 +1,5 @@
 import type { APIEmbed } from 'discord.js';
-import { formatCents, formatNumber } from '@streets/shared';
+import { formatCents, formatNumber, markdownToPlainText } from '@streets/shared';
 import type {
   AlertSettings,
   AlertType,
@@ -39,6 +39,81 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 /** Player-chosen text must not format replies. Mentions are separately disabled on every reply. */
 export function escapeMarkdown(text: string): string {
   return text.replace(/[\\`*_~|>[\]()#-]/g, (char) => `\\${char}`);
+}
+
+function escapeRoundName(text: string): string {
+  return escapeMarkdown(text).replace(/@/g, '@\u200b');
+}
+
+function formatCentsString(cents: string): string {
+  const amount = BigInt(cents);
+  const absolute = amount < 0n ? -amount : amount;
+  const whole = new Intl.NumberFormat('en-US').format(absolute / 100n);
+  const fraction = (absolute % 100n).toString().padStart(2, '0');
+  return `${amount < 0n ? '-$' : '$'}${whole}.${fraction}`;
+}
+
+function roundRecapEmbed(event: RoundEvent): APIEmbed | null {
+  const recap = event.recap;
+  if (!recap) return null;
+  const metric = (value: number | null, label: string) => value === null ? `${label}: Not recorded` : `${label}: ${formatNumber(value)}`;
+  const champValueLimit = 1024;
+  const champions: string[] = [];
+  let championsLength = 0;
+  for (const award of recap.champions) {
+    const names = award.winners.slice(0, 2).map((winner) => escapeRoundName(winner.displayName));
+    const more = award.winners.length > names.length ? ` +${award.winners.length - names.length} more` : '';
+    const value = award.unit === 'cents'
+      ? formatCentsString(String(award.value))
+      : `${formatNumber(Number(award.value))} ${escapeRoundName(award.unit)}`;
+    const line = `**${escapeRoundName(award.title)}** · ${value} — ${names.join(', ')}${more}`;
+    if (championsLength + line.length + (champions.length ? 1 : 0) > champValueLimit) break;
+    champions.push(line);
+    championsLength += line.length + (champions.length > 1 ? 1 : 0);
+  }
+  const topPlayers: string[] = [];
+  let topPlayersLength = 0;
+  for (const player of recap.topPlayers) {
+    const line = `**#${player.rank}** [${escapeRoundName(player.displayName)}](${player.profileUrl}) · ${formatCentsString(player.netWorthCents)} · ${escapeRoundName(player.city)}`;
+    if (topPlayersLength + line.length + (topPlayers.length ? 1 : 0) > 1024) break;
+    topPlayers.push(line);
+    topPlayersLength += line.length + (topPlayers.length > 1 ? 1 : 0);
+  }
+
+  return {
+    title: `${truncate(escapeRoundName(event.roundName), 220)} · Round Aftermath`,
+    url: recap.aftermathUrl,
+    color: MUTED_COLOR,
+    description: 'The final bell has rung. The full frozen report is ready.',
+    fields: [
+      {
+        name: 'Final Snapshot',
+        value: [
+          metric(recap.participants, 'Players'),
+          metric(recap.eligibleCompetitors, 'Ranked competitors'),
+          metric(recap.cities, 'Cities'),
+          metric(recap.alliances, 'Alliances'),
+          recap.finalNetWorthCents === null ? 'Eligible final net worth: Not recorded' : `Eligible final net worth: ${formatCentsString(recap.finalNetWorthCents)}`,
+          metric(recap.finalCrewMembers, 'Crew at cutoff'),
+          metric(recap.turfBlocksHeld, 'Turf blocks held'),
+          metric(recap.activeBusinessesHeld, 'Active businesses held'),
+          metric(recap.crimeActionsAttempted, 'Crime actions attempted'),
+          'Earned/spent, captures/defenses, recruiting, drug production/sales, business revenue and contested-city totals: Not recorded.',
+        ].join('\n'),
+      },
+      { name: 'Top Empires', value: topPlayers.length ? topPlayers.join('\n') : 'No eligible competitors were recorded.' },
+      { name: 'Round Champions', value: champions.length ? champions.join('\n') : 'No supported category champions were recorded.' },
+    ],
+    footer: { text: `round-recap:${recap.roundId}` },
+  };
+}
+
+/**
+ * A staff-written news body keeps its markdown, which Discord renders itself.
+ * Headings become bold lines so they read the same in every Discord client.
+ */
+export function newsMarkdown(body: string): string {
+  return body.replace(/^ {0,3}#{1,3}\s+(.+?)\s*#*\s*$/gm, '**$1**');
 }
 
 export function truncate(text: string, max: number): string {
@@ -309,7 +384,7 @@ export function newsEmbed(feed: NewsFeed, origin: string, limit = 5): APIEmbed {
       ? {
         fields: posts.map((post) => ({
           name: truncate(`${post.isPinned ? '📌 ' : ''}${post.title}`, 256),
-          value: truncate(`${escapeMarkdown(truncate(post.body, 300))}\n-# ${post.publishedAt.slice(0, 10)}${post.authorName ? ` · ${escapeMarkdown(post.authorName)}` : ''}`, 1024),
+          value: truncate(`${escapeMarkdown(truncate(markdownToPlainText(post.body), 300))}\n-# ${post.publishedAt.slice(0, 10)}${post.authorName ? ` · ${escapeMarkdown(post.authorName)}` : ''}`, 1024),
         })),
       }
       : { description: 'No round news has been posted yet.' }),
@@ -362,11 +437,14 @@ export const HELP_LINES: Array<[string, string]> = [
   ['/halloffame', 'Podiums from recent finished rounds.'],
   ['/round', 'Round status and time left.'],
   ['/news', 'Latest news posts.'],
+  ['/status', 'Whether the game is up, the running version and any planned maintenance.'],
   ['/invite', 'How to start playing and get your roles.'],
   ['/link', 'Your link status and the roles you qualify for. Only you see it.'],
   ['/stats', 'Your private cash, crew, weapons, supplies and turns. Only you see it.'],
   ['/alerts type enabled', 'DM alerts for attacks, turf, alliance control, rounds, rank drops and full turns. Only you see it.'],
   ['/remind turns', 'Shortcut for /alerts type:turns. Only you see it.'],
+  ['/bug category', 'Report a bug to staff. You hear back when it is resolved. Only you see it.'],
+  ['/support', 'Open a private ticket with staff, even without a linked account. Only you and staff see it.'],
   ['/sync', 'Update your roles now (once a minute).'],
   ['/help', 'This list. Only you see it.'],
   ['/announce title body', 'Game admins: post news from Discord. Only you see the result.'],
@@ -461,7 +539,7 @@ export function newsPostEmbed(post: NewsPost): APIEmbed {
     title: truncate(`${post.isPinned ? '📌 ' : ''}${post.title}`, 256),
     url: post.url,
     color: BRAND_COLOR,
-    description: truncate(escapeMarkdown(post.body), 1500),
+    description: truncate(newsMarkdown(post.body), 1500),
     footer: { text: post.authorName ? `Posted by ${post.authorName}` : 'StreetsEmpire news' },
     timestamp: post.publishedAt,
   };
@@ -672,6 +750,8 @@ export function rankAlertEmbed(alert: RankAlert): APIEmbed {
 }
 
 export function roundEventEmbed(event: RoundEvent): APIEmbed {
+  const recap = roundRecapEmbed(event);
+  if (recap) return recap;
   const title = event.type === 'opened'
     ? `${event.roundName} is open`
     : event.type === 'ending-soon'

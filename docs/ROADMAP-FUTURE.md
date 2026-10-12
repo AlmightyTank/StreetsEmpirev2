@@ -307,9 +307,11 @@ Profiles might record:
 
 ## 1.8 — Competitive Events & World Events
 
+**1.8.5 detailed roadmap:** [ROADMAP-1.8.5.md](ROADMAP-1.8.5.md).
+
 ### Theme
 
-Give seasons occasional disruptions and objectives.
+Give seasons occasional disruptions and objectives. The 1.8.5 focus is connected random encounters, crew moments, and transparent city conditions.
 
 ### Examples
 

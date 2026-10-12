@@ -42,6 +42,8 @@ const envSchema = z.object({
   FRONTEND_ORIGIN: z.string().url().optional(),
   /** Invite-only gate for isolated beta deployments. */
   BETA_INVITE_ONLY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  /** Staged release switch for public aftermath/archive endpoints; report capture and rewards are unaffected. */
+  ROUND_AFTERMATH_PUBLIC_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
   /** Non-production admin QA mode: expose seasonal event quests outside their real-world window. */
   SEASONAL_EVENT_ADMIN_TEST_MODE: z.enum(['true', 'false']).optional(),
 
@@ -66,8 +68,15 @@ const envSchema = z.object({
   BETA_TESTER_FORUM_GROUPS: z.string().default(''),
 
   DISCORD_BOT_API_TOKEN: z.union([z.literal(''), z.string().min(64)]).default(''),
+  /** The bot's Discord server, shared with the bot's own settings; only used to link support ticket threads. */
+  DISCORD_GUILD_ID: z.union([z.literal(''), z.string().regex(/^[0-9]{17,20}$/)]).default(''),
   DISCORD_BOT_PUSH_URL: z.union([z.literal(''), z.string().url()]).default(''),
   DISCORD_BOT_PUSH_TIMEOUT_MS: z.coerce.number().int().min(250).max(30_000).default(2_000),
+
+  /** Deploy-time patch notes (scripts/ops/patch-notes.mjs). The internal endpoint stays off while empty. */
+  PATCH_NOTES_API_TOKEN: z.union([z.literal(''), z.string().min(64)]).default(''),
+  /** How long a deploy's patch notes wait in Admin → News before players see them. */
+  PATCH_NOTES_HOLD_MINUTES: z.coerce.number().int().min(0).max(7 * 24 * 60).default(120),
 
   /** Web Push. Generate a pair with `npx web-push generate-vapid-keys`. */
   VAPID_PUBLIC_KEY: z.string().default(''),
@@ -76,6 +85,10 @@ const envSchema = z.object({
   VAPID_SUBJECT: z.union([z.literal(''), z.string().regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT must start with mailto: or https://.')]).default(''),
 
   RESEND_API_KEY: z.string().default(''),
+  // Supporter payments through Stripe Checkout. All three, or supporting is turned off.
+  STRIPE_SECRET_KEY: z.union([z.literal(''), z.string().regex(/^(sk|rk)_(test|live)_/, 'STRIPE_SECRET_KEY must be a Stripe secret or restricted key.')]).default(''),
+  STRIPE_WEBHOOK_SECRET: z.union([z.literal(''), z.string().startsWith('whsec_', 'STRIPE_WEBHOOK_SECRET must start with whsec_.')]).default(''),
+  STRIPE_SUPPORTER_PRICE_ID: z.union([z.literal(''), z.string().startsWith('price_', 'STRIPE_SUPPORTER_PRICE_ID must start with price_.')]).default(''),
   EMAIL_FROM: z.string().default(''),
   /** How long admin audit entries are kept. 0 keeps them forever. */
   ADMIN_AUDIT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(365),
@@ -127,6 +140,10 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).optional(),
   MAINTENANCE_MESSAGE: z.string().max(280).default('StreetsEmpire is down for maintenance. Everything you own is safe; check back shortly.'),
   EMAIL_VERIFICATION_TTL_MINUTES: z.coerce.number().int().positive().default(60),
+  /** 1.8.0-A. Server-only odds provider key; empty keeps the sportsbook feed disabled. */
+  THERUNDOWN_API_KEY: z.string().default(''),
+  /** Shared cached snapshot cadence; deliberately no faster than 15 minutes on free delayed data. */
+  SPORTSBOOK_POLL_MINUTES: z.coerce.number().int().min(30).max(180).default(30),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -223,6 +240,9 @@ export const env = {
   betaAccess: {
     inviteOnly: parsed.data.BETA_INVITE_ONLY,
   },
+  roundAftermath: {
+    publicEnabled: parsed.data.ROUND_AFTERMATH_PUBLIC_ENABLED,
+  },
   seasonalEvents: {
     adminTestMode: seasonalEventAdminTestMode,
   },
@@ -237,6 +257,15 @@ export const env = {
       /** Off in tests so no test run ever posts to a real forum. */
       enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.FORUM_API_KEY && parsed.data.FORUM_NEWS_TAG_ID),
     },
+    /**
+     * Suspending linked players on the forum from the admin account page. Needs the
+     * Suspend extension and an API key acting as a forum admin. Off in tests.
+     */
+    moderation: {
+      apiKey: parsed.data.FORUM_API_KEY,
+      userId: parsed.data.FORUM_API_USER_ID,
+      enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.FORUM_API_KEY && parsed.data.FORUM_LINK_SECRET),
+    },
     recruitment: {
       apiKey: parsed.data.FORUM_API_KEY,
       userId: parsed.data.FORUM_API_USER_ID,
@@ -250,6 +279,7 @@ export const env = {
     enabled: parsed.data.BETA_TESTER_DISCORD_LINKED || betaTesterForumGroups.length > 0,
   },
   discordBot: {
+    guildId: parsed.data.DISCORD_GUILD_ID,
     apiToken: parsed.data.DISCORD_BOT_API_TOKEN,
     enabled: Boolean(parsed.data.DISCORD_BOT_API_TOKEN),
     push: {
@@ -257,6 +287,19 @@ export const env = {
       timeoutMs: parsed.data.DISCORD_BOT_PUSH_TIMEOUT_MS,
       enabled: Boolean(parsed.data.DISCORD_BOT_API_TOKEN && parsed.data.DISCORD_BOT_PUSH_URL),
     },
+  },
+  stripe: {
+    secretKey: parsed.data.STRIPE_SECRET_KEY,
+    webhookSecret: parsed.data.STRIPE_WEBHOOK_SECRET,
+    supporterPriceId: parsed.data.STRIPE_SUPPORTER_PRICE_ID,
+    /** Off in tests so no test run ever calls Stripe. */
+    enabled: parsed.data.NODE_ENV !== 'test'
+      && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET && parsed.data.STRIPE_SUPPORTER_PRICE_ID),
+  },
+  patchNotes: {
+    apiToken: parsed.data.PATCH_NOTES_API_TOKEN,
+    enabled: Boolean(parsed.data.PATCH_NOTES_API_TOKEN),
+    holdMinutes: parsed.data.PATCH_NOTES_HOLD_MINUTES,
   },
   push: {
     publicKey: parsed.data.VAPID_PUBLIC_KEY,

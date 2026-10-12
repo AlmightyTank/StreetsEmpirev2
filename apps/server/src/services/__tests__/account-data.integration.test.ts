@@ -157,7 +157,9 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account data and safety (r
     expect(data.seasons).toHaveLength(1);
     expect(data.seasons[0].season.name).toBe('Account data fixture');
     expect(typeof data.seasons[0].player.cashCents).toBe('string');
-    expect(data.bugReports[0].summary).toBe('Export me please');
+    expect(data.bugReports[0]).toMatchObject({ summary: 'Export me please', source: 'GAME', playerReply: null });
+    // The staff note on a resolution is staff-only, like moderation notes.
+    expect(data.bugReports[0]).not.toHaveProperty('resolutionNote');
     const stored = await app.prisma.account.findUniqueOrThrow({ where: { id: player.id } });
     expect(exported.body).not.toContain(stored.passwordHash);
     expect(exported.body).not.toMatch(/passwordHash|twoFactorSecret|tokenHash/);

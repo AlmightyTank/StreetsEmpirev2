@@ -737,3 +737,31 @@
 
 /* 1.3.0-G Admin law: list links big enough for a thumb. */
 .se-admin-law__link { display: inline-flex; align-items: center; min-height: 28px; }
+
+/* News and Alliance Wire markdown (components/Markdown.tsx) */
+.se-markdown > :first-child { margin-top: 0; }
+.se-markdown > :last-child { margin-bottom: 0; }
+.se-markdown p,
+.se-markdown ul,
+.se-markdown ol,
+.se-markdown blockquote,
+.se-markdown pre { margin: 0 0 0.75em; }
+.se-markdown ul,
+.se-markdown ol { padding-left: 1.4em; }
+.se-markdown li + li { margin-top: 0.2em; }
+.se-markdown h3,
+.se-markdown h4,
+.se-markdown h5 { margin: 1.1em 0 0.4em; color: var(--se-text); font-weight: 700; line-height: 1.3; }
+.se-markdown h3 { font-size: 1.4em; }
+.se-markdown h4 { font-size: 1.2em; }
+.se-markdown h5 { font-size: 1em; text-transform: uppercase; letter-spacing: 0.04em; }
+.se-markdown strong { color: var(--se-text); }
+.se-markdown a { color: var(--se-accent); overflow-wrap: anywhere; }
+.se-markdown a:hover { color: var(--se-accent-hover); }
+.se-markdown code { padding: 0 0.3em; border-radius: 3px; background: var(--se-panel-hi); font-family: var(--se-mono); font-size: 0.92em; }
+.se-markdown pre { overflow-x: auto; padding: 0.6em 0.8em; border: 1px solid var(--se-line-soft); border-radius: 4px; background: var(--se-panel-hi); white-space: pre; }
+.se-markdown pre code { padding: 0; background: none; }
+.se-markdown blockquote { padding-left: 0.8em; border-left: 3px solid var(--se-line); color: var(--se-muted); }
+.se-markdown hr { margin: 1em 0; border: 0; border-top: 1px solid var(--se-line-soft); }
+.se-admin-news-preview { margin-top: 8px; padding: 10px 12px; border: 1px dashed var(--se-line); border-radius: 4px; }
+.se-admin-news-preview .se-label { display: block; margin-bottom: 6px; }

@@ -1,6 +1,6 @@
 # NPC Gangs Roadmap
 
-Status: **Phases A-L built in beta. Phase M is next.**
+Status: **Phases A-P built in beta, with real crews spawning into live rounds.**
 
 NPC gangs are server-run seasonal crews that use the same core systems players use:
 round players, cities, stores, production, raids, drive-bys, special raid forms,
@@ -40,10 +40,10 @@ or hitting players with unavoidable punishment.
 | J | Built | Turf behavior so NPC gangs claim, defend, pressure or abandon territory. |
 | K | Built | Travel and migration so stronger gangs can relocate between cities. Crew runs are a follow-up. |
 | L | Built | Escalation and dormancy so gangs heat up, cool down, recover or lay low. |
-| M | Planned | Boss and archetype personalities with named gangs and distinct patterns. |
-| N | Planned | Rewards and cleanup for beating NPC gangs or relieving city pressure. |
-| O | Started | Admin controls for spawning, pausing, dormancy, tuning and memory inspection. |
-| P | Started | Balance telemetry for attack rate, wins, dogpiles, drain and stalled actions. |
+| M | Built | Boss and archetype personalities with named gangs and distinct patterns. |
+| N | Built | Rewards and cleanup for beating NPC gangs or relieving city pressure. |
+| O | Built | Admin controls for spawning, pausing, dormancy, tuning and memory inspection. |
+| P | Built | Balance telemetry for attack rate, wins, dogpiles, drain and stalled actions. |
 
 ## Built Phases
 
@@ -263,47 +263,103 @@ Delivered:
 - **Admin:** gangs on a run and gone to ground in the summary, and per gang its
   mood, momentum, dormancy reason and return time, or when it last woke.
 
-## Remaining Phases
-
 ### Phase M: Boss/Archetype Personalities
 
-Named gangs get distinct patterns: cautious hustlers, violent crews, ride
-thieves, product cooks and ambushers.
+Gangs run as named crews with recognizable habits. The catalog is authored in
+`packages/rulesets/src/npc-gang-personalities.ts` and reaches the scheduler through
+`npcGangs.personalities`; a ruleset can add or override personalities by key.
 
-Goals:
+Delivered:
 
-- Add ruleset-authored gang names, tags and archetype flavor.
-- Give named gangs stronger behavior signatures.
-- Track lightweight history like biggest hit, last loss or favorite move.
-- Keep public identity readable without exposing exact stats.
-
-Gate:
-
-- Players can recognize local crews by behavior and reputation, not just by admin
-  data.
+- **Five personalities:** cautious hustlers, violent crew, ride thieves, product
+  cooks and ambushers. Each has crew names with tags, a public style line, intent
+  biases, a targeting habit, an optional favorite special raid and a squad share.
+- **Resolution:** a gang's `archetype` matches a personality key, then an alias
+  exactly, then an alias as a substring (so `stash-builder` reads as product cooks),
+  then `defaultPersonality`.
+- **Behavior signatures:** personality biases replace the old substring archetype
+  bias; the favorite special raid is tried first when affordable; ordinary targets
+  are ordered by habit (richest, weakest, rides, product, or wounded and unhappy
+  crews); squads scale by `squadShare`. Revenge and turf pressure still come first.
+- **Identity:** a seeded `crewName`/`crewTag` is kept in memory; otherwise the gang
+  id picks one of the personality's names, stable for the season.
+- **History:** wins, losses, moves that landed (including corner claims), biggest
+  cash hit and last loss, kept in `NpcGang.memory.history`. The last loss is also
+  read back from the gang's own fights.
+- **Public reputation:** the combat page lists local crews by name and tag, who runs
+  them, their style, mood and up to three reputation lines (favorite move, a banded
+  recent score, a recent embarrassment, a rough win/loss lean). No exact stats.
+  Rumors name the loudest crew.
+- **Admin:** crew name, tag, personality and the exact record per gang.
+- **Dev bots:** the four seeded crews map to personalities with fixed names, and a
+  fifth, Hubcap Hector's Hubcap Kings, is a Veteran ride-thief crew so migration
+  has a candidate in dev.
 
 ### Phase N: Rewards & Cleanup
 
-Beating NPC gangs can grant trophies, contracts, faction standing, bounties or
-temporary city relief.
+Beating NPC crews pays, quiets the city and can break a crew up, with hard caps on
+farming. Rules live in `npcGangs.rewards`.
 
-Goals:
+Delivered:
 
-- Reward successful suppression without making NPC gangs farmable.
-- Consider temporary city relief after a gang is beaten.
-- Hook into contracts or faction standing when those systems want NPC targets.
-- Add cleanup paths for defeated or stale gangs.
+- **Bounties:** a human who beats a *wanted* crew (one that hit a human inside
+  `wantedHours`) is paid a house bounty by the crew's tier; holding off a crew's hit
+  pays `defenseShare` of it. Caps: `maxPerPlayerPerDay`, one per crew per player
+  per `perCrewCooldownHours`, and `maxPerCrewPerDay` across all players. Bounties are
+  paid inside the combat transaction and logged in the economy ledger as
+  `NPC_BOUNTY` with battle and crew, which is where the caps are read from. Passive
+  crews carry no bounty, and over-targeting a crew still sends it to ground
+  (Phase L), so a crew cannot be farmed.
+- **Reports and activity:** battle reports and activity mark `opponentNpc` and show
+  the bounty a win paid; the feed adds it to the line.
+- **Contracts:** combat activity now carries `opponentNpc: true` when the other side
+  is an NPC crew, so any contract can target NPC crews with an ordinary objective
+  `where` (for example `WIN_EVENTS` on `RAID_ATTACK` where `opponentNpc` is true).
+  No contract does yet; that is content for the contract boards.
+- **City relief:** when humans send a crew to ground (or break it up), every other
+  crew in that city stands down from attacks and revenge for `reliefHours`. They still
+  restock, produce and work turf.
+- **Break-ups:** a crew grounded `retireAfterDormancies` times in a round, or that
+  wakes with fewer than `retireBelowThugs` thugs, pulls its corner and breaks up for
+  the rest of the round (dormant past the round end, `memory.retired`).
+- **Stale cleanup:** the scheduler only loads gangs in active rounds, so crews from
+  finished rounds are no longer ticked.
+- **Intel:** wanted crews are marked in the local crew list and a rumor names one;
+  a "Street relief" row and rumor show who went to ground and how long the quiet
+  lasts; recent break-ups make the rumor mill.
+- **Admin:** bounties paid in 24h (count and cash), crews broken up, and per gang its
+  groundings and break-up reason.
 
-Gate:
-
-- Fighting NPC gangs feels worthwhile, but repeated farming is capped.
+Not done: faction standing for NPC suppression. Standing comes only from Jobs by
+design; a Job or contract that targets NPC crews is the way to pay it.
 
 ### Phase O: Admin Controls
 
-Admin panel controls for spawning, pausing, dormancy, tuning aggression,
-inspecting memory and forcing next action.
+Operators can correct NPC gangs from Admin → Integrations without database
+surgery. Every control needs a reason and writes an `npc-gang.*` audit entry with
+before and after.
 
-Current support already built:
+Delivered:
+
+- **Spawn and remove:** add any one seeded crew to the current round, or remove one
+  dev bot, alongside the existing add-all and remove-all. Dev-bot rules still apply:
+  refused in production and against a non-local database.
+- **Manage panel** per gang (`GET /api/admin/npc-gangs/:roundPlayerId`,
+  `POST .../control`):
+  - **Act now** runs one normal tick immediately (refused while paused or dormant).
+  - **Delay** pushes the next move back 5 minutes to a week.
+  - **Pause** for some hours or the rest of the round, on the dormancy clock the
+    scheduler already respects, with who, when and why kept in memory.
+  - **Wake** ends a pause, a dormancy or a break-up and makes the gang due now; a
+    dormancy woken early still gives the clean momentum slate.
+  - **Tune** aggression, ambition, discipline, tier and personality (known keys only).
+  - **Reset** momentum (earlier fights stop counting), grudges (earlier hits are
+    forgotten, via `grudgesClearedAt`) or a migration plan.
+- **Inspect:** traits, next move, pause or dormancy, the last 20 decisions (the
+  scheduler now keeps `memory.decisions`), the last 10 audit entries for the gang,
+  and the raw memory JSON.
+
+Read-only views from earlier phases:
 
 - Read-only admin summary for active gangs, due gangs, 24h actions and blocked
   outcomes.
@@ -315,45 +371,65 @@ Current support already built:
 - Per-bot mood, momentum and dormancy (Phase L).
 - CLI status script includes the latest NPC gang outcome.
 
-Future controls:
-
-- Spawn or remove NPC gangs from the admin panel.
-- Pause, wake or dormancy-toggle a gang.
-- Adjust aggression, ambition, discipline, tier and archetype with audit logs.
-- Force or delay next action.
-- Inspect memory, retaliation state and recent decision history.
-
-Gate:
-
-- Operators can correct runaway behavior without database surgery.
-
 ### Phase P: Balance Telemetry
 
-Track how often NPCs attack, win, dogpile, drain players or stall, so we can tune
-them without guessing.
+NPC behavior is measured, and a model predicts it before a season runs.
 
-Current support already built:
+Delivered:
 
-- Admin summary counts active gangs, due gangs, recent actions and blocked
-  outcomes.
-- City pressure counts recent hits, drive-bys and special raids.
-- Open grudges, 24h paybacks and per-city payback counts (Phase I).
-- NPC-held blocks in total and per city (Phase J).
-- Gangs packing or moving, and inbound trucks per city (Phase K).
-- Gangs on a run and gone to ground (Phase L).
+- **Scheduler counters:** every tick adds to `memory.telemetry.days[YYYY-MM-DD]`: the
+  outcome, the error code when a move was blocked (kept apart from choosing to lay
+  low), and why targets were passed over (`DOGPILE`, `SHIELD`, `NOT_BACK`,
+  `EMPTY_BLOCK`, `NO_MARK`). The last 60 days are kept.
+- **Balance report** (`GET /api/admin/npc-gangs/telemetry?window=24h|7d|season`, the
+  "NPC balance" panel on Admin → Integrations): NPC hits on humans with win rate and
+  hits per active human per day, human hits on NPCs, cash and product taken each way,
+  bounties paid, win rates by city, tier and personality, hits by kind, move mix,
+  blocked reasons, target skips, and blocked, lay-low and dogpile-skip rates.
+- **Model sim** (`npm run qa:npc-gangs`): runs the live weights, pacing, momentum,
+  dormancy, break-up and bounty rules for 7 days and a full season in a shared world
+  with the anti-dogpile rule, for the roster crews a round of `--humans` would carry
+  and for every personality at Scrub, Veteran and Kingpin. Knobs: target odds, win
+  rates and human hit rate. It has no economy, so tiers stay where they start.
 
-Future telemetry:
+First reading (10 active humans, defaults): roster crews hit the anti-dogpile cap,
+about one NPC hit per active human per day. The cap is the real limiter, so
+`retaliationHours` is the main dial for how often NPCs hit people.
 
-- Track raids per active player per day.
-- Track NPC win/loss rates by city, tier and archetype.
-- Track cash/product drained from players and earned by NPCs.
-- Track dogpile prevention skips.
-- Track blocked action reasons separately from normal lay-low behavior.
-- Add simulation reports for 7-day and full-season behavior.
+## Real Crews
 
-Gate:
+NPC gangs used to exist only as dev bots, which are refused in production and against
+any non-local database, so beta never had any. Now the server spawns real crews.
 
-- We can tune NPC gangs from measured season data instead of vibes.
+Delivered:
+
+- **Roster:** `NPC_GANG_ROSTER` in `packages/rulesets/src/npc-gang-personalities.ts`,
+  ten named crews (boss, crew name and tag, personality, traits), reaching the
+  scheduler as `npcGangs.roster`.
+- **Spawning:** each sweep checks every active round and spawns at most one missing
+  roster crew, no sooner than `spawn.spawnEveryMinutes` after the last, until the round
+  carries `minCrews` to `maxCrews` crews (one per `humansPerCrew` humans active inside
+  `activeHumanHours`). Dev bots count toward the total. Admin can spawn the next crew
+  now. Allowed in production.
+- **Spawn small:** a crew joins through `RoundPlayerService.join`, exactly like a new
+  player: the round's starting stock, the starting city and the opening rank snapshot.
+  It starts at Scrub.
+- **Work up:** a new Hustle move scouts the best-paying block the crew can cover,
+  keeping turns back for a hit, so crews earn cash and recruit hoes and thugs the way
+  players do. Tier follows growth: Street, Veteran and Kingpin at 2×, 5× and 12× the
+  crew's starting net worth (`progression.netWorthMultiple`), and only goes up. Higher
+  tiers unlock migration and raise bounties.
+- **System accounts:** `npc.<slug>` usernames (a dot no human name can use) on an
+  `@npc.streets-empire.invalid` address with no usable password, so nobody can sign in
+  as a crew and nothing is mailed to one. The admin bot table lists crews alongside dev
+  bots; only dev bots can be removed.
+- **Fix:** NPC action ids were the gang id plus a UUID, past the shared 64-character
+  limit, so combat refused every NPC hit since Phase C. They are now short and tested.
+
+Decided: crews keep ordinary round-player bodies internally so stores, combat,
+turf, travel and reports stay in one world, but human-facing standings are
+human-only. NPC crews do not take ranking, season-end, Hall of Fame or Discord
+role placement from humans.
 
 ## Open Balance Questions
 

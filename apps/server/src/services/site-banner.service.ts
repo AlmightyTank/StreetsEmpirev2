@@ -2,6 +2,8 @@ import type { PrismaClient, SiteBanner } from '@prisma/client';
 import type { AdminSiteBannersDto, SiteBannerDto, SiteBannerTone } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
+import { wakeDiscordBot } from './discord-bot-push.service.js';
+import { DiscordStaffService } from './discord-staff.service.js';
 
 const TONES: SiteBannerTone[] = ['info', 'warning', 'critical'];
 const MAX_BANNER_DAYS = 30;
@@ -89,6 +91,8 @@ export const SiteBannerService = {
         },
       });
       await AdminAuditService.record(tx, actor, { action: maintenance ? 'maintenance.schedule' : 'banner.create', targetType: 'banner', targetId: banner.id, after: banner });
+      // The Discord status channel posts the window, announced or not.
+      if (maintenance) await DiscordStaffService.queue(tx, 'STATUS_MAINTENANCE', banner.id);
       if (maintenance && input.announce) {
         // Players hear about it on their phones too, not only when they next open the game.
         const news = await tx.gameNews.create({
@@ -101,6 +105,7 @@ export const SiteBannerService = {
         await AdminAuditService.record(tx, actor, { action: 'news.create', targetType: 'news', targetId: news.id, reason: 'Maintenance announcement', after: news });
       }
     });
+    if (maintenance) wakeDiscordBot('staff');
     return SiteBannerService.adminList(prisma, now);
   },
 

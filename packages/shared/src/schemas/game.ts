@@ -43,8 +43,9 @@ export const turnsToSpendSchema = z
 export const scoutSchema = z.object({
   district: z.string().trim().min(1, 'Pick a district to scout.'),
   turns: turnsToSpendSchema,
+  crewMemberIds: z.array(z.string().trim().min(1).max(64)).max(5).refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.').optional(),
   actionId: actionIdSchema,
-});
+}).strict();
 
 export const produceCrackSchema = z.object({
   turns: turnsToSpendSchema,
@@ -52,6 +53,11 @@ export const produceCrackSchema = z.object({
   productType: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick something to cook.').default('CRACK'),
   actionId: actionIdSchema,
 });
+
+export const randomEncounterChoiceSchema = z.object({
+  choice: z.string().trim().min(1, 'Pick a response.').max(64, 'Pick a response.'),
+  actionId: actionIdSchema,
+}).strict();
 
 /** Section 31. Bounds live in the ruleset; this only checks the shape. */
 export const payoutSchema = z.object({
@@ -63,6 +69,7 @@ export const payoutSchema = z.object({
 
 export type JoinRoundInput = z.infer<typeof joinRoundSchema>;
 export type ScoutInput = z.infer<typeof scoutSchema>;
+export type RandomEncounterChoiceInput = z.infer<typeof randomEncounterChoiceSchema>;
 
 const turfMoveSchema = z.object({
   district: z.string().trim().min(1, 'Pick a turf block.'),
@@ -216,6 +223,227 @@ export const storeSpecialOrderSchema = z.object({
 
 export type StoreSpecialOrderInput = z.infer<typeof storeSpecialOrderSchema>;
 
+/** 1.6.0-B. A prepaid wholesale order held at its supplier for later pickup. */
+export const supplyOrderSchema = z.object({
+  supplierKey: z.string().trim().min(1).max(64),
+  productKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int().positive().max(MAX_ORDER_QUANTITY),
+  /** Durable order idempotency key; unlike actionId it remains unique beyond the action cache window. */
+  requestKey: actionIdSchema,
+  actionId: actionIdSchema,
+}).strict();
+
+export type SupplyOrderInput = z.infer<typeof supplyOrderSchema>;
+
+const pickupCount = (what: string) => z.number({ invalid_type_error: `Say how many ${what}.` })
+  .int(`${what} must be a whole number.`).min(0, `${what} cannot be negative.`).max(MAX_ORDER_QUANTITY, 'That is too many.');
+const supplyCrewMemberIdsSchema = z.array(z.string().trim().min(1).max(64))
+  .max(50, 'Choose up to 50 crew members.')
+  .refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.');
+
+/** Send vehicles for one load, or keep them shuttling until the requested balance is collected. */
+export const supplyPickupSchema = z.object({
+  orderId: z.string().trim().min(1).max(64),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int().positive().max(MAX_ORDER_QUANTITY),
+  /** Keep the selected crew and fleet running full loads until this quantity is collected. */
+  continuous: z.boolean().default(false),
+  vehicleLoadout: z.object({ LOW_RIDER: pickupCount('Low-Riders').optional(), SEDAN: pickupCount('Sedans').optional(), VAN: pickupCount('Vans').optional() }).strict(),
+  escortThugs: pickupCount('escorts').default(0),
+  /** Which of the ways to the supplier. Ignored for a supplier in the player's own city. */
+  route: z.number().int().min(0).max(9).default(0),
+  /** 1.6.0-D. The warehouse the load goes to. Absent: the home stash. */
+  warehouseId: z.string().trim().min(1).max(64).optional(),
+  /** 1.8.6-G. Optional named escorts; when present, count must match escortThugs. */
+  escortMemberIds: supplyCrewMemberIdsSchema.optional(),
+  /** Durable pickup idempotency key, like an order's. */
+  requestKey: actionIdSchema,
+  actionId: actionIdSchema,
+}).strict();
+
+export type SupplyPickupInput = z.input<typeof supplyPickupSchema>;
+
+/** 1.6.0-F. Ship stock from one of the player's warehouses to another, by run. */
+export const supplyShipmentSchema = z.object({
+  sourceWarehouseId: z.string().trim().min(1).max(64),
+  destinationWarehouseId: z.string().trim().min(1).max(64),
+  productKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int().positive().max(MAX_ORDER_QUANTITY),
+  vehicleLoadout: z.object({ LOW_RIDER: pickupCount('Low-Riders').optional(), SEDAN: pickupCount('Sedans').optional(), VAN: pickupCount('Vans').optional() }).strict(),
+  escortThugs: pickupCount('escorts').default(0),
+  /** 1.8.6-G. Optional named escorts; when present, count must match escortThugs. */
+  escortMemberIds: supplyCrewMemberIdsSchema.optional(),
+  route: z.number().int().min(0).max(9).default(0),
+  requestKey: actionIdSchema,
+  actionId: actionIdSchema,
+}).strict();
+
+export type SupplyShipmentInput = z.input<typeof supplyShipmentSchema>;
+
+/** 1.6.0-H. Buy abroad and ship by route card to a warehouse in one of its entry cities. */
+export const supplyLaneOrderSchema = z.object({
+  supplierKey: z.string().trim().min(1).max(64),
+  productKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int().positive().max(MAX_ORDER_QUANTITY),
+  route: z.enum(['FREIGHT', 'OVERLAND', 'AIR', 'NORTHERN']),
+  /** A warehouse id, or `stash` for the home stash. */
+  warehouseKey: z.string().trim().min(1).max(64),
+  requestKey: actionIdSchema,
+  actionId: actionIdSchema,
+}).strict();
+
+export type SupplyLaneOrderInput = z.infer<typeof supplyLaneOrderSchema>;
+
+/** 1.6.0-D. Buy a warehouse or a safehouse in a city. */
+export const supplyPropertyBuySchema = z.object({
+  kind: z.enum(['WAREHOUSE', 'SAFEHOUSE']),
+  citySlug: z.string().trim().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+
+/** 1.6.0-D. Give up a property. A warehouse must be empty with nothing on the way. */
+export const supplyPropertyCloseSchema = z.object({
+  kind: z.enum(['WAREHOUSE', 'SAFEHOUSE']),
+  propertyId: z.string().trim().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+
+const districtKeySchema = z.enum(['CASINO', 'WINO_SLUMS', 'LOW_RENT', 'NIGHTCLUB', 'URBAN_GHETTO']);
+
+/** 1.6.0-E. Set a dealer crew up in a district, with this many dealers from the crew at home. */
+export const dealerCrewEstablishSchema = z.object({
+  citySlug: z.string().trim().min(1).max(64),
+  districtKey: districtKeySchema,
+  dealers: z.number().int().min(1).max(50),
+  actionId: actionIdSchema,
+}).strict();
+
+/** 1.6.0-E. What a crew sells and asks. A new product needs an empty crew. */
+export const dealerCrewOfferSchema = z.object({
+  productKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.').optional(),
+  priceCents: z.number().int().positive().max(100_000_000).optional(),
+  actionId: actionIdSchema,
+}).strict();
+
+/** 1.6.0-E. Move stock between a crew and a warehouse in its city. */
+export const dealerCrewStockSchema = z.object({
+  warehouseId: z.string().trim().min(1).max(64),
+  direction: z.enum(['LOAD', 'RETURN']),
+  quantity: z.number().int().positive().max(MAX_ORDER_QUANTITY),
+  actionId: actionIdSchema,
+}).strict();
+
+/** 1.8.6-F. How much same-city storage runners must leave behind for this crew. */
+export const dealerCrewRunnerReserveSchema = z.object({
+  reserveUnits: z.number().int().min(0).max(MAX_ORDER_QUANTITY),
+  actionId: actionIdSchema,
+}).strict();
+
+/** 1.6.0-E. Pause, resume, move or close a crew. */
+export const dealerCrewManageSchema = z.object({
+  action: z.enum(['PAUSE', 'RESUME', 'MOVE', 'CLOSE']),
+  /** Where it moves to, for MOVE. */
+  districtKey: districtKeySchema.optional(),
+  actionId: actionIdSchema,
+}).strict();
+
+export type DealerCrewEstablishInput = z.infer<typeof dealerCrewEstablishSchema>;
+export type DealerCrewOfferInput = z.infer<typeof dealerCrewOfferSchema>;
+export type DealerCrewStockInput = z.infer<typeof dealerCrewStockSchema>;
+export type DealerCrewRunnerReserveInput = z.infer<typeof dealerCrewRunnerReserveSchema>;
+export type DealerCrewManageInput = z.infer<typeof dealerCrewManageSchema>;
+
+export type SupplyPropertyBuyInput = z.infer<typeof supplyPropertyBuySchema>;
+export type SupplyPropertyCloseInput = z.infer<typeof supplyPropertyCloseSchema>;
+
+/** 1.6.0-A. Hire a fresh dealer career or reassign a previously released one. */
+export const dealerStaffAssignSchema = z.object({
+  staffId: z.string().trim().min(1).max(64).optional(),
+  actionId: actionIdSchema,
+}).strict();
+
+/** 1.6.0-A. Release one named dealer career back to the available thug pool. */
+export const dealerStaffReleaseSchema = z.object({ actionId: actionIdSchema }).strict();
+
+export type DealerStaffAssignInput = z.infer<typeof dealerStaffAssignSchema>;
+export type DealerStaffReleaseInput = z.infer<typeof dealerStaffReleaseSchema>;
+
+/** 1.7.0-A. A page of the crew roster. */
+export const crewRosterQuerySchema = z.object({
+  role: z.enum(['THUG', 'WORKER']).optional(),
+  status: z.enum(['AVAILABLE', 'ASSIGNED', 'IN_TRANSIT', 'RECOVERING', 'RELEASED']).optional(),
+  assignment: z.enum(['BUSINESS', 'DEALER', 'TURF', 'CORNER_ENFORCER', 'CORNER_LOOKOUT', 'STASH_GUARD', 'RUNNER', 'BODYGUARD', 'ESCORT']).optional(),
+  specialty: z.enum(['GENERALIST', 'ENFORCER', 'WHEELMAN', 'SCOUT', 'DEALER', 'SERVICE']).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
+}).strict();
+
+export type CrewRosterQuery = z.infer<typeof crewRosterQuerySchema>;
+
+/** 1.8.6-E. Move already-posted corner thugs into or out of corner specialty jobs. */
+export const crewCornerJobSchema = z.object({
+  district: z.string().trim().min(1, 'Pick a turf block.').max(64),
+  kind: z.enum(['CORNER_LOOKOUT', 'STASH_GUARD']),
+  memberIds: z.array(z.string().trim().min(1).max(64)).min(1).max(50)
+    .refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.'),
+  actionId: actionIdSchema,
+}).strict();
+
+export type CrewCornerJobInput = z.infer<typeof crewCornerJobSchema>;
+
+/** 1.8.6-H. Keep a standing headcount filled on player-triggered actions. */
+export const crewStaffingOrderSchema = z.object({
+  kind: z.enum(['DEALER', 'TURF', 'CORNER_LOOKOUT', 'STASH_GUARD', 'RUNNER']),
+  targetRef: z.string().trim().min(1).max(64),
+  headcount: z.number().int().min(0).max(50),
+  keepTurns: z.number().int().min(0).max(10_000).default(10),
+  actionId: actionIdSchema,
+}).strict();
+
+export type CrewStaffingOrderInput = z.infer<typeof crewStaffingOrderSchema>;
+
+/** 1.7.0-D. Train an available member who already earned the selected specialty. */
+export const crewTrainingSchema = z.object({
+  memberId: z.string().trim().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+export type CrewTrainingInput = z.infer<typeof crewTrainingSchema>;
+
+/** Replace an existing job occupant, or trade an available member for a released veteran. */
+export const crewAssignmentSchema = z.object({
+  memberId: z.string().trim().min(1).max(64),
+  replaceMemberId: z.string().trim().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+export type CrewAssignmentInput = z.infer<typeof crewAssignmentSchema>;
+
+const crewMemberIdsSchema = z.array(z.string().trim().min(1).max(64))
+  .min(1, 'Choose at least one crew member.')
+  .max(50, 'Move up to 50 crew members at a time.')
+  .refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.');
+
+/** 1.8.6-B. Put named members on a dealer crew, or move named dealers to another crew. */
+export const crewDealerMembersSchema = z.object({
+  memberIds: crewMemberIdsSchema,
+  actionId: actionIdSchema,
+}).strict();
+export type CrewDealerMembersInput = z.infer<typeof crewDealerMembersSchema>;
+
+/** 1.8.6-B. Put named members on a corner, or bring named corner defenders home. */
+export const crewTurfMembersSchema = z.object({
+  district: z.string().trim().min(1, 'Pick a turf block.'),
+  memberIds: crewMemberIdsSchema,
+  actionId: actionIdSchema,
+}).strict();
+export type CrewTurfMembersInput = z.infer<typeof crewTurfMembersSchema>;
+
+/** 1.8.6-B. Move named corner defenders from their current corner to another held corner. */
+export const crewTurfMoveMembersSchema = z.object({
+  toDistrict: z.string().trim().min(1, 'Pick a destination turf block.'),
+  memberIds: crewMemberIdsSchema,
+  actionId: actionIdSchema,
+}).strict();
+export type CrewTurfMoveMembersInput = z.infer<typeof crewTurfMoveMembersSchema>;
+
 /** 0.4.0-D. Pip's counter for a non-crack product. */
 export const productTradeSchema = z.object({
   product: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),
@@ -262,15 +490,16 @@ export const raidSchema = z.object({
   roundId: z.string().min(1).max(64),
   targetPublicPimpId: z.number().int().positive().max(2_147_483_647),
   attackingThugs: z.number().int().positive().safe(),
+  crewMemberIds: z.array(z.string().trim().min(1).max(64)).max(5).refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.').optional(),
   actionId: actionIdSchema,
 }).strict();
 export type RaidInputDto = z.infer<typeof raidSchema>;
 
 /** Same intent as a raid: a target, how many go, and a retry-safe id. */
-export const driveBySchema = raidSchema;
+export const driveBySchema = raidSchema.omit({ crewMemberIds: true });
 export type DriveByInputDto = z.infer<typeof driveBySchema>;
 
-export const specialRaidSchema = raidSchema.extend({
+export const specialRaidSchema = raidSchema.omit({ crewMemberIds: true }).extend({
   kind: z.enum(['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW']),
 }).strict();
 export type SpecialRaidInputDto = z.infer<typeof specialRaidSchema>;
@@ -288,3 +517,23 @@ export const combatReconSchema = z.object({
   actionId: actionIdSchema,
 }).strict();
 export type CombatReconInputDto = z.infer<typeof combatReconSchema>;
+
+/** 1.6.5-B. Accept one of the loan shark's fixed offers. The server resolves its terms. */
+export const loanAcceptSchema = z.object({
+  offerKey: z.string().trim().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick an offer.'),
+  /** 1.6.5-C. The fee the player was shown. A loan is never taken at a price nobody saw. */
+  quotedFeeCents: z.number({ invalid_type_error: 'Missing the quoted fee.' }).int().min(0).max(Number.MAX_SAFE_INTEGER),
+  /** Durable acceptance key: the same key always answers with the same loan. */
+  requestKey: actionIdSchema,
+  actionId: actionIdSchema,
+}).strict();
+export type LoanAcceptInputDto = z.infer<typeof loanAcceptSchema>;
+
+/** 1.6.5-D. A payment from cash toward one loan: partial, overdue or a payoff. */
+export const loanPaymentSchema = z.object({
+  /** At most this much. A payoff request may name more than the payoff; only the payoff is taken. */
+  amountCents: z.number({ invalid_type_error: 'Enter an amount.' }).int('Whole cents only.').positive('Pay at least one cent.').max(Number.MAX_SAFE_INTEGER),
+  requestKey: actionIdSchema,
+  actionId: actionIdSchema,
+}).strict();
+export type LoanPaymentInputDto = z.infer<typeof loanPaymentSchema>;

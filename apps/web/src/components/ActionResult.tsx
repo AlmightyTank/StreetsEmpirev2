@@ -114,6 +114,11 @@ export function ActionResult<T>({
   onDismiss?: () => void;
 }) {
   const { before, after, rankChanges } = result;
+  const staffingLines: ResultLine[] = (result.staffingOrders ?? []).map((order) => ({
+    label: 'Staffing order',
+    detail: order.turnsUsed ? `${formatNumber(order.turnsUsed)} turns` : undefined,
+    value: order.message,
+  }));
 
   const ranksMoved =
     rankChanges &&
@@ -134,7 +139,7 @@ export function ActionResult<T>({
       {subtitle ? <div className="se-result__subtitle">{subtitle}</div> : null}
 
       <div className="se-rows">
-        {lines.map((line, index) => (
+        {[...lines, ...staffingLines].map((line, index) => (
           <div className={`se-row${line.muted ? ' se-row--muted' : ''}`} key={`${index}:${line.label}`}>
             <span className="se-row__label">
               {line.label}

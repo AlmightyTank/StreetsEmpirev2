@@ -5,6 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AdminRoundPicker, useAdminRound } from '../components/AdminRoundPicker.js';
+import { AdminSportsbookPanel } from '../components/AdminSportsbookPanel.js';
 import { Alert } from '../components/Alert.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -32,11 +33,13 @@ export function AdminCasinoPage() {
       <div className="se-pagehead se-admin-pagehead">
         <div>
           <h1 className="se-title">Casino Operations</h1>
-          <p className="se-eyebrow">Admin · read-only telemetry and abuse review</p>
+          <p className="se-eyebrow">Admin · casino telemetry, abuse review and sportsbook feed</p>
         </div>
         <AdminRoundPicker rounds={rounds} roundId={roundId} onChange={setRoundId} />
       </div>
       {roundsError || error ? <Alert>{roundsError ?? error}</Alert> : null}
+      {/* 1.8.0-C: the sportsbook feed serves every round, so it sits above the round's telemetry. */}
+      <AdminSportsbookPanel />
       {!data ? <p className="se-muted">Reading casino activity…</p> : (
         <>
           <Panel title="Rated play · current season" aside={`updated ${adminWhen(data.generatedAt)}`} className="se-mb">

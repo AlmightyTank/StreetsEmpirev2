@@ -10,6 +10,7 @@ import type {
   TurfPushStartResult,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { allianceTargetBlock } from './alliance.service.js';
@@ -20,6 +21,7 @@ import {
   cornerGunWorthCents,
   type CornerGuns,
 } from './turf.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 const json = (value: unknown): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -69,8 +71,9 @@ function districtName(ruleset: Ruleset, city: string, district: DistrictKey): st
   return ruleset.cities?.[city]?.districts?.[district]?.name ?? ruleset.districts[district].name;
 }
 
-function seesPush(ruleset: Ruleset, player: { hideoutLookoutsLevel: number; racketEffects?: unknown }, landsAt: Date, now: Date): boolean {
-  return landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) * 60_000);
+async function seesPush(tx: any, ruleset: Ruleset, player: { id: string; hideoutLookoutsLevel: number; racketEffects?: unknown }, turfId: string, landsAt: Date, now: Date): Promise<boolean> {
+  const cornerWarningMinutes = await CrewRosterService.cornerPushWarningMinutes(tx, player.id, turfId);
+  return landsAt <= new Date(now.getTime() + (headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) + cornerWarningMinutes) * 60_000);
 }
 
 /**
@@ -90,6 +93,7 @@ export const TurfWarService = {
         if (!model) throw AppError.conflict('COMBAT_DISABLED', 'Street fights are not enabled in this round.');
         const district = input.district as DistrictKey;
         if (!turfRules.districts[district]) throw AppError.badRequest('UNKNOWN_DISTRICT', 'That is not a turf block.');
+        await PermanentUnlockService.assertCanAccessDistrict(tx, attackerId, ruleset, district);
 
         await TurfService.ensureRound(tx, round.id, ruleset);
         const block = await tx.turf.findUnique({
@@ -220,7 +224,7 @@ export const TurfWarService = {
 
         const kind: 'OWNER' | 'ALLY' = push.defenderId === senderId ? 'OWNER' : 'ALLY';
         if (kind === 'OWNER') {
-          if (!seesPush(ruleset, player, push.landsAt, now)) {
+          if (!await seesPush(tx, ruleset, player, push.turf.id, push.landsAt, now)) {
             throw AppError.notFound('TURF_PUSH_NOT_FOUND', 'Your Lookouts have not spotted that push yet.');
           }
         } else {
@@ -228,6 +232,7 @@ export const TurfWarService = {
             throw AppError.conflict('NOT_ALLIED', 'Only the holder\'s allies can answer this call.');
           }
           if (player.cityId !== push.turf.cityId) throw AppError.conflict('WRONG_CITY', 'Only allies living in this city can answer.');
+          await PermanentUnlockService.assertCanAccessDistrict(tx, senderId, ruleset, push.turf.district as DistrictKey);
           if (!push.alliesCalledAt) throw AppError.conflict('NOT_CALLED', 'The holder has not called the alliance for help.');
           const helpers = push.backups.filter((row) => row.kind === 'ALLY').length;
           if (helpers >= rules.push.allies.maxHelpers) {
@@ -296,7 +301,7 @@ export const TurfWarService = {
         }
         if (push.status !== 'PENDING' || push.landsAt <= now) throw AppError.conflict('TURF_PUSH_OVER', 'Too late: that push has already landed.');
         if (push.turf.holderId !== defenderId) throw AppError.conflict('TURF_ABANDONED', 'You already abandoned that corner.');
-        if (!seesPush(ruleset, player, push.landsAt, now)) {
+        if (!await seesPush(tx, ruleset, player, push.turf.id, push.landsAt, now)) {
           throw AppError.notFound('TURF_PUSH_NOT_FOUND', 'Your Lookouts have not spotted that push yet.');
         }
         if (!player.allianceId || player.allianceId !== push.defender.allianceId) {

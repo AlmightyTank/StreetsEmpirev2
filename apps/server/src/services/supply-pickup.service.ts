@@ -1,0 +1,696 @@
+import type { City, Prisma, PrismaClient, RoundPlayer, SupplyOrder, SupplyPickup, SupplyStock, SupplyWarehouse } from '@prisma/client';
+import {
+  RunError,
+  armEscorts,
+  findRoutes,
+  planSupplyPickup,
+  planSupplyRun,
+  racketCargoShare,
+  readRacketEffects,
+  routeProfileRisk,
+  runCapacity,
+  runRules,
+  supplyOrderStatus,
+  supplyRouteRisk,
+  vehicleLoadoutSeats,
+  vehicleRiskMultiplier,
+  type Ruleset,
+  type RunStopPlan,
+  type SupplyRunPlan,
+} from '@streets/rules-engine';
+import type { SupplyPickupRules } from '@streets/rulesets';
+import {
+  formatNumber,
+  supplyPickupSchema,
+  supplyShipmentSchema,
+  type SupplyPickupDispatchResult,
+  type SupplyShipmentResult,
+  type SupplyPickupDto,
+  type SupplyPickupOrderPlanDto,
+  type SupplyPickupPlanningDto,
+  type SupplyRouteOptionDto,
+  type SupplyLaneRouteKeyDto,
+  type SupplyStashDto,
+  type SupplyVehicleClassId,
+} from '@streets/shared';
+import type { Db } from '../utils/db.js';
+import { AppError } from '../utils/errors.js';
+import { ActionService, assertTurns, fitThugs, type PlayerState } from './action.service.js';
+import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.js';
+import { awayWorth, writeRunStops } from './run-settle.service.js';
+import { HOME_STASH_NAME, homeStash, loadPickupOntoRun } from './supply-pickup-settle.service.js';
+import { propertyBehind } from './supply-property-settle.service.js';
+import { SupplyPropertyService } from './supply-property.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
+import { supplyOrderDto } from './supply-order.service.js';
+import { LANE_PREFIX, SupplyLaneService } from './supply-lane.service.js';
+
+/**
+ * 1.6.0-C/D. Collecting a paid order in vehicle loads. A pickup is a run that drives to the
+ * supplier, takes on one or more loads, drives each to its warehouse (from 1.6.0-D any the
+ * player owns, or the home stash) and comes home. Each load rides the road like any other cargo,
+ * and what is left of it lands in storage (supply-pickup-settle.service). Nothing about the
+ * load is decided here but its size and where it goes: the road decides the rest.
+ */
+
+const CLASSES = ['LOW_RIDER', 'SEDAN', 'VAN'] as const satisfies readonly SupplyVehicleClassId[];
+type Loadout = Record<SupplyVehicleClassId, number>;
+/** A local pickup has no road. */
+const LOCAL_ROUTE = 'local';
+const ACTIVE = ['PLANNED', 'IN_TRANSIT'] as const;
+/** The home stash's key before anything has landed in it. */
+const STASH_KEY = 'stash';
+
+const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
+const productName = (ruleset: Ruleset, key: string) => (key === 'CRACK'
+  ? ruleset.stores.PIP.items.CRACK?.name ?? 'Crack'
+  : ruleset.products?.[key]?.name ?? key);
+const supplierName = (ruleset: Ruleset, key: string) => ruleset.supplyNetwork?.suppliers?.find((supplier) => supplier.key === key)?.name
+  ?? ruleset.supplyNetwork?.lanes?.suppliers.find((supplier) => supplier.key === key)?.name ?? key;
+const className = (ruleset: Ruleset, classId: SupplyVehicleClassId) => ruleset.vehicleCatalog?.classes.find((entry) => entry.id === classId)?.name
+  ?? (classId === 'LOW_RIDER' ? 'Low-Rider' : classId === 'SEDAN' ? 'Sedan' : 'Van');
+
+function pickupRules(ruleset: Ruleset): SupplyPickupRules | undefined {
+  return ruleset.supplyNetwork?.enabled ? ruleset.supplyNetwork.pickups : undefined;
+}
+
+function readLoadout(value: Prisma.JsonValue): Loadout {
+  const raw = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return Object.fromEntries(CLASSES.map((classId) => [classId, typeof raw[classId] === 'number' ? raw[classId] as number : 0])) as Loadout;
+}
+
+type PickupRow = SupplyPickup & { order: Pick<SupplyOrder, 'supplierKey'> | null; warehouse: Pick<SupplyWarehouse, 'name'> | null };
+const PICKUP_INCLUDE = { order: { select: { supplierKey: true } }, warehouse: { select: { name: true } } } as const;
+
+export function pickupDto(ruleset: Ruleset, row: PickupRow): SupplyPickupDto {
+  const finished = row.status === 'DELIVERED' || row.status === 'FAILED';
+  // 1.6.0-H: a lane load comes from abroad on a route card, and lands one of three ways.
+  const laneKey = row.routeKey.startsWith(LANE_PREFIX) ? row.routeKey.slice(LANE_PREFIX.length) as SupplyLaneRouteKeyDto : null;
+  const laneSupplier = laneKey ? ruleset.supplyNetwork?.lanes?.suppliers.find((supplier) => supplier.key === row.order?.supplierKey) : undefined;
+  return {
+    id: row.id,
+    orderId: row.orderId,
+    shipment: !row.orderId,
+    runId: row.runId,
+    productKey: row.productKey,
+    productName: productName(ruleset, row.productKey),
+    // 1.6.0-F: a shipment comes from the player's own storage.
+    supplierName: row.order ? supplierName(ruleset, row.order.supplierKey) : `Your ${cityName(ruleset, row.originCitySlug)} storage`,
+    originCitySlug: row.originCitySlug,
+    originCityName: laneKey ? laneSupplier?.origin ?? 'Abroad' : cityName(ruleset, row.originCitySlug),
+    destinationCitySlug: row.destinationCitySlug,
+    destinationCityName: cityName(ruleset, row.destinationCitySlug),
+    warehouseName: row.warehouse?.name ?? HOME_STASH_NAME,
+    quantity: row.quantity,
+    tripNumber: row.tripNumber,
+    tripCount: row.tripCount,
+    deliveredQuantity: row.deliveredQuantity,
+    lostQuantity: finished ? row.quantity - row.deliveredQuantity : 0,
+    vehicleLoadout: readLoadout(row.vehicleLoadout),
+    status: row.status,
+    local: row.routeKey === LOCAL_ROUTE,
+    dispatchedAt: row.dispatchedAt?.toISOString() ?? null,
+    loadedAt: row.loadedAt?.toISOString() ?? null,
+    expectedArrivalAt: row.expectedArrivalAt?.toISOString() ?? null,
+    deliveredAt: row.deliveredAt?.toISOString() ?? null,
+    lane: laneKey ? {
+      route: laneKey,
+      routeName: ruleset.supplyNetwork?.lanes?.routes[laneKey]?.name ?? laneKey,
+      outcome: !finished ? null : row.deliveredQuantity === row.quantity ? 'CLEAN' : row.deliveredQuantity === 0 ? 'SEIZED' : 'PARTIAL',
+    } : null,
+  };
+}
+
+/** Units promised to pickups still driving out, by order. Loaded units are already collected. */
+async function reservedByOrder(db: Db | PrismaClient, orderIds: readonly string[]): Promise<Map<string, number>> {
+  if (!orderIds.length) return new Map();
+  const rows = await db.supplyPickup.groupBy({ by: ['orderId'], where: { orderId: { in: [...orderIds] }, status: 'PLANNED' }, _sum: { quantity: true } });
+  return new Map(rows.flatMap((row) => (row.orderId ? [[row.orderId, row._sum.quantity ?? 0] as const] : [])));
+}
+
+/** Units on their way to each warehouse: inbound loads hold their room until they land. */
+async function inboundByWarehouse(db: Db | PrismaClient, warehouseIds: readonly string[]): Promise<Map<string, number>> {
+  if (!warehouseIds.length) return new Map();
+  const rows = await db.supplyPickup.groupBy({ by: ['warehouseId'], where: { warehouseId: { in: [...warehouseIds] }, status: { in: [...ACTIVE] } }, _sum: { quantity: true } });
+  return new Map(rows.flatMap((row) => (row.warehouseId ? [[row.warehouseId, row._sum.quantity ?? 0] as const] : [])));
+}
+
+function storageDto(ruleset: Ruleset, row: SupplyWarehouse & { stock: SupplyStock[] }, inbound: number, now: Date): SupplyStashDto {
+  const stored = row.stock.reduce((sum, item) => sum + item.quantity, 0);
+  return {
+    key: row.id,
+    kind: row.kind,
+    name: row.name,
+    citySlug: row.citySlug,
+    cityName: cityName(ruleset, row.citySlug),
+    capacityUnits: row.capacityUnits,
+    storedUnits: stored,
+    inboundUnits: inbound,
+    roomUnits: Math.max(0, row.capacityUnits - stored - inbound),
+    stock: row.stock.filter((item) => item.quantity > 0).sort((a, b) => a.productKey.localeCompare(b.productKey))
+      .map((item) => ({ productKey: item.productKey, productName: productName(ruleset, item.productKey), quantity: item.quantity })),
+    upkeepCents: Number(row.upkeepCents),
+    paidThrough: row.paidThrough?.toISOString() ?? null,
+    behind: row.kind === 'WAREHOUSE' && propertyBehind(row.paidThrough, now),
+  };
+}
+
+/** Every place the player stores supply, the home stash first (even before anything lands in it). */
+async function storageList(db: Db | PrismaClient, ruleset: Ruleset, rules: SupplyPickupRules, roundPlayerId: string, home: string, now: Date): Promise<SupplyStashDto[]> {
+  const rows = await db.supplyWarehouse.findMany({ where: { roundPlayerId, isActive: true }, include: { stock: true }, orderBy: { createdAt: 'asc' } });
+  const inbound = await inboundByWarehouse(db, rows.map((row) => row.id));
+  const stashRow = rows.find((row) => row.kind === 'STASH' && row.citySlug === home && row.name === HOME_STASH_NAME);
+  const stash: SupplyStashDto = stashRow ? storageDto(ruleset, stashRow, inbound.get(stashRow.id) ?? 0, now) : {
+    key: STASH_KEY, kind: 'STASH', name: HOME_STASH_NAME, citySlug: home, cityName: cityName(ruleset, home),
+    capacityUnits: rules.homeStashUnits, storedUnits: 0, inboundUnits: 0, roomUnits: rules.homeStashUnits, stock: [],
+    upkeepCents: 0, paidThrough: null, behind: false,
+  };
+  return [stash, ...rows.filter((row) => row !== stashRow).map((row) => storageDto(ruleset, row, inbound.get(row.id) ?? 0, now))];
+}
+
+/** A storage place a pickup can be sent to: the home stash, or a paid-up bought warehouse. */
+function acceptsDeliveries(storage: SupplyStashDto, home: string): boolean {
+  return storage.kind === 'STASH' ? storage.citySlug === home : !storage.behind;
+}
+
+function routeDto(ruleset: Ruleset, plan: SupplyRunPlan, now: Date): SupplyRouteOptionDto {
+  const first = plan.stops[0]!;
+  const back = plan.stops[plan.stops.length - 1]!;
+  return {
+    index: 0,
+    cities: plan.route.cities.map((slug) => ({ slug, name: cityName(ruleset, slug) })),
+    stops: plan.stops.map((stop) => ({ slug: stop.city, name: cityName(ruleset, stop.city) })),
+    gameMinutes: plan.route.gameMinutes,
+    roundTripMinutes: Math.round((back.arriveAt.getTime() - now.getTime()) / 60_000),
+    turns: plan.turns,
+    police: plan.police,
+    risk: supplyRouteRisk(plan.police),
+    arriveAt: first.arriveAt.toISOString(),
+    backAt: back.arriveAt.toISOString(),
+  };
+}
+
+/** The ways a load from `origin` can reach `destination`, leaving home now. */
+function supplyRoutes(ruleset: Ruleset, home: string, origin: string, destination: string, now: Date): SupplyRouteOptionDto[] {
+  if (!runRules(ruleset) || (origin === home && destination === home)) return [];
+  const first = origin === home ? destination : origin;
+  return findRoutes(ruleset, home, first).flatMap((_, index) => {
+    try {
+      return [{ ...routeDto(ruleset, planSupplyRun(ruleset, { home, origin, destination, routeIndex: index, now }), now), index }];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function refuse(error: unknown): never {
+  if (error instanceof RunError) throw AppError.badRequest(error.code, error.message, error.field ? { route: error.message } : undefined);
+  throw error;
+}
+
+export interface ShuttleRunPlan extends SupplyRunPlan {
+  /** Stop indexes used by each load in the repeated circuit. -1 means loaded at launch. */
+  loadStops: number[];
+  unloadStops: number[];
+  tripCount: number;
+}
+
+/** Repeat one supplier/storage circuit without releasing its assigned fleet between loads. */
+export function repeatSupplyRunPlan(plan: SupplyRunPlan, tripCount: number): ShuttleRunPlan {
+  if (tripCount <= 1) {
+    return { ...plan, loadStops: [plan.loadStop], unloadStops: [plan.unloadStop], tripCount: 1 };
+  }
+  const size = plan.stops.length;
+  const duration = plan.stops[size - 1]!.arriveAt.getTime() - plan.stops[0]!.departAt.getTime();
+  const stops: RunStopPlan[] = [];
+  const loadStops: number[] = [];
+  const unloadStops: number[] = [];
+  for (let trip = 0; trip < tripCount; trip++) {
+    const offset = trip * duration;
+    for (let index = 0; index < size; index++) {
+      const stop = plan.stops[index]!;
+      const arriveAt = new Date(stop.arriveAt.getTime() + offset);
+      const final = index === size - 1;
+      stops.push({
+        ...stop,
+        departAt: new Date(stop.departAt.getTime() + offset),
+        arriveAt,
+        // An intermediate return home turns straight around for the next load.
+        leaveAt: final && trip < tripCount - 1 ? arriveAt : stop.leaveAt ? new Date(stop.leaveAt.getTime() + offset) : null,
+      });
+    }
+    loadStops.push(plan.loadStop === -1 ? (trip === 0 ? -1 : trip * size - 1) : trip * size + plan.loadStop);
+    unloadStops.push(trip * size + plan.unloadStop);
+  }
+  return { ...plan, stops, turns: plan.turns * tripCount, loadStops, unloadStops, tripCount };
+}
+
+export const SupplyPickupService = {
+  /** What the Supply page needs to plan a pickup. Null when pickups are not part of the round. */
+  async planning(db: Db | PrismaClient, ruleset: Ruleset, player: RoundPlayer & { city: City }, now: Date): Promise<SupplyPickupPlanningDto | null> {
+    const rules = pickupRules(ruleset);
+    if (!rules) return null;
+    const home = player.city.slug;
+    const [orders, pickups, activeRuns, storage, properties] = await Promise.all([
+      db.supplyOrder.findMany({ where: { roundPlayerId: player.id, status: { in: ['OPEN', 'PARTIALLY_COLLECTED'] } }, orderBy: { createdAt: 'asc' } }),
+      // A continuous assignment has one row per load. Keep enough history to show the whole
+      // active shuttle instead of hiding its current load behind later queued trips.
+      db.supplyPickup.findMany({ where: { roundPlayerId: player.id }, include: PICKUP_INCLUDE, orderBy: { createdAt: 'desc' }, take: 100 }),
+      db.run.count({ where: { roundPlayerId: player.id, status: 'ACTIVE' } }),
+      storageList(db, ruleset, rules, player.id, home, now),
+      SupplyPropertyService.market(db, ruleset, player, now),
+    ]);
+    const reserved = await reservedByOrder(db, orders.map((order) => order.id));
+    const cargoPerLowRider = ruleset.travel?.cargoPerLowRider ?? 0;
+    const destinations = storage.filter((entry) => acceptsDeliveries(entry, home));
+
+    const plans: SupplyPickupOrderPlanDto[] = orders.map((order) => {
+      const held = reserved.get(order.id) ?? 0;
+      const ways = destinations.map((entry) => ({
+        key: entry.key,
+        local: order.supplierCitySlug === home && entry.citySlug === home,
+        routes: supplyRoutes(ruleset, home, order.supplierCitySlug, entry.citySlug, now),
+      }));
+      return {
+        orderId: order.id,
+        local: order.supplierCitySlug === home,
+        availableQuantity: Math.max(0, order.quantityOrdered - order.quantityCollected - held),
+        reservedQuantity: held,
+        routes: ways[0]?.routes ?? [],
+        destinations: ways,
+      };
+    });
+
+    const catalog = ruleset.vehicleCatalog?.classes;
+    const vehicles = catalog?.length
+      ? catalog.map((vehicleClass) => ({
+          classId: vehicleClass.id,
+          name: vehicleClass.name,
+          ready: player[vehicleClass.legacyResource],
+          cargoUnits: cargoPerLowRider * (vehicleClass.cargoPercent ?? 100) / 100,
+          crewSeats: vehicleClass.crewSeats ?? ruleset.lowRiderThugCapacity,
+          routeProfile: vehicleClass.routeProfile ?? 'NORMAL',
+          routeRiskPercent: Math.round((routeProfileRisk(ruleset, vehicleClass.routeProfile) - 1) * 100),
+        }))
+      : [{ classId: 'LOW_RIDER' as const, name: 'Low-Rider', ready: player.lowRiders, cargoUnits: cargoPerLowRider, crewSeats: ruleset.lowRiderThugCapacity, routeProfile: 'NORMAL' as const, routeRiskPercent: 0 }];
+
+    // 1.6.0-F: from any storage holding stock to any that takes deliveries in another city.
+    const shipmentLanes = rules.shipments
+      ? storage.filter((from) => from.storedUnits > 0).flatMap((from) => destinations
+        .filter((to) => to.citySlug !== from.citySlug)
+        .map((to) => ({ from: from.key, to: to.key, routes: supplyRoutes(ruleset, home, from.citySlug, to.citySlug, now) })))
+      : null;
+
+    const active = pickups.filter((row) => (ACTIVE as readonly string[]).includes(row.status));
+    const done = pickups.filter((row) => !(ACTIVE as readonly string[]).includes(row.status));
+    return {
+      homeCitySlug: home,
+      homeCityName: cityName(ruleset, home),
+      turns: player.turns,
+      fitThugs: fitThugs(player),
+      runLimit: hideoutGarageRunLimit(ruleset, player),
+      activeRuns,
+      cargoShare: racketCargoShare(ruleset, readRacketEffects(player.racketEffects)),
+      localPickupTurns: rules.localPickupTurns,
+      townWindowMinutes: runRules(ruleset)?.townWindowMinutes ?? 0,
+      vehicles,
+      stash: storage[0]!,
+      storage,
+      properties,
+      lanes: await SupplyLaneService.planning(db, ruleset, player.roundId, player.id, storage, home),
+      shipmentLanes,
+      orders: plans,
+      pickups: [...active, ...done].map((row) => pickupDto(ruleset, row)),
+    };
+  },
+
+  /**
+   * Send vehicles for a paid order. Continuous assignments reserve the requested balance and
+   * keep the fleet shuttling one load at a time. When supplier and warehouse are both local the
+   * loads go straight in; otherwise it is a run, paid in turns for every round trip.
+   * The load is held against the order and the warehouse's room from now on, so two pickups
+   * can never claim the same units or the same space.
+   */
+  dispatch(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown) {
+    const input = supplyPickupSchema.parse(rawInput);
+    return ActionService.run<SupplyPickupDispatchResult>(prisma, roundPlayerId, {
+      action: 'SUPPLY_PICKUP',
+      idempotencyScope: 'SUPPLY_PICKUP',
+      actionId: input.actionId,
+      execute: async ({ tx, current, ruleset, player, now }) => {
+        const rules = pickupRules(ruleset);
+        if (!rules) throw AppError.notFound('SUPPLY_PICKUPS_DISABLED', 'Supply pickups are not available in this round.');
+        const order = await tx.supplyOrder.findFirst({ where: { id: input.orderId, roundPlayerId } });
+        if (!order) throw AppError.notFound('SUPPLY_ORDER_NOT_FOUND', 'That paid order is not yours.');
+        const loadout: Loadout = { LOW_RIDER: input.vehicleLoadout.LOW_RIDER ?? 0, SEDAN: input.vehicleLoadout.SEDAN ?? 0, VAN: input.vehicleLoadout.VAN ?? 0 };
+
+        // A durable key answers with the pickup it already made, long after the action cache.
+        const prior = await tx.supplyPickup.findUnique({ where: { orderId_requestKey: { orderId: order.id, requestKey: input.requestKey } }, include: PICKUP_INCLUDE });
+        if (prior) {
+          const same = CLASSES.every((classId) => readLoadout(prior.vehicleLoadout)[classId] === loadout[classId]);
+          if (!same) throw AppError.conflict('SUPPLY_REQUEST_KEY_REUSED', 'That pickup request key was already used for a different pickup.');
+          return {
+            next: current,
+            result: { pickup: pickupDto(ruleset, prior), order: supplyOrderDto(ruleset, order), turns: 0, capacityUnits: 0, risk: null, replayed: true },
+            ledger: [],
+          };
+        }
+
+        if (order.status !== 'OPEN' && order.status !== 'PARTIALLY_COLLECTED') {
+          throw AppError.conflict('SUPPLY_ORDER_COLLECTED', 'That order has nothing left to collect.');
+        }
+
+        // The fleet: ready at home, of classes this round has.
+        const vehicleCount = assertFleet(ruleset, current, loadout);
+
+        // Where it goes: a paid-up warehouse of the player's, or the home stash.
+        const home = player.city.slug;
+        let destination;
+        if (input.warehouseId) {
+          destination = await tx.supplyWarehouse.findFirst({ where: { id: input.warehouseId, roundPlayerId, isActive: true } });
+          if (!destination) throw AppError.notFound('WAREHOUSE_NOT_FOUND', 'That warehouse is not yours.');
+          if (destination.kind === 'STASH' && destination.citySlug !== home) {
+            throw AppError.conflict('WAREHOUSE_CLOSED_TO_DELIVERIES', 'Your old home stash takes no new deliveries.');
+          }
+          if (destination.kind === 'WAREHOUSE' && propertyBehind(destination.paidThrough, now)) {
+            throw AppError.conflict('WAREHOUSE_BEHIND', `Your ${cityName(ruleset, destination.citySlug)} warehouse is behind on upkeep. It takes no deliveries until it is paid.`);
+          }
+        } else {
+          destination = await homeStash(tx, roundPlayerId, home, rules.homeStashUnits);
+        }
+        const where = destination.kind === 'STASH' ? HOME_STASH_NAME.toLowerCase() : `${cityName(ruleset, destination.citySlug)} warehouse`;
+
+        // The load: what the order still has, what the fleet carries, what the warehouse can take.
+        const capacity = runCapacity(ruleset, loadout, racketCargoShare(ruleset, readRacketEffects(player.racketEffects)));
+        const reserved = (await reservedByOrder(tx, [order.id])).get(order.id) ?? 0;
+        const available = order.quantityOrdered - order.quantityCollected - reserved;
+        const [stock, inbound] = await Promise.all([
+          tx.supplyStock.aggregate({ where: { warehouseId: destination.id }, _sum: { quantity: true } }),
+          inboundByWarehouse(tx, [destination.id]),
+        ]);
+        const room = Math.max(0, destination.capacityUnits - (stock._sum.quantity ?? 0) - (inbound.get(destination.id) ?? 0));
+        if (capacity < 1) {
+          throw AppError.badRequest('TRUNK_FULL', 'These vehicles have no cargo room.');
+        }
+        if (input.quantity > available) {
+          throw AppError.badRequest('SUPPLY_PICKUP_QUANTITY', available > 0
+            ? `Only ${formatNumber(available)} units of this order are left to send for.`
+            : 'Every unit of this order is already loaded or has a pickup on the way.', { quantity: `At most ${available}.` });
+        }
+        if (!input.continuous && input.quantity > capacity) {
+          throw AppError.badRequest('TRUNK_FULL', `These vehicles carry ${formatNumber(capacity)} units.`, { quantity: `At most ${capacity}.` });
+        }
+        if (input.quantity > room) {
+          throw AppError.conflict('SUPPLY_STASH_FULL', room > 0
+            ? `Your ${where} has room for ${formatNumber(room)} more units, counting loads on the way. ${formatNumber(input.quantity - room)} would not fit.`
+            : `Your ${where} is full, counting loads on the way.`);
+        }
+        // A continuous assignment reserves the whole requested balance, then divides it into
+        // full vehicle loads. A one-load legacy request keeps the old capacity rule.
+        const tripCount = input.continuous ? Math.ceil(input.quantity / capacity) : 1;
+        planSupplyPickup({
+          orderQuantity: order.quantityOrdered,
+          collectedQuantity: order.quantityCollected,
+          reservedQuantity: reserved,
+          requestedQuantity: Math.min(input.quantity, capacity),
+          capacityUnits: capacity,
+          storageRoomUnits: room,
+        });
+
+        const product = productName(ruleset, order.productKey);
+        const supplier = supplierName(ruleset, order.supplierKey);
+        const base = {
+          orderId: order.id,
+          roundPlayerId,
+          productKey: order.productKey,
+          originCitySlug: order.supplierCitySlug,
+          destinationCitySlug: destination.citySlug,
+          quantity: input.quantity,
+          vehicleLoadout: loadout,
+          requestKey: input.requestKey,
+          dispatchedAt: now,
+          warehouseId: destination.id,
+        };
+
+        if (order.supplierCitySlug === home && destination.citySlug === home) {
+          // Off the dock and into storage: repeat the short local circuit immediately.
+          const localTurns = rules.localPickupTurns * tripCount;
+          assertTurns(current.turns, localTurns);
+          const collected = order.quantityCollected + input.quantity;
+          const updated = await tx.supplyOrder.update({ where: { id: order.id }, data: { quantityCollected: collected, status: supplyOrderStatus(order.quantityOrdered, collected) } });
+          await tx.supplyStock.upsert({
+            where: { warehouseId_productKey: { warehouseId: destination.id, productKey: order.productKey } },
+            create: { warehouseId: destination.id, productKey: order.productKey, quantity: input.quantity },
+            update: { quantity: { increment: input.quantity } },
+          });
+          const pickup = await tx.supplyPickup.create({
+            data: { ...base, routeKey: LOCAL_ROUTE, status: 'DELIVERED', loadedAt: now, expectedArrivalAt: now, deliveredAt: now, deliveredQuantity: input.quantity, tripNumber: 1, tripCount },
+            include: PICKUP_INCLUDE,
+          });
+          await tx.supplyMovement.createMany({
+            data: [
+              { roundPlayerId, kind: 'PICKED_UP', productKey: order.productKey, quantityDelta: input.quantity, fromLocation: `order:${order.id}`, toLocation: `local:${home}`, orderId: order.id, pickupId: pickup.id, requestKey: `pickup:${pickup.id}:PICKED_UP`, metadata: { supplierKey: order.supplierKey, local: true }, createdAt: now },
+              { roundPlayerId, kind: 'STORED', productKey: order.productKey, quantityDelta: input.quantity, fromLocation: `local:${home}`, toLocation: `warehouse:${destination.id}`, orderId: order.id, pickupId: pickup.id, warehouseId: destination.id, requestKey: `pickup:${pickup.id}:STORED`, metadata: { loaded: input.quantity, lost: 0 }, createdAt: now },
+            ],
+          });
+          return {
+            next: { ...current, turns: current.turns - localTurns },
+            result: { pickup: pickupDto(ruleset, pickup), order: supplyOrderDto(ruleset, updated), turns: localTurns, capacityUnits: capacity, risk: null, replayed: false },
+            ledger: [],
+          };
+        }
+
+        const launched = await launchSupplyRun(tx, { roundPlayerId, ruleset, player, current, now, loadout, vehicleCount, escortThugs: input.escortThugs, escortMemberIds: input.escortMemberIds, route: input.route, origin: order.supplierCitySlug, destination: destination.citySlug, tripCount });
+        let left = input.quantity;
+        let firstId = '';
+        for (let trip = 0; trip < launched.plan.tripCount; trip++) {
+          const quantity = Math.min(capacity, left);
+          left -= quantity;
+          const requestKey = trip === 0 ? input.requestKey : `${input.requestKey}:${trip + 1}`;
+          const created = await tx.supplyPickup.create({
+            data: {
+              ...base,
+              quantity,
+              requestKey,
+              runId: launched.runId,
+              routeKey: launched.plan.stops.map((stop) => stop.city).join('>'),
+              status: 'PLANNED',
+              loadStopOrder: launched.plan.loadStops[trip],
+              unloadStopOrder: launched.plan.unloadStops[trip],
+              tripNumber: trip + 1,
+              tripCount: launched.plan.tripCount,
+              expectedArrivalAt: launched.plan.stops[launched.plan.unloadStops[trip]!]!.arriveAt,
+            },
+            include: { order: true },
+          });
+          if (trip === 0) firstId = created.id;
+          // From a supplier in the home city, the first load goes on as the run leaves.
+          if (launched.plan.loadStops[trip] === -1) await loadPickupOntoRun(tx, roundPlayerId, launched.runId, created, now);
+        }
+        const pickup = await tx.supplyPickup.findUniqueOrThrow({ where: { id: firstId }, include: PICKUP_INCLUDE });
+        return {
+          next: launched.next,
+          result: { pickup: pickupDto(ruleset, pickup), order: supplyOrderDto(ruleset, order), turns: launched.plan.turns, capacityUnits: capacity, risk: launched.risk, replayed: false },
+          ledger: [],
+          activity: launched.activity({
+            pickupId: pickup.id, orderId: order.id, supplier, product, productKey: order.productKey, quantity: input.quantity, trips: tripCount,
+            destination: destination.citySlug === home ? null : cityName(ruleset, destination.citySlug),
+          }),
+        };
+      },
+    });
+  },
+
+  /**
+   * 1.6.0-F. Ship stock from one of the player's warehouses to another in a different city.
+   * The units leave the source at once, so they can never be loaded onto a crew or shipped
+   * twice; a run drives to the source, takes them aboard, drives them to the destination and
+   * comes home, exposed to the road like any load. What arrives is stored; what does not is lost.
+   */
+  ship(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown) {
+    const input = supplyShipmentSchema.parse(rawInput);
+    return ActionService.run<SupplyShipmentResult>(prisma, roundPlayerId, {
+      action: 'SUPPLY_SHIPMENT',
+      idempotencyScope: 'SUPPLY_SHIPMENT',
+      actionId: input.actionId,
+      execute: async ({ tx, current, ruleset, player, now }) => {
+        if (!pickupRules(ruleset)?.shipments) throw AppError.notFound('SUPPLY_SHIPMENTS_DISABLED', 'Shipments between warehouses are not available in this round.');
+        const home = player.city.slug;
+        const loadout: Loadout = { LOW_RIDER: input.vehicleLoadout.LOW_RIDER ?? 0, SEDAN: input.vehicleLoadout.SEDAN ?? 0, VAN: input.vehicleLoadout.VAN ?? 0 };
+        const source = await tx.supplyWarehouse.findFirst({ where: { id: input.sourceWarehouseId, roundPlayerId, isActive: true } });
+        if (!source) throw AppError.notFound('WAREHOUSE_NOT_FOUND', 'That warehouse is not yours.');
+        const prior = await tx.supplyPickup.findUnique({ where: { sourceWarehouseId_requestKey: { sourceWarehouseId: source.id, requestKey: input.requestKey } }, include: PICKUP_INCLUDE });
+        if (prior) return { next: current, result: { pickup: pickupDto(ruleset, prior), turns: 0, risk: null, replayed: true }, ledger: [] };
+
+        const destination = await tx.supplyWarehouse.findFirst({ where: { id: input.destinationWarehouseId, roundPlayerId, isActive: true } });
+        if (!destination) throw AppError.notFound('WAREHOUSE_NOT_FOUND', 'That warehouse is not yours.');
+        if (destination.citySlug === source.citySlug) {
+          throw AppError.conflict('SAME_CITY', `Both are in ${cityName(ruleset, source.citySlug)}: crews there load from either without a shipment.`);
+        }
+        if (destination.kind === 'STASH' && destination.citySlug !== home) throw AppError.conflict('WAREHOUSE_CLOSED_TO_DELIVERIES', 'Your old home stash takes no new deliveries.');
+        if (destination.kind === 'WAREHOUSE' && propertyBehind(destination.paidThrough, now)) {
+          throw AppError.conflict('WAREHOUSE_BEHIND', `Your ${cityName(ruleset, destination.citySlug)} warehouse is behind on upkeep. It takes no deliveries until it is paid.`);
+        }
+        const vehicleCount = assertFleet(ruleset, current, loadout);
+        const capacity = runCapacity(ruleset, loadout, racketCargoShare(ruleset, readRacketEffects(player.racketEffects)));
+        if (input.quantity > capacity) throw AppError.badRequest('TRUNK_FULL', `These vehicles carry ${formatNumber(capacity)} units.`, { quantity: `At most ${capacity}.` });
+        const [stock, inbound] = await Promise.all([
+          tx.supplyStock.aggregate({ where: { warehouseId: destination.id }, _sum: { quantity: true } }),
+          inboundByWarehouse(tx, [destination.id]),
+        ]);
+        const room = Math.max(0, destination.capacityUnits - (stock._sum.quantity ?? 0) - (inbound.get(destination.id) ?? 0));
+        if (input.quantity > room) {
+          throw AppError.conflict('SUPPLY_STASH_FULL', `That warehouse has room for ${formatNumber(room)} more, counting loads on the way. ${formatNumber(input.quantity - room)} would not fit.`);
+        }
+        const product = productName(ruleset, input.productKey);
+        const launched = await launchSupplyRun(tx, { roundPlayerId, ruleset, player, current, now, loadout, vehicleCount, escortThugs: input.escortThugs, escortMemberIds: input.escortMemberIds, route: input.route, origin: source.citySlug, destination: destination.citySlug });
+        // The units leave the source now, so nothing else can claim them.
+        const taken = await tx.supplyStock.updateMany({ where: { warehouseId: source.id, productKey: input.productKey, quantity: { gte: input.quantity } }, data: { quantity: { decrement: input.quantity } } });
+        if (taken.count !== 1) throw AppError.badRequest('NOT_ENOUGH_STOCK', `That warehouse does not hold ${formatNumber(input.quantity)} ${product}.`, { quantity: 'Not that much stored.' });
+        const created = await tx.supplyPickup.create({
+          data: {
+            roundPlayerId, productKey: input.productKey, sourceWarehouseId: source.id, warehouseId: destination.id, runId: launched.runId,
+            originCitySlug: source.citySlug, destinationCitySlug: destination.citySlug, quantity: input.quantity, vehicleLoadout: loadout,
+            routeKey: launched.plan.stops.map((stop) => stop.city).join('>'), status: 'PLANNED', requestKey: input.requestKey,
+            dispatchedAt: now, expectedArrivalAt: launched.plan.stops[launched.plan.unloadStop]!.arriveAt,
+          },
+          include: { order: true },
+        });
+        await tx.supplyMovement.create({
+          data: {
+            roundPlayerId, kind: 'PICKED_UP', productKey: input.productKey, quantityDelta: input.quantity,
+            fromLocation: `warehouse:${source.id}`, toLocation: `shipment:${created.id}`, pickupId: created.id, warehouseId: source.id,
+            requestKey: `pickup:${created.id}:PICKED_UP`, metadata: { shipment: true }, createdAt: now,
+          },
+        });
+        if (launched.plan.loadStop === -1) await loadPickupOntoRun(tx, roundPlayerId, launched.runId, created, now);
+        const pickup = await tx.supplyPickup.findUniqueOrThrow({ where: { id: created.id }, include: PICKUP_INCLUDE });
+        return {
+          next: launched.next,
+          result: { pickup: pickupDto(ruleset, pickup), turns: launched.plan.turns, risk: launched.risk, replayed: false },
+          ledger: [],
+          activity: launched.activity({
+            pickupId: pickup.id, shipment: true, supplier: `your ${cityName(ruleset, source.citySlug)} storage`, product, productKey: input.productKey, quantity: input.quantity,
+            destination: destination.citySlug === home ? null : cityName(ruleset, destination.citySlug),
+          }),
+        };
+      },
+    });
+  },
+};
+
+/** A pickup or shipment fleet: classes the round has, ready at home. Returns its size. */
+function assertFleet(ruleset: Ruleset, current: PlayerState, loadout: Loadout): number {
+  const vehicleCount = CLASSES.reduce((sum, classId) => sum + loadout[classId], 0);
+  if (vehicleCount < 1) throw AppError.badRequest('NO_VEHICLES_SELECTED', 'Choose at least one vehicle.', { vehicleLoadout: 'Pick a vehicle.' });
+  const owned: Loadout = { LOW_RIDER: current.lowRiders, SEDAN: current.sedans, VAN: current.vans };
+  for (const classId of CLASSES) {
+    if (loadout[classId] > 0 && classId !== 'LOW_RIDER' && !ruleset.vehicleCatalog?.classes.some((entry) => entry.id === classId)) {
+      throw AppError.conflict('VEHICLE_CLASS_UNAVAILABLE', `${className(ruleset, classId)}s are not available in this round.`);
+    }
+    if (loadout[classId] > owned[classId]) {
+      const name = className(ruleset, classId);
+      throw AppError.badRequest('NOT_ENOUGH_VEHICLES', `You have ${owned[classId]} ${name}${owned[classId] === 1 ? '' : 's'} ready at home.`, { vehicleLoadout: `At most ${owned[classId]} ${name}${owned[classId] === 1 ? '' : 's'}.` });
+    }
+  }
+  return vehicleCount;
+}
+
+/**
+ * Send a supply run: the same limits and costs as any run. Cars, escorts and their guns
+ * leave home; the load itself is never away worth. Returns the run, its plan, the player's
+ * next state and the activity a launch logs (a supply run is a run for everything that counts runs).
+ */
+async function launchSupplyRun(tx: Db, input: {
+  roundPlayerId: string; ruleset: Ruleset; player: RoundPlayer; current: PlayerState; now: Date;
+  loadout: Loadout; vehicleCount: number; escortThugs: number; escortMemberIds?: string[]; route: number; origin: string; destination: string; tripCount?: number;
+}) {
+  const { roundPlayerId, ruleset, player, current, now, loadout, vehicleCount, escortThugs } = input;
+  const home = (await tx.city.findUniqueOrThrow({ where: { id: player.cityId }, select: { slug: true } })).slug;
+  if (!runRules(ruleset)) throw AppError.conflict('RUNS_DISABLED', 'Nobody drives out of town this round.');
+  const activeCount = await tx.run.count({ where: { roundPlayerId, status: 'ACTIVE' } });
+  const limit = hideoutGarageRunLimit(ruleset, player);
+  if (activeCount >= limit) {
+    throw AppError.conflict('RUN_LIMIT', limit === 1
+      ? 'You already have a run out. Build the Garage or wait for it to come home.'
+      : `Your Garage supports ${limit} active runs, and they are already out.`);
+  }
+  let single: SupplyRunPlan;
+  try {
+    single = planSupplyRun(ruleset, { home, origin: input.origin, destination: input.destination, routeIndex: input.route, now });
+  } catch (error) { refuse(error); }
+  const plan = repeatSupplyRunPlan(single, input.tripCount ?? 1);
+  assertTurns(current.turns, plan.turns);
+  const seats = vehicleLoadoutSeats(ruleset, loadout);
+  const fit = fitThugs(current);
+  if (escortThugs > Math.min(fit, seats)) {
+    const why = escortThugs > seats ? `These vehicles seat ${seats} thugs.` : `You have ${fit} fit thugs at home.`;
+    throw AppError.badRequest('TOO_MANY_ESCORTS', why, { escortThugs: why });
+  }
+  if ((input.escortMemberIds?.length ?? 0) > 0 && input.escortMemberIds!.length !== escortThugs) {
+    throw AppError.badRequest('CREW_SELECTION_COUNT', `Choose exactly ${escortThugs} escort${escortThugs === 1 ? '' : 's'}.`);
+  }
+  // Escorts ride armed, one gun each, the best first, as on any run.
+  const guns = ruleset.travel?.convoys
+    ? armEscorts(ruleset, escortThugs, current, hideoutWeaponPriority(ruleset, current))
+    : { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
+  if (input.escortMemberIds?.length) await CrewRosterService.sync(tx, roundPlayerId, ruleset, now, current);
+  const run = await tx.run.create({
+    data: {
+      roundPlayerId, homeCity: home, lowRiders: vehicleCount, vehicleLoadout: loadout, escortThugs, ...guns,
+      cashCents: 0n, startCashCents: 0n, turnsSpent: plan.turns, launchedAt: now,
+      wheelmanBonusPercent: await CrewRosterService.specialtyBonusPercent(tx, roundPlayerId, ruleset, 'THUG', 'WHEELMAN'),
+    },
+  });
+  await CrewRosterService.assignTravelMembers(tx, {
+    roundPlayerId,
+    ruleset,
+    kind: 'ESCORT',
+    assignmentRef: run.id,
+    count: escortThugs,
+    memberIds: input.escortMemberIds,
+    now,
+  });
+  await writeRunStops(tx, run.id, plan.stops);
+  const first = plan.stops[0]!;
+  const back = plan.stops[plan.stops.length - 1]!;
+  return {
+    runId: run.id,
+    plan,
+    risk: supplyRouteRisk(plan.police, vehicleRiskMultiplier(ruleset, loadout)),
+    next: {
+      ...current,
+      turns: current.turns - plan.turns,
+      lowRiders: current.lowRiders - loadout.LOW_RIDER,
+      sedans: current.sedans - loadout.SEDAN,
+      vans: current.vans - loadout.VAN,
+      thugs: current.thugs - escortThugs,
+      pistols: current.pistols - guns.pistols,
+      shotguns: current.shotguns - guns.shotguns,
+      tek9s: current.tek9s - guns.tek9s,
+      ak47s: current.ak47s - guns.ak47s,
+      awayNetWorthCents: current.awayNetWorthCents + awayWorth(ruleset, { cashCents: 0n, beer: 0, lowRiders: vehicleCount, escortThugs, ...guns }, {}),
+    },
+    activity: (supplyPickup: Record<string, string | number | boolean | null>) => ({
+      type: 'RUN_LAUNCHED' as const,
+      payload: {
+        runId: run.id,
+        city: first.city,
+        cityName: cityName(ruleset, first.city),
+        cities: plan.stops.slice(0, -1).map((stop) => cityName(ruleset, stop.city)),
+        route: plan.route.cities,
+        arriveAt: first.arriveAt.toISOString(),
+        leaveAt: first.leaveAt!.toISOString(),
+        backAt: back.arriveAt.toISOString(),
+        turns: plan.turns,
+        lowRiders: vehicleCount,
+        escortThugs,
+        cashCents: 0,
+        beer: 0,
+        cargo: {},
+        bossAboard: false,
+        supplyPickup,
+      },
+    }),
+  };
+}

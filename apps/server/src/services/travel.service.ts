@@ -53,6 +53,7 @@ import {
   type RunLaunchResult,
   type RunMoveResult,
   type RunReceiptDto,
+  type RunSupplyPickupDto,
   type RunTradeDto,
   type VehiclePurchaseInput,
   type VehiclePurchaseResult,
@@ -80,6 +81,7 @@ import { CRACK, ProductInventoryService, productKeys } from './product-inventory
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
 import { VEHICLE_FIELDS, damageRunVehicles, hasVehicleDamage, readVehicleDamage, readVehicleLoadout, vehiclePurchaseCents, vehicleServiceDiscounts, type VehicleLoadout } from './vehicle-fleet.service.js';
+import { encounterActivityPayload, RandomEncounterService } from './random-encounter.service.js';
 import {
   RUN_INCLUDE,
   awayWorth,
@@ -92,6 +94,8 @@ import {
   toStopPlans,
   type LoadedRun,
 } from './run-settle.service.js';
+import { assertNotSupplyRun, assertSupplyRunMayHeadHome, runSupplyPickups } from './supply-pickup-settle.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 /** Engine refusals become player-facing errors, pointing at the field that caused them. */
 function refuse(error: unknown): never {
@@ -213,7 +217,7 @@ function damageDto(run: { vehicleLoadout: Prisma.JsonValue; vehicleDamage: Prism
   return hasVehicleDamage(damage) ? { vehicleDamage: damage } : {};
 }
 
-async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, seed: string, run: LoadedRun, now: Date): Promise<RunDto | null> {
+async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, seed: string, run: LoadedRun, now: Date, supplyPickup?: RunSupplyPickupDto): Promise<RunDto | null> {
   const stops = toStopPlans(run.stops);
   const position = runPosition(ruleset, stops, now);
   if (position.phase === 'home') return null;
@@ -254,9 +258,11 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
       road: position.road,
       until: position.until.toISOString(),
     },
-    counter: position.phase === 'town' ? await liveCounter(db, roundPlayerId, ruleset, seed, position.city, now) : null,
+    // 1.6.0-C: a pickup run never trades, so it has no counter to show.
+    counter: position.phase === 'town' && !supplyPickup ? await liveCounter(db, roundPlayerId, ruleset, seed, position.city, now) : null,
     trades: trades.map((trade) => toTradeDto(ruleset, trade)),
     incidents: incidents.map((incident) => toIncidentDto(ruleset, incident)),
+    ...(supplyPickup ? { supplyPickup } : {}),
   };
 }
 
@@ -268,6 +274,9 @@ async function lastRunDto(db: Db | PrismaClient, roundPlayerId: string, ruleset:
   });
   if (!run || !run.returnedAt) return null;
   const visited = [...new Set(run.stops.slice(0, -1).map((stop) => stop.city))];
+  // 1.6.0-C: the supply load is shown on its own, not as trunk product.
+  const supplyPickup = (await runSupplyPickups(db as Db, ruleset, [run.id])).get(run.id);
+  const loaded = (key: string) => (supplyPickup && supplyPickup.productKey === key && supplyPickup.status !== 'CANCELLED' && supplyPickup.status !== 'PLANNED' ? supplyPickup.quantity : 0);
   return {
     id: run.id,
     launchedAt: run.launchedAt.toISOString(),
@@ -281,12 +290,13 @@ async function lastRunDto(db: Db | PrismaClient, roundPlayerId: string, ruleset:
     cashCents: Number(run.cashCents),
     startBeer: run.startBeer,
     beer: run.beer,
-    cargo: run.cargo.map((row) => ({ key: row.productKey, startQuantity: row.startQuantity, quantity: row.quantity })),
+    cargo: run.cargo.map((row) => ({ key: row.productKey, startQuantity: row.startQuantity, quantity: Math.max(0, row.quantity - loaded(row.productKey)) })),
     turnsSpent: run.turnsSpent,
     bossAboard: run.bossAboard,
     hotelCents: Number(run.hotelCents),
     trades: run.trades.map((trade) => toTradeDto(ruleset, trade)),
     incidents: run.incidents.map((incident) => toIncidentDto(ruleset, incident)),
+    ...(supplyPickup ? { supplyPickup } : {}),
   };
 }
 
@@ -407,7 +417,8 @@ export const TravelService = {
     const map = await CitiesService.page(prisma, roundPlayerId, now);
     const inventory = await ProductInventoryService.read(prisma, roundPlayerId, ruleset);
     const active = await activeRuns(prisma, roundPlayerId);
-    const runDtos = (await Promise.all(active.map((run) => runDto(prisma, roundPlayerId, base, player.roundId, run, now))))
+    const pickups = await runSupplyPickups(prisma, base, active.map((run) => run.id));
+    const runDtos = (await Promise.all(active.map((run) => runDto(prisma, roundPlayerId, base, player.roundId, run, now, pickups.get(run.id)))))
       .filter((run): run is RunDto => Boolean(run));
     const limit = hideoutGarageRunLimit(ruleset, player);
     const travel = ruleset.travel;
@@ -625,7 +636,7 @@ export const TravelService = {
   },
 
   /** Load a run up at home and send it: cars, escorts, cash and cargo leave home stock together. */
-  launch(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<RunLaunchResult>> {
+  launch(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown, rng: Rng = Math.random): Promise<GameActionResult<RunLaunchResult>> {
     const input = runLaunchSchema.parse(rawInput);
     return ActionService.run<RunLaunchResult>(prisma, roundPlayerId, {
       action: 'RUN_LAUNCH',
@@ -637,9 +648,21 @@ export const TravelService = {
           : { LOW_RIDER: input.lowRiders ?? 0, SEDAN: 0, VAN: 0 };
         const vehicleCount = loadoutTotal(loadout);
         if (vehicleCount < 1) throw AppError.badRequest('NO_VEHICLES_SELECTED', 'Choose at least one vehicle for this run.');
+        // The run limit first: with every slot out, the car count is not the reason it cannot go.
+        const activeCount = await tx.run.count({ where: { roundPlayerId, status: 'ACTIVE' } });
+        const limit = hideoutGarageRunLimit(ruleset, player);
+        if (activeCount >= limit) {
+          throw AppError.conflict('RUN_LIMIT', limit === 1
+            ? 'You already have a run out. Build the Garage or wait for it to come home.'
+            : `Your Garage supports ${limit} active runs, and they are already out.`);
+        }
         for (const vehicleClass of ['LOW_RIDER', 'SEDAN', 'VAN'] as const) {
-          if (loadout[vehicleClass] > 0 && !ruleset.vehicleCatalog?.classes.some((entry) => entry.id === vehicleClass)) {
-            throw AppError.conflict('VEHICLE_CLASS_UNAVAILABLE', `${vehicleClass.replace('_', ' ')}s are not available in this round.`);
+          // Rounds pinned before 1.5.0-B have no catalog: Low-Riders are their only car, as they always were.
+          const known = ruleset.vehicleCatalog
+            ? ruleset.vehicleCatalog.classes.some((entry) => entry.id === vehicleClass)
+            : vehicleClass === 'LOW_RIDER';
+          if (loadout[vehicleClass] > 0 && !known) {
+            throw AppError.conflict('VEHICLE_CLASS_UNAVAILABLE', `${vehicleClass === 'SEDAN' ? 'Sedans' : vehicleClass === 'VAN' ? 'Vans' : 'Low-Riders'} are not available in this round.`);
           }
         }
         const owned: VehicleLoadout = { LOW_RIDER: current.lowRiders, SEDAN: current.sedans, VAN: current.vans };
@@ -648,13 +671,6 @@ export const TravelService = {
             const label = vehicleClass === 'LOW_RIDER' ? 'Low-Rider' : vehicleClass === 'SEDAN' ? 'Sedan' : 'Van';
             throw AppError.badRequest('NOT_ENOUGH_VEHICLES', `You have ${owned[vehicleClass]} ${label}${owned[vehicleClass] === 1 ? '' : 's'} ready at home.`, { vehicleLoadout: `At most ${owned[vehicleClass]} ${label}${owned[vehicleClass] === 1 ? '' : 's'}.` });
           }
-        }
-        const activeCount = await tx.run.count({ where: { roundPlayerId, status: 'ACTIVE' } });
-        const limit = hideoutGarageRunLimit(ruleset, player);
-        if (activeCount >= limit) {
-          throw AppError.conflict('RUN_LIMIT', limit === 1
-            ? 'You already have a run out. Build the Garage or wait for it to come home.'
-            : `Your Garage supports ${limit} active runs, and they are already out.`);
         }
         // Trips B: the boss can ride along, if they are home and the round allows it.
         const rideAlong = input.rideAlong ? tripRules(ruleset)?.rideAlong : undefined;
@@ -674,6 +690,9 @@ export const TravelService = {
         if (input.escortThugs > Math.min(fit, seats)) {
           const why = input.escortThugs > seats ? `This vehicle loadout seats ${seats} thugs.` : `You have ${fit} fit thugs at home.`;
           throw AppError.badRequest('TOO_MANY_ESCORTS', why, { escortThugs: why });
+        }
+        if ((input.escortMemberIds?.length ?? 0) > 0 && input.escortMemberIds!.length !== input.escortThugs) {
+          throw AppError.badRequest('CREW_SELECTION_COUNT', `Choose exactly ${input.escortThugs} escort${input.escortThugs === 1 ? '' : 's'}.`);
         }
         const cashCents = BigInt(input.cashCents);
         if (cashCents > current.cashCents) {
@@ -728,6 +747,7 @@ export const TravelService = {
         if (cargoUnits(cargo) + input.beer > capacity) {
           throw AppError.badRequest('TRUNK_FULL', `This vehicle loadout carries ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
         }
+        if (input.escortMemberIds?.length) await CrewRosterService.sync(tx, roundPlayerId, ruleset, now, current);
 
         const openRoad = await SingleUseFavorService.matching(
           tx,
@@ -763,6 +783,15 @@ export const TravelService = {
             cargo: { create: productKeys(ruleset).filter((key) => (cargo[key] ?? 0) > 0).map((key) => ({ productKey: key, quantity: cargo[key]!, startQuantity: cargo[key]! })) },
           },
         });
+        await CrewRosterService.assignTravelMembers(tx, {
+          roundPlayerId,
+          ruleset,
+          kind: 'ESCORT',
+          assignmentRef: run.id,
+          count: input.escortThugs,
+          memberIds: input.escortMemberIds,
+          now,
+        });
         await writeStops(tx, run.id, plan.stops);
         for (const trade of marketTrades) {
           await tx.runTrade.create({
@@ -772,7 +801,7 @@ export const TravelService = {
         if (openRoad) await SingleUseFavorService.consume(tx, openRoad.id);
 
         const [out, home] = plan.stops;
-        const result: RunLaunchResult = {
+        const baseResult: RunLaunchResult = {
           runId: run.id,
           city: input.to,
           cityName: cityName(ruleset, input.to),
@@ -790,24 +819,39 @@ export const TravelService = {
           marketCents: Number(marketCents),
           bossAboard: Boolean(rideAlong),
         };
+        const baseNext = {
+          ...current,
+          turns: current.turns - plan.turns,
+          cashCents: current.cashCents - cashCents - marketCents,
+          beer: current.beer - input.beer,
+          lowRiders: current.lowRiders - loadout.LOW_RIDER,
+          sedans: current.sedans - loadout.SEDAN,
+          vans: current.vans - loadout.VAN,
+          thugs: current.thugs - input.escortThugs,
+          crack: current.crack - (fromHome[CRACK] ?? 0),
+          pistols: current.pistols - guns.pistols,
+          shotguns: current.shotguns - guns.shotguns,
+          tek9s: current.tek9s - guns.tek9s,
+          ak47s: current.ak47s - guns.ak47s,
+          awayNetWorthCents: current.awayNetWorthCents
+            + awayWorth(ruleset, { cashCents, beer: input.beer, lowRiders: vehicleCount, escortThugs: input.escortThugs, ...guns }, cargo),
+        };
+        const encounter = await RandomEncounterService.travel({
+          tx,
+          roundPlayerId,
+          next: baseNext,
+          ruleset,
+          turns: plan.turns,
+          now,
+          rng,
+        });
+        const result: RunLaunchResult = {
+          ...baseResult,
+          ...(encounter.encounter ? { encounter: encounter.encounter } : {}),
+        };
+        const { encounter: _activityEncounter, ...activityResult } = baseResult;
         return {
-          next: {
-            ...current,
-            turns: current.turns - plan.turns,
-            cashCents: current.cashCents - cashCents - marketCents,
-            beer: current.beer - input.beer,
-            lowRiders: current.lowRiders - loadout.LOW_RIDER,
-            sedans: current.sedans - loadout.SEDAN,
-            vans: current.vans - loadout.VAN,
-            thugs: current.thugs - input.escortThugs,
-            crack: current.crack - (fromHome[CRACK] ?? 0),
-            pistols: current.pistols - guns.pistols,
-            shotguns: current.shotguns - guns.shotguns,
-            tek9s: current.tek9s - guns.tek9s,
-            ak47s: current.ak47s - guns.ak47s,
-            awayNetWorthCents: current.awayNetWorthCents
-              + awayWorth(ruleset, { cashCents, beer: input.beer, lowRiders: vehicleCount, escortThugs: input.escortThugs, ...guns }, cargo),
-          },
+          next: encounter.next,
           result,
           ledger: marketTrades.map((trade) => ({
             source: 'RUN_LAUNCH',
@@ -817,9 +861,10 @@ export const TravelService = {
           activity: {
             type: 'RUN_LAUNCHED',
             payload: {
-              ...result,
+              ...activityResult,
               cities: [cityName(ruleset, input.to)],
               ...(openRoad ? { favorKey: openRoad.key } : {}),
+              ...(encounter.encounter ? { encounter: encounterActivityPayload(encounter.encounter) } : {}),
             },
           },
         };
@@ -844,6 +889,7 @@ export const TravelService = {
         requireRuns(base);
         const seed = round.id;
         const run = await requireActiveRun(tx, roundPlayerId, input.runId);
+        await assertNotSupplyRun(tx, run.id);
         const stops = toStopPlans(run.stops);
         const position = runPosition(base, stops, now);
         if (position.phase !== 'town') {
@@ -1032,7 +1078,7 @@ export const TravelService = {
   },
 
   /** Leave town for another city, then home from there. Pays only for the extra road. */
-  driveOn(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<RunMoveResult>> {
+  driveOn(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown, rng: Rng = Math.random): Promise<GameActionResult<RunMoveResult>> {
     const input = runDriveOnSchema.parse(rawInput);
     return ActionService.run<RunMoveResult>(prisma, roundPlayerId, {
       action: 'RUN_DRIVE_ON',
@@ -1040,6 +1086,7 @@ export const TravelService = {
       execute: async ({ tx, current, ruleset, now }) => {
         requireRuns(ruleset);
         const run = await requireActiveRun(tx, roundPlayerId, input.runId);
+        await assertNotSupplyRun(tx, run.id);
         let plan;
         try {
           // Trips B: with the boss aboard, the next town holds the run until the player leaves.
@@ -1050,16 +1097,31 @@ export const TravelService = {
         await writeStops(tx, run.id, plan.stops);
         await tx.run.update({ where: { id: run.id }, data: { turnsSpent: run.turnsSpent + plan.turns } });
         const next = plan.stops[plan.stops.length - 2]!;
-        return {
+        const encounter = await RandomEncounterService.travel({
+          tx,
+          roundPlayerId,
           next: { ...current, turns: current.turns - plan.turns },
-          result: { city: input.to, cityName: cityName(ruleset, input.to), arriveAt: next.arriveAt.toISOString(), turns: plan.turns },
+          ruleset,
+          turns: plan.turns,
+          now,
+          rng,
+        });
+        return {
+          next: encounter.next,
+          result: {
+            city: input.to,
+            cityName: cityName(ruleset, input.to),
+            arriveAt: next.arriveAt.toISOString(),
+            turns: plan.turns,
+            ...(encounter.encounter ? { encounter: encounter.encounter } : {}),
+          },
         };
       },
     });
   },
 
   /** Close the town window now and drive home. The drive is already paid for. */
-  headHome(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<RunMoveResult>> {
+  headHome(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown, rng: Rng = Math.random): Promise<GameActionResult<RunMoveResult>> {
     const input = runHeadHomeSchema.parse(rawInput);
     return ActionService.run<RunMoveResult>(prisma, roundPlayerId, {
       action: 'RUN_HEAD_HOME',
@@ -1067,15 +1129,31 @@ export const TravelService = {
       execute: async ({ tx, current, ruleset, now }) => {
         requireRuns(ruleset);
         const run = await requireActiveRun(tx, roundPlayerId, input.runId);
+        await assertSupplyRunMayHeadHome(tx, run);
         let stops;
         try {
           stops = planHeadHome(ruleset, toStopPlans(run.stops), now);
         } catch (error) { refuse(error); }
         await writeStops(tx, run.id, stops);
         const home = stops[stops.length - 1]!;
-        return {
+        const encounter = await RandomEncounterService.travel({
+          tx,
+          roundPlayerId,
           next: current,
-          result: { city: home.city, cityName: cityName(ruleset, home.city), arriveAt: home.arriveAt.toISOString(), turns: 0 },
+          ruleset,
+          turns: 0,
+          now,
+          rng,
+        });
+        return {
+          next: encounter.next,
+          result: {
+            city: home.city,
+            cityName: cityName(ruleset, home.city),
+            arriveAt: home.arriveAt.toISOString(),
+            turns: 0,
+            ...(encounter.encounter ? { encounter: encounter.encounter } : {}),
+          },
         };
       },
     });

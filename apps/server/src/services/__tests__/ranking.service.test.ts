@@ -106,6 +106,7 @@ describe('rank counting excludes the player themselves', () => {
     for (const where of seen) {
       expect(where.id).toEqual({ not: 'player-1' });
       expect(where.account).toEqual({ isActive: true });
+      expect(where.npcGang).toEqual({ is: null });
     }
     expect(ranks).toEqual({ localRank: 1, nationalRank: 1 });
   });
@@ -122,6 +123,7 @@ describe('rank counting excludes the player themselves', () => {
     for (const where of seen) {
       expect(where.id).toBeUndefined();
       expect(where.account).toEqual({ isActive: true });
+      expect(where.npcGang).toEqual({ is: null });
     }
     // The stub counts one player ahead when nobody is excluded.
     expect(ranks).toEqual({ localRank: 2, nationalRank: 2 });

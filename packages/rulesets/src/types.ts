@@ -365,6 +365,16 @@ export type PermanentUnlockEffect =
       readonly productKey: string;
     }
   | {
+      /** Opens a product's cookhouse recipe without granting purchase access. */
+      readonly kind: 'PRODUCT_PRODUCTION_ACCESS';
+      readonly productKey: string;
+    }
+  | {
+      /** Allows Scout and Turf access to a district while leaving it visible on the district list. */
+      readonly kind: 'DISTRICT_ACCESS';
+      readonly districtKey: DistrictKey;
+    }
+  | {
       /** 1.5.0-E2. Charlie sells this vehicle class. */
       readonly kind: 'VEHICLE_PURCHASE_ACCESS';
       readonly classId: 'SEDAN' | 'VAN';
@@ -676,6 +686,32 @@ export interface RulesetMeta {
   readonly id: string;
   readonly version: string;
   readonly name: string;
+  /** Runtime event ownership introduced by a versioned ruleset. */
+  readonly eventSystem?: {
+    readonly communityEvents?: 'FIRST_CLASS';
+    readonly seasonalEvents?: 'FIRST_CLASS';
+    readonly randomEncounters?: 'FIRST_CLASS';
+    readonly cityConditions?: 'FIRST_CLASS';
+  };
+}
+
+/** First-class, time-bounded modifiers shared by players in one round city. */
+export type CityConditionAction = 'SCOUT' | 'PRODUCE_CRACK' | 'STORE_SELL';
+
+export interface CityConditionRules {
+  readonly key: string;
+  readonly title: string;
+  readonly description: string;
+  readonly districts: readonly DistrictKey[];
+  readonly actions: readonly CityConditionAction[];
+  readonly effects: {
+    readonly cashGainPercent?: number;
+    readonly recruitPercent?: number;
+    readonly productPercent?: number;
+  };
+  readonly schedule?: { readonly startFraction: number; readonly endFraction: number };
+  readonly followUpFrom?: { readonly type: 'COMMUNITY' | 'SEASONAL'; readonly key: string };
+  readonly durationMinutes?: number;
 }
 
 /** 1.5.0-A. Player-facing vehicle identities; A maps the legacy counter without changing play. */
@@ -790,6 +826,74 @@ export interface NpcGangSeedProfile {
   readonly ambition: number;
   /** How likely this crew is to wait, restock or lay low instead of forcing a bad move. */
   readonly discipline: number;
+  /** Phase M. A fixed public crew name and tag; otherwise one is picked from the personality. */
+  readonly crewName?: string;
+  readonly crewTag?: string;
+}
+
+/** Phase M. The scheduler intents a personality can lean toward or away from. */
+export type NpcGangIntentKey = 'RESTOCK' | 'PRODUCE' | 'HUSTLE' | 'RAID_PLAYER' | 'DRIVE_BY_PLAYER' | 'SPECIAL_RAID_PLAYER' | 'TURF' | 'LAY_LOW';
+
+/**
+ * One ruleset-authored crew the server can spawn into a live round. It joins like a
+ * new player, with the round's starting stock, and grows by playing.
+ */
+export interface NpcGangRosterEntry {
+  readonly slug: string;
+  /** The boss, shown as the player name. */
+  readonly bossName: string;
+  readonly crewName: string;
+  readonly crewTag: string;
+  /** A key of `NpcGangRules.personalities`. */
+  readonly personality: string;
+  readonly aggression: number;
+  readonly ambition: number;
+  readonly discipline: number;
+}
+
+/** How many roster crews a live round carries, and how fast they arrive. */
+export interface NpcGangSpawnRules {
+  readonly enabled: boolean;
+  readonly minCrews: number;
+  readonly maxCrews: number;
+  /** One more crew for every this many active humans in the round. */
+  readonly humansPerCrew: number;
+  /** A human counts as active if seen inside this many hours. */
+  readonly activeHumanHours: number;
+  /** At most one new crew per this many minutes, so they arrive over time. */
+  readonly spawnEveryMinutes: number;
+}
+
+/** Tier follows growth: net worth as a multiple of what the crew started with. */
+export interface NpcGangProgressionRules {
+  readonly enabled: boolean;
+  readonly netWorthMultiple: { readonly STREET: number; readonly VETERAN: number; readonly KINGPIN: number };
+}
+
+/** Phase M. Who a crew goes after first among ordinary targets. */
+export type NpcGangTargeting = 'RICHEST' | 'WEAKEST' | 'RIDES' | 'PRODUCT' | 'DISTRACTED';
+
+/**
+ * Phase M. A named crew style: public identity plus the behavior signature that makes
+ * it recognizable on the street. Traits (aggression, ambition, discipline) still set
+ * how strongly a gang acts; the personality sets what it reaches for.
+ */
+export interface NpcGangPersonality {
+  /** Public, e.g. "Ride thieves". */
+  readonly label: string;
+  /** Crew names this style goes by, each with a short tag. */
+  readonly names: readonly { readonly name: string; readonly tag: string }[];
+  /** One public line on how they operate. */
+  readonly style: string;
+  /** Older archetype strings that resolve to this personality (exact, then substring). */
+  readonly aliases: readonly string[];
+  /** Weight added to each intent before the weighted pick. */
+  readonly bias: Readonly<Partial<Record<NpcGangIntentKey, number>>>;
+  readonly targeting: NpcGangTargeting;
+  /** The special raid tried first when one is on the table. */
+  readonly favoriteSpecial?: SpecialRaidKind;
+  /** Multiplies the squad a gang commits to a hit. */
+  readonly squadShare: number;
 }
 
 export interface NpcGangRules {
@@ -812,6 +916,131 @@ export interface NpcGangRules {
   readonly migration: NpcGangMigrationRules;
   /** Phase L. How fights heat a gang up, cool it down or send it to ground. */
   readonly escalation: NpcGangEscalationRules;
+  /** Phase M. Named crew styles keyed by archetype. */
+  readonly personalities: Readonly<Record<string, NpcGangPersonality>>;
+  /** Phase M. The personality an archetype falls back to when nothing matches. */
+  readonly defaultPersonality: string;
+  /** Phase N. What beating an NPC gang pays, and when beaten or stale gangs are cleaned up. */
+  readonly rewards: NpcGangRewardRules;
+  /** Real crews: who spawns into live rounds, how many, and how they climb tiers. */
+  readonly roster: readonly NpcGangRosterEntry[];
+  readonly spawn: NpcGangSpawnRules;
+  readonly progression: NpcGangProgressionRules;
+}
+
+export type NpcGangRuleOverrides = Partial<Omit<NpcGangRules, 'turf' | 'migration' | 'escalation' | 'rewards' | 'spawn' | 'progression'>> & {
+  readonly turf?: Partial<NpcGangTurfRules>;
+  readonly migration?: Partial<NpcGangMigrationRules>;
+  readonly escalation?: Partial<NpcGangEscalationRules>;
+  readonly rewards?: Partial<Omit<NpcGangRewardRules, 'bountyCents'>> & {
+    readonly bountyCents?: Partial<Record<NpcGangTier, number>>;
+  };
+  readonly spawn?: Partial<NpcGangSpawnRules>;
+  readonly progression?: Partial<Omit<NpcGangProgressionRules, 'netWorthMultiple'>> & {
+    readonly netWorthMultiple?: Partial<Record<Exclude<NpcGangTier, 'SCRUB'>, number>>;
+  };
+};
+
+export type RandomEncounterTrigger = 'SCOUT' | 'TRAVEL' | 'PRODUCE' | 'STORE' | 'TURF' | 'COMBAT';
+
+export type RandomEncounterTone = 'good' | 'warn' | 'bad' | 'neutral';
+
+export interface RandomEncounterCashEffectRules {
+  readonly minCents: number;
+  readonly maxCents: number;
+}
+
+export interface RandomEncounterNumberEffectRules {
+  readonly min: number;
+  readonly max: number;
+}
+
+export interface RandomEncounterSupplyEffectRules {
+  readonly condoms?: RandomEncounterNumberEffectRules;
+  readonly medicine?: RandomEncounterNumberEffectRules;
+  readonly crack?: RandomEncounterNumberEffectRules;
+  readonly beer?: RandomEncounterNumberEffectRules;
+}
+
+export interface RandomEncounterChoiceRules {
+  readonly key: string;
+  readonly label: string;
+  readonly text: string;
+  readonly cash?: RandomEncounterCashEffectRules;
+  readonly heat?: RandomEncounterNumberEffectRules;
+  readonly supplies?: RandomEncounterSupplyEffectRules;
+}
+
+export interface RandomEncounterEntryRules {
+  readonly key: string;
+  readonly title: string;
+  readonly text: string;
+  readonly tone: RandomEncounterTone;
+  readonly weight: number;
+  readonly cash?: RandomEncounterCashEffectRules;
+  readonly heat?: RandomEncounterNumberEffectRules;
+  readonly supplies?: RandomEncounterSupplyEffectRules;
+  readonly choices?: readonly RandomEncounterChoiceRules[];
+  readonly districts?: readonly DistrictKey[];
+}
+
+/**
+ * 1.8.0-N. What one `chance` roll covers. ACTION rolls once for the whole action;
+ * TURN rolls once for every turn the action spends.
+ */
+export type RandomEncounterChanceBasis = 'ACTION' | 'TURN';
+
+export interface RandomEncounterTriggerRules {
+  readonly enabled: boolean;
+  /** Chance per eligible action, 0..1, or per turn spent when `chanceBasis` is TURN. */
+  readonly chance: number;
+  /**
+   * Left out, the trigger rolls `chance` once per action however many turns it spends.
+   * TURN rolls each turn and stops at the first hit, so an action draws at most one
+   * encounter, with odds 1 - (1 - chance)^turns. A zero-turn action rolls once.
+   */
+  readonly chanceBasis?: RandomEncounterChanceBasis;
+  /** Minimum time before another encounter of this trigger can appear for the same player. */
+  readonly cooldownMinutes?: number;
+  /** Minimum time before this exact encounter key can repeat for the same player. */
+  readonly perKeyCooldownMinutes?: number;
+  readonly minTurns?: number;
+  readonly entries: readonly RandomEncounterEntryRules[];
+}
+
+/**
+ * Short-lived street events that attach to ordinary player actions. These are the
+ * lighter replacement path for autonomous NPC pressure: the street reacts when a
+ * player does something, rather than persistent crews acting off-screen.
+ */
+export interface RandomEncounterRules {
+  readonly enabled: boolean;
+  readonly triggers: Readonly<Partial<Record<RandomEncounterTrigger, RandomEncounterTriggerRules>>>;
+}
+
+/**
+ * Phase N. Bounties are minted by the house, not taken from the gang, so they are capped
+ * hard: only a crew that has hit a human recently is wanted, each player collects a few a
+ * day and once per crew per cooldown, and each crew pays out a few times a day in total.
+ * Over-targeting a crew also sends it to ground (Phase L), which ends its bounty.
+ */
+export interface NpcGangRewardRules {
+  readonly enabled: boolean;
+  /** Bounty for beating a wanted crew as the attacker, by its tier. */
+  readonly bountyCents: Readonly<Record<NpcGangTier, number>>;
+  /** Share of the bounty paid for holding off a wanted crew's hit. */
+  readonly defenseShare: number;
+  /** A crew is wanted while it has hit a human inside this many hours. */
+  readonly wantedHours: number;
+  readonly maxPerPlayerPerDay: number;
+  readonly perCrewCooldownHours: number;
+  readonly maxPerCrewPerDay: number;
+  /** Hours other crews in a city stand down after humans send one to ground. */
+  readonly reliefHours: number;
+  /** A crew that has gone to ground this many times in a round breaks up. */
+  readonly retireAfterDormancies: number;
+  /** A crew that wakes with fewer thugs than this breaks up. */
+  readonly retireBelowThugs: number;
 }
 
 /**
@@ -1234,6 +1463,8 @@ export interface ProductDefinition {
    * Pip's Product item, `economy.netWorth.perCrackCents` and `production.crack`.
    */
   readonly economy?: ProductEconomy;
+  /** Quest Recipe Unlocks D. One line on what cooking it is like, shown before a player spends turns on it. */
+  readonly recipeIdentity?: string;
 }
 
 /** 0.4.0-D. Integer cents throughout. */
@@ -2912,6 +3143,26 @@ export interface CasinoRules {
   };
   readonly poker?: CasinoPokerRules;
   readonly status?: CasinoStatusRules;
+  /** 1.8.0-E. Pregame sportsbook. Absent: the round takes no sportsbook tickets. */
+  readonly sportsbook?: CasinoSportsbookRules;
+}
+
+/** 1.8.0. Game-cash limits for pregame moneyline tickets; every value is integer cents or a count. */
+export interface CasinoSportsbookRules {
+  readonly limits: {
+    readonly minStakeCents: number;
+    readonly maxStakeCents: number;
+    /** Most one ticket can win (payout minus stake). */
+    readonly maxProfitCents: number;
+    /** One player's total stake on one game, both sides. */
+    readonly perGameStakeCents: number;
+    readonly openStakeCents: number;
+    readonly openTickets: number;
+    /** Stake on tickets placed in the last 24 hours. */
+    readonly dailyStakeCents: number;
+    /** All players' potential winnings on one side of one game. */
+    readonly sideLiabilityCents: number;
+  };
 }
 export interface Ruleset {
   /** Absent on economic-only rounds. */
@@ -2931,6 +3182,8 @@ export interface Ruleset {
     };
   };
   readonly meta: RulesetMeta;
+  /** 1.8.5-F. Bounded citywide modifiers and optional event follow-ups. */
+  readonly cityConditions?: readonly CityConditionRules[];
   readonly round: RoundRules;
   readonly turns: TurnRules;
   readonly economy: EconomyRules;
@@ -2958,9 +3211,17 @@ export interface Ruleset {
   /** 1.4.0-A. The underworld factions behind the contacts. Absent before 1.4. */
   readonly factions?: FactionCatalog;
   /** Server-run street crews: identity, scheduler pacing and NPC action limits. */
-  readonly npcGangs?: NpcGangRules;
+  readonly npcGangs?: NpcGangRuleOverrides;
+  /** Short-lived action-triggered street events. */
+  readonly randomEncounters?: RandomEncounterRules;
   /** 1.5.0-A. Catalog only; no class-specific balance or dispatch behavior yet. */
   readonly vehicleCatalog?: VehicleCatalog;
+  /** 1.6.0-A. Presence gates the supply-network foundation to pinned 1.6 rounds. */
+  readonly supplyNetwork?: SupplyNetworkRules;
+  /** 1.6.5-A. The loan shark's debt rules. Absent: no loans, and debt never touches the round. */
+  readonly loanShark?: LoanSharkRules;
+  /** 1.7.0-A. Individual crew members behind the thug and worker counts. Absent: counts only. */
+  readonly crewRoster?: CrewRosterRules;
   /** 1.4.0-B. Seasonal faction standing. Absent: factions are identity only. */
   readonly factionStanding?: FactionStandingRules;
   /**
@@ -3019,4 +3280,294 @@ export interface Ruleset {
   /** 1.3.0-A. Absent before the law keeps a Case. Never changes how `heat` behaves. */
   readonly law?: LawRules;
   readonly evidence: EvidenceRules;
+}
+
+/**
+ * 1.6.5-A. Game-cash loans from an NPC loan shark. Every value is integer cents or whole
+ * hours on the server clock. The limits are hard: no sequence of loans, missed payments or
+ * retries can take a player past them.
+ *
+ * - A loan's quoted obligation (principal plus its fixed contract fee) is reserved against
+ *   `debtCeilingCents` in full when it is accepted, so parallel loans cannot overrun it.
+ * - Late fees are the only debt that can grow after acceptance. Each missed installment is
+ *   charged `lateFeeCents` once, capped by the loan's `lateFeeCapPerLoanCents`, the player's
+ *   round-wide `feeCapCents`, and whatever room is left under the ceiling. Nothing compounds.
+ * - The contract fee is earned evenly over the loan's term: an early payoff owes only the
+ *   part earned so far, and the rest is waived.
+ * - Repayments only ever come out of the player's cash; proceeds never pay another loan.
+ * - The ceiling and fee caps are read from the round's ruleset whenever they apply, never
+ *   fixed per player. Debt above a lowered ceiling stays owed, but cannot grow.
+ */
+export interface LoanSharkRules {
+  readonly enabled: boolean;
+  /** Most a player can owe in one round: every loan's unpaid obligation plus unpaid late fees. */
+  readonly debtCeilingCents: number;
+  /** Most late fees that can ever be assessed against one player in one round. */
+  readonly feeCapCents: number;
+  /** Most late fees one loan can ever be assessed. */
+  readonly lateFeeCapPerLoanCents: number;
+  /** The fixed fee for one missed installment, assessed once. */
+  readonly lateFeeCents: number;
+  /** Hours between installments; the first falls due one interval after acceptance. */
+  readonly installmentIntervalHours: number;
+  /** Most installments one contract can be split into. */
+  readonly maxInstallments: number;
+  /** Largest contract fee a quote may carry, as a whole percent of its principal. */
+  readonly maxContractFeePercent: number;
+  /** 1.6.5-B. The fixed offer tiers on the Loan Shark page. Absent: nothing is offered. */
+  readonly offers?: readonly LoanOfferRules[];
+  /** 1.6.5-C. Escalating terms. Absent: every offer costs its listed fee. */
+  readonly pricing?: LoanPricingRules;
+  /**
+   * 1.6.5-E. Collection pressure and recovery. Absent: delinquency only marks the player,
+   * and clearing it clears it.
+   */
+  readonly collections?: LoanCollectionsRules;
+}
+
+/**
+ * 1.6.5-E. What happens to a player who falls behind, and how they climb back.
+ *
+ * - Any missed installment still owing makes the player delinquent: no new loans.
+ * - Enough of them at once puts the player in collections. While in collections, a share of
+ *   each eligible income line earned since is garnished toward what is overdue, never more
+ *   than a capped amount a day, never more than is overdue, never more than the cash on hand.
+ *   Nothing is added to the debt by collections; it only takes payments.
+ * - Clearing everything overdue ends delinquency or collections and starts recovery: new
+ *   loans unlock after enough installments are paid on time, or as soon as nothing is owed.
+ */
+export interface LoanCollectionsRules {
+  /** Missed installments still owing, across every loan, that put a player in collections. */
+  readonly missedInstallmentsThreshold: number;
+  /** Whole percent of each eligible income line garnished while in collections. */
+  readonly garnishPercent: number;
+  /** Most garnished in any rolling 24 hours. */
+  readonly garnishCapPerDayCents: number;
+  /** Economy ledger sources that count as income the shark can garnish. Only positive lines. */
+  readonly garnishSources: readonly string[];
+  /** Installments paid on time, after clearing what was overdue, before new loans unlock. */
+  readonly recoveryOnTimeInstallments: number;
+}
+
+/**
+ * 1.6.5-C. How a new loan's fee rises with what the player already owes and how they have
+ * paid. Surcharges are whole percentage points of the cash advanced, added to the offer's
+ * listed fee, and the total never passes `maxContractFeePercent`. A loan's price is fixed
+ * when it is taken: nothing here ever reprices a loan already on the books.
+ */
+export interface LoanPricingRules {
+  /**
+   * By debt utilization before the loan (owed / ceiling), lowest first. The highest tier
+   * whose `fromPercent` the player has reached applies. The first starts at 0.
+   */
+  readonly utilizationTiers: readonly LoanUtilizationTierRules[];
+  /** Points added for each installment missed this round, whether or not it was paid since. */
+  readonly missedInstallmentSurchargePercent: number;
+  /** Most the payment-history surcharge can add. */
+  readonly maxHistorySurchargePercent: number;
+}
+
+export interface LoanUtilizationTierRules {
+  readonly fromPercent: number;
+  readonly surchargePercent: number;
+  /** Player-facing name for the tier. */
+  readonly label: string;
+}
+
+/** 1.6.5-B. One fixed loan shark offer: the same terms for everyone it is open to. */
+export interface LoanOfferRules {
+  readonly key: string;
+  readonly name: string;
+  readonly description: string;
+  /** Cash handed over on acceptance. */
+  readonly principalCents: number;
+  /** The fixed contract fee, earned evenly over the term. */
+  readonly contractFeeCents: number;
+  readonly installmentCount: number;
+  /** Only offered to a boss whose net worth is at least this. Absent: open to everyone. */
+  readonly minNetWorthCents?: number;
+}
+
+/**
+ * 1.7.0-A. Every thug and worker is an individual member with a stable id, a status and an
+ * assignment history. The aggregate counts on the player stay authoritative: members follow
+ * them, so no existing action, total, happiness or net worth reads the roster yet.
+ */
+export interface CrewRosterRules {
+  readonly enabled: boolean;
+  /** 1.7.0-C career milestones. Effects apply only to the job named by the specialty. */
+  readonly experiencePerCompletedJob?: number;
+  readonly specialtyUnlockExperience?: number;
+  readonly specialtyTierTwoExperience?: number;
+  readonly specialtyBonusPercent?: { readonly tierOne: number; readonly tierTwo: number; readonly cap: number };
+  /** 1.7.0-D. Paid training only accelerates an already earned specialty tier. */
+  readonly training?: { readonly turnCost: number; readonly cashCostCents: number; readonly experience: number; readonly earnedExperienceRatioPercent: number };
+  /** 1.7.0-E. Raids and scouting may take a chosen team from the roster. Later rulesets inherit it. */
+  readonly selectedTeams?: boolean;
+}
+
+export interface SupplyNetworkRules {
+  readonly enabled: boolean;
+  /** 1.6.0-B. Per-player cap on paid orders waiting at suppliers. */
+  readonly maxOpenOrders?: number;
+  /** 1.6.0-B. Round-wide offers and source stock, pinned to this ruleset. */
+  readonly suppliers?: readonly SupplySupplierRules[];
+  /** 1.6.0-C. Collecting paid orders in vehicle loads. Absent: orders wait at their supplier. */
+  readonly pickups?: SupplyPickupRules;
+  /** 1.6.0-D. Warehouses and safehouses players buy in cities. Absent: only the home stash. */
+  readonly properties?: SupplyPropertyRules;
+  /** 1.6.0-E. Dealer crews that sell stored supply in a district. Absent: no crews. */
+  readonly dealers?: DealerRules;
+  /** 1.6.0-H. Suppliers abroad, reached by contracted route cards. Absent: domestic supply only. */
+  readonly lanes?: SupplyLanesRules;
+}
+
+export type SupplyLaneRouteKey = 'FREIGHT' | 'OVERLAND' | 'AIR' | 'NORTHERN';
+
+/**
+ * 1.6.0-H. International supply is a contract, not a drive: the player pays for the goods and
+ * a route card up front, and the load arrives at a warehouse in one of the card's entry cities
+ * after the card's transit time. Each card trades capacity, cost, time and risk. Every card can
+ * be searched on arrival, more often where the police lean harder; nothing makes a lane safe.
+ */
+export interface SupplyLanesRules {
+  /** Lane shipments a player can have on the way at once. */
+  readonly maxInTransit: number;
+  readonly routes: Readonly<Record<SupplyLaneRouteKey, SupplyLaneRouteRules>>;
+  readonly suppliers: readonly SupplyLaneSupplierRules[];
+}
+
+export interface SupplyLaneRouteRules {
+  readonly name: string;
+  /** What the card is, in game terms. Never how it is done. */
+  readonly description: string;
+  /** Where loads on this card can be received. */
+  readonly entryCities: readonly string[];
+  /** The most one shipment can carry. */
+  readonly capacityUnits: number;
+  /** What the card costs: a flat fee and a fee per unit. */
+  readonly baseFeeCents: number;
+  readonly feeCentsPerUnit: number;
+  readonly transitHours: number;
+  /** Chances on arrival at police pressure 1; the entry city's pressure scales both. */
+  readonly risk: {
+    readonly seizeChance: number;
+    readonly partialChance: number;
+    /** Share of the load a partial search takes, rolled in this range. */
+    readonly partialShare: { readonly min: number; readonly max: number };
+    /** Case evidence a seizure leaves in the entry city (a bust is 1, an arrest 3); a partial search leaves half, at least 1. */
+    readonly casePoints: number;
+  };
+}
+
+export interface SupplyLaneSupplierRules {
+  readonly key: string;
+  readonly name: string;
+  /** Where it is, in words. Never a playable city. */
+  readonly origin: string;
+  readonly description: string;
+  /** The route cards it ships on. */
+  readonly routes: readonly SupplyLaneRouteKey[];
+  readonly offers: Readonly<Record<string, SupplyOfferRules>>;
+}
+
+/**
+ * 1.6.0-E. A dealer crew is a few of the player's thugs posted in one district of a city
+ * where the player has a foothold, selling one product from that city's storage at a price
+ * the player sets. The pace and cut here are what 1.6.0-F's sales run on.
+ */
+export interface DealerRules {
+  /** Crews a player can run at once, working or paused. */
+  readonly maxCrews: number;
+  readonly maxDealersPerCrew: number;
+  /** Units each dealer holds. A crew's capacity is this times its dealers. */
+  readonly unitsPerDealer: number;
+  /** Units a new dealer moves an hour at the street price, in a district of traffic 1, where demand is 1. */
+  readonly unitsPerDealerHour: number;
+  /** Wages and rent per dealer for each hour a crew is working. Taken from sales from 1.6.0-F. */
+  readonly operatingCentsPerDealerHour: number;
+  /** The street price is Pip's price for the product, times the city's lean, times this. */
+  readonly streetPriceMultiplier: number;
+  /** What a crew may ask, as shares of the street price. */
+  readonly priceRange: { readonly min: number; readonly max: number };
+  /** How hard price bends the pace: pace × (street ÷ price) ^ this. */
+  readonly priceElasticity: number;
+  /** Foot traffic in each district archetype. */
+  readonly districtTraffic: Readonly<Record<DistrictKey, number>>;
+  /** Turns to set a crew up in a district, or move it to another. */
+  readonly setupTurns: number;
+  /** Experience tiers, lowest first; the first must start at 0. */
+  readonly tiers: readonly DealerTierRules[];
+  /** 1.6.0-F. How much a city's police pressure slows a crew: pace × pressure ^ -this. Absent: none. */
+  readonly pressureWeight?: number;
+  /** 1.6.0-F. Crews sell. Absent: crews hold stock and only show their pace. */
+  readonly sales?: DealerSalesRules;
+}
+
+/** 1.6.0-F. Sales settle lazily, in whole intervals of server time, like upkeep. */
+export interface DealerSalesRules {
+  readonly intervalMinutes: number;
+  /** Intervals settled in one batch at most; a longer absence settles in several. */
+  readonly maxBatchIntervals: number;
+  /** Experience each unit sold earns, shared across the crew's dealers. */
+  readonly experiencePerUnit: number;
+}
+
+export interface DealerTierRules {
+  readonly key: string;
+  readonly name: string;
+  readonly minExperience: number;
+  /** The dealer's share of what he sells, in percent. */
+  readonly cutPercent: number;
+  /** Extra pace over a new dealer, as a share. */
+  readonly paceBonus: number;
+}
+
+/**
+ * 1.6.0-D. Properties give the network places to be. A warehouse holds supply in a city; a
+ * safehouse is a foothold there. Neither makes product or money: both cost a price up front
+ * and upkeep every period after.
+ */
+export interface SupplyPropertyRules {
+  /** Warehouses a player can hold at once, besides the home stash. */
+  readonly maxWarehouses: number;
+  /** Safehouses a player can hold at once. The home city never needs one. */
+  readonly maxSafehouses: number;
+  /** How often upkeep falls due. The purchase pays the first period. */
+  readonly upkeepPeriodHours: number;
+  /** What each city charges. A city missing here sells neither. */
+  readonly cities: Readonly<Record<string, SupplyCityPropertyRules>>;
+}
+
+export interface SupplyCityPropertyRules {
+  readonly warehouse: { readonly costCents: number; readonly upkeepCents: number; readonly capacityUnits: number };
+  readonly safehouse: { readonly costCents: number; readonly upkeepCents: number };
+}
+
+/**
+ * 1.6.0-C. A pickup is a run that drives to the supplier, loads part of a paid order, and
+ * brings it home through the road's usual risks. Delivered units land in the home stash.
+ */
+export interface SupplyPickupRules {
+  /** Units the home stash holds, counting loads still on the road. 1.6.0-D adds warehouses. */
+  readonly homeStashUnits: number;
+  /** Turns a pickup from a supplier in the player's own city costs: no road, straight to the stash. */
+  readonly localPickupTurns: number;
+  /** 1.6.0-F. Stock moves between warehouses by run, like a pickup. Absent: it stays where it landed. */
+  readonly shipments?: boolean;
+}
+
+export interface SupplySupplierRules {
+  readonly key: string;
+  readonly name: string;
+  readonly citySlug: string;
+  readonly description: string;
+  readonly offers: Readonly<Record<string, SupplyOfferRules>>;
+}
+
+export interface SupplyOfferRules {
+  readonly unitCostCents: number;
+  readonly minOrderQuantity: number;
+  readonly maxOrderQuantity: number;
+  readonly stockPerRound: number;
 }

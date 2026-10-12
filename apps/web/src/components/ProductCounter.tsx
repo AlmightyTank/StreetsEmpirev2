@@ -9,6 +9,7 @@ import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { ShelfArt } from './ItemTile.js';
 import { Panel } from './Panel.js';
+import { AccessBadge, ProductRecipeNote } from './ProductAccess.js';
 import { QuantitySteps } from './QuantitySteps.js';
 import { QuestLockNote } from './QuestLink.js';
 
@@ -175,6 +176,18 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
         </div>
       </div>
       <MarketBadges market={pip.market} />
+      {/* Quest Recipe Unlocks D: buying here and cooking it are separate permissions. */}
+      <div className="se-access-badges">
+        <AccessBadge label="Buy" access={pip.purchaseUnlocked ? { state: 'open' } : { state: 'locked', unlockName: pip.unlockName ?? product.name, quest: pip.unlockQuest ?? null }} />
+        <AccessBadge
+          label="Cook"
+          access={!product.recipe
+            ? { state: 'none' }
+            : product.recipeAccess?.unlocked === false
+              ? { state: 'locked', unlockName: product.recipeAccess.unlockName, quest: product.recipeAccess.unlockQuest }
+              : { state: 'open' }}
+        />
+      </div>
       <p className="se-hint">{product.blurb}</p>
       {!pip.purchaseUnlocked ? (
         <div className="se-store-favor">
@@ -185,6 +198,7 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
           <QuestLockNote unlockName={pip.unlockName ?? `${product.name} purchases`} quest={pip.unlockQuest} after="You can still sell stock you already own." />
         </div>
       ) : null}
+      <ProductRecipeNote product={product} />
       <ShelfLine pip={pip} name={product.name} onArrival={onDone} />
       <form onSubmit={submit}>
         <div className="se-store-order">

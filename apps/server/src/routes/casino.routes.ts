@@ -19,6 +19,7 @@ import {
   casinoPokerTableActionSchema,
   casinoPokerTableStartSchema,
   casinoPokerTablePlaySchema,
+  sportsbookBetSchema,
 } from '@streets/shared';
 import { BlackjackService } from '../services/blackjack.service.js';
 import { CasinoService } from '../services/casino.service.js';
@@ -28,8 +29,10 @@ import { CasinoPokerService } from '../services/casino-poker.service.js';
 import { CasinoTournamentsService } from '../services/casino-tournaments.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
+import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
+import { SportsbookService } from '../services/sportsbook.service.js';
 
 const casinoRoutes: FastifyPluginAsync = async (fastify) => {
   async function requirePlayer(accountId: string) {
@@ -42,6 +45,22 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', { preHandler: fastify.requireAuth }, async (request) => {
     const player = await requirePlayer(request.auth!.account.id);
     return CasinoService.page(fastify.prisma, player.id);
+  });
+
+  fastify.get('/sportsbook', { preHandler: fastify.requireAuth }, async (request) => {
+    const player = await requirePlayer(request.auth!.account.id);
+    const [board, tickets, limits] = await Promise.all([
+      SportsbookService.board(fastify.prisma, { configured: Boolean(env.THERUNDOWN_API_KEY), pollMinutes: env.SPORTSBOOK_POLL_MINUTES }),
+      SportsbookService.tickets(fastify.prisma, player.id),
+      SportsbookService.limits(fastify.prisma, player.id),
+    ]);
+    return { ...board, tickets, limits };
+  });
+
+  fastify.post('/sportsbook/bets', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(sportsbookBetSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    return SportsbookService.placeBet(fastify.prisma, player.id, input);
   });
 
   fastify.get('/tournaments', { preHandler: fastify.requireAuth }, async (request) => {

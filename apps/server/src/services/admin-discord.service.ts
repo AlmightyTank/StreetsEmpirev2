@@ -20,7 +20,13 @@ export const AdminDiscordService = {
       prisma.raidBattle.findFirst({ where: { discordPostedAt: null, voidedAt: null }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } }),
       prisma.notificationOutbox.count({ where: { channel: 'DISCORD', claimedAt: null } }),
       prisma.notificationOutbox.findFirst({ where: { channel: 'DISCORD', claimedAt: null }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } }),
-      prisma.round.count({ where: { discordEndedAt: null, status: { in: ['ENDED', 'ARCHIVED'] } } }),
+      prisma.round.count({
+        where: {
+          discordEndedAt: null,
+          status: { in: ['ENDED', 'ARCHIVED'] },
+          aftermathReport: { is: { status: 'READY' } },
+        },
+      }),
       prisma.discordResyncRequest.count({ where: { claimedAt: null } }),
       prisma.discordResyncRequest.findMany({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 10 }),
       prisma.account.count({ where: { discordId: { not: null }, isActive: true } }),

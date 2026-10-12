@@ -15,3 +15,7 @@ coverage/
 .deploy/
 ui-audit/
 email-previews/
+/.runtime/
+/.agents/
+/.opencode/
+/skills-lock.json

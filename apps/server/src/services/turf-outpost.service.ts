@@ -17,10 +17,12 @@ import type {
   RunOutpostTransferResult,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { readVehicleLoadout } from './vehicle-fleet.service.js';
 import { ActionService, assertTurns } from './action.service.js';
 import { productKeys } from './product-inventory.service.js';
 import { RUN_INCLUDE, cargoOf, toStopPlans, totalAwayWorth, type LoadedRun } from './run-settle.service.js';
+import { assertNotSupplyRun } from './supply-pickup-settle.service.js';
 import {
   TurfService,
   cornerGunWorthCents,
@@ -92,6 +94,8 @@ async function activeRunInTown(tx: any, roundPlayerId: string, ruleset: Ruleset,
     ? await tx.run.findUnique({ where: { id: runId }, include: RUN_INCLUDE })
     : await tx.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, include: RUN_INCLUDE, orderBy: [{ launchedAt: 'asc' }, { id: 'asc' }] });
   if (!run || run.roundPlayerId !== roundPlayerId || run.status !== 'ACTIVE') throw AppError.conflict('NO_RUN', 'That active run is not available.');
+  // 1.6.0-C: a pickup run's trunk is a paid supply load, not outpost stock.
+  await assertNotSupplyRun(tx, run.id);
   const position = runPosition(ruleset, toStopPlans(run.stops), now);
   if (position.phase !== 'town') {
     throw AppError.conflict('NOT_IN_TOWN', position.phase === 'road' ? 'The run is still on the road.' : 'The run is already home.');
@@ -131,6 +135,7 @@ export const TurfOutpostService = {
 
         const city = await tx.city.findUniqueOrThrow({ where: { slug: citySlug } });
         const key = input.district as DistrictKey;
+        await PermanentUnlockService.assertCanAccessDistrict(tx, roundPlayerId, ruleset, key);
         if (!ruleset.turf!.districts[key]) throw AppError.badRequest('UNKNOWN_DISTRICT', 'That is not a turf block.');
 
         const block = await tx.turf.findUnique({

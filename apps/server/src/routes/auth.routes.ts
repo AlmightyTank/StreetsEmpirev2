@@ -20,6 +20,7 @@ import { matchKey } from '../services/admin-signals.service.js';
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { sendCurrentEmailVerification, sendEmailChangeVerification, sendPasswordResetEmail, sendTwoFactorNotice } from '../services/email.service.js';
+import { SupporterBillingService } from '../services/supporter-billing.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -1031,7 +1032,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   /** rc.5. The player deletes their own account (anonymized if they played a season). */
   fastify.post('/account/delete', { preHandler: fastify.requireAuth }, async (request, reply) => {
     const body = parseBody(deleteAccountSchema, request.body ?? {});
+    const subscription = await SupporterBillingService.subscriptionToCancel(fastify.prisma, request.auth!.account.id);
     const result = await AccountDataService.deleteSelf(fastify.prisma, request.auth!.account, request.auth!.session, body.currentPassword);
+    // A deleted account must not keep being billed.
+    await SupporterBillingService.cancelAfterErasure(subscription, request.log);
     fastify.clearSessionCookie(reply);
     return {
       ok: true,

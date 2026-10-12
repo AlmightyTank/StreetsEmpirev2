@@ -128,6 +128,11 @@ export const api = {
       method: 'PUT',
       body: payload === undefined ? undefined : JSON.stringify(payload),
     }),
+  patch: <T>(path: string, payload?: unknown) =>
+    request<T>(path, {
+      method: 'PATCH',
+      body: payload === undefined ? undefined : JSON.stringify(payload),
+    }),
   delete: <T>(path: string, payload?: unknown) =>
     request<T>(path, {
       method: 'DELETE',

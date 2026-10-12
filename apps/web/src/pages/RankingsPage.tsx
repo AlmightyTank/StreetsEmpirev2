@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate } from 'react-router-dom';
 import type { AllianceRankingsDto, RankingEntryDto, RankingsDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
@@ -14,6 +15,7 @@ import { useSession } from '../stores/session.js';
 import { AllianceRankingTable } from './AlliancesPage.js';
 import { formatElapsed, formatWhen } from '../utils/time.js';
 import { HallOfFamePage } from './HallOfFamePage.js';
+import { roundAftermathPublicEnabled } from '../config/features.js';
 
 type RankingView = 'national' | 'local' | 'alliances' | 'turf-crews' | 'turf-alliances';
 
@@ -181,7 +183,10 @@ export function RankingsPage() {
   const [data, setData] = useState<RankingsDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [alliances, setAlliances] = useState<AllianceRankingsDto | null>(null);
-  const [view, setView] = useState<RankingView>('national');
+  const [latestEndedRound, setLatestEndedRound] = useState<{ id: string; name: string } | null>(null);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [view, setView] = useRememberedState<RankingView>(rememberedKey('rankings.view', me?.id), 'national',
+    { accept: (value): value is RankingView => value === 'national' || value === 'local' || value === 'alliances' || value === 'turf-crews' || value === 'turf-alliances' });
 
   useEffect(() => {
     communityApi.rankings()
@@ -190,6 +195,9 @@ export function RankingsPage() {
         setError(caught instanceof ApiError ? caught.message : 'Could not load the rankings.');
       });
     allianceApi.rankings().then(setAlliances).catch(() => setAlliances(null));
+      communityApi.hallOfFame()
+        .then((archive) => setLatestEndedRound(archive.rounds[0] ? { id: archive.rounds[0].id, name: archive.rounds[0].name } : null))
+        .catch((caught: unknown) => setArchiveError(caught instanceof ApiError ? caught.message : 'Past round reports are temporarily unavailable.'));
   }, []);
 
   useEffect(() => {
@@ -230,6 +238,16 @@ export function RankingsPage() {
             <span className="se-eyebrow">Live round ledger</span>
             <h1>Rankings</h1>
             <p>See where your crew stands, who is moving, and who has held the street long enough to own the current board.</p>
+            {roundAftermathPublicEnabled ? <div className="se-rankings-archive-link">
+              {latestEndedRound ? (
+                <Link to={`/game/rounds/${encodeURIComponent(latestEndedRound.id)}/aftermath?view=records`}>
+                  Open {latestEndedRound.name} records & awards <span aria-hidden="true">→</span>
+                </Link>
+              ) : (
+                <Link to="/game/hall-of-fame">Browse finished rounds <span aria-hidden="true">→</span></Link>
+              )}
+              {archiveError ? <span role="status">{archiveError}</span> : null}
+            </div> : null}
           </div>
         </header>
 
@@ -391,6 +409,7 @@ export function RankingsPage() {
         ) : null}
       </div>
       <section id="hall-of-fame" className="se-mt">
+        {roundAftermathPublicEnabled ? <Link className="se-aftermath-archive-link" to="/game/round-archive">Browse and compare archived round reports <span aria-hidden="true">→</span></Link> : null}
         <HallOfFamePage />
       </section>
     </GameLayout>

@@ -8,6 +8,7 @@ import {
   marketView,
   productEconomy,
   productRecipes,
+  recipeLadder,
   restockIntervalFor,
   settleProductShelf,
   StoreTradeError,
@@ -243,6 +244,7 @@ export const ProductMarketService = {
     const inventory = await ProductInventoryService.read(prisma, roundPlayerId, ruleset);
     const shelves = await prisma.productShelf.findMany({ where: { roundPlayerId }, select: { productKey: true, stock: true, stockAt: true } });
     const recipes = new Map(productRecipes(ruleset).map((recipe) => [recipe.product, recipe]));
+    const ladder = recipeLadder(ruleset).map((rung) => rung.product);
     const economyOn = Boolean(ruleset.productEconomy);
     const unlockKeys = await PermanentUnlockService.keys(prisma, roundPlayerId);
     const favorBonuses = await TimedFavorService.bonuses(prisma, roundPlayerId, ruleset, now);
@@ -268,6 +270,7 @@ export const ProductMarketService = {
         const recipe = economyOn ? recipes.get(key) : undefined;
         const requiredUnlock = PermanentUnlockService.productPurchaseUnlock(ruleset, key);
         const purchaseUnlocked = !requiredUnlock || unlockKeys.has(requiredUnlock.key);
+        const recipeUnlock = PermanentUnlockService.productProductionUnlock(ruleset, key);
         const effectiveBuyCents = quote
           ? discountedPipBuyCents(quote.buyCents, sellCents, relationship.buyDiscountPercent + favorBonuses.pipBuyDiscountPercent + (nudge?.percent ?? 0))
           : 0;
@@ -305,7 +308,22 @@ export const ProductMarketService = {
               unlockDescription: requiredUnlock?.description ?? null,
               unlockQuest: requiredUnlock ? PermanentUnlockService.questFor(ruleset, requiredUnlock.key) : null,
             } : null,
-            recipe: recipe ? { perThugPerTurn: recipe.perThugPerTurn, ingredientCentsPerUnit: recipe.ingredientCentsPerUnit, heatPerUnit: recipe.heatPerUnit } : null,
+            recipe: recipe ? {
+              perThugPerTurn: recipe.perThugPerTurn,
+              ingredientCentsPerUnit: recipe.ingredientCentsPerUnit,
+              heatPerUnit: recipe.heatPerUnit,
+              ...(definition.recipeIdentity ? { identity: definition.recipeIdentity } : {}),
+            } : null,
+          } : {}),
+          ...(recipeUnlock ? {
+            recipeAccess: {
+              unlocked: unlockKeys.has(recipeUnlock.key),
+              unlockName: recipeUnlock.name,
+              unlockDescription: recipeUnlock.description,
+              unlockQuest: PermanentUnlockService.questFor(ruleset, recipeUnlock.key),
+              // Quest Recipe Unlocks D: where this recipe sits on the ladder, so locked ones read in order.
+              ...(ladder.includes(key) ? { step: ladder.indexOf(key) + 1, steps: ladder.length } : {}),
+            },
           } : {}),
         };
       }),

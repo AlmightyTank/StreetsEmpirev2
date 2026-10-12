@@ -1,11 +1,71 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import type { Round } from '@prisma/client';
 import { classicOgV01 } from '@streets/rulesets';
-import { finalStandingRanks, RoundService } from '../round.service.js';
+import { assertJoinable, finalStandingRanks, isJoinable, RoundService } from '../round.service.js';
+import { ROUND_AFTERMATH_SCHEMA_VERSION, ROUND_AFTERMATH_SOURCE_REVISION } from '../round-aftermath.service.js';
 import { TurfWarSettlementService } from '../turf-war-settle.service.js';
 
 afterEach(() => vi.restoreAllMocks());
+
+function round(overrides: Partial<Round> = {}): Round {
+  return {
+    id: 'round-1',
+    name: 'Current game',
+    slug: 'current-game',
+    rulesetId: classicOgV01.meta.id,
+    rulesetVersion: classicOgV01.meta.version,
+    streetPassOverride: null,
+    status: 'ACTIVE',
+    startsAt: new Date('2026-10-01T00:00:00.000Z'),
+    endsAt: new Date('2026-11-01T00:00:00.000Z'),
+    pausedAt: null,
+    pauseReason: null,
+    pausedByUsername: null,
+    pausedMinutesTotal: 0,
+    registrationOpensAt: null,
+    alertsOpenedAt: null,
+    alertsEndingSoonAt: null,
+    alertsEndedAt: null,
+    discordEndedAt: null,
+    discordEndedClaimedAt: null,
+    discordEndedMessageId: null,
+    discordEndedError: null,
+    nextPublicPimpId: 1000,
+    createdAt: new Date('2026-10-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-10-01T00:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+describe('round joining', () => {
+  const now = new Date('2026-10-11T12:00:00.000Z');
+
+  it.each(['REGISTRATION', 'ACTIVE'] as const)('always allows entry to a current %s round', (status) => {
+    const current = round({
+      status,
+      registrationOpensAt: new Date('2026-10-20T00:00:00.000Z'),
+    });
+
+    expect(isJoinable(current, now)).toBe(true);
+    expect(() => assertJoinable(current, now)).not.toThrow();
+  });
+
+  it.each(['SCHEDULED', 'ENDED', 'ARCHIVED'] as const)('does not allow entry to a %s round', (status) => {
+    const unavailable = round({ status });
+
+    expect(isJoinable(unavailable, now)).toBe(false);
+    expect(() => assertJoinable(unavailable, now)).toThrow();
+  });
+
+  it('does not allow entry after the round end time', () => {
+    const expired = round({ endsAt: now });
+
+    expect(isJoinable(expired, now)).toBe(false);
+    expect(() => assertJoinable(expired, now)).toThrow();
+  });
+});
 
 describe('RoundService turf clock ordering', () => {
   it('settles the round/crackdown before the minute turf-war sweep', async () => {
@@ -29,6 +89,7 @@ describe('finalStandingRanks', () => {
       { id: 'c', cityId: 'detroit', netWorthCents: 400n, localRank: null, nationalRank: null, account: { isActive: true } },
       { id: 'd', cityId: 'nyc', netWorthCents: 300n, localRank: null, nationalRank: null, account: { isActive: true } },
       { id: 'inactive', cityId: 'detroit', netWorthCents: 999n, localRank: 1, nationalRank: 1, account: { isActive: false } },
+      { id: 'npc', cityId: 'nyc', netWorthCents: 999n, localRank: 1, nationalRank: 1, account: { isActive: true }, npcGang: { id: 'gang-1' } },
     ]);
 
     expect(Object.fromEntries(ranks)).toEqual({
@@ -37,6 +98,7 @@ describe('finalStandingRanks', () => {
       c: { localRank: 1, nationalRank: 2 },
       d: { localRank: 3, nationalRank: 4 },
       inactive: { localRank: null, nationalRank: null },
+      npc: { localRank: null, nationalRank: null },
     });
   });
 });
@@ -134,6 +196,52 @@ describe.runIf(process.env.ROUND_INTEGRATION === '1')('RoundService season end w
       [9102, 2, 2],
     ]);
     expect(players[0]!.netWorthCents).toBeGreaterThan(players[1]!.netWorthCents);
+
+    const aftermath = await app.prisma.roundAftermathReport.findUniqueOrThrow({ where: { roundId: round.id } });
+    expect(aftermath).toMatchObject({
+      status: 'READY',
+      schemaVersion: ROUND_AFTERMATH_SCHEMA_VERSION,
+      sourceRevision: ROUND_AFTERMATH_SOURCE_REVISION,
+      cutoffAt: round.endsAt,
+    });
+    const snapshotPlayers = aftermath.playerAggregates as Array<{ roundPlayerId: string; nationalRank: number | null; netWorthCents: string }>;
+    expect(snapshotPlayers.map((player) => [player.roundPlayerId, player.nationalRank, player.netWorthCents])).toEqual(
+      players.map((player) => [player.id, player.nationalRank, player.netWorthCents.toString()]),
+    );
+    const beforeRetry = aftermath;
+    await RoundService.closeIfExpired(app.prisma, round.id, now);
+    expect(await app.prisma.roundAftermathReport.findUniqueOrThrow({ where: { roundId: round.id } })).toEqual(beforeRetry);
+  });
+
+  it('freezes an empty paused round at the explicit early-close cutoff', async () => {
+    const now = new Date('2026-09-20T12:00:00.000Z');
+    const round = await app.prisma.round.create({
+      data: {
+        slug: `round-early-${randomUUID()}`,
+        name: 'Paused Early Close Test',
+        rulesetId: classicOgV01.meta.id,
+        rulesetVersion: classicOgV01.meta.version,
+        status: 'ACTIVE',
+        startsAt: new Date('2026-09-01T12:00:00.000Z'),
+        endsAt: new Date('2026-10-01T12:00:00.000Z'),
+        pausedAt: new Date('2026-09-19T12:00:00.000Z'),
+      },
+    });
+    roundIds.push(round.id);
+
+    try {
+      await RoundService.closeRoundAt(app.prisma, round.id, now);
+      const aftermath = await app.prisma.roundAftermathReport.findUniqueOrThrow({ where: { roundId: round.id } });
+      expect(aftermath).toMatchObject({ status: 'READY', cutoffAt: now });
+      expect(aftermath.globalAggregate).toMatchObject({ participants: 0, eligibleCompetitors: 0, citiesInRound: 0, finalNetWorthCents: '0' });
+      expect(aftermath.categoryRecords).toMatchObject({
+        wealth: { status: 'NOT_RECORDED' },
+        crew: { status: 'NOT_RECORDED' },
+      });
+    } finally {
+      await app.prisma.round.delete({ where: { id: round.id } });
+      roundIds = roundIds.filter((id) => id !== round.id);
+    }
   });
 
   it('closes older active rounds when a newer active season supersedes them', async () => {
@@ -167,6 +275,9 @@ describe.runIf(process.env.ROUND_INTEGRATION === '1')('RoundService season end w
       // It ended when the newer season started, not on the date it was scheduled for.
       expect(ended.endsAt).toEqual(newer.startsAt);
       expect((await app.prisma.round.findUniqueOrThrow({ where: { id: newer.id } })).status).toBe('ACTIVE');
+      const aftermath = await app.prisma.roundAftermathReport.findUniqueOrThrow({ where: { roundId: older.id } });
+      expect(aftermath).toMatchObject({ status: 'READY', cutoffAt: newer.startsAt });
+      expect(aftermath.globalAggregate).toMatchObject({ participants: 0, eligibleCompetitors: 0, citiesInRound: 0, finalNetWorthCents: '0' });
     } finally {
       await app.prisma.round.deleteMany({ where: { id: { in: [older.id, newer.id] } } });
       roundIds = roundIds.filter((id) => id !== older.id && id !== newer.id);

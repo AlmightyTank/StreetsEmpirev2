@@ -49,6 +49,12 @@ run('Law balance bands', npm, ['run', 'qa:law', '--', '--quiet']);
 run('Faction balance and audit gates', npm, ['run', 'qa:factions', '--', '--quiet']);
 // 1.5.0-E: every vehicle class a reasonable pick somewhere, none a must-have, and the garage a cost, not a tax.
 run('Vehicle balance gates', npm, ['run', 'qa:vehicles', '--', '--quiet']);
+// 1.8.6-I: assignment totals and the diminishing returns on corner staffing stay bounded.
+run('Crew staffing balance gates', npm, ['run', 'qa:crew-staffing']);
+// 1.6.5-G: affordability, debt/fee ceilings, capped collections, recovery, and pinned history.
+run('Loan Shark balance gates', npm, ['run', 'qa:loans', '--', '--quiet']);
+// 1.8.0-D/E: sportsbook limits keep any betting style's best rounds well short of a leaderboard jump.
+run('Sportsbook limit gates', npm, ['run', 'qa:sportsbook']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup
@@ -85,6 +91,10 @@ if (withDb) {
     // corrections, integrations, suspensions and round operations; password recovery.
     ADMIN_INTEGRATION: '1',
     AUTH_INTEGRATION: '1',
+    // 1.6.5-G: installments, collections, pause protection, recovery, reconciliation and admin audit.
+    LOAN_INTEGRATION: '1',
+    // 1.7.0-A: crew roster migration, retries, dealer careers and members in step with counts.
+    CREW_INTEGRATION: '1',
   });
   // 1.0.0-H: the Discord bot API, verified forum links and phone alerts only exist with their
   // secrets set, so they run on their own with throwaway ones generated here.

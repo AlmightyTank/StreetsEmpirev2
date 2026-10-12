@@ -28,8 +28,10 @@ import { ConvoyService } from './convoy.service.js';
 import { HighMarketService } from './high-market.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { CRACK, productKeys } from './product-inventory.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
 import { hasVehicleDamage, readVehicleDamage, readVehicleLoadout, vehicleDamageJson } from './vehicle-fleet.service.js';
+import { deliverSupplyPickups, settleSupplyStops, supplyLoadsByRun, withoutSupplyLoad } from './supply-pickup-settle.service.js';
 
 export const RUN_INCLUDE = {
   stops: { orderBy: { order: 'asc' } },
@@ -89,7 +91,9 @@ export async function totalAwayWorth(tx: Db, roundPlayerId: string, ruleset: Rul
     activeRuns(tx, roundPlayerId),
     tx.bossTrip.findMany({ where: { roundPlayerId, status: 'ACTIVE' }, select: { bankrollCents: true, bodyguards: true } }),
   ]);
-  return runs.reduce((sum, run) => sum + awayWorth(ruleset, run, cargoOf(run)), 0n)
+  // 1.6.0-C: a supply load on the road is paid stock, not away worth.
+  const loads = ruleset.supplyNetwork?.pickups ? await supplyLoadsByRun(tx, runs.map((run) => run.id)) : new Map();
+  return runs.reduce((sum, run) => sum + awayWorth(ruleset, run, withoutSupplyLoad(cargoOf(run), loads.get(run.id))), 0n)
     + trips.reduce((sum, trip) => sum + tripNetWorthCents(ruleset, trip.bankrollCents, trip.bodyguards), 0n);
 }
 
@@ -181,14 +185,15 @@ export async function takeFromRun(
  * what the trunk held when it drove it: every trade needs the run in town, and every
  * action settles the run first, so a leg is always rolled before the next town's trades.
  */
-async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: LoadedRun, stops: readonly RunStopPlan[], now: Date): Promise<LoadedRun> {
+async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: LoadedRun, stops: readonly RunStopPlan[], now: Date, legs = stops.length): Promise<LoadedRun> {
   if (!ruleset.travel?.stops) return run;
   let current = run;
   let checks = run.roadChecks;
+  const last = Math.min(legs, stops.length);
   const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { heat: true, racketEffects: true } });
   // 1.1.0-C: an Auto Garage on Run mods means fewer stops, read when each leg is rolled.
   const stopCut = racketRunStopCut(ruleset, readRacketEffects(player.racketEffects));
-  while (checks < stops.length && stops[checks]!.arriveAt.getTime() <= now.getTime()) {
+  while (checks < last && stops[checks]!.arriveAt.getTime() <= now.getTime()) {
     const stop = stops[checks]!;
     const stopped = resolveRoadStop(ruleset, {
       route: stop.route,
@@ -198,7 +203,7 @@ async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, ru
       heat: player.heat,
       rng: seededRng(hashParts(run.id, 'road-stop', checks)),
       stopCut,
-      riskMultiplier: vehicleRiskMultiplier(ruleset, readVehicleLoadout(current.vehicleLoadout, current.lowRiders)),
+      riskMultiplier: vehicleRiskMultiplier(ruleset, readVehicleLoadout(current.vehicleLoadout, current.lowRiders)) * Math.max(0.5, 1 - (current.wheelmanBonusPercent ?? 0) / 100),
     });
     checks++;
     if (!stopped.stopped) continue;
@@ -318,12 +323,15 @@ export async function refundHotelAfter(tx: Db, roundPlayerId: string, ruleset: R
  * counted at the same values while it was away.
  */
 async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: LoadedRun, stops: readonly RunStopPlan[]): Promise<void> {
-  const cargo = cargoOf(run);
   const vehicles = readVehicleLoadout(run.vehicleLoadout, run.lowRiders);
   // 1.5.0-C: cars the road dented or the police kept come home to the garage, not the lot.
   const damage = readVehicleDamage(run.vehicleDamage, vehicles);
   const ready = (key: keyof typeof vehicles) => vehicles[key] - damage.damaged[key] - damage.disabled[key];
   const returnedAt = stops[stops.length - 1]!.arriveAt;
+  // 1.6.0-C: a supply load goes into storage; only the rest of the trunk is home stock.
+  const { cargo, deliveries } = ruleset.supplyNetwork?.pickups
+    ? await deliverSupplyPickups(tx, roundPlayerId, ruleset, run, cargoOf(run), returnedAt)
+    : { cargo: cargoOf(run), deliveries: [] };
   for (const [key, quantity] of Object.entries(cargo)) {
     if (quantity <= 0 || key === CRACK) continue;
     await tx.playerProduct.upsert({
@@ -333,6 +341,19 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     });
   }
   await tx.run.update({ where: { id: run.id }, data: { status: 'RETURNED', returnedAt } });
+  const recovery = ruleset.combat?.wounds.recoveryMinutes ?? 0;
+  const recoverAt = run.woundedEscorts > 0 && run.lastHitAt ? new Date(run.lastHitAt.getTime() + recovery * 60_000) : null;
+  const namedEscorts = await CrewRosterService.completeTravelMembers(tx, {
+    roundPlayerId,
+    ruleset,
+    kind: 'ESCORT',
+    assignmentRef: run.id,
+    wounded: run.woundedEscorts,
+    recoverAt,
+    at: returnedAt,
+    label: 'Returned from run escort duty',
+  });
+  if (namedEscorts === 0) await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'THUG', specialty: 'WHEELMAN', at: returnedAt, label: 'Run completed' });
   const awayNetWorthCents = await totalAwayWorth(tx, roundPlayerId, ruleset);
   await tx.roundPlayer.update({
     where: { id: roundPlayerId },
@@ -359,9 +380,7 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     },
   });
   // 0.5.0-E: escorts wounded on the road come home still healing, if their wounds have not run out.
-  const recovery = ruleset.combat?.wounds.recoveryMinutes ?? 0;
-  if (run.woundedEscorts > 0 && run.lastHitAt) {
-    const recoverAt = new Date(run.lastHitAt.getTime() + recovery * 60_000);
+  if (run.woundedEscorts > 0 && recoverAt) {
     if (recoverAt > returnedAt) await CombatRecoveryService.add(tx, roundPlayerId, null, run.woundedEscorts, recoverAt);
   }
   const incidents = await tx.runIncident.findMany({ where: { runId: run.id }, orderBy: { at: 'asc' } });
@@ -377,6 +396,7 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     escortThugs: run.escortThugs,
     turnsSpent: run.turnsSpent,
     ...(run.bossAboard ? { bossAboard: true, hotelCents: Number(run.hotelCents) } : {}),
+    ...(deliveries.length ? { supplyPickups: deliveries.map((delivery) => ({ ...delivery })) } : {}),
     incidents: incidents.map((incident) => incident.kind),
   });
 }
@@ -406,9 +426,14 @@ export const RunSettleService = {
     const ruleset = loadRulesetForRound(round);
     for (const active of loaded) {
       const planned = toStopPlans(active.stops);
+      // 1.6.0-C/D: a pickup run loads at the supplier and unloads at its warehouse, so each
+      // leg is rolled on what the trunk held when it drove it.
+      const supplied = ruleset.supplyNetwork?.pickups
+        ? await settleSupplyStops(tx, roundPlayerId, ruleset, active, planned, now, (run, legs) => rollRoadStops(tx, roundPlayerId, ruleset, run, planned, now, legs))
+        : active;
       // Road stops on the way in come first; then (Trips B) the hotel, which can send
       // the run home early; then any leg that re-timing has already driven.
-      const arrived = await rollRoadStops(tx, roundPlayerId, ruleset, active, planned, now);
+      const arrived = await rollRoadStops(tx, roundPlayerId, ruleset, supplied, planned, now);
       // The hotel bills only up to the first tail due, so the tail loots the wallet as it
       // stood when it landed; the hours after are billed once the tails are in.
       const firstTail = active.bossAboard

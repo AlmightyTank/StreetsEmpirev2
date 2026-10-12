@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { FACTION_TIERS, contractStanding, factionTierName, factionTierRank, factionTierStartsAt, innerCircleLockedBy, innerCirclePreview, jobStanding as jobStandingFor, lawPriceCents } from '@streets/rules-engine';
+import { FACTION_TIERS, recipeLadder, contractStanding, factionTierName, factionTierRank, factionTierStartsAt, innerCircleLockedBy, innerCirclePreview, jobStanding as jobStandingFor, lawPriceCents } from '@streets/rules-engine';
 import {
   type ContactKey,
   contractBoard,
@@ -75,10 +75,20 @@ import {
   assertCommunityEventClaim,
   communityEventSnapshot,
   isCommunityEventDefinition,
+  recordCommunityEventClaim,
   refreshCommunityEventReadinessForPlayer,
   syncCommunityEventAttempts,
   type CommunityEventSnapshot,
 } from './community-event.service.js';
+import {
+  acceptSeasonalEvent,
+  assertSeasonalEventClaim,
+  isSeasonalEventDefinition,
+  recordSeasonalEventClaim,
+  syncSeasonalEventAttempts,
+  usesFirstClassSeasonalEvents,
+} from './seasonal-event.service.js';
+import { CityConditionService } from './city-condition.service.js';
 
 const TRACKED_LIMIT = 3;
 /** Shared-board work: not counted as a personal job and not abandonable. Personal jobs have no cap. */
@@ -635,6 +645,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   newlyAvailable.push(...await syncSeasonContractAttempts(db, roundPlayerId, ruleset));
   newlyAvailable.push(...await syncAllianceContractAttempts(db, roundPlayerId, ruleset, now));
   await syncCommunityEventAttempts(db, roundPlayerId, ruleset, now);
+  await syncSeasonalEventAttempts(db, roundPlayerId, ruleset, now);
   await refreshCommunityEventReadinessForPlayer(db, roundPlayerId, ruleset, now);
   newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
   await autoAcceptBoardWork(db, roundPlayerId, ruleset, now);
@@ -665,6 +676,13 @@ async function startQuest(db: Db, roundPlayerId: string, row: QuestRow, ruleset:
       isTracked: track,
     },
   });
+  const definition = ruleset.questDefinitions?.[row.questDefinition.key];
+  if (isSeasonalEventDefinition(definition)) {
+    const expiresAt = definition.expiresAfterMinutes
+      ? new Date(acceptedAt.getTime() + definition.expiresAfterMinutes * 60_000)
+      : null;
+    await acceptSeasonalEvent(db, roundPlayerId, ruleset, definition.key, acceptedAt, expiresAt);
+  }
   await QuestProgressService.emit(db, roundPlayerId, {
     sourceKey: `quest-accept:${row.id}:${acceptedAt.getTime()}`,
     type: 'QUEST_ACCEPTED',
@@ -872,6 +890,7 @@ export const HandcraftedQuestService = {
         where: { id: roundPlayerId },
         select: { account: { select: { profile: { select: { autoAcceptBoardWork: true } } } } },
       });
+      const cityConditions = await CityConditionService.page(tx, roundPlayerId, ruleset, now);
       return {
         // Sample immediately before the response object is built so browser clock
         // skew cannot decide when an active favor expires.
@@ -896,6 +915,7 @@ export const HandcraftedQuestService = {
           slots: seasonEnabled ? SEASON_CONTRACT_SLOTS : 0,
           resetAt: seasonEndsAt?.toISOString() ?? null,
         },
+        cityConditions,
         trackedLimit: TRACKED_LIMIT,
         autoAccept: owner?.account.profile?.autoAcceptBoardWork ?? true,
         counts: {
@@ -910,6 +930,13 @@ export const HandcraftedQuestService = {
         contacts,
         factions,
         permanentUnlocks,
+        recipeLadder: recipeLadder(ruleset).map((rung, index) => ({
+          step: index + 1,
+          questKey: rung.questKey,
+          product: rung.product,
+          productName: ruleset.products?.[rung.product]?.name ?? rung.product,
+          identity: ruleset.products?.[rung.product]?.recipeIdentity ?? null,
+        })),
         activeFavors,
         armedFavors,
         favors,
@@ -941,7 +968,9 @@ export const HandcraftedQuestService = {
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN') return;
       if (row.status !== 'AVAILABLE') throw AppError.conflict('QUEST_NOT_AVAILABLE', 'That job is not available yet.');
-      const tracked = await tx.playerQuest.count({ where: { roundPlayerId, isTracked: true } });
+      const tracked = await tx.playerQuest.count({
+        where: { roundPlayerId, isTracked: true, questDefinition: { type: { not: 'EVENT' } } },
+      });
       const acceptedAt = new Date();
       if (row.expiresAt && row.expiresAt.getTime() <= acceptedAt.getTime()) {
         throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
@@ -1018,8 +1047,10 @@ export const HandcraftedQuestService = {
       await refreshAvailability(tx, roundPlayerId, ruleset);
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (!['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)) throw AppError.conflict('QUEST_NOT_ACTIVE', 'Only active jobs can be tracked.');
-      if (tracked && !row.isTracked) {
-        const count = await tx.playerQuest.count({ where: { roundPlayerId, isTracked: true } });
+      if (tracked && !row.isTracked && row.questDefinition.type !== 'EVENT') {
+        const count = await tx.playerQuest.count({
+          where: { roundPlayerId, isTracked: true, questDefinition: { type: { not: 'EVENT' } } },
+        });
         if (count >= TRACKED_LIMIT) throw AppError.conflict('QUEST_TRACK_LIMIT', `You can only track ${TRACKED_LIMIT} jobs at once.`);
       }
       await tx.playerQuest.update({ where: { id: row.id }, data: { isTracked: tracked } });
@@ -1039,12 +1070,14 @@ export const HandcraftedQuestService = {
       action: 'QUEST_CLAIM',
       actionId: input.actionId,
       idempotencyScope: `QUEST_CLAIM:${key}`,
-      execute: async ({ tx, current, now, player }) => {
+      execute: async ({ tx, current, now, player, round }) => {
         const communityEvent = isCommunityEventDefinition(ruleset.questDefinitions?.[key]);
+        const seasonalEvent = usesFirstClassSeasonalEvents(ruleset) && isSeasonalEventDefinition(ruleset.questDefinitions?.[key]);
         if (communityEvent) {
           await syncCommunityEventAttempts(tx, roundPlayerId, ruleset, now);
           await refreshCommunityEventReadinessForPlayer(tx, roundPlayerId, ruleset, now);
         }
+        if (seasonalEvent) await syncSeasonalEventAttempts(tx, roundPlayerId, ruleset, now);
         const row = await loadQuest(tx, roundPlayerId, ruleset, key);
         if (row.expiresAt && row.expiresAt.getTime() <= now.getTime()) {
           throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
@@ -1066,6 +1099,7 @@ export const HandcraftedQuestService = {
         if (communityEvent) {
           await assertCommunityEventClaim(tx, row);
         }
+        if (seasonalEvent) await assertSeasonalEventClaim(tx, roundPlayerId, ruleset, key);
         const selectedBranch = resolveQuestBranchForClaim(
           rulesetDefinition,
           input.branchKey,
@@ -1131,6 +1165,25 @@ export const HandcraftedQuestService = {
             chosenBranch: selectedBranch?.key ?? row.chosenBranch,
           },
         });
+        if (communityEvent) {
+          await recordCommunityEventClaim(tx, row, questRewards, now);
+        }
+        if (seasonalEvent) await recordSeasonalEventClaim(tx, roundPlayerId, ruleset, key, now);
+        if (communityEvent || seasonalEvent) {
+          const parentKey = communityEvent
+            ? key
+            : ruleset.questDefinitions?.[key]?.availability.seasonalEvent?.eventKey;
+          if (parentKey) {
+            await CityConditionService.activateFollowUpsForEvent(tx, {
+              round,
+              cityId: player.cityId,
+              ruleset,
+              parentType: communityEvent ? 'COMMUNITY' : 'SEASONAL',
+              parentKey,
+              now,
+            });
+          }
+        }
         const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now);
         const dtoRewards = visibleRewards(questRewards).map((reward) => rewardDto(reward, ruleset));
 

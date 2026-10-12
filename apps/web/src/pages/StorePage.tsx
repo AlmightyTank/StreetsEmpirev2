@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate, NavLink, useParams } from 'react-router-dom';
 import { formatCents, formatNumber, type ProductsDto, type StoreCheckoutLineInput, type StoreCheckoutResult, type StoreDto, type StoreItemDto, type StoreMarketContextDto, type StoreRestockDto, type StoresDto, type StoreSpecialOrderResult, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
@@ -10,6 +11,7 @@ import { Portrait } from '../components/Portrait.js';
 import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
 import { ProductCounter } from '../components/ProductCounter.js';
+import { ProductAccessTable } from '../components/ProductAccess.js';
 import { QuestLockNote } from '../components/QuestLink.js';
 import { ShelfArt } from '../components/ItemTile.js';
 import { QuantitySteps } from '../components/QuantitySteps.js';
@@ -413,6 +415,19 @@ function StoreView({
     api.get<ProductsDto>('/game/products').then(setProducts).catch(() => setProducts(null));
   }, [slug]);
   useEffect(loadProducts, [loadProducts, reload]);
+  // Quest Recipe Unlocks D: a claimed job can open a shelf or a recipe; show it without a reload.
+  useEffect(() => {
+    if (slug !== 'pip') return;
+    const visible = () => {
+      if (document.visibilityState === 'visible') loadProducts();
+    };
+    window.addEventListener('streets:quests-changed', loadProducts);
+    document.addEventListener('visibilitychange', visible);
+    return () => {
+      window.removeEventListener('streets:quests-changed', loadProducts);
+      document.removeEventListener('visibilitychange', visible);
+    };
+  }, [slug, loadProducts]);
   const pendingStorage = browserSessionStorage();
   const pendingKey = `store:${me?.id ?? 'signed-out'}`;
 
@@ -609,6 +624,8 @@ function StoreView({
                   </div>
                   <p>{details?.note}</p>
                 </div>
+
+                {store.key === 'PIP' ? <ProductAccessTable catalog={products} /> : null}
 
                 <div className={`se-store-items se-stores-shelves${store.key === 'PIP' && catalog.productCounter ? ' se-store-items--pair' : ''}`}>
                   {store.items.map((item) => (
@@ -900,7 +917,14 @@ export function StorePage() {
   // The store counter itself remounts on each tab so its per-shelf form state
   // starts clean. The basket lives one level higher so it follows the player
   // between Corner, Tommy, Charlie, and Pip until checkout or an explicit clear.
-  const [basket, setBasket] = useState<BasketLine[]>([]);
+  // It also survives leaving the stores for a day, so a half-built order is still there.
+  // Prices on the lines are a guide; checkout charges what the shelf says then.
+  const me = useSession((s) => s.me);
+  const [basket, setBasket] = useRememberedState<BasketLine[]>(rememberedKey('store.basket', me?.id), [], {
+    accept: (value): value is BasketLine[] => Array.isArray(value)
+      && value.every((line) => line && typeof line === 'object' && typeof (line as BasketLine).key === 'string' && typeof (line as BasketLine).quantity === 'number'),
+    maxAgeMs: 24 * 3_600_000,
+  });
   function addToBasket(line: BasketLine) {
     setBasket((current) => {
       const existing = current.find((entry) => entry.key === line.key);

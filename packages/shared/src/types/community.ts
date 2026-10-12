@@ -1,7 +1,8 @@
 import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
+import type { AvatarParts } from '../avatar-builder.js';
 import type { AllianceDetailDto, AllianceTagDto } from './alliance.js';
 import type { NoticeCategory, NotificationCategory } from '../notifications.js';
-import type { ActivityDto, CityDto, PlayerExperienceDto, ProfileAccent, ProfileEffect, RoundDto, SeasonHideoutDto } from './api.js';
+import type { ActivityDto, CityDto, PlayerExperienceDto, ProfileAccent, ProfileEffect, ProfileSurface, RoundDto, SeasonHideoutDto } from './api.js';
 
 export type PublicAchievementCategory =
   | 'rank'
@@ -255,13 +256,19 @@ export interface PublicPlayerProfileDto {
     titlePlacement: 'prefix' | 'suffix';
     accent: ProfileAccent;
     frame: string | null;
+    /** Optional for compatibility with profiles serialized before avatar frames shipped. */
+    avatarFrame?: string | null;
     effect: ProfileEffect;
     imageUrl: string | null;
+    /** Built avatar, shown when there is no image. Optional for older servers. */
+    avatar?: AvatarParts | null;
     bannerUrl: string | null;
     /** Slice E. The owner's site theme, when they share it and own it. Optional for older servers. */
     siteTheme?: string | null;
     /** Display name for `siteTheme`, e.g. "Night Drive · Season 1". */
     siteThemeLabel?: string | null;
+    /** Signature Profile Card surface. Set only while the card frame is equipped. Optional for older servers. */
+    surface?: ProfileSurface | null;
   };
   /** Slice E. Null when the owner hides their look. Optional for older servers. */
   look?: ProfileLookDto | null;
@@ -595,6 +602,36 @@ export interface DiscordRoundEventDto {
   url: string;
   /** Final top 10, for "ended" only. */
   standings: DiscordRankingEntryDto[];
+  /** Frozen public report data for the retry-safe round-end post; absent on DMs. */
+  recap?: DiscordRoundRecapDto | null;
+}
+
+export interface DiscordRoundRecapDto {
+  roundId: string;
+  aftermathUrl: string;
+  participants: number | null;
+  eligibleCompetitors: number | null;
+  cities: number | null;
+  alliances: number | null;
+  finalNetWorthCents: string | null;
+  finalCrewMembers: number | null;
+  turfBlocksHeld: number | null;
+  activeBusinessesHeld: number | null;
+  crimeActionsAttempted: number | null;
+  topPlayers: Array<{
+    rank: number;
+    publicPimpId: number;
+    displayName: string;
+    city: string;
+    netWorthCents: string;
+    profileUrl: string;
+  }>;
+  champions: Array<{
+    title: string;
+    value: number | string;
+    unit: string;
+    winners: Array<{ publicPimpId: number; displayName: string }>;
+  }>;
 }
 
 /** A battle DM for the defender. */
@@ -609,8 +646,8 @@ export interface DiscordRoundAlertDto extends DiscordRoundEventDto {
 }
 
 /**
- * Everything the bot sends, each handed out once. battles and rounds feed the
- * public channels; the rest are private DMs.
+ * Player alerts and raid-feed events. The empty `rounds` field remains for older bot compatibility;
+ * public round recaps use their own delivery receipt.
  */
 export interface DiscordAlertsClaimDto {
   turns: DiscordTurnReminderDto[];

@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { RelocationService } from './relocation.service.js';
-import type { PrismaClient, Round } from '@prisma/client';
+import type { Prisma, PrismaClient, Round } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type {
@@ -24,6 +24,7 @@ import type {
   DiscordRankingEntryDto,
   DiscordRankingsDto,
   DiscordRoundEventDto,
+  DiscordRoundRecapDto,
   DiscordStatsDto,
   DiscordTerritoryEventDto,
   DiscordTurfCityDto,
@@ -32,6 +33,7 @@ import type {
   ForumGroupBadgeDto,
   PublicLegacyDto,
 } from '@streets/shared';
+import { z } from 'zod';
 import { env } from '../config/env.js';
 import { toRoundPlayerDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
@@ -43,7 +45,6 @@ import {
   battleEventDto,
   battleEventSelect,
   endedRoundsWhere,
-  finalStandings,
   NotificationService,
   roundEventDto,
 } from './notification.service.js';
@@ -147,12 +148,12 @@ type PlayerQuery = { discordId: string } | { name: string };
 async function findRoundPlayer(prisma: PrismaClient, round: Round, query: PlayerQuery): Promise<{ publicPimpId: number }> {
   if ('discordId' in query) {
     const account = await findLinkedAccount(prisma, query.discordId);
-    const player = await prisma.roundPlayer.findFirst({ where: { roundId: round.id, accountId: account.id }, select: { publicPimpId: true } });
+    const player = await prisma.roundPlayer.findFirst({ where: { roundId: round.id, accountId: account.id, npcGang: { is: null } }, select: { publicPimpId: true } });
     if (!player) throw AppError.notFound('PLAYER_NOT_IN_ROUND', `That player has not joined ${round.name} yet.`);
     return player;
   }
   const player = await prisma.roundPlayer.findFirst({
-    where: { roundId: round.id, displayName: { equals: query.name, mode: 'insensitive' }, account: { isActive: true } },
+    where: { roundId: round.id, displayName: { equals: query.name, mode: 'insensitive' }, account: { isActive: true }, npcGang: { is: null } },
     select: { publicPimpId: true },
   });
   // The name stays out of the message; the bot echoes it safely itself.
@@ -436,14 +437,162 @@ async function claimCrackdowns(prisma: PrismaClient, now: Date, limit = 25): Pro
   });
 }
 
-/** Finished rounds for the public round-end post. Opening and ending-soon news reach players as alerts only. */
+const recapPlayerSchema = z.object({
+  roundPlayerId: z.string(),
+  publicPimpId: z.number().int(),
+  displayName: z.string(),
+  cityName: z.string(),
+  eligibleCompetitor: z.boolean(),
+  nationalRank: z.number().int().nullable(),
+  netWorthCents: z.string().regex(/^-?\d+$/),
+}).passthrough();
+const recapRecordSchema = z.object({
+  status: z.string(),
+  ids: z.array(z.string()).optional(),
+  roundPlayerIds: z.array(z.string()).optional(),
+  value: z.number().int().optional(),
+  valueCents: z.string().regex(/^-?\d+$/).optional(),
+  unit: z.string().optional(),
+}).passthrough();
+
+export function roundRecapDto(roundId: string, globalValue: Prisma.JsonValue, playersValue: Prisma.JsonValue, alliancesValue: Prisma.JsonValue, recordsValue: Prisma.JsonValue): DiscordRoundRecapDto {
+  const global = z.object({
+    participants: z.number().int().nonnegative().optional(),
+    eligibleCompetitors: z.number().int().nonnegative().optional(),
+    citiesInRound: z.number().int().nonnegative().optional(),
+    finalNetWorthCents: z.string().regex(/^-?\d+$/).optional(),
+    finalCrewMembers: z.number().int().nonnegative().optional(),
+    playerHeldTurfBlocks: z.number().int().nonnegative().optional(),
+    activeBusinessesHeld: z.number().int().nonnegative().optional(),
+    crimeActions: z.number().int().nonnegative().optional(),
+  }).passthrough().parse(globalValue);
+  const players = z.array(recapPlayerSchema).parse(playersValue);
+  const alliances = z.array(z.unknown()).safeParse(alliancesValue);
+  const records = z.record(z.string(), z.unknown()).parse(recordsValue);
+  const playerById = new Map(players.map((player) => [player.roundPlayerId, player]));
+  const topPlayers = players
+    .filter((player) => player.eligibleCompetitor && player.nationalRank !== null)
+    .sort((a, b) => a.nationalRank! - b.nationalRank! || a.publicPimpId - b.publicPimpId)
+    .slice(0, 3)
+    .map((player) => ({
+      rank: player.nationalRank!,
+      publicPimpId: player.publicPimpId,
+      displayName: player.displayName,
+      city: player.cityName,
+      netWorthCents: player.netWorthCents,
+      profileUrl: playerUrl(player.publicPimpId),
+    }));
+  const awardDefinitions = [
+    { key: 'wealth', title: 'Round Champion' },
+    { key: 'wealth', title: 'Wealth King' },
+    { key: 'turf', title: 'Turf Warlord' },
+    { key: 'drugUnitsHeld', title: 'Drug Kingpin' },
+    { key: 'crew', title: 'Crew Commander' },
+    { key: 'businesses', title: 'Business Tycoon' },
+  ] as const;
+  const champions: DiscordRoundRecapDto['champions'] = [];
+  for (const definition of awardDefinitions) {
+    const parsed = recapRecordSchema.safeParse(records[definition.key]);
+    if (!parsed.success || parsed.data.status !== 'AVAILABLE') continue;
+    const record = parsed.data;
+    const value = record.valueCents ?? record.value;
+    const unit = record.valueCents ? 'cents' : record.unit;
+    if (value === undefined || !unit) continue;
+    const ids = record.roundPlayerIds ?? record.ids ?? [];
+    const winners = ids.flatMap((id) => {
+      const player = playerById.get(id);
+      return player ? [{ publicPimpId: player.publicPimpId, displayName: player.displayName }] : [];
+    });
+    if (!winners.length) continue;
+    champions.push({
+      title: definition.title,
+      value,
+      unit,
+      winners,
+    });
+  }
+  return {
+    roundId,
+    aftermathUrl: gameUrl(env.roundAftermath.publicEnabled
+      ? `/game/rounds/${encodeURIComponent(roundId)}/aftermath`
+      : '/game/hall-of-fame'),
+    participants: global.participants ?? null,
+    eligibleCompetitors: global.eligibleCompetitors ?? null,
+    cities: global.citiesInRound ?? null,
+    alliances: alliances.success ? alliances.data.length : null,
+    finalNetWorthCents: global.finalNetWorthCents ?? null,
+    finalCrewMembers: global.finalCrewMembers ?? null,
+    turfBlocksHeld: global.playerHeldTurfBlocks ?? null,
+    activeBusinessesHeld: global.activeBusinessesHeld ?? null,
+    crimeActionsAttempted: global.crimeActions ?? null,
+    topPlayers,
+    champions,
+  };
+}
+
+const ROUND_POST_LEASE_MS = 5 * 60_000;
+
+/** Public round-end posts are leased until Discord confirms delivery; stale claims are retried. */
 async function claimRoundEnds(prisma: PrismaClient, now: Date): Promise<DiscordRoundEventDto[]> {
-  const rounds = await prisma.round.findMany({ where: endedRoundsWhere('discordEndedAt', now) });
-  if (!rounds.length) return [];
-  await prisma.round.updateMany({ where: { id: { in: rounds.map((round) => round.id) }, discordEndedAt: null }, data: { discordEndedAt: now } });
+  const leaseExpiredAt = new Date(now.getTime() - ROUND_POST_LEASE_MS);
+  const rounds = await prisma.round.findMany({
+    where: {
+      AND: [
+        endedRoundsWhere('discordEndedAt', now),
+        { aftermathReport: { is: { status: 'READY' } } },
+        {
+          OR: [
+            { discordEndedClaimedAt: null },
+            { discordEndedClaimedAt: { lte: leaseExpiredAt } },
+          ],
+        },
+      ],
+    },
+    include: { aftermathReport: { select: { globalAggregate: true, playerAggregates: true, allianceAggregate: true, categoryRecords: true } } },
+    orderBy: { endsAt: 'asc' },
+    take: 5,
+  });
   const events: DiscordRoundEventDto[] = [];
-  for (const round of rounds) events.push(roundEventDto('ended', round, (await finalStandings(prisma, round.id)).top));
+  for (const round of rounds) {
+    if (!round.aftermathReport) continue;
+    const recap = roundRecapDto(
+      round.id,
+      round.aftermathReport.globalAggregate,
+      round.aftermathReport.playerAggregates,
+      round.aftermathReport.allianceAggregate,
+      round.aftermathReport.categoryRecords,
+    );
+    const claimed = await prisma.round.updateMany({
+      where: {
+        id: round.id,
+        discordEndedAt: null,
+        OR: [
+          { discordEndedClaimedAt: null },
+          { discordEndedClaimedAt: { lte: leaseExpiredAt } },
+        ],
+      },
+      data: { discordEndedClaimedAt: now, discordEndedError: null },
+    });
+    if (claimed.count !== 1) continue;
+    events.push({ ...roundEventDto('ended', round), recap });
+  }
   return events;
+}
+
+async function roundPostPosted(prisma: PrismaClient, roundId: string, messageId: string): Promise<void> {
+  const updated = await prisma.round.updateMany({
+    where: { id: roundId, discordEndedAt: null, discordEndedClaimedAt: { not: null } },
+    data: { discordEndedAt: new Date(), discordEndedClaimedAt: null, discordEndedMessageId: messageId, discordEndedError: null },
+  });
+  if (updated.count !== 1) throw AppError.notFound('ROUND_POST_NOT_CLAIMED', 'That round-end post is not currently claimed.');
+}
+
+async function roundPostFailed(prisma: PrismaClient, roundId: string, error: string): Promise<void> {
+  const updated = await prisma.round.updateMany({
+    where: { id: roundId, discordEndedAt: null, discordEndedClaimedAt: { not: null } },
+    data: { discordEndedClaimedAt: new Date(), discordEndedError: error.slice(0, 500) },
+  });
+  if (updated.count !== 1) throw AppError.notFound('ROUND_POST_NOT_CLAIMED', 'That round-end post is not currently claimed.');
 }
 
 export const DiscordBotService = {
@@ -458,7 +607,7 @@ export const DiscordBotService = {
     const [standings, legacyByAccount, forumGroups] = await Promise.all([
       round
         ? prisma.roundPlayer.findMany({
-          where: { roundId: round.id, account: { isActive: true } },
+          where: { roundId: round.id, account: { isActive: true }, npcGang: { is: null } },
           select: { accountId: true, netWorthCents: true, alliance: { select: { tag: true, disbandedAt: true } } },
           orderBy: { netWorthCents: 'desc' },
         })
@@ -713,7 +862,7 @@ export const DiscordBotService = {
     if (!round) return { round: null, city: null, entries: [] };
 
     const rows = await prisma.roundPlayer.findMany({
-      where: { roundId: round.id, account: { isActive: true } },
+      where: { roundId: round.id, account: { isActive: true }, npcGang: { is: null } },
       orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
       take: limit,
       select: { publicPimpId: true, displayName: true, netWorthCents: true, dailyStartingNationalRank: true, city: { select: { name: true } } },
@@ -746,7 +895,7 @@ export const DiscordBotService = {
 
     await RelocationService.settleDue(prisma, round.id, new Date());
     const rows = await prisma.roundPlayer.findMany({
-      where: { roundId: round.id, cityId: city.id, account: { isActive: true } },
+      where: { roundId: round.id, cityId: city.id, account: { isActive: true }, npcGang: { is: null } },
       orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
       take: limit,
       select: { publicPimpId: true, displayName: true, netWorthCents: true, dailyStartingLocalRank: true },
@@ -765,7 +914,7 @@ export const DiscordBotService = {
     if (!round) return { round: null, stat, label: definition.label, entries: [] };
 
     const players = await prisma.roundPlayer.findMany({
-      where: { roundId: round.id, account: { isActive: true } },
+      where: { roundId: round.id, account: { isActive: true }, npcGang: { is: null } },
       select: { id: true, accountId: true, publicPimpId: true, displayName: true, city: { select: { name: true } } },
     });
     const contexts = await loadPublicContexts(prisma, round.id, players);
@@ -800,7 +949,7 @@ export const DiscordBotService = {
         name: true,
         endsAt: true,
         players: {
-          where: { nationalRank: { not: null, lte: podiumSize }, account: { isActive: true } },
+          where: { nationalRank: { not: null, lte: podiumSize }, account: { isActive: true }, npcGang: { is: null } },
           orderBy: [{ nationalRank: 'asc' }, { netWorthCents: 'desc' }],
           select: { nationalRank: true, displayName: true, netWorthCents: true, city: { select: { name: true } } },
         },
@@ -827,7 +976,7 @@ export const DiscordBotService = {
       accountId = (await findLinkedAccount(prisma, query.discordId)).id;
     } else {
       const named = await prisma.roundPlayer.findFirst({
-        where: { displayName: { equals: query.name, mode: 'insensitive' }, account: { isActive: true } },
+        where: { displayName: { equals: query.name, mode: 'insensitive' }, account: { isActive: true }, npcGang: { is: null } },
         orderBy: { createdAt: 'desc' },
         select: { accountId: true },
       });
@@ -1006,26 +1155,27 @@ export const DiscordBotService = {
     return alertSettingsDto(row, standing.round, standing.current);
   },
 
-  /**
-   * Everything due to announce, each handed out once: the public raid feed and round-end
-   * posts, plus DMs. Collecting first means a DM never waits for the server's own timer.
-   * `feed: false` (the bot can't post in its raid feed) leaves feed events waiting, since a
-   * claimed event counts as posted.
-   */
+  /** Battles and DMs. Public round recap posts have a separate delivery receipt endpoint. */
   async claimAlerts(prisma: PrismaClient, options: { feed?: boolean } = {}): Promise<DiscordAlertsClaimDto> {
     const now = new Date();
     const feed = options.feed ?? true;
     await NotificationService.collect(prisma, now);
-    const [battles, turf, blockWars, territory, crackdowns, rounds, dms] = await Promise.all([
+    const [battles, turf, blockWars, territory, crackdowns, factions, dms] = await Promise.all([
       feed ? claimBattles(prisma, now) : [],
       feed ? claimTurf(prisma, now) : [],
       feed ? claimBlockWars(prisma, now) : [],
       feed ? claimTerritory(prisma, now) : [],
       feed ? claimCrackdowns(prisma, now) : [],
-      claimRoundEnds(prisma, now),
-      claimFactions(prisma, now),
+      feed ? claimFactions(prisma, now) : [],
       NotificationService.claimDiscord(prisma, now),
     ]);
-    return { ...dms, battles, turf, blockWars, territory, crackdowns, rounds, factions };
+    return { ...dms, battles, turf, blockWars, territory, crackdowns, rounds: [], factions };
   },
+
+  async claimRoundPosts(prisma: PrismaClient): Promise<DiscordRoundEventDto[]> {
+    return claimRoundEnds(prisma, new Date());
+  },
+
+  roundPostPosted,
+  roundPostFailed,
 };

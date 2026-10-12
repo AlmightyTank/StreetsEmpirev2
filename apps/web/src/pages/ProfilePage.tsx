@@ -7,16 +7,19 @@ import type {
   PublicSeasonResultDto,
   PublicStatSheetDto,
 } from '@streets/shared';
-import { formatCents, formatNumber, formatProfileName } from '@streets/shared';
+import { formatCents, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { ContactButton } from '../components/ContactButton.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
+import { ProfileBadgeArt } from '../components/ProfileBadgeArt.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
+import { NameWithSupporterMark } from '../components/SupporterMark.js';
 import { hasProfileLook, ProfileLook } from '../components/ProfileLook.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
+import { AvatarFace } from '../components/BuiltAvatar.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { usePageTheme } from '../stores/pageTheme.js';
 import { useSession } from '../stores/session.js';
@@ -211,6 +214,13 @@ function AchievementCard({ award }: { award: PublicAwardDto }) {
   const percent = progressPercent(award);
   return (
     <li className={`se-ach se-ach--${award.rarity}${award.unlocked ? '' : ' se-ach--locked'}`}>
+      <ProfileBadgeArt
+        badgeKey={award.key}
+        category={award.category}
+        rarity={award.rarity}
+        size={52}
+        locked={!award.unlocked}
+      />
       <div className="se-ach__top">
         <span className="se-ach__cat">{categoryName[award.category]}</span>
         <span className="se-ach__rarity">{award.rarity}</span>
@@ -344,7 +354,9 @@ function AchievementsPanel({
                 inert={!showLockedAchievements}
               >
                 <div className="se-collapse__inner">
-                  <ul className="se-ach-grid">{locked.map((award) => <AchievementCard award={award} key={award.key} />)}</ul>
+                  {showLockedAchievements ? (
+                    <ul className="se-ach-grid">{locked.map((award) => <AchievementCard award={award} key={award.key} />)}</ul>
+                  ) : null}
                 </div>
               </div>
             ) : <p className="se-muted">Every listed achievement is unlocked.</p>}
@@ -442,6 +454,11 @@ export function ProfilePage() {
   const [useMyTheme, setUseMyTheme] = useState(false);
   const setPageTheme = usePageTheme((s) => s.setThemeKey);
   const isYou = Boolean(player && me && player.publicPimpId === me.publicPimpId);
+  const avatarFrame = player?.cosmetics.avatarFrame === undefined
+    ? player?.cosmetics.frame ?? null
+    : player.cosmetics.avatarFrame ?? null;
+  // The Signature Profile Card (a supporter reward) is on while its frame is equipped; the mark comes with it.
+  const signature = avatarFrame === SIGNATURE_CARD_FRAME_KEY;
   const ownerTheme = player && !isYou ? player.cosmetics.siteTheme ?? null : null;
   const shownTheme = useMyTheme ? null : ownerTheme;
 
@@ -519,29 +536,36 @@ export function ProfilePage() {
           </div>
         ) : null}
         <div
-          className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player?.cosmetics.frame ? ` se-profile-frame se-profile-frame--${player.cosmetics.frame}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}`}
+          className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}${signature ? ' se-signature-card' : ''}`}
+          data-avatar-frame={avatarFrame ?? 'none'}
+          data-surface={signature ? player?.cosmetics.surface ?? 'brushed' : undefined}
         >
           {player ? (
             <div
-              className="se-profile-pagehead__banner"
+              className={`se-profile-pagehead__banner${player.cosmetics.bannerUrl ? ' se-profile-pagehead__banner--uploaded' : ''}`}
               aria-hidden="true"
               style={player.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 12, 0.9), rgba(5, 8, 12, 0.58) 48%, rgba(5, 8, 12, 0.78)), url("${player.cosmetics.bannerUrl}")` } : undefined}
             />
           ) : null}
           <div className="se-profile-pagehead__main">
             {player ? (
-              <span className={`se-profile-pagehead__avatar${player.cosmetics.frame ? ` se-profile-pagehead__avatar--framed se-profile-pagehead__avatar--${player.cosmetics.frame}` : ''}`} aria-hidden="true">
-                {player.cosmetics.imageUrl ? <img src={player.cosmetics.imageUrl} alt="" /> : initials(player.displayName)}
+              <span className={`se-profile-pagehead__avatar${avatarFrame ? ` se-profile-pagehead__avatar--framed se-profile-pagehead__avatar--${avatarFrame}` : ''}`} aria-hidden="true">
+                <AvatarFace imageUrl={player.cosmetics.imageUrl} avatar={player.cosmetics.avatar} fallback={initials(player.displayName)} />
               </span>
             ) : null}
             <div>
               <h1 className="se-title">
                 {player ? <AllianceTag alliance={player.alliance} /> : null}
                 {player
-                  ? <><span className={player.cosmetics.title ? `se-profile-title se-profile-title--${player.cosmetics.titlePlacement}` : undefined}>{formatProfileName(player.displayName, player.cosmetics.title, player.cosmetics.titlePlacement)}</span>{' '}</>
+                  ? <><span className="se-profile-name">{profileNameParts(player.displayName, player.cosmetics.title).map((part, index, parts) => (
+                    <span className={`se-profile-name__part se-profile-name__part--${part.kind}`} key={index}>
+                      {signature && index === parts.length - 1 ? <NameWithSupporterMark text={part.text} /> : part.text}
+                    </span>
+                  ))}</span>{' '}</>
                   : account?.username ?? 'Profile'}
                 {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
               </h1>
+              {signature ? <span className="se-profile-nameplate-rule" aria-hidden="true" /> : null}
               {player?.crewName ? <p className="se-profile-crew">Crew · <strong>{player.crewName}</strong></p> : null}
               {player?.factionAlignment?.length ? (
                 <p className="se-profile-alignment" aria-label="Faction alignment">

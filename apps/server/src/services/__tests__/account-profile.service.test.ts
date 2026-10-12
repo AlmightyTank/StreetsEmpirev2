@@ -1,8 +1,8 @@
-import type { AccountProfile, PrismaClient } from '@prisma/client';
+import { Prisma, type AccountProfile, type PrismaClient } from '@prisma/client';
 import { classicOgStreetPassA, classicOgV07AA } from '@streets/rulesets';
-import type { UpdateAccountProfileSettingsInput } from '@streets/shared';
+import { DEFAULT_AVATAR_PARTS, type UpdateAccountProfileSettingsInput } from '@streets/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AccountProfileService } from '../account-profile.service.js';
+import { AccountProfileService, PROFILE_EFFECTS } from '../account-profile.service.js';
 import { RoundService } from '../round.service.js';
 
 vi.mock('../round.service.js', () => ({
@@ -25,6 +25,14 @@ function collectionUnlock(styleKey: string): UnlockRow {
   return { key: `street-pass-s1-${styleKey}`, kind: 'ITEM_COLLECTION', title: styleKey, description: styleKey, styleKey, awardedAt: new Date(0) };
 }
 
+function frameUnlock(key: string): UnlockRow {
+  return { key, kind: 'PROFILE_FRAME', title: key, description: key, styleKey: key, awardedAt: new Date(0) };
+}
+
+function themeUnlock(key: string): UnlockRow {
+  return { key: `${key}-unlock`, kind: 'SITE_THEME', title: key, description: key, styleKey: key, awardedAt: new Date(0) };
+}
+
 function prismaFor(isAdmin: boolean, unlocks: UnlockRow[] = []): PrismaClient {
   let profile: AccountProfile | null = null;
   return {
@@ -36,7 +44,9 @@ function prismaFor(isAdmin: boolean, unlocks: UnlockRow[] = []): PrismaClient {
     accountProfile: {
       findUnique: async () => profile,
       upsert: async (args: { create: AccountProfile; update: AccountProfile }) => {
-        profile = { ...args.create, ...args.update } as AccountProfile;
+        // Like Prisma: update merges onto the saved row, and DbNull is stored as a plain null.
+        profile = Object.fromEntries(Object.entries(profile ? { ...profile, ...args.update } : { ...args.create })
+          .map(([key, value]) => [key, (value as unknown) === Prisma.DbNull ? null : value])) as AccountProfile;
         return profile;
       },
     },
@@ -87,6 +97,8 @@ describe('AccountProfileService admin site theme QA', () => {
       'midnight-market',
       'winter-lights',
       'halloween-moon',
+      'dragon-ice',
+      'dragon-fire',
     ]));
   });
 
@@ -130,12 +142,98 @@ describe('AccountProfileService admin site theme QA', () => {
     expect(response.settings.activeSiteThemeKey).toBe('neon-vice');
   });
 
+  it('lets an earned dragon shell theme and popup animation be equipped independently', async () => {
+    const prisma = prismaFor(false, [themeUnlock('dragon-ice'), themeUnlock('dragon-fire')]);
+    const saved = await AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: 'dragon-ice',
+      profileEffect: 'inferno',
+    });
+
+    expect(saved.settings.activeSiteThemeKey).toBe('dragon-ice');
+    expect(saved.settings.profileEffect).toBe('inferno');
+    expect(saved.options.themes.map((option) => option.key)).toEqual(['dragon-ice', 'dragon-fire']);
+    expect(saved.options.effects.map((option) => option.key)).toEqual(['none', 'snowstorm', 'inferno']);
+  });
+
+  it('unlocks a theme\'s avatar frame and popup animation with the theme', async () => {
+    const prisma = prismaFor(false, [themeUnlock('dragon-fire')]);
+    const saved = await AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: 'dragon-fire',
+      activeProfileFrameKey: 'inferno-drake',
+      activeAvatarFrameKey: 'inferno-drake',
+      profileEffect: 'inferno',
+    });
+
+    expect(saved.options.frames.map((option) => option.key)).toEqual(['inferno-drake']);
+    expect(saved.settings.activeProfileFrameKey).toBeNull();
+    expect(saved.settings.activeAvatarFrameKey).toBe('inferno-drake');
+    expect(saved.settings.profileEffect).toBe('inferno');
+  });
+
+  it('keeps animated popup choices locked for a theme with no matching frame', async () => {
+    const prisma = prismaFor(false, [themeUnlock('back-office')]);
+    await expect(AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: 'back-office',
+      profileEffect: 'inferno',
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+  });
+
   it('also supports the current-round path when one exists', async () => {
     vi.mocked(RoundService.getCurrent).mockResolvedValue(currentRound() as Awaited<ReturnType<typeof RoundService.getCurrent>>);
 
     const response = await AccountProfileService.settings(prismaFor(true), 'account-1');
 
     expect(response.options.themes.map((option) => option.key)).toContain('neon-vice');
+  });
+});
+
+describe('AccountProfileService animated profile frames', () => {
+  beforeEach(() => {
+    vi.mocked(RoundService.getCurrent).mockResolvedValue(null);
+  });
+
+  it('keeps the dragon effect catalog and locks choices until their frames are earned', async () => {
+    expect(PROFILE_EFFECTS.map((option) => option.key)).toEqual([
+      'none', 'chrome-serpent', 'phantom-convoy', 'lantern-district', 'siren-breaker',
+      'block-sovereign', 'gilded-house', 'dead-or-alive', 'laurel-ascendant', 'snowstorm', 'inferno', 'midnight-chrome',
+    ]);
+    expect((await AccountProfileService.settings(prismaFor(false), 'account-1')).options.effects.map((option) => option.key)).toEqual(['none']);
+    expect((await AccountProfileService.settings(prismaFor(false, [frameUnlock('chrome-serpent-frame'), frameUnlock('phantom-convoy-frame'), frameUnlock('lantern-district-frame'), frameUnlock('siren-breaker-frame'), frameUnlock('block-sovereign-frame'), frameUnlock('gilded-house-frame'), frameUnlock('dead-or-alive-frame'), frameUnlock('laurel-ascendant-frame'), frameUnlock('snowstorm-drake'), frameUnlock('inferno-drake'), frameUnlock('midnight-chrome-frame')]), 'account-1')).options.effects.map((option) => option.key))
+      .toEqual(PROFILE_EFFECTS.map((option) => option.key));
+  });
+
+  it('saves avatar frames and ignores the retired profile frame field', async () => {
+    const prisma = prismaFor(false, [frameUnlock('popup-frame'), frameUnlock('avatar-frame')]);
+    const saved = await AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: null,
+      activeProfileFrameKey: 'popup-frame',
+      activeAvatarFrameKey: 'avatar-frame',
+    });
+
+    expect(saved.settings).toMatchObject({
+      activeProfileFrameKey: null,
+      activeAvatarFrameKey: 'avatar-frame',
+    });
+    const withoutAvatarFrame = await AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: null,
+      activeProfileFrameKey: 'popup-frame',
+      activeAvatarFrameKey: null,
+    });
+    expect(withoutAvatarFrame.settings).toMatchObject({
+      activeProfileFrameKey: null,
+      activeAvatarFrameKey: null,
+    });
+    await expect(AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: null,
+      activeProfileFrameKey: 'popup-frame',
+      activeAvatarFrameKey: 'unearned-frame',
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
   });
 });
 
@@ -152,6 +250,7 @@ describe('AccountProfileService Street Pass collection unlocks', () => {
       ['midnight-ops', true],
       ['urban-ghost', false],
       ['cartel-gold', true],
+      ['midnight-chrome', true],
     ]);
     expect(response.options.crewStyles?.find((option) => option.key === 'cartel-gold')).toMatchObject({
       locked: true,
@@ -173,6 +272,7 @@ describe('AccountProfileService Street Pass collection unlocks', () => {
       'urban-ghost': 'Street Pass · Season 1, tier 8',
       'midnight-ops': 'Street Pass · Season 1, tier 18',
       'cartel-gold': 'Street Pass · Season 1, tier 28',
+      'midnight-chrome': 'Supporter reward.',
     });
   });
 
@@ -238,5 +338,82 @@ describe('AccountProfileService profile showcase toggles', () => {
     });
 
     expect(saved.settings).toMatchObject({ showThemeOnProfile: false, showLookOnProfile: false });
+  });
+
+  it('saves a built avatar, keeps it when omitted and removes it on null', async () => {
+    const prisma = prismaFor(false);
+    const input = { ...updateInput, activeSiteThemeKey: null };
+    expect((await AccountProfileService.settings(prisma, 'account-1')).settings.profileAvatar).toBeNull();
+
+    const avatar = { ...DEFAULT_AVATAR_PARTS.girl, hair: 'braids' as const, shirtColor: 'gold' as const };
+    const saved = await AccountProfileService.update(prisma, 'account-1', { ...input, profileImageUrl: null, profileAvatar: avatar });
+    expect(saved.settings).toMatchObject({ profileImageUrl: null, profileAvatar: avatar });
+
+    const kept = await AccountProfileService.update(prisma, 'account-1', input);
+    expect(kept.settings.profileAvatar).toEqual(avatar);
+
+    const cleared = await AccountProfileService.update(prisma, 'account-1', { ...input, profileAvatar: null });
+    expect(cleared.settings.profileAvatar).toBeNull();
+  });
+});
+
+describe('AccountProfileService Midnight Chrome supporter rewards', () => {
+  const supporterUnlocks = (): UnlockRow[] => [
+    { key: 'supporter-midnight-chrome', kind: 'ITEM_COLLECTION', title: 'Midnight Chrome Collection', description: '', styleKey: 'midnight-chrome', awardedAt: new Date(0) },
+    frameUnlock('midnight-chrome-frame'),
+  ];
+  const input = { ...updateInput, activeSiteThemeKey: null };
+
+  beforeEach(() => {
+    vi.mocked(RoundService.getCurrent).mockResolvedValue(null);
+  });
+
+  it('says how a locked supporter collection is earned', async () => {
+    const response = await AccountProfileService.settings(prismaFor(false), 'account-1');
+
+    expect(response.options.crewStyles?.find((option) => option.key === 'midnight-chrome')).toMatchObject({
+      locked: true,
+      unlockHint: 'Supporter reward.',
+    });
+  });
+
+  it('keeps the collection on the crew and rides it has art for', async () => {
+    const prisma = prismaFor(false, supporterUnlocks());
+    const saved = await AccountProfileService.update(prisma, 'account-1', {
+      ...input,
+      // The route schema refuses AK47 here; a stale saved value must still read back as Classic.
+      itemCosmetics: { SEDAN: 'midnight-chrome', AK47: 'midnight-chrome' },
+      crewCosmetics: { THUG: 'midnight-chrome', HOE: 'midnight-chrome' },
+    });
+
+    expect(saved.settings.itemCosmetics).toEqual({ SEDAN: 'midnight-chrome' });
+    expect(saved.settings.crewCosmetics).toEqual({ THUG: 'midnight-chrome', HOE: 'midnight-chrome' });
+  });
+
+  it('offers card surfaces and the chrome glint only with the Signature card', async () => {
+    const without = await AccountProfileService.settings(prismaFor(false), 'account-1');
+    expect(without.options.surfaces).toEqual([]);
+    expect(without.options.effects.map((option) => option.key)).not.toContain('midnight-chrome');
+    await expect(AccountProfileService.update(prismaFor(false), 'account-1', { ...input, profileSurface: 'carbon' }))
+      .rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+
+    const prisma = prismaFor(false, supporterUnlocks());
+    const settings = await AccountProfileService.settings(prisma, 'account-1');
+    expect(settings.options.surfaces?.map((option) => option.key)).toEqual(['brushed', 'carbon', 'engine-turned']);
+    expect(settings.options.effects.map((option) => option.key)).toContain('midnight-chrome');
+
+    // The card rides on its avatar frame; the retired popup-frame slot stays empty.
+    const saved = await AccountProfileService.update(prisma, 'account-1', {
+      ...input,
+      activeAvatarFrameKey: 'midnight-chrome-frame',
+      profileEffect: 'midnight-chrome',
+      profileSurface: 'engine-turned',
+    });
+    expect(saved.settings).toMatchObject({
+      activeProfileFrameKey: null,
+      activeAvatarFrameKey: 'midnight-chrome-frame',
+      profileEffect: 'midnight-chrome',
+      profileSurface: 'engine-turned',
+    });
   });
 });

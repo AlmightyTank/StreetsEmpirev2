@@ -31,6 +31,12 @@ export const ITEM_COSMETIC_STYLES = [
     description: 'Engraved metal, polished gold trim and high-roller presentation.',
     released: true,
   },
+  {
+    key: 'midnight-chrome',
+    label: 'Midnight Chrome',
+    description: 'Deep graphite, brushed chrome and a narrow crimson accent. A supporter collection for crew and rides.',
+    released: true,
+  },
 ] as const;
 
 export type ItemCosmeticStyleKey = typeof ITEM_COSMETIC_STYLES[number]['key'];
@@ -99,6 +105,7 @@ const CREW_OUTFIT_DESCRIPTIONS: Record<ItemCosmeticStyleKey, string> = {
   'midnight-ops': 'Blacked-out night fits: hood up, leather, matte black with teal accents.',
   'urban-ghost': 'Concrete-grey streetwear: camo puffers, beanies and caps, silver chains.',
   'cartel-gold': 'High-roller dress: cream suit and fedora, velvet and fur, heavy gold.',
+  'midnight-chrome': 'Charcoal tailoring and brushed chrome: shield shades, racing jacket, tuxedo blazer, the crimson-set chrome diamond.',
 };
 
 export const RELEASED_CREW_COSMETIC_STYLES = RELEASED_ITEM_COSMETIC_STYLES.map((style) => ({
@@ -114,6 +121,22 @@ export const DEFAULT_CREW_COSMETICS = {
 
 export type CrewCosmeticLoadout = Record<CrewCosmeticKey, CrewCosmeticStyleKey>;
 
+/**
+ * Collections drawn for only some items and crew. A collection missing from
+ * this map covers every customizable item and crew type; one listed here is
+ * offered, saved and shown only on the keys it names, so nothing ever falls
+ * back to Classic art under another collection's name.
+ */
+export const COLLECTION_COVERAGE: Partial<Record<ItemCosmeticStyleKey, readonly (CustomizableItemKey | CrewCosmeticKey)[]>> = {
+  'midnight-chrome': ['LOW_RIDER', 'SEDAN', 'VAN', 'THUG', 'HOE'],
+};
+
+/** Whether a collection has authored art for this item or crew type. Classic always does. */
+export function collectionCovers(style: string, key: string): boolean {
+  const covered = COLLECTION_COVERAGE[style as ItemCosmeticStyleKey];
+  return !covered || (covered as readonly string[]).includes(key);
+}
+
 export function isReleasedItemCosmeticStyle(key: string): key is ItemCosmeticStyleKey {
   return RELEASED_ITEM_COSMETIC_STYLES.some((style) => style.key === key);
 }
@@ -125,6 +148,8 @@ export function isReleasedItemCosmeticStyle(key: string): key is ItemCosmeticSty
  * the same shape.
  */
 export const DEFAULT_COLLECTION_UNLOCK_HINT = 'Earned on the Street Pass.';
+/** Locked-collection hint for supporter rewards, which are not on any pass. */
+export const SUPPORTER_UNLOCK_HINT = 'Supporter reward.';
 
 export function isOwnedCollection(key: string, owned: ReadonlySet<string>): boolean {
   return key === 'classic' || owned.has(key);

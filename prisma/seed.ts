@@ -43,6 +43,10 @@ const CITIES = [
   { slug: 'atlanta', name: 'Atlanta', sortOrder: 8 },
   // 1.5.0-E3: takes Beverly Hills' place on the map; older rulesets never list it.
   { slug: 'san-francisco', name: 'San Francisco', sortOrder: 9 },
+  // 1.6.0-G: the middle of the map; older rulesets never list them.
+  { slug: 'chicago', name: 'Chicago', sortOrder: 10 },
+  { slug: 'tulsa', name: 'Tulsa', sortOrder: 11 },
+  { slug: 'dallas', name: 'Dallas', sortOrder: 12 },
 ] as const;
 
 async function seedCities() {

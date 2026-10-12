@@ -15,6 +15,9 @@ import {
 import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMovements } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
+import { encounterActivityPayload, RandomEncounterService } from './random-encounter.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
+import { CityConditionService } from './city-condition.service.js';
 
 export interface ProduceInput {
   turns: number;
@@ -77,6 +80,7 @@ export const ProductionService = {
         if (!baseRecipe) {
           throw AppError.badRequest('UNKNOWN_RECIPE', 'Your crew cannot cook that.', { productType: `Pick one of: ${recipes.map((row) => row.name).join(', ')}.` });
         }
+        await PermanentUnlockService.assertCanProduceProduct(tx, roundPlayerId, ruleset, baseRecipe.product);
         const ingredientEfficiencyPercent = hideoutWorkshopIngredientEfficiencyPercent(ruleset, current);
         const effectiveIngredientCentsPerUnit = hideoutWorkshopIngredientCentsPerUnit(
           baseRecipe.ingredientCentsPerUnit,
@@ -88,13 +92,27 @@ export const ProductionService = {
           ? baseRecipe
           : { ...baseRecipe, ingredientCentsPerUnit: effectiveIngredientCentsPerUnit };
         const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
-        const recipe = favorBonuses.productionOutputPercent > 0
+        let recipe = favorBonuses.productionOutputPercent > 0
           ? {
               ...workshopRecipe,
               perThugPerTurn: workshopRecipe.perThugPerTurn
                 * (100 + favorBonuses.productionOutputPercent) / 100,
             }
           : workshopRecipe;
+        const cityConditionBonuses = await CityConditionService.bonuses(tx, {
+          round,
+          cityId: player.cityId,
+          ruleset,
+          action: 'PRODUCE_CRACK',
+          district: ruleset.scouting.produceDistrict,
+          now,
+        });
+        if (cityConditionBonuses.productPercent > 0) {
+          recipe = {
+            ...recipe,
+            perThugPerTurn: recipe.perThugPerTurn * (100 + cityConditionBonuses.productPercent) / 100,
+          };
+        }
         const productType = ruleset.productEconomy ? recipe.product : requested;
         const productName = ruleset.productEconomy ? recipe.name : LEGACY_PRODUCT_NAMES[requested] ?? 'Product';
 
@@ -206,7 +224,17 @@ export const ProductionService = {
           // 0.4.0-D: some cooks draw attention of their own.
           extraHeat: productProduced * recipe.heatPerUnit,
         });
-        const next = trip.next;
+        let next = trip.next;
+        const encounter = await RandomEncounterService.produce({
+          tx,
+          roundPlayerId,
+          next,
+          ruleset,
+          turns: input.turns,
+          now,
+          rng,
+        });
+        next = encounter.next;
 
         const result: ProduceCrackResult = {
           ...(supply ? { supply: toPlanDto(supply, ruleset) } : {}),
@@ -217,6 +245,7 @@ export const ProductionService = {
           productProduced,
           hideoutBonusProduct,
           ...(favorBonuses.productionOutputPercent > 0 ? { favorProductionPercent: favorBonuses.productionOutputPercent } : {}),
+          ...(cityConditionBonuses.productPercent > 0 ? { cityConditionBonusPercent: cityConditionBonuses.productPercent } : {}),
           crackProduced,
           hideoutBonusCrack,
           ingredientCents: Number(outcome.ingredientCents),
@@ -250,6 +279,7 @@ export const ProductionService = {
           condomsMissing: outcome.shortages.condoms,
           beerMissing: outcome.shortages.beer,
 
+          ...(encounter.encounter ? { encounter: encounter.encounter } : {}),
 
           turnsUsed: input.turns,
           turnsRemaining: next.turns,
@@ -316,6 +346,7 @@ export const ProductionService = {
               infected: outcome.infections.infected,
               lostToInfection: outcome.infections.lost,
               ...(trip.heat ? { heat: trip.heat.after, heatAdded: trip.heat.added, busted: trip.heat.busted, fineCents: trip.heat.fineCents } : {}),
+              ...(encounter.encounter ? { encounter: encounterActivityPayload(encounter.encounter) } : {}),
             },
           },
           // 1.3.0-A/B: the Heat the trip drew, and any bust or arrest, build the Case at home.

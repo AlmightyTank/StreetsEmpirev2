@@ -4,6 +4,8 @@ export interface InvariantPlayerState {
   cashCents: bigint;
   postedNetWorthCents?: bigint;
   outpostNetWorthCents?: bigint;
+  /** 1.6.5-A. Owed to the loan shark. */
+  loanDebtCents?: bigint;
   turns: number;
   payoutPercent: number;
   whores: number;
@@ -12,6 +14,7 @@ export interface InvariantPlayerState {
   busyThugs: number;
   postedThugs: number;
   businessThugs?: number;
+  dealerThugs?: number;
   businessWhores?: number;
   condoms: number;
   medicine: number;
@@ -62,6 +65,7 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
   'woundedThugs',
   'busyThugs',
   'postedThugs',
+  'dealerThugs',
   'condoms',
   'medicine',
   'crack',
@@ -105,7 +109,7 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
 ];
 
 const OPTIONAL_COUNTS: ReadonlySet<keyof InvariantPlayerState> = new Set([
-  'sedans', 'vans', 'damagedLowRiders', 'damagedSedans', 'damagedVans', 'disabledLowRiders', 'disabledSedans', 'disabledVans',
+  'sedans', 'vans', 'damagedLowRiders', 'damagedSedans', 'damagedVans', 'disabledLowRiders', 'disabledSedans', 'disabledVans', 'dealerThugs',
 ]);
 
 function invalid(message: string): never {
@@ -130,6 +134,7 @@ export function assertPlayerState(
   if (state.cashCents < 0n) invalid(`${phase}.cashCents is negative`);
   if ((state.postedNetWorthCents ?? 0n) < 0n) invalid(`${phase}.postedNetWorthCents is negative`);
   if ((state.outpostNetWorthCents ?? 0n) < 0n) invalid(`${phase}.outpostNetWorthCents is negative`);
+  if ((state.loanDebtCents ?? 0n) < 0n) invalid(`${phase}.loanDebtCents is negative`);
 
   for (const field of WHOLE_NON_NEGATIVE) {
     // 1.5.0-B/C vehicle counts are optional on the type: absent is none.
@@ -152,14 +157,18 @@ export function assertPlayerState(
     invalid(`${phase}.woundedThugs cannot exceed total thugs`);
   }
 
-  if (state.woundedThugs + state.busyThugs + state.postedThugs + (state.businessThugs ?? 0) > state.thugs) {
-    invalid(`${phase}.woundedThugs plus busyThugs plus postedThugs plus businessThugs cannot exceed total thugs`);
-  }
   const businessThugs = state.businessThugs ?? 0;
   const businessWhores = state.businessWhores ?? 0;
+  const dealerThugs = state.dealerThugs ?? 0;
+  if (businessThugs > state.thugs) invalid(`${phase}.businessThugs cannot exceed total thugs`);
+  if (dealerThugs > state.thugs) invalid(`${phase}.dealerThugs cannot exceed total thugs`);
   if (!Number.isSafeInteger(businessThugs) || businessThugs < 0) invalid(`${phase}.businessThugs must be a non-negative safe integer`);
   if (!Number.isSafeInteger(businessWhores) || businessWhores < 0) invalid(`${phase}.businessWhores must be a non-negative safe integer`);
+  if (!Number.isSafeInteger(dealerThugs) || dealerThugs < 0) invalid(`${phase}.dealerThugs must be a non-negative safe integer`);
   if (businessWhores > state.whores) invalid(`${phase}.businessWhores cannot exceed total whores`);
+  if (state.woundedThugs + state.busyThugs + state.postedThugs + businessThugs + dealerThugs > state.thugs) {
+    invalid(`${phase}.woundedThugs plus busyThugs plus postedThugs plus businessThugs plus dealerThugs cannot exceed total thugs`);
+  }
 
   const hideout = ruleset.hideout;
   if (hideout) {
@@ -180,4 +189,15 @@ export function assertPlayerState(
       invalid(`${phase}.${field} is above the ruleset cap`);
     }
   }
+}
+
+/**
+ * 1.6.5-A. Debt may only grow while it stays at or under the ruleset's ceiling as it stands
+ * now. Debt already above a ceiling the ruleset has since lowered stays owed, and may only
+ * come down.
+ */
+export function assertLoanDebtChange(before: bigint, after: bigint, ruleset: Ruleset): void {
+  if (after <= before) return;
+  const ceiling = ruleset.loanShark?.enabled ? BigInt(ruleset.loanShark.debtCeilingCents) : 0n;
+  if (after > ceiling) invalid('loanDebtCents rose above the ruleset debt ceiling');
 }

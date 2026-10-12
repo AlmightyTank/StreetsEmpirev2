@@ -26,6 +26,7 @@ import { AdminAuditService, toAuditEntryDto, type AuditActor } from './admin-aud
 import { sendCurrentEmailVerification, sendTwoFactorNotice } from './email.service.js';
 import { TwoFactorService } from './two-factor.service.js';
 import { deletedAccountIdentity, eraseAccount } from './account-data.service.js';
+import { SupporterService } from './supporter.service.js';
 
 export { deletedAccountIdentity };
 
@@ -161,35 +162,66 @@ async function moderate(
   reason: string,
   apply: (tx: Db, account: Account) => Promise<Change>,
 ): Promise<void> {
-  if (actor.id === accountId) {
-    throw AppError.conflict('ADMIN_SELF_ACTION', 'Admins cannot moderate their own account. Ask another admin.');
-  }
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(3003)`;
-      const me = await tx.account.findUnique({ where: { id: actor.id }, select: { isAdmin: true, isActive: true } });
-      if (!me?.isAdmin || !me.isActive) throw AppError.forbidden('Only game admins can do that.');
-
-      await lockAccount(tx, accountId);
-      const before = await tx.account.findUnique({ where: { id: accountId } });
-      if (!before) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
-
-      const change = await apply(tx, before);
-      await AdminAuditService.record(tx, actor, {
-        action: `account.${action}`,
-        targetType: 'account',
-        targetId: accountId,
-        reason,
-        before: accountSnapshot(before),
-        after: { ...accountSnapshot(change.account), ...change.detail },
-      });
-    });
+    await prisma.$transaction((tx) => moderateWithin(tx, actor, accountId, action, reason, apply));
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw AppError.conflict('USERNAME_TAKEN', 'That pimp name was just taken.', { username: 'That pimp name is taken.' });
     }
     throw error;
   }
+}
+
+/** The same moderation step, inside a transaction the caller already holds. */
+async function moderateWithin(
+  tx: Db,
+  actor: AuditActor,
+  accountId: string,
+  action: string,
+  reason: string,
+  apply: (tx: Db, account: Account) => Promise<Change>,
+): Promise<void> {
+  if (actor.id === accountId) {
+    throw AppError.conflict('ADMIN_SELF_ACTION', 'Admins cannot moderate their own account. Ask another admin.');
+  }
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(3003)`;
+  const me = await tx.account.findUnique({ where: { id: actor.id }, select: { isAdmin: true, isActive: true } });
+  if (!me?.isAdmin || !me.isActive) throw AppError.forbidden('Only game admins can do that.');
+
+  await lockAccount(tx, accountId);
+  const before = await tx.account.findUnique({ where: { id: accountId } });
+  if (!before) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
+
+  const change = await apply(tx, before);
+  await AdminAuditService.record(tx, actor, {
+    action: `account.${action}`,
+    targetType: 'account',
+    targetId: accountId,
+    reason,
+    before: accountSnapshot(before),
+    after: { ...accountSnapshot(change.account), ...change.detail },
+  });
+}
+
+/**
+ * A comms mute of one of the offered lengths. With keepLonger, a mute already in
+ * place that ends later (or never) is left as it is rather than cut short.
+ */
+function commsMuteStep(actor: AuditActor, length: AdminCommsMuteLength, reason: string, now: Date, keepLonger: boolean) {
+  const chosen = ADMIN_COMMS_MUTE_LENGTHS.find((option) => option.key === length);
+  if (!chosen) throw AppError.badRequest('COMMS_MUTE_LENGTH_UNKNOWN', 'Pick one of the offered mute lengths.');
+  const permanent = chosen.hours === null;
+  const until = permanent ? null : new Date(now.getTime() + chosen.hours! * 60 * 60_000);
+  return async (tx: Db, before: Account): Promise<Change> => {
+    if (before.isAdmin) throw AppError.conflict('ADMIN_COMMS_MUTE', `Remove ${before.username}'s admin role before muting them.`);
+    const outlasts = before.commsMutedPermanent || Boolean(until && before.commsMutedUntil && before.commsMutedUntil >= until);
+    if (keepLonger && outlasts) return { account: before, detail: { length: chosen.label, keptLongerMute: true } };
+    const account = await tx.account.update({
+      where: { id: before.id },
+      data: { commsMutedUntil: until, commsMutedPermanent: permanent, commsMuteReason: reason, commsMutedByUsername: actor.username },
+    });
+    return { account, detail: { length: chosen.label } };
+  };
 }
 
 export const AdminAccountService = {
@@ -248,7 +280,7 @@ export const AdminAccountService = {
     });
     if (!account) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
 
-    const [audit, notes, openAgainst, totalAgainst] = await Promise.all([
+    const [audit, notes, openAgainst, totalAgainst, supporterSince] = await Promise.all([
       prisma.adminAuditLog.findMany({
         where: { targetType: 'account', targetId: account.id },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -261,6 +293,7 @@ export const AdminAccountService = {
       }),
       prisma.playerMessageReport.count({ where: { resolvedAt: null, message: { sender: { accountId: account.id } } } }),
       prisma.playerMessageReport.count({ where: { message: { sender: { accountId: account.id } } } }),
+      SupporterService.since(prisma, account.id),
     ]);
 
     return {
@@ -322,6 +355,7 @@ export const AdminAccountService = {
         createdAt: note.createdAt.toISOString(),
       })),
       reportsAgainst: { open: openAgainst, total: totalAgainst },
+      supporterSince: supporterSince?.toISOString() ?? null,
     };
   },
 
@@ -337,19 +371,23 @@ export const AdminAccountService = {
     reason: string,
     now = new Date(),
   ): Promise<AdminAccountDetailDto> {
-    const chosen = ADMIN_COMMS_MUTE_LENGTHS.find((option) => option.key === length);
-    if (!chosen) throw AppError.badRequest('COMMS_MUTE_LENGTH_UNKNOWN', 'Pick one of the offered mute lengths.');
-    const permanent = chosen.hours === null;
-    const until = permanent ? null : new Date(now.getTime() + chosen.hours! * 60 * 60_000);
-    await moderate(prisma, actor, accountId, 'comms-mute', reason, async (tx, before) => {
-      if (before.isAdmin) throw AppError.conflict('ADMIN_COMMS_MUTE', `Remove ${before.username}'s admin role before muting them.`);
-      const account = await tx.account.update({
-        where: { id: before.id },
-        data: { commsMutedUntil: until, commsMutedPermanent: permanent, commsMuteReason: reason, commsMutedByUsername: actor.username },
-      });
-      return { account, detail: { length: chosen.label } };
-    });
+    await moderate(prisma, actor, accountId, 'comms-mute', reason, commsMuteStep(actor, length, reason, now, false));
     return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /**
+   * A comms mute taken as part of a larger action, in the caller's transaction.
+   * It never shortens a longer mute the account already has.
+   */
+  async muteCommsWithin(
+    tx: Db,
+    actor: AuditActor,
+    accountId: string,
+    length: AdminCommsMuteLength,
+    reason: string,
+    now = new Date(),
+  ): Promise<void> {
+    await moderateWithin(tx, actor, accountId, 'comms-mute', reason, commsMuteStep(actor, length, reason, now, true));
   },
 
   async unmuteComms(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, now = new Date()): Promise<AdminAccountDetailDto> {
@@ -578,14 +616,14 @@ export const AdminAccountService = {
       if (profile) {
         await tx.accountProfile.update({
           where: { accountId: before.id },
-          data: { activeTitleKey: null, titlePlacement: 'prefix', crewName: null, profileBio: null, profileImageUrl: null, profileBannerUrl: null, profileEffect: 'none', activeProfileFrameKey: null, activeSiteThemeKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
+          data: { activeTitleKey: null, titlePlacement: 'prefix', crewName: null, profileBio: null, profileImageUrl: null, profileAvatar: Prisma.DbNull, profileBannerUrl: null, profileEffect: 'none', profileSurface: null, activeProfileFrameKey: null, activeAvatarFrameKey: null, activeSiteThemeKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
         });
       }
       return {
         account: before,
         detail: {
           previousProfile: profile
-            ? { activeTitleKey: profile.activeTitleKey, titlePlacement: profile.titlePlacement, crewName: profile.crewName, profileBio: profile.profileBio, profileImageUrl: profile.profileImageUrl, profileBannerUrl: profile.profileBannerUrl, profileEffect: profile.profileEffect, activeProfileFrameKey: profile.activeProfileFrameKey, activeSiteThemeKey: profile.activeSiteThemeKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
+            ? { activeTitleKey: profile.activeTitleKey, titlePlacement: profile.titlePlacement, crewName: profile.crewName, profileBio: profile.profileBio, profileImageUrl: profile.profileImageUrl, profileAvatar: profile.profileAvatar, profileBannerUrl: profile.profileBannerUrl, profileEffect: profile.profileEffect, activeProfileFrameKey: profile.activeProfileFrameKey, activeAvatarFrameKey: profile.activeAvatarFrameKey, activeSiteThemeKey: profile.activeSiteThemeKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
             : null,
         },
       };
@@ -623,6 +661,29 @@ export const AdminAccountService = {
       return { account };
     });
     return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /**
+   * Supporter rewards (the Midnight Chrome collection and Signature Profile
+   * Card). Permanent and cosmetic only; there is no revoke.
+   */
+  async grantSupporter(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminAccountDetailDto> {
+    await AdminAccountService.grantSupporterRewards(prisma, actor, accountId, reason);
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /** The audited supporter grant on its own, for the Supporters tab. Returns the reward keys it added. */
+  async grantSupporterRewards(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<string[]> {
+    let added: string[] = [];
+    await moderate(prisma, actor, accountId, 'grant-supporter', reason, async (tx, before) => {
+      const granted = await SupporterService.grant(tx, before.id);
+      if (!granted.length) {
+        throw AppError.conflict('SUPPORTER_ALREADY_GRANTED', `${before.username} already has every supporter reward.`);
+      }
+      added = granted;
+      return { account: before, detail: { granted } };
+    });
+    return added;
   },
 
   /** A fresh verification link to the account's current email. The mail goes out after the audited change commits. */

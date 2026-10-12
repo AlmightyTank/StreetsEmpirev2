@@ -396,6 +396,32 @@
     0 16px 40px rgba(0, 0, 0, 0.42);
 }
 
+.se-profile-pagehead__avatar--snowstorm-drake {
+  --se-profile-avatar-frame: #a9eaff;
+  --se-profile-avatar-glow: rgba(169, 234, 255, 0.72);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 6px #a9eaff, 0 0 26px #8bdcffaa;
+  animation: se-dragon-avatar-breathe 2.5s ease-in-out infinite alternate;
+}
+.se-profile-pagehead__avatar--inferno-drake {
+  --se-profile-avatar-frame: #ff8b36;
+  --se-profile-avatar-glow: rgba(255, 139, 54, 0.72);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 6px #ff8b36, 0 0 26px #ff5a24aa;
+  animation: se-dragon-avatar-breathe 1.8s ease-in-out infinite alternate;
+}
+.se-profile-pagehead__avatar--chrome-serpent-frame { --se-profile-avatar-frame: #92efff; --se-profile-avatar-glow: #92efff99; }
+.se-profile-pagehead__avatar--phantom-convoy-frame { --se-profile-avatar-frame: #a7d8ff; --se-profile-avatar-glow: #a7d8ff99; }
+.se-profile-pagehead__avatar--lantern-district-frame { --se-profile-avatar-frame: #ffb85c; --se-profile-avatar-glow: #ffb85c99; }
+.se-profile-pagehead__avatar--siren-breaker-frame { --se-profile-avatar-frame: #ff5969; --se-profile-avatar-glow: #ff596999; }
+.se-profile-pagehead__avatar--block-sovereign-frame { --se-profile-avatar-frame: #8fe29a; --se-profile-avatar-glow: #8fe29a99; }
+.se-profile-pagehead__avatar--gilded-house-frame { --se-profile-avatar-frame: #edcf7a; --se-profile-avatar-glow: #edcf7a99; }
+.se-profile-pagehead__avatar--dead-or-alive-frame { --se-profile-avatar-frame: #d2aa76; --se-profile-avatar-glow: #d2aa7699; }
+.se-profile-pagehead__avatar--laurel-ascendant-frame { --se-profile-avatar-frame: #c6db77; --se-profile-avatar-glow: #c6db7799; }
+
+@media (prefers-reduced-motion: reduce) {
+  .se-profile-pagehead__avatar--snowstorm-drake,
+  .se-profile-pagehead__avatar--inferno-drake { animation: none; }
+}
+
 .se-profile-pagehead__avatar img {
   width: 100%;
   height: 100%;
@@ -670,17 +696,14 @@
   font-size: 9px;
 }
 
-.se-profile-title {
+.se-profile-name__part--title {
   color: var(--se-profile-accent);
-}
-
-.se-profile-title--prefix {
   font-weight: 800;
 }
 
-.se-profile-title--suffix {
-  font-size: .76em;
-  font-weight: 700;
+.se-profile-name__part--separator {
+  color: var(--se-muted);
+  white-space: pre;
 }
 
 @media (max-width: 980px) {
@@ -932,4 +955,298 @@
 .se-profile-alignment__chip.is-inner {
   border-color: var(--se-profile-accent, var(--se-accent));
   color: var(--se-text);
+}
+
+
+/* Illustrated achievement badges and the full profile collection. */
+.se-badge-art {
+  display: block;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .48));
+}
+
+.se-badge-art--rare { filter: drop-shadow(0 0 3px rgba(90, 188, 255, .58)); }
+.se-badge-art--epic { filter: drop-shadow(0 0 4px rgba(184, 125, 255, .72)); }
+.se-badge-art--legendary { filter: drop-shadow(0 0 5px rgba(255, 207, 82, .82)); }
+
+.se-profile .se-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.se-profile .se-badge {
+  display: flex;
+  min-width: 68px;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 4px;
+  border: 1px solid var(--se-line);
+  border-radius: 5px;
+  background: rgba(7, 11, 17, .55);
+  text-align: center;
+}
+
+.se-profile .se-badge strong {
+  max-width: 82px;
+  color: var(--se-text-dim);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.se-profile-badge-collection > .se-panel__body { padding: 12px; }
+.se-badge-collection__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--se-text-dim); font-size: 11px; }
+.se-badge-collection__head p { margin: 0; }
+.se-badge-collection__filters { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 4px; scrollbar-width: thin; }
+.se-badge-collection__filters button { flex: 0 0 auto; padding: 5px 9px; border: 1px solid var(--se-line); border-radius: 4px; background: var(--se-panel); color: var(--se-text-dim); font: inherit; font-size: 10px; }
+.se-badge-collection__filters button.is-active { border-color: var(--se-accent); color: var(--se-text); background: color-mix(in srgb, var(--se-accent) 14%, var(--se-panel)); }
+.se-badge-collection__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.se-badge-collection__item { display: flex; min-width: 0; min-height: 128px; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; padding: 8px 5px; border: 1px solid var(--se-line); border-radius: 5px; background: linear-gradient(155deg, rgba(255,255,255,.035), transparent 55%), rgba(8,12,18,.52); text-align: center; }
+.se-badge-collection__item strong { width: 100%; color: var(--se-text); font-size: 10px; line-height: 1.2; overflow-wrap: anywhere; }
+.se-badge-collection__item > span { color: var(--se-muted); font-size: 8px; text-transform: capitalize; }
+.se-profile-alignment { display: flex; flex-wrap: wrap; gap: 7px; margin: 7px 0; }
+.se-profile-alignment__badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border: 1px solid var(--se-line); border-radius: 5px; background: rgba(8,12,18,.52); }
+.se-profile-alignment__badge > span { display: grid; gap: 1px; }
+.se-profile-alignment__badge strong { color: var(--se-text); font-size: 9px; }
+.se-profile-alignment__badge small { color: var(--se-muted); font-size: 8px; }
+.se-profile-achievements .se-ach { position: relative; padding-left: 70px; }
+.se-profile-achievements .se-ach > .se-badge-art { position: absolute; top: 24px; left: 8px; }
+
+@media (max-width: 520px) {
+  .se-badge-collection__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .se-badge-collection__item { min-height: 120px; padding: 7px 3px; }
+  .se-profile-achievements .se-ach { padding-left: 65px; }
+}
+
+.se-badge-picker__option { display: flex; align-items: center; gap: 8px; }
+.se-badge-picker__option > span { display: grid; gap: 2px; }
+
+.se-profile .se-badge--group {
+  border-color: color-mix(in srgb, var(--se-badge-color, var(--se-line)) 56%, var(--se-line));
+}
+.se-profile .se-badge--group strong {
+  color: var(--se-badge-color, var(--se-text-dim));
+}
+
+/* Signature Profile Card on the profile header. Tokens, the supporter mark and the
+   glint live in profile-hover.css; this is the header layout. The plate is a 9-slice
+   border image, so it fits any width; the rail stays within 8px of the edge. */
+.se-profile-pagehead.se-signature-card {
+  border: 1px solid transparent;
+  border-radius: 9px;
+  border-image: url("/profile-frames/midnight-chrome-plate.webp") 96 / 24px stretch;
+  padding: 18px 20px;
+  background:
+    linear-gradient(90deg, rgba(10, 11, 13, .9), rgba(10, 11, 13, .5) 55%, rgba(10, 11, 13, .82)),
+    var(--sig-surface) 0 0 / 256px 256px,
+    var(--sig-plate);
+}
+/* An uploaded banner still shows, inset inside the rail. */
+.se-profile-pagehead.se-signature-card .se-profile-pagehead__banner { display: none; }
+.se-profile-pagehead.se-signature-card .se-profile-pagehead__banner--uploaded { display: block; inset: 8px; border-radius: 4px; }
+.se-signature-card .se-profile-name__part--title {
+  color: var(--sig-chrome);
+  font-size: .62em;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  vertical-align: .18em;
+}
+.se-signature-card .se-profile-nameplate-rule {
+  display: block;
+  width: min(320px, 100%);
+  height: 1px;
+  margin: 8px 0 2px;
+  background: linear-gradient(90deg, var(--sig-crimson) 0 18px, transparent 18px 22px, var(--sig-chrome) 22px, rgba(195, 202, 211, 0) 100%);
+}
+.se-signature-card .se-profile-pagehead__avatar {
+  border-color: var(--sig-plate);
+  color: #0e1013;
+  background: linear-gradient(145deg, var(--sig-chrome-hi), var(--sig-chrome-lo));
+}
+
+/* Midnight Chrome avatar ring: the art is the avatar grown 16% each way, so the
+   ring's inner edge meets the avatar at 88px and at the 64px phone size. */
+.se-profile-pagehead__avatar--midnight-chrome-frame { border-color: #14161a; box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+.se-profile-pagehead__avatar--midnight-chrome-frame::before { display: none; }
+.se-profile-pagehead__avatar--midnight-chrome-frame::after {
+  inset: -16%;
+  border: 0;
+  border-radius: 0;
+  opacity: 1;
+  background: url("/profile-frames/midnight-chrome-avatar.webp") center / contain no-repeat;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
+}
+
+/* Built avatars: an SVG portrait that fills whatever avatar holder it sits in. */
+.se-built-avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.se-avatar-mode {
+  display: inline-flex;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  border: 1px solid var(--se-line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.se-avatar-mode__option {
+  padding: 7px 14px;
+  border: 0;
+  border-right: 1px solid var(--se-line);
+  background: transparent;
+  color: var(--se-text-dim);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.se-avatar-mode__option:last-child { border-right: 0; }
+
+.se-avatar-mode__option.is-active {
+  background: var(--se-accent);
+  color: #071008;
+}
+
+.se-avatar-builder {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 6px;
+  background: rgba(11, 12, 14, 0.24);
+}
+
+.se-avatar-builder__stage {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.se-avatar-builder__preview {
+  flex: 0 0 auto;
+  width: 112px;
+  height: 112px;
+  overflow: hidden;
+  border: 4px solid color-mix(in srgb, var(--se-accent) 45%, #071008);
+  border-radius: 999px;
+}
+
+.se-avatar-builder__stage-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.se-avatar-builder__editor {
+  display: grid;
+  gap: 12px;
+}
+
+.se-avatar-builder__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.se-avatar-builder__tab {
+  padding: 5px 10px;
+  border: 1px solid var(--se-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--se-text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.se-avatar-builder__tab.is-active {
+  border-color: var(--se-accent);
+  color: var(--se-text);
+  background: color-mix(in srgb, var(--se-accent) 18%, transparent);
+}
+
+.se-avatar-builder__panel {
+  display: grid;
+  gap: 12px;
+}
+
+.se-avatar-builder__group-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--se-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.se-avatar-builder__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  gap: 8px;
+}
+
+.se-avatar-builder__option {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 4px 2px 5px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--se-text-dim);
+  cursor: pointer;
+}
+
+.se-avatar-builder__option .se-built-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+}
+
+.se-avatar-builder__option small {
+  font-size: 10px;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.se-avatar-builder__option.is-selected {
+  border-color: var(--se-accent);
+  color: var(--se-text);
+  box-shadow: 0 0 0 1px var(--se-accent);
+}
+
+.se-avatar-builder__option:focus-visible,
+.se-avatar-builder__tab:focus-visible,
+.se-avatar-mode__option:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: 2px;
+}
+
+.se-avatar-builder__options:has(.se-avatar-builder__option--swatch) {
+  grid-template-columns: repeat(auto-fill, 38px);
+}
+
+.se-avatar-builder__option--swatch {
+  padding: 3px;
+  border-radius: 999px;
+}
+
+.se-avatar-builder__swatch {
+  display: block;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
 }

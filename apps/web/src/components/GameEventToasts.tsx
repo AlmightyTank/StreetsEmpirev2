@@ -311,6 +311,24 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'OFFICIAL_STUNG':
       return { title: 'Your official was stung', detail, tone: 'bad', href: '/game#case' };
 
+    case 'LOAN_COLLECTIONS':
+      return p.to === 'COLLECTIONS'
+        ? { title: 'You are in collections', detail, tone: 'bad', href: '/game/loans' }
+        : p.to === 'RECOVERING'
+          ? { title: 'Out of collections', detail, tone: 'warn', href: '/game/loans' }
+          : { title: 'Back in good standing', detail, tone: 'good', href: '/game/loans' };
+
+    case 'LOAN_INSTALLMENT_MISSED':
+      return { title: 'Loan installment missed', detail, tone: 'bad', href: '/game/loans' };
+
+    case 'SUPPLY_LANE_ARRIVED':
+      return {
+        title: p.outcome === 'CLEAN' ? 'Lane load landed' : p.outcome === 'SEIZED' ? 'Lane load seized' : 'Lane load searched',
+        detail,
+        tone: p.outcome === 'CLEAN' ? 'good' : p.outcome === 'SEIZED' ? 'bad' : 'warn',
+        href: '/game/supply',
+      };
+
     case 'FACTION_WARNING':
       return { title: `Word from ${String(p.factionName ?? 'a faction')}`, detail, tone: 'warn', href: typeof p.href === 'string' && p.href.startsWith('/game') ? p.href : '/game/quests#factions' };
 

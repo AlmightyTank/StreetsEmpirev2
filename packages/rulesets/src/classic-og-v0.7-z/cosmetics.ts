@@ -97,4 +97,20 @@ export const siteThemeCosmetics = {
     rarity: 'epic',
     styleKey: 'halloween-moon',
   },
+  'dragon-ice-theme': {
+    key: 'dragon-ice-theme',
+    name: 'Ice Dragon',
+    description: 'A full game-shell theme with a glacial dragon, drifting snow, frozen blue panels and icy highlights.',
+    kind: 'SITE_THEME',
+    rarity: 'legendary',
+    styleKey: 'dragon-ice',
+  },
+  'dragon-fire-theme': {
+    key: 'dragon-fire-theme',
+    name: 'Fire Dragon',
+    description: 'A full game-shell theme with a fire dragon, rising embers, heated panels and molten orange highlights.',
+    kind: 'SITE_THEME',
+    rarity: 'legendary',
+    styleKey: 'dragon-fire',
+  },
 } as const satisfies QuestCosmeticCatalog;

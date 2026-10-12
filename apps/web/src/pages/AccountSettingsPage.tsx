@@ -1,18 +1,23 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type {
+  AccountProfileSettingsDto,
   AccountProfileSettingsResponseDto,
   AccountSessionDto,
+  AvatarParts,
   DefaultLanding,
   MoneyFormat,
   ProfileAccent,
   ProfileEffect,
+  ProfileSurface,
   UiDensity,
 } from '@streets/shared';
-import { CREW_NAME_MAX, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
+import { CREW_NAME_MAX, DEFAULT_AVATAR_PARTS, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
+import { siteThemeCompanionLook } from '@streets/rulesets';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
+import { NameWithSupporterMark } from '../components/SupporterMark.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { CloseAccountPanel } from '../components/CloseAccountPanel.js';
@@ -20,7 +25,10 @@ import { YourDataPanel } from '../components/YourDataPanel.js';
 import { TwoFactorPanel } from '../components/TwoFactorPanel.js';
 import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
+import { SupporterPanel } from '../components/SupporterPanel.js';
 import { ItemCrewCosmeticsEditor } from '../components/ItemCrewCosmeticsEditor.js';
+import { AvatarBuilder } from '../components/AvatarBuilder.js';
+import { AvatarFace } from '../components/BuiltAvatar.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -33,6 +41,27 @@ const SESSIONS_SHOWN = 5;
 /** Used when settings fail to load: only Classic is known to be owned. */
 const FALLBACK_ITEM_STYLES = collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, new Set());
 const FALLBACK_CREW_STYLES = collectionOptions(RELEASED_CREW_COSMETIC_STYLES, new Set());
+const PROFILE_EFFECT_FRAME_ART: Partial<Record<ProfileEffect, { avatar: string }>> = {
+  snowstorm: {
+    avatar: '/profile-frames/snowstorm-avatar.webp',
+  },
+  inferno: {
+    avatar: '/profile-frames/inferno-avatar.webp',
+  },
+};
+
+type AvatarMode = 'initials' | 'image' | 'built';
+
+const AVATAR_MODES: { key: AvatarMode; label: string }[] = [
+  { key: 'initials', label: 'Initials' },
+  { key: 'image', label: 'Image link' },
+  { key: 'built', label: 'Build one' },
+];
+
+function avatarModeOf(settings: AccountProfileSettingsDto): AvatarMode {
+  if (settings.profileImageUrl) return 'image';
+  return settings.profileAvatar ? 'built' : 'initials';
+}
 
 function formatDate(value: string | null): string {
   return value ? formatWhen(value) : 'Never';
@@ -83,6 +112,10 @@ export function AccountSettingsPage() {
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [profileSettings, setProfileSettings] = useState<AccountProfileSettingsResponseDto | null>(null);
   const [cosmetics, setCosmetics] = useState(DEFAULT_PROFILE_SETTINGS);
+  const [avatarMode, setAvatarMode] = useState<AvatarMode>('initials');
+  // What each avatar choice holds, so trying another one and coming back loses nothing.
+  const [imageDraft, setImageDraft] = useState('');
+  const [avatarDraft, setAvatarDraft] = useState<AvatarParts>(DEFAULT_AVATAR_PARTS.boy);
 
   useEffect(() => {
     let active = true;
@@ -91,6 +124,9 @@ export function AccountSettingsPage() {
         if (!active) return;
         setProfileSettings(response);
         setCosmetics(response.settings);
+        setAvatarMode(avatarModeOf(response.settings));
+        setImageDraft(response.settings.profileImageUrl ?? '');
+        if (response.settings.profileAvatar) setAvatarDraft(response.settings.profileAvatar);
       })
       .catch(() => {
         if (active) {
@@ -104,14 +140,16 @@ export function AccountSettingsPage() {
               themes: [],
               effects: [
                 { key: 'none', label: 'No effect', description: null },
-                { key: 'neon-pulse', label: 'Neon pulse', description: null },
-                { key: 'scanlines', label: 'Scanlines', description: null },
-                { key: 'spotlight', label: 'Spotlight', description: null },
-                { key: 'glitch', label: 'Glitch', description: null },
-                { key: 'ember-sparks', label: 'Ember sparks', description: null },
-                { key: 'cash-shimmer', label: 'Cash shimmer', description: null },
-                { key: 'sirens', label: 'Sirens', description: null },
-                { key: 'smoke', label: 'Smoke', description: null },
+                { key: 'chrome-serpent', label: 'Chrome Serpent', description: null },
+                { key: 'phantom-convoy', label: 'Phantom Convoy', description: null },
+                { key: 'lantern-district', label: 'Lantern District', description: null },
+                { key: 'siren-breaker', label: 'Siren Breaker', description: null },
+                { key: 'block-sovereign', label: 'Block Sovereign', description: null },
+                { key: 'gilded-house', label: 'Gilded House', description: null },
+                { key: 'dead-or-alive', label: 'Dead-or-Alive', description: null },
+                { key: 'laurel-ascendant', label: 'Laurel Ascendant', description: null },
+                { key: 'snowstorm', label: 'Snowstorm', description: null },
+                { key: 'inferno', label: 'Inferno', description: null },
               ],
               itemStyles: FALLBACK_ITEM_STYLES,
               crewStyles: FALLBACK_CREW_STYLES,
@@ -238,6 +276,20 @@ export function AccountSettingsPage() {
     }
   }
 
+  function chooseAvatarMode(mode: AvatarMode) {
+    setAvatarMode(mode);
+    setCosmetics((current) => ({
+      ...current,
+      profileImageUrl: mode === 'image' ? imageDraft : null,
+      profileAvatar: mode === 'built' ? avatarDraft : null,
+    }));
+  }
+
+  function changeBuiltAvatar(parts: AvatarParts) {
+    setAvatarDraft(parts);
+    setCosmetics((current) => ({ ...current, profileAvatar: parts }));
+  }
+
   function toggleFeaturedBadge(key: string) {
     setCosmetics((current) => {
       const selected = current.featuredBadgeKeys.includes(key)
@@ -256,6 +308,7 @@ export function AccountSettingsPage() {
     try {
       const response = await authApi.updateProfileSettings({
         ...cosmetics,
+        activeProfileFrameKey: null,
         itemCosmetics: cosmetics.itemCosmetics ?? {},
         crewCosmetics: cosmetics.crewCosmetics ?? DEFAULT_CREW_COSMETICS,
         showThemeOnProfile: cosmetics.showThemeOnProfile ?? true,
@@ -323,23 +376,64 @@ export function AccountSettingsPage() {
 
   const selectedAccent = profileSettings?.options.accents.find((option) => option.key === cosmetics.profileAccent);
   const selectedTitle = profileSettings?.options.titles.find((option) => option.key === cosmetics.activeTitleKey);
-  const selectedFrame = profileSettings?.options.frames.find((option) => option.key === cosmetics.activeProfileFrameKey);
+  const selectedAvatarFrame = profileSettings?.options.frames.find((option) => option.key === cosmetics.activeAvatarFrameKey);
+  const profileEffectFrameArt = PROFILE_EFFECT_FRAME_ART[cosmetics.profileEffect];
+  // Signature Profile Card (supporter reward): on while its frame is the avatar frame.
+  const signature = cosmetics.activeAvatarFrameKey === SIGNATURE_CARD_FRAME_KEY;
+  const surfaceOptions = profileSettings?.options.surfaces ?? [];
+  const selectedSurface = surfaceOptions.find((option) => option.key === (cosmetics.profileSurface ?? 'brushed'));
   const displayName = me?.displayName ?? account.username;
   const previewCity = me?.city.name ?? 'Your city';
   const previewRank = me ? `#${me.publicPimpId.toLocaleString()}` : 'Preview';
 
   return (
     <Frame>
-      <div className="se-pagehead">
-        <div>
-          <p className="se-eyebrow">Private account</p>
-          <h1 className="se-title">Login & settings</h1>
+      <header className="se-settings-hero">
+        <div className="se-settings-hero__copy">
+          <p className="se-eyebrow">Private account · Command center</p>
+          <h1 className="se-title">Your settings</h1>
+          <p>Shape how StreetsEmpire looks, feels and reaches you. Your criminal record stays on the streets; everything here is yours alone.</p>
         </div>
-        {me ? <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/profile">Public profile</Link> : null}
-      </div>
+        <div className="se-settings-hero__identity">
+          <span className="se-settings-hero__avatar" aria-hidden="true">
+            <AvatarFace imageUrl={cosmetics.profileImageUrl} avatar={cosmetics.profileAvatar} fallback={initials(displayName)} />
+          </span>
+          <div className="se-settings-hero__player">
+            <span className="se-settings-hero__label">Signed in as</span>
+            <strong>{displayName}</strong>
+            <small>{previewCity}{round ? ` · ${round.name}` : ''}</small>
+          </div>
+          <div className="se-settings-hero__status" aria-label="Account status">
+            <span className={account.emailVerifiedAt ? 'is-ready' : 'is-attention'}>{account.emailVerifiedAt ? 'Email verified' : 'Verify email'}</span>
+            <span className={account.twoFactorEnabled ? 'is-ready' : ''}>{account.twoFactorEnabled ? '2-step on' : '2-step off'}</span>
+          </div>
+          {me ? <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/profile">View public profile</Link> : null}
+        </div>
+      </header>
 
       {message ? <Alert tone={tone}>{message}</Alert> : null}
 
+      <div className="se-settings-layout">
+        <aside className="se-settings-nav" aria-label="Settings categories">
+          <span className="se-settings-nav__eyebrow">Settings index</span>
+          <nav>
+            <a href="#settings-account"><span>01</span>Account</a>
+            <a href="#settings-connections"><span>02</span>Connections</a>
+            <a href="#settings-alerts"><span>03</span>Alerts</a>
+            <a href="#settings-security"><span>04</span>Security</a>
+            <a href="#settings-game"><span>05</span>Game</a>
+            <a href="#settings-profile"><span>06</span>Profile & look</a>
+            <a href="#settings-data"><span>07</span>Data & privacy</a>
+          </nav>
+          <p>Changes to your look and interface are saved together. Account and alert actions save as you make them.</p>
+        </aside>
+
+        <div className="se-settings-content">
+      <section id="settings-account" className="se-settings-section" aria-labelledby="settings-account-title">
+        <header className="se-settings-section__head">
+          <div><span>01</span><h2 id="settings-account-title">Account</h2></div>
+          <p>Your identity, sign-in details and recovery address.</p>
+        </header>
       <div className="se-account-columns">
         <div className="se-account-column">
           <Panel title="Login identity" flush>
@@ -414,12 +508,16 @@ export function AccountSettingsPage() {
         </div>
 
         <div className="se-account-column">
-          <ConnectedAccountsPanel
-            account={account}
-            onConnectionsChanged={() => setConnectionsVersion((current) => current + 1)}
-          />
+          <div id="settings-connections" className="se-settings-anchor">
+            <ConnectedAccountsPanel
+              account={account}
+              onConnectionsChanged={() => setConnectionsVersion((current) => current + 1)}
+            />
+          </div>
 
-          <NotificationsPanel refreshKey={connectionsVersion} />
+          <div id="settings-alerts" className="se-settings-anchor">
+            <NotificationsPanel refreshKey={connectionsVersion} />
+          </div>
 
           <Panel title="Current email verification">
             <p>
@@ -463,7 +561,13 @@ export function AccountSettingsPage() {
           </Panel>
         </div>
       </div>
+      </section>
 
+      <section id="settings-security" className="se-settings-section" aria-labelledby="settings-security-title">
+        <header className="se-settings-section__head">
+          <div><span>04</span><h2 id="settings-security-title">Security</h2></div>
+          <p>Protect the account and review every place it is signed in.</p>
+        </header>
       <TwoFactorPanel focusCodes={searchParams.get('twoFactor') === 'codes'} />
 
       <Panel title="Login sessions">
@@ -526,12 +630,26 @@ export function AccountSettingsPage() {
           <p className="se-muted">Session details are not available right now.</p>
         )}
       </Panel>
+      </section>
 
+      <section id="settings-game" className="se-settings-section" aria-labelledby="settings-game-title">
+        <header className="se-settings-section__head">
+          <div><span>05</span><h2 id="settings-game-title">Game</h2></div>
+          <p>Reset guidance and manage the extras that travel with your account.</p>
+        </header>
       <Panel title="Tutorial">
         <p>Replay the first-login intro, see every page intro again and bring back the getting-started goals. Every page also has a "How this page works" panel.</p>
         <ReplayTutorial className="se-btn se-btn--ghost" />
       </Panel>
 
+      <SupporterPanel />
+      </section>
+
+      <section id="settings-profile" className="se-settings-section" aria-labelledby="settings-profile-title">
+        <header className="se-settings-section__head">
+          <div><span>06</span><h2 id="settings-profile-title">Profile & look</h2></div>
+          <p>Build your public identity, collection loadout and everyday interface.</p>
+        </header>
       <Panel title="Cosmetics & interface">
         {!profileSettings ? (
           <p className="se-muted">Loading your unlocked badges...</p>
@@ -576,23 +694,54 @@ export function AccountSettingsPage() {
                 </div>
 
                 <div className="se-field">
-                  <label className="se-label" htmlFor="profile-image-url">Profile image URL</label>
-                  <input
-                    id="profile-image-url"
-                    className="se-input"
-                    value={cosmetics.profileImageUrl ?? ''}
-                    maxLength={PROFILE_IMAGE_URL_MAX}
-                    placeholder="https://i.imgur.com/your-avatar.png"
-                    inputMode="url"
-                    autoComplete="off"
-                    onChange={(event) => setCosmetics((current) => ({
-                      ...current,
-                      profileImageUrl: event.target.value,
-                    }))}
-                  />
-                  {fields.profileImageUrl
-                    ? <p className="se-error" role="alert">{fields.profileImageUrl}</p>
-                    : <p className="se-hint">Use a direct HTTPS image link from Imgur or your own host. Leave blank for initials.</p>}
+                  <span className="se-label" id="avatar-mode-label">Avatar</span>
+                  <div className="se-avatar-mode" role="radiogroup" aria-labelledby="avatar-mode-label">
+                    {AVATAR_MODES.map((mode) => (
+                      <button
+                        type="button"
+                        role="radio"
+                        key={mode.key}
+                        aria-checked={avatarMode === mode.key}
+                        className={`se-avatar-mode__option${avatarMode === mode.key ? ' is-active' : ''}`}
+                        onClick={() => chooseAvatarMode(mode.key)}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+                  {avatarMode === 'image' ? (
+                    <>
+                      <input
+                        id="profile-image-url"
+                        aria-label="Profile image URL"
+                        className="se-input"
+                        value={cosmetics.profileImageUrl ?? ''}
+                        maxLength={PROFILE_IMAGE_URL_MAX}
+                        placeholder="https://i.imgur.com/your-avatar.png"
+                        inputMode="url"
+                        autoComplete="off"
+                        onChange={(event) => {
+                          setImageDraft(event.target.value);
+                          setCosmetics((current) => ({
+                            ...current,
+                            profileImageUrl: event.target.value,
+                          }));
+                        }}
+                      />
+                      {fields.profileImageUrl
+                        ? <p className="se-error" role="alert">{fields.profileImageUrl}</p>
+                        : <p className="se-hint">Use a direct HTTPS image link from Imgur or your own host.</p>}
+                    </>
+                  ) : avatarMode === 'built' ? (
+                    <>
+                      <AvatarBuilder value={cosmetics.profileAvatar ?? avatarDraft} onChange={changeBuiltAvatar} />
+                      {fields.profileAvatar
+                        ? <p className="se-error" role="alert">{fields.profileAvatar}</p>
+                        : <p className="se-hint">No picture needed. Pick a boy or girl base, then mix face pieces, hair and a shirt. Save settings to put it on.</p>}
+                    </>
+                  ) : (
+                    <p className="se-hint">Your initials sit in the avatar circle.</p>
+                  )}
                 </div>
 
                 <div className="se-field">
@@ -631,31 +780,19 @@ export function AccountSettingsPage() {
                       <option value={option.key} key={option.key}>{option.label}</option>
                     ))}
                   </select>
-                  {fields.activeTitleKey ? <p className="se-error" role="alert">{fields.activeTitleKey}</p> : <p className="se-hint">Sir, Madam, Don, and Donna are always available. Other titles come from achievements, season feats, legacy awards, and quests. Titles are cosmetic only.</p>}
+                  {fields.activeTitleKey ? <p className="se-error" role="alert">{fields.activeTitleKey}</p> : <p className="se-hint">Sir, Madam, Don, and Donna appear before your name. Earned titles appear after it. Titles are cosmetic only.</p>}
                   {(() => {
                     const title = profileSettings.options.titles.find((option) => option.key === cosmetics.activeTitleKey)?.label;
                     const name = me?.displayName ?? account.username;
                     if (!title) return null;
-                    const preview = formatProfileName(name, title, cosmetics.titlePlacement);
-                    return <p className="se-hint">Preview: <strong>{preview}</strong></p>;
+                    return (
+                      <p className="se-hint">Preview: <strong className="se-profile-name-preview">
+                        {profileNameParts(name, title).map((part, index) => (
+                          <span className={`se-profile-name-preview__${part.kind}`} key={index}>{part.text}</span>
+                        ))}
+                      </strong></p>
+                    );
                   })()}
-                </div>
-
-                <div className="se-field">
-                  <label className="se-label" htmlFor="title-placement">Title position</label>
-                  <select
-                    id="title-placement"
-                    className="se-input"
-                    value={cosmetics.titlePlacement}
-                    onChange={(event) => setCosmetics((current) => ({
-                      ...current,
-                      titlePlacement: event.target.value as typeof current.titlePlacement,
-                    }))}
-                  >
-                    <option value="prefix">Before my name · The Quiet Ghost AMightyTank</option>
-                    <option value="suffix">After my name · AMightyTank, Quiet Ghost</option>
-                  </select>
-                  <p className="se-hint">Choose how your selected title appears on your public profile.</p>
                 </div>
 
                 <div className="se-field">
@@ -679,28 +816,50 @@ export function AccountSettingsPage() {
                 </div>
 
                 <div className="se-field">
-                  <label className="se-label" htmlFor="profile-frame">Profile frame</label>
+                  <label className="se-label" htmlFor="avatar-frame">Avatar frame</label>
                   <select
-                    id="profile-frame"
+                    id="avatar-frame"
                     className="se-input"
-                    value={cosmetics.activeProfileFrameKey ?? ''}
+                    value={cosmetics.activeAvatarFrameKey ?? ''}
                     onChange={(event) => setCosmetics((current) => ({
                       ...current,
-                      activeProfileFrameKey: event.target.value || null,
+                      activeAvatarFrameKey: event.target.value || null,
                     }))}
                   >
-                    <option value="">No frame</option>
+                    <option value="">No avatar frame</option>
                     {profileSettings.options.frames.map((option) => (
                       <option value={option.key} key={option.key}>{option.label}</option>
                     ))}
                   </select>
-                  {fields.activeProfileFrameKey
-                    ? <p className="se-error" role="alert">{fields.activeProfileFrameKey}</p>
-                    : <p className="se-hint">{profileSettings.options.frames.length ? 'Frames are permanent quest-earned profile cosmetics.' : 'Complete qualifying Contact finales to unlock profile frames.'}</p>}
+                  {fields.activeAvatarFrameKey
+                    ? <p className="se-error" role="alert">{fields.activeAvatarFrameKey}</p>
+                    : <p className="se-hint">{profileSettings.options.frames.length ? 'Frames are permanent and appear anywhere your profile picture is shown.' : 'Complete qualifying Contact finales or unlock a site theme to earn avatar frames.'}</p>}
                 </div>
 
+                {surfaceOptions.length ? (
+                  <div className="se-field">
+                    <label className="se-label" htmlFor="profile-surface">Card surface</label>
+                    <select
+                      id="profile-surface"
+                      className="se-input"
+                      value={cosmetics.profileSurface ?? 'brushed'}
+                      onChange={(event) => setCosmetics((current) => ({
+                        ...current,
+                        profileSurface: event.target.value as ProfileSurface,
+                      }))}
+                    >
+                      {surfaceOptions.map((option) => (
+                        <option value={option.key} key={option.key}>{option.label}</option>
+                      ))}
+                    </select>
+                    {fields.profileSurface
+                      ? <p className="se-error" role="alert">{fields.profileSurface}</p>
+                      : <p className="se-hint">The finish behind your Signature Profile Card. It shows while the Midnight Chrome Signature Card is your avatar frame.</p>}
+                  </div>
+                ) : null}
+
                 <div className="se-field">
-                  <label className="se-label" htmlFor="profile-effect">Profile effect</label>
+                  <label className="se-label" htmlFor="profile-effect">Popup animation</label>
                   <select
                     id="profile-effect"
                     className="se-input"
@@ -716,7 +875,7 @@ export function AccountSettingsPage() {
                   </select>
                   {fields.profileEffect
                     ? <p className="se-error" role="alert">{fields.profileEffect}</p>
-                    : <p className="se-hint">Discord-style card effects for your public profile. Reduced-motion visitors see a calmer version.</p>}
+                    : <p className="se-hint">This changes how your profile card pops open. Each animation unlocks with its site theme, and reduced-motion visitors see a still version.</p>}
                 </div>
 
                 <div className="se-field">
@@ -725,10 +884,19 @@ export function AccountSettingsPage() {
                     id="site-theme"
                     className="se-input"
                     value={cosmetics.activeSiteThemeKey ?? ''}
-                    onChange={(event) => setCosmetics((current) => ({
-                      ...current,
-                      activeSiteThemeKey: event.target.value || null,
-                    }))}
+                    onChange={(event) => {
+                      const themeKey = event.target.value || null;
+                      // Put on the theme's matching avatar frame and popup animation; either can be changed after to mix.
+                      const look = themeKey ? siteThemeCompanionLook(themeKey) : undefined;
+                      const frameKey = look && profileSettings.options.frames.some((option) => option.key === look.frameKey) ? look.frameKey : null;
+                      const effect = look && profileSettings.options.effects.some((option) => option.key === look.effect) ? look.effect as ProfileEffect : null;
+                      setCosmetics((current) => ({
+                        ...current,
+                        activeSiteThemeKey: themeKey,
+                        ...(frameKey ? { activeAvatarFrameKey: frameKey } : {}),
+                        ...(effect ? { profileEffect: effect } : {}),
+                      }));
+                    }}
                   >
                     <option value="">No site theme</option>
                     {profileSettings.options.themes.map((option) => (
@@ -737,12 +905,16 @@ export function AccountSettingsPage() {
                   </select>
                   {fields.activeSiteThemeKey
                     ? <p className="se-error" role="alert">{fields.activeSiteThemeKey}</p>
-                    : <p className="se-hint">{profileSettings.options.themes.length ? 'Themes reskin the player-facing game shell, panels, controls and background atmosphere.' : 'Seasonal and event themes will appear here after you unlock them.'}</p>}
+                    : <p className="se-hint">{profileSettings.options.themes.length ? 'Choose the whole game-shell look. Picking a theme also puts on its matching avatar frame and popup animation; change either afterwards to mix.' : 'Seasonal and event themes will appear here after you unlock them, with their matching avatar frame and popup animation.'}</p>}
                 </div>
               </div>
 
               <div className="se-account-cosmetics__side">
-                <div className={`se-profile-card-preview se-profile-accent se-profile-accent--${cosmetics.profileAccent}${cosmetics.activeProfileFrameKey ? ` se-profile-frame se-profile-frame--${cosmetics.activeProfileFrameKey}` : ''} se-profile-effect se-profile-effect--${cosmetics.profileEffect}`}>
+                <div
+                  className={`se-profile-card-preview se-profile-accent se-profile-accent--${cosmetics.profileAccent} se-profile-effect se-profile-effect--${cosmetics.profileEffect}${signature ? ' se-signature-card' : ''}`}
+                  data-avatar-frame={cosmetics.activeAvatarFrameKey ?? 'none'}
+                  data-surface={signature ? cosmetics.profileSurface ?? 'brushed' : undefined}
+                >
                   <div
                     className="se-profile-card-preview__banner"
                     style={cosmetics.profileBannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 8, 0.52), rgba(5, 8, 8, 0.86)), url("${cosmetics.profileBannerUrl}")` } : undefined}
@@ -750,12 +922,20 @@ export function AccountSettingsPage() {
                     <span>Street Empire</span>
                   </div>
                   <div className="se-profile-card-preview__identity">
-                    <span className="se-profile-card-preview__avatar" aria-hidden="true">
-                      {cosmetics.profileImageUrl ? <img src={cosmetics.profileImageUrl} alt="" /> : initials(displayName)}
+                    <span className="se-profile-card-preview__avatar" aria-hidden="true" title={selectedAvatarFrame?.label}>
+                      <AvatarFace imageUrl={cosmetics.profileImageUrl} avatar={cosmetics.profileAvatar} fallback={initials(displayName)} />
                     </span>
+                    {signature
+                      ? <img className="se-profile-card-preview__avatar-art se-profile-card-preview__avatar-art--midnight-chrome" src="/profile-frames/midnight-chrome-avatar.webp" alt="" aria-hidden="true" />
+                      : profileEffectFrameArt ? <img className="se-profile-card-preview__avatar-art" src={profileEffectFrameArt.avatar} alt="" aria-hidden="true" /> : null}
                     <div>
-                      {selectedTitle ? <span className="se-profile-card-preview__title">{selectedTitle.label}</span> : null}
-                      <strong>{displayName}</strong>
+                      <strong className="se-profile-card-preview__name">
+                        {profileNameParts(displayName, selectedTitle?.label).map((part, index, parts) => (
+                          <span className={`se-profile-card-preview__namepart se-profile-card-preview__namepart--${part.kind}`} key={index}>
+                            {signature && index === parts.length - 1 ? <NameWithSupporterMark text={part.text} /> : part.text}
+                          </span>
+                        ))}
+                      </strong>
                       <small>Player {previewRank}</small>
                     </div>
                   </div>
@@ -763,8 +943,9 @@ export function AccountSettingsPage() {
                   <p>{previewCity}{round ? ` · ${round.name}` : ''}</p>
                   <div className="se-profile-card-preview__chips">
                     <span>{selectedAccent?.label ?? 'StreetsEmpire'} accent</span>
-                    {selectedFrame ? <span>{selectedFrame.label} frame</span> : null}
-                    {cosmetics.profileEffect !== 'none' ? <span>{profileSettings.options.effects.find((option) => option.key === cosmetics.profileEffect)?.label ?? 'Profile effect'}</span> : null}
+                    {selectedAvatarFrame ? <span>{signature ? selectedAvatarFrame.label : `${selectedAvatarFrame.label} avatar frame`}</span> : null}
+                    {signature && selectedSurface ? <span>{selectedSurface.label} surface</span> : null}
+                    {cosmetics.profileEffect !== 'none' ? <span>{profileSettings.options.effects.find((option) => option.key === cosmetics.profileEffect)?.label ?? 'Frame animation'}</span> : null}
                   </div>
                 </div>
 
@@ -908,10 +1089,19 @@ export function AccountSettingsPage() {
           </form>
         )}
       </Panel>
+      </section>
 
+      <section id="settings-data" className="se-settings-section se-settings-section--danger" aria-labelledby="settings-data-title">
+        <header className="se-settings-section__head">
+          <div><span>07</span><h2 id="settings-data-title">Data & privacy</h2></div>
+          <p>Take a copy of your records or make permanent account changes.</p>
+        </header>
       <YourDataPanel />
 
       <CloseAccountPanel />
+      </section>
+        </div>
+      </div>
     </Frame>
   );
 }

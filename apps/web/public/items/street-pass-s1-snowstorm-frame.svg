@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Snowstorm Drake profile frame">
+  <defs>
+    <linearGradient id="ice" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".45" stop-color="#8be6ff"/><stop offset="1" stop-color="#6989fa"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <circle cx="64" cy="64" r="39" fill="#101e38" fill-opacity=".6" stroke="url(#ice)" stroke-width="8" filter="url(#glow)"/>
+  <circle cx="64" cy="64" r="31" fill="none" stroke="#e9fcff" stroke-width="2" opacity=".9"/>
+  <path d="M99 43c-3-11-14-18-25-17l-7 2 8 5c-10 0-17 6-19 15-3 10 5 20 15 20 6 0 10-4 11-9l-6 2-4-4 5-5-5-5 2-7 9 1 4 7 6-1 7 5-2-9 7 1-6-9z" fill="url(#ice)" stroke="#e8fdff" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M27 53c4-9 12-14 21-15m-21 43c5 9 13 14 23 15m38-6c7-4 11-10 13-17" fill="none" stroke="#ddfaff" stroke-width="3" stroke-linecap="round"/>
+  <path d="m24 32 3 6 6 3-6 3-3 6-3-6-6-3 6-3zm72 59 2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#fff"/>
+  <circle cx="82" cy="34" r="2" fill="#fff"/><circle cx="36" cy="91" r="2" fill="#fff"/>
+</svg>

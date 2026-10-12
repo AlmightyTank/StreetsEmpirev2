@@ -7,17 +7,17 @@ import { PlayerStateService } from './player-state.service.js';
 import { TurfCrackdownService } from './turf-crackdown.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { StreetPassService } from './street-pass.service.js';
+import { RoundAftermathService } from './round-aftermath.service.js';
 
 /**
- * A round is joinable while it is taking registrations or already running,
- * and only until its end date passes.
+ * Any current round is joinable until it ends. The lifecycle status is the
+ * gate: SCHEDULED rounds are not current, while REGISTRATION and ACTIVE rounds
+ * always accept new players. `registrationOpensAt` is retained as lifecycle
+ * metadata, but must never leave a current game visible while refusing entry.
  */
 export function isJoinable(round: Round, now = new Date()): boolean {
   if (round.status !== 'ACTIVE' && round.status !== 'REGISTRATION') return false;
   if (round.endsAt.getTime() <= now.getTime()) return false;
-  if (round.registrationOpensAt && round.registrationOpensAt.getTime() > now.getTime()) {
-    return false;
-  }
   return true;
 }
 
@@ -34,12 +34,6 @@ export function assertJoinable(round: Round, now = new Date()): void {
       `${round.name} has not opened for registration yet.`,
     );
   }
-  if (round.registrationOpensAt && round.registrationOpensAt.getTime() > now.getTime()) {
-    throw AppError.conflict(
-      'ROUND_NOT_OPEN',
-      `${round.name} has not opened for registration yet.`,
-    );
-  }
 }
 
 type FinalRankPlayer = {
@@ -49,6 +43,7 @@ type FinalRankPlayer = {
   localRank: number | null;
   nationalRank: number | null;
   account: { isActive: boolean };
+  npcGang?: unknown | null;
 };
 
 function finalRanks(sortedDesc: Array<{ id: string; netWorthCents: bigint }>): Map<string, number> {
@@ -65,7 +60,7 @@ function finalRanks(sortedDesc: Array<{ id: string; netWorthCents: bigint }>): M
 }
 
 export function finalStandingRanks(players: FinalRankPlayer[]): Map<string, { localRank: number | null; nationalRank: number | null }> {
-  const active = players.filter((player) => player.account.isActive);
+  const active = players.filter((player) => player.account.isActive && !player.npcGang);
   const national = finalRanks(active);
   const byCity = new Map<string, FinalRankPlayer[]>();
   for (const player of active) {
@@ -79,7 +74,7 @@ export function finalStandingRanks(players: FinalRankPlayer[]): Map<string, { lo
 
   return new Map(players.map((player) => [
     player.id,
-    player.account.isActive
+    player.account.isActive && !player.npcGang
       ? { localRank: local.get(player.id) ?? null, nationalRank: national.get(player.id) ?? null }
       : { localRank: null, nationalRank: null },
   ]));
@@ -98,6 +93,7 @@ async function freezeFinalStandings(tx: Db, roundId: string, now: Date): Promise
       localRank: true,
       nationalRank: true,
       account: { select: { isActive: true } },
+      npcGang: { select: { id: true } },
     },
   });
   const ranks = finalStandingRanks(players);
@@ -200,6 +196,7 @@ export const RoundService = {
         ...(endsAt ? { endsAt, ...(endsAt.getTime() < round.startsAt.getTime() ? { startsAt: endsAt } : {}) } : {}),
       },
     });
+    await RoundAftermathService.finalize(tx, round.id, freezeAt);
     return { closed: true, round: ended, previous: round };
   },
 
@@ -273,6 +270,6 @@ export const RoundService = {
   },
 
   playerCount(prisma: PrismaClient, roundId: string): Promise<number> {
-    return prisma.roundPlayer.count({ where: { roundId, account: { isActive: true } } });
+    return prisma.roundPlayer.count({ where: { roundId, account: { isActive: true }, npcGang: { is: null } } });
   },
 };

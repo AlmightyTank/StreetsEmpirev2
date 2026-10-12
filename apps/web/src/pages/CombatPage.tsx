@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate } from 'react-router-dom';
 import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatSpecialRaidDto, type CombatTargetDto, type CustomizableItemKey, type ItemCosmeticStyleKey, type SpecialRaidKindDto } from '@streets/shared';
 import { combatApi } from '../api/combat.js';
@@ -8,6 +9,7 @@ import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { showGameToast } from '../components/GameEventToasts.js';
 import { Button } from '../components/Button.js';
+import { CrewTeamPicker } from '../components/CrewTeamPicker.js';
 import { ItemLabel, ItemTile } from '../components/ItemTile.js';
 import { Panel, Row } from '../components/Panel.js';
 import { supplyEffects, supplySummary, WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
@@ -310,6 +312,7 @@ function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?:
     {report.yourWounds > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
     {report.retaliation ? <p className="se-hint">This was retaliation for a hit on you.</p> : null}
     {report.payback ? <p className="se-hint">This was payback. You hit {report.opponent.displayName} first, and they answered inside the revenge window.</p> : null}
+    {report.npcBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.npcBounty.cents)} for beating the {report.npcBounty.crew}.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Your block is left alone by drive-bys until {date(report.protectedUntil)}. A drive-by does not stop a raid.</p> : null}
     {attacking && report.cooldownUntil ? <p className="se-hint">Next drive-by after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
@@ -354,6 +357,7 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
     {(report.yourWounds ?? 0) > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
     {report.retaliation ? <p className="se-hint">This was payback. Revenge let you answer the crew that hit you.</p> : null}
     {report.payback ? <p className="se-hint">This was payback. You hit {report.opponent.displayName} first, and they answered inside the revenge window.</p> : null}
+    {report.npcBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.npcBounty.cents)} for beating the {report.npcBounty.crew}.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Your block is protected until {date(report.protectedUntil)}. You also need your crew back before the next raid.</p> : null}
     {report.cooldownUntil ? <p className="se-hint">Next move after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
@@ -388,6 +392,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
     {(report.yourWounds ?? 0) > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
     {report.retaliation ? <p className="se-hint">This was payback. Revenge let you answer the crew that hit you.</p> : null}
     {report.payback ? <p className="se-hint">This was payback. You hit {report.opponent.displayName} first, and they answered inside the revenge window.</p> : null}
+    {report.npcBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.npcBounty.cents)} for beating the {report.npcBounty.crew}.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Your block is protected until {date(report.protectedUntil)}. You also need your crew back before the next raid.</p> : null}
     {report.cooldownUntil ? <p className="se-hint">Next raid after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
@@ -405,8 +410,11 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const [closingReportId, setClosingReportId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingRaid | null>(() => loadPendingRaid(browserSessionStorage(), playerId));
   const [targetId, setTargetId] = useState('');
-  const [mode, setMode] = useState<Mode>('RAID');
-  const [squad, setSquad] = useState('1');
+  // The kind of hit and the squad size come back; the target is picked fresh each time.
+  const [mode, setMode] = useRememberedState<Mode>(rememberedKey('combat.mode', playerId), 'RAID',
+    { accept: (value): value is Mode => value === 'RAID' || value === 'DRIVE_BY' || value === 'DRUG_HOES' || value === 'STEAL_RIDE' || value === 'LURE_CREW' });
+  const [squad, setSquad] = useRememberedState<string>(rememberedKey('combat.squad', playerId), '1', { accept: isString });
+  const [raidTeam, setRaidTeam] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -481,6 +489,10 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const specialRaid = specialRaids.find((action) => action.kind === mode);
   const driving = mode === 'DRIVE_BY' && !!driveBy;
   const doingSpecialRaid = !!specialRaid;
+  // A remembered kind of hit this page no longer offers falls back to a plain raid.
+  useEffect(() => {
+    if (page && mode !== 'RAID' && !driving && !doingSpecialRaid) setMode('RAID');
+  }, [page, mode, driving, doingSpecialRaid, setMode]);
   /** Drive-bys have their own clock. The other forms share the raid clock. */
   const targetBlock = useCallback((target: CombatTargetDto) => {
     if (driving) return target.driveByBlockedReason ?? null;
@@ -526,6 +538,8 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                   ? 'Say how many to send - at least one.'
                   : squadNumber > maxSquad
                     ? `You can send at most ${formatNumber(maxSquad)}.`
+                    : raidTeam.length > squadNumber
+                      ? 'Choose no more crew specialists than the raid squad.'
                     : null;
   const disabled = attackBlock !== null;
   const pagingBlock = busy ? 'Your last hit is still going through.' : pending ? 'Get the report for your unsettled hit first.' : null;
@@ -540,7 +554,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   async function submit(event?: FormEvent) {
     event?.preventDefault();
     if (inFlight.current || (!pending && disabled)) return;
-    const request: PendingRaid = pending ?? { input: { roundId, targetPublicPimpId: selected!.publicPimpId, attackingThugs: squadNumber, actionId: newActionId() }, targetName: selected!.displayName, kind: driving ? 'DRIVE_BY' : doingSpecialRaid ? specialRaid.kind : 'RAID' };
+    const request: PendingRaid = pending ?? { input: { roundId, targetPublicPimpId: selected!.publicPimpId, attackingThugs: squadNumber, ...(!driving && !doingSpecialRaid && raidTeam.length ? { crewMemberIds: raidTeam } : {}), actionId: newActionId() }, targetName: selected!.displayName, kind: driving ? 'DRIVE_BY' : doingSpecialRaid ? specialRaid.kind : 'RAID' };
     inFlight.current = true;
     setBusy(true);
     setError(null);
@@ -669,6 +683,13 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 tooltip="Server-run crews hold these corners like anyone else. They lean on crews that work their blocks, and you can push them off."
               />
             ) : null}
+            {page.npcGangIntel.relief ? (
+              <Row
+                label="Street relief"
+                value={`${page.npcGangIntel.relief.crew} went to ground · quiet until ${date(page.npcGangIntel.relief.until)}`}
+                tooltip="When crews like you send a server-run crew to ground, the other crews in town stand down for a while."
+              />
+            ) : null}
             {page.npcGangIntel.mood ? (
               <Row
                 label="Crew mood"
@@ -701,6 +722,20 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
           <ul className="se-city__talk">
             {page.npcGangIntel.rumors.map((rumor) => <li key={rumor}>{rumor}</li>)}
           </ul>
+          {page.npcGangIntel.crews?.length ? (
+            <ol className="se-admin-list">
+              {page.npcGangIntel.crews.map((crew) => (
+                <li key={crew.publicPimpId}>
+                  <div className="se-admin-check__head">
+                    <strong>{crew.name} [{crew.tag}]</strong>
+                    <span className="se-muted">{crew.label}{crew.mood === 'HOT' ? ' · on a run' : crew.mood === 'COOLED' ? ' · licking wounds' : ''}{crew.wanted ? ' · wanted' : ''}</span>
+                  </div>
+                  <p className="se-hint">Run by {crew.boss} (#{crew.publicPimpId}). {crew.style}</p>
+                  {crew.reputation.length ? <p className="se-hint">{crew.reputation.join(' ')}</p> : null}
+                </li>
+              ))}
+            </ol>
+          ) : null}
         </Panel>
       ) : null}
 
@@ -1061,6 +1096,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 Max {formatNumber(maxSquad)}
               </Button>
             </div>
+            {!driving && !doingSpecialRaid ? <CrewTeamPicker role="THUG" specialty="ENFORCER" selectedIds={raidTeam} onChange={setRaidTeam} disabled={busy || !!pending || raidTeam.length > squadNumber} refreshKey={latest} /> : null}
             <Button type="submit" className="se-btn se-btn--primary" disabledReason={attackBlock}>
               {busy
                 ? 'Crew is out...'

@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Midnight Chrome thug: charcoal flat-top, mirrored chrome shield shades, charcoal racing jacket with brushed-chrome zips and a crimson-piped stand collar over a ribbed mock-neck, brushed-chrome Cuban link with the crimson-inlaid chrome diamond. -->
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <radialGradient id="skin" cx=".42" cy=".35" r=".75"><stop offset="0" stop-color="#a0673f"/><stop offset=".7" stop-color="#734326"/><stop offset="1" stop-color="#4d2b16"/></radialGradient>
+    <linearGradient id="jacket" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#454b54"/><stop offset=".35" stop-color="#2a2e35"/><stop offset="1" stop-color="#121418"/></linearGradient>
+    <linearGradient id="yoke" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#535a64"/><stop offset="1" stop-color="#30353d"/></linearGradient>
+    <linearGradient id="knit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1f2227"/><stop offset="1" stop-color="#0b0c0e"/></linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2e2924"/><stop offset=".55" stop-color="#16120f"/><stop offset="1" stop-color="#3a2a1c"/></linearGradient>
+    <!-- brushed chrome: bright top, cool mid, dark core, soft return -->
+    <linearGradient id="chrome" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2f5f8"/><stop offset=".35" stop-color="#c3cad3"/><stop offset=".6" stop-color="#7c8591"/><stop offset="1" stop-color="#b5bdc7"/></linearGradient>
+    <!-- mirrored lens: sky, horizon line, ground reflection -->
+    <linearGradient id="mirror" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef2f6"/><stop offset=".42" stop-color="#9aa3ae"/><stop offset=".5" stop-color="#2a2e35"/><stop offset=".62" stop-color="#4a515b"/><stop offset="1" stop-color="#c9d0d8"/></linearGradient>
+    <linearGradient id="crimson" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e0404f"/><stop offset=".55" stop-color="#b3192b"/><stop offset="1" stop-color="#6e0c18"/></linearGradient>
+  </defs>
+  <g filter="url(#s)" stroke="#07080a" stroke-width="1.6" stroke-linejoin="round">
+    <!-- ribbed mock-neck under the open jacket -->
+    <path d="M46 86 L82 86 L86 128 H42 Z" fill="url(#knit)"/>
+    <!-- racing jacket panels -->
+    <path d="M8 128 Q10 98 30 90 L50 84 L58 100 L54 128 Z" fill="url(#jacket)"/>
+    <path d="M120 128 Q118 98 98 90 L78 84 L70 100 L74 128 Z" fill="url(#jacket)"/>
+    <!-- quilted shoulder yokes -->
+    <path d="M12 106 Q16 95 30 90 L42 86.5 L45 96 Q26 99 12 106 Z" fill="url(#yoke)" stroke-width="1.2"/>
+    <path d="M116 106 Q112 95 98 90 L86 86.5 L83 96 Q102 99 116 106 Z" fill="url(#yoke)" stroke-width="1.2"/>
+    <!-- stand collar, turned up beside the jaw -->
+    <path d="M43 90 L45.5 74.5 Q51 74.5 57 77.5 L57 92 Z" fill="url(#yoke)" stroke-width="1.3"/>
+    <path d="M85 90 L82.5 74.5 Q77 74.5 71 77.5 L71 92 Z" fill="url(#yoke)" stroke-width="1.3"/>
+    <path d="M56 70 H72 V90 Q64 95 56 90 Z" fill="url(#skin)"/>
+    <path d="M44 56 Q40 54 41 60 Q42 66 46 66 Z M84 56 Q88 54 87 60 Q86 66 82 66 Z" fill="url(#skin)"/>
+    <ellipse cx="64" cy="55" rx="19" ry="23" fill="url(#skin)"/>
+    <!-- flat-top with a tight fade -->
+    <path d="M45 50 L45 35 Q45.5 27 53 26 H75 Q82.5 27 83 35 L83 50 Q81 43 76 41 Q64 38.5 52 41 Q47 43 45 50 Z" fill="url(#hair)"/>
+  </g>
+  <!-- rim light on the shoulders so charcoal separates from a dark tile -->
+  <path d="M11 116 Q14 98 30 91.5 L48 85.6M117 116 Q114 98 98 91.5 L80 85.6" stroke="#aeb6c0" stroke-opacity=".5" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <!-- yoke quilting -->
+  <path d="M18 101 L26 94.5M24 98.6 L32 92.6M30 96.8 L38 90.2M110 101 L102 94.5M104 98.6 L96 92.6M98 96.8 L90 90.2" stroke="#07080a" stroke-opacity=".55" stroke-width=".8"/>
+  <!-- mock-neck ribbing -->
+  <path d="M60 92 V100M63 93 V102M66 93 V102M69 92 V100" stroke="#000" stroke-opacity=".55" stroke-width=".7"/>
+  <!-- crimson collar piping: the jacket's only colour -->
+  <path d="M46.4 76.4 Q51 76.4 56.2 79M81.6 76.4 Q77 76.4 71.8 79" stroke="url(#crimson)" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <path d="M44.6 88 L46.6 77.6M83.4 88 L81.4 77.6" stroke="#aeb6c0" stroke-opacity=".45" stroke-width="1" stroke-linecap="round"/>
+  <!-- brushed-chrome zip tapes framing the chest -->
+  <path d="M50 84.5 L57.6 100 L53.6 128M78 84.5 L70.4 100 L74.4 128" stroke="#07080a" stroke-width="3.6" fill="none" stroke-linejoin="round"/>
+  <path d="M50 84.5 L57.6 100 L53.6 128M78 84.5 L70.4 100 L74.4 128" stroke="url(#chrome)" stroke-width="2.2" fill="none" stroke-linejoin="round"/>
+  <path d="M51.4 89 L56.6 99.4M76.6 89 L71.4 99.4M56.2 104 L54.2 124M71.8 104 L73.8 124" stroke="#ffffff" stroke-opacity=".55" stroke-width=".6" stroke-dasharray=".8 .9"/>
+  <!-- zip pull -->
+  <g filter="url(#s)"><rect x="52.4" y="112" width="3.2" height="7" rx="1" fill="url(#chrome)" stroke="#07080a" stroke-width=".8"/></g>
+  <!-- hair texture, crisp line-up and a shaved part -->
+  <path d="M51 28.5 V40M57 27 V39M64 27 V38.6M71 27 V39M77 28.5 V40" stroke="#07080a" stroke-opacity=".5" stroke-width=".7"/>
+  <path d="M47 33 Q50 27.5 56 27" stroke="#8f9aa6" stroke-opacity=".5" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  <path d="M46.5 46 L45.6 36" stroke="#5a3a24" stroke-opacity=".6" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M81.5 46 L82.4 36" stroke="#5a3a24" stroke-opacity=".6" stroke-width="1.6" stroke-linecap="round"/>
+  <!-- chrome ear stud -->
+  <circle cx="42.6" cy="63" r="1.4" fill="url(#chrome)" stroke="#07080a" stroke-width=".6"/>
+  <!-- mirrored chrome shield shades -->
+  <g filter="url(#s)">
+    <path d="M44 49 Q64 45 84 49 L83.4 54.5 Q80.5 60 72.5 59.4 Q67.5 58.8 64 56.4 Q60.5 58.8 55.5 59.4 Q47.5 60 44.6 54.5 Z" fill="url(#mirror)" stroke="#07080a" stroke-width="1.3" stroke-linejoin="round"/>
+  </g>
+  <path d="M44.2 50.6 L41.6 52.6M83.8 50.6 L86.4 52.6" stroke="#2a2e35" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M47 50.2 Q55 48.2 61 48.4" stroke="#ffffff" stroke-opacity=".85" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <path d="M71 55.8 L79.5 55" stroke="#ffffff" stroke-opacity=".5" stroke-width=".8" stroke-linecap="round"/>
+  <!-- nose, moustache, goatee (base thug face) -->
+  <path d="M62 61 Q64 64 66 61" stroke="#4d2b16" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <path d="M56 67 Q64 64 72 67 Q70 69 64 68 Q58 69 56 67 Z" fill="#1b100a"/>
+  <path d="M59 71 H69" stroke="#3a1f10" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M60 74 Q64 79 68 74 Q66 78 64 78 Q62 78 60 74 Z" fill="#1b100a"/>
+  <!-- brushed-chrome Cuban link -->
+  <path d="M50 87 Q64 106 78 87" fill="none" stroke="#1b1e23" stroke-width="4.6"/>
+  <path d="M50 87 Q64 106 78 87" fill="none" stroke="url(#chrome)" stroke-width="3" stroke-dasharray="2.6 1"/>
+  <!-- set emblem: chrome diamond, crimson inlay -->
+  <g filter="url(#s)">
+    <path d="M64 97.5 L70.5 105.5 L64 113.5 L57.5 105.5 Z" fill="url(#chrome)" stroke="#07080a" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M64 100.6 L68 105.5 L64 110.4 L60 105.5 Z" fill="url(#crimson)" stroke="#3a060d" stroke-width=".6" stroke-linejoin="round"/>
+  </g>
+  <path d="M62.4 102.6 L64 100.9" stroke="#ffd0d5" stroke-opacity=".9" stroke-width=".7" stroke-linecap="round"/>
+</svg>

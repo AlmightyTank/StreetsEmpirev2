@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128">
+  <!-- Midnight Chrome Low-Rider: deep graphite gloss with a darker graphite top, smoked glass, the classic chrome spear with a crimson pinstripe under it, brushed-chrome rocker, brushed-chrome rims on chrome-ring tyres with crimson centre caps. Clean body: no primer or odd door. -->
+  <defs>
+    <filter id="s" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <filter id="blur" x="-20%" y="-100%" width="140%" height="300%"><feGaussianBlur stdDeviation=".9"/></filter>
+    <filter id="soft" x="-10%" y="-20%" width="120%" height="140%"><feGaussianBlur stdDeviation=".7"/></filter>
+    <linearGradient id="paint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a828c"/><stop offset=".18" stop-color="#4b5159"/><stop offset=".55" stop-color="#30343a"/><stop offset="1" stop-color="#181a1e"/></linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a5058"/><stop offset="1" stop-color="#1b1e23"/></linearGradient>
+    <linearGradient id="door" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6fd0f5"/><stop offset=".5" stop-color="#38b2ea"/><stop offset="1" stop-color="#1f86bd"/></linearGradient>
+    <linearGradient id="primer" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2e4e6"/><stop offset="1" stop-color="#a9adb2"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a525c"/><stop offset=".6" stop-color="#15181c"/><stop offset="1" stop-color="#0b0d10"/></linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".45" stop-color="#c3cad3"/><stop offset=".55" stop-color="#6b737e"/><stop offset="1" stop-color="#d5dbe1"/></linearGradient>
+    <radialGradient id="rim" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#f2f5f8"/><stop offset=".55" stop-color="#aeb6c0"/><stop offset="1" stop-color="#5a616c"/></radialGradient>
+    <clipPath id="bodyclip"><path d="M12 66 Q44 62 75 61 C84 54 92 47 102 46 L152 46 C158 47 166 56 172 63 L178 63 C205 64 235 67 248 70 L250 72 Q251 80 249 90 L232 95 A18 18 0 0 0 195 95 L95 96 A18 18 0 0 0 59 96 L14 94 Q10 92 10 86 L10 70 Q10 66 12 66 Z"/></clipPath>
+    <path id="slot" d="M-2 -3.6 L2 -3.6 L3.4 -8.6 L-3.4 -8.6 Z" fill="#1c1f23"/>
+    <g id="wheel">
+      <circle r="15" fill="#141414" stroke="#050505" stroke-width="1.4"/>
+      <circle r="12.4" fill="none" stroke="#aeb6c0" stroke-width="1.1"/>
+      <circle r="10.6" fill="url(#rim)" stroke="#2b2e33" stroke-width="1"/>
+      <use href="#slot" transform="rotate(0)"/><use href="#slot" transform="rotate(72)"/><use href="#slot" transform="rotate(144)"/><use href="#slot" transform="rotate(216)"/><use href="#slot" transform="rotate(288)"/>
+      <circle r="3.2" fill="#d6dbe1" stroke="#3a3e45" stroke-width=".8"/>
+      <circle r="1.1" fill="#c41e30"/>
+    </g>
+  </defs>
+  <g transform="translate(7.68 3.84) scale(.94) translate(0 -9)">
+    <ellipse cx="128" cy="106" rx="120" ry="4.5" fill="#000" opacity=".45"/>
+    <g stroke="#d8dde3" stroke-linecap="round">
+      <path d="M72 61 L60 43" stroke-width="1.1"/><circle cx="60" cy="43" r="1" fill="#d8dde3"/>
+      <path d="M61 62 L38 43" stroke-width="1.1"/><circle cx="38" cy="43" r="1" fill="#d8dde3"/>
+    </g>
+    <g filter="url(#s)">
+      <path d="M12 66 Q44 62 75 61 C84 54 92 47 102 46 L152 46 C158 47 166 56 172 63 L178 63 C205 64 235 67 248 70 L250 72 Q251 80 249 90 L232 95 A18 18 0 0 0 195 95 L95 96 A18 18 0 0 0 59 96 L14 94 Q10 92 10 86 L10 70 Q10 66 12 66 Z" fill="url(#paint)" stroke="#0a0b0d" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M8 81 H20 V91 H11 Q8 91 8 88 Z" fill="url(#chrome)" stroke="#1e1f22" stroke-width="1.1"/>
+      <path d="M236 88 L250 84 Q253 84 253 87 V90 Q253 93 250 93 H238 Z" fill="url(#chrome)" stroke="#1e1f22" stroke-width="1.1"/>
+    </g>
+    <path d="M75 61 C84 54 92 47 102 46 L152 46 C158 47 166 56 172 63 Z" fill="url(#roof)"/>
+    <path d="M100 63 C99 56 101 50 106 49 L150 49 C155 50 160 55 164 63 Z" fill="url(#glass)" stroke="#0a0b0d" stroke-width="1.2" stroke-linejoin="round"/>
+    <path d="M107 51 H150" stroke="#5a616c" stroke-width="1.6" stroke-dasharray="1.4 1.1"/>
+    <path d="M126 49 V63" stroke="url(#chrome)" stroke-width="1.4"/>
+    <path d="M112 60 L122 50 M140 60 L148 52" stroke="#fff" stroke-opacity=".22" stroke-width="2.4"/>
+    <g clip-path="url(#bodyclip)">
+      <path d="M14 67 Q44 63.5 76 62.5 M180 64.5 C206 65.5 232 68 246 71" stroke="#aeb6c0" stroke-opacity=".5" stroke-width="1.3" fill="none"/>
+    </g>
+    <path d="M178 63 V96 M123 64 V97" stroke="#0e1013" stroke-width="1.2"/>
+    <path d="M14 70 L244 73" stroke="url(#chrome)" stroke-width="1.8"/>
+    <rect x="127" y="67" width="7" height="2" rx="1" fill="url(#chrome)"/>
+    <ellipse cx="168" cy="62" rx="2.2" ry="1.6" fill="url(#chrome)" stroke="#1e1f22" stroke-width=".6"/>
+    <rect x="63" y="67.5" width="5" height="4" rx=".8" fill="none" stroke="#0e1013" stroke-width=".8"/>
+    <rect x="10" y="67" width="2.4" height="7" fill="#c2222e"/>
+    <path d="M233 67 L234.5 61.5 L238 64 Z" fill="#ff7a1a" stroke="#6a2c04" stroke-width=".6"/>
+    <g clip-path="url(#bodyclip)">
+      <!-- crimson pinstripe under the chrome spear -->
+      <path d="M17 73.4 L236 76.2" stroke="#c41e30" stroke-width=".9" stroke-linecap="round"/>
+      <!-- brushed-chrome rocker -->
+      <path d="M96 93.6 Q145 94 194 93.4" stroke="#0a0b0d" stroke-width="2.6" fill="none"/>
+      <path d="M96 93.6 Q145 94 194 93.4" stroke="url(#chrome)" stroke-width="1.6" fill="none"/>
+    </g>
+    <use href="#wheel" transform="translate(213 91)"/>
+    <use href="#wheel" transform="translate(77 91)"/>
+  </g>
+</svg>

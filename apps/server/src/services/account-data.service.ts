@@ -30,6 +30,10 @@ export async function eraseAccount(tx: Db, before: Account, replacementPasswordH
   const sessionsRevoked = await tx.session.count({ where: { accountId: before.id } });
   // Bug reports outlive the account; they must not keep its name.
   await tx.bugReport.updateMany({ where: { accountId: before.id }, data: { username: 'Deleted Player' } });
+  // Support tickets copy their Discord id and name, so they go with the account.
+  await tx.supportTicket.deleteMany({
+    where: { OR: [{ accountId: before.id }, ...(before.discordId ? [{ discordId: before.discordId }] : [])] },
+  });
 
   if (roundsPlayed === 0) {
     await tx.account.delete({ where: { id: before.id } });
@@ -109,7 +113,7 @@ export const AccountDataService = {
       orderBy: { createdAt: 'asc' },
     });
     const playerIds = players.map((row) => row.id);
-    const [profile, cosmetics, notifications, sessions, trustedDevices, devices, forumLink, sent, received, contacts, mutes, messageReports, bugReports] = await Promise.all([
+    const [profile, cosmetics, notifications, sessions, trustedDevices, devices, forumLink, sent, received, contacts, mutes, messageReports, bugReports, supportTickets, supporterMembership, supporterPayments] = await Promise.all([
       prisma.accountProfile.findUnique({ where: { accountId } }),
       prisma.accountCosmeticUnlock.findMany({ where: { accountId } }),
       prisma.notificationSettings.findUnique({ where: { accountId } }),
@@ -122,7 +126,10 @@ export const AccountDataService = {
       prisma.playerContact.findMany({ where: { ownerId: { in: playerIds } }, select: { kind: true, note: true, createdAt: true, target: { select: { displayName: true, roundId: true } } } }),
       prisma.playerMute.findMany({ where: { muterAccountId: accountId }, select: { createdAt: true, muted: { select: { username: true } } } }),
       prisma.playerMessageReport.findMany({ where: { reporterAccountId: accountId }, select: { reason: true, createdAt: true, resolvedAt: true, resolution: true } }),
-      prisma.bugReport.findMany({ where: { accountId }, select: { category: true, summary: true, details: true, pagePath: true, createdAt: true, resolvedAt: true, resolution: true, resolutionNote: true } }),
+      prisma.bugReport.findMany({ where: { accountId }, select: { category: true, summary: true, details: true, pagePath: true, source: true, createdAt: true, resolvedAt: true, resolution: true, playerReply: true } }),
+      prisma.supportTicket.findMany({ where: { accountId }, select: { subject: true, createdAt: true, closedAt: true } }),
+      prisma.supporterMembership.findUnique({ where: { accountId }, select: { status: true, startedAt: true, currentPeriodEnd: true, cancelAtPeriodEnd: true, endedAt: true } }),
+      prisma.supporterPayment.findMany({ where: { accountId }, orderBy: { paidAt: 'asc' }, select: { amountCents: true, currency: true, status: true, paidAt: true, stripeInvoiceId: true } }),
     ]);
 
     return plain({
@@ -160,6 +167,9 @@ export const AccountDataService = {
       playersMuted: mutes.map((row) => ({ username: row.muted.username, since: row.createdAt })),
       messageReportsMade: messageReports,
       bugReports,
+      supportTickets,
+      // Card details stay with Stripe; StreetsEmpire never sees them.
+      supporter: { membership: supporterMembership, payments: supporterPayments },
     }) as Record<string, unknown>;
   },
 

@@ -34,7 +34,10 @@ import { TurfService } from './turf.service.js';
 import { storedMigrationPlan } from './npc-gang-migration.js';
 import { npcMood, storedMomentum } from './npc-gang-momentum.js';
 import { npcRules } from './npc-gang-rules.js';
+import { npcIdentity, npcPersonality, npcReputation, storedHistory } from './npc-gang-personality.js';
+import { npcBattleNotes, npcBattleOutcome, npcCityRelief, npcWanted, storedRetirement } from './npc-gang-rewards.js';
 import { ActivityService } from './activity.service.js';
+import { RandomEncounterService, encounterActivityPayload } from './random-encounter.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
@@ -51,6 +54,7 @@ import { hideoutDefenseBonusPercent, hideoutMedicineEfficiencyPercent, hideoutPr
 import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 import { LawService } from './law.service.js';
 
 type CombatRules = NonNullable<Ruleset['combat']>;
@@ -684,12 +688,16 @@ async function recoveryDto(
   };
 }
 
-function readableArchetype(archetype: string): string {
-  return archetype
-    .split(/[-_\s]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+/**
+ * Phase N. Activity flags for a battle with an NPC side: `opponentNpc` lets contracts
+ * target NPC crews with an ordinary `where`, and `npcBounty` is the cash a win paid.
+ */
+function npcActivity(npc: Parameters<typeof npcBattleNotes>[0], playerId: string, isAttacker: boolean) {
+  const notes = npcBattleNotes(npc, playerId, isAttacker);
+  return {
+    ...(notes.opponentNpc ? { opponentNpc: true } : {}),
+    ...(notes.npcBounty ? { npcBounty: notes.npcBounty.cents } : {}),
+  };
 }
 
 function storedReportKind(battle: Pick<Prisma.RaidBattleGetPayload<{ select: { kind: true; attackerReport: true } }>, 'kind' | 'attackerReport'>): string {
@@ -790,7 +798,7 @@ async function npcMovementAround(prisma: PrismaClient, player: PlayerWithCity, r
 async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, ruleset: Ruleset, now: Date): Promise<NpcGangIntelDto | undefined> {
   if (ruleset.npcGangs?.enabled === false) return undefined;
   const seenSince = new Date(now.getTime() - 24 * 3_600_000);
-  const [gangs, recentRows, grudges, turf, movement, dormant] = await Promise.all([
+  const [gangs, recentRows, grudges, turf, movement, dormant, relief, grounded] = await Promise.all([
     prisma.npcGang.findMany({
       where: {
         // Phase K: a crew on the road out is not a local problem any more.
@@ -798,6 +806,8 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
         OR: [{ dormantUntil: null }, { dormantUntil: { lte: now } }],
       },
       select: {
+        id: true,
+        roundPlayerId: true,
         archetype: true,
         tier: true,
         aggression: true,
@@ -805,7 +815,7 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
         discipline: true,
         lastActionAt: true,
         memory: true,
-        roundPlayer: { select: { displayName: true } },
+        roundPlayer: { select: { displayName: true, publicPimpId: true } },
       },
       orderBy: [{ aggression: 'desc' }, { ambition: 'desc' }],
       take: 8,
@@ -834,8 +844,15 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     npcMovementAround(prisma, player, ruleset, now),
     // Phase L: crews gone to ground still live here; they are just not moving.
     prisma.npcGang.count({ where: { dormantUntil: { gt: now }, roundPlayer: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } } } }),
+    // Phase N: a crew humans just sent to ground keeps the rest quiet; broken crews are news.
+    npcCityRelief(prisma, { roundId: player.roundId, cityId: player.cityId, ruleset, now }),
+    prisma.npcGang.findMany({
+      where: { dormantUntil: { gt: now }, roundPlayer: { roundId: player.roundId, cityId: player.cityId } },
+      select: { id: true, archetype: true, memory: true },
+    }),
   ]);
-  const escalation = npcRules(ruleset).escalation;
+  const gangRules = npcRules(ruleset);
+  const escalation = gangRules.escalation;
   const moods = gangs.map((gang) => npcMood(storedMomentum(gang.memory), escalation));
   const hot = moods.filter((mood) => mood === 'HOT').length;
   const cooled = moods.filter((mood) => mood === 'COOLED').length;
@@ -848,6 +865,32 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     + movement.inbound.length * 2 + movement.newArrivals * 2 + hot * 2 - cooled + Math.floor(maxAggression / 25);
   const danger: NpcGangIntelDto['danger'] = dangerScore >= 8 ? 'HOT' : dangerScore >= 3 ? 'ACTIVE' : 'QUIET';
   const top = gangs[0] ?? recent.find((battle) => battle.attacker.npcGang)?.attacker.npcGang ?? null;
+  // Phase M: crews are known by name and habit.
+  const shown = gangs.slice(0, 4);
+  const wanted = await Promise.all(shown.map((gang) => npcWanted(prisma, gang.roundPlayerId, gangRules.rewards, now)));
+  const crewName = (gang: { id: string; archetype: string; memory: Prisma.JsonValue }) => npcIdentity(npcPersonality(gangRules, gang.archetype), gang.id, gang.memory).name;
+  const reliefCrew = relief ? crewName({ id: relief.gangId, archetype: relief.archetype, memory: relief.memory }) : null;
+  const brokeUp = grounded
+    .filter((gang) => {
+      const retired = storedRetirement(gang.memory);
+      return retired && now.getTime() - Date.parse(retired.at) < 48 * 3_600_000;
+    })
+    .map(crewName);
+  const crews = shown.map((gang, index) => {
+    const view = npcPersonality(gangRules, gang.archetype);
+    const identity = npcIdentity(view, gang.id, gang.memory);
+    return {
+      wanted: wanted[index] === true && gangRules.rewards.enabled,
+      ...identity,
+      boss: gang.roundPlayer.displayName,
+      publicPimpId: gang.roundPlayer.publicPimpId,
+      label: view.personality.label,
+      style: view.personality.style,
+      mood: moods[index]!,
+      reputation: npcReputation(storedHistory(gang.memory), now),
+    };
+  });
+  const topLabel = top ? npcPersonality(gangRules, top.archetype).personality.label : null;
   const rumors: string[] = [];
 
   if (grudges.wantedBy) {
@@ -860,6 +903,10 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
   } else if (turf.blocks.length) {
     rumors.push(`A server-run crew is holding ${turf.blocks.join(' and ')}. Working there puts you on their radar.`);
   }
+  if (reliefCrew) rumors.push(`Streets went quiet when the ${reliefCrew} went to ground. The other crews are lying low for now.`);
+  if (brokeUp.length) rumors.push(`The ${brokeUp.join(' and the ')} broke up. Their blocks are up for grabs.`);
+  const wantedCrew = crews.find((crew) => crew.wanted);
+  if (wantedCrew) rumors.push(`There is a price on the ${wantedCrew.name}. Beat them and the street pays.`);
   if (hot) rumors.push(`${hot === 1 ? 'A local crew is' : `${hot} local crews are`} on a run and getting bolder by the day.`);
   if (cooled) rumors.push(`${cooled === 1 ? 'A local crew took' : `${cooled} local crews took`} some beatings and ${cooled === 1 ? 'is' : 'are'} keeping their heads down.`);
   if (dormant) rumors.push(`${dormant === 1 ? 'A crew has' : `${dormant} crews have`} gone to ground after one beating too many. They will be back.`);
@@ -881,7 +928,8 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
   }
   if (recentDriveBys) rumors.push(`${recentDriveBys} drive-by${recentDriveBys === 1 ? '' : 's'} had engines talking.`);
   if (recentSpecialRaids) rumors.push(`${recentSpecialRaids} old-school move${recentSpecialRaids === 1 ? '' : 's'} showed up in street chatter.`);
-  if (top) rumors.push(`${readableArchetype(top.archetype)} crews look like the loudest local problem.`);
+  if (crews[0]) rumors.push(`The ${crews[0].name} (${crews[0].label.toLowerCase()}) look like the loudest local problem.`);
+  else if (topLabel) rumors.push(`${topLabel} look like the loudest local problem.`);
   if (danger === 'HOT') rumors.push('Keep medicine, rides and backup ready before picking a fight here.');
   else if (danger === 'ACTIVE') rumors.push('Watch the target list. A quiet block can turn noisy fast.');
 
@@ -892,7 +940,10 @@ async function npcGangIntelDto(prisma: PrismaClient, player: PlayerWithCity, rul
     recentDriveBys,
     recentSpecialRaids,
     seenSince: seenSince.toISOString(),
-    ...(top ? { topArchetype: readableArchetype(top.archetype), topTier: top.tier } : {}),
+    ...(top && topLabel ? { topArchetype: topLabel, topTier: top.tier } : {}),
+    ...(crews.length ? { crews } : {}),
+    ...(relief && reliefCrew ? { relief: { crew: reliefCrew, until: relief.until.toISOString() } } : {}),
+    ...(brokeUp.length ? { brokeUp } : {}),
     ...(grudges.wantedBy && grudges.wantedUntil ? { wantedBy: grudges.wantedBy, wantedUntil: grudges.wantedUntil.toISOString() } : {}),
     ...(turf.blocks.length ? { npcBlocks: turf.blocks, onTheirTurf: turf.onTheirTurf } : {}),
     ...(movement.inbound.length || movement.leaving || movement.packing || movement.newArrivals ? { movement } : {}),
@@ -1050,6 +1101,7 @@ export const CombatService = {
       if (truce) throw AppError.conflict('TRUCE', truce);
       await assertNotLinked(tx, attacker, defender, now);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
+      await CrewRosterService.sync(tx, attackerId, ruleset, now);
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
       const repeatTargetHits = await consecutiveRepeatTargetHits(tx, attackerId, target.id);
@@ -1058,13 +1110,27 @@ export const CombatService = {
       const lootable = ruleset.productEconomy
         ? Object.values(exposedStashD).reduce((sum, count) => sum + Math.max(0, count), 0)
         : exposedStashD.CRACK ?? 0;
-      const result = simulateRaid({ attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), attackerBoost: boostOf(a), defenderBoost: boostOf(d), attackingThugs: input.attackingThugs,
+      const supplyBoost = boostOf(a);
+      const enforcerBonus = input.crewMemberIds
+        ? await CrewRosterService.selectedSpecialtyBonusPercent(tx, attackerId, ruleset, 'THUG', 'ENFORCER', input.crewMemberIds)
+        : await CrewRosterService.specialtyBonusPercent(tx, attackerId, ruleset, 'THUG', 'ENFORCER');
+      if ((input.crewMemberIds?.length ?? 0) > input.attackingThugs) throw AppError.badRequest('INVALID_CREW_TEAM', 'The selected team cannot be larger than the raid squad.');
+      const attackerBoost: CombatBoost | undefined = enforcerBonus > 0
+        ? { strength: (supplyBoost?.strength ?? 1) * (1 + enforcerBonus / 100), wounds: supplyBoost?.wounds ?? 1 }
+        : supplyBoost;
+      const result = simulateRaid({ attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), attackerBoost, defenderBoost: boostOf(d), attackingThugs: input.attackingThugs,
         attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: lootable, repeatTargetHits }, defenderModel, () => randomInt(0, 2 ** 32) / 2 ** 32);
       const productLoot = ruleset.productEconomy ? splitProductUnits(exposedStashD, result.lootCrack, ruleset) : { CRACK: result.lootCrack };
       const crackLoot = productLoot.CRACK ?? 0;
       const moved = await moveProducts(tx, ruleset, productLoot, { id: defender.id, products: d.products }, { id: attacker.id, products: a.products });
-      const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
+      let nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
         turns: result.attackerTurnsAfter, cashCents: attacker.cashCents + result.lootCents, crack: attacker.crack + crackLoot, raidsDone: attacker.raidsDone + 1 };
+      const combatEncounterResult = await RandomEncounterService.action({
+        tx, roundPlayerId: attackerId, next: nextA, ruleset, turns: model.turnCost, now,
+        rng: () => randomInt(0, 2 ** 32) / 2 ** 32,
+      }, 'COMBAT');
+      nextA = combatEncounterResult.next;
+      const combatEncounter = combatEncounterResult.encounter;
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender,
         cashCents: result.defenderCashAfterCents, crack: defender.crack - crackLoot };
       assertPlayerState(nextA, ruleset);
@@ -1088,6 +1154,8 @@ export const CombatService = {
       await writeRanks(tx, ruleset, now, [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]]);
       const trophyCallouts = trophyCalloutsFor({ kind: 'RAID', won: result.winner === 'ATTACKER' }, await attackerTrophyProgress(tx, attackerId));
       const id = randomUUID();
+      // Phase N: NPC sides are flagged for reports and contracts, and beating a wanted crew pays a bounty.
+      const npc = await npcBattleOutcome(tx, { battleId: id, attackerId, defenderId: target.id, attackerWon: result.winner === 'ATTACKER', kind: 'RAID', ruleset, now });
       const tags = await battleTags(tx, attacker, defender);
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;
@@ -1111,7 +1179,7 @@ export const CombatService = {
           yourWounds: ownWounds, opponentWounds,
           woundedThugsAfter: isAttacker ? nextA.woundedThugs : nextD.woundedThugs,
           nextRecoveryAt: ownWounds > 0 ? recoverAt.toISOString() : null,
-          cashChangeCents: Number(isAttacker ? result.lootCents : -result.lootCents),
+          cashChangeCents: Number(isAttacker ? result.lootCents : -result.lootCents) + (isAttacker ? (combatEncounter?.effects.cashCents ?? 0) : 0),
           cashAfterCents: Number(isAttacker ? nextA.cashCents : nextD.cashCents),
           crackChange: isAttacker ? crackLoot : -crackLoot,
           crackAfter: isAttacker ? nextA.crack : nextD.crack,
@@ -1140,6 +1208,8 @@ export const CombatService = {
           retaliation: isAttacker ? retaliation : false,
           ...(!isAttacker && retaliation ? { payback: true } : {}),
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
+          ...npcBattleNotes(npc, isAttacker ? attackerId : target.id, isAttacker),
+          ...(isAttacker && combatEncounter ? { encounter: combatEncounter } : {}),
         };
       };
       const looks = await battleLooks(tx, attacker.accountId, defender.accountId);
@@ -1149,8 +1219,16 @@ export const CombatService = {
         attackingThugs: input.attackingThugs, modelVersion: model.version,
         calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, ...(bossAwayMultiplier !== 1 ? { bossAwayMultiplier } : {}), retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
+      await CrewRosterService.awardCompletedWork(tx, { roundPlayerId: attackerId, ruleset, role: 'THUG', specialty: 'ENFORCER', ...(input.crewMemberIds ? { memberIds: input.crewMemberIds } : {}), at: now, label: 'Raid completed' });
       await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
+      if (combatEncounter?.effects.cashCents) {
+        await EconomyLedgerService.record(tx, attackerId, [{
+          source: 'RANDOM_ENCOUNTER',
+          label: `Street encounter · ${combatEncounter.title}`,
+          amountCents: combatEncounter.effects.cashCents,
+        }], now);
+      }
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       if (result.lootCents > 0n) {
         await EconomyLedgerService.record(tx, attackerId, [{
@@ -1176,6 +1254,8 @@ export const CombatService = {
           wounds: report.yourWounds,
           inventoryChanges: report.inventoryChanges ?? [],
           ...(type === 'RAID_DEFENSE' && retaliation ? { payback: true } : {}),
+          ...(type === 'RAID_ATTACK' && combatEncounter ? { randomEncounter: encounterActivityPayload(combatEncounter) } : {}),
+          ...npcActivity(npc, playerId, type === 'RAID_ATTACK'),
         }));
       }
       // Reserve the action namespace for the lifetime of this raid, including other action types.
@@ -1235,8 +1315,14 @@ export const CombatService = {
       const beforeD = await RankingService.ranksFor(tx, defender);
       const result = simulateDriveBy({ attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), attackerBoost: boostOf(a), defenderBoost: boostOf(d), shooters: input.attackingThugs,
         lowRiders: attacker.lowRiders, attackerTurns: attacker.turns, defenderWhores: workingWhores(defender) }, model, rules, () => randomInt(0, 2 ** 32) / 2 ** 32);
-      const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker, turns: result.attackerTurnsAfter,
+      let nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker, turns: result.attackerTurnsAfter,
         lowRiders: result.lowRidersAfter, driveBysDone: attacker.driveBysDone + 1 };
+      const combatEncounterResult = await RandomEncounterService.action({
+        tx, roundPlayerId: attackerId, next: nextA, ruleset, turns: rules.turnCost, now,
+        rng: () => randomInt(0, 2 ** 32) / 2 ** 32,
+      }, 'COMBAT');
+      nextA = combatEncounterResult.next;
+      const combatEncounter = combatEncounterResult.encounter;
       // 1.1.0-B: a drive-by hits the girls on the block, never the ones working a business.
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender, whores: defender.whores - result.whoresKilled };
       assertPlayerState(nextA, ruleset);
@@ -1261,6 +1347,7 @@ export const CombatService = {
       const trophyCallouts = trophyCalloutsFor({ kind: 'DRIVE_BY', won: result.winner === 'ATTACKER' }, await attackerTrophyProgress(tx, attackerId));
 
       const id = randomUUID();
+      const npc = await npcBattleOutcome(tx, { battleId: id, attackerId, defenderId: target.id, attackerWon: result.winner === 'ATTACKER', kind: 'DRIVE_BY', ruleset, now });
       const tags = await battleTags(tx, attacker, defender);
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;
@@ -1283,7 +1370,7 @@ export const CombatService = {
           yourWounds: ownWounds, opponentWounds: isAttacker ? result.wounds.defender : result.wounds.attacker,
           woundedThugsAfter: isAttacker ? nextA.woundedThugs : nextD.woundedThugs,
           nextRecoveryAt: ownWounds > 0 ? recoverAt.toISOString() : null,
-          cashChangeCents: 0,
+          cashChangeCents: isAttacker ? (combatEncounter?.effects.cashCents ?? 0) : 0,
           cashAfterCents: Number(isAttacker ? nextA.cashCents : nextD.cashCents),
           ...(inventory.length ? { inventoryChanges: inventory } : {}),
           turnsSpent: isAttacker ? rules.turnCost : 0, turnsAfter: isAttacker ? nextA.turns : nextD.turns,
@@ -1294,6 +1381,8 @@ export const CombatService = {
           retaliation: isAttacker ? retaliation : false,
           ...(!isAttacker && retaliation ? { payback: true } : {}),
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
+          ...npcBattleNotes(npc, isAttacker ? attackerId : target.id, isAttacker),
+          ...(isAttacker && combatEncounter ? { encounter: combatEncounter } : {}),
           driveBy: isAttacker
             ? { whoresKilled: result.whoresKilled, carsSent: result.cars.length, lowRidersLost: result.lowRidersLost, lowRidersAfter: nextA.lowRiders }
             : { whoresKilled: result.whoresKilled, whoresAfter: nextD.whores },
@@ -1308,12 +1397,21 @@ export const CombatService = {
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
+      if (combatEncounter?.effects.cashCents) {
+        await EconomyLedgerService.record(tx, attackerId, [{
+          source: 'RANDOM_ENCOUNTER',
+          label: `Street encounter · ${combatEncounter.title}`,
+          amountCents: combatEncounter.effects.cashCents,
+        }], now);
+      }
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'DRIVE_BY_ATTACK', attackerReport], [target.id, 'DRIVE_BY_DEFENSE', defenderReport]] as const) {
         await ActivityService.log(tx, playerId, type, json({ battleId: id, opponent: report.opponent.displayName, opponentTag: report.opponent.alliance?.tag ?? null, won: report.won,
           wounds: report.yourWounds, opponentWounds: report.opponentWounds, whoresKilled: result.whoresKilled,
           lowRidersLost: type === 'DRIVE_BY_ATTACK' ? result.lowRidersLost : 0, turns: report.turnsSpent,
-          ...(type === 'DRIVE_BY_DEFENSE' && retaliation ? { payback: true } : {}) }));
+          ...(type === 'DRIVE_BY_DEFENSE' && retaliation ? { payback: true } : {}),
+          ...(type === 'DRIVE_BY_ATTACK' && combatEncounter ? { randomEncounter: encounterActivityPayload(combatEncounter) } : {}),
+          ...npcActivity(npc, playerId, type === 'DRIVE_BY_ATTACK') }));
       }
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: 'DRIVE_BY', result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });
       return attackerReport;
@@ -1423,9 +1521,15 @@ export const CombatService = {
         }
       }
 
-      const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
+      let nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
         turns: attacker.turns - turnCost, crack: attacker.crack - crackSpent, beer: attacker.beer - beerSpent,
         whores: attacker.whores + whoresLured, thugs: attacker.thugs + thugsLured, lowRiders: attacker.lowRiders + lowRidersStolen, raidsDone: attacker.raidsDone + 1 };
+      const combatEncounterResult = await RandomEncounterService.action({
+        tx, roundPlayerId: attackerId, next: nextA, ruleset, turns: turnCost, now,
+        rng: () => randomInt(0, 2 ** 32) / 2 ** 32,
+      }, 'COMBAT');
+      nextA = combatEncounterResult.next;
+      const combatEncounter = combatEncounterResult.encounter;
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender,
         crack: defender.crack - defenderCrackBurned, condoms: defender.condoms - defenderCondomsBurned,
         whores: defender.whores - whoresLured, thugs: defender.thugs - thugsLured, lowRiders: defender.lowRiders - lowRidersStolen,
@@ -1466,6 +1570,7 @@ export const CombatService = {
       }, await attackerTrophyProgress(tx, attackerId));
 
       const id = randomUUID();
+      const npc = await npcBattleOutcome(tx, { battleId: id, attackerId, defenderId: target.id, attackerWon: won, kind: input.kind, ruleset, now });
       const tags = await battleTags(tx, attacker, defender);
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;
@@ -1494,7 +1599,7 @@ export const CombatService = {
           yourWounds: ownWounds, opponentWounds: isAttacker ? result.wounds.defender : result.wounds.attacker,
           woundedThugsAfter: isAttacker ? nextA.woundedThugs : nextD.woundedThugs,
           nextRecoveryAt: ownWounds > 0 ? recoverAt.toISOString() : null,
-          cashChangeCents: 0,
+          cashChangeCents: isAttacker ? (combatEncounter?.effects.cashCents ?? 0) : 0,
           cashAfterCents: Number(isAttacker ? nextA.cashCents : nextD.cashCents),
           crackChange: ownCrackChange,
           crackAfter: isAttacker ? nextA.crack : nextD.crack,
@@ -1519,6 +1624,8 @@ export const CombatService = {
           retaliation: isAttacker ? retaliation : false,
           ...(!isAttacker && retaliation ? { payback: true } : {}),
           ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
+          ...npcBattleNotes(npc, isAttacker ? attackerId : target.id, isAttacker),
+          ...(isAttacker && combatEncounter ? { encounter: combatEncounter } : {}),
           raidForm: {
             title: rule.title,
             ...(input.kind === 'DRUG_HOES' ? { whoresDrugged, crackSpent, defenderCrackBurned, defenderCondomsBurned } : {}),
@@ -1536,6 +1643,13 @@ export const CombatService = {
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
+      if (combatEncounter?.effects.cashCents) {
+        await EconomyLedgerService.record(tx, attackerId, [{
+          source: 'RANDOM_ENCOUNTER',
+          label: `Street encounter · ${combatEncounter.title}`,
+          amountCents: combatEncounter.effects.cashCents,
+        }], now);
+      }
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'RAID_ATTACK', attackerReport], [target.id, 'RAID_DEFENSE', defenderReport]] as const) {
         await ActivityService.log(tx, playerId, type, json({ battleId: id, kind: input.kind, move: rule.title, opponent: report.opponent.displayName, opponentTag: report.opponent.alliance?.tag ?? null, won: report.won,
@@ -1552,6 +1666,8 @@ export const CombatService = {
           thugsLured,
           beerSpent,
           ...(type === 'RAID_DEFENSE' && retaliation ? { payback: true } : {}),
+          ...(type === 'RAID_ATTACK' && combatEncounter ? { randomEncounter: encounterActivityPayload(combatEncounter) } : {}),
+          ...npcActivity(npc, playerId, type === 'RAID_ATTACK'),
         }));
       }
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: input.kind, result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });

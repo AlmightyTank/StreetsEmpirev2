@@ -6,21 +6,22 @@
  */
 
 :root {
-  --se-bg: #0b0c0e;
-  --se-panel: #14161a;
-  --se-panel-hi: #191d23;
-  --se-line: #262b33;
-  --se-line-soft: #1c2027;
+  --se-bg: #080a0d;
+  --se-panel: #111419;
+  --se-panel-hi: #171c23;
+  --se-line: #2a3039;
+  --se-line-soft: #20262e;
 
-  --se-text: #dbe0e7;
-  --se-text-dim: #98a1ad;
-  --se-muted: #6b7480;
+  --se-text: #e8edf4;
+  --se-text-dim: #a7b0bc;
+  --se-muted: #7b8592;
 
-  --se-accent: #b6ff3a;
-  --se-accent-dim: #7fb028;
-  --se-accent-hover: #c9ff63;
-  --se-accent-rgb: 182, 255, 58;
-  --se-accent-2: #ff2d78;
+  /* Black, crimson and chrome: the StreetsEmpire house palette. */
+  --se-accent: #ef4657;
+  --se-accent-dim: #b72e3d;
+  --se-accent-hover: #ff7784;
+  --se-accent-rgb: 239, 70, 87;
+  --se-accent-2: #d6dee8;
 
   --se-good: #4ade80;
   --se-good-rgb: 74, 222, 128;
@@ -47,7 +48,7 @@ body {
   margin: 0;
   background-color: var(--se-bg);
   background-image:
-    radial-gradient(800px 500px at 100% 0%, rgba(255, 45, 120, 0.05), transparent 55%);
+    radial-gradient(800px 500px at 100% 0%, rgba(var(--se-accent-rgb), 0.05), transparent 55%);
   background-attachment: fixed;
   color: var(--se-text);
   font-family: var(--se-sans);
@@ -456,21 +457,22 @@ body {
   background-color: var(--se-bg);
   background-image:
     radial-gradient(900px 500px at 15% -10%, rgba(var(--se-accent-rgb), 0.055), transparent 60%),
-    radial-gradient(800px 500px at 100% 0%, rgba(255, 45, 120, 0.04), transparent 55%);
+    radial-gradient(800px 500px at 100% 0%, rgba(var(--se-accent-rgb), 0.04), transparent 55%);
   background-attachment: fixed;
 }
 
 .se-site-accent--default {
-  --se-accent: #b6ff3a;
-  --se-accent-dim: #7fb028;
-  --se-accent-hover: #c9ff63;
-  --se-accent-rgb: 182, 255, 58;
+  --se-accent: #ef4657;
+  --se-accent-dim: #b72e3d;
+  --se-accent-hover: #ff7784;
+  --se-accent-rgb: 239, 70, 87;
 }
+/* Retired in 1.8.0-L: the house accent is crimson now, so a saved "crimson" renders as the default. */
 .se-site-accent--crimson {
-  --se-accent: #e92048;
-  --se-accent-dim: #aa1735;
-  --se-accent-hover: #f0637f;
-  --se-accent-rgb: 233, 32, 72;
+  --se-accent: #ef4657;
+  --se-accent-dim: #b72e3d;
+  --se-accent-hover: #ff7784;
+  --se-accent-rgb: 239, 70, 87;
 }
 .se-site-accent--gold {
   --se-accent: #f1b622;
@@ -569,15 +571,51 @@ body {
   --se-accent-hover: #a5adfb;
   --se-accent-rgb: 129, 140, 248;
 }
+/* 1.8.0-L quest accents. */
+.se-site-accent--original-neon {
+  --se-accent: #b6ff3a;
+  --se-accent-dim: #7fb028;
+  --se-accent-hover: #c9ff63;
+  --se-accent-rgb: 182, 255, 58;
+}
+.se-site-accent--neon-sign-pink {
+  --se-accent: #ff2ec4;
+  --se-accent-dim: #b8208d;
+  --se-accent-hover: #ff70d8;
+  --se-accent-rgb: 255, 46, 196;
+}
+.se-site-accent--gavel-bronze {
+  --se-accent: #cf9a5c;
+  --se-accent-dim: #94693b;
+  --se-accent-hover: #e0b886;
+  --se-accent-rgb: 207, 154, 92;
+}
+.se-site-accent--clean-books-ivory {
+  --se-accent: #efe6d2;
+  --se-accent-dim: #b3a98f;
+  --se-accent-hover: #faf5ea;
+  --se-accent-rgb: 239, 230, 210;
+}
+.se-site-accent--sunset-coral {
+  --se-accent: #ff8a70;
+  --se-accent-dim: #c2634f;
+  --se-accent-hover: #ffad9b;
+  --se-accent-rgb: 255, 138, 112;
+}
+.se-site-accent--night-map-plum {
+  --se-accent: #b45cff;
+  --se-accent-dim: #8240bd;
+  --se-accent-hover: #cb8dff;
+  --se-accent-rgb: 180, 92, 255;
+}
 
 /*
- * Green was historically used as both the default accent and the generic
- * positive-state color. Keep positive UI in the player's selected accent so
- * alternate color themes do not leak the default green.
+ * Positive states stay green whatever the accent. The house accent is crimson,
+ * close to --se-bad, so tying "good" to the accent would paint gains like losses.
  */
 .se-app {
-  --se-good: var(--se-accent);
-  --se-good-rgb: var(--se-accent-rgb);
+  --se-good: #4ade80;
+  --se-good-rgb: 74, 222, 128;
 }
 
 .se-density--compact .se-shell {
@@ -663,50 +701,95 @@ body {
 
 .se-footer {
   border-top: 1px solid var(--se-line);
-  background: rgba(11, 12, 14, 0.7);
+  background: #080a0c;
+  color: var(--se-muted);
 }
 
 .se-footer__inner {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  max-width: 1120px;
+  display: grid;
+  grid-template-columns: minmax(240px, 2fr) repeat(4, minmax(118px, 1fr));
+  gap: 2rem;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 22px 16px 28px;
+  padding: 28px 16px;
 }
 
 .se-footer__brand {
-  max-width: 420px;
   min-width: 0;
 }
 
 .se-footer__brand p {
-  margin: 8px 0 0;
+  max-width: 380px;
+  margin: 16px 0 0;
   color: var(--se-muted);
-  font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
-.se-footer__links {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px 16px;
-  max-width: 520px;
-}
-
-.se-footer__links a {
-  color: var(--se-text-dim);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+.se-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--se-text);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0;
   text-decoration: none;
+}
+
+.se-footer-brand:hover {
+  color: var(--se-text);
+}
+
+.se-footer-brand__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+}
+
+.se-footer-brand__mark img {
+  display: block;
+  width: 150%;
+  height: 150%;
+  object-fit: contain;
+}
+
+.se-footer__group h2 {
+  margin: 0 0 0.8rem;
+  color: var(--se-text);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
 }
 
-.se-footer__links a:hover {
+.se-footer__group nav {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.se-footer__group a {
+  color: var(--se-muted);
+  text-decoration: none;
+}
+
+.se-footer__group a:hover {
   color: var(--se-accent);
+}
+
+.se-footer__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 48px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 16px;
+  border-top: 1px solid var(--se-line-soft);
+  color: var(--se-muted);
+  font-size: 0.8rem;
 }
 
 .se-grid {
@@ -803,12 +886,31 @@ a:hover { color: var(--se-accent-hover); }
   }
 
   .se-footer__inner {
-    display: grid;
+    grid-template-columns: 1fr;
     gap: 16px;
   }
 
-  .se-footer__links {
-    justify-content: flex-start;
+  .se-footer__brand {
+    grid-column: auto;
+  }
+
+  .se-footer__bottom {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+}
+
+@media (min-width: 561px) and (max-width: 980px) {
+  .se-footer__inner {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+
+  .se-footer__brand {
+    grid-column: 1 / -1;
   }
 }
 
@@ -2435,8 +2537,8 @@ a:hover { color: var(--se-accent-hover); }
   padding-left: 12px;
 }
 
-.se-profile-accent--default { --se-profile-accent: #b6ff3a; }
-.se-profile-accent--crimson { --se-profile-accent: #e92048; }
+.se-profile-accent--default { --se-profile-accent: #ef4657; }
+.se-profile-accent--crimson { --se-profile-accent: #ef4657; }
 .se-profile-accent--gold { --se-profile-accent: #f1b622; }
 .se-profile-accent--green { --se-profile-accent: #4ade80; }
 .se-profile-accent--blue { --se-profile-accent: #6899f3; }
@@ -2453,6 +2555,12 @@ a:hover { color: var(--se-accent-hover); }
 .se-profile-accent--saints-chrome { --se-profile-accent: #cbd5e1; }
 .se-profile-accent--cartel-jade { --se-profile-accent: #10b981; }
 .se-profile-accent--civic-seal { --se-profile-accent: #818cf8; }
+.se-profile-accent--original-neon { --se-profile-accent: #b6ff3a; }
+.se-profile-accent--neon-sign-pink { --se-profile-accent: #ff2ec4; }
+.se-profile-accent--gavel-bronze { --se-profile-accent: #cf9a5c; }
+.se-profile-accent--clean-books-ivory { --se-profile-accent: #efe6d2; }
+.se-profile-accent--sunset-coral { --se-profile-accent: #ff8a70; }
+.se-profile-accent--night-map-plum { --se-profile-accent: #b45cff; }
 
 .se-profile-frame {
   position: relative;
@@ -2692,6 +2800,90 @@ a:hover { color: var(--se-accent-hover); }
   border: 3px double rgba(240, 194, 51, 0.38);
 }
 
+/* Season 1's paired animated frames use an illustrated dragon crest and elemental trim. */
+.se-profile-frame--snowstorm-drake {
+  border: 2px solid #a9eaff;
+  background: linear-gradient(145deg, #102a48, #0c1729 58%, #142f4a);
+  box-shadow: 0 0 24px #7cddff35, inset 0 0 28px #73dcff18;
+  animation: se-dragon-frame-breathe 4s ease-in-out infinite;
+}
+.se-profile-frame--snowstorm-drake::before {
+  inset: 0;
+  background: linear-gradient(135deg, #dffbff36, transparent 22%), linear-gradient(315deg, #60d9ff26, transparent 25%);
+}
+.se-profile-frame--snowstorm-drake::after { border: 2px solid #dffbff8c; }
+.se-profile-frame--inferno-drake {
+  border: 2px solid #ff8b36;
+  background: linear-gradient(145deg, #431d28, #19111b 58%, #401d23);
+  box-shadow: 0 0 24px #ff6a3038, inset 0 0 28px #ff67221b;
+  animation: se-dragon-frame-breathe 2.2s ease-in-out infinite;
+}
+.se-profile-frame--inferno-drake::before {
+  inset: 0;
+  background: linear-gradient(135deg, #ffe09d30, transparent 21%), linear-gradient(315deg, #ff542f2e, transparent 26%);
+}
+.se-profile-frame--inferno-drake::after { border: 2px solid #ffd06f9c; }
+@media (prefers-reduced-motion: reduce) {
+  .se-profile-frame--snowstorm-drake,
+  .se-profile-frame--inferno-drake { animation: none; }
+}
+
+/* Matching public profile frames for the eight rebuilt Street Pass themes. */
+.se-profile-frame--chrome-serpent-frame { --se-theme-frame: #92efff; border-color: #92efff; box-shadow: inset 0 0 24px #92efff19, 0 0 18px #92efff26; }
+.se-profile-frame--phantom-convoy-frame { --se-theme-frame: #a7d8ff; border-color: #a7d8ff; box-shadow: inset 0 0 24px #a7d8ff19, 0 0 18px #a7d8ff26; }
+.se-profile-frame--lantern-district-frame { --se-theme-frame: #ffb85c; border-color: #ffb85c; box-shadow: inset 0 0 24px #ffb85c19, 0 0 18px #ffb85c26; }
+.se-profile-frame--siren-breaker-frame { --se-theme-frame: #ff5969; border-color: #ff5969; box-shadow: inset 0 0 24px #ff596919, 0 0 18px #ff596926; }
+.se-profile-frame--block-sovereign-frame { --se-theme-frame: #8fe29a; border-color: #8fe29a; box-shadow: inset 0 0 24px #8fe29a19, 0 0 18px #8fe29a26; }
+.se-profile-frame--gilded-house-frame { --se-theme-frame: #edcf7a; border-color: #edcf7a; box-shadow: inset 0 0 24px #edcf7a19, 0 0 18px #edcf7a26; }
+.se-profile-frame--dead-or-alive-frame { --se-theme-frame: #d2aa76; border-color: #d2aa76; box-shadow: inset 0 0 24px #d2aa7619, 0 0 18px #d2aa7626; }
+.se-profile-frame--laurel-ascendant-frame { --se-theme-frame: #c6db77; border-color: #c6db77; box-shadow: inset 0 0 24px #c6db7719, 0 0 18px #c6db7726; }
+.se-profile-frame--chrome-serpent-frame::after,
+.se-profile-frame--phantom-convoy-frame::after,
+.se-profile-frame--lantern-district-frame::after,
+.se-profile-frame--siren-breaker-frame::after,
+.se-profile-frame--block-sovereign-frame::after,
+.se-profile-frame--gilded-house-frame::after,
+.se-profile-frame--dead-or-alive-frame::after,
+.se-profile-frame--laurel-ascendant-frame::after { border: 1px solid color-mix(in srgb, var(--se-theme-frame) 72%, white); }
+.se-profile-frame--chrome-serpent-frame::before { inset: 0; background: repeating-linear-gradient(132deg, transparent 0 14px, #a8f4ff18 15px 17px, transparent 18px 30px); }
+.se-profile-frame--phantom-convoy-frame::before { inset: 0; background: linear-gradient(100deg, transparent 32%, #e9f9ff44 49%, transparent 64%); background-size: 250% 100%; animation: se-theme-frame-traverse 6s ease-in-out infinite; }
+.se-profile-frame--lantern-district-frame::before { inset: 0; background: radial-gradient(ellipse at 8% 18%, #ffc55c30, transparent 18%), radial-gradient(ellipse at 92% 20%, #ffd98628, transparent 19%); animation: se-lantern-sway 3.4s ease-in-out infinite alternate; }
+.se-profile-frame--siren-breaker-frame::before { inset: 0; background: linear-gradient(90deg, #ef3e592c 0 18%, transparent 36% 64%, #37aaf32c 82% 100%); background-size: 210% 100%; animation: se-siren-sweep 3.1s ease-in-out infinite; }
+.se-profile-frame--block-sovereign-frame::before { inset: 0; background-image: linear-gradient(90deg, transparent 18%, #8fe29a38 19% 20%, transparent 21% 79%, #8fe29a38 80% 81%, transparent 82%); }
+.se-profile-frame--gilded-house-frame::before { inset: 0; background: linear-gradient(112deg, transparent 28%, #fff4c766 49%, transparent 64%); background-size: 250% 100%; animation: se-theme-frame-traverse 5s ease-in-out infinite; }
+.se-profile-frame--dead-or-alive-frame::before { inset: 0; background: radial-gradient(ellipse at 0 0, #a35f3224, transparent 30%), radial-gradient(ellipse at 100% 100%, #a35f3224, transparent 32%); animation: se-paper-flutter 4s ease-in-out infinite; }
+.se-profile-frame--laurel-ascendant-frame::before { inset: 0; background: radial-gradient(ellipse at 0 50%, transparent 0 38%, #c6db772a 39% 41%, transparent 42%), radial-gradient(ellipse at 100% 50%, transparent 0 38%, #c6db772a 39% 41%, transparent 42%); animation: se-laurel-unfurl 4s ease-in-out infinite alternate; }
+
+/* The public profile header mirrors the selected popup animation. */
+.se-profile-pagehead.se-profile-effect--chrome-serpent { --se-page-frame-color: #92efff; }
+.se-profile-pagehead.se-profile-effect--phantom-convoy { --se-page-frame-color: #a7d8ff; }
+.se-profile-pagehead.se-profile-effect--lantern-district { --se-page-frame-color: #ffb85c; }
+.se-profile-pagehead.se-profile-effect--siren-breaker { --se-page-frame-color: #ff5969; }
+.se-profile-pagehead.se-profile-effect--block-sovereign { --se-page-frame-color: #8fe29a; }
+.se-profile-pagehead.se-profile-effect--gilded-house { --se-page-frame-color: #edcf7a; }
+.se-profile-pagehead.se-profile-effect--dead-or-alive { --se-page-frame-color: #d2aa76; }
+.se-profile-pagehead.se-profile-effect--laurel-ascendant { --se-page-frame-color: #c6db77; }
+.se-profile-pagehead:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant) {
+  border-color: var(--se-page-frame-color);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--se-page-frame-color) 24%, transparent);
+  animation: se-page-theme-pulse 3.8s ease-in-out infinite;
+}
+.se-profile-pagehead:is(.se-profile-effect--phantom-convoy, .se-profile-effect--gilded-house)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(110deg, transparent 35%, color-mix(in srgb, var(--se-page-frame-color) 34%, transparent) 50%, transparent 65%);
+  background-size: 240% 100%; animation: se-theme-frame-traverse 5s ease-in-out infinite;
+}
+.se-profile-pagehead:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant) .se-profile-pagehead__avatar {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 6px var(--se-page-frame-color), 0 0 22px color-mix(in srgb, var(--se-page-frame-color) 72%, transparent);
+  animation: se-avatar-frame-breathe 3s ease-in-out infinite alternate;
+}
+@keyframes se-page-theme-pulse { 0%, 100% { filter: saturate(.92); } 50% { filter: saturate(1.22); } }
+@media (prefers-reduced-motion: reduce) {
+  .se-profile-pagehead:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant),
+  .se-profile-pagehead:is(.se-profile-effect--phantom-convoy, .se-profile-effect--gilded-house)::after,
+  .se-profile-pagehead:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant) .se-profile-pagehead__avatar { animation: none !important; }
+}
+
 .se-profile-effect {
   position: relative;
   isolation: isolate;
@@ -2704,143 +2896,57 @@ a:hover { color: var(--se-accent-hover); }
   z-index: 1;
 }
 
-.se-profile-effect--neon-pulse {
-  animation: se-profile-effect-pulse 3.2s ease-in-out infinite;
+/* The player-facing profile header uses the same refreshed frame animation names as the popup. */
+.se-profile-pagehead:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion) {
+  --se-page-frame-color: var(--se-profile-accent, var(--se-accent));
+  animation: se-page-frame-breathe 4.8s ease-in-out infinite;
 }
-
-.se-profile-effect--scanlines {
-  box-shadow:
-    inset 0 0 0 999px rgba(255, 255, 255, 0.012),
-    0 0 22px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 18%, transparent);
-}
-
-.se-profile-effect--spotlight {
-  box-shadow:
-    inset 0 0 65px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 13%, transparent),
-    0 0 24px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 14%, transparent);
-}
-
-.se-profile-effect--glitch {
-  animation: se-profile-effect-glitch 4.8s steps(1, end) infinite;
-}
-
-.se-profile-effect--ember-sparks {
-  box-shadow:
-    inset 0 -18px 42px color-mix(in srgb, #f97316 13%, transparent),
-    0 0 22px color-mix(in srgb, var(--se-profile-accent, #f97316) 16%, transparent);
-}
-
-.se-profile-effect--ember-sparks::after {
+.se-profile-pagehead.se-profile-effect--night-drive { --se-page-frame-color: #74d7e8; }
+.se-profile-pagehead.se-profile-effect--corner-glow { --se-page-frame-color: #ff9f43; }
+.se-profile-pagehead.se-profile-effect--heat-signal { --se-page-frame-color: #ef5962; }
+.se-profile-pagehead.se-profile-effect--turf-claim { --se-page-frame-color: #65df91; }
+.se-profile-pagehead.se-profile-effect--high-roller { --se-page-frame-color: #e9c46a; }
+.se-profile-pagehead.se-profile-effect--wanted { --se-page-frame-color: #f08d49; }
+.se-profile-pagehead.se-profile-effect--season-champion { --se-page-frame-color: #f1cf71; }
+.se-profile-pagehead:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--high-roller)::after {
   content: "";
   position: absolute;
   z-index: 2;
   inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(circle at 18% 82%, rgba(249, 115, 22, 0.32) 0 1px, transparent 2px),
-    radial-gradient(circle at 66% 24%, rgba(251, 191, 36, 0.24) 0 1px, transparent 2px),
-    radial-gradient(circle at 84% 70%, rgba(239, 68, 68, 0.2) 0 1px, transparent 2px);
-  background-size: 54px 54px, 78px 78px, 66px 66px;
-  animation: se-profile-effect-sparks 8s linear infinite;
+  background: linear-gradient(112deg, transparent 0 40%, color-mix(in srgb, var(--se-page-frame-color) 18%, transparent) 49%, transparent 58% 100%);
+  background-size: 240% 100%;
+  animation: se-frame-pass 6.2s ease-in-out infinite;
 }
-
-.se-profile-effect--cash-shimmer {
-  box-shadow:
-    inset 0 0 58px color-mix(in srgb, #22c55e 10%, transparent),
-    0 0 22px color-mix(in srgb, #f1b622 14%, transparent);
+.se-profile-pagehead.se-profile-effect--corner-glow { box-shadow: inset 0 0 26px #ff9f4330; }
+.se-profile-pagehead.se-profile-effect--heat-signal { box-shadow: inset 5px 0 #ef596240, inset -5px 0 #55a6f340; }
+.se-profile-pagehead.se-profile-effect--season-champion { box-shadow: inset 0 0 0 3px #f1cf7140, inset 0 0 28px #f1cf7125; }
+.se-profile-pagehead:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion) .se-profile-pagehead__avatar {
+  animation: se-avatar-frame-breathe 4.8s ease-in-out infinite;
 }
-
-.se-profile-effect--cash-shimmer::after {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    112deg,
-    transparent 0 38%,
-    rgba(241, 182, 34, 0.18) 45%,
-    rgba(74, 222, 128, 0.14) 50%,
-    transparent 58% 100%
-  );
-  background-size: 260% 100%;
-  animation: se-profile-effect-shimmer 6.4s ease-in-out infinite;
+.se-profile-pagehead.se-profile-effect--heat-signal .se-profile-pagehead__avatar { animation-name: se-avatar-frame-heat; }
+.se-profile-pagehead.se-profile-effect--high-roller .se-profile-pagehead__avatar { animation-name: se-avatar-frame-gold; }
+.se-profile-pagehead.se-profile-effect--season-champion .se-profile-pagehead__avatar { animation-name: se-avatar-frame-champion; }
+@keyframes se-page-frame-breathe {
+  0%, 100% { box-shadow: 0 0 14px color-mix(in srgb, var(--se-page-frame-color) 12%, transparent); }
+  50% { box-shadow: 0 0 26px color-mix(in srgb, var(--se-page-frame-color) 28%, transparent); }
 }
-
-.se-profile-effect--sirens {
-  box-shadow:
-    inset 5px 0 0 rgba(233, 32, 72, 0.42),
-    inset -5px 0 0 rgba(104, 153, 243, 0.42),
-    0 0 24px rgba(104, 153, 243, 0.12);
-  animation: se-profile-effect-sirens 3.8s ease-in-out infinite;
-}
-
-.se-profile-effect--smoke::after {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  inset: -24%;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse at 24% 58%, rgba(226, 232, 240, 0.09), transparent 38%),
-    radial-gradient(ellipse at 72% 34%, rgba(148, 163, 184, 0.08), transparent 36%),
-    radial-gradient(ellipse at 48% 88%, rgba(226, 232, 240, 0.06), transparent 42%);
-  filter: blur(10px);
-  animation: se-profile-effect-smoke 12s ease-in-out infinite alternate;
-}
-
-@keyframes se-profile-effect-pulse {
-  0%, 100% { box-shadow: 0 0 0 color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 0%, transparent); }
-  50% { box-shadow: 0 0 28px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 32%, transparent); }
-}
-
-@keyframes se-profile-effect-glitch {
-  0%, 91%, 100% { filter: none; transform: translate(0); }
-  92% { filter: saturate(1.5) contrast(1.15); transform: translate(1px, 0); }
-  93% { transform: translate(-1px, 1px); }
-  94% { filter: none; transform: translate(0); }
-}
-
-@keyframes se-profile-effect-sparks {
-  from { background-position: 0 0, 0 0, 0 0; opacity: 0.72; }
-  50% { opacity: 0.42; }
-  to { background-position: 0 -108px, 26px -156px, -18px -132px; opacity: 0.72; }
-}
-
-@keyframes se-profile-effect-shimmer {
-  0%, 18% { background-position: 130% 0; opacity: 0.42; }
-  60%, 100% { background-position: -40% 0; opacity: 0.78; }
-}
-
-@keyframes se-profile-effect-sirens {
-  0%, 100% {
-    box-shadow:
-      inset 5px 0 0 rgba(233, 32, 72, 0.5),
-      inset -5px 0 0 rgba(104, 153, 243, 0.28),
-      0 0 24px rgba(233, 32, 72, 0.12);
-  }
-  50% {
-    box-shadow:
-      inset 5px 0 0 rgba(233, 32, 72, 0.28),
-      inset -5px 0 0 rgba(104, 153, 243, 0.52),
-      0 0 24px rgba(104, 153, 243, 0.16);
-  }
-}
-
-@keyframes se-profile-effect-smoke {
-  from { transform: translate3d(-4%, 2%, 0) rotate(0deg); opacity: 0.7; }
-  to { transform: translate3d(5%, -3%, 0) rotate(2deg); opacity: 0.42; }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .se-profile-effect--neon-pulse,
-  .se-profile-effect--glitch,
-  .se-profile-effect--ember-sparks::after,
-  .se-profile-effect--cash-shimmer::after,
-  .se-profile-effect--sirens,
-  .se-profile-effect--smoke::after {
-    animation: none;
+  .se-profile-pagehead:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion),
+  .se-profile-pagehead:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--high-roller)::after,
+  .se-profile-pagehead:is(.se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion) .se-profile-pagehead__avatar {
+    animation: none !important;
   }
+}
+
+/* Popup animations are an opening treatment; public profile pages keep the theme motion on the avatar. */
+.se-profile-pagehead:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant, .se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--corner-glow, .se-profile-effect--heat-signal, .se-profile-effect--turf-claim, .se-profile-effect--high-roller, .se-profile-effect--wanted, .se-profile-effect--season-champion) {
+  box-shadow: none;
+  animation: none;
+}
+.se-profile-pagehead:is(.se-profile-effect--chrome-serpent, .se-profile-effect--phantom-convoy, .se-profile-effect--lantern-district, .se-profile-effect--siren-breaker, .se-profile-effect--block-sovereign, .se-profile-effect--gilded-house, .se-profile-effect--dead-or-alive, .se-profile-effect--laurel-ascendant, .se-profile-effect--street-circuit, .se-profile-effect--night-drive, .se-profile-effect--high-roller)::after,
+.se-profile-pagehead.se-profile-effect--turf-claim::after {
+  content: none;
 }
 
 .se-ach-filters {
@@ -3560,8 +3666,8 @@ a:hover { color: var(--se-accent-hover); }
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--se-swatch) 22%, transparent);
 }
 
-.se-swatch--default { --se-swatch: #b6ff3a; }
-.se-swatch--crimson { --se-swatch: #e92048; }
+.se-swatch--default { --se-swatch: #ef4657; }
+.se-swatch--crimson { --se-swatch: #ef4657; }
 .se-swatch--gold { --se-swatch: #f1b622; }
 .se-swatch--green { --se-swatch: #4ade80; }
 .se-swatch--blue { --se-swatch: #6899f3; }
@@ -3578,6 +3684,12 @@ a:hover { color: var(--se-accent-hover); }
 .se-swatch--saints-chrome { --se-swatch: #cbd5e1; }
 .se-swatch--cartel-jade { --se-swatch: #10b981; }
 .se-swatch--civic-seal { --se-swatch: #818cf8; }
+.se-swatch--original-neon { --se-swatch: #b6ff3a; }
+.se-swatch--neon-sign-pink { --se-swatch: #ff2ec4; }
+.se-swatch--gavel-bronze { --se-swatch: #cf9a5c; }
+.se-swatch--clean-books-ivory { --se-swatch: #efe6d2; }
+.se-swatch--sunset-coral { --se-swatch: #ff8a70; }
+.se-swatch--night-map-plum { --se-swatch: #b45cff; }
 .se-swatch--on {
   border-color: var(--se-swatch);
   color: var(--se-text);
@@ -4114,12 +4226,11 @@ button.se-notification-empty:hover { color: var(--se-text); }
 .se-env-ribbon--test { background: var(--se-info, #6899f3); }
 
 .se-footer__build {
-  max-width: 1120px;
-  margin: 12px auto 0;
-  padding: 0 16px;
+  min-width: 0;
   color: var(--se-muted);
   font-family: var(--se-mono);
   font-size: 10px;
+  text-align: right;
   overflow-wrap: anywhere;
 }
 
@@ -4465,4 +4576,29 @@ button.se-notification-empty:hover { color: var(--se-text); }
   box-shadow:
     inset 0 0 0 2px rgba(45, 212, 191, 0.48),
     0 0 20px rgba(167, 139, 250, 0.3);
+}
+
+
+/* Profile titles are rendered as a name with a title-specific accent. */
+.se-profile-card-preview__name {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--se-text);
+  font-size: 20px;
+  line-height: 1.12;
+}
+
+.se-profile-card-preview__namepart--title,
+.se-profile-name-preview__title {
+  color: var(--se-profile-accent, var(--se-accent));
+}
+
+.se-profile-card-preview__namepart--separator,
+.se-profile-name-preview__separator {
+  color: var(--se-muted);
+  white-space: pre;
+}
+
+.se-profile-name-preview__title {
+  color: var(--se-accent);
 }

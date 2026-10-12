@@ -47,7 +47,7 @@ export const ITEM_ART = {
 
   // Charlie's Chop Shop
   LOW_RIDER: { name: 'Low-Rider', shortName: 'Low-Rider', category: 'VEHICLE', rarity: 'EPIC', file: 'low-rider.svg', cells: WIDE },
-  // Not in any ruleset yet; drawn ahead so they can be sold or paid out later.
+  // 1.5.0-B classes, bought in the Travel garage.
   SEDAN: { name: 'Sedan', shortName: 'Sedan', category: 'VEHICLE', rarity: 'UNCOMMON', file: 'sedan.svg', cells: WIDE },
   VAN: { name: 'Van', shortName: 'Van', category: 'VEHICLE', rarity: 'RARE', file: 'van.svg', cells: WIDE },
 
@@ -85,8 +85,26 @@ export const ITEM_ART = {
   'street-pass-s1-kingpin': { name: 'Kingpin · Season 1', shortName: 'Kingpin', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-kingpin.svg', cells: ONE },
   'street-pass-s1-badge': { name: 'Street Pass · Season 1', shortName: 'S1 Badge', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-badge.svg', cells: ONE },
   'street-pass-s1-frame': { name: 'Season 1 Frame', shortName: 'S1 Frame', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-frame.svg', cells: ONE },
-  'street-pass-s1-night-drive-theme': { name: 'Night Drive · Season 1', shortName: 'Night Drive', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-night-drive-theme.svg', cells: ONE },
-  'street-pass-s1-chrome-halo-frame': { name: 'Chrome Halo · Season 1', shortName: 'Chrome Halo', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-chrome-halo-frame.svg', cells: ONE },
+  'street-pass-s1-ice-dragon-theme': { name: 'Ice Dragon · Season 1', shortName: 'Ice Dragon', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-ice-dragon-theme.svg', cells: ONE },
+  'street-pass-s1-snowstorm-frame': { name: 'Snowstorm Drake Frame · Season 1', shortName: 'Snowstorm', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-snowstorm-frame.svg', cells: ONE },
+  'street-pass-s1-fire-dragon-theme': { name: 'Fire Dragon · Season 1', shortName: 'Fire Dragon', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-fire-dragon-theme.svg', cells: ONE },
+  'street-pass-s1-inferno-frame': { name: 'Inferno Drake Frame · Season 1', shortName: 'Inferno', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-inferno-frame.svg', cells: ONE },
+  'street-pass-s1-chrome-serpent-theme': { name: 'Chrome Serpent · Season 1', shortName: 'Serpent', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-chrome-serpent-theme.svg', cells: ONE },
+  'street-pass-s1-chrome-serpent-frame': { name: 'Chrome Serpent Frame · Season 1', shortName: 'Serpent', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-chrome-serpent-frame.svg', cells: ONE },
+  'street-pass-s1-phantom-convoy-theme': { name: 'Phantom Convoy · Season 1', shortName: 'Convoy', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-phantom-convoy-theme.svg', cells: ONE },
+  'street-pass-s1-phantom-convoy-frame': { name: 'Phantom Convoy Frame · Season 1', shortName: 'Convoy', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-phantom-convoy-frame.svg', cells: ONE },
+  'street-pass-s1-lantern-district-theme': { name: 'Lantern District · Season 1', shortName: 'Lanterns', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-lantern-district-theme.svg', cells: ONE },
+  'street-pass-s1-lantern-district-frame': { name: 'Lantern District Frame · Season 1', shortName: 'Lanterns', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-lantern-district-frame.svg', cells: ONE },
+  'street-pass-s1-siren-breaker-theme': { name: 'Siren Breaker · Season 1', shortName: 'Siren', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-siren-breaker-theme.svg', cells: ONE },
+  'street-pass-s1-siren-breaker-frame': { name: 'Siren Breaker Frame · Season 1', shortName: 'Siren', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-siren-breaker-frame.svg', cells: ONE },
+  'street-pass-s1-block-sovereign-theme': { name: 'Block Sovereign · Season 1', shortName: 'Sovereign', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-block-sovereign-theme.svg', cells: ONE },
+  'street-pass-s1-block-sovereign-frame': { name: 'Block Sovereign Frame · Season 1', shortName: 'Sovereign', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-block-sovereign-frame.svg', cells: ONE },
+  'street-pass-s1-gilded-house-theme': { name: 'Gilded House · Season 1', shortName: 'Gilded', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-gilded-house-theme.svg', cells: ONE },
+  'street-pass-s1-gilded-house-frame': { name: 'Gilded House Frame · Season 1', shortName: 'Gilded', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-gilded-house-frame.svg', cells: ONE },
+  'street-pass-s1-dead-or-alive-theme': { name: 'Dead-or-Alive · Season 1', shortName: 'Wanted', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-dead-or-alive-theme.svg', cells: ONE },
+  'street-pass-s1-dead-or-alive-frame': { name: 'Dead-or-Alive Frame · Season 1', shortName: 'Wanted', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-dead-or-alive-frame.svg', cells: ONE },
+  'street-pass-s1-laurel-ascendant-theme': { name: 'Laurel Ascendant · Season 1', shortName: 'Laurel', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-laurel-ascendant-theme.svg', cells: ONE },
+  'street-pass-s1-laurel-ascendant-frame': { name: 'Laurel Ascendant Frame · Season 1', shortName: 'Laurel', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-laurel-ascendant-frame.svg', cells: ONE },
   'street-pass-s1-urban-ghost': { name: 'Urban Ghost Collection', shortName: 'Urban Ghost', category: 'COSMETIC', rarity: 'RARE', file: 'street-pass-s1-urban-ghost.svg', cells: ONE },
   'street-pass-s1-midnight-ops': { name: 'Midnight Ops Collection', shortName: 'Midnight', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-midnight-ops.svg', cells: ONE },
   'street-pass-s1-cartel-gold': { name: 'Cartel Gold Collection', shortName: 'Cartel Gold', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-cartel-gold.svg', cells: ONE },

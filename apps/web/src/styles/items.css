@@ -203,6 +203,10 @@
   place-items: center;
 }
 
+.se-cosmetic-locker__preview .se-item-tile--lg.se-item-tile--wide {
+  --se-item-cell: min(112px, calc((100% - 2px) / 2));
+}
+
 @media (max-width: 720px) {
   .se-cosmetic-locker__head {
     grid-template-columns: 1fr;
@@ -215,6 +219,10 @@
 
   .se-cosmetic-locker__preview .se-item-tile--lg {
     --se-item-cell: 84px;
+  }
+
+  .se-cosmetic-locker__preview .se-item-tile--lg.se-item-tile--wide {
+    --se-item-cell: min(84px, calc((100% - 2px) / 2));
   }
 }
 

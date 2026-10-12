@@ -13,11 +13,14 @@ import { RoundService } from './services/round.service.js';
 import { PlatformService, buildCommit } from './services/platform.service.js';
 import { APP_VERSION } from '@streets/shared';
 import { startPoller } from './utils/poller.js';
+import { DueSettleService } from './services/due-settle.service.js';
 import { metrics } from './services/metrics.service.js';
 import { LawWarrantService } from './services/law-warrant.service.js';
 import { LawOfficialService } from './services/law-official.service.js';
 import { PlayerStateService } from './services/player-state.service.js';
 import { NpcGangService } from './services/npc-gang.service.js';
+import { refreshSportsbookCache } from './services/sportsbook-feed.service.js';
+import { SupporterDropService } from './services/supporter-drop.service.js';
 
 const app = await buildApp();
 
@@ -47,6 +50,24 @@ const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
   await RoundService.settleTurfClock(app.prisma, new Date());
 }, (message, error) => app.log.error(error, message));
 
+// 1.8.0-A/C: player requests read the shared pregame cache and never call TheRundown. Provider
+// snapshots are persisted in .runtime/sportsbook-odds.json with a hard 30-minute refresh window;
+// the database lease and interval keep concurrent instances from spending datapoints.
+const stopSportsbook = env.THERUNDOWN_API_KEY
+  ? startPoller('Sportsbook odds cache', env.SPORTSBOOK_POLL_MINUTES * 60_000, async () => {
+      const result = await refreshSportsbookCache(app.prisma, env.THERUNDOWN_API_KEY, new Date(), {
+        minIntervalMs: Math.max(0, env.SPORTSBOOK_POLL_MINUTES * 60_000 - 60_000),
+      });
+      if (result.errors.length) app.log.warn({ sportsbook: result }, 'Sportsbook feed run finished with errors');
+    }, (message, error) => app.log.error(error, message))
+  : () => {};
+
+// Monthly supporter drops: once a month starts, everyone supporting gets its drop within the hour.
+const stopSupporterDrops = startPoller('Supporter drops', 60 * 60_000, async () => {
+  const result = await SupporterDropService.sweep(app.prisma, new Date());
+  if (result.granted) app.log.info({ supporterDrop: result }, 'Supporter drop given out');
+}, (message, error) => app.log.error(error, message));
+
 // Phase G NPC gangs: weighted archetype-driven restocks, economy moves and attacks.
 const stopNpcGangs = startPoller('NPC gangs', 60_000, async () => {
   await NpcGangService.sweep(app.prisma, new Date());
@@ -66,6 +87,9 @@ const stopAlerts = startPoller('Alerts', 60_000, async () => {
     await BossHitService.sweep(app.prisma, now);
     // 0.9.0-G: bring runs home on time, so "made it home" goes out while their owner is away.
     await GameAlertService.sweepRuns(app.prisma, now);
+    // 1.6.5-D: loan installments and property upkeep on their due time, from the cash on hand
+    // then, so a missed installment reaches the bell while its owner is away.
+    await DueSettleService.sweep(app.prisma, now, (roundPlayerId, error) => app.log.error({ err: error, roundPlayerId }, 'Due settle failed'));
     // 1.3.0-C/D: serve warrants on time, personal warrants once the boss is in town, and
     // Internal Affairs stings when they are due.
     const lawOwners = new Set([...await LawWarrantService.dueOwners(app.prisma, now), ...await LawOfficialService.dueOwners(app.prisma, now)]);
@@ -89,7 +113,9 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, async () => {
     app.log.info(`${signal} received, shutting down`);
     stopAlerts();
+    stopSportsbook();
     stopNpcGangs();
+    stopSupporterDrops();
     stopTurfWars();
     await app.close();
     process.exit(0);

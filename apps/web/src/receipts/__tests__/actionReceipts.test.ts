@@ -23,6 +23,7 @@ const resources = {
   woundedThugs: 0,
   postedThugs: 0,
   businessThugs: 0,
+  dealerThugs: 0,
   businessWhores: 0,
   armedThugs: 6,
   unarmedThugs: 2,
@@ -171,6 +172,13 @@ describe('action receipt lines', () => {
       coveredWhores: 24,
       armedThugs: 6,
       unarmedThugs: 2,
+      encounter: {
+        key: 'scout-street-tip',
+        title: 'Street tip',
+        text: 'A regular points your crew toward a small side score before the block dries up.',
+        tone: 'good',
+        effects: { cashCents: 2_000 },
+      },
       turnsUsed: 44,
       turnsRemaining: 100,
     };
@@ -198,6 +206,7 @@ describe('action receipt lines', () => {
       'Infections',
       'Medicine',
       'Medicine restock',
+      'Street tip',
       'Armed street cover',
       'Turns remaining',
     ]);
@@ -205,6 +214,14 @@ describe('action receipt lines', () => {
     expect(byLabel(rows, 'Cash')).toMatchObject({
       delta: 3_000,
       remaining: 1_003_000,
+      money: true,
+    });
+    expect(byLabel(rows, 'Cash')).toMatchObject({
+      detail: expect.stringContaining('+$20 encounter'),
+    });
+    expect(byLabel(rows, 'Street tip')).toMatchObject({
+      detail: 'A regular points your crew toward a small side score before the block dries up.',
+      delta: 2_000,
       money: true,
     });
     expect(byLabel(rows, 'Whores')).toMatchObject({ delta: 2, remaining: 12 });

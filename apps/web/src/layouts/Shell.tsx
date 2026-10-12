@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { APP_VERSION, formatCents, formatCentsCompact } from '@streets/shared';
 import { rulesets } from '@streets/rulesets';
@@ -55,6 +55,9 @@ function routeIdentity(pathname: string): string {
 const TURN_ACTION_PAGES = ['/game/scout', '/game/produce', '/game/combat'] as const;
 const LAST_TURN_ACTION_KEY = 'streets.lastTurnActionPage';
 const LATEST_RULESET_VERSION = Object.values(rulesets).at(-1)?.meta.version ?? '0.1.0';
+const PUBLIC_SITE_ORIGIN = 'https://streetsempire.dev';
+const BETA_GAME_ORIGIN = 'https://beta.streetsempire.dev';
+const FORUM_ORIGIN = 'https://forum.streetsempire.dev';
 
 /** 1.0.0-A. App version, ruleset, environment and season in one line. */
 function buildLine(platform: ReturnType<typeof useSession.getState>['platform'], rulesetVersion: string): string {
@@ -74,11 +77,25 @@ function Brand() {
 
   return (
     <Link className="se-brand" to="/" title={buildLine(platform, rulesetVersion)}>
+      <svg className="se-brand__crown" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M3 7.5 7.5 11 12 4l4.5 7L21 7.5 19.2 18H4.8zM5 19.5h14V21H5z" />
+      </svg>
       <span className="se-brand__mark">
         Streets<span className="se-accent">Empire</span>
       </span>
       <span className="se-brand__ver">v{platform?.app.version ?? APP_VERSION}</span>
       {label ? <span className={`se-env-badge se-env-badge--${platform!.environment}`}>{label}</span> : null}
+    </Link>
+  );
+}
+
+function FooterLogo() {
+  return (
+    <Link className="se-footer-brand" to="/" aria-label="StreetsEmpire home">
+      <span className="se-footer-brand__mark" aria-hidden="true">
+        <img src="/icons/icon-maskable-512.png" alt="" />
+      </span>
+      <span>STREETSEMPIRE</span>
     </Link>
   );
 }
@@ -111,6 +128,26 @@ function nextTurnActionPath(pathname: string) {
   }
 
   return TURN_ACTION_PAGES[0];
+}
+
+/** Small solid glyphs for the HUD chips, so each number reads at a glance. */
+const HUD_ICONS = {
+  cash: 'M2 6h20v12H2zM12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM5 9v6M19 9v6',
+  turns: 'M13 2 4 14h7l-1 8 9-12h-7z',
+  heat: 'M12 22a7 7 0 0 0 7-7c0-4-3-6.5-4-10-2 1.5-3 3.5-3 5.5C11 9 10 8 9.5 6.5 7 9 5 11.7 5 15a7 7 0 0 0 7 7z',
+  worth: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+} as const;
+
+function HudIcon({ name }: { name: keyof typeof HUD_ICONS }) {
+  const solid = name === 'turns' || name === 'heat';
+  return (
+    <svg className={`se-statusbar__icon se-statusbar__icon--${name}`} viewBox="0 0 24 24" width="18" height="18"
+      aria-hidden="true" focusable="false"
+      fill={solid ? 'currentColor' : 'none'} stroke={solid ? 'none' : 'currentColor'}
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d={HUD_ICONS[name]} />
+    </svg>
+  );
 }
 
 /**
@@ -157,6 +194,7 @@ function StatusBar() {
   return (
     <div className="se-statusbar">
       <Link className="se-statusbar__item" to="/game" title="Cash: open the dashboard">
+        <HudIcon name="cash" />
         <span className="se-statusbar__k">Cash</span>
         <span className="se-num se-statusbar__v se-statusbar__v--wide">
           {money(me.resources.cashCents)}
@@ -166,6 +204,7 @@ function StatusBar() {
         </span>
       </Link>
       <Link className="se-statusbar__item" to={turnActionPath} title="Turns: cycle Scout, Produce and Raids">
+        <HudIcon name="turns" />
         <span className="se-statusbar__k">Turns</span>
         <span className="se-num se-statusbar__v">
           {me.turns.turns}
@@ -177,6 +216,7 @@ function StatusBar() {
       </Link>
       {heat ? (
         <Link className="se-statusbar__item" to="/game#heat" title={heatTitle}>
+          <HudIcon name="heat" />
           <span className="se-statusbar__k se-statusbar__k--keep">
             {heat.lockedUntil ? 'Locked' : arresting ? 'Arrest' : busting ? 'Bust' : 'Heat'}
           </span>
@@ -186,6 +226,7 @@ function StatusBar() {
         </Link>
       ) : null}
       <Link className="se-statusbar__item se-statusbar__item--worth" to="/game/rankings" title="Net worth: see where it ranks">
+        <HudIcon name="worth" />
         <span className="se-statusbar__k">Net Worth</span>
         <span className="se-num se-statusbar__v se-statusbar__v--wide">
           {money(me.netWorthCents)}
@@ -198,47 +239,142 @@ function StatusBar() {
   );
 }
 
+function initialsOf(name: string): string {
+  const parts = name.replace(/([a-z])([A-Z])/g, '$1 $2').split(/[\s_.-]+/).filter(Boolean);
+  const letters = parts.length > 1 ? parts[0]![0]! + parts[1]![0]! : name.slice(0, 2);
+  return letters.toUpperCase();
+}
+
+/**
+ * Who is signed in, as an avatar chip. Opens a short menu for the profile,
+ * account settings and signing out, so the bar no longer carries a bare Log out button.
+ */
+function AccountMenu({ onLogout }: { onLogout: () => void }) {
+  const account = useSession((s) => s.account);
+  const me = useSession((s) => s.me);
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const { pathname } = useLocation();
+
+  useEffect(() => setOpen(false), [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(event: PointerEvent) {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKey(event: globalThis.KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      button.current?.focus();
+    }
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  if (!account) return null;
+
+  return (
+    <div ref={root} className={`se-account${open ? ' se-account--open' : ''}`}>
+      <button ref={button} type="button" className="se-account__button"
+        aria-label={`Account menu, ${account.username}`}
+        aria-expanded={open} aria-controls="se-account-menu" onClick={() => setOpen((value) => !value)}>
+        <span className="se-account__avatar" aria-hidden="true">{initialsOf(account.username)}</span>
+        <span className="se-account__name">
+          {me?.alliance ? <span className="se-alliance-tag" title={me.alliance.name}>[{me.alliance.tag}]</span> : null}
+          {account.username}
+        </span>
+        <svg className="se-account__chevron" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"
+          fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open ? (
+        <div id="se-account-menu" className="se-account__menu">
+          <div className="se-account__head">
+            <strong>{account.username}</strong>
+            {me ? <span className="se-muted">{me.city?.name ?? 'In the game'}</span> : <span className="se-muted">Not in a season</span>}
+          </div>
+          {me ? <Link className="se-account__item" to="/game/profile">Your profile</Link> : null}
+          <Link className="se-account__item" to="/account">Account settings</Link>
+          <button type="button" className="se-account__item se-account__item--out" onClick={onLogout}>Log out</button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function Footer() {
   const account = useSession((s) => s.account);
   const me = useSession((s) => s.me);
   const platform = useSession((s) => s.platform);
   const rulesetVersion = useSession((s) => s.round?.rulesetVersion ?? LATEST_RULESET_VERSION);
-  const location = useLocation();
 
   return (
     <footer className="se-footer">
       <div className="se-footer__inner">
         <div className="se-footer__brand">
-          <Brand />
+          <FooterLogo />
           <p>
-            Free browser crime strategy with turn clocks, crew management,
-            raids, rankings and fair seasonal resets.
+            Build a crew, control turf and compete through seasons that reset
+            power but preserve history.
           </p>
         </div>
 
-        <nav className="se-footer__links" aria-label="Footer">
-          <Link to="/game/status">Status</Link>
-          <Link to="/game/rules">Rules</Link>
-          <Link to="/game/news">News</Link>
-          <Link to="/game/hall-of-fame">Hall of Fame</Link>
-          <a href="https://forum.streetsempire.dev">Forum</a>
-          <a href="https://streetsempire.dev/privacy">Privacy</a>
-          <a href="https://streetsempire.dev/terms">Terms</a>
-          {account ? (
-            <>
-              <Link to={me ? '/game' : '/join'}>{me ? 'Dashboard' : 'Join a season'}</Link>
-              <Link to="/account">Account</Link>
-              <Link to={`/game/report-bug?from=${encodeURIComponent(location.pathname)}`}>Report a bug</Link>
-            </>
-          ) : (
-            <>
-              <Link to="/register">Register</Link>
-              <Link to="/login">Log in</Link>
-            </>
-          )}
-        </nav>
+        <div className="se-footer__group">
+          <h2>Explore</h2>
+          <nav aria-label="Explore StreetsEmpire">
+            <Link to="/game/hall-of-fame">Hall of Fame</Link>
+            <Link to="/game/alliance#alliance-rankings">Alliances</Link>
+            <a href={`${PUBLIC_SITE_ORIGIN}/stats`}>Statistics</a>
+            <Link to="/game/news">News</Link>
+            <a href={`${PUBLIC_SITE_ORIGIN}/roadmap`}>Roadmap</a>
+          </nav>
+        </div>
+
+        <div className="se-footer__group">
+          <h2>Project</h2>
+          <nav aria-label="Project links">
+            <a href={`${PUBLIC_SITE_ORIGIN}/about`}>About</a>
+            <a href={`${PUBLIC_SITE_ORIGIN}/community`}>Community</a>
+            <a href={`${PUBLIC_SITE_ORIGIN}/beta`}>Beta</a>
+            <Link to="/game/status">Status</Link>
+            <a href={`${PUBLIC_SITE_ORIGIN}/support`}>Support</a>
+            <a href={`${PUBLIC_SITE_ORIGIN}/privacy`}>Privacy</a>
+            <a href={`${PUBLIC_SITE_ORIGIN}/terms`}>Terms</a>
+          </nav>
+        </div>
+
+        <div className="se-footer__group">
+          <h2>Play</h2>
+          <nav aria-label="Game destinations">
+            <Link to={me ? '/game' : account ? '/join' : '/login'}>{me ? 'Live Game' : account ? 'Join a Season' : 'Live Game'}</Link>
+            <a href={BETA_GAME_ORIGIN}>Beta Game</a>
+            <a href={FORUM_ORIGIN}>Forum</a>
+          </nav>
+        </div>
+
+        <div className="se-footer__group">
+          <h2>Social</h2>
+          <nav aria-label="Social links">
+            <a href="https://discord.gg/V3HYNcMv5H">Discord</a>
+            <a href="https://www.facebook.com/StreetsEmpireHQ">Facebook</a>
+            <a href="https://x.com/StreetsEmpireHQ">X</a>
+          </nav>
+        </div>
       </div>
-      <p className="se-footer__build">{buildLine(platform, rulesetVersion)}</p>
+
+      <div className="se-footer__bottom">
+        <span>StreetsEmpire</span>
+        <span className="se-footer__build" title={buildLine(platform, rulesetVersion)}>
+          {buildLine(platform, rulesetVersion)}
+        </span>
+      </div>
     </footer>
   );
 }
@@ -320,6 +456,11 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
   const me = useSession((s) => s.me);
   const settings = useSession((s) => s.profileSettings);
   const pageTheme = usePageTheme((s) => s.themeKey);
+  // Popup animation and the viewer's full-shell theme are independent loadout choices.
+  // A public profile can preview its owner's theme in the content area without
+  // replacing the viewer's own shell theme.
+  const shellTheme = pageTheme ? null : settings.activeSiteThemeKey;
+  const decorTheme = pageTheme ?? settings.activeSiteThemeKey;
   const logout = useSession((s) => s.logout);
   const navigate = useNavigate();
   const location = useLocation();
@@ -340,14 +481,8 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
         <div className="se-topbar__right">
           {account ? (
             <>
-              <Link className="se-eyebrow se-topbar__who se-topbar__account" to="/account">
-                {me?.alliance ? <span className="se-alliance-tag" title={me.alliance.name}>[{me.alliance.tag}]</span> : null}
-                {account.username}
-              </Link>
               {me ? <NotificationBell /> : null}
-              <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={handleLogout}>
-                Log out
-              </button>
+              <AccountMenu onLogout={handleLogout} />
             </>
           ) : (
             <>
@@ -374,7 +509,7 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
   );
 
   return (
-    <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${pageTheme ? 'none' : settings.activeSiteThemeKey ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}${sidebar ? ' se-app--sidebar' : ''}`}>
+    <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${shellTheme ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}${sidebar ? ' se-app--sidebar' : ''}`}>
       {/* 1.0.0-G: the first Tab stop jumps past the header and navigation. */}
       <a
         className="se-skiplink"
@@ -390,7 +525,7 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
       </a>
       <EnvironmentRibbon />
       <InstallBanner />
-      <SiteThemeDecor themeKey={pageTheme ?? settings.activeSiteThemeKey} />
+      <SiteThemeDecor themeKey={decorTheme} />
 
       {sidebar ? <SidebarFrame sidebar={sidebar}>{page}</SidebarFrame> : page}
       <ConfirmDialog />

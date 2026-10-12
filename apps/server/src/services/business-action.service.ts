@@ -24,6 +24,7 @@ import type {
 } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { ActionService, assertTurns, fitThugs, workingWhores, type PlayerState } from './action.service.js';
 import { BusinessService, buildingOn, racketOf, releaseForeignStaff, staffColumns } from './business.service.js';
 import { blockFatigueNow } from './block-war-settle.service.js';
@@ -83,6 +84,7 @@ async function heldLot(
   await TurfService.ensureRound(tx, input.roundId, ruleset);
   const district = input.district as DistrictKey;
   if (!ruleset.turf!.districts[district]) throw AppError.badRequest('UNKNOWN_DISTRICT', 'That is not a turf block.');
+  await PermanentUnlockService.assertCanAccessDistrict(tx, input.roundPlayerId, ruleset, district);
 
   let cityId = input.homeCityId;
   if (input.city) {

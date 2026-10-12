@@ -1,4 +1,5 @@
-import type { ProductEconomy, RestockRule, Ruleset } from '@streets/rulesets';
+import { hideoutV2For, type ProductEconomy, type RestockRule, type Ruleset } from '@streets/rulesets';
+import { racketRules } from './rackets.js';
 import { settleStock, type RestockSettlement } from './restock.js';
 import { MAX_INVENTORY, StoreTradeError } from './stores.js';
 
@@ -239,4 +240,74 @@ export function productLoops(ruleset: Ruleset): string[] {
     if (economy.production && economy.production.ingredientCentsPerUnit < economy.netWorthCents) problems.push(`${name}: cooking raises net worth for less than it costs.`);
   }
   return problems;
+}
+
+// --- Slice C: cooking never pays at Pip's home counter --------------------------
+
+export interface RecipeResale {
+  product: string;
+  name: string;
+  /** The most Pip pays at the player's home counter: full standing, the best racket, and (for products) full market pressure. */
+  bestBuybackCents: number;
+  /** The least a unit costs to cook: the best workshop's ingredient discount and output bonus, after the workshop's own floor. */
+  cheapestCookCents: number;
+}
+
+/**
+ * Quest Recipe Unlocks C. The worst case for a cook-and-sell-back loop at home. Pip's home
+ * buyback never follows the city (only his asking price does), so the best buyback is his
+ * base price with every bonus a player can stack: standing perks and a store-price racket,
+ * plus market pressure on products (crack sells through the store, which has none). The
+ * cheapest unit takes the highest workshop level's ingredient discount and output bonus,
+ * Drug Lab included; bonus units cost no ingredients.
+ */
+export function recipeResale(ruleset: Ruleset): RecipeResale[] {
+  const hideout = hideoutV2For(ruleset);
+  const efficiency = Math.max(0, ...(hideout?.workshop?.ingredientEfficiencyPercentByWorkshopLevel ?? [0]));
+  const output = Math.max(0, ...(hideout?.workshop?.outputBonusPercentByWorkshopLevel ?? [0]))
+    + (hideout?.specializationEffects?.workshop.drugLabOutputBonusPercent ?? 0);
+  const standing = Math.max(0, ...(ruleset.storeEconomy?.traderPerks?.PIP ?? []).map((perk) => perk.sellBonusPercent ?? 0));
+  const strength = Math.max(1, ...(racketRules(ruleset)?.levelStrength ?? [1]));
+  const racket = (product: string) => Math.max(0, ...Object.values(racketRules(ruleset)?.catalog ?? {}).map((row) =>
+    row?.effect.kind === 'STORE_PRICE' && row.effect.store === 'PIP' && row.effect.items.includes(product)
+      ? Math.round((row.effect.sellBonusPercent ?? 0) * strength)
+      : 0));
+  const pressure = ruleset.storeEconomy?.pipProductPressure?.enabled && ruleset.travel?.market
+    ? ruleset.storeEconomy.pipProductPressure.maxPricePressure
+    : 0;
+  const boosted = (sell: number, buy: number, percent: number) => percent > 0 ? Math.min(buy - 1, Math.floor(sell * (100 + percent) / 100)) : sell;
+
+  return productRecipes(ruleset).flatMap((recipe) => {
+    let best: number;
+    let baseSell: number;
+    if (recipe.product === CRACK_PRODUCT) {
+      const item = ruleset.stores.PIP.items.CRACK;
+      if (!item || item.sellCents === null) return [];
+      baseSell = item.sellCents;
+      best = boosted(item.sellCents, item.buyCents, standing + racket(CRACK_PRODUCT));
+    } else {
+      const pip = productEconomy(ruleset, recipe.product)?.pip;
+      if (!pip) return [];
+      baseSell = pip.sellCents;
+      const sell = Math.round(pip.sellCents * (1 + pressure));
+      const buy = Math.max(sell + 1, Math.round(pip.buyCents * (1 + pressure)));
+      best = boosted(sell, buy, standing + racket(recipe.product));
+    }
+    // The workshop's discount, floored where it would let a unit cook below Pip's base buyback.
+    const discounted = Math.max(1, Math.floor(recipe.ingredientCentsPerUnit * (100 - efficiency) / 100));
+    const perBaseUnit = Math.max(discounted, Math.ceil(baseSell * (100 + output) / 100));
+    return [{
+      product: recipe.product,
+      name: recipe.name,
+      bestBuybackCents: best,
+      cheapestCookCents: Math.floor(perBaseUnit * 100 / (100 + output)),
+    }];
+  });
+}
+
+/** The Slice C gate: no recipe can be cooked and sold back at home for more than it cost. Empty passes. */
+export function recipeResaleLoops(ruleset: Ruleset): string[] {
+  return recipeResale(ruleset)
+    .filter((row) => row.bestBuybackCents > row.cheapestCookCents)
+    .map((row) => `${row.name}: Pip can pay ${row.bestBuybackCents}c for a unit that cooks for ${row.cheapestCookCents}c.`);
 }

@@ -19,6 +19,7 @@ const StatsPage = lazy(() => import('./pages/StatsPage.js').then((module) => ({ 
 const NewsPage = lazy(() => import('./pages/NewsPage.js').then((module) => ({ default: module.NewsPage })));
 const NewsArticlePage = lazy(() => import('./pages/NewsArticlePage.js').then((module) => ({ default: module.NewsArticlePage })));
 const SearchPage = lazy(() => import('./pages/SearchPage.js').then((module) => ({ default: module.SearchPage })));
+const SupportersPage = lazy(() => import('./pages/SupportersPage.js').then((module) => ({ default: module.SupportersPage })));
 const StatusPage = lazy(() => import('./pages/StatusPage.js').then((module) => ({ default: module.StatusPage })));
 const NotFoundPage = lazy(() => import('./pages/SectionPage.js').then((module) => ({ default: module.NotFoundPage })));
 
@@ -76,6 +77,7 @@ export function App() {
           <Route path="beta" element={<ContentPages.BetaPage />} />
           <Route path="status" element={<StatusPage />} />
           <Route path="support" element={<ContentPages.SupportPage />} />
+          <Route path="supporters" element={<SupportersPage />} />
           <Route path="about" element={<ContentPages.AboutPage />} />
           <Route path="privacy" element={<PrivacyPage />} />
           <Route path="terms" element={<TermsPage />} />

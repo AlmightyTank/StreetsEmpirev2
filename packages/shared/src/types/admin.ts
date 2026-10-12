@@ -1,6 +1,7 @@
-import type { ActivityDto, RoundDto, RoundStatus } from './api.js';
+import type { ActivityDto, RoundDto, RoundStatus, SupporterMembershipDto } from './api.js';
 import type { BattleReportDto } from './combat.js';
 import type { LawPageDto, WantedStageDto } from './law.js';
+import type { LoanAccountDto, LoanCollectionState, LoanDto, LoanHistoryDto, LoanReceiptDto } from './loans.js';
 
 /** 0.3.0-B. Lifecycle moves an admin can make on a round in its current status. */
 export type AdminRoundAction = 'open-registration' | 'start' | 'pause' | 'resume' | 'end-early' | 'archive';
@@ -21,6 +22,135 @@ export interface AdminRoundsDto {
   rounds: AdminRoundDto[];
   /** Newest first. */
   rulesets: AdminRulesetOptionDto[];
+}
+
+export interface AdminEventDefinitionDto {
+  id: string;
+  key: string;
+  type: string;
+  scope: string;
+  title: string;
+  description: string;
+  schedule: unknown;
+  objectives: unknown;
+  rewards: unknown;
+  config: unknown;
+  sourceKind: string | null;
+  sourceKey: string | null;
+  isEnabled: boolean;
+  updatedAt: string;
+  occurrences: { total: number; active: number; scheduled: number; completed: number; expired: number; cancelled: number };
+}
+
+export interface AdminEventOccurrenceDto {
+  id: string;
+  key: string;
+  title: string;
+  type: string;
+  roundId: string | null;
+  roundName: string | null;
+  scopeKey: string;
+  status: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  participantCount: number;
+  updatedAt: string;
+}
+
+export interface AdminEventHistoryDto {
+  id: string;
+  key: string;
+  title: string;
+  action: string;
+  actorLabel: string | null;
+  happenedAt: string;
+  payload: unknown;
+}
+
+export interface AdminEventReleaseReportDto {
+  generatedAt: string;
+  rulesets: Array<{ id: string; version: string; name: string; firstClassTypes: string[]; catalogEntries: number }>;
+  rounds: Array<{ id: string; name: string; status: string; rulesetId: string; rulesetVersion: string; compatible: boolean }>;
+  metrics: {
+    definitions: number;
+    occurrences: number;
+    participations: number;
+    progressReceipts: number;
+    rewardClaims: number;
+    legacyRandomEncounters: number;
+    legacyEventQuests: number;
+    legacyClaims: number;
+    firstClassEventClaims: number;
+  };
+  migration: { claimCountGap: number; legacyEncounterRowsInFirstClassRounds: number; duplicateSourceMappings: string[] };
+  definitions: AdminEventDefinitionDto[];
+  calendar: AdminEventOccurrenceDto[];
+  history: AdminEventHistoryDto[];
+  checks: Array<{ key: string; status: 'PASS' | 'REVIEW' | 'FAIL'; detail: string }>;
+}
+
+export interface AdminEventPreviewDto {
+  ruleset: AdminRulesetOptionDto;
+  firstClassTypes: string[];
+  catalog: Array<{ key: string; type: string; scope: string; title: string; description: string; schedule: unknown; objectives: unknown; rewards: unknown; config: unknown }>;
+  modifierSimulation: Array<{ action: string; district: string; rawPercent: number; cappedPercent: number; sourceKeys: string[] }>;
+  checks: Array<{ key: string; status: 'PASS' | 'REVIEW' | 'FAIL'; detail: string }>;
+}
+
+export interface AdminEventTuneInput {
+  reason: string;
+  title?: string;
+  description?: string;
+  isEnabled?: boolean;
+  config?: Record<string, unknown>;
+  schedule?: Record<string, unknown>;
+  objectives?: unknown[];
+  rewards?: unknown[];
+}
+
+export interface AdminEventCalendarInput {
+  reason: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  cancel?: boolean;
+}
+
+/** 1.7.0-F. Staff view of roster migration and career balance in one round. */
+export interface AdminCrewRosterDto {
+  roundId: string;
+  roundName: string;
+  roundStatus: RoundStatus;
+  rulesetId: string;
+  enabled: boolean;
+  generatedAt: string;
+  players: { total: number; migrated: number; pending: number };
+  members: { total: number; experienceMin: number | null; experienceMax: number | null; experienceAverage: number | null };
+  staffingOrders: { total: number; active: number; byKind: Array<{ kind: string; count: number }> };
+  byRole: Array<{ role: 'THUG' | 'WORKER'; count: number }>;
+  bySpecialty: Array<{ specialty: 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE'; count: number }>;
+  byStatus: Array<{ status: 'AVAILABLE' | 'ASSIGNED' | 'IN_TRANSIT' | 'RECOVERING' | 'RELEASED'; count: number }>;
+  byAssignment: Array<{ assignment: 'BUSINESS' | 'DEALER' | 'TURF' | 'CORNER_ENFORCER' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'RUNNER' | 'BODYGUARD' | 'ESCORT' | 'UNASSIGNED'; count: number }>;
+  topVeterans: Array<{ roundPlayerId: string; displayName: string; memberId: string; role: 'THUG' | 'WORKER'; serial: number; experiencePoints: number; specialty: string; specialtyExperiencePoints: number }>;
+}
+
+export interface AdminCrewCorrectionInput {
+  experiencePoints: number;
+  specialty: 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE';
+  specialtyExperiencePoints: number;
+  reason: string;
+}
+
+export interface AdminCrewPlayerDto {
+  enabled: boolean;
+  members: Array<{ id: string; name: string; role: 'THUG' | 'WORKER'; serial: number; status: string; experiencePoints: number; specialty: string; specialtyExperiencePoints: number }>;
+}
+
+export interface AdminCrewCorrectionResult {
+  memberId: string;
+  experiencePoints: number;
+  specialty: string;
+  specialtyExperiencePoints: number;
+  auditId: string | null;
 }
 
 export interface AdminRoundResultDto {
@@ -104,6 +234,7 @@ export type AdminAccountAction =
   | 'revoke-admin'
   | 'approve-beta'
   | 'revoke-beta'
+  | 'grant-supporter'
   | 'resend-verification'
   | 'mark-email-verified'
   | 'reset-2fa'
@@ -338,6 +469,58 @@ export interface AdminAccountDetailDto {
   notes: AdminModerationNoteDto[];
   /** 0.9.0-H. Reports and flags against messages this account sent. */
   reportsAgainst: { open: number; total: number };
+  /** When supporter rewards were first granted, or null. Optional for older servers. */
+  supporterSince?: string | null;
+}
+
+/** Discord caps a timeout at 28 days. */
+export const ADMIN_DISCORD_TIMEOUT_LENGTHS = [
+  { key: '1h', label: '1 hour', minutes: 60 },
+  { key: '1d', label: '1 day', minutes: 24 * 60 },
+  { key: '7d', label: '7 days', minutes: 7 * 24 * 60 },
+  { key: '28d', label: '28 days', minutes: 28 * 24 * 60 },
+] as const;
+
+export type AdminDiscordTimeoutLength = (typeof ADMIN_DISCORD_TIMEOUT_LENGTHS)[number]['key'];
+
+/** The longest Discord timeout that does not outlast a game suspension of this many hours. */
+export function discordTimeoutFor(hours: number): AdminDiscordTimeoutLength {
+  const fits = ADMIN_DISCORD_TIMEOUT_LENGTHS.filter((option) => option.minutes <= hours * 60);
+  return (fits[fits.length - 1] ?? ADMIN_DISCORD_TIMEOUT_LENGTHS[0]).key;
+}
+
+/**
+ * The player across the game's community tools, for the admin account page. Each
+ * part loads on its own: a forum or bot outage leaves a problem line, not an error.
+ */
+export interface AdminCommunityDto {
+  forum:
+    | { linked: false }
+    | {
+      linked: true;
+      username: string;
+      profileUrl: string;
+      /** False when the game has no forum API key, so suspensions are done on the forum itself. */
+      moderationEnabled: boolean;
+      /** Why the forum status could not be read, if it could not. */
+      problem: string | null;
+      suspendedUntil: string | null;
+    };
+  discord:
+    | { linked: false }
+    | {
+      linked: true;
+      discordId: string;
+      /** False when the bot's local listener is not configured on this server. */
+      moderationEnabled: boolean;
+      problem: string | null;
+      inServer: boolean;
+      displayName: string | null;
+      timedOutUntil: string | null;
+      /** The bot can time this member out: it has Moderate Members and sits above their roles. */
+      canModerate: boolean;
+    };
+  tickets: Array<{ id: string; subject: string; createdAt: string; closedAt: string | null; closedByName: string | null; threadUrl: string | null }>;
 }
 
 export interface AdminAccountDeleteResultDto {
@@ -523,6 +706,11 @@ export interface AdminPlayerDto {
     tek9: boolean;
     ak47: boolean;
     permanent: Array<{ key: string; sourceQuestKey: string | null; awardedAt: string }>;
+    /**
+     * Quest Recipe Unlocks E. Every permanent unlock the round's ruleset defines, held or not, with
+     * what granted it. Recipe unlocks carry their product and ladder step. Absent from older servers.
+     */
+    catalog?: AdminUnlockDto[];
   };
   favors: Array<{
     key: string;
@@ -659,6 +847,8 @@ export interface AdminUpdateNewsInput {
   title?: string;
   body?: string;
   pinned?: boolean;
+  /** Publish a scheduled post now instead of at its scheduled time. */
+  publishNow?: true;
 }
 
 export interface AdminUpdateRoundInput {
@@ -829,6 +1019,14 @@ export interface AdminDevBotsDto {
   /** Why dev bots are refused on this server, or null when they are allowed. */
   blockedReason: string | null;
   currentRound: { id: string; name: string; rulesetVersion: string } | null;
+  /** Phase O. What the controls can set, and the seedable crews with whether each is in this round. */
+  controls: {
+    personalities: Array<{ key: string; label: string }>;
+    tiers: string[];
+    rivals: Array<{ slug: string; displayName: string; personality: string; inRound: boolean }>;
+    /** Real crews: roster size, how many are in the round, and how many it should carry now. */
+    crews: { roster: number; inRound: number; target: number; spawnEnabled: boolean; nextCrew: string | null };
+  };
   /** Phase I. Read-only operator view of server-run gang pressure. */
   npcGangSummary: {
     generatedAt: string;
@@ -846,6 +1044,9 @@ export interface AdminDevBotsDto {
     /** Phase L. Gangs on a run, and gangs gone to ground. */
     hot: number;
     dormant: number;
+    /** Phase N. Bounties paid in the last day, gangs broken up this round. */
+    bounties24h: { count: number; cents: number };
+    retired: number;
     cities: Array<{
       city: string;
       activeGangs: number;
@@ -863,6 +1064,8 @@ export interface AdminDevBotsDto {
   bots: Array<{
     accountId: string;
     username: string;
+    /** DEV: a local seed-rival test bot. CREW: a roster crew the server spawned. */
+    kind: 'DEV' | 'CREW';
     isActive: boolean;
     roundsPlayed: number;
     inCurrentRound: {
@@ -884,6 +1087,10 @@ export interface AdminDevBotsDto {
         lastOutcome: string | null;
         lastTarget: string | null;
         lastError: string | null;
+        /** Phase O. The gang id, its personality key, and an operator pause if one is on. */
+        gangId: string;
+        personalityKey: string;
+        paused: { by: string; at: string; reason: string; until: string } | null;
         /** Phase I. Humans this gang remembers, newest first; expired grudges are dropped. */
         grudges: Array<{
           targetName: string;
@@ -906,10 +1113,18 @@ export interface AdminDevBotsDto {
         currentCity: string;
         migration: { status: 'PACKING' | 'MOVING'; toName: string; reason: string; since: string; arrivesAt: string | null } | null;
         lastMigration: { fromName: string; toName: string; reason: string; at: string } | null;
+        /** Phase M. Public identity and record. */
+        personality: string;
+        crewName: string;
+        crewTag: string;
+        record: { wins: number; losses: number; favoriteMove: string | null; biggestHitCents: number | null; biggestHitTarget: string | null; lastLossTo: string | null };
         /** Phase L. Momentum as of the last tick, how it reads, and the current or last dormancy. */
         momentum: number;
         mood: 'HOT' | 'STEADY' | 'COOLED' | 'DORMANT';
         dormancy: { reason: string; since: string; until: string; wokeAt: string | null } | null;
+        /** Phase N. Times grounded this round, and the break-up if it happened. */
+        dormancies: number;
+        retired: { reason: string; at: string } | null;
       } | null;
     } | null;
   }>;
@@ -1144,6 +1359,50 @@ export interface AdminShipmentsDto {
   delivered: Array<{ player: AdminPlayerRefDto; store: string; item: string; dueAt: string; deliveredAt: string | null }>;
 }
 
+/** 1.6.0-I. One reconciliation mismatch, for operators. */
+export interface SupplyProblemDto {
+  code: string;
+  severity: 'ERROR' | 'WARN';
+  roundPlayerId: string | null;
+  player: string | null;
+  subject: string;
+  detail: string;
+}
+
+/** 1.6.0-A. Read-only supply, warehouse, dealer-career, and movement state for operators. */
+export interface AdminSupplyDto {
+  roundId: string;
+  enabled: boolean;
+  generatedAt: string;
+  totals: { orders: number; openOrders: number; supplierUnitsAvailable: number; warehouses: number; warehouseUnits: number; dealerCrews: number; assignedDealers: number; dealerStockUnits: number; sales: number; salesGrossCents: number; cashLedgerEntries: number; cashLedgerDeltaCents: number; supplyMovements: number };
+  orders: Array<{ id: string; player: AdminPlayerRefDto; supplier: string; city: string; product: string; quantityOrdered: number; quantityCollected: number; quantityRemaining: number; unitCostCents: number; totalPaidCents: number; status: string; placedAt: string }>;
+  supplierStock: Array<{ supplier: string; city: string; product: string; available: number }>;
+  warehouses: Array<{ id: string; player: AdminPlayerRefDto; city: string; name: string; capacity: number; stockUnits: number; stock: Array<{ productKey: string; product: string; quantity: number }> }>;
+  dealerCrews: Array<{ id: string; player: AdminPlayerRefDto; city: string; district: string; status: string; staff: Array<{ id: string; experiencePoints: number; active: boolean; assignedAt: string; releasedAt: string | null }>; capacity: number; productKey: string | null; stock: Array<{ productKey: string; product: string; quantity: number }>; salesCount: number; grossCents: number }>;
+  ledger: Array<{ id: string; player: AdminPlayerRefDto; source: string; label: string; amountCents: number; at: string }>;
+  recentMovements: Array<{ id: string; player: AdminPlayerRefDto; kind: string; product: string; quantityDelta: number; fromLocation: string | null; toLocation: string | null; requestKey: string; at: string }>;
+  /** 1.6.0-I. Pickups, shipments and lane loads, by state. */
+  shipmentStates: Array<{ kind: 'PICKUP' | 'SHIPMENT' | 'LANE'; status: string; count: number; units: number }>;
+  shipments: Array<{ id: string; player: AdminPlayerRefDto; kind: 'PICKUP' | 'SHIPMENT' | 'LANE'; route: string; from: string; to: string; product: string; quantity: number; delivered: number; status: string; dueAt: string | null }>;
+  /** 1.6.0-I. Every unit by where it is: at suppliers, on the road, stored and with crews, by city. */
+  stockByCity: Array<{ city: string; product: string; stored: number; withCrews: number; inbound: number }>;
+  /** 1.6.0-I. What each crew sold, kept, paid and cost. */
+  dealerEconomics: Array<{ crewId: string; player: AdminPlayerRefDto; city: string; district: string; status: string; dealers: number; unitsSold: number; grossCents: number; cutCents: number; netCents: number; wagesCents: number }>;
+  /** 1.6.0-I. Reconciliation mismatches; empty when everything adds up. */
+  problems: SupplyProblemDto[];
+  /** 1.6.0-I. The products the network carries, for the correction form. */
+  products: Array<{ key: string; name: string }>;
+}
+
+/** 1.6.0-I. What an audited stock correction did, and how the player reconciles after it. */
+export interface AdminSupplyCorrectionResult {
+  before: number;
+  after: number;
+  delta: number;
+  auditId: string | null;
+  problems: SupplyProblemDto[];
+}
+
 /** 1.0.0-E. One player's shelves, settled as the store would show them now. */
 export interface AdminPlayerStoresDto {
   player: AdminPlayerRefDto;
@@ -1236,4 +1495,295 @@ export interface AdminLawPlayerDto {
   cities: Array<{ slug: string; name: string }>;
   /** Null when the round's ruleset keeps no Case. */
   page: LawPageDto | null;
+}
+
+/** Phase O. One operator correction to an NPC gang. Every action needs a reason for the audit log. */
+export type AdminNpcGangControlInput =
+  | { action: 'ACT_NOW'; reason: string }
+  | { action: 'DELAY'; minutes: number; reason: string }
+  | { action: 'PAUSE'; hours?: number; reason: string }
+  | { action: 'WAKE'; reason: string }
+  | { action: 'TUNE'; aggression?: number; ambition?: number; discipline?: number; tier?: string; archetype?: string; reason: string }
+  | { action: 'RESET'; scope: 'MOMENTUM' | 'GRUDGES' | 'MIGRATION'; reason: string };
+
+/** Phase O. Everything an operator needs to see about one gang. */
+export interface AdminNpcGangInspectDto {
+  gangId: string;
+  roundPlayerId: string;
+  displayName: string;
+  crewName: string;
+  tier: string;
+  archetype: string;
+  personality: string;
+  aggression: number;
+  ambition: number;
+  discipline: number;
+  nextActionAt: string;
+  dormantUntil: string | null;
+  paused: { by: string; at: string; reason: string; until: string } | null;
+  decisions: Array<{ at: string; intent: string; outcome: string; about: string | null; won: boolean | null; error: string | null }>;
+  /** The raw scheduler memory, for anything the panel does not summarize. */
+  memory: unknown;
+  audit: Array<{ at: string; actor: string; action: string; reason: string | null }>;
+}
+
+export interface AdminNpcGangControlResultDto {
+  message: string;
+  gang: AdminNpcGangInspectDto;
+}
+
+/** Phase P. Which stretch an NPC balance report covers. */
+export type AdminNpcTelemetryWindow = '24h' | '7d' | 'season';
+
+/** Phase P. Measured NPC gang behavior over a window, for tuning from data. */
+export interface AdminNpcTelemetryDto {
+  window: AdminNpcTelemetryWindow;
+  roundName: string | null;
+  from: string;
+  to: string;
+  days: number;
+  activeHumans: number;
+  gangs: number;
+  /** NPC hits on human crews, from the NPC side. */
+  hits: { total: number; won: number; winRate: number | null; perActiveHumanPerDay: number | null; byKind: Record<string, number> };
+  /** Human hits on NPC crews, from the human side. */
+  humanHits: { total: number; won: number; winRate: number | null };
+  drain: {
+    cashFromHumansCents: number;
+    productFromHumans: number;
+    cashFromNpcsCents: number;
+    productFromNpcs: number;
+    bounties: number;
+    bountiesCents: number;
+  };
+  encounters: {
+    total: number;
+    resolved: number;
+    pending: number;
+    expired: number;
+    perActiveHumanPerDay: number | null;
+    byTrigger: Record<string, number>;
+    impact: {
+      cashCents: number;
+      heat: number;
+      condoms: number;
+      medicine: number;
+      crack: number;
+      beer: number;
+    };
+  };
+  byCity: Array<{ city: string; hits: number; won: number; winRate: number | null; cashFromHumansCents: number }>;
+  byTier: Array<{ tier: string; hits: number; won: number; winRate: number | null }>;
+  byPersonality: Array<{ personality: string; hits: number; won: number; winRate: number | null }>;
+  /** Scheduler counters: outcomes, blocked reasons by code, and why targets were passed over. */
+  outcomes: Record<string, number>;
+  blocked: Record<string, number>;
+  skips: Record<string, number>;
+  rates: { blocked: number | null; layLow: number | null; dogpileSkips: number | null };
+}
+
+/** 1.6.5-F. One borrower in a round, for the admin loan overview. */
+export interface AdminLoanPlayerRowDto {
+  player: AdminPlayerRefDto;
+  debtCents: number;
+  /** Debt as a whole percent of the ruleset's ceiling. */
+  ceilingUsePercent: number;
+  feesAssessedCents: number;
+  standing: LoanCollectionState;
+  recoveryNeeded: number;
+  activeLoans: number;
+  delinquentLoans: number;
+  missedInstallments: number;
+  overdueCents: number;
+  problems: number;
+}
+
+/** 1.6.5-F. GET /api/admin/rounds/:roundId/loans. */
+export interface AdminLoansDto {
+  round: { id: string; name: string; status: RoundStatus; rulesetId: string };
+  enabled: boolean;
+  limits: {
+    debtCeilingCents: number;
+    feeCapCents: number;
+    lateFeeCents: number;
+    lateFeeCapPerLoanCents: number;
+    collections: { missedInstallmentsThreshold: number; garnishPercent: number; garnishCapPerDayCents: number; recoveryOnTimeInstallments: number } | null;
+  } | null;
+  totals: {
+    borrowers: number;
+    loans: number;
+    activeLoans: number;
+    delinquentLoans: number;
+    paidOffLoans: number;
+    debtCents: number;
+    principalAdvancedCents: number;
+    lateFeesAssessedCents: number;
+    lateFeesWaivedCents: number;
+    contractFeeWaivedCents: number;
+    paidCents: { SCHEDULED: number; MANUAL: number; COLLECTION: number };
+    garnished24hCents: number;
+    standings: Record<LoanCollectionState, number>;
+  };
+  /** Borrowers, deepest debt first. */
+  players: AdminLoanPlayerRowDto[];
+  /** Every borrower checked by the reconciliation and exploit checks, and what failed. */
+  checkedPlayers: number;
+  problems: Array<{ player: AdminPlayerRefDto; problems: string[] }>;
+  /** The round's loan journal, newest first. */
+  journal: Array<LoanHistoryDto & { player: AdminPlayerRefDto }>;
+}
+
+/** 1.6.5-F. GET /api/admin/players/:roundPlayerId/loans. */
+export interface AdminLoanPlayerDto {
+  player: AdminPlayerRefDto;
+  round: { id: string; name: string; status: RoundStatus; rulesetId: string };
+  /** Finished rounds are read-only. */
+  frozen: boolean;
+  account: LoanAccountDto | null;
+  loans: Array<LoanDto & { offerName: string; rulesetId: string; rulesetVersion: string }>;
+  payments: LoanReceiptDto[];
+  fees: Array<{
+    id: string;
+    loanId: string;
+    offerName: string;
+    installmentId: string | null;
+    sequence: number | null;
+    kind: 'LATE' | 'COLLECTION';
+    amountCents: number;
+    quotedCents: number;
+    waivedCents: number;
+    waivedAt: string | null;
+    createdAt: string;
+  }>;
+  journal: LoanHistoryDto[];
+  ledger: Array<{ id: string; source: string; label: string; amountCents: number; createdAt: string }>;
+  problems: string[];
+}
+
+export type AdminLoanCorrectionInput =
+  | { kind: 'WAIVE_LATE_FEE'; feeId: string; reason: string }
+  | { kind: 'EXCUSE_MISS'; installmentId: string; reason: string };
+
+/** 1.6.5-F. POST /api/admin/players/:roundPlayerId/loans/correct. */
+export interface AdminLoanCorrectionResult {
+  kind: AdminLoanCorrectionInput['kind'];
+  waivedCents: number;
+  debtBeforeCents: number;
+  debtAfterCents: number;
+  standing: LoanCollectionState;
+  /** For an excused miss: when it is due again. */
+  dueAgainAt: string | null;
+  auditId: string | null;
+  problems: string[];
+}
+
+/** Quest Recipe Unlocks E. One permanent unlock in a player's round, for support inspection and correction. */
+export interface AdminUnlockDto {
+  key: string;
+  name: string;
+  description: string;
+  category: string;
+  held: boolean;
+  /** The quest that granted it, `ADMIN` for a support grant, or null when not held or granted by the system. */
+  sourceQuestKey: string | null;
+  /** The granting quest's title, "Support grant" for `ADMIN`. */
+  sourceLabel: string | null;
+  awardedAt: string | null;
+  /** The job that normally grants it in this ruleset. */
+  grantedBy: { key: string; title: string } | null;
+  /** Present on recipe unlocks. */
+  recipe?: { product: string; productName: string; step: number | null };
+}
+
+/** Admin → Supporters. One supporter reward from the catalogue. */
+export interface AdminSupporterRewardDto {
+  key: string;
+  name: string;
+  kind: string;
+  rarity: string;
+}
+
+/** An account that holds supporter rewards. Rewards are permanent, so this is "ever supported". */
+export interface AdminSupporterDto {
+  accountId: string;
+  username: string;
+  isActive: boolean;
+  /** When the account was first given supporter rewards; null for a subscriber still waiting on a payment. */
+  since: string | null;
+  lastLoginAt: string | null;
+  rewardKeys: string[];
+  /** Catalogue rewards it does not hold yet, for example one added after it was granted. */
+  missingKeys: string[];
+  /** Wearing the Signature Profile Card as its avatar frame. */
+  wearingCard: boolean;
+  /** The Stripe subscription, if the account ever started one. */
+  membership: SupporterMembershipDto | null;
+}
+
+/** One paid supporter invoice from Stripe. */
+export interface AdminSupporterPaymentDto {
+  id: string;
+  accountId: string | null;
+  username: string | null;
+  amountCents: number;
+  currency: string;
+  /** paid, refunded or disputed. Rewards are kept either way. */
+  status: string;
+  paidAt: string;
+  stripeInvoiceId: string;
+}
+
+export interface AdminSupportersDto {
+  rewards: AdminSupporterRewardDto[];
+  supporters: AdminSupporterDto[];
+  /** Supporters missing at least one reward. */
+  missingCount: number;
+  /** Subscriptions supporting right now (active or trialing). */
+  activeCount: number;
+  /** Stripe checkout is set up on this server. */
+  checkoutEnabled: boolean;
+  /** The newest supporter payments. */
+  payments: AdminSupporterPaymentDto[];
+  /** Every monthly drop in the catalogue, oldest first. */
+  drops: AdminSupporterDropDto[];
+  /** Supporters who chose to appear on the public thank-you list. */
+  listedCount: number;
+}
+
+/** One monthly supporter drop and how many accounts hold it. */
+export interface AdminSupporterDropDto {
+  /** YYYY-MM, UTC. */
+  month: string;
+  key: string;
+  name: string;
+  holders: number;
+  when: 'past' | 'current' | 'upcoming';
+}
+
+/** The most usernames one bulk grant takes. */
+export const ADMIN_SUPPORTER_GRANT_MAX = 100;
+
+/**
+ * new: no rewards yet. missing-rewards: a supporter without every reward. already: nothing to add.
+ * not-found: no such account. self: admins cannot grant to their own account. duplicate: named twice.
+ */
+export type AdminSupporterGrantStatus = 'new' | 'missing-rewards' | 'already' | 'not-found' | 'self' | 'duplicate';
+
+export interface AdminSupporterGrantRowDto {
+  /** The name as given, or the username for a backfill. */
+  input: string;
+  status: AdminSupporterGrantStatus;
+  accountId: string | null;
+  username: string | null;
+  /** Rewards this row would add (preview) or did add (commit). */
+  rewardKeys: string[];
+  /** Set when a committed grant for this row failed; the other rows still went through. */
+  error: string | null;
+}
+
+export interface AdminSupporterGrantResultDto {
+  dryRun: boolean;
+  rows: AdminSupporterGrantRowDto[];
+  /** Accounts given at least one reward. Always 0 for a preview. */
+  granted: number;
 }

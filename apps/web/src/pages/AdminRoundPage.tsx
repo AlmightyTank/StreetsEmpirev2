@@ -217,7 +217,7 @@ export function AdminRoundPage() {
                 value={form.registrationOpensAt}
                 onChange={(event) => setForm({ ...form, registrationOpensAt: event.target.value })}
                 error={fields.registrationOpensAt}
-                hint="Optional. Clear it to allow joining as soon as registration is open."
+                hint="Optional lifecycle date. Once registration is open, players can always join."
               />
               <div className="se-field">
                 <label className="se-label" htmlFor="admin-round-edit-reason">Reason</label>

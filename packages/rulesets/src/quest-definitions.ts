@@ -302,6 +302,36 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
   return problems;
 }
 
+/**
+ * Products a job's required objectives cook. A player must hold each product's recipe
+ * before the job can be done; bonus objectives stay optional, so they are not counted.
+ */
+export function questRequiredRecipes(quest: Pick<QuestDefinition, 'objectives'>): string[] {
+  const products = new Set<string>();
+  for (const objective of quest.objectives) {
+    const eventTypes = objective.params?.eventTypes;
+    const where = objective.params?.where as QuestDataObject | undefined;
+    if (!Array.isArray(eventTypes) || !eventTypes.includes('PRODUCE_CRACK')) continue;
+    if (typeof where?.productType === 'string') products.add(where.productType);
+  }
+  return [...products];
+}
+
+/**
+ * Districts a job's required objectives send the player to scout. A player must hold each
+ * district's access before the job can be done; bonus objectives stay optional.
+ */
+export function questRequiredDistricts(quest: Pick<QuestDefinition, 'objectives'>): string[] {
+  const districts = new Set<string>();
+  for (const objective of quest.objectives) {
+    const eventTypes = objective.params?.eventTypes;
+    const where = objective.params?.where as QuestDataObject | undefined;
+    if (!Array.isArray(eventTypes) || !eventTypes.includes('SCOUT')) continue;
+    if (typeof where?.districtKey === 'string') districts.add(where.districtKey);
+  }
+  return [...districts];
+}
+
 export function defineQuestCatalog<const T extends QuestDefinitionCatalog>(catalog: T): T {
   const problems = questDefinitionProblems(catalog);
   if (problems.length) {

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Laurel Ascendant profile frame">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#fef9c3"/>
+      <stop offset=".45" stop-color="#eab308"/>
+      <stop offset="1" stop-color="#854d0e"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <circle cx="64" cy="60" r="30" fill="#1a0824" fill-opacity=".6" stroke="#a855f7" stroke-width="2"/>
+  <path d="M58 104C30 98 20 74 24 46c2-10 7-19 14-26M70 104c28-6 38-30 34-58-2-10-7-19-14-26" fill="none" stroke="url(#gold)" stroke-width="4" stroke-linecap="round"/>
+  <g fill="url(#gold)" stroke="#854d0e" stroke-width=".8">
+    <ellipse cx="26" cy="80" rx="4" ry="8" transform="rotate(-40 26 80)"/>
+    <ellipse cx="20" cy="64" rx="4" ry="8" transform="rotate(-10 20 64)"/>
+    <ellipse cx="22" cy="47" rx="4" ry="8" transform="rotate(15 22 47)"/>
+    <ellipse cx="30" cy="32" rx="4" ry="8" transform="rotate(35 30 32)"/>
+    <ellipse cx="40" cy="93" rx="4" ry="8" transform="rotate(-62 40 93)"/>
+    <ellipse cx="102" cy="80" rx="4" ry="8" transform="rotate(40 102 80)"/>
+    <ellipse cx="108" cy="64" rx="4" ry="8" transform="rotate(10 108 64)"/>
+    <ellipse cx="106" cy="47" rx="4" ry="8" transform="rotate(-15 106 47)"/>
+    <ellipse cx="98" cy="32" rx="4" ry="8" transform="rotate(-35 98 32)"/>
+    <ellipse cx="88" cy="93" rx="4" ry="8" transform="rotate(62 88 93)"/>
+  </g>
+  <path d="M54 100l-6 18 9-5 4 8 3-20zm20 0 6 18-9-5-4 8-3-20z" fill="#9f1239" stroke="#fda4af" stroke-width="1"/>
+  <circle cx="64" cy="104" r="11" fill="url(#gold)" stroke="#fef9c3" stroke-width="1.5" filter="url(#glow)"/>
+  <path d="M64 97l2 5h5l-4 3 1.5 5-4.5-3-4.5 3 1.5-5-4-3h5z" fill="#854d0e"/>
+</svg>

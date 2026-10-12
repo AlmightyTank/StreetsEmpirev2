@@ -12,8 +12,10 @@ import { useCountdown } from '../hooks/useCountdown.js';
 import { useLiveDashboard } from '../hooks/useLiveDashboard.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { roundAftermathPublicEnabled } from '../config/features.js';
 import { HeatPanel, heatTone } from '../components/HeatPanel.js';
 import { CasePanel } from '../components/CasePanel.js';
+import { PendingEncountersPanel } from '../components/PendingEncountersPanel.js';
 import { formatClockTime, formatDate, formatDuration, formatWhen } from '../utils/time.js';
 import { GettingStarted } from '../components/onboarding/GettingStarted.js';
 
@@ -276,6 +278,7 @@ function RoundOverScreen({ roundOver, nextRound, canJoin }: { roundOver: RoundOv
                   <li>Rebuild and chase the new leaderboard on equal footing.</li>
                 </ol>
                 <div className="se-actions-row se-mt">
+                  {roundAftermathPublicEnabled ? <Link className="se-btn" to={`/game/rounds/${encodeURIComponent(roundOver.round.id)}/aftermath`}>Full round aftermath</Link> : null}
                   <Link className="se-btn se-btn--primary" to="/join">{canJoin ? 'Enter next round' : 'View next round'}</Link>
                   <Link className="se-btn" to="/game/profile">Your legacy</Link>
                   <Link className="se-btn" to="/game/hall-of-fame">Hall of fame</Link>
@@ -285,6 +288,7 @@ function RoundOverScreen({ roundOver, nextRound, canJoin }: { roundOver: RoundOv
               <>
                 <p className="se-dim">No new round is open yet. Your final result is saved to your legacy.</p>
                 <div className="se-actions-row se-mt">
+                  {roundAftermathPublicEnabled ? <Link className="se-btn" to={`/game/rounds/${encodeURIComponent(roundOver.round.id)}/aftermath`}>Full round aftermath</Link> : null}
                   <Link className="se-btn" to="/game/profile">Your legacy</Link>
                   <Link className="se-btn" to="/game/hall-of-fame">Hall of fame</Link>
                   <Link className="se-btn" to="/game/news">Development wire</Link>
@@ -399,6 +403,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         {error ? <Alert>{error}</Alert> : null}
 
         <GettingStarted />
+        <PendingEncountersPanel encounters={me.pendingEncounters} />
 
         <section className="se-dashboard-command">
           <div className="se-dashboard-command__column se-dashboard-command__column--left">

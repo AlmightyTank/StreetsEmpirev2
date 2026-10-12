@@ -14,10 +14,12 @@ import type {
   PublicPlayerProfileDto,
   PublicSeasonStatsDto,
   ProfileAccent,
+  ProfileEffect,
+  ProfileSurface,
   RankingEntryDto,
   RankingsDto,
 } from '@streets/shared';
-import { playerExperienceDto } from '@streets/shared';
+import { playerExperienceDto, readAvatarParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { env } from '../config/env.js';
 import { toCityDto, toSeasonHideoutDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
@@ -27,7 +29,7 @@ import { forumProfileUrl } from './forum-link.service.js';
 import { selectProfileBadges } from './profile-badges.js';
 import { isBuiltInProfileTitle, profileTitleForAward, profileTitleForKey } from './profile-titles.js';
 import { TurfHistoryService } from './turf-history.service.js';
-import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { QuestCosmeticService, withThemeCompanionFrames } from './quest-cosmetic.service.js';
 import { profileShowcase, profileThemeTags, themeTagFields } from './profile-showcase.service.js';
 import { seasonFeatAwards, type FeatSeason } from './season-feats.js';
 import { emptySeasonTotals, SeasonStatsService, toStatSheet, type SeasonTotals } from './season-stats.service.js';
@@ -565,6 +567,10 @@ function jsonStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
+function profileSurfaceKey(value: string | null | undefined): ProfileSurface {
+  return value === 'carbon' || value === 'engine-turned' ? value : 'brushed';
+}
+
 function profileAccent(value: string | null | undefined): ProfileAccent {
   return [
     'default',
@@ -585,6 +591,12 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'saints-chrome',
     'cartel-jade',
     'civic-seal',
+    'original-neon',
+    'neon-sign-pink',
+    'gavel-bronze',
+    'clean-books-ivory',
+    'sunset-coral',
+    'night-map-plum',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';
@@ -813,9 +825,8 @@ export const CommunityService = {
         rulesetVersion: true,
         startsAt: true,
         endsAt: true,
-        _count: { select: { players: true } },
         players: {
-          where: { nationalRank: { not: null, lte: 10 }, account: { isActive: true } },
+          where: { nationalRank: { not: null, lte: 10 }, account: { isActive: true }, npcGang: { is: null } },
           orderBy: [{ nationalRank: 'asc' }, { netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
           select: {
             nationalRank: true,
@@ -855,13 +866,16 @@ export const CommunityService = {
           joinedAt: player.createdAt.toISOString(),
           lastActiveAt: player.lastActiveAt.toISOString(),
         }));
-        const territory = await TurfHistoryService.board(
-          prisma,
-          round.id,
-          loadRulesetForRound(round),
-          null,
-          round.endsAt,
-        );
+        const [territory, playerCount] = await Promise.all([
+          TurfHistoryService.board(
+            prisma,
+            round.id,
+            loadRulesetForRound(round),
+            null,
+            round.endsAt,
+          ),
+          prisma.roundPlayer.count({ where: { roundId: round.id, npcGang: { is: null } } }),
+        ]);
         return {
           id: round.id,
           name: round.name,
@@ -871,7 +885,7 @@ export const CommunityService = {
           rulesetVersion: round.rulesetVersion,
           startsAt: round.startsAt.toISOString(),
           endedAt: round.endsAt.toISOString(),
-          playerCount: round._count.players,
+          playerCount,
           podium: topTen.filter((player) => player.rank <= podiumSize),
           topTen,
           territory: territory ? {
@@ -912,13 +926,13 @@ export const CommunityService = {
     await RelocationService.settleDue(prisma, player.roundId, now);
     const [nationalRows, localRows] = await Promise.all([
       prisma.roundPlayer.findMany({
-        where: { roundId: player.roundId, account: { isActive: true } },
+        where: { roundId: player.roundId, account: { isActive: true }, npcGang: { is: null } },
         include: { city: true, alliance: { select: { name: true, tag: true } } },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: topCount,
       }),
       prisma.roundPlayer.findMany({
-        where: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } },
+        where: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true }, npcGang: { is: null } },
         include: { city: true, alliance: { select: { name: true, tag: true } } },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: topCount,
@@ -978,7 +992,7 @@ export const CommunityService = {
 
     const [nationalAhead, localAhead, forumLink] = await Promise.all([
       prisma.roundPlayer.count({
-        where: { roundId, netWorthCents: { gt: player.netWorthCents }, account: { isActive: true } },
+        where: { roundId, netWorthCents: { gt: player.netWorthCents }, account: { isActive: true }, npcGang: { is: null } },
       }),
       prisma.roundPlayer.count({
         where: {
@@ -986,6 +1000,7 @@ export const CommunityService = {
           cityId: player.cityId,
           netWorthCents: { gt: player.netWorthCents },
           account: { isActive: true },
+          npcGang: { is: null },
         },
       }),
       // Same rules as the forum-side lookup: linking enabled and the current forum only.
@@ -1004,7 +1019,7 @@ export const CommunityService = {
     const weapons = player.pistols + player.shotguns + player.tek9s + player.ak47s;
     // 0.9.0-F. A live season's cash, crew and product flow stay sealed from everyone else.
     const sealed = !isYou && now.getTime() < player.round.endsAt.getTime();
-    const [contexts, linkedForumGroups, history, currentTotals, profileSettings, betaTesterAwards, questCosmetics, frameOptions] = await Promise.all([
+    const [contexts, linkedForumGroups, history, currentTotals, profileSettings, betaTesterAwards, questCosmetics, earnedFrames, themeOptions] = await Promise.all([
       loadPublicContexts(prisma, roundId, [player]),
       forumLink ? ForumGroupsService.groupsFor(forumLink.forumUserId) : [],
       loadSeasonHistory(prisma, player.accountId, roundId, now),
@@ -1013,7 +1028,9 @@ export const CommunityService = {
       betaTesterAwardsForAccount(prisma, player.accountId),
       QuestCosmeticService.awardsForAccount(prisma, player.accountId),
       QuestCosmeticService.optionsForAccount(prisma, player.accountId, 'PROFILE_FRAME'),
+      QuestCosmeticService.optionsForAccount(prisma, player.accountId, 'SITE_THEME'),
     ]);
+    const frameOptions = withThemeCompanionFrames(earnedFrames, themeOptions);
     const career = await loadCareerForAccount(prisma, player.accountId, {
       currentRoundId: roundId,
       limit: 10,
@@ -1035,10 +1052,19 @@ export const CommunityService = {
     const title = titleAward
       ? profileTitleForAward(titleAward)
       : activeTitleKey && isBuiltInProfileTitle(activeTitleKey) ? profileTitleForKey(activeTitleKey) : null;
-    const frame = frameOptions.some((option) => option.key === profileSettings?.activeProfileFrameKey)
+    const savedFrame = frameOptions.some((option) => option.key === profileSettings?.activeProfileFrameKey)
       ? profileSettings!.activeProfileFrameKey
       : null;
+    const requestedAvatarFrame = profileSettings?.activeAvatarFrameKey ?? null;
+    const avatarFrame = frameOptions.some((option) => option.key === requestedAvatarFrame)
+      ? requestedAvatarFrame
+      : savedFrame;
     const showcase = await profileShowcase(prisma, player.accountId, profileSettings);
+    const profileEffect = profileSettings?.profileEffect;
+    const publicProfileEffects = new Set<string>([
+      'snowstorm', 'inferno', 'chrome-serpent', 'phantom-convoy', 'lantern-district', 'siren-breaker',
+      'block-sovereign', 'gilded-house', 'dead-or-alive', 'laurel-ascendant', 'midnight-chrome',
+    ]);
 
     return {
       forumProfileUrl: forumLink ? forumProfileUrl(forumLink) : null,
@@ -1048,21 +1074,18 @@ export const CommunityService = {
         title,
         titlePlacement: profileSettings?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
         accent: profileAccent(profileSettings?.profileAccent),
-        frame,
-        effect: profileSettings?.profileEffect === 'neon-pulse'
-          || profileSettings?.profileEffect === 'scanlines'
-          || profileSettings?.profileEffect === 'spotlight'
-          || profileSettings?.profileEffect === 'glitch'
-          || profileSettings?.profileEffect === 'ember-sparks'
-          || profileSettings?.profileEffect === 'cash-shimmer'
-          || profileSettings?.profileEffect === 'sirens'
-          || profileSettings?.profileEffect === 'smoke'
-          ? profileSettings.profileEffect
+        frame: null,
+        avatarFrame,
+        effect: profileEffect && publicProfileEffects.has(profileEffect)
+          ? profileEffect as ProfileEffect
           : 'none',
         imageUrl: profileSettings?.profileImageUrl ?? null,
+        avatar: readAvatarParts(profileSettings?.profileAvatar),
         bannerUrl: profileSettings?.profileBannerUrl ?? null,
         siteTheme: showcase.siteTheme,
         siteThemeLabel: showcase.siteThemeLabel,
+        // The surface belongs to the Signature card, so it is public only while its avatar frame is equipped.
+        surface: avatarFrame === SIGNATURE_CARD_FRAME_KEY ? profileSurfaceKey(profileSettings?.profileSurface) : null,
       },
       look: showcase.look,
       experience: playerExperienceDto(player.account.experiencePoints),

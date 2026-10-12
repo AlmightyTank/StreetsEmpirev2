@@ -15,6 +15,10 @@ const LABEL: Record<string, 'left' | 'right' | 'above' | 'below'> = {
   'new-york-city': 'above',
   'atlanta': 'left',
   'miami-beach': 'left',
+  // 1.6.0-G: Chicago sits just west of Detroit, so its label goes the other way.
+  'chicago': 'left',
+  'tulsa': 'left',
+  'dallas': 'below',
 };
 
 /** Where each city sits: its real place on the lower 48 (scripts/art/build-usa-map.mjs). */

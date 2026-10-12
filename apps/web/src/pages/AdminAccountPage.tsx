@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import type { AdminAccountAction, AdminAccountDetailDto, AdminCommsMuteLength, AdminSuspensionLength, RoundStatus } from '@streets/shared';
+import type { AdminAccountAction, AdminAccountDetailDto, AdminCommsMuteLength, AdminCommunityDto, AdminSuspensionLength, RoundStatus } from '@streets/shared';
 import { ADMIN_COMMS_MUTE_LENGTHS, ADMIN_SUSPENSION_LENGTHS, formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
+import { AdminCommunityPanel } from '../components/AdminCommunityPanel.js';
 import { AccountTags, AuditEntryList } from '../components/AdminParts.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -12,6 +13,7 @@ import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { adminWhen } from '../utils/admin.js';
+import { everywhereAvailable, everywhereSteps, everywhereSummary, type EverywhereOptions, type EverywhereStep } from '../utils/community.js';
 import { formatWhen } from '../utils/time.js';
 
 const actionText: Record<AdminAccountAction, { label: string; copy: string }> = {
@@ -28,6 +30,7 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'revoke-admin': { label: 'Remove admin', copy: 'Removes admin panel access.' },
   'approve-beta': { label: 'Approve beta', copy: 'Allows this account to log in and play when the beta server is invite-only.' },
   'revoke-beta': { label: 'Revoke beta', copy: 'Removes this account from the invite-only beta. Existing sessions stop working on their next request.' },
+  'grant-supporter': { label: 'Grant supporter rewards', copy: 'Unlocks the Midnight Chrome collection and the Signature Profile Card for good. Cosmetic only, and there is no revoke.' },
   'resend-verification': { label: 'Resend verification email', copy: 'Sends a fresh verification link to their current email address.' },
   'mark-email-verified': { label: 'Mark email verified', copy: 'Marks their current email as verified without a link. Only do this once you have confirmed they own it.' },
   'reset-2fa': { label: 'Turn off two-step sign-in', copy: 'For a player who lost their phone and their recovery codes. Only once you are sure it is them. They are emailed, and can set it up again.' },
@@ -52,6 +55,35 @@ interface Pending {
   sessionId?: string;
 }
 
+/** The "also on the forum / Discord" ticks under a game suspension or ban, for the platforms that can take part. */
+function EverywhereChoices({ community, action, chosen, onChange }: {
+  community: AdminCommunityDto | null;
+  action: 'suspend' | 'ban';
+  chosen: EverywhereOptions;
+  onChange: (next: EverywhereOptions) => void;
+}) {
+  const available = everywhereAvailable(community);
+  if (!available.forum && !available.discord) return null;
+  return (
+    <div className="se-field">
+      <p className="se-label">Also</p>
+      {available.forum ? (
+        <label className="se-checkrow se-checkrow--inline">
+          <input type="checkbox" checked={chosen.forum} onChange={(event) => onChange({ ...chosen, forum: event.target.checked })} />
+          <span>Suspend on the forum{action === 'ban' ? ' for 90 days, the longest the game offers' : ' for the same length'}</span>
+        </label>
+      ) : null}
+      {available.discord ? (
+        <label className="se-checkrow se-checkrow--inline">
+          <input type="checkbox" checked={chosen.discord} onChange={(event) => onChange({ ...chosen, discord: event.target.checked })} />
+          <span>Time out on Discord{action === 'ban' ? ' for 28 days, the longest Discord allows' : ' for as long as fits (Discord allows at most 28 days)'}</span>
+        </label>
+      ) : null}
+      <p className="se-hint">Each one is its own audited action with the same reason. If one fails, the others still go ahead and the notice says which.</p>
+    </div>
+  );
+}
+
 export function AdminAccountPage() {
   const { accountId = '' } = useParams();
   const navigate = useNavigate();
@@ -67,6 +99,9 @@ export function AdminAccountPage() {
   const [muteLength, setMuteLength] = useState<AdminCommsMuteLength>('1d');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [community, setCommunity] = useState<AdminCommunityDto | null>(null);
+  const [communityError, setCommunityError] = useState<string | null>(null);
+  const [everywhere, setEverywhere] = useState<EverywhereOptions>({ forum: false, discord: false });
 
   const load = useCallback(async () => {
     try {
@@ -80,8 +115,42 @@ export function AdminAccountPage() {
     void load();
   }, [load]);
 
+  // Asks the forum and the bot, so it loads on its own and never holds up the page.
+  const loadCommunity = useCallback(async () => {
+    try {
+      setCommunity(await adminApi.community(accountId));
+      setCommunityError(null);
+    } catch (caught) {
+      setCommunityError(caught instanceof ApiError ? caught.message : 'Could not check the forum and Discord.');
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    void loadCommunity();
+  }, [loadCommunity]);
+
+  /** After a game suspension or ban: the same on the forum and Discord, where ticked. Each reports on its own. */
+  async function applyEverywhere(action: 'suspend' | 'ban', why: string): Promise<string> {
+    const available = everywhereAvailable(community);
+    const steps = everywhereSteps(action, length, { forum: everywhere.forum && available.forum, discord: everywhere.discord && available.discord });
+    if (!steps.length) return '';
+    const results: Array<{ step: EverywhereStep; error: string | null }> = [];
+    for (const step of steps) {
+      try {
+        setCommunity(step.platform === 'forum'
+          ? await adminApi.forumSuspend(accountId, step.length, why)
+          : await adminApi.discordTimeout(accountId, step.length, why));
+        results.push({ step, error: null });
+      } catch (caught) {
+        results.push({ step, error: caught instanceof ApiError ? caught.message : 'it did not go through' });
+      }
+    }
+    return ` ${everywhereSummary(results)}`;
+  }
+
   function choose(action: AdminAccountAction, sessionId?: string) {
     setPending(sessionId ? { action, sessionId } : { action });
+    setEverywhere({ forum: false, discord: false });
     setReason('');
     setNewName(action === 'rename' ? detail?.account.username ?? '' : '');
     setDeleteConfirmation('');
@@ -125,6 +194,7 @@ export function AdminAccountPage() {
         case 'revoke-admin': updated = await adminApi.setAdmin(accountId, false, why); break;
         case 'approve-beta': updated = await adminApi.setBetaApproved(accountId, true, why); break;
         case 'revoke-beta': updated = await adminApi.setBetaApproved(accountId, false, why); break;
+        case 'grant-supporter': updated = await adminApi.grantSupporter(accountId, why); break;
         case 'resend-verification': updated = await adminApi.resendVerification(accountId, why); break;
         case 'mark-email-verified': updated = await adminApi.markEmailVerified(accountId, why); break;
         case 'reset-2fa': updated = await adminApi.resetTwoFactor(accountId, why); break;
@@ -135,7 +205,8 @@ export function AdminAccountPage() {
           break;
       }
       setDetail(updated);
-      setNotice(`${pending.sessionId ? 'Sign out this session' : actionText[pending.action].label}: done for ${updated.account.username}.`);
+      const elsewhere = pending.action === 'suspend' || pending.action === 'ban' ? await applyEverywhere(pending.action, why) : '';
+      setNotice(`${pending.sessionId ? 'Sign out this session' : actionText[pending.action].label}: done for ${updated.account.username}.${elsewhere}`);
       setPending(null);
     } catch (caught) {
       if (caught instanceof ApiError) {
@@ -170,6 +241,7 @@ export function AdminAccountPage() {
     'reset-profile',
     ...(account.isAdmin ? ['revoke-admin' as const] : account.isActive ? ['grant-admin' as const] : []),
     account.betaApproved ? 'revoke-beta' : 'approve-beta',
+    ...(detail.supporterSince ? [] : ['grant-supporter' as const]),
   ];
   const linkActions: AdminAccountAction[] = [
     ...(!email.verifiedAt && email.sendingEnabled ? ['resend-verification' as const] : []),
@@ -225,6 +297,9 @@ export function AdminAccountPage() {
                 </select>
                 <p className="se-hint">Ends {formatWhen(Date.now() + (ADMIN_SUSPENSION_LENGTHS.find((option) => option.key === length)?.hours ?? 0) * 3_600_000)}.</p>
               </div>
+            ) : null}
+            {pending.action === 'suspend' || pending.action === 'ban' ? (
+              <EverywhereChoices community={community} action={pending.action} chosen={everywhere} onChange={setEverywhere} />
             ) : null}
             {pending.action === 'comms-mute' ? (
               <div className="se-field">
@@ -330,7 +405,8 @@ export function AdminAccountPage() {
             />
             <Row label="Profile title" value={detail.profile.activeTitleKey ?? '-'} />
             <Row label="Title position" value={detail.profile.titlePlacement} />
-            <Row label="Profile frame" value={detail.profile.activeProfileFrameKey ?? '-'} />
+            <Row label="Retired profile frame" value={detail.profile.activeProfileFrameKey ?? '-'} />
+            <Row label="Supporter" value={detail.supporterSince ? `Since ${new Date(detail.supporterSince).toLocaleDateString()}` : '-'} />
             <Row label="Site theme" value={detail.profile.activeSiteThemeKey ?? '-'} />
             <Row label="Accent" value={detail.profile.profileAccent} />
             <Row label="Featured badges" value={formatNumber(detail.profile.featuredBadgeKeys.length)} />
@@ -361,6 +437,8 @@ export function AdminAccountPage() {
           </p>
         </Panel>
       </div>
+
+      <AdminCommunityPanel accountId={accountId} isSelf={isSelf} community={community} loadError={communityError} onChange={setCommunity} />
 
       <Panel title="Danger Zone" className="se-mb se-danger-zone">
         <p>

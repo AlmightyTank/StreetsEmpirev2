@@ -302,7 +302,7 @@ export function AdminPage() {
                   </div>
                   <p>{item.detail}</p>
                   {item.key === 'round-end-post' && item.status !== 'done' ? (
-                    <p className="se-hint">The Discord bot claims this on its next check. Nothing to press here.</p>
+                    <p className="se-hint">The Discord bot retries delivery automatically; check its logs and news-channel permissions if this remains pending.</p>
                   ) : item.key === 'news-post' && item.status !== 'done' ? (
                     <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/admin/news">Write a wrap-up post</Link>
                   ) : item.key === 'next-round-ready' && item.status !== 'done' ? (
@@ -437,7 +437,7 @@ export function AdminPage() {
               value={form.registrationOpensAt}
               onChange={(event) => update('registrationOpensAt', event.target.value)}
               error={fields.registrationOpensAt}
-              hint="Optional. Players cannot join before this, even once registration is open."
+              hint="Optional lifecycle date. Once registration is open, players can always join."
             />
             <Button className="se-btn se-btn--primary se-btn--block"
               disabledReason={scheduling ? 'Scheduling that round now.' : !data ? 'The round list has not loaded yet.' : null}>

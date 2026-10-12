@@ -28,6 +28,11 @@ export type BugReportInput = z.infer<typeof bugReportSchema>;
 export const BUG_REPORT_RESOLUTIONS = ['FIXED', 'WONT_FIX', 'DUPLICATE'] as const;
 export type BugReportResolution = (typeof BUG_REPORT_RESOLUTIONS)[number];
 export type AdminBugReportStatus = 'open' | 'resolved';
+/** GAME: the report form. DISCORD: the bot's /bug command. */
+export type BugReportSource = 'GAME' | 'DISCORD';
+
+/** Optional words staff send the reporter with a resolution. The staff note itself stays private. */
+export const BUG_REPORT_REPLY_MAX = 500;
 
 export interface AdminBugReportDto {
   id: string;
@@ -44,6 +49,8 @@ export interface AdminBugReportDto {
   resolvedByUsername: string | null;
   resolution: BugReportResolution | null;
   resolutionNote: string | null;
+  source: BugReportSource;
+  playerReply: string | null;
 }
 
 export interface AdminBugReportQueueDto {

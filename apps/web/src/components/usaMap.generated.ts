@@ -45,6 +45,18 @@ export const USA_MAP = {
     "miami-beach": {
       "x": 338.9,
       "y": 237
+    },
+    "chicago": {
+      "x": 262.2,
+      "y": 94.1
+    },
+    "tulsa": {
+      "x": 204.3,
+      "y": 150.8
+    },
+    "dallas": {
+      "x": 198,
+      "y": 182.7
     }
   } as Record<string, { x: number; y: number }>,
 } as const;

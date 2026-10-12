@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
-import type { PublicNewsFeedDto } from '@streets/shared';
+import { markdownToPlainText, type PublicNewsFeedDto } from '@streets/shared';
 import { Link } from 'react-router-dom';
 import { publicSiteApi } from '../api/public.js';
 import { PublicError, PublicLoading, PublicPageHero } from '../components/PublicPageBits.js';
+
+/** The words of a post without its markup. */
+function excerpt(body: string): string {
+  const text = markdownToPlainText(body);
+  return text.length > 240 ? `${text.slice(0, 240)}...` : text;
+}
 
 export function NewsPage() {
   const [data, setData] = useState<PublicNewsFeedDto | null>(null);
@@ -42,7 +48,7 @@ export function NewsPage() {
                   <p className="news-card__meta">
                     {new Date(n.publishedAt).toLocaleDateString()} {n.round ? `· ${n.round.name}` : ''}
                   </p>
-                  <p>{n.body.length > 240 ? `${n.body.slice(0, 240)}...` : n.body}</p>
+                  <p>{excerpt(n.body)}</p>
                   <Link className="site-card__link" to={`/news/${n.id}`}>Read update -&gt;</Link>
                 </article>
               ))}

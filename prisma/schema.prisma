@@ -81,6 +81,7 @@ model Account {
 
   sessions               Session[]
   bugReports             BugReport[]
+  supportTickets         SupportTicket[]
   twoFactorRecoveryCodes TwoFactorRecoveryCode[]
   trustedDevices         TrustedDevice[]
   knownDevices           AccountDevice[]
@@ -94,7 +95,10 @@ model Account {
   pushSubscriptions      PushSubscription[]
   profile                AccountProfile?
   cosmeticUnlocks        AccountCosmeticUnlock[]
+  supporterMembership    SupporterMembership?
+  supporterPayments      SupporterPayment[]
   roundPlayers           RoundPlayer[]
+  aftermathRewardClaims RoundAftermathRewardClaim[]
   authoredNews           GameNews[]              @relation("GameNewsAuthor")
   adminAuditEntries      AdminAuditLog[]         @relation("AdminAuditActor")
   messageBlocksMade      PlayerBlock[]           @relation("PlayerBlocker")
@@ -190,9 +194,16 @@ model AccountProfile {
   crewName              String?
   profileBio            String?
   profileImageUrl       String?
+  /// Avatar built from face pieces (base, hair, eyes, shirt, ...). Shown when there is no image.
+  profileAvatar         Json?
   profileBannerUrl      String?
   profileEffect         String  @default("none")
   activeProfileFrameKey String?
+  activeAvatarFrameKey  String?
+  /// Signature Profile Card surface finish: brushed, carbon or engine-turned. Null shows brushed.
+  profileSurface        String?
+  /// Supporter thank-you list on the public site. Opt-in, so off by default.
+  showOnSupporterList   Boolean @default(false)
   activeSiteThemeKey    String?
   /// Player-selected visual skin per inventory item key. Cosmetic only.
   itemCosmetics         Json    @default("{}")
@@ -241,6 +252,56 @@ model AccountCosmeticUnlock {
   @@unique([accountId, key])
   @@index([accountId, awardedAt])
   @@index([key])
+}
+
+/// Supporter billing through Stripe: one row per account that started a
+/// subscription. The rewards themselves are AccountCosmeticUnlock rows and stay
+/// forever; this only says whether the account is supporting right now.
+model SupporterMembership {
+  accountId            String    @id
+  account              Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  stripeCustomerId     String    @unique
+  stripeSubscriptionId String?   @unique
+  /// Stripe's subscription status: active, trialing, past_due, unpaid, canceled,
+  /// incomplete, incomplete_expired or paused.
+  status               String
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  startedAt            DateTime  @default(now())
+  endedAt              DateTime?
+  /// When the newest Stripe event applied here was created, so an older,
+  /// late-arriving event never overwrites a newer status.
+  stripeEventAt        DateTime?
+  updatedAt            DateTime  @updatedAt
+
+  @@index([status])
+}
+
+/// One paid Stripe invoice for a supporter subscription. Kept when the account
+/// is deleted (the link is cleared), since it is a financial record.
+model SupporterPayment {
+  id               String   @id @default(cuid())
+  accountId        String?
+  account          Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  stripeInvoiceId  String   @unique
+  stripeCustomerId String
+  amountCents      Int
+  currency         String
+  /// paid, refunded or disputed. Refunds and disputes never take rewards back.
+  status           String
+  paidAt           DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([accountId, paidAt])
+  @@index([stripeCustomerId, paidAt])
+}
+
+/// Stripe webhook events already applied, so a redelivered event changes nothing.
+model StripeWebhookEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now())
 }
 
 /// Verified public profile connection; owned by the permanent account.
@@ -525,10 +586,61 @@ model BugReport {
   resolvedByUsername String?
   /// FIXED, WONT_FIX or DUPLICATE.
   resolution         String?
+  /// Staff only: why it was resolved, kept in the queue and the audit log.
   resolutionNote     String?
+
+  /// GAME (the report form) or DISCORD (/bug).
+  source             String    @default("GAME")
+  /// Optional words for the reporter, sent with the "your report was resolved" notice.
+  playerReply        String?
+  /// When that notice was collected; set at once for reports resolved before notices existed.
+  reporterNotifiedAt DateTime?
 
   @@index([resolvedAt, createdAt(sort: Desc)])
   @@index([accountId, createdAt(sort: Desc)])
+}
+
+/// A /support ticket: a private Discord thread between one member and staff.
+/// Members without a linked game account can open one too, since "I can't sign
+/// in" is exactly what support is for. One open ticket per member at a time.
+model SupportTicket {
+  id             String    @id @default(cuid())
+  discordId      String
+  /// The member's Discord name when they opened it, for staff who never see the thread.
+  discordName    String
+  /// Their linked game account then, if any.
+  accountId      String?
+  account        Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  subject        String
+  /// Set once the bot has made the thread and its staff channel post.
+  threadId       String?   @unique
+  staffMessageId String?
+  createdAt      DateTime  @default(now())
+  closedAt       DateTime?
+  /// Who closed it, by Discord name: the member themselves or a staff member.
+  closedByName   String?
+
+  @@index([discordId, closedAt])
+  @@index([accountId, createdAt(sort: Desc)])
+}
+
+/// What the Discord bot posts to the staff channel: a new bug report, its
+/// resolution (an edit of the first post), held patch notes. Claimed once, like news.
+model DiscordStaffPost {
+  id        String    @id @default(cuid())
+  /// BUG_REPORT, BUG_REPORT_RESOLVED or PATCH_NOTES_HELD.
+  kind      String
+  /// The bug report or news post it is about; read fresh when the bot claims it.
+  targetId  String
+  createdAt DateTime  @default(now())
+  claimedAt DateTime?
+  /// The staff channel message, so a later post about the same target can edit it.
+  messageId String?
+  /// Why Discord refused it, as the bot reported it.
+  error     String?
+
+  @@index([claimedAt, createdAt])
+  @@index([kind, targetId])
 }
 
 // ---------------------------------------------------------------------------
@@ -685,6 +797,42 @@ enum RoundStatus {
   ACTIVE
   ENDED
   ARCHIVED
+}
+
+enum RoundAftermathStatus {
+  PREPARING
+  READY
+  UNAVAILABLE
+}
+
+enum GameEventType {
+  COMMUNITY
+  SEASONAL
+  RANDOM_ENCOUNTER
+  CITY_CONDITION
+}
+
+enum GameEventScope {
+  ROUND
+  PLAYER
+  CITY
+}
+
+enum GameEventOccurrenceStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+enum GameEventParticipationStatus {
+  OFFERED
+  ACTIVE
+  COMPLETED
+  CLAIMED
+  EXPIRED
+  WITHDRAWN
 }
 
 enum QuestStatus {
@@ -1031,8 +1179,12 @@ model Round {
   alertsOpenedAt     DateTime?
   alertsEndingSoonAt DateTime?
   alertsEndedAt      DateTime?
-  /// When the Discord bot claimed the public round-end post.
-  discordEndedAt     DateTime?
+  /// When Discord confirmed the public round-end post.
+  discordEndedAt          DateTime?
+  /// Lease for the public round-end post; stale claims are retried.
+  discordEndedClaimedAt   DateTime?
+  discordEndedMessageId   String?
+  discordEndedError       String?
 
   /// Next OG-style public pimp id to hand out. Raw database ids are never
   /// exposed; players see e.g. BigDaddy (#1842).
@@ -1041,24 +1193,75 @@ model Round {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  players           RoundPlayer[]
-  news              GameNews[]
-  alliances         Alliance[]
-  highMarkets       HighMarket[]
-  turf              Turf[]
-  turfTax           TurfTaxLedger[]
-  turfPushes        TurfPush[]
-  turfControlEvents TurfControlEvent[]
-  turfHoldSegments  TurfHoldSegment[]
-  turfCrackdown     TurfCrackdown?
-  directMessages    DirectMessage[]
-  businesses        Business[]
-  blockWars         BlockWar[]
-  surveys           Survey[]
-  casinoJackpots    CasinoJackpot[]
-  casinoPokerTables CasinoPokerTable[]
+  players              RoundPlayer[]
+  aftermathReport      RoundAftermathReport?
+  aftermathRewardsReceived RoundAftermathRewardClaim[] @relation("AftermathRewardTarget")
+  aftermathRewardsSource   RoundAftermathRewardClaim[] @relation("AftermathRewardSource")
+  eventOccurrences     GameEventOccurrence[]
+  news                 GameNews[]
+  alliances            Alliance[]
+  highMarkets          HighMarket[]
+  turf                 Turf[]
+  turfTax              TurfTaxLedger[]
+  turfPushes           TurfPush[]
+  turfControlEvents    TurfControlEvent[]
+  turfHoldSegments     TurfHoldSegment[]
+  turfCrackdown        TurfCrackdown?
+  directMessages       DirectMessage[]
+  businesses           Business[]
+  blockWars            BlockWar[]
+  surveys              Survey[]
+  casinoJackpots       CasinoJackpot[]
+  casinoPokerTables    CasinoPokerTable[]
+  supplySupplierStocks SupplySupplierStock[]
 
   @@index([status])
+  @@index([discordEndedAt, discordEndedClaimedAt])
+}
+
+/// Immutable end-of-round report. A round gets one report for its schema
+/// version; unsupported legacy data is explicit rather than represented as zero.
+model RoundAftermathReport {
+  id      String @id @default(cuid())
+  roundId String @unique
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  schemaVersion  Int                  @default(1)
+  status         RoundAftermathStatus
+  sourceRevision String
+  cutoffAt       DateTime?
+  finalizedAt    DateTime?
+
+  /// Versioned JSON aggregate contracts; monetary values are decimal cent strings.
+  sourceProvenance  Json
+  globalAggregate   Json?
+  cityAggregates    Json?
+  playerAggregates  Json?
+  categoryRecords   Json?
+  allianceAggregate Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, finalizedAt])
+}
+
+/// One auditable next-round cash grant per account and target round.
+model RoundAftermathRewardClaim {
+  id String @id @default(cuid())
+
+  targetRoundId String
+  targetRound   Round   @relation("AftermathRewardTarget", fields: [targetRoundId], references: [id], onDelete: Cascade)
+  sourceRoundId String
+  sourceRound   Round   @relation("AftermathRewardSource", fields: [sourceRoundId], references: [id], onDelete: Cascade)
+  accountId     String
+  account       Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  amountCents       BigInt
+  qualificationKeys Json
+  createdAt         DateTime @default(now())
+
+  @@unique([targetRoundId, accountId])
+  @@index([sourceRoundId])
 }
 
 // ---------------------------------------------------------------------------
@@ -1088,6 +1291,7 @@ model City {
   casinoWallets     CasinoWallet[]
   casinoSessions    CasinoSession[]
   casinoLedger      CasinoLedgerEntry[]
+  sportsbookBets    SportsbookBet[] @relation("SportsbookBetCasinoCity")
   casinoRatings     CasinoRating[]
   playerCases       PlayerCase[]
   caseReceipts      PlayerCaseReceipt[]
@@ -1222,10 +1426,24 @@ model RoundPlayer {
   /// (and in net worth), but never fit at home and never working the street.
   businessThugs           Int                      @default(0)
   businessWhores          Int                      @default(0)
+  /// 1.6.0-A. Thugs assigned to dealer crews. Still owned, but unavailable for other work.
+  dealerThugs             Int                      @default(0)
+  /// 1.6.5-A. What the player owes the loan shark: every loan's unpaid obligation plus unpaid
+  /// late fees. Held under the ruleset's debt ceiling; comes off net worth at the cash weight.
+  loanDebtCents           BigInt                   @default(0)
+  /// 1.6.5-A. Every late fee ever assessed this round, paid or not. Held under the ruleset's fee cap.
+  loanFeesAssessedCents   BigInt                   @default(0)
+  loanCollectionState     LoanCollectionState      @default(CLEAR)
+  /// 1.6.5-E. While RECOVERING: installments still to be paid on time before new loans unlock.
+  loanRecoveryNeeded      Int                      @default(0)
+  /// 1.6.5-E. When the player went into collections: only income earned since is garnished.
+  loanCollectionsSince    DateTime?
   /// 1.2.0-A. City chip wallets, open bankroll sessions and immutable casino receipts.
   casinoWallets           CasinoWallet[]
   casinoSessions          CasinoSession[]
   casinoLedger            CasinoLedgerEntry[]
+  /// 1.8.0-A. Off-turn pregame sportsbook tickets.
+  sportsbookBets          SportsbookBet[]
   /// 1.3.0-A. What each city's police have on this player, and every change to it.
   cases                   PlayerCase[]
   caseReceipts            PlayerCaseReceipt[]
@@ -1238,6 +1456,8 @@ model RoundPlayer {
   officials               PlayerOfficial[]
   tips                    PlayerTip[]
   npcGang                 NpcGang?
+  randomEncounters        RandomEncounter[]
+  eventParticipations     GameEventParticipation[]
   casinoFreeSpinBonus     CasinoFreeSpinBonus?
   casinoBlackjackShoes    CasinoBlackjackShoe[]
   casinoBlackjackHands    CasinoBlackjackHand[]
@@ -1349,16 +1569,36 @@ model RoundPlayer {
   /// 0.3.0-C. The alliance this player is in now, and since when. Shared revenge only
   /// counts hits on the alliance from after the member joined.
   allianceId            String?
-  alliance              Alliance?          @relation("AllianceMembers", fields: [allianceId], references: [id], onDelete: SetNull)
+  alliance              Alliance?            @relation("AllianceMembers", fields: [allianceId], references: [id], onDelete: SetNull)
   allianceJoinedAt      DateTime?
   /// The alliance this player last left or was kicked from. Until the cooldown passes
   /// they cannot join or found an alliance, and they and that alliance cannot hit each other.
   formerAllianceId      String?
   allianceCooldownUntil DateTime?
-  allianceInvites       AllianceInvite[]   @relation("AllianceInvitee")
+  allianceInvites       AllianceInvite[]     @relation("AllianceInvitee")
   /// 0.4.0-A. Every product except crack, which stays on the `crack` column in every round.
   products              PlayerProduct[]
   productShelves        ProductShelf[]
+  /// 1.6.0-A. Supply network records, scoped to this round's player.
+  supplyOrders          SupplyOrder[]
+  supplyPickups         SupplyPickup[]
+  supplyWarehouses      SupplyWarehouse[]
+  supplySafehouses      SupplySafehouse[]
+  dealerCrews           DealerCrew[]
+  dealerStaff           DealerStaff[]
+  supplyMovements       SupplyMovement[]
+  /// 1.6.5-A. Loan shark contracts and their history, scoped to this round's player.
+  loans                 Loan[]
+  loanInstallments      LoanInstallment[]
+  loanPayments          LoanPayment[]
+  loanFees              LoanFee[]
+  loanEvents            LoanEvent[]
+  /// 1.7.0-A. The individual thugs and workers behind the counts above, and their migration.
+  crewMembers           CrewMember[]
+  crewMemberEvents      CrewMemberEvent[]
+  crewRosterMigration   CrewRosterMigration?
+  /// 1.8.6-A. Durable targets for person-first crew assignment jobs.
+  crewJobPosts          CrewJobPost[]
   /// 0.5.0-B. Runs out of town, Pip's shelves in other cities, and what the crew saw there.
   runs                  Run[]
   cityShelves           CityShelf[]
@@ -1367,27 +1607,27 @@ model RoundPlayer {
   /// Trips A. The boss away from home and back.
   bossTrips             BossTrip[]
   /// Trips C. Hits on a visiting boss: started and taken.
-  bossHitsStarted       BossHit[]          @relation("BossHitAttacker")
-  bossHitsTaken         BossHit[]          @relation("BossHitOwner")
+  bossHitsStarted       BossHit[]            @relation("BossHitAttacker")
+  bossHitsTaken         BossHit[]            @relation("BossHitOwner")
   /// Trips D2. Backup sent to allies' bosses, and sit-downs proposed and received.
   bossHitBackups        BossHitBackup[]
-  sitDownsProposed      SitDown[]          @relation("SitDownProposer")
-  sitDownsInvited       SitDown[]          @relation("SitDownInvitee")
-  convoyTailsOwned      ConvoyTail[]       @relation("ConvoyTailOwner")
-  convoyTailsStarted    ConvoyTail[]       @relation("ConvoyTailAttacker")
+  sitDownsProposed      SitDown[]            @relation("SitDownProposer")
+  sitDownsInvited       SitDown[]            @relation("SitDownInvitee")
+  convoyTailsOwned      ConvoyTail[]         @relation("ConvoyTailOwner")
+  convoyTailsStarted    ConvoyTail[]         @relation("ConvoyTailAttacker")
   convoyBackups         ConvoyBackup[]
   convoyRecon           ConvoyRecon?
   /// 0.6.0-A. Blocks this crew holds, and the blocks it has worked lately.
-  turfHeld              Turf[]             @relation("TurfHolder")
-  businessesStaffed     Business[]         @relation("BusinessStaffOwner")
+  turfHeld              Turf[]               @relation("TurfHolder")
+  businessesStaffed     Business[]           @relation("BusinessStaffOwner")
   turfPresence          TurfPresence[]
-  turfTaxPaid           TurfTaxLedger[]    @relation("TurfTaxPayer")
-  turfTaxEarned         TurfTaxLedger[]    @relation("TurfTaxHolder")
+  turfTaxPaid           TurfTaxLedger[]      @relation("TurfTaxPayer")
+  turfTaxEarned         TurfTaxLedger[]      @relation("TurfTaxHolder")
   /// 0.6.0-C. Turf wars started against or defended by this crew.
-  turfPushesStarted     TurfPush[]         @relation("TurfPushAttacker")
-  turfPushesDefended    TurfPush[]         @relation("TurfPushDefender")
-  blockWarsDeclared     BlockWar[]         @relation("BlockWarAttacker")
-  blockWarsDefended     BlockWar[]         @relation("BlockWarDefender")
+  turfPushesStarted     TurfPush[]           @relation("TurfPushAttacker")
+  turfPushesDefended    TurfPush[]           @relation("TurfPushDefender")
+  blockWarsDeclared     BlockWar[]           @relation("BlockWarAttacker")
+  blockWarsDefended     BlockWar[]           @relation("BlockWarDefender")
   blockWarSquads        BlockWarSquad[]
   turfPushBackups       TurfPushBackup[]
   /// 0.6.0-D. Supply/tax boxes for away turf.
@@ -1396,11 +1636,11 @@ model RoundPlayer {
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
-  wirePosts             AllianceWirePost[] @relation("WireAuthor")
-  contacts              PlayerContact[]    @relation("ContactOwner")
-  contactOf             PlayerContact[]    @relation("ContactTarget")
-  messagesSent          DirectMessage[]    @relation("DirectMessageSender")
-  messagesReceived      DirectMessage[]    @relation("DirectMessageRecipient")
+  wirePosts             AllianceWirePost[]   @relation("WireAuthor")
+  contacts              PlayerContact[]      @relation("ContactOwner")
+  contactOf             PlayerContact[]      @relation("ContactTarget")
+  messagesSent          DirectMessage[]      @relation("DirectMessageSender")
+  messagesReceived      DirectMessage[]      @relation("DirectMessageRecipient")
 
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])
@@ -1560,59 +1800,742 @@ model ProductShelf {
   @@unique([roundPlayerId, productKey])
 }
 
-/// 0.5.0-B. A run: Low-Riders, escorts, cash and product out on the road. What it took is
-/// all it has; everything it holds comes home when it does.
-model Run {
+enum SupplyOrderStatus {
+  OPEN
+  PARTIALLY_COLLECTED
+  FULFILLED
+  CANCELLED
+}
+
+enum SupplyPickupStatus {
+  PLANNED
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum DealerCrewStatus {
+  ACTIVE
+  PAUSED
+  CLOSED
+}
+
+enum SupplyMovementKind {
+  ORDERED
+  PICKED_UP
+  STORED
+  ASSIGNED_TO_DEALER
+  SOLD
+  RETURNED
+  /// 1.6.0-I. An audited staff correction: quantityDelta is signed.
+  CORRECTED
+}
+
+/// 1.6.0-A. Prepaid bulk stock reserved from a ruleset-defined supplier.
+/// All quantities are game units; cash is integer cents.
+model SupplyOrder {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  supplierKey       String
+  supplierCitySlug  String
+  productKey        String
+  quantityOrdered   Int
+  quantityCollected Int               @default(0)
+  unitCostCents     Int
+  totalPaidCents    BigInt
+  status            SupplyOrderStatus @default(OPEN)
+  /// Durable idempotency key for order placement, independent of the short-lived action cache.
+  requestKey        String            @db.VarChar(128)
+  pickups           SupplyPickup[]
+  movements         SupplyMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, requestKey])
+  @@index([roundPlayerId, status, createdAt])
+  @@index([roundPlayerId, supplierCitySlug, createdAt])
+}
+
+/// 1.6.0-B. Round-wide supplier stock reserved by prepaid orders.
+model SupplySupplierStock {
+  id                String @id @default(cuid())
+  roundId           String
+  round             Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  supplierKey       String
+  productKey        String
+  quantityAvailable Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundId, supplierKey, productKey])
+  @@index([roundId, supplierKey])
+}
+
+/// 1.6.0-A. One vehicle-sized pickup batch from a prepaid order.
+model SupplyPickup {
+  id                String           @id @default(cuid())
+  /// The paid order a pickup collects. 1.6.0-F: null for a shipment between warehouses.
+  orderId           String?
+  order             SupplyOrder?     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// 1.6.0-F. Whose load it is, and what it carries.
+  roundPlayerId     String
+  roundPlayer       RoundPlayer      @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  productKey        String
+  /// 1.6.0-F. A shipment's source warehouse. Its units leave that warehouse at dispatch.
+  sourceWarehouseId String?
+  sourceWarehouse   SupplyWarehouse? @relation("ShipmentSource", fields: [sourceWarehouseId], references: [id], onDelete: SetNull)
+  runId             String?
+  run               Run?             @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  routeKey            String
+  originCitySlug      String
+  destinationCitySlug String
+  quantity            Int
+  vehicleLoadout      Json               @default("{}")
+  status              SupplyPickupStatus @default(PLANNED)
+  requestKey          String             @db.VarChar(128)
+  dispatchedAt        DateTime?
+  expectedArrivalAt   DateTime?
+  /// 1.6.0-C. When the load came off the supplier's dock and onto the run.
+  loadedAt            DateTime?
+  deliveredAt         DateTime?
+  /// 1.6.0-C. What made it into storage; `quantity` less this was lost on the road.
+  deliveredQuantity   Int                @default(0)
+  /// A continuous pickup assignment may use the same run for several back-and-forth loads.
+  /// These stop indexes say exactly where this load is put aboard and taken off.
+  loadStopOrder        Int?
+  unloadStopOrder      Int?
+  tripNumber          Int                @default(1)
+  tripCount           Int                @default(1)
+  /// 1.6.0-C. Where the load is headed: held against the warehouse's room until it lands.
+  warehouseId         String?
+  warehouse           SupplyWarehouse?   @relation("PickupDestination", fields: [warehouseId], references: [id], onDelete: SetNull)
+  movements           SupplyMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orderId, requestKey])
+  @@unique([sourceWarehouseId, requestKey])
+  @@index([orderId, status])
+  @@index([roundPlayerId, createdAt])
+  @@index([runId])
+  @@index([warehouseId, status])
+}
+
+enum SupplyWarehouseKind {
+  STASH
+  WAREHOUSE
+}
+
+/// 1.6.0-D. A foothold in a city: what a warehouse away from home, and later a dealer crew, needs.
+model SupplySafehouse {
+  id             String      @id @default(cuid())
+  roundPlayerId  String
+  roundPlayer    RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  citySlug       String
+  isActive       Boolean     @default(true)
+  upkeepCents    BigInt
+  paidThrough    DateTime
+  purchasedCents BigInt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, citySlug])
+  @@index([roundPlayerId, isActive])
+}
+
+/// 1.6.0-A. A bounded storage location in one ruleset city. 1.6.0-D: bought, or the free home stash.
+model SupplyWarehouse {
+  id             String              @id @default(cuid())
+  roundPlayerId  String
+  roundPlayer    RoundPlayer         @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  citySlug       String
+  name           String
+  capacityUnits  Int
+  isActive       Boolean             @default(true)
+  /// 1.6.0-D. The free home stash, or a warehouse the player bought.
+  kind           SupplyWarehouseKind @default(WAREHOUSE)
+  /// 1.6.0-D. Upkeep each period, and how far it is paid. Null: no upkeep (the stash).
+  upkeepCents    BigInt              @default(0)
+  paidThrough    DateTime?
+  /// 1.6.0-D. What the player paid for it.
+  purchasedCents BigInt              @default(0)
+  stock          SupplyStock[]
+  movements      SupplyMovement[]
+  pickups        SupplyPickup[]      @relation("PickupDestination")
+  shipmentsOut   SupplyPickup[]      @relation("ShipmentSource")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, citySlug, name])
+  @@index([roundPlayerId, citySlug, isActive])
+}
+
+/// 1.6.0-A. Physical stock held at a warehouse, separate from dealer allocations.
+model SupplyStock {
+  id          String          @id @default(cuid())
+  warehouseId String
+  warehouse   SupplyWarehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  productKey  String
+  quantity    Int             @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([warehouseId, productKey])
+  @@index([productKey])
+}
+
+/// 1.6.0-A. A player-managed crew assigned to one city district.
+model DealerCrew {
+  id                 String           @id @default(cuid())
+  roundPlayerId      String
+  roundPlayer        RoundPlayer      @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  citySlug           String
+  districtKey        String
+  status             DealerCrewStatus @default(ACTIVE)
+  /// 1.6.0-E. Units each of its dealers holds, summed: zero with nobody posted.
+  capacityUnits      Int
+  operatingCostCents BigInt           @default(0)
+  /// 1.6.0-E. The one product it sells, and the price it asks a unit.
+  productKey         String?
+  priceCents         Int?
+  /// 1.6.0-F. Sales are settled up to here, in whole intervals; null while it has never worked.
+  salesSettledAt     DateTime?
+  /// 1.6.0-F. The part of a unit sold but not yet whole, carried to the next batch.
+  salesCarry         Float            @default(0)
+  /// 1.8.6-F. Runners leave this many units of the crew's product in same-city storage.
+  runnerReserveUnits Int              @default(0)
+  staff              DealerStaff[]
+  inventory          DealerStock[]
+  sales              DealerSale[]
+  movements          SupplyMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, citySlug, districtKey])
+  @@index([roundPlayerId, citySlug, status])
+}
+
+/// 1.6.0-A. One promoted thug's dealer career. Releasing him returns a thug to the pool;
+/// the career row and experience remain so rehiring him restores his earned skill.
+model DealerStaff {
+  id               String      @id @default(cuid())
+  roundPlayerId    String
+  roundPlayer      RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  dealerCrewId     String?
+  dealerCrew       DealerCrew? @relation(fields: [dealerCrewId], references: [id], onDelete: Restrict)
+  experiencePoints Int         @default(0)
+  assignedAt       DateTime    @default(now())
+  releasedAt       DateTime?
+  /// 1.7.0-A. The crew member who carries this career, under the same id.
+  crewMember       CrewMember?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roundPlayerId, dealerCrewId, releasedAt])
+  @@index([roundPlayerId, experiencePoints])
+}
+
+/// 1.6.0-A. Stock assigned to a dealer crew, separate from warehouse stock.
+model DealerStock {
+  id           String     @id @default(cuid())
+  dealerCrewId String
+  dealerCrew   DealerCrew @relation(fields: [dealerCrewId], references: [id], onDelete: Cascade)
+  productKey   String
+  quantity     Int        @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([dealerCrewId, productKey])
+  @@index([productKey])
+}
+
+/// 1.6.0-A. Immutable batch of dealer sales for reconciliation and the player ledger.
+model DealerSale {
+  id             String     @id @default(cuid())
+  dealerCrewId   String
+  dealerCrew     DealerCrew @relation(fields: [dealerCrewId], references: [id], onDelete: Cascade)
+  productKey     String
+  batchKey       String     @db.VarChar(128)
+  quantity       Int
+  unitPriceCents Int
+  grossCents     BigInt
+  crewCutCents   BigInt     @default(0)
+  netCents       BigInt
+  createdAt      DateTime   @default(now())
+
+  @@unique([dealerCrewId, batchKey])
+  @@index([dealerCrewId, createdAt(sort: Desc)])
+}
+
+/// 1.6.0-A. Immutable stock movement journal; cash movements use EconomyLedgerEntry.
+model SupplyMovement {
+  id            String             @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer        @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  kind          SupplyMovementKind
+  productKey    String
+  quantityDelta Int
+  fromLocation  String?
+  toLocation    String?
+  orderId       String?
+  order         SupplyOrder?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  pickupId      String?
+  pickup        SupplyPickup?      @relation(fields: [pickupId], references: [id], onDelete: SetNull)
+  warehouseId   String?
+  warehouse     SupplyWarehouse?   @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  dealerCrewId  String?
+  dealerCrew    DealerCrew?        @relation(fields: [dealerCrewId], references: [id], onDelete: SetNull)
+  requestKey    String             @db.VarChar(128)
+  metadata      Json?
+  createdAt     DateTime           @default(now())
+
+  @@unique([roundPlayerId, requestKey])
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+  @@index([orderId, createdAt])
+  @@index([pickupId, createdAt])
+  @@index([warehouseId, createdAt])
+  @@index([dealerCrewId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Crew roster (1.7.0)
+// ---------------------------------------------------------------------------
+
+enum CrewMemberRole {
+  THUG
+  WORKER
+}
+
+enum CrewMemberSpecialty {
+  GENERALIST
+  ENFORCER
+  WHEELMAN
+  SCOUT
+  DEALER
+  SERVICE
+}
+
+/// Where a member is. Every status but RELEASED is counted in the player's thugs or whores.
+enum CrewMemberStatus {
+  /// At home and fit for work.
+  AVAILABLE
+  /// Working a job: see the assignment.
+  ASSIGNED
+  /// Out on a run, a tail or backup (the player's busy thugs).
+  IN_TRANSIT
+  /// Wounded and healing.
+  RECOVERING
+  /// No longer in the crew. The record and its career stay for history and a return.
+  RELEASED
+}
+
+enum CrewAssignmentKind {
+  BUSINESS
+  DEALER
+  TURF
+  CORNER_ENFORCER
+  CORNER_LOOKOUT
+  STASH_GUARD
+  RUNNER
+  BODYGUARD
+  ESCORT
+}
+
+enum CrewJobPostKind {
+  DEALER
+  TURF
+  CORNER_ENFORCER
+  CORNER_LOOKOUT
+  STASH_GUARD
+  RUNNER
+  BODYGUARD
+  ESCORT
+}
+
+enum CrewMemberEventKind {
+  JOINED
+  ASSIGNED
+  UNASSIGNED
+  RELEASED
+  /// A released member back in the crew, career intact.
+  REHIRED
+  /// A completed, server-resolved shift worth remembering in the career log.
+  WORK_COMPLETED
+  TRAINED
+  /// A reasoned staff correction to a member's career record.
+  ADMIN_CORRECTED
+}
+
+/// 1.7.0-A. One thug or worker. The player's counts stay authoritative: members are kept in
+/// step with them, so a member is never created or released except to match a count.
+model CrewMember {
+  id               String              @id @default(cuid())
+  roundPlayerId    String
+  roundPlayer      RoundPlayer         @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  role             CrewMemberRole
+  /// Order of joining in this round's roster, 1-based and never reused.
+  serial           Int
+  status           CrewMemberStatus    @default(AVAILABLE)
+  assignmentKind   CrewAssignmentKind?
+  /// The business, dealer crew or turf a member is assigned to, when it is known.
+  assignmentRef    String?
+  experiencePoints Int                 @default(0)
+  /// 1.7.0-D. Training may accelerate earned specialties, but is separately capped.
+  trainingExperiencePoints Int         @default(0)
+  specialty        CrewMemberSpecialty @default(GENERALIST)
+  specialtyExperiencePoints Int         @default(0)
+  /// 1.6 dealer career this member carries; the member keeps the career's id.
+  dealerStaffId    String?             @unique
+  dealerStaff      DealerStaff?        @relation(fields: [dealerStaffId], references: [id], onDelete: SetNull)
+  joinedAt         DateTime
+  statusSince      DateTime
+  releasedAt       DateTime?
+  events           CrewMemberEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, serial])
+  @@index([roundPlayerId, role, status])
+  @@index([roundPlayerId, assignmentKind, assignmentRef])
+}
+
+/// 1.7.0-A. A member's history: joining, assignments and releases. Immutable.
+model CrewMemberEvent {
+  id             String              @id @default(cuid())
+  memberId       String
+  member         CrewMember          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  roundPlayerId  String
+  roundPlayer    RoundPlayer         @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  kind           CrewMemberEventKind
+  assignmentKind CrewAssignmentKind?
+  assignmentRef  String?
+  summary        String?
+  at             DateTime
+
+  @@index([memberId, at])
+  @@index([roundPlayerId, at(sort: Desc)])
+}
+
+/// 1.8.6-A. A durable assignment target for crew jobs. Later slices attach selected
+/// members by `CrewMember.assignmentKind` and `assignmentRef`; this slice only creates
+/// the inert post records and assignment vocabulary.
+model CrewJobPost {
+  id            String          @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer     @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  kind        CrewJobPostKind
+  /// Stable gameplay target: turf id, dealer crew id, trip/run id, or another slice-owned id.
+  targetRef   String?
+  citySlug    String?
+  districtKey String?
+  headcount   Int             @default(0)
+  settings    Json            @default("{}")
+  isActive    Boolean         @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roundPlayerId, kind, isActive])
+  @@index([roundPlayerId, targetRef])
+}
+
+/// 1.7.0-A. The audit of a player's first roster build: the counts it read, and what it made.
+/// One per player, so a retry finds it and never builds a second roster.
+model CrewRosterMigration {
+  id             String      @id @default(cuid())
+  roundPlayerId  String      @unique
+  roundPlayer    RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  rulesetId      String
+  /// The counts the roster was built from, and the member totals it ended with.
+  before         Json
+  after          Json
+  membersCreated Int
+  dealerCareers  Int
+  /// The counts and assignments the roster was last brought in step with. While they match,
+  /// a sync has nothing to check.
+  syncedKey      String?
+  createdAt      DateTime    @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Loan shark (1.6.5)
+// ---------------------------------------------------------------------------
+
+enum LoanStatus {
+  ACTIVE
+  /// An installment passed its due time unpaid and still has something owing.
+  DELINQUENT
+  PAID_OFF
+}
+
+enum LoanInstallmentStatus {
+  SCHEDULED
+  PAID
+  /// Passed its due time unpaid. Stays owed; becomes PAID once it is paid off.
+  MISSED
+}
+
+enum LoanPaymentKind {
+  /// Collected by the server when an installment fell due.
+  SCHEDULED
+  /// Paid by the player, early, partly or in full.
+  MANUAL
+  /// 1.6.5-E. Taken under collection pressure.
+  COLLECTION
+}
+
+enum LoanFeeKind {
+  LATE
+  /// 1.6.5-E. Reserved for a bounded collection consequence.
+  COLLECTION
+}
+
+enum LoanCollectionState {
+  CLEAR
+  DELINQUENT
+  /// 1.6.5-E. Past the configured delinquency threshold.
+  COLLECTIONS
+  /// 1.6.5-E. Overdue cleared; new loans unlock after enough on-time installments.
+  RECOVERING
+}
+
+enum LoanEventKind {
+  ACCEPTED
+  PAYMENT
+  INSTALLMENT_MISSED
+  FEE_ASSESSED
+  PAID_OFF
+  COLLECTION_CHANGED
+  /// 1.6.5-F. An audited staff correction: a late fee waived, or a missed installment excused.
+  CORRECTED
+}
+
+/// 1.6.5-A. One accepted loan shark contract: the terms quoted, pinned to the ruleset it
+/// was accepted under, and what has been paid against them. Cash is integer cents.
+/// Outstanding = (principal - principalPaid) + (contractFee - contractFeePaid - contractFeeWaived)
+///             + (lateFeesAssessed - lateFeesPaid).
+model Loan {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// Which quote this was. 1.6.5-B names the offer tiers.
+  offerKey       String
+  rulesetId      String
+  rulesetVersion String
+
+  principalCents         BigInt
+  contractFeeCents       BigInt
+  /// Principal plus contract fee: reserved against the debt ceiling at acceptance.
+  obligationCents        BigInt
+  principalPaidCents     BigInt @default(0)
+  contractFeePaidCents   BigInt @default(0)
+  /// Contract fee not yet earned when the loan was paid off early, forgiven.
+  contractFeeWaivedCents BigInt @default(0)
+  /// The fixed fee for one missed installment, and the most this loan can ever be charged.
+  lateFeeCents           BigInt
+  lateFeeCapCents        BigInt
+  lateFeesAssessedCents  BigInt @default(0)
+  lateFeesPaidCents      BigInt @default(0)
+  /// 1.6.5-F. Late fees forgiven by an audited staff correction. Still counted as assessed.
+  lateFeesWaivedCents    BigInt @default(0)
+
+  installmentCount         Int
+  installmentIntervalHours Int
+  status                   LoanStatus @default(ACTIVE)
+  /// Durable idempotency key for acceptance, independent of the short-lived action cache.
+  requestKey               String     @db.VarChar(128)
+  acceptedAt               DateTime
+  paidOffAt                DateTime?
+
+  installments LoanInstallment[]
+  payments     LoanPayment[]
+  fees         LoanFee[]
+  events       LoanEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, requestKey])
+  @@index([roundPlayerId, status, acceptedAt])
+}
+
+/// 1.6.5-A. One scheduled installment: its share of the principal and contract fee, due on
+/// the server clock. Late fees belong to the loan, not to an installment.
+model LoanInstallment {
+  id            String      @id @default(cuid())
+  loanId        String
+  loan          Loan        @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  sequence               Int
+  dueAt                  DateTime
+  principalCents         BigInt
+  contractFeeCents       BigInt
+  principalPaidCents     BigInt                @default(0)
+  contractFeePaidCents   BigInt                @default(0)
+  /// Its fee share forgiven by an early payoff.
+  contractFeeWaivedCents BigInt                @default(0)
+  status                 LoanInstallmentStatus @default(SCHEDULED)
+  /// When the server found it unpaid at its due time. Kept after it is paid, for history.
+  missedAt               DateTime?
+  paidAt                 DateTime?
+  /// 1.6.5-F. A miss excused by staff: rescheduled, its late fee waived. The first due time and
+  /// the miss stay on record; each excusal starts a new generation of settle keys.
+  excusedAt              DateTime?
+  originalDueAt          DateTime?
+  fees                   LoanFee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([loanId, sequence])
+  @@index([roundPlayerId, status, dueAt])
+}
+
+/// 1.6.5-A. Immutable receipt for cash paid to the loan shark, split the way it was applied.
+model LoanPayment {
+  id                     String          @id @default(cuid())
+  loanId                 String
+  loan                   Loan            @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  roundPlayerId          String
+  roundPlayer            RoundPlayer     @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  kind                   LoanPaymentKind
+  /// A manual payment's request key, or the installment a scheduled payment settled.
+  requestKey             String          @db.VarChar(128)
+  amountCents            BigInt
+  lateFeeCents           BigInt
+  contractFeeCents       BigInt
+  principalCents         BigInt
+  /// Unearned contract fee forgiven because this payment paid the loan off early. Not cash.
+  contractFeeWaivedCents BigInt          @default(0)
+  /// The player's total debt once this payment landed.
+  debtAfterCents         BigInt
+  createdAt              DateTime        @default(now())
+
+  @@unique([roundPlayerId, requestKey])
+  @@index([loanId, createdAt])
+}
+
+/// 1.6.5-A. Immutable record of a fee added to a loan's balance. One per missed installment
+/// and kind; an assessment the caps cut to zero is still recorded, so it is never retried.
+model LoanFee {
+  id            String           @id @default(cuid())
+  loanId        String
+  loan          Loan             @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer      @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  installmentId String?
+  installment   LoanInstallment? @relation(fields: [installmentId], references: [id], onDelete: SetNull)
+  kind          LoanFeeKind
+  requestKey    String           @db.VarChar(128)
+  /// What was charged after the caps; the fixed fee it was cut down from.
+  amountCents   BigInt
+  quotedCents   BigInt
+  /// 1.6.5-F. How much of it staff waived, and when. The fee itself stays on record.
+  waivedCents   BigInt           @default(0)
+  waivedAt      DateTime?
+  createdAt     DateTime         @default(now())
+
+  /// Once per miss: the key carries the installment and, after an excusal, its generation.
+  @@unique([roundPlayerId, requestKey])
+  @@index([installmentId, kind])
+  @@index([loanId, createdAt])
+}
+
+/// 1.6.5-A. The loan journal: acceptance, payments, missed installments, fees, payoff and
+/// collection changes, each with the player's debt after it. Immutable.
+model LoanEvent {
   id             String        @id @default(cuid())
   roundPlayerId  String
   roundPlayer    RoundPlayer   @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
-  status         RunStatus     @default(ACTIVE)
+  loanId         String?
+  loan           Loan?         @relation(fields: [loanId], references: [id], onDelete: SetNull)
+  kind           LoanEventKind
+  /// Signed change to the player's debt: up for an acceptance or fee, down for a payment.
+  debtDeltaCents BigInt        @default(0)
+  debtAfterCents BigInt
+  requestKey     String        @db.VarChar(128)
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+
+  @@unique([roundPlayerId, requestKey])
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+  @@index([loanId, createdAt])
+}
+
+/// 0.5.0-B. A run: Low-Riders, escorts, cash and product out on the road. What it took is
+/// all it has; everything it holds comes home when it does.
+model Run {
+  id             String         @id @default(cuid())
+  roundPlayerId  String
+  roundPlayer    RoundPlayer    @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  status         RunStatus      @default(ACTIVE)
   /// City slug the run left from and returns to.
   homeCity       String
   lowRiders      Int
   /// 1.5.0-B. Class composition for this run; old runs default to Low-Riders.
-  vehicleLoadout Json          @default("{\"LOW_RIDER\":1}")
+  vehicleLoadout Json           @default("{\"LOW_RIDER\":1}")
   /// 1.5.0-C. The part of the loadout that comes home Damaged or Disabled:
   /// { damaged: {LOW_RIDER, SEDAN, VAN}, disabled: {...} }. Empty is a clean run.
-  vehicleDamage  Json          @default("{}")
+  vehicleDamage  Json           @default("{}")
   escortThugs    Int
   /// The run's wallet, integer cents. Never below zero.
   cashCents      BigInt
   startCashCents BigInt
   /// 0.6.0-D. Beer carried by the run for outpost supply.
-  beer           Int           @default(0)
-  startBeer      Int           @default(0)
+  beer           Int            @default(0)
+  startBeer      Int            @default(0)
   turnsSpent     Int
-  launchedAt     DateTime      @default(now())
+  /// 1.7.0-C. Capped risk reduction earned by a Wheelman on this run.
+  wheelmanBonusPercent Int @default(0)
+  launchedAt     DateTime       @default(now())
   returnedAt     DateTime?
   /// 0.5.0-C. Stops whose road in has been rolled for a police stop, counted from the first.
-  roadChecks     Int           @default(0)
+  roadChecks     Int            @default(0)
   /// 0.5.0-E. Escorts wounded in a convoy fight: not fit to fight again on this run, and
   /// still healing when they get home if their wounds have not run out.
-  woundedEscorts Int           @default(0)
+  woundedEscorts Int            @default(0)
   /// 0.9.0-G. When the "run made it home" alert was collected.
   homeAlertedAt  DateTime?
   /// 0.5.0-E. When the run was last hit, for the re-hit cooldown.
   lastHitAt      DateTime?
   /// 0.5.0-E. The guns the escorts carry, out of home stock, best first. A bust or an
   /// arrest on the run takes them all.
-  pistols        Int           @default(0)
-  shotguns       Int           @default(0)
-  tek9s          Int           @default(0)
-  ak47s          Int           @default(0)
+  pistols        Int            @default(0)
+  shotguns       Int            @default(0)
+  tek9s          Int            @default(0)
+  ak47s          Int            @default(0)
   /// Trips B. The boss rides with this run: its towns hold it until the player leaves,
   /// the hotel bills its cash by the hour, and the lieutenant runs home until it is back.
-  bossAboard     Boolean       @default(false)
+  bossAboard     Boolean        @default(false)
   /// Trips B. Everything the hotel has taken from the run's cash.
-  hotelCents     BigInt        @default(0)
+  hotelCents     BigInt         @default(0)
   /// Trips B. The arrival of the stay being billed, and the hours of it paid so far.
   hotelStayAt    DateTime?
-  hotelHours     Int           @default(0)
+  hotelHours     Int            @default(0)
   tails          ConvoyTail[]
   stops          RunStop[]
   cargo          RunCargo[]
   trades         RunTrade[]
   incidents      RunIncident[]
+  supplyPickups  SupplyPickup[]
 
   @@index([homeAlertedAt, returnedAt])
   @@index([roundPlayerId, status])
@@ -2321,6 +3244,14 @@ enum ActivityType {
   CASE_FOLLOWED
   FACTION_TIER_UP
   FACTION_WARNING
+  /// 1.6.0-H. A lane shipment landed: clean, partly searched, or seized.
+  SUPPLY_LANE_ARRIVED
+  /// 1.6.5-D. Loan shark: a loan taken, a payment (scheduled or manual), a missed installment.
+  LOAN_TAKEN
+  LOAN_PAYMENT
+  LOAN_INSTALLMENT_MISSED
+  /// 1.6.5-E. Into collections, or out of it into recovery or good standing.
+  LOAN_COLLECTIONS
 }
 
 enum BattleKind {
@@ -2419,6 +3350,194 @@ model PlayerActivity {
   @@index([roundPlayerId, createdAt(sort: Desc)])
 }
 
+/// 1.6.0-F. Durable action-triggered street situations.
+model RandomEncounter {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// SCOUT, PRODUCE, TRAVEL, etc.
+  trigger String
+  key     String
+  title   String
+  text    String
+  tone    String
+  status  String @default("RESOLVED")
+
+  effects Json @default("{}")
+  choices Json @default("[]")
+
+  selectedChoice String?
+  result         Json?
+
+  sourceActivityId String?
+  resolvedAt       DateTime?
+  expiresAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([roundPlayerId, status, createdAt(sort: Desc)])
+  @@index([roundPlayerId, trigger, createdAt(sort: Desc)])
+  @@index([expiresAt, status])
+}
+
+/// 1.8.5-A. Versioned source-of-truth definition for community, seasonal,
+/// action-triggered, and city-condition events. Runtime adapters migrate these
+/// definitions gradually; pinned rulesets keep their own definition versions.
+model GameEventDefinition {
+  id String @id @default(cuid())
+
+  rulesetId      String
+  rulesetVersion String
+  key            String
+  type           GameEventType
+  scope          GameEventScope
+  title          String
+  description    String
+  /// ROUND_FRACTION, UTC_WINDOW or ACTION_TRIGGER. The typed source contract
+  /// lives in packages/rulesets; JSON keeps definitions extensible by version.
+  schedule       Json
+  objectives     Json @default("[]")
+  rewards        Json @default("[]")
+  config         Json @default("{}")
+  /// Identifies the legacy owner while a migration adapter is in use.
+  sourceKind     String?
+  sourceKey      String?
+  isEnabled      Boolean @default(true)
+
+  occurrences GameEventOccurrence[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([rulesetId, rulesetVersion, key])
+  @@index([rulesetId, rulesetVersion, type, isEnabled], map: "GameEventDefinition_ruleset_type_idx")
+  @@index([sourceKind, sourceKey])
+}
+
+/// One scheduled window or one action-triggered event occurrence. Snapshots
+/// prevent later definition edits from rewriting a live or historical event.
+model GameEventOccurrence {
+  id String @id @default(cuid())
+
+  definitionId String
+  definition   GameEventDefinition @relation(fields: [definitionId], references: [id], onDelete: Restrict)
+
+  /// Null for calendar-wide seasonal windows; set for round-derived events.
+  roundId String?
+  round   Round? @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  occurrenceKey String
+  scopeKey      String @default("")
+  status        GameEventOccurrenceStatus @default(SCHEDULED)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  schedule      Json @default("{}")
+  config        Json @default("{}")
+  activatedAt  DateTime?
+  completedAt  DateTime?
+  expiredAt    DateTime?
+
+  participations GameEventParticipation[]
+  history        GameEventHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([definitionId, occurrenceKey])
+  @@index([roundId, status, startsAt])
+  @@index([status, startsAt, endsAt])
+  @@index([scopeKey, status])
+}
+
+/// Per-player progress and lifecycle state for an event occurrence.
+model GameEventParticipation {
+  id String @id @default(cuid())
+
+  occurrenceId String
+  occurrence   GameEventOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  status      GameEventParticipationStatus @default(OFFERED)
+  progress    Json @default("{}")
+  state       Json @default("{}")
+  acceptedAt  DateTime?
+  completedAt DateTime?
+  claimedAt   DateTime?
+  expiredAt   DateTime?
+
+  progressReceipts GameEventProgressReceipt[]
+  rewardClaims     GameEventRewardClaim[]
+  history          GameEventHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([occurrenceId, roundPlayerId])
+  @@index([roundPlayerId, status, updatedAt(sort: Desc)])
+  @@index([occurrenceId, status])
+}
+
+/// Idempotent authoritative progress receipt. sourceKey is stable for the
+/// underlying action or domain transition and unique per participation.
+model GameEventProgressReceipt {
+  id String @id @default(cuid())
+
+  participationId String
+  participation   GameEventParticipation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+
+  sourceKey   String
+  objectiveKey String?
+  payload     Json @default("{}")
+  recordedAt  DateTime @default(now())
+
+  @@unique([participationId, sourceKey])
+  @@index([participationId, objectiveKey, recordedAt], map: "GameEventProgressReceipt_lookup_idx")
+}
+
+/// One durable reward claim per participation and reward key. The idempotency
+/// key lets the reward grant and claim receipt commit in the same transaction.
+model GameEventRewardClaim {
+  id String @id @default(cuid())
+
+  participationId String
+  participation   GameEventParticipation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+
+  rewardKey      String
+  idempotencyKey String @unique
+  reward         Json
+  claimedAt      DateTime @default(now())
+
+  @@unique([participationId, rewardKey])
+  @@index([claimedAt(sort: Desc)])
+}
+
+/// Append-only event lifecycle and outcome history. Admin changes should also
+/// write AdminAuditLog so operational actions retain actor/reason snapshots.
+model GameEventHistory {
+  id String @id @default(cuid())
+
+  occurrenceId String
+  occurrence   GameEventOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+
+  participationId String?
+  participation   GameEventParticipation? @relation(fields: [participationId], references: [id], onDelete: Cascade)
+
+  action       String
+  actorLabel   String?
+  dedupeKey    String? @unique
+  before       Json?
+  after        Json?
+  payload      Json @default("{}")
+  happenedAt   DateTime @default(now())
+
+  @@index([occurrenceId, happenedAt(sort: Desc)])
+  @@index([participationId, happenedAt(sort: Desc)])
+}
+
 /// Durable in-game notification receipt for a toast-worthy activity.
 /// The notification id intentionally matches the activity id so a live toast can
 /// acknowledge itself without another lookup.
@@ -2466,10 +3585,13 @@ model EconomyLedgerEntry {
   roundPlayerId String
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
-  source      String
-  label       String
-  amountCents BigInt
-  metadata    Json?
+  source          String
+  label           String
+  amountCents     BigInt
+  metadata        Json?
+  /// 1.6.5-E. When this income line was considered for a loan collection garnish (taken from
+  /// or not). Set once, so no income is ever garnished twice.
+  loanCollectedAt DateTime?
 
   createdAt DateTime @default(now())
 
@@ -2639,6 +3761,7 @@ model CasinoSession {
   updatedAt     DateTime  @updatedAt
 
   ledger CasinoLedgerEntry[]
+  sportsbookBets SportsbookBet[]
 
   @@index([roundPlayerId, status, openedAt(sort: Desc)])
   @@index([cityId, status])
@@ -2987,6 +4110,116 @@ model CasinoJackpot {
 
   @@unique([roundId, machineKey])
   @@index([machineKey])
+}
+
+/// 1.8.0-A. Shared, server-cached pregame moneyline snapshot from TheRundown.
+/// Player reads never call the provider; refreshes are performed by one background poller.
+model SportsbookEvent {
+  id String @id @default(cuid())
+
+  providerEventId String @unique
+  sport           String
+  homeTeam        String
+  awayTeam        String
+  startsAt        DateTime
+  status          String   @default("PRE")
+  homeOdds        Int?
+  awayOdds        Int?
+  homeScore       Int?
+  awayScore       Int?
+  oddsUpdatedAt   DateTime?
+  settledAt       DateTime?
+  lastSeenAt      DateTime @default(now())
+  /// 1.8.0-C. Result checks are paced per event, so a long game does not spend a datapoint every poll.
+  resultCheckCount  Int       @default(0)
+  resultCheckedAt   DateTime?
+  nextResultCheckAt DateTime?
+  resultError       String    @default("")
+  /// 1.8.0-E. How the result was graded: FEED, ADMIN_RECHECK or ADMIN_VOID ('' until settled).
+  settledVia        String    @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  bets SportsbookBet[]
+
+  @@index([sport, startsAt, status])
+  @@index([status, settledAt])
+}
+
+/// TheRundown quota headers and last successful snapshot time; one row per provider key.
+model SportsbookProviderState {
+  id String @id @default("therundown")
+
+  lastPolledAt       DateTime?
+  lastDatapoints     Int       @default(0)
+  datapointsUsed     Int       @default(0)
+  datapointsLimit    Int       @default(0)
+  datapointsRemaining Int?
+  datapointsPeriod   String    @default("")
+  quotaObservedAt    DateTime?
+  lastErrorAt        DateTime?
+  lastError          String    @default("")
+  /// 1.8.0-C. lastPolledAt is the last successful odds snapshot; lastAttemptAt is the last try.
+  lastAttemptAt       DateTime?
+  lastResultCheckAt   DateTime?
+  consecutiveFailures Int       @default(0)
+  /// One poller at a time across server instances; cleared when a refresh finishes.
+  pollLeaseUntil      DateTime?
+  /// League key -> { lastAttemptAt, lastSuccessAt, lastError, lastErrorAt, eventsSeen }.
+  leagueStatus        Json      @default("{}")
+  updatedAt          DateTime  @updatedAt
+}
+
+/// 1.8.0-E. One row per feed run that held the lease, kept 90 days, for reviewing provider usage.
+model SportsbookFeedRun {
+  id String @id @default(cuid())
+
+  startedAt       DateTime
+  oddsPolled      Boolean
+  requests        Int
+  datapoints      Int
+  snapshots       Int
+  failedSnapshots Int
+  pulled          Int
+  resultChecks    Int
+  settled         Int
+  failed          Boolean
+  error           String   @default("")
+
+  @@index([startedAt])
+}
+
+/// An immutable casino-chip wager. Price/payout and the originating casino bankroll are
+/// pinned at acceptance; actionId makes retries a single charge. Nullable casino fields
+/// preserve settlement of legacy tickets created before sportsbook chip origins were stored.
+model SportsbookBet {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  eventId       String
+  event         SportsbookEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  casinoSessionId String?
+  casinoSession   CasinoSession? @relation(fields: [casinoSessionId], references: [id], onDelete: SetNull)
+  casinoCityId    String?
+  casinoCity      City?          @relation("SportsbookBetCasinoCity", fields: [casinoCityId], references: [id], onDelete: SetNull)
+
+  actionId       String
+  selection      String
+  oddsAmerican   Int
+  stakeCents     BigInt
+  payoutCents    BigInt
+  status         String   @default("OPEN")
+  settledAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([roundPlayerId, actionId])
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+  @@index([eventId, status])
+  @@index([casinoSessionId])
+  @@index([casinoCityId, status])
 }
 
 /// 0.6.0-D. The box attached to one away-held block. A home block never needs one.

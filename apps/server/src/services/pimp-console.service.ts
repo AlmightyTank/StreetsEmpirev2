@@ -1,4 +1,4 @@
-import type { ActivityType, PlayerActivity, Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, type ActivityType, type PlayerActivity, type PrismaClient } from '@prisma/client';
 import {
   CONSOLE_ACTIVITY_PAGE_SIZE,
   MESSAGE_PAGE_SIZE,
@@ -28,6 +28,8 @@ import { toActivityDto } from '../game/dto.js';
 import { RoundService } from './round.service.js';
 import { bellWhere } from './in-app-notification.service.js';
 import { assertCanCommunicate, checkDirectMessage, commsMuted, flagMessage } from './communication-guard.js';
+import { wakeDiscordBot } from './discord-bot-push.service.js';
+import { DiscordStaffService } from './discord-staff.service.js';
 
 const SEND_MIN_INTERVAL_MS = 5_000;
 const SEND_WINDOW_MS = 10 * 60_000;
@@ -79,7 +81,7 @@ const ACTIVITY_GROUP_TYPES: Record<ConsoleActivityGroup, ActivityType[]> = {
   combat: ['RAID_ATTACK', 'RAID_DEFENSE', 'DRIVE_BY_ATTACK', 'DRIVE_BY_DEFENSE', 'COMBAT_TREATMENT', 'COMBAT_RECON', 'BATTLE_VOIDED', 'REVENGE_EXPIRING'],
   turf: ['TURF_CLAIM', 'TURF_POST', 'TURF_PULL', 'TURF_PUSH', 'TURF_PUSH_BACKUP', 'TURF_PUSH_ATTACK', 'TURF_PUSH_DEFENSE', 'TURF_OUTPOST_ESTABLISH', 'TURF_OUTPOST_TRANSFER', 'TURF_PUSH_INCOMING', 'ALLIANCE_CALL'],
   travel: ['RUN_LAUNCHED', 'RUN_RETURNED', 'RUN_INCIDENT', 'RELOCATION_STARTED', 'RELOCATED', 'CONVOY_TAIL', 'CONVOY_ATTACK', 'CONVOY_DEFENSE', 'CONVOY_BACKUP', 'CONVOY_TAILED'],
-  market: ['STORE_BUY', 'STORE_SELL', 'SPECIAL_ORDER_READY', 'CASINO_BUY_CHIPS', 'CASINO_REDEEM_CHIPS', 'CASINO_SESSION_OPENED', 'CASINO_SESSION_CLOSED', 'CASINO_STATUS_UP', 'CASINO_COMP_HOTEL'],
+  market: ['STORE_BUY', 'STORE_SELL', 'SPECIAL_ORDER_READY', 'SUPPLY_LANE_ARRIVED', 'CASINO_BUY_CHIPS', 'CASINO_REDEEM_CHIPS', 'CASINO_SESSION_OPENED', 'CASINO_SESSION_CLOSED', 'CASINO_STATUS_UP', 'CASINO_COMP_HOTEL'],
   progress: ['QUEST_OBJECTIVE_COMPLETE', 'QUEST_READY', 'QUEST_CLAIMED', 'FACTION_TIER_UP', 'STREET_PASS_CLAIMED', 'FAVOR_ACTIVATED', 'FAVOR_ARMED', 'FAVOR_DISARMED', 'HIDEOUT_UPGRADE', 'WEAPON_UNLOCK'],
   street: ['SCOUT', 'WORK_STREETS', 'PRODUCE_CRACK', 'HEAT_BRIBE', 'CASE_STAGE_UP', 'WARRANT_DRAFTED', 'WARRANT_SERVED', 'WARRANT_LAWYERED', 'LAWYER_RETAINED', 'OFFICIAL_HIRED', 'OFFICIAL_IA_OPENED', 'OFFICIAL_CUT', 'OFFICIAL_STUNG', 'WARRANT_QUASHED', 'CAPTAIN_TIP', 'INFORMANT_TIP', 'CASE_FOLLOWED', 'PAYOUT_CHANGE', 'FACTION_WARNING'],
   system: ['ROUND_JOINED', 'AWAY_BONUS', 'ADMIN_GRANT', 'GAME_ANNOUNCEMENT'],
@@ -731,9 +733,11 @@ export const PimpConsoleService = {
         },
         select: messageSelect,
       });
-      await flagMessage(tx, created.id, flags, now);
-      return { row: created, replayed: false as const };
+      const flagId = await flagMessage(tx, created.id, flags, now);
+      if (flagId) await DiscordStaffService.queue(tx, 'MESSAGE_REPORT', flagId);
+      return { row: created, replayed: false as const, flagged: Boolean(flagId) };
     });
+    if ('flagged' in row && row.flagged) wakeDiscordBot('staff');
 
     return {
       message: await oneMessageDto(prisma, owner, row.row),
@@ -812,21 +816,22 @@ export const PimpConsoleService = {
       throw AppError.notFound('MESSAGE_NOT_FOUND', 'Only received messages can be reported.');
     }
 
-    await prisma.playerMessageReport.upsert({
-      where: {
-        messageId_reporterAccountId: {
-          messageId,
-          reporterAccountId: owner.accountId,
-        },
-      },
-      create: {
-        messageId,
-        reporterAccountId: owner.accountId,
-        reason: input.reason,
-      },
-      // A submitted report is immutable evidence. Retrying is a no-op.
-      update: {},
-    });
+    const where = { messageId_reporterAccountId: { messageId, reporterAccountId: owner.accountId } };
+    // A submitted report is immutable evidence. Retrying is a no-op.
+    if (await prisma.playerMessageReport.findUnique({ where, select: { id: true } })) return { ok: true };
+    try {
+      await prisma.$transaction(async (tx) => {
+        const report = await tx.playerMessageReport.create({
+          data: { messageId, reporterAccountId: owner.accountId, reason: input.reason },
+        });
+        await DiscordStaffService.queue(tx, 'MESSAGE_REPORT', report.id);
+      });
+    } catch (error) {
+      // A retry racing this one created the report first, and queued its staff post.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return { ok: true };
+      throw error;
+    }
+    wakeDiscordBot('staff');
     return { ok: true };
   },
 

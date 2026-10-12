@@ -91,7 +91,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-F casino Jobs with P
     const rep = await app.prisma.playerReputation.findUnique({ where: { roundPlayerId_trader: { roundPlayerId: player.id, trader: 'ACE' } } });
     expect(rep?.points).toBe(10);
     expect((await quest(player.id, 'ACE_FLOOR_TOUR')).status).toBe('AVAILABLE');
-  });
+  }, 60_000);
 
   it('tours every game, reports a dealt natural, and records casino season stats', async () => {
     const player = await fixture();

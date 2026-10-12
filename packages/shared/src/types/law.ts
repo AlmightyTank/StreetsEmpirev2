@@ -13,7 +13,9 @@ export type CaseSourceDto =
   // 1.3.0-E: a federal case moving with a relocation.
   | 'FEDERAL'
   // 1.3.0-G: an audited correction by staff.
-  | 'ADMIN';
+  | 'ADMIN'
+  // 1.6.0-H: a lane shipment searched on arrival.
+  | 'SEIZURE';
 
 /**
  * 1.3.0-A. The player's worst Case, for the dashboard. Stage Quiet with no city when the

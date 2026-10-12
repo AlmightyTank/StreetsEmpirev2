@@ -29,6 +29,10 @@ const CITIES = {
   'new-york-city': [-74.006, 40.7128],
   'atlanta': [-84.388, 33.749],
   'miami-beach': [-80.13, 25.7907],
+  // 1.6.0-G.
+  'chicago': [-87.6298, 41.8781],
+  'tulsa': [-95.9928, 36.154],
+  'dallas': [-96.797, 32.7767],
 };
 /** Map-unit nudges where two real cities would share a dot. */
 const NUDGE = { 'beverly-hills': [-9, 7], 'los-angeles': [3, -3] };

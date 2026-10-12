@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Laurel Ascendant theme">
+  <defs>
+    <radialGradient id="velvet" cy=".35" r=".85">
+      <stop stop-color="#5b2177"/>
+      <stop offset="1" stop-color="#1a0824"/>
+    </radialGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#fef3c7"/>
+      <stop offset=".45" stop-color="#eab308"/>
+      <stop offset="1" stop-color="#854d0e"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect x="12" y="15" width="104" height="98" rx="13" fill="#0b0410" stroke="#7e22ce" stroke-width="4"/>
+  <rect x="19" y="22" width="90" height="84" rx="8" fill="url(#velvet)"/>
+  <path d="M26 22v30l7-6 7 6V22zM88 22v30l7-6 7 6V22z" fill="#9f1239" stroke="#fda4af" stroke-width="1"/>
+  <path d="M64 30l20 50H44z" fill="#fef3c7" opacity=".12"/>
+  <path d="M50 40h28v8c0 10-6 17-14 18-8-1-14-8-14-18z" fill="url(#brass)" filter="url(#glow)"/>
+  <path d="M50 44h-6c0 7 4 11 8 12M78 44h6c0 7-4 11-8 12" fill="none" stroke="url(#brass)" stroke-width="3"/>
+  <path d="M60 66h8v10h-8z" fill="url(#brass)"/>
+  <rect x="50" y="76" width="28" height="8" rx="2" fill="url(#brass)"/>
+  <rect x="44" y="84" width="40" height="7" rx="2" fill="#3b0764" stroke="url(#brass)" stroke-width="1.5"/>
+  <path d="M64 46l2 4h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z" fill="#854d0e"/>
+  <g fill="#fde68a" filter="url(#glow)"><circle cx="30" cy="98" r="1.8"/><circle cx="44" cy="98" r="1.8"/><circle cx="58" cy="98" r="1.8"/><circle cx="72" cy="98" r="1.8"/><circle cx="86" cy="98" r="1.8"/><circle cx="100" cy="98" r="1.8"/></g>
+</svg>

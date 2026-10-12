@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto, type CasinoTournamentPageDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
@@ -10,6 +11,7 @@ import { RoulettePanel } from '../components/RoulettePanel.js';
 import { StreetDicePanel } from '../components/StreetDicePanel.js';
 import { PokerPanel } from '../components/PokerPanel.js';
 import { CasinoStatusPanel } from '../components/CasinoStatusPanel.js';
+import { SportsbookPanel } from '../components/SportsbookPanel.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -47,7 +49,7 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-type CasinoGameKey = 'slots' | 'blackjack' | 'roulette' | 'street-dice' | 'poker';
+type CasinoGameKey = 'slots' | 'blackjack' | 'roulette' | 'street-dice' | 'poker' | 'sportsbook';
 
 const CASINO_GAMES: readonly {
   key: CasinoGameKey;
@@ -102,6 +104,15 @@ const CASINO_GAMES: readonly {
     live: true,
     title: 'Solo Poker',
     description: 'Texas Hold’em against two house players. Multiplayer tables are planned for a later slice.',
+  },
+  {
+    key: 'sportsbook',
+    label: 'Sports Betting',
+    icon: '🏟️',
+    status: 'LIVE',
+    live: true,
+    title: 'Sports Betting',
+    description: 'Pregame moneylines for NFL, NBA, MLB and NHL. Cash bets close at kickoff.',
   },
 ];
 
@@ -211,9 +222,12 @@ export function CasinoPage() {
   const [data, setData] = useState<CasinoPageDto | null>(null);
   const [cashierAmount, setCashierAmount] = useState('1000');
   const [sessionAmount, setSessionAmount] = useState('1000');
-  const [selectedMachineKey, setSelectedMachineKey] = useState<string | null>(null);
-  const [slotBetPerLine, setSlotBetPerLine] = useState('1');
-  const [selectedPaylineKeys, setSelectedPaylineKeys] = useState<string[]>([]);
+  // The machine, bet and lines come back; an unknown machine falls back to the default below.
+  const [selectedMachineKey, setSelectedMachineKey] = useRememberedState<string | null>(rememberedKey('casino.machine', me?.id), null,
+    { accept: (value): value is string | null => value === null || isString(value) });
+  const [slotBetPerLine, setSlotBetPerLine] = useRememberedState<string>(rememberedKey('casino.bet', me?.id), '1', { accept: isString });
+  const [selectedPaylineKeys, setSelectedPaylineKeys] = useRememberedState<string[]>(rememberedKey('casino.lines', me?.id), [],
+    { accept: (value): value is string[] => Array.isArray(value) && value.every(isString) });
   const [lastSpin, setLastSpin] = useState<CasinoSlotSpinDto | null>(null);
   const [revealedReels, setRevealedReels] = useState(99);
   const [displayedWinCents, setDisplayedWinCents] = useState(0);
@@ -266,7 +280,12 @@ export function CasinoPage() {
       return;
     }
     const current = data.slotMachines.find((machine) => machine.key === selectedMachineKey);
-    if (current) return;
+    if (current) {
+      // A remembered machine keeps its bet; lines that do not exist on it are dropped.
+      const lines = selectedPaylineKeys.filter((key) => current.paylines.some((line) => line.key === key));
+      if (lines.length !== selectedPaylineKeys.length || !lines.length) setSelectedPaylineKeys(lines.length ? lines : current.paylines.map((line) => line.key));
+      return;
+    }
     const next = data.slotMachines.find((machine) => machine.availableHere) ?? data.slotMachines[0]!;
     setSelectedMachineKey(next.key);
     setSlotBetPerLine(String(next.minBetPerLineCents / 100));
@@ -663,7 +682,7 @@ export function CasinoPage() {
                           {entry.display.tone === 'positive' ? '+' : entry.display.tone === 'negative' ? '−' : ''}
                           {formatCents(entry.display.amountCents)}
                         </strong>
-                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'STREET_DICE' ? (
+                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'STREET_DICE' || entry.kind === 'SPORTSBOOK_BET' || (entry.kind === 'SPORTSBOOK_SETTLEMENT' && entry.sessionChipDeltaCents !== 0) ? (
                           <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
                         ) : entry.kind === 'BUY_CHIPS' || entry.kind === 'REDEEM_CHIPS' ? (
                           <span>Wallet {formatCents(entry.walletChipsAfterCents)}</span>
@@ -1203,7 +1222,19 @@ export function CasinoPage() {
             />
                 ) : null}
 
-                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'roulette' && activeGame !== 'street-dice' && activeGame !== 'poker' ? (() => {
+                {activeGame === 'sportsbook' ? (
+                  <SportsbookPanel
+                    bankrollCents={data.openSession?.bankrollCents ?? null}
+                    onPlaced={async () => {
+                      const next = await casinoApi.page();
+                      setData(next);
+                      setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                      await refreshSnapshot({ background: false });
+                    }}
+                  />
+                ) : null}
+
+                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'roulette' && activeGame !== 'street-dice' && activeGame !== 'poker' && activeGame !== 'sportsbook' ? (() => {
                   const game = CASINO_GAMES.find((candidate) => candidate.key === activeGame)!;
                   return (
                     <CasinoGamePlaceholder

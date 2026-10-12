@@ -5,10 +5,14 @@ import type { AdminDevBotsDto } from '@streets/shared';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
-import { devBotAccountWhere, devBotsBlockedReason, removeDevBots, seedDevBots } from './dev-bots.service.js';
+import { DEV_BOT_USERNAME_PREFIX, DEV_TEST_RIVALS, devBotAccountWhere, devBotsBlockedReason, removeDevBots, seedDevBots } from './dev-bots.service.js';
+import { NPC_GANG_TIERS, storedPause } from './admin-npc-gang.service.js';
+import { NPC_ACCOUNT_DOMAIN, NpcGangSpawnService, npcAccountUsername, npcAccountWhere, npcCrewTarget, nextRosterCrew } from './npc-gang-spawn.service.js';
 import { storedMigrationPlan } from './npc-gang-migration.js';
 import { npcMood, storedDormancy, storedMomentum } from './npc-gang-momentum.js';
 import { DEFAULT_NPC_GANG_RULES, npcRules } from './npc-gang-rules.js';
+import { favoriteMove, npcIdentity, npcPersonality, storedHistory } from './npc-gang-personality.js';
+import { NPC_BOUNTY_SOURCE, storedRetirement } from './npc-gang-rewards.js';
 import { openNpcGrudges, storedNpcGrudges } from './npc-gang-memory.js';
 import { RoundService } from './round.service.js';
 
@@ -69,6 +73,29 @@ function npcGangTurf(root: Prisma.JsonObject): AdminNpcGang['turf'] {
     recentLosses: numberField(turf.recentLosses),
     pressure: numberField(turf.pressure),
     lastMove: moveKind && moveAt ? { kind: moveKind, districtName: stringField(move.districtName) ?? '', at: moveAt, detail: moveDetail } : null,
+  };
+}
+
+/** Phase M. Who the gang is in public, and its record for operators (exact numbers are fine here). */
+function npcGangIdentity(gang: { id: string; archetype: string; memory: Prisma.JsonValue }, rules: ReturnType<typeof npcRules>): Pick<AdminNpcGang, 'personality' | 'crewName' | 'crewTag' | 'record' | 'dormancies' | 'retired'> {
+  const view = npcPersonality(rules, gang.archetype);
+  const identity = npcIdentity(view, gang.id, gang.memory);
+  const history = storedHistory(gang.memory);
+  const dormancies = jsonObject(gang.memory).dormancies;
+  return {
+    dormancies: typeof dormancies === 'number' ? dormancies : 0,
+    retired: storedRetirement(gang.memory),
+    personality: view.personality.label,
+    crewName: identity.name,
+    crewTag: identity.tag,
+    record: {
+      wins: history.wins,
+      losses: history.losses,
+      favoriteMove: favoriteMove(history),
+      biggestHitCents: history.biggestHit?.cents ?? null,
+      biggestHitTarget: history.biggestHit?.target ?? null,
+      lastLossTo: history.lastLoss?.opponent ?? null,
+    },
   };
 }
 
@@ -146,11 +173,13 @@ export const AdminDevBotsService = {
     const round = await RoundService.getCurrent(prisma);
     const since = new Date(now.getTime() - 24 * 3_600_000);
     const accounts = await prisma.account.findMany({
-      where: devBotAccountWhere,
+      // Dev bots and the roster crews the server spawned, together.
+      where: { OR: [devBotAccountWhere, npcAccountWhere] },
       orderBy: { username: 'asc' },
       select: {
         id: true,
         username: true,
+        email: true,
         isActive: true,
         _count: { select: { roundPlayers: true } },
         roundPlayers: round
@@ -163,7 +192,7 @@ export const AdminDevBotsService = {
                 city: { select: { id: true, name: true } },
                 netWorthCents: true,
                 movingUntil: true,
-                npcGang: { select: { archetype: true, tier: true, aggression: true, ambition: true, discipline: true, nextActionAt: true, lastActionAt: true, dormantUntil: true, memory: true, homeCity: { select: { name: true } } } },
+                npcGang: { select: { id: true, archetype: true, tier: true, aggression: true, ambition: true, discipline: true, nextActionAt: true, lastActionAt: true, dormantUntil: true, memory: true, homeCity: { select: { name: true } } } },
               },
             }
           : {
@@ -175,7 +204,7 @@ export const AdminDevBotsService = {
                 city: { select: { id: true, name: true } },
                 netWorthCents: true,
                 movingUntil: true,
-                npcGang: { select: { archetype: true, tier: true, aggression: true, ambition: true, discipline: true, nextActionAt: true, lastActionAt: true, dormantUntil: true, memory: true, homeCity: { select: { name: true } } } },
+                npcGang: { select: { id: true, archetype: true, tier: true, aggression: true, ambition: true, discipline: true, nextActionAt: true, lastActionAt: true, dormantUntil: true, memory: true, homeCity: { select: { name: true } } } },
               },
             },
       },
@@ -272,8 +301,14 @@ export const AdminDevBotsService = {
     }
 
     const npcGangs = currentPlayers.flatMap((player) => player.npcGang ? [player.npcGang] : []);
-    const escalation = round ? npcRules(loadRulesetForRound(round)).escalation : DEFAULT_NPC_GANG_RULES.escalation;
+    const gangRules = round ? npcRules(loadRulesetForRound(round)) : DEFAULT_NPC_GANG_RULES;
+    const escalation = gangRules.escalation;
     const moodOf = (gang: (typeof npcGangs)[number]) => npcGangMood(gang.memory, gang.dormantUntil, escalation, now).mood;
+    const bounties = await prisma.economyLedgerEntry.aggregate({
+      where: { source: NPC_BOUNTY_SOURCE, createdAt: { gte: since }, ...(round ? { roundPlayer: { roundId: round.id } } : {}) },
+      _count: { _all: true },
+      _sum: { amountCents: true },
+    });
     const acted24h = npcGangs.filter((gang) => gang.lastActionAt && gang.lastActionAt >= since).length;
     const blocked24h = currentPlayers.filter((player) => {
       if (!player.npcGang?.lastActionAt || player.npcGang.lastActionAt < since) return false;
@@ -284,6 +319,32 @@ export const AdminDevBotsService = {
     return {
       blockedReason: blockedReason(),
       currentRound: round ? { id: round.id, name: round.name, rulesetVersion: round.rulesetVersion } : null,
+      controls: {
+        personalities: Object.entries(gangRules.personalities).map(([key, personality]) => ({ key, label: personality.label })),
+        tiers: [...NPC_GANG_TIERS],
+        crews: await (async () => {
+          const crewSlugs = new Set(accounts
+            .filter((account) => account.email.endsWith(NPC_ACCOUNT_DOMAIN) && account.roundPlayers.length > 0)
+            .map((account) => gangRules.roster.find((entry) => npcAccountUsername(entry.slug) === account.username)?.slug)
+            .filter((slug): slug is string => Boolean(slug)));
+          const activeHumans = round
+            ? await prisma.roundPlayer.count({ where: { roundId: round.id, npcGang: { is: null }, account: { isActive: true }, lastActiveAt: { gte: new Date(now.getTime() - gangRules.spawn.activeHumanHours * 3_600_000) } } })
+            : 0;
+          return {
+            roster: gangRules.roster.length,
+            inRound: crewSlugs.size,
+            target: npcCrewTarget(activeHumans, gangRules.spawn, gangRules.roster.length),
+            spawnEnabled: gangRules.enabled && gangRules.spawn.enabled,
+            nextCrew: nextRosterCrew(gangRules.roster, crewSlugs)?.crewName ?? null,
+          };
+        })(),
+        rivals: DEV_TEST_RIVALS.map((rival) => ({
+          slug: rival.slug,
+          displayName: rival.displayName,
+          personality: npcPersonality(gangRules, rival.npcGang.archetype).personality.label,
+          inRound: accounts.some((account) => account.username === `${DEV_BOT_USERNAME_PREFIX}${rival.slug}` && account.roundPlayers.length > 0),
+        })),
+      },
       npcGangSummary: {
         generatedAt: now.toISOString(),
         active: npcGangs.length,
@@ -293,6 +354,8 @@ export const AdminDevBotsService = {
         openGrudges,
         revenge24h,
         heldBlocks,
+        bounties24h: { count: bounties._count._all, cents: Number(bounties._sum.amountCents ?? 0n) },
+        retired: npcGangs.filter((gang) => storedRetirement(gang.memory)).length,
         hot: npcGangs.filter((gang) => moodOf(gang) === 'HOT').length,
         dormant: npcGangs.filter((gang) => moodOf(gang) === 'DORMANT').length,
         migrating: currentPlayers.filter((player) => player.npcGang && npcGangMigration(player.npcGang.memory, player.movingUntil, now).migration).length,
@@ -316,6 +379,7 @@ export const AdminDevBotsService = {
         const memory = player?.npcGang ? npcGangMemory(player.npcGang.memory, now) : null;
         return {
           accountId: account.id,
+          kind: account.email.endsWith(NPC_ACCOUNT_DOMAIN) ? 'CREW' as const : 'DEV' as const,
           username: account.username,
           isActive: account.isActive,
           roundsPlayed: account._count.roundPlayers,
@@ -340,12 +404,16 @@ export const AdminDevBotsService = {
                       lastOutcome: memory?.lastOutcome ?? null,
                       lastTarget: memory?.lastTarget ?? null,
                       lastError: memory?.lastError ?? null,
+                      gangId: player.npcGang.id,
+                      personalityKey: npcPersonality(gangRules, player.npcGang.archetype).key,
+                      paused: storedPause(player.npcGang.memory),
                       grudges: memory?.grudges ?? [],
                       lastRevenge: memory?.lastRevenge ?? null,
                       turf: memory?.turf ?? null,
                       currentCity: player.city.name,
                       ...npcGangMigration(player.npcGang.memory, player.movingUntil, now),
                       ...npcGangMood(player.npcGang.memory, player.npcGang.dormantUntil, escalation, now),
+                      ...npcGangIdentity(player.npcGang, gangRules),
                     }
                   : null,
               }
@@ -368,6 +436,41 @@ export const AdminDevBotsService = {
       throw error;
     }
     await record(prisma, actor, 'dev-bots.seed', { roundId: round.id, roundName: round.name, seeded });
+    return AdminDevBotsService.status(prisma);
+  },
+
+  /**
+   * Real crews: spawn the next roster crew into the current round now, ignoring the target
+   * and the spacing. Allowed in production; the crew starts like any new player.
+   */
+  async spawnCrew(prisma: PrismaClient, actor: AuditActor, now = new Date()): Promise<AdminDevBotsDto> {
+    const round = await RoundService.getCurrent(prisma, now);
+    if (!round) throw AppError.conflict('NO_ACTIVE_ROUND', 'There is no current round to spawn a crew into.');
+    const slug = await NpcGangSpawnService.spawnNext(prisma, round, now);
+    if (!slug) throw AppError.conflict('ROSTER_EXHAUSTED', 'Every roster crew is already in this round.');
+    await record(prisma, actor, 'npc-gang.spawn', { roundId: round.id, slug });
+    return AdminDevBotsService.status(prisma);
+  },
+
+  /** Phase O. Add or reset one dev crew in the current round. */
+  async seedOne(prisma: PrismaClient, actor: AuditActor, slug: string, now = new Date()): Promise<AdminDevBotsDto> {
+    refuseIfBlocked();
+    const rival = DEV_TEST_RIVALS.find((row) => row.slug === slug);
+    if (!rival) throw AppError.notFound('DEV_BOT_NOT_FOUND', 'There is no dev crew with that name.');
+    const round = await RoundService.getCurrent(prisma, now);
+    if (!round) throw AppError.conflict('NO_ACTIVE_ROUND', 'There is no current round to add a dev crew to.');
+    await seedDevBots(prisma, round, loadRulesetForRound(round), now, [rival]);
+    await record(prisma, actor, 'dev-bots.seed-one', { roundId: round.id, slug });
+    return AdminDevBotsService.status(prisma);
+  },
+
+  /** Phase O. Delete one dev bot account, and its players in every round. */
+  async removeOne(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminDevBotsDto> {
+    refuseIfBlocked();
+    const account = await prisma.account.findFirst({ where: { id: accountId, ...devBotAccountWhere }, select: { id: true, username: true } });
+    if (!account) throw AppError.notFound('DEV_BOT_NOT_FOUND', 'That account is not a dev bot.');
+    await prisma.account.delete({ where: { id: account.id } });
+    await record(prisma, actor, 'dev-bots.remove-one', { accountId: account.id, username: account.username }, reason);
     return AdminDevBotsService.status(prisma);
   },
 

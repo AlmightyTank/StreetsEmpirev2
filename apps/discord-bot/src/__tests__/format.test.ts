@@ -20,6 +20,7 @@ import {
   rankingsEmbed,
   reminderText,
   roundEmbed,
+  roundEventEmbed,
   syncAllText,
   syncMemberText,
   territoryFeedEmbed,
@@ -115,10 +116,61 @@ describe('rankingsEmbed', () => {
     }, origin);
     expect(embed.description).toBe(`**#1** [\\[evil\\]\\(http://x\\)](${origin}/game/players/1) · $500 · Detroit ▼2`);
   });
-
   it('handles no round and an empty round', () => {
     expect(rankingsEmbed({ round: null, entries: [] }, origin).title).toBe('No game running');
     expect(rankingsEmbed({ round: { name: 'R', status: 'ACTIVE', endsAt: '' }, entries: [] }, origin).description).toBe('Nobody has joined this round yet.');
+  });
+});
+
+describe('roundEventEmbed', () => {
+  it('renders a one-embed frozen recap with escaped names, exact money and unsupported metrics labeled', () => {
+      const embed = roundEventEmbed({
+        type: 'ended',
+        roundName: 'Round @everyone *One*',
+        status: 'ENDED',
+        startsAt: '2026-01-01T00:00:00.000Z',
+        endsAt: '2026-02-01T00:00:00.000Z',
+        url: `${origin}/game/rankings`,
+        standings: [],
+        recap: {
+          roundId: 'round-1',
+          aftermathUrl: `${origin}/game/rounds/round-1/aftermath`,
+          participants: 20,
+          eligibleCompetitors: 18,
+          cities: 4,
+          alliances: 3,
+          finalNetWorthCents: '9007199254740993123',
+          finalCrewMembers: 90,
+          turfBlocksHeld: 12,
+          activeBusinessesHeld: 7,
+          crimeActionsAttempted: 42,
+          topPlayers: [{
+            rank: 1,
+            publicPimpId: 1001,
+            displayName: '@here [Boss]',
+            city: 'Detroit',
+            netWorthCents: '123456789012345678',
+            profileUrl: `${origin}/game/players/1001`,
+          }],
+          champions: [{
+            title: 'Drug Kingpin',
+            value: 50,
+            unit: 'drug units held at cutoff',
+            winners: [{ publicPimpId: 1001, displayName: '@everyone Boss' }],
+          }],
+        },
+      });
+
+      expect(embed.url).toBe(`${origin}/game/rounds/round-1/aftermath`);
+      expect(embed.title).toContain('@\u200beveryone');
+      expect(embed.fields).toHaveLength(3);
+      expect(embed.fields![0]!.value).toContain('Eligible final net worth: $90,071,992,547,409,931.23');
+      expect(embed.fields![0]!.value).toContain('Earned/spent, captures/defenses, recruiting, drug production/sales, business revenue and contested-city totals: Not recorded.');
+      expect(embed.fields![1]!.value).toContain('@\u200bhere');
+      expect(embed.fields![1]!.value).toContain('$1,234,567,890,123,456.78');
+      expect(embed.fields![2]!.value).toContain('@\u200beveryone');
+      expect(embed.footer?.text).toBe('round-recap:round-1');
+      expect(JSON.stringify(embed)).not.toContain('@everyone');
   });
 });
 
@@ -142,6 +194,11 @@ describe('roundEmbed and newsEmbed', () => {
       expect(field.value.length).toBeLessThanOrEqual(1024);
     }
     expect(newsEmbed({ news: [] }, origin).description).toBe('No round news has been posted yet.');
+  });
+
+  it('previews each post as plain words, not half-cut markup', () => {
+    const post = { title: 'Patch notes', body: '## Fixes\n- **Raids** pay out\n- [Turf](https://x.dev) holds', isPinned: false, publishedAt: '2026-09-13T12:00:00.000Z', authorName: null };
+    expect(newsEmbed({ news: [post] }, origin).fields![0]!.value.split('\n')[0]).toBe('Fixes Raids pay out · Turf holds');
   });
 });
 
@@ -429,10 +486,10 @@ describe('inviteEmbed', () => {
 });
 
 describe('news posts and turn reminders', () => {
-  it('builds an escaped, bounded news channel post', () => {
-    const embed = newsPostEmbed({ id: 'n1', title: 'Big *update*', body: `**bold** ${'x'.repeat(2000)}`, isPinned: true, publishedAt: '2026-09-14T10:00:00.000Z', authorName: 'Admin', url: `${origin}/game/news` });
+  it('builds a bounded news channel post that keeps its markdown', () => {
+    const embed = newsPostEmbed({ id: 'n1', title: 'Big *update*', body: `## What's new\n- **bold** ${'x'.repeat(2000)}`, isPinned: true, publishedAt: '2026-09-14T10:00:00.000Z', authorName: 'Admin', url: `${origin}/game/news` });
     expect(embed.title).toBe('📌 Big *update*');
-    expect(embed.description!.startsWith('\\*\\*bold\\*\\*')).toBe(true);
+    expect(embed.description!.startsWith("**What's new**\n- **bold** ")).toBe(true);
     expect(embed.description!.length).toBeLessThanOrEqual(1500);
     expect(embed).toMatchObject({ url: `${origin}/game/news`, timestamp: '2026-09-14T10:00:00.000Z', footer: { text: 'Posted by Admin' } });
   });

@@ -14,6 +14,7 @@ const primaryNav = [
 
 const exploreLinks = [
   { to: '/hall-of-fame', label: 'Hall of Fame' },
+  ...(import.meta.env.VITE_ROUND_AFTERMATH_PUBLIC_ENABLED === 'false' ? [] : [{ to: '/game/round-archive', label: 'Round archive' }]),
   { to: '/alliances', label: 'Alliances' },
   { to: '/stats', label: 'Statistics' },
   { to: '/roadmap', label: 'Roadmap' },
@@ -38,7 +39,8 @@ const pageMeta = (pathname: string): { title: string; description: string; noind
     community: { title: 'Community', description: 'Find the StreetsEmpire forum, public competition pages and community resources.' },
     beta: { title: 'Beta', description: 'Information about the separate StreetsEmpire beta testing environment.', noindex: true },
     status: { title: 'Status', description: 'Current StreetsEmpire public API and database service health.' },
-    support: { title: 'Support', description: 'How StreetsEmpire plans to support hosting and development without pay-to-win.' },
+    support: { title: 'Support', description: 'How supporting StreetsEmpire funds hosting and development without pay-to-win.' },
+    supporters: { title: 'Supporters', description: 'The players who help keep StreetsEmpire running, by their own choice.' },
     privacy: { title: 'Privacy', description: 'What StreetsEmpire keeps about players, who handles it, and for how long.' },
     terms: { title: 'Terms', description: 'The rules every StreetsEmpire player agrees to: one account, no cheating, be decent.' },
     about: { title: 'About', description: 'About the StreetsEmpire project, its seasonal design and competitive browser-game inspiration.' },
@@ -65,6 +67,7 @@ const projectLinks = [
   { to: '/beta', label: 'Beta' },
   { to: '/status', label: 'Status' },
   { to: '/support', label: 'Support' },
+  { to: '/supporters', label: 'Supporters' },
   { to: '/privacy', label: 'Privacy' },
   { to: '/terms', label: 'Terms' },
 ] as const;

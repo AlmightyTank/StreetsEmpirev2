@@ -125,7 +125,10 @@ describe('createGameApi', () => {
       '/api/internal/discord/alerts': { alerts: { attacks: false, round: false, rank: false, turns: true, turf: false, alliance: false }, roundName: 'R', current: { turns: 5, cap: 144, nationalRank: 7 } },
       '/api/internal/discord/news/n1/failed': { ok: true },
       '/api/internal/discord/news/status': { ok: true },
-      '/api/internal/discord/alerts/claim': { turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], battles: [], turf: [], territory: [], crackdowns: [], rounds: [] },
+      '/api/internal/discord/round-posts/claim': { rounds: [] },
+      '/api/internal/discord/round-posts/r1/posted': { ok: true },
+      '/api/internal/discord/round-posts/r1/failed': { ok: true },
+      '/api/internal/discord/alerts/claim': { turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], battles: [], turf: [], territory: [], crackdowns: [] },
     };
     const fetchImpl = (async (url: URL | string, init: RequestInit = {}) => {
       const parsed = new URL(String(url));
@@ -143,9 +146,12 @@ describe('createGameApi', () => {
     await api.reportNewsChannel({ channel: null, problem: 'the bot needs SendMessages in #news.' });
     expect((await api.setAlert('123456789012345678', 'turns', true)).current).toEqual({ turns: 5, cap: 144, nationalRank: 7 });
     // A server from before 0.9.0-G sends no notices; the bot treats that as none.
-    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], notices: [], battles: [], turf: [], blockWars: [], territory: [], crackdowns: [], rounds: [] });
+    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], notices: [], battles: [], turf: [], blockWars: [], territory: [], crackdowns: [], factions: [] });
     // A raid feed the bot can't post in leaves its events on the server.
     await api.claimAlerts({ feed: false });
+    expect(await api.claimRoundPosts()).toEqual([]);
+    await api.roundPostPosted('r1', '12345678901234567');
+    await api.roundPostFailed('r1', 'Discord refused the send.');
     expect(calls).toEqual([
       { path: '/api/internal/discord/badges?name=Big+Daddy', method: 'GET', body: undefined, contentType: undefined },
       // No body, so no JSON content type for Fastify to reject as empty.
@@ -155,6 +161,9 @@ describe('createGameApi', () => {
       { path: '/api/internal/discord/alerts', method: 'PUT', body: '{"discordId":"123456789012345678","type":"turns","enabled":true}', contentType: 'application/json' },
       { path: '/api/internal/discord/alerts/claim', method: 'POST', body: undefined, contentType: undefined },
       { path: '/api/internal/discord/alerts/claim', method: 'POST', body: '{"feed":false}', contentType: 'application/json' },
+      { path: '/api/internal/discord/round-posts/claim', method: 'POST', body: undefined, contentType: undefined },
+      { path: '/api/internal/discord/round-posts/r1/posted', method: 'POST', body: '{"messageId":"12345678901234567"}', contentType: 'application/json' },
+      { path: '/api/internal/discord/round-posts/r1/failed', method: 'POST', body: '{"error":"Discord refused the send."}', contentType: 'application/json' },
     ]);
   });
 });

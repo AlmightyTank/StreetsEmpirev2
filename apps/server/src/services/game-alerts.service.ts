@@ -1,11 +1,12 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { headsUpMinutes, loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
-import type { GameNoticeDto, NoticeCategory } from '@streets/shared';
+import { markdownToPlainText, type GameNoticeDto, type NoticeCategory } from '@streets/shared';
 import { createPlayerActivity } from './in-app-notification.service.js';
 import { CATEGORY_COLUMN, channelsFor, recipientSelect, rowsFor, type ChannelSwitches, type OutboxRow } from './notification-channels.js';
 import { PlayerStateService } from './player-state.service.js';
 import { gameUrl } from './standings.js';
 import { settleSurveySchedules } from './survey-schedule.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 /**
  * 0.9.0-G. The alerts that happen by the clock or by someone else's hand: a push
@@ -107,7 +108,8 @@ async function incomingPushes(tx: Tx, now: Date, switches: ChannelSwitches): Pro
       continue;
     }
     // Exactly the turf page's rule: nothing until the Lookouts see it coming.
-    const seeUntil = now.getTime() + headsUpMinutes(ruleset, push.defender.hideoutLookoutsLevel, push.defender.racketEffects) * 60_000;
+    const cornerWarningMinutes = await CrewRosterService.cornerPushWarningMinutes(tx, push.defenderId, push.turfId);
+    const seeUntil = now.getTime() + (headsUpMinutes(ruleset, push.defender.hideoutLookoutsLevel, push.defender.racketEffects) + cornerWarningMinutes) * 60_000;
     if (push.landsAt.getTime() > seeUntil) continue;
 
     const claimed = await tx.turfPush.updateMany({ where: { id: push.id, defenderAlertedAt: null }, data: { defenderAlertedAt: now } });
@@ -386,6 +388,46 @@ async function messages(tx: Tx, now: Date, switches: ChannelSwitches): Promise<O
   });
 }
 
+const BUG_REPLY_TITLES: Record<string, string> = {
+  FIXED: 'Your bug report was fixed',
+  WONT_FIX: 'Your bug report was reviewed',
+  DUPLICATE: 'Your bug report is already known',
+};
+
+/** What staff decided about a report, in the player's own words for it. */
+export function bugReplyBody(row: { summary: string; resolution: string | null; playerReply: string | null }): string {
+  const decided = row.resolution === 'FIXED'
+    ? `Staff fixed what you reported: "${row.summary}".`
+    : row.resolution === 'DUPLICATE'
+      ? `Staff already know about "${row.summary}" and are tracking it.`
+      : `Staff looked into "${row.summary}" and won't be changing it.`;
+  return row.playerReply ? `${decided} Staff said: ${row.playerReply}` : decided;
+}
+
+/**
+ * A resolved bug report, to the player who sent it. Says what staff decided and any
+ * words they left for the player, never the staff note. Messages, since staff wrote back.
+ */
+async function bugReportReplies(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  const rows = await tx.bugReport.findMany({
+    where: { resolvedAt: { not: null }, reporterNotifiedAt: null },
+    orderBy: { resolvedAt: 'asc' },
+    take: BATCH,
+    select: { id: true, summary: true, resolution: true, playerReply: true, accountId: true, account: accountSettings },
+  });
+  if (!rows.length) return [];
+  await tx.bugReport.updateMany({ where: { id: { in: rows.map((row) => row.id) }, reporterNotifiedAt: null }, data: { reporterNotifiedAt: now } });
+  return rows.flatMap((row) => {
+    if (!row.accountId || !row.account) return [];
+    return notice(row.accountId, row.account.notificationSettings, 'messages', `bug-report:${row.id}`, {
+      title: BUG_REPLY_TITLES[row.resolution ?? ''] ?? 'Your bug report was reviewed',
+      body: bugReplyBody(row),
+      url: gameUrl('/game/report-bug'),
+      tag: `bug-report:${row.id}`,
+    }, switches, now);
+  });
+}
+
 /** Alliance announcements for current members, except whoever posted it. */
 async function announcements(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
   const posts = await tx.allianceWirePost.findMany({
@@ -549,7 +591,8 @@ async function newsBroadcasts(tx: Tx, now: Date, switches: ChannelSwitches): Pro
       where: post.roundId ? { roundId: post.roundId } : { round: { status: { in: ['ACTIVE', 'REGISTRATION'] }, endsAt: { gt: now } } },
       select: { id: true, accountId: true, account: accountSettings },
     });
-    const excerpt = post.body.length > 160 ? `${post.body.slice(0, 157).trimEnd()}...` : post.body;
+    const text = markdownToPlainText(post.body);
+    const excerpt = text.length > 160 ? `${text.slice(0, 157).trimEnd()}...` : text;
     for (const player of players) {
       await createPlayerActivity(tx, player.id, 'GAME_ANNOUNCEMENT', { newsId: post.id, title: post.title, excerpt });
     }
@@ -756,6 +799,7 @@ export const GameAlertService = {
       ...await revengeExpiring(tx, now, switches),
       ...await scheduled(tx, now, switches),
       ...await messages(tx, now, switches),
+      ...await bugReportReplies(tx, now, switches),
       ...await caseStages(tx, now, switches),
       ...await warrantAlerts(tx, now, switches),
       ...await officialAlerts(tx, now, switches),

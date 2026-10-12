@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Dead-or-Alive theme">
+  <defs>
+    <linearGradient id="wall" x2="0" y2="1">
+      <stop stop-color="#4a3622"/>
+      <stop offset="1" stop-color="#21170d"/>
+    </linearGradient>
+    <linearGradient id="paper" x2="0" y2="1">
+      <stop stop-color="#f3e3bf"/>
+      <stop offset="1" stop-color="#cfb27c"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="15" width="104" height="98" rx="13" fill="#0e0905" stroke="#8a6a3d" stroke-width="4"/>
+  <rect x="19" y="22" width="90" height="84" rx="8" fill="url(#wall)"/>
+  <rect x="26" y="34" width="30" height="38" rx="1" fill="url(#paper)" transform="rotate(-4 41 53)"/>
+  <rect x="62" y="30" width="24" height="30" rx="1" fill="url(#paper)" transform="rotate(5 74 45)"/>
+  <rect x="70" y="64" width="30" height="34" rx="1" fill="url(#paper)" transform="rotate(-3 85 81)"/>
+  <rect x="30" y="78" width="32" height="20" rx="2" fill="#a07a44" stroke="#5c4120" stroke-width="1.5"/>
+  <path d="M30 82h32" stroke="#5c4120" stroke-width="1.5"/>
+  <path d="M31 42h22M33 47h16" stroke="#5c4120" stroke-width="2.5" transform="rotate(-4 41 53)"/>
+  <rect x="34" y="50" width="14" height="14" rx="1" fill="#8a6a3d" opacity=".7" transform="rotate(-4 41 53)"/>
+  <path d="M67 38h14M67 43h10M67 48h12" stroke="#7c5a2e" stroke-width="1.5" transform="rotate(5 74 45)"/>
+  <path d="M75 72h20M75 77h16M75 82h18" stroke="#7c5a2e" stroke-width="1.5" transform="rotate(-3 85 81)"/>
+  <circle cx="88" cy="90" r="6" fill="none" stroke="#b91c1c" stroke-width="2" opacity=".75"/>
+  <circle cx="41" cy="35" r="2.5" fill="#b91c1c"/>
+  <circle cx="74" cy="31" r="2.5" fill="#b91c1c"/>
+  <circle cx="85" cy="65" r="2.5" fill="#b91c1c"/>
+</svg>

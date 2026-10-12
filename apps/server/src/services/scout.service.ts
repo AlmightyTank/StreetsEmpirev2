@@ -12,6 +12,10 @@ import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMov
 import { TurfService } from './turf.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
+import { encounterActivityPayload, RandomEncounterService } from './random-encounter.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
+import { CityConditionService } from './city-condition.service.js';
 
 export interface Crew {
   whores: number;
@@ -74,25 +78,35 @@ export function findDistrict(
   return district ? { key: normalized as DistrictKey, district } : null;
 }
 
-export function districtsFor(ruleset: Ruleset, crew: Crew, citySlug?: string): DistrictsDto {
+export function districtsFor(ruleset: Ruleset, crew: Crew, citySlug?: string, access: Awaited<ReturnType<typeof PermanentUnlockService.districtAccess>> = new Map()): DistrictsDto {
   const all = Object.values(ruleset.districts);
-
   return {
-    districts: Object.entries(ruleset.districts).map(([key, district]) =>
-      toDistrictDto(key, district, all, ruleset, crew, citySlug),
-    ),
+    districts: Object.entries(ruleset.districts).map(([key, district]) => {
+      const dto = toDistrictDto(key, district, all, ruleset, crew, citySlug);
+      const gate = access.get(key as DistrictKey);
+      return gate ? { ...dto, districtAccess: {
+        unlocked: gate.unlocked,
+        unlockName: gate.unlock.name,
+        unlockDescription: gate.unlock.description,
+        unlockQuest: PermanentUnlockService.questFor(ruleset, gate.unlock.key),
+      } } : dto;
+    }),
   };
 }
 
 export interface ScoutInput {
   district: string;
   turns: number;
+  crewMemberIds?: string[];
   actionId?: string;
 }
 
 export const ScoutService = {
   /** Section 25. What the player picks between, priced for the crew they run. */
-  districts: districtsFor,
+  async districts(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, crew: Crew, citySlug?: string): Promise<DistrictsDto> {
+    const access = await PermanentUnlockService.districtAccess(prisma, roundPlayerId, ruleset);
+    return districtsFor(ruleset, crew, citySlug, access);
+  },
 
   /**
    * Manual 3.1. Where you make money for yourself, and pick up whores and
@@ -121,6 +135,8 @@ export const ScoutService = {
           );
         }
 
+        await PermanentUnlockService.assertCanAccessDistrict(tx, roundPlayerId, ruleset, found.key);
+
         if (input.turns < ruleset.scouting.minTurns) {
           throw AppError.badRequest(
             'TURNS_TOO_LOW',
@@ -144,7 +160,15 @@ export const ScoutService = {
         if (supply) await WorkSupplyService.consume(tx, roundPlayerId, ruleset, supply);
 
         const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
-        const scoutRuleset: Ruleset = favorBonuses.scoutIncomePercent > 0 || favorBonuses.scoutRecruitmentPercent > 0
+        const cityConditionBonuses = await CityConditionService.bonuses(tx, {
+          round, cityId: player.cityId, ruleset, action: 'SCOUT', district: found.key, now,
+        });
+        await CrewRosterService.sync(tx, roundPlayerId, ruleset, now);
+        const scoutCareerBonus = input.crewMemberIds
+          ? await CrewRosterService.selectedSpecialtyBonusPercent(tx, roundPlayerId, ruleset, 'WORKER', 'SCOUT', input.crewMemberIds)
+          : await CrewRosterService.specialtyBonusPercent(tx, roundPlayerId, ruleset, 'WORKER', 'SCOUT');
+        const combinedRecruitmentPercent = favorBonuses.scoutRecruitmentPercent + cityConditionBonuses.recruitPercent;
+        const scoutRuleset: Ruleset = favorBonuses.scoutIncomePercent > 0 || combinedRecruitmentPercent > 0
           ? {
               ...ruleset,
               scouting: {
@@ -158,20 +182,24 @@ export const ScoutService = {
                   [found.key]: {
                     ...ruleset.scouting.districts[found.key],
                     whoresPerTurn: ruleset.scouting.districts[found.key].whoresPerTurn
-                      * (100 + favorBonuses.scoutRecruitmentPercent) / 100,
+                      * (100 + combinedRecruitmentPercent) / 100,
                     thugsPerTurn: ruleset.scouting.districts[found.key].thugsPerTurn
-                      * (100 + favorBonuses.scoutRecruitmentPercent) / 100,
+                      * (100 + combinedRecruitmentPercent) / 100,
                   },
                 },
               },
             }
           : ruleset;
+        const effectiveScoutRuleset: Ruleset = scoutCareerBonus > 0 ? {
+          ...scoutRuleset,
+          scouting: { ...scoutRuleset.scouting, grossPerWhorePerTurnCents: Math.max(1, Math.round(scoutRuleset.scouting.grossPerWhorePerTurnCents * (100 + scoutCareerBonus) / 100)) },
+        } : scoutRuleset;
         const outcome = calculateScout({
           supply,
           heat: current.heat,
           player: { ...active, whoreHappiness, thugHappiness },
           turns: input.turns,
-          ruleset: scoutRuleset,
+          ruleset: effectiveScoutRuleset,
           city: cityModifiers(ruleset, player.city.slug),
           district: found.key,
           clientCapacity: capacities[found.key],
@@ -238,7 +266,7 @@ export const ScoutService = {
 
         // 0.4.0-C: the trip's Heat lands, and a hot crew can be busted on the way home.
         const trip = await HeatService.afterTrip(tx, roundPlayerId, ruleset, { startHeat: current.heat, plans: [supply], next: worked, rng, now });
-        const next = trip.next;
+        let next = trip.next;
         await TurfService.addPresence(tx, {
           roundPlayerId,
           roundId: round.id,
@@ -248,6 +276,17 @@ export const ScoutService = {
           ruleset,
           now,
         });
+        const encounter = await RandomEncounterService.scout({
+          tx,
+          roundPlayerId,
+          next,
+          ruleset,
+          district: found.key,
+          turns: input.turns,
+          now,
+          rng,
+        });
+        next = encounter.next;
 
         const all = Object.values(ruleset.districts);
 
@@ -267,6 +306,7 @@ export const ScoutService = {
           ...(lieutenantCutCents > 0n ? { lieutenantCutCents: Number(lieutenantCutCents) } : {}),
           ...(favorBonuses.scoutIncomePercent > 0 ? { favorIncomePercent: favorBonuses.scoutIncomePercent } : {}),
           ...(favorBonuses.scoutRecruitmentPercent > 0 ? { favorRecruitmentPercent: favorBonuses.scoutRecruitmentPercent } : {}),
+          ...(cityConditionBonuses.recruitPercent > 0 ? { cityConditionBonusPercent: cityConditionBonuses.recruitPercent } : {}),
           payoutPercent: current.payoutPercent,
 
           crackFound,
@@ -290,12 +330,15 @@ export const ScoutService = {
           armedThugs: armedThugsForStreet(active, ruleset),
           unarmedThugs: unarmedThugsForStreet(active, ruleset),
 
+          ...(encounter.encounter ? { encounter: encounter.encounter } : {}),
+
           turnsUsed: input.turns,
           turnsRemaining: next.turns,
         };
 
         const local = localDistrict(ruleset, player.city.slug, found.key, found.district);
 
+        await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'WORKER', specialty: 'SCOUT', ...(input.crewMemberIds ? { memberIds: input.crewMemberIds } : {}), at: now, label: 'Scouting trip complete' });
         return {
           next,
           result,
@@ -334,6 +377,7 @@ export const ScoutService = {
               infected: outcome.infections.infected,
               lostToInfection: outcome.infections.lost,
               ...(trip.heat ? { heat: trip.heat.after, heatAdded: trip.heat.added, busted: trip.heat.busted, fineCents: trip.heat.fineCents } : {}),
+              ...(encounter.encounter ? { encounter: encounterActivityPayload(encounter.encounter) } : {}),
             },
           },
           // 1.3.0-A/B: the Heat the trip drew, and any bust or arrest, build the Case at home.

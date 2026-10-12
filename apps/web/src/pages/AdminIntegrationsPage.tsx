@@ -4,6 +4,8 @@ import type { AdminDevBotsDto, AdminDiscordStatusDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
+import { AdminNpcGangControls } from '../components/AdminNpcGangControls.js';
+import { AdminNpcTelemetryPanel } from '../components/AdminNpcTelemetryPanel.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
@@ -11,7 +13,7 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen } from '../utils/admin.js';
 import { formatDuration } from '../utils/time.js';
 
-type Pending = 'resync-everyone' | 'seed-bots' | 'remove-bots';
+type Pending = 'resync-everyone' | 'seed-bots' | 'remove-bots' | 'remove-bot';
 
 const pendingCopy: Record<Pending, { title: string; copy: string; needsReason: boolean }> = {
   'resync-everyone': {
@@ -21,12 +23,17 @@ const pendingCopy: Record<Pending, { title: string; copy: string; needsReason: b
   },
   'seed-bots': {
     title: 'Add or reset dev bots',
-    copy: 'Adds the four local test bots to the current round, or resets them there: fresh starting resources, and their battles, intel and wounds in this round are deleted.',
+    copy: 'Adds every local test bot to the current round, or resets them there: fresh starting resources, and their battles, intel and wounds in this round are deleted.',
     needsReason: false,
   },
   'remove-bots': {
     title: 'Remove every dev bot',
     copy: 'Deletes every seed-rival account on @streets.local, and with it their players in every round.',
+    needsReason: true,
+  },
+  'remove-bot': {
+    title: 'Remove this dev bot',
+    copy: 'Deletes this one seed-rival account, and with it its NPC gang and its players in every round.',
     needsReason: true,
   },
 };
@@ -54,6 +61,9 @@ export function AdminIntegrationsPage() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  // Phase O: the gang whose controls are open, and the bot a single removal is aimed at.
+  const [managing, setManaging] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<{ accountId: string; username: string } | null>(null);
   const working = 'The last admin action is still going through.';
 
   const load = useCallback(async () => {
@@ -69,6 +79,34 @@ export function AdminIntegrationsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function spawnCrew() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      setBots(await adminApi.spawnNpcCrew());
+      setNotice('A new crew joined the round with starting stock.');
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'That did not go through. Refresh before trying again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function spawn(slug: string, name: string) {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      setBots(await adminApi.seedDevBot(slug));
+      setNotice(`${name} is in the current round.`);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'That did not go through. Refresh before trying again.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function choose(next: Pending) {
     setPending(next);
@@ -90,9 +128,14 @@ export function AdminIntegrationsPage() {
         const result = await adminApi.seedDevBots();
         setBots(result);
         setNotice(`Dev bots are ready in ${result.currentRound?.name ?? 'the current round'}.`);
+      } else if (pending === 'remove-bot' && removing) {
+        setBots(await adminApi.removeDevBot(removing.accountId, reason.trim()));
+        setNotice(`${removing.username} removed.`);
+        setManaging(null);
       } else {
         setBots(await adminApi.removeDevBots(reason.trim()));
         setNotice('Dev bots removed.');
+        setManaging(null);
       }
       setPending(null);
     } catch (caught) {
@@ -203,8 +246,30 @@ export function AdminIntegrationsPage() {
                       </Button>
                     </div>
                     {!bots.currentRound ? <p className="se-hint se-mt">There is no current round to add them to.</p> : null}
+                    {bots.currentRound && bots.controls.rivals.some((rival) => !rival.inRound) ? (
+                      <div className="se-admin-moderation se-mt">
+                        {bots.controls.rivals.filter((rival) => !rival.inRound).map((rival) => (
+                          <Button key={rival.slug} type="button" className="se-btn se-btn--sm se-btn--ghost" disabledReason={busy ? working : null}
+                            onClick={() => void spawn(rival.slug, rival.displayName)}>
+                            Add {rival.displayName} ({rival.personality.toLowerCase()})
+                          </Button>
+                        ))}
+                      </div>
+                    ) : null}
                   </>
                 )}
+                <div className="se-rows se-mt">
+                  <Row label="Roster crews in round" value={`${formatNumber(bots.controls.crews.inRound)} of ${formatNumber(bots.controls.crews.roster)} · target ${formatNumber(bots.controls.crews.target)}`}
+                    tooltip="Real crews join like new players and grow by playing. The round carries one per few active humans, arriving one at a time." />
+                </div>
+                {bots.currentRound && bots.controls.crews.nextCrew ? (
+                  <div className="se-admin-moderation se-mt">
+                    <Button type="button" className="se-btn se-btn--sm se-btn--ghost" disabledReason={busy ? working : !bots.controls.crews.spawnEnabled ? 'Crew spawning is off in this ruleset.' : null}
+                      onClick={() => void spawnCrew()}>
+                      Spawn {bots.controls.crews.nextCrew} now
+                    </Button>
+                  </div>
+                ) : null}
                 <div className="se-rows se-mt">
                   <Row label="NPC gangs active" value={formatNumber(bots.npcGangSummary.active)} />
                   <Row label="Ready to move" value={formatNumber(bots.npcGangSummary.dueNow)} strong={bots.npcGangSummary.dueNow > 0} />
@@ -215,6 +280,8 @@ export function AdminIntegrationsPage() {
                   <Row label="Blocks held" value={formatNumber(bots.npcGangSummary.heldBlocks)} />
                   <Row label="Packing or moving" value={formatNumber(bots.npcGangSummary.migrating)} strong={bots.npcGangSummary.migrating > 0} />
                   <Row label="On a run · gone to ground" value={`${formatNumber(bots.npcGangSummary.hot)} · ${formatNumber(bots.npcGangSummary.dormant)}`} strong={bots.npcGangSummary.hot > 0} />
+                  <Row label="Bounties in 24h" value={`${formatNumber(bots.npcGangSummary.bounties24h.count)} · ${formatCents(bots.npcGangSummary.bounties24h.cents)}`} />
+                  <Row label="Crews broken up" value={formatNumber(bots.npcGangSummary.retired)} />
                 </div>
                 {bots.npcGangSummary.cities.length ? (
                   <ol className="se-admin-list">
@@ -265,7 +332,8 @@ export function AdminIntegrationsPage() {
                           <td data-label="NPC gang">
                             {bot.inCurrentRound?.npcGang ? (
                               <>
-                                <strong>{bot.inCurrentRound.npcGang.tier}</strong>
+                                <strong>{bot.inCurrentRound.npcGang.crewName} [{bot.inCurrentRound.npcGang.crewTag}]</strong>
+                                <span className="se-muted"> · {bot.inCurrentRound.npcGang.tier} · {bot.inCurrentRound.npcGang.personality}</span>
                                 <span className="se-muted"> · {bot.inCurrentRound.npcGang.archetype} · {bot.inCurrentRound.npcGang.currentCity}{bot.inCurrentRound.npcGang.currentCity !== bot.inCurrentRound.npcGang.homeCity ? ` (from ${bot.inCurrentRound.npcGang.homeCity})` : ''}</span>
                                 <p className="se-hint">
                                   Next {timing(bot.inCurrentRound.npcGang.nextActionAt)}
@@ -302,6 +370,14 @@ export function AdminIntegrationsPage() {
                                   </p>
                                 ) : null}
                                 <p className="se-hint">
+                                  Record {formatNumber(bot.inCurrentRound.npcGang.record.wins)}-{formatNumber(bot.inCurrentRound.npcGang.record.losses)}
+                                  {bot.inCurrentRound.npcGang.record.favoriteMove ? ` · favors ${bot.inCurrentRound.npcGang.record.favoriteMove.toLowerCase().replace(/_/g, ' ')}` : ''}
+                                  {bot.inCurrentRound.npcGang.record.biggestHitCents ? ` · best ${formatCents(bot.inCurrentRound.npcGang.record.biggestHitCents)} off ${bot.inCurrentRound.npcGang.record.biggestHitTarget}` : ''}
+                                  {bot.inCurrentRound.npcGang.record.lastLossTo ? ` · last lost to ${bot.inCurrentRound.npcGang.record.lastLossTo}` : ''}
+                                </p>
+                                <p className="se-hint">
+                                  {bot.inCurrentRound.npcGang.retired ? `Broke up ${ago(bot.inCurrentRound.npcGang.retired.at)} (${bot.inCurrentRound.npcGang.retired.reason.toLowerCase().replace(/_/g, ' ')}) · ` : ''}
+                                  {bot.inCurrentRound.npcGang.dormancies ? `Grounded ${formatNumber(bot.inCurrentRound.npcGang.dormancies)}× · ` : ''}
                                   Mood {bot.inCurrentRound.npcGang.mood.toLowerCase()} · momentum {bot.inCurrentRound.npcGang.momentum > 0 ? '+' : ''}{bot.inCurrentRound.npcGang.momentum}
                                   {bot.inCurrentRound.npcGang.mood === 'DORMANT' && bot.inCurrentRound.npcGang.dormancy
                                     ? ` · ${bot.inCurrentRound.npcGang.dormancy.reason.toLowerCase().replace(/_/g, ' ')}, back ${timing(bot.inCurrentRound.npcGang.dormancy.until)}`
@@ -331,16 +407,41 @@ export function AdminIntegrationsPage() {
                             )}
                           </td>
                           <td className="se-table__number se-num" data-label="Net worth">{bot.inCurrentRound ? formatCents(bot.inCurrentRound.netWorthCents) : '-'}</td>
-                          <td className="se-table__number se-num" data-label="Rounds">{formatNumber(bot.roundsPlayed)}</td>
+                          <td className="se-table__number se-num" data-label="Rounds">
+                            {formatNumber(bot.roundsPlayed)}
+                            <div className="se-admin-moderation">
+                              {bot.inCurrentRound?.npcGang ? (
+                                <Button type="button" className="se-btn se-btn--sm se-btn--ghost"
+                                  onClick={() => setManaging(managing === bot.inCurrentRound!.roundPlayerId ? null : bot.inCurrentRound!.roundPlayerId)}>
+                                  {managing === bot.inCurrentRound.roundPlayerId ? 'Hide' : 'Manage'}
+                                </Button>
+                              ) : null}
+                              {!bots.blockedReason && bot.kind === 'DEV' ? (
+                                <Button type="button" className="se-btn se-btn--sm se-btn--ghost" disabledReason={busy ? working : null}
+                                  onClick={() => { setRemoving({ accountId: bot.accountId, username: bot.username }); choose('remove-bot'); }}>
+                                  Remove
+                                </Button>
+                              ) : null}
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               )}
+              {managing ? (
+                <AdminNpcGangControls
+                  roundPlayerId={managing}
+                  controls={bots.controls}
+                  onChanged={() => void load()}
+                  onClose={() => setManaging(null)}
+                />
+              ) : null}
             </>
           )}
         </Panel>
+        <AdminNpcTelemetryPanel />
       </div>
     </GameLayout>
   );

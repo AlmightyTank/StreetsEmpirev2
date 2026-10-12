@@ -41,6 +41,7 @@ const SOURCE_NAMES: Record<CaseSourceDto, string> = {
   STING: 'Internal Affairs sting',
   FEDERAL: 'Federal case moved',
   ADMIN: 'Corrected by staff',
+  SEIZURE: 'Lane load searched',
 };
 
 const OFFICIAL_TITLES: Record<string, string> = {

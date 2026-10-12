@@ -1,17 +1,20 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, Navigate } from 'react-router-dom';
-import type { DistrictDto, ScoutResult } from '@streets/shared';
+import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import type { DistrictDto, RandomEncounterChoiceResult, ScoutResult } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
 import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { CityDistrictMap, type CityDistrictMapEntry } from '../components/CityDistrictMap.js';
 import { DistrictPicker } from '../components/DistrictPicker.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { HeatNotice } from '../components/HeatPanel.js';
+import { CrewTeamPicker } from '../components/CrewTeamPicker.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { scoutReceiptLines } from '../receipts/actionReceipts.js';
@@ -44,12 +47,17 @@ function coverageTone(district: DistrictDto | undefined): 'good' | 'warn' | 'bad
 
 export function ScoutPage() {
   const me = useSession((s) => s.me);
+  const [searchParams] = useSearchParams();
+  const requestedDistrict = searchParams.get('district') ?? '';
   const action = useGameAction<ScoutResult>();
+  const encounterAction = useGameAction<RandomEncounterChoiceResult>();
 
   const [districts, setDistricts] = useState<DistrictDto[]>([]);
-  const [district, setDistrict] = useState<string>('');
-  const [turns, setTurns] = useState<number | ''>(13);
+  // The block and the turns come back next time; a block that is gone falls back below.
+  const [district, setDistrict] = useRememberedState<string>(rememberedKey('scout.district', me?.id), '', { accept: isString });
+  const [turns, setTurns] = useRememberedState<number | ''>(rememberedKey('scout.turns', me?.id), 13, { accept: isTurns });
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [scoutTeam, setScoutTeam] = useState<string[]>([]);
 
   // Refetched whenever the crew changes, because the visible coverage on offer
   // depends on how many people and armed fit thugs the player has available.
@@ -60,10 +68,13 @@ export function ScoutPage() {
       .districts()
       .then((response) => {
         setDistricts(response.districts);
-        setDistrict((current) => current || response.districts[0]?.key || '');
+        setDistrict((current) => {
+          if (response.districts.some((row) => row.key === requestedDistrict)) return requestedDistrict;
+          return current && response.districts.some((row) => row.key === current) ? current : response.districts[0]?.key || '';
+        });
       })
       .catch(() => setLoadError('Could not load the districts. Try again in a moment.'));
-  }, [crewSize]);
+  }, [crewSize, requestedDistrict]);
 
   if (!me) return <Navigate to="/join" replace />;
 
@@ -74,6 +85,20 @@ export function ScoutPage() {
   const districtTone = coverageTone(selectedDistrict);
   const chosenTurns = typeof turns === 'number' ? turns : 0;
   const remainingTurns = Math.max(0, available - chosenTurns);
+  const mapDistricts = districts.map((entry): CityDistrictMapEntry => {
+    if (entry.districtAccess?.unlocked === false) {
+      return { district: entry.key, name: entry.name, status: 'locked', statusText: 'Locked', detail: `Unlock with ${entry.districtAccess.unlockName}` };
+    }
+    const exposure = Math.round(entry.exposedFraction * 100);
+    const tone = coverageTone(entry);
+    return {
+      district: entry.key,
+      name: entry.name,
+      status: tone === 'good' ? 'coverage-covered' : tone === 'warn' ? 'coverage-warn' : 'coverage-bad',
+      statusText: exposure === 0 ? 'Covered' : `${exposure}% exposed`,
+      detail: `${100 - exposure}% crew covered`,
+    };
+  });
   const supplyJobs = district
     ? [{ job: district, label: selectedDistrict?.name ?? 'This district' }]
     : [];
@@ -81,6 +106,7 @@ export function ScoutPage() {
   const canScout =
     !action.busy &&
     district !== '' &&
+    selectedDistrict?.districtAccess?.unlocked !== false &&
     typeof turns === 'number' &&
     turns >= 1 &&
     turns <= available;
@@ -89,6 +115,8 @@ export function ScoutPage() {
     ? 'Your crew is still out on the last job.'
     : district === ''
       ? 'Pick a district to work first.'
+      : selectedDistrict?.districtAccess?.unlocked === false
+        ? `Complete ${selectedDistrict.districtAccess.unlockQuest?.title ?? 'the required quest'} to unlock this district.`
       : typeof turns !== 'number' || turns < 1
         ? 'Say how many turns to spend - at least one.'
         : turns > available
@@ -96,12 +124,20 @@ export function ScoutPage() {
           : null;
 
   const receiptLines = action.result ? scoutReceiptLines(action.result, me) : null;
+  const pendingEncounter = action.result?.result.encounter?.status === 'PENDING' && action.result.result.encounter.id && action.result.result.encounter.choices?.length
+    ? action.result.result.encounter
+    : null;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!canScout || typeof turns !== 'number') return;
 
-    await action.run((actionId) => actionsApi.scout({ district, turns, actionId }));
+    await action.run((actionId) => actionsApi.scout({ district, turns, ...(scoutTeam.length ? { crewMemberIds: scoutTeam } : {}), actionId }));
+  }
+
+  async function resolveEncounter(choice: string) {
+    if (!pendingEncounter?.id) return;
+    await encounterAction.run((actionId) => actionsApi.resolveEncounter(pendingEncounter.id!, { choice, actionId }));
   }
 
   return (
@@ -109,10 +145,10 @@ export function ScoutPage() {
       <div className="se-scout">
         <header className="se-scout-hero">
           <div className="se-scout-hero__copy">
-            <span className="se-eyebrow">Street operation · {me.city.name}</span>
-            <h1>Scout the streets</h1>
+            <span className="se-eyebrow">Scout operation · {me.city.name}</span>
+            <h1>Street Intel</h1>
             <p>
-              Pick the block, choose how long to work it, and make sure the crew has enough cover and supply before you burn the turns.
+              Read the block before you send the crew. Check their cover, plan the trip, then bring back whatever the street reveals.
             </p>
           </div>
         </header>
@@ -120,21 +156,49 @@ export function ScoutPage() {
         {loadError ? <Alert>{loadError}</Alert> : null}
         {action.error ? <Alert>{action.error}</Alert> : null}
 
+        <details className="se-scout-map-details" open>
+          <summary>
+            <span><span className="se-eyebrow">City overview · {me.city.name}</span><strong>District map</strong></span>
+            <span>{selectedDistrict?.name ?? 'Choose an area'} · {coveredPercent}% covered</span>
+          </summary>
+          <div className="se-citymap-layout">
+            <CityDistrictMap
+              citySlug={me.city.slug}
+              cityName={me.city.name}
+              districts={mapDistricts}
+              selectedDistrict={district}
+              onSelect={setDistrict}
+              disabled={action.busy}
+            />
+            <aside className="se-citymap-brief" aria-label="Scout map coverage summary">
+              <div className="se-citymap-brief__control">
+                <span className="se-eyebrow">Current field read</span>
+                <strong>{selectedDistrict?.name ?? 'Pick a district'}</strong>
+                <span>{selectedDistrict ? `${coveredPercent}% crew covered · ${exposurePercent}% exposed` : 'Choose an area to see crew coverage.'}</span>
+              </div>
+              <div className="se-citymap-brief__legend" aria-label="Scout coverage legend">
+                <span><i className="se-citymap__legend-dot se-citymap__legend-dot--mine" />Covered</span>
+                <span><i className="se-citymap__legend-dot se-citymap__legend-dot--held" />Some crew exposed</span>
+                <span><i className="se-citymap__legend-dot se-citymap__legend-dot--pressure" />High exposure</span>
+              </div>
+              <p>Map colors show how your current crew fits this district’s protection rule.</p>
+            </aside>
+          </div>
+        </details>
+
         <div className="se-scout-plan">
           <section className="se-scout-plan__main">
             <div className="se-scout-sectionhead">
               <div>
-                <span className="se-eyebrow">Where to work</span>
-                <h2>Pick a district</h2>
+                <span className="se-eyebrow">Plan a trip</span>
+                <h2>Choose your ground</h2>
               </div>
               <span className="se-scout-sectionhead__meta">
                 {selectedDistrict ? selectedDistrict.name : 'No block selected'}
               </span>
             </div>
 
-            <p className="se-scout-copy">
-              Client money and recruitment move with the streets and your crew size, so the game does not post fake rates. Choose from the protection picture you can actually see.
-            </p>
+            <p className="se-scout-copy">Pick one of the city’s five districts. Each uses its local name, while the protection picture updates for your crew.</p>
 
             <DistrictPicker
               districts={districts}
@@ -147,7 +211,7 @@ export function ScoutPage() {
           <aside className="se-scout-plan__intel">
             <div className="se-scout-sectionhead">
               <div>
-                <span className="se-eyebrow">Street read</span>
+                <span className="se-eyebrow">Field note · current conditions</span>
                 <h2>{selectedDistrict?.name ?? 'Pick a block'}</h2>
               </div>
               {selectedDistrict ? (
@@ -160,6 +224,13 @@ export function ScoutPage() {
             <p className="se-scout-intel__blurb">
               {selectedDistrict?.blurb ?? 'Choose a district to see the protection situation for your current crew.'}
             </p>
+            {selectedDistrict?.districtAccess?.unlocked === false ? (
+              <Alert>
+                <strong>{selectedDistrict.districtAccess.unlockName} required.</strong>{' '}
+                {selectedDistrict.districtAccess.unlockDescription}{' '}
+                {selectedDistrict.districtAccess.unlockQuest ? <Link to={'/game/quests?focus=' + encodeURIComponent(selectedDistrict.districtAccess.unlockQuest.key)}>View “{selectedDistrict.districtAccess.unlockQuest.title}”</Link> : null}
+              </Alert>
+            ) : null}
 
             {selectedDistrict ? (
               <>
@@ -207,10 +278,14 @@ export function ScoutPage() {
                         ? 'Some of the crew will be working without cover.'
                         : 'A large share of the crew will be exposed.'}
                   </strong>
-                  <span>
-                    Scouting still has unknown street outcomes. The receipt after the trip is where you learn what this block actually paid and who you found.
-                  </span>
+                  <span>Pay and recruits are not posted in advance. Your trip report reveals what the street actually paid and who you found.</span>
                 </div>
+                <Link
+                  className="se-scout-intel__turf-link"
+                  to={`/game/turf?city=${encodeURIComponent(me.city.slug)}&district=${encodeURIComponent(district)}`}
+                >
+                  Review this district on Turf <span aria-hidden="true">↗</span>
+                </Link>
               </>
             ) : (
               <div className="se-scout-intel__empty">District intelligence appears here.</div>
@@ -325,12 +400,40 @@ export function ScoutPage() {
             title: `${action.result.result.district.name} · ${formatNumber(action.result.result.turnsUsed)} turns`,
             chips: resultChips(action.result, receiptLines!),
             receipt: (
-              <ActionResult
-                title="Scouting Results"
-                subtitle={action.result.result.district.name}
-                result={action.result}
-                lines={receiptLines!}
-              />
+              <>
+                <ActionResult
+                  title="Scouting Results"
+                  subtitle={action.result.result.district.name}
+                  result={action.result}
+                  lines={receiptLines!}
+                />
+                {pendingEncounter ? (
+                  <Panel title={pendingEncounter.title} className="se-scout-panel">
+                    <p className="se-scout-copy">{pendingEncounter.text}</p>
+                    {encounterAction.error ? <Alert>{encounterAction.error}</Alert> : null}
+                    {encounterAction.result ? (
+                      <div className="se-scout-intel__note se-scout-intel__note--good">
+                        <strong>{encounterAction.result.result.choiceLabel}</strong>
+                        <span>{encounterAction.result.result.text}</span>
+                      </div>
+                    ) : (
+                      <div className="se-actions">
+                        {pendingEncounter.choices!.map((choice) => (
+                          <Button
+                            key={choice.key}
+                            type="button"
+                            className="se-btn se-btn--secondary"
+                            onClick={() => void resolveEncounter(choice.key)}
+                            disabledReason={encounterAction.busy ? 'Working that response...' : null}
+                          >
+                            {choice.label}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </Panel>
+                ) : null}
+              </>
             ),
             onDismiss: action.clear,
           } : null}
@@ -353,6 +456,7 @@ export function ScoutPage() {
             disabled={action.busy}
             disabledReason={action.busy ? 'Your crew is still out on the last job.' : null}
           />
+          <CrewTeamPicker role="WORKER" specialty="SCOUT" selectedIds={scoutTeam} onChange={setScoutTeam} disabled={action.busy} refreshKey={action.result} />
           <Button className="se-btn se-btn--primary" disabledReason={scoutBlock}>
             {action.busy ? 'Working the block...' : action.result ? 'Send again' : 'Send crew scouting'}
           </Button>

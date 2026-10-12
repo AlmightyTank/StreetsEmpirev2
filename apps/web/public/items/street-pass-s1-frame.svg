@@ -5,11 +5,8 @@
     <radialGradient id="bg" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#2a3140"/><stop offset="1" stop-color="#0c0e12"/></radialGradient>
   </defs>
   <g filter="url(#s)" stroke="#3a2a05" stroke-width="1.5" stroke-linejoin="round">
-    <rect x="14" y="10" width="100" height="100" rx="3" fill="url(#gd)"/>
-    <rect x="28" y="24" width="72" height="72" fill="url(#gdi)"/>
-    <rect x="33" y="29" width="62" height="62" fill="url(#bg)"/>
+    <path d="M14 10h100v100H14z M28 24v72h72V24z" fill="url(#gd)" fill-rule="evenodd"/>
   </g>
-  <path d="M64 44 a10 10 0 1 0 0.01 0 Z M44 90 Q46 68 64 66 Q82 68 84 90 Z" fill="#3a4354"/>
   <g fill="url(#gd)" stroke="#3a2a05" stroke-width="1.2">
     <path d="M14 10 L28 10 L14 24 Z M114 10 L100 10 L114 24 Z M14 110 L28 110 L14 96 Z M114 110 L100 110 L114 96 Z"/>
     <path d="M64 6 L70 12 L64 18 L58 12 Z M64 102 L70 108 L64 114 L58 108 Z M10 60 L16 54 L22 60 L16 66 Z M118 60 L112 54 L106 60 L112 66 Z"/>

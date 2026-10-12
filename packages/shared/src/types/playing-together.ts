@@ -1,5 +1,5 @@
 import type { AllianceTagDto } from './alliance.js';
-import type { QuestLinkDto, QuestLockDto } from './api.js';
+import type { QuestLinkDto, QuestLockDto, RandomEncounterDto } from './api.js';
 
 /** 0.3.0-D. Limits that keep the wire and the rolodex small. Not balance, so they live here. */
 export const WIRE_POST_MAX = 280;
@@ -331,9 +331,13 @@ export interface TurfOutpostDto {
 }
 
 export interface TurfBlockDto {
+  /** Internal block id, used when matching named crew assignments to this corner. */
+  id: string;
   city: string;
   district: 'CASINO' | 'NIGHTCLUB' | 'LOW_RENT' | 'URBAN_GHETTO' | 'WINO_SLUMS';
   districtName: string;
+  /** Quest gate for Scout and Turf actions in this district; the block stays visible. */
+  districtAccess?: { unlocked: boolean; unlockName: string; unlockDescription: string; unlockQuest: QuestLinkDto | null };
   /** Null means the block is either vacant or held by the locals; localsReclaimAt distinguishes them. */
   holder: {
     publicPimpId: number;
@@ -841,6 +845,26 @@ export interface RunDto {
   trades: RunTradeDto[];
   /** 0.5.0-C. Stops, busts and arrests so far. */
   incidents: RunIncidentDto[];
+  /** 1.6.0-C. This run is collecting a supply order: it only drives there and home. */
+  supplyPickup?: RunSupplyPickupDto;
+}
+
+/** 1.6.0-C. The supply load a pickup run is sent for, and (home) what it delivered. */
+export interface RunSupplyPickupDto {
+  id: string;
+  /** Null for a 1.6.0-F shipment between warehouses. */
+  orderId: string | null;
+  productKey: string;
+  productName: string;
+  supplierName: string;
+  quantity: number;
+  tripNumber: number;
+  tripCount: number;
+  status: 'PLANNED' | 'IN_TRANSIT' | 'DELIVERED' | 'FAILED' | 'CANCELLED';
+  deliveredQuantity: number;
+  /** 1.6.0-D. Where the load comes off: home, or a warehouse on the way. */
+  destinationCitySlug: string;
+  destinationCityName: string;
 }
 
 /** 0.5.0-C. What went wrong on a run. */
@@ -892,6 +916,8 @@ export interface RunReceiptDto {
   hotelCents: number;
   trades: RunTradeDto[];
   incidents: RunIncidentDto[];
+  /** 1.6.0-C. The supply load, when this was a pickup run. */
+  supplyPickup?: RunSupplyPickupDto;
 }
 
 /** 0.5.0-B. GET /api/game/travel: the map, what the crew knows, and the run. */
@@ -1280,6 +1306,8 @@ export interface RunLaunchResult {
   marketCents: number;
   /** Trips B. The boss rides with it. */
   bossAboard: boolean;
+  /** 1.6.0-F. Action-triggered road color and consequences. */
+  encounter?: RandomEncounterDto;
 }
 
 export interface RunOutpostEstablishResult {
@@ -1343,6 +1371,8 @@ export interface RunMoveResult {
   /** When it gets there; for heading home, when it is back. */
   arriveAt: string;
   turns: number;
+  /** 1.6.0-F. Action-triggered road color and consequences. */
+  encounter?: RandomEncounterDto;
 }
 
 // --- 0.5.0-E convoys --------------------------------------------------------------

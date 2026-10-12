@@ -161,6 +161,15 @@ inside the beta game to active accounts that have linked Discord. The beta bot
 mirrors those accounts as `Beta Tester` when `DISCORD_ROLE_SYNC_MODE` is
 `beta-tester-only`; no other game roles are managed.
 
+## Sportsbook odds cache
+
+The beta API persists TheRundown's pregame snapshots in
+`.runtime/sportsbook-odds.json` inside the beta checkout. The odds refresh is
+limited to one provider poll per 30 minutes from the latest cache file update.
+Scheduled and admin-triggered pulls share this cooldown; an admin pull within the
+window reports the next eligible refresh time without refreshing odds from TheRundown. The
+PostgreSQL sportsbook tables remain the transactional board and ticket store.
+
 ## 3. Create the beta PostgreSQL database
 
 Use the same PostgreSQL server as production, but create a completely different

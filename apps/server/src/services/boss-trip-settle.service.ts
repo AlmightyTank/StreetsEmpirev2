@@ -24,6 +24,7 @@ import { CombatRecoveryService } from './combat-recovery.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { totalAwayWorth } from './run-settle.service.js';
 import { LawOfficialService } from './law-official.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -252,14 +253,30 @@ export const BossTripSettleService = {
     if (trip.returnsAt.getTime() > now.getTime()) return;
     await tx.bossTrip.update({ where: { id: trip.id }, data: { status: 'RETURNED', returnedAt: trip.returnsAt } });
     const awayNetWorthCents = await totalAwayWorth(tx, roundPlayerId, ruleset);
+    const recovery = ruleset.combat?.wounds.recoveryMinutes ?? 0;
+    const recoverAt = trip.woundedBodyguards > 0 && trip.lastHitAt
+      ? new Date(trip.lastHitAt.getTime() + recovery * 60_000)
+      : null;
+    await CrewRosterService.completeTravelMembers(tx, {
+      roundPlayerId,
+      ruleset,
+      kind: 'BODYGUARD',
+      assignmentRef: trip.id,
+      wounded: trip.woundedBodyguards,
+      recoverAt,
+      at: trip.returnsAt,
+      label: `Returned from ${cityName(ruleset, trip.city)} bodyguard duty`,
+    });
     // Trips D: the bodyguards come home with the boss; the rented guns stay with Tommy's people.
     await tx.roundPlayer.update({
       where: { id: roundPlayerId },
-      data: { cashCents: { increment: trip.bankrollCents }, thugs: { increment: trip.bodyguards }, awayNetWorthCents },
+      data: {
+        cashCents: { increment: trip.bankrollCents },
+        thugs: { increment: trip.bodyguards },
+        awayNetWorthCents,
+      },
     });
-    const recovery = ruleset.combat?.wounds.recoveryMinutes ?? 0;
-    if (trip.woundedBodyguards > 0 && trip.lastHitAt) {
-      const recoverAt = new Date(trip.lastHitAt.getTime() + recovery * 60_000);
+    if (trip.woundedBodyguards > 0 && recoverAt) {
       if (recoverAt > trip.returnsAt) await CombatRecoveryService.add(tx, roundPlayerId, null, trip.woundedBodyguards, recoverAt);
     }
     await ActivityService.log(tx, roundPlayerId, 'TRIP_RETURNED', {

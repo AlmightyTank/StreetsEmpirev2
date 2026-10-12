@@ -15,6 +15,7 @@ import type {
   PublicSearchDto,
   PublicStatsDto,
   PublicStatusDto,
+  PublicSupportersDto,
   PublicTurfDto,
 } from '@streets/shared';
 
@@ -61,4 +62,5 @@ export const publicSiteApi = {
   search: (query: string) =>
     get<PublicSearchDto>(`/api/public/search?q=${encodeURIComponent(query)}`),
   status: () => get<PublicStatusDto>('/api/public/status'),
+  supporters: () => get<PublicSupportersDto>('/api/public/supporters'),
 };

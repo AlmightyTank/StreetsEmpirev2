@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, type AdminGrantItem, type AdminPlayerDto, type AdminPlayerStoresDto, type AdminQuestContentDto, type AdminVoidBattleResultDto, type BattleReportDto } from '@streets/shared';
+import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, type AdminCrewPlayerDto, type AdminGrantItem, type AdminPlayerDto, type AdminPlayerStoresDto, type AdminQuestContentDto, type AdminVoidBattleResultDto, type BattleReportDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
+import { AdminUnlocksPanel } from '../components/AdminUnlocksPanel.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
@@ -39,6 +40,7 @@ export function AdminPlayerPage() {
   const { roundPlayerId = '' } = useParams();
   const [player, setPlayer] = useState<AdminPlayerDto | null>(null);
   const [stores, setStores] = useState<AdminPlayerStoresDto | null>(null);
+  const [crew, setCrew] = useState<AdminCrewPlayerDto | null>(null);
   useEffect(() => {
     if (!roundPlayerId) return;
     adminApi.playerStores(roundPlayerId).then(setStores).catch(() => setStores(null));
@@ -72,15 +74,29 @@ export function AdminPlayerPage() {
   const [vehicleCounts, setVehicleCounts] = useState<{ ready: string; damaged: string; disabled: string }>({ ready: '', damaged: '', disabled: '' });
   const [vehicleReason, setVehicleReason] = useState('');
   const [vehicleFields, setVehicleFields] = useState<Record<string, string>>({});
+  const [crewMemberId, setCrewMemberId] = useState('');
+  const [crewExperience, setCrewExperience] = useState('');
+  const [crewSpecialty, setCrewSpecialty] = useState('GENERALIST');
+  const [crewSpecialtyExperience, setCrewSpecialtyExperience] = useState('');
+  const [crewReason, setCrewReason] = useState('');
 
   const load = useCallback(async () => {
     try {
       const inspected = await adminApi.player(roundPlayerId);
-      const [battles, content] = await Promise.all([
+      const [battles, content, roster] = await Promise.all([
         adminApi.playerBattles(roundPlayerId),
         adminApi.questContent(inspected.round.id),
+        adminApi.playerCrew(roundPlayerId),
       ]);
       setPlayer(inspected);
+      setCrew(roster);
+      const firstMember = roster.members[0];
+      setCrewMemberId(firstMember?.id ?? '');
+      if (firstMember) {
+        setCrewExperience(String(firstMember.experiencePoints));
+        setCrewSpecialty(firstMember.specialty);
+        setCrewSpecialtyExperience(String(firstMember.specialtyExperiencePoints));
+      }
       setFactionKey((current) => current || inspected.factions[0]?.factionKey || '');
       // 1.5.0-E: the fleet form opens on the Low-Riders at home.
       const lowRiders = inspected.fleet?.classes.find((row) => row.classId === 'LOW_RIDER');
@@ -307,6 +323,34 @@ export function AdminPlayerPage() {
     }
   }
 
+  async function correctCrewCareer(event: FormEvent) {
+    event.preventDefault();
+    const experiencePoints = Number(crewExperience);
+    const specialtyExperiencePoints = Number(crewSpecialtyExperience);
+    const member = crew?.members.find((row) => row.id === crewMemberId);
+    setError(null);
+    setNotice(null);
+    if (!member || !Number.isSafeInteger(experiencePoints) || experiencePoints < 0 || !Number.isSafeInteger(specialtyExperiencePoints) || specialtyExperiencePoints < 0 || crewReason.trim().length < 5) {
+      setError('Choose a crew member, enter whole experience values of zero or more, and give a reason of at least 5 characters.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await adminApi.correctPlayerCrew(roundPlayerId, member.id, { experiencePoints, specialty: crewSpecialty as 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE', specialtyExperiencePoints, reason: crewReason.trim() });
+      setCrewReason('');
+      setNotice('Crew career corrected. The member history and admin audit log record the change.');
+      try {
+        setCrew(await adminApi.playerCrew(roundPlayerId));
+      } catch {
+        // The correction succeeded; a read refresh failure should not imply otherwise.
+      }
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'That crew career correction did not go through.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!player) {
     return (
       <GameLayout>
@@ -481,6 +525,8 @@ export function AdminPlayerPage() {
         </Panel>
       </div>
 
+      <AdminUnlocksPanel player={player} onUpdated={(updated, message) => void refreshSupport(updated, message)} />
+
       {player.factions.length ? (
         <Panel title="Faction standing correction" aside={<Link to={`/game/admin/audit?targetType=player-faction-standing`}>Audit log</Link>} className="se-mb">
           {!player.live ? (
@@ -581,6 +627,47 @@ export function AdminPlayerPage() {
               >
                 Correct fleet
               </Button>
+            </form>
+          )}
+        </Panel>
+      ) : null}
+
+      {crew?.enabled ? (
+        <Panel title="Crew career correction" aside={<Link to={`/game/admin/audit?targetType=crew-member`}>Audit log</Link>} className="se-mb">
+          {!player.live ? <p className="se-hint">This round has finished, so crew careers are frozen.</p> : !crew.members.length ? (
+            <p className="se-hint">No roster members have been created for this player yet. The roster health view does not migrate players as a side effect.</p>
+          ) : (
+            <form onSubmit={correctCrewCareer} noValidate>
+              <div className="se-grid se-grid--2">
+                <div className="se-field">
+                  <label className="se-label" htmlFor="admin-crew-member">Member</label>
+                  <select id="admin-crew-member" className="se-input" value={crewMemberId} onChange={(event) => {
+                    const selected = crew.members.find((row) => row.id === event.target.value);
+                    setCrewMemberId(event.target.value);
+                    if (selected) {
+                      setCrewExperience(String(selected.experiencePoints));
+                      setCrewSpecialty(selected.specialty);
+                      setCrewSpecialtyExperience(String(selected.specialtyExperiencePoints));
+                    }
+                  }}>
+                    {crew.members.map((row) => <option key={row.id} value={row.id}>{row.name} · {row.role} · {row.status} · {row.experiencePoints} XP</option>)}
+                  </select>
+                </div>
+                <Field id="admin-crew-xp" label="Career experience" type="number" min={0} max={1_000_000} step={1} value={crewExperience} onChange={(event) => setCrewExperience(event.target.value)} />
+                <div className="se-field">
+                  <label className="se-label" htmlFor="admin-crew-specialty">Specialty</label>
+                  <select id="admin-crew-specialty" className="se-input" value={crewSpecialty} onChange={(event) => setCrewSpecialty(event.target.value)}>
+                    {['GENERALIST', 'ENFORCER', 'WHEELMAN', 'SCOUT', 'DEALER', 'SERVICE'].map((value) => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                </div>
+                <Field id="admin-crew-specialty-xp" label="Specialty experience" type="number" min={0} max={1_000_000} step={1} value={crewSpecialtyExperience} onChange={(event) => setCrewSpecialtyExperience(event.target.value)} />
+              </div>
+              <div className="se-field">
+                <label className="se-label" htmlFor="admin-crew-reason">Reason</label>
+                <textarea id="admin-crew-reason" className="se-input se-admin-reason" maxLength={500} value={crewReason} onChange={(event) => setCrewReason(event.target.value)} />
+                <p className="se-hint">Career values are capped at 1,000,000 XP. The correction reason is saved to the member history and admin audit log.</p>
+              </div>
+              <Button className="se-btn se-btn--primary" disabledReason={busy ? working : crewReason.trim().length < 5 ? 'Give a reason of at least 5 characters.' : null}>Correct crew career</Button>
             </form>
           )}
         </Panel>

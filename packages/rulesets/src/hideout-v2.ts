@@ -419,6 +419,40 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v1.5-e': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.5-e2': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.5-e3': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 1.6 supply rulesets carry forward the same Hideout extension.
+  'classic-og-v1.6-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.6-b': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.6-c': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.6-d': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.6-e': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.6-f': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.6-g': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.6-h': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 1.6.5 loan shark rulesets carry it forward too.
+  'classic-og-v1.6.5-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.6.5-b': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.6.5-c': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.6.5-e': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.6.5-e2': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.6.5-g': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 1.7.0 crew roster rulesets carry it forward too.
+  'classic-og-v1.7-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.7-b': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.7-c': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.7-d': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.7-e': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 1.8.0 sportsbook ruleset carries it forward too.
+  'classic-og-v1.8-e': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.8-f': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.8-g': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.8-h': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.8-i': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.8-j': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.8-k': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.8-l': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.8-m': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.8-n': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.8-o': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */

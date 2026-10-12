@@ -50,7 +50,7 @@ export function YourDataPanel() {
         <p className="se-muted">
           Deleting is permanent. Your email, sign-in details, profile and settings are erased. If you played a season,
           your results stay in the history as "Deleted Player"; if you never played, the account is removed entirely.
-          To stop playing but keep the account, use Close account below instead.
+          A supporter subscription is cancelled with it. To stop playing but keep the account, use Close account below instead.
         </p>
         {isAdmin ? (
           <p className="se-hint">Admin accounts cannot be deleted here. Have the admin role removed first.</p>

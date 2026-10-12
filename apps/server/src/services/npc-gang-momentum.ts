@@ -15,6 +15,9 @@ export interface NpcFight {
   cashCents: number;
   /** The other side is a human crew. */
   human: boolean;
+  /** Phase M. Who was on the other side, and what kind of hit it was. */
+  opponent: string;
+  kind: string;
   at: Date;
 }
 
@@ -77,6 +80,10 @@ function wonFromReport(report: Prisma.JsonValue): { won: boolean; cashCents: num
   return { won: report.won, cashCents: typeof report.cashChangeCents === 'number' ? report.cashChangeCents : 0 };
 }
 
+function reportKind(report: Prisma.JsonValue): string | null {
+  return report && typeof report === 'object' && !Array.isArray(report) && typeof report.kind === 'string' ? report.kind : null;
+}
+
 /** The gang's fights since `since`, from its own side. */
 export async function loadNpcFights(prisma: PrismaClient, roundPlayerId: string, since: Date): Promise<NpcFight[]> {
   const rows = await prisma.raidBattle.findMany({
@@ -84,9 +91,10 @@ export async function loadNpcFights(prisma: PrismaClient, roundPlayerId: string,
     select: {
       attackerId: true,
       attackerReport: true,
+      kind: true,
       createdAt: true,
-      attacker: { select: { npcGang: { select: { id: true } } } },
-      defender: { select: { npcGang: { select: { id: true } } } },
+      attacker: { select: { displayName: true, npcGang: { select: { id: true } } } },
+      defender: { select: { displayName: true, npcGang: { select: { id: true } } } },
     },
     orderBy: { createdAt: 'desc' },
     take: 100,
@@ -100,6 +108,8 @@ export async function loadNpcFights(prisma: PrismaClient, roundPlayerId: string,
       won: attacker ? result.won : !result.won,
       cashCents: attacker ? Math.max(0, result.cashCents) : 0,
       human: attacker ? !row.defender.npcGang : !row.attacker.npcGang,
+      opponent: attacker ? row.defender.displayName : row.attacker.displayName,
+      kind: reportKind(row.attackerReport) ?? row.kind,
       at: row.createdAt,
     }];
   });

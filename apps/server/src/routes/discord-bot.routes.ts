@@ -1,8 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { BUG_REPORT_REPLY_MAX, BUG_REPORT_RESOLUTIONS, bugReportSchema } from '@streets/shared';
 import { env } from '../config/env.js';
 import { botTokenMatches, DiscordBotService } from '../services/discord-bot.service.js';
 import { claimResyncRequests } from '../services/discord-resync.service.js';
+import { AdminModerationService } from '../services/admin-moderation.service.js';
+import { DiscordStaffService, staffMessageReport } from '../services/discord-staff.service.js';
+import { SupportTicketService } from '../services/support-ticket.service.js';
+import { BugReportService } from '../services/support.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -29,6 +34,35 @@ const newsSchema = z.object({
 }).strict();
 
 const newsParams = z.object({ newsId: z.string().min(1).max(64) }).strict();
+const bugReportFromDiscordSchema = z.object({
+  discordId: snowflake,
+  report: bugReportSchema.omit({ pagePath: true }),
+}).strict();
+const bugReportParams = z.object({ reportId: z.string().min(1).max(64) }).strict();
+const resolveFromDiscordSchema = z.object({
+  discordId: snowflake,
+  resolution: z.enum(BUG_REPORT_RESOLUTIONS),
+  note: z.string().trim().min(5, 'Write a staff note of at least 5 characters.').max(500),
+  playerReply: z.string().trim().max(BUG_REPORT_REPLY_MAX).optional(),
+}).strict();
+const messageReportParams = z.object({ reportId: z.string().min(1).max(64) }).strict();
+const messageReportActionSchema = z.object({
+  discordId: snowflake,
+  action: z.enum(['mute-1d', 'dismiss']),
+  note: z.string().trim().min(5, 'Write a note of at least 5 characters.').max(500),
+}).strict();
+const staffPostParams = z.object({ postId: z.string().min(1).max(64) }).strict();
+const roundPostParams = z.object({ roundId: z.string().min(1).max(64) }).strict();
+const staffClaimSchema = z.object({ audience: z.enum(['staff', 'status']).optional() }).strict();
+const ticketParams = z.object({ ticketId: z.string().min(1).max(64) }).strict();
+const openTicketSchema = z.object({
+  discordId: snowflake,
+  discordName: z.string().trim().min(1).max(100),
+  subject: z.string().trim().min(5, 'Say what you need help with in a few words.').max(80),
+}).strict();
+const attachTicketSchema = z.object({ threadId: snowflake, staffMessageId: snowflake.nullable() }).strict();
+const closeTicketSchema = z.object({ discordId: snowflake, name: z.string().trim().min(1).max(100) }).strict();
+const staffPostedSchema = z.object({ messageId: snowflake }).strict();
 const newsFailedSchema = z.object({ error: z.string().trim().min(1).max(500) }).strict();
 const alertsClaimSchema = z.object({ feed: z.boolean().optional() }).strict();
 const newsStatusSchema = z.object({
@@ -102,6 +136,70 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/news/claim', async () => ({ news: await DiscordBotService.claimNews(fastify.prisma) }));
 
+  /** /bug: a report from the member's linked account, with the game form's hourly limit. */
+  fastify.post('/bug-reports', async (request, reply) => {
+    const { discordId, report } = parseBody(bugReportFromDiscordSchema, request.body);
+    return reply.status(201).send(await BugReportService.createFromDiscord(fastify.prisma, discordId, report));
+  });
+
+  /** A staff button: the member must be a linked game admin. */
+  fastify.post('/bug-reports/:reportId/resolve', async (request) => {
+    const { reportId } = parseBody(bugReportParams, request.params);
+    const { discordId, ...input } = parseBody(resolveFromDiscordSchema, request.body);
+    return { report: await BugReportService.resolveFromDiscord(fastify.prisma, discordId, reportId, input) };
+  });
+
+  /** A staff button on a message report: mute the sender for a day, or dismiss. Linked game admins only. */
+  fastify.post('/message-reports/:reportId/act', async (request) => {
+    const { reportId } = parseBody(messageReportParams, request.params);
+    const { discordId, action, note } = parseBody(messageReportActionSchema, request.body);
+    await AdminModerationService.actFromDiscord(fastify.prisma, discordId, reportId, action, note);
+    return { report: await staffMessageReport(fastify.prisma, reportId) };
+  });
+
+  /** Whether a member may use staff buttons: a linked, active game admin. */
+  fastify.get('/staff', async (request) => {
+    const { discordId } = parseBody(memberQuery, request.query);
+    return { admin: await SupportTicketService.isStaff(fastify.prisma, discordId) };
+  });
+
+  /** /support: their open ticket, or a new one with staff-only context for the staff channel. */
+  fastify.post('/support-tickets', async (request) => SupportTicketService.open(fastify.prisma, parseBody(openTicketSchema, request.body)));
+
+  fastify.post('/support-tickets/:ticketId/attach', async (request) => {
+    const { ticketId } = parseBody(ticketParams, request.params);
+    await SupportTicketService.attach(fastify.prisma, ticketId, parseBody(attachTicketSchema, request.body));
+    return { ok: true };
+  });
+
+  fastify.post('/support-tickets/:ticketId/abandon', async (request) => {
+    const { ticketId } = parseBody(ticketParams, request.params);
+    await SupportTicketService.abandon(fastify.prisma, ticketId);
+    return { ok: true };
+  });
+
+  fastify.post('/support-tickets/:ticketId/close', async (request) => {
+    const { ticketId } = parseBody(ticketParams, request.params);
+    return { ticket: await SupportTicketService.close(fastify.prisma, ticketId, parseBody(closeTicketSchema, request.body)) };
+  });
+
+  /** Staff channel posts, claimed once like news. */
+  fastify.post('/staff-posts/claim', async (request) => ({
+    posts: await DiscordStaffService.claim(fastify.prisma, new Date(), 10, parseBody(staffClaimSchema, request.body ?? {}).audience),
+  }));
+
+  fastify.post('/staff-posts/:postId/posted', async (request) => {
+    const { postId } = parseBody(staffPostParams, request.params);
+    await DiscordStaffService.posted(fastify.prisma, postId, parseBody(staffPostedSchema, request.body).messageId);
+    return { ok: true };
+  });
+
+  fastify.post('/staff-posts/:postId/failed', async (request) => {
+    const { postId } = parseBody(staffPostParams, request.params);
+    await DiscordStaffService.failed(fastify.prisma, postId, parseBody(newsFailedSchema, request.body ?? {}).error);
+    return { ok: true };
+  });
+
   fastify.post('/news/:newsId/failed', async (request) => {
     const { newsId } = parseBody(newsParams, request.params);
     const { error } = parseBody(newsFailedSchema, request.body ?? {});
@@ -127,6 +225,23 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
   // Bots from before the raid-feed check send no body, and always had their feed claimed.
   fastify.post('/alerts/claim', async (request) =>
     DiscordBotService.claimAlerts(fastify.prisma, parseBody(alertsClaimSchema, request.body ?? {})));
+
+  fastify.post('/round-posts/:roundId/posted', async (request) => {
+    const { roundId } = parseBody(roundPostParams, request.params);
+    await DiscordBotService.roundPostPosted(fastify.prisma, roundId, parseBody(staffPostedSchema, request.body).messageId);
+    return { ok: true };
+  });
+
+  fastify.post('/round-posts/claim', async () => ({
+    rounds: await DiscordBotService.claimRoundPosts(fastify.prisma),
+  }));
+
+  fastify.post('/round-posts/:roundId/failed', async (request) => {
+    const { roundId } = parseBody(roundPostParams, request.params);
+    const { error } = parseBody(newsFailedSchema, request.body ?? {});
+    await DiscordBotService.roundPostFailed(fastify.prisma, roundId, error);
+    return { ok: true };
+  });
 
   /** 0.3.0-B: role resyncs an admin asked for from the panel, each handed out once. */
   fastify.post('/resync/claim', async () => claimResyncRequests(fastify.prisma));

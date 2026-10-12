@@ -49,12 +49,15 @@ import { EconomyLedgerService } from './economy-ledger.service.js';
 import { turfRevengeByAttacker } from './turf-revenge.service.js';
 import { endTurfHold } from './turf-history.service.js';
 import { FactionService } from './faction.service.js';
+import { CrewRosterService } from './crew-roster.service.js';
 import {
   controlFromRows,
   recordTerritoryControlChange,
   territoryControlForCity,
   type CityControl,
 } from './turf-territory.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
+import { fitThugs } from './crew-availability.js';
 
 type TurfDb = PrismaClient | Db;
 const TIER_NAME = { FOOTHOLD: 'a Foothold', ESTABLISHED: 'Established', STRONGHOLD: 'a Stronghold' } as const;
@@ -94,8 +97,8 @@ export function localsReclaimAt(ruleset: Ruleset, releasedAt: Date): Date {
 }
 function utcDay(now: Date): Date { return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())); }
 function holdingOn(ruleset: Ruleset): boolean { return ruleset.turf?.holding === true; }
-function homeFit(player: { thugs: number; woundedThugs: number; busyThugs: number; postedThugs: number; businessThugs?: number }): number {
-  return Math.max(0, player.thugs - player.woundedThugs - player.busyThugs - player.postedThugs - (player.businessThugs ?? 0));
+function homeFit(player: { thugs: number; woundedThugs: number; busyThugs: number; postedThugs: number; businessThugs?: number; dealerThugs?: number }): number {
+  return fitThugs(player);
 }
 function gunCount(guns: CornerGuns): number { return guns.pistols + guns.shotguns + guns.tek9s + guns.ak47s; }
 
@@ -696,13 +699,14 @@ export const TurfService = {
     const player = await db.roundPlayer.findUniqueOrThrow({
       where: { id: roundPlayerId },
       select: {
-        id: true, roundId: true, cityId: true, thugs: true, woundedThugs: true, busyThugs: true, postedThugs: true, businessThugs: true,
+        id: true, roundId: true, cityId: true, thugs: true, woundedThugs: true, busyThugs: true, postedThugs: true, businessThugs: true, dealerThugs: true,
         pistols: true, shotguns: true, tek9s: true, ak47s: true, allianceId: true, allianceJoinedAt: true,
         lockedUntil: true, movingUntil: true, hideoutLookoutsLevel: true, racketEffects: true,
         launderedDay: true, launderedHeatToday: true, launderedHeatRound: true,
       },
     });
     await TurfService.ensureRound(db, player.roundId, ruleset);
+    const accessByDistrict = await PermanentUnlockService.districtAccess(db, roundPlayerId, ruleset);
     const business = businessRules(ruleset);
     const building = buildingOn(ruleset);
     const [rows, presenceRows, activeRun, pendingPushes, myRecentPushes, recentFights, revengeByAttacker, businessRows] = await Promise.all([
@@ -940,8 +944,9 @@ export const TurfService = {
           })
         : null;
       const tier = tierKey ? { tier: tierKey, lotsOpen: lotsOpen(ruleset, tierKey) } : null;
+      const cornerWarningMinutes = isMine ? await CrewRosterService.cornerPushWarningMinutes(db as Db, player.id, row.id) : 0;
       const defenderSees = pending?.defenderId === player.id &&
-        pending.landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) * 60_000);
+        pending.landsAt <= new Date(now.getTime() + (headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) + cornerWarningMinutes) * 60_000);
       const allySees = Boolean(
         pending?.alliesCalledAt &&
         player.allianceId &&
@@ -996,8 +1001,10 @@ export const TurfService = {
         return null;
       };
 
+      const districtGate = accessByDistrict.get(row.district as DistrictKey);
       blocks.push({
-        city: citySlug, district, districtName: districtName(ruleset, citySlug, row.district),
+        id: row.id, city: citySlug, district, districtName: districtName(ruleset, citySlug, row.district),
+        ...(districtGate ? { districtAccess: { unlocked: districtGate.unlocked, unlockName: districtGate.unlock.name, unlockDescription: districtGate.unlock.description, unlockQuest: PermanentUnlockService.questFor(ruleset, districtGate.unlock.key) } } : {}),
         holder: row.holder ? {
           publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName,
           alliance: row.holder.alliance ? { name: row.holder.alliance.name, tag: row.holder.alliance.tag } : null,

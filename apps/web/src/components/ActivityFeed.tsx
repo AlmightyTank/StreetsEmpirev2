@@ -64,6 +64,15 @@ function productMovementSummary(value: unknown): string[] {
   });
 }
 
+const AFTERMATH_REWARD_LABELS: Record<string, string> = {
+  NATIONAL_TOP_10: 'national top 10',
+  WEALTH_KING: 'Wealth King',
+  TURF_WARLORD: 'Turf Warlord',
+  CREW_COMMANDER: 'Crew Commander',
+  BUSINESS_TYCOON: 'Business Tycoon',
+  ROUND_CHAMPION: 'Round Champion',
+};
+
 /** The opponent as the feed names them: "[WC] Iron Maya", or just the name for solo players and older entries. */
 function opponent(p: Record<string, unknown>, fallback = ''): string {
   const name = str(p.opponent, fallback);
@@ -115,6 +124,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         num(p.thugsLured) ? `${formatNumber(num(p.thugsLured))} thugs lured` : null,
         num(p.beerSpent) ? `${formatNumber(num(p.beerSpent))} beer spent` : null,
         num(p.wounds) ? `${formatNumber(num(p.wounds))} wounded` : null,
+        num(p.npcBounty) ? `+${formatCents(num(p.npcBounty))} bounty` : null,
       ].filter(Boolean).join(' · ');
       return {
         text: attacking
@@ -135,6 +145,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           num(p.whoresKilled) ? `${formatNumber(num(p.whoresKilled))} ${attacking ? 'of their' : 'of your'} whores killed` : null,
           num(p.wounds) ? `${formatNumber(num(p.wounds))} of yours wounded` : null,
           num(p.opponentWounds) ? `${formatNumber(num(p.opponentWounds))} of theirs wounded` : null,
+          num(p.npcBounty) ? `+${formatCents(num(p.npcBounty))} bounty` : null,
           num(p.lowRidersLost) ? `${formatNumber(num(p.lowRidersLost))} Low-Rider${num(p.lowRidersLost) === 1 ? '' : 's'} lost` : null,
         ].filter(Boolean).join(' · '),
       };
@@ -149,11 +160,19 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         text: `Recon on ${str(p.target)}.`,
         detail: `${formatNumber(num(p.turns))} turns · intel expires ${str(p.expiresAt) ? formatWhen(str(p.expiresAt)) : 'soon'}`,
       };
-    case 'ROUND_JOINED':
+    case 'ROUND_JOINED': {
+      const rewardCents = num(p.aftermathRewardCents);
+      const rewardQualifications = Array.isArray(p.aftermathRewardQualifications)
+        ? p.aftermathRewardQualifications.flatMap((qualification) => {
+          const label = typeof qualification === 'string' ? AFTERMATH_REWARD_LABELS[qualification] : undefined;
+          return label ? [label] : [];
+        })
+        : [];
       return {
         text: `Entered ${str(p.roundName, 'the round')} as #${num(p.publicPimpId)}.`,
-        detail: `${formatCents(num(p.startingCashCents))}, ${formatNumber(num(p.startingTurns))} turns, ${str(p.city)}`,
+        detail: `${formatCents(num(p.startingCashCents) + rewardCents)}, ${formatNumber(num(p.startingTurns))} turns, ${str(p.city)}${rewardCents > 0 ? ` · includes ${formatCents(rewardCents)} aftermath bonus${rewardQualifications.length ? ` (${rewardQualifications.join(', ')})` : ''}` : ''}`,
       };
+    }
 
     case 'AWAY_BONUS':
       return {
@@ -524,13 +543,29 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: 'It is on the shelf now.',
       };
 
-    case 'RUN_LAUNCHED':
+    case 'RUN_LAUNCHED': {
+      // 1.6.0-C: a pickup is a run sent for one load of a paid order.
+      const supply = p.supplyPickup && typeof p.supplyPickup === 'object' ? p.supplyPickup as Record<string, unknown> : null;
+      const encounter = p.encounter && typeof p.encounter === 'object' ? p.encounter as Record<string, unknown> : null;
       return {
-        text: p.bossAboard ? `The boss rode out with a run to ${str(p.cityName, 'another city')}.` : `Sent a run to ${str(p.cityName, 'another city')}.`,
-        detail: `${formatNumber(num(p.turns))} turns`,
+        text: supply?.shipment
+          ? `Shipped ${formatNumber(num(supply.quantity))} ${str(supply.product, 'units')} out of ${str(supply.supplier, 'your storage')}${supply.destination ? `, bound for your ${str(supply.destination)} warehouse` : ', bound for home'}.`
+          : supply
+          ? `Sent a pickup to ${str(supply.supplier, 'a supplier')} in ${str(p.cityName, 'another city')} for ${formatNumber(num(supply.quantity))} ${str(supply.product, 'units')}${supply.destination ? `, bound for your ${str(supply.destination)} warehouse` : ''}.`
+          : p.bossAboard ? `The boss rode out with a run to ${str(p.cityName, 'another city')}.` : `Sent a run to ${str(p.cityName, 'another city')}.`,
+        detail: [`${formatNumber(num(p.turns))} turns`, encounter?.title ? str(encounter.title) : null].filter(Boolean).join(' · '),
       };
+    }
 
-    case 'RUN_RETURNED':
+    case 'RUN_RETURNED': {
+      // 1.6.0-C: a pickup's load went into the stash.
+      const loads = Array.isArray(p.supplyPickups) ? (p.supplyPickups as Array<Record<string, unknown>>) : [];
+      if (loads.length) {
+        return {
+          text: `Your pickup came home from ${Array.isArray(p.cities) ? (p.cities as unknown[]).map(String).join(', ') : 'the road'}.`,
+          detail: loads.map((load) => `${formatNumber(num(load.delivered))} ${str(load.productName, 'units')} stored${num(load.lost) ? ` · ${formatNumber(num(load.lost))} lost` : ''}`).join(' · '),
+        };
+      }
       return {
         text: `${p.bossAboard ? 'The boss and your run came' : 'Your run came'} home from ${Array.isArray(p.cities) ? (p.cities as unknown[]).map(String).join(', ') : 'the road'}.`,
         detail: [
@@ -538,6 +573,75 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           p.bossAboard && num(p.hotelCents) ? `${formatCents(num(p.hotelCents))} hotel` : null,
         ].filter(Boolean).join(' · '),
       };
+    }
+
+    case 'LOAN_TAKEN':
+      // 1.6.5-D: borrowed from the loan shark.
+      return {
+        text: `Borrowed ${formatCents(num(p.principalCents))} from the loan shark (${str(p.offerName, 'loan')}).`,
+        detail: `${formatCents(num(p.obligationCents))} to pay back in ${num(p.installments)} installments · you owe ${formatCents(num(p.debtAfterCents))}`,
+      };
+
+    case 'LOAN_PAYMENT': {
+      const waived = num(p.contractFeeWaivedCents);
+      const kind = str(p.kind);
+      if (kind === 'COLLECTION') {
+        return {
+          text: `The loan shark garnished ${formatCents(num(p.paidCents))} of your income toward your overdue ${str(p.offerName, 'loan')}.`,
+          detail: [
+            num(p.garnishPercent) ? `${num(p.garnishPercent)}% of ${formatCents(num(p.incomeCents))} earned` : null,
+            num(p.lateFeeCents) ? `${formatCents(num(p.lateFeeCents))} late fees` : null,
+            `you owe ${formatCents(num(p.debtAfterCents))}`,
+          ].filter(Boolean).join(' · '),
+        };
+      }
+      const what = kind === 'SCHEDULED' ? 'The loan shark collected' : 'You paid the loan shark';
+      return {
+        text: `${what} ${formatCents(num(p.paidCents))} on your ${str(p.offerName, 'loan')}${p.paidOff ? ', paying it off' : ''}.`,
+        detail: [
+          num(p.lateFeeCents) ? `${formatCents(num(p.lateFeeCents))} late fees` : null,
+          num(p.contractFeeCents) ? `${formatCents(num(p.contractFeeCents))} fee` : null,
+          num(p.principalCents) ? `${formatCents(num(p.principalCents))} principal` : null,
+          waived ? `${formatCents(waived)} unearned fee waived` : null,
+          `you owe ${formatCents(num(p.debtAfterCents))}`,
+        ].filter(Boolean).join(' · '),
+      };
+    }
+
+    case 'LOAN_COLLECTIONS': {
+      // 1.6.5-E: into collections, out into recovery, or borrowing restored.
+      const to = str(p.to);
+      if (to === 'COLLECTIONS') {
+        return {
+          text: `You are in collections: ${num(p.missedInstallments)} missed installments.`,
+          detail: `${num(p.garnishPercent)}% of your income is garnished until everything overdue is paid · no new loans · you owe ${formatCents(num(p.debtAfterCents))}`,
+        };
+      }
+      if (to === 'RECOVERING') {
+        return {
+          text: 'Out of collections: everything overdue is paid.',
+          detail: `Pay ${num(p.recoveryNeeded)} installment${num(p.recoveryNeeded) === 1 ? '' : 's'} on time to borrow again`,
+        };
+      }
+      return { text: 'Back in good standing with the loan shark.', detail: 'You can borrow again' };
+    }
+
+    case 'LOAN_INSTALLMENT_MISSED':
+      return {
+        text: `You missed installment ${num(p.sequence)} on your ${str(p.offerName, 'loan')}${num(p.collectedCents) ? ` · ${formatCents(num(p.collectedCents))} of ${formatCents(num(p.dueCents))} collected` : ''}.`,
+        detail: `${num(p.lateFeeCents) ? `${formatCents(num(p.lateFeeCents))} late fee added` : 'No late fee: you are at the cap'} · ${formatCents(num(p.shortCents))} still overdue · you owe ${formatCents(num(p.debtAfterCents))}`,
+      };
+
+    case 'SUPPLY_LANE_ARRIVED': {
+      // 1.6.0-H: how a lane load landed.
+      const load = `${str(p.routeName, 'Lane')} load of ${formatNumber(num(p.quantity))} ${str(p.product, 'product')} from ${str(p.supplier, 'abroad')}`;
+      return {
+        text: str(p.outcome) === 'CLEAN' ? `${load} landed clean in ${str(p.cityName, 'town')}.`
+          : str(p.outcome) === 'SEIZED' ? `${load} was seized in ${str(p.cityName, 'town')}.`
+            : `${load} was searched in ${str(p.cityName, 'town')}.`,
+        detail: str(p.outcome) === 'CLEAN' ? `${formatNumber(num(p.delivered))} stored` : `${formatNumber(num(p.delivered))} stored · ${formatNumber(num(p.lost))} seized`,
+      };
+    }
 
     case 'RUN_INCIDENT':
       return {
@@ -757,6 +861,11 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     CASE_FOLLOWED: 'Federal case',
     FACTION_TIER_UP: 'Faction',
     FACTION_WARNING: 'Faction word',
+    SUPPLY_LANE_ARRIVED: 'Lane landed',
+    LOAN_TAKEN: 'Loan',
+    LOAN_PAYMENT: 'Loan payment',
+    LOAN_INSTALLMENT_MISSED: 'Missed installment',
+    LOAN_COLLECTIONS: 'Collections',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();

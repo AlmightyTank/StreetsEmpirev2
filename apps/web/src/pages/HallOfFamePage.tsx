@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { HallOfFameDto, HallOfFameRoundDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
@@ -8,6 +9,7 @@ import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { formatDate } from '../utils/time.js';
 import { AllianceTag } from '../components/AllianceTag.js';
+import { roundAftermathPublicEnabled } from '../config/features.js';
 
 function medal(rank: number): string {
   if (rank === 1) return '1st';
@@ -58,6 +60,7 @@ export function HallOfFamePage() {
             <span><small>Latest champion</small><strong>{latestChampion?.displayName ?? '—'}</strong></span>
           </div>
         </section>
+        {roundAftermathPublicEnabled ? <Link className="se-aftermath-archive-link" to="/game/round-archive">Browse, filter, and compare every archived round <span aria-hidden="true">→</span></Link> : null}
 
         <section className="se-info-section">
           <div className="se-info-sectionhead">
@@ -124,6 +127,9 @@ export function HallOfFamePage() {
                 <div><span>Ruleset</span><strong>{round.rulesetVersion}</strong></div>
                 <div><span>Window</span><strong>{seasonWindow(round)}</strong></div>
               </div>
+              {roundAftermathPublicEnabled ? <Link className="se-aftermath-archive-link" to={`/game/rounds/${encodeURIComponent(round.id)}/aftermath?view=records`}>
+                View round records & awards <span aria-hidden="true">→</span>
+              </Link> : null}
 
               {round.territory && (round.territory.crews.length || round.territory.alliances.length) ? (
                 <div className="se-mt">

@@ -63,6 +63,8 @@ export const BELL_CATEGORY_BY_ACTIVITY: Partial<Record<ActivityType, Notificatio
   CASE_FOLLOWED: 'law',
   // 1.4.0-D. Early warnings from a faction the player is Trusted with.
   FACTION_WARNING: 'factions',
+  // 1.6.0-H. A lane shipment landed, and whether it was searched.
+  SUPPLY_LANE_ARRIVED: 'orders',
 };
 
 /** Categories that have in-game bell items, and so can be muted there. */

@@ -1,6 +1,6 @@
 import { env } from '../config/env.js';
 
-export type DiscordBotWakeReason = 'alerts' | 'combat' | 'news' | 'resync';
+export type DiscordBotWakeReason = 'alerts' | 'combat' | 'news' | 'resync' | 'staff';
 
 async function sendWake(reason: DiscordBotWakeReason): Promise<boolean> {
   if (!env.discordBot.push.enabled) return false;

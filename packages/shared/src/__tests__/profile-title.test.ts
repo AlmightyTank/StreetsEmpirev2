@@ -1,15 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { formatProfileName } from '../profile-title.js';
+import { formatProfileName, profileNameParts } from '../profile-title.js';
 
 describe('formatProfileName', () => {
-  it('renders honorific titles before the name', () => {
-    expect(formatProfileName('AMightyTank', 'Sir', 'prefix')).toBe('Sir AMightyTank');
+  it('keeps honorifics before the name regardless of the saved placement', () => {
+    expect(formatProfileName('AMightyTank', 'Sir', 'suffix')).toBe('Sir AMightyTank');
     expect(formatProfileName('Datginger', 'Madam')).toBe('Madam Datginger');
   });
 
-  it('renders earned titles after the name without a redundant article', () => {
-    expect(formatProfileName('AMightyTank', 'The Quiet Ghost', 'suffix')).toBe('AMightyTank, Quiet Ghost');
-    expect(formatProfileName('Datginger', 'Road Warrior', 'suffix')).toBe('Datginger, Road Warrior');
+  it('renders earned titles as epithets after the name', () => {
+    expect(formatProfileName('AMightyTank', 'Fresh Face', 'prefix')).toBe('AMightyTank · Fresh Face');
+    expect(formatProfileName('Datginger', 'The Quiet Ghost')).toBe('Datginger · Quiet Ghost');
+  });
+
+  it('exposes separately styled name segments', () => {
+    expect(profileNameParts('AMightyTank', 'Fresh Face')).toEqual([
+      { kind: 'name', text: 'AMightyTank' },
+      { kind: 'separator', text: ' · ' },
+      { kind: 'title', text: 'Fresh Face' },
+    ]);
   });
 
   it('does not add punctuation when no title is selected', () => {

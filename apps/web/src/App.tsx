@@ -4,11 +4,15 @@ import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
 import { AdminAccountPage } from './pages/AdminAccountPage.js';
 import { AdminAccountsPage } from './pages/AdminAccountsPage.js';
 import { AdminAuditPage } from './pages/AdminAuditPage.js';
+import { AdminEventsPage } from './pages/AdminEventsPage.js';
 import { AdminReportsPage } from './pages/AdminReportsPage.js';
 import { AdminBugReportsPage } from './pages/AdminBugReportsPage.js';
 import { AdminEconomyPage } from './pages/AdminEconomyPage.js';
+import { AdminSupplyPage } from './pages/AdminSupplyPage.js';
+import { AdminLoansPage } from './pages/AdminLoansPage.js';
 import { AdminCasinoPage } from './pages/AdminCasinoPage.js';
 import { AdminFactionsPage } from './pages/AdminFactionsPage.js';
+import { AdminCrewPage } from './pages/AdminCrewPage.js';
 import { AdminVehiclesPage } from './pages/AdminVehiclesPage.js';
 import { AdminLawPage } from './pages/AdminLawPage.js';
 import { AdminLawPlayerPage } from './pages/AdminLawPlayerPage.js';
@@ -24,6 +28,7 @@ import { AdminRoundPage } from './pages/AdminRoundPage.js';
 import { AdminRulesetsPage } from './pages/AdminRulesetsPage.js';
 import { AdminSignalsPage } from './pages/AdminSignalsPage.js';
 import { AdminSurveysPage } from './pages/AdminSurveysPage.js';
+import { AdminSupportersPage } from './pages/AdminSupportersPage.js';
 import { ForumLinkPage } from './pages/ForumLinkPage.js';
 import { AlliancePage } from './pages/AlliancePage.js';
 import { AllianceDetailPage } from './pages/AlliancesPage.js';
@@ -34,12 +39,16 @@ import { ConsolePage } from './pages/ConsolePage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { HallOfFamePage } from './pages/HallOfFamePage.js';
+import { RoundAftermathPage } from './pages/RoundAftermathPage.js';
+import { RoundArchivePage } from './pages/RoundArchivePage.js';
+import { roundAftermathPublicEnabled } from './config/features.js';
 import { HideoutPage } from './pages/HideoutPage.js';
 import { JoinPage } from './pages/JoinPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { NewsPage } from './pages/NewsPage.js';
 import { ProducePage } from './pages/ProducePage.js';
 import { QuestPage } from './pages/QuestPage.js';
+import { EventsPage } from './pages/EventsPage.js';
 import { ProfilePage } from './pages/ProfilePage.js';
 import { PlayersPage } from './pages/PlayersPage.js';
 import { RankingsPage } from './pages/RankingsPage.js';
@@ -51,6 +60,10 @@ import { ScoutPage } from './pages/ScoutPage.js';
 import { StatusPage } from './pages/StatusPage.js';
 import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
 import { StorePage, StoresIndexPage } from './pages/StorePage.js';
+import { SupplyPage } from './pages/SupplyPage.js';
+import { LoanSharkPage } from './pages/LoanSharkPage.js';
+import { DealersPage } from './pages/DealersPage.js';
+import { CrewRosterPage } from './pages/CrewRosterPage.js';
 import { TravelPage } from './pages/TravelPage.js';
 import { CasinoPage } from './pages/CasinoPage.js';
 import { TurfPage } from './pages/TurfPage.js';
@@ -158,6 +171,7 @@ export function App() {
         <Route path="combat" element={<Protected><LiveRound><CombatPage /></LiveRound></Protected>} />
         <Route path="scout" element={<Protected><LiveRound><ScoutPage /></LiveRound></Protected>} />
         <Route path="quests" element={<Protected><LiveRound><QuestPage /></LiveRound></Protected>} />
+        <Route path="events" element={<Protected><LiveRound><EventsPage /></LiveRound></Protected>} />
         <Route path="xp-progress" element={<Protected><XpProgressPage /></Protected>} />
         <Route path="surveys" element={<Protected><LiveRound><SurveyRedirect /></LiveRound></Protected>} />
         <Route path="hideout" element={<Protected><LiveRound><HideoutPage /></LiveRound></Protected>} />
@@ -167,6 +181,10 @@ export function App() {
         <Route path="street-pass" element={<Protected><LiveRound><StreetPassPage /></LiveRound></Protected>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
+        <Route path="supply" element={<Protected><LiveRound><SupplyPage /></LiveRound></Protected>} />
+        <Route path="loans" element={<Protected><LiveRound><LoanSharkPage /></LiveRound></Protected>} />
+        <Route path="dealers" element={<Protected><LiveRound><DealersPage /></LiveRound></Protected>} />
+        <Route path="crew" element={<Protected><LiveRound><CrewRosterPage /></LiveRound></Protected>} />
         <Route path="casino" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
         <Route path="casino/:game" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
 
@@ -176,6 +194,8 @@ export function App() {
         {/* 0.5.0-A had a Cities page; the road map still lives on Travel. */}
         <Route path="cities" element={<Navigate to="/game/travel" replace />} />
         <Route path="rankings" element={<Protected><LiveRound><RankingsPage /></LiveRound></Protected>} />
+        <Route path="round-archive" element={roundAftermathPublicEnabled ? <RoundArchivePage /> : <Navigate to="/game/hall-of-fame" replace />} />
+        <Route path="rounds/:roundId/aftermath" element={roundAftermathPublicEnabled ? <RoundAftermathPage /> : <Navigate to="/game/hall-of-fame" replace />} />
         <Route path="alliance" element={<Protected><LiveRound><AlliancePage /></LiveRound></Protected>} />
         <Route path="alliances" element={<Protected><LiveRound><Navigate to="/game/alliance#alliance-rankings" replace /></LiveRound></Protected>} />
         <Route path="contacts" element={<Protected><LiveRound><Navigate to="/game/players#contacts" replace /></LiveRound></Protected>} />
@@ -199,6 +219,7 @@ export function App() {
         <Route path="admin/news" element={admin(<AdminNewsPage />)} />
         <Route path="admin/accounts" element={admin(<AdminAccountsPage />)} />
         <Route path="admin/accounts/:accountId" element={admin(<AdminAccountPage />)} />
+        <Route path="admin/supporters" element={admin(<AdminSupportersPage />)} />
         <Route path="admin/players/:roundPlayerId" element={admin(<AdminPlayerPage />)} />
         <Route path="admin/quests" element={admin(<AdminQuestContentPage />)} />
         <Route path="admin/surveys" element={admin(<AdminSurveysPage />)} />
@@ -206,11 +227,15 @@ export function App() {
         <Route path="admin/rulesets" element={admin(<AdminRulesetsPage />)} />
         <Route path="admin/signals" element={admin(<AdminSignalsPage />)} />
         <Route path="admin/audit" element={admin(<AdminAuditPage />)} />
+        <Route path="admin/events" element={admin(<AdminEventsPage />)} />
         <Route path="admin/reports" element={admin(<AdminReportsPage />)} />
         <Route path="admin/bugs" element={admin(<AdminBugReportsPage />)} />
         <Route path="admin/economy" element={admin(<AdminEconomyPage />)} />
+        <Route path="admin/supply" element={admin(<AdminSupplyPage />)} />
+        <Route path="admin/loans" element={admin(<AdminLoansPage />)} />
         <Route path="admin/casino" element={admin(<AdminCasinoPage />)} />
         <Route path="admin/factions" element={admin(<AdminFactionsPage />)} />
+        <Route path="admin/crew" element={admin(<AdminCrewPage />)} />
         <Route path="admin/vehicles" element={admin(<AdminVehiclesPage />)} />
         <Route path="admin/law" element={admin(<AdminLawPage />)} />
         <Route path="admin/players/:roundPlayerId/law" element={admin(<AdminLawPlayerPage />)} />
