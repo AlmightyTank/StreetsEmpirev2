@@ -111,6 +111,22 @@ export const AVATAR_PART_OPTIONS = {
     { key: 'gold', label: 'Gold', color: '#d0a22c' },
     { key: 'purple', label: 'Purple', color: '#6b3fa0' },
   ],
+  mask: [
+    { key: 'none', label: 'None' },
+    { key: 'ski-mask', label: 'Ski mask' },
+    { key: 'bandana', label: 'Bandana' },
+    { key: 'skull-bandana', label: 'Skull bandana' },
+    { key: 'hockey', label: 'Hockey mask' },
+    { key: 'gas-mask', label: 'Gas mask' },
+  ],
+  maskColor: [
+    { key: 'black', label: 'Black', color: '#1d1f24' },
+    { key: 'red', label: 'Red', color: '#b8262c' },
+    { key: 'blue', label: 'Blue', color: '#2350a8' },
+    { key: 'green', label: 'Green', color: '#2f6b38' },
+    { key: 'gray', label: 'Gray', color: '#6c7480' },
+    { key: 'white', label: 'White', color: '#ecebe4' },
+  ],
   accessory: [
     { key: 'none', label: 'None' },
     { key: 'chain', label: 'Gold chain' },
@@ -119,14 +135,18 @@ export const AVATAR_PART_OPTIONS = {
     { key: 'studs', label: 'Stud earrings' },
     { key: 'hoops', label: 'Hoop earrings' },
   ],
+  /** Drawn like the item art: lit backdrops and scenes, or clear like the item icons themselves. */
   background: [
-    { key: 'teal', label: 'Teal', color: '#1f6f6a' },
-    { key: 'charcoal', label: 'Charcoal', color: '#2a2f36' },
-    { key: 'crimson', label: 'Crimson', color: '#7d1f2c' },
-    { key: 'gold', label: 'Gold', color: '#b8892a' },
-    { key: 'violet', label: 'Violet', color: '#4b3a87' },
-    { key: 'sky', label: 'Sky', color: '#3d7eb8' },
-    { key: 'concrete', label: 'Concrete', color: '#8c8f94' },
+    { key: 'none', label: 'Clear' },
+    { key: 'teal', label: 'Teal' },
+    { key: 'charcoal', label: 'Charcoal' },
+    { key: 'crimson', label: 'Crimson' },
+    { key: 'gold', label: 'Gold' },
+    { key: 'violet', label: 'Violet' },
+    { key: 'sky', label: 'Sky' },
+    { key: 'concrete', label: 'Concrete' },
+    { key: 'brick', label: 'Brick wall' },
+    { key: 'city', label: 'City at night' },
   ],
 } as const;
 
@@ -141,7 +161,7 @@ export const DEFAULT_AVATAR_PARTS: Record<AvatarBase, AvatarParts> = {
     skin: 'tan',
     hair: 'fade',
     hairColor: 'black',
-    eyes: 'round',
+    eyes: 'almond',
     eyeColor: 'brown',
     brows: 'straight',
     nose: 'button',
@@ -149,8 +169,10 @@ export const DEFAULT_AVATAR_PARTS: Record<AvatarBase, AvatarParts> = {
     facialHair: 'none',
     shirt: 'hoodie',
     shirtColor: 'black',
+    mask: 'none',
+    maskColor: 'black',
     accessory: 'chain',
-    background: 'teal',
+    background: 'brick',
   },
   girl: {
     base: 'girl',
@@ -165,8 +187,10 @@ export const DEFAULT_AVATAR_PARTS: Record<AvatarBase, AvatarParts> = {
     facialHair: 'none',
     shirt: 'jacket',
     shirtColor: 'red',
+    mask: 'none',
+    maskColor: 'black',
     accessory: 'hoops',
-    background: 'violet',
+    background: 'city',
   },
 };
 
@@ -188,6 +212,9 @@ export const avatarPartsSchema = z.object({
   facialHair: partEnum('facialHair'),
   shirt: partEnum('shirt'),
   shirtColor: partEnum('shirtColor'),
+  // Added after launch: an avatar saved by an older client simply has no mask.
+  mask: partEnum('mask').default('none'),
+  maskColor: partEnum('maskColor').default('black'),
   accessory: partEnum('accessory'),
   background: partEnum('background'),
 }).strict();
@@ -210,7 +237,7 @@ export function readAvatarParts(value: unknown): AvatarParts | null {
 
 /** Hex color for a colored part, e.g. `avatarColor('skin', 'tan')`. */
 export function avatarColor(
-  part: 'skin' | 'hairColor' | 'eyeColor' | 'shirtColor' | 'background',
+  part: 'skin' | 'hairColor' | 'eyeColor' | 'shirtColor' | 'maskColor',
   key: string,
 ): string {
   const options: readonly { key: string; color: string }[] = AVATAR_PART_OPTIONS[part];

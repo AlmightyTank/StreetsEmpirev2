@@ -15,6 +15,11 @@ describe('avatarPartsSchema', () => {
     expect(avatarPartsSchema.safeParse({ ...DEFAULT_AVATAR_PARTS.boy, hat: 'fitted' }).success).toBe(false);
   });
 
+  it('reads an avatar saved before masks as unmasked', () => {
+    const { mask: _mask, maskColor: _maskColor, ...beforeMasks } = DEFAULT_AVATAR_PARTS.boy;
+    expect(avatarPartsSchema.parse(beforeMasks)).toEqual(DEFAULT_AVATAR_PARTS.boy);
+  });
+
   it('rides along on profile settings and can be cleared', () => {
     const base = {
       activeTitleKey: null,
@@ -33,7 +38,7 @@ describe('avatarPartsSchema', () => {
   });
 
   it('gives every colored piece a hex color', () => {
-    for (const key of ['skin', 'hairColor', 'eyeColor', 'shirtColor', 'background'] as const) {
+    for (const key of ['skin', 'hairColor', 'eyeColor', 'shirtColor', 'maskColor'] as const) {
       for (const option of AVATAR_PART_OPTIONS[key]) expect(option.color).toMatch(/^#[0-9a-f]{6}$/);
     }
   });

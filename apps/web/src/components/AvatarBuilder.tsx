@@ -21,6 +21,8 @@ const PART_LABELS: Record<AvatarPartKey, string> = {
   facialHair: 'Facial hair',
   shirt: 'Style',
   shirtColor: 'Color',
+  mask: 'Mask',
+  maskColor: 'Color',
   accessory: 'Accessory',
   background: 'Background',
 };
@@ -32,7 +34,9 @@ const TABS: { key: string; label: string; parts: AvatarPartKey[] }[] = [
   { key: 'face', label: 'Nose & mouth', parts: ['nose', 'mouth'] },
   { key: 'facial-hair', label: 'Facial hair', parts: ['facialHair'] },
   { key: 'shirt', label: 'Shirt', parts: ['shirt', 'shirtColor'] },
-  { key: 'extras', label: 'Extras', parts: ['accessory', 'background'] },
+  { key: 'mask', label: 'Mask', parts: ['mask', 'maskColor'] },
+  { key: 'extras', label: 'Extras', parts: ['accessory'] },
+  { key: 'background', label: 'Background', parts: ['background'] },
 ];
 
 function sameParts(a: AvatarParts, b: AvatarParts): boolean {
@@ -50,8 +54,9 @@ function randomParts(base: AvatarBase): AvatarParts {
   return {
     ...parts,
     base,
-    // Most rolls should come out clean-shaven; a beard on every other girl reads as a bug.
+    // Most rolls should come out clean-shaven and unmasked; a beard on every other girl reads as a bug.
     facialHair: base === 'girl' || Math.random() < 0.5 ? 'none' : parts.facialHair,
+    mask: Math.random() < 0.75 ? 'none' : parts.mask,
   };
 }
 
