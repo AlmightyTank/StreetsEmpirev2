@@ -495,7 +495,10 @@ function FacialHair({ style, ctx }: { style: AvatarParts['facialHair']; ctx: Ctx
 
 /* Hair ------------------------------------------------------------------- */
 
-const LONG_HAIR = new Set<AvatarParts['hair']>(['long-straight', 'long-curls', 'braids', 'ponytail']);
+const LONG_HAIR = new Set<AvatarParts['hair']>(['long-straight', 'long-curls', 'braids', 'ponytail', 'pigtails', 'locs']);
+
+/** Loc strands as [x, length], left to right behind the head. */
+const LOCS = [[38, 50], [42.5, 56], [47, 60], [76, 60], [80.5, 56], [85, 50]] as const;
 
 /** A hairline cap over the top of the head, shared by several styles. */
 const CAP = 'M44 50 Q42 28 64 27 Q86 28 84 50 Q80 40 64 40 Q48 40 44 50 Z';
@@ -538,6 +541,23 @@ function HairBack({ style, ctx }: { style: AvatarParts['hair']; ctx: Ctx }) {
       );
     case 'afro':
       return <circle cx="64" cy="44" r="33" fill={fill} />;
+    case 'locs':
+      return (
+        <g fill={fill}>
+          {LOCS.map(([x, length]) => <rect key={x} x={x} y="34" width="5.4" height={length} rx="2.7" />)}
+        </g>
+      );
+    case 'pigtails':
+      return (
+        <g fill={fill}>
+          <path d="M44 42 Q30 48 31 64 Q32 78 37 86 Q42 74 44 60 Z" />
+          <path d="M84 42 Q98 48 97 64 Q96 78 91 86 Q86 74 84 60 Z" />
+          <g fill={shade(ctx.hair, -0.4)}>
+            <ellipse cx="41.6" cy="46" rx="3.4" ry="2.6" />
+            <ellipse cx="86.4" cy="46" rx="3.4" ry="2.6" />
+          </g>
+        </g>
+      );
     case 'puffs':
       return (
         <g fill={fill}>
@@ -617,6 +637,48 @@ function HairFront({ style, ctx }: { style: AvatarParts['hair']; ctx: Ctx }) {
             <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="5" strokeWidth="1" />
           ))}
         </g>
+      );
+    case 'cornrows':
+      return (
+        <>
+          <path d={BUZZ} fill={fill} strokeWidth="1" />
+          <g fill="none" strokeLinecap="round">
+            {[49, 55, 61, 67, 73, 79].map((x) => {
+              const d = `M${x} 41 Q${x + (x - 64) * 0.08} 35 ${64 + (x - 64) * 0.55} 31`;
+              return (
+                <g key={x}>
+                  <path d={d} stroke={shade(skin, -0.12)} strokeWidth="1.3" />
+                  <path d={d} transform="translate(3 0)" stroke={light} strokeOpacity=".45" strokeWidth="1" strokeDasharray="1.4 1.2" />
+                </g>
+              );
+            })}
+          </g>
+        </>
+      );
+    case 'locs':
+      return (
+        <g fill={fill}>
+          <path d={CAP} />
+          {[[44.4, 36, 26], [48.6, 34, 18], [79.4, 34, 18], [83.6, 36, 26]].map(([x, y, length]) => (
+            <rect key={x} x={(x as number) - 2.6} y={y} width="5.2" height={length} rx="2.6" strokeWidth="1.2" />
+          ))}
+          <path d="M54 38 Q64 34.6 74 38" fill="none" stroke={dark} strokeWidth="1" />
+        </g>
+      );
+    case 'pixie':
+      return (
+        <>
+          <path d="M44.6 50 L45.4 60 Q46.6 55 47.6 52 Z M83.4 50 L82.6 60 Q81.4 55 80.4 52 Z" fill={fill} strokeWidth="1" />
+          <path d="M43.6 50 Q41.4 27 64 26 Q86.6 27 84.4 48 Q82 40 75 37.4 Q66 43.4 53 43 Q46.4 45 43.6 50 Z" fill={fill} />
+          <path d="M58 30 Q66 32 74 36.4" fill="none" stroke={dark} strokeWidth="1" />
+        </>
+      );
+    case 'pigtails':
+      return (
+        <>
+          <path d={CAP} fill={fill} />
+          <path d="M64 27.8 V39.6" fill="none" stroke={shade(skin, -0.2)} strokeWidth="1.2" />
+        </>
       );
     case 'braids':
       return (

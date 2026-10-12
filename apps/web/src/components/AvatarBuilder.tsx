@@ -43,6 +43,22 @@ function sameParts(a: AvatarParts, b: AvatarParts): boolean {
   return (Object.keys(a) as AvatarPartKey[]).every((key) => a[key] === b[key]);
 }
 
+type PartOption = { key: string; label: string; color?: string };
+
+/**
+ * The option groups shown for one part. Hair splits into boy and girl styles,
+ * the base's own group first; either base can wear either group.
+ */
+function sectionsFor(key: AvatarPartKey, base: AvatarBase): { key: string; label: string; options: readonly PartOption[] }[] {
+  if (key !== 'hair') return [{ key, label: PART_LABELS[key], options: AVATAR_PART_OPTIONS[key] }];
+  const groups: AvatarBase[] = base === 'girl' ? ['girl', 'boy'] : ['boy', 'girl'];
+  return groups.map((group) => ({
+    key: `hair-${group}`,
+    label: group === 'boy' ? 'Boy styles' : 'Girl styles',
+    options: AVATAR_PART_OPTIONS.hair.filter((option) => option.group === group),
+  }));
+}
+
 function randomParts(base: AvatarBase): AvatarParts {
   const pick = <K extends AvatarPartKey>(key: K) => {
     const options = AVATAR_PART_OPTIONS[key];
@@ -57,7 +73,14 @@ function randomParts(base: AvatarBase): AvatarParts {
     // Most rolls should come out clean-shaven and unmasked; a beard on every other girl reads as a bug.
     facialHair: base === 'girl' || Math.random() < 0.5 ? 'none' : parts.facialHair,
     mask: Math.random() < 0.75 ? 'none' : parts.mask,
+    // Mostly a style cut for the base, with the odd crossover.
+    hair: Math.random() < 0.8 ? randomHair(base) : parts.hair,
   };
+}
+
+function randomHair(base: AvatarBase): AvatarParts['hair'] {
+  const styles = AVATAR_PART_OPTIONS.hair.filter((option) => option.group === base);
+  return styles[Math.floor(Math.random() * styles.length)]!.key;
 }
 
 /** Pick-a-piece editor for a built avatar: a live preview over tabs of parts. */
@@ -109,13 +132,13 @@ export function AvatarBuilder({ value, onChange }: { value: AvatarParts; onChang
         </div>
 
         <div className="se-avatar-builder__panel" role="tabpanel" aria-label={active.label}>
-          {active.parts.map((key) => (
-            <div className="se-avatar-builder__group" role="group" aria-label={PART_LABELS[key]} key={key}>
-              <span className="se-avatar-builder__group-label">{PART_LABELS[key]}</span>
+          {active.parts.flatMap((key) => sectionsFor(key, value.base).map((section) => (
+            <div className="se-avatar-builder__group" role="group" aria-label={section.label} key={section.key}>
+              <span className="se-avatar-builder__group-label">{section.label}</span>
               <div className="se-avatar-builder__options">
-                {AVATAR_PART_OPTIONS[key].map((option) => {
+                {section.options.map((option) => {
                   const selected = value[key] === option.key;
-                  const color = 'color' in option ? option.color : null;
+                  const color = option.color ?? null;
                   return (
                     <button
                       type="button"
@@ -135,7 +158,7 @@ export function AvatarBuilder({ value, onChange }: { value: AvatarParts; onChang
                 })}
               </div>
             </div>
-          ))}
+          )))}
         </div>
       </div>
     </div>

@@ -37,6 +37,16 @@ describe('avatarPartsSchema', () => {
     expect(updateAccountProfileSettingsSchema.parse(base).profileAvatar).toBeUndefined();
   });
 
+  it('offers ten boy and ten girl hair styles, any of them on either base', () => {
+    const groups = AVATAR_PART_OPTIONS.hair.map((option) => option.group);
+    expect(groups.filter((group) => group === 'boy')).toHaveLength(10);
+    expect(groups.filter((group) => group === 'girl')).toHaveLength(10);
+    const girlStyle = AVATAR_PART_OPTIONS.hair.find((option) => option.group === 'girl')!.key;
+    const boyStyle = AVATAR_PART_OPTIONS.hair.find((option) => option.group === 'boy')!.key;
+    expect(avatarPartsSchema.safeParse({ ...DEFAULT_AVATAR_PARTS.boy, hair: girlStyle }).success).toBe(true);
+    expect(avatarPartsSchema.safeParse({ ...DEFAULT_AVATAR_PARTS.girl, hair: boyStyle }).success).toBe(true);
+  });
+
   it('gives every colored piece a hex color', () => {
     for (const key of ['skin', 'hairColor', 'eyeColor', 'shirtColor', 'maskColor'] as const) {
       for (const option of AVATAR_PART_OPTIONS[key]) expect(option.color).toMatch(/^#[0-9a-f]{6}$/);
