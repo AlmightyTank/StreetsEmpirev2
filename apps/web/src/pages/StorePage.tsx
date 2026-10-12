@@ -216,10 +216,9 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
           <span>{item.sellCents === null ? 'No buyback' : <>Sell <strong className="se-num">{formatCents(item.sellCents)}</strong></>}</span>
         </div>
       </div>
-      <MarketBadges market={item.market} />
       {locked ? (
         <p className="se-store-shelf__notice">
-          Purchases locked · ${owned > 0 ? 'You can still sell owned stock.' : 'Complete a job to start buying.'}
+          Purchases locked · {owned > 0 ? 'You can still sell owned stock.' : 'Complete a job to start buying.'}
         </p>
       ) : null}
       {!locked || owned > 0 ? <form onSubmit={submit}>
@@ -277,6 +276,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
       </form> : null}
       <details className="se-store-shelf__details">
         <summary>Market, restock &amp; access details</summary>
+      <MarketBadges market={item.market} />
       {item.favorDiscountPercent ? (
         <p className="se-hint se-good">
           Tommy Voucher armed — {formatNumber(item.favorDiscountPercent)}% off this eligible purchase. It is consumed only if the buy succeeds.
@@ -560,7 +560,7 @@ function StoreView({
   // Display filters never change the server-side purchase, sell or checkout rules.
   const visibleStoreItems = (store?.items ?? []).filter((item) => matchesStoreShelf({
     name: item.name,
-    purchaseUnlocked: (item.unlock === null || item.unlock.unlocked) && (item.questLock === null || item.questLock === undefined || item.questLock.unlocked),
+    purchaseUnlocked: item.unlock?.unlocked !== false && item.questLock?.unlocked !== false,
     soldOut: item.restock?.stock === 0,
   }, shelfQuery, shelfFilter));
   const visiblePipProducts = pipProducts.filter((product) => matchesStoreShelf({
