@@ -69,6 +69,7 @@ function setPresenceEnabled(enabled) {
       detail: 'The developer needs to supply STREETSEMPIRE_DISCORD_CLIENT_ID while packaging the application.',
       buttons: ['OK'],
     });
+    buildMenu(); // Revert the checkbox when the build has no Application ID.
     return;
   }
   settings.presenceEnabled = enabled;
