@@ -3,6 +3,8 @@ import { Link, Navigate, useLocation } from 'react-router-dom';
 import type { HappinessTermDto, RoundDto, RoundOverDto, RoundPlayerDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ActivityFeed } from '../components/ActivityFeed.js';
+import { NavIcon } from '../components/NavIcon.js';
+import type { IconName } from '../layouts/gameNav.js';
 import { DashboardStorySpotlight } from '../components/DashboardStorySpotlight.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { hasItemArt } from '../items/itemArt.js';
@@ -126,15 +128,20 @@ function DashboardAction({
   detail,
   meta,
   tone,
+  icon,
+  kind,
 }: {
   to: string;
   title: string;
   detail: string;
   meta: string;
+  icon: IconName;
+  kind: 'scout' | 'produce' | 'raids' | 'casino' | 'travel' | 'quests';
   tone?: 'warn' | 'bad' | 'good';
 }) {
   return (
-    <Link className={`se-dashboard-action${tone ? ` se-dashboard-action--${tone}` : ''}`} to={to}>
+    <Link className={`se-dashboard-action se-dashboard-action--${kind}${tone ? ` se-dashboard-action--${tone}` : ''}`} to={to}>
+      <span className="se-dashboard-action__icon" aria-hidden="true"><NavIcon name={icon} /></span>
       <span className="se-dashboard-action__body">
         <strong>{title}</strong>
         <span>{detail}</span>
@@ -414,25 +421,31 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         <PendingEncountersPanel encounters={me.pendingEncounters} />
         <div className="se-dashboard-snapshot" aria-label="Empire at a glance">
           <Link className="se-dashboard-snapshot__tile" to="/game/stores">
+            <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="stores" /></span>
             <span>Cash</span><strong>{formatCents(me.resources.cashCents)}</strong>
             <small>Net worth {formatCents(me.netWorthCents)}</small>
           </Link>
           <Link className="se-dashboard-snapshot__tile se-dashboard-snapshot__tile--turns" to="/game/scout">
+            <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="scout" /></span>
             <HeroTurns turns={me.turns} onTick={() => void refresh(true)} />
           </Link>
           <Link className="se-dashboard-snapshot__tile" to="/game/rankings">
+            <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="rankings" /></span>
             <span>National rank</span><strong>{me.rank.national === null ? '—' : `#${formatNumber(me.rank.national)}`}</strong>
             <small><RankMovement movement={me.rank.nationalMovement} /></small>
           </Link>
           <Link className="se-dashboard-snapshot__tile" to="/game/crew">
+            <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="contacts" /></span>
             <span>Fit crew</span><strong>{formatNumber(me.resources.fitThugs)}</strong>
             <small>{formatNumber(me.resources.thugs)} total thugs · {formatNumber(me.resources.woundedThugs)} wounded</small>
           </Link>
           <Link className="se-dashboard-snapshot__tile" to="/game/turf">
+            <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="cities" /></span>
             <span>Turf</span><strong>{me.turf ? formatNumber(me.turf.blocksHeld) : '—'}</strong>
             <small>{me.turf ? 'Blocks held · Manage territory' : 'Explore turf'}</small>
           </Link>
           <Link className="se-dashboard-snapshot__tile" to="/game#heat">
+            <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="status" /></span>
             <span>Heat</span><strong className={heatState !== 'good' ? 'se-warn' : undefined}>
               {me.heat ? `${formatNumber(me.heat.heat)} / ${formatNumber(me.heat.max)}` : '—'}
             </strong>
@@ -441,7 +454,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         </div>
         <section className="se-dashboard-overview" aria-label="Main story and important alerts">
           <DashboardStorySpotlight />
-          <div className="se-dashboard-command__attention">
+          <div className={`se-dashboard-command__attention${attentionCount ? ' se-dashboard-command__attention--urgent' : ''}`}>
             <div className="se-dashboard-sectionhead">
               <div>
                 <span className="se-eyebrow">Right now</span>
@@ -577,6 +590,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
               <div className="se-dashboard-actions">
                 <DashboardAction
                   to="/game/scout"
+                  icon="scout" kind="scout"
                   title="Scout"
                   detail="Work a district and find cash, crew, and product."
                   meta={`${formatNumber(me.turns.turns)} turns`}
@@ -584,12 +598,14 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 />
                 <DashboardAction
                   to="/game/produce"
+                  icon="produce" kind="produce"
                   title="Produce"
                   detail="Turn cash and crew time into product."
                   meta={`${formatCents(me.resources.cashCents)} cash`}
                 />
                 <DashboardAction
                   to="/game/combat"
+                  icon="raids" kind="raids"
                   title="Raids"
                   detail="Recon targets, attack, or treat wounded thugs."
                   meta={`${formatNumber(me.resources.fitThugs)} fit`}
@@ -597,12 +613,14 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 />
                 <DashboardAction
                   to="/game/casino"
+                  icon="casino" kind="casino"
                   title="Casino"
                   detail="Slots, blackjack, roulette, poker and more."
                   meta="Games"
                 />
                 <DashboardAction
                   to="/game/travel"
+                  icon="cities" kind="travel"
                   title="Travel"
                   detail={me.run ? 'Manage the run already on the road.' : 'Load a run, trade cities, or relocate.'}
                   meta={me.run ? me.run.cityName : `${formatNumber(me.resources.lowRiders)} Low-Riders`}
@@ -610,6 +628,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 />
                 <DashboardAction
                   to="/game/quests"
+                  icon="activity" kind="quests"
                   title="Quests"
                   detail="Check jobs, contracts, favors, and rewards."
                   meta="Contracts"
