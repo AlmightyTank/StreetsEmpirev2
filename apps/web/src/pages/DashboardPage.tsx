@@ -334,17 +334,24 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
   const { refreshing, error, refresh } = useLiveDashboard();
   const [showAllAlerts, setShowAllAlerts] = useState(false);
   const location = useLocation();
-  const [showCrewDetails, setShowCrewDetails] = useState(() => location.hash === '#crew-health');
+  const [showCrewDetails, setShowCrewDetails] = useState(() => location.hash === '#crew-inventory');
+  const [showHappinessDetails, setShowHappinessDetails] = useState(() => location.hash === '#crew-health');
   const [showPressureDetails, setShowPressureDetails] = useState(() => ['#heat', '#payout'].includes(location.hash));
+  // React Router issues a fresh location key even for another click on the same hash.
+  // Reopen the destination every time; a player may have closed it since the last click.
   useEffect(() => {
-    if (location.hash === '#crew-health') setShowCrewDetails(true);
+    if (location.hash === '#crew-inventory') setShowCrewDetails(true);
+    if (location.hash === '#crew-health') setShowHappinessDetails(true);
     if (location.hash === '#heat' || location.hash === '#payout') setShowPressureDetails(true);
-  }, [location.hash]);
+  }, [location.hash, location.key]);
   useEffect(() => {
-    if (!['#crew-health', '#heat', '#payout'].includes(location.hash)) return;
-    const frame = window.requestAnimationFrame(() => document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: 'start' }));
+    if (!['#crew-health', '#crew-inventory', '#heat', '#payout'].includes(location.hash)) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(location.hash.slice(1));
+      if (target && !target.closest('details:not([open])')) target.scrollIntoView({ block: 'start' });
+    });
     return () => window.cancelAnimationFrame(frame);
-  }, [location.hash, showCrewDetails, showPressureDetails]);
+  }, [location.hash, location.key, showCrewDetails, showHappinessDetails, showPressureDetails]);
 
   const homeWeapons =
     me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s;
@@ -611,9 +618,35 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
             </div>
         </section>
 
+        <section className="se-dashboard-highlights" aria-label="Your empire status">
+          <article className="se-dashboard-highlight">
+            <div className="se-dashboard-highlight__title"><h2>Crew status</h2><Link to="#crew-health">Details →</Link></div>
+            <strong>{formatNumber(me.resources.fitThugs)} fit / {formatNumber(me.resources.thugs)} total</strong>
+            <p>Thug morale {me.happiness.thug}% · Street crew morale {me.happiness.whore}%</p>
+            <div className="se-dashboard-highlight__meter" role="img" aria-label={`Thug morale ${me.happiness.thug}%`}>
+              <span style={{ width: `${Math.max(0, Math.min(100, me.happiness.thug))}%` }} />
+            </div>
+          </article>
+          <article className="se-dashboard-highlight">
+            <div className="se-dashboard-highlight__title"><h2>Production & stock</h2><Link to="/game/produce">Produce →</Link></div>
+            <strong>{me.products ? formatNumber(me.products.reduce((sum, item) => sum + item.quantity, 0)) : formatNumber(me.resources.product)} units</strong>
+            <p>{me.products?.length ? me.products.filter((item) => item.quantity > 0).slice(0, 2).map((item) => `${item.name}: ${formatNumber(item.quantity)}`).join(' · ') || 'No product stored yet' : 'Inventory ready to trade or produce'}</p>
+          </article>
+          <article className="se-dashboard-highlight">
+            <div className="se-dashboard-highlight__title"><h2>Supplies</h2><Link to="/game/stores/corner">Restock →</Link></div>
+            <strong>{formatNumber(me.resources.condoms)} condoms</strong>
+            <p>{formatNumber(me.resources.beer)} beer · {formatNumber(me.resources.medicine)} medicine</p>
+          </article>
+          <article className="se-dashboard-highlight">
+            <div className="se-dashboard-highlight__title"><h2>Territory</h2><Link to="/game/turf">View turf →</Link></div>
+            <strong>{me.turf ? `${formatNumber(me.turf.blocksHeld)} blocks held` : 'No turf data'}</strong>
+            <p>{me.turf ? `${formatCents(me.turf.taxEarnedTodayCents)} tax today · ${formatNumber(me.turf.postedGuns.total)} guns posted` : 'Explore districts and available territory'}</p>
+          </article>
+        </section>
+
         <section className="se-dashboard-command">
           <div className="se-dashboard-command__column se-dashboard-command__column--left">
-          <details id="crew-health" className="se-dashboard-fold" open={showCrewDetails} onToggle={(event) => setShowCrewDetails(event.currentTarget.open)}>
+          <details id="crew-inventory" className="se-dashboard-fold" open={showCrewDetails} onToggle={(event) => setShowCrewDetails(event.currentTarget.open)}>
             <summary className="se-dashboard-fold__summary">
               <span><strong>Crew, supplies & arsenal</strong><small>Personnel readiness, stock, weapons and assignments</small></span>
               <span aria-hidden="true">+</span>
@@ -681,7 +714,8 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
           <div className="se-dashboard-command__column se-dashboard-command__column--right">
 
 
-            <details className="se-dashboard-fold">
+            <details id="crew-health" className="se-dashboard-fold" open={showHappinessDetails}
+              onToggle={(event) => setShowHappinessDetails(event.currentTarget.open)}>
               <summary className="se-dashboard-fold__summary">
                 <span><strong>Crew happiness & product stock</strong><small>Morale penalties and everything in storage</small></span>
                 <span aria-hidden="true">+</span>
