@@ -3,6 +3,7 @@ import { formatCentsCompact, formatNumber, type PublicGamesArchiveDto } from '@s
 import { Link } from 'react-router-dom';
 import { publicSiteApi } from '../api/public.js';
 import { formatPublicDate, timeRemaining } from '../components/PublicGameBlocks.js';
+import { PublicPageHero } from '../components/PublicPageBits.js';
 
 type State =
   | { kind: 'loading' }
@@ -28,21 +29,21 @@ export function GamesPage() {
 
   return (
     <div className="site-page">
-      <section className="site-page-hero">
-        <div className="container">
-          <p className="site-kicker">Seasons</p>
-          <h1>Current & Past Games</h1>
-          <p>
-            Follow the game happening now and browse the permanent record of every
-            completed StreetsEmpire season.
-          </p>
+      <PublicPageHero eyebrow="Seasons" title="Every season is a fresh race.">
+        <p>
+          StreetsEmpire runs in seasons. Join the one happening now, or browse old
+          seasons to see who won, who fought and how the streets changed.
+        </p>
+        <div className="archive-back">
+          <Link className="btn btn-primary" to="/games/current">Current season</Link>
+          <Link className="btn btn-outline-light" to="/wiki/seasons">How seasons work</Link>
         </div>
-      </section>
+      </PublicPageHero>
 
       <section className="site-section site-section--tight">
         <div className="container public-game-stack">
           {state.kind === 'loading' ? (
-            <div className="site-panel public-state"><strong>Loading the season archive…</strong></div>
+            <div className="site-panel public-state"><strong>Finding the season records…</strong></div>
           ) : null}
 
           {state.kind === 'error' ? (
@@ -56,12 +57,12 @@ export function GamesPage() {
             <>
               <section className="site-panel archive-current">
                 <div>
-                  <span className="site-card__eyebrow">Current game</span>
+                  <span className="site-card__eyebrow">Happening now</span>
                   {state.data.currentRound ? (
                     <>
                       <h2>{state.data.currentRound.name}</h2>
                       <p>
-                        {state.data.currentRound.status} · {formatNumber(state.data.currentRound.playerCount)} players ·{' '}
+                        {state.data.currentRound.status} · {formatNumber(state.data.currentRound.playerCount)} players in ·{' '}
                         {timeRemaining(state.data.currentRound.endsAt)}
                       </p>
                     </>
@@ -73,7 +74,7 @@ export function GamesPage() {
                   )}
                 </div>
                 {state.data.currentRound ? (
-                  <Link className="btn btn-primary" to="/games/current">View Current Game</Link>
+                  <Link className="btn btn-primary" to="/games/current">See this season</Link>
                 ) : (
                   <Link className="btn btn-outline-light" to="/news">Check News</Link>
                 )}
@@ -83,15 +84,15 @@ export function GamesPage() {
                 <div className="site-section__head archive-section-head">
                   <div>
                     <p className="site-kicker">Season history</p>
-                    <h2>Completed Games</h2>
+                    <h2>The record book</h2>
                   </div>
-                  <p>{formatNumber(state.data.games.length)} archived season{state.data.games.length === 1 ? '' : 's'} shown.</p>
+                  <p>{formatNumber(state.data.games.length)} finished season{state.data.games.length === 1 ? '' : 's'} saved forever.</p>
                 </div>
 
                 {state.data.games.length === 0 ? (
                   <div className="site-panel public-state">
                     <strong>No completed seasons yet.</strong>
-                    <p>The first finished game will appear here automatically when its final standings are frozen.</p>
+                    <p>The first finished season will appear here when its final standings are frozen.</p>
                   </div>
                 ) : (
                   <div className="archive-grid">

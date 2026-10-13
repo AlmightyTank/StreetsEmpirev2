@@ -9,6 +9,7 @@ import {
   PublicNews,
   PublicRankings,
 } from '../components/PublicGameBlocks.js';
+import { PublicPageHero } from '../components/PublicPageBits.js';
 
 type State =
   | { kind: 'loading' }
@@ -37,18 +38,18 @@ export function CurrentGamePage() {
 
   return (
     <div className="site-page">
-      <section className="site-page-hero">
-        <div className="container">
-          <p className="site-kicker">Current season</p>
-          <h1>Current Game</h1>
-          <p>Follow the public side of the StreetsEmpire season happening right now.</p>
+      <PublicPageHero eyebrow="Current season" title="The streets are live right now.">
+        <p>Watch the active season: top players, fresh turf captures and the latest official news.</p>
+        <div className="archive-back">
+          <a className="btn btn-primary" href="https://play.streetsempire.dev">Join this season</a>
+          <Link className="btn btn-outline-light" to="/wiki/getting-started">New? Start here</Link>
         </div>
-      </section>
+      </PublicPageHero>
 
       <section className="site-section site-section--tight">
         <div className="container">
           {state.kind === 'loading' ? (
-            <div className="site-panel public-state"><strong>Loading the current game…</strong></div>
+            <div className="site-panel public-state"><strong>Checking the live season…</strong></div>
           ) : null}
 
           {state.kind === 'error' ? (
@@ -81,8 +82,8 @@ export function CurrentGamePage() {
                 <section className="site-panel">
                   <div className="site-panel__head public-panel-title">
                     <div>
-                      <span className="site-card__eyebrow">Competition</span>
-                      <h2>Top Players</h2>
+                      <span className="site-card__eyebrow">Race to the top</span>
+                      <h2>Players to watch</h2>
                     </div>
                     <Link to="/rankings">All rankings →</Link>
                   </div>
@@ -92,8 +93,8 @@ export function CurrentGamePage() {
                 <section className="site-panel">
                   <div className="site-panel__head public-panel-title">
                     <div>
-                      <span className="site-card__eyebrow">Street wire</span>
-                      <h2>Recent Turf Captures</h2>
+                      <span className="site-card__eyebrow">Fresh ink</span>
+                      <h2>Latest takeovers</h2>
                     </div>
                     <Link to="/turf">View turf →</Link>
                   </div>

@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { PublicPageHero } from '../components/PublicPageBits.js';
 
-const guideTopics = [
+export const guideTopics = [
   { slug: 'getting-started', title: 'Getting Started', blurb: 'Your first turns, crew growth, supplies, Jobs and the basic seasonal loop.' },
   { slug: 'economy', title: 'Economy & Products', blurb: 'Scouting, working, production, stores, trader standing and product decisions.' },
   { slug: 'combat', title: 'Combat & Recon', blurb: 'Raids, drive-bys, wounds, protection windows and what Recon is for.' },
@@ -17,7 +17,7 @@ const guideTopics = [
   { slug: 'seasons', title: 'Seasons & Legacy', blurb: 'How rounds end, rankings freeze and your public career survives resets.' },
 ] as const;
 
-const guideCopy: Record<string, { title: string; intro: string; sections: Array<{ title: string; body: string }> }> = {
+export const guideCopy: Record<string, { title: string; intro: string; sections: Array<{ title: string; body: string }> }> = {
   'getting-started': {
     title: 'Getting Started',
     intro: 'StreetsEmpire is turn-driven. Your early job is to turn limited actions into a crew and economy that can survive the rest of the season.',
