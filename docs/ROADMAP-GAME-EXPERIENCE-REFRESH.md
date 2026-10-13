@@ -107,10 +107,15 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - Fix review findings: `#crew-health` now opens the **morale penalty breakdown**, while `#crew-inventory` opens crew/inventory; direct and repeated `#heat`/`#payout` navigation reopens the right section.
 - All layout changes are CSS/grid and existing snapshot and quest reads; no gameplay API or server mutations.
 
-#### Dashboard-B — Cinematic premium visual pass (not implemented yet)
-- City-themed background textures/art, original story and alert imagery, and richer quick-action iconography, with asset fallback for supporter shell styles.
-- Premium hero and stat-card detailing; avoid hardcoded bright accents that conflict with supporter themes.
-- Don't invent progress/time/rank data just to match the concept picture.
+#### Dashboard-B — Cinematic premium visual pass (implemented on PR #279; validation pending)
+- **Three original vector scenes**: city-at-dusk command skyline, atmospheric safehouse/mission story, and a red-lit street/alley for genuinely urgent alerts. Self-contained SVG backgrounds ship with the web app; readability gradients and dark fallbacks avoid any dependency on external images.
+- **Premium KPI cards**: accented SVG icons, top-edge glow, linked real cash, turn regeneration, ranking, crew, turf and heat data.
+- **Main Story** now has illustrated background, chapter status, a readable live objective/progress meter and a premium CTA. All story fields come from the existing Quest DTO.
+- **Attention** uses the red urgent art only for genuine danger (locked/bad Heat, tailed convoy, wounded crew); ordinary reminders keep a calmer accent-colored treatment. Real alerts, counts and direct actions are preserved.
+- **Action deck**: six high-contrast icon cards with distinct restrained color treatment for Scout, Produce, Raids, Casino, Travel and Quests.
+- **Highlights**: crew, production, supplies and territory summaries now have visual line icons and refined card treatment.
+- **Theme/UX safeguards**: uses existing accent/compact-density tokens, dark gradients maintain readable text, responsive container queries, reduced-motion disables hover motion. The artwork never contains fake gameplay data.
+- **Release status**: artwork and code committed; automated checks plus real desktop/mobile visual QA still required.
 
 #### Dashboard-C — Mobile, performance and release polish (not implemented yet)
 - Test 360/390/768/1024/1440/1920 widths, sidebar rail, dark/light, accent choice and animated supporter themes.
