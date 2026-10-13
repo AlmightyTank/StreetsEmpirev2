@@ -1,0 +1,39 @@
+{
+  "name": "streetsempire-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "StreetsEmpire Windows game client with Discord Rich Presence",
+  "main": "src/main.cjs",
+  "scripts": {
+    "prepare:config": "node scripts/build-config.mjs",
+    "start": "npm run prepare:config && electron .",
+    "dist:win": "npm run prepare:config && electron-builder --win nsis --x64 --publish never",
+    "test": "node --test",
+    "check": "node --check src/main.cjs && node --check src/discord-ipc.cjs && node --check src/activity.cjs"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "dev.streetsempire.desktop",
+    "productName": "StreetsEmpire",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "StreetsEmpire-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
