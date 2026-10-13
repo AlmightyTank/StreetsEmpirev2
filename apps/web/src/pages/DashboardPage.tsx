@@ -20,6 +20,7 @@ import { HeatPanel, heatTone } from '../components/HeatPanel.js';
 import { CasePanel } from '../components/CasePanel.js';
 import { PendingEncountersPanel } from '../components/PendingEncountersPanel.js';
 import { formatClockTime, formatDate, formatDuration, formatWhen } from '../utils/time.js';
+import { dashboardAttentionState, dashboardDisclosureForHash } from '../utils/dashboardAttention.js';
 import { GettingStarted } from '../components/onboarding/GettingStarted.js';
 
 function RankMovement({ movement }: { movement: number | null }) {
@@ -341,24 +342,27 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
   const { refreshing, error, refresh } = useLiveDashboard();
   const [showAllAlerts, setShowAllAlerts] = useState(false);
   const location = useLocation();
-  const [showCrewDetails, setShowCrewDetails] = useState(() => location.hash === '#crew-inventory');
-  const [showHappinessDetails, setShowHappinessDetails] = useState(() => location.hash === '#crew-health');
-  const [showPressureDetails, setShowPressureDetails] = useState(() => ['#heat', '#payout'].includes(location.hash));
+  const disclosure = dashboardDisclosureForHash(location.hash);
+  const [showCrewDetails, setShowCrewDetails] = useState(() => disclosure === 'crew');
+  const [showHappinessDetails, setShowHappinessDetails] = useState(() => disclosure === 'happiness');
+  const [showPressureDetails, setShowPressureDetails] = useState(() => disclosure === 'pressure');
   // React Router issues a fresh location key even for another click on the same hash.
-  // Reopen the destination every time; a player may have closed it since the last click.
+  // Reopen the destination if a player closed it and then selected the link again.
   useEffect(() => {
-    if (location.hash === '#crew-inventory') setShowCrewDetails(true);
-    if (location.hash === '#crew-health') setShowHappinessDetails(true);
-    if (location.hash === '#heat' || location.hash === '#payout') setShowPressureDetails(true);
-  }, [location.hash, location.key]);
+    if (disclosure === 'crew') setShowCrewDetails(true);
+    if (disclosure === 'happiness') setShowHappinessDetails(true);
+    if (disclosure === 'pressure') setShowPressureDetails(true);
+  }, [disclosure, location.key]);
   useEffect(() => {
-    if (!['#crew-health', '#crew-inventory', '#heat', '#payout'].includes(location.hash)) return;
+    if (!disclosure) return;
     const frame = window.requestAnimationFrame(() => {
       const target = document.getElementById(location.hash.slice(1));
-      if (target && !target.closest('details:not([open])')) target.scrollIntoView({ block: 'start' });
+      if (target && !target.closest('details:not([open])')) {
+        target.scrollIntoView({ block: 'start', behavior: 'instant' });
+      }
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [location.hash, location.key, showCrewDetails, showHappinessDetails, showPressureDetails]);
+  }, [disclosure, location.hash, location.key, showCrewDetails, showHappinessDetails, showPressureDetails]);
 
   const homeWeapons =
     me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s;
@@ -370,20 +374,18 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
   const lowWhoreHappiness = me.happiness.whore < 66;
   const lowThugHappiness = me.happiness.thug < 66;
   const atTurnCap = me.turns.turns >= me.turns.turnCap;
-  // Ordinary reminders shouldn't look like a city-wide emergency.
-  const criticalAttention = heatLocked || heatState === 'bad'
-    || me.convoyAlert?.kind === 'tailed' || me.resources.woundedThugs > 0;
-  const attentionCount = [
-    heatState !== 'good',
-    me.convoyAlert !== null && me.convoyAlert !== undefined,
+  const { count: attentionCount, critical: criticalAttention } = dashboardAttentionState({
+    heatTone: heatState,
+    heatLocked,
+    convoyKind: me.convoyAlert?.kind ?? null,
     runWaiting,
-    Boolean(me.moving),
-    me.resources.woundedThugs > 0,
-    me.resources.unarmedThugs > 0,
+    moving: Boolean(me.moving),
+    woundedThugs: me.resources.woundedThugs,
+    unarmedThugs: me.resources.unarmedThugs,
     lowWhoreHappiness,
     lowThugHappiness,
     atTurnCap,
-  ].filter(Boolean).length;
+  });
 
   const suppliesPanel = (
     <Panel title="Supplies" aside={<Link to="/game/stores/corner">Restock</Link>} flush className="se-dashboard-panel">
