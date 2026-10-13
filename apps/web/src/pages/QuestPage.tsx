@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   formatCents,
@@ -229,6 +229,11 @@ function QuestCard({
           />
         </div>
       ) : null}
+      {quest.rewards.length ? (
+        <p className="se-quest-card__reward-preview">
+          <span>Reward</span> {quest.rewards[0]?.label}{quest.rewards.length > 1 ? ` +${quest.rewards.length - 1} more` : ''}
+        </p>
+      ) : null}
       <button
         type="button"
         className="se-quest-detail-toggle"
@@ -441,6 +446,7 @@ export function QuestPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const lastScrolledTarget = useRef<string | null>(null);
 
   const applyPage = useCallback((
     next: QuestPageDto,
@@ -532,11 +538,17 @@ export function QuestPage() {
     const focusKey = focusedQuestKey(location.search, location.hash);
     const id = location.hash ? decodeURIComponent(location.hash.slice(1))
       : focusKey ? 'quest-' + focusKey : null;
-    if (!id) return;
-    // Wait until a deep-linked accordion has opened and the focused card exists.
+    if (!id) {
+      lastScrolledTarget.current = null;
+      return;
+    }
+    if (lastScrolledTarget.current === id) return;
+    // Wait until a deep-linked accordion has opened. Only scroll once per target:
+    // refreshing quests or toggling another section must not yank the page away.
     const frame = window.requestAnimationFrame(() => {
       const target = document.getElementById(id);
       if (!target || target.closest('details:not([open])')) return;
+      lastScrolledTarget.current = id;
       target.scrollIntoView({ block: 'start' });
       target.focus({ preventScroll: true });
     });
