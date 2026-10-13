@@ -1,5 +1,5 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import type {
   PublicAwardDto,
   PublicCareerDto,
@@ -13,6 +13,7 @@ import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { ContactButton } from '../components/ContactButton.js';
+import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { ProfileBadgeArt } from '../components/ProfileBadgeArt.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
@@ -188,26 +189,6 @@ function AwardStrip({ title, awards, empty, className }: { title: string; awards
 
 function rankLabel(rank: number | null): string {
   return rank === null ? '-' : `#${formatNumber(rank)}`;
-}
-
-function ProfileMetric({
-  label,
-  value,
-  detail,
-  tone,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  tone?: 'accent' | 'good' | 'warn';
-}) {
-  return (
-    <div className={`se-profile-metric${tone ? ` se-profile-metric--${tone}` : ''}`}>
-      <span className="se-profile-metric__label">{label}</span>
-      <strong className="se-profile-metric__value">{value}</strong>
-      {detail ? <span className="se-profile-metric__detail">{detail}</span> : null}
-    </div>
-  );
 }
 
 function AchievementCard({ award }: { award: PublicAwardDto }) {
@@ -461,6 +442,7 @@ export function ProfilePage() {
   const signature = avatarFrame === SIGNATURE_CARD_FRAME_KEY;
   const ownerTheme = player && !isYou ? player.cosmetics.siteTheme ?? null : null;
   const shownTheme = useMyTheme ? null : ownerTheme;
+  const isOwnProfileRoute = !params.publicPimpId && !params.forumUserId;
 
   useEffect(() => {
     setPageTheme(shownTheme);
@@ -535,6 +517,7 @@ export function ProfilePage() {
             </button>
           </div>
         ) : null}
+        {isOwnProfileRoute ? <CareerNavigation active="profile" /> : null}
         <div
           className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}${signature ? ' se-signature-card' : ''}`}
           data-avatar-frame={avatarFrame ?? 'none'}
@@ -584,12 +567,21 @@ export function ProfilePage() {
             </div>
           </div>
           <div className="se-inline-actions">
+            {isOwnProfileRoute ? <Link className="se-btn se-btn--ghost se-btn--sm" to="/account#settings-profile">Customize appearance</Link> : null}
+            {player && !player.isYou ? <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/console?to=${player.publicPimpId}`}>Message</Link> : null}
             {player && !player.isYou ? <ContactButton publicPimpId={player.publicPimpId} /> : null}
             {player?.forumProfileUrl ? <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum Profile</a> : null}
           </div>
         </div>
 
         {error ? <Alert>{error}</Alert> : null}
+
+        {isOwnProfileRoute ? (
+          <CareerGuidance title="Public record and appearance settings">
+            <p>Your profile brings together current standing, achievements, earned titles, showcase awards, and finished-season history. Private cash, supplies, crew condition, and protected combat intel are not exposed here.</p>
+            <p>Appearance stays separate from progression. Equip earned or supporter cosmetics in Account Settings without changing your level, achievements, or game power.</p>
+          </CareerGuidance>
+        ) : null}
 
         {!player && !career && !error ? (
           <div className="se-profile-loading" role="status">Pulling the street record...</div>
@@ -609,24 +601,15 @@ export function ProfilePage() {
                 <p>Only public ranking information lives here. Cash on hand, supplies, payout, crew condition, and hidden combat intel stay private.</p>
               </div>
 
-              <div className="se-profile-metrics">
-                <ProfileMetric
-                  label="Net worth"
-                  value={formatCents(player.netWorthCents)}
-                  detail="public empire value used for rankings"
-                  tone="accent"
-                />
-                <ProfileMetric
-                  label="Local rank"
-                  value={`#${formatNumber(player.rank.local)}`}
-                  detail={`${movementText(player.rank.localMovement)} · held ${heldFor(player.rank.localHeldSinceAt)}`}
-                />
-                <ProfileMetric
-                  label="National rank"
-                  value={`#${formatNumber(player.rank.national)}`}
-                  detail={`${movementText(player.rank.nationalMovement)} · held ${heldFor(player.rank.nationalHeldSinceAt)}`}
-                />
-              </div>
+              <CareerMetricStrip
+                label="Current round standing"
+                className="se-profile-metrics"
+                items={[
+                  { label: 'Net worth', value: formatCents(player.netWorthCents), detail: 'public empire value used for rankings', tone: 'accent' },
+                  { label: 'Local rank', value: `#${formatNumber(player.rank.local)}`, detail: `${movementText(player.rank.localMovement)} · held ${heldFor(player.rank.localHeldSinceAt)}` },
+                  { label: 'National rank', value: `#${formatNumber(player.rank.national)}`, detail: `${movementText(player.rank.nationalMovement)} · held ${heldFor(player.rank.nationalHeldSinceAt)}` },
+                ]}
+              />
             </section>
 
             <section className="se-profile-section">

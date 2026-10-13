@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_TABS, filterNavSections, isCurrent, newPlayerSectionsFor, SECTIONS } from './gameNav.js';
+import { ADMIN_SECTIONS, DEFAULT_TABS, filterNavSections, isCurrent, newPlayerSectionsFor, SECTIONS } from './gameNav.js';
 
 const pages = SECTIONS.flatMap((section) => section.pages);
 const page = (key: string) => {
@@ -46,6 +46,29 @@ describe('game navigation route matching', () => {
     expect(isCurrent(page('console'), '/game/activity')).toBe(true);
     expect(isCurrent(page('news'), '/game/surveys')).toBe(true);
     expect(isCurrent(page('rankings'), '/game/hall-of-fame')).toBe(true);
+  });
+});
+
+describe('admin workspace navigation', () => {
+  const adminPages = ADMIN_SECTIONS.flatMap((section) => section.pages);
+
+  it('groups every admin tool once into the five operator work areas', () => {
+    expect(ADMIN_SECTIONS.map((section) => section.title)).toEqual([
+      'Admin · Operations', 'Admin · Players', 'Admin · Economy', 'Admin · Content', 'Admin · Monitoring',
+    ]);
+    expect(adminPages).toHaveLength(24);
+    expect(new Set(adminPages.map((item) => item.key)).size).toBe(adminPages.length);
+    expect(new Set(adminPages.map((item) => item.to)).size).toBe(adminPages.length);
+  });
+
+  it('keeps player and account detail URLs in the Players work area', () => {
+    const accounts = adminPages.find((page) => page.key === 'admin-accounts')!;
+    expect(isCurrent(accounts, '/game/admin/accounts/account-id')).toBe(true);
+    expect(isCurrent(accounts, '/game/admin/players/player-id')).toBe(true);
+  });
+
+  it('does not put restricted admin destinations in ordinary player sections', () => {
+    expect(SECTIONS.flatMap((section) => section.pages).some((page) => page.to.startsWith('/game/admin'))).toBe(false);
   });
 });
 

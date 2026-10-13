@@ -59,42 +59,47 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - **Permissions remain authoritative**: district/recipe quest locks, crew requirements, server turn costs, combat cooldowns, idempotent requests and pending-hit recovery are not bypassed.
 - Added component render tests for the compact result and readiness states. **CI and browser checks are pending before release.**
 
-### D — Empire: Crew, Dealers, Hideout, Travel and Turf
-- Reuse one small set of roster cards, management patterns and contextual inspectors.
-- Turf ownership and scout locations share a clear map/area vocabulary without merging permissions.
-- Keep existing game loops, crew jobs, travel routes and upgrade mechanics.
+### D — Empire: Crew, Dealers, Hideout, Travel and Turf (implemented; browser validation pending)
+- **Shared empire shell** now supplies the page header, compact metric strip, roster card, responsive management layout and contextual inspector used across the empire screens.
+- **Crew jobs and dealer crews are selection-first**: compact targets stay visible while one assignment or crew opens in the inspector. Existing staffing, stock, pricing, runner, move, pause and close mutations are retained.
+- **Turf is map/list/inspector driven**: city and district deep links remain intact, while only the selected district expands its business, war and Turf controls.
+- **Turf ownership and Scout coverage share one area legend vocabulary** without sharing permissions or changing either screen's authoritative lock/coverage rules.
+- Hideout upgrades and Travel routes keep their established interaction surfaces, now under the common empire header. Existing game loops, URLs and mechanics remain unchanged.
 
-### E — Economy: Stores, Bulk Orders and Loans
-- Merge the already-planned hybrid Store marketplace approach (search/filters/trade-first cards) into the refreshed shell.
-- Use common receipt, quote, pending, batch action and fulfillment conventions.
-- Avoid requiring users to switch pages just to understand quantities or prerequisites.
+### E — Economy: Stores, Bulk Orders and Loans (implemented; browser validation pending)
+- **The hybrid Store marketplace is retained inside the refreshed economy shell**: search, shelf filters, trade-first cards, inline access/restock detail and the cross-store basket all remain available without changing store routes.
+- **Common transaction conventions** now identify live quotes, retry-safe pending actions, atomic batch checkout and fulfillment cards across Stores, Bulk Orders and Loans. All three continue to use the established full action receipt; Store keeps its compact result dock.
+- Bulk Orders keeps the supplier, product, quantity, price, cash-after-payment and pickup state together. Loan review keeps every fee, surcharge, installment, debt limit and late-payment consequence beside the accept action.
+- Existing idempotency keys, uncertain-result retries, authoritative prices, prerequisites, loan schedules, pickups and API mutations are unchanged.
 
-### F — Casino
-- One Casino destination. Individual games retain deep-linked URLs and their own optimized play surfaces.
-- Unified game selector, betting controls, available cash, results and mobile controls.
-- Preserve sportsbook rules/close times, cache and settlement boundaries.
+### F — Casino (implemented; browser validation pending)
+- **The Casino remains one destination with focused game rooms**: the lobby and every game keep their existing deep-linked URLs and optimized play surfaces under one accessible game selector.
+- **Shared casino conventions** now provide the cash, cage-chip and on-floor bankroll summary plus a reusable, mobile-ready wager stepper across Slots, Blackjack and Street Dice.
+- Slots, Blackjack, Roulette and Street Dice continue to use the common action dock and compact result/full-receipt pattern. Poker and Sports Betting retain controls tailored to multiplayer turns and bet-slip review rather than forcing them into an unsuitable table control.
+- All game APIs, session persistence, table limits, idempotency, sportsbook cache polling, authoritative close times, odds checks and settlement boundaries are unchanged.
 
-### G — Career: Profile, XP, Street Pass and Events
-- One coherent presentation of level, progress, achievements, titles, unlocks and supporter cosmetics.
-- Do not remove paid customization or mix appearance settings with game progression.
-- Move duplicate explanations into optional detail panels.
+### G — Career: Profile, XP, Street Pass and Events (implemented; browser validation pending)
+- **Career now reads as one connected destination**: XP, Street Pass, Events and the signed-in player's Profile share persistent deep links and a consistent summary vocabulary for levels, progress, achievements, titles and unlocks.
+- Repeated progression explanations now live in optional, keyboard-accessible detail panels. Lifetime XP, round-scoped Street Cred, event participation and permanent cosmetic rewards remain clearly separated.
+- Paid and earned appearance customization remains in Account Settings rather than being mixed into gameplay progression. Public profile routes keep their existing privacy and reconnaissance boundaries and do not expose owner-only controls.
+- Existing progression, Street Pass claim, event polling, Quest deep-link, profile theme and career-history APIs and mechanics are unchanged.
 
-### H — Social and communication
-- Distinguish player Contacts, Console messages, Alliance coordination, Rankings and News by their actual purpose.
-- Cross-links where useful; remove duplicated unread counters/sidebars.
-- Improve inbox and player profile readability on narrow screens.
+### H — Social and communication (implemented; browser validation pending)
+- **Social destinations now explain their purpose before the player enters them**: Players and Contacts find and track people, Street Wire handles messages and alerts, Alliance hosts private crew coordination, Rankings shows public standing, and News carries official updates.
+- Signed-in social screens share direct destination links while public News stays public. The redundant Street Wire hero counters and Contacts quick-link sidebar were removed; counts remain beside the tabs and controls they describe.
+- Player profiles now link directly into a recipient-ready message, and profile actions plus inbox subjects and previews remain readable and tappable on narrow screens.
+- Existing contact privacy, earned-intel boundaries, message moderation and blocking, Alliance Wire permissions, ranking calculations, News visibility, routes and APIs are unchanged.
 
-### I — Admin workspace
-- Group admin tools by Operations, Players, Economy, Content and Monitoring.
-- Keep all permission checks and audit logs server-side. Preserve direct URLs.
-- Admin features never appear in ordinary player navigation.
+### I — Admin workspace (implemented; browser validation pending)
+- **Admin tools now form five purpose-led work areas**: Operations, Players, Economy, Content and Monitoring. The same groups organize the desktop sidebar, mobile page directory and an admin-only workspace switcher.
+- All existing direct URLs remain intact, including account, player and round detail routes. The reorganization changes presentation only; actions, API calls, confirmations and audit trails are unchanged.
+- Admin destinations continue to be added to navigation only when the signed-in account is an admin, and every admin route remains behind the existing server-backed admin and recent second-factor gates.
 
-### J — QA, accessibility and performance
-- Check at 360/390/768/1024/1440/1920 widths, with sidebar rail, expanded sidebar and premium shell themes.
-- Keyboard navigation, readable labels, color contrast, reduced motion and no horizontal overflow.
-- Unit tests for nav routing/aliases/visibility, quest ordering and focus, basket persistence, result actions.
-- Review performance on transitions, caches and polling (no unnecessary extra requests).
-- Release only when typecheck, tests and build pass and actual beta gameplay is spot checked.
+### J — QA, accessibility and performance (automated hardening complete; beta browser validation pending)
+- The real-browser UI audit now checks 360/390/768/1024/1440/1920 widths with reduced motion, touch target and overflow checks, keyboard focus and WCAG axe scans. Desktop coverage includes both expanded and icon-rail sidebars, while the matrix exercises the Casino Floor, Federal Case and Midnight Market premium shell themes.
+- Navigation routing, aliases and admin visibility plus quest ordering and deep-linked focus remain covered. Store baskets now have a validated, player-scoped, one-day persistence contract with merge/remove tests, and Action Dock result controls have an included render contract test.
+- Background tabs no longer issue routine notification, convoy, Poker table, sportsbook, site-banner or supporter-confirmation polling requests. Returning to a visible tab refreshes time-sensitive boards without changing their cache, close-time or settlement rules.
+- Web typecheck, focused tests, the full test suite and production build must pass before merge. The authenticated six-width audit and actual beta gameplay spot check remain release gates and require a running beta stack plus player/admin credentials.
 
 ## Release strategy
 

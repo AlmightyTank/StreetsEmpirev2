@@ -5,7 +5,8 @@
  *   npm run qa:ui -- [--base http://127.0.0.1:5173] [--out ./ui-audit] [--shots] [--strict]
  *
  * Against a running web client and API (npm run dev), it visits every major page
- * at phone widths (360 and 390 px) and at desktop width, and for each one records:
+ * at the release width matrix (360/390/768/1024/1440/1920), with both desktop
+ * sidebar modes and representative premium shell themes, and for each one records:
  *
  *   overflow   the page scrolls sideways (anything wider than the screen that is not
  *              inside its own horizontal scroller)
@@ -42,9 +43,12 @@ const PACE_MS = Number(option('pace', '900'));
 const AXE_SOURCE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 
 const WIDTHS = [
-  { name: 'phone-360', width: 360, height: 740, mobile: true },
-  { name: 'phone-390', width: 390, height: 844, mobile: true },
-  { name: 'desktop', width: 1280, height: 900, mobile: false },
+  { name: 'phone-360', width: 360, height: 740, mobile: true, touch: true, rail: false, theme: 'casino-floor' },
+  { name: 'phone-390', width: 390, height: 844, mobile: true, touch: true, rail: false, theme: 'federal-case' },
+  { name: 'tablet-768', width: 768, height: 1024, mobile: false, touch: true, rail: false, theme: 'midnight-market' },
+  { name: 'desktop-1024-expanded', width: 1024, height: 768, mobile: false, touch: false, rail: false, theme: 'casino-floor' },
+  { name: 'desktop-1440-rail', width: 1440, height: 900, mobile: false, touch: false, rail: true, theme: 'federal-case' },
+  { name: 'desktop-1920-expanded', width: 1920, height: 1080, mobile: false, touch: false, rail: false, theme: 'midnight-market' },
 ];
 
 const PUBLIC_PAGES = ['/', '/login', '/register', '/forgot-password'];
@@ -204,26 +208,40 @@ async function dismissIntro(page) {
 
 async function auditPage(browser, state, url, width) {
   const context = await browser.newContext({
-    viewport: { width: width.width, height: width.height }, isMobile: width.mobile, hasTouch: width.mobile, storageState: state,
+    viewport: { width: width.width, height: width.height }, isMobile: width.mobile, hasTouch: width.touch, storageState: state,
     reducedMotion: 'reduce',
   });
   const page = await context.newPage();
+  await page.addInitScript(({ rail }) => {
+    window.localStorage.setItem('streets.sidebar.rail.v1', rail ? '1' : '0');
+  }, { rail: width.rail });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message.slice(0, 160)));
   await page.goto(BASE + url, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => undefined);
   await page.waitForTimeout(600);
   await dismissIntro(page);
+  // Exercise the shell CSS independently of whether the audit account owns a
+  // paid theme. This changes presentation only; permissions and page data still
+  // come from the signed-in audit account.
+  await page.evaluate((theme) => {
+    const app = document.querySelector('.se-app');
+    if (!app) return;
+    for (const name of [...app.classList]) {
+      if (name.startsWith('se-site-theme--')) app.classList.remove(name);
+    }
+    app.classList.add(`se-site-theme--${theme}`);
+  }, width.theme);
   const finalPath = new URL(page.url()).pathname;
-  const measured = await page.evaluate(measure, width.mobile);
-  const focus = width.name === 'desktop' ? await focusCheck(page) : null;
+  const measured = await page.evaluate(measure, width.touch);
+  const focus = width.width >= 1024 ? await focusCheck(page) : null;
   const axe = width.name !== 'phone-360' ? await axeCheck(page) : [];
   if (SHOTS) {
     mkdirSync(path.join(OUT, 'shots'), { recursive: true });
     await page.screenshot({ path: path.join(OUT, 'shots', `${url.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'home'}-${width.name}.png`), fullPage: true });
   }
   await context.close();
-  return { url, finalPath, width: width.name, errors, ...measured, focus, axe };
+  return { url, finalPath, width: width.name, rail: width.rail, theme: width.theme, errors, ...measured, focus, axe };
 }
 
 const browser = await chromium.launch({

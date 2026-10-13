@@ -5,6 +5,7 @@ import { formatNumber, formatProfileName, profileNameParts } from '@streets/shar
 import { streetPassApi } from '../api/streetPass.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { rewardText } from '../components/RewardChip.js';
 import { BuiltAvatar } from '../components/BuiltAvatar.js';
@@ -51,26 +52,6 @@ function PassReward({ reward }: { reward: QuestRewardDto }) {
 function tierState(tier: StreetPassTierDto): 'claimed' | 'ready' | 'locked' {
   if (tier.claimed) return 'claimed';
   return tier.reached ? 'ready' : 'locked';
-}
-
-function PassMetric({
-  label,
-  value,
-  detail,
-  tone,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  tone?: 'good' | 'warn' | 'accent';
-}) {
-  return (
-    <div className={`se-pass-metric${tone ? ` se-pass-metric--${tone}` : ''}`}>
-      <span className="se-pass-metric__label">{label}</span>
-      <strong className="se-pass-metric__value">{value}</strong>
-      {detail ? <span className="se-pass-metric__detail">{detail}</span> : null}
-    </div>
-  );
 }
 
 type CosmeticPreviewKind = 'theme' | 'frame' | 'badge' | 'title' | 'item';
@@ -357,28 +338,24 @@ export function StreetPassPage() {
   return (
     <GameLayout>
       <div className="se-pass">
+        <CareerNavigation active="pass" />
         <header className="se-pass-hero">
           <div className="se-pass-hero__copy">
             <span className="se-eyebrow">Free · resets every round</span>
             <h1>{pass?.name ?? 'Street Pass'}</h1>
-            <p>Earn Street Cred by playing: contracts, jobs and the turns you spend. Every tier pays out, and the profile cosmetics you earn are yours to keep.</p>
+            <p>Earn Street Cred through contracts, jobs, and the turns you spend, then claim rewards along this round's track.</p>
           </div>
           {pass ? (
             <div className="se-pass-hero__side">
-              <div className="se-pass-hero__readout">
-                <span>
-                  <small>Tier</small>
-                  <strong>{formatNumber(pass.tier)} / {formatNumber(pass.tierCount)}</strong>
-                </span>
-                <span className={pass.claimable.length ? 'se-pass-hero__good' : undefined}>
-                  <small>Ready</small>
-                  <strong>{formatNumber(pass.claimable.length)}</strong>
-                </span>
-                <span>
-                  <small>Cred</small>
-                  <strong>{formatNumber(pass.cred)}</strong>
-                </span>
-              </div>
+              <CareerMetricStrip
+                label="Street Pass summary"
+                className="se-pass-hero__readout"
+                items={[
+                  { label: 'Tier', value: `${formatNumber(pass.tier)} / ${formatNumber(pass.tierCount)}`, tone: 'accent' },
+                  { label: 'Ready', value: formatNumber(pass.claimable.length), tone: pass.claimable.length ? 'good' : undefined },
+                  { label: 'Street Cred', value: formatNumber(pass.cred) },
+                ]}
+              />
               <div className="se-pass-hero__progress">
                 <div>
                   <span>Next tier</span>
@@ -476,17 +453,16 @@ export function StreetPassPage() {
                     <h2>Progress</h2>
                   </div>
                 </div>
-                <div className="se-pass-metricgrid">
-                  <PassMetric label="Street Cred" value={formatNumber(pass.cred)} detail="earned this round" tone="accent" />
-                  <PassMetric label="Tiers claimed" value={`${formatNumber(claimedCount)} / ${formatNumber(pass.tierCount)}`} detail={`${formatNumber(pass.tier)} reached`} />
-                  <PassMetric label="Ready now" value={formatNumber(pass.claimable.length)} detail="claimable rewards" tone={pass.claimable.length ? 'good' : undefined} />
-                  <PassMetric
-                    label="Late join"
-                    value={pass.lateJoinBonusPercent > 0 ? `+${formatNumber(pass.lateJoinBonusPercent)}%` : 'None'}
-                    detail="Cred bonus"
-                    tone={pass.lateJoinBonusPercent > 0 ? 'good' : undefined}
-                  />
-                </div>
+                <CareerMetricStrip
+                  label="Round progress"
+                  className="se-pass-metricgrid"
+                  items={[
+                    { label: 'Street Cred', value: formatNumber(pass.cred), detail: 'earned this round', tone: 'accent' },
+                    { label: 'Tiers claimed', value: `${formatNumber(claimedCount)} / ${formatNumber(pass.tierCount)}`, detail: `${formatNumber(pass.tier)} reached` },
+                    { label: 'Ready now', value: formatNumber(pass.claimable.length), detail: 'claimable rewards', tone: pass.claimable.length ? 'good' : undefined },
+                    { label: 'Late join', value: pass.lateJoinBonusPercent > 0 ? `+${formatNumber(pass.lateJoinBonusPercent)}%` : 'None', detail: 'Cred bonus', tone: pass.lateJoinBonusPercent > 0 ? 'good' : undefined },
+                  ]}
+                />
                 <p className="se-hint se-mt">
                   {nextTier
                     ? `Next reward unlocks at ${formatNumber(nextTier.credToReach)} Cred.`
@@ -513,23 +489,10 @@ export function StreetPassPage() {
                 </p>
               </div>
 
-              <div className="se-pass-railcard">
-                <span className="se-eyebrow">Season rules</span>
-                <div className="se-pass-rules">
-                  <div>
-                    <strong>Free track</strong>
-                    <span>Street Pass progress comes from normal play in the current round.</span>
-                  </div>
-                  <div>
-                    <strong>Claim before reset</strong>
-                    <span>When the round ends, unclaimed rewards expire.</span>
-                  </div>
-                  <div>
-                    <strong>Cosmetics persist</strong>
-                    <span>A season badge or frame you reached is granted automatically.</span>
-                  </div>
-                </div>
-              </div>
+              <CareerGuidance title="Free track, round reset, and permanent cosmetics" summary="Street Pass rules">
+                <p>Street Pass progress comes from normal play in the current round. Claim tier rewards before reset; unclaimed rewards expire when the round ends.</p>
+                <p>Permanent cosmetics you reach are granted automatically and stay on your account.</p>
+              </CareerGuidance>
             </aside>
           </div>
         ) : null}

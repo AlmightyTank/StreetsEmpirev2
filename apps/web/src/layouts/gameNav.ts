@@ -110,36 +110,63 @@ export const SECTIONS: NavSection[] = [
   },
 ];
 
-export const ADMIN_SECTION: NavSection = {
-  id: 'admin',
-  title: 'Admin',
-  pages: [
-    { key: 'admin-law', label: 'Law', to: '/game/admin/law', icon: 'admin' },
-    { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefix: '/game/admin/accounts/' },
-    { key: 'admin-supporters', label: 'Supporters', to: '/game/admin/supporters', icon: 'admin' },
-    { key: 'admin-factions', label: 'Factions', to: '/game/admin/factions', icon: 'admin' },
-    { key: 'admin-crew', label: 'Crew Roster', to: '/game/admin/crew', icon: 'admin' },
-    { key: 'admin-vehicles', label: 'Vehicles', to: '/game/admin/vehicles', icon: 'admin' },
-    { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets', icon: 'admin' },
-    { key: 'admin-rounds', label: 'Rounds', to: '/game/admin/rounds', icon: 'admin', prefix: '/game/admin/rounds/' },
-    { key: 'admin-monitoring', label: 'Monitoring', to: '/game/admin/monitoring', icon: 'admin' },
-    { key: 'admin-news', label: 'News and Banners', short: 'News', to: '/game/admin/news', icon: 'admin' },
-    { key: 'admin-surveys', label: 'Surveys', to: '/game/admin/surveys', icon: 'admin' },
-    { key: 'admin-quests', label: 'Quests', to: '/game/admin/quests', icon: 'admin' },
-    { key: 'admin-integrations', label: 'Integrations', short: 'Integr.', to: '/game/admin/integrations', icon: 'admin' },
-    { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports', icon: 'admin' },
-    { key: 'admin-bugs', label: 'Bug Reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin' },
-    { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy', icon: 'admin' },
-    { key: 'admin-supply', label: 'Supply Operations', to: '/game/admin/supply', icon: 'admin' },
-    { key: 'admin-loans', label: 'Loan Shark', short: 'Loans', to: '/game/admin/loans', icon: 'admin' },
-    { key: 'admin-casino', label: 'Casino', to: '/game/admin/casino', icon: 'admin' },
-    { key: 'admin-combat', label: 'Combat and Exploits', short: 'Combat', to: '/game/admin/combat', icon: 'admin' },
-    { key: 'admin-turf', label: 'Turf', to: '/game/admin/turf', icon: 'admin' },
-    { key: 'admin-audit', label: 'Audit log', short: 'Audit', to: '/game/admin/audit', icon: 'admin' },
-    { key: 'admin-events', label: 'Event Operations', short: 'Events', to: '/game/admin/events', icon: 'admin' },
-    { key: 'admin-signals', label: 'Signals', to: '/game/admin/signals', icon: 'admin' },
-  ],
-};
+/** Admin-only tools grouped by the job an operator is trying to complete. */
+export const ADMIN_SECTIONS: NavSection[] = [
+  {
+    id: 'admin-operations',
+    title: 'Admin · Operations',
+    pages: [
+      { key: 'admin-rounds', label: 'Rounds', to: '/game/admin/rounds', icon: 'admin', prefix: '/game/admin/rounds/' },
+      { key: 'admin-law', label: 'Law', to: '/game/admin/law', icon: 'admin' },
+      { key: 'admin-factions', label: 'Factions', to: '/game/admin/factions', icon: 'admin' },
+      { key: 'admin-crew', label: 'Crew Roster', to: '/game/admin/crew', icon: 'admin' },
+      { key: 'admin-vehicles', label: 'Vehicles', to: '/game/admin/vehicles', icon: 'admin' },
+      { key: 'admin-combat', label: 'Combat and Exploits', short: 'Combat', to: '/game/admin/combat', icon: 'admin' },
+      { key: 'admin-turf', label: 'Turf', to: '/game/admin/turf', icon: 'admin' },
+      { key: 'admin-events', label: 'Event Operations', short: 'Events', to: '/game/admin/events', icon: 'admin' },
+    ],
+  },
+  {
+    id: 'admin-players',
+    title: 'Admin · Players',
+    pages: [
+      { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefixes: ['/game/admin/accounts/', '/game/admin/players/'] },
+      { key: 'admin-supporters', label: 'Supporters', to: '/game/admin/supporters', icon: 'admin' },
+      { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports', icon: 'admin' },
+      { key: 'admin-bugs', label: 'Bug Reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin' },
+    ],
+  },
+  {
+    id: 'admin-economy',
+    title: 'Admin · Economy',
+    pages: [
+      { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy', icon: 'admin' },
+      { key: 'admin-supply', label: 'Supply Operations', to: '/game/admin/supply', icon: 'admin' },
+      { key: 'admin-loans', label: 'Loan Shark', short: 'Loans', to: '/game/admin/loans', icon: 'admin' },
+      { key: 'admin-casino', label: 'Casino', to: '/game/admin/casino', icon: 'admin' },
+    ],
+  },
+  {
+    id: 'admin-content',
+    title: 'Admin · Content',
+    pages: [
+      { key: 'admin-news', label: 'News and Banners', short: 'News', to: '/game/admin/news', icon: 'admin' },
+      { key: 'admin-surveys', label: 'Surveys', to: '/game/admin/surveys', icon: 'admin' },
+      { key: 'admin-quests', label: 'Quests', to: '/game/admin/quests', icon: 'admin' },
+      { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets', icon: 'admin' },
+    ],
+  },
+  {
+    id: 'admin-monitoring',
+    title: 'Admin · Monitoring',
+    pages: [
+      { key: 'admin-monitoring', label: 'Monitoring', to: '/game/admin/monitoring', icon: 'admin' },
+      { key: 'admin-integrations', label: 'Integrations', short: 'Integr.', to: '/game/admin/integrations', icon: 'admin' },
+      { key: 'admin-signals', label: 'Signals', to: '/game/admin/signals', icon: 'admin' },
+      { key: 'admin-audit', label: 'Audit log', short: 'Audit', to: '/game/admin/audit', icon: 'admin' },
+    ],
+  },
+];
 
 function pagesByKey(sections: readonly NavSection[]): Map<string, NavPage> {
   return new Map(sections.flatMap((section) => section.pages.map((page) => [page.key, page] as const)));
@@ -183,7 +210,7 @@ export function useSections(): NavSection[] {
       ? SECTIONS
       : SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => page.key !== 'street-pass') }));
     const playerSections = newPlayerNav ? newPlayerSectionsFor(sections) : sections;
-    return isAdmin ? [...playerSections, ADMIN_SECTION] : playerSections;
+    return isAdmin ? [...playerSections, ...ADMIN_SECTIONS] : playerSections;
   }, [isAdmin, hasPass, newPlayerNav]);
 }
 

@@ -57,8 +57,8 @@ export function NotificationBell() {
   useEffect(() => {
     if (!accountId) return;
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 30_000);
-    const onFocus = () => void refresh();
+    const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 30_000);
+    const onFocus = () => { if (!document.hidden) void refresh(); };
     const onChanged = () => void refresh();
     window.addEventListener('focus', onFocus);
     window.addEventListener('streets:notifications-changed', onChanged);

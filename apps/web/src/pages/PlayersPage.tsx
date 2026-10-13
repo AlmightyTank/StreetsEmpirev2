@@ -9,6 +9,7 @@ import { AllianceTag } from '../components/AllianceTag.js';
 import { ThemeSwatch } from '../components/ThemeSwatch.js';
 import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
+import { SocialNavigation } from '../components/SocialExperience.js';
 import { AvatarPortrait } from '../components/BuiltAvatar.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { ContactsPage } from './ContactsPage.js';
@@ -91,6 +92,7 @@ export function PlayersPage() {
   return (
     <GameLayout>
       <div className="se-players">
+        <SocialNavigation active="people" />
         <header className="se-players-hero">
           <div className="se-players-hero__copy">
             <span className="se-eyebrow">0.9.0 · The streets are talking</span>

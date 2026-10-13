@@ -24,6 +24,7 @@ import { confirmAction } from '../stores/confirm.js';
 import { formatWhen } from '../utils/time.js';
 import { ItemLabel, ItemTile } from '../components/ItemTile.js';
 import { hasItemArt } from '../items/itemArt.js';
+import { EmpirePageHeader } from '../components/EmpireManagement.js';
 
 function securityTierLabel(tier: NonNullable<HideoutV2Dto['security']>['reconWarningTier']): string {
   if (tier === 'SOURCE') return 'Named warnings';
@@ -324,15 +325,11 @@ export function HideoutPage() {
   return (
     <GameLayout>
       <div className="se-hideout">
-        <header className="se-hideout-hero">
-          <div className="se-hideout-hero__copy">
-            <span className="se-eyebrow">Your operation · seasonal headquarters</span>
-            <h1>Hideout</h1>
-            <p>
-              Protect the stash, run your crew, and build permanent-for-the-season upgrades from one headquarters screen.
-            </p>
-          </div>
-          {hideout?.enabled ? (
+        <EmpirePageHeader
+          eyebrow="Your operation · seasonal headquarters"
+          title="Hideout"
+          description="Protect the stash, run your crew, and build permanent-for-the-season upgrades from one headquarters screen."
+          aside={hideout?.enabled ? (
             <div className="se-hideout-hero__progress">
               <div>
                 <span>Build progress</span>
@@ -343,8 +340,8 @@ export function HideoutPage() {
               </div>
               <small>{formatNumber(buildProgress)}% complete · {formatNumber(readyRooms.length)} ready now</small>
             </div>
-          ) : null}
-        </header>
+          ) : undefined}
+        />
 
         {loadError ? (
           <Alert>

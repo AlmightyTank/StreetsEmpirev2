@@ -483,13 +483,6 @@ export function ContactsPage() {
               </p>
             </Panel>
 
-            <Panel title="Quick links" className="se-contacts-panel">
-              <div className="se-contacts-links">
-                <Link to="/game/rankings">Browse rankings</Link>
-                <Link to="/game/combat">Open Raids / recon</Link>
-                <Link to="/game/alliance">Open Alliance</Link>
-              </div>
-            </Panel>
           </aside>
         </section>
       </div>

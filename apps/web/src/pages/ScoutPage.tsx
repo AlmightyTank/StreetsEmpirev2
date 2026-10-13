@@ -17,6 +17,7 @@ import { TurnSpend } from '../components/TurnSpend.js';
 import { WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { HeatNotice } from '../components/HeatPanel.js';
 import { CrewTeamPicker } from '../components/CrewTeamPicker.js';
+import { EmpireAreaLegend } from '../components/EmpireManagement.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { scoutReceiptLines } from '../receipts/actionReceipts.js';
@@ -372,11 +373,12 @@ export function ScoutPage() {
                 <strong>{selectedDistrict?.name ?? 'Pick a district'}</strong>
                 <span>{selectedDistrict ? `${coveredPercent}% crew covered · ${exposurePercent}% exposed` : 'Choose an area to see crew coverage.'}</span>
               </div>
-              <div className="se-citymap-brief__legend" aria-label="Scout coverage legend">
-                <span><i className="se-citymap__legend-dot se-citymap__legend-dot--mine" />Covered</span>
-                <span><i className="se-citymap__legend-dot se-citymap__legend-dot--held" />Some crew exposed</span>
-                <span><i className="se-citymap__legend-dot se-citymap__legend-dot--pressure" />High exposure</span>
-              </div>
+              <EmpireAreaLegend label="Scout coverage legend" items={[
+                { key: 'covered', label: 'Covered', tone: 'mine' },
+                { key: 'warn', label: 'Some crew exposed', tone: 'held' },
+                { key: 'bad', label: 'High exposure', tone: 'pressure' },
+                { key: 'locked', label: 'Locked', tone: 'locked' },
+              ]} />
               <p>Map colors show how your current crew fits this district’s protection rule.</p>
             </aside>
           </div>

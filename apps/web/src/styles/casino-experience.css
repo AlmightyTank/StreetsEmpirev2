@@ -1,0 +1,44 @@
+.se-casino-game-selector {
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+
+.se-casino-game-selector .se-casino-switch__game {
+  scroll-snap-align: start;
+}
+
+.se-casino-game-selector .se-casino-switch__game:focus-visible,
+.se-casino-bet-control button:focus-visible,
+.se-casino-bet-control input:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: 2px;
+}
+
+.se-casino-bankroll dd {
+  font-variant-numeric: tabular-nums;
+}
+
+.se-casino-bet-control {
+  min-width: 0;
+}
+
+.se-casino-bet-control input {
+  min-width: 4.5rem;
+}
+
+@media (max-width: 520px) {
+  .se-casino-game-selector {
+    margin-inline: -.2rem;
+    padding-inline: .2rem;
+  }
+
+  .se-casino-bet-control {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto auto minmax(4.5rem, 1fr) auto auto;
+  }
+
+  .se-casino-bet-control > label {
+    grid-column: 1 / -1;
+  }
+}

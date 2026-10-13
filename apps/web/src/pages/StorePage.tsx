@@ -9,6 +9,7 @@ import { ActionResult, type ResultLine } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Portrait } from '../components/Portrait.js';
 import { Button } from '../components/Button.js';
+import { EconomyBatchAction, EconomyPendingNotice, EconomyQuote } from '../components/EconomyExperience.js';
 import { Panel } from '../components/Panel.js';
 import { ProductCounter } from '../components/ProductCounter.js';
 import { ProductAccessTable } from '../components/ProductAccess.js';
@@ -22,9 +23,10 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatDuration } from '../utils/time.js';
 import { browserSessionStorage, clearPendingAction, loadPendingAction, savePendingAction } from '../utils/pendingAction.js';
+import { addStoreBasketLine, isStoreBasket, removeStoreBasketLine, STORE_BASKET_MAX_AGE_MS, type StoreBasketLine } from '../utils/storeBasket.js';
 
 type Order = Omit<StoreTradeInput, 'actionId'>;
-type BasketLine = StoreCheckoutLineInput & { key: string; storeName: string; itemName: string; unitCents: number; stockLabel: string };
+type BasketLine = StoreBasketLine;
 type StoreCommand = { kind: 'trade'; order: Order } | { kind: 'checkout'; lines: StoreCheckoutLineInput[] } | { kind: 'specialOrder'; store: string; item: string };
 type PendingStoreCommand = { actionId: string; command: StoreCommand };
 
@@ -250,16 +252,24 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
             emptyReason={emptyReason}
           />
         </div>
-        <p id={`${quantityId}-hint`} className="se-hint">
-          {purchaseLocked ? 'Complete the required quest to unlock purchases.' : soldOut ? (
-            `Sold out. ${keeper} has none to sell you right now.`
-          ) : <>
-            {buying ? 'Can buy' : 'Can sell'} {formatNumber(max)}.
-            {buying && item.restock && max === item.restock.stock && max > 0
-              ? ' That is the whole shelf.' : ''}
-            {quantity !== '' && !valid ? ' Enter a whole quantity within that limit.' : ''}
-          </>}
-        </p>
+        <EconomyQuote
+          eyebrow="Trade quote"
+          title={quantity === '' ? item.name : `${formatNumber(quantity)} × ${item.name}`}
+          status={total === null ? 'Check quantity' : formatCents(total)}
+          statusTone={total === null ? 'warn' : 'accent'}
+          compact
+        >
+          <p id={`${quantityId}-hint`} className="se-hint">
+            {purchaseLocked ? 'Complete the required quest to unlock purchases.' : soldOut ? (
+              `Sold out. ${keeper} has none to sell you right now.`
+            ) : <>
+              {buying ? 'Can buy' : 'Can sell'} {formatNumber(max)}.
+              {buying && item.restock && max === item.restock.stock && max > 0
+                ? ' That is the whole shelf.' : ''}
+              {quantity !== '' && !valid ? ' Enter a whole quantity within that limit.' : ''}
+            </>}
+          </p>
+        </EconomyQuote>
         <div className="se-store-actions">
           <Button className="se-btn se-btn--primary se-btn--block" disabledReason={tradeBlock}>
             {purchaseLocked ? 'Purchases locked' : `${buying ? 'Buy' : 'Sell'}${total !== null ? ` · ${formatCents(total)}` : ''}`}
@@ -622,8 +632,8 @@ function StoreView({
         ) : null}
         {action.error ? <Alert>{action.error}</Alert> : null}
         {retryOrder ? (
-          <Alert tone="info">
-            The last transaction could not be confirmed. Retry it to check the result safely.{' '}
+          <EconomyPendingNotice
+            action={(
             <Button
               className="se-btn se-btn--sm"
               disabledReason={action.busy ? 'Checking the last transaction with the server.' : null}
@@ -631,7 +641,10 @@ function StoreView({
             >
               Retry transaction
             </Button>
-          </Alert>
+            )}
+          >
+            The last transaction could not be confirmed. Retry it to check the result safely.
+          </EconomyPendingNotice>
         ) : null}
         {!catalog && !loadError ? <div className="se-stores-loading" role="status">Loading the shelves...</div> : null}
         {catalog && !store ? <Alert>That store is not open. <Link to="/game/stores/corner">Visit the Corner Store</Link>.</Alert> : null}
@@ -733,7 +746,7 @@ function StoreView({
               </div>
 
               <aside className="se-stores-market__rail">
-                <div className="se-stores-railcard se-store-basket">
+                <EconomyBatchAction label="Order basket" className="se-stores-railcard se-store-basket">
                   <div className="se-store-basket__head">
                     <div>
                       <span className="se-eyebrow">Order basket</span>
@@ -779,7 +792,7 @@ function StoreView({
                       </div>
                     </>
                   )}
-                </div>
+                </EconomyBatchAction>
 
                 <div className="se-stores-railcard">
                   <span className="se-eyebrow">Behind the counter</span>
@@ -992,22 +1005,15 @@ export function StorePage() {
   // Prices on the lines are a guide; checkout charges what the shelf says then.
   const me = useSession((s) => s.me);
   const [basket, setBasket] = useRememberedState<BasketLine[]>(rememberedKey('store.basket', me?.id), [], {
-    accept: (value): value is BasketLine[] => Array.isArray(value)
-      && value.every((line) => line && typeof line === 'object' && typeof (line as BasketLine).key === 'string' && typeof (line as BasketLine).quantity === 'number'),
-    maxAgeMs: 24 * 3_600_000,
+    accept: isStoreBasket,
+    maxAgeMs: STORE_BASKET_MAX_AGE_MS,
   });
   function addToBasket(line: BasketLine) {
-    setBasket((current) => {
-      const existing = current.find((entry) => entry.key === line.key);
-      if (!existing) return [...current, line];
-      return current.map((entry) => entry.key === line.key
-        ? { ...entry, quantity: entry.quantity + line.quantity }
-        : entry);
-    });
+    setBasket((current) => addStoreBasketLine(current, line));
   }
 
   function removeFromBasket(key: string) {
-    setBasket((current) => current.filter((line) => line.key !== key));
+    setBasket((current) => removeStoreBasketLine(current, key));
   }
 
   return (

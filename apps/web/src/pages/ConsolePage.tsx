@@ -28,6 +28,7 @@ import { AllianceWire } from '../components/AllianceWire.js';
 import { gameEventToastFor } from '../components/GameEventToasts.js';
 import { Panel } from '../components/Panel.js';
 import { PendingEncountersPanel } from '../components/PendingEncountersPanel.js';
+import { SocialNavigation } from '../components/SocialExperience.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
@@ -691,19 +692,12 @@ export function ConsolePage() {
   return (
     <GameLayout>
       <div className="se-console">
+        <SocialNavigation active="console" />
         <header className="se-console-hero">
           <div>
             <span className="se-eyebrow">Street Wire · Messages &amp; dispatches</span>
             <h1>Street Wire</h1>
             <p>Keep up with the players you know, the messages they send, and what’s happening across your operation.</p>
-          </div>
-          <div className="se-console-hero__stats">
-            <span><small>Unread</small><strong>{counts?.unread ?? 0}</strong></span>
-            <span><small>Alerts</small><strong>{counts?.notifications ?? notifications?.unreadCount ?? 0}</strong></span>
-            <span><small>Threads</small><strong>{data?.folder === 'active' ? data.total : (counts ? counts.inbox + counts.sent : 0)}</strong></span>
-            <span><small>Archived</small><strong>{counts?.archived ?? 0}</strong></span>
-            <span><small>Attacks</small><strong>{counts?.attacks ?? 0}</strong></span>
-            <span><small>Activity</small><strong>{counts?.activity ?? 0}</strong></span>
           </div>
         </header>
 
@@ -1308,12 +1302,6 @@ export function ConsolePage() {
           </section>
         )}
 
-        <footer className="se-console-links">
-          <span>Existing systems stay authoritative:</span>
-          <Link to="/game/alliance">Alliance Wire</Link>
-          <Link to="/game/console?view=activity">Activity & attacks</Link>
-          <Link to="/game/players">Player directory</Link>
-        </footer>
       </div>
     </GameLayout>
   );

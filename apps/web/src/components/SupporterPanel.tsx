@@ -52,6 +52,7 @@ export function SupporterPanel() {
     if (returned !== 'thanks') return;
     let tries = 0;
     const timer = window.setInterval(async () => {
+      if (document.hidden) return;
       tries += 1;
       const next = await load();
       if (next?.hasRewards || tries >= CONFIRM_POLL_TRIES) {

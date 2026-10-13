@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { EXPERIENCE_LEVEL_REWARDS, experienceRequiredForLevel, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { gameApi } from '../api/game.js';
+import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -129,11 +130,12 @@ export function XpProgressPage() {
   return (
     <GameLayout>
       <div className="se-pass se-xp-progress">
+        <CareerNavigation active="xp" />
         <header className="se-pass-hero">
           <div className="se-pass-hero__copy">
             <span className="se-eyebrow">Career progression · carries between seasons</span>
             <h1>XP Progress</h1>
-            <p>Build your account level, earn permanent profile cosmetics, and track the history you leave behind. XP rewards are cosmetic and never give a gameplay advantage.</p>
+            <p>Build your account level, unlock profile rewards, and track the history you leave behind across seasons.</p>
           </div>
           <div className="se-pass-hero__progress">
             <div>
@@ -153,16 +155,20 @@ export function XpProgressPage() {
           </div>
         </header>
 
-        <div className="se-xp-overview" aria-label="XP summary">
-          <div>
-            <span>Titles unlocked</span>
-            <strong>{formatNumber(claimedRewards.length)} / {formatNumber(EXPERIENCE_LEVEL_REWARDS.length)}</strong>
-          </div>
-          <div>
-            <span>Next level starts</span>
-            <strong>{formatNumber(nextLevelTotal)} XP</strong>
-          </div>
-        </div>
+        <CareerMetricStrip
+          label="XP summary"
+          items={[
+            { label: 'Current level', value: experienceLoading && !experience ? '...' : formatNumber(level), tone: 'accent' },
+            { label: 'Lifetime XP', value: experience ? formatNumber(totalXp) : experienceLoading ? 'Loading...' : '-' },
+            { label: 'Titles unlocked', value: `${formatNumber(claimedRewards.length)} / ${formatNumber(EXPERIENCE_LEVEL_REWARDS.length)}`, tone: claimedRewards.length ? 'good' : undefined },
+            { label: 'Next level starts', value: `${formatNumber(nextLevelTotal)} XP` },
+          ]}
+        />
+
+        <CareerGuidance title="Permanent level, seasonal progress, and cosmetics">
+          <p>Lifetime XP, account level, earned titles, badges, and other profile cosmetics carry between rounds. Street Cred and Street Pass tiers belong to the current round and reset when it ends.</p>
+          <p>Career rewards are cosmetic only and never add cash, strength, turns, or another gameplay advantage.</p>
+        </CareerGuidance>
 
         <section className="se-pass-info se-xp-info">
           <Panel title="Lifetime stats" className="se-pass-panel">
@@ -365,7 +371,6 @@ export function XpProgressPage() {
           ) : null}
         </Panel>
 
-        <p className="se-hint">Account XP and profile cosmetics persist between rounds. Street Cred and Street Pass tiers belong to one round and reset when that round ends.</p>
       </div>
     </GameLayout>
   );

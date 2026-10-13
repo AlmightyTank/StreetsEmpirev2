@@ -28,10 +28,13 @@ export function SiteBanner() {
         .catch(() => undefined);
     };
     load();
-    const timer = window.setInterval(load, REFRESH_MS);
+    const refreshWhenVisible = () => { if (!document.hidden) load(); };
+    const timer = window.setInterval(refreshWhenVisible, REFRESH_MS);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, []);
 

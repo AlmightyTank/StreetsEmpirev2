@@ -156,12 +156,19 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
   useEffect(() => {
     void refresh();
     // This reads StreetsEmpire's database cache; it never polls TheRundown from a player page.
-    const timer = window.setInterval(() => void refresh(), 60_000);
-    return () => window.clearInterval(timer);
+    const refreshWhenVisible = () => { if (!document.hidden) void refresh(); };
+    const timer = window.setInterval(refreshWhenVisible, 60_000);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, [refresh]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now() + clockOffset), 15_000);
+    const timer = window.setInterval(() => {
+      if (!document.hidden) setNow(Date.now() + clockOffset);
+    }, 15_000);
     return () => window.clearInterval(timer);
   }, [clockOffset]);
 

@@ -341,8 +341,13 @@ export function ConvoysPanel({ products, refreshKey }: { products: Products; ref
   }, []);
   useEffect(load, [load, refreshKey]);
   useEffect(() => {
-    const timer = window.setInterval(load, 30_000);
-    return () => window.clearInterval(timer);
+    const refreshWhenVisible = () => { if (!document.hidden) load(); };
+    const timer = window.setInterval(refreshWhenVisible, 30_000);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, [load]);
 
   if (error) return <Panel title="Convoys"><Alert>{error}</Alert></Panel>;
