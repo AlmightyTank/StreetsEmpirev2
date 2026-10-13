@@ -78,10 +78,11 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - Slots, Blackjack, Roulette and Street Dice continue to use the common action dock and compact result/full-receipt pattern. Poker and Sports Betting retain controls tailored to multiplayer turns and bet-slip review rather than forcing them into an unsuitable table control.
 - All game APIs, session persistence, table limits, idempotency, sportsbook cache polling, authoritative close times, odds checks and settlement boundaries are unchanged.
 
-### G — Career: Profile, XP, Street Pass and Events
-- One coherent presentation of level, progress, achievements, titles, unlocks and supporter cosmetics.
-- Do not remove paid customization or mix appearance settings with game progression.
-- Move duplicate explanations into optional detail panels.
+### G — Career: Profile, XP, Street Pass and Events (implemented; browser validation pending)
+- **Career now reads as one connected destination**: XP, Street Pass, Events and the signed-in player's Profile share persistent deep links and a consistent summary vocabulary for levels, progress, achievements, titles and unlocks.
+- Repeated progression explanations now live in optional, keyboard-accessible detail panels. Lifetime XP, round-scoped Street Cred, event participation and permanent cosmetic rewards remain clearly separated.
+- Paid and earned appearance customization remains in Account Settings rather than being mixed into gameplay progression. Public profile routes keep their existing privacy and reconnaissance boundaries and do not expose owner-only controls.
+- Existing progression, Street Pass claim, event polling, Quest deep-link, profile theme and career-history APIs and mechanics are unchanged.
 
 ### H — Social and communication
 - Distinguish player Contacts, Console messages, Alliance coordination, Rankings and News by their actual purpose.

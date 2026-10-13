@@ -5,6 +5,7 @@ import { ApiError } from '../api/client.js';
 import { questsApi } from '../api/quests.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
 import { Panel } from '../components/Panel.js';
 import { RewardChip } from '../components/RewardChip.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -146,16 +147,26 @@ export function EventsPage() {
 
   return <GameLayout>
     <main className="se-events">
+      <CareerNavigation active="events" />
       <header className="se-events-hero">
-        <div><span className="se-eyebrow">Event Center</span><h1>Events</h1><p>One place for community and seasonal events. Each event shows its schedule, rules, progress, rewards, and history.</p></div>
-        <div className="se-events-hero__counts" aria-label="Event counts">
-          {(['active', 'upcoming', 'completed', 'claimed'] as const).map((shelf) => <span key={shelf}><small>{shelf}</small><strong>{count(shelf)}</strong></span>)}
-        </div>
+        <div><span className="se-eyebrow">Event Center</span><h1>Events</h1><p>Track community and seasonal events, their schedules, your progress, and earned rewards.</p></div>
+        <CareerMetricStrip
+          label="Event counts"
+          items={(['active', 'upcoming', 'completed', 'claimed'] as const).map((shelf) => ({
+            label: shelf,
+            value: count(shelf),
+            tone: shelf === 'active' && count(shelf) > 0 ? 'accent' as const : shelf === 'claimed' && count(shelf) > 0 ? 'good' as const : undefined,
+          }))}
+        />
       </header>
       {error ? <Alert tone="error">{error}</Alert> : null}
       <nav className="se-event-tabs" aria-label="Event status">
         {(['active', 'upcoming', 'completed', 'claimed'] as const).map((shelf) => <Button key={shelf} className={`se-btn ${tab === shelf ? '' : 'se-btn--ghost'}`} aria-pressed={tab === shelf} onClick={() => setTab(shelf)}>{titleCase(shelf)} <span>{count(shelf)}</span></Button>)}
       </nav>
+      <CareerGuidance title="Event calendar, objectives, and city effects">
+        <p>This page is the event calendar and progress record. Join or manage an event through its linked Quest entry; completion and claim history return here.</p>
+        <p>Community objectives combine player contributions. City conditions are separate temporary modifiers and apply only during their displayed window.</p>
+      </CareerGuidance>
       {page?.cityConditions?.length ? <section className="se-city-conditions" aria-label="City conditions">
         <header><h2>City conditions</h2><p>Temporary modifiers apply to everyone in your city while their window is active.</p></header>
         {page.cityConditions.map((condition) => <CityConditionCard key={condition.key} condition={condition} />)}
