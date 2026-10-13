@@ -48,6 +48,7 @@ import './styles/career-experience.css';
 import './styles/social-experience.css';
 import './styles/admin-workspace.css';
 import './styles/dashboard-cinematic.css';
+import './styles/dashboard-final-polish.css';
 import { App } from './App.js';
 // Before React mounts: Android can offer the install prompt immediately.
 import './utils/install.js';
