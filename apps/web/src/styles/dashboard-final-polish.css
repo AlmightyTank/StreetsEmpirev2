@@ -255,3 +255,25 @@
     transition-duration: .01ms !important;
   }
 }
+
+/* Tablet links should have real tap areas, not a 16px text baseline. */
+.se-dashboard .se-dashboard-story__all {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 7px 9px;
+  border-radius: 6px;
+}
+
+/* The 1024px expanded-sidebar viewport leaves less horizontal space than the
+ * fixed five-column footer tracks. Use the two-column footer layout before
+ * it pushes the overall game page sideways. */
+@media (min-width: 981px) and (max-width: 1199px) {
+  .se-app .se-footer__inner {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .se-app .se-footer__brand {
+    grid-column: 1 / -1;
+  }
+}
