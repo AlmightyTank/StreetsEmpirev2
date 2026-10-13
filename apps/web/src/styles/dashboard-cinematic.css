@@ -480,3 +480,21 @@
     transform: none !important;
   }
 }
+
+/* Everyday reminders use the player's theme accent; dangerous situations
+ * alone receive the illustrated red street-alert treatment. */
+.se-dashboard .se-dashboard-command__attention--alerts:not(.se-dashboard-command__attention--urgent) {
+  border-color: rgba(var(--se-accent-rgb), .37);
+  background:
+    linear-gradient(125deg, rgba(var(--se-accent-rgb), .085), transparent 58%),
+    var(--se-panel);
+}
+.se-dashboard .se-dashboard-command__attention--alerts:not(.se-dashboard-command__attention--urgent) .se-dashboard-count {
+  background: rgba(var(--se-accent-rgb), .08);
+}
+.se-dashboard .se-dashboard-snapshot__tile--turns > span:not(.se-dashboard-snapshot__icon) {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 0;
+}
