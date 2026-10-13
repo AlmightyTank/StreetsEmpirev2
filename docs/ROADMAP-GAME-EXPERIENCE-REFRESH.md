@@ -84,10 +84,11 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - Paid and earned appearance customization remains in Account Settings rather than being mixed into gameplay progression. Public profile routes keep their existing privacy and reconnaissance boundaries and do not expose owner-only controls.
 - Existing progression, Street Pass claim, event polling, Quest deep-link, profile theme and career-history APIs and mechanics are unchanged.
 
-### H — Social and communication
-- Distinguish player Contacts, Console messages, Alliance coordination, Rankings and News by their actual purpose.
-- Cross-links where useful; remove duplicated unread counters/sidebars.
-- Improve inbox and player profile readability on narrow screens.
+### H — Social and communication (implemented; browser validation pending)
+- **Social destinations now explain their purpose before the player enters them**: Players and Contacts find and track people, Street Wire handles messages and alerts, Alliance hosts private crew coordination, Rankings shows public standing, and News carries official updates.
+- Signed-in social screens share direct destination links while public News stays public. The redundant Street Wire hero counters and Contacts quick-link sidebar were removed; counts remain beside the tabs and controls they describe.
+- Player profiles now link directly into a recipient-ready message, and profile actions plus inbox subjects and previews remain readable and tappable on narrow screens.
+- Existing contact privacy, earned-intel boundaries, message moderation and blocking, Alliance Wire permissions, ranking calculations, News visibility, routes and APIs are unchanged.
 
 ### I — Admin workspace
 - Group admin tools by Operations, Players, Economy, Content and Monitoring.

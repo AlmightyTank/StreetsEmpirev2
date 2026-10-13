@@ -45,6 +45,7 @@ import './styles/action-experience.css';
 import './styles/empire-management.css';
 import './styles/economy-experience.css';
 import './styles/career-experience.css';
+import './styles/social-experience.css';
 import { App } from './App.js';
 // Before React mounts: Android can offer the install prompt immediately.
 import './utils/install.js';

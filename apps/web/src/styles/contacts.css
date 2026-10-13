@@ -328,28 +328,6 @@
   line-height: 1.3;
 }
 
-.se-contacts-links {
-  display: grid;
-  gap: 5px;
-}
-
-.se-contacts-links a {
-  display: flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 7px 9px;
-  border: 1px solid var(--se-line);
-  color: var(--se-text-dim);
-  font-size: 9px;
-  font-weight: 750;
-  text-decoration: none;
-}
-
-.se-contacts-links a:hover {
-  border-color: var(--se-accent-dim);
-  color: var(--se-accent);
-}
-
 .se-contacts .se-hint {
   font-size: 9px;
   line-height: 1.4;

@@ -568,6 +568,7 @@ export function ProfilePage() {
           </div>
           <div className="se-inline-actions">
             {isOwnProfileRoute ? <Link className="se-btn se-btn--ghost se-btn--sm" to="/account#settings-profile">Customize appearance</Link> : null}
+            {player && !player.isYou ? <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/console?to=${player.publicPimpId}`}>Message</Link> : null}
             {player && !player.isYou ? <ContactButton publicPimpId={player.publicPimpId} /> : null}
             {player?.forumProfileUrl ? <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum Profile</a> : null}
           </div>

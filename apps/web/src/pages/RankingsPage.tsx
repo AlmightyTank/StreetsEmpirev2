@@ -11,6 +11,7 @@ import { AllianceTag } from '../components/AllianceTag.js';
 import { AvatarPortrait } from '../components/BuiltAvatar.js';
 import { ThemeSwatch } from '../components/ThemeSwatch.js';
 import { Panel } from '../components/Panel.js';
+import { SocialNavigation } from '../components/SocialExperience.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { AllianceRankingTable } from './AlliancesPage.js';
@@ -253,6 +254,7 @@ export function RankingsPage() {
   return (
     <GameLayout>
       <div className="se-rankings">
+        <SocialNavigation active="rankings" />
         <header className="se-rankings-hero">
           <div className="se-rankings-hero__copy">
             <span className="se-eyebrow">Live round ledger</span>
