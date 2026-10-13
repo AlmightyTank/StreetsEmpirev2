@@ -994,3 +994,75 @@
   .se-dashboard-hero__mini small { font-size: 9px; letter-spacing: 0; }
   .se-dashboard-hero__mini em { font-size: 9px; }
 }
+
+
+/* Progressive disclosure for management panels. Anchored Heat/Payout and
+ * crew-health links are opened by the page before scrolling to their targets. */
+.se-dashboard-fold {
+  min-width: 0;
+  align-self: start;
+  border: 1px solid var(--se-line);
+  border-radius: 10px;
+  background: var(--se-panel);
+  scroll-margin-top: 96px;
+}
+.se-dashboard-fold__summary {
+  display: flex;
+  min-height: 61px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  list-style: none;
+  cursor: pointer;
+}
+.se-dashboard-fold__summary::-webkit-details-marker { display: none; }
+.se-dashboard-fold__summary:hover { background: rgba(var(--se-accent-rgb), .055); }
+.se-dashboard-fold__summary:focus-visible { outline: 2px solid var(--se-accent); outline-offset: -2px; }
+.se-dashboard-fold__summary > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+.se-dashboard-fold__summary strong { color: var(--se-text); font-size: 13px; }
+.se-dashboard-fold__summary small { color: var(--se-text-dim); font-size: 10px; line-height: 1.4; }
+.se-dashboard-fold__summary > span:last-child {
+  color: var(--se-accent);
+  font-size: 18px;
+  font-weight: 700;
+}
+.se-dashboard-fold[open] > .se-dashboard-fold__summary {
+  border-bottom: 1px solid var(--se-line);
+}
+.se-dashboard-fold[open] > .se-dashboard-fold__summary > span:last-child {
+  font-size: 0;
+}
+.se-dashboard-fold[open] > .se-dashboard-fold__summary > span:last-child::after {
+  content: '−';
+  font-size: 18px;
+}
+.se-dashboard-fold > .se-dashboard-section {
+  padding: 12px;
+  margin: 0;
+  border-top: 0;
+}
+.se-dashboard-fold .se-dashboard-sectiontitle h2 { font-size: 17px; }
+.se-dashboard-fold .se-dashboard-sectiontitle > p { font-size: 10px; }
+.se-dashboard-fold .se-dashboard-command__sidehealth { padding: 12px; border-top: 0; }
+.se-dashboard-fold--wide { width: 100%; }
+.se-dashboard-fold--wide > .se-dashboard-section { display: grid; }
+.se-dashboard > .se-dashboard-fold { scroll-margin-top: 98px; }
+
+/* With the real dashboard sidebar width, prefer two-column summary panels
+ * but avoid compressing long headings or cutting paid cosmetic shells. */
+@media (max-width: 1100px) {
+  .se-dashboard-command { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .se-dashboard-fold__summary { min-height: 56px; padding: 11px; }
+  .se-dashboard-fold > .se-dashboard-section { padding: 9px; }
+  .se-dashboard-fold .se-dashboard-command__sidehealth { padding: 9px; }
+}
+.se-density--compact .se-dashboard-snapshot__tile { min-height: 65px; padding: 9px; }
+.se-density--compact .se-dashboard-story { padding: 11px; gap: 8px; }
+.se-density--compact .se-dashboard-fold__summary { min-height: 45px; padding: 8px 10px; }
