@@ -92,7 +92,10 @@ export function ActionDock({
   children: ReactNode;
 }) {
   const [openReceipt, setOpenReceipt] = useState<unknown>(null);
+  const [openChips, setOpenChips] = useState<unknown>(null);
   const expanded = outcome ? openReceipt === outcome.id : false;
+  const allChips = outcome ? openChips === outcome.id : false;
+  const visibleChips = outcome ? (allChips ? outcome.chips : outcome.chips.slice(0, 3)) : [];
 
   return (
     <form className="se-dock" aria-label={label} onSubmit={onSubmit}>
@@ -104,7 +107,7 @@ export function ActionDock({
               <strong className={`se-dock__title se-dock__title--${outcome.tone ?? 'good'}`}>{outcome.title}</strong>
               <ul className="se-dock__chips">
                 {outcome.chips.length ? (
-                  outcome.chips.map((chip) => (
+                  visibleChips.map((chip) => (
                     <li key={chip.key} className={`se-dock__chip se-dock__chip--${chip.tone}`}>
                       <span>{chip.label}</span>
                       <strong>{chip.text}</strong>
@@ -113,6 +116,15 @@ export function ActionDock({
                 ) : (
                   <li className="se-dock__chip se-dock__chip--muted"><span>Nothing moved</span></li>
                 )}
+                {outcome.chips.length > 3 ? (
+                  <li>
+                    <button type="button" className="se-dock__more"
+                      aria-expanded={allChips}
+                      onClick={() => setOpenChips(allChips ? null : outcome.id)}>
+                      {allChips ? 'Fewer changes' : `+${outcome.chips.length - 3} more`}
+                    </button>
+                  </li>
+                ) : null}
               </ul>
               <div className="se-dock__tools">
                 <button
