@@ -50,10 +50,14 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - Keep season/city/alliance/community contracts, faction standings, favors and recipe ladders accessible in compact sections or detail panels. **Implemented as expandable sections.**
 - Support deep-link `?focus`, direct notifications, keyboard focus and mobile jump positioning. **Implemented, pending browser smoke tests.**
 
-### C — Actions: Scout, Produce and Raids
-- Unified action dock, equipment/turn status, outcome receipt and consistent quantity shortcuts.
-- Draw attention to what is available now; show job unlock restrictions contextually.
-- Replace redundant activity panels with a compact recent-result summary.
+### C — Actions: Scout, Produce and Raids (implemented on Slice C branch; validation pending)
+- **Shared readiness briefing** on all three screens, showing current turns, usable crew, relevant equipment or selection and the precise reason an action is blocked.
+- **Action controls moved directly beneath the main planner** on Scout, Produce and Raids rather than below the lengthy crew-readiness and historical sections. Existing ActionDock, receipt logic, retries and API mutations are retained.
+- Consistent quantity helper controls: Scout and Produce keep the common TurnSpend steps/Max; Raids now uses the same QuantitySteps component for +1, +5, +10 and Max squad size.
+- **Compact receipt strip** shows three changes by default with an expandable remainder and the full underlying receipt available separately.
+- **Optional intelligence**: Scout district map and crew/supply/how-to details, Produce locked recipes and crew/supply/how-to details, Raid NPC intel, equipment/recovery, rules and history are collapsed on first visit.
+- **Permissions remain authoritative**: district/recipe quest locks, crew requirements, server turn costs, combat cooldowns, idempotent requests and pending-hit recovery are not bypassed.
+- Added component render tests for the compact result and readiness states. **CI and browser checks are pending before release.**
 
 ### D — Empire: Crew, Dealers, Hideout, Travel and Turf
 - Reuse one small set of roster cards, management patterns and contextual inspectors.
