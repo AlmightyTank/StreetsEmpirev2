@@ -16,6 +16,7 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen } from '../utils/time.js';
 import { CityDistrictMap, type CityDistrictMapEntry } from '../components/CityDistrictMap.js';
+import { EmpireAreaLegend, EmpireInspector, EmpireManagementLayout, EmpireRosterCard } from '../components/EmpireManagement.js';
 
 const ORDER: Record<TurfBlockDto['district'], number> = {
   CASINO: 0,
@@ -97,28 +98,26 @@ function holder(block: TurfBlockDto) {
 function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city: CityCharacterDto; onChanged: () => void; onSelect: (district: TurfBlockDto['district']) => void; selectedDistrict: TurfBlockDto['district'] | null }) {
   const turf = city.turf;
   if (!turf) return <p className="se-muted">Turf is not enabled in this round.</p>;
-  const blocks = [...turf.blocks].sort((a, b) => {
-    if (selectedDistrict) {
-      if (a.district === selectedDistrict) return -1;
-      if (b.district === selectedDistrict) return 1;
-    }
-    return ORDER[a.district] - ORDER[b.district];
-  });
+  const blocks = [...turf.blocks].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
+  const block = blocks.find((entry) => entry.district === selectedDistrict) ?? blocks[0] ?? null;
+  if (!block) return <p className="se-muted">No districts are available in this city.</p>;
+  const status = block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
 
   return (
     <>
       {turf.business && city.isHome && blocks.some((block) => block.isMine) ? <BusinessCollect business={turf.business} onChanged={onChanged} /> : null}
-      <div className="se-turfboard" role="list" aria-label={`${city.name} district control`}>
-        {blocks.map((block) => {
-          const status = block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
-          return (
-            <article id={`turf-block-${block.district}`} key={block.district} role="listitem" className={`se-turfboard__block se-turfboard__block--${status}${selectedDistrict === block.district ? ' se-turfboard__block--selected' : ''}`}>
+      <EmpireManagementLayout
+        listLabel={`${city.name} districts`}
+        list={blocks.map((entry) => {
+          const entryStatus = entry.isMine ? 'Your crew' : entry.holder ? 'Player-held' : entry.localsReclaimAt ? 'Rebuilding' : 'Locals';
+          const entryTone = entry.isMine ? 'accent' : entry.push || entry.war ? 'warn' : 'muted';
+          return <EmpireRosterCard key={entry.district} eyebrow="District" title={entry.districtName} detail={entry.holder?.displayName ?? (entry.localsReclaimAt ? 'Vacant · locals rebuilding' : 'Local control')} status={entry.push || entry.war ? 'Conflict' : entryStatus} statusTone={entryTone} meta={[entry.holder ? `${formatNumber(entry.cornerThugs)} posted` : `${formatNumber(entry.localsThugs)} locals`, `${Math.floor(entry.presenceTurns)} presence`]} selected={entry.district === block.district} onSelect={() => onSelect(entry.district)} selectLabel={`Manage ${entry.districtName} turf`} />;
+        })}
+        inspector={
+          <EmpireInspector eyebrow={`District · ${city.name}`} title={block.districtName} status={block.push || block.war ? 'Active conflict' : block.isMine ? 'Your crew' : block.holder ? 'Player-held' : block.localsReclaimAt ? 'Rebuilding' : 'Local control'} statusTone={block.push || block.war ? 'warn' : block.isMine ? 'accent' : 'muted'} label={`${block.districtName} turf actions`}>
+            <article id={`turf-block-${block.district}`} className={`se-turfboard__block se-turfboard__block--${status} se-turfboard__block--selected`}>
               <div className="se-turfboard__head">
                 <div>
-                  <button type="button" className="se-turfboard__focus" onClick={() => onSelect(block.district)} aria-pressed={selectedDistrict === block.district}>
-                    <span className="se-eyebrow">District</span>
-                    <strong>{block.districtName}</strong>
-                  </button>
                   <div className="se-turfboard__holder">{holder(block)}</div>
                 </div>
                 <span className="se-turfboard__age" title={block.heldSince ? `Held since ${formatWhen(block.heldSince)}` : undefined}>
@@ -160,7 +159,7 @@ function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city:
               {block.businesses && block.districtAccess?.unlocked !== false ? <BusinessLots block={block} business={turf.business} onChanged={onChanged} /> : null}
               {turf.business?.wars && block.districtAccess?.unlocked !== false ? <BlockWarPanel block={block} wars={turf.business.wars} isHome={city.isHome} onChanged={onChanged} /> : null}
 
-              {selectedDistrict === block.district && block.districtAccess?.unlocked !== false ? (
+              {block.districtAccess?.unlocked !== false ? (
                 <Link className="se-turfboard__scout-link" to={`/game/scout?district=${encodeURIComponent(block.district)}`}>
                   {city.isHome ? 'Scout this district' : 'Scout this district type at home'} <span aria-hidden="true">↗</span>
                 </Link>
@@ -181,9 +180,9 @@ function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city:
                 onChanged={onChanged}
               /> : null}
             </article>
-          );
-        })}
-      </div>
+          </EmpireInspector>
+        }
+      />
     </>
   );
 }
@@ -235,20 +234,17 @@ function CityTurfMap({
             <strong>{cityController ? `[${cityController}]` : 'Contested city'}</strong>
             <span>{cityController ? `${blocksHeldByController} of 5 blocks held · 3 needed to control` : 'No alliance currently controls the city'}</span>
           </div>
-          <div className="se-citymap-brief__legend" aria-label="Map legend">
-            <span><i className="se-citymap__legend-dot se-citymap__legend-dot--mine" />Your crew</span>
-            <span><i className="se-citymap__legend-dot se-citymap__legend-dot--held" />Other crew</span>
-            <span><i className="se-citymap__legend-dot se-citymap__legend-dot--locals" />Locals</span>
-            <span><i className="se-citymap__legend-dot se-citymap__legend-dot--vacant" />Rebuilding</span>
-            <span><i className="se-citymap__legend-dot se-citymap__legend-dot--pressure" />Active conflict</span>
-            <span><i className="se-citymap__legend-dot se-citymap__legend-dot--lot" />Business built</span>
-          </div>
+          <EmpireAreaLegend label="Turf map legend" items={[
+            { key: 'mine', label: 'Your crew', tone: 'mine' }, { key: 'held', label: 'Other crew', tone: 'held' },
+            { key: 'locals', label: 'Locals', tone: 'locals' }, { key: 'vacant', label: 'Rebuilding', tone: 'vacant' },
+            { key: 'pressure', label: 'Active conflict', tone: 'pressure' }, { key: 'locked', label: 'Locked', tone: 'locked' },
+          ]} />
           {selectedDistrict ? (
             <a className="se-citymap-brief__action" href={`#turf-block-${selectedDistrict}`}>
               Jump to district actions <span aria-hidden="true">↓</span>
             </a>
           ) : null}
-          <p>Select a district to focus its card on the control board below.</p>
+          <p>Select a district to open its controls in the inspector below.</p>
         </aside>
       </div>
     </details>
@@ -333,7 +329,7 @@ export function TurfPage() {
   const requestedDistrict = params.get('district');
   const selectedDistrict = selected?.turf?.blocks.some((block) => block.district === requestedDistrict)
     ? requestedDistrict as TurfBlockDto['district']
-    : null;
+    : selected?.turf?.blocks[0]?.district ?? null;
   const selectedPulse = selected ? pulse(selected) : null;
   const activeRuns = travel?.runs ?? (travel?.run ? [travel.run] : []);
   const nextRunDeadline = activeRuns.reduce<string | null>((next, run) => {

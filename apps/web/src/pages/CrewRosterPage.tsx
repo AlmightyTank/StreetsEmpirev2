@@ -7,6 +7,7 @@ import { api, ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
+import { EmpireInspector, EmpireManagementLayout, EmpireMetricStrip, EmpirePageHeader, EmpireRosterCard } from '../components/EmpireManagement.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -45,6 +46,7 @@ function CrewJobsBoard({
   const me = useSession((state) => state.me);
   const action = useGameAction<CrewPutToWorkResult>();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(null);
   const members = roster.members;
   const byId = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
   const selected = selectedIds.flatMap((id) => byId.get(id) ? [byId.get(id)!] : []);
@@ -85,6 +87,7 @@ function CrewJobsBoard({
       pullTurnCost: city.turf!.pullTurnCost,
     })) ?? []);
   const targets = [...dealerTargets, ...runnerTargets, ...turfTargets];
+  const activeTarget = targets.find((target) => target.key === selectedTargetKey) ?? targets[0] ?? null;
 
   const toggle = (id: string) => setSelectedIds((current) => current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]);
   const clear = () => setSelectedIds([]);
@@ -126,79 +129,29 @@ function CrewJobsBoard({
         </section>
 
         <section className="se-crew-board__targets" aria-label="Assignment slots">
-          {targets.length ? targets.map((target) => {
+          {activeTarget ? (() => {
+            const target = activeTarget;
             const here = assignedTo(target);
             const selectedHere = selected.filter((member) => member.assignment?.kind === target.kind && member.assignment.ref === target.id);
             const selectedElsewhere = selected.filter((member) => member.assignment?.kind === target.kind && member.assignment.ref && member.assignment.ref !== target.id);
             const room = target.kind === 'DEALER' ? Math.max(0, target.capacity - target.count) : Number.MAX_SAFE_INTEGER;
-            const assignBlock = action.busy ? 'Working.'
-              : !selectedAvailable.length ? 'Choose home thugs first.'
-                : target.kind === 'DEALER' && selectedAvailable.length > room ? `This crew has room for ${formatNumber(room)}.`
-                  : target.kind === 'TURF' && selectedAvailable.length > guns ? `You have ${formatNumber(guns)} home guns.`
-                    : target.kind === 'TURF' && selectedAvailable.length > (me?.resources.fitThugs ?? selectedAvailable.length) ? `You have ${formatNumber(me?.resources.fitThugs ?? 0)} fit thugs.`
-                      : target.kind === 'TURF' && turns < target.postTurnCost ? `Posting costs ${target.postTurnCost} turns.`
-                        : null;
-            const moveBlock = action.busy ? 'Working.'
-              : !selectedElsewhere.length ? `Choose ${target.kind === 'DEALER' ? 'dealers' : target.kind === 'RUNNER' ? 'runners' : 'corner thugs'} from another slot.`
-                : target.kind === 'DEALER' && selectedElsewhere.length > room ? `This crew has room for ${formatNumber(room)}.`
-                  : target.kind === 'TURF' && turns < target.postTurnCost ? `Moving costs ${target.postTurnCost} turns.`
-                    : null;
-            const returnBlock = action.busy ? 'Working.'
-              : !selectedHere.length ? 'Choose people from this slot.'
-                : target.kind === 'TURF' && turns < target.pullTurnCost ? `Pulling costs ${target.pullTurnCost} turns.`
-                  : null;
-            return (
-              <article key={target.key} className="se-crew-board__target">
-                <div className="se-crew-board__target-head">
-                  <div>
-                    <span className="se-eyebrow">{target.kind === 'DEALER' ? 'Dealer crew' : target.kind === 'RUNNER' ? 'Runners' : 'Corner'}</span>
-                    <h3>{target.title}</h3>
-                    <p>{target.meta}</p>
-                  </div>
-                  <strong>{formatNumber(target.count)}{target.kind === 'DEALER' ? `/${formatNumber(target.capacity)}` : ''}</strong>
-                </div>
-                {here.length ? (
-                  <div className="se-crew-board__members se-crew-board__members--compact">
-                    {here.map((member) => (
-                      <label key={member.id} className="se-crew-board__member">
-                        <input type="checkbox" checked={selectedIds.includes(member.id)} onChange={() => toggle(member.id)} />
-                        <span>
-                          <strong>{shortMember(member)}</strong>
-                          <small>{specialtyLabels[member.specialty]} · {formatNumber(member.specialtyExperiencePoints)} XP</small>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                ) : <p className="se-muted">No named members are posted here.</p>}
+            const assignBlock = action.busy ? 'Working.' : !selectedAvailable.length ? 'Choose home thugs first.' : target.kind === 'DEALER' && selectedAvailable.length > room ? `This crew has room for ${formatNumber(room)}.` : target.kind === 'TURF' && selectedAvailable.length > guns ? `You have ${formatNumber(guns)} home guns.` : target.kind === 'TURF' && selectedAvailable.length > (me?.resources.fitThugs ?? selectedAvailable.length) ? `You have ${formatNumber(me?.resources.fitThugs ?? 0)} fit thugs.` : target.kind === 'TURF' && turns < target.postTurnCost ? `Posting costs ${target.postTurnCost} turns.` : null;
+            const moveBlock = action.busy ? 'Working.' : !selectedElsewhere.length ? `Choose ${target.kind === 'DEALER' ? 'dealers' : target.kind === 'RUNNER' ? 'runners' : 'corner thugs'} from another slot.` : target.kind === 'DEALER' && selectedElsewhere.length > room ? `This crew has room for ${formatNumber(room)}.` : target.kind === 'TURF' && turns < target.postTurnCost ? `Moving costs ${target.postTurnCost} turns.` : null;
+            const returnBlock = action.busy ? 'Working.' : !selectedHere.length ? 'Choose people from this slot.' : target.kind === 'TURF' && turns < target.pullTurnCost ? `Pulling costs ${target.pullTurnCost} turns.` : null;
+            return <EmpireManagementLayout
+              listLabel="Assignment targets"
+              list={targets.map((entry) => <EmpireRosterCard key={entry.key} eyebrow={entry.kind === 'DEALER' ? 'Dealer crew' : entry.kind === 'RUNNER' ? 'Runners' : 'Corner'} title={entry.title} detail={entry.meta} status={entry.kind === 'DEALER' ? `${entry.count}/${entry.capacity}` : formatNumber(entry.count)} statusTone={entry.count ? 'accent' : 'muted'} selected={entry.key === target.key} onSelect={() => setSelectedTargetKey(entry.key)} selectLabel={`Manage ${entry.title} ${entry.kind.toLowerCase()} assignments`} />)}
+              inspector={<EmpireInspector eyebrow={target.kind === 'DEALER' ? 'Dealer crew' : target.kind === 'RUNNER' ? 'Runner route' : 'Held corner'} title={target.title} status={`${formatNumber(target.count)} posted`} statusTone={target.count ? 'accent' : 'muted'} label={`${target.title} assignments`}>
+                <p className="se-hint">{target.meta}</p>
+                {here.length ? <div className="se-crew-board__members se-crew-board__members--compact">{here.map((member) => <label key={member.id} className="se-crew-board__member"><input type="checkbox" checked={selectedIds.includes(member.id)} onChange={() => toggle(member.id)} /><span><strong>{shortMember(member)}</strong><small>{specialtyLabels[member.specialty]} · {formatNumber(member.specialtyExperiencePoints)} XP</small></span></label>)}</div> : <p className="se-muted">No named members are posted here.</p>}
                 <div className="se-crew-board__actions">
-                  <Button className="se-btn se-btn--sm" disabledReason={assignBlock}
-                    onClick={() => void run((actionId) => target.kind === 'DEALER'
-                      ? crewApi.assignDealers(target.id, selectedAvailable.map((member) => member.id), actionId)
-                      : target.kind === 'RUNNER'
-                        ? crewApi.assignRunners(target.id, selectedAvailable.map((member) => member.id), actionId)
-                      : crewApi.postTurf(target.district, selectedAvailable.map((member) => member.id), actionId))}>
-                    Send selected
-                  </Button>
-                  <Button className="se-btn se-btn--ghost se-btn--sm" disabledReason={moveBlock}
-                    onClick={() => void run((actionId) => target.kind === 'DEALER'
-                      ? crewApi.moveDealers(target.id, selectedElsewhere.map((member) => member.id), actionId)
-                      : target.kind === 'RUNNER'
-                        ? crewApi.moveRunners(target.id, selectedElsewhere.map((member) => member.id), actionId)
-                      : crewApi.moveTurf(target.district, selectedElsewhere.map((member) => member.id), actionId))}>
-                    Move selected
-                  </Button>
-                  <Button className="se-btn se-btn--ghost se-btn--sm" disabledReason={returnBlock}
-                    onClick={() => void run((actionId) => target.kind === 'DEALER'
-                      ? crewApi.releaseDealers(selectedHere.map((member) => member.id), actionId)
-                      : target.kind === 'RUNNER'
-                        ? crewApi.releaseRunners(selectedHere.map((member) => member.id), actionId)
-                      : crewApi.pullTurf(target.district, selectedHere.map((member) => member.id), actionId))}>
-                    Bring home
-                  </Button>
+                  <Button className="se-btn se-btn--sm" disabledReason={assignBlock} onClick={() => void run((actionId) => target.kind === 'DEALER' ? crewApi.assignDealers(target.id, selectedAvailable.map((member) => member.id), actionId) : target.kind === 'RUNNER' ? crewApi.assignRunners(target.id, selectedAvailable.map((member) => member.id), actionId) : crewApi.postTurf(target.district, selectedAvailable.map((member) => member.id), actionId))}>Send selected</Button>
+                  <Button className="se-btn se-btn--ghost se-btn--sm" disabledReason={moveBlock} onClick={() => void run((actionId) => target.kind === 'DEALER' ? crewApi.moveDealers(target.id, selectedElsewhere.map((member) => member.id), actionId) : target.kind === 'RUNNER' ? crewApi.moveRunners(target.id, selectedElsewhere.map((member) => member.id), actionId) : crewApi.moveTurf(target.district, selectedElsewhere.map((member) => member.id), actionId))}>Move selected</Button>
+                  <Button className="se-btn se-btn--ghost se-btn--sm" disabledReason={returnBlock} onClick={() => void run((actionId) => target.kind === 'DEALER' ? crewApi.releaseDealers(selectedHere.map((member) => member.id), actionId) : target.kind === 'RUNNER' ? crewApi.releaseRunners(selectedHere.map((member) => member.id), actionId) : crewApi.pullTurf(target.district, selectedHere.map((member) => member.id), actionId))}>Bring home</Button>
                 </div>
-              </article>
-            );
-          }) : <p className="se-muted">No dealer crews or held home corners are open for assignments yet.</p>}
+              </EmpireInspector>}
+            />;
+          })() : <p className="se-muted">No dealer crews or held home corners are open for assignments yet.</p>}
         </section>
       </div>
       {roster.total > roster.members.length ? <p className="se-crew-roster__note">Showing the first {formatNumber(roster.members.length)} active roster members on the board.</p> : null}
@@ -337,15 +290,12 @@ export function CrewRosterPage() {
   return (
     <GameLayout>
       <div className="se-crew-roster">
-        <header className="se-crew-roster__hero">
-          <span className="se-eyebrow">Your people · their careers</span>
-          <h1>Crew Assignments</h1>
-          <p>Pick people first, see every open crew slot, and move thugs between home, dealer crews, and corners from one board.</p>
-          <div className="se-crew-roster__hero-stats">
-            <span><strong>{formatNumber(allMembers)}</strong> active crew</span>
-            <span><strong>{formatNumber(data?.totals.reduce((sum, row) => sum + row.released, 0) ?? 0)}</strong> released careers</span>
-          </div>
-        </header>
+        <EmpirePageHeader eyebrow="Your people · their careers" title="Crew Assignments" description="Pick people first, choose an open job, and move thugs between home, dealer crews, routes, and corners from one board." />
+        <EmpireMetricStrip label="Crew roster summary" items={[
+          { key: 'active', label: 'Active crew', value: formatNumber(allMembers), tone: 'accent' },
+          { key: 'released', label: 'Released careers', value: formatNumber(data?.totals.reduce((sum, row) => sum + row.released, 0) ?? 0) },
+          { key: 'available', label: 'Fit at home', value: formatNumber(me?.resources.fitThugs ?? 0), tone: (me?.resources.fitThugs ?? 0) ? 'good' : 'warn' },
+        ]} />
 
         {error ? <Alert>{error}</Alert> : null}
         {boardError ? <Alert>{boardError}</Alert> : null}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { DealerCrewDto, DealerCrewEstablishInput, DealerPageDto, DemandWordDto } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { dealersApi } from '../api/dealers.js';
@@ -7,6 +7,7 @@ import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
+import { EmpireInspector, EmpireManagementLayout, EmpireMetricStrip, EmpirePageHeader, EmpireRosterCard } from '../components/EmpireManagement.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -135,7 +136,7 @@ function CrewCard({ crew, data, onDone }: { crew: DealerCrewDto; data: DealerPag
   const reserveBlock = action.busy ? 'Working.' : reserveUnits === '' ? 'Enter units.' : reserve === crew.runnerReserveUnits ? 'That is the reserve already.' : null;
 
   return (
-    <Panel title={`${crew.districtName} · ${crew.cityName}`} aside={paused ? 'Paused' : 'Working'}>
+    <EmpireInspector eyebrow="Dealer crew" title={`${crew.districtName} · ${crew.cityName}`} status={paused ? 'Paused' : 'Working'} statusTone={paused ? 'warn' : 'good'} label={`${crew.districtName} dealer crew controls`}>
       {action.error ? <Alert>{action.error}</Alert> : null}
       {!crew.foothold ? <Alert tone="warning">The safehouse this crew relies on is gone or behind on upkeep.</Alert> : null}
       <div className="se-dealers__crew">
@@ -254,7 +255,7 @@ function CrewCard({ crew, data, onDone }: { crew: DealerCrewDto; data: DealerPag
           </div>
         ) : <p className="se-hint">Pause the crew to move it to another district. A paused crew neither sells nor costs wages.</p>}
       </div>
-    </Panel>
+    </EmpireInspector>
   );
 }
 
@@ -263,6 +264,7 @@ export function DealersPage() {
   const [data, setData] = useState<DealerPageDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
+  const [params, setParams] = useSearchParams();
   const load = useCallback(() => {
     let active = true;
     dealersApi.page()
@@ -272,21 +274,29 @@ export function DealersPage() {
   }, []);
   useEffect(load, [load, reload, me?.id]);
   const done = () => setReload((value) => value + 1);
+  const selectedCrew = data?.crews.find((crew) => crew.id === params.get('crew')) ?? data?.crews[0] ?? null;
+  const selectCrew = (crewId: string) => {
+    const next = new URLSearchParams(params);
+    next.set('crew', crewId);
+    setParams(next, { replace: true, preventScrollReset: true });
+  };
 
   return (
     <GameLayout>
       <div className="se-supply">
-        <header className="se-supply__hero">
-          <span className="se-eyebrow">Supply network</span>
-          <h1>Dealer Crews</h1>
-          <p>{data?.rules?.selling
+        <EmpirePageHeader eyebrow="Supply network" title="Dealer Crews" description={data?.rules?.selling
             ? 'Post dealers in a district where you have a foothold, stock them from storage in that city, and set the price. Working crews sell every hour on their own; the takings land in your cash after the dealers\u2019 cut and wages.'
-            : 'Post dealers in a district where you have a foothold, stock them from storage in that city, and set the price. Sales and payouts open in the next update; until then crews hold stock and show what they would sell.'}</p>
-        </header>
+            : 'Post dealers in a district where you have a foothold, stock them from storage in that city, and set the price. Sales and payouts open in the next update; until then crews hold stock and show what they would sell.'} />
         {error ? <Alert>{error}</Alert> : null}
         {data && !data.enabled ? <Alert tone="info">Dealer crews are not available in this season.</Alert> : null}
         {data?.enabled && data.rules ? (
           <div className="se-supply__grid">
+            <EmpireMetricStrip label="Dealer network summary" items={[
+              { key: 'crews', label: 'Crews', value: `${data.crews.length}/${data.rules.maxCrews}`, tone: 'accent' },
+              { key: 'posted', label: 'Dealers posted', value: formatNumber(data.dealerThugs) },
+              { key: 'home', label: 'Fit at home', value: formatNumber(data.fitThugs), tone: data.fitThugs ? 'good' : 'warn' },
+              { key: 'careers', label: 'Veterans waiting', value: formatNumber(data.careers.length) },
+            ]} />
             <EstablishPanel data={data} onDone={done} />
             <Panel title="Your dealers" aside={`${formatNumber(data.dealerThugs)} posted · ${formatNumber(data.fitThugs)} fit at home`}>
               <div className="se-rows">
@@ -296,7 +306,26 @@ export function DealersPage() {
               </div>
               <p className="se-hint">Dealers earn {data.rules.selling ? 'a point of experience for every unit they sell' : 'experience from what they sell'}. Released dealers keep it and come back first when a crew needs hands{data.careers.length ? `: ${data.careers.length} waiting` : ''}.{data.rules.selling ? ' A crew that cannot meet its wages from its takings or your cash walks off the corner and pauses until you resume it.' : ''}</p>
             </Panel>
-            {data.crews.map((crew) => <CrewCard key={crew.id} crew={crew} data={data} onDone={done} />)}
+            {data.crews.length ? (
+              <EmpireManagementLayout
+                listLabel="Dealer crews"
+                list={data.crews.map((crew) => (
+                  <EmpireRosterCard
+                    key={crew.id}
+                    eyebrow={`${crew.dealers.length} dealer${crew.dealers.length === 1 ? '' : 's'}`}
+                    title={`${crew.districtName} · ${crew.cityName}`}
+                    detail={crew.productName ? `${crew.productName} at ${price(crew.priceCents ?? 0)}` : 'No offer set'}
+                    status={crew.status === 'PAUSED' ? 'Paused' : 'Working'}
+                    statusTone={crew.status === 'PAUSED' ? 'warn' : 'good'}
+                    meta={[`${formatNumber(crew.inventoryUnits)}/${formatNumber(crew.capacityUnits)} stock`, `${money(crew.pace.netCentsPerHour)}/hr net`, `${formatNumber(crew.runnerCount)} runners`]}
+                    selected={selectedCrew?.id === crew.id}
+                    onSelect={() => selectCrew(crew.id)}
+                    selectLabel={`Manage dealer crew in ${crew.districtName}, ${crew.cityName}`}
+                  />
+                ))}
+                inspector={selectedCrew ? <CrewCard key={selectedCrew.id} crew={selectedCrew} data={data} onDone={done} /> : <p className="se-muted">Choose a dealer crew to manage.</p>}
+              />
+            ) : <Panel title="Your crews"><p className="se-muted">Set up your first dealer crew to start working a district.</p></Panel>}
           </div>
         ) : null}
       </div>

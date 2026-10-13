@@ -59,10 +59,12 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - **Permissions remain authoritative**: district/recipe quest locks, crew requirements, server turn costs, combat cooldowns, idempotent requests and pending-hit recovery are not bypassed.
 - Added component render tests for the compact result and readiness states. **CI and browser checks are pending before release.**
 
-### D — Empire: Crew, Dealers, Hideout, Travel and Turf
-- Reuse one small set of roster cards, management patterns and contextual inspectors.
-- Turf ownership and scout locations share a clear map/area vocabulary without merging permissions.
-- Keep existing game loops, crew jobs, travel routes and upgrade mechanics.
+### D — Empire: Crew, Dealers, Hideout, Travel and Turf (implemented; browser validation pending)
+- **Shared empire shell** now supplies the page header, compact metric strip, roster card, responsive management layout and contextual inspector used across the empire screens.
+- **Crew jobs and dealer crews are selection-first**: compact targets stay visible while one assignment or crew opens in the inspector. Existing staffing, stock, pricing, runner, move, pause and close mutations are retained.
+- **Turf is map/list/inspector driven**: city and district deep links remain intact, while only the selected district expands its business, war and Turf controls.
+- **Turf ownership and Scout coverage share one area legend vocabulary** without sharing permissions or changing either screen's authoritative lock/coverage rules.
+- Hideout upgrades and Travel routes keep their established interaction surfaces, now under the common empire header. Existing game loops, URLs and mechanics remain unchanged.
 
 ### E — Economy: Stores, Bulk Orders and Loans
 - Merge the already-planned hybrid Store marketplace approach (search/filters/trade-first cards) into the refreshed shell.

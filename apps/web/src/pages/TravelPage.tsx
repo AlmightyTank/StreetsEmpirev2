@@ -13,6 +13,7 @@ import { LaunchPanel, ReceiptPanel, RunPanel } from '../components/RunPanels.js'
 import { GaragePanel } from '../components/GaragePanel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { EmpirePageHeader } from '../components/EmpireManagement.js';
 
 const WIRE_SHOWN = 8;
 
@@ -127,12 +128,7 @@ export function TravelPage() {
   return (
     <GameLayout>
       <div className="se-travel">
-        <header className="se-travel-head">
-          <div>
-            <span className="se-eyebrow">Road operations · home in {home?.name ?? me.city.name}</span>
-            <h1>Travel</h1>
-          </div>
-        </header>
+        <EmpirePageHeader eyebrow={`Road operations · home in ${home?.name ?? me.city.name}`} title="Travel" description="Choose a city on the map, then manage routes, convoys, garage loads, trips, and relocation without leaving the road board." />
 
         {error ? <Alert>{error}</Alert> : null}
         {!data && !error ? <div className="se-travel-loading" role="status">Unfolding the map...</div> : null}
