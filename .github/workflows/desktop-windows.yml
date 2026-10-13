@@ -1,0 +1,34 @@
+name: StreetsEmpire Windows Desktop
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-windows.yml"
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install isolated desktop dependencies
+        run: npm install --prefix desktop --no-audit --no-fund
+      - name: Test activity mapping
+        run: npm test --prefix desktop
+      - name: Check JavaScript syntax
+        run: npm run check --prefix desktop
+      - name: Build Windows installer
+        env:
+          STREETSEMPIRE_DISCORD_CLIENT_ID: ${{ vars.STREETSEMPIRE_DISCORD_CLIENT_ID }}
+        run: npm run dist:win --prefix desktop
+      - name: Upload unsigned Windows installer for testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: StreetsEmpire-Windows-Installer
+          path: desktop/dist/StreetsEmpire-Setup-*.exe
+          if-no-files-found: error
