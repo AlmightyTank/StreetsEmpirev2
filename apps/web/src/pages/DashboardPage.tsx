@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import type { HappinessTermDto, RoundDto, RoundOverDto, RoundPlayerDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ActivityFeed } from '../components/ActivityFeed.js';
@@ -333,6 +333,18 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
   const activity = useSession((s) => s.recentActivity);
   const { refreshing, error, refresh } = useLiveDashboard();
   const [showAllAlerts, setShowAllAlerts] = useState(false);
+  const location = useLocation();
+  const [showCrewDetails, setShowCrewDetails] = useState(() => location.hash === '#crew-health');
+  const [showPressureDetails, setShowPressureDetails] = useState(() => ['#heat', '#payout'].includes(location.hash));
+  useEffect(() => {
+    if (location.hash === '#crew-health') setShowCrewDetails(true);
+    if (location.hash === '#heat' || location.hash === '#payout') setShowPressureDetails(true);
+  }, [location.hash]);
+  useEffect(() => {
+    if (!['#crew-health', '#heat', '#payout'].includes(location.hash)) return;
+    const frame = window.requestAnimationFrame(() => document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: 'start' }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.hash, showCrewDetails, showPressureDetails]);
 
   const homeWeapons =
     me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s;
@@ -598,7 +610,12 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
             ) : null}
           </div>
 
-          <section id="crew-health" className="se-dashboard-section se-dashboard-section--divided">
+          <details id="crew-health" className="se-dashboard-fold" open={showCrewDetails} onToggle={(event) => setShowCrewDetails(event.currentTarget.open)}>
+            <summary className="se-dashboard-fold__summary">
+              <span><strong>Crew, supplies & arsenal</strong><small>Personnel readiness, stock, weapons and assignments</small></span>
+              <span aria-hidden="true">+</span>
+            </summary>
+          <section className="se-dashboard-section se-dashboard-section--divided">
           <div className="se-dashboard-sectiontitle">
             <div>
               <span className="se-eyebrow">Crew & inventory</span>
@@ -655,11 +672,17 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
             </div>
           </div>
           </section>
+          </details>
           </div>
 
           <div className="se-dashboard-command__column se-dashboard-command__column--right">
 
 
+            <details className="se-dashboard-fold">
+              <summary className="se-dashboard-fold__summary">
+                <span><strong>Crew happiness & product stock</strong><small>Morale penalties and everything in storage</small></span>
+                <span aria-hidden="true">+</span>
+              </summary>
             <div className="se-dashboard-command__sidehealth se-dashboard-stack se-dashboard-section--divided">
               <Panel title="Crew happiness" className="se-dashboard-panel">
                 <div className="se-dashboard-happiness">
@@ -689,9 +712,16 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 </Panel>
               ) : null}
             </div>
+            </details>
           </div>
         </section>
 
+        <details className="se-dashboard-fold se-dashboard-fold--wide" open={showPressureDetails}
+          onToggle={(event) => setShowPressureDetails(event.currentTarget.open)}>
+          <summary className="se-dashboard-fold__summary">
+            <span><strong>Pressure, payout & progression</strong><small>Heat, cases, payout, turf earnings and Hideout upgrades</small></span>
+            <span aria-hidden="true">+</span>
+          </summary>
         <section className="se-dashboard-section">
           <div className="se-dashboard-sectiontitle">
             <div>
@@ -730,6 +760,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
             </div>
           </div>
         </section>
+        </details>
 
         <section className="se-dashboard-section">
           <div className="se-dashboard-sectiontitle se-dashboard-sectiontitle--activity">
