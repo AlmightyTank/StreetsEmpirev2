@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type {
   AccountProfileSettingsDto,
@@ -34,6 +34,7 @@ import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
+import { isBoolean, isString, readRemembered, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
 import { formatWhen } from '../utils/time.js';
 
@@ -77,6 +78,36 @@ function usernameChangeHint(status: UsernameChangeStatusDto | null): string {
   return `Next change after ${left} more round${left === 1 ? '' : 's'} start, or on ${formatDate(status.availableAt)}.`;
 }
 
+function isAvatarMode(value: unknown): value is AvatarMode {
+  return value === 'initials' || value === 'image' || value === 'built';
+}
+
+function isAvatarParts(value: unknown): value is AvatarParts {
+  if (!value || typeof value !== 'object') return false;
+  const parts = value as Record<string, unknown>;
+  return parts.base === 'boy' || parts.base === 'girl';
+}
+
+function isCosmeticsDraft(value: unknown): value is AccountProfileSettingsDto {
+  if (!value || typeof value !== 'object') return false;
+  const draft = value as Record<string, unknown>;
+  return typeof draft.profileAccent === 'string' && typeof draft.uiDensity === 'string' && typeof draft.moneyFormat === 'string';
+}
+
+const SETTING_SECTIONS = [
+  'settings-account',
+  'settings-connections',
+  'settings-alerts',
+  'settings-security',
+  'settings-game',
+  'settings-profile',
+  'settings-data',
+] as const;
+
+function isSettingSection(value: unknown): value is string {
+  return typeof value === 'string' && (SETTING_SECTIONS as readonly string[]).includes(value);
+}
+
 function initials(name: string): string {
   return name
     .split(/\s+/)
@@ -97,12 +128,19 @@ export function AccountSettingsPage() {
   const [searchParams] = useSearchParams();
   const accountMessage = searchParams.get('accountMessage');
 
-  const [newEmail, setNewEmail] = useState('');
-  const [newUsername, setNewUsername] = useState('');
+  const accountId = account.id;
+  const cosmeticsKey = rememberedKey('account-settings:cosmetics', accountId);
+  // Captured before useRememberedState writes: true only when an unsaved draft survived navigation.
+  const hadCosmeticsDraft = useRef(readRemembered(cosmeticsKey, { accept: isCosmeticsDraft }).found).current;
+
+  // Non-sensitive drafts survive leaving the page and coming back (per browser, per account).
+  // Passwords and one-time codes stay ephemeral on purpose and are never remembered.
+  const [newEmail, setNewEmail] = useRememberedState(rememberedKey('account-settings:newEmail', accountId), '', { accept: isString });
+  const [newUsername, setNewUsername] = useRememberedState(rememberedKey('account-settings:newUsername', accountId), '', { accept: isString });
   const [usernameStatus, setUsernameStatus] = useState<UsernameChangeStatusDto | null>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [revokeOtherSessionsOnPasswordChange, setRevokeOtherSessionsOnPasswordChange] = useState(true);
+  const [revokeOtherSessionsOnPasswordChange, setRevokeOtherSessionsOnPasswordChange] = useRememberedState(rememberedKey('account-settings:revokeOthers', accountId), true, { accept: isBoolean });
   const [connectionsVersion, setConnectionsVersion] = useState(0);
   const [message, setMessage] = useState<string | null>(accountMessage);
   const [tone, setTone] = useState<'error' | 'info'>('info');
@@ -112,13 +150,14 @@ export function AccountSettingsPage() {
   const working = 'Finishing the last thing you asked for.';
   const [sessions, setSessions] = useState<AccountSessionDto[]>([]);
   // The list grows with every sign-in; show the latest few until asked for all.
-  const [showAllSessions, setShowAllSessions] = useState(false);
+  const [showAllSessions, setShowAllSessions] = useRememberedState(rememberedKey('account-settings:showAllSessions', accountId), false, { accept: isBoolean });
   const [profileSettings, setProfileSettings] = useState<AccountProfileSettingsResponseDto | null>(null);
-  const [cosmetics, setCosmetics] = useState(DEFAULT_PROFILE_SETTINGS);
-  const [avatarMode, setAvatarMode] = useState<AvatarMode>('initials');
+  const [cosmetics, setCosmetics] = useRememberedState<AccountProfileSettingsDto>(cosmeticsKey, DEFAULT_PROFILE_SETTINGS, { accept: isCosmeticsDraft });
+  const [avatarMode, setAvatarMode] = useRememberedState<AvatarMode>(rememberedKey('account-settings:avatarMode', accountId), 'initials', { accept: isAvatarMode });
   // What each avatar choice holds, so trying another one and coming back loses nothing.
-  const [imageDraft, setImageDraft] = useState('');
-  const [avatarDraft, setAvatarDraft] = useState<AvatarParts>(DEFAULT_AVATAR_PARTS.boy);
+  const [imageDraft, setImageDraft] = useRememberedState(rememberedKey('account-settings:imageDraft', accountId), '', { accept: isString });
+  const [avatarDraft, setAvatarDraft] = useRememberedState<AvatarParts>(rememberedKey('account-settings:avatarDraft', accountId), DEFAULT_AVATAR_PARTS.boy, { accept: isAvatarParts });
+  const [lastSection, setLastSection] = useRememberedState(rememberedKey('account-settings:section', accountId), 'settings-account', { accept: isSettingSection });
 
   useEffect(() => {
     let active = true;
@@ -126,6 +165,8 @@ export function AccountSettingsPage() {
       .then((response) => {
         if (!active) return;
         setProfileSettings(response);
+        // An unsaved draft left on the page wins over the saved server copy.
+        if (hadCosmeticsDraft) return;
         setCosmetics(response.settings);
         setAvatarMode(avatarModeOf(response.settings));
         setImageDraft(response.settings.profileImageUrl ?? '');
@@ -196,6 +237,28 @@ export function AccountSettingsPage() {
       });
     return () => { active = false; };
   }, []);
+
+  // Coming back lands where you left off: without a #hash in the URL, restore the last section.
+  useEffect(() => {
+    if (window.location.hash) {
+      const seen = window.location.hash.slice(1);
+      if ((SETTING_SECTIONS as readonly string[]).includes(seen)) setLastSection(seen);
+      return;
+    }
+    if (lastSection && lastSection !== 'settings-account') {
+      document.getElementById(lastSection)?.scrollIntoView();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const onHash = () => {
+      const seen = window.location.hash.slice(1);
+      if ((SETTING_SECTIONS as readonly string[]).includes(seen)) setLastSection(seen);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [setLastSection]);
 
   async function sendRecovery() {
     setBusy('recovery');

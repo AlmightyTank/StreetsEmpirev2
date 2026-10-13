@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   AVATAR_PART_OPTIONS,
   DEFAULT_AVATAR_PARTS,
@@ -7,6 +6,8 @@ import {
   type AvatarParts,
 } from '@streets/shared';
 import { BuiltAvatar } from './BuiltAvatar.js';
+import { rememberedKey, useRememberedState } from '../utils/remembered.js';
+import { useSession } from '../stores/session.js';
 
 const PART_LABELS: Record<AvatarPartKey, string> = {
   base: 'Base',
@@ -85,7 +86,12 @@ function randomHair(base: AvatarBase): AvatarParts['hair'] {
 
 /** Pick-a-piece editor for a built avatar: a live preview over tabs of parts. */
 export function AvatarBuilder({ value, onChange }: { value: AvatarParts; onChange: (parts: AvatarParts) => void }) {
-  const [tab, setTab] = useState(TABS[0]!.key);
+  const accountId = useSession((s) => s.account?.id ?? null);
+  const [tab, setTab] = useRememberedState(
+    rememberedKey('account-settings:avatarTab', accountId ?? 'anon'),
+    TABS[0]!.key,
+    { accept: (v): v is string => typeof v === 'string' && TABS.some((t) => t.key === v) },
+  );
   const active = TABS.find((candidate) => candidate.key === tab) ?? TABS[0]!;
 
   function choose<K extends AvatarPartKey>(key: K, option: AvatarParts[K]) {

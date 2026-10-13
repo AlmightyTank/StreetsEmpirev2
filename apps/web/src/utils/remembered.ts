@@ -89,4 +89,5 @@ export function useRememberedState<T>(key: string | null, initial: T | (() => T)
 }
 
 export const isString = (value: unknown): value is string => typeof value === 'string';
+export const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
 export const isTurns = (value: unknown): value is number | '' => value === '' || (typeof value === 'number' && Number.isFinite(value) && value >= 0);
