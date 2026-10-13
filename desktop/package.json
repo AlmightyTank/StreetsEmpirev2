@@ -29,11 +29,18 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "StreetsEmpire-Setup-${version}.${ext}"
+      "artifactName": "StreetsEmpire-Setup-${version}.${ext}",
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": false,
+      "packElevateHelper": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": false,
+      "shortcutName": "StreetsEmpire"
     }
   }
 }
