@@ -995,7 +995,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
           </ActionDock>
 
           <OperationDetails title="Crew, weapons & supplies" summary="Treatment, fight shelf, defense assignments and combat rules">
-          <OperationDetails title="Battle history" summary="View earlier raids, defenses and their full reports" open={Boolean(report)}>
           <section className="se-raids-section">
             <div className="se-raids-sectionhead">
               <div>
@@ -1081,8 +1080,8 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             </div>
           </section>
           </OperationDetails>
-          </OperationDetails>
 
+          <OperationDetails title="Battle history" summary="View earlier raids, defenses and their full reports" open={Boolean(report)}>
           <section className="se-raids-section">
             <div className="se-raids-sectionhead">
               <div>
@@ -1127,6 +1126,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               ) : null}
             </Panel>
           </section>
+          </OperationDetails>
 
 
         </>
