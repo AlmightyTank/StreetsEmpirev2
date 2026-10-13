@@ -4,6 +4,7 @@ import type { PlayerQuestDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { questsApi } from '../api/quests.js';
 import { buildQuestBoard } from '../utils/questBoard.js';
+import { NavIcon } from './NavIcon.js';
 
 function primaryObjective(quest: PlayerQuestDto) {
   return quest.objectives.find((objective) => !objective.bonus && !objective.completed)
@@ -54,7 +55,7 @@ export function DashboardStorySpotlight() {
       <div className="se-dashboard-story__head">
         <div>
           <span className="se-eyebrow">Pick up where you left off</span>
-          <h2 id="dashboard-story-title">Main story</h2>
+          <h2 id="dashboard-story-title"><span className="se-dashboard-story__glyph" aria-hidden="true"><NavIcon name="rules" /></span> Main story</h2>
         </div>
         {readyCount > 0 ? <Link className="se-dashboard-story__ready" to="/game/quests?tab=ready">{formatNumber(readyCount)} ready to collect</Link> : null}
       </div>
