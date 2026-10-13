@@ -44,6 +44,8 @@ export function toDistrictDto(
   crew: Crew,
   citySlug?: string,
 ): DistrictDto {
+  // Crew must already be the street crew (fit thugs + working whores).
+  // Use ScoutService.districts for raw player rows; it strips posted/busy/etc.
   const armedThugs = armedThugsForStreet(crew, ruleset);
   const unarmedThugs = unarmedThugsForStreet(crew, ruleset);
   const covered = armedThugs * district.protectionWhoresPerThug;
@@ -105,7 +107,33 @@ export const ScoutService = {
   /** Section 25. What the player picks between, priced for the crew they run. */
   async districts(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, crew: Crew, citySlug?: string): Promise<DistrictsDto> {
     const access = await PermanentUnlockService.districtAccess(prisma, roundPlayerId, ruleset);
-    return districtsFor(ruleset, crew, citySlug, access);
+    // Preview must use the street crew: posted/busy/business/dealer thugs hold
+    // corners or other jobs and never count as cover. Callers may pass the raw
+    // RoundPlayer row (total thugs + home guns), which would otherwise show
+    // posted armed guards as "unarmed not covering".
+    const raw = crew as Crew & Partial<{ woundedThugs: number; busyThugs: number; postedThugs: number; businessThugs: number; dealerThugs: number; businessWhores: number }>;
+    const hasAvailability =
+      typeof raw.postedThugs === 'number' ||
+      typeof raw.busyThugs === 'number' ||
+      typeof raw.businessThugs === 'number' ||
+      typeof raw.dealerThugs === 'number' ||
+      typeof raw.woundedThugs === 'number' ||
+      typeof raw.businessWhores === 'number';
+    const active: Crew = hasAvailability
+      ? {
+          ...crew,
+          thugs: fitThugs({
+            thugs: raw.thugs,
+            woundedThugs: raw.woundedThugs ?? 0,
+            busyThugs: raw.busyThugs,
+            postedThugs: raw.postedThugs,
+            businessThugs: raw.businessThugs,
+            dealerThugs: raw.dealerThugs,
+          }),
+          whores: workingWhores({ whores: raw.whores, businessWhores: raw.businessWhores }),
+        }
+      : crew;
+    return districtsFor(ruleset, active, citySlug, access);
   },
 
   /**
