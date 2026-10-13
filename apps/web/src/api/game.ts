@@ -2,6 +2,8 @@ import type { GameSnapshotDto, PlayerExperienceDto, PlayerExperienceEventDto } f
 import { api } from './client.js';
 
 export const gameApi = {
+  /** Authenticated lightweight player check-in; never settles game state. */
+  presenceHeartbeat: () => api.post<{ ok: true }>('/game/presence/heartbeat'),
   /** Account-wide lifetime XP, available even when not in an active season. */
   experience: () => api.get<{ experience: PlayerExperienceDto; events: PlayerExperienceEventDto[] }>('/game/experience'),
 
