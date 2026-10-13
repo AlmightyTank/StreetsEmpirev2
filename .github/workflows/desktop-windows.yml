@@ -1,4 +1,4 @@
-name: StreetsEmpire Windows Desktop
+name: StreetsEmpire Windows Portable
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
       - ".github/workflows/desktop-windows.yml"
 
 jobs:
-  windows-installer:
+  windows-portable:
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
@@ -22,13 +22,13 @@ jobs:
         run: npm test --prefix desktop
       - name: Check JavaScript syntax
         run: npm run check --prefix desktop
-      - name: Build Windows installer
+      - name: Build portable Windows executable
         env:
           STREETSEMPIRE_DISCORD_CLIENT_ID: ${{ vars.STREETSEMPIRE_DISCORD_CLIENT_ID }}
-        run: npm run dist:win --prefix desktop
-      - name: Upload unsigned Windows installer for testing
+        run: npm run dist:portable --prefix desktop
+      - name: Upload portable Windows executable for testing
         uses: actions/upload-artifact@v4
         with:
-          name: StreetsEmpire-Windows-Installer
-          path: desktop/dist/StreetsEmpire-Setup-*.exe
+          name: StreetsEmpire-Windows-Portable
+          path: desktop/dist/StreetsEmpire-Portable-*.exe
           if-no-files-found: error
