@@ -769,11 +769,6 @@ export function QuestPage() {
               </div>
               {board.groups.length ? board.groups.map((group) => {
                 const open = expandedGroups[group.key] ?? group.defaultOpen;
-                const resetAt = group.key === 'daily' ? page.dailyContracts.resetAt
-                  : group.key === 'weekly' ? page.weeklyContracts.resetAt
-                    : group.key === 'city' ? page.cityContracts.resetAt
-                      : group.key === 'season' ? page.seasonContracts?.resetAt
-                        : null;
                 return (
                   <section id={'quest-board-' + group.key} className="se-quests-group" key={group.key}>
                     <details
@@ -793,12 +788,6 @@ export function QuestPage() {
                       </summary>
                       {open ? (
                         <div className="se-quest-list se-quests-list">
-                          {resetAt ? (
-                            <div className="se-quests-boardclock">
-                              <span>Board resets</span>
-                              <strong>{timeRemaining(resetAt, nowMs)}</strong>
-                            </div>
-                          ) : null}
                           {group.quests.map((quest) => renderQuest(quest))}
                         </div>
                       ) : null}
