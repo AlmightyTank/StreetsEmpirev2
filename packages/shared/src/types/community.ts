@@ -57,6 +57,80 @@ export interface ProfileBadgeDto {
   permanent: boolean;
 }
 
+/**
+ * Hidden Streets Slice C. One investigated clue inside a discovered secret:
+ * an objective milestone plus its live progress. Only ever built for revealed
+ * secrets, so unrevealed content cannot leak through this shape.
+ */
+export interface SecretClueDto {
+  id: string;
+  description: string;
+  current: number;
+  target: number;
+  completed: boolean;
+}
+
+/**
+ * Hidden Streets Slice C. One discovered secret in this round: per-round
+ * story state (a revealed SECRET PlayerQuest row) projected as evidence.
+ * `questKey` navigates back to the quest journal (`/quests#quest-<key>`).
+ */
+export interface DiscoveredSecretDto {
+  questKey: string;
+  title: string;
+  description: string;
+  contactName: string | null;
+  status: string;
+  family: string;
+  discoveryTier: string;
+  clues: SecretClueDto[];
+  cluesFound: number;
+  cluesTotal: number;
+  completed: boolean;
+  /** Encounter key that opened the trail, when the trigger names one. */
+  sourceEncounterKey: string | null;
+  /** Human-readable reward labels already owned or still to claim. */
+  rewardLabels: string[];
+  claimed: boolean;
+}
+
+/**
+ * Hidden Streets Slice C. One permanent trophy: an account cosmetic unlock
+ * whose source quest is a SECRET definition. Survives round resets.
+ */
+export interface SecretTrophyDto {
+  key: string;
+  title: string;
+  description: string;
+  rarity: string;
+  sourceQuestKey: string;
+  family: string | null;
+  earnedAt: string;
+}
+
+/**
+ * Hidden Streets Slice C. One content family the player has cracked open.
+ * Only families with at least one discovery are listed; `undiscovered` is a
+ * count of still-hidden secrets in that family, never their keys or titles.
+ */
+export interface SecretFamilyDto {
+  family: string;
+  found: number;
+  undiscovered: number;
+  trophies: number;
+}
+
+/**
+ * Hidden Streets Slice C. The Secrets / Discoveries collection: per-round
+ * in-progress stories plus permanent account trophies. New rounds reset
+ * `inProgress` (new RoundPlayer, no quest rows); `trophies` persist.
+ */
+export interface SecretCollectionDto {
+  inProgress: DiscoveredSecretDto[];
+  trophies: SecretTrophyDto[];
+  families: SecretFamilyDto[];
+}
+
 /** A visible Flarum group (e.g. Admin) of a linked forum account. */
 export interface ForumGroupBadgeDto {
   name: string;
@@ -192,6 +266,13 @@ export interface RankingEntryDto {
   awards: PublicAwardDto[];
   isYou: boolean;
   intelRequired: boolean;
+  /**
+   * Supporter mark: true when the account holds any supporter reward.
+   * Derived only — never amounts, payment status, or expiry.
+   */
+  isSupporter: boolean;
+  /** UTC month (YYYY-MM) of the account's earliest supporter reward, null when not a supporter. */
+  supporterSince: string | null;
   /** 0.3.0-C. Null for solo players and on rounds without alliances. */
   alliance: AllianceTagDto | null;
   /** Slice F. The site theme this player shows on their profile; optional for older servers. */
@@ -325,10 +406,22 @@ export interface PublicPlayerProfileDto {
   lastActiveAt: string;
   isYou: boolean;
   /**
+   * Supporter mark: true when the account holds any supporter reward.
+   * Derived only — never amounts, payment status, or expiry.
+   */
+  isSupporter: boolean;
+  /** UTC month (YYYY-MM) of the account's earliest supporter reward, null when not a supporter. */
+  supporterSince: string | null;
+  /**
    * 1.4.0-F. The factions this player stands at Connected or above with, and the tier. Never the
    * points, and nothing below Connected. Absent before 1.4.0-F.
    */
   factionAlignment?: Array<{ key: string; name: string; tierName: string }>;
+  /**
+   * Hidden Streets Slice C. Secrets / Discoveries collection: per-round
+   * in-progress stories plus permanent trophies. Optional for older servers.
+   */
+  discoveries?: SecretCollectionDto;
 }
 
 export interface PublicPlayerProfileResponseDto {

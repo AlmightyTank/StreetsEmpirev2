@@ -6,6 +6,8 @@ import type {
   PublicPlayerProfileDto,
   PublicSeasonResultDto,
   PublicStatSheetDto,
+  SecretCollectionDto,
+  DiscoveredSecretDto,
 } from '@streets/shared';
 import { formatCents, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { communityApi } from '../api/community.js';
@@ -348,6 +350,133 @@ function AchievementsPanel({
   );
 }
 
+const secretStatusLabel: Record<string, string> = {
+  AVAILABLE: 'Trail open',
+  ACTIVE: 'Investigating',
+  READY_TO_TURN_IN: 'Ready to close',
+  COMPLETED: 'Case closed',
+  EXPIRED: 'Trail cold',
+  FAILED: 'Trail cold',
+  LOCKED: 'Whisper',
+};
+
+const secretTierLabel: Record<string, string> = {
+  OBVIOUS: 'Out in the open',
+  HIDDEN: 'Hidden',
+  LEGENDARY: 'Legendary',
+};
+
+function DiscoveryCard({ secret }: { secret: DiscoveredSecretDto }) {
+  return (
+    <li className="se-ach">
+      <div className="se-ach__top">
+        <span className="se-ach__cat">{secret.family}</span>
+        <span className="se-ach__rarity">{secretTierLabel[secret.discoveryTier] ?? secret.discoveryTier}</span>
+      </div>
+      <h3 className="se-ach__title">{secret.title}</h3>
+      <p className="se-ach__desc">{secret.description}</p>
+      {secret.contactName ? <p className="se-ach__status">Contact: {secret.contactName}</p> : null}
+      {secret.clues.length ? (
+        <ul className="se-discovery-clues">
+          {secret.clues.map((clue) => {
+            const percent = clue.target > 0 ? Math.max(0, Math.min(100, (clue.current / clue.target) * 100)) : 0;
+            return (
+              <li key={clue.id} className="se-discovery-clue">
+                <span className="se-discovery-clue__label" aria-label={clue.completed ? `${clue.description} (found)` : clue.description}>
+                  {clue.completed ? '✓ ' : '○ '}{clue.description}
+                </span>
+                <div
+                  className="se-ach__meter"
+                  role="progressbar"
+                  aria-label={clue.description}
+                  aria-valuenow={Math.min(clue.current, clue.target)}
+                  aria-valuemin={0}
+                  aria-valuemax={clue.target}
+                >
+                  <span style={{ width: `${percent}%` }} />
+                </div>
+                <span className="se-ach__progress-text">{formatNumber(Math.min(clue.current, clue.target))} / {formatNumber(clue.target)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+      {secret.rewardLabels.length ? (
+        <p className="se-ach__desc">On the table: {secret.rewardLabels.join(' · ')}{secret.claimed ? ' (claimed)' : ''}</p>
+      ) : null}
+      <p className="se-ach__status">{secretStatusLabel[secret.status] ?? secret.status}</p>
+      <Link className="se-btn se-btn--ghost se-btn--sm" to={`/quests#quest-${secret.questKey}`}>
+        Follow up in the quest journal
+      </Link>
+    </li>
+  );
+}
+
+function DiscoveriesPanel({ discoveries }: { discoveries: SecretCollectionDto | undefined }) {
+  if (!discoveries) return null;
+  const { inProgress, trophies, families } = discoveries;
+  if (!inProgress.length && !trophies.length) {
+    return (
+      <Panel title="Secrets / Discoveries" className="se-profile-panel se-profile-achievements">
+        <p className="se-muted">No discoveries yet. The streets keep their secrets until you stumble into one.</p>
+      </Panel>
+    );
+  }
+  return (
+    <Panel title="Secrets / Discoveries" className="se-profile-panel se-profile-achievements">
+      {inProgress.length ? (
+        <div className="se-ach-section">
+          <div className="se-ach-section__head">
+            <h3>Open investigations</h3>
+            <span className="se-num">{formatNumber(inProgress.length)}</span>
+          </div>
+          <p className="se-muted">Clues found this season. A new season starts every trail over.</p>
+          <ul className="se-ach-grid">{inProgress.map((secret) => <DiscoveryCard secret={secret} key={secret.questKey} />)}</ul>
+        </div>
+      ) : null}
+      {families.length ? (
+        <div className="se-ach-section">
+          <div className="se-ach-section__head">
+            <h3>Case files</h3>
+            <span className="se-num">{formatNumber(families.length)}</span>
+          </div>
+          <ul className="se-discovery-families">
+            {families.map((family) => (
+              <li key={family.family}>
+                <span aria-label={`${family.family}: ${family.found} uncovered${family.undiscovered ? `, ${family.undiscovered} still hidden` : ', fully uncovered'}`}>
+                  {family.family} — {formatNumber(family.found)} uncovered{family.undiscovered ? `, ${formatNumber(family.undiscovered)} still hidden (?)` : ', fully uncovered'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {trophies.length ? (
+        <div className="se-ach-section">
+          <div className="se-ach-section__head">
+            <h3>Kept forever</h3>
+            <span className="se-num">{formatNumber(trophies.length)}</span>
+          </div>
+          <p className="se-muted">Trophies survive every season reset.</p>
+          <ul className="se-ach-grid">
+            {trophies.map((trophy) => (
+              <li className="se-ach" key={trophy.key}>
+                <div className="se-ach__top">
+                  <span className="se-ach__cat">{trophy.family ?? 'Secret'}</span>
+                  <span className="se-ach__rarity">{trophy.rarity}</span>
+                </div>
+                <h3 className="se-ach__title">{trophy.title}</h3>
+                <p className="se-ach__desc">{trophy.description}</p>
+                <p className="se-ach__status">Earned {formatDate(trophy.earnedAt)} · kept forever</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </Panel>
+  );
+}
+
 function SeasonHistory({ career }: { career: PublicCareerDto }) {
   return (
     <Panel title="Career history" className="se-profile-panel se-profile-career">
@@ -542,7 +671,7 @@ export function ProfilePage() {
                 {player
                   ? <><span className="se-profile-name">{profileNameParts(player.displayName, player.cosmetics.title).map((part, index, parts) => (
                     <span className={`se-profile-name__part se-profile-name__part--${part.kind}`} key={index}>
-                      {signature && index === parts.length - 1 ? <NameWithSupporterMark text={part.text} /> : part.text}
+                      {player.isSupporter && index === parts.length - 1 ? <NameWithSupporterMark text={part.text} /> : part.text}
                     </span>
                   ))}</span>{' '}</>
                   : account?.username ?? 'Profile'}
@@ -679,6 +808,8 @@ export function ProfilePage() {
               achievementCategoryFilter={achievementCategoryFilter}
               setAchievementCategoryFilter={setAchievementCategoryFilter}
             />
+
+            <DiscoveriesPanel discoveries={player.discoveries} />
           </>
         ) : null}
       </div>

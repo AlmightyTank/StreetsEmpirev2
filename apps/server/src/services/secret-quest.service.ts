@@ -45,6 +45,23 @@ export function secretRewardKeys(definition: QuestDefinition): string[] {
     .filter((key): key is string => key !== null);
 }
 
+/**
+ * Slice C. The encounter key that opened a secret's trail, when the trigger
+ * names one (`where: {'encounter.key': '<key>'}` or the `randomEncounter.*`
+ * alias). Null for state/turf/activity triggers with no encounter source.
+ */
+export function secretSourceEncounterKey(definition: QuestDefinition): string | null {
+  const trigger = object(definition.availability.secretTrigger);
+  if (!trigger) return null;
+  const where = object(trigger.where);
+  if (!where) return null;
+  for (const path of ['encounter.key', 'randomEncounter.key']) {
+    const value = where[path];
+    if (typeof value === 'string' && value.length > 0) return value;
+  }
+  return null;
+}
+
 type SecretStateField = 'heat' | 'whores' | 'netWorthCents';
 
 function object(value: QuestDataValue | undefined): QuestDataObject | null {
@@ -67,10 +84,29 @@ function sameJson(left: QuestDataValue | undefined, right: QuestDataValue): bool
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+/**
+ * Slice C. Encounter payloads are stored under `encounter` by the
+ * SCOUT/PRODUCE/TRAVEL pipelines but under `randomEncounter` by the generic
+ * ActionService pipeline (STORE/TURF/COMBAT). Trigger authors always write
+ * `encounter.*`; the matcher accepts either nesting so one authoring shape
+ * works for every trigger source.
+ */
+function aliasPaths(path: string): string[] {
+  if (path === 'encounter' || path.startsWith('encounter.')) {
+    return [path, `randomEncounter${path.slice('encounter'.length)}`];
+  }
+  if (path === 'randomEncounter' || path.startsWith('randomEncounter.')) {
+    return [path, `encounter${path.slice('randomEncounter'.length)}`];
+  }
+  return [path];
+}
+
 function matchesWhere(payload: QuestDataValue, where: QuestDataValue | undefined): boolean {
   const filter = object(where);
   if (!filter) return true;
-  return Object.entries(filter).every(([path, expected]) => sameJson(valueAt(payload, path), expected));
+  return Object.entries(filter).every(([path, expected]) =>
+    aliasPaths(path).some((candidate) => sameJson(valueAt(payload, candidate), expected))
+  );
 }
 
 function strings(value: QuestDataValue | undefined): string[] {
