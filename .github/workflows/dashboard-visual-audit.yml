@@ -61,7 +61,7 @@ jobs:
         run: |
           set -euo pipefail
           npm run dev:server > /tmp/streets-api.log 2>&1 &
-          npm run dev:web > /tmp/streets-web.log 2>&1 &
+          npm run dev -w @streets/web -- --host 127.0.0.1 > /tmp/streets-web.log 2>&1 &
           for i in $(seq 1 90); do
             if curl --fail --silent http://127.0.0.1:3001/api/health >/dev/null \
               && curl --fail --silent http://127.0.0.1:5173/login >/dev/null; then
