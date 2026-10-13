@@ -1,7 +1,7 @@
 import type { PlayerQuestDto } from '@streets/shared';
 
 export type QuestBoardItem = Pick<PlayerQuestDto, 'key' | 'type' | 'category' | 'status' | 'isTracked'>;
-export type QuestBoardGroupKey = 'story' | 'ready' | 'active' | 'available' | 'daily' | 'weekly' | 'city' | 'alliance' | 'season' | 'events' | 'history';
+export type QuestBoardGroupKey = 'story' | 'ready' | 'active' | 'available' | 'contracts' | 'history';
 
 export interface QuestBoardGroup<T extends QuestBoardItem> {
   key: QuestBoardGroupKey;
@@ -16,12 +16,7 @@ const GROUPS: ReadonlyArray<Omit<QuestBoardGroup<QuestBoardItem>, 'quests'>> = [
   { key: 'ready', title: 'Ready to collect', description: 'Your finished jobs have rewards waiting.', defaultOpen: true },
   { key: 'active', title: 'Your active jobs', description: 'Track what you are working on now.', defaultOpen: true },
   { key: 'available', title: 'Available jobs', description: 'New jobs from your contacts.', defaultOpen: true },
-  { key: 'daily', title: 'Daily contracts', description: 'Repeatable work for today.', defaultOpen: false },
-  { key: 'weekly', title: 'Weekly contracts', description: 'Bigger contracts with weekly resets.', defaultOpen: false },
-  { key: 'city', title: 'City contracts', description: 'Work across your city.', defaultOpen: false },
-  { key: 'alliance', title: 'Alliance contracts', description: 'Contribute to your alliance.', defaultOpen: false },
-  { key: 'season', title: 'Season contracts', description: 'Longer-running seasonal objectives.', defaultOpen: false },
-  { key: 'events', title: 'Community events', description: 'Shared and special event work.', defaultOpen: false },
+  { key: 'contracts', title: 'Contracts & events', description: 'Daily, weekly, city, alliance, season and community jobs.', defaultOpen: false },
   { key: 'history', title: 'Completed & past jobs', description: 'Your history, expired jobs and past rewards.', defaultOpen: false },
 ];
 
@@ -63,18 +58,10 @@ export function buildQuestBoard<T extends QuestBoardItem>(quests: readonly T[], 
       grouped.get('ready')!.push(quest);
     } else if (quest.status === 'ACTIVE') {
       grouped.get('active')!.push(quest);
-    } else if (quest.type === 'DAILY') {
-      grouped.get('daily')!.push(quest);
-    } else if (quest.type === 'WEEKLY') {
-      grouped.get('weekly')!.push(quest);
-    } else if (quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT') {
-      grouped.get('city')!.push(quest);
-    } else if (quest.type === 'ALLIANCE') {
-      grouped.get('alliance')!.push(quest);
-    } else if (quest.type === 'SEASON') {
-      grouped.get('season')!.push(quest);
-    } else if (quest.type === 'EVENT') {
-      grouped.get('events')!.push(quest);
+    } else if (quest.type === 'DAILY' || quest.type === 'WEEKLY'
+      || quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT'
+      || quest.type === 'ALLIANCE' || quest.type === 'SEASON' || quest.type === 'EVENT') {
+      grouped.get('contracts')!.push(quest);
     } else {
       grouped.get('available')!.push(quest);
     }
@@ -94,7 +81,8 @@ export function legacyQuestGroup(search: string): QuestBoardGroupKey | null {
   const tab = new URLSearchParams(search).get('tab');
   if (tab === 'completed') return 'history';
   if (tab === 'tracked') return 'active';
-  if (tab === 'ready' || tab === 'active' || tab === 'available' || tab === 'daily'
-    || tab === 'weekly' || tab === 'city' || tab === 'season' || tab === 'alliance' || tab === 'events') return tab;
+  if (tab === 'daily' || tab === 'weekly' || tab === 'city' || tab === 'season'
+    || tab === 'alliance' || tab === 'events') return 'contracts';
+  if (tab === 'ready' || tab === 'active' || tab === 'available') return tab;
   return null;
 }
