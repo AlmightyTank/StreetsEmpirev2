@@ -370,6 +370,9 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
   const lowWhoreHappiness = me.happiness.whore < 66;
   const lowThugHappiness = me.happiness.thug < 66;
   const atTurnCap = me.turns.turns >= me.turns.turnCap;
+  // Ordinary reminders shouldn't look like a city-wide emergency.
+  const criticalAttention = heatLocked || heatState === 'bad'
+    || me.convoyAlert?.kind === 'tailed' || me.resources.woundedThugs > 0;
   const attentionCount = [
     heatState !== 'good',
     me.convoyAlert !== null && me.convoyAlert !== undefined,
@@ -454,7 +457,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         </div>
         <section className="se-dashboard-overview" aria-label="Main story and important alerts">
           <DashboardStorySpotlight />
-          <div className={`se-dashboard-command__attention${attentionCount ? ' se-dashboard-command__attention--urgent' : ''}`}>
+          <div className={`se-dashboard-command__attention${attentionCount ? ' se-dashboard-command__attention--alerts' : ''}${criticalAttention ? ' se-dashboard-command__attention--urgent' : ''}`}>
             <div className="se-dashboard-sectionhead">
               <div>
                 <span className="se-eyebrow">Right now</span>
