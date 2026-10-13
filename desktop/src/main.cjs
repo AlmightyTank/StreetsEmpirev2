@@ -115,7 +115,10 @@ function buildMenu() {
   ]));
 }
 
-function navigateSafely(event, rawUrl) {
+function navigateSafely(event, legacyUrl) {
+  // Electron 44 supplies details.url on the event; older builds pass a
+  // deprecated second argument. Support both without blocking OAuth redirects.
+  const rawUrl = typeof event.url === 'string' ? event.url : legacyUrl;
   if (trustedNavigation(rawUrl)) return;
   event.preventDefault();
   if (externalLink(rawUrl)) void shell.openExternal(rawUrl);
@@ -132,7 +135,7 @@ function createWindow() {
     height: 840,
     minWidth: 400,
     minHeight: 520,
-    show: false,
+    show: true,
     autoHideMenuBar: false,
     backgroundColor: '#101419',
     webPreferences: {
@@ -209,7 +212,20 @@ async function askFirstLaunch() {
     defaultId: 1,
     cancelId: 1,
   });
-  setPresenceEnabled(response === 0 && hasApplicationId);
+  if (response === 0 && !hasApplicationId) {
+    settings.presenceEnabled = false;
+    saveSettings();
+    buildMenu();
+    dialog.showMessageBoxSync(win, {
+      type: 'info',
+      title: 'Discord setup required',
+      message: 'This desktop build has no Discord Application ID configured.',
+      detail: 'Gameplay will work normally. The maintainer can rebuild it with STREETSEMPIRE_DISCORD_CLIENT_ID to enable Rich Presence.',
+      buttons: ['OK'],
+    });
+    return;
+  }
+  setPresenceEnabled(response === 0);
 }
 
 if (!app.requestSingleInstanceLock()) {
