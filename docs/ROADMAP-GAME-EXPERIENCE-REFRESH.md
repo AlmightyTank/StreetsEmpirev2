@@ -117,10 +117,15 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - **Theme/UX safeguards**: uses existing accent/compact-density tokens, dark gradients maintain readable text, responsive container queries, reduced-motion disables hover motion. The artwork never contains fake gameplay data.
 - **Release status**: artwork and code committed; automated checks plus real desktop/mobile visual QA still required.
 
-#### Dashboard-C — Mobile, performance and release polish (not implemented yet)
-- Test 360/390/768/1024/1440/1920 widths, sidebar rail, dark/light, accent choice and animated supporter themes.
-- Keyboard, screen reader status, disclosure and repeated deep-link navigation checks.
-- Production builds, tests and browser gameplay smoke test before merging PR #279 into `beta`.
+#### Dashboard-C — Mobile, performance and release polish (implemented; visual-audit results pending)
+- Added content-width-responsive styles for 360/390/768/1024/1440/1920 layouts with two-column phone actions, readable stat wrapping, larger touch controls, stronger focus outlines and optional imagery on low-bandwidth devices.
+- Preserved player accent/supporter site theme styling on the cinematic story CTA, borders, icons and gameplay shells, with reduced-motion and translucent-filter fallbacks.
+- Reduced city skyline SVG from 55,619 to 5,898 bytes (89.4%) using SVG pattern reuse.
+- Centralized warning counts/severity to ensure a lockup is counted even before Heat level is high; warning badges and crisis backgrounds are tested separately.
+- Consolidated hash-to-disclosure selection for crew inventory, happiness, Heat and Payout with coverage for repeat navigation.
+- Extended `scripts/qa/ui-audit.mjs` with `--dashboard`: six real authenticated Chromium snapshots and structural checks (6 stat/action tiles, source order, phone action grid, touch targets, overflow), existing axe-core WCAG, keyboard and runtime checks.
+- Added dedicated `Dashboard Visual Audit` pull-request workflow using an isolated seeded PostgreSQL/API/web environment; captures screenshot artifact `command-center-visual-audit` without a beta/live deployment. See [Dashboard visual QA guide](DASHBOARD-VISUAL-QA.md).
+- **Release gate**: inspect artifact and ensure full CI and visual-audit checks pass before merging PR #279 into `beta`. Human approval of actual screenshots is still required.
 
 ### J — QA, accessibility and performance (automated hardening complete; beta browser validation pending)
 - The real-browser UI audit now checks 360/390/768/1024/1440/1920 widths with reduced motion, touch target and overflow checks, keyboard focus and WCAG axe scans. Desktop coverage includes both expanded and icon-rail sidebars, while the matrix exercises the Casino Floor, Federal Case and Midnight Market premium shell themes.
