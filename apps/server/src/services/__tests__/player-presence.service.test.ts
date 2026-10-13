@@ -14,7 +14,8 @@ describe('player online check-in', () => {
 
     await recordPlayerPresence(prisma, 'player-42', now);
 
-    expect(updateMany).toHaveBeenCalledExactlyOnceWith({
+    expect(updateMany).toHaveBeenCalledTimes(1);
+    expect(updateMany).toHaveBeenCalledWith({
       where: {
         id: 'player-42',
         lastActiveAt: { lt: new Date(now.getTime() - PRESENCE_WRITE_INTERVAL_MS) },
