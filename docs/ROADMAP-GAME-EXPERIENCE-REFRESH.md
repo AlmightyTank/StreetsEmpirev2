@@ -42,13 +42,13 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - Upgrade shared card/header radius, typography, spacing, focus affordances and touch sizes.
 - Respect existing accents, cosmetic shells, desktop icon rail, mobile safe areas and reduced-motion.
 
-### B — Quest page: one screen, story first
-- Replace eleven internal tabs with one meaningful vertical page, not another tab hierarchy.
-- **Story mission always first**, including the next gated step if nothing is currently playable; preserve prerequisite links.
-- Small cards show next objective, progress, status, deadline and major reward. Full story, bonus objectives, branch consequences and action buttons appear when expanded/selected.
-- Then show ready payments, tracked/active personal jobs, available jobs, and recurring contract groups, with collapsed history.
-- Keep season/city/alliance/community contracts, faction standings, favors and recipe ladders accessible in compact sections or detail panels.
-- Support deep-link `?focus`, direct notifications, keyboard focus and mobile jump positioning.
+### B — Quest page: one screen, story first (implemented on Slice B feature branch; awaiting PR validation)
+- Replace eleven internal tabs with one meaningful vertical page, not another tab hierarchy. **Implemented.**
+- **Story mission always first**, including the next gated step if nothing is currently playable; preserve prerequisite links. **Implemented.**
+- Small cards show next objective, progress, status and deadline. Full story, bonus objectives, branch consequences and all rewards appear when expanded/selected. **Implemented.**
+- Then show ready payments, tracked/active personal jobs, available jobs, and recurring contract groups, with collapsed history. **Implemented.**
+- Keep season/city/alliance/community contracts, faction standings, favors and recipe ladders accessible in compact sections or detail panels. **Implemented as expandable sections.**
+- Support deep-link `?focus`, direct notifications, keyboard focus and mobile jump positioning. **Implemented, pending browser smoke tests.**
 
 ### C — Actions: Scout, Produce and Raids
 - Unified action dock, equipment/turn status, outcome receipt and consistent quantity shortcuts.
