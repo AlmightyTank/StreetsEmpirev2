@@ -95,6 +95,18 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - All existing direct URLs remain intact, including account, player and round detail routes. The reorganization changes presentation only; actions, API calls, confirmations and audit trails are unchanged.
 - Admin destinations continue to be added to navigation only when the signed-in account is an admin, and every admin route remains behind the existing server-backed admin and recent second-factor gates.
 
+### K — Dashboard Command Center (implementation in this PR)
+- Place a live **Main Story** card first, using the exact story priority ordering from the Quest page; reveal the next objective, progress and claim/continue link.
+- Keep a compact empire snapshot showing cash, net worth, fit crew and blocks held, each linking to the right destination.
+- Move six common action shortcuts to an immediately visible two-column action grid on desktop and mobile; no internal dashboard tabs.
+- Show only the first three highest-priority existing alerts until expanded; preserve the full list and accurate attention count.
+- Keep current rookie guide and pending street-encounter choices high priority.
+- Group deep crew/weapon/supply/happiness information and Heat/Case/Payout/Turf/Hideout tools in expandable, keyboard-usable sections. Hash links for crew-health, Heat and Payout must open their sections and scroll correctly.
+- Keep the recent activity feed, current game snapshot refresh and existing gameplay/action routes.
+- Honor cosmetic shells, custom accent colors, phone safe areas, compact density and reduced motion.
+- No server changes, game economy changes or DB migrations. Verify the Quest page fetch does not create periodic polling.
+- Release gate: full CI plus interactive beta checks at 360/390/768/1024/1440/1920 widths and direct alert links. **Awaiting validation.**
+
 ### J — QA, accessibility and performance (automated hardening complete; beta browser validation pending)
 - The real-browser UI audit now checks 360/390/768/1024/1440/1920 widths with reduced motion, touch target and overflow checks, keyboard focus and WCAG axe scans. Desktop coverage includes both expanded and icon-rail sidebars, while the matrix exercises the Casino Floor, Federal Case and Midnight Market premium shell themes.
 - Navigation routing, aliases and admin visibility plus quest ordering and deep-linked focus remain covered. Store baskets now have a validated, player-scoped, one-day persistence contract with merge/remove tests, and Action Dock result controls have an included render contract test.
