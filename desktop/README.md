@@ -52,7 +52,7 @@ npm run check
 npm run dist:win
 ```
 
-Output: `desktop/dist/StreetsEmpire-Setup-0.1.0.exe`.
+Output: `desktop/dist/StreetsEmpire-Setup-0.1.1.exe`.
 
 The optional Windows GitHub Actions job packages an installer and uploads it as
 a workflow artifact. Configure the repository *Actions variable*
@@ -84,6 +84,31 @@ client secrets or tokens there.
    activity clears and that gameplay remains usable.
 6. Open Discord **after** starting StreetsEmpire; confirm automatic reconnection.
 7. Repeat on Beta and ensure there are no cross-environment login surprises.
+
+## Windows administrator prompts (0.1.1 correction)
+
+The first test installer (0.1.0) allowed choosing an **all users** installation.
+That could request Windows administrator privileges and leave a machine-wide
+installation behind.
+
+Starting with **0.1.1**, the NSIS installer is explicitly:
+- **Current user only** (`oneClick: true`, `perMachine: false`).
+- No elevation requested (`allowElevation: false`, no elevate helper).
+- The desktop application manifest explicitly says `asInvoker`.
+- Shortcuts are created for the current user.
+- The application is **not launched by the installer**, avoiding inherited elevated context.
+
+If an earlier version was installed **for all users** (for example under
+`C:\\Program Files`), uninstall that earlier installation through Windows
+**Installed apps** before installing 0.1.1. Windows may require one-time
+administrator confirmation for **removing** the old machine-wide install.
+Install 0.1.1 from the current Windows user's account.
+
+These changes prevent this app from *requesting* administrator privileges; they
+cannot override enterprise Windows policies, a shortcut's manually enabled
+**Run as administrator** property, or Windows SmartScreen warnings for unsigned
+applications. An **in-game beta account approval** prompt is unrelated to
+Windows admin elevation.
 
 The installer is currently **unsigned**. Before public distribution,
 sign the Windows installer, add an app icon, validate security and ensure the
