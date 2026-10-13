@@ -1360,3 +1360,19 @@
     transition: none;
   }
 }
+
+.se-quest-card__reward-preview {
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.se-quest-card__reward-preview > span {
+  display: inline-block;
+  margin-right: 5px;
+  color: var(--se-accent);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: .045em;
+}
