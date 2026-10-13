@@ -391,9 +391,9 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
       <div className="se-dashboard">
         <header className="se-dashboard-hero">
           <div className="se-dashboard-hero__identity">
-            <span className="se-eyebrow">StreetsEmpire · ${me.city.name} operation</span>
+            <span className="se-eyebrow">StreetsEmpire · {me.city.name} operation</span>
             <h1>Command Center</h1>
-            <p><strong>${me.displayName}</strong> <span className="se-dashboard-hero__id">#${me.publicPimpId}</span> · Your empire, your moves. What comes next?</p>
+            <p><strong>{me.displayName}</strong> <span className="se-dashboard-hero__id">#{me.publicPimpId}</span> · Your empire, your moves. What comes next?</p>
           </div>
           <div className="se-dashboard-hero__status">
             <div className="se-dashboard-live" role="status">
