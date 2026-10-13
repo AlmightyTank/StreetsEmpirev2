@@ -66,10 +66,11 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - **Turf ownership and Scout coverage share one area legend vocabulary** without sharing permissions or changing either screen's authoritative lock/coverage rules.
 - Hideout upgrades and Travel routes keep their established interaction surfaces, now under the common empire header. Existing game loops, URLs and mechanics remain unchanged.
 
-### E — Economy: Stores, Bulk Orders and Loans
-- Merge the already-planned hybrid Store marketplace approach (search/filters/trade-first cards) into the refreshed shell.
-- Use common receipt, quote, pending, batch action and fulfillment conventions.
-- Avoid requiring users to switch pages just to understand quantities or prerequisites.
+### E — Economy: Stores, Bulk Orders and Loans (implemented; browser validation pending)
+- **The hybrid Store marketplace is retained inside the refreshed economy shell**: search, shelf filters, trade-first cards, inline access/restock detail and the cross-store basket all remain available without changing store routes.
+- **Common transaction conventions** now identify live quotes, retry-safe pending actions, atomic batch checkout and fulfillment cards across Stores, Bulk Orders and Loans. All three continue to use the established full action receipt; Store keeps its compact result dock.
+- Bulk Orders keeps the supplier, product, quantity, price, cash-after-payment and pickup state together. Loan review keeps every fee, surcharge, installment, debt limit and late-payment consequence beside the accept action.
+- Existing idempotency keys, uncertain-result retries, authoritative prices, prerequisites, loan schedules, pickups and API mutations are unchanged.
 
 ### F — Casino
 - One Casino destination. Individual games retain deep-linked URLs and their own optimized play surfaces.

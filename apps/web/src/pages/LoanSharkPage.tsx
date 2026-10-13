@@ -6,6 +6,7 @@ import { ApiError } from '../api/client.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { EconomyFulfillmentCard, EconomyPageHeader, EconomyPendingNotice, EconomyQuote } from '../components/EconomyExperience.js';
 import { LoanPaymentPanel } from '../components/LoanPaymentPanel.js';
 import { Panel, Row } from '../components/Panel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
@@ -239,15 +240,15 @@ export function LoanSharkPage() {
   return (
     <GameLayout>
       <div className="se-supply se-loans">
-        <header className="se-supply__hero">
-          <span className="se-eyebrow">Fast money</span>
-          <h1>Loan Shark</h1>
-          <p>Cash now, paid back on a schedule. Every offer shows exactly what it costs before you take it. What you owe is capped, and paying off early only costs the part of the fee you have used.</p>
-        </header>
+        <EconomyPageHeader
+          eyebrow="Fast money"
+          title="Loan Shark"
+          description="Cash now, paid back on a schedule. Every offer shows exactly what it costs before you take it. What you owe is capped, and paying off early only costs the part of the fee you have used."
+        />
 
         {loadError ? <Alert>{loadError}</Alert> : null}
         {action.error ? <Alert>{action.error}</Alert> : null}
-        {uncertain ? <Alert tone="warning">We could not confirm whether the loan went through. Retry the same offer to check it safely: it can never pay out twice. The offers are locked until the result is known.</Alert> : null}
+        {uncertain ? <EconomyPendingNotice>We could not confirm whether the loan went through. Retry the same offer to check it safely: it can never pay out twice. The offers are locked until the result is known.</EconomyPendingNotice> : null}
         {data && !data.enabled ? <Alert tone="info">Nobody is lending this season.</Alert> : null}
 
         {action.result ? (
@@ -320,7 +321,7 @@ export function LoanSharkPage() {
             <Panel title="Review the deal" className="se-loans__review">
               {!selected ? <p className="se-muted">Pick an offer below to see its full terms before you take it.</p> : (
                 <div className="se-supply__form">
-                  <div className="se-supply__quote">
+                  <EconomyQuote title={selected.name} status={`${selected.installmentCount} installments`} statusTone={selected.available ? 'accent' : 'bad'}>
                     <Row label="Offer" value={selected.name} strong />
                     <Row label="Cash you receive now" value={formatCents(selected.principalCents)} strong />
                     {selected.pricing.surchargeCents > 0 ? (
@@ -342,7 +343,7 @@ export function LoanSharkPage() {
                     <Row label="Cash after" value={formatCents(cashCents + selected.principalCents)} />
                     <p>Installments are collected from your cash when they fall due. Pay off early and you only owe the part of the fee earned so far; the rest is waived. This price is fixed once you take it: borrowing again later never reprices this loan.</p>
                     <p className="se-loans__warning">{missedPaymentText(selected)}</p>
-                  </div>
+                  </EconomyQuote>
                   <Button className="se-btn se-btn--primary se-btn--block" onClick={() => void accept()} disabled={action.busy} disabledReason={uncertain ? null : selected.unavailableReason}>
                     {action.busy ? 'Taking the cash…' : uncertain ? 'Retry and check' : `Take ${formatCents(selected.principalCents)}`}
                   </Button>
@@ -366,11 +367,13 @@ export function LoanSharkPage() {
               {data.activeLoans.length === 0 ? <p className="se-muted">You do not owe the loan shark anything.</p> : (
                 <div className="se-supply__orders">
                   {data.activeLoans.map((loan) => (
-                    <article className="se-supply__order" key={loan.id}>
-                      <div className="se-supply__order-head">
-                        <div><strong>{loan.offerName} · {formatCents(loan.principalCents)}</strong><span>Taken {when(loan.acceptedAt)}</span></div>
-                        <span className={`se-supply__status${loan.status === 'DELINQUENT' ? ' se-loans__status--late' : ''}`}>{loan.status === 'DELINQUENT' ? 'Delinquent' : 'Active'}</span>
-                      </div>
+                    <EconomyFulfillmentCard
+                      key={loan.id}
+                      title={`${loan.offerName} · ${formatCents(loan.principalCents)}`}
+                      detail={`Taken ${when(loan.acceptedAt)}`}
+                      status={loan.status === 'DELINQUENT' ? 'Delinquent' : 'Active'}
+                      statusTone={loan.status === 'DELINQUENT' ? 'bad' : 'accent'}
+                    >
                       <Row label="Still owed on schedule" value={formatCents(loan.outstandingCents)} strong />
                       <Row label="Pay off now for" value={formatCents(loan.payoffCents)} />
                       {loan.overdueCents > 0 ? <Row label="Overdue now" value={formatCents(loan.overdueCents)} strong /> : null}
@@ -385,7 +388,7 @@ export function LoanSharkPage() {
                         ))}
                       </ol>
                       <LoanPaymentPanel loan={loan} cashCents={cashCents} onPaid={onPaid} onRefused={refresh} />
-                    </article>
+                    </EconomyFulfillmentCard>
                   ))}
                 </div>
               )}

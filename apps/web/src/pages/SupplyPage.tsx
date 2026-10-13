@@ -6,6 +6,7 @@ import { ApiError } from '../api/client.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { EconomyFulfillmentCard, EconomyPageHeader, EconomyPendingNotice, EconomyQuote } from '../components/EconomyExperience.js';
 import { Panel, Row } from '../components/Panel.js';
 import { PickupList, PickupPlanner, PropertiesPanel, StoragePanel } from '../components/SupplyPickupPanels.js';
 import { HistoryPanel, LanePlanner, LedgerPanel, ShipmentPlanner } from '../components/SupplyNetworkPanels.js';
@@ -156,17 +157,17 @@ export function SupplyPage() {
   return (
     <GameLayout>
       <div className="se-supply">
-        <header className="se-supply__hero">
-          <span className="se-eyebrow">Supply network</span>
-          <h1>Bulk Orders</h1>
-          <p>{data?.pickups
+        <EconomyPageHeader
+          eyebrow="Supply network"
+          title="Bulk Orders"
+          description={data?.pickups
             ? 'Pay the full quoted price now, then collect the order in vehicle loads. Each pickup is a run to the supplier and back; what makes it home goes into your stash.'
-            : 'Pay the full quoted price now. Your order stays at its supplier until you collect it.'}</p>
-        </header>
+            : 'Pay the full quoted price now. Your order stays at its supplier until you collect it.'}
+        />
 
         {loadError ? <Alert>{loadError}</Alert> : null}
         {action.error ? <Alert>{action.error}</Alert> : null}
-        {uncertainIntent ? <Alert tone="warning">We could not confirm the result. Retry this same order to check it safely; the form is locked until the result is known.</Alert> : null}
+        {uncertainIntent ? <EconomyPendingNotice>We could not confirm the result. Retry this same order to check it safely; the form is locked until the result is known.</EconomyPendingNotice> : null}
         {data && !data.enabled ? <Alert tone="info">Bulk suppliers are not available in this season.</Alert> : null}
 
         {action.result ? (
@@ -209,14 +210,14 @@ export function SupplyPage() {
 
                   {supplier ? <p className="se-supply__description">{supplier.description}</p> : null}
                   {offer ? (
-                    <div className="se-supply__quote">
+                    <EconomyQuote title={`${formatNumber(quantityValid ? quantity : 0)} ${offer.productName}`} status="Prepaid">
                       <Row label="Unit price" value={formatCents(offer.unitCostCents)} />
                       <Row label="Full order total" value={formatCents(quoteCents)} strong />
                       <Row label="Cash after order" value={formatCents((me?.resources.cashCents ?? 0) - quoteCents)} />
                       <p>{data.pickups
                         ? 'Payment is final. The product waits at the supplier until you send pickups for it, and lands in your stash, not your carried stock.'
                         : 'Payment is final. The product remains at the supplier and is not added to your carried stock until a later pickup.'}</p>
-                    </div>
+                    </EconomyQuote>
                   ) : null}
                   <Button className="se-btn se-btn--primary se-btn--block" onClick={() => void placeOrder()} disabled={action.busy || !offer} disabledReason={submitReason}>
                     {action.busy ? 'Placing order…' : uncertainIntent ? 'Retry order check' : 'Pay and place order'}
@@ -232,17 +233,19 @@ export function SupplyPage() {
               {openOrders.length === 0 ? <p className="se-muted">No paid orders are waiting for pickup.</p> : (
                 <div className="se-supply__orders">
                   {openOrders.map((order) => (
-                    <article className="se-supply__order" key={order.id}>
-                      <div className="se-supply__order-head">
-                        <div><strong>{order.productName}</strong><span>{order.supplierName} · {order.supplierCityName}</span></div>
-                        <span className="se-supply__status">{statusLabel(order.status)}</span>
-                      </div>
+                    <EconomyFulfillmentCard
+                      key={order.id}
+                      title={order.productName}
+                      detail={`${order.supplierName} · ${order.supplierCityName}`}
+                      status={statusLabel(order.status)}
+                      statusTone={order.status === 'PARTIALLY_COLLECTED' ? 'warn' : 'accent'}
+                      footer={<>Placed {new Date(order.createdAt).toLocaleString()}</>}
+                    >
                       <Row label="Ordered" value={formatNumber(order.quantityOrdered)} />
                       {order.quantityCollected > 0 ? <Row label="Collected" value={formatNumber(order.quantityCollected)} /> : null}
                       <Row label="Remaining to collect" value={formatNumber(order.quantityRemaining)} strong />
                       <Row label="Paid" value={formatCents(order.totalPaidCents)} />
-                      <small className="se-muted">Placed {new Date(order.createdAt).toLocaleString()}</small>
-                    </article>
+                    </EconomyFulfillmentCard>
                   ))}
                 </div>
               )}
