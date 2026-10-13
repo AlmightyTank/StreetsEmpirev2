@@ -23,9 +23,10 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatDuration } from '../utils/time.js';
 import { browserSessionStorage, clearPendingAction, loadPendingAction, savePendingAction } from '../utils/pendingAction.js';
+import { addStoreBasketLine, isStoreBasket, removeStoreBasketLine, STORE_BASKET_MAX_AGE_MS, type StoreBasketLine } from '../utils/storeBasket.js';
 
 type Order = Omit<StoreTradeInput, 'actionId'>;
-type BasketLine = StoreCheckoutLineInput & { key: string; storeName: string; itemName: string; unitCents: number; stockLabel: string };
+type BasketLine = StoreBasketLine;
 type StoreCommand = { kind: 'trade'; order: Order } | { kind: 'checkout'; lines: StoreCheckoutLineInput[] } | { kind: 'specialOrder'; store: string; item: string };
 type PendingStoreCommand = { actionId: string; command: StoreCommand };
 
@@ -1004,22 +1005,15 @@ export function StorePage() {
   // Prices on the lines are a guide; checkout charges what the shelf says then.
   const me = useSession((s) => s.me);
   const [basket, setBasket] = useRememberedState<BasketLine[]>(rememberedKey('store.basket', me?.id), [], {
-    accept: (value): value is BasketLine[] => Array.isArray(value)
-      && value.every((line) => line && typeof line === 'object' && typeof (line as BasketLine).key === 'string' && typeof (line as BasketLine).quantity === 'number'),
-    maxAgeMs: 24 * 3_600_000,
+    accept: isStoreBasket,
+    maxAgeMs: STORE_BASKET_MAX_AGE_MS,
   });
   function addToBasket(line: BasketLine) {
-    setBasket((current) => {
-      const existing = current.find((entry) => entry.key === line.key);
-      if (!existing) return [...current, line];
-      return current.map((entry) => entry.key === line.key
-        ? { ...entry, quantity: entry.quantity + line.quantity }
-        : entry);
-    });
+    setBasket((current) => addStoreBasketLine(current, line));
   }
 
   function removeFromBasket(key: string) {
-    setBasket((current) => current.filter((line) => line.key !== key));
+    setBasket((current) => removeStoreBasketLine(current, key));
   }
 
   return (

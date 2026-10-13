@@ -95,12 +95,11 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - All existing direct URLs remain intact, including account, player and round detail routes. The reorganization changes presentation only; actions, API calls, confirmations and audit trails are unchanged.
 - Admin destinations continue to be added to navigation only when the signed-in account is an admin, and every admin route remains behind the existing server-backed admin and recent second-factor gates.
 
-### J — QA, accessibility and performance
-- Check at 360/390/768/1024/1440/1920 widths, with sidebar rail, expanded sidebar and premium shell themes.
-- Keyboard navigation, readable labels, color contrast, reduced motion and no horizontal overflow.
-- Unit tests for nav routing/aliases/visibility, quest ordering and focus, basket persistence, result actions.
-- Review performance on transitions, caches and polling (no unnecessary extra requests).
-- Release only when typecheck, tests and build pass and actual beta gameplay is spot checked.
+### J — QA, accessibility and performance (automated hardening complete; beta browser validation pending)
+- The real-browser UI audit now checks 360/390/768/1024/1440/1920 widths with reduced motion, touch target and overflow checks, keyboard focus and WCAG axe scans. Desktop coverage includes both expanded and icon-rail sidebars, while the matrix exercises the Casino Floor, Federal Case and Midnight Market premium shell themes.
+- Navigation routing, aliases and admin visibility plus quest ordering and deep-linked focus remain covered. Store baskets now have a validated, player-scoped, one-day persistence contract with merge/remove tests, and Action Dock result controls have an included render contract test.
+- Background tabs no longer issue routine notification, convoy, Poker table, sportsbook, site-banner or supporter-confirmation polling requests. Returning to a visible tab refreshes time-sensitive boards without changing their cache, close-time or settlement rules.
+- Web typecheck, focused tests, the full test suite and production build must pass before merge. The authenticated six-width audit and actual beta gameplay spot check remain release gates and require a running beta stack plus player/admin credentials.
 
 ## Release strategy
 
