@@ -639,7 +639,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
 
         <section className="se-dashboard-highlights" aria-label="Your empire status">
           <article className="se-dashboard-highlight">
-            <div className="se-dashboard-highlight__title"><h2>Crew status</h2><Link to="#crew-health">Details →</Link></div>
+            <div className="se-dashboard-highlight__title"><h2><NavIcon name="contacts" /> Crew status</h2><Link to="#crew-health">Details →</Link></div>
             <strong>{formatNumber(me.resources.fitThugs)} fit / {formatNumber(me.resources.thugs)} total</strong>
             <p>Thug morale {me.happiness.thug}% · Street crew morale {me.happiness.whore}%</p>
             <div className="se-dashboard-highlight__meter" role="img" aria-label={`Thug morale ${me.happiness.thug}%`}>
@@ -647,17 +647,17 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
             </div>
           </article>
           <article className="se-dashboard-highlight">
-            <div className="se-dashboard-highlight__title"><h2>Production & stock</h2><Link to="/game/produce">Produce →</Link></div>
+            <div className="se-dashboard-highlight__title"><h2><NavIcon name="produce" /> Production &amp; stock</h2><Link to="/game/produce">Produce →</Link></div>
             <strong>{me.products ? formatNumber(me.products.reduce((sum, item) => sum + item.quantity, 0)) : formatNumber(me.resources.product)} units</strong>
             <p>{me.products?.length ? me.products.filter((item) => item.quantity > 0).slice(0, 2).map((item) => `${item.name}: ${formatNumber(item.quantity)}`).join(' · ') || 'No product stored yet' : 'Inventory ready to trade or produce'}</p>
           </article>
           <article className="se-dashboard-highlight">
-            <div className="se-dashboard-highlight__title"><h2>Supplies</h2><Link to="/game/stores/corner">Restock →</Link></div>
+            <div className="se-dashboard-highlight__title"><h2><NavIcon name="stores" /> Supplies</h2><Link to="/game/stores/corner">Restock →</Link></div>
             <strong>{formatNumber(me.resources.condoms)} condoms</strong>
             <p>{formatNumber(me.resources.beer)} beer · {formatNumber(me.resources.medicine)} medicine</p>
           </article>
           <article className="se-dashboard-highlight">
-            <div className="se-dashboard-highlight__title"><h2>Territory</h2><Link to="/game/turf">View turf →</Link></div>
+            <div className="se-dashboard-highlight__title"><h2><NavIcon name="cities" /> Territory</h2><Link to="/game/turf">View turf →</Link></div>
             <strong>{me.turf ? `${formatNumber(me.turf.blocksHeld)} blocks held` : 'No turf data'}</strong>
             <p>{me.turf ? `${formatCents(me.turf.taxEarnedTodayCents)} tax today · ${formatNumber(me.turf.postedGuns.total)} guns posted` : 'Explore districts and available territory'}</p>
           </article>
