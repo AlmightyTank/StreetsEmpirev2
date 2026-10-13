@@ -50,6 +50,7 @@ import { HideoutService } from '../services/hideout.service.js';
 import { parseBody } from '../utils/validate.js';
 import { ActivityService } from '../services/activity.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
+import { recordPlayerPresence } from '../services/player-presence.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
 import { AppError } from '../utils/errors.js';
@@ -152,11 +153,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post('/presence/heartbeat', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
-    const now = new Date();
-    await fastify.prisma.roundPlayer.updateMany({
-      where: { id: player.id, lastActiveAt: { lt: new Date(now.getTime() - 60_000) } },
-      data: { lastActiveAt: now },
-    });
+    await recordPlayerPresence(fastify.prisma, player.id);
     return { ok: true };
   });
 
