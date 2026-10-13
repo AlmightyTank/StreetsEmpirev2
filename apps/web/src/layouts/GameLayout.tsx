@@ -12,6 +12,7 @@ import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
+import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { formatDuration } from '../utils/time.js';
 import {
   isCurrent,
@@ -416,6 +417,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   usePageFreshness();
   const round = useSession((s) => s.round);
   const experience = useSession((s) => s.me?.experience ?? null);
+  const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
   const isBetaEnvironment = typeof window !== 'undefined' && window.location.hostname === 'beta.streetsempire.dev';
   const sections = useSections();
   const { pathname, search, hash } = useLocation();
@@ -499,6 +501,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
 
       <div className="se-gamegrid">
         <div className="se-gamemain">
+          {isAdmin && pathname.startsWith('/game/admin') ? <AdminWorkspace pathname={pathname} /> : null}
           <PageGuide />
           {children}
         </div>

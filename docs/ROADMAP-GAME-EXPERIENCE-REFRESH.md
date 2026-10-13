@@ -90,10 +90,10 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - Player profiles now link directly into a recipient-ready message, and profile actions plus inbox subjects and previews remain readable and tappable on narrow screens.
 - Existing contact privacy, earned-intel boundaries, message moderation and blocking, Alliance Wire permissions, ranking calculations, News visibility, routes and APIs are unchanged.
 
-### I — Admin workspace
-- Group admin tools by Operations, Players, Economy, Content and Monitoring.
-- Keep all permission checks and audit logs server-side. Preserve direct URLs.
-- Admin features never appear in ordinary player navigation.
+### I — Admin workspace (implemented; browser validation pending)
+- **Admin tools now form five purpose-led work areas**: Operations, Players, Economy, Content and Monitoring. The same groups organize the desktop sidebar, mobile page directory and an admin-only workspace switcher.
+- All existing direct URLs remain intact, including account, player and round detail routes. The reorganization changes presentation only; actions, API calls, confirmations and audit trails are unchanged.
+- Admin destinations continue to be added to navigation only when the signed-in account is an admin, and every admin route remains behind the existing server-backed admin and recent second-factor gates.
 
 ### J — QA, accessibility and performance
 - Check at 360/390/768/1024/1440/1920 widths, with sidebar rail, expanded sidebar and premium shell themes.
