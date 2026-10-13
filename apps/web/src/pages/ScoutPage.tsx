@@ -43,6 +43,10 @@ function ScoutMetric({
   );
 }
 
+function isIdList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length <= 5 && value.every((entry) => typeof entry === 'string');
+}
+
 function coverageTone(district: DistrictDto | undefined): 'good' | 'warn' | 'bad' {
   if (!district || district.exposedFraction <= 0) return 'good';
   return district.exposedFraction < 0.35 ? 'warn' : 'bad';
@@ -60,7 +64,8 @@ export function ScoutPage() {
   const [district, setDistrict] = useRememberedState<string>(rememberedKey('scout.district', me?.id), '', { accept: isString });
   const [turns, setTurns] = useRememberedState<number | ''>(rememberedKey('scout.turns', me?.id), 13, { accept: isTurns });
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [scoutTeam, setScoutTeam] = useState<string[]>([]);
+  // Lena stays picked between visits (per player); stale ids simply match nothing.
+  const [scoutTeam, setScoutTeam] = useRememberedState<string[]>(rememberedKey('scout.team', me?.id), [], { accept: isIdList });
 
   // Refetched whenever the crew changes, because the visible coverage on offer
   // depends on how many people and armed fit thugs the player has available.

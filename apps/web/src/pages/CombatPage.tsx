@@ -461,7 +461,8 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const [mode, setMode] = useRememberedState<Mode>(rememberedKey('combat.mode', playerId), 'RAID',
     { accept: (value): value is Mode => value === 'RAID' || value === 'DRIVE_BY' || value === 'DRUG_HOES' || value === 'STEAL_RIDE' || value === 'LURE_CREW' });
   const [squad, setSquad] = useRememberedState<string>(rememberedKey('combat.squad', playerId), '1', { accept: isString });
-  const [raidTeam, setRaidTeam] = useState<string[]>([]);
+  const [raidTeam, setRaidTeam] = useRememberedState<string[]>(rememberedKey('combat.raidTeam', playerId), [],
+    { accept: (value): value is string[] => Array.isArray(value) && value.length <= 5 && value.every((entry) => typeof entry === 'string') });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
