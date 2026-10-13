@@ -8,6 +8,7 @@ import { PageGuide } from '../components/onboarding/PageGuide.js';
 import { useOnboarding } from '../stores/onboarding.js';
 import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
+import { useGamePresence } from '../hooks/useGamePresence.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
@@ -414,6 +415,7 @@ const GameLayoutMountedContext = createContext(false);
 
 function GameLayoutFrame({ children }: { children: ReactNode }) {
   useStaleGameReload();
+  useGamePresence();
   usePageFreshness();
   const round = useSession((s) => s.round);
   const experience = useSession((s) => s.me?.experience ?? null);

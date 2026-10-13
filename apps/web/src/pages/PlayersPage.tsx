@@ -52,13 +52,35 @@ export function PlayersPage() {
 
   useEffect(() => {
     let live = true;
+    let inFlight = false;
     setError(null);
-    playersApi.list(view, submittedQuery, page).then((next) => {
-      if (live) setData(next);
-    }).catch((caught: unknown) => {
-      if (live) setError(caught instanceof ApiError ? caught.message : 'Could not load the player directory.');
-    });
-    return () => { live = false; };
+
+    const refresh = () => {
+      if (inFlight || document.hidden || !navigator.onLine) return;
+      inFlight = true;
+      void playersApi.list(view, submittedQuery, page).then((next) => {
+        if (live) {
+          setData(next);
+          setError(null);
+        }
+      }).catch((caught: unknown) => {
+        if (live) setError(caught instanceof ApiError ? caught.message : 'Could not load the player directory.');
+      }).finally(() => { inFlight = false; });
+    };
+
+    refresh();
+    const onVisibility = () => { if (!document.hidden) refresh(); };
+    const timer = window.setInterval(refresh, 30_000);
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    return () => {
+      live = false;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+    };
   }, [view, submittedQuery, page]);
 
   function submit(event: FormEvent) {
