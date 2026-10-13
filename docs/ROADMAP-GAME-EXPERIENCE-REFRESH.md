@@ -95,17 +95,27 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - All existing direct URLs remain intact, including account, player and round detail routes. The reorganization changes presentation only; actions, API calls, confirmations and audit trails are unchanged.
 - Admin destinations continue to be added to navigation only when the signed-in account is an admin, and every admin route remains behind the existing server-backed admin and recent second-factor gates.
 
-### K — Dashboard Command Center (implementation in this PR)
-- Place a live **Main Story** card first, using the exact story priority ordering from the Quest page; reveal the next objective, progress and claim/continue link.
-- Keep a compact empire snapshot showing cash, net worth, fit crew and blocks held, each linking to the right destination.
-- Move six common action shortcuts to an immediately visible two-column action grid on desktop and mobile; no internal dashboard tabs.
-- Show only the first three highest-priority existing alerts until expanded; preserve the full list and accurate attention count.
-- Keep current rookie guide and pending street-encounter choices high priority.
-- Group deep crew/weapon/supply/happiness information and Heat/Case/Payout/Turf/Hideout tools in expandable, keyboard-usable sections. Hash links for crew-health, Heat and Payout must open their sections and scroll correctly.
-- Keep the recent activity feed, current game snapshot refresh and existing gameplay/action routes.
-- Honor cosmetic shells, custom accent colors, phone safe areas, compact density and reduced motion.
-- No server changes, game economy changes or DB migrations. Verify the Quest page fetch does not create periodic polling.
-- Release gate: full CI plus interactive beta checks at 360/390/768/1024/1440/1920 widths and direct alert links. **Awaiting validation.**
+### K — Dashboard Command Center (on PR #279; do not merge until B/C and QA)
+
+#### Dashboard-A — Structure & information hierarchy (implemented; CI/review pending)
+- Replace name-first hero with a **Command Center** heading, player identity, current city, sync status and a linked city standing.
+- Show **six real-data stat cards**: Cash (with net worth), Turns/regeneration, National Rank, Fit Crew, Turf and Heat.
+- Feature **Main Story** beside **Needs Attention**, then show a full-width row of six fast action shortcuts (Scout, Produce, Raids, Travel, Casino, Quests). Stores remain one click away from Cash/Supplies.
+- Add four high-signal information previews: Crew Status, Product Stock, Supplies, and Territory. No invented betting, production timers, tournament events, or unsupported server stats.
+- Keep rookie onboarding and unresolved encounters accessible before ordinary summaries.
+- Preserve all original detailed management tools and the Activity feed behind clear optional sections.
+- Fix review findings: `#crew-health` now opens the **morale penalty breakdown**, while `#crew-inventory` opens crew/inventory; direct and repeated `#heat`/`#payout` navigation reopens the right section.
+- All layout changes are CSS/grid and existing snapshot and quest reads; no gameplay API or server mutations.
+
+#### Dashboard-B — Cinematic premium visual pass (not implemented yet)
+- City-themed background textures/art, original story and alert imagery, and richer quick-action iconography, with asset fallback for supporter shell styles.
+- Premium hero and stat-card detailing; avoid hardcoded bright accents that conflict with supporter themes.
+- Don't invent progress/time/rank data just to match the concept picture.
+
+#### Dashboard-C — Mobile, performance and release polish (not implemented yet)
+- Test 360/390/768/1024/1440/1920 widths, sidebar rail, dark/light, accent choice and animated supporter themes.
+- Keyboard, screen reader status, disclosure and repeated deep-link navigation checks.
+- Production builds, tests and browser gameplay smoke test before merging PR #279 into `beta`.
 
 ### J — QA, accessibility and performance (automated hardening complete; beta browser validation pending)
 - The real-browser UI audit now checks 360/390/768/1024/1440/1920 widths with reduced motion, touch target and overflow checks, keyboard focus and WCAG axe scans. Desktop coverage includes both expanded and icon-rail sidebars, while the matrix exercises the Casino Floor, Federal Case and Midnight Market premium shell themes.
