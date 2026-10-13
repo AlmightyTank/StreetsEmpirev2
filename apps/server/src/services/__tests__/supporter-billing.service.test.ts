@@ -18,6 +18,7 @@ function fakeDb(accountIds: string[] = ['acc_1']) {
     unlocks: [] as Row[],
     audit: [] as Row[],
     profiles: [] as Row[],
+    resyncs: [] as Row[],
   };
   const matches = (row: Row, where: Row) => Object.entries(where).every(([key, value]) => {
     if (value && typeof value === 'object' && 'in' in value) return (value.in as unknown[]).includes(row[key]);
@@ -26,7 +27,13 @@ function fakeDb(accountIds: string[] = ['acc_1']) {
   const db: Row = {
     state,
     $transaction: async (fn: (tx: unknown) => unknown) => fn(db),
-    account: { findUnique: async ({ where }: Row) => (accountIds.includes(where.id) ? { id: where.id } : null) },
+    account: {
+      findUnique: async ({ where }: Row) => (accountIds.includes(where.id) ? { id: where.id, isActive: true } : null),
+      findMany: async ({ where }: Row) => accountIds
+        .filter((id) => !where.id?.in || where.id.in.includes(id))
+        .map((id) => ({ id, discordId: `discord_${id}` }))
+        .filter((row) => where.discordId?.not !== null || row.discordId !== null),
+    },
     stripeWebhookEvent: {
       findUnique: async ({ where }: Row) => (state.events.has(where.id) ? { id: where.id } : null),
       create: async ({ data }: Row) => { state.events.add(data.id); return data; },
@@ -50,6 +57,7 @@ function fakeDb(accountIds: string[] = ['acc_1']) {
       },
       findFirst: async ({ where }: Row) =>
         state.payments.filter((row) => matches(row, where)).sort((a, b) => b.paidAt.getTime() - a.paidAt.getTime())[0] ?? null,
+      findMany: async ({ where }: Row) => state.payments.filter((row) => matches(row, where)),
       update: async ({ where, data }: Row) => Object.assign(state.payments.find((row) => row.id === where.id)!, data),
     },
     accountCosmeticUnlock: {
@@ -65,6 +73,10 @@ function fakeDb(accountIds: string[] = ['acc_1']) {
         state.profiles.push({ ...create });
         return create;
       },
+    },
+    discordResyncRequest: {
+      create: async ({ data }: Row) => { state.resyncs.push(data); return data; },
+      createMany: async ({ data }: Row) => { state.resyncs.push(...data); return { count: data.length }; },
     },
     adminAuditLog: { create: async ({ data }: Row) => { state.audit.push(data); return data; } },
   };
@@ -212,18 +224,89 @@ describe('monthly drops and the thank-you list', () => {
     expect(db.state.audit[0]?.after).toEqual({ granted: [...ALL, 'supporter-drop-2026-10'] });
   });
 
+  it('grants the 3-month tenure badge on the third distinct paid month, across a gap', async () => {
+    const db = fakeDb();
+    const invoice = (id: string, paidAt: number) => event('invoice.paid', {
+      id, customer: 'cus_1', amount_paid: 500, currency: 'usd', status_transitions: { paid_at: paidAt },
+      subscription_details: { metadata: { accountId: 'acc_1' } }, subscription: 'sub_1',
+    }, paidAt);
+
+    await handle(db, invoice('in_oct', Date.UTC(2026, 9, 15) / 1000));
+    await handle(db, invoice('in_nov', Date.UTC(2026, 10, 15) / 1000));
+    expect(db.state.unlocks.map((row) => row.key)).not.toContain('supporter-tenure-3');
+
+    // December skipped (cancelled), January paid: the count continues, not resets.
+    await handle(db, invoice('in_jan', Date.UTC(2027, 0, 15) / 1000));
+    const keys = db.state.unlocks.map((row) => row.key);
+    expect(keys).toContain('supporter-tenure-3');
+    expect(keys).not.toContain('supporter-tenure-6');
+    expect(db.state.audit.at(-1)?.after.granted).toContain('supporter-tenure-3');
+
+    const status = await SupporterBillingService.status(db as unknown as PrismaClient, 'acc_1', new Date(Date.UTC(2027, 0, 20)));
+    expect(status.dropsHeld.filter((drop) => drop.name.includes('Steadfast'))).toEqual([
+      { month: '2027-01', name: 'Steadfast · 3 Months' },
+    ]);
+  });
+
   it('reports the drop and lets only a supporter join the list', async () => {
     const db = fakeDb();
     const prisma = db as unknown as PrismaClient;
     await expect(SupporterBillingService.setListed(prisma, 'acc_1', true)).rejects.toMatchObject({ code: 'NOT_A_SUPPORTER' });
+    await expect(SupporterBillingService.setReleaseNotesCredit(prisma, 'acc_1', true)).rejects.toMatchObject({ code: 'NOT_A_SUPPORTER' });
 
     await handle(db, paidCheckout());
+    expect((await SupporterBillingService.status(prisma, 'acc_1', new Date(OCTOBER_2026 * 1000))).releaseNotesCreditOptIn).toBe(false);
+
     const listed = await SupporterBillingService.setListed(prisma, 'acc_1', true);
     expect(listed.listed).toBe(true);
 
+    const credited = await SupporterBillingService.setReleaseNotesCredit(prisma, 'acc_1', true);
+    expect(credited.releaseNotesCreditOptIn).toBe(true);
+
     const status = await SupporterBillingService.status(prisma, 'acc_1', new Date(OCTOBER_2026 * 1000));
     expect(status.drop).toEqual({ month: '2026-10', name: 'Supporter · October 2026', held: false });
+    expect(status.releaseNotesCreditOptIn).toBe(true);
+    expect((await SupporterBillingService.setReleaseNotesCredit(prisma, 'acc_1', false)).releaseNotesCreditOptIn).toBe(false);
     expect((await SupporterBillingService.setListed(prisma, 'acc_1', false)).listed).toBe(false);
+  });
+
+  it('shows staged next-drop previews only to supporters during the early window', async () => {
+    const previewAt = new Date(Date.UTC(2026, 11, 26, 12));
+    const nonSupporter = await SupporterBillingService.status(fakeDb() as unknown as PrismaClient, 'acc_1', previewAt);
+    expect(nonSupporter.supporterPreview).toBeNull();
+
+    const db = fakeDb();
+    await handle(db, paidCheckout());
+    const supporter = await SupporterBillingService.status(db as unknown as PrismaClient, 'acc_1', previewAt);
+
+    expect(supporter.supporterPreview).toMatchObject({
+      month: '2027-01',
+      name: 'Supporter · January 2027',
+      availableAt: '2027-01-01T00:00:00.000Z',
+      items: [expect.objectContaining({ name: 'Supporter · January 2027', kind: 'TITLE_BADGE', rarity: 'epic' })],
+    });
+  });
+
+  it('gift checkout grants only the current bundle to the recipient and tenure credit to the payer', async () => {
+    const db = fakeDb(['gifter', 'recipient']);
+    db.state.payments.push(
+      { id: 'old_1', accountId: 'gifter', stripeInvoiceId: 'old_1', stripeCustomerId: 'cus_old', amountCents: 500, currency: 'usd', status: 'paid', paidAt: new Date(Date.UTC(2026, 7, 10)) },
+      { id: 'old_2', accountId: 'gifter', stripeInvoiceId: 'old_2', stripeCustomerId: 'cus_old', amountCents: 500, currency: 'usd', status: 'paid', paidAt: new Date(Date.UTC(2026, 8, 10)) },
+    );
+
+    const result = await handle(db, event('checkout.session.completed', {
+      id: 'cs_gift', mode: 'payment', payment_status: 'paid', customer: 'cus_gift', amount_total: 500, currency: 'usd',
+      metadata: { gifterAccountId: 'gifter', recipientAccountId: 'recipient' },
+    }, OCTOBER_2026));
+
+    expect(result).toBe('granted');
+    expect(db.state.payments.at(-1)).toMatchObject({ accountId: 'gifter', stripeInvoiceId: 'gift:cs_gift', status: 'paid' });
+    expect(db.state.unlocks.map((row) => [row.accountId, row.key])).toEqual([
+      ['recipient', 'supporter-drop-2026-10'],
+      ['gifter', 'supporter-tenure-3'],
+    ]);
+    expect(db.state.unlocks.map((row) => row.key)).not.toContain('supporter-drop-2026-09');
+    expect(db.state.unlocks.map((row) => row.key)).not.toEqual(expect.arrayContaining(ALL));
   });
 });
 
@@ -241,6 +324,21 @@ describe('SupporterBillingService.startCheckout', () => {
       metadata: { accountId: 'acc_1' },
       subscription_data: { metadata: { accountId: 'acc_1' } },
       customer_email: 'vito@example.test',
+    }));
+  });
+
+  it('opens a one-time gift checkout with gifter and recipient metadata', async () => {
+    const db = fakeDb(['gifter', 'recipient']);
+    const api = fakeApi();
+
+    const result = await SupporterBillingService.startGiftCheckout(db as unknown as PrismaClient, { id: 'gifter', email: 'gift@example.test' }, 'recipient', api);
+
+    expect(result.url).toBe('https://checkout.stripe.test/cs_1');
+    expect(api.createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({
+      mode: 'payment',
+      client_reference_id: 'gifter',
+      metadata: { gifterAccountId: 'gifter', recipientAccountId: 'recipient' },
+      customer_email: 'gift@example.test',
     }));
   });
 

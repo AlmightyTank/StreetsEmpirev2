@@ -72,6 +72,7 @@
 .se-profile-hover-card[data-accent="clean-books-ivory"] { --se-hover-accent: #e9e0cb; }
 .se-profile-hover-card[data-accent="sunset-coral"] { --se-hover-accent: #ff9a84; }
 .se-profile-hover-card[data-accent="night-map-plum"] { --se-hover-accent: #bf78ff; }
+.se-profile-hover-card[data-accent="supporter-crimson"] { --se-hover-accent: #ff5875; }
 .se-profile-hover-card__banner {
   position: relative;
   display: flex;

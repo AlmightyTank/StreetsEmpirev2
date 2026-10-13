@@ -14,6 +14,13 @@ export interface PublicRankingEntryDto {
     name: string;
     tag: string;
   } | null;
+  /**
+   * Supporter mark: true when the account holds any supporter reward.
+   * Derived only — never amounts, payment status, or expiry.
+   */
+  isSupporter: boolean;
+  /** UTC month (YYYY-MM) of the account's earliest supporter reward, null when not a supporter. */
+  supporterSince: string | null;
 }
 
 export interface PublicTurfEventDto {
@@ -85,6 +92,8 @@ export interface PublicSeasonStandingDto {
     name: string;
     tag: string;
   } | null;
+  /** True when the account holds a supporter season stamp for this season. */
+  supportedSeason: boolean;
 }
 
 export interface PublicCompletedGameStatsDto {
@@ -171,6 +180,8 @@ export interface PublicCareerSeasonDto {
   finalNetWorthCents: number;
   localRank: number | null;
   nationalRank: number | null;
+  /** True when the account holds a supporter season stamp for this season. */
+  supportedSeason: boolean;
 }
 
 export interface PublicPlayerPageDto {
@@ -192,6 +203,13 @@ export interface PublicPlayerPageDto {
       titlePlacement: 'prefix' | 'suffix';
       accent: string;
     };
+    /**
+     * Supporter mark: true when the account holds any supporter reward.
+     * Derived only — never amounts, payment status, or expiry.
+     */
+    isSupporter: boolean;
+    /** UTC month (YYYY-MM) of the account's earliest supporter reward, null when not a supporter. */
+    supporterSince: string | null;
     joinedAt: string;
     lastActiveAt: string;
   };

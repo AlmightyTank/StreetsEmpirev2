@@ -5,6 +5,7 @@ export const MESSAGE_BODY_MAX = 2_000;
 export const MESSAGE_REPORT_REASON_MAX = 500;
 export const MESSAGE_PAGE_SIZE = 30;
 export const CONSOLE_ACTIVITY_PAGE_SIZE = 50;
+export const SUPPORTER_CONSOLE_ACTIVITY_PAGE_SIZE = 100;
 
 export type ConsoleFolder = 'inbox' | 'sent' | 'archived';
 export type ConsoleThreadFolder = 'active' | 'archived';

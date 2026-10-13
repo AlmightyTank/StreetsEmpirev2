@@ -20,6 +20,7 @@ import type {
 import { env } from '../config/env.js';
 import { RoundService } from './round.service.js';
 import { GameAlertService } from './game-alerts.service.js';
+import { SupporterService } from './supporter.service.js';
 import {
   CATEGORY_COLUMN,
   channelsFor,
@@ -32,6 +33,16 @@ import {
 
 export { channelsFor, type ChannelSwitches } from './notification-channels.js';
 import { gameUrl, playerUrl, roundStandings } from './standings.js';
+
+export const FREE_NOTIFICATION_RULE_SLOTS = 1;
+export const SUPPORTER_NOTIFICATION_RULE_SLOTS = 5;
+
+function notificationConvenience(hasRewards: boolean): NotificationSettingsDto['convenience'] {
+  return {
+    hasRewards,
+    ruleSlots: hasRewards ? SUPPORTER_NOTIFICATION_RULE_SLOTS : FREE_NOTIFICATION_RULE_SLOTS,
+  };
+}
 
 type Tx = Prisma.TransactionClient;
 
@@ -557,10 +568,11 @@ export const NotificationService = {
   },
 
   async settings(prisma: PrismaClient, accountId: string): Promise<NotificationSettingsDto> {
-    const [account, row, devices] = await Promise.all([
+    const [account, row, devices, supporterSince] = await Promise.all([
       prisma.account.findUniqueOrThrow({ where: { id: accountId }, select: { discordId: true } }),
       prisma.notificationSettings.findUnique({ where: { accountId } }),
       prisma.pushSubscription.findMany({ where: { accountId }, orderBy: { createdAt: 'asc' } }),
+      SupporterService.since(prisma, accountId),
     ]);
     const bellMuted = new Set(stringArray(row?.bellMuted));
     return {
@@ -571,6 +583,7 @@ export const NotificationService = {
         ? { start: row.quietStartMinute, end: row.quietEndMinute, timeZone: row.timeZone }
         : null,
       bellMuted: BELL_CATEGORIES.filter((category) => bellMuted.has(category)),
+      convenience: notificationConvenience(supporterSince !== null),
       discordLinked: Boolean(account.discordId),
       push: {
         available: env.push.configured,

@@ -36,8 +36,21 @@ import { QuestCosmeticService, withThemeCompanionFrames } from './quest-cosmetic
 import { isPermanentAward } from './profile-badges.js';
 import { profileTitleForAward } from './profile-titles.js';
 import { crewCosmeticLoadout, itemCosmeticLoadout } from './profile-showcase.service.js';
+import { SupporterService } from './supporter.service.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
+export const FREE_PROFILE_PRESET_SLOTS = 1;
+export const SUPPORTER_PROFILE_PRESET_SLOTS = 4;
+export const FREE_COSMETIC_LOADOUT_SLOTS = 1;
+export const SUPPORTER_COSMETIC_LOADOUT_SLOTS = 4;
+
+function convenienceLimits(hasRewards: boolean): AccountProfileSettingsResponseDto['convenience'] {
+  return {
+    hasRewards,
+    presetSlots: hasRewards ? SUPPORTER_PROFILE_PRESET_SLOTS : FREE_PROFILE_PRESET_SLOTS,
+    loadoutSlots: hasRewards ? SUPPORTER_COSMETIC_LOADOUT_SLOTS : FREE_COSMETIC_LOADOUT_SLOTS,
+  };
+}
 
 /**
  * Slice D: "Street Pass · Season 1, tier 18" for each collection the round's
@@ -332,11 +345,12 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
 
 export const AccountProfileService = {
   async settings(prisma: PrismaClient, accountId: string): Promise<AccountProfileSettingsResponseDto> {
-    const [profile, awards, appearance, ruleset] = await Promise.all([
+    const [profile, awards, appearance, ruleset, supporterSince] = await Promise.all([
       readProfile(prisma, accountId),
       earnedAwards(prisma, accountId),
       appearanceOptions(prisma, accountId),
       currentRuleset(prisma),
+      SupporterService.since(prisma, accountId),
     ]);
     const hints = collectionUnlockHints(ruleset);
     const titleOptions = [...honorificTitles, ...awards.map(titleOptionFromAward)];
@@ -346,6 +360,7 @@ export const AccountProfileService = {
 
     return {
       settings: toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections),
+      convenience: convenienceLimits(supporterSince !== null),
       options: {
         titles: titleOptions,
         badges: badgeOptions,

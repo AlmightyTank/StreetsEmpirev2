@@ -213,6 +213,8 @@ export interface PublicHallOfFameAppearanceDto {
   round: { name: string; slug: string; endedAt: string };
   nationalRank: number;
   podium: boolean;
+  /** True when the account holds a supporter season stamp for this season. */
+  supportedSeason: boolean;
 }
 
 export interface PublicSeasonResultDto {
@@ -241,6 +243,8 @@ export interface PublicSeasonResultDto {
   hideout: SeasonHideoutDto;
   joinedAt: string;
   lastActiveAt: string;
+  /** True when the account holds a supporter season stamp for this season. */
+  supportedSeason: boolean;
 }
 
 export interface PublicCareerDto {
@@ -497,6 +501,8 @@ export interface HallOfFamePlayerDto {
   hideout: SeasonHideoutDto;
   joinedAt: string;
   lastActiveAt: string;
+  /** True when the account holds a supporter season stamp for this season. */
+  supportedSeason: boolean;
 }
 
 export interface HallOfFameRoundDto {
@@ -831,6 +837,12 @@ export interface NotificationSettingsDto {
   quietHours: { start: number; end: number; timeZone: string } | null;
   /** 0.9.0-G. Categories hidden from the in-game bell. */
   bellMuted: NotificationCategory[];
+  convenience: {
+    /** Permanent supporter rewards unlock expanded notification customization. */
+    hasRewards: boolean;
+    /** Saved notification rules available to this account. */
+    ruleSlots: number;
+  };
   discordLinked: boolean;
   push: {
     /** False until the server has VAPID keys. */
@@ -850,6 +862,8 @@ export interface InAppNotificationDto {
 export interface InAppNotificationFeedDto {
   notifications: InAppNotificationDto[];
   unreadCount: number;
+  /** Number of newest bell rows returned for this account. Supporters keep a longer visible history. */
+  historyLimit?: number;
   /** 0.9.0-G. Categories this account muted in the bell, so live toasts can skip them too. */
   bellMuted?: NotificationCategory[];
 }

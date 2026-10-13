@@ -7,7 +7,7 @@ type Row = Record<string, any>;
 const OCTOBER = new Date('2026-10-01T00:30:00Z');
 
 /** Tables the drop sweep, its summary and the public list read. */
-function fakeDb(memberships: Row[], unlocks: Row[] = [], profiles: Row[] = [], accounts: Row[] = []) {
+function fakeDb(memberships: Row[], unlocks: Row[] = [], profiles: Row[] = [], accounts: Row[] = [], payments: Row[] = []) {
   const audit: Row[] = [];
   const matches = (row: Row, where: Row) => Object.entries(where).every(([key, value]) => {
     if (value && typeof value === 'object' && 'in' in value) return (value.in as unknown[]).includes(row[key]);
@@ -16,9 +16,13 @@ function fakeDb(memberships: Row[], unlocks: Row[] = [], profiles: Row[] = [], a
   const db: Row = {
     audit,
     unlocks,
+    payments,
     $transaction: async (fn: (tx: unknown) => unknown) => fn(db),
     supporterMembership: {
       findMany: async ({ where }: Row) => memberships.filter((row) => where.status.in.includes(row.status)),
+    },
+    supporterPayment: {
+      findMany: async ({ where }: Row) => payments.filter((row) => matches(row, where)),
     },
     accountCosmeticUnlock: {
       findMany: async ({ where }: Row) => unlocks.filter((row) => matches(row, where)),
@@ -58,6 +62,40 @@ describe('SupporterDropService.sweep', () => {
     expect(db.unlocks.filter((row: Row) => row.key === 'supporter-drop-2026-10').map((row: Row) => row.accountId).sort()).toEqual(['a', 'b']);
     expect(db.unlocks.find((row: Row) => row.accountId === 'a')).toMatchObject({ kind: 'TITLE_BADGE', sourceQuestKey: 'supporter', sourceRulesetId: 'supporter-drop', sourceRulesetVersion: '2026-10' });
     expect(db.audit[0]).toMatchObject({ actorAccountId: null, actorUsername: 'Monthly drop', targetId: 'a' });
+
+    expect(await SupporterDropService.sweep(db as unknown as PrismaClient, OCTOBER)).toEqual({ month: '2026-10', granted: 0 });
+  });
+
+  it('grants every item in a multi-item bundle, including a partial hold', async () => {
+    const march = new Date('2027-03-10T00:00:00Z');
+    const db = fakeDb(
+      [{ accountId: 'a', status: 'active' }, { accountId: 'b', status: 'active' }],
+      [{ accountId: 'b', key: 'supporter-drop-2027-03' }],
+    );
+
+    expect(await SupporterDropService.sweep(db as unknown as PrismaClient, march)).toEqual({ month: '2027-03', granted: 2 });
+    const aKeys = db.unlocks.filter((row: Row) => row.accountId === 'a').map((row: Row) => row.key).sort();
+    expect(aKeys).toEqual(['supporter-drop-2027-03', 'supporter-drop-2027-03-backer']);
+    const bKeys = db.unlocks.filter((row: Row) => row.accountId === 'b').map((row: Row) => row.key).sort();
+    expect(bKeys).toEqual(['supporter-drop-2027-03', 'supporter-drop-2027-03-backer']);
+    expect(db.audit).toHaveLength(2);
+
+    expect(await SupporterDropService.sweep(db as unknown as PrismaClient, march)).toEqual({ month: '2027-03', granted: 0 });
+  });
+
+  it('reconciles tenure badges for supporters who hold the bundle but never got the badge', async () => {
+    const paid = (iso: string) => ({ accountId: 'v', amountCents: 500, status: 'paid', paidAt: new Date(iso) });
+    const db = fakeDb(
+      [{ accountId: 'v', status: 'active' }],
+      [{ accountId: 'v', key: 'supporter-drop-2026-10' }],
+      [],
+      [],
+      [paid('2026-10-15T12:00:00Z'), paid('2026-11-15T12:00:00Z'), paid('2026-12-15T12:00:00Z')],
+    );
+
+    expect(await SupporterDropService.sweep(db as unknown as PrismaClient, OCTOBER)).toEqual({ month: '2026-10', granted: 1 });
+    expect(db.unlocks.filter((row: Row) => row.accountId === 'v').map((row: Row) => row.key)).toContain('supporter-tenure-3');
+    expect(db.audit[0]).toMatchObject({ actorUsername: 'Monthly drop', reason: 'Supporter tenure award', targetId: 'v' });
 
     expect(await SupporterDropService.sweep(db as unknown as PrismaClient, OCTOBER)).toEqual({ month: '2026-10', granted: 0 });
   });

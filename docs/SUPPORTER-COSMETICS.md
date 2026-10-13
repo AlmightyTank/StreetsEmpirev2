@@ -74,10 +74,11 @@ secret to use as `STRIPE_WEBHOOK_SECRET`.
 
 ## Monthly drops
 
-`SUPPORTER_MONTHLY_DROPS` in `packages/rulesets/src/supporter.ts` sets one drop
-per UTC month (`YYYY-MM`). Each is a `TITLE_BADGE`, so it needs no art: the
-player can wear it as a title or feature it as a profile badge. Anyone
-supporting during a month gets that month's drop and keeps it:
+`SUPPORTER_MONTHLY_DROPS` in `packages/rulesets/src/supporter.ts` maps each
+UTC month (`YYYY-MM`) to a bundle of one to three drops (max three). Each drop
+is usually a `TITLE_BADGE`, so it needs no art: the player can wear it as a
+title or feature it as a profile badge. Anyone supporting during a month gets
+that month's whole bundle and keeps it:
 
 - **Active subscribers** (`active` or `trialing`) get it within an hour of the
   month starting, from the hourly "Supporter drops" job
@@ -88,7 +89,9 @@ supporting during a month gets that month's drop and keeps it:
   Stripe retries successfully later in the month still brings it.
 - A month that has passed is not given out later, so a new supporter does not
   get earlier drops. Admin grants (manual supporters with no subscription) do
-  not include drops.
+  not include drops. A partial bundle (a supporter missing some of the month's
+  items) is topped up with just the missing items, so the sweep and the Stripe
+  grant both leave whole bundles behind.
 
 Drop unlocks use `sourceQuestKey = 'supporter'`, `sourceRulesetId =
 'supporter-drop'` and the month as `sourceRulesetVersion`. The audit actor is

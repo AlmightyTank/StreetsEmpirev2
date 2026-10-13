@@ -67,11 +67,13 @@ export function roleKeysFor(input: {
   nationalRank: number | null;
   legacy: PublicLegacyDto;
   forumGroups: ForumGroupBadgeDto[];
+  supporter?: boolean;
   betaTester?: boolean;
   /** 0.3.0-C. The tag of the live alliance they are in this round. */
   allianceTag?: string | null;
 }): string[] {
   const keys = ['linked'];
+  if (input.supporter) keys.push('supporter');
   if (input.betaTester) keys.push('beta-tester');
   if (input.inRound) keys.push('player');
   if (input.inRound && input.allianceTag) keys.push(`alliance:${input.allianceTag.toUpperCase()}`);
@@ -626,7 +628,7 @@ export const DiscordBotService = {
   async rolesFor(prisma: PrismaClient, discordIds: string[]): Promise<Record<string, string[]>> {
     const accounts = await prisma.account.findMany({
       where: { discordId: { in: discordIds }, isActive: true },
-      select: { id: true, discordId: true, forumLink: { select: { forumOrigin: true, forumUserId: true } } },
+      select: { id: true, discordId: true, supporterMembership: { select: { status: true } }, forumLink: { select: { forumOrigin: true, forumUserId: true } } },
     });
     if (!accounts.length) return {};
 
@@ -660,6 +662,7 @@ export const DiscordBotService = {
         nationalRank: ranked ? rankByAccount.get(account.id) ?? null : null,
         legacy: legacyByAccount.get(account.id) ?? emptyLegacy(),
         forumGroups: forumGroups[index]!,
+        supporter: account.supporterMembership?.status === 'active' || account.supporterMembership?.status === 'trialing',
         betaTester: env.betaTester.discordLinked,
         // Alliance roles only mean something while the round can still change.
         allianceTag: round && (round.status === 'ACTIVE' || round.status === 'REGISTRATION') ? allianceByAccount.get(account.id) ?? null : null,

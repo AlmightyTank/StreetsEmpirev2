@@ -9,6 +9,7 @@ import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { AvatarPortrait } from '../components/BuiltAvatar.js';
+import { SupporterMark } from '../components/SupporterMark.js';
 import { ThemeSwatch } from '../components/ThemeSwatch.js';
 import { Panel } from '../components/Panel.js';
 import { SocialNavigation } from '../components/SocialExperience.js';
@@ -100,6 +101,7 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
                     <Link to={`/game/players/${row.publicPimpId}`} className="se-playerlink">
                       {row.displayName} <span className="se-muted se-num">#{row.publicPimpId}</span>
                     </Link>
+                    {row.isSupporter ? <SupporterMark /> : null}
                     <ThemeSwatch theme={row.siteTheme} label={row.siteThemeLabel} />
                     {row.isYou ? <span className="se-you">YOU</span> : null}
                   </span>

@@ -43,6 +43,7 @@ import { AdminSurveyResultsService } from '../services/admin-survey-results.serv
 import { AdminSupporterService } from '../services/admin-supporter.service.js';
 import { SupporterBillingService } from '../services/supporter-billing.service.js';
 import { SupporterDropService } from '../services/supporter-drop.service.js';
+import { SupporterPollService } from '../services/supporter-poll.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
@@ -143,6 +144,13 @@ const supporterGrantSchema = z.object({
   dryRun: z.boolean().optional(),
 }).strict();
 const supporterBackfillSchema = z.object({ reason: reason.optional(), dryRun: z.boolean().optional() }).strict();
+const supporterPollSchema = z.object({
+  title: z.string().min(1).max(120),
+  description: z.string().max(500).nullable().optional(),
+  options: z.array(z.object({ key: z.string().min(1).max(80), label: z.string().min(1).max(120), description: z.string().max(300).nullable().optional() }).strict()).min(2).max(8),
+  opensAt: z.string().datetime().nullable().optional(),
+  closesAt: z.string().datetime().nullable().optional(),
+}).strict();
 const sportsbookEventParams = z.object({ eventId: id }).strict();
 const sportsbookProviderId = z.enum(['therundown', 'theoddsapi']);
 const sportsbookLeague = z.enum(['NFL', 'NBA', 'MLB', 'NHL']);
@@ -833,6 +841,11 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/supporters/backfill', async (request) => {
     const body = parseBody(supporterBackfillSchema, request.body ?? {});
     return AdminSupporterService.backfill(fastify.prisma, request.auth!.account, body);
+  });
+
+  fastify.post('/supporters/polls', async (request) => {
+    const body = parseBody(supporterPollSchema, request.body ?? {});
+    return SupporterPollService.stage(fastify.prisma, request.auth!.account, body);
   });
 
   fastify.post('/accounts/:accountId/email/resend', async (request) => {

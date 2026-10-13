@@ -196,6 +196,11 @@ export function NotificationsPanel({ refreshKey = 0 }: NotificationsPanelProps) 
           Choose what's worth hearing about. <strong>Bell</strong> is the in-game notification center; <strong>Phone & Discord</strong> reaches you when the game is closed.
           Alerts only ever say what you could already see in game.
         </p>
+        <p className="se-hint">
+          {settings.convenience.hasRewards
+            ? `Supporter rewards active: ${settings.convenience.ruleSlots} notification rule slots are available.`
+            : `Free account limit: ${settings.convenience.ruleSlots} notification rule slot. Supporting expands this to 5.`}
+        </p>
 
         {CATEGORY_GROUPS.map((group) => (
           <fieldset className="se-alerts-group" key={group.title}>

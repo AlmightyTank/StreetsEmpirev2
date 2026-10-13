@@ -14,6 +14,7 @@ import type {
 } from '@streets/shared';
 import { toRoundDto } from '../game/dto.js';
 import { RoundService } from './round.service.js';
+import { SupporterService } from './supporter.service.js';
 
 const TOP_RANKINGS = 5;
 const RECENT_EVENTS = 6;
@@ -21,6 +22,7 @@ const RECENT_NEWS = 3;
 const ARCHIVE_LIMIT = 50;
 
 type HistoricalPlayerRow = {
+  accountId: string;
   publicPimpId: number;
   displayName: string;
   netWorthCents: bigint;
@@ -28,16 +30,19 @@ type HistoricalPlayerRow = {
   localRank: number | null;
   city: { slug: string; name: string };
   alliance: { name: string; tag: string } | null;
+  supportedSeason?: boolean;
 };
 
 function rankedRows(
   rows: Array<{
+    accountId: string;
     publicPimpId: number;
     displayName: string;
     netWorthCents: bigint;
     city: { slug: string; name: string };
     alliance: { name: string; tag: string } | null;
   }>,
+  supporterFlags: Map<string, { isSupporter: boolean; supporterSince: string | null }>,
 ): PublicRankingEntryDto[] {
   let previousWorth: bigint | null = null;
   let previousRank = 0;
@@ -48,6 +53,7 @@ function rankedRows(
       : index + 1;
     previousWorth = row.netWorthCents;
     previousRank = rank;
+    const supporter = supporterFlags.get(row.accountId);
 
     return {
       rank,
@@ -56,6 +62,8 @@ function rankedRows(
       netWorthCents: Number(row.netWorthCents),
       city: row.city,
       alliance: row.alliance,
+      isSupporter: supporter?.isSupporter ?? false,
+      supporterSince: supporter?.supporterSince ?? null,
     };
   });
 }
@@ -70,6 +78,7 @@ function historicalStanding(row: HistoricalPlayerRow): PublicSeasonStandingDto |
     netWorthCents: Number(row.netWorthCents),
     city: row.city,
     alliance: row.alliance,
+    supportedSeason: row.supportedSeason ?? false,
   };
 }
 
@@ -150,6 +159,7 @@ async function championRows(
     },
     orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
     select: {
+      accountId: true,
       publicPimpId: true,
       displayName: true,
       netWorthCents: true,
@@ -159,9 +169,11 @@ async function championRows(
       alliance: { select: { name: true, tag: true } },
     },
   });
+  const stamps = await SupporterService.seasonStamps(prisma, [roundId]);
+  const supported = stamps.get(roundId) ?? new Set<string>();
 
   return rows.flatMap((row) => {
-    const standing = historicalStanding(row);
+    const standing = historicalStanding({ ...row, supportedSeason: supported.has(row.accountId) });
     return standing ? [standing] : [];
   });
 }
@@ -309,6 +321,7 @@ export const PublicSiteService = {
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: TOP_RANKINGS,
         select: {
+          accountId: true,
           publicPimpId: true,
           displayName: true,
           netWorthCents: true,
@@ -389,7 +402,10 @@ export const PublicSiteService = {
         turfBattles,
         economyNetWorthCents: Number(economy._sum.netWorthCents ?? 0n),
       },
-      topRankings: rankedRows(rankingRows),
+      topRankings: rankedRows(
+        rankingRows,
+        await SupporterService.flags(prisma, rankingRows.map((row) => row.accountId)),
+      ),
       recentEvents,
       recentNews: newsRows.map((row) => ({
         id: row.id,
@@ -494,6 +510,7 @@ export const PublicSiteService = {
         orderBy: [{ roundId: 'asc' }, { netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         select: {
           roundId: true,
+          accountId: true,
           publicPimpId: true,
           displayName: true,
           netWorthCents: true,
@@ -548,9 +565,12 @@ export const PublicSiteService = {
       runsByRound.set(roundId, (runsByRound.get(roundId) ?? 0) + row._count._all);
     }
 
+    const stamps = await SupporterService.seasonStamps(prisma, roundIds);
+    const supported = (roundId: string, accountId: string) => stamps.get(roundId)?.has(accountId) ?? false;
+
     const championsByRound = new Map<string, PublicSeasonStandingDto[]>();
     for (const row of championRowsAll) {
-      const standing = historicalStanding(row);
+      const standing = historicalStanding({ ...row, supportedSeason: supported(row.roundId, row.accountId) });
       if (!standing) continue;
       championsByRound.set(row.roundId, [...(championsByRound.get(row.roundId) ?? []), standing]);
     }
@@ -614,6 +634,7 @@ export const PublicSiteService = {
       },
       orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
       select: {
+        accountId: true,
         publicPimpId: true,
         displayName: true,
         netWorthCents: true,
@@ -625,7 +646,10 @@ export const PublicSiteService = {
     });
 
     const base = await archiveEntry(prisma, round);
-    const standings = playerRows.flatMap((row) => {
+    const stamps = await SupporterService.seasonStamps(prisma, [round.id]);
+    const supported = stamps.get(round.id) ?? new Set<string>();
+    const playerRowsWithSupport = playerRows.map((row) => ({ ...row, supportedSeason: supported.has(row.accountId) }));
+    const standings = playerRowsWithSupport.flatMap((row) => {
       const standing = historicalStanding(row);
       return standing ? [standing] : [];
     });
@@ -635,8 +659,8 @@ export const PublicSiteService = {
       champions: standings.filter((row) => row.nationalRank === 1),
       podium: standings.filter((row) => row.nationalRank <= 3),
       standings,
-      allianceStandings: allianceStandings(playerRows),
-      cityResults: cityResults(playerRows),
+      allianceStandings: allianceStandings(playerRowsWithSupport),
+      cityResults: cityResults(playerRowsWithSupport),
     };
   },
 };

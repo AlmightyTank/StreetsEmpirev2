@@ -1554,6 +1554,8 @@ export interface AdminSupporterDto {
   rewardKeys: string[];
   /** Catalogue rewards it does not hold yet, for example one added after it was granted. */
   missingKeys: string[];
+  /** Tenure badges it holds, in tier order. */
+  tenureKeys: string[];
   /** Wearing the Signature Profile Card as its avatar frame. */
   wearingCard: boolean;
   /** The Stripe subscription, if the account ever started one. */
@@ -1575,6 +1577,8 @@ export interface AdminSupporterPaymentDto {
 
 export interface AdminSupportersDto {
   rewards: AdminSupporterRewardDto[];
+  /** Tenure track badges, in tier order. */
+  tenure: AdminSupporterRewardDto[];
   supporters: AdminSupporterDto[];
   /** Supporters missing at least one reward. */
   missingCount: number;

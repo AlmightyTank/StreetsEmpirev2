@@ -2561,6 +2561,7 @@ a:hover { color: var(--se-accent-hover); }
 .se-profile-accent--clean-books-ivory { --se-profile-accent: #efe6d2; }
 .se-profile-accent--sunset-coral { --se-profile-accent: #ff8a70; }
 .se-profile-accent--night-map-plum { --se-profile-accent: #b45cff; }
+.se-profile-accent--supporter-crimson { --se-profile-accent: #ff3b5f; }
 
 .se-profile-frame {
   position: relative;
@@ -3690,6 +3691,7 @@ a:hover { color: var(--se-accent-hover); }
 .se-swatch--clean-books-ivory { --se-swatch: #efe6d2; }
 .se-swatch--sunset-coral { --se-swatch: #ff8a70; }
 .se-swatch--night-map-plum { --se-swatch: #b45cff; }
+.se-swatch--supporter-crimson { --se-swatch: #ff3b5f; }
 .se-swatch--on {
   border-color: var(--se-swatch);
   color: var(--se-text);

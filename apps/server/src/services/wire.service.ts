@@ -15,8 +15,9 @@ import { lockRoundPlayer } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { assertCanCommunicate } from './communication-guard.js';
+import { SupporterService } from './supporter.service.js';
 
-type Author = Pick<RoundPlayer, 'id' | 'publicPimpId' | 'displayName'>;
+type Author = Pick<RoundPlayer, 'id' | 'publicPimpId' | 'displayName' | 'accountId'>;
 
 function roundOpen(round: { status: string; endsAt: Date }, now: Date): boolean {
   return (round.status === 'ACTIVE' || round.status === 'REGISTRATION') && round.endsAt > now;
@@ -30,12 +31,22 @@ async function membership(prisma: PrismaClient, playerId: string) {
   return { player, alliance: player.alliance, round: player.round };
 }
 
-function toPostDto(post: AllianceWirePost & { author: Author }, viewerId: string, viewerLeads: boolean): WirePostDto {
+function toPostDto(
+  post: AllianceWirePost & { author: Author },
+  viewerId: string,
+  viewerLeads: boolean,
+  supporter?: { isSupporter: boolean; supporterSince: string | null },
+): WirePostDto {
   const isYours = post.authorId === viewerId;
   const kind = post.kind === 'ANNOUNCEMENT' ? 'ANNOUNCEMENT' : 'MESSAGE';
   return {
     id: post.id,
-    author: { publicPimpId: post.author.publicPimpId, displayName: post.author.displayName },
+    author: {
+      publicPimpId: post.author.publicPimpId,
+      displayName: post.author.displayName,
+      isSupporter: supporter?.isSupporter ?? false,
+      supporterSince: supporter?.supporterSince ?? null,
+    },
     body: post.body,
     kind,
     pinned: post.pinned,
@@ -244,23 +255,27 @@ export const WireService = {
           removedAt: null,
           ...(cursor ? { OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] } : {}),
         },
-        include: { author: { select: { id: true, publicPimpId: true, displayName: true } } },
+        include: { author: { select: { id: true, accountId: true, publicPimpId: true, displayName: true } } },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: WIRE_PAGE_SIZE + 1,
       }),
       prisma.allianceWirePost.findFirst({ where: { authorId: player.id }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } }),
       prisma.allianceWirePost.findFirst({
         where: { allianceId: alliance.id, removedAt: null, kind: 'ANNOUNCEMENT', pinned: true },
-        include: { author: { select: { id: true, publicPimpId: true, displayName: true } } },
+        include: { author: { select: { id: true, accountId: true, publicPimpId: true, displayName: true } } },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       }),
       coordinationCards(prisma, player, alliance, now),
     ]);
     const cooldownUntil = last ? new Date(last.createdAt.getTime() + WIRE_COOLDOWN_SECONDS * 1000) : null;
+    const supporterFlags = await SupporterService.flags(
+      prisma,
+      [...rows, ...(pinned ? [pinned] : [])].map((row) => row.author.accountId),
+    );
     return {
-      pinnedAnnouncement: pinned ? toPostDto(pinned, player.id, leads) : null,
+      pinnedAnnouncement: pinned ? toPostDto(pinned, player.id, leads, supporterFlags.get(pinned.author.accountId)) : null,
       cards,
-      posts: rows.slice(0, WIRE_PAGE_SIZE).map((row) => toPostDto(row, player.id, leads)),
+      posts: rows.slice(0, WIRE_PAGE_SIZE).map((row) => toPostDto(row, player.id, leads, supporterFlags.get(row.author.accountId))),
       nextBefore: rows.length > WIRE_PAGE_SIZE ? rows[WIRE_PAGE_SIZE - 1]!.id : null,
       cooldownUntil: cooldownUntil && cooldownUntil > now ? cooldownUntil.toISOString() : null,
       canPostAnnouncement: leads,

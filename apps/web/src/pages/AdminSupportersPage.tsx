@@ -63,6 +63,10 @@ function parseNames(text: string): string[] {
   return text.split(/[\s,;]+/).map((name) => name.trim()).filter(Boolean);
 }
 
+function parsePollOptions(text: string): string[] {
+  return text.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
+}
+
 function message(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.message : fallback;
 }
@@ -121,6 +125,10 @@ export function AdminSupportersPage() {
   const [backfillResult, setBackfillResult] = useState<AdminSupporterGrantResultDto | null>(null);
   const [backfillBusy, setBackfillBusy] = useState(false);
   const [dropBusy, setDropBusy] = useState(false);
+  const [pollTitle, setPollTitle] = useState('');
+  const [pollDescription, setPollDescription] = useState('');
+  const [pollOptions, setPollOptions] = useState('Midnight Chrome sequel\nGolden alley\nNeon noir');
+  const [pollBusy, setPollBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -136,6 +144,10 @@ export function AdminSupportersPage() {
 
   const rewardName = useCallback(
     (key: string) => data?.rewards.find((reward) => reward.key === key)?.name ?? key,
+    [data],
+  );
+  const tenureName = useCallback(
+    (key: string) => data?.tenure.find((badge) => badge.key === key)?.name ?? key,
     [data],
   );
   const names = useMemo(() => parseNames(namesText), [namesText]);
@@ -201,6 +213,27 @@ export function AdminSupportersPage() {
       setError(message(caught, 'Could not give out the drop.'));
     } finally {
       setDropBusy(false);
+    }
+  }
+
+  async function stagePoll(event: FormEvent) {
+    event.preventDefault();
+    setPollBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const options = parsePollOptions(pollOptions).map((label) => ({
+        key: label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80),
+        label,
+      })).filter((option) => option.key);
+      const poll = await adminApi.stageSupporterPoll({ title: pollTitle.trim(), description: pollDescription.trim() || null, options });
+      setNotice(`Staged supporter poll: ${poll.title}.`);
+      setPollTitle('');
+      setPollDescription('');
+    } catch (caught) {
+      setError(message(caught, 'Could not stage supporter poll.'));
+    } finally {
+      setPollBusy(false);
     }
   }
 
@@ -405,6 +438,28 @@ export function AdminSupportersPage() {
         </div>
       </Panel>
 
+      <Panel title="Supporter poll" aside="Theme voting" className="se-mb">
+        <form onSubmit={stagePoll} noValidate>
+          <p className="se-hint">Stage a supporter-only vote for the next drop theme. One vote is recorded per supporter account.</p>
+          <div className="se-field">
+            <label className="se-label" htmlFor="supporter-poll-title">Title</label>
+            <input id="supporter-poll-title" className="se-input" value={pollTitle} onChange={(event) => setPollTitle(event.target.value)} maxLength={120} />
+          </div>
+          <div className="se-field">
+            <label className="se-label" htmlFor="supporter-poll-description">Description</label>
+            <textarea id="supporter-poll-description" className="se-input se-admin-reason" rows={2} value={pollDescription} onChange={(event) => setPollDescription(event.target.value)} maxLength={500} />
+          </div>
+          <div className="se-field">
+            <label className="se-label" htmlFor="supporter-poll-options">Options</label>
+            <textarea id="supporter-poll-options" className="se-input se-admin-reason" rows={3} value={pollOptions} onChange={(event) => setPollOptions(event.target.value)} />
+            <p className="se-hint">One option per line.</p>
+          </div>
+          <Button type="submit" className="se-btn se-btn--primary" disabledReason={pollBusy ? working : pollTitle.trim() ? null : 'Add a poll title.'}>
+            {pollBusy ? 'Staging...' : 'Stage poll'}
+          </Button>
+        </form>
+      </Panel>
+
       <Panel
         title="Supporter roster"
         aside={data ? `${formatNumber(shown.length)} of ${formatNumber(supporters.length)}` : undefined}
@@ -429,6 +484,7 @@ export function AdminSupportersPage() {
                   <th>Last login</th>
                   <th>Subscription</th>
                   <th>Rewards</th>
+                  <th>Tenure</th>
                   <th>Card</th>
                 </tr>
               </thead>
@@ -445,6 +501,11 @@ export function AdminSupportersPage() {
                     <td data-label="Rewards">
                       {formatNumber(supporter.rewardKeys.length)} of {formatNumber(data.rewards.length)}
                       {supporter.missingKeys.length ? <> <span className="se-tag se-tag--warn" title={supporter.missingKeys.map(rewardName).join(', ')}>Missing {formatNumber(supporter.missingKeys.length)}</span></> : null}
+                    </td>
+                    <td data-label="Tenure">
+                      {supporter.tenureKeys.length
+                        ? <span title={supporter.tenureKeys.map(tenureName).join(', ')}>{formatNumber(supporter.tenureKeys.length)} of {formatNumber(data.tenure.length)}</span>
+                        : <span className="se-muted">-</span>}
                     </td>
                     <td data-label="Card">{supporter.wearingCard ? <span className="se-tag se-tag--good">Wearing</span> : <span className="se-muted">-</span>}</td>
                   </tr>

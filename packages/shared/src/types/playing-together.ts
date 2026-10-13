@@ -64,7 +64,17 @@ export interface ContactIntelDto {
 
 export interface WirePostDto {
   id: string;
-  author: { publicPimpId: number; displayName: string };
+  author: {
+    publicPimpId: number;
+    displayName: string;
+    /**
+     * Supporter mark: true when the author's account holds any supporter
+     * reward. Derived only — never amounts, payment status, or expiry.
+     */
+    isSupporter: boolean;
+    /** UTC month (YYYY-MM) of the author's earliest supporter reward, null when not a supporter. */
+    supporterSince: string | null;
+  };
   body: string;
   kind: WirePostKindDto;
   pinned: boolean;
@@ -150,6 +160,13 @@ export interface PlayerDirectoryEntryDto {
   imageUrl?: string | null;
   avatar?: AvatarParts | null;
   avatarFrame?: string | null;
+  /**
+   * Supporter mark: true when the account holds any supporter reward.
+   * Derived only — never amounts, payment status, or expiry.
+   */
+  isSupporter: boolean;
+  /** UTC month (YYYY-MM) of the account's earliest supporter reward, null when not a supporter. */
+  supporterSince: string | null;
 }
 
 export interface PlayerDirectoryDto {

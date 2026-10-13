@@ -327,8 +327,8 @@ export function PlayerProfileHoverLayer() {
         </span>
         <span className="se-profile-hover-card__identity-copy">
           {profile?.cosmetics.title ? <span className="se-profile-hover-card__title">{profile.cosmetics.title}</span> : null}
-          <strong><span>{profile?.displayName ?? target.label}</span>{signature ? <SupporterMark /> : null}</strong>
-          <small>PLAYER #{formatNumber(target.id)}{signature ? ' · SUPPORTER' : ''}</small>
+          <strong><span>{profile?.displayName ?? target.label}</span>{profile?.isSupporter ? <SupporterMark /> : null}</strong>
+          <small>PLAYER #{formatNumber(target.id)}{profile?.isSupporter ? ' · SUPPORTER' : ''}</small>
         </span>
       </div>
       {profile ? (

@@ -176,6 +176,7 @@ export function AccountSettingsPage() {
         if (active) {
           setProfileSettings({
             settings: cosmetics,
+            convenience: { hasRewards: false, presetSlots: 1, loadoutSlots: 1 },
             options: {
               titles: [],
               badges: [],
@@ -793,6 +794,11 @@ export function AccountSettingsPage() {
           <p className="se-muted">Loading your unlocked badges...</p>
         ) : (
           <form onSubmit={saveCosmetics} noValidate>
+            <p className="se-hint">
+              {profileSettings.convenience.hasRewards
+                ? `Supporter rewards active: ${formatNumber(profileSettings.convenience.presetSlots)} profile presets and ${formatNumber(profileSettings.convenience.loadoutSlots)} cosmetic loadout slots are available.`
+                : `Free account limits: ${formatNumber(profileSettings.convenience.presetSlots)} profile preset and ${formatNumber(profileSettings.convenience.loadoutSlots)} cosmetic loadout slot. Supporting expands both to 4.`}
+            </p>
             <div className="se-account-cosmetics">
               <div>
                 <div className="se-field">

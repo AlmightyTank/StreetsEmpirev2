@@ -1,3 +1,4 @@
+import type { PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import {
   BELL_CATEGORIES,
@@ -8,6 +9,7 @@ import {
   updateNotificationSettingsSchema,
 } from '@streets/shared';
 import { CATEGORY_COLUMN, channelsFor, inQuietHours, type Recipient } from '../notification-channels.js';
+import { NotificationService } from '../notification.service.js';
 import { pushMessageFor } from '../push.service.js';
 
 const recipient = (overrides: Partial<Recipient> = {}): Recipient => ({
@@ -80,6 +82,25 @@ describe('0.9.0-G settings validation', () => {
     expect(updateNotificationSettingsSchema.safeParse({ quietHours: { start: 0, end: 60, timeZone: 'Mars/Base' } }).success).toBe(false);
     expect(updateNotificationSettingsSchema.safeParse({ bellMuted: ['nope'] }).success).toBe(false);
     expect(updateNotificationSettingsSchema.parse({ quietHours: null }).quietHours).toBeNull();
+  });
+});
+
+describe('supporter notification convenience', () => {
+  const prismaFor = (supporter = false) => ({
+    account: { findUniqueOrThrow: async () => ({ discordId: null }) },
+    notificationSettings: { findUnique: async () => null },
+    pushSubscription: { findMany: async () => [] },
+    accountCosmeticUnlock: { findFirst: async () => supporter ? { awardedAt: new Date('2026-01-01T00:00:00Z') } : null },
+  }) as unknown as PrismaClient;
+
+  it('keeps free rule slots at one and expands slots after supporter rewards exist', async () => {
+    await expect(NotificationService.settings(prismaFor(false), 'account-1')).resolves.toMatchObject({
+      convenience: { hasRewards: false, ruleSlots: 1 },
+    });
+
+    await expect(NotificationService.settings(prismaFor(true), 'account-1')).resolves.toMatchObject({
+      convenience: { hasRewards: true, ruleSlots: 5 },
+    });
   });
 });
 

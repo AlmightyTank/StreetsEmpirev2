@@ -98,6 +98,8 @@ model Account {
   cosmeticUnlocks        AccountCosmeticUnlock[]
   supporterMembership    SupporterMembership?
   supporterPayments      SupporterPayment[]
+  supporterSeasonStamps  SupporterSeasonStamp[]
+  supporterVotes         SupporterVote[]
   roundPlayers           RoundPlayer[]
   aftermathRewardClaims  RoundAftermathRewardClaim[]
   authoredNews           GameNews[]                  @relation("GameNewsAuthor")
@@ -228,6 +230,8 @@ model AccountProfile {
   profileSurface        String?
   /// Supporter thank-you list on the public site. Opt-in, so off by default.
   showOnSupporterList   Boolean @default(false)
+  /// Supporter release-notes credits are opt-in and never list payments.
+  releaseNotesCreditOptIn Boolean @default(false)
   activeSiteThemeKey    String?
   /// Player-selected visual skin per inventory item key. Cosmetic only.
   itemCosmetics         Json    @default("{}")
@@ -319,6 +323,55 @@ model SupporterPayment {
 
   @@index([accountId, paidAt])
   @@index([stripeCustomerId, paidAt])
+}
+
+/// One permanent record that an account supported during a season (round).
+/// Written once at round close for every player whose account has a paid
+/// invoice in the season window; career and Hall of Fame reads join it so a
+/// finished season keeps its support stamp forever.
+model SupporterSeasonStamp {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  roundId   String
+  round     Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  awardedAt DateTime @default(now())
+
+  @@unique([accountId, roundId])
+  @@index([roundId])
+}
+
+/// A staged supporter-only vote, such as picking a future monthly-drop theme.
+model SupporterPoll {
+  id          String          @id @default(cuid())
+  title       String
+  description String?
+  /// Array of {key,label,description?}. Stored as JSON so admins can stage small polls without another table.
+  options     Json
+  status      String          @default("open")
+  opensAt     DateTime        @default(now())
+  closesAt    DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  votes       SupporterVote[]
+
+  @@index([status, opensAt])
+  @@map("supporter_poll")
+}
+
+/// One supporter vote per account per poll.
+model SupporterVote {
+  id        String        @id @default(cuid())
+  pollId    String
+  poll      SupporterPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  optionKey String
+  createdAt DateTime      @default(now())
+
+  @@unique([pollId, accountId])
+  @@index([accountId, createdAt])
+  @@map("supporter_vote")
 }
 
 /// Stripe webhook events already applied, so a redelivered event changes nothing.
@@ -1228,6 +1281,7 @@ model Round {
   aftermathReport          RoundAftermathReport?
   aftermathRewardsReceived RoundAftermathRewardClaim[] @relation("AftermathRewardTarget")
   aftermathRewardsSource   RoundAftermathRewardClaim[] @relation("AftermathRewardSource")
+  supporterSeasonStamps    SupporterSeasonStamp[]
   eventOccurrences         GameEventOccurrence[]
   news                     GameNews[]
   alliances                Alliance[]

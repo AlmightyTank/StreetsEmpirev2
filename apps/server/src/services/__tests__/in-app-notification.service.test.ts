@@ -46,6 +46,7 @@ describe('shouldCreateInAppNotification', () => {
       },
       inAppNotification: { findMany, count },
       notificationSettings: { findUnique: vi.fn().mockResolvedValue(null) },
+      accountCosmeticUnlock: { findFirst: vi.fn().mockResolvedValue(null) },
     } as unknown as PrismaClient;
 
     const feed = await InAppNotificationService.inbox(prisma, 'account-1');
@@ -58,6 +59,7 @@ describe('shouldCreateInAppNotification', () => {
     });
     expect(feed.notifications.map((notification) => notification.id)).toEqual(['notification-current']);
     expect(feed.unreadCount).toBe(1);
+    expect(feed.historyLimit).toBe(40);
   });
 
   it('0.9.0-G: leaves muted categories out of the bell and its unread count', async () => {
@@ -67,6 +69,7 @@ describe('shouldCreateInAppNotification', () => {
       roundPlayer: { findFirst: vi.fn().mockResolvedValueOnce({ id: 'current-player' }) },
       inAppNotification: { findMany, count },
       notificationSettings: { findUnique: vi.fn().mockResolvedValue({ bellMuted: ['runs', 'revenge', 'not-a-category'] }) },
+      accountCosmeticUnlock: { findFirst: vi.fn().mockResolvedValue(null) },
     } as unknown as PrismaClient;
 
     await InAppNotificationService.inbox(prisma, 'account-1');
@@ -92,13 +95,31 @@ describe('shouldCreateInAppNotification', () => {
           .mockResolvedValueOnce(null),
       },
       inAppNotification: { findMany, count },
+      accountCosmeticUnlock: { findFirst: vi.fn().mockResolvedValue(null) },
     } as unknown as PrismaClient;
 
     await expect(InAppNotificationService.inbox(prisma, 'account-1')).resolves.toEqual({
       unreadCount: 0,
       notifications: [],
+      historyLimit: 40,
     });
     expect(findMany).not.toHaveBeenCalled();
     expect(count).not.toHaveBeenCalled();
+  });
+
+  it('uses the longer supporter history limit when no explicit limit is supplied', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const count = vi.fn().mockResolvedValue(0);
+    const prisma = {
+      roundPlayer: { findFirst: vi.fn().mockResolvedValueOnce({ id: 'current-player' }) },
+      inAppNotification: { findMany, count },
+      notificationSettings: { findUnique: vi.fn().mockResolvedValue(null) },
+      accountCosmeticUnlock: { findFirst: vi.fn().mockResolvedValue({ awardedAt: new Date('2026-01-01T00:00:00Z') }) },
+    } as unknown as PrismaClient;
+
+    const feed = await InAppNotificationService.inbox(prisma, 'account-1');
+
+    expect(feed.historyLimit).toBe(100);
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 100 }));
   });
 });

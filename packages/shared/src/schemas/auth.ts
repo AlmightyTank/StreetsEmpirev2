@@ -158,6 +158,8 @@ export const profileAccentSchema = z.enum([
   'clean-books-ivory',
   'sunset-coral',
   'night-map-plum',
+  // Supporter cosmetic-only banner/profile accent.
+  'supporter-crimson',
 ]);
 export const CREW_NAME_MIN = 3;
 export const CREW_NAME_MAX = 32;

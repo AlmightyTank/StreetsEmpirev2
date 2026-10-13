@@ -331,13 +331,17 @@ export async function loadCareerForAccount(
         localRank: true,
         nationalRank: true,
         netWorthCents: true,
-        round: { select: { name: true, slug: true, endsAt: true } },
+        round: { select: { id: true, name: true, slug: true, endsAt: true } },
       },
     });
   const legacy = legacyRows.reduce(
     (carry, player) => addPastRound(carry, player),
     emptyLegacy(),
   );
+  // Supporter season stamps for every finished round in this career, one query.
+  const stampRoundIds = [...new Set(legacyRows.map((row) => row.round.id))];
+  const stamps = await SupporterService.seasonStamps(prisma, stampRoundIds);
+  const supported = (roundId: string) => stamps.get(roundId)?.has(accountId) ?? false;
   // The Hall of Fame lists each finished season's national top ten.
   const hallOfFame: PublicHallOfFameAppearanceDto[] = legacyRows
     .filter((row) => row.nationalRank !== null && row.nationalRank <= 10)
@@ -346,6 +350,7 @@ export async function loadCareerForAccount(
       round: { name: row.round.name, slug: row.round.slug, endedAt: row.round.endsAt.toISOString() },
       nationalRank: row.nationalRank!,
       podium: row.nationalRank! <= 3,
+      supportedSeason: supported(row.round.id),
     }));
 
   return {
@@ -377,6 +382,7 @@ export async function loadCareerForAccount(
       hideout: toSeasonHideoutDto(player),
       joinedAt: player.createdAt.toISOString(),
       lastActiveAt: player.lastActiveAt.toISOString(),
+      supportedSeason: supported(player.round.id),
     })),
   };
 }
@@ -605,6 +611,7 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'clean-books-ivory',
     'sunset-coral',
     'night-map-plum',
+    'supporter-crimson',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';
@@ -843,6 +850,7 @@ export const CommunityService = {
           where: { nationalRank: { not: null, lte: 10 }, account: { isActive: true } },
           orderBy: [{ nationalRank: 'asc' }, { netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
           select: {
+            accountId: true,
             nationalRank: true,
             publicPimpId: true,
             displayName: true,
@@ -865,6 +873,8 @@ export const CommunityService = {
         },
       },
     });
+    const stamps = await SupporterService.seasonStamps(prisma, rounds.map((round) => round.id));
+    const supported = (roundId: string, accountId: string) => stamps.get(roundId)?.has(accountId) ?? false;
 
     return {
       rounds: await Promise.all(rounds.map(async (round) => {
@@ -879,6 +889,7 @@ export const CommunityService = {
           hideout: toSeasonHideoutDto(player),
           joinedAt: player.createdAt.toISOString(),
           lastActiveAt: player.lastActiveAt.toISOString(),
+          supportedSeason: supported(round.id, player.accountId),
         }));
         const [territory, playerCount] = await Promise.all([
           TurfHistoryService.board(

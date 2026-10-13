@@ -1,6 +1,7 @@
 import { Prisma, type ActivityType, type PlayerActivity, type PrismaClient } from '@prisma/client';
 import {
   CONSOLE_ACTIVITY_PAGE_SIZE,
+  SUPPORTER_CONSOLE_ACTIVITY_PAGE_SIZE,
   MESSAGE_PAGE_SIZE,
   type ArchiveDirectMessageInput,
   type BlockedPlayerDto,
@@ -27,6 +28,7 @@ import { AppError } from '../utils/errors.js';
 import { toActivityDto } from '../game/dto.js';
 import { RoundService } from './round.service.js';
 import { bellWhere } from './in-app-notification.service.js';
+import { SupporterService } from './supporter.service.js';
 import { assertCanCommunicate, checkDirectMessage, commsMuted, flagMessage } from './communication-guard.js';
 import { wakeDiscordBot } from './discord-bot-push.service.js';
 import { DiscordStaffService } from './discord-staff.service.js';
@@ -581,20 +583,21 @@ export const PimpConsoleService = {
       counts[activityGroup(row.type)] += size;
     }
 
-    const totalPages = Math.max(1, Math.ceil(total / CONSOLE_ACTIVITY_PAGE_SIZE));
+    const pageSize = await SupporterService.since(prisma, accountId) ? SUPPORTER_CONSOLE_ACTIVITY_PAGE_SIZE : CONSOLE_ACTIVITY_PAGE_SIZE;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const page = Math.min(Math.max(1, requestedPage), totalPages);
     const rows = await prisma.playerActivity.findMany({
       where,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      skip: (page - 1) * CONSOLE_ACTIVITY_PAGE_SIZE,
-      take: CONSOLE_ACTIVITY_PAGE_SIZE,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
     return {
       filter,
       counts,
       page,
-      pageSize: CONSOLE_ACTIVITY_PAGE_SIZE,
+      pageSize,
       total,
       totalPages,
       events: rows.map(activityEntry),
