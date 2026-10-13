@@ -532,6 +532,79 @@ export interface FavorDefinition {
 
 export type FavorCatalog = Readonly<Record<string, FavorDefinition>>;
 
+export type SecretTriggerKind =
+  | 'STATE_AT_LEAST'
+  | 'TURF_COUNT_AT_LEAST'
+  | 'ACTIVITY_COUNT'
+  | 'ACTIVITY_OBJECT_SUM_AT_LEAST';
+
+/** RoundPlayer columns a STATE_AT_LEAST secret trigger may read. */
+export type SecretStateField = 'heat' | 'whores' | 'netWorthCents';
+
+export type SecretTriggerStateAtLeast = {
+  readonly kind: 'STATE_AT_LEAST';
+  readonly field: SecretStateField;
+  readonly target: number;
+};
+
+export type SecretTriggerTurfCountAtLeast = {
+  readonly kind: 'TURF_COUNT_AT_LEAST';
+  readonly target: number;
+};
+
+export type SecretTriggerActivityCount = {
+  readonly kind: 'ACTIVITY_COUNT';
+  readonly eventTypes: readonly string[];
+  readonly target: number;
+  readonly where?: QuestDataObject;
+};
+
+export type SecretTriggerActivityObjectSumAtLeast = {
+  readonly kind: 'ACTIVITY_OBJECT_SUM_AT_LEAST';
+  readonly eventTypes: readonly string[];
+  readonly field: string;
+  readonly target: number;
+  readonly where?: QuestDataObject;
+};
+
+export type SecretTrigger =
+  | SecretTriggerStateAtLeast
+  | SecretTriggerTurfCountAtLeast
+  | SecretTriggerActivityCount
+  | SecretTriggerActivityObjectSumAtLeast;
+
+/**
+ * Hidden Streets discovery tier. OBVIOUS is recognizable comedy, HIDDEN needs
+ * clues, LEGENDARY needs connected investigations. Purely descriptive; the
+ * server never gates mechanics on it.
+ */
+export type SecretDiscoveryTier = 'OBVIOUS' | 'HIDDEN' | 'LEGENDARY';
+
+/**
+ * Slice A secret content descriptor. Stable key is QuestDefinition.key;
+ * applicable ruleset is RulesetMeta id/version; prerequisites, clue
+ * milestones (objective ids), reward keys, and spoiler state live on the
+ * QuestDefinition itself. This block only adds what quests lack: family,
+ * tier, rarity weight, cooldown, district eligibility, test/disable flags.
+ */
+export type SecretContentMeta = {
+  /** Content family, e.g. COMEDY, LOST_ADVENTURE, SHADOW_CITY, GUILD. */
+  readonly family: string;
+  readonly discoveryTier: SecretDiscoveryTier;
+  /** Objective ids that act as clue milestones. Must exist on the quest. */
+  readonly clueMilestones?: readonly string[];
+  /** Weighted rarity for future encounter picks. Defaults to 1. */
+  readonly rarityWeight?: number;
+  /** Cooldown between discoveries of this secret, in minutes. Null = none. */
+  readonly cooldownMinutes?: number | null;
+  /** District eligibility. Absent = all districts. */
+  readonly districts?: readonly DistrictKey[];
+  /** Beta/test-defined secret: never reveals unless test mode is on. */
+  readonly testOnly?: boolean;
+  /** Author kill switch. Disabled secrets never reveal, even if enabled in DB. */
+  readonly disabled?: boolean;
+};
+
 export interface QuestDefinition {
   /** Stable key inside a ruleset version, e.g. FIRST_NIGHT_OUT. */
   readonly key: string;
@@ -557,6 +630,9 @@ export interface QuestDefinition {
   readonly expiresAfterMinutes: number | null;
   readonly availability: QuestDataObject & {
     readonly seasonalEvent?: SeasonalEventWindow;
+    readonly hidden?: boolean;
+    readonly secretTrigger?: SecretTrigger;
+    readonly secretContent?: SecretContentMeta;
   };
   /**
    * 1.4.0-B. The faction this Job works for, when it has no giver (Civic Handshake) or to say so

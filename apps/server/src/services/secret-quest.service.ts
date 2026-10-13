@@ -1,6 +1,49 @@
 import type { ActivityType } from '@prisma/client';
-import type { QuestDataObject, QuestDataValue, QuestDefinition, Ruleset } from '@streets/rulesets';
+import type { QuestDataObject, QuestDataValue, QuestDefinition, Ruleset, SecretTrigger } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
+
+/**
+ * Slice A secret content foundation contract.
+ *
+ * - Per-round story state lives in PlayerQuest (one row per roundPlayer, keyed
+ *   by questDefinitionId + attempt, revealed only after the trigger is met).
+ * - Permanent account trophies live in AccountCosmeticUnlock (upsert by
+ *   accountId + key, granted once via the normal quest claim path).
+ * - No new model, no parallel scheduler: discovery reuses the existing
+ *   quest sync flow (handcrafted-quest.service refreshAvailability) and the
+ *   existing QUEST_CLAIM idempotency scope + COSMETIC_UNLOCK upsert.
+ * - Spoiler privacy: no PlayerQuest row exists before reveal, so page(),
+ *   quest board, feed, and achievement payloads cannot leak unrevealed keys.
+ * - Versioning: sync only touches QuestDefinition rows pinned to
+ *   ruleset.meta.id + ruleset.meta.version with isEnabled=true, so old
+ *   pinned rulesets keep old behavior and disabling a definition stops
+ *   future reveals without rewriting history.
+ */
+
+export interface SecretSyncOptions {
+  /** Beta/test-defined secrets (secretContent.testOnly) only reveal when true. */
+  readonly testMode?: boolean;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { code?: string }).code === 'P2002';
+}
+
+/** Author kill switch + beta test gate. Disabled never reveals. */
+export function isSecretContentEnabled(definition: QuestDefinition, opts?: SecretSyncOptions): boolean {
+  const content = definition.availability.secretContent;
+  if (!content) return true;
+  if (content.disabled === true) return false;
+  if (content.testOnly === true && opts?.testMode !== true) return false;
+  return true;
+}
+
+/** Reward keys carried by a secret definition (for contract auditing). */
+export function secretRewardKeys(definition: QuestDefinition): string[] {
+  return definition.rewards
+    .map((reward) => (typeof reward.key === 'string' && reward.key.trim().length > 0 ? reward.key : null))
+    .filter((key): key is string => key !== null);
+}
 
 type SecretStateField = 'heat' | 'whores' | 'netWorthCents';
 
@@ -41,26 +84,27 @@ function positiveTarget(value: QuestDataValue | undefined): number | null {
 }
 
 export function activityMatchesSecretTrigger(
-  trigger: QuestDataObject,
+  trigger: QuestDataObject | SecretTrigger,
   activities: readonly { type: string; payload: QuestDataValue }[],
 ): boolean {
-  const eventTypes = strings(trigger.eventTypes);
+  const row: QuestDataObject = trigger;
+  const eventTypes = strings(row.eventTypes);
   if (!eventTypes.length) return false;
-  const target = positiveTarget(trigger.target);
+  const target = positiveTarget(row.target);
   if (target === null) return false;
 
-  if (trigger.kind === 'ACTIVITY_COUNT') {
+  if (row.kind === 'ACTIVITY_COUNT') {
     const count = activities.filter((activity) =>
-      eventTypes.includes(activity.type) && matchesWhere(activity.payload, trigger.where)
+      eventTypes.includes(activity.type) && matchesWhere(activity.payload, row.where)
     ).length;
     return count >= target;
   }
 
-  if (trigger.kind === 'ACTIVITY_OBJECT_SUM_AT_LEAST') {
-    const field = typeof trigger.field === 'string' ? trigger.field : null;
+  if (row.kind === 'ACTIVITY_OBJECT_SUM_AT_LEAST') {
+    const field = typeof row.field === 'string' ? row.field : null;
     if (!field) return false;
     return activities.some((activity) => {
-      if (!eventTypes.includes(activity.type) || !matchesWhere(activity.payload, trigger.where)) return false;
+      if (!eventTypes.includes(activity.type) || !matchesWhere(activity.payload, row.where)) return false;
       const raw = object(valueAt(activity.payload, field));
       if (!raw) return false;
       const sum = Object.values(raw).reduce(
@@ -131,11 +175,14 @@ async function triggerSatisfied(
 /**
  * Reveal SECRET definitions exactly once. Before the trigger is met there is no
  * PlayerQuest row, which keeps titles/objectives out of the player-facing API.
+ * Concurrent syncs race safely: the PlayerQuest unique constraint
+ * (roundPlayerId + questDefinitionId + attempt) wins and the loser is ignored.
  */
 export async function syncSecretQuestAttempts(
   db: Db,
   roundPlayerId: string,
   ruleset: Ruleset,
+  opts?: SecretSyncOptions,
 ): Promise<string[]> {
   const definitions = secretDefinitions(ruleset);
   if (!definitions.length) return [];
@@ -163,15 +210,21 @@ export async function syncSecretQuestAttempts(
     if (existingIds.has(definitionRow.id)) continue;
     const definition = ruleset.questDefinitions?.[definitionRow.key];
     if (!definition || definition.type !== 'SECRET') continue;
+    if (!isSecretContentEnabled(definition, opts)) continue;
     if (!await triggerSatisfied(db, roundPlayerId, definition)) continue;
 
-    await db.playerQuest.create({
-      data: {
-        roundPlayerId,
-        questDefinitionId: definitionRow.id,
-        status: 'AVAILABLE',
-      },
-    });
+    try {
+      await db.playerQuest.create({
+        data: {
+          roundPlayerId,
+          questDefinitionId: definitionRow.id,
+          status: 'AVAILABLE',
+        },
+      });
+    } catch (error) {
+      // Lost a concurrent reveal race: the winner's row already exists.
+      if (!isUniqueViolation(error)) throw error;
+    }
     existingIds.add(definitionRow.id);
     revealed.push(definition.key);
   }
