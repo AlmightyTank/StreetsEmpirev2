@@ -1,8 +1,9 @@
 import type { RandomEncounterChoiceResult, RandomEncounterDto } from '@streets/shared';
-import { formatCents, formatNumber } from '@streets/shared';
+import { STATUE_ENCOUNTER_KEY, formatCents, formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { Alert } from './Alert.js';
+import { EncounterEggNote, StatueWatch } from './EasterEggs.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 
@@ -44,6 +45,7 @@ export function PendingEncountersPanel({ encounters }: { encounters: RandomEncou
           <strong>{action.result.result.choiceLabel}</strong>
           <span>{action.result.result.text}</span>
           {effectSummary(action.result.result.effects) ? <em>{effectSummary(action.result.result.effects)}</em> : null}
+          <EncounterEggNote egg={action.result.result.easterEgg} />
         </div>
       ) : null}
       {pending.map((encounter) => (
@@ -53,6 +55,9 @@ export function PendingEncountersPanel({ encounters }: { encounters: RandomEncou
             <h3>{encounter.title}</h3>
             <p>{encounter.text}</p>
           </div>
+          {encounter.key === STATUE_ENCOUNTER_KEY ? (
+            <StatueWatch active={!action.busy} onReached={() => void resolve(encounter.id!, 'run')} />
+          ) : null}
           <div className="se-encounter__choices">
             {encounter.choices!.map((choice) => {
               const label = effectSummary(choice.effects);

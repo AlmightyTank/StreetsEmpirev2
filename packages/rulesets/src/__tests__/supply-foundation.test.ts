@@ -122,10 +122,9 @@ describe('1.6.0-A supply foundation ruleset', () => {
     const { shipments, ...pickupRest } = pickups;
     expect(shipments).toBe(true);
     expect(pickupRest).toEqual(basePickups);
-    // F also carries the random encounters and switches NPC gangs off; nothing else changes.
-    const { meta: _meta, supplyNetwork: _network, npcGangs: _npc, randomEncounters: _encounters, ...rest } = classicOgV16F;
-    const { meta: _baseMeta, supplyNetwork: _baseNetwork, ...base } = classicOgV16E as typeof classicOgV16E & { npcGangs?: unknown };
-    delete (base as { npcGangs?: unknown }).npcGangs;
+    // F also carries the random encounters; nothing else changes.
+    const { meta: _meta, supplyNetwork: _network, randomEncounters: _encounters, ...rest } = classicOgV16F;
+    const { meta: _baseMeta, supplyNetwork: _baseNetwork, ...base } = classicOgV16E;
     expect(rest).toEqual(base);
     expect(rulesets[classicOgV16F.meta.id]).toBe(classicOgV16F);
   });

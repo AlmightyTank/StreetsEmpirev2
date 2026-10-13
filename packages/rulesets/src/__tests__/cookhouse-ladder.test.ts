@@ -151,8 +151,9 @@ describe('1.8.0-M recipe balance', () => {
   });
 
   it('changes only the five recipes and A Better Cut from 1.8.0-L', () => {
-    const { meta: _meta, products, questDefinitions: next, ...rest } = classicOgV18M;
-    const { meta: _baseMeta, products: baseProducts, questDefinitions: base, ...baseRest } = classicOgV18L;
+    // Slice M also adds Easter egg encounters; those are verified independently.
+    const { meta: _meta, products, questDefinitions: next, randomEncounters: _encounters, ...rest } = classicOgV18M;
+    const { meta: _baseMeta, products: baseProducts, questDefinitions: base, randomEncounters: _baseEncounters, ...baseRest } = classicOgV18L;
     expect(rest).toEqual(baseRest);
     const changedProducts = Object.keys(products).filter((key) => products[key as keyof typeof products] !== baseProducts[key as keyof typeof baseProducts]);
     expect(changedProducts.sort()).toEqual(['COCAINE', 'CRACK', 'ECSTASY', 'HEROIN', 'METH', 'WEED']);

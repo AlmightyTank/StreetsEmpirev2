@@ -228,6 +228,49 @@
   font-weight: 850;
 }
 
+.se-rankings-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.se-rankings-player__avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--se-accent-dim);
+  border-radius: 50%;
+  background: var(--se-panel-hi);
+  color: var(--se-accent);
+  font-family: var(--se-mono);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.se-rankings-player__avatar--framed {
+  overflow: visible;
+  width: 36px;
+  height: 36px;
+  margin: -4px;
+  border: 0;
+  background: transparent;
+}
+
+.se-rankings-player__avatar > img,
+.se-rankings-player__avatar > .se-built-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.se-rankings-player__identity {
+  min-width: 0;
+}
+
 .se-rankings-row--1 .se-rankings-row__rank {
   color: var(--se-accent);
 }

@@ -8,6 +8,7 @@ import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
+import { AvatarPortrait } from '../components/BuiltAvatar.js';
 import { ThemeSwatch } from '../components/ThemeSwatch.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -36,6 +37,11 @@ function turfTime(seconds: number): string {
   if (hours < 1) return `${Math.max(1, Math.floor(seconds / 60))}m`;
   if (hours < 48) return `${hours.toFixed(hours < 10 ? 1 : 0)}h`;
   return `${(hours / 24).toFixed(1)}d`;
+}
+
+function playerInitials(displayName: string): string {
+  const words = displayName.trim().split(/\s+/).filter(Boolean);
+  return (words.length > 1 ? `${words[0]?.[0] ?? ''}${words.at(-1)?.[0] ?? ''}` : displayName.slice(0, 2)).toUpperCase();
 }
 
 function RankingMetric({
@@ -84,12 +90,19 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
             >
               <td className="se-num se-rankings-row__rank" data-label="Rank">#{formatNumber(row.rank)}</td>
               <td className="se-td--title">
-                <AllianceTag alliance={row.alliance} />
-                <Link to={`/game/players/${row.publicPimpId}`} className="se-playerlink">
-                  {row.displayName} <span className="se-muted se-num">#{row.publicPimpId}</span>
-                </Link>
-                <ThemeSwatch theme={row.siteTheme} label={row.siteThemeLabel} />
-                {row.isYou ? <span className="se-you">YOU</span> : null}
+                <div className="se-rankings-player" data-profile-hover-trigger="">
+                  <span className={`se-rankings-player__avatar${row.avatarFrame ? ' se-rankings-player__avatar--framed' : ''}`} aria-hidden="true">
+                    <AvatarPortrait imageUrl={row.imageUrl} avatar={row.avatar} frameKey={row.avatarFrame} fallback={playerInitials(row.displayName)} />
+                  </span>
+                  <span className="se-rankings-player__identity">
+                    <AllianceTag alliance={row.alliance} />
+                    <Link to={`/game/players/${row.publicPimpId}`} className="se-playerlink">
+                      {row.displayName} <span className="se-muted se-num">#{row.publicPimpId}</span>
+                    </Link>
+                    <ThemeSwatch theme={row.siteTheme} label={row.siteThemeLabel} />
+                    {row.isYou ? <span className="se-you">YOU</span> : null}
+                  </span>
+                </div>
               </td>
               {showCity ? <td data-label="City">{row.city.name}</td> : null}
               <td className="se-table__number se-num" data-label="Net worth">{formatCents(row.netWorthCents)}</td>
@@ -127,10 +140,17 @@ function TerritoryCrewTable({ data }: { data: RankingsDto }) {
             <tr key={row.publicPimpId} className={row.isYou ? 'se-rank-you' : undefined}>
               <td className="se-num se-rankings-row__rank" data-label="Rank">#{formatNumber(row.rank)}</td>
               <td className="se-td--title">
-                <AllianceTag alliance={row.alliance} />
-                <Link to={`/game/players/${row.publicPimpId}`} className="se-playerlink">{row.displayName}</Link>
-                {row.isYou ? <span className="se-you">YOU</span> : null}
-                {row.hallOfFameLeader ? <span className="se-you">TURF LEADER</span> : null}
+                <div className="se-rankings-player" data-profile-hover-trigger="">
+                  <span className={`se-rankings-player__avatar${row.avatarFrame ? ' se-rankings-player__avatar--framed' : ''}`} aria-hidden="true">
+                    <AvatarPortrait imageUrl={row.imageUrl} avatar={row.avatar} frameKey={row.avatarFrame} fallback={playerInitials(row.displayName)} />
+                  </span>
+                  <span className="se-rankings-player__identity">
+                    <AllianceTag alliance={row.alliance} />
+                    <Link to={`/game/players/${row.publicPimpId}`} className="se-playerlink">{row.displayName}</Link>
+                    {row.isYou ? <span className="se-you">YOU</span> : null}
+                    {row.hallOfFameLeader ? <span className="se-you">TURF LEADER</span> : null}
+                  </span>
+                </div>
               </td>
               <td className="se-table__number se-num" data-label="Block-time">{turfTime(row.heldSeconds)}</td>
               <td className="se-table__number se-num" data-label="Held now">{formatNumber(row.currentBlocks)} blocks</td>

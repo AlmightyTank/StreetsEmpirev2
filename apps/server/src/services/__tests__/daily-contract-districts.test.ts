@@ -42,7 +42,6 @@ function fakeDb(unlocks: Set<string>) {
     questDefinition: { findMany: async () => definitions },
     roundPlayer: { findUnique: async () => ({ roundId: ROUND }) },
     playerUnlock: { findMany: async () => [...unlocks].map((key) => ({ key })) },
-    npcGang: { findUnique: async () => null },
     playerQuest: {
       updateMany: async () => ({ count: 0 }),
       findMany: async () => rows.map((row) => ({ ...row })),

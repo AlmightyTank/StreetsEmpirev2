@@ -91,12 +91,12 @@ async function historicalStats(
     turfBlocksHeldAtEnd,
     playerCities,
   ] = await Promise.all([
-    prisma.roundPlayer.count({ where: { roundId: round.id, npcGang: { is: null } } }),
+    prisma.roundPlayer.count({ where: { roundId: round.id } }),
     prisma.alliance.count({
       where: { roundId: round.id, disbandedAt: null },
     }),
     prisma.roundPlayer.aggregate({
-      where: { roundId: round.id, npcGang: { is: null } },
+      where: { roundId: round.id },
       _sum: { netWorthCents: true },
     }),
     prisma.raidBattle.count({
@@ -106,7 +106,7 @@ async function historicalStats(
       where: { attacker: { roundId: round.id }, kind: 'DRIVE_BY', voidedAt: null },
     }),
     prisma.run.count({
-      where: { roundPlayer: { roundId: round.id, npcGang: { is: null } }, status: 'RETURNED' },
+      where: { roundPlayer: { roundId: round.id }, status: 'RETURNED' },
     }),
     prisma.turfPush.count({
       where: { roundId: round.id, status: 'LANDED' },
@@ -118,7 +118,7 @@ async function historicalStats(
       where: { roundId: round.id, holderId: { not: null } },
     }),
     prisma.roundPlayer.findMany({
-      where: { roundId: round.id, npcGang: { is: null } },
+      where: { roundId: round.id },
       distinct: ['cityId'],
       select: { cityId: true },
     }),
@@ -147,7 +147,6 @@ async function championRows(
       roundId,
       nationalRank: 1,
       account: { isActive: true },
-      npcGang: { is: null },
     },
     orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
     select: {
@@ -302,11 +301,11 @@ export const PublicSiteService = {
         where: { roundId: round.id, status: 'LANDED' },
       }),
       prisma.roundPlayer.aggregate({
-        where: { roundId: round.id, account: { isActive: true }, npcGang: { is: null } },
+        where: { roundId: round.id, account: { isActive: true } },
         _sum: { netWorthCents: true },
       }),
       prisma.roundPlayer.findMany({
-        where: { roundId: round.id, account: { isActive: true }, npcGang: { is: null } },
+        where: { roundId: round.id, account: { isActive: true } },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: TOP_RANKINGS,
         select: {
@@ -323,7 +322,7 @@ export const PublicSiteService = {
           status: 'LANDED',
           captured: true,
           settledAt: { not: null },
-          attacker: { account: { isActive: true }, npcGang: { is: null } },
+          attacker: { account: { isActive: true } },
         },
         orderBy: { settledAt: 'desc' },
         take: RECENT_EVENTS,
@@ -444,7 +443,7 @@ export const PublicSiteService = {
 
     const roundIds = rounds.map((round) => round.id);
     const playerRefs = await prisma.roundPlayer.findMany({
-      where: { roundId: { in: roundIds }, npcGang: { is: null } },
+      where: { roundId: { in: roundIds } },
       select: { id: true, roundId: true, cityId: true },
     });
     const playerIds = playerRefs.map((player) => player.id);
@@ -467,7 +466,7 @@ export const PublicSiteService = {
     ] = await Promise.all([
       prisma.roundPlayer.groupBy({
         by: ['roundId'],
-        where: { roundId: { in: roundIds }, npcGang: { is: null } },
+        where: { roundId: { in: roundIds } },
         _count: { _all: true },
         _sum: { netWorthCents: true },
       }),
@@ -491,7 +490,6 @@ export const PublicSiteService = {
           roundId: { in: roundIds },
           nationalRank: 1,
           account: { isActive: true },
-          npcGang: { is: null },
         },
         orderBy: [{ roundId: 'asc' }, { netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         select: {
@@ -613,7 +611,6 @@ export const PublicSiteService = {
       where: {
         roundId: round.id,
         account: { isActive: true },
-        npcGang: { is: null },
       },
       orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
       select: {

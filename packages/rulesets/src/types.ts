@@ -804,7 +804,6 @@ export interface SeededRivalRule {
   readonly publicPimpId: number;
   readonly note: string;
   readonly startingPlayer: Partial<StartingPlayer>;
-  readonly npcGang?: NpcGangSeedProfile;
 }
 
 export interface RoundRules {
@@ -814,132 +813,6 @@ export interface RoundRules {
   readonly startingPlayer: StartingPlayer;
   readonly seededRivals?: readonly SeededRivalRule[];
 }
-
-export type NpcGangTier = 'SCRUB' | 'STREET' | 'VETERAN' | 'KINGPIN';
-
-export interface NpcGangSeedProfile {
-  readonly archetype: string;
-  readonly tier: NpcGangTier;
-  /** How likely this crew is to pick violent moves once the scheduler is live. */
-  readonly aggression: number;
-  /** How strongly this crew prefers growth moves like product, turf and rides. */
-  readonly ambition: number;
-  /** How likely this crew is to wait, restock or lay low instead of forcing a bad move. */
-  readonly discipline: number;
-  /** Phase M. A fixed public crew name and tag; otherwise one is picked from the personality. */
-  readonly crewName?: string;
-  readonly crewTag?: string;
-}
-
-/** Phase M. The scheduler intents a personality can lean toward or away from. */
-export type NpcGangIntentKey = 'RESTOCK' | 'PRODUCE' | 'HUSTLE' | 'RAID_PLAYER' | 'DRIVE_BY_PLAYER' | 'SPECIAL_RAID_PLAYER' | 'TURF' | 'LAY_LOW';
-
-/**
- * One ruleset-authored crew the server can spawn into a live round. It joins like a
- * new player, with the round's starting stock, and grows by playing.
- */
-export interface NpcGangRosterEntry {
-  readonly slug: string;
-  /** The boss, shown as the player name. */
-  readonly bossName: string;
-  readonly crewName: string;
-  readonly crewTag: string;
-  /** A key of `NpcGangRules.personalities`. */
-  readonly personality: string;
-  readonly aggression: number;
-  readonly ambition: number;
-  readonly discipline: number;
-}
-
-/** How many roster crews a live round carries, and how fast they arrive. */
-export interface NpcGangSpawnRules {
-  readonly enabled: boolean;
-  readonly minCrews: number;
-  readonly maxCrews: number;
-  /** One more crew for every this many active humans in the round. */
-  readonly humansPerCrew: number;
-  /** A human counts as active if seen inside this many hours. */
-  readonly activeHumanHours: number;
-  /** At most one new crew per this many minutes, so they arrive over time. */
-  readonly spawnEveryMinutes: number;
-}
-
-/** Tier follows growth: net worth as a multiple of what the crew started with. */
-export interface NpcGangProgressionRules {
-  readonly enabled: boolean;
-  readonly netWorthMultiple: { readonly STREET: number; readonly VETERAN: number; readonly KINGPIN: number };
-}
-
-/** Phase M. Who a crew goes after first among ordinary targets. */
-export type NpcGangTargeting = 'RICHEST' | 'WEAKEST' | 'RIDES' | 'PRODUCT' | 'DISTRACTED';
-
-/**
- * Phase M. A named crew style: public identity plus the behavior signature that makes
- * it recognizable on the street. Traits (aggression, ambition, discipline) still set
- * how strongly a gang acts; the personality sets what it reaches for.
- */
-export interface NpcGangPersonality {
-  /** Public, e.g. "Ride thieves". */
-  readonly label: string;
-  /** Crew names this style goes by, each with a short tag. */
-  readonly names: readonly { readonly name: string; readonly tag: string }[];
-  /** One public line on how they operate. */
-  readonly style: string;
-  /** Older archetype strings that resolve to this personality (exact, then substring). */
-  readonly aliases: readonly string[];
-  /** Weight added to each intent before the weighted pick. */
-  readonly bias: Readonly<Partial<Record<NpcGangIntentKey, number>>>;
-  readonly targeting: NpcGangTargeting;
-  /** The special raid tried first when one is on the table. */
-  readonly favoriteSpecial?: SpecialRaidKind;
-  /** Multiplies the squad a gang commits to a hit. */
-  readonly squadShare: number;
-}
-
-export interface NpcGangRules {
-  readonly enabled: boolean;
-  readonly tickMinutes: number;
-  readonly maxActionsPerTick: number;
-  readonly maxPerCity: number;
-  /**
-   * Phase I. How long a gang remembers a human who hit it, and how long one NPC
-   * hit keeps every other NPC off that player (the anti-dogpile window).
-   */
-  readonly retaliationHours: number;
-  /** Phase I. Aggression a valid grudge adds when gating and weighting attack moves. */
-  readonly revengeAggressionBoost: number;
-  /** Phase I. Flat weight a valid grudge adds to raid, drive-by and special-raid intents. */
-  readonly revengeIntentBonus: number;
-  /** Phase J. How NPC gangs hold blocks through the same turf actions players use. */
-  readonly turf: NpcGangTurfRules;
-  /** Phase K. When stronger gangs pack up and relocate to another city. */
-  readonly migration: NpcGangMigrationRules;
-  /** Phase L. How fights heat a gang up, cool it down or send it to ground. */
-  readonly escalation: NpcGangEscalationRules;
-  /** Phase M. Named crew styles keyed by archetype. */
-  readonly personalities: Readonly<Record<string, NpcGangPersonality>>;
-  /** Phase M. The personality an archetype falls back to when nothing matches. */
-  readonly defaultPersonality: string;
-  /** Phase N. What beating an NPC gang pays, and when beaten or stale gangs are cleaned up. */
-  readonly rewards: NpcGangRewardRules;
-  /** Real crews: who spawns into live rounds, how many, and how they climb tiers. */
-  readonly roster: readonly NpcGangRosterEntry[];
-  readonly spawn: NpcGangSpawnRules;
-  readonly progression: NpcGangProgressionRules;
-}
-
-export type NpcGangRuleOverrides = Partial<Omit<NpcGangRules, 'turf' | 'migration' | 'escalation' | 'rewards' | 'spawn' | 'progression'>> & {
-  readonly turf?: Partial<NpcGangTurfRules>;
-  readonly migration?: Partial<NpcGangMigrationRules>;
-  readonly escalation?: Partial<NpcGangEscalationRules>;
-  readonly rewards?: Partial<Omit<NpcGangRewardRules, 'bountyCents'>> & {
-    readonly bountyCents?: Partial<Record<NpcGangTier, number>>;
-  };
-  readonly spawn?: Partial<NpcGangSpawnRules>;
-  readonly progression?: Partial<Omit<NpcGangProgressionRules, 'netWorthMultiple'>> & {
-    readonly netWorthMultiple?: Partial<Record<Exclude<NpcGangTier, 'SCRUB'>, number>>;
-  };
-};
 
 export type RandomEncounterTrigger = 'SCOUT' | 'TRAVEL' | 'PRODUCE' | 'STORE' | 'TURF' | 'COMBAT';
 
@@ -969,6 +842,11 @@ export interface RandomEncounterChoiceRules {
   readonly cash?: RandomEncounterCashEffectRules;
   readonly heat?: RandomEncounterNumberEffectRules;
   readonly supplies?: RandomEncounterSupplyEffectRules;
+  readonly turns?: RandomEncounterNumberEffectRules;
+  readonly thugs?: RandomEncounterNumberEffectRules;
+  readonly woundedThugs?: RandomEncounterNumberEffectRules;
+  readonly whores?: RandomEncounterNumberEffectRules;
+  readonly lowRiders?: RandomEncounterNumberEffectRules;
 }
 
 export interface RandomEncounterEntryRules {
@@ -980,6 +858,11 @@ export interface RandomEncounterEntryRules {
   readonly cash?: RandomEncounterCashEffectRules;
   readonly heat?: RandomEncounterNumberEffectRules;
   readonly supplies?: RandomEncounterSupplyEffectRules;
+  readonly turns?: RandomEncounterNumberEffectRules;
+  readonly thugs?: RandomEncounterNumberEffectRules;
+  readonly woundedThugs?: RandomEncounterNumberEffectRules;
+  readonly whores?: RandomEncounterNumberEffectRules;
+  readonly lowRiders?: RandomEncounterNumberEffectRules;
   readonly choices?: readonly RandomEncounterChoiceRules[];
   readonly districts?: readonly DistrictKey[];
 }
@@ -1016,117 +899,50 @@ export interface RandomEncounterTriggerRules {
 export interface RandomEncounterRules {
   readonly enabled: boolean;
   readonly triggers: Readonly<Partial<Record<RandomEncounterTrigger, RandomEncounterTriggerRules>>>;
+  /** Named street crews represented as encounter state, never as player accounts. */
+  readonly gangs?: EncounterGangRules;
+}
+
+export type EncounterGangTier = 'SCRUB' | 'STREET' | 'VETERAN' | 'KINGPIN';
+export type EncounterGangTargeting = 'RICHEST' | 'WEAKEST' | 'RIDES' | 'PRODUCT' | 'DISTRACTED';
+
+export interface EncounterGangPersonality {
+  readonly label: string;
+  readonly style: string;
+  readonly targeting: EncounterGangTargeting;
+  readonly favoriteMove: 'CASH_RAID' | 'DRIVE_BY' | 'STEAL_RIDE' | 'DRUG_HOES' | 'LURE_CREW';
+}
+
+export interface EncounterGangRosterEntry {
+  readonly slug: string;
+  readonly bossName: string;
+  readonly crewName: string;
+  readonly crewTag: string;
+  readonly personality: string;
+  readonly aggression: number;
+  readonly ambition: number;
+  readonly discipline: number;
 }
 
 /**
- * Phase N. Bounties are minted by the house, not taken from the gang, so they are capped
- * hard: only a crew that has hit a human recently is wanted, each player collects a few a
- * day and once per crew per cooldown, and each crew pays out a few times a day in total.
- * Over-targeting a crew also sends it to ground (Phase L), which ends its bounty.
+ * Persistent context for gang-flavored random encounters. These crews never receive
+ * accounts, turns, inventory, rankings or a RoundPlayer body.
  */
-export interface NpcGangRewardRules {
+export interface EncounterGangRules {
   readonly enabled: boolean;
-  /** Bounty for beating a wanted crew as the attacker, by its tier. */
-  readonly bountyCents: Readonly<Record<NpcGangTier, number>>;
-  /** Share of the bounty paid for holding off a wanted crew's hit. */
-  readonly defenseShare: number;
-  /** A crew is wanted while it has hit a human inside this many hours. */
+  readonly minCrews: number;
+  readonly maxCrews: number;
+  readonly humansPerCrew: number;
+  readonly startingTurfChance: number;
+  readonly pushBelowReputation: number;
+  readonly retaliationHours: number;
   readonly wantedHours: number;
-  readonly maxPerPlayerPerDay: number;
-  readonly perCrewCooldownHours: number;
-  readonly maxPerCrewPerDay: number;
-  /** Hours other crews in a city stand down after humans send one to ground. */
-  readonly reliefHours: number;
-  /** A crew that has gone to ground this many times in a round breaks up. */
-  readonly retireAfterDormancies: number;
-  /** A crew that wakes with fewer thugs than this breaks up. */
-  readonly retireBelowThugs: number;
-}
-
-/**
- * Phase L. Momentum is rebuilt each tick from the gang's own fights since it last woke,
- * each one fading on `halfLifeHours`. It runs from -`maxMomentum` (beaten) to
- * +`maxMomentum` (on a run) and shifts aggression and pacing; deep enough in the hole,
- * or hit by too many humans, the gang goes dormant and comes back on a clean slate.
- */
-export interface NpcGangEscalationRules {
-  readonly enabled: boolean;
-  readonly windowHours: number;
-  readonly halfLifeHours: number;
-  /** Momentum per fight, before fading. A profitable win adds `profitBonus` on top. */
-  readonly attackWin: number;
-  readonly profitBonus: number;
-  readonly attackLoss: number;
-  readonly defendWin: number;
-  readonly defendLoss: number;
-  /** Momentum lost per consecutive blocked move. */
-  readonly blockedPenalty: number;
-  readonly maxMomentum: number;
-  /** Aggression shifted per point of momentum, capped at `maxAggressionShift` either way. */
-  readonly aggressionPerPoint: number;
-  readonly maxAggressionShift: number;
-  /** Largest share pacing speeds up (hot) or slows down (cooled), e.g. 0.25. */
-  readonly maxPaceShift: number;
-  /** Momentum at or above which a gang reads as hot, and at or below which it reads as cooled. */
-  readonly hotAt: number;
-  readonly coolAt: number;
-  /** At or below this momentum a gang goes dormant. */
-  readonly dormantBelow: number;
-  /** Human hits on the gang inside `overTargetedHours` that send it to ground, win or lose. */
-  readonly overTargetedHits: number;
-  readonly overTargetedHours: number;
-  readonly dormantMinHours: number;
-  readonly dormantMaxHours: number;
-}
-
-/**
- * Phase K. NPC migration is an ordinary relocation: fee, time on the road, cooldown and
- * the round-end cutoff all apply, and a gang cannot leave while someone it hit can still
- * hit back. A gang that decides to move goes quiet first, so the move is readable.
- */
-export interface NpcGangMigrationRules {
-  readonly enabled: boolean;
-  /** Only these tiers ever move house. */
-  readonly tiers: readonly NpcGangTier[];
-  /** How often a settled gang reconsiders its city. */
-  readonly evaluateEveryHours: number;
-  /** Hours a gang stays after arriving (or being seeded) before it reconsiders. */
-  readonly minStayHours: number;
-  /** A human counts toward a city's population if active inside this many hours. */
-  readonly activeHumanHours: number;
-  /** A city with fewer active humans than this is too quiet to stay in or move to. */
-  readonly quietBelowHumans: number;
-  /** One NPC gang per this many active humans, at least one and at most `maxPerCity`. */
-  readonly humansPerGang: number;
-  /** Lost fights inside the turf loss window that make a city too hostile. */
-  readonly hostileLosses: number;
-  /** A richer city must have at least this many more active humans to be worth the move. */
-  readonly betterByHumans: number;
-  /** A gang that has not managed to leave within this many hours drops the plan. */
-  readonly packingHours: number;
-}
-
-/**
- * Phase J. NPC turf is ordinary turf: presence from Scout turns, a claim fight
- * against the locals, posted corner crews with upkeep. NPCs only take blocks
- * the locals hold; they never push a block a human crew holds.
- */
-export interface NpcGangTurfRules {
-  readonly enabled: boolean;
-  /** Gangs below this ambition never go looking for a block; they still defend one they hold. */
-  readonly minAmbition: number;
-  readonly maxBlocksPerGang: number;
-  /** All NPC gangs together, so every city keeps blocks for human crews. */
-  readonly maxNpcBlocksPerCity: number;
-  /** Reinforce while the corner is below this multiple of its minimum. */
-  readonly reinforceBelowMinimum: number;
-  /** Hours of corner beer the gang tries to keep at home. */
-  readonly supplyHours: number;
-  /** Lost fights inside `lossWindowHours` that make a gang give its block up. */
-  readonly abandonAfterLosses: number;
-  readonly lossWindowHours: number;
-  /** Raid weight added while human crews are working the gang's block. */
-  readonly pressureIntentBonus: number;
+  readonly dormantBelowMomentum: number;
+  readonly dormantHours: number;
+  readonly migrateAfterHours: number;
+  readonly bountyCents: Readonly<Record<EncounterGangTier, number>>;
+  readonly personalities: Readonly<Record<string, EncounterGangPersonality>>;
+  readonly roster: readonly EncounterGangRosterEntry[];
 }
 
 // --- turns ------------------------------------------------------------------
@@ -3210,8 +3026,6 @@ export interface Ruleset {
   readonly contacts?: ContactCatalog;
   /** 1.4.0-A. The underworld factions behind the contacts. Absent before 1.4. */
   readonly factions?: FactionCatalog;
-  /** Server-run street crews: identity, scheduler pacing and NPC action limits. */
-  readonly npcGangs?: NpcGangRuleOverrides;
   /** Short-lived action-triggered street events. */
   readonly randomEncounters?: RandomEncounterRules;
   /** 1.5.0-A. Catalog only; no class-specific balance or dispatch behavior yet. */

@@ -125,6 +125,38 @@ export const VEHICLE_ART_FILES = {
 export const AUTHORED_ITEM_ART_FILES = { ...SLICE_A_ART_FILES, ...VEHICLE_ART_FILES, ...SLICE_B_ART_FILES, ...SLICE_C_ART_FILES };
 
 /**
+ * Easter egg: the 8-Bit collection (the Konami code). Generated from the
+ * Classic art by scripts/art/generate-eight-bit-art.mjs, then rendered like
+ * every other master.
+ */
+export const EIGHT_BIT_ART_FILES = {
+  PISTOL: { 'eight-bit': 'cosmetics/weapons/pistol-eight-bit.webp' },
+  SHOTGUN: { 'eight-bit': 'cosmetics/weapons/shotgun-eight-bit.webp' },
+  TEK9: { 'eight-bit': 'cosmetics/weapons/tek9-eight-bit.webp' },
+  AK47: { 'eight-bit': 'cosmetics/weapons/ak47-eight-bit.webp' },
+  LOW_RIDER: { 'eight-bit': 'cosmetics/rides/low-rider-eight-bit.webp' },
+  SEDAN: { 'eight-bit': 'cosmetics/rides/sedan-eight-bit.webp' },
+  VAN: { 'eight-bit': 'cosmetics/rides/van-eight-bit.webp' },
+  CRACK: { 'eight-bit': 'cosmetics/products/crack-eight-bit.webp' },
+  WEED: { 'eight-bit': 'cosmetics/products/weed-eight-bit.webp' },
+  ECSTASY: { 'eight-bit': 'cosmetics/products/ecstasy-eight-bit.webp' },
+  METH: { 'eight-bit': 'cosmetics/products/meth-eight-bit.webp' },
+  COCAINE: { 'eight-bit': 'cosmetics/products/cocaine-eight-bit.webp' },
+  HEROIN: { 'eight-bit': 'cosmetics/products/heroin-eight-bit.webp' },
+  CONDOM: { 'eight-bit': 'cosmetics/supplies/condoms-eight-bit.webp' },
+  MEDICINE: { 'eight-bit': 'cosmetics/supplies/medicine-eight-bit.webp' },
+  BEER: { 'eight-bit': 'cosmetics/supplies/beer-eight-bit.webp' },
+  THUG: { 'eight-bit': 'cosmetics/crew/thug-eight-bit.webp' },
+  HOE: { 'eight-bit': 'cosmetics/crew/hoe-eight-bit.webp' },
+} as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
+
+/** Easter egg looks drawn for a single item. */
+export const SINGLE_ITEM_ART_FILES = {
+  SEDAN: { 'time-machine': 'cosmetics/rides/sedan-time-machine.webp' },
+  METH: { 'blue-sky': 'cosmetics/products/meth-blue-sky.webp' },
+} as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
+
+/**
  * Authored cosmetic art registry.
  *
  * Only files that exist in the repository belong here. ItemTile always falls
@@ -132,24 +164,24 @@ export const AUTHORED_ITEM_ART_FILES = { ...SLICE_A_ART_FILES, ...VEHICLE_ART_FI
  * a broken image.
  */
 const ITEM_COSMETIC_ART = {
-  PISTOL: { classic: 'pistol.svg', ...SLICE_A_ART_FILES.PISTOL },
-  SHOTGUN: { classic: 'shotgun.svg', ...SLICE_A_ART_FILES.SHOTGUN },
-  TEK9: { classic: 'tek9.svg', ...SLICE_A_ART_FILES.TEK9 },
-  AK47: { classic: 'ak47.svg', ...SLICE_A_ART_FILES.AK47 },
-  LOW_RIDER: { classic: 'low-rider.svg', ...SLICE_A_ART_FILES.LOW_RIDER },
-  SEDAN: { classic: 'sedan.svg', ...VEHICLE_ART_FILES.SEDAN },
-  VAN: { classic: 'van.svg', ...VEHICLE_ART_FILES.VAN },
-  CRACK: { classic: 'crack.svg', ...SLICE_B_ART_FILES.CRACK },
-  WEED: { classic: 'weed.svg', ...SLICE_B_ART_FILES.WEED },
-  ECSTASY: { classic: 'ecstasy.svg', ...SLICE_B_ART_FILES.ECSTASY },
-  METH: { classic: 'meth.svg', ...SLICE_B_ART_FILES.METH },
-  COCAINE: { classic: 'cocaine.svg', ...SLICE_B_ART_FILES.COCAINE },
-  HEROIN: { classic: 'heroin.svg', ...SLICE_B_ART_FILES.HEROIN },
-  CONDOM: { classic: 'condoms.svg', ...SLICE_B_ART_FILES.CONDOM },
-  MEDICINE: { classic: 'medicine.svg', ...SLICE_B_ART_FILES.MEDICINE },
-  BEER: { classic: 'beer.svg', ...SLICE_B_ART_FILES.BEER },
-  THUG: { classic: 'thug.svg', ...SLICE_C_ART_FILES.THUG },
-  HOE: { classic: 'hoe.svg', ...SLICE_C_ART_FILES.HOE },
+  PISTOL: { classic: 'pistol.svg', ...SLICE_A_ART_FILES.PISTOL, ...EIGHT_BIT_ART_FILES.PISTOL },
+  SHOTGUN: { classic: 'shotgun.svg', ...SLICE_A_ART_FILES.SHOTGUN, ...EIGHT_BIT_ART_FILES.SHOTGUN },
+  TEK9: { classic: 'tek9.svg', ...SLICE_A_ART_FILES.TEK9, ...EIGHT_BIT_ART_FILES.TEK9 },
+  AK47: { classic: 'ak47.svg', ...SLICE_A_ART_FILES.AK47, ...EIGHT_BIT_ART_FILES.AK47 },
+  LOW_RIDER: { classic: 'low-rider.svg', ...SLICE_A_ART_FILES.LOW_RIDER, ...EIGHT_BIT_ART_FILES.LOW_RIDER },
+  SEDAN: { classic: 'sedan.svg', ...VEHICLE_ART_FILES.SEDAN, ...EIGHT_BIT_ART_FILES.SEDAN, ...SINGLE_ITEM_ART_FILES.SEDAN },
+  VAN: { classic: 'van.svg', ...VEHICLE_ART_FILES.VAN, ...EIGHT_BIT_ART_FILES.VAN },
+  CRACK: { classic: 'crack.svg', ...SLICE_B_ART_FILES.CRACK, ...EIGHT_BIT_ART_FILES.CRACK },
+  WEED: { classic: 'weed.svg', ...SLICE_B_ART_FILES.WEED, ...EIGHT_BIT_ART_FILES.WEED },
+  ECSTASY: { classic: 'ecstasy.svg', ...SLICE_B_ART_FILES.ECSTASY, ...EIGHT_BIT_ART_FILES.ECSTASY },
+  METH: { classic: 'meth.svg', ...SLICE_B_ART_FILES.METH, ...EIGHT_BIT_ART_FILES.METH, ...SINGLE_ITEM_ART_FILES.METH },
+  COCAINE: { classic: 'cocaine.svg', ...SLICE_B_ART_FILES.COCAINE, ...EIGHT_BIT_ART_FILES.COCAINE },
+  HEROIN: { classic: 'heroin.svg', ...SLICE_B_ART_FILES.HEROIN, ...EIGHT_BIT_ART_FILES.HEROIN },
+  CONDOM: { classic: 'condoms.svg', ...SLICE_B_ART_FILES.CONDOM, ...EIGHT_BIT_ART_FILES.CONDOM },
+  MEDICINE: { classic: 'medicine.svg', ...SLICE_B_ART_FILES.MEDICINE, ...EIGHT_BIT_ART_FILES.MEDICINE },
+  BEER: { classic: 'beer.svg', ...SLICE_B_ART_FILES.BEER, ...EIGHT_BIT_ART_FILES.BEER },
+  THUG: { classic: 'thug.svg', ...SLICE_C_ART_FILES.THUG, ...EIGHT_BIT_ART_FILES.THUG },
+  HOE: { classic: 'hoe.svg', ...SLICE_C_ART_FILES.HOE, ...EIGHT_BIT_ART_FILES.HOE },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
 export function itemCosmeticArtFile(item: ItemArtKey, style: ItemCosmeticStyleKey): string {

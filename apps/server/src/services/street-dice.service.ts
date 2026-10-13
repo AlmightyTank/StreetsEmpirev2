@@ -19,11 +19,13 @@ import type {
   CasinoStreetDiceStartInput,
   CasinoStreetDiceStateDto,
 } from '@streets/shared';
+import { LEET_PIPS } from '@streets/shared';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { bossPresence } from './boss-presence.service.js';
 import { CasinoStatusService, assertCasinoRoomAccess, casinoTableAvailability } from './casino-status.service.js';
 import { PlayerStateService } from './player-state.service.js';
+import { EasterEggService } from './easter-egg.service.js';
 
 type PlayerRow = RoundPlayer & {
   city: { id: string; slug: string; name: string };
@@ -228,6 +230,27 @@ async function recordLedger(
       } as Prisma.InputJsonValue,
     },
   });
+  if (args.action !== 'ADD_ODDS') await streetDiceEasterEggs(tx, args.roundPlayerId, args.round);
+}
+
+/**
+ * Easter egg: the roll that takes a player's pips for the round past 1,337.
+ * Only START and ROLL throw dice; an ADD_ODDS row repeats the last total and
+ * is left out of the sum.
+ */
+async function streetDiceEasterEggs(tx: Db, roundPlayerId: string, round: CasinoStreetDiceRoundDto): Promise<void> {
+  if (round.total === null) return;
+  const [row] = await tx.$queryRaw<{ pips: bigint | null }[]>`
+    SELECT SUM((metadata->>'total')::int) AS pips
+    FROM "CasinoLedgerEntry"
+    WHERE "roundPlayerId" = ${roundPlayerId}
+      AND kind = 'STREET_DICE'
+      AND metadata->>'action' IN ('START', 'ROLL')
+      AND jsonb_typeof(metadata->'total') = 'number'`;
+  const pips = Number(row?.pips ?? 0);
+  if (pips >= LEET_PIPS && pips - round.total < LEET_PIPS) {
+    await EasterEggService.discoverForPlayer(tx, roundPlayerId, 'LEET');
+  }
 }
 
 async function requireStartSession(

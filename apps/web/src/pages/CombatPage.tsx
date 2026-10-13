@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate } from 'react-router-dom';
-import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatSpecialRaidDto, type CombatTargetDto, type CustomizableItemKey, type ItemCosmeticStyleKey, type SpecialRaidKindDto } from '@streets/shared';
+import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatRingDto, type CombatSpecialRaidDto, type CombatTargetDto, type CustomizableItemKey, type ItemCosmeticStyleKey, type SpecialRaidKindDto } from '@streets/shared';
 import { combatApi } from '../api/combat.js';
+import { ringApi } from '../api/ring.js';
 import { ApiError } from '../api/client.js';
 import { ActionDock, deltaChip, type ResultChip } from '../components/ActionDock.js';
 import { Alert } from '../components/Alert.js';
@@ -26,7 +27,7 @@ import { formatWhen } from '../utils/time.js';
 const date = (value: string) => formatWhen(value);
 const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 'AK-47' : key.toLowerCase();
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
-const npcDangerLabel = { QUIET: 'Quiet', ACTIVE: 'Active', HOT: 'Hot' } as const;
+const gangDangerLabel = { QUIET: 'Quiet', ACTIVE: 'Active', HOT: 'Hot' } as const;
 
 const signedUnits = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatNumber(Math.abs(value))}`;
 /**
@@ -253,13 +254,13 @@ function TargetCard({ target, selectedBlock, driving }: { target: CombatTargetDt
     <div className={`se-target-card${selectedBlock ? ' se-target-card--blocked' : ''}`}>
       <div className="se-target-card__head">
         <div>
-          <p className="se-target-card__name"><AllianceTag alliance={target.alliance} />{target.displayName} <span className="se-muted se-num">(#{target.publicPimpId})</span></p>
-          <p className="se-target-card__sub">
+          <p className="se-target-card__name"><AllianceTag alliance={target.alliance} />{target.displayName} <span className="se-muted se-num">(#{target.publicPimpId})</span></p>          <p className="se-target-card__sub">
             {selectedBlock ?? (target.revengeAvailable ? 'Payback is open.' : driving ? 'Street crew spotted outside.' : 'Home block advantage.')}
           </p>
         </div>
         <div className="se-tags" aria-label="Target tags">
           <span className={`se-tag${target.strength === 'Weaker' ? ' se-tag--good' : target.strength === 'Stronger' ? ' se-tag--bad' : ''}`}>{target.strength}</span>
+          {target.hasRing ? <span className="se-tag se-tag--warn">Has the Ring</span> : null}
           {target.intel ? <span className="se-tag se-tag--good">Scouted</span> : <span className="se-tag">Unscouted</span>}
           {target.revengeAvailable ? <span className="se-tag se-tag--warn">Payback</span> : null}
         </div>
@@ -289,8 +290,52 @@ function TargetCard({ target, selectedBlock, driving }: { target: CombatTargetDt
   );
 }
 
-function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?: () => void }) {
-  const d = report.driveBy!;
+/** The Ring, when it is live in this round. The bearer is only named once revealed. */
+function RingCard({ ring, busy, pending, onDestroy }: { ring: CombatRingDto; busy: boolean; pending: boolean; onDestroy: () => void }) {
+  const revealed = ring.holderPublicPimpId !== null && ring.holderDisplayName !== null;
+  return (
+    <Panel title="The Ring" aside={ring.iHold ? 'You hold it' : revealed ? 'Revealed' : 'Hidden'} className="se-raids-panel">
+      <div className="se-raids-ring">
+        <img src="/items/easter-eggs/the-ring.svg" alt="The Ring: a heavy gold band" width={64} height={64} loading="lazy" />
+        <p className="se-hint">Surfaced {ring.surfacedAt ? date(ring.surfacedAt) : 'recently'}. {ring.iHold ? 'Keep it until the round ends, or destroy it below.' : 'Take it in a raid, or be in Detroit to destroy it if you hold it.'}</p>
+      </div>
+      <div className="se-rows">
+        {ring.iHold ? (
+          <Row label="Bearer" value={ring.invisibleUntil ? `You — vanished until ${date(ring.invisibleUntil)}` : 'You — the street knows your name'} strong />
+        ) : revealed ? (
+          <Row label="Bearer" value={`${ring.holderDisplayName} (#${ring.holderPublicPimpId})`} strong />
+        ) : (
+          <Row label="Bearer" value={ring.invisibleUntil ? `Vanished until ${date(ring.invisibleUntil)}` : 'Somewhere on the street'} strong />
+        )}
+        <Row label="Take it" value="Win a raid against the revealed bearer" />
+        <Row label="Destroy it" value={`${formatCents(ring.destroyRewardCents)} · ${formatNumber(ring.destroyTurnCost)} turns · old foundry in Detroit`} />
+      </div>
+      {ring.iHold ? (
+        <div className="se-raids-panel__action">
+          <Button
+            type="button"
+            className="se-btn se-btn--primary se-btn--sm"
+            disabledReason={
+              busy ? 'Your last hit is still going through.'
+                : pending ? 'Get the report for your unsettled hit first.'
+                : null
+            }
+            onClick={onDestroy}
+          >
+            Destroy it in Detroit
+          </Button>
+          <p className="se-hint">You must be in Detroit. Destroying it pays the reward and the Ring-bearer title.</p>
+        </div>
+      ) : revealed ? (
+        <p className="se-hint">Win a raid against {ring.holderDisplayName} to take it — then carry it to Detroit or hold it until the round ends.</p>
+      ) : (
+        <p className="se-hint">Its bearer cannot be found while the spell holds. Attacking breaks it.</p>
+      )}
+    </Panel>
+  );
+}
+
+function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?: () => void }) {  const d = report.driveBy!;
   const attacking = report.role === 'ATTACKER';
   const landed = attacking === report.won;
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They hit you') : (attacking ? 'They shot back' : 'Seen off')} · ${reportLabel(report)}`}>
@@ -312,7 +357,7 @@ function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?:
     {report.yourWounds > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
     {report.retaliation ? <p className="se-hint">This was retaliation for a hit on you.</p> : null}
     {report.payback ? <p className="se-hint">This was payback. You hit {report.opponent.displayName} first, and they answered inside the revenge window.</p> : null}
-    {report.npcBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.npcBounty.cents)} for beating the {report.npcBounty.crew}.</p> : null}
+    {report.gangBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.gangBounty.cents)} for beating the {report.gangBounty.crew}.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Your block is left alone by drive-bys until {date(report.protectedUntil)}. A drive-by does not stop a raid.</p> : null}
     {attacking && report.cooldownUntil ? <p className="se-hint">Next drive-by after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
@@ -357,7 +402,7 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
     {(report.yourWounds ?? 0) > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
     {report.retaliation ? <p className="se-hint">This was payback. Revenge let you answer the crew that hit you.</p> : null}
     {report.payback ? <p className="se-hint">This was payback. You hit {report.opponent.displayName} first, and they answered inside the revenge window.</p> : null}
-    {report.npcBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.npcBounty.cents)} for beating the {report.npcBounty.crew}.</p> : null}
+    {report.gangBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.gangBounty.cents)} for beating the {report.gangBounty.crew}.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Your block is protected until {date(report.protectedUntil)}. You also need your crew back before the next raid.</p> : null}
     {report.cooldownUntil ? <p className="se-hint">Next move after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
@@ -392,7 +437,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
     {(report.yourWounds ?? 0) > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
     {report.retaliation ? <p className="se-hint">This was payback. Revenge let you answer the crew that hit you.</p> : null}
     {report.payback ? <p className="se-hint">This was payback. You hit {report.opponent.displayName} first, and they answered inside the revenge window.</p> : null}
-    {report.npcBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.npcBounty.cents)} for beating the {report.npcBounty.crew}.</p> : null}
+    {report.gangBounty ? <p className="se-hint se-good">Bounty: {formatCents(report.gangBounty.cents)} for beating the {report.gangBounty.crew}.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Your block is protected until {date(report.protectedUntil)}. You also need your crew back before the next raid.</p> : null}
     {report.cooldownUntil ? <p className="se-hint">Next raid after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
@@ -626,8 +671,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     }
   }
 
-  async function treatWounded() {
-    if (!page?.recovery || page.recovery.maxTreatableThugs <= 0 || busy) return;
+  async function treatWounded() {    if (!page?.recovery || page.recovery.maxTreatableThugs <= 0 || busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -642,6 +686,27 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not patch up the wounded.');
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function destroyRing() {
+    if (inFlight.current || busy || pending) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await ringApi.destroy();
+      setNotice(`The Ring is destroyed. ${formatCents(result.rewardCents)} reward · Ring-bearer title unlocked.`);
+      await refresh(true);
+      try { await useSession.getState().refreshSnapshot(); }
+      catch { /* The notice above already says what landed. */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The foundry fire would not take it.');
+      void refresh(true);
+    } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
@@ -668,63 +733,63 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
 
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="info">{notice}</Alert> : null}
-      {page?.npcGangIntel ? (
-        <Panel title="Street rumors" aside={`NPC gangs · ${npcDangerLabel[page.npcGangIntel.danger]}`} className="se-raids-panel">
+      {page?.gangIntel ? (
+        <Panel title="Street rumors" aside={`Street crews · ${gangDangerLabel[page.gangIntel.danger]}`} className="se-raids-panel">
           <div className="se-rows">
-            <Row label="Local pressure" value={npcDangerLabel[page.npcGangIntel.danger]} strong={page.npcGangIntel.danger !== 'QUIET'} />
-            <Row label="Crews nearby" value={formatNumber(page.npcGangIntel.activeGangs)} />
-            <Row label="NPC hits since" value={`${date(page.npcGangIntel.seenSince)} · ${formatNumber(page.npcGangIntel.recentHits)} hit${page.npcGangIntel.recentHits === 1 ? '' : 's'}`} />
-            {page.npcGangIntel.topArchetype ? <Row label="Loudest style" value={`${page.npcGangIntel.topArchetype}${page.npcGangIntel.topTier ? ` · ${page.npcGangIntel.topTier}` : ''}`} /> : null}
-            {page.npcGangIntel.npcBlocks?.length ? (
+            <Row label="Local pressure" value={gangDangerLabel[page.gangIntel.danger]} strong={page.gangIntel.danger !== 'QUIET'} />
+            <Row label="Crews nearby" value={formatNumber(page.gangIntel.activeGangs)} />
+            <Row label="Crew hits since" value={`${date(page.gangIntel.seenSince)} · ${formatNumber(page.gangIntel.recentHits)} hit${page.gangIntel.recentHits === 1 ? '' : 's'}`} />
+            {page.gangIntel.topArchetype ? <Row label="Loudest style" value={`${page.gangIntel.topArchetype}${page.gangIntel.topTier ? ` · ${page.gangIntel.topTier}` : ''}`} /> : null}
+            {page.gangIntel.gangBlocks?.length ? (
               <Row
                 label="Crew-held blocks"
-                value={`${page.npcGangIntel.npcBlocks.join(', ')}${page.npcGangIntel.onTheirTurf ? ' · you work there' : ''}`}
-                strong={page.npcGangIntel.onTheirTurf}
+                value={`${page.gangIntel.gangBlocks.join(', ')}${page.gangIntel.onTheirTurf ? ' · you work there' : ''}`}
+                strong={page.gangIntel.onTheirTurf}
                 tooltip="Server-run crews hold these corners like anyone else. They lean on crews that work their blocks, and you can push them off."
               />
             ) : null}
-            {page.npcGangIntel.relief ? (
+            {page.gangIntel.relief ? (
               <Row
                 label="Street relief"
-                value={`${page.npcGangIntel.relief.crew} went to ground · quiet until ${date(page.npcGangIntel.relief.until)}`}
+                value={`${page.gangIntel.relief.crew} went to ground · quiet until ${date(page.gangIntel.relief.until)}`}
                 tooltip="When crews like you send a server-run crew to ground, the other crews in town stand down for a while."
               />
             ) : null}
-            {page.npcGangIntel.mood ? (
+            {page.gangIntel.mood ? (
               <Row
                 label="Crew mood"
                 value={[
-                  page.npcGangIntel.mood.hot ? `${formatNumber(page.npcGangIntel.mood.hot)} on a run` : null,
-                  page.npcGangIntel.mood.cooled ? `${formatNumber(page.npcGangIntel.mood.cooled)} licking wounds` : null,
-                  page.npcGangIntel.mood.dormant ? `${formatNumber(page.npcGangIntel.mood.dormant)} gone to ground` : null,
+                  page.gangIntel.mood.hot ? `${formatNumber(page.gangIntel.mood.hot)} on a run` : null,
+                  page.gangIntel.mood.cooled ? `${formatNumber(page.gangIntel.mood.cooled)} licking wounds` : null,
+                  page.gangIntel.mood.dormant ? `${formatNumber(page.gangIntel.mood.dormant)} gone to ground` : null,
                 ].filter(Boolean).join(' · ')}
-                strong={page.npcGangIntel.mood.hot > 0}
+                strong={page.gangIntel.mood.hot > 0}
                 tooltip="Crews that keep winning get bolder and move faster. Beat them enough, or keep hitting them, and they go to ground for a while."
               />
             ) : null}
-            {page.npcGangIntel.movement?.inbound.length ? (
+            {page.gangIntel.movement?.inbound.length ? (
               <Row
                 label="Crews inbound"
-                value={page.npcGangIntel.movement.inbound.map((move) => `${move.fromName} · ${date(move.arrivesAt)}`).join(', ')}
+                value={page.gangIntel.movement.inbound.map((move) => `${move.fromName} · ${date(move.arrivesAt)}`).join(', ')}
                 strong
                 tooltip="Server-run crews moving here. They land when their truck does and start working the city like anyone new."
               />
             ) : null}
-            {page.npcGangIntel.wantedBy && page.npcGangIntel.wantedUntil ? (
+            {page.gangIntel.wantedBy && page.gangIntel.wantedUntil ? (
               <Row
                 label="Payback risk"
-                value={`${formatNumber(page.npcGangIntel.wantedBy)} crew${page.npcGangIntel.wantedBy === 1 ? '' : 's'} · cools ${date(page.npcGangIntel.wantedUntil)}`}
+                value={`${formatNumber(page.gangIntel.wantedBy)} crew${page.gangIntel.wantedBy === 1 ? '' : 's'} · cools ${date(page.gangIntel.wantedUntil)}`}
                 strong
-                tooltip="NPC crews you hit can hit you back until then. They still respect your shields, cool-offs and the dogpile limit."
+                tooltip="Street crews you hit can hit you back until then. They still respect your shields, cool-offs and the dogpile limit."
               />
             ) : null}
           </div>
           <ul className="se-city__talk">
-            {page.npcGangIntel.rumors.map((rumor) => <li key={rumor}>{rumor}</li>)}
+            {page.gangIntel.rumors.map((rumor) => <li key={rumor}>{rumor}</li>)}
           </ul>
-          {page.npcGangIntel.crews?.length ? (
+          {page.gangIntel.crews?.length ? (
             <ol className="se-admin-list">
-              {page.npcGangIntel.crews.map((crew) => (
+              {page.gangIntel.crews.map((crew) => (
                 <li key={crew.publicPimpId}>
                   <div className="se-admin-check__head">
                     <strong>{crew.name} [{crew.tag}]</strong>
@@ -776,6 +841,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
         <Alert>{page.blockedReason}</Alert>
       ) : (
         <>
+          {page.ring ? <RingCard ring={page.ring} busy={busy} pending={!!pending} onDestroy={() => void destroyRing()} /> : null}
           <section className="se-raids-plan">
             <div className="se-raids-plan__main">
               <div className="se-raids-sectionhead">
@@ -840,7 +906,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                         <option value="">Choose a mark</option>
                         {page.targets.map((target) => (
                           <option key={target.publicPimpId} value={target.publicPimpId}>
-                            {target.alliance ? `[${target.alliance.tag}] ` : ''}{target.displayName} (#{target.publicPimpId}) · {target.strength}{target.intel ? ' · scouted' : ''}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
+                            {target.alliance ? `[${target.alliance.tag}] ` : ''}{target.displayName} (#{target.publicPimpId}) · {target.strength}{target.hasRing ? ' · has the Ring' : ''}{target.intel ? ' · scouted' : ''}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
                           </option>
                         ))}
                       </select>

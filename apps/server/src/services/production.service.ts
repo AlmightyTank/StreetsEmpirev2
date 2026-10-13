@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { COOK_JOB, PRODUCE_JOB, calculateProduce, cityModifiers, districtCapacities, productRecipes, type Rng } from '@streets/rules-engine';
-import type { GameActionResult, ProduceCrackResult, ProductTypeDto } from '@streets/shared';
+import { HEISENBERG_CHANCE, type GameActionResult, type ProduceCrackResult, type ProductTypeDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs, workingWhores } from './action.service.js';
 import { BossTripSettleService } from './boss-trip-settle.service.js';
@@ -18,6 +18,7 @@ import { TimedFavorService } from './timed-favor.service.js';
 import { encounterActivityPayload, RandomEncounterService } from './random-encounter.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { CityConditionService } from './city-condition.service.js';
+import { EasterEggService } from './easter-egg.service.js';
 
 export interface ProduceInput {
   turns: number;
@@ -236,7 +237,13 @@ export const ProductionService = {
         });
         next = encounter.next;
 
+        // Easter egg: now and then a meth cook comes out 99.1% pure.
+        const heisenbergBatch = recipe.product === 'METH' && productProduced > 0
+          && (rng ?? Math.random)() < HEISENBERG_CHANCE;
+        if (heisenbergBatch) await EasterEggService.discoverForPlayer(tx, roundPlayerId, 'HEISENBERG', now);
+
         const result: ProduceCrackResult = {
+          ...(heisenbergBatch ? { heisenbergBatch: true as const } : {}),
           ...(supply ? { supply: toPlanDto(supply, ruleset) } : {}),
           ...(cook ? { cook: toPlanDto(cook, ruleset) } : {}),
           ...(trip.heat ? { heat: trip.heat } : {}),

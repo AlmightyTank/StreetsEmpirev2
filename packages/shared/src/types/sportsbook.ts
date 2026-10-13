@@ -2,7 +2,7 @@ export type SportsbookLeagueKey = 'NFL' | 'NBA' | 'MLB' | 'NHL';
 export type SportsbookSelection = 'HOME' | 'AWAY';
 export type SportsbookBetStatus = 'OPEN' | 'WON' | 'LOST' | 'PUSH' | 'VOID';
 /** PULLED (1.8.0-C): the provider dropped or postponed the line; it reopens if the game returns. */
-export type SportsbookEventStatus = 'PRE' | 'LIVE' | 'PULLED' | 'FINAL' | 'VOID';
+export type SportsbookEventStatus = 'PRE' | 'LIVE' | 'PULLED' | 'DISPUTED' | 'FINAL' | 'VOID';
 
 /**
  * 1.8.0-B. Why a line can or cannot take a ticket right now. The server decides this from
@@ -22,6 +22,8 @@ export interface SportsbookEventDto {
   oddsUpdatedAt: string | null;
   homeOdds: number | null;
   awayOdds: number | null;
+  oddsProvider: string;
+  oddsProviderName: string;
   lineState: SportsbookLineState;
 }
 
@@ -30,6 +32,7 @@ export interface SportsbookFeedDto {
   refreshedAt: string | null;
   pollMinutes: number;
   oddsMaxAgeMinutes: number;
+  fallbacks: Array<{ league: SportsbookLeagueKey; provider: string; providerName: string }>;
 }
 
 export interface SportsbookLeagueDto {
@@ -37,6 +40,9 @@ export interface SportsbookLeagueDto {
   name: string;
   eventCount: number;
   openCount: number;
+  activeProvider: string;
+  activeProviderName: string;
+  isFallback: boolean;
 }
 
 export interface SportsbookBoardDto {
@@ -135,6 +141,17 @@ export interface AdminSportsbookUnresolvedDto {
   resultCheckedAt: string | null;
   nextResultCheckAt: string | null;
   resultError: string;
+  resultReviewReason: string;
+  resultReviewAt: string | null;
+  sources: Array<{
+    provider: string;
+    providerName: string;
+    status: 'PRE' | 'LIVE' | 'FINAL' | 'CANCELLED';
+    homeScore: number | null;
+    awayScore: number | null;
+    checkedAt: string | null;
+    error: string;
+  }>;
 }
 
 export interface AdminSportsbookDto {
@@ -161,16 +178,42 @@ export interface AdminSportsbookDto {
     oddsPaused: boolean;
     resultsPaused: boolean;
   };
-  leagues: Array<SportsbookLeagueFeedStatus & { key: SportsbookLeagueKey; name: string; upcoming: number; pulled: number }>;
+  providers: AdminSportsbookProviderDto[];
+  leagues: Array<SportsbookLeagueFeedStatus & {
+    key: SportsbookLeagueKey; name: string; upcoming: number; pulled: number;
+    activeProvider: string; activeProviderName: string; pinnedProvider: string | null; chain: string[];
+  }>;
   exposure: { openTickets: number; openStakeCents: number; openPayoutCents: number };
   settledLast24h: { events: number; tickets: number };
   unresolved: AdminSportsbookUnresolvedDto[];
   review: AdminSportsbookReviewDto;
 }
 
+export interface AdminSportsbookProviderDto {
+  id: string;
+  name: string;
+  configured: boolean;
+  servingLeagues: SportsbookLeagueKey[];
+  feed: {
+    status: SportsbookFeedStatus;
+    lastPolledAt: string | null;
+    lastAttemptAt: string | null;
+    lastSuccessAt: string | null;
+    consecutiveFailures: number;
+    consecutiveSuccesses: number;
+    lastError: string;
+    lastErrorAt: string | null;
+    circuitOpenUntil: string | null;
+  };
+  quota: {
+    used: number; limit: number; remaining: number | null; period: string;
+    lastRunUnits: number; observedAt: string | null; oddsPaused: boolean; resultsPaused: boolean;
+  };
+}
+
 /** 1.8.0-E. One test the first market must pass before leagues or markets are added. */
 export interface AdminSportsbookReviewCriterion {
-  key: 'history' | 'sample' | 'auto' | 'stuck' | 'failures' | 'quota';
+  key: 'history' | 'coverage' | 'sample' | 'auto' | 'stuck' | 'failures' | 'matching' | 'disputes' | 'quota';
   label: string;
   value: string;
   target: string;
@@ -180,6 +223,7 @@ export interface AdminSportsbookReviewCriterion {
 /** 1.8.0-E. Provider usage and grading accuracy over the review window, and whether expansion is earned. */
 export interface AdminSportsbookReviewDto {
   windowDays: number;
+  observedDays: number;
   runs: number;
   failedRuns: number;
   daysWithSnapshots: number;
@@ -188,15 +232,33 @@ export interface AdminSportsbookReviewDto {
   /** Datapoints a full quota period would use at this rate; null before any run. */
   projectedPerPeriod: number | null;
   period: string;
-  settled: { total: number; feed: number; voidedByFeed: number; adminRecheck: number; adminVoid: number };
+  settled: { total: number; feed: number; voidedByFeed: number; adminRecheck: number; adminResolution: number; adminVoid: number };
   hoursToSettle: { median: number | null; p90: number | null };
   stuckOver24h: number;
+  matcherMisses: number;
+  disputes: { open: number; resolved: number; settledWithScore: number; voided: number };
+  providers: Array<{
+    id: string; name: string; runs: number; failedRuns: number; requests: number; units: number;
+    projectedUnitsPerPeriod: number | null; planLimit: number; planPeriod: string; projectedQuotaShare: number | null;
+  }>;
+  leagues: Array<{
+    key: SportsbookLeagueKey; name: string; servedRuns: number; uncoveredRuns: number; failovers: number;
+    offPrimaryRuns: number; offPrimaryShare: number; matcherMisses: number;
+  }>;
+  recommendation: {
+    sportsGameOdds: 'HOLD' | 'NOT_NEEDED' | 'REVIEW';
+    spreadsTotals: 'HOLD' | 'REVIEW';
+    paidPlan: 'HOLD' | 'REVIEW';
+    summary: string;
+  };
   criteria: AdminSportsbookReviewCriterion[];
   ready: boolean;
 }
 
 /** 1.8.0-E release gate: what the feed makes of one live provider snapshot. */
 export interface AdminSportsbookProviderCheckDto {
+  provider: string;
+  providerName: string;
   league: SportsbookLeagueKey;
   date: string;
   checkedAt: string;

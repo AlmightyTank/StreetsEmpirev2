@@ -1,5 +1,6 @@
 import type { AllianceTagDto } from './alliance.js';
 import type { QuestLinkDto, QuestLockDto, RandomEncounterDto } from './api.js';
+import type { AvatarParts } from '../avatar-builder.js';
 
 /** 0.3.0-D. Limits that keep the wire and the rolodex small. Not balance, so they live here. */
 export const WIRE_POST_MAX = 280;
@@ -146,6 +147,9 @@ export interface PlayerDirectoryEntryDto {
   /** Slice F. The site theme this player shows on their profile; optional for older servers. */
   siteTheme?: string | null;
   siteThemeLabel?: string | null;
+  imageUrl?: string | null;
+  avatar?: AvatarParts | null;
+  avatarFrame?: string | null;
 }
 
 export interface PlayerDirectoryDto {

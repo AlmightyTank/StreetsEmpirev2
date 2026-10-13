@@ -146,7 +146,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
   const profileImageUrl = useSession((state) => state.profileSettings.profileImageUrl);
   const profileAvatar = useSession((state) => state.profileSettings.profileAvatar);
   const active = previews[Math.min(activeIndex, Math.max(0, previews.length - 1))];
-  const [collectionPreviewItems] = useState<Record<CosmeticCollectionStyleKey, CosmeticPreviewItemKey>>(() => ({
+  const [collectionPreviewItems] = useState<Partial<Record<CosmeticCollectionStyleKey, CosmeticPreviewItemKey>>>(() => ({
     'urban-ghost': randomCosmeticPreviewItem(),
     'midnight-ops': randomCosmeticPreviewItem(),
     'cartel-gold': randomCosmeticPreviewItem(),
@@ -219,7 +219,6 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
             role="img"
             aria-label={`${displayName}'s avatar shown with ${active.label}`}
           >
-            <img className="se-pass-theme-preview__frame-art" src={itemArtUrl(active.art)} alt="" />
             {profileImageUrl ? (
               <img className="se-pass-theme-preview__frame-avatar" src={profileImageUrl} alt="" />
             ) : profileAvatar ? (
@@ -231,6 +230,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
                 {playerInitials(displayName)}
               </span>
             )}
+            <img className="se-pass-theme-preview__frame-art" src={itemArtUrl(active.art)} alt="" />
           </div>
         ) : active.kind === 'item' && activeCollectionStyle && activeWeapon ? (
           <div className="se-pass-theme-preview__weapon-stage">

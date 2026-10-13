@@ -1,0 +1,129 @@
+/* Easter eggs: the statue, the Konami burst, the joke days and the 404 page. */
+
+/* The statue. Each look-away brings it closer: bigger, and lower in the frame. */
+.se-statue {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin: 10px 0 4px;
+  padding: 12px 8px 8px;
+  overflow: hidden;
+  border: 1px solid var(--se-border, rgba(255, 255, 255, 0.08));
+  border-radius: 3px;
+  background: radial-gradient(ellipse at 50% 100%, rgba(255, 255, 255, 0.06), transparent 70%), #0b0d10;
+}
+
+.se-statue__art {
+  display: block;
+  width: 64px;
+  height: 108px;
+  transform-origin: 50% 100%;
+  transition: width 0.2s ease-out, height 0.2s ease-out;
+}
+
+.se-statue--1 .se-statue__art { width: 96px; height: 160px; }
+.se-statue--2 .se-statue__art { width: 132px; height: 220px; }
+
+.se-statue figcaption {
+  color: var(--se-muted);
+  font-size: 12px;
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+.se-statue--2 figcaption { color: var(--se-accent); font-weight: 700; }
+
+.se-egg-found {
+  display: block;
+  margin-top: 6px;
+  color: var(--se-warn, #ffb547);
+  font-size: 13px;
+}
+
+/* Up, up, down, down... */
+.se-konami-burst {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  color: #ffe14d;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: clamp(32px, 9vw, 88px);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-shadow: 4px 4px 0 #b3261e, 8px 8px 0 #000;
+  animation: se-konami-rise 2.4s steps(12, end) forwards;
+}
+
+@keyframes se-konami-rise {
+  0% { opacity: 0; transform: translateY(40px) scale(0.6); }
+  15% { opacity: 1; transform: translateY(0) scale(1); }
+  75% { opacity: 1; transform: translateY(-20px) scale(1); }
+  100% { opacity: 0; transform: translateY(-80px) scale(1.1); }
+}
+
+html.se-konami body {
+  animation: se-konami-shake 0.5s steps(4, end) 2;
+}
+
+@keyframes se-konami-shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-3px, 2px); }
+  50% { transform: translate(3px, -2px); }
+  75% { transform: translate(-2px, -3px); }
+}
+
+/* The joke days. */
+.se-joke-day .se-btn { flex: none; }
+
+html.se-friday-13 body {
+  box-shadow: inset 0 0 160px rgba(160, 0, 16, 0.28);
+}
+
+html.se-april-fools .se-joke-day strong {
+  color: #6abf4b;
+}
+
+/* 404. */
+.se-not-found {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  max-width: 760px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+
+.se-not-found__art { width: 100%; height: auto; }
+
+.se-not-found__copy h1 {
+  margin: 6px 0 10px;
+  font-size: clamp(24px, 4vw, 34px);
+  font-weight: 900;
+}
+
+.se-not-found__copy .se-btn { margin-top: 8px; }
+
+.se-not-found__unlock { color: var(--se-warn, #ffb547); }
+
+.se-not-found__lamp-glow { animation: se-lamp-flicker 4s infinite; }
+
+@keyframes se-lamp-flicker {
+  0%, 18%, 22%, 62%, 64%, 100% { opacity: 1; }
+  20%, 63% { opacity: 0.25; }
+}
+
+@media (max-width: 560px) {
+  .se-not-found { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .se-not-found__art { max-width: 180px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-konami-burst { animation-duration: 0.01s; animation-delay: 1.6s; animation-fill-mode: backwards; }
+  html.se-konami body { animation: none; }
+  .se-not-found__lamp-glow { animation: none; }
+  .se-statue__art { transition: none; }
+}

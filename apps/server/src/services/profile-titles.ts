@@ -1,4 +1,4 @@
-import type { PublicAwardDto } from '@streets/shared';
+import { EASTER_EGG_LIST, type PublicAwardDto } from '@streets/shared';
 
 const profileTitleLabels: Record<string, string> = {
   'player-level-5-title': 'On the Rise',
@@ -130,6 +130,9 @@ const profileTitleLabels: Record<string, string> = {
   'street-pass-s1-made-man': 'Made Man · Season 1',
   'street-pass-s1-kingpin': 'Kingpin · Season 1',
   'street-pass-s1-badge': 'Street Pass · Season 1',
+
+  // Easter eggs read as found, without a leading "The".
+  ...Object.fromEntries(EASTER_EGG_LIST.map((egg) => [egg.key, egg.title])),
 };
 
 export function isBuiltInProfileTitle(key: string): boolean {

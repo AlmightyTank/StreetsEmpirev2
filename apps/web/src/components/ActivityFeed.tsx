@@ -124,7 +124,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         num(p.thugsLured) ? `${formatNumber(num(p.thugsLured))} thugs lured` : null,
         num(p.beerSpent) ? `${formatNumber(num(p.beerSpent))} beer spent` : null,
         num(p.wounds) ? `${formatNumber(num(p.wounds))} wounded` : null,
-        num(p.npcBounty) ? `+${formatCents(num(p.npcBounty))} bounty` : null,
+        num(p.gangBounty) ? `+${formatCents(num(p.gangBounty))} bounty` : null,
       ].filter(Boolean).join(' · ');
       return {
         text: attacking
@@ -145,7 +145,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           num(p.whoresKilled) ? `${formatNumber(num(p.whoresKilled))} ${attacking ? 'of their' : 'of your'} whores killed` : null,
           num(p.wounds) ? `${formatNumber(num(p.wounds))} of yours wounded` : null,
           num(p.opponentWounds) ? `${formatNumber(num(p.opponentWounds))} of theirs wounded` : null,
-          num(p.npcBounty) ? `+${formatCents(num(p.npcBounty))} bounty` : null,
+          num(p.gangBounty) ? `+${formatCents(num(p.gangBounty))} bounty` : null,
           num(p.lowRidersLost) ? `${formatNumber(num(p.lowRidersLost))} Low-Rider${num(p.lowRidersLost) === 1 ? '' : 's'} lost` : null,
         ].filter(Boolean).join(' · '),
       };
@@ -608,6 +608,31 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       };
     }
 
+    case 'EASTER_EGG_FOUND':
+      return {
+        text: `You found an Easter egg: ${str(p.title, 'a secret')}.`,
+        detail: `${str(p.description)} New title unlocked${p.collection ? ` · ${str(p.collection)} look unlocked` : ''}`,
+      };
+
+    case 'RING_SURFACED':
+      return {
+        text: 'A strange Ring has surfaced in this round.',
+        detail: 'Its bearer cannot be found for a day — unless they attack and break the spell.',
+      };
+
+    case 'RING_STOLEN': {
+      const other = str(p.role === 'LOSER' ? p.to : p.from);
+      return p.role === 'LOSER'
+        ? { text: `The Ring was taken from you${other ? ` by ${other}` : ''}.`, detail: 'Win it back in a raid.' }
+        : { text: `You took the Ring${other ? ` from ${other}` : ''}.`, detail: 'Carry it to the old foundry in Detroit — or hold it until the round ends.' };
+    }
+
+    case 'RING_DESTROYED':
+      return {
+        text: 'The Ring is destroyed.',
+        detail: `${p.rewardCents ? `${formatCents(num(p.rewardCents))} reward · ` : ''}Ring-bearer title unlocked.`,
+      };
+
     case 'LOAN_COLLECTIONS': {
       // 1.6.5-E: into collections, out into recovery, or borrowing restored.
       const to = str(p.to);
@@ -866,6 +891,10 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     LOAN_PAYMENT: 'Loan payment',
     LOAN_INSTALLMENT_MISSED: 'Missed installment',
     LOAN_COLLECTIONS: 'Collections',
+    EASTER_EGG_FOUND: 'Easter egg',
+    RING_SURFACED: 'The Ring',
+    RING_STOLEN: 'The Ring',
+    RING_DESTROYED: 'The Ring',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();

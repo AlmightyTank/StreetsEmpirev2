@@ -15,11 +15,12 @@ import {
   type Ruleset,
 } from '@streets/rules-engine';
 import type { CasinoRoom, CasinoRules, CasinoStatusRules, CasinoStatusTierRules, CasinoVenueRules } from '@streets/rulesets';
-import type { CasinoStatusDto, CasinoStatusTierDto, CasinoVenueDto } from '@streets/shared';
+import { DONT_PANIC_WAGER_CENTS, type CasinoStatusDto, type CasinoStatusTierDto, type CasinoVenueDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActivityService } from './activity.service.js';
 import { bossPresence } from './boss-presence.service.js';
+import { EasterEggService } from './easter-egg.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 
 /**
@@ -326,6 +327,10 @@ export const CasinoStatusService = {
       now: Date;
     },
   ): Promise<void> {
+    // Easter egg: a winning $42 play at any table or machine.
+    if (input.stakeCents === BigInt(DONT_PANIC_WAGER_CENTS) && input.returnCents > input.stakeCents) {
+      await EasterEggService.discoverForPlayer(tx, input.roundPlayerId, 'DONT_PANIC', input.now);
+    }
     if (!ruleset.casino?.status) return;
     const net = input.returnCents - input.stakeCents;
     const jackpot = input.highlight === 'JACKPOT';

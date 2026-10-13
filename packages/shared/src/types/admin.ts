@@ -1019,53 +1019,31 @@ export interface AdminDevBotsDto {
   /** Why dev bots are refused on this server, or null when they are allowed. */
   blockedReason: string | null;
   currentRound: { id: string; name: string; rulesetVersion: string } | null;
-  /** Phase O. What the controls can set, and the seedable crews with whether each is in this round. */
+  /** What the controls can set: the seedable crews with whether each is in this round. */
   controls: {
-    personalities: Array<{ key: string; label: string }>;
-    tiers: string[];
     rivals: Array<{ slug: string; displayName: string; personality: string; inRound: boolean }>;
-    /** Real crews: roster size, how many are in the round, and how many it should carry now. */
-    crews: { roster: number; inRound: number; target: number; spawnEnabled: boolean; nextCrew: string | null };
   };
-  /** Phase I. Read-only operator view of server-run gang pressure. */
-  npcGangSummary: {
+  /** Read-only operator view of encounter-gang pressure for the current round. */
+  encounterGangSummary: {
     generatedAt: string;
     active: number;
-    dueNow: number;
-    acted24h: number;
-    blocked24h: number;
-    /** Phase I. Grudges still open across all gangs, and NPC paybacks that landed in 24h. */
-    openGrudges: number;
-    revenge24h: number;
-    /** Phase J. Blocks NPC gangs hold across the round right now. */
-    heldBlocks: number;
-    /** Phase K. Gangs packing up or on the road. */
-    migrating: number;
-    /** Phase L. Gangs on a run, and gangs gone to ground. */
-    hot: number;
     dormant: number;
-    /** Phase N. Bounties paid in the last day, gangs broken up this round. */
-    bounties24h: { count: number; cents: number };
-    retired: number;
+    /** Blocks encounter gangs hold across the round right now. */
+    heldBlocks: number;
+    /** Grudges still open across all encounter gangs. */
+    openGrudges: number;
     cities: Array<{
       city: string;
       activeGangs: number;
-      dueNow: number;
-      recentHits: number;
-      recentDriveBys: number;
-      recentSpecialRaids: number;
-      recentRevengeHits: number;
-      heldBlocks: string[];
-      /** Phase K. NPC trucks on the road into this city. */
-      inbound: number;
-      nextActionAt: string | null;
+      dormant: number;
+      heldBlocks: number;
     }>;
   };
   bots: Array<{
     accountId: string;
     username: string;
-    /** DEV: a local seed-rival test bot. CREW: a roster crew the server spawned. */
-    kind: 'DEV' | 'CREW';
+    /** DEV: a local seed-rival test bot. */
+    kind: 'DEV';
     isActive: boolean;
     roundsPlayed: number;
     inCurrentRound: {
@@ -1073,59 +1051,6 @@ export interface AdminDevBotsDto {
       displayName: string;
       publicPimpId: number;
       netWorthCents: number;
-      npcGang: {
-        archetype: string;
-        tier: string;
-        aggression: number;
-        ambition: number;
-        discipline: number;
-        nextActionAt: string;
-        lastActionAt: string | null;
-        dormantUntil: string | null;
-        homeCity: string;
-        lastIntent: string | null;
-        lastOutcome: string | null;
-        lastTarget: string | null;
-        lastError: string | null;
-        /** Phase O. The gang id, its personality key, and an operator pause if one is on. */
-        gangId: string;
-        personalityKey: string;
-        paused: { by: string; at: string; reason: string; until: string } | null;
-        /** Phase I. Humans this gang remembers, newest first; expired grudges are dropped. */
-        grudges: Array<{
-          targetName: string;
-          publicPimpId: number;
-          hits: number;
-          lastHitAt: string;
-          expiresAt: string;
-          settledAt: string | null;
-        }>;
-        lastRevenge: { targetName: string; at: string; won: boolean | null } | null;
-        /** Phase J. The gang's turf as of its last tick. */
-        turf: {
-          held: Array<{ districtName: string; cornerThugs: number; minimum: number; pushLandsAt: string | null }>;
-          prospect: { districtName: string; presence: number; needed: number; locals: number } | null;
-          recentLosses: number;
-          pressure: number;
-          lastMove: { kind: string; districtName: string; at: string; detail: string | null } | null;
-        } | null;
-        /** Phase K. Where the gang lives now, and any move it is packing for or driving. */
-        currentCity: string;
-        migration: { status: 'PACKING' | 'MOVING'; toName: string; reason: string; since: string; arrivesAt: string | null } | null;
-        lastMigration: { fromName: string; toName: string; reason: string; at: string } | null;
-        /** Phase M. Public identity and record. */
-        personality: string;
-        crewName: string;
-        crewTag: string;
-        record: { wins: number; losses: number; favoriteMove: string | null; biggestHitCents: number | null; biggestHitTarget: string | null; lastLossTo: string | null };
-        /** Phase L. Momentum as of the last tick, how it reads, and the current or last dormancy. */
-        momentum: number;
-        mood: 'HOT' | 'STEADY' | 'COOLED' | 'DORMANT';
-        dormancy: { reason: string; since: string; until: string; wokeAt: string | null } | null;
-        /** Phase N. Times grounded this round, and the break-up if it happened. */
-        dormancies: number;
-        retired: { reason: string; at: string } | null;
-      } | null;
     } | null;
   }>;
 }
@@ -1495,91 +1420,6 @@ export interface AdminLawPlayerDto {
   cities: Array<{ slug: string; name: string }>;
   /** Null when the round's ruleset keeps no Case. */
   page: LawPageDto | null;
-}
-
-/** Phase O. One operator correction to an NPC gang. Every action needs a reason for the audit log. */
-export type AdminNpcGangControlInput =
-  | { action: 'ACT_NOW'; reason: string }
-  | { action: 'DELAY'; minutes: number; reason: string }
-  | { action: 'PAUSE'; hours?: number; reason: string }
-  | { action: 'WAKE'; reason: string }
-  | { action: 'TUNE'; aggression?: number; ambition?: number; discipline?: number; tier?: string; archetype?: string; reason: string }
-  | { action: 'RESET'; scope: 'MOMENTUM' | 'GRUDGES' | 'MIGRATION'; reason: string };
-
-/** Phase O. Everything an operator needs to see about one gang. */
-export interface AdminNpcGangInspectDto {
-  gangId: string;
-  roundPlayerId: string;
-  displayName: string;
-  crewName: string;
-  tier: string;
-  archetype: string;
-  personality: string;
-  aggression: number;
-  ambition: number;
-  discipline: number;
-  nextActionAt: string;
-  dormantUntil: string | null;
-  paused: { by: string; at: string; reason: string; until: string } | null;
-  decisions: Array<{ at: string; intent: string; outcome: string; about: string | null; won: boolean | null; error: string | null }>;
-  /** The raw scheduler memory, for anything the panel does not summarize. */
-  memory: unknown;
-  audit: Array<{ at: string; actor: string; action: string; reason: string | null }>;
-}
-
-export interface AdminNpcGangControlResultDto {
-  message: string;
-  gang: AdminNpcGangInspectDto;
-}
-
-/** Phase P. Which stretch an NPC balance report covers. */
-export type AdminNpcTelemetryWindow = '24h' | '7d' | 'season';
-
-/** Phase P. Measured NPC gang behavior over a window, for tuning from data. */
-export interface AdminNpcTelemetryDto {
-  window: AdminNpcTelemetryWindow;
-  roundName: string | null;
-  from: string;
-  to: string;
-  days: number;
-  activeHumans: number;
-  gangs: number;
-  /** NPC hits on human crews, from the NPC side. */
-  hits: { total: number; won: number; winRate: number | null; perActiveHumanPerDay: number | null; byKind: Record<string, number> };
-  /** Human hits on NPC crews, from the human side. */
-  humanHits: { total: number; won: number; winRate: number | null };
-  drain: {
-    cashFromHumansCents: number;
-    productFromHumans: number;
-    cashFromNpcsCents: number;
-    productFromNpcs: number;
-    bounties: number;
-    bountiesCents: number;
-  };
-  encounters: {
-    total: number;
-    resolved: number;
-    pending: number;
-    expired: number;
-    perActiveHumanPerDay: number | null;
-    byTrigger: Record<string, number>;
-    impact: {
-      cashCents: number;
-      heat: number;
-      condoms: number;
-      medicine: number;
-      crack: number;
-      beer: number;
-    };
-  };
-  byCity: Array<{ city: string; hits: number; won: number; winRate: number | null; cashFromHumansCents: number }>;
-  byTier: Array<{ tier: string; hits: number; won: number; winRate: number | null }>;
-  byPersonality: Array<{ personality: string; hits: number; won: number; winRate: number | null }>;
-  /** Scheduler counters: outcomes, blocked reasons by code, and why targets were passed over. */
-  outcomes: Record<string, number>;
-  blocked: Record<string, number>;
-  skips: Record<string, number>;
-  rates: { blocked: number | null; layLow: number | null; dogpileSkips: number | null };
 }
 
 /** 1.6.5-F. One borrower in a round, for the admin loan overview. */

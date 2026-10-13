@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ProviderSession,
-  diagnoseProviderEvent,
-  summarizeSnapshot,
   isResultCheckDue,
-  providerOutcome,
   resultBackoffMinutes,
-  retryAfterMs,
   snapshotCoverage,
   sportsbookOddsCacheDue,
   sportsbookPollDates,
   shouldPollSportsbookDate,
-  singleEventFromPayload,
 } from '../sportsbook-feed.service.js';
+import { retryAfterMs } from '../sportsbook/sportsbook-provider.js';
+import {
+  TheRundownProviderSession as ProviderSession,
+  diagnoseProviderEvent,
+  providerOutcome,
+  singleEventFromPayload,
+  summarizeSnapshot,
+} from '../sportsbook/therundown.provider.js';
 
 function reply(status: number, body: unknown = { events: [] }, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });

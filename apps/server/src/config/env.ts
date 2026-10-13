@@ -140,8 +140,10 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).optional(),
   MAINTENANCE_MESSAGE: z.string().max(280).default('StreetsEmpire is down for maintenance. Everything you own is safe; check back shortly.'),
   EMAIL_VERIFICATION_TTL_MINUTES: z.coerce.number().int().positive().default(60),
-  /** 1.8.0-A. Server-only odds provider key; empty keeps the sportsbook feed disabled. */
+  /** Server-only provider keys. Empty leaves that adapter disabled. */
   THERUNDOWN_API_KEY: z.string().default(''),
+  THE_ODDS_API_KEY: z.string().default(''),
+  SPORTSGAMEODDS_API_KEY: z.string().default(''),
   /** Shared cached snapshot cadence; deliberately no faster than 15 minutes on free delayed data. */
   SPORTSBOOK_POLL_MINUTES: z.coerce.number().int().min(30).max(180).default(30),
 });

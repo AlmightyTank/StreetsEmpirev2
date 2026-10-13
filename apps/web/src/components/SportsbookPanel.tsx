@@ -80,9 +80,12 @@ function sideOdds(event: SportsbookEventDto, selection: SportsbookSelection): nu
 }
 
 function feedLine(feed: SportsbookFeedDto, now: number): { tone: 'good' | 'warn' | 'off'; text: string } {
+  const fallback = feed.fallbacks.length
+    ? ` · ${feed.fallbacks.map((row) => `${row.league} using ${row.providerName}`).join(', ')}`
+    : '';
   switch (feed.status) {
     case 'FRESH':
-      return { tone: 'good', text: `Lines updated ${formatAgo(feed.refreshedAt!, now)} · refreshed about every ${feed.pollMinutes} min` };
+      return { tone: 'good', text: `Lines updated ${formatAgo(feed.refreshedAt!, now)} · refreshed about every ${feed.pollMinutes} min${fallback}` };
     case 'STALE':
       return { tone: 'warn', text: `Odds last updated ${formatAgo(feed.refreshedAt!, now)}. Betting is paused until the feed refreshes.` };
     case 'WAITING':

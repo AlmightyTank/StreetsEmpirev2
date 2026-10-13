@@ -4,8 +4,9 @@ import type { RandomEncounterDto } from '@streets/shared';
 import { eventCatalogForRuleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import type { PlayerState } from './action.service.js';
+import { EncounterGangService } from './encounter-gang.service.js';
 
-type EncounterEffectSource = Pick<RandomEncounterEntryRules, 'cash' | 'heat' | 'supplies'>;
+type EncounterEffectSource = Pick<RandomEncounterEntryRules, 'cash' | 'heat' | 'supplies' | 'turns' | 'thugs' | 'woundedThugs' | 'whores' | 'lowRiders'>;
 type EncounterEffects = RandomEncounterDto['effects'];
 type SupplyEffectKey = 'condoms' | 'medicine' | 'crack' | 'beer';
 
@@ -105,6 +106,11 @@ function cashEffect(value: Prisma.JsonValue | unknown): RandomEncounterDto['effe
     ...(typeof source?.medicine === 'number' ? { medicine: source.medicine } : {}),
     ...(typeof source?.crack === 'number' ? { crack: source.crack } : {}),
     ...(typeof source?.beer === 'number' ? { beer: source.beer } : {}),
+    ...(typeof source?.turns === 'number' ? { turns: source.turns } : {}),
+    ...(typeof source?.thugs === 'number' ? { thugs: source.thugs } : {}),
+    ...(typeof source?.woundedThugs === 'number' ? { woundedThugs: source.woundedThugs } : {}),
+    ...(typeof source?.whores === 'number' ? { whores: source.whores } : {}),
+    ...(typeof source?.lowRiders === 'number' ? { lowRiders: source.lowRiders } : {}),
   };
 }
 
@@ -140,6 +146,8 @@ function cappedDelta(current: number, desired: number): number {
 }
 
 export function capRandomEncounterEffects(effects: EncounterEffects, next: PlayerState): EncounterEffects {
+  const fitThugs = Math.max(0, next.thugs - next.woundedThugs - next.busyThugs - next.postedThugs - next.businessThugs - next.dealerThugs);
+  const workingWhores = Math.max(0, next.whores - next.businessWhores);
   return {
     ...(effects.cashCents
       ? { cashCents: effects.cashCents < 0 ? -Math.min(Math.abs(effects.cashCents), Number(next.cashCents)) : effects.cashCents }
@@ -149,6 +157,13 @@ export function capRandomEncounterEffects(effects: EncounterEffects, next: Playe
     ...(effects.medicine ? { medicine: cappedDelta(next.medicine, effects.medicine) } : {}),
     ...(effects.crack ? { crack: cappedDelta(next.crack, effects.crack) } : {}),
     ...(effects.beer ? { beer: cappedDelta(next.beer, effects.beer) } : {}),
+    ...(effects.turns ? { turns: cappedDelta(next.turns, effects.turns) } : {}),
+    ...(effects.thugs ? { thugs: effects.thugs < 0 ? -Math.min(Math.abs(effects.thugs), fitThugs) : effects.thugs } : {}),
+    ...(effects.woundedThugs ? { woundedThugs: effects.woundedThugs < 0
+      ? -Math.min(Math.abs(effects.woundedThugs), next.woundedThugs)
+      : Math.min(effects.woundedThugs, fitThugs) } : {}),
+    ...(effects.whores ? { whores: effects.whores < 0 ? -Math.min(Math.abs(effects.whores), workingWhores) : effects.whores } : {}),
+    ...(effects.lowRiders ? { lowRiders: cappedDelta(next.lowRiders, effects.lowRiders) } : {}),
   };
 }
 
@@ -161,6 +176,11 @@ export function applyRandomEncounterEffects(next: PlayerState, effects: Encounte
     medicine: effects.medicine ? next.medicine + effects.medicine : next.medicine,
     crack: effects.crack ? next.crack + effects.crack : next.crack,
     beer: effects.beer ? next.beer + effects.beer : next.beer,
+    turns: effects.turns ? next.turns + effects.turns : next.turns,
+    thugs: effects.thugs ? next.thugs + effects.thugs : next.thugs,
+    woundedThugs: effects.woundedThugs ? next.woundedThugs + effects.woundedThugs : next.woundedThugs,
+    whores: effects.whores ? next.whores + effects.whores : next.whores,
+    lowRiders: effects.lowRiders ? next.lowRiders + effects.lowRiders : next.lowRiders,
   };
 }
 
@@ -171,6 +191,10 @@ function rollEffects(source: EncounterEffectSource, next: PlayerState, rng: () =
   };
   for (const key of SUPPLY_EFFECT_KEYS) {
     const rule = source.supplies?.[key];
+    if (rule) effects[key] = randomInt(rule.min, rule.max, rng);
+  }
+  for (const key of ['turns', 'thugs', 'woundedThugs', 'whores', 'lowRiders'] as const) {
+    const rule = source[key];
     if (rule) effects[key] = randomInt(rule.min, rule.max, rng);
   }
   return capRandomEncounterEffects(effects, next);
@@ -323,7 +347,7 @@ async function persistFirstClassEncounter(
   if (!settlement.encounter) return settlement;
   const key = encounterDefinitionKey(trigger, entry.key);
   const catalogEntry = eventCatalogForRuleset(ruleset).find((candidate) => candidate.type === 'RANDOM_ENCOUNTER' && candidate.key === key);
-  if (!catalogEntry) return { next: input.next };
+  if (!catalogEntry && !entry.key.startsWith('street-gang:')) return { next: input.next };
   const player = await input.tx.roundPlayer.findUnique({ where: { id: input.roundPlayerId }, select: { roundId: true } });
   const definition = await input.tx.gameEventDefinition.upsert({
     where: { rulesetId_rulesetVersion_key: { rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version, key } },
@@ -335,10 +359,10 @@ async function persistFirstClassEncounter(
       scope: 'PLAYER',
       title: entry.title,
       description: entry.text,
-      schedule: inputJson(catalogEntry.schedule),
+      schedule: inputJson(catalogEntry?.schedule ?? { kind: 'ACTION_TRIGGER', trigger }),
       objectives: inputJson([]),
       rewards: inputJson([]),
-      config: inputJson(catalogEntry.config),
+      config: inputJson(catalogEntry?.config ?? { trigger, entryKey: entry.key }),
       sourceKind: 'RANDOM_ENCOUNTER_ENTRY',
       sourceKey: entry.key,
     },
@@ -449,6 +473,8 @@ async function rollFirstClassEncounter(input: ActionEncounterInput & { district?
     (!entry.districts || !input.district || entry.districts.includes(input.district))
     && !recentKeys.has(encounterDefinitionKey(triggerKey, entry.key)),
   );
+  const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: triggerKey, district: input.district, state: input.next, now: input.now, rng });
+  if (gang && !recentKeys.has(encounterDefinitionKey(triggerKey, gang.key))) eligible.push(gang);
   const picked = pickWeighted(eligible, rng);
   return picked
     ? persistFirstClassEncounter(input, input.ruleset, triggerKey, picked, settle(picked, input.next, rng))
@@ -472,6 +498,8 @@ async function rollActionTrigger(input: ActionEncounterInput, triggerKey: Random
   if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
   const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
+  const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: triggerKey, state: input.next, now: input.now, rng });
+  if (gang && !recentKeys.has(gang.key)) eligible.push(gang);
   const picked = pickWeighted(eligible, rng);
   return picked ? persistEncounter(input, triggerKey, settle(picked, input.next, rng)) : { next: input.next };
 }
@@ -555,6 +583,8 @@ export const RandomEncounterService = {
       (!entry.districts || entry.districts.includes(input.district)) &&
       !recentKeys.has(entry.key),
     );
+    const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: 'SCOUT', district: input.district, state: input.next, now: input.now, rng });
+    if (gang && !recentKeys.has(gang.key)) eligible.push(gang);
     const picked = pickWeighted(eligible, rng);
     return picked ? persistEncounter(input, 'SCOUT', settle(picked, input.next, rng)) : { next: input.next };
   },
@@ -578,6 +608,8 @@ export const RandomEncounterService = {
     if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
     const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
+    const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: 'PRODUCE', state: input.next, now: input.now, rng });
+    if (gang && !recentKeys.has(gang.key)) eligible.push(gang);
     const picked = pickWeighted(eligible, rng);
     return picked ? persistEncounter(input, 'PRODUCE', settle(picked, input.next, rng)) : { next: input.next };
   },
@@ -606,6 +638,8 @@ export const RandomEncounterService = {
     if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
     const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
+    const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: 'TRAVEL', state: input.next, now: input.now, rng });
+    if (gang && !recentKeys.has(gang.key)) eligible.push(gang);
     const picked = pickWeighted(eligible, rng);
     return picked ? persistEncounter(input, 'TRAVEL', settle(picked, input.next, rng)) : { next: input.next };
   },

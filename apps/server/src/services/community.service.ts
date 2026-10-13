@@ -826,7 +826,7 @@ export const CommunityService = {
         startsAt: true,
         endsAt: true,
         players: {
-          where: { nationalRank: { not: null, lte: 10 }, account: { isActive: true }, npcGang: { is: null } },
+          where: { nationalRank: { not: null, lte: 10 }, account: { isActive: true } },
           orderBy: [{ nationalRank: 'asc' }, { netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
           select: {
             nationalRank: true,
@@ -874,7 +874,7 @@ export const CommunityService = {
             null,
             round.endsAt,
           ),
-          prisma.roundPlayer.count({ where: { roundId: round.id, npcGang: { is: null } } }),
+          prisma.roundPlayer.count({ where: { roundId: round.id } }),
         ]);
         return {
           id: round.id,
@@ -926,14 +926,42 @@ export const CommunityService = {
     await RelocationService.settleDue(prisma, player.roundId, now);
     const [nationalRows, localRows] = await Promise.all([
       prisma.roundPlayer.findMany({
-        where: { roundId: player.roundId, account: { isActive: true }, npcGang: { is: null } },
-        include: { city: true, alliance: { select: { name: true, tag: true } } },
+        where: { roundId: player.roundId, account: { isActive: true } },
+        include: {
+          city: true,
+          alliance: { select: { name: true, tag: true } },
+          account: {
+            select: {
+              profile: {
+                select: {
+                  profileImageUrl: true,
+                  profileAvatar: true,
+                  activeAvatarFrameKey: true,
+                },
+              },
+            },
+          },
+        },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: topCount,
       }),
       prisma.roundPlayer.findMany({
-        where: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true }, npcGang: { is: null } },
-        include: { city: true, alliance: { select: { name: true, tag: true } } },
+        where: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } },
+        include: {
+          city: true,
+          alliance: { select: { name: true, tag: true } },
+          account: {
+            select: {
+              profile: {
+                select: {
+                  profileImageUrl: true,
+                  profileAvatar: true,
+                  activeAvatarFrameKey: true,
+                },
+              },
+            },
+          },
+        },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: topCount,
       }),
@@ -955,8 +983,20 @@ export const CommunityService = {
     }, now);
 
     return {
-      national: national.map((entry, index) => ({ ...entry, ...themeTagFields(themeTags.get(nationalRows[index]!.accountId)) })),
-      local: local.map((entry, index) => ({ ...entry, ...themeTagFields(themeTags.get(localRows[index]!.accountId)) })),
+      national: national.map((entry, index) => ({
+        ...entry,
+        imageUrl: nationalRows[index]!.account.profile?.profileImageUrl ?? null,
+        avatar: readAvatarParts(nationalRows[index]!.account.profile?.profileAvatar),
+        avatarFrame: nationalRows[index]!.account.profile?.activeAvatarFrameKey ?? null,
+        ...themeTagFields(themeTags.get(nationalRows[index]!.accountId)),
+      })),
+      local: local.map((entry, index) => ({
+        ...entry,
+        imageUrl: localRows[index]!.account.profile?.profileImageUrl ?? null,
+        avatar: readAvatarParts(localRows[index]!.account.profile?.profileAvatar),
+        avatarFrame: localRows[index]!.account.profile?.activeAvatarFrameKey ?? null,
+        ...themeTagFields(themeTags.get(localRows[index]!.accountId)),
+      })),
       localCity: toCityDto(player.city),
       me: {
         publicPimpId: player.publicPimpId,
@@ -992,7 +1032,7 @@ export const CommunityService = {
 
     const [nationalAhead, localAhead, forumLink] = await Promise.all([
       prisma.roundPlayer.count({
-        where: { roundId, netWorthCents: { gt: player.netWorthCents }, account: { isActive: true }, npcGang: { is: null } },
+        where: { roundId, netWorthCents: { gt: player.netWorthCents }, account: { isActive: true } },
       }),
       prisma.roundPlayer.count({
         where: {
@@ -1000,7 +1040,6 @@ export const CommunityService = {
           cityId: player.cityId,
           netWorthCents: { gt: player.netWorthCents },
           account: { isActive: true },
-          npcGang: { is: null },
         },
       }),
       // Same rules as the forum-side lookup: linking enabled and the current forum only.

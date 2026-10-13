@@ -12,6 +12,7 @@ import { UpdateBanner } from '../components/UpdateBanner.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.js';
 import { useScrollableRegions } from '../hooks/useScrollableRegions.js';
 import { SiteThemeDecor } from '../components/SiteThemeDecor.js';
+import { AvatarPortrait } from '../components/BuiltAvatar.js';
 import { usePageTheme } from '../stores/pageTheme.js';
 import { useSession } from '../stores/session.js';
 import { formatWhen } from '../utils/time.js';
@@ -252,6 +253,7 @@ function initialsOf(name: string): string {
 function AccountMenu({ onLogout }: { onLogout: () => void }) {
   const account = useSession((s) => s.account);
   const me = useSession((s) => s.me);
+  const profile = useSession((s) => s.profileSettings);
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -284,7 +286,14 @@ function AccountMenu({ onLogout }: { onLogout: () => void }) {
       <button ref={button} type="button" className="se-account__button"
         aria-label={`Account menu, ${account.username}`}
         aria-expanded={open} aria-controls="se-account-menu" onClick={() => setOpen((value) => !value)}>
-        <span className="se-account__avatar" aria-hidden="true">{initialsOf(account.username)}</span>
+        <span className={`se-account__avatar${profile.activeAvatarFrameKey ? ' se-account__avatar--framed' : ''}`} aria-hidden="true">
+          <AvatarPortrait
+            imageUrl={profile.profileImageUrl}
+            avatar={profile.profileAvatar}
+            fallback={initialsOf(account.username)}
+            frameKey={profile.activeAvatarFrameKey}
+          />
+        </span>
         <span className="se-account__name">
           {me?.alliance ? <span className="se-alliance-tag" title={me.alliance.name}>[{me.alliance.tag}]</span> : null}
           {account.username}

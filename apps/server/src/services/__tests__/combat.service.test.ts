@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { RoundPlayer } from '@prisma/client';
 import { classicOgV02, classicOgV02D, classicOgV02E } from '@streets/rulesets';
-import { combatAttackerBlock, combatProtectionUntil, combatTargetBlock } from '../combat.service.js';
+import { combatAttackerBlock, combatProtectionUntil, combatTargetBlock, driveByTargetBlock, specialRaidTargetBlock } from '../combat.service.js';
+import { ringInvisibilityBlock } from '../ring.service.js';
 
 const model = classicOgV02.combat;
 const old = new Date('2026-09-08T00:00:00.000Z');
@@ -106,5 +107,26 @@ describe('combat eligibility helpers', () => {
       lastActiveAt: new Date('2026-09-09T23:00:00.000Z'),
       lastRaidedAt: new Date('2026-09-09T23:30:00.000Z'),
     }), model, now)).toContain('not returned');
+  });
+
+  it('hides a vanished Ring-bearer from every kind of hit, then names them again', () => {
+    const attacker = player({ id: 'attacker', accountId: 'attacker-account' });
+    const vanished = player({
+      id: 'defender', accountId: 'defender-account', publicPimpId: 1001,
+      invisibleUntil: new Date('2026-09-10T01:00:00.000Z'),
+    });
+    const revealed = player({
+      id: 'defender', accountId: 'defender-account', publicPimpId: 1001,
+      invisibleUntil: new Date('2026-09-09T23:00:00.000Z'),
+    });
+    expect(ringInvisibilityBlock(vanished, now)).toContain('vanished');
+    expect(ringInvisibilityBlock(revealed, now)).toBeNull();
+    expect(combatTargetBlock(attacker, vanished, model, now)).toContain('vanished');
+    expect(combatTargetBlock(attacker, revealed, model, now)).toBeNull();
+    // Revenge does not bypass the spell.
+    expect(combatTargetBlock(attacker, vanished, classicOgV02E.combat, now, true)).toContain('vanished');
+    expect(driveByTargetBlock(attacker, vanished, model, now)).toContain('vanished');
+    expect(driveByTargetBlock(attacker, revealed, model, now)).toBeNull();
+    expect(specialRaidTargetBlock(attacker, vanished, model, 'STEAL_RIDE', now)).toContain('vanished');
   });
 });

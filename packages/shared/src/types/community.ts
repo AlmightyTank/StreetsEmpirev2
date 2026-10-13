@@ -180,6 +180,10 @@ export interface RankingEntryDto {
   rank: number;
   publicPimpId: number;
   displayName: string;
+  /** Public avatar shown beside the player's name. */
+  imageUrl?: string | null;
+  avatar?: AvatarParts | null;
+  avatarFrame?: string | null;
   city: CityDto;
   netWorthCents: number;
   rankHeldSinceAt: string;
@@ -199,6 +203,9 @@ export interface TerritoryCrewStandingDto {
   rank: number;
   publicPimpId: number;
   displayName: string;
+  imageUrl?: string | null;
+  avatar?: AvatarParts | null;
+  avatarFrame?: string | null;
   alliance: AllianceTagDto | null;
   heldSeconds: number;
   currentBlocks: number;

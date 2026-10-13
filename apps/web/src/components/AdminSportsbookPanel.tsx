@@ -25,7 +25,7 @@ const ago = (iso: string | null) => (iso ? formatAgo(iso) : 'never');
 
 /**
  * 1.8.0-C. Sportsbook feed health for staff: last success and attempt, failures, quota, each
- * league, and games whose result never arrived. The two repairs (recheck, void) are audited.
+ * league, and games whose result never arrived. Rechecks, dispute resolutions and voids are audited.
  */
 export function AdminSportsbookPanel() {
   const [data, setData] = useState<AdminSportsbookDto | null>(null);
@@ -34,6 +34,7 @@ export function AdminSportsbookPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [checkLeague, setCheckLeague] = useState<SportsbookLeagueKey>('NBA');
+  const [checkProvider, setCheckProvider] = useState('therundown');
   const [check, setCheck] = useState<AdminSportsbookProviderCheckDto | null>(null);
   const [checking, setChecking] = useState(false);
 
@@ -41,7 +42,7 @@ export function AdminSportsbookPanel() {
     setChecking(true);
     setError(null);
     try {
-      setCheck(await adminApi.sportsbookProviderCheck(checkLeague));
+      setCheck(await adminApi.sportsbookProviderCheck(checkLeague, checkProvider));
       await load();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'The provider check did not go through.');
@@ -52,7 +53,11 @@ export function AdminSportsbookPanel() {
 
   const load = useCallback(async () => {
     try {
-      setData(await adminApi.sportsbook());
+      const next = await adminApi.sportsbook();
+      setData(next);
+      setCheckProvider((current) => next.providers.some((provider) => provider.configured && provider.id === current)
+        ? current
+        : next.providers.find((provider) => provider.configured)?.id ?? current);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not load sportsbook feed health.');
     }
@@ -76,7 +81,7 @@ export function AdminSportsbookPanel() {
     }
   }
 
-  async function voidGame(eventId: string, label: string, tickets: number) {
+  async function voidGame(eventId: string, label: string, tickets: number, disputed = false) {
     const ok = await confirmAction({
       title: `Void ${label}?`,
       body: `Refunds the stake on ${tickets} open ticket${tickets === 1 ? '' : 's'}. This cannot be undone, and a result that arrives later is ignored.`,
@@ -85,7 +90,24 @@ export function AdminSportsbookPanel() {
     });
     if (!ok) return;
     await run(eventId, async () => {
-      const result = await adminApi.sportsbookVoid(eventId, reason.trim());
+      const result = disputed
+        ? await adminApi.sportsbookResolve(eventId, { action: 'VOID', reason: reason.trim() })
+        : await adminApi.sportsbookVoid(eventId, reason.trim());
+      setReason('');
+      return result;
+    });
+  }
+
+  async function resolveGame(eventId: string, label: string, provider: string, providerName: string, awayScore: number, homeScore: number) {
+    const ok = await confirmAction({
+      title: `Settle ${label}?`,
+      body: `Uses ${providerName}'s final score of ${awayScore}-${homeScore}. This pays every open ticket and cannot be undone.`,
+      confirmLabel: 'Settle tickets',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    await run(eventId, async () => {
+      const result = await adminApi.sportsbookResolve(eventId, { action: 'SETTLE', provider, reason: reason.trim() });
       setReason('');
       return result;
     });
@@ -127,17 +149,48 @@ export function AdminSportsbookPanel() {
             </Alert>
           ) : null}
 
+          <h3 className="se-label se-mt">Providers</h3>
+          <div className="se-tablewrap">
+            <table className="se-table se-table--cards se-sportsbook-admin">
+              <caption className="se-sr">Sportsbook provider health</caption>
+              <thead><tr><th>Provider</th><th>Status</th><th>Serving</th><th>Quota</th><th>Circuit</th></tr></thead>
+              <tbody>{data.providers.map((provider) => (
+                <tr key={provider.id}>
+                  <td className="se-td--title">{provider.name}<br /><span className="se-muted">{provider.configured ? provider.id : 'not configured'}</span></td>
+                  <td data-label="Status">{FEED_LABEL[provider.feed.status]}<br /><span className="se-muted">last success {ago(provider.feed.lastSuccessAt)}</span></td>
+                  <td data-label="Serving">{provider.servingLeagues.join(', ') || '—'}</td>
+                  <td data-label="Quota">{provider.quota.remaining === null ? 'unknown' : formatNumber(provider.quota.remaining)}<br /><span className="se-muted">{formatNumber(provider.quota.lastRunUnits)} last run</span></td>
+                  <td data-label="Circuit">{provider.feed.circuitOpenUntil ? <>Open until {adminWhen(provider.feed.circuitOpenUntil)}</> : <>Closed<br /><span className="se-muted">{formatNumber(provider.feed.consecutiveFailures)} failed · {formatNumber(provider.feed.consecutiveSuccesses)} healthy</span></>}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+
           <div className="se-tablewrap se-mt">
             <table className="se-table se-table--cards">
               <caption className="se-sr">Odds feed by league</caption>
-              <thead><tr><th>League</th><th>Last success</th><th className="se-table__number">Upcoming</th><th className="se-table__number">Pulled</th><th className="se-table__number">Seen last run</th><th>Last error</th></tr></thead>
+              <thead><tr><th>League</th><th>Source</th><th>Last success</th><th className="se-table__number">Upcoming</th><th className="se-table__number">Pulled</th><th>Controls</th><th>Last error</th></tr></thead>
               <tbody>{data.leagues.map((league) => (
                 <tr key={league.key}>
                   <td className="se-td--title">{league.name}</td>
+                  <td data-label="Source">{league.activeProviderName}{league.pinnedProvider ? <><br /><span className="se-muted">pinned</span></> : null}</td>
                   <td data-label="Last success">{league.lastSuccessAt ? adminWhen(league.lastSuccessAt) : 'never'}</td>
                   <td data-label="Upcoming" className="se-table__number se-num">{formatNumber(league.upcoming)}</td>
                   <td data-label="Pulled" className="se-table__number se-num">{formatNumber(league.pulled)}</td>
-                  <td data-label="Seen last run" className="se-table__number se-num">{formatNumber(league.eventsSeen)}</td>
+                  <td data-label="Controls"><div className="se-admin-actions">
+                    {data.providers.filter((provider) => provider.configured && league.chain.includes(provider.id)).map((provider) => (
+                      <Button key={provider.id} type="button" className="se-btn se-btn--sm"
+                        onClick={() => void run(`pin:${league.key}`, () => adminApi.sportsbookPinProvider(league.key, provider.id))}
+                        disabledReason={busy ? 'Another sportsbook admin action is running.' : league.pinnedProvider === provider.id ? 'Already pinned to this provider.' : null}>
+                        Pin {provider.name}
+                      </Button>
+                    ))}
+                    <Button type="button" className="se-btn se-btn--sm"
+                      onClick={() => void run(`clear:${league.key}`, () => adminApi.sportsbookClearProviderPin(league.key))}
+                      disabledReason={busy ? 'Another sportsbook admin action is running.' : !league.pinnedProvider ? 'This league is already automatic.' : null}>
+                      Clear pin
+                    </Button>
+                  </div></td>
                   <td data-label="Last error">{league.lastError ? <span>{league.lastError}{league.lastErrorAt ? <span className="se-muted"> · {adminWhen(league.lastErrorAt)}</span> : null}</span> : <span className="se-muted">—</span>}</td>
                 </tr>
               ))}</tbody>
@@ -151,7 +204,7 @@ export function AdminSportsbookPanel() {
           </p>
           {data.unresolved.length ? (
             <>
-              <label className="se-label" htmlFor="sportsbook-void-reason">Reason for a void (for the audit log)</label>
+              <label className="se-label" htmlFor="sportsbook-void-reason">Reason for a result decision (for the audit log)</label>
               <textarea id="sportsbook-void-reason" className="se-input se-admin-reason" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
               <div className="se-tablewrap se-mt">
                 <table className="se-table se-table--cards se-sportsbook-admin">
@@ -169,6 +222,14 @@ export function AdminSportsbookPanel() {
                             {formatNumber(row.resultCheckCount)} · last {ago(row.resultCheckedAt)}
                             <br /><span className="se-muted">next {row.nextResultCheckAt ? adminWhen(row.nextResultCheckAt) : 'when due'}</span>
                             {row.resultError ? <><br /><span className="se-bad">{row.resultError}</span></> : null}
+                            {row.resultReviewReason ? <><br /><span className="se-bad">{row.resultReviewReason}</span></> : null}
+                            {row.sources.map((source) => (
+                              <span key={source.provider}><br /><span className="se-muted">
+                                {source.providerName}: {source.status === 'FINAL' && source.homeScore !== null && source.awayScore !== null
+                                  ? `${source.awayScore}-${source.homeScore}` : source.status.toLowerCase()}
+                                {source.error ? ` · ${source.error}` : ''}
+                              </span></span>
+                            ))}
                           </span>
                         </td>
                         <td data-label="Actions">
@@ -177,10 +238,17 @@ export function AdminSportsbookPanel() {
                               disabledReason={working ?? (!data.configured ? 'No provider key on this server.' : null)}>
                               {busy === row.id ? 'Working…' : 'Recheck result'}
                             </Button>
-                            <Button type="button" className="se-btn se-btn--sm se-btn--danger" onClick={() => void voidGame(row.id, label, row.openTickets)}
+                            <Button type="button" className="se-btn se-btn--sm se-btn--danger" onClick={() => void voidGame(row.id, label, row.openTickets, row.status === 'DISPUTED')}
                               disabledReason={working ?? reasonMissing}>
                               Void and refund
                             </Button>
+                            {row.status === 'DISPUTED' ? row.sources.filter((source) => source.status === 'FINAL' && source.homeScore !== null && source.awayScore !== null).map((source) => (
+                              <Button key={source.provider} type="button" className="se-btn se-btn--sm"
+                                onClick={() => void resolveGame(row.id, label, source.provider, source.providerName, source.awayScore!, source.homeScore!)}
+                                disabledReason={working ?? reasonMissing}>
+                                Use {source.providerName} {source.awayScore}-{source.homeScore}
+                              </Button>
+                            )) : null}
                           </div>
                         </td>
                       </tr>
@@ -198,6 +266,12 @@ export function AdminSportsbookPanel() {
               : 'Keep the first market as it is. Add a league or a pregame market only when every check below passes on real beta data.'}
             {' '}Live betting, parlays and player props stay out until separately designed and budgeted.
           </p>
+          <p className="se-hint se-mt">
+            <strong>Decision:</strong> {data.review.recommendation.summary}
+            {' '}SportsGameOdds: {data.review.recommendation.sportsGameOdds.toLowerCase().replace('_', ' ')} ·
+            {' '}spreads/totals: {data.review.recommendation.spreadsTotals.toLowerCase()} ·
+            {' '}paid plan: {data.review.recommendation.paidPlan.toLowerCase()}.
+          </p>
           <div className="se-tablewrap">
             <table className="se-table se-table--cards se-sportsbook-admin">
               <caption className="se-sr">Market expansion readiness checks</caption>
@@ -213,17 +287,56 @@ export function AdminSportsbookPanel() {
             </table>
           </div>
           <p className="se-hint se-mt">
-            {formatNumber(data.review.runs)} feed runs · {formatNumber(data.review.datapointsPerDay)} datapoints a day ·
+            {formatNumber(data.review.observedDays)} observed days · {formatNumber(data.review.runs)} provider runs · {formatNumber(data.review.datapointsPerDay)} units a day ·
             {' '}graded {formatNumber(data.review.settled.feed)} by the feed ({formatNumber(data.review.settled.voidedByFeed)} provider voids),
-            {' '}{formatNumber(data.review.settled.adminRecheck)} by admin recheck, {formatNumber(data.review.settled.adminVoid)} by admin void
+            {' '}{formatNumber(data.review.settled.adminRecheck)} by admin recheck, {formatNumber(data.review.settled.adminResolution)} dispute resolutions, {formatNumber(data.review.settled.adminVoid)} by admin void
             {data.review.hoursToSettle.median !== null ? <> · settled {data.review.hoursToSettle.median}h after the start (median), {data.review.hoursToSettle.p90}h (p90)</> : null}
+          </p>
+          <div className="se-tablewrap se-mt">
+            <table className="se-table se-table--cards se-sportsbook-admin">
+              <caption className="se-sr">Provider usage against current plans</caption>
+              <thead><tr><th>Provider</th><th>Runs</th><th>Requests</th><th>Units used</th><th>Plan projection</th></tr></thead>
+              <tbody>{data.review.providers.map((provider) => (
+                <tr key={provider.id}>
+                  <td className="se-td--title">{provider.name}</td>
+                  <td data-label="Runs">{formatNumber(provider.runs)} ({formatNumber(provider.failedRuns)} failed)</td>
+                  <td data-label="Requests">{formatNumber(provider.requests)}</td>
+                  <td data-label="Units used">{formatNumber(provider.units)}</td>
+                  <td data-label="Plan projection">
+                    {provider.projectedUnitsPerPeriod === null ? 'No usage yet' : `${formatNumber(provider.projectedUnitsPerPeriod)} / ${provider.planLimit ? formatNumber(provider.planLimit) : 'unreported'} ${provider.planPeriod || 'per plan period'}`}
+                    {provider.projectedQuotaShare !== null ? ` (${(provider.projectedQuotaShare * 100).toFixed(1)}%)` : ''}
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+          <div className="se-tablewrap se-mt">
+            <table className="se-table se-table--cards se-sportsbook-admin">
+              <caption className="se-sr">League failover and matching evidence</caption>
+              <thead><tr><th>League</th><th>Served polls</th><th>Failovers</th><th>Time off primary</th><th>Uncovered</th><th>Matcher misses</th></tr></thead>
+              <tbody>{data.review.leagues.map((league) => (
+                <tr key={league.key}>
+                  <td className="se-td--title">{league.name}</td>
+                  <td data-label="Served polls">{formatNumber(league.servedRuns)}</td>
+                  <td data-label="Failovers">{formatNumber(league.failovers)}</td>
+                  <td data-label="Time off primary">{(league.offPrimaryShare * 100).toFixed(1)}% ({formatNumber(league.offPrimaryRuns)} polls)</td>
+                  <td data-label="Uncovered">{formatNumber(league.uncoveredRuns)}</td>
+                  <td data-label="Matcher misses">{formatNumber(league.matcherMisses)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+          <p className="se-hint se-mt">
+            Disputes: {formatNumber(data.review.disputes.open)} open · {formatNumber(data.review.disputes.resolved)} resolved in this window
+            {' '}({formatNumber(data.review.disputes.settledWithScore)} settled with a recorded score, {formatNumber(data.review.disputes.voided)} voided).
+            {' '}“Time off primary” is the share of successful league polls served by a fallback.
           </p>
 
           <h3 className="se-label se-mt">Manual odds pull</h3>
           <p className="se-hint">Fetches and stores the normal shared odds snapshots for NFL, NBA, MLB, and NHL now. Uses provider datapoints and respects the feed lease and quota safeguards.</p>
           <div className="se-actions-row">
             <Button type="button" className="se-btn se-btn--sm" onClick={() => void run('manual-pull', () => adminApi.sportsbookPull())}
-              disabledReason={busy ? 'Another sportsbook admin action is running.' : !data.configured ? 'No provider key on this server.' : data.feed.pollInProgress ? 'A sportsbook feed pull is already running.' : data.quota.oddsPaused ? 'Odds polling is paused near the provider quota limit.' : null}>
+              disabledReason={busy ? 'Another sportsbook admin action is running.' : !data.configured ? 'No provider key on this server.' : data.feed.pollInProgress ? 'A sportsbook feed pull is already running.' : data.providers.filter((provider) => provider.configured).every((provider) => provider.quota.oddsPaused) ? 'Every provider is paused near its quota limit.' : null}>
               {busy === 'manual-pull' ? 'Pulling odds…' : 'Pull odds now'}
             </Button>
           </div>
@@ -235,18 +348,22 @@ export function AdminSportsbookPanel() {
             <select id="sportsbook-check-league" className="se-input se-input--sm" value={checkLeague} onChange={(event) => setCheckLeague(event.target.value as SportsbookLeagueKey)}>
               {data.leagues.map((league) => <option key={league.key} value={league.key}>{league.name}</option>)}
             </select>
+            <label className="se-sr" htmlFor="sportsbook-check-provider">Provider</label>
+            <select id="sportsbook-check-provider" className="se-input se-input--sm" value={checkProvider} onChange={(event) => setCheckProvider(event.target.value)}>
+              {data.providers.filter((provider) => provider.configured && provider.id !== 'espn').map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
+            </select>
             <Button type="button" className="se-btn se-btn--sm" onClick={() => void providerCheck()}
-              disabledReason={checking ? 'The check is running.' : !data.configured ? 'No provider key on this server.' : null}>
+              disabledReason={checking ? 'The check is running.' : !data.providers.some((provider) => provider.configured && provider.id === checkProvider) ? 'Choose a configured provider.' : null}>
               {checking ? 'Checking…' : 'Check provider payload'}
             </Button>
           </div>
           {check ? (
             <div className="se-mt">
-              {check.error ? <Alert>{check.league} {check.date}: {check.error}</Alert> : null}
+              {check.error ? <Alert>{check.providerName} · {check.league} {check.date}: {check.error}</Alert> : null}
               {check.summary ? (
                 <>
                   <p className="se-hint">
-                    {check.league} {check.date}: {formatNumber(check.summary.events)} listings, {formatNumber(check.summary.parsed)} stored by the feed
+                    {check.providerName} · {check.league} {check.date}: {formatNumber(check.summary.events)} listings, {formatNumber(check.summary.parsed)} stored by the feed
                     {check.summary.withoutPrices ? ` (${formatNumber(check.summary.withoutPrices)} without a price yet)` : ''}.
                     {' '}Skipped: {Object.entries(check.summary.skipped).filter(([, value]) => value).map(([key, value]) => `${key.toLowerCase().replaceAll('_', ' ')} ${value}`).join(', ') || 'none'}.
                     {' '}Statuses: {check.summary.statuses.map((row) => `${row.raw} → ${row.outcome.toLowerCase()} (${row.count})`).join(', ') || 'none'}.

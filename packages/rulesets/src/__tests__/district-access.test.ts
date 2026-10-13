@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV18N } from '../classic-og-v1.8-n/index.js';
 import { classicOgV18O } from '../classic-og-v1.8-o/index.js';
+import { ENCOUNTER_GANG_RULES } from '../encounter-gangs.js';
 import { rulesets } from '../index.js';
 import { questRequiredDistricts } from '../quest-definitions.js';
-import type { DistrictKey, QuestDefinition, QuestDefinitionCatalog, Ruleset } from '../types.js';
+import type { DistrictKey, QuestDefinition, QuestDefinitionCatalog, RandomEncounterRules, Ruleset } from '../types.js';
 
 function districtGates(ruleset: Ruleset): Map<DistrictKey, string> {
   const gates = new Map<DistrictKey, string>();
@@ -89,10 +90,15 @@ describe('1.8.0-O district access (Quest Access A)', () => {
     expect(path.has('PAYDAY')).toBe(true);
   });
 
-  it('changes only the district unlocks and the two story jobs from 1.8.0-N', () => {
-    const { meta: _meta, permanentUnlocks, questDefinitions: next, ...rest } = classicOgV18O;
-    const { meta: _baseMeta, permanentUnlocks: baseUnlocks, questDefinitions: base, ...baseRest } = classicOgV18N;
+  it('changes only the district unlocks, encounter gangs, and the two story jobs from 1.8.0-N', () => {
+    const { meta: _meta, permanentUnlocks, questDefinitions: next, randomEncounters: nextEncounters, ...rest } = classicOgV18O;
+    const { meta: _baseMeta, permanentUnlocks: baseUnlocks, questDefinitions: base, randomEncounters: baseEncounters, ...baseRest } = classicOgV18N;
     expect(rest).toEqual(baseRest);
+    const { gangs: nextGangs, ...nextEncounterRest } = nextEncounters! as RandomEncounterRules;
+    const { gangs: _baseGangs, ...baseEncounterRest } = baseEncounters! as RandomEncounterRules;
+    expect(nextEncounterRest).toEqual(baseEncounterRest);
+    expect((baseEncounters! as RandomEncounterRules).gangs).toBeUndefined();
+    expect(nextGangs).toEqual(ENCOUNTER_GANG_RULES);
     expect(permanentUnlocks).toMatchObject(baseUnlocks);
     expect(Object.keys(permanentUnlocks).filter((key) => !(key in baseUnlocks)).sort()).toEqual(['DISTRICT_CASINO_ACCESS', 'DISTRICT_NIGHTCLUB_ACCESS']);
     const nextQuests: QuestDefinitionCatalog = next;

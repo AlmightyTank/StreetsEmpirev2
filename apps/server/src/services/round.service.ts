@@ -8,6 +8,7 @@ import { TurfCrackdownService } from './turf-crackdown.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { StreetPassService } from './street-pass.service.js';
 import { RoundAftermathService } from './round-aftermath.service.js';
+import { RingService } from './ring.service.js';
 
 /**
  * Any current round is joinable until it ends. The lifecycle status is the
@@ -43,7 +44,6 @@ type FinalRankPlayer = {
   localRank: number | null;
   nationalRank: number | null;
   account: { isActive: boolean };
-  npcGang?: unknown | null;
 };
 
 function finalRanks(sortedDesc: Array<{ id: string; netWorthCents: bigint }>): Map<string, number> {
@@ -60,7 +60,7 @@ function finalRanks(sortedDesc: Array<{ id: string; netWorthCents: bigint }>): M
 }
 
 export function finalStandingRanks(players: FinalRankPlayer[]): Map<string, { localRank: number | null; nationalRank: number | null }> {
-  const active = players.filter((player) => player.account.isActive && !player.npcGang);
+  const active = players.filter((player) => player.account.isActive);
   const national = finalRanks(active);
   const byCity = new Map<string, FinalRankPlayer[]>();
   for (const player of active) {
@@ -74,7 +74,7 @@ export function finalStandingRanks(players: FinalRankPlayer[]): Map<string, { lo
 
   return new Map(players.map((player) => [
     player.id,
-    player.account.isActive && !player.npcGang
+    player.account.isActive
       ? { localRank: local.get(player.id) ?? null, nationalRank: national.get(player.id) ?? null }
       : { localRank: null, nationalRank: null },
   ]));
@@ -93,7 +93,6 @@ async function freezeFinalStandings(tx: Db, roundId: string, now: Date): Promise
       localRank: true,
       nationalRank: true,
       account: { select: { isActive: true } },
-      npcGang: { select: { id: true } },
     },
   });
   const ranks = finalStandingRanks(players);
@@ -186,6 +185,8 @@ export const RoundService = {
     await freezeFinalStandings(tx, round.id, freezeAt);
     // Street Pass: a reached, unclaimed permanent cosmetic tier is granted; gameplay rewards expire.
     await StreetPassService.grantUnclaimedCosmetics(tx, round.id, loadRulesetForRound(round), freezeAt);
+    // The Ring: whoever still holds a live Ring gets My Precious.
+    await RingService.grantMyPreciousAtClose(tx, round.id, freezeAt);
 
     const closedAt = options.endsAt && options.endsAt.getTime() < freezeAt.getTime() ? options.endsAt : freezeAt;
     const endsAt = closedAt.getTime() < round.endsAt.getTime() ? closedAt : null;
@@ -270,6 +271,6 @@ export const RoundService = {
   },
 
   playerCount(prisma: PrismaClient, roundId: string): Promise<number> {
-    return prisma.roundPlayer.count({ where: { roundId, account: { isActive: true }, npcGang: { is: null } } });
+    return prisma.roundPlayer.count({ where: { roundId, account: { isActive: true } } });
   },
 };
