@@ -53,6 +53,18 @@ function clearAwayTimer() {
 
 function changeEnvironment(environment) {
   if (settings.environment === environment) return;
+  if (environment === 'beta') {
+    const choice = dialog.showMessageBoxSync(win, {
+      type: 'info',
+      title: 'StreetsEmpire Beta access',
+      message: 'Beta is invite-only.',
+      detail: 'Beta accounts require game administrator approval. This is separate from Windows permissions. For regular gameplay, choose Play Live.',
+      buttons: ['Open Beta', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+    });
+    if (choice !== 0) return;
+  }
   presence.setPresence(null);
   settings.environment = environment;
   saveSettings();
@@ -91,7 +103,7 @@ function buildMenu() {
       submenu: [
         { label: 'Play Live', type: 'radio', checked: settings.environment === 'live',
           click: () => changeEnvironment('live') },
-        { label: 'Play Beta', type: 'radio', checked: settings.environment === 'beta',
+        { label: 'Play Beta (invite-only)', type: 'radio', checked: settings.environment === 'beta',
           click: () => changeEnvironment('beta') },
         { type: 'separator' },
         { label: 'Reload', accelerator: 'CmdOrCtrl+R', click: () => win?.webContents.reload() },
