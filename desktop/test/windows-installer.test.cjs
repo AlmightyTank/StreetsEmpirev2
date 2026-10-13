@@ -4,14 +4,11 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const pkg = require('../package.json');
 
-test('Windows installer is per-user and never asks for elevation', () => {
+test('Windows release is a portable executable with no installer or elevation', () => {
   assert.equal(pkg.build.win.requestedExecutionLevel, 'asInvoker');
-  assert.ok(pkg.build.win.target.includes('nsis'));
-  assert.equal(pkg.build.nsis.oneClick, true);
-  assert.equal(pkg.build.nsis.perMachine, false);
-  assert.equal(pkg.build.nsis.allowElevation, false);
-  assert.equal(pkg.build.nsis.packElevateHelper, false);
-  assert.equal(pkg.build.nsis.runAfterFinish, false);
-  assert.equal(pkg.build.nsis.createDesktopShortcut, true);
-  assert.equal(pkg.build.nsis.createStartMenuShortcut, true);
+  assert.deepEqual(pkg.build.win.target, ['portable']);
+  assert.equal(pkg.build.nsis, undefined);
+  assert.equal(pkg.build.portable.artifactName, 'StreetsEmpire-Portable-${version}.${ext}');
+  assert.match(pkg.scripts['dist:portable'], /electron-builder --win portable --x64/);
+  assert.equal(pkg.scripts['dist:win'], 'npm run dist:portable');
 });
