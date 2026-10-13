@@ -72,10 +72,11 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - Bulk Orders keeps the supplier, product, quantity, price, cash-after-payment and pickup state together. Loan review keeps every fee, surcharge, installment, debt limit and late-payment consequence beside the accept action.
 - Existing idempotency keys, uncertain-result retries, authoritative prices, prerequisites, loan schedules, pickups and API mutations are unchanged.
 
-### F — Casino
-- One Casino destination. Individual games retain deep-linked URLs and their own optimized play surfaces.
-- Unified game selector, betting controls, available cash, results and mobile controls.
-- Preserve sportsbook rules/close times, cache and settlement boundaries.
+### F — Casino (implemented; browser validation pending)
+- **The Casino remains one destination with focused game rooms**: the lobby and every game keep their existing deep-linked URLs and optimized play surfaces under one accessible game selector.
+- **Shared casino conventions** now provide the cash, cage-chip and on-floor bankroll summary plus a reusable, mobile-ready wager stepper across Slots, Blackjack and Street Dice.
+- Slots, Blackjack, Roulette and Street Dice continue to use the common action dock and compact result/full-receipt pattern. Poker and Sports Betting retain controls tailored to multiplayer turns and bet-slip review rather than forcing them into an unsuitable table control.
+- All game APIs, session persistence, table limits, idempotency, sportsbook cache polling, authoritative close times, odds checks and settlement boundaries are unchanged.
 
 ### G — Career: Profile, XP, Street Pass and Events
 - One coherent presentation of level, progress, achievements, titles, unlocks and supporter cosmetics.
