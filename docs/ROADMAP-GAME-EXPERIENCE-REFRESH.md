@@ -95,6 +95,38 @@ No backend routes are removed. Existing direct navigation, quest links and bookm
 - All existing direct URLs remain intact, including account, player and round detail routes. The reorganization changes presentation only; actions, API calls, confirmations and audit trails are unchanged.
 - Admin destinations continue to be added to navigation only when the signed-in account is an admin, and every admin route remains behind the existing server-backed admin and recent second-factor gates.
 
+### K — Dashboard Command Center (on PR #279; do not merge until B/C and QA)
+
+#### Dashboard-A — Structure & information hierarchy (implemented; CI/review pending)
+- Replace name-first hero with a **Command Center** heading, player identity, current city, sync status and a linked city standing.
+- Show **six real-data stat cards**: Cash (with net worth), Turns/regeneration, National Rank, Fit Crew, Turf and Heat.
+- Feature **Main Story** beside **Needs Attention**, then show a full-width row of six fast action shortcuts (Scout, Produce, Raids, Travel, Casino, Quests). Stores remain one click away from Cash/Supplies.
+- Add four high-signal information previews: Crew Status, Product Stock, Supplies, and Territory. No invented betting, production timers, tournament events, or unsupported server stats.
+- Keep rookie onboarding and unresolved encounters accessible before ordinary summaries.
+- Preserve all original detailed management tools and the Activity feed behind clear optional sections.
+- Fix review findings: `#crew-health` now opens the **morale penalty breakdown**, while `#crew-inventory` opens crew/inventory; direct and repeated `#heat`/`#payout` navigation reopens the right section.
+- All layout changes are CSS/grid and existing snapshot and quest reads; no gameplay API or server mutations.
+
+#### Dashboard-B — Cinematic premium visual pass (implemented on PR #279; validation pending)
+- **Three original vector scenes**: city-at-dusk command skyline, atmospheric safehouse/mission story, and a red-lit street/alley for genuinely urgent alerts. Self-contained SVG backgrounds ship with the web app; readability gradients and dark fallbacks avoid any dependency on external images.
+- **Premium KPI cards**: accented SVG icons, top-edge glow, linked real cash, turn regeneration, ranking, crew, turf and heat data.
+- **Main Story** now has illustrated background, chapter status, a readable live objective/progress meter and a premium CTA. All story fields come from the existing Quest DTO.
+- **Attention** uses the red urgent art only for genuine danger (locked/bad Heat, tailed convoy, wounded crew); ordinary reminders keep a calmer accent-colored treatment. Real alerts, counts and direct actions are preserved.
+- **Action deck**: six high-contrast icon cards with distinct restrained color treatment for Scout, Produce, Raids, Casino, Travel and Quests.
+- **Highlights**: crew, production, supplies and territory summaries now have visual line icons and refined card treatment.
+- **Theme/UX safeguards**: uses existing accent/compact-density tokens, dark gradients maintain readable text, responsive container queries, reduced-motion disables hover motion. The artwork never contains fake gameplay data.
+- **Release status**: artwork and code committed; automated checks plus real desktop/mobile visual QA still required.
+
+#### Dashboard-C — Mobile, performance and release polish (implemented; visual-audit results pending)
+- Added content-width-responsive styles for 360/390/768/1024/1440/1920 layouts with two-column phone actions, readable stat wrapping, larger touch controls, stronger focus outlines and optional imagery on low-bandwidth devices.
+- Preserved player accent/supporter site theme styling on the cinematic story CTA, borders, icons and gameplay shells, with reduced-motion and translucent-filter fallbacks.
+- Reduced city skyline SVG from 55,619 to 5,898 bytes (89.4%) using SVG pattern reuse.
+- Centralized warning counts/severity to ensure a lockup is counted even before Heat level is high; warning badges and crisis backgrounds are tested separately.
+- Consolidated hash-to-disclosure selection for crew inventory, happiness, Heat and Payout with coverage for repeat navigation.
+- Extended `scripts/qa/ui-audit.mjs` with `--dashboard`: six real authenticated Chromium snapshots and structural checks (6 stat/action tiles, source order, phone action grid, touch targets, overflow), existing axe-core WCAG, keyboard and runtime checks.
+- Added dedicated `Dashboard Visual Audit` pull-request workflow using an isolated seeded PostgreSQL/API/web environment; captures screenshot artifact `command-center-visual-audit` without a beta/live deployment. See [Dashboard visual QA guide](DASHBOARD-VISUAL-QA.md).
+- **Release gate**: inspect artifact and ensure full CI and visual-audit checks pass before merging PR #279 into `beta`. Human approval of actual screenshots is still required.
+
 ### J — QA, accessibility and performance (automated hardening complete; beta browser validation pending)
 - The real-browser UI audit now checks 360/390/768/1024/1440/1920 widths with reduced motion, touch target and overflow checks, keyboard focus and WCAG axe scans. Desktop coverage includes both expanded and icon-rail sidebars, while the matrix exercises the Casino Floor, Federal Case and Midnight Market premium shell themes.
 - Navigation routing, aliases and admin visibility plus quest ordering and deep-linked focus remain covered. Store baskets now have a validated, player-scoped, one-day persistence contract with merge/remove tests, and Action Dock result controls have an included render contract test.
