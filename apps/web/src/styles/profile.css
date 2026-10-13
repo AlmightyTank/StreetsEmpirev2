@@ -416,6 +416,7 @@
 .se-profile-pagehead__avatar--gilded-house-frame { --se-profile-avatar-frame: #edcf7a; --se-profile-avatar-glow: #edcf7a99; }
 .se-profile-pagehead__avatar--dead-or-alive-frame { --se-profile-avatar-frame: #d2aa76; --se-profile-avatar-glow: #d2aa7699; }
 .se-profile-pagehead__avatar--laurel-ascendant-frame { --se-profile-avatar-frame: #c6db77; --se-profile-avatar-glow: #c6db7799; }
+.se-profile-pagehead__avatar--blackwood-gate-frame { --se-profile-avatar-frame: #6ee7b7; --se-profile-avatar-glow: #34d39999; }
 
 @media (prefers-reduced-motion: reduce) {
   .se-profile-pagehead__avatar--snowstorm-drake,

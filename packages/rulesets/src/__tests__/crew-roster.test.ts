@@ -16,6 +16,7 @@ import { classicOgV18L } from '../classic-og-v1.8-l/index.js';
 import { classicOgV18M } from '../classic-og-v1.8-m/index.js';
 import { classicOgV18N } from '../classic-og-v1.8-n/index.js';
 import { classicOgV18O } from '../classic-og-v1.8-o/index.js';
+import { classicOgV18Q } from '../classic-og-v1.8-q/index.js';
 import { hideoutV2For } from '../hideout-v2.js';
 import { rulesets } from '../index.js';
 import type { Ruleset } from '../types.js';
@@ -25,7 +26,7 @@ describe('1.7.0 crew profile rulesets', () => {
     expect(classicOgV17A.meta).toEqual({ id: 'classic-og-v1.7-a', version: '1.7.0-A', name: 'Classic OG - Individual Roster' });
     expect(rulesets[classicOgV17A.meta.id]).toBe(classicOgV17A);
     // 1.8.0-E builds on 1.7.0-E; later rulesets retain the crew roster.
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18O);
+    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18Q);
     expect(classicOgV18E.crewRoster).toBe(classicOgV17E.crewRoster);
     const earlier = Object.values(rulesets).filter((ruleset) => !/^classic-og-v1\.[78]-/.test(ruleset.meta.id)) as Ruleset[];
     expect(earlier.length).toBeGreaterThan(100);

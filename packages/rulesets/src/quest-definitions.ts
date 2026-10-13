@@ -1,4 +1,4 @@
-import type { QuestDataObject, QuestDefinition, QuestDefinitionCatalog, SecretContentMeta } from './types.js';
+import type { QuestCosmeticCatalog, QuestDataObject, QuestDefinition, QuestDefinitionCatalog, SecretContentMeta } from './types.js';
 
 export const SECRET_TRIGGER_KINDS = [
   'STATE_AT_LEAST',
@@ -440,6 +440,37 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
     }
   }
 
+  return problems;
+}
+
+/**
+ * Cross-check quest cosmetic rewards against the ruleset cosmetic catalog.
+ * The structural validator above only proves a COSMETIC_UNLOCK has a key;
+ * this check proves the key can actually be awarded at claim time.
+ */
+export function questCosmeticProblems(
+  catalog: QuestDefinitionCatalog,
+  cosmetics: QuestCosmeticCatalog | undefined,
+): string[] {
+  const problems: string[] = [];
+  for (const [catalogKey, quest] of Object.entries(catalog)) {
+    for (const reward of quest.rewards) {
+      if (reward.kind !== 'COSMETIC_UNLOCK') continue;
+      const key = reward.key;
+      if (!key || !(key in (cosmetics ?? {}))) {
+        problems.push(`${catalogKey}: COSMETIC_UNLOCK reward ${key ?? '(missing key)'} is not in ruleset cosmetics`);
+      }
+    }
+    for (const branch of quest.branches ?? []) {
+      for (const reward of branch.rewards) {
+        if (reward.kind !== 'COSMETIC_UNLOCK') continue;
+        const key = reward.key;
+        if (!key || !(key in (cosmetics ?? {}))) {
+          problems.push(`${catalogKey}/${branch.key}: COSMETIC_UNLOCK reward ${key ?? '(missing key)'} is not in ruleset cosmetics`);
+        }
+      }
+    }
+  }
   return problems;
 }
 

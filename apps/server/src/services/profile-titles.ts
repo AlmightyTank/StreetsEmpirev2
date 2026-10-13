@@ -125,6 +125,9 @@ const profileTitleLabels: Record<string, string> = {
   'no-paper-trail': 'Clean-Slate Ghost',
   'corner-boss': 'Corner Crown',
 
+  // Hidden Streets titles read as earned case-file titles.
+  'blackwood-gate-badge': 'Blackwood Gatecrasher',
+
   // Street Pass season titles read as named, with their season.
   'street-pass-s1-fresh-face': 'Fresh Face · Season 1',
   'street-pass-s1-made-man': 'Made Man · Season 1',

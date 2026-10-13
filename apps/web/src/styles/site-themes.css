@@ -158,6 +158,28 @@
     linear-gradient(180deg, rgba(10, 20, 38, 0.52), transparent 52%);
 }
 
+/* Hidden Streets Slice D: static, reduced-motion-safe shell reserved for Blackwood finale rewards. */
+.se-site-theme--blackwood-manor {
+  --se-bg: #060b09;
+  --se-panel: #0f1814;
+  --se-panel-hi: #16241d;
+  --se-line: rgba(110, 231, 183, 0.26);
+  --se-line-soft: rgba(148, 163, 184, 0.14);
+  --se-text: #edfdf5;
+  --se-text-dim: #b7c9bd;
+  --se-muted: #82918a;
+  --se-accent: #6ee7b7;
+  --se-accent-dim: #34d399;
+  --se-accent-hover: #a7f3d0;
+  --se-accent-rgb: 110, 231, 183;
+  --se-accent-2: #a3a3a3;
+  background-image:
+    linear-gradient(110deg, rgba(110, 231, 183, 0.05), transparent 28%, rgba(15, 23, 42, 0.22) 78%, transparent),
+    radial-gradient(840px 520px at 88% 0%, rgba(110, 231, 183, 0.16), transparent 58%),
+    radial-gradient(760px 500px at 8% -8%, rgba(148, 163, 184, 0.13), transparent 56%),
+    linear-gradient(180deg, rgba(5, 18, 14, 0.68), transparent 54%);
+}
+
 .se-site-theme--back-office {
   --se-bg: #100c07;
   --se-panel: #1b150e;
