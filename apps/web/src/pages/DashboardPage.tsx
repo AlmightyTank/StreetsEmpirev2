@@ -384,33 +384,20 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
       <div className="se-dashboard">
         <header className="se-dashboard-hero">
           <div className="se-dashboard-hero__identity">
-            <span className="se-eyebrow">Command center · {me.city.name}</span>
-            <h1>
-              {me.displayName}
-              <span className="se-dashboard-hero__id">#{me.publicPimpId}</span>
-            </h1>
-            <p>
-              Run the crew, watch the pressure, and jump straight to the move that matters.
-            </p>
+            <span className="se-eyebrow">StreetsEmpire · ${me.city.name} operation</span>
+            <h1>Command Center</h1>
+            <p><strong>${me.displayName}</strong> <span className="se-dashboard-hero__id">#${me.publicPimpId}</span> · Your empire, your moves. What comes next?</p>
           </div>
           <div className="se-dashboard-hero__status">
-            <div className="se-dashboard-live">
+            <div className="se-dashboard-live" role="status">
               <span className={`se-sync${refreshing ? ' se-sync--busy' : ''}`} aria-hidden />
               <span>{refreshing ? 'Syncing operation' : 'Operation live'}</span>
             </div>
-            <div className="se-dashboard-hero__mini">
-              <HeroTurns turns={me.turns} onTick={() => void refresh(true)} />
-              <span>
-                <small>City rank</small>
-                <strong>{me.rank.local === null ? '—' : `#${formatNumber(me.rank.local)}`}</strong>
-                <em><RankMovement movement={me.rank.localMovement} /></em>
-              </span>
-              <span>
-                <small>National rank</small>
-                <strong>{me.rank.national === null ? '—' : `#${formatNumber(me.rank.national)}`}</strong>
-                <em><RankMovement movement={me.rank.nationalMovement} /></em>
-              </span>
-            </div>
+            <Link to="/game/rankings" className="se-dashboard-hero__ranking">
+              <span>City standing</span>
+              <strong>{me.rank.local === null ? 'Unranked' : `#${formatNumber(me.rank.local)}`}</strong>
+              <span><RankMovement movement={me.rank.localMovement} /></span>
+            </Link>
           </div>
         </header>
 
@@ -420,73 +407,33 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         <PendingEncountersPanel encounters={me.pendingEncounters} />
         <div className="se-dashboard-snapshot" aria-label="Empire at a glance">
           <Link className="se-dashboard-snapshot__tile" to="/game/stores">
-            <span>Cash available</span><strong>{formatCents(me.resources.cashCents)}</strong><small>Trade and restock →</small>
+            <span>Cash</span><strong>{formatCents(me.resources.cashCents)}</strong>
+            <small>Net worth {formatCents(me.netWorthCents)}</small>
+          </Link>
+          <Link className="se-dashboard-snapshot__tile se-dashboard-snapshot__tile--turns" to="/game/scout">
+            <HeroTurns turns={me.turns} onTick={() => void refresh(true)} />
           </Link>
           <Link className="se-dashboard-snapshot__tile" to="/game/rankings">
-            <span>Net worth</span><strong>{formatCents(me.netWorthCents)}</strong><small>See standings →</small>
+            <span>National rank</span><strong>{me.rank.national === null ? '—' : `#${formatNumber(me.rank.national)}`}</strong>
+            <small><RankMovement movement={me.rank.nationalMovement} /></small>
           </Link>
           <Link className="se-dashboard-snapshot__tile" to="/game/crew">
-            <span>Crew ready</span><strong>{formatNumber(me.resources.fitThugs)}</strong><small>{formatNumber(me.resources.woundedThugs)} wounded · Assign crew →</small>
+            <span>Fit crew</span><strong>{formatNumber(me.resources.fitThugs)}</strong>
+            <small>{formatNumber(me.resources.thugs)} total thugs · {formatNumber(me.resources.woundedThugs)} wounded</small>
           </Link>
           <Link className="se-dashboard-snapshot__tile" to="/game/turf">
-            <span>Blocks held</span><strong>{formatNumber(me.turf?.blocksHeld ?? 0)}</strong><small>Manage turf →</small>
+            <span>Turf</span><strong>{me.turf ? formatNumber(me.turf.blocksHeld) : '—'}</strong>
+            <small>{me.turf ? 'Blocks held · Manage territory' : 'Explore turf'}</small>
+          </Link>
+          <Link className="se-dashboard-snapshot__tile" to="/game#heat">
+            <span>Heat</span><strong className={heatState !== 'good' ? 'se-warn' : undefined}>
+              {me.heat ? `${formatNumber(me.heat.heat)} / ${formatNumber(me.heat.max)}` : '—'}
+            </strong>
+            <small>{heatLocked ? 'Locked up · View details' : me.heat ? (heatState === 'good' ? 'Under control' : 'Needs attention') : 'No heat system'}</small>
           </Link>
         </div>
-        <section className="se-dashboard-overview" aria-label="Next steps and quick actions">
+        <section className="se-dashboard-overview" aria-label="Main story and important alerts">
           <DashboardStorySpotlight />
-            <div className="se-dashboard-command__actions">
-              <div className="se-dashboard-sectionhead">
-                <div>
-                  <span className="se-eyebrow">Make a move</span>
-                  <h2>Quick actions</h2>
-                </div>
-              </div>
-              <div className="se-dashboard-actions">
-                <DashboardAction
-                  to="/game/scout"
-                  title="Scout"
-                  detail="Work a district and find cash, crew, and product."
-                  meta={`${formatNumber(me.turns.turns)} turns`}
-                  tone={atTurnCap ? 'warn' : undefined}
-                />
-                <DashboardAction
-                  to="/game/produce"
-                  title="Produce"
-                  detail="Turn cash and crew time into product."
-                  meta={`${formatCents(me.resources.cashCents)} cash`}
-                />
-                <DashboardAction
-                  to="/game/combat"
-                  title="Raids"
-                  detail="Recon targets, attack, or treat wounded thugs."
-                  meta={`${formatNumber(me.resources.fitThugs)} fit`}
-                  tone={me.resources.woundedThugs > 0 ? 'warn' : undefined}
-                />
-                <DashboardAction
-                  to="/game/stores"
-                  title="Stores"
-                  detail="Restock supplies, weapons, vehicles, and product."
-                  meta={`${formatCents(me.resources.cashCents)}`}
-                />
-                <DashboardAction
-                  to="/game/travel"
-                  title="Travel"
-                  detail={me.run ? 'Manage the run already on the road.' : 'Load a run, trade cities, or relocate.'}
-                  meta={me.run ? me.run.cityName : `${formatNumber(me.resources.lowRiders)} Low-Riders`}
-                  tone={me.convoyAlert ? 'bad' : runWaiting ? 'warn' : undefined}
-                />
-                <DashboardAction
-                  to="/game/quests"
-                  title="Quests"
-                  detail="Check jobs, contracts, favors, and rewards."
-                  meta="Contracts"
-                />
-              </div>
-            </div>
-        </section>
-
-        <section className="se-dashboard-command">
-          <div className="se-dashboard-command__column se-dashboard-command__column--left">
           <div className="se-dashboard-command__attention">
             <div className="se-dashboard-sectionhead">
               <div>
@@ -610,6 +557,62 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
             ) : null}
           </div>
 
+
+        </section>
+        <section className="se-dashboard-quick" aria-label="Quick game actions">
+            <div className="se-dashboard-command__actions">
+              <div className="se-dashboard-sectionhead">
+                <div>
+                  <span className="se-eyebrow">Make a move</span>
+                  <h2>Quick actions</h2>
+                </div>
+              </div>
+              <div className="se-dashboard-actions">
+                <DashboardAction
+                  to="/game/scout"
+                  title="Scout"
+                  detail="Work a district and find cash, crew, and product."
+                  meta={`${formatNumber(me.turns.turns)} turns`}
+                  tone={atTurnCap ? 'warn' : undefined}
+                />
+                <DashboardAction
+                  to="/game/produce"
+                  title="Produce"
+                  detail="Turn cash and crew time into product."
+                  meta={`${formatCents(me.resources.cashCents)} cash`}
+                />
+                <DashboardAction
+                  to="/game/combat"
+                  title="Raids"
+                  detail="Recon targets, attack, or treat wounded thugs."
+                  meta={`${formatNumber(me.resources.fitThugs)} fit`}
+                  tone={me.resources.woundedThugs > 0 ? 'warn' : undefined}
+                />
+                <DashboardAction
+                  to="/game/casino"
+                  title="Casino"
+                  detail="Slots, blackjack, roulette, poker and more."
+                  meta="Games"
+                />
+                <DashboardAction
+                  to="/game/travel"
+                  title="Travel"
+                  detail={me.run ? 'Manage the run already on the road.' : 'Load a run, trade cities, or relocate.'}
+                  meta={me.run ? me.run.cityName : `${formatNumber(me.resources.lowRiders)} Low-Riders`}
+                  tone={me.convoyAlert ? 'bad' : runWaiting ? 'warn' : undefined}
+                />
+                <DashboardAction
+                  to="/game/quests"
+                  title="Quests"
+                  detail="Check jobs, contracts, favors, and rewards."
+                  meta="Contracts"
+                />
+              </div>
+            </div>
+        </section>
+
+        <section className="se-dashboard-command">
+          <div className="se-dashboard-command__column se-dashboard-command__column--left">
           <details id="crew-health" className="se-dashboard-fold" open={showCrewDetails} onToggle={(event) => setShowCrewDetails(event.currentTarget.open)}>
             <summary className="se-dashboard-fold__summary">
               <span><strong>Crew, supplies & arsenal</strong><small>Personnel readiness, stock, weapons and assignments</small></span>
