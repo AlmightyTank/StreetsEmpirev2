@@ -1,8 +1,11 @@
-import type { ReactNode } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import type { HappinessTermDto, RoundDto, RoundOverDto, RoundPlayerDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ActivityFeed } from '../components/ActivityFeed.js';
+import { NavIcon } from '../components/NavIcon.js';
+import type { IconName } from '../layouts/gameNav.js';
+import { DashboardStorySpotlight } from '../components/DashboardStorySpotlight.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { Alert } from '../components/Alert.js';
@@ -17,6 +20,7 @@ import { HeatPanel, heatTone } from '../components/HeatPanel.js';
 import { CasePanel } from '../components/CasePanel.js';
 import { PendingEncountersPanel } from '../components/PendingEncountersPanel.js';
 import { formatClockTime, formatDate, formatDuration, formatWhen } from '../utils/time.js';
+import { dashboardAttentionState, dashboardDisclosureForHash } from '../utils/dashboardAttention.js';
 import { GettingStarted } from '../components/onboarding/GettingStarted.js';
 
 function RankMovement({ movement }: { movement: number | null }) {
@@ -125,15 +129,20 @@ function DashboardAction({
   detail,
   meta,
   tone,
+  icon,
+  kind,
 }: {
   to: string;
   title: string;
   detail: string;
   meta: string;
+  icon: IconName;
+  kind: 'scout' | 'produce' | 'raids' | 'casino' | 'travel' | 'quests';
   tone?: 'warn' | 'bad' | 'good';
 }) {
   return (
-    <Link className={`se-dashboard-action${tone ? ` se-dashboard-action--${tone}` : ''}`} to={to}>
+    <Link className={`se-dashboard-action se-dashboard-action--${kind}${tone ? ` se-dashboard-action--${tone}` : ''}`} to={to}>
+      <span className="se-dashboard-action__icon" aria-hidden="true"><NavIcon name={icon} /></span>
       <span className="se-dashboard-action__body">
         <strong>{title}</strong>
         <span>{detail}</span>
@@ -331,6 +340,29 @@ function HideoutPanel({ hideout }: { hideout: RoundPlayerDto['hideout'] }) {
 function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
   const activity = useSession((s) => s.recentActivity);
   const { refreshing, error, refresh } = useLiveDashboard();
+  const [showAllAlerts, setShowAllAlerts] = useState(false);
+  const location = useLocation();
+  const disclosure = dashboardDisclosureForHash(location.hash);
+  const [showCrewDetails, setShowCrewDetails] = useState(() => disclosure === 'crew');
+  const [showHappinessDetails, setShowHappinessDetails] = useState(() => disclosure === 'happiness');
+  const [showPressureDetails, setShowPressureDetails] = useState(() => disclosure === 'pressure');
+  // React Router issues a fresh location key even for another click on the same hash.
+  // Reopen the destination if a player closed it and then selected the link again.
+  useEffect(() => {
+    if (disclosure === 'crew') setShowCrewDetails(true);
+    if (disclosure === 'happiness') setShowHappinessDetails(true);
+    if (disclosure === 'pressure') setShowPressureDetails(true);
+  }, [disclosure, location.key]);
+  useEffect(() => {
+    if (!disclosure) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(location.hash.slice(1));
+      if (target && !target.closest('details:not([open])')) {
+        target.scrollIntoView({ block: 'start', behavior: 'instant' });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [disclosure, location.hash, location.key, showCrewDetails, showHappinessDetails, showPressureDetails]);
 
   const homeWeapons =
     me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s;
@@ -342,17 +374,18 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
   const lowWhoreHappiness = me.happiness.whore < 66;
   const lowThugHappiness = me.happiness.thug < 66;
   const atTurnCap = me.turns.turns >= me.turns.turnCap;
-  const attentionCount = [
-    heatState !== 'good',
-    me.convoyAlert !== null && me.convoyAlert !== undefined,
+  const { count: attentionCount, critical: criticalAttention } = dashboardAttentionState({
+    heatTone: heatState,
+    heatLocked,
+    convoyKind: me.convoyAlert?.kind ?? null,
     runWaiting,
-    Boolean(me.moving),
-    me.resources.woundedThugs > 0,
-    me.resources.unarmedThugs > 0,
+    moving: Boolean(me.moving),
+    woundedThugs: me.resources.woundedThugs,
+    unarmedThugs: me.resources.unarmedThugs,
     lowWhoreHappiness,
     lowThugHappiness,
     atTurnCap,
-  ].filter(Boolean).length;
+  });
 
   const suppliesPanel = (
     <Panel title="Supplies" aside={<Link to="/game/stores/corner">Restock</Link>} flush className="se-dashboard-panel">
@@ -370,33 +403,20 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
       <div className="se-dashboard">
         <header className="se-dashboard-hero">
           <div className="se-dashboard-hero__identity">
-            <span className="se-eyebrow">Command center · {me.city.name}</span>
-            <h1>
-              {me.displayName}
-              <span className="se-dashboard-hero__id">#{me.publicPimpId}</span>
-            </h1>
-            <p>
-              Run the crew, watch the pressure, and jump straight to the move that matters.
-            </p>
+            <span className="se-eyebrow">StreetsEmpire · {me.city.name} operation</span>
+            <h1>Command Center</h1>
+            <p><strong>{me.displayName}</strong> <span className="se-dashboard-hero__id">#{me.publicPimpId}</span> · Your empire, your moves. What comes next?</p>
           </div>
           <div className="se-dashboard-hero__status">
-            <div className="se-dashboard-live">
+            <div className="se-dashboard-live" role="status">
               <span className={`se-sync${refreshing ? ' se-sync--busy' : ''}`} aria-hidden />
               <span>{refreshing ? 'Syncing operation' : 'Operation live'}</span>
             </div>
-            <div className="se-dashboard-hero__mini">
-              <HeroTurns turns={me.turns} onTick={() => void refresh(true)} />
-              <span>
-                <small>City rank</small>
-                <strong>{me.rank.local === null ? '—' : `#${formatNumber(me.rank.local)}`}</strong>
-                <em><RankMovement movement={me.rank.localMovement} /></em>
-              </span>
-              <span>
-                <small>National rank</small>
-                <strong>{me.rank.national === null ? '—' : `#${formatNumber(me.rank.national)}`}</strong>
-                <em><RankMovement movement={me.rank.nationalMovement} /></em>
-              </span>
-            </div>
+            <Link to="/game/rankings" className="se-dashboard-hero__ranking">
+              <span>City standing</span>
+              <strong>{me.rank.local === null ? 'Unranked' : `#${formatNumber(me.rank.local)}`}</strong>
+              <span><RankMovement movement={me.rank.localMovement} /></span>
+            </Link>
           </div>
         </header>
 
@@ -404,10 +424,42 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
 
         <GettingStarted />
         <PendingEncountersPanel encounters={me.pendingEncounters} />
-
-        <section className="se-dashboard-command">
-          <div className="se-dashboard-command__column se-dashboard-command__column--left">
-          <div className="se-dashboard-command__attention">
+        <div className="se-dashboard-snapshot" aria-label="Empire at a glance">
+          <Link className="se-dashboard-snapshot__tile" to="/game/stores">
+            <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="stores" /></span>
+            <span>Cash</span><strong>{formatCents(me.resources.cashCents)}</strong>
+            <small>Net worth {formatCents(me.netWorthCents)}</small>
+          </Link>
+          <Link className="se-dashboard-snapshot__tile se-dashboard-snapshot__tile--turns" to="/game/scout">
+            <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="scout" /></span>
+            <HeroTurns turns={me.turns} onTick={() => void refresh(true)} />
+          </Link>
+          <Link className="se-dashboard-snapshot__tile" to="/game/rankings">
+            <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="rankings" /></span>
+            <span>National rank</span><strong>{me.rank.national === null ? '—' : `#${formatNumber(me.rank.national)}`}</strong>
+            <small><RankMovement movement={me.rank.nationalMovement} /></small>
+          </Link>
+          <Link className="se-dashboard-snapshot__tile" to="/game/crew">
+            <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="contacts" /></span>
+            <span>Fit crew</span><strong>{formatNumber(me.resources.fitThugs)}</strong>
+            <small>{formatNumber(me.resources.thugs)} total thugs · {formatNumber(me.resources.woundedThugs)} wounded</small>
+          </Link>
+          <Link className="se-dashboard-snapshot__tile" to="/game/turf">
+            <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="cities" /></span>
+            <span>Turf</span><strong>{me.turf ? formatNumber(me.turf.blocksHeld) : '—'}</strong>
+            <small>{me.turf ? 'Blocks held · Manage territory' : 'Explore turf'}</small>
+          </Link>
+          <Link className="se-dashboard-snapshot__tile" to="/game#heat">
+            <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="status" /></span>
+            <span>Heat</span><strong className={heatState !== 'good' ? 'se-warn' : undefined}>
+              {me.heat ? `${formatNumber(me.heat.heat)} / ${formatNumber(me.heat.max)}` : '—'}
+            </strong>
+            <small>{heatLocked ? 'Locked up · View details' : me.heat ? (heatState === 'good' ? 'Under control' : 'Needs attention') : 'No heat system'}</small>
+          </Link>
+        </div>
+        <section className="se-dashboard-overview" aria-label="Main story and important alerts">
+          <DashboardStorySpotlight />
+          <div className={`se-dashboard-command__attention${attentionCount ? ' se-dashboard-command__attention--alerts' : ''}${criticalAttention ? ' se-dashboard-command__attention--urgent' : ''}`}>
             <div className="se-dashboard-sectionhead">
               <div>
                 <span className="se-eyebrow">Right now</span>
@@ -418,7 +470,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
               </span>
             </div>
 
-            <div className="se-dashboard-notices">
+            <div className={`se-dashboard-notices${showAllAlerts ? ' se-dashboard-notices--expanded' : ''}`}>
               {heatLocked && me.heat?.lockedUntil ? (
                 <DashboardNotice
                   tone="bad"
@@ -522,9 +574,108 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 </div>
               ) : null}
             </div>
+            {attentionCount > 3 ? (
+              <button type="button" className="se-dashboard-notices__toggle" aria-expanded={showAllAlerts}
+                onClick={() => setShowAllAlerts((value) => !value)}>
+                {showAllAlerts ? 'Show fewer alerts' : `See all ${attentionCount} alerts`}
+              </button>
+            ) : null}
           </div>
 
-          <section id="crew-health" className="se-dashboard-section se-dashboard-section--divided">
+
+        </section>
+        <section className="se-dashboard-quick" aria-label="Quick game actions">
+            <div className="se-dashboard-command__actions">
+              <div className="se-dashboard-sectionhead">
+                <div>
+                  <span className="se-eyebrow">Make a move</span>
+                  <h2>Quick actions</h2>
+                </div>
+              </div>
+              <div className="se-dashboard-actions">
+                <DashboardAction
+                  to="/game/scout"
+                  icon="scout" kind="scout"
+                  title="Scout"
+                  detail="Work a district and find cash, crew, and product."
+                  meta={`${formatNumber(me.turns.turns)} turns`}
+                  tone={atTurnCap ? 'warn' : undefined}
+                />
+                <DashboardAction
+                  to="/game/produce"
+                  icon="produce" kind="produce"
+                  title="Produce"
+                  detail="Turn cash and crew time into product."
+                  meta={`${formatCents(me.resources.cashCents)} cash`}
+                />
+                <DashboardAction
+                  to="/game/combat"
+                  icon="raids" kind="raids"
+                  title="Raids"
+                  detail="Recon targets, attack, or treat wounded thugs."
+                  meta={`${formatNumber(me.resources.fitThugs)} fit`}
+                  tone={me.resources.woundedThugs > 0 ? 'warn' : undefined}
+                />
+                <DashboardAction
+                  to="/game/casino"
+                  icon="casino" kind="casino"
+                  title="Casino"
+                  detail="Slots, blackjack, roulette, poker and more."
+                  meta="Games"
+                />
+                <DashboardAction
+                  to="/game/travel"
+                  icon="cities" kind="travel"
+                  title="Travel"
+                  detail={me.run ? 'Manage the run already on the road.' : 'Load a run, trade cities, or relocate.'}
+                  meta={me.run ? me.run.cityName : `${formatNumber(me.resources.lowRiders)} Low-Riders`}
+                  tone={me.convoyAlert ? 'bad' : runWaiting ? 'warn' : undefined}
+                />
+                <DashboardAction
+                  to="/game/quests"
+                  icon="activity" kind="quests"
+                  title="Quests"
+                  detail="Check jobs, contracts, favors, and rewards."
+                  meta="Contracts"
+                />
+              </div>
+            </div>
+        </section>
+
+        <section className="se-dashboard-highlights" aria-label="Your empire status">
+          <article className="se-dashboard-highlight">
+            <div className="se-dashboard-highlight__title"><h2><NavIcon name="contacts" /> Crew status</h2><Link to="#crew-health">Details →</Link></div>
+            <strong>{formatNumber(me.resources.fitThugs)} fit / {formatNumber(me.resources.thugs)} total</strong>
+            <p>Thug morale {me.happiness.thug}% · Street crew morale {me.happiness.whore}%</p>
+            <div className="se-dashboard-highlight__meter" role="img" aria-label={`Thug morale ${me.happiness.thug}%`}>
+              <span style={{ width: `${Math.max(0, Math.min(100, me.happiness.thug))}%` }} />
+            </div>
+          </article>
+          <article className="se-dashboard-highlight">
+            <div className="se-dashboard-highlight__title"><h2><NavIcon name="produce" /> Production &amp; stock</h2><Link to="/game/produce">Produce →</Link></div>
+            <strong>{me.products ? formatNumber(me.products.reduce((sum, item) => sum + item.quantity, 0)) : formatNumber(me.resources.product)} units</strong>
+            <p>{me.products?.length ? me.products.filter((item) => item.quantity > 0).slice(0, 2).map((item) => `${item.name}: ${formatNumber(item.quantity)}`).join(' · ') || 'No product stored yet' : 'Inventory ready to trade or produce'}</p>
+          </article>
+          <article className="se-dashboard-highlight">
+            <div className="se-dashboard-highlight__title"><h2><NavIcon name="stores" /> Supplies</h2><Link to="/game/stores/corner">Restock →</Link></div>
+            <strong>{formatNumber(me.resources.condoms)} condoms</strong>
+            <p>{formatNumber(me.resources.beer)} beer · {formatNumber(me.resources.medicine)} medicine</p>
+          </article>
+          <article className="se-dashboard-highlight">
+            <div className="se-dashboard-highlight__title"><h2><NavIcon name="cities" /> Territory</h2><Link to="/game/turf">View turf →</Link></div>
+            <strong>{me.turf ? `${formatNumber(me.turf.blocksHeld)} blocks held` : 'No turf data'}</strong>
+            <p>{me.turf ? `${formatCents(me.turf.taxEarnedTodayCents)} tax today · ${formatNumber(me.turf.postedGuns.total)} guns posted` : 'Explore districts and available territory'}</p>
+          </article>
+        </section>
+
+        <section className="se-dashboard-command">
+          <div className="se-dashboard-command__column se-dashboard-command__column--left">
+          <details id="crew-inventory" className="se-dashboard-fold" open={showCrewDetails} onToggle={(event) => setShowCrewDetails(event.currentTarget.open)}>
+            <summary className="se-dashboard-fold__summary">
+              <span><strong>Crew, supplies & arsenal</strong><small>Personnel readiness, stock, weapons and assignments</small></span>
+              <span aria-hidden="true">+</span>
+            </summary>
+          <section className="se-dashboard-section se-dashboard-section--divided">
           <div className="se-dashboard-sectiontitle">
             <div>
               <span className="se-eyebrow">Crew & inventory</span>
@@ -581,59 +732,18 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
             </div>
           </div>
           </section>
+          </details>
           </div>
 
           <div className="se-dashboard-command__column se-dashboard-command__column--right">
-            <div className="se-dashboard-command__actions">
-              <div className="se-dashboard-sectionhead">
-                <div>
-                  <span className="se-eyebrow">Make a move</span>
-                  <h2>Quick actions</h2>
-                </div>
-              </div>
-              <div className="se-dashboard-actions">
-                <DashboardAction
-                  to="/game/scout"
-                  title="Scout"
-                  detail="Work a district and find cash, crew, and product."
-                  meta={`${formatNumber(me.turns.turns)} turns`}
-                  tone={atTurnCap ? 'warn' : undefined}
-                />
-                <DashboardAction
-                  to="/game/produce"
-                  title="Produce"
-                  detail="Turn cash and crew time into product."
-                  meta={`${formatCents(me.resources.cashCents)} cash`}
-                />
-                <DashboardAction
-                  to="/game/combat"
-                  title="Raids"
-                  detail="Recon targets, attack, or treat wounded thugs."
-                  meta={`${formatNumber(me.resources.fitThugs)} fit`}
-                  tone={me.resources.woundedThugs > 0 ? 'warn' : undefined}
-                />
-                <DashboardAction
-                  to="/game/stores"
-                  title="Stores"
-                  detail="Restock supplies, weapons, vehicles, and product."
-                  meta={`${formatCents(me.resources.cashCents)}`}
-                />
-                <DashboardAction
-                  to="/game/travel"
-                  title="Travel"
-                  detail={me.run ? 'Manage the run already on the road.' : 'Load a run, trade cities, or relocate.'}
-                  meta={me.run ? me.run.cityName : `${formatNumber(me.resources.lowRiders)} Low-Riders`}
-                  tone={me.convoyAlert ? 'bad' : runWaiting ? 'warn' : undefined}
-                />
-                <DashboardAction
-                  to="/game/quests"
-                  title="Quests"
-                  detail="Check jobs, contracts, favors, and rewards."
-                  meta="Contracts"
-                />
-              </div>
-            </div>
 
+
+            <details id="crew-health" className="se-dashboard-fold" open={showHappinessDetails}
+              onToggle={(event) => setShowHappinessDetails(event.currentTarget.open)}>
+              <summary className="se-dashboard-fold__summary">
+                <span><strong>Crew happiness & product stock</strong><small>Morale penalties and everything in storage</small></span>
+                <span aria-hidden="true">+</span>
+              </summary>
             <div className="se-dashboard-command__sidehealth se-dashboard-stack se-dashboard-section--divided">
               <Panel title="Crew happiness" className="se-dashboard-panel">
                 <div className="se-dashboard-happiness">
@@ -663,9 +773,16 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 </Panel>
               ) : null}
             </div>
+            </details>
           </div>
         </section>
 
+        <details className="se-dashboard-fold se-dashboard-fold--wide" open={showPressureDetails}
+          onToggle={(event) => setShowPressureDetails(event.currentTarget.open)}>
+          <summary className="se-dashboard-fold__summary">
+            <span><strong>Pressure, payout & progression</strong><small>Heat, cases, payout, turf earnings and Hideout upgrades</small></span>
+            <span aria-hidden="true">+</span>
+          </summary>
         <section className="se-dashboard-section">
           <div className="se-dashboard-sectiontitle">
             <div>
@@ -704,6 +821,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
             </div>
           </div>
         </section>
+        </details>
 
         <section className="se-dashboard-section">
           <div className="se-dashboard-sectiontitle se-dashboard-sectiontitle--activity">
