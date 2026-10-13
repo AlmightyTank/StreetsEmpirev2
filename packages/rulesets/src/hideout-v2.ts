@@ -441,7 +441,7 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v1.7-c': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.7-d': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.7-e': CLASSIC_OG_V07G_HIDEOUT_V2,
-  // 1.8.0 sportsbook ruleset carries it forward too.
+  // 1.8.0 sportsbook, cookhouse and hidden-streets rulesets carry it forward too.
   'classic-og-v1.8-e': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.8-f': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.8-g': CLASSIC_OG_V07G_HIDEOUT_V2,
@@ -453,6 +453,8 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v1.8-m': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.8-n': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.8-o': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.8-p': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.8-q': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */
