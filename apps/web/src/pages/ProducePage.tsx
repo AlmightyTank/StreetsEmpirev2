@@ -185,6 +185,7 @@ export function ProducePage() {
               ))}
             </div>
             {lockedRecipes.length ? (
+              <OperationDetails title={`Locked recipes (${lockedRecipes.length})`} summary="View quest requirements and future products">
               <div className="se-produce-locked" aria-label="Recipes still locked">
                 <div className="se-produce-locked__head">
                   <span className="se-eyebrow">Still locked</span>
@@ -211,6 +212,7 @@ export function ProducePage() {
                   ))}
                 </ul>
               </div>
+              </OperationDetails>
             ) : null}
           </section>
 
