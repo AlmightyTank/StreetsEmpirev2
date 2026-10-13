@@ -1,15 +1,16 @@
 {
   "name": "streetsempire-desktop",
   "private": true,
-  "version": "0.1.1",
-  "description": "StreetsEmpire Windows game client with Discord Rich Presence",
+  "version": "0.1.2",
+  "description": "StreetsEmpire portable Windows game client with opt-in Discord Rich Presence",
   "main": "src/main.cjs",
   "scripts": {
     "prepare:config": "node scripts/build-config.mjs",
     "start": "npm run prepare:config && electron .",
-    "dist:win": "npm run prepare:config && electron-builder --win nsis --x64 --publish never",
+    "dist:win": "npm run dist:portable",
     "test": "node --test",
-    "check": "node --check src/main.cjs && node --check src/discord-ipc.cjs && node --check src/activity.cjs"
+    "check": "node --check src/main.cjs && node --check src/discord-ipc.cjs && node --check src/activity.cjs",
+    "dist:portable": "npm run prepare:config && electron-builder --win portable --x64 --publish never"
   },
   "devDependencies": {
     "electron": "^44.7.0",
@@ -27,20 +28,12 @@
     ],
     "win": {
       "target": [
-        "nsis"
+        "portable"
       ],
-      "artifactName": "StreetsEmpire-Setup-${version}.${ext}",
       "requestedExecutionLevel": "asInvoker"
     },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "allowElevation": false,
-      "packElevateHelper": false,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "runAfterFinish": false,
-      "shortcutName": "StreetsEmpire"
+    "portable": {
+      "artifactName": "StreetsEmpire-Portable-${version}.${ext}"
     }
   }
 }
