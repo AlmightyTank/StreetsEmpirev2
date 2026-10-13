@@ -681,8 +681,8 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
           { key: 'target', label: 'Selected target', value: selected?.displayName ?? 'Choose a mark', hint: selected?.strength },
         ]}
       />
-      <OperationDetails title="Street rumors & NPC intel" summary="Local gang pressure, danger and movements">
       {page?.npcGangIntel ? (
+        <OperationDetails title="Street rumors & NPC intel" summary="Local gang pressure, danger and movements">
         <Panel title="Street rumors" aside={`NPC gangs · ${npcDangerLabel[page.npcGangIntel.danger]}`} className="se-raids-panel">
           <div className="se-rows">
             <Row label="Local pressure" value={npcDangerLabel[page.npcGangIntel.danger]} strong={page.npcGangIntel.danger !== 'QUIET'} />
@@ -697,7 +697,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 tooltip="Server-run crews hold these corners like anyone else. They lean on crews that work their blocks, and you can push them off."
               />
             ) : null}
-      </OperationDetails>
             {page.npcGangIntel.relief ? (
               <Row
                 label="Street relief"
@@ -752,6 +751,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             </ol>
           ) : null}
         </Panel>
+        </OperationDetails>
       ) : null}
 
       {pending ? (
