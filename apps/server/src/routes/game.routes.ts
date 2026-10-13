@@ -143,6 +143,23 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return { experience, events };
   });
 
+  /**
+   * Presence is not dashboard settlement. A tiny authenticated check-in lets the
+   * directory identify genuinely engaged players without keeping every player's
+   * away-bonus clock alive through passive dashboard polling.
+   *
+   * Throttle the DB write across multiple tabs for the same player.
+   */
+  fastify.post('/presence/heartbeat', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    await fastify.prisma.roundPlayer.updateMany({
+      where: { id: player.id, lastActiveAt: { lt: new Date(now.getTime() - 60_000) } },
+      data: { lastActiveAt: now },
+    });
+    return { ok: true };
+  });
+
   fastify.get('/me', { preHandler: fastify.requireAuth }, async (request) => {
     const query = request.query as { background?: string };
     const isBackground = query.background === '1' || query.background === 'true';
