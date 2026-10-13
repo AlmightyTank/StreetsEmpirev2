@@ -6,6 +6,8 @@ import { combatApi } from '../api/combat.js';
 import { ringApi } from '../api/ring.js';
 import { ApiError } from '../api/client.js';
 import { ActionDock, deltaChip, type ResultChip } from '../components/ActionDock.js';
+import { ActionReadiness, OperationDetails } from '../components/ActionReadiness.js';
+import { QuantitySteps } from '../components/QuantitySteps.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { showGameToast } from '../components/GameEventToasts.js';
@@ -733,7 +735,19 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
 
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="info">{notice}</Alert> : null}
+      <ActionReadiness
+        title="Combat readiness"
+        status={busy || pending ? 'Action pending' : attackBlock ? 'Needs attention' : 'Ready to attack'}
+        blockedReason={attackBlock}
+        items={[
+          { key: 'turns', label: 'Turns available', value: formatNumber(me.turns.turns), tone: turnCost > me.turns.turns ? 'warn' : undefined },
+          { key: 'cost', label: 'Action cost', value: `${formatNumber(turnCost)} turns` },
+          { key: 'crew', label: 'Fit squad available', value: formatNumber(maxSquad), hint: `${formatNumber(me.resources.armedThugs)} armed at home`, tone: maxSquad > 0 ? 'good' : 'bad' },
+          { key: 'target', label: 'Selected target', value: selected?.displayName ?? 'Choose a mark', hint: selected?.strength },
+        ]}
+      />
       {page?.gangIntel ? (
+        <OperationDetails title="Street rumors & crew intel" summary="Local gang pressure, danger and movements">
         <Panel title="Street rumors" aside={`Street crews · ${gangDangerLabel[page.gangIntel.danger]}`} className="se-raids-panel">
           <div className="se-rows">
             <Row label="Local pressure" value={gangDangerLabel[page.gangIntel.danger]} strong={page.gangIntel.danger !== 'QUIET'} />
@@ -802,6 +816,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             </ol>
           ) : null}
         </Panel>
+        </OperationDetails>
       ) : null}
 
       {pending ? (
@@ -993,6 +1008,59 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             </aside>
           </section>
 
+          <ActionDock
+            label="Send the crew"
+            onSubmit={(event) => void submit(event)}
+            outcome={latest ? {
+              id: latest.id,
+              title: `${latest.won ? 'Won' : 'Lost'} · ${reportLabel(latest)} on ${latest.opponent.displayName}`,
+              tone: latest.won ? 'good' : 'bad',
+              chips: battleChips(latest),
+              receipt: <BattleReport report={latest} />,
+              onDismiss: () => setLatest(null),
+            } : null}
+          >
+            <div>
+              <span className="se-dock__label">Crew order · {attackName(driving ? 'DRIVE_BY' : doingSpecialRaid ? specialRaid.kind : 'RAID')}</span>
+              <strong>{selected ? selected.displayName : 'Choose a mark'}</strong>
+              <span>{attackBlock ?? `${formatNumber(turnCost)} turns when the hit resolves`}</span>
+            </div>
+            <div className="se-dock__amount">
+              <label htmlFor="raid-squad">{driving ? 'Shooters' : 'Thugs'}</label>
+              <input
+                id="raid-squad"
+                className="se-input"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                max={maxSquad}
+                value={squad}
+                disabled={busy || !!pending}
+                onChange={(event) => setSquad(event.target.value)}
+              />
+              <QuantitySteps
+                value={squad === '' ? '' : squadNumber}
+                onChange={(value) => setSquad(String(value))}
+                max={maxSquad}
+                steps={[1, 5, 10]}
+                disabled={busy || !!pending}
+                disabledReason={busy ? 'Your last hit is still going through.' : pending ? 'Settle the pending hit first.' : null}
+                emptyReason="Nobody fit to send."
+              />
+            </div>
+            {!driving && !doingSpecialRaid ? <CrewTeamPicker role="THUG" specialty="ENFORCER" selectedIds={raidTeam} onChange={setRaidTeam} disabled={busy || !!pending || raidTeam.length > squadNumber} refreshKey={latest} /> : null}
+            <Button type="submit" className="se-btn se-btn--primary" disabledReason={attackBlock}>
+              {busy
+                ? 'Crew is out...'
+                : driving
+                  ? (selectedBlock ? 'Drive-by blocked' : 'Launch drive-by')
+                  : doingSpecialRaid
+                    ? (selectedBlock ? `${specialRaid.buttonLabel} blocked` : specialRaid.buttonLabel)
+                    : (selectedBlock ? 'Raid blocked' : 'Launch raid')}
+            </Button>
+          </ActionDock>
+
+          <OperationDetails title="Crew, weapons & supplies" summary="Treatment, fight shelf, defense assignments and combat rules">
           <section className="se-raids-section">
             <div className="se-raids-sectionhead">
               <div>
@@ -1077,7 +1145,9 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               </div>
             </div>
           </section>
+          </OperationDetails>
 
+          <OperationDetails title="Battle history" summary="View earlier raids, defenses and their full reports" open={Boolean(report)}>
           <section className="se-raids-section">
             <div className="se-raids-sectionhead">
               <div>
@@ -1122,57 +1192,9 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               ) : null}
             </Panel>
           </section>
+          </OperationDetails>
 
-          <ActionDock
-            label="Send the crew"
-            onSubmit={(event) => void submit(event)}
-            outcome={latest ? {
-              id: latest.id,
-              title: `${latest.won ? 'Won' : 'Lost'} · ${reportLabel(latest)} on ${latest.opponent.displayName}`,
-              tone: latest.won ? 'good' : 'bad',
-              chips: battleChips(latest),
-              receipt: <BattleReport report={latest} />,
-              onDismiss: () => setLatest(null),
-            } : null}
-          >
-            <div>
-              <span className="se-dock__label">Crew order · {attackName(driving ? 'DRIVE_BY' : doingSpecialRaid ? specialRaid.kind : 'RAID')}</span>
-              <strong>{selected ? selected.displayName : 'Choose a mark'}</strong>
-              <span>{attackBlock ?? `${formatNumber(turnCost)} turns when the hit resolves`}</span>
-            </div>
-            <div className="se-dock__amount">
-              <label htmlFor="raid-squad">{driving ? 'Shooters' : 'Thugs'}</label>
-              <input
-                id="raid-squad"
-                className="se-input"
-                type="number"
-                inputMode="numeric"
-                min="1"
-                max={maxSquad}
-                value={squad}
-                disabled={busy || !!pending}
-                onChange={(event) => setSquad(event.target.value)}
-              />
-              <Button
-                type="button"
-                className="se-btn se-btn--sm"
-                disabledReason={busy || pending ? 'Your last hit is still going through.' : maxSquad < 1 ? 'Nobody fit to send.' : null}
-                onClick={() => setSquad(String(maxSquad))}
-              >
-                Max {formatNumber(maxSquad)}
-              </Button>
-            </div>
-            {!driving && !doingSpecialRaid ? <CrewTeamPicker role="THUG" specialty="ENFORCER" selectedIds={raidTeam} onChange={setRaidTeam} disabled={busy || !!pending || raidTeam.length > squadNumber} refreshKey={latest} /> : null}
-            <Button type="submit" className="se-btn se-btn--primary" disabledReason={attackBlock}>
-              {busy
-                ? 'Crew is out...'
-                : driving
-                  ? (selectedBlock ? 'Drive-by blocked' : 'Launch drive-by')
-                  : doingSpecialRaid
-                    ? (selectedBlock ? `${specialRaid.buttonLabel} blocked` : specialRaid.buttonLabel)
-                    : (selectedBlock ? 'Raid blocked' : 'Launch raid')}
-            </Button>
-          </ActionDock>
+
         </>
       )}
     </div>
