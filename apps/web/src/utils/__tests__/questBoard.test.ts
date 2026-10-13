@@ -37,6 +37,7 @@ describe('single-page quest board', () => {
     const board = buildQuestBoard(jobs);
     const keys = [board.featuredStory!.key, ...board.groups.flatMap((group) => group.quests.map((q) => q.key))];
     expect(keys).toEqual(['story', 'ready', 'tracked', 'week', 'city', 'done']);
+    expect(board.groups.find((group) => group.key === 'contracts')?.quests.map((q) => q.key)).toEqual(['week', 'city']);
     expect(new Set(keys).size).toBe(keys.length);
   });
 
@@ -48,7 +49,7 @@ describe('single-page quest board', () => {
   it('preserves old tab links as group hints without adding a tab bar', () => {
     expect(legacyQuestGroup('?tab=tracked')).toBe('active');
     expect(legacyQuestGroup('?tab=completed')).toBe('history');
-    expect(legacyQuestGroup('?tab=weekly')).toBe('weekly');
+    expect(legacyQuestGroup('?tab=weekly')).toBe('contracts');
     expect(legacyQuestGroup('')).toBeNull();
   });
 });
