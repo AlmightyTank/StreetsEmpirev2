@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
-export type CareerDestinationKey = 'xp' | 'pass' | 'events' | 'profile';
+export type CareerDestinationKey = 'xp' | 'pass' | 'collection' | 'events' | 'profile';
 
 const CAREER_DESTINATIONS: Array<{
   key: CareerDestinationKey;
@@ -11,6 +11,7 @@ const CAREER_DESTINATIONS: Array<{
 }> = [
   { key: 'xp', label: 'XP Progress', eyebrow: 'Permanent level', href: '/game/xp-progress' },
   { key: 'pass', label: 'Street Pass', eyebrow: 'Round rewards', href: '/game/street-pass' },
+  { key: 'collection', label: 'Collection', eyebrow: 'Earnable looks', href: '/game/collection' },
   { key: 'events', label: 'Events', eyebrow: 'Timed objectives', href: '/game/events' },
   { key: 'profile', label: 'Profile', eyebrow: 'Public record', href: '/game/profile' },
 ];

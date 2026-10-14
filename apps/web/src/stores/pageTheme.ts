@@ -6,13 +6,18 @@ import { create } from 'zustand';
  * Shell drops the viewer's theme from the app root while this is set (two
  * themes on one page would fight over the same panels) and shows this
  * theme's ambient decor; the page themes its own content area.
+ *
+ * The Collection showcase can opt into a full-shell takeover instead, so a
+ * previewed theme restyles the sidebar and topbar too.
  */
 interface PageThemeState {
   themeKey: string | null;
-  setThemeKey: (themeKey: string | null) => void;
+  takeShell: boolean;
+  setThemeKey: (themeKey: string | null, takeShell?: boolean) => void;
 }
 
 export const usePageTheme = create<PageThemeState>((set) => ({
   themeKey: null,
-  setThemeKey: (themeKey) => set({ themeKey }),
+  takeShell: false,
+  setThemeKey: (themeKey, takeShell = false) => set({ themeKey, takeShell }),
 }));

@@ -46,6 +46,7 @@ import './styles/action-experience.css';
 import './styles/empire-management.css';
 import './styles/economy-experience.css';
 import './styles/career-experience.css';
+import './styles/collection.css';
 import './styles/social-experience.css';
 import './styles/admin-workspace.css';
 import './styles/dashboard-cinematic.css';
