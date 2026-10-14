@@ -146,6 +146,16 @@ channel once.
 - Make it a read-only channel members can see. The bot needs **View Channel**,
   **Send Messages**, **Embed Links** and **Read Message History** there.
 
+**Presence.** The bot rotates its activity every `DISCORD_PRESENCE_MINUTES`
+(default 5; `0` turns it off). Every other card is **Playing StreetsEmpire**
+with `play at <your game host>` as its state — bot presences can't carry a
+clickable link or button, so the host text is the play link. The rest is street
+flavor mixed with live round data: `Watching 42 hustlers on the block`,
+`Competing turf wars`, `Watching the block / Wiping the block out`,
+`Listening /help`, and a final-day countdown when the round has 3 or fewer
+days left. A down game API falls back to the static list instead of clearing
+presence.
+
 **Moderation from the game.** The admin account page's **Community** panel
 shows a linked player's Discord status (in the server, display name, any timeout)
 and can time them out or lift a timeout. The game audits who did it; the bot
@@ -245,6 +255,7 @@ DISCORD_SUPPORT_CHANNEL_ID="<text channel for /support ticket threads, or empty 
 DISCORD_STATUS_CHANNEL_ID="<public status channel id, or empty for no status posts>"
 DISCORD_OUTAGE_MINUTES=3
 DISCORD_ALERTS_MINUTES=1
+DISCORD_PRESENCE_MINUTES=5
 ```
 
 - `GAME_API_URL` is where the bot reaches the API, as an origin with no path.

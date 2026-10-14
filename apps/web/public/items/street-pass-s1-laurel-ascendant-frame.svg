@@ -7,7 +7,7 @@
     </linearGradient>
     <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>
-  <circle cx="64" cy="60" r="30" fill="#1a0824" fill-opacity=".6" stroke="#a855f7" stroke-width="2"/>
+  <circle cx="64" cy="60" r="30" fill="none" stroke="#a855f7" stroke-width="2"/>
   <path d="M58 104C30 98 20 74 24 46c2-10 7-19 14-26M70 104c28-6 38-30 34-58-2-10-7-19-14-26" fill="none" stroke="url(#gold)" stroke-width="4" stroke-linecap="round"/>
   <g fill="url(#gold)" stroke="#854d0e" stroke-width=".8">
     <ellipse cx="26" cy="80" rx="4" ry="8" transform="rotate(-40 26 80)"/>

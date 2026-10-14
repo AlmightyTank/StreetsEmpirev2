@@ -130,7 +130,8 @@ function normalizeResult(raw: unknown, league: SportsbookLeagueKey): NormalizedS
 
 const dateRange = (date: string) => ({
   commenceTimeFrom: `${date}T00:00:00Z`,
-  commenceTimeTo: new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString(),
+  // The Odds API rejects millisecond precision (INVALID_COMMENCE_TIME_TO); keep YYYY-MM-DDTHH:MM:SSZ.
+  commenceTimeTo: `${new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 19)}Z`,
 });
 
 export class TheOddsApiProvider implements SportsbookProvider {

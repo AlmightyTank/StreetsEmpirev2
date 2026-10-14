@@ -11,7 +11,7 @@
   </defs>
   <path d="M22 14h84l-2 6 3 6-2 8 2 10-3 10 3 12-2 12 3 10-2 10 2 8-2 8H22l2-8-3-8 2-10-2-10 3-12-2-12 3-10-3-10 2-8-2-6z" fill="url(#paper)" stroke="#5c4120" stroke-width="2.5" stroke-linejoin="round"/>
   <path d="M38 27h52" stroke="#3b2a14" stroke-width="7"/>
-  <rect x="38" y="36" width="52" height="50" rx="2" fill="#1f160c" stroke="#3b2a14" stroke-width="3"/>
+  <rect x="38" y="36" width="52" height="50" rx="2" fill="none" stroke="#3b2a14" stroke-width="3"/>
   <path d="M42 94h44M48 101h32" stroke="#3b2a14" stroke-width="3" stroke-linecap="round"/>
   <circle cx="98" cy="104" r="11" fill="url(#seal)" stroke="#450a0a" stroke-width="1.5"/>
   <path d="M98 97l2 5h5l-4 3 2 5-5-3-5 3 2-5-4-3h5z" fill="#fecaca"/>

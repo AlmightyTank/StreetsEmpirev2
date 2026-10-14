@@ -104,6 +104,16 @@ const RETRY_AFTER_CAP_MS = 30_000;
 
 const sleepFor = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error)).slice(0, 240);
+
+/** Vendor error bodies name the cause of rejections (e.g. 422s); keep a capped slice for diagnostics. */
+const responseDetail = async (response: Response): Promise<string> => {
+  try {
+    const text = (await response.text()).trim().slice(0, 200);
+    return text ? ` ${text}` : '';
+  } catch {
+    return '';
+  }
+};
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
 
 function isSameQuotaWindow(first: Date, second: Date, period: string): boolean {
@@ -222,11 +232,11 @@ export class ProviderSession {
         continue;
       }
       if (response.status >= 500) {
-        last = new ProviderError('HTTP', `${this.transport.name} returned ${response.status}.`, response.status);
+        last = new ProviderError('HTTP', `${this.transport.name} returned ${response.status}.${await responseDetail(response)}`, response.status);
         wait = backoff;
         continue;
       }
-      throw new ProviderError('HTTP', `${this.transport.name} returned ${response.status}.`, response.status);
+      throw new ProviderError('HTTP', `${this.transport.name} returned ${response.status}.${await responseDetail(response)}`, response.status);
     }
     if (last.stopsRun) this.stopped = last;
     throw last;

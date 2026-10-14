@@ -8,8 +8,12 @@ import { Button } from '../components/Button.js';
 import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { rewardText } from '../components/RewardChip.js';
+<<<<<<< Updated upstream
 import { AvatarPortrait, BuiltAvatar } from '../components/BuiltAvatar.js';
 import { avatarFrameSpec } from '../components/avatarFrameOpenings.js';
+=======
+import { AvatarPortrait, previewFrameKeyForCosmetic } from '../components/BuiltAvatar.js';
+>>>>>>> Stashed changes
 import { useGameAction } from '../hooks/useGameAction.js';
 import { ITEM_ART, itemArtUrl, rewardArtKey } from '../items/itemArt.js';
 import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
@@ -196,12 +200,13 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
             </div>
             <div className="se-pass-theme-preview__mock-nav"><i /><i /><i /><i /><i /></div>
           </div>
-        ) : active.kind === 'frame' && active.art ? (
+        ) : active.kind === 'frame' ? (
           <div
             className={`se-pass-theme-preview__frame-stage se-pass-theme-preview__frame-stage--${active.key}`}
             role="img"
             aria-label={`${displayName}'s avatar shown with ${active.label}`}
           >
+<<<<<<< Updated upstream
             {activeFrame ? (
               <AvatarPortrait
                 imageUrl={profileImageUrl}
@@ -225,6 +230,14 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
                 <img className="se-pass-theme-preview__frame-art" src={itemArtUrl(active.art)} alt="" />
               </>
             )}
+=======
+            <AvatarPortrait
+              imageUrl={profileImageUrl}
+              avatar={profileAvatar}
+              fallback={playerInitials(displayName)}
+              frameKey={previewFrameKeyForCosmetic(active.key)}
+            />
+>>>>>>> Stashed changes
           </div>
         ) : active.kind === 'item' && activeCollectionStyle && activeWeapon ? (
           <div className="se-pass-theme-preview__weapon-stage">
@@ -252,7 +265,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
               <div className="se-pass-theme-preview__cosmetic-profile">
                 <i />
                 <strong>AMIGHTYTANK</strong>
-                <small>{active.kind === 'frame' ? 'Avatar frame preview' : 'Featured badge preview'}</small>
+                <small>Featured badge preview</small>
               </div>
             )}
           </div>

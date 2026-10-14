@@ -12,7 +12,7 @@
     </radialGradient>
     <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>
-  <circle cx="64" cy="56" r="38" fill="#1a0b0f" fill-opacity=".6" stroke="url(#lacquer)" stroke-width="9"/>
+  <circle cx="64" cy="56" r="38" fill="none" stroke="url(#lacquer)" stroke-width="9"/>
   <circle cx="64" cy="56" r="29" fill="none" stroke="#fbbf24" stroke-width="2" opacity=".85"/>
   <path d="M32 33l6 4M96 33l-6 4M22 56h6M100 56h6" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/>
   <path d="M64 94v-3M33 84v-6M95 84v-6" stroke="#fbbf24" stroke-width="2"/>

@@ -271,6 +271,20 @@
   opacity: 0.72;
 }
 
+/* Layered art frames draw their own ring/trim, so the holder drops its
+   border and halo rings and just sizes the shared AvatarPortrait. */
+.se-profile-pagehead__avatar--art {
+  overflow: visible;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.se-profile-pagehead__avatar--art::before,
+.se-profile-pagehead__avatar--art::after {
+  content: none;
+}
+
 .se-profile-pagehead__avatar--ghost-frame {
   --se-profile-avatar-frame: #a78bfa;
   --se-profile-avatar-glow: rgba(167, 139, 250, 0.42);
@@ -1115,9 +1129,15 @@
 
 .se-avatar-portrait__face {
   position: absolute;
+<<<<<<< Updated upstream
   z-index: 3;
   top: var(--se-avatar-opening-top, 28%);
   left: var(--se-avatar-opening-left, 28%);
+=======
+  z-index: 2;
+  top: 28%;
+  left: 28%;
+>>>>>>> Stashed changes
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -1135,9 +1155,9 @@
   object-fit: cover;
 }
 
-.se-avatar-portrait__art {
+.se-avatar-portrait__back {
   position: absolute !important;
-  z-index: 2 !important;
+  z-index: 1 !important;
   inset: 0;
   display: block;
   width: 100% !important;
@@ -1147,6 +1167,21 @@
   pointer-events: none;
 }
 
+<<<<<<< Updated upstream
+=======
+.se-avatar-portrait__art {
+  position: absolute !important;
+  z-index: 3 !important;
+  inset: 0;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  object-fit: contain !important;
+  pointer-events: none;
+}
+
+>>>>>>> Stashed changes
 .se-avatar-frame {
   --se-avatar-frame-color: var(--se-accent);
   position: relative;
