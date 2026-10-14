@@ -20,7 +20,7 @@ import { TwoFactorService } from '../services/two-factor.service.js';
 import { matchKey } from '../services/admin-signals.service.js';
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
-import { beginDiscordOAuthCallback } from '../services/discord-oauth-callback-guard.js';
+import { beginDiscordOAuthCallback, existingDiscordOAuthCallback } from '../services/discord-oauth-callback-guard.js';
 import { sendCurrentEmailVerification, sendEmailChangeVerification, sendPasswordResetEmail, sendTwoFactorNotice } from '../services/email.service.js';
 import { SupporterBillingService } from '../services/supporter-billing.service.js';
 import { AppError } from '../utils/errors.js';
@@ -101,13 +101,22 @@ function accountRedirect(message: string): string {
   return url.toString();
 }
 
-function postLoginRedirect(): string {
-  return new URL('/join', env.frontendOrigin).toString();
+function postLoginRedirect(callbackUri?: string): string {
+  // The session cookie is host-only. When beta and live share an auth backend
+  // configuration, returning the player to a different frontend host loses the
+  // cookie and makes a successful Discord login look like a sign-out.
+  const redirect = callbackUri ? new URL(callbackUri) : null;
+  const authorizedHost = redirect?.hostname === 'beta.streetsempire.dev'
+    || redirect?.hostname === 'play.streetsempire.dev';
+  return new URL('/join', authorizedHost && redirect ? redirect.origin : env.frontendOrigin).toString();
 }
 
 /** rc.3. Where the Discord callback sends a sign-in that still needs its authenticator code. */
-function twoFactorRedirect(): string {
-  const url = new URL('/login', env.frontendOrigin);
+function twoFactorRedirect(callbackUri?: string): string {
+  const redirect = callbackUri ? new URL(callbackUri) : null;
+  const authorizedHost = redirect?.hostname === 'beta.streetsempire.dev'
+    || redirect?.hostname === 'play.streetsempire.dev';
+  const url = new URL('/login', authorizedHost && redirect ? redirect.origin : env.frontendOrigin);
   url.searchParams.set('twoFactor', '1');
   return url.toString();
 }
@@ -681,6 +690,17 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/discord/callback', async (request, reply) => {
     const query = discordCallbackSchema.parse(request.query);
+    // A one-time code may be requested twice by an embedded browser. The first
+    // callback clears the state cookie; check an ALREADY VERIFIED claim before
+    // validating the cookie again, so the replay cannot send the user back to
+    // sign-in after the successful response.
+    const replay = query.code && query.state
+      ? existingDiscordOAuthCallback(query.code, query.state)
+      : null;
+    if (replay) {
+      fastify.log.info('duplicate Discord callback already processed');
+      return reply.redirect((await replay) ?? authRedirect('Discord login expired. Try again.'));
+    }
     const expectedState = readDiscordStateCookie(request);
     const linkMode = readDiscordLinkCookie(request);
     const savedRedirectUri = readSignedCookie(request, DISCORD_REDIRECT_URI_COOKIE);
@@ -744,7 +764,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       // rc.3: two-step sign-in applies to Discord sign-ins too (unless this browser is trusted, rc.4).
       if (account.twoFactorEnabledAt && !(await TwoFactorService.isTrustedDevice(fastify.prisma, account.id, readSignedCookie(request, TRUSTED_DEVICE_COOKIE)))) {
         setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'DISCORD', remember));
-        return conclude(twoFactorRedirect());
+        return conclude(twoFactorRedirect(redirectUri));
       }
       stage = 'session_creation';
       const { token } = await createSession(fastify.prisma, account.id, {
@@ -756,7 +776,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       fastify.setSessionCookie(reply, token, remember);
       await noteSignIn(fastify.prisma, request, reply, account);
 
-      return conclude(postLoginRedirect());
+      const destination = postLoginRedirect(redirectUri);
+      fastify.log.info({ accountId: account.id, redirectHost: new URL(destination).hostname },
+        'discord login session created');
+      return conclude(destination);
     } catch (error) {
       // Log the failing step without including OAuth tokens or the code.
       fastify.log.warn({ err: error, stage }, linkMode ? 'discord link failed' : 'discord login failed');
