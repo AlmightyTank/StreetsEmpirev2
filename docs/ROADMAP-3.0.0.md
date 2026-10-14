@@ -53,7 +53,7 @@ Expose one holding per player per city from existing rows: turf corners, busines
 
 ### 3.0-B — Org layer + interstate contracts
 
-Orgs are evolved alliances: a founding alliance invites up to 2 other alliances (max 3 sects, 5 members each, 15 per org). Each sect keeps its alliance wire, revenge, and cooldown semantics; solo players join an org via a sect alliance. Interstate contracts (move/protect/supply/hold across cities) settle on existing run/shipment/sale paths with single idempotent payouts. Org dashboard shows sects, members, contracts, influence, history.
+Orgs are evolved alliances: a founding alliance forms an org alone and optionally invites up to 2 other alliances (1, 2, or 3 sects; 5 members each, 15 per org max). Each sect keeps its alliance wire, revenge, and cooldown semantics; solo players join an org via a sect alliance. Interstate contracts (move/protect/supply/hold across cities) settle on existing run/shipment/sale paths with single idempotent payouts. Org dashboard shows sects, members, contracts, influence, history.
 
 **Gate:** retry/race creates one sect membership; player or whole-sect leave strands no stock/crews/property; contracts supplement PvP (1.4 guardrail), never the safest optimal money.
 
@@ -89,7 +89,7 @@ Season sims (small/large bankrolls × home/hub/dear-market/lane over 7+ days) mu
 
 ## Open decisions (4 locked, 2 recommended)
 
-- ~~Org model~~ **Locked: evolved alliance — up to 3 alliances merge, each becomes a sect; org cap 15 = 3 × 5** (sect keeps wire/revenge/cooldown; solo joins via a sect).
+- ~~Org model~~ **Locked: evolved alliance — 1, 2, or 3 alliances merge, each becomes a sect; org cap 15 = 3 × 5** (sect keeps wire/revenge/cooldown; solo joins via a sect).
 - ~~Org size~~ **Locked: 15 per org for v1** (falls out of 3 sects × 5).
 - ~~Northern pick~~ **Locked: Toronto**; Vancouver deferred.
 - ~~Block-holding dealer bonus~~ **Locked: yes, small** — starting hypothesis +8% sales pace when holding the crew's block, shown pre-commit, no stacking, sim sets the final number.
