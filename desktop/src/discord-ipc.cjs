@@ -21,8 +21,13 @@ function pipePath(index) {
  * If Discord is closed, the game keeps working and reconnects when possible.
  */
 class DiscordPresence {
-  constructor(clientId) {
+  constructor(clientId, artwork = {}) {
     this.clientId = /^\d{17,20}$/.test(clientId || '') ? clientId : null;
+    const assetKey = (value) => typeof value === 'string' && /^[a-z0-9_-]{1,128}$/.test(value) ? value : '';
+    this.artwork = {
+      largeImage: assetKey(artwork.largeImage),
+      smallImage: assetKey(artwork.smallImage),
+    };
     this.socket = null;
     this.buffer = Buffer.alloc(0);
     this.ready = false;
@@ -148,6 +153,22 @@ class DiscordPresence {
       details: this.desired.details,
       state: this.desired.state,
       timestamps: { start: this.sessionStart ?? Math.floor(Date.now() / 1000) },
+      // Asset names must already exist in the Discord Developer Portal. A large
+      // Rich Presence image is square; it is not a full Discord card background.
+      ...(this.artwork.largeImage || this.artwork.smallImage ? {
+        assets: {
+          ...(this.artwork.largeImage ? {
+            large_image: this.artwork.largeImage,
+            large_text: 'StreetsEmpire — Build Your Empire',
+          } : {}),
+          ...(this.artwork.smallImage ? {
+            small_image: this.artwork.smallImage,
+            small_text: 'Playing StreetsEmpire',
+          } : {}),
+        },
+      } : {}),
+      // No party fields, fabricated deadlines, or join secrets: StreetsEmpire
+      // does not yet implement invites that Discord could safely open.
       buttons: [{ label: 'Play StreetsEmpire', url: 'https://play.streetsempire.dev' }],
     } : null;
 
