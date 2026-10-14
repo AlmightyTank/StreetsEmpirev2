@@ -15,7 +15,10 @@ const LATEST_DESKTOP_DOWNLOAD_URL = 'https://github.com/AlmightyTank/StreetsEmpi
 let win = null;
 let settings = null;
 let awayTimer = null;
-let presence = new DiscordPresence(config.discordClientId, config.discordAssets);
+let testPresenceTimer = null;
+let presence = new DiscordPresence(config.discordClientId, config.discordAssets, () => {
+  if (settings && win && !win.isDestroyed()) buildMenu();
+});
 const hasApplicationId = Boolean(presence.clientId);
 
 function settingsPath() {
@@ -87,6 +90,8 @@ function setPresenceEnabled(enabled) {
     return;
   }
   settings.presenceEnabled = enabled;
+  if (!enabled && testPresenceTimer) clearTimeout(testPresenceTimer);
+  testPresenceTimer = enabled ? testPresenceTimer : null;
   saveSettings();
   if (enabled) presence.start();
   else presence.stop();
@@ -96,6 +101,39 @@ function setPresenceEnabled(enabled) {
 
 function openWebsite() {
   void shell.openExternal(gameUrl());
+}
+
+function showDiscordStatus() {
+  const status = presence.getStatus();
+  const currentPage = win && !win.isDestroyed()
+    ? presenceForUrl(win.webContents.getURL()) : null;
+  const summary = [
+    `Connection: ${status.message}`,
+    `Application ID: ${status.configured ? 'present in desktop build' : 'MISSING (rebuild required)'}`,
+    `Rich Presence: ${settings.presenceEnabled ? 'Enabled' : 'Disabled'}`,
+    `Game detected: ${currentPage ? currentPage.state : 'No — sign in and open a game page'}`,
+    `Large artwork key: ${presence.artwork.largeImage || 'not configured'}`,
+    `Small artwork key: ${presence.artwork.smallImage || 'not configured'}`,
+  ].join('\n');
+  void dialog.showMessageBox(win, {
+    type: status.kind === 'active' ? 'info' : 'warning',
+    title: 'StreetsEmpire — Discord Rich Presence',
+    message: status.message,
+    detail: summary + '\n\nIf connected but not visible, check Discord Desktop → User Settings → Activity Privacy → Share Your Activity.',
+    buttons: ['OK'],
+  });
+}
+
+function testDiscordPresence() {
+  if (!settings.presenceEnabled) return;
+  if (testPresenceTimer) clearTimeout(testPresenceTimer);
+  presence.start();
+  presence.setPresence({ details: 'Playing StreetsEmpire', state: 'Testing Discord connection' });
+  testPresenceTimer = setTimeout(() => {
+    testPresenceTimer = null;
+    syncPresence();
+  }, 12_000);
+  testPresenceTimer.unref?.();
 }
 
 function buildMenu() {
@@ -120,6 +158,13 @@ function buildMenu() {
         { label: 'Show Playing StreetsEmpire', type: 'checkbox',
           checked: settings.presenceEnabled === true,
           click: (item) => setPresenceEnabled(item.checked) },
+        { type: 'separator' },
+        { label: 'Status: ' + presence.getStatus().message.slice(0, 65), enabled: false },
+        { label: 'Connection Details…', click: showDiscordStatus },
+        { label: 'Reconnect to Discord', enabled: settings.presenceEnabled === true,
+          click: () => { presence.retry(); syncPresence(); } },
+        { label: 'Test Rich Presence (12 seconds)', enabled: settings.presenceEnabled === true,
+          click: testDiscordPresence },
       ],
     },
     {
@@ -217,6 +262,8 @@ function createWindow() {
   win.on('restore', syncPresence);
   win.on('closed', () => {
     clearAwayTimer();
+    if (testPresenceTimer) clearTimeout(testPresenceTimer);
+    testPresenceTimer = null;
     presence.setPresence(null);
     win = null;
   });
