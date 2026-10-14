@@ -11,7 +11,7 @@ and the website itself never has local system/Discord access.
 
 Pull-request builds remain private to workflow artifacts and will **never** replace the downloadable release. A new set is published from `beta` only after all four OS builds pass. The desktop app has **Help → Get Latest Desktop Version (Beta)** to open the same page. New website features need no desktop app rebuild; changes to the desktop app do.
 
-## Portable downloads (0.1.5)
+## Portable downloads (0.1.6)
 
 Build artifacts are generated in [StreetsEmpire Desktop Actions](https://github.com/AlmightyTank/StreetsEmpirev2/actions/workflows/desktop-platforms.yml)
 on the `feature/desktop-game-discord-presence` PR branch, and after merging
@@ -20,10 +20,10 @@ the GitHub artifact ZIP first.
 
 | Platform | GitHub Actions artifact | Actual downloadable app | How to start |
 | --- | --- | --- | --- |
-| Windows 10/11 (64-bit) | `StreetsEmpire-Windows-x64` | `StreetsEmpire-Portable-0.1.5.exe` | Double-click EXE; no installer, administrator permission or system-wide changes |
-| macOS Intel (x64) | `StreetsEmpire-macOS-Intel` | `StreetsEmpire-macOS-x64-0.1.5.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
-| macOS Apple Silicon (M1/M2/M3/M4, arm64) | `StreetsEmpire-macOS-Apple-Silicon` | `StreetsEmpire-macOS-arm64-0.1.5.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
-| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x86_64-0.1.5.AppImage` | `chmod +x StreetsEmpire-Linux-x86_64-0.1.5.AppImage` then run it |
+| Windows 10/11 (64-bit) | `StreetsEmpire-Windows-x64` | `StreetsEmpire-Portable-0.1.6.exe` | Double-click EXE; no installer, administrator permission or system-wide changes |
+| macOS Intel (x64) | `StreetsEmpire-macOS-Intel` | `StreetsEmpire-macOS-x64-0.1.6.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
+| macOS Apple Silicon (M1/M2/M3/M4, arm64) | `StreetsEmpire-macOS-Apple-Silicon` | `StreetsEmpire-macOS-arm64-0.1.6.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
+| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x86_64-0.1.6.AppImage` | `chmod +x StreetsEmpire-Linux-x86_64-0.1.6.AppImage` then run it |
 
 Windows uses electron-builder's **portable** target, macOS uses ZIP archives
 containing a native `.app`, and Linux uses **AppImage**. None of these require
@@ -43,6 +43,29 @@ notarized before telling regular players to install/open it.
 compatible FUSE runtime. If it cannot launch, review the host's AppImage/FUSE
 support. Desktop Chromium sandboxing may also depend on Linux user namespaces;
 do not disable sandboxing as a blanket workaround.
+
+## Discord game sign-in troubleshooting
+
+Discord OAuth sign-in to StreetsEmpire is different from sharing Rich Presence.
+Starting with desktop **0.1.6**, the browser callback is allowed to finish at
+the server so its session cookie is not overtaken by a second desktop redirect.
+
+If the app returns to the login screen after Discord authorization:
+
+1. Select **Game → Check Sign-in Session…**. The dialog only reports whether the
+   current game host has a `se_session` cookie; it never reveals the token.
+2. If the cookie is **missing**, test sign-in at the same game's host in a
+   regular browser. If browser sign-in works, reinstalling is not needed:
+   download the new portable version, then retry in the desktop app.
+3. If the cookie is **present** but the game still opens the login page,
+   inspect the server's `/api/auth/me` request result and make sure that
+   the beta account is approved. An expired/invalid server session also gives
+   HTTP 401 without revealing the session token.
+4. If the server redirects to `/login?twoFactor=1`, finish the authenticator
+   step; this is expected on accounts with two-factor authentication enabled.
+
+**Do not share OAuth codes, callback query parameters, cookies or passwords in
+logs.** The server should redact authorization URLs.
 
 ## Accounts, updates and privacy
 
@@ -111,7 +134,7 @@ npm run dist:linux
 If you omit the Application ID, the app still opens the game but Discord Rich
 Presence is unavailable. No developer secrets are embedded.
 
-## Discord Presence troubleshooting (desktop v0.1.5)
+## Discord Presence troubleshooting (desktop v0.1.6)
 
 To share an activity, run the **Discord desktop app** on the **same computer**
 as StreetsEmpire Desktop, sign in to Discord, and ensure Discord →
