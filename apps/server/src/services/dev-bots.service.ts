@@ -1,6 +1,7 @@
 import type { PrismaClient, Round } from '@prisma/client';
 import { calculateNetWorthCents, calculateThugHappiness, calculateWhoreHappiness, startingStock } from '@streets/rules-engine';
 import type { Ruleset, SeededRivalRule, StartingPlayer } from '@streets/rulesets';
+import { normalizeUsername } from '@streets/shared';
 
 /**
  * Local test bots, ported from prisma/seed.ts so the admin panel can add and
@@ -157,8 +158,8 @@ export async function seedDevBots(
     const email = `${username}${DEV_BOT_EMAIL_DOMAIN}`;
     const account = await prisma.account.upsert({
       where: { email },
-      update: { username, usernameNormalized: username, isActive: activeAccounts },
-      create: { username, usernameNormalized: username, email, passwordHash: 'seeded-local-rival-account', isActive: activeAccounts },
+      update: { username, usernameNormalized: normalizeUsername(username), isActive: activeAccounts },
+      create: { username, usernameNormalized: normalizeUsername(username), email, passwordHash: 'seeded-local-rival-account', isActive: activeAccounts },
     });
 
     const existing = await prisma.roundPlayer.findUnique({

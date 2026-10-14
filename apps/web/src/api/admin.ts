@@ -47,6 +47,8 @@ import type {
   AdminAuditLogDto,
   AdminSupporterGrantResultDto,
   AdminSupportersDto,
+  SupporterPollDto,
+  SupporterPollStageInput,
   AdminAuditPurgeResultDto,
   AdminAuditRetentionDto,
   AdminCloseExpiredResultDto,
@@ -208,6 +210,7 @@ export const adminApi = {
   grantSupporter: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'supporter'), { reason }),
   /** Supporters tab: the roster, a bulk grant by username and a backfill of rewards added later. dryRun previews. */
   supporters: () => api.get<AdminSupportersDto>('/admin/supporters'),
+  stageSupporterPoll: (input: SupporterPollStageInput) => api.post<SupporterPollDto>('/admin/supporters/polls', input),
   grantSupporters: (usernames: string[], reason: string, dryRun: boolean) =>
     api.post<AdminSupporterGrantResultDto>('/admin/supporters/grant', dryRun ? { usernames, dryRun } : { usernames, reason, dryRun }),
   /** Gives this month's supporter drop to everyone supporting now. */

@@ -1,4 +1,143 @@
-import type { QuestDataObject, QuestDefinition, QuestDefinitionCatalog } from './types.js';
+import type { QuestCosmeticCatalog, QuestDataObject, QuestDefinition, QuestDefinitionCatalog, SecretContentMeta } from './types.js';
+
+export const SECRET_TRIGGER_KINDS = [
+  'STATE_AT_LEAST',
+  'TURF_COUNT_AT_LEAST',
+  'ACTIVITY_COUNT',
+  'ACTIVITY_OBJECT_SUM_AT_LEAST',
+] as const;
+
+const SECRET_STATE_FIELDS = ['heat', 'whores', 'netWorthCents'] as const;
+
+const SECRET_DISCOVERY_TIERS = ['OBVIOUS', 'HIDDEN', 'LEGENDARY'] as const;
+
+const DISTRICT_KEYS = ['CASINO', 'WINO_SLUMS', 'LOW_RENT', 'NIGHTCLUB', 'URBAN_GHETTO'] as const;
+
+function isRecord(value: unknown): value is QuestDataObject {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function nonEmptyStrings(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  if (!value.every((item) => typeof item === 'string' && item.trim().length > 0)) return null;
+  return value as string[];
+}
+
+/**
+ * Slice A: per-kind secret trigger contract. Returns problem strings without
+ * the catalog-key prefix so questDefinitionProblems can prefix them.
+ */
+export function secretTriggerProblems(trigger: unknown): string[] {
+  if (!isRecord(trigger)) return ['SECRET secretTrigger must be an object'];
+  const row = trigger;
+  if (typeof row.kind !== 'string' || !row.kind.trim()) {
+    return ['SECRET secretTrigger requires kind'];
+  }
+  if (!SECRET_TRIGGER_KINDS.includes(row.kind as (typeof SECRET_TRIGGER_KINDS)[number])) {
+    return [`SECRET secretTrigger kind must be ${SECRET_TRIGGER_KINDS.join('|')}`];
+  }
+  if (typeof row.target !== 'number' || !Number.isFinite(row.target) || row.target <= 0) {
+    return ['SECRET secretTrigger target must be greater than zero'];
+  }
+
+  switch (row.kind) {
+    case 'STATE_AT_LEAST':
+      if (typeof row.field !== 'string' || !(SECRET_STATE_FIELDS as readonly string[]).includes(row.field)) {
+        return ['SECRET STATE_AT_LEAST secretTrigger field must be heat|whores|netWorthCents'];
+      }
+      return [];
+    case 'TURF_COUNT_AT_LEAST':
+      if (!Number.isSafeInteger(row.target)) {
+        return ['SECRET TURF_COUNT_AT_LEAST secretTrigger target must be a whole number'];
+      }
+      return [];
+    case 'ACTIVITY_COUNT':
+      if (!nonEmptyStrings(row.eventTypes)) {
+        return ['SECRET ACTIVITY_COUNT secretTrigger requires a non-empty eventTypes string array'];
+      }
+      if (row.where !== undefined && !isRecord(row.where)) {
+        return ['SECRET ACTIVITY_COUNT secretTrigger where must be an object'];
+      }
+      return [];
+    case 'ACTIVITY_OBJECT_SUM_AT_LEAST':
+      if (!nonEmptyStrings(row.eventTypes)) {
+        return ['SECRET ACTIVITY_OBJECT_SUM_AT_LEAST secretTrigger requires a non-empty eventTypes string array'];
+      }
+      if (typeof row.field !== 'string' || !row.field.trim()) {
+        return ['SECRET ACTIVITY_OBJECT_SUM_AT_LEAST secretTrigger requires a field'];
+      }
+      if (row.where !== undefined && !isRecord(row.where)) {
+        return ['SECRET ACTIVITY_OBJECT_SUM_AT_LEAST secretTrigger where must be an object'];
+      }
+      return [];
+    default:
+      return [];
+  }
+}
+
+/**
+ * Slice A: optional secret content descriptor contract (family, tier,
+ * milestones, rarity, cooldown, districts, test/disable flags).
+ */
+export function secretContentProblems(content: unknown, quest: Pick<QuestDefinition, 'objectives'>): string[] {
+  if (content === undefined) return [];
+  if (!isRecord(content)) return ['SECRET secretContent must be an object'];
+  const row = content as QuestDataObject & Partial<SecretContentMeta>;
+  const problems: string[] = [];
+  if (typeof row.family !== 'string' || !row.family.trim()) {
+    problems.push('SECRET secretContent requires family');
+  }
+  if (typeof row.discoveryTier !== 'string' || !(SECRET_DISCOVERY_TIERS as readonly string[]).includes(row.discoveryTier)) {
+    problems.push(`SECRET secretContent discoveryTier must be ${SECRET_DISCOVERY_TIERS.join('|')}`);
+  }
+  if (row.clueMilestones !== undefined) {
+    if (!Array.isArray(row.clueMilestones) || row.clueMilestones.length === 0) {
+      problems.push('SECRET secretContent clueMilestones must be a non-empty string array');
+    } else {
+      const ids = new Set(quest.objectives.map((objective) => objective.id));
+      const seen = new Set<string>();
+      for (const milestone of row.clueMilestones) {
+        if (typeof milestone !== 'string' || !milestone.trim()) {
+          problems.push('SECRET secretContent clueMilestones must be a non-empty string array');
+          break;
+        }
+        if (seen.has(milestone)) {
+          problems.push(`SECRET secretContent duplicate clue milestone ${milestone}`);
+        }
+        seen.add(milestone);
+        if (!ids.has(milestone)) {
+          problems.push(`SECRET secretContent unknown clue milestone ${milestone}`);
+        }
+      }
+    }
+  }
+  if (row.rarityWeight !== undefined) {
+    if (typeof row.rarityWeight !== 'number' || !Number.isFinite(row.rarityWeight) || row.rarityWeight <= 0) {
+      problems.push('SECRET secretContent rarityWeight must be greater than zero');
+    }
+  }
+  if (row.cooldownMinutes !== undefined && row.cooldownMinutes !== null) {
+    if (!Number.isSafeInteger(row.cooldownMinutes) || row.cooldownMinutes < 0) {
+      problems.push('SECRET secretContent cooldownMinutes must be a non-negative integer or null');
+    }
+  }
+  if (row.districts !== undefined) {
+    if (
+      !Array.isArray(row.districts)
+      || row.districts.length === 0
+      || !(row.districts as unknown[]).every((district) => typeof district === 'string' && (DISTRICT_KEYS as readonly string[]).includes(district))
+    ) {
+      problems.push(`SECRET secretContent districts must be a non-empty array of ${DISTRICT_KEYS.join('|')}`);
+    }
+  }
+  if (row.testOnly !== undefined && typeof row.testOnly !== 'boolean') {
+    problems.push('SECRET secretContent testOnly must be a boolean');
+  }
+  if (row.disabled !== undefined && typeof row.disabled !== 'boolean') {
+    problems.push('SECRET secretContent disabled must be a boolean');
+  }
+  return problems;
+}
 
 export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string[] {
   const problems: string[] = [];
@@ -21,13 +160,15 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       if (quest.repeatability !== 'ONCE') problems.push(`${catalogKey}: SECRET quests must be ONCE`);
       if (quest.availability.hidden !== true) problems.push(`${catalogKey}: SECRET quests must set availability.hidden=true`);
       const trigger = quest.availability.secretTrigger;
-      if (!trigger || typeof trigger !== 'object' || Array.isArray(trigger)) {
+      if (trigger === undefined) {
         problems.push(`${catalogKey}: SECRET quests require availability.secretTrigger`);
       } else {
-        const row = trigger as QuestDataObject;
-        if (typeof row.kind !== 'string' || !row.kind.trim()) {
-          problems.push(`${catalogKey}: SECRET secretTrigger requires kind`);
+        for (const problem of secretTriggerProblems(trigger)) {
+          problems.push(`${catalogKey}: ${problem}`);
         }
+      }
+      for (const problem of secretContentProblems(quest.availability.secretContent, quest)) {
+        problems.push(`${catalogKey}: ${problem}`);
       }
     }
 
@@ -299,6 +440,37 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
     }
   }
 
+  return problems;
+}
+
+/**
+ * Cross-check quest cosmetic rewards against the ruleset cosmetic catalog.
+ * The structural validator above only proves a COSMETIC_UNLOCK has a key;
+ * this check proves the key can actually be awarded at claim time.
+ */
+export function questCosmeticProblems(
+  catalog: QuestDefinitionCatalog,
+  cosmetics: QuestCosmeticCatalog | undefined,
+): string[] {
+  const problems: string[] = [];
+  for (const [catalogKey, quest] of Object.entries(catalog)) {
+    for (const reward of quest.rewards) {
+      if (reward.kind !== 'COSMETIC_UNLOCK') continue;
+      const key = reward.key;
+      if (!key || !(key in (cosmetics ?? {}))) {
+        problems.push(`${catalogKey}: COSMETIC_UNLOCK reward ${key ?? '(missing key)'} is not in ruleset cosmetics`);
+      }
+    }
+    for (const branch of quest.branches ?? []) {
+      for (const reward of branch.rewards) {
+        if (reward.kind !== 'COSMETIC_UNLOCK') continue;
+        const key = reward.key;
+        if (!key || !(key in (cosmetics ?? {}))) {
+          problems.push(`${catalogKey}/${branch.key}: COSMETIC_UNLOCK reward ${key ?? '(missing key)'} is not in ruleset cosmetics`);
+        }
+      }
+    }
+  }
   return problems;
 }
 

@@ -37,7 +37,7 @@ export async function claimResyncRequests(prisma: PrismaClient, now = new Date()
  * 'all' also retires roles for alliances that disbanded or were renamed. Accounts
  * without Discord linked are skipped, and nothing is queued while the bot is off.
  */
-export async function queueAllianceRoleResync(db: Db, target: { accountIds: string[] } | 'all', requestedBy = 'Alliance change'): Promise<void> {
+export async function queueDiscordRoleResync(db: Db, target: { accountIds: string[] } | 'all', requestedBy = 'Role change'): Promise<void> {
   if (!env.discordBot.enabled) return;
   if (target === 'all') {
     await db.discordResyncRequest.create({ data: { discordId: null, requestedByUsername: requestedBy } });
@@ -48,4 +48,8 @@ export async function queueAllianceRoleResync(db: Db, target: { accountIds: stri
   if (accounts.length) {
     await db.discordResyncRequest.createMany({ data: accounts.map((account) => ({ discordId: account.discordId, requestedByUsername: requestedBy })) });
   }
+}
+
+export async function queueAllianceRoleResync(db: Db, target: { accountIds: string[] } | 'all', requestedBy = 'Alliance change'): Promise<void> {
+  await queueDiscordRoleResync(db, target, requestedBy);
 }

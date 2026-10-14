@@ -1,11 +1,12 @@
 import type { PrismaClient } from '@prisma/client';
-import { SUPPORTER_COSMETICS, SUPPORTER_SOURCE } from '@streets/rulesets';
+import { SUPPORTER_COSMETICS, SUPPORTER_SOURCE, SUPPORTER_TENURE } from '@streets/rulesets';
 import {
   SIGNATURE_CARD_FRAME_KEY,
   type AdminSupporterDto,
   type AdminSupporterGrantResultDto,
   type AdminSupporterGrantRowDto,
   type AdminSupportersDto,
+  normalizeUsername,
 } from '@streets/shared';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
@@ -15,6 +16,7 @@ import { membershipDto } from './supporter-billing.service.js';
 import { SupporterDropService } from './supporter-drop.service.js';
 
 const REWARD_KEYS: readonly string[] = Object.keys(SUPPORTER_COSMETICS);
+const TENURE_KEYS: readonly string[] = SUPPORTER_TENURE.map((tier) => tier.badge.key);
 /** How many of the newest supporter payments the tab shows. */
 const RECENT_PAYMENTS = 25;
 
@@ -97,6 +99,14 @@ export const AdminSupporterService = {
       heldRewards(prisma, ids),
       ids.length ? prisma.accountProfile.count({ where: { accountId: { in: ids }, showOnSupporterList: true } }) : 0,
     ]);
+    const tenureHeld = ids.length
+      ? await prisma.accountCosmeticUnlock.findMany({
+        where: { accountId: { in: ids }, key: { in: [...TENURE_KEYS] } },
+        select: { accountId: true, key: true },
+      })
+      : [];
+    const tenureBy = new Map<string, string[]>();
+    for (const row of tenureHeld) tenureBy.set(row.accountId, [...(tenureBy.get(row.accountId) ?? []), row.key]);
     const wearing = new Set(profiles.filter((profile) => profile.activeAvatarFrameKey === SIGNATURE_CARD_FRAME_KEY).map((profile) => profile.accountId));
     const supporters: AdminSupporterDto[] = accounts
       .map((account) => {
@@ -109,6 +119,7 @@ export const AdminSupporterService = {
           lastLoginAt: account.lastLoginAt?.toISOString() ?? null,
           rewardKeys: REWARD_KEYS.filter((key) => keys?.has(key)),
           missingKeys: missingFrom(keys),
+          tenureKeys: TENURE_KEYS.filter((key) => tenureBy.get(account.id)?.includes(key)),
           wearingCard: wearing.has(account.id),
           membership: membershipBy.has(account.id) ? membershipDto(membershipBy.get(account.id)!) : null,
         };
@@ -116,6 +127,7 @@ export const AdminSupporterService = {
       .sort((a, b) => (b.since ?? '').localeCompare(a.since ?? '') || a.username.localeCompare(b.username));
     return {
       rewards: Object.values(SUPPORTER_COSMETICS).map((reward) => ({ key: reward.key, name: reward.name, kind: reward.kind, rarity: reward.rarity })),
+      tenure: SUPPORTER_TENURE.map((tier) => ({ key: tier.badge.key, name: tier.badge.name, kind: tier.badge.kind, rarity: tier.badge.rarity })),
       supporters,
       // Only reward holders can be missing a reward; a subscriber waiting on payment gets everything when it lands.
       missingCount: supporters.filter((supporter) => supporter.since && supporter.missingKeys.length).length,
@@ -149,7 +161,7 @@ export const AdminSupporterService = {
     const dryRun = input.dryRun ?? false;
     if (!dryRun && !input.reason) throw AppError.badRequest('REASON_REQUIRED', 'Give a reason for the grant.', { reason: 'Give a reason of at least 5 characters.' });
     const names = input.usernames.map((name) => name.trim().replace(/^@/, '')).filter(Boolean);
-    const normalized = [...new Set(names.map((name) => name.toLowerCase()))];
+    const normalized = [...new Set(names.map(normalizeUsername))];
     const accounts = normalized.length
       ? await prisma.account.findMany({ where: { usernameNormalized: { in: normalized } }, select: { id: true, username: true, usernameNormalized: true } })
       : [];
@@ -158,7 +170,7 @@ export const AdminSupporterService = {
 
     const seen = new Set<string>();
     const rows: AdminSupporterGrantRowDto[] = names.map((name) => {
-      const key = name.toLowerCase();
+      const key = normalizeUsername(name);
       const account = byName.get(key) ?? null;
       const base = { input: name, accountId: account?.id ?? null, username: account?.username ?? null, rewardKeys: [] as string[], error: null };
       if (seen.has(key)) return { ...base, status: 'duplicate' as const };

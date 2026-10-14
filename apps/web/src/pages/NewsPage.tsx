@@ -4,6 +4,7 @@ import { roundsApi } from '../api/rounds.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Markdown } from '../components/Markdown.js';
+import { SocialNavigation } from '../components/SocialExperience.js';
 import { InfoLayout } from '../layouts/InfoLayout.js';
 import { formatDate } from '../utils/time.js';
 import { useSession } from '../stores/session.js';
@@ -32,6 +33,7 @@ export function NewsPage() {
   return (
     <InfoLayout>
       <div className="se-news-page">
+        {me ? <SocialNavigation active="news" /> : null}
         <section className="se-info-hero se-info-hero--news">
           <div className="se-info-hero__copy">
             <span className="se-info-hero__kicker">The street wire</span>

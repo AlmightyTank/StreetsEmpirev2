@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07X, classicOgV07Y, classicOgV07Z } from '@streets/rulesets';
+import { classicOgV07X, classicOgV07Y, classicOgV07Z, classicOgV18Q, classicOgV18R } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import { QuestCosmeticService } from '../quest-cosmetic.service.js';
 
@@ -157,6 +157,70 @@ describe('QuestCosmeticService', () => {
         earnedAt: awardedAt.toISOString(),
         progress: { current: 1, target: 1, label: 'account cosmetic' },
       }]);
+  });
+
+  it('uses one account/key upsert for repeated Blackwood secret awards', async () => {
+    const upserts: Array<{ where: unknown; create: Record<string, unknown>; update: unknown }> = [];
+    const db = {
+      accountCosmeticUnlock: {
+        upsert: async (args: { where: unknown; create: Record<string, unknown>; update: unknown }) => { upserts.push(args); },
+      },
+    } as unknown as Db;
+    const at = new Date('2026-10-13T09:30:00Z');
+
+    await QuestCosmeticService.award(db, 'account-1', classicOgV18Q, 'blackwood-gate-badge', 'SECRET_BLACKWOOD_GATE', at);
+    await QuestCosmeticService.award(db, 'account-1', classicOgV18Q, 'blackwood-gate-badge', 'SECRET_BLACKWOOD_GATE', at);
+
+    expect(upserts).toHaveLength(2);
+    expect(upserts.map((upsert) => upsert.where)).toEqual([
+      { accountId_key: { accountId: 'account-1', key: 'blackwood-gate-badge' } },
+      { accountId_key: { accountId: 'account-1', key: 'blackwood-gate-badge' } },
+    ]);
+    expect(upserts.every((upsert) => JSON.stringify(upsert.update) === '{}')).toBe(true);
+    expect(upserts[0]?.create).toMatchObject({
+      accountId: 'account-1',
+      key: 'blackwood-gate-badge',
+      kind: 'TITLE_BADGE',
+      title: 'Blackwood Gate',
+      rarity: 'epic',
+      styleKey: null,
+      sourceQuestKey: 'SECRET_BLACKWOOD_GATE',
+      sourceRulesetId: 'classic-og-v1.8-q',
+      sourceRulesetVersion: '1.8.0-Q',
+      awardedAt: at,
+    });
+  });
+
+  it('uses one account/key upsert for repeated Comedy secret awards', async () => {
+    const upserts: Array<{ where: unknown; create: Record<string, unknown>; update: unknown }> = [];
+    const db = {
+      accountCosmeticUnlock: {
+        upsert: async (args: { where: unknown; create: Record<string, unknown>; update: unknown }) => { upserts.push(args); },
+      },
+    } as unknown as Db;
+    const at = new Date('2026-10-13T10:15:00Z');
+
+    await QuestCosmeticService.award(db, 'account-1', classicOgV18R, 'comedy-roadshow-badge', 'SECRET_TRAVELING_SAMPLE_CASE', at);
+    await QuestCosmeticService.award(db, 'account-1', classicOgV18R, 'comedy-roadshow-badge', 'SECRET_TRAVELING_SAMPLE_CASE', at);
+
+    expect(upserts).toHaveLength(2);
+    expect(upserts.map((upsert) => upsert.where)).toEqual([
+      { accountId_key: { accountId: 'account-1', key: 'comedy-roadshow-badge' } },
+      { accountId_key: { accountId: 'account-1', key: 'comedy-roadshow-badge' } },
+    ]);
+    expect(upserts.every((upsert) => JSON.stringify(upsert.update) === '{}')).toBe(true);
+    expect(upserts[0]?.create).toMatchObject({
+      accountId: 'account-1',
+      key: 'comedy-roadshow-badge',
+      kind: 'TITLE_BADGE',
+      title: 'Roadshow Regular',
+      rarity: 'rare',
+      styleKey: null,
+      sourceQuestKey: 'SECRET_TRAVELING_SAMPLE_CASE',
+      sourceRulesetId: 'classic-og-v1.8-r',
+      sourceRulesetVersion: '1.8.0-R',
+      awardedAt: at,
+    });
   });
 
   it('rejects cosmetic keys not present in the pinned ruleset', async () => {

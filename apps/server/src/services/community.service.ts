@@ -24,9 +24,11 @@ import { env } from '../config/env.js';
 import { toCityDto, toSeasonHideoutDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { allianceTagDto } from './alliance.service.js';
+import { SupporterService } from './supporter.service.js';
 import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
 import { selectProfileBadges } from './profile-badges.js';
+import { SecretCollectionService } from './secret-collection.service.js';
 import { isBuiltInProfileTitle, profileTitleForAward, profileTitleForKey } from './profile-titles.js';
 import { TurfHistoryService } from './turf-history.service.js';
 import { QuestCosmeticService, withThemeCompanionFrames } from './quest-cosmetic.service.js';
@@ -62,6 +64,10 @@ interface RankingRow {
 
 interface PublicContext {
   legacy: PublicLegacyDto;
+  /** Derived supporter mark: true when the account holds any supporter reward. */
+  isSupporter: boolean;
+  /** UTC month (YYYY-MM) of the account's earliest supporter reward. */
+  supporterSince: string | null;
   raidAttacks: number;
   raidAttackWins: number;
   raidDefenses: number;
@@ -325,13 +331,17 @@ export async function loadCareerForAccount(
         localRank: true,
         nationalRank: true,
         netWorthCents: true,
-        round: { select: { name: true, slug: true, endsAt: true } },
+        round: { select: { id: true, name: true, slug: true, endsAt: true } },
       },
     });
   const legacy = legacyRows.reduce(
     (carry, player) => addPastRound(carry, player),
     emptyLegacy(),
   );
+  // Supporter season stamps for every finished round in this career, one query.
+  const stampRoundIds = [...new Set(legacyRows.map((row) => row.round.id))];
+  const stamps = await SupporterService.seasonStamps(prisma, stampRoundIds);
+  const supported = (roundId: string) => stamps.get(roundId)?.has(accountId) ?? false;
   // The Hall of Fame lists each finished season's national top ten.
   const hallOfFame: PublicHallOfFameAppearanceDto[] = legacyRows
     .filter((row) => row.nationalRank !== null && row.nationalRank <= 10)
@@ -340,6 +350,7 @@ export async function loadCareerForAccount(
       round: { name: row.round.name, slug: row.round.slug, endedAt: row.round.endsAt.toISOString() },
       nationalRank: row.nationalRank!,
       podium: row.nationalRank! <= 3,
+      supportedSeason: supported(row.round.id),
     }));
 
   return {
@@ -371,12 +382,15 @@ export async function loadCareerForAccount(
       hideout: toSeasonHideoutDto(player),
       joinedAt: player.createdAt.toISOString(),
       lastActiveAt: player.lastActiveAt.toISOString(),
+      supportedSeason: supported(player.round.id),
     })),
   };
 }
 
 const emptyContext = (): PublicContext => ({
   legacy: emptyLegacy(),
+  isSupporter: false,
+  supporterSince: null,
   raidAttacks: 0,
   raidAttackWins: 0,
   raidDefenses: 0,
@@ -597,6 +611,7 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'clean-books-ivory',
     'sunset-coral',
     'night-map-plum',
+    'supporter-crimson',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';
@@ -625,7 +640,7 @@ export async function loadPublicContexts(
   for (const id of ids) contexts.set(id, emptyContext());
   if (!ids.length) return contexts;
 
-  const [pastRows, battles, reconActivities, completedJobs, legacyFavorRows] = await Promise.all([
+  const [pastRows, battles, reconActivities, completedJobs, legacyFavorRows, supporterFlags] = await Promise.all([
     prisma.roundPlayer.findMany({
       where: { accountId: { in: accountIds }, roundId: { not: currentRoundId }, round: { status: { in: ['ENDED', 'ARCHIVED'] } } },
       select: { accountId: true, localRank: true, nationalRank: true, netWorthCents: true },
@@ -649,6 +664,7 @@ export async function loadPublicContexts(
       select: { roundPlayerId: true, questDoneAt: true },
       orderBy: { questDoneAt: 'asc' },
     }),
+    SupporterService.flags(prisma, accountIds),
   ]);
 
   const legacyByAccount = new Map<string, PublicLegacyDto>();
@@ -659,6 +675,9 @@ export async function loadPublicContexts(
   const idToAccount = new Map(rows.map((row) => [row.id, row.accountId]));
   for (const [id, accountId] of idToAccount) {
     contexts.get(id)!.legacy = legacyByAccount.get(accountId) ?? emptyLegacy();
+    const flag = supporterFlags.get(accountId);
+    contexts.get(id)!.isSupporter = flag?.isSupporter ?? false;
+    contexts.get(id)!.supporterSince = flag?.supporterSince ?? null;
   }
 
   for (const battle of battles) {
@@ -801,6 +820,8 @@ export function rankRows(
       legacy: context.legacy,
       awards: earned.slice(0, 3),
       isYou,
+      isSupporter: context.isSupporter,
+      supporterSince: context.supporterSince,
       intelRequired: false,
       alliance: allianceTagDto(row.alliance),
     };
@@ -829,6 +850,7 @@ export const CommunityService = {
           where: { nationalRank: { not: null, lte: 10 }, account: { isActive: true } },
           orderBy: [{ nationalRank: 'asc' }, { netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
           select: {
+            accountId: true,
             nationalRank: true,
             publicPimpId: true,
             displayName: true,
@@ -851,6 +873,8 @@ export const CommunityService = {
         },
       },
     });
+    const stamps = await SupporterService.seasonStamps(prisma, rounds.map((round) => round.id));
+    const supported = (roundId: string, accountId: string) => stamps.get(roundId)?.has(accountId) ?? false;
 
     return {
       rounds: await Promise.all(rounds.map(async (round) => {
@@ -865,6 +889,7 @@ export const CommunityService = {
           hideout: toSeasonHideoutDto(player),
           joinedAt: player.createdAt.toISOString(),
           lastActiveAt: player.lastActiveAt.toISOString(),
+          supportedSeason: supported(round.id, player.accountId),
         }));
         const [territory, playerCount] = await Promise.all([
           TurfHistoryService.board(
@@ -1058,7 +1083,7 @@ export const CommunityService = {
     const weapons = player.pistols + player.shotguns + player.tek9s + player.ak47s;
     // 0.9.0-F. A live season's cash, crew and product flow stay sealed from everyone else.
     const sealed = !isYou && now.getTime() < player.round.endsAt.getTime();
-    const [contexts, linkedForumGroups, history, currentTotals, profileSettings, betaTesterAwards, questCosmetics, earnedFrames, themeOptions] = await Promise.all([
+    const [contexts, linkedForumGroups, history, currentTotals, profileSettings, betaTesterAwards, questCosmetics, earnedFrames, themeOptions, discoveries] = await Promise.all([
       loadPublicContexts(prisma, roundId, [player]),
       forumLink ? ForumGroupsService.groupsFor(forumLink.forumUserId) : [],
       loadSeasonHistory(prisma, player.accountId, roundId, now),
@@ -1068,6 +1093,7 @@ export const CommunityService = {
       QuestCosmeticService.awardsForAccount(prisma, player.accountId),
       QuestCosmeticService.optionsForAccount(prisma, player.accountId, 'PROFILE_FRAME'),
       QuestCosmeticService.optionsForAccount(prisma, player.accountId, 'SITE_THEME'),
+      SecretCollectionService.forPlayer(prisma, player.id, player.accountId, ruleset),
     ]);
     const frameOptions = withThemeCompanionFrames(earnedFrames, themeOptions);
     const career = await loadCareerForAccount(prisma, player.accountId, {
@@ -1147,6 +1173,7 @@ export const CommunityService = {
       legacy: context.legacy,
       career,
       awards,
+      discoveries,
       showcase: featuredBadgeKeys
         .map((key) => unlockedAwards.find((award) => award.key === key))
         .filter((award): award is PublicAwardDto => Boolean(award)),
@@ -1167,6 +1194,8 @@ export const CommunityService = {
       joinedAt: player.createdAt.toISOString(),
       lastActiveAt: player.lastActiveAt.toISOString(),
       isYou,
+      isSupporter: context.isSupporter,
+      supporterSince: context.supporterSince,
       ...(ruleset.factionPublic ? { factionAlignment: await factionAlignment(prisma, player.id, ruleset) } : {}),
     };
   },

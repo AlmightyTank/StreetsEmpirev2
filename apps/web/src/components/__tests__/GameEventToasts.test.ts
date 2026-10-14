@@ -18,7 +18,7 @@ describe('gameEventToastFor', () => {
       title: 'First Night Out',
       objective: 'Scout for 12 turns.',
     }), 'crack')).toMatchObject({
-      title: 'Quest objective complete',
+      title: 'Objective done: First Night Out',
       tone: 'good',
       href: '/game/quests?tab=active&focus=FIRST_NIGHT_OUT#quest-FIRST_NIGHT_OUT',
     });
@@ -29,7 +29,7 @@ describe('gameEventToastFor', () => {
       questKey: 'FIRST_NIGHT_OUT',
       title: 'First Night Out',
     }), 'crack')).toMatchObject({
-      title: 'Quest ready to turn in',
+      title: 'First Night Out is ready to turn in',
       tone: 'good',
     });
   });
@@ -52,7 +52,7 @@ describe('gameEventToastFor', () => {
       lowRidersStolen: 1,
       cashCents: 0,
     }), 'crack')).toMatchObject({
-      title: 'Someone stole your ride',
+      title: 'Rival stole your ride',
       tone: 'bad',
     });
   });
@@ -63,7 +63,7 @@ describe('gameEventToastFor', () => {
       won: false,
       whoresKilled: 2,
     }), 'crack')).toMatchObject({
-      title: 'Drive-by hit your block',
+      title: 'Drive-by hit your block: Rival',
       tone: 'bad',
     });
   });
@@ -74,7 +74,7 @@ describe('gameEventToastFor', () => {
       startCashCents: 100_00,
       cashCents: 1_250_00,
     }), 'crack')).toMatchObject({
-      title: 'Run returned',
+      title: 'Run returned from Chicago',
       tone: 'good',
       href: '/game/travel',
     });
@@ -85,7 +85,7 @@ describe('gameEventToastFor', () => {
       reason: 'Beta test make-good',
       granted: { cashCents: 500_00, turns: 5 },
     }), 'crack')).toMatchObject({
-      title: 'Admin compensation received',
+      title: 'Admin make-good received',
       tone: 'good',
     });
   });
@@ -96,7 +96,7 @@ describe('gameEventToastFor', () => {
       district: 'Downtown',
       held: true,
     }), 'crack')).toMatchObject({
-      title: 'Block defended',
+      title: 'Downtown held',
       tone: 'warn',
     });
 
@@ -105,8 +105,37 @@ describe('gameEventToastFor', () => {
       district: 'Downtown',
       held: false,
     }), 'crack')).toMatchObject({
-      title: 'Block lost',
+      title: 'Downtown fell',
       tone: 'bad',
+    });
+  });
+
+  it('uses actionable turf alert wording for incoming pushes and alliance calls', () => {
+    expect(gameEventToastFor(activity('TURF_PUSH_INCOMING', {
+      city: 'chicago',
+      cityName: 'Chicago',
+      district: 'downtown',
+      districtName: 'Downtown',
+      landsAt: '2026-09-22T13:00:00.000Z',
+      squad: 12,
+    }), 'crack')).toMatchObject({
+      title: 'Lookouts spotted a push on Downtown, Chicago',
+      detail: expect.stringContaining('Send backup or call your alliance.'),
+      tone: 'bad',
+      href: '/game/turf?city=chicago',
+    });
+
+    expect(gameEventToastFor(activity('ALLIANCE_CALL', {
+      kind: 'turf',
+      ally: 'Northside',
+      city: 'detroit',
+      cityName: 'Detroit',
+      districtName: 'Corktown',
+    }), 'crack')).toMatchObject({
+      title: 'Alliance call: Corktown, Detroit under push',
+      detail: expect.stringContaining('Northside needs bodies'),
+      tone: 'warn',
+      href: '/game/turf?city=detroit',
     });
   });
 

@@ -10,6 +10,7 @@ import { AllianceWire } from '../components/AllianceWire.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel, Stat } from '../components/Panel.js';
+import { SocialNavigation } from '../components/SocialExperience.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { formatDate, formatDuration, formatWhen } from '../utils/time.js';
 
@@ -180,6 +181,7 @@ export function AlliancePage() {
   return (
     <GameLayout>
       <div className="se-alliance">
+        <SocialNavigation active="alliance" />
         <header className="se-alliance-hero">
           <div className="se-alliance-hero__copy">
             <span className="se-eyebrow">{alliance ? 'Crew command' : 'Crew network'}</span>

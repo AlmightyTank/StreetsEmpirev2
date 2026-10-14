@@ -50,6 +50,7 @@ import { HideoutService } from '../services/hideout.service.js';
 import { parseBody } from '../utils/validate.js';
 import { ActivityService } from '../services/activity.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
+import { recordPlayerPresence } from '../services/player-presence.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
 import { AppError } from '../utils/errors.js';
@@ -141,6 +142,19 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       PlayerExperienceService.recentEvents(fastify.prisma, accountId),
     ]);
     return { experience, events };
+  });
+
+  /**
+   * Presence is not dashboard settlement. A tiny authenticated check-in lets the
+   * directory identify genuinely engaged players without keeping every player's
+   * away-bonus clock alive through passive dashboard polling.
+   *
+   * Throttle the DB write across multiple tabs for the same player.
+   */
+  fastify.post('/presence/heartbeat', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    await recordPlayerPresence(fastify.prisma, player.id);
+    return { ok: true };
   });
 
   fastify.get('/me', { preHandler: fastify.requireAuth }, async (request) => {

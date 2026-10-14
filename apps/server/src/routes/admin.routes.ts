@@ -43,6 +43,7 @@ import { AdminSurveyResultsService } from '../services/admin-survey-results.serv
 import { AdminSupporterService } from '../services/admin-supporter.service.js';
 import { SupporterBillingService } from '../services/supporter-billing.service.js';
 import { SupporterDropService } from '../services/supporter-drop.service.js';
+import { SupporterPollService } from '../services/supporter-poll.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
@@ -64,6 +65,7 @@ import { ForumModerationService } from '../services/forum-moderation.service.js'
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
 import { MonitoringService } from '../services/monitoring.service.js';
 import { AdminEventService } from '../services/admin-event.service.js';
+import { HiddenStreetsAdminService } from '../services/hidden-streets-admin.service.js';
 import { parseBody } from '../utils/validate.js';
 
 const isoDate = z.coerce.date();
@@ -143,6 +145,13 @@ const supporterGrantSchema = z.object({
   dryRun: z.boolean().optional(),
 }).strict();
 const supporterBackfillSchema = z.object({ reason: reason.optional(), dryRun: z.boolean().optional() }).strict();
+const supporterPollSchema = z.object({
+  title: z.string().min(1).max(120),
+  description: z.string().max(500).nullable().optional(),
+  options: z.array(z.object({ key: z.string().min(1).max(80), label: z.string().min(1).max(120), description: z.string().max(300).nullable().optional() }).strict()).min(2).max(8),
+  opensAt: z.string().datetime().nullable().optional(),
+  closesAt: z.string().datetime().nullable().optional(),
+}).strict();
 const sportsbookEventParams = z.object({ eventId: id }).strict();
 const sportsbookProviderId = z.enum(['therundown', 'theoddsapi']);
 const sportsbookLeague = z.enum(['NFL', 'NBA', 'MLB', 'NHL']);
@@ -835,6 +844,11 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminSupporterService.backfill(fastify.prisma, request.auth!.account, body);
   });
 
+  fastify.post('/supporters/polls', async (request) => {
+    const body = parseBody(supporterPollSchema, request.body ?? {});
+    return SupporterPollService.stage(fastify.prisma, request.auth!.account, body);
+  });
+
   fastify.post('/accounts/:accountId/email/resend', async (request) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(reasonBody, request.body ?? {});
@@ -1198,6 +1212,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
   /** 1.8.5-G: event release checks, migration inventory, calendar and audit history. */
   fastify.get('/events', async () => AdminEventService.releaseReport(fastify.prisma));
+
+  /** Hidden Streets beta diagnostics: content families, rewards, checks and live counters. */
+  fastify.get('/hidden-streets', async () => HiddenStreetsAdminService.releaseReport(fastify.prisma));
 
   fastify.get('/events/preview', async (request) => {
     const { rulesetId } = parseBody(eventPreviewQuery, request.query ?? {});

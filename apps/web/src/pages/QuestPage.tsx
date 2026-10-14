@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   formatCents,
   formatNumber,
@@ -22,8 +22,8 @@ import { Portrait } from '../components/Portrait.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 import { confirmAction } from '../stores/confirm.js';
+import { buildQuestBoard, legacyQuestGroup, type QuestBoardGroupKey } from '../utils/questBoard.js';
 
-type Tab = 'available' | 'active' | 'ready' | 'tracked' | 'daily' | 'weekly' | 'city' | 'season' | 'alliance' | 'events' | 'completed';
 const BOARD_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
 
 /** City, alliance, season and community work: shared boards, not personal jobs, and never abandoned. */
@@ -31,24 +31,6 @@ function isBoardQuest(quest: PlayerQuestDto): boolean {
   return BOARD_QUEST_TYPES.includes(quest.type as typeof BOARD_QUEST_TYPES[number])
     || quest.category === 'CITY_CONTRACT';
 }
-
-function tabFromSearch(search: string): Tab {
-  const requested = new URLSearchParams(search).get('tab');
-  return requested === 'daily'
-    || requested === 'weekly'
-    || requested === 'city'
-    || requested === 'season'
-    || requested === 'alliance'
-    || requested === 'events'
-    || requested === 'active'
-    || requested === 'ready'
-    || requested === 'tracked'
-    || requested === 'completed'
-    || requested === 'available'
-    ? requested
-    : 'available';
-}
-
 
 function focusedQuestKey(search: string, hash: string): string | null {
   const fromSearch = new URLSearchParams(search).get('focus');
@@ -59,19 +41,6 @@ function focusedQuestKey(search: string, hash: string): string | null {
   } catch {
     return hash.slice('#quest-'.length);
   }
-}
-
-function tabForQuest(quest: PlayerQuestDto): Tab {
-  if (quest.status === 'READY_TO_TURN_IN') return 'ready';
-  if (quest.status === 'ACTIVE') return 'active';
-  if (quest.status === 'COMPLETED' || quest.status === 'FAILED' || quest.status === 'EXPIRED') return 'completed';
-  if (quest.type === 'DAILY') return 'daily';
-  if (quest.type === 'WEEKLY') return 'weekly';
-  if (quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT') return 'city';
-  if (quest.type === 'SEASON') return 'season';
-  if (quest.type === 'ALLIANCE') return 'alliance';
-  if (quest.type === 'EVENT') return 'events';
-  return 'available';
 }
 
 function statusLabel(quest: PlayerQuestDto): string {
@@ -207,8 +176,12 @@ function QuestCard({
   onTrack,
   onAbandon,
   nowMs,
+  featured = false,
+  focused = false,
 }: {
   quest: PlayerQuestDto;
+  featured?: boolean;
+  focused?: boolean;
   page: QuestPageDto;
   busy: string | null;
   nowMs: number;
@@ -219,11 +192,19 @@ function QuestCard({
 }) {
   const active = quest.status === 'ACTIVE' || quest.status === 'READY_TO_TURN_IN';
   const trackedCount = page.quests.filter((item) => item.isTracked).length;
+  const [showDetails, setShowDetails] = useState(featured || focused || (quest.status === 'READY_TO_TURN_IN' && quest.branchChoices.length > 0));
+  const primaryObjective = quest.objectives.find((item) => !item.bonus && !item.completed)
+    ?? quest.objectives.find((item) => !item.bonus);
+
+  useEffect(() => {
+    if (focused) setShowDetails(true);
+  }, [focused]);
 
   return (
     <Panel
       id={`quest-${quest.key}`}
       className={'se-quest-card'
+        + (featured ? ' se-quest-card--featured' : '')
         + (quest.status === 'READY_TO_TURN_IN' ? ' se-quest-card--ready' : '')
         + (quest.isTracked ? ' se-quest-card--tracked' : '')}
       title={quest.title}
@@ -237,6 +218,33 @@ function QuestCard({
       )}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
+      {primaryObjective && quest.status !== 'COMPLETED' && quest.status !== 'FAILED' && quest.status !== 'EXPIRED' ? (
+        <div className="se-quest-card__preview">
+          <ProgressLine
+            label={primaryObjective.description}
+            current={primaryObjective.current}
+            target={primaryObjective.target}
+            format={primaryObjective.kind === 'EARN_CASH' || primaryObjective.format === 'CURRENCY' ? 'CURRENCY' : 'NUMBER'}
+            completed={primaryObjective.completed}
+          />
+        </div>
+      ) : null}
+      {quest.rewards.length ? (
+        <p className="se-quest-card__reward-preview">
+          <span>Reward</span> {quest.rewards[0]?.label}{quest.rewards.length > 1 ? ` +${quest.rewards.length - 1} more` : ''}
+        </p>
+      ) : null}
+      <button
+        type="button"
+        className="se-quest-detail-toggle"
+        aria-expanded={showDetails}
+        aria-controls={`quest-details-${quest.key}`}
+        onClick={() => setShowDetails((value) => !value)}
+      >
+        <span>{showDetails ? 'Hide job details' : 'View objectives, rewards & story'}</span>
+        <span aria-hidden="true">{showDetails ? '−' : '+'}</span>
+      </button>
+      <div id={`quest-details-${quest.key}`} className="se-quest-card__details" hidden={!showDetails}>
       {quest.status === 'LOCKED' && quest.requires?.length ? (
         <div className="se-quest-card__requires">
           <span className="se-eyebrow">Opens after</span>
@@ -372,6 +380,7 @@ function QuestCard({
         </p>
       ) : null}
 
+      </div>
       <div className="se-actions se-quest-actions">
         {quest.status === 'AVAILABLE' ? (
           <Button
@@ -389,7 +398,7 @@ function QuestCard({
           </Button>
         ) : null}
 
-        {active ? (
+        {active && showDetails ? (
           <>
             <Button
               className="se-btn"
@@ -426,16 +435,18 @@ function FavorArt({ favorKey }: { favorKey: string }) {
 
 export function QuestPage() {
   const location = useLocation();
-  const navigate = useNavigate();
   const me = useSession((state) => state.me);
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
   const [page, setPage] = useState<QuestPageDto | null>(null);
-  const [tab, setTab] = useState<Tab>(() => tabFromSearch(location.search));
+  const [expandedGroups, setExpandedGroups] = useState<Partial<Record<QuestBoardGroupKey, boolean>>>({});
+  const [showConnections, setShowConnections] = useState(false);
+  const [showProgression, setShowProgression] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const lastScrolledTarget = useRef<string | null>(null);
 
   const applyPage = useCallback((
     next: QuestPageDto,
@@ -485,27 +496,20 @@ export function QuestPage() {
   }, [clockOffsetMs]);
 
   useEffect(() => {
+    if (!page) return;
     const focusKey = focusedQuestKey(location.search, location.hash);
-    const focused = focusKey && page
-      ? page.quests.find((quest) => quest.key === focusKey)
-      : null;
-    const nextTab = focused ? tabForQuest(focused) : tabFromSearch(location.search);
-    setTab(nextTab);
-
-    // Notification links may only know a quest key. Once the page is loaded,
-    // resolve that quest to the board it actually belongs on and keep the URL
-    // honest so a refresh lands in the same place.
-    if (focused && tabFromSearch(location.search) !== nextTab) {
-      const params = new URLSearchParams(location.search);
-      params.set('tab', nextTab);
-      params.set('focus', focused.key);
-      navigate({
-        pathname: location.pathname,
-        search: '?' + params.toString(),
-        hash: '#quest-' + encodeURIComponent(focused.key),
-      }, { replace: true });
+    const board = buildQuestBoard(page.quests, focusKey);
+    const targetGroup = focusKey
+      ? board.groups.find((group) => group.quests.some((quest) => quest.key === focusKey))?.key
+      : legacyQuestGroup(location.search);
+    if (targetGroup) {
+      setExpandedGroups((previous) => previous[targetGroup] ? previous : { ...previous, [targetGroup]: true });
     }
-  }, [location.hash, location.pathname, location.search, navigate, page]);
+    if (location.hash === '#contact-standing' || location.hash === '#factions') {
+      setShowConnections(true);
+    }
+    if (location.hash === '#quest-progression') setShowProgression(true);
+  }, [page, location.search, location.hash]);
 
   useEffect(() => {
     const serverNow = serverAdjustedNowMs(Date.now(), clockOffsetMs);
@@ -530,168 +534,39 @@ export function QuestPage() {
   }, [page?.dailyContracts.resetAt, page?.weeklyContracts.resetAt, page?.cityContracts.resetAt, page?.quests, clockOffsetMs, load]);
 
   useEffect(() => {
-    if (!page || !location.hash) return;
-    const id = decodeURIComponent(location.hash.slice(1));
-    // The selected board can change in the same render as a notification
-    // deep-link. Wait one frame for the quest card to exist, then land on the
-    // card itself. CSS scroll-margin keeps it clear of the sticky phone header.
+    if (!page) return;
+    const focusKey = focusedQuestKey(location.search, location.hash);
+    const id = location.hash ? decodeURIComponent(location.hash.slice(1))
+      : focusKey ? 'quest-' + focusKey : null;
+    if (!id) {
+      lastScrolledTarget.current = null;
+      return;
+    }
+    if (lastScrolledTarget.current === id) return;
+    // Wait until a deep-linked accordion has opened. Only scroll once per target:
+    // refreshing quests or toggling another section must not yank the page away.
     const frame = window.requestAnimationFrame(() => {
       const target = document.getElementById(id);
-      if (!target) return;
+      if (!target || target.closest('details:not([open])')) return;
+      lastScrolledTarget.current = id;
       target.scrollIntoView({ block: 'start' });
       target.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [page, tab, location.hash]);
+  }, [page, location.hash, location.search, expandedGroups, showConnections, showProgression]);
 
-  const dailyToday = useMemo(
-    () => page?.quests.filter((quest) =>
-      quest.type === 'DAILY'
-      && quest.expiresAt !== null
-      && new Date(quest.expiresAt).getTime() > nowMs
-    ) ?? [],
-    [page, nowMs],
-  );
-
-  const weeklyToday = useMemo(
-    () => page?.quests.filter((quest) =>
-      quest.type === 'WEEKLY'
-      && quest.expiresAt !== null
-      && new Date(quest.expiresAt).getTime() > nowMs
-    ) ?? [],
-    [page, nowMs],
-  );
-
-  const cityToday = useMemo(
-    () => page?.quests.filter((quest) =>
-      (quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT')
-      && quest.expiresAt !== null
-      && new Date(quest.expiresAt).getTime() > nowMs
-    ) ?? [],
-    [page, nowMs],
-  );
-
-  const seasonToday = useMemo(
-    () => page?.quests.filter((quest) =>
-      quest.type === 'SEASON'
-      && ['AVAILABLE', 'ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)
-    ) ?? [],
-    [page],
-  );
-
-  const allianceToday = useMemo(
-    () => page?.quests.filter((quest) =>
-      quest.type === 'ALLIANCE'
-      && !['EXPIRED', 'FAILED'].includes(quest.status)
-      && quest.expiresAt !== null
-      && new Date(quest.expiresAt).getTime() > nowMs
-    ) ?? [],
-    [page, nowMs],
-  );
-
-  const eventToday = useMemo(
-    () => page?.quests.filter((quest) =>
-      quest.type === 'EVENT'
-      && !['EXPIRED', 'FAILED'].includes(quest.status)
-      && (
-        (quest.seasonalEvent && quest.status === 'AVAILABLE')
-        || (quest.expiresAt !== null && new Date(quest.expiresAt).getTime() > nowMs)
-      )
-    ) ?? [],
-    [page, nowMs],
-  );
-
-  const standardAvailableCount = useMemo(
-    () => page?.quests.filter((quest) =>
-      quest.status === 'AVAILABLE'
-      && quest.type !== 'DAILY'
-      && quest.type !== 'WEEKLY'
-      && quest.type !== 'SEASON'
-      && quest.type !== 'ALLIANCE'
-      && quest.type !== 'CITY_CONTRACT'
-      && quest.type !== 'EVENT'
-      && quest.category !== 'CITY_CONTRACT'
-    ).length ?? 0,
-    [page],
-  );
-
-  const activeQuestCount = useMemo(
-    () => page?.quests.filter((quest) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)).length ?? 0,
-    [page],
-  );
-
-  const readyToday = useMemo(
-    () => page?.quests.filter((quest) => quest.status === 'READY_TO_TURN_IN') ?? [],
-    [page],
-  );
+  const focusKey = focusedQuestKey(location.search, location.hash);
+  const board = useMemo(() => buildQuestBoard(page?.quests ?? [], focusKey), [page, focusKey]);
 
   const trackedToday = useMemo(
     () => page?.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)) ?? [],
     [page],
   );
 
-  const shown = useMemo(() => {
-    if (!page) return [];
-    if (tab === 'daily') return dailyToday;
-    if (tab === 'weekly') return weeklyToday;
-    if (tab === 'city') return cityToday;
-    if (tab === 'season') return seasonToday;
-    if (tab === 'alliance') return allianceToday;
-    if (tab === 'events') return eventToday;
-    if (tab === 'active') return page.quests.filter((quest) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status));
-    if (tab === 'ready') return readyToday;
-    if (tab === 'tracked') return trackedToday;
-    if (tab === 'completed') return page.quests.filter((quest) => ['COMPLETED', 'FAILED', 'EXPIRED'].includes(quest.status));
-    // 1.5.0-E2: a locked shelf links to the Job that opens it. That Job may still be locked
-    // itself, so it is pinned at the top of the list with what it waits for.
-    const focusKey = focusedQuestKey(location.search, location.hash);
-    const pinned = focusKey ? page.quests.find((quest) => quest.key === focusKey && quest.status === 'LOCKED') : undefined;
-    return [...(pinned ? [pinned] : []), ...page.quests.filter((quest) =>
-      quest.status === 'AVAILABLE'
-      && quest.type !== 'DAILY'
-      && quest.type !== 'WEEKLY'
-      && quest.type !== 'SEASON'
-      && quest.type !== 'ALLIANCE'
-      && quest.type !== 'CITY_CONTRACT'
-      && quest.type !== 'EVENT'
-      && quest.category !== 'CITY_CONTRACT'
-    )];
-  }, [page, tab, dailyToday, weeklyToday, cityToday, seasonToday, allianceToday, eventToday, readyToday, trackedToday, location.search, location.hash]);
-
-  const sortedShown = useMemo(
-    () => [...shown].sort((left, right) => {
-      // A locked Job only reaches a list when a link pinned it there, so it leads.
-      const weight = (quest: PlayerQuestDto) =>
-        quest.status === 'LOCKED' ? -1
-          : quest.status === 'READY_TO_TURN_IN' ? 0
-          : quest.isTracked ? 1
-            : quest.status === 'ACTIVE' ? 2
-              : quest.status === 'AVAILABLE' ? 3
-                : 4;
-      return weight(left) - weight(right) || left.title.localeCompare(right.title);
-    }),
-    [shown],
-  );
-
   const liveFavors = useMemo(
     () => page?.activeFavors.filter((favor) => new Date(favor.expiresAt).getTime() > nowMs) ?? [],
     [page, nowMs],
   );
-
-  function selectTab(next: Tab) {
-    setTab(next);
-    const params = new URLSearchParams(location.search);
-    params.set('tab', next);
-    // A notification deep-link can leave ?focus=<quest> behind. Once the
-    // player deliberately chooses another board, that focus must stop
-    // overriding their tab selection.
-    params.delete('focus');
-    navigate({
-      pathname: location.pathname,
-      search: '?' + params.toString(),
-      hash: '',
-    }, { replace: true });
-  }
 
   async function mutate(key: string, action: () => Promise<QuestPageDto>, success?: string) {
     setBusy(key);
@@ -802,6 +677,22 @@ export function QuestPage() {
     }
   }
 
+  const renderQuest = (quest: PlayerQuestDto, featured = false) => page ? (
+    <QuestCard
+      key={quest.key + ':' + quest.attempt}
+      quest={quest}
+      page={page}
+      featured={featured}
+      focused={focusKey === quest.key}
+      busy={busy ? 'Another job update is still going through.' : null}
+      nowMs={nowMs}
+      onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.')}
+      onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
+      onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
+      onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
+    />
+  ) : null;
+
   if (!me) return <Navigate to="/join" replace />;
 
   return (
@@ -811,7 +702,7 @@ export function QuestPage() {
           <div className="se-quests-hero__copy">
             <span className="se-eyebrow">Underworld contract desk</span>
             <h1>Quests</h1>
-            <p>Pick work, track live objectives, collect finished jobs, and manage the favors and permanent access your contacts have paid out this round.</p>
+            <p>Your main story is always first. Continue your mission, collect rewards, then take on other work when you are ready.</p>
           </div>
 
           <div className="se-quests-hero__side">
@@ -851,185 +742,68 @@ export function QuestPage() {
 
         {page ? (
           <>
-            <section className="se-quests-boardnav">
+
+            <section className="se-quests-primary" aria-labelledby="se-quests-story-title">
               <div className="se-quests-sectionhead">
                 <div>
-                  <span className="se-eyebrow">Contract board</span>
-                  <h2>Choose your work</h2>
+                  <span className="se-eyebrow">Your main storyline</span>
+                  <h2 id="se-quests-story-title">Next story mission</h2>
                 </div>
-                <p>Take on as many jobs as you can handle. Board resets are listed beside the jobs.</p>
+                {board.featuredStory?.story?.chapter ? <span className="se-quests-sectionhead__meta">{board.featuredStory.story.chapter}</span> : null}
               </div>
-
-              <label className="se-checkrow se-checkrow--toggle se-quests-autoaccept">
-                <input
-                  type="checkbox"
-                  checked={page.autoAccept ?? true}
-                  disabled={busy !== null}
-                  onChange={(event) => {
-                    const enabled = event.target.checked;
-                    void mutate('auto-accept', () => questsApi.setAutoAccept(enabled), enabled
-                      ? 'Auto-accept is on. New daily, weekly and city work starts by itself.'
-                      : 'Auto-accept is off. Accept board work yourself.');
-                  }}
-                />
-                <span>
-                  <strong>Auto-accept board work</strong>
-                  <small>Daily, weekly and city contracts start as soon as they appear. Community events always start on their own. A job you abandon stays off until you take it again.</small>
-                </span>
-              </label>
-
-              <div className="se-quests-tabs" role="tablist" aria-label="Quest view">
-                {([
-                  ['available', 'Available', standardAvailableCount],
-                  ['active', 'Active', activeQuestCount],
-                  ['ready', 'Ready', readyToday.length],
-                  ['tracked', 'Tracked', trackedToday.length],
-                  ...(page.dailyContracts.enabled ? [['daily', 'Daily', dailyToday.length] as const] : []),
-                  ...(page.weeklyContracts.enabled ? [['weekly', 'Weekly', weeklyToday.length] as const] : []),
-                  ...(page.cityContracts.enabled ? [['city', 'City', cityToday.length] as const] : []),
-                  ...(page.seasonContracts?.enabled ? [['season', 'Season', seasonToday.length] as const] : []),
-                  ...(allianceToday.length ? [['alliance', 'Alliance', allianceToday.length] as const] : []),
-                  ...(eventToday.length ? [['events', 'Community', eventToday.length] as const] : []),
-                  ['completed', 'Completed', page.counts.completed],
-                ] as const).map(([key, label, count]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === key}
-                    className={`se-quests-tabs__tab${tab === key ? ' se-quests-tabs__tab--active' : ''}${key === 'ready' && readyToday.length ? ' se-quests-tabs__tab--ready' : ''}`}
-                    onClick={() => selectTab(key)}
-                  >
-                    <span>{label}</span>
-                    <strong>{formatNumber(count)}</strong>
-                  </button>
-                ))}
-              </div>
+              {board.featuredStory ? renderQuest(board.featuredStory, true) : (
+                <div className="se-quests-empty">
+                  <strong>Your main story is up to date.</strong>
+                  <span>Check back for the next chapter. Other work is listed below.</span>
+                </div>
+              )}
             </section>
 
-            <section className="se-quests-work">
-              <div className="se-quests-work__main">
-                <div className="se-quests-sectionhead">
-                  <div>
-                    <span className="se-eyebrow">Selected board</span>
-                    <h2>{
-                      tab === 'available' ? 'Available jobs'
-                        : tab === 'active' ? 'Active jobs'
-                          : tab === 'ready' ? 'Ready to collect'
-                            : tab === 'tracked' ? 'Tracked jobs'
-                              : tab === 'daily' ? 'Daily contracts'
-                                : tab === 'weekly' ? 'Weekly contracts'
-                                  : tab === 'city' ? 'City contracts'
-                                  : tab === 'season' ? 'Season contracts'
-                                    : tab === 'alliance' ? 'Alliance contracts'
-                                      : tab === 'events' ? 'Community events'
-                                        : 'Completed jobs'
-                    }</h2>
-                  </div>
-                  <span className="se-quests-sectionhead__meta">{formatNumber(sortedShown.length)} shown</span>
+            <section className="se-quests-board" aria-labelledby="se-quests-work-title">
+              <div className="se-quests-sectionhead">
+                <div>
+                  <span className="se-eyebrow">Other work</span>
+                  <h2 id="se-quests-work-title">Your jobs &amp; contracts</h2>
                 </div>
-
-                {(tab === 'daily' && page.dailyContracts.resetAt)
-                  || (tab === 'weekly' && page.weeklyContracts.resetAt)
-                  || (tab === 'city' && page.cityContracts.resetAt)
-                  || (tab === 'season' && page.seasonContracts?.resetAt)
-                  ? (
-                    <div className="se-quests-boardclock">
-                      <span>{
-                        tab === 'daily' ? 'Daily board resets'
-                          : tab === 'weekly' ? 'Weekly board resets'
-                            : tab === 'season' ? 'Season ends'
-                              : 'City board refreshes'
-                      }</span>
-                      <strong>{
-                        timeRemaining(
-                          tab === 'daily'
-                            ? page.dailyContracts.resetAt!
-                            : tab === 'weekly'
-                              ? page.weeklyContracts.resetAt!
-                              : tab === 'season'
-                                ? page.seasonContracts!.resetAt!
-                                : page.cityContracts.resetAt!,
-                          nowMs,
-                        )
-                      }</strong>
-                    </div>
-                  ) : null}
-
-                <div className="se-quest-list se-quests-list">
-                  {sortedShown.length ? sortedShown.map((quest) => (
-                    <QuestCard
-                      key={quest.key + ':' + quest.attempt}
-                      quest={quest}
-                      page={page}
-                      busy={busy ? 'Another job update is still going through.' : null}
-                      nowMs={nowMs}
-                      onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.')}
-                      onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
-                      onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
-                      onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
-                    />
-                  )) : (
-                    <div className="se-quests-empty">
-                      <strong>No jobs in this section.</strong>
-                      <span>Pick another board above or check back after its next rotation.</span>
-                    </div>
-                  )}
-                </div>
+                <span className="se-quests-sectionhead__meta">{formatNumber(board.groups.reduce((sum, group) => sum + (group.key === 'history' ? 0 : group.quests.length), 0))} current</span>
               </div>
+              {board.groups.length ? board.groups.map((group) => {
+                const open = expandedGroups[group.key] ?? group.defaultOpen;
+                return (
+                  <section id={'quest-board-' + group.key} className="se-quests-group" key={group.key}>
+                    <details
+                      open={open}
+                      onToggle={(event) => {
+                        const next = event.currentTarget.open;
+                        setExpandedGroups((current) => current[group.key] === next ? current : { ...current, [group.key]: next });
+                      }}
+                    >
+                      <summary className="se-quests-group__summary">
+                        <span className="se-quests-group__heading">
+                          <strong>{group.title}</strong>
+                          <small>{group.description}</small>
+                        </span>
+                        <span className="se-quests-group__count">{formatNumber(group.quests.length)}</span>
+                        <span className="se-quests-group__chevron" aria-hidden="true">{open ? '−' : '+'}</span>
+                      </summary>
+                      {open ? (
+                        <div className="se-quest-list se-quests-list">
+                          {group.quests.map((quest) => renderQuest(quest))}
+                        </div>
+                      ) : null}
+                    </details>
+                  </section>
+                );
+              }) : <div className="se-quests-empty"><strong>No other jobs right now.</strong><span>Complete a story step or check back for fresh contracts.</span></div>}
+            </section>
 
-              <aside className="se-quests-work__rail">
-                <Panel title="Board status" className="se-quests-panel">
-                  <div className="se-quests-boardstatus">
-                    <div>
-                      <span>Available</span>
-                      <strong>{formatNumber(standardAvailableCount)}</strong>
-                    </div>
-                    {page.dailyContracts.enabled ? (
-                      <button type="button" onClick={() => selectTab('daily')}>
-                        <span>Daily board</span>
-                        <strong>{formatNumber(dailyToday.length)} / {formatNumber(page.dailyContracts.slots)}</strong>
-                        {page.dailyContracts.resetAt ? <small>{timeRemaining(page.dailyContracts.resetAt, nowMs)}</small> : null}
-                      </button>
-                    ) : null}
-                    {page.weeklyContracts.enabled ? (
-                      <button type="button" onClick={() => selectTab('weekly')}>
-                        <span>Weekly board</span>
-                        <strong>{formatNumber(weeklyToday.length)} / {formatNumber(page.weeklyContracts.slots)}</strong>
-                        {page.weeklyContracts.resetAt ? <small>{timeRemaining(page.weeklyContracts.resetAt, nowMs)}</small> : null}
-                      </button>
-                    ) : null}
-                    {page.cityContracts.enabled ? (
-                      <button type="button" onClick={() => selectTab('city')}>
-                        <span>City board</span>
-                        <strong>{formatNumber(cityToday.length)} / {formatNumber(page.cityContracts.slots)}</strong>
-                        {page.cityContracts.resetAt ? <small>{timeRemaining(page.cityContracts.resetAt, nowMs)}</small> : null}
-                      </button>
-                    ) : null}
-                    {page.seasonContracts?.enabled ? (
-                      <button type="button" onClick={() => selectTab('season')}>
-                        <span>Season board</span>
-                        <strong>{formatNumber(seasonToday.length)} / {formatNumber(page.seasonContracts.slots)}</strong>
-                        {page.seasonContracts.resetAt ? <small>{timeRemaining(page.seasonContracts.resetAt, nowMs)}</small> : null}
-                      </button>
-                    ) : null}
-                    {allianceToday.length ? (
-                      <button type="button" onClick={() => selectTab('alliance')}>
-                        <span>Alliance</span>
-                        <strong>{formatNumber(allianceToday.length)}</strong>
-                        <small>shared contracts</small>
-                      </button>
-                    ) : null}
-                    {eventToday.length ? (
-                      <button type="button" onClick={() => selectTab('events')}>
-                        <span>Community</span>
-                        <strong>{formatNumber(eventToday.length)}</strong>
-                        <small>shared events</small>
-                      </button>
-                    ) : null}
-                  </div>
-                </Panel>
-
+            <details className="se-quests-resources" open={showConnections}
+              onToggle={(event) => setShowConnections(event.currentTarget.open)}>
+              <summary className="se-quests-resources__summary">
+                <span><strong>Contacts &amp; factions</strong><small>Reputation, relationships and faction benefits</small></span>
+                <span aria-hidden="true">{showConnections ? '−' : '+'}</span>
+              </summary>
+              {showConnections ? <div className="se-quests-work__rail se-quests-work__rail--expanded">
                 <div id="contact-standing">
                   <Panel title="Contact standing" className="se-quests-panel">
                     <div className="se-quests-contacts">
@@ -1099,9 +873,17 @@ export function QuestPage() {
                     </Panel>
                   </div>
                 ) : null}
-              </aside>
-            </section>
 
+              </div> : null}
+            </details>
+
+            <details className="se-quests-resources" id="quest-progression" open={showProgression}
+              onToggle={(event) => setShowProgression(event.currentTarget.open)}>
+              <summary className="se-quests-resources__summary">
+                <span><strong>Favors &amp; permanent unlocks</strong><small>Stored advantages, active favors, recipes and rewards</small></span>
+                <span aria-hidden="true">{showProgression ? '−' : '+'}</span>
+              </summary>
+              {showProgression ? (
             <section className="se-quests-progression">
               <div className="se-quests-sectionhead">
                 <div>
@@ -1240,6 +1022,36 @@ export function QuestPage() {
                 </div>
               </div>
             </section>
+              ) : null}
+            </details>
+
+            <details className="se-quests-resources se-quests-options">
+              <summary className="se-quests-resources__summary">
+                <span><strong>Contract settings</strong><small>Automatic acceptance and board refreshes</small></span>
+                <span aria-hidden="true">+</span>
+              </summary>
+              <div className="se-quests-options__body">
+              <label className="se-checkrow se-checkrow--toggle se-quests-autoaccept">
+                <input
+                  type="checkbox"
+                  checked={page.autoAccept ?? true}
+                  disabled={busy !== null}
+                  onChange={(event) => {
+                    const enabled = event.target.checked;
+                    void mutate('auto-accept', () => questsApi.setAutoAccept(enabled), enabled
+                      ? 'Auto-accept is on. New daily, weekly and city work starts by itself.'
+                      : 'Auto-accept is off. Accept board work yourself.');
+                  }}
+                />
+                <span>
+                  <strong>Auto-accept board work</strong>
+                  <small>Daily, weekly and city contracts start as soon as they appear. Community events always start on their own. A job you abandon stays off until you take it again.</small>
+                </span>
+              </label>
+                <p className="se-hint">Daily: {page.dailyContracts.resetAt ? timeRemaining(page.dailyContracts.resetAt, nowMs) : 'No reset scheduled'} · Weekly: {page.weeklyContracts.resetAt ? timeRemaining(page.weeklyContracts.resetAt, nowMs) : 'No reset scheduled'} · City: {page.cityContracts.resetAt ? timeRemaining(page.cityContracts.resetAt, nowMs) : 'No reset scheduled'}</p>
+              </div>
+            </details>
+
           </>
         ) : !error ? (
           <div className="se-quests-loading" role="status">Checking the street for work...</div>

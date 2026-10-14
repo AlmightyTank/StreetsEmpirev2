@@ -22,7 +22,8 @@ datasource db {
 model Account {
   id                          String    @id @default(cuid())
   username                    String
-  /// Lowercased username. Enforces case-insensitive uniqueness.
+  /// Lowercased username. Enforces case-insensitive uniqueness. A database CHECK
+  /// (Account_usernameNormalized_lowercase) refuses any row where this is not lower(username).
   usernameNormalized          String    @unique
   /// Lowercased email. Private account recovery and login address.
   email                       String    @unique
@@ -97,6 +98,8 @@ model Account {
   cosmeticUnlocks        AccountCosmeticUnlock[]
   supporterMembership    SupporterMembership?
   supporterPayments      SupporterPayment[]
+  supporterSeasonStamps  SupporterSeasonStamp[]
+  supporterVotes         SupporterVote[]
   roundPlayers           RoundPlayer[]
   aftermathRewardClaims  RoundAftermathRewardClaim[]
   authoredNews           GameNews[]                  @relation("GameNewsAuthor")
@@ -111,8 +114,31 @@ model Account {
   surveySubmissions      SurveySubmission[]
   experienceEvents       PlayerExperienceEvent[]
   experiencePoints       Int                         @default(0)
+  /// When the player last changed their own pimp name. Null until the first change, which is free.
+  usernameChangedAt      DateTime?
+  usernameChanges        AccountUsernameChange[]
 
   @@index([registeredIp, createdAt])
+}
+
+/// Every pimp name an account has had, so staff can tell who a player used to be.
+model AccountUsernameChange {
+  id String @id @default(cuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  fromUsername String
+  /// lower(fromUsername). A name given up is held for its previous owner for 30 days.
+  fromUsernameNormalized String
+  toUsername   String
+  /// PLAYER for a self-service change, REVERT for a player taking back the name they just
+  /// gave up, STAFF for an admin rename (whose old name nobody may take for 30 days).
+  source       String
+  createdAt    DateTime @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([fromUsernameNormalized, createdAt])
 }
 
 /// Permanent account progress, separate from season resources and Street Pass Cred.
@@ -204,6 +230,8 @@ model AccountProfile {
   profileSurface        String?
   /// Supporter thank-you list on the public site. Opt-in, so off by default.
   showOnSupporterList   Boolean @default(false)
+  /// Supporter release-notes credits are opt-in and never list payments.
+  releaseNotesCreditOptIn Boolean @default(false)
   activeSiteThemeKey    String?
   /// Player-selected visual skin per inventory item key. Cosmetic only.
   itemCosmetics         Json    @default("{}")
@@ -295,6 +323,55 @@ model SupporterPayment {
 
   @@index([accountId, paidAt])
   @@index([stripeCustomerId, paidAt])
+}
+
+/// One permanent record that an account supported during a season (round).
+/// Written once at round close for every player whose account has a paid
+/// invoice in the season window; career and Hall of Fame reads join it so a
+/// finished season keeps its support stamp forever.
+model SupporterSeasonStamp {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  roundId   String
+  round     Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  awardedAt DateTime @default(now())
+
+  @@unique([accountId, roundId])
+  @@index([roundId])
+}
+
+/// A staged supporter-only vote, such as picking a future monthly-drop theme.
+model SupporterPoll {
+  id          String          @id @default(cuid())
+  title       String
+  description String?
+  /// Array of {key,label,description?}. Stored as JSON so admins can stage small polls without another table.
+  options     Json
+  status      String          @default("open")
+  opensAt     DateTime        @default(now())
+  closesAt    DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  votes       SupporterVote[]
+
+  @@index([status, opensAt])
+  @@map("supporter_poll")
+}
+
+/// One supporter vote per account per poll.
+model SupporterVote {
+  id        String        @id @default(cuid())
+  pollId    String
+  poll      SupporterPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  optionKey String
+  createdAt DateTime      @default(now())
+
+  @@unique([pollId, accountId])
+  @@index([accountId, createdAt])
+  @@map("supporter_vote")
 }
 
 /// Stripe webhook events already applied, so a redelivered event changes nothing.
@@ -1204,6 +1281,7 @@ model Round {
   aftermathReport          RoundAftermathReport?
   aftermathRewardsReceived RoundAftermathRewardClaim[] @relation("AftermathRewardTarget")
   aftermathRewardsSource   RoundAftermathRewardClaim[] @relation("AftermathRewardSource")
+  supporterSeasonStamps    SupporterSeasonStamp[]
   eventOccurrences         GameEventOccurrence[]
   news                     GameNews[]
   alliances                Alliance[]
@@ -3265,6 +3343,10 @@ enum ActivityType {
   RING_STOLEN
   /// The Ring was destroyed at the foundry.
   RING_DESTROYED
+  /// A sportsbook ticket's game has kicked off.
+  SPORTSBOOK_GAME_STARTED
+  /// A sportsbook ticket was graded as won, lost, push or void.
+  SPORTSBOOK_TICKET_SETTLED
 }
 
 enum BattleKind {
@@ -4369,12 +4451,15 @@ model SportsbookBet {
   payoutCents  BigInt
   status       String    @default("OPEN")
   settledAt    DateTime?
+  startedNotifiedAt    DateTime?
+  settlementNotifiedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   @@unique([roundPlayerId, actionId])
   @@index([roundPlayerId, createdAt(sort: Desc)])
   @@index([eventId, status])
+  @@index([status, startedNotifiedAt])
   @@index([casinoSessionId])
   @@index([casinoCityId, status])
 }

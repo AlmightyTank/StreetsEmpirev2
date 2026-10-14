@@ -8,6 +8,7 @@ import { useProductsCatalog } from '../hooks/useProductsCatalog.js';
 import { recipeIdentity, recipeNumbers, splitRecipes } from '../utils/recipes.js';
 import { actionsApi } from '../api/actions.js';
 import { ActionDock, resultChips } from '../components/ActionDock.js';
+import { ActionReadiness, OperationDetails } from '../components/ActionReadiness.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -130,6 +131,17 @@ export function ProducePage() {
         </header>
 
         {action.error ? <Alert>{action.error}</Alert> : null}
+        <ActionReadiness
+          title="Production readiness"
+          status={action.busy ? 'Cooking in progress' : produceBlock ? 'Needs attention' : 'Ready to produce'}
+          blockedReason={produceBlock}
+          items={[
+            { key: 'turns', label: 'Turns available', value: formatNumber(available) },
+            { key: 'cooks', label: 'Fit cooks', value: formatNumber(me.resources.fitThugs), tone: hasFitThugs ? 'good' : 'bad' },
+            { key: 'recipe', label: 'Selected recipe', value: selectedProfile.name, hint: 'Quest-unlocked recipe' },
+            { key: 'stock', label: 'Product in stock', value: formatNumber(currentStock) },
+          ]}
+        />
         {!hasFitThugs ? (
           <Alert tone="info">
             You need at least one fit thug to produce. Scout for more, pick some up at
@@ -173,6 +185,7 @@ export function ProducePage() {
               ))}
             </div>
             {lockedRecipes.length ? (
+              <OperationDetails title={`Locked recipes (${lockedRecipes.length})`} summary="View quest requirements and future products">
               <div className="se-produce-locked" aria-label="Recipes still locked">
                 <div className="se-produce-locked__head">
                   <span className="se-eyebrow">Still locked</span>
@@ -199,6 +212,7 @@ export function ProducePage() {
                   ))}
                 </ul>
               </div>
+              </OperationDetails>
             ) : null}
           </section>
 
@@ -261,8 +275,53 @@ export function ProducePage() {
           </aside>
         </div>
 
+        <ActionDock
+          label="Start the batch"
+          onSubmit={onSubmit}
+          outcome={action.result ? {
+            id: action.result,
+            title: `${producedName} · ${formatNumber(action.result.result.turnsUsed)} turns`,
+            chips: resultChips(action.result, receiptLines!),
+            receipt: (
+              <ActionResult
+                title={`${producedName} Production Results`}
+                result={action.result}
+                lines={receiptLines!}
+              />
+            ),
+            onDismiss: action.clear,
+          } : null}
+        >
+          <div>
+            <span className="se-dock__label">Ready to cook</span>
+            <strong>{selectedProfile.name}</strong>
+            <span>
+              {chosenTurns > 0 && chosenTurns <= available
+                ? `${formatNumber(remainingTurns)} turns left after`
+                : `${formatNumber(available)} turns available`}
+            </span>
+          </div>
+          <TurnSpend
+            value={turns}
+            onChange={setTurns}
+            available={available}
+            disabled={action.busy || !hasFitThugs}
+            disabledReason={
+              action.busy
+                ? 'The last batch is still producing.'
+                : !hasFitThugs
+                  ? 'Production takes a fit thug, and none of yours can work.'
+                  : null
+            }
+          />
+          <Button className="se-btn se-btn--primary" disabledReason={produceBlock}>
+            {action.busy ? 'Producing...' : action.result ? 'Cook again' : `Start ${selectedProfile.name} batch`}
+          </Button>
+        </ActionDock>
+
         <HeatNotice />
 
+        <OperationDetails title="Crew, supplies & process" summary="Fit cooks, ingredients, product plan and how production works">
         <section className="se-produce-section">
           <div className="se-produce-sectionhead">
             <div>
@@ -362,50 +421,9 @@ export function ProducePage() {
             </div>
           </div>
         </section>
+        </OperationDetails>
 
-        <ActionDock
-          label="Start the batch"
-          onSubmit={onSubmit}
-          outcome={action.result ? {
-            id: action.result,
-            title: `${producedName} · ${formatNumber(action.result.result.turnsUsed)} turns`,
-            chips: resultChips(action.result, receiptLines!),
-            receipt: (
-              <ActionResult
-                title={`${producedName} Production Results`}
-                result={action.result}
-                lines={receiptLines!}
-              />
-            ),
-            onDismiss: action.clear,
-          } : null}
-        >
-          <div>
-            <span className="se-dock__label">Ready to cook</span>
-            <strong>{selectedProfile.name}</strong>
-            <span>
-              {chosenTurns > 0 && chosenTurns <= available
-                ? `${formatNumber(remainingTurns)} turns left after`
-                : `${formatNumber(available)} turns available`}
-            </span>
-          </div>
-          <TurnSpend
-            value={turns}
-            onChange={setTurns}
-            available={available}
-            disabled={action.busy || !hasFitThugs}
-            disabledReason={
-              action.busy
-                ? 'The last batch is still producing.'
-                : !hasFitThugs
-                  ? 'Production takes a fit thug, and none of yours can work.'
-                  : null
-            }
-          />
-          <Button className="se-btn se-btn--primary" disabledReason={produceBlock}>
-            {action.busy ? 'Producing...' : action.result ? 'Cook again' : `Start ${selectedProfile.name} batch`}
-          </Button>
-        </ActionDock>
+
       </div>
     </GameLayout>
   );

@@ -8,13 +8,16 @@ import { PageGuide } from '../components/onboarding/PageGuide.js';
 import { useOnboarding } from '../stores/onboarding.js';
 import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
+import { useGamePresence } from '../hooks/useGamePresence.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
+import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { formatDuration } from '../utils/time.js';
 import {
   isCurrent,
+  filterNavSections,
   useNavBadges,
   useSections,
   useTabSlots,
@@ -64,8 +67,14 @@ function Badge({ badge }: { badge: NavBadge | null | undefined }) {
 /** Desktop and tablet sidebar. Phones get the tab bar instead. */
 function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathname: string; badges: Record<string, NavBadge> }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => readNavState());
-  // Folded to icons, every page shows and each link names itself on hover.
+  const [query, setQuery] = useState('');
+  // An icon rail must always contain every destination: the search field is hidden there.
   const rail = useSidebarRail();
+  const visible = filterNavSections(sections, rail ? '' : query);
+
+  useEffect(() => {
+    if (rail) setQuery('');
+  }, [rail]);
 
   useEffect(() => {
     writeNavState(expanded);
@@ -73,8 +82,15 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
 
   return (
     <nav className="se-nav" aria-label="Game">
-      {sections.map((section) => {
-        const sectionOpen = expanded[section.id] ?? section.defaultOpen ?? true;
+      <div className="se-nav-search">
+        <label className="se-sr" htmlFor="se-sidebar-search">Find a game page</label>
+        <input id="se-sidebar-search" type="search" className="se-nav-search__input" placeholder="Find a page..."
+          value={query} onChange={(event) => setQuery(event.target.value)} />
+      </div>
+      {visible.length === 0 ? <p className="se-nav-search__empty">No matching pages.</p> : null}
+      {visible.map((section) => {
+        const activeSection = section.pages.some((page) => isCurrent(page, pathname));
+        const sectionOpen = query.trim() ? true : expanded[section.id] ?? (activeSection || Boolean(section.defaultOpen));
         const listId = `game-nav-${section.id}`;
         return (
           <div className={`se-nav__section${sectionOpen ? '' : ' se-nav__section--collapsed'}`} key={section.id}>
@@ -83,7 +99,7 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
               className="se-nav__title"
               aria-expanded={sectionOpen}
               aria-controls={listId}
-              onClick={() => setExpanded((current) => ({ ...current, [section.id]: !(current[section.id] ?? section.defaultOpen ?? true) }))}
+              onClick={() => setExpanded((current) => ({ ...current, [section.id]: !(current[section.id] ?? (activeSection || Boolean(section.defaultOpen))) }))}
             >
               <span>{section.title}</span>
               <span className="se-nav__chevron" aria-hidden="true">{sectionOpen ? '−' : '+'}</span>
@@ -245,6 +261,8 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onE
   const sheet = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const editing = editSlot !== null;
+  const [query, setQuery] = useState('');
+  const visible = filterNavSections(sections, query);
   const slotOf = new Map(slots.map((page, index) => [page.key, index]));
 
   useEffect(() => {
@@ -263,7 +281,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onE
     }
     if (event.key !== 'Tab' || !sheet.current) return;
     // Keep focus inside the sheet while it is open.
-    const focusable = [...sheet.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')];
+    const focusable = [...sheet.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])')];
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
@@ -307,7 +325,13 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onE
         ) : null}
 
         <div className="se-sheet__body">
-          {sections.map((section) => (
+          <div className="se-sheet__search">
+            <label className="se-sr" htmlFor="se-sheet-search">Search game pages</label>
+            <input id="se-sheet-search" type="search" className="se-input" placeholder="Search pages..."
+              value={query} onChange={(event) => setQuery(event.target.value)} />
+          </div>
+          {visible.length === 0 ? <p className="se-nav-search__empty">No matching pages. Try another search.</p> : null}
+          {visible.map((section) => (
             <section key={section.id} className="se-sheet__section">
               <h3 className="se-sheet__heading">{section.title}</h3>
               <div className="se-sheet__grid">
@@ -391,9 +415,11 @@ const GameLayoutMountedContext = createContext(false);
 
 function GameLayoutFrame({ children }: { children: ReactNode }) {
   useStaleGameReload();
+  useGamePresence();
   usePageFreshness();
   const round = useSession((s) => s.round);
   const experience = useSession((s) => s.me?.experience ?? null);
+  const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
   const isBetaEnvironment = typeof window !== 'undefined' && window.location.hostname === 'beta.streetsempire.dev';
   const sections = useSections();
   const { pathname, search, hash } = useLocation();
@@ -477,6 +503,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
 
       <div className="se-gamegrid">
         <div className="se-gamemain">
+          {isAdmin && pathname.startsWith('/game/admin') ? <AdminWorkspace pathname={pathname} /> : null}
           <PageGuide />
           {children}
         </div>

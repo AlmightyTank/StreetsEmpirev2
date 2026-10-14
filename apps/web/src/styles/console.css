@@ -5,7 +5,7 @@
 
 .se-console-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, .55fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   align-items: end;
   padding: 24px;
@@ -30,39 +30,6 @@
   color: var(--se-text-dim);
   font-size: 13px;
   line-height: 1.5;
-}
-
-.se-console-hero__stats {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  border: 1px solid var(--se-line);
-  background: rgba(11, 12, 14, .72);
-}
-
-.se-console-hero__stats > span {
-  min-width: 0;
-  padding: 11px;
-  border-right: 1px solid var(--se-line);
-}
-
-.se-console-hero__stats > span:last-child {
-  border-right: 0;
-}
-
-.se-console-hero__stats small {
-  display: block;
-  color: var(--se-muted);
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: .09em;
-  text-transform: uppercase;
-}
-
-.se-console-hero__stats strong {
-  display: block;
-  margin-top: 4px;
-  font-family: var(--se-mono);
-  font-size: 16px;
 }
 
 .se-console-bar {
@@ -607,24 +574,6 @@
   align-items: center;
 }
 
-.se-console-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  padding: 9px 10px;
-  border: 1px solid var(--se-line);
-  color: var(--se-muted);
-  font-size: 9px;
-}
-
-.se-console-links a {
-  color: var(--se-text-dim);
-}
-
-.se-console-links a:hover {
-  color: var(--se-accent);
-}
-
 @media (max-width: 1120px) {
   .se-console-hero {
     grid-template-columns: 1fr;
@@ -646,18 +595,6 @@
 
   .se-console-hero h1 {
     font-size: 34px;
-  }
-
-  .se-console-hero__stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .se-console-hero__stats > span:nth-child(3) {
-    border-right: 0;
-  }
-
-  .se-console-hero__stats > span:nth-child(-n + 3) {
-    border-bottom: 1px solid var(--se-line);
   }
 
   .se-console-bar {
@@ -691,27 +628,6 @@
 }
 
 @media (max-width: 480px) {
-  .se-console-hero__stats {
-    grid-template-columns: 1fr;
-  }
-
-  .se-console-hero__stats > span {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    border-right: 0;
-    border-bottom: 1px solid var(--se-line);
-  }
-
-  .se-console-hero__stats > span:last-child {
-    border-bottom: 0;
-  }
-
-  .se-console-hero__stats strong {
-    margin-top: 0;
-  }
-
   .se-console-tabs {
     grid-template-columns: 1fr 1fr;
   }

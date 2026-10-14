@@ -6,6 +6,7 @@ import { ApiError } from '../api/client.js';
 import { wireApi } from '../api/playing-together.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
+import { SupporterMark } from './SupporterMark.js';
 import { Markdown } from './Markdown.js';
 import { Panel } from './Panel.js';
 import { formatWhen } from '../utils/time.js';
@@ -21,6 +22,7 @@ function PostRow({ post, busy, run }: {
     <li className={`se-wire__post${post.isYours ? ' se-wire__post--yours' : ''}${post.kind === 'ANNOUNCEMENT' ? ' se-wire__post--announcement' : ''}`}>
       <div className="se-wire__meta">
         <Link to={`/game/players/${post.author.publicPimpId}`} className="se-playerlink">{post.author.displayName}</Link>
+        {post.author.isSupporter ? <SupporterMark /> : null}
         <span className="se-muted">{formatWhen(post.createdAt)}</span>
         {post.kind === 'ANNOUNCEMENT' ? <span className="se-tag se-tag--warn">Announcement</span> : null}
         {post.pinned ? <span className="se-tag se-tag--good">Pinned</span> : null}
@@ -105,7 +107,7 @@ export function AllianceWire() {
         <div className="se-wire__pinned">
           <span className="se-eyebrow">Pinned announcement</span>
           <p>{wire.pinnedAnnouncement.body}</p>
-          <small>{wire.pinnedAnnouncement.author.displayName} · {formatWhen(wire.pinnedAnnouncement.createdAt)}</small>
+          <small>{wire.pinnedAnnouncement.author.displayName}{wire.pinnedAnnouncement.author.isSupporter ? ' · Supporter' : ''} · {formatWhen(wire.pinnedAnnouncement.createdAt)}</small>
         </div>
       ) : null}
       {wire?.cards.length ? (

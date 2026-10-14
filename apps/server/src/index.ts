@@ -19,6 +19,7 @@ import { LawWarrantService } from './services/law-warrant.service.js';
 import { LawOfficialService } from './services/law-official.service.js';
 import { PlayerStateService } from './services/player-state.service.js';
 import { refreshSportsbookCache } from './services/sportsbook-feed.service.js';
+import { SportsbookService } from './services/sportsbook.service.js';
 import { SupporterDropService } from './services/supporter-drop.service.js';
 
 const app = await buildApp();
@@ -85,6 +86,7 @@ const stopAlerts = startPoller('Alerts', 60_000, async () => {
     // 1.6.5-D: loan installments and property upkeep on their due time, from the cash on hand
     // then, so a missed installment reaches the bell while its owner is away.
     await DueSettleService.sweep(app.prisma, now, (roundPlayerId, error) => app.log.error({ err: error, roundPlayerId }, 'Due settle failed'));
+    await SportsbookService.notifyStartedGames(app.prisma, now);
     // 1.3.0-C/D: serve warrants on time, personal warrants once the boss is in town, and
     // Internal Affairs stings when they are due.
     const lawOwners = new Set([...await LawWarrantService.dueOwners(app.prisma, now), ...await LawOfficialService.dueOwners(app.prisma, now)]);

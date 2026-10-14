@@ -36,8 +36,21 @@ import { QuestCosmeticService, withThemeCompanionFrames } from './quest-cosmetic
 import { isPermanentAward } from './profile-badges.js';
 import { profileTitleForAward } from './profile-titles.js';
 import { crewCosmeticLoadout, itemCosmeticLoadout } from './profile-showcase.service.js';
+import { SupporterService } from './supporter.service.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
+export const FREE_PROFILE_PRESET_SLOTS = 1;
+export const SUPPORTER_PROFILE_PRESET_SLOTS = 4;
+export const FREE_COSMETIC_LOADOUT_SLOTS = 1;
+export const SUPPORTER_COSMETIC_LOADOUT_SLOTS = 4;
+
+function convenienceLimits(hasRewards: boolean): AccountProfileSettingsResponseDto['convenience'] {
+  return {
+    hasRewards,
+    presetSlots: hasRewards ? SUPPORTER_PROFILE_PRESET_SLOTS : FREE_PROFILE_PRESET_SLOTS,
+    loadoutSlots: hasRewards ? SUPPORTER_COSMETIC_LOADOUT_SLOTS : FREE_COSMETIC_LOADOUT_SLOTS,
+  };
+}
 
 /**
  * Slice D: "Street Pass · Season 1, tier 18" for each collection the round's
@@ -181,17 +194,25 @@ function optionFromCosmetic(cosmetic: QuestCosmeticDefinition): CosmeticOptionDt
   };
 }
 
-function adminSiteThemeOptions(ruleset: Ruleset): CosmeticOptionDto[] {
+function catalogCosmeticOptionsForRuleset(ruleset: Ruleset, kind: 'PROFILE_FRAME' | 'SITE_THEME'): CosmeticOptionDto[] {
   return Object.values(ruleset.cosmetics ?? {})
-    .filter((cosmetic) => cosmetic.kind === 'SITE_THEME')
+    .filter((cosmetic) => cosmetic.kind === kind)
     .map(optionFromCosmetic);
 }
 
-function adminCatalogSiteThemeOptions(): CosmeticOptionDto[] {
+function catalogCosmeticOptions(kind: 'PROFILE_FRAME' | 'SITE_THEME'): CosmeticOptionDto[] {
   const options: CosmeticOptionDto[] = [];
   const known = new Set<string>();
+  for (const cosmetic of Object.values(SUPPORTER_COSMETICS)) {
+    if (cosmetic.kind !== kind) continue;
+    const option = optionFromCosmetic(cosmetic);
+    if (!known.has(option.key)) {
+      options.push(option);
+      known.add(option.key);
+    }
+  }
   for (const ruleset of Object.values(rulesets)) {
-    for (const option of adminSiteThemeOptions(ruleset)) {
+    for (const option of catalogCosmeticOptionsForRuleset(ruleset, kind)) {
       if (!known.has(option.key)) {
         options.push(option);
         known.add(option.key);
@@ -316,27 +337,39 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
     }
   }
   const themeOptions = [...themes];
+  const frameOptions = [...frames];
   const knownThemes = new Set(themeOptions.map((option) => option.key));
+  const knownFrames = new Set(frameOptions.map((option) => option.key));
   const collections = new Set(collectionUnlocks.map((option) => option.key));
-  if (account?.isAdmin && env.seasonalEvents.adminTestMode) {
-    for (const option of adminCatalogSiteThemeOptions()) {
+  const unlockCatalogCosmetics = env.appEnvironment === 'development' || (account?.isAdmin && env.seasonalEvents.adminTestMode);
+  if (unlockCatalogCosmetics) {
+    for (const option of catalogCosmeticOptions('PROFILE_FRAME')) {
+      if (!knownFrames.has(option.key)) {
+        frameOptions.push(option);
+        knownFrames.add(option.key);
+      }
+    }
+    for (const option of catalogCosmeticOptions('SITE_THEME')) {
       if (!knownThemes.has(option.key)) {
         themeOptions.push(option);
         knownThemes.add(option.key);
       }
     }
+  }
+  if (account?.isAdmin && env.seasonalEvents.adminTestMode) {
     for (const style of RELEASED_ITEM_COSMETIC_STYLES) collections.add(style.key);
   }
-  return { accents, frames: withThemeCompanionFrames(frames, themeOptions), themes: themeOptions, collections };
+  return { accents, frames: withThemeCompanionFrames(frameOptions, themeOptions), themes: themeOptions, collections };
 }
 
 export const AccountProfileService = {
   async settings(prisma: PrismaClient, accountId: string): Promise<AccountProfileSettingsResponseDto> {
-    const [profile, awards, appearance, ruleset] = await Promise.all([
+    const [profile, awards, appearance, ruleset, supporterSince] = await Promise.all([
       readProfile(prisma, accountId),
       earnedAwards(prisma, accountId),
       appearanceOptions(prisma, accountId),
       currentRuleset(prisma),
+      SupporterService.since(prisma, accountId),
     ]);
     const hints = collectionUnlockHints(ruleset);
     const titleOptions = [...honorificTitles, ...awards.map(titleOptionFromAward)];
@@ -346,6 +379,7 @@ export const AccountProfileService = {
 
     return {
       settings: toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections),
+      convenience: convenienceLimits(supporterSince !== null),
       options: {
         titles: titleOptions,
         badges: badgeOptions,

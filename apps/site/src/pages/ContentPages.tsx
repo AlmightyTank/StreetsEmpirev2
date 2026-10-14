@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { PublicPageHero } from '../components/PublicPageBits.js';
 
-const guideTopics = [
+export const guideTopics = [
   { slug: 'getting-started', title: 'Getting Started', blurb: 'Your first turns, crew growth, supplies, Jobs and the basic seasonal loop.' },
   { slug: 'economy', title: 'Economy & Products', blurb: 'Scouting, working, production, stores, trader standing and product decisions.' },
   { slug: 'combat', title: 'Combat & Recon', blurb: 'Raids, drive-bys, wounds, protection windows and what Recon is for.' },
@@ -17,7 +17,7 @@ const guideTopics = [
   { slug: 'seasons', title: 'Seasons & Legacy', blurb: 'How rounds end, rankings freeze and your public career survives resets.' },
 ] as const;
 
-const guideCopy: Record<string, { title: string; intro: string; sections: Array<{ title: string; body: string }> }> = {
+export const guideCopy: Record<string, { title: string; intro: string; sections: Array<{ title: string; body: string }> }> = {
   'getting-started': {
     title: 'Getting Started',
     intro: 'StreetsEmpire is turn-driven. Your early job is to turn limited actions into a crew and economy that can survive the rest of the season.',
@@ -228,7 +228,7 @@ export function SupportPage() {
   const benefits = ['The Midnight Chrome collection for the Thug, Hoe, Sedan, Van and Low-Rider', 'The Signature Profile Card and supporter mark', 'A supporter badge for every month you support', 'A place on the public thank-you list, if you want one', 'Everything kept for good, even after you stop'];
   return <div className="site-page"><PublicPageHero eyebrow="Support the project" title="Help keep StreetsEmpire running"><p>Supporting funds hosting and development without buying competitive power.</p></PublicPageHero>
     <section className="site-section site-section--tight"><div className="container public-two-column"><section className="site-panel"><span className="site-card__eyebrow">Policy</span><h2>No pay-to-win.</h2><p className="content-lead">Supporting never sells stronger weapons, extra cash, turns, extra combat strength, hidden intelligence or other advantages that change who wins a season. The Street Pass stays free, and the casino never takes real money.</p></section>
-    <section className="site-panel"><span className="site-card__eyebrow">What supporters get</span><h2>Cosmetic and community thanks</h2><ul className="site-feature-list">{benefits.map(x=><li key={x}>{x}</li>)}</ul><p className="content-lead">Support from your account settings in the game: <a href="https://play.streetsempire.dev/account">Account → Supporting</a>. Payment is handled by Stripe, and you can cancel any time. <Link to="/supporters">See the supporters</Link>.</p></section></div></section></div>;
+    <section className="site-panel"><span className="site-card__eyebrow">What supporters get</span><h2>Cosmetic and community thanks</h2><ul className="site-feature-list">{benefits.map(x=><li key={x}>{x}</li>)}</ul><p className="content-lead">Support from the dedicated supporter page in the game: <a href="https://play.streetsempire.dev/game/supporter">Supporter rewards</a>. Payment is handled by Stripe, and you can cancel any time. <Link to="/supporters">See the supporters</Link>.</p></section></div></section></div>;
 }
 
 export function AboutPage() {

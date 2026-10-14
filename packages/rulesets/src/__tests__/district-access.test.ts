@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV18N } from '../classic-og-v1.8-n/index.js';
 import { classicOgV18O } from '../classic-og-v1.8-o/index.js';
+import { classicOgV18S } from '../classic-og-v1.8-s/index.js';
 import { ENCOUNTER_GANG_RULES } from '../encounter-gangs.js';
 import { rulesets } from '../index.js';
 import { questRequiredDistricts } from '../quest-definitions.js';
@@ -42,10 +43,12 @@ describe('1.8.0-O district access (Quest Access A)', () => {
   const ruleset: Ruleset = classicOgV18O;
   const catalog: QuestDefinitionCatalog = ruleset.questDefinitions!;
 
-  it('ships as the newest ruleset on top of 1.8.0-N', () => {
+  it('ships pinned on top of 1.8.0-N and stays inherited by the newest ruleset', () => {
     expect(classicOgV18O.meta).toMatchObject({ id: 'classic-og-v1.8-o', version: '1.8.0-O', name: 'Classic OG - District Access' });
     expect(rulesets[classicOgV18O.meta.id]).toBe(classicOgV18O);
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18O);
+    expect(rulesets[classicOgV18S.meta.id]).toBe(classicOgV18S);
+    expect(classicOgV18S.permanentUnlocks).toBe(classicOgV18O.permanentUnlocks);
+    expect(Object.values(rulesets).at(-1)?.permanentUnlocks).toBe(classicOgV18O.permanentUnlocks);
   });
 
   it('locks only the Nightclub and Casino, each opened by one story job', () => {
@@ -110,10 +113,11 @@ describe('1.8.0-O district access (Quest Access A)', () => {
     }
   });
 
-  it('leaves every earlier ruleset ungated', () => {
+  it('leaves every pre-O ruleset ungated', () => {
     for (const earlier of Object.values(rulesets) as Ruleset[]) {
-      if (earlier === classicOgV18O) continue;
+      if (earlier === classicOgV18O) break;
       expect(districtGates(earlier).size, earlier.meta.id).toBe(0);
     }
   });
 });
+

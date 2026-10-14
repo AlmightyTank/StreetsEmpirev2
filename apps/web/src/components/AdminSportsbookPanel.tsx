@@ -21,6 +21,8 @@ const FEED_LABEL: Record<SportsbookFeedStatus, string> = {
   FRESH: 'Fresh', STALE: 'Stale — betting paused', WAITING: 'Waiting for first snapshot', OFF: 'Off — no provider key',
 };
 
+const isOddsProvider = (provider: AdminSportsbookDto['providers'][number]) => provider.id !== 'espn';
+
 const ago = (iso: string | null) => (iso ? formatAgo(iso) : 'never');
 
 /**
@@ -55,9 +57,10 @@ export function AdminSportsbookPanel() {
     try {
       const next = await adminApi.sportsbook();
       setData(next);
-      setCheckProvider((current) => next.providers.some((provider) => provider.configured && provider.id === current)
+      const oddsProviders = next.providers.filter((provider) => provider.configured && isOddsProvider(provider));
+      setCheckProvider((current) => oddsProviders.some((provider) => provider.id === current)
         ? current
-        : next.providers.find((provider) => provider.configured)?.id ?? current);
+        : oddsProviders[0]?.id ?? current);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not load sportsbook feed health.');
     }
@@ -336,7 +339,7 @@ export function AdminSportsbookPanel() {
           <p className="se-hint">Fetches and stores the normal shared odds snapshots for NFL, NBA, MLB, and NHL now. Uses provider datapoints and respects the feed lease and quota safeguards.</p>
           <div className="se-actions-row">
             <Button type="button" className="se-btn se-btn--sm" onClick={() => void run('manual-pull', () => adminApi.sportsbookPull())}
-              disabledReason={busy ? 'Another sportsbook admin action is running.' : !data.configured ? 'No provider key on this server.' : data.feed.pollInProgress ? 'A sportsbook feed pull is already running.' : data.providers.filter((provider) => provider.configured).every((provider) => provider.quota.oddsPaused) ? 'Every provider is paused near its quota limit.' : null}>
+              disabledReason={busy ? 'Another sportsbook admin action is running.' : !data.configured ? 'No provider key on this server.' : data.feed.pollInProgress ? 'A sportsbook feed pull is already running.' : data.providers.filter((provider) => provider.configured && isOddsProvider(provider)).every((provider) => provider.quota.oddsPaused) ? 'Every odds provider is paused near its quota limit.' : null}>
               {busy === 'manual-pull' ? 'Pulling odds…' : 'Pull odds now'}
             </Button>
           </div>
@@ -350,10 +353,10 @@ export function AdminSportsbookPanel() {
             </select>
             <label className="se-sr" htmlFor="sportsbook-check-provider">Provider</label>
             <select id="sportsbook-check-provider" className="se-input se-input--sm" value={checkProvider} onChange={(event) => setCheckProvider(event.target.value)}>
-              {data.providers.filter((provider) => provider.configured && provider.id !== 'espn').map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
+              {data.providers.filter((provider) => provider.configured && isOddsProvider(provider)).map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
             </select>
             <Button type="button" className="se-btn se-btn--sm" onClick={() => void providerCheck()}
-              disabledReason={checking ? 'The check is running.' : !data.providers.some((provider) => provider.configured && provider.id === checkProvider) ? 'Choose a configured provider.' : null}>
+              disabledReason={checking ? 'The check is running.' : !data.providers.some((provider) => provider.configured && isOddsProvider(provider) && provider.id === checkProvider) ? 'Choose a configured odds provider.' : null}>
               {checking ? 'Checking…' : 'Check provider payload'}
             </Button>
           </div>

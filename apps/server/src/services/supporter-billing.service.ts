@@ -1,12 +1,13 @@
 import type { Account, PrismaClient, SupporterMembership } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify';
-import { SUPPORTER_DROP_SOURCE, supporterDropFor, supporterMonth } from '@streets/rulesets';
+import { SUPPORTER_DROP_SOURCE, SUPPORTER_TENURE_SOURCE, supporterDropFor, supporterMonth } from '@streets/rulesets';
 import type { SupporterMembershipDto, SupporterRedirectDto, SupporterStatusDto } from '@streets/shared';
 import { env } from '../config/env.js';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { stripeApi, type StripeApi, type StripeEvent } from './stripe.client.js';
 import { SupporterService } from './supporter.service.js';
+import { queueDiscordRoleResync } from './discord-resync.service.js';
 
 /** Statuses that count as supporting right now. past_due is still retrying a payment. */
 const ACTIVE_STATUSES = new Set(['active', 'trialing']);
@@ -14,11 +15,44 @@ const ACTIVE_STATUSES = new Set(['active', 'trialing']);
 const RUNNING_STATUSES = new Set(['active', 'trialing', 'past_due', 'unpaid']);
 /** Shown as the actor on audit entries written for a Stripe payment. */
 export const STRIPE_AUDIT_ACTOR = 'Stripe';
+const PREVIEW_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 type Obj = Record<string, unknown>;
 
 function obj(value: unknown): Obj | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Obj : null;
+}
+
+function monthStart(month: string): Date {
+  const [year, zeroMonth] = month.split('-').map(Number);
+  return new Date(Date.UTC(year!, zeroMonth! - 1, 1));
+}
+
+function nextMonth(month: string): string {
+  const start = monthStart(month);
+  start.setUTCMonth(start.getUTCMonth() + 1);
+  return supporterMonth(start);
+}
+
+function previewFor(month: string, now: Date, hasRewards: boolean): SupporterStatusDto['supporterPreview'] {
+  if (!hasRewards) return null;
+  const bundle = supporterDropFor(month);
+  if (!bundle?.length) return null;
+  const availableAt = monthStart(month);
+  const earlyAt = new Date(availableAt.getTime() - PREVIEW_WINDOW_MS);
+  if (now < earlyAt || now >= availableAt) return null;
+  return {
+    month,
+    name: bundle.length > 1 ? `${bundle[0]!.name} +${bundle.length - 1}` : bundle[0]!.name,
+    availableAt: availableAt.toISOString(),
+    items: bundle.map((item) => ({
+      name: item.name,
+      description: item.description,
+      kind: item.kind,
+      rarity: item.rarity,
+      styleKey: item.styleKey ?? null,
+    })),
+  };
 }
 
 /** An id, whether Stripe sent it as a string or as an expanded object. */
@@ -43,6 +77,13 @@ function cents(value: unknown): number {
 /** The accountId we put on the checkout session and subscription metadata. */
 function metadataAccount(value: unknown): string | null {
   return text(obj(value)?.accountId);
+}
+
+function giftMetadata(value: unknown): { gifterAccountId: string; recipientAccountId: string } | null {
+  const meta = obj(value);
+  const gifterAccountId = text(meta?.gifterAccountId);
+  const recipientAccountId = text(meta?.recipientAccountId);
+  return gifterAccountId && recipientAccountId ? { gifterAccountId, recipientAccountId } : null;
 }
 
 export function membershipDto(row: SupporterMembership): SupporterMembershipDto {
@@ -121,6 +162,7 @@ async function applyMembership(tx: Db, accountId: string, change: MembershipChan
         stripeEventAt: eventAt,
       },
     });
+    await queueDiscordRoleResync(tx, { accountIds: [accountId] }, 'Supporter status change');
     return;
   }
   await tx.supporterMembership.update({
@@ -131,6 +173,7 @@ async function applyMembership(tx: Db, accountId: string, change: MembershipChan
       ...status,
     },
   });
+  await queueDiscordRoleResync(tx, { accountIds: [accountId] }, 'Supporter status change');
 }
 
 /**
@@ -139,8 +182,9 @@ async function applyMembership(tx: Db, accountId: string, change: MembershipChan
  */
 async function grantRewards(tx: Db, accountId: string, reason: string, paidAt: Date): Promise<string[]> {
   const granted = await SupporterService.grant(tx, accountId);
-  const drop = await SupporterService.grantDrop(tx, accountId, supporterMonth(paidAt), paidAt);
-  if (drop) granted.push(drop);
+  const drops = await SupporterService.grantDrops(tx, accountId, supporterMonth(paidAt), paidAt);
+  granted.push(...drops);
+  granted.push(...await SupporterService.grantTenure(tx, accountId, paidAt));
   if (granted.length) {
     await tx.adminAuditLog.create({
       data: {
@@ -154,6 +198,45 @@ async function grantRewards(tx: Db, accountId: string, reason: string, paidAt: D
       },
     });
   }
+  await queueDiscordRoleResync(tx, { accountIds: [accountId] }, 'Supporter reward grant');
+  return granted;
+}
+
+async function grantGift(tx: Db, gift: { gifterAccountId: string; recipientAccountId: string; stripeId: string; customerId: string; amountCents: number; currency: string; paidAt: Date }): Promise<string[]> {
+  const recipient = await tx.account.findUnique({ where: { id: gift.recipientAccountId }, select: { id: true } });
+  const gifter = await tx.account.findUnique({ where: { id: gift.gifterAccountId }, select: { id: true } });
+  if (!recipient || !gifter || gift.amountCents <= 0) return [];
+  await tx.supporterPayment.upsert({
+    where: { stripeInvoiceId: gift.stripeId },
+    create: {
+      accountId: gift.gifterAccountId,
+      stripeInvoiceId: gift.stripeId,
+      stripeCustomerId: gift.customerId,
+      amountCents: gift.amountCents,
+      currency: gift.currency,
+      status: 'paid',
+      paidAt: gift.paidAt,
+    },
+    update: {},
+  });
+  const granted = [
+    ...await SupporterService.grantDrops(tx, gift.recipientAccountId, supporterMonth(gift.paidAt), gift.paidAt),
+    ...await SupporterService.grantTenure(tx, gift.gifterAccountId, gift.paidAt),
+  ];
+  if (granted.length) {
+    await tx.adminAuditLog.create({
+      data: {
+        actorAccountId: gift.gifterAccountId,
+        actorUsername: STRIPE_AUDIT_ACTOR,
+        action: 'account.grant-supporter',
+        targetType: 'account',
+        targetId: gift.recipientAccountId,
+        reason: `Supporter gift ${gift.stripeId}`,
+        after: { granted, gifterAccountId: gift.gifterAccountId },
+      },
+    });
+  }
+  await queueDiscordRoleResync(tx, { accountIds: [gift.gifterAccountId, gift.recipientAccountId] }, 'Supporter gift grant');
   return granted;
 }
 
@@ -178,8 +261,23 @@ async function applyEvent(tx: Db, event: StripeEvent, context: { disputedCustome
   switch (event.type) {
     case 'checkout.session.completed':
     case 'checkout.session.async_payment_succeeded': {
-      if (data.mode !== 'subscription') return 'ignored';
       const customerId = id(data.customer);
+      const sessionId = text(data.id);
+      const gift = giftMetadata(data.metadata);
+      if (gift) {
+        const paid = data.payment_status === 'paid';
+        if (!paid || !sessionId) return 'applied';
+        const granted = await grantGift(tx, {
+          ...gift,
+          stripeId: `gift:${sessionId}`,
+          customerId: customerId ?? `checkout:${sessionId}`,
+          amountCents: cents(data.amount_total),
+          currency: text(data.currency) ?? 'usd',
+          paidAt: eventAt,
+        });
+        return granted.length ? 'granted' : 'applied';
+      }
+      if (data.mode !== 'subscription') return 'ignored';
       if (!customerId) return 'ignored';
       const accountId = await accountFor(tx, { accountId: text(data.client_reference_id) ?? metadataAccount(data.metadata), customerId });
       if (!accountId) return 'unmatched';
@@ -199,6 +297,22 @@ async function applyEvent(tx: Db, event: StripeEvent, context: { disputedCustome
       const parent = obj(obj(data.parent)?.subscription_details);
       const details = obj(data.subscription_details) ?? parent;
       const subscriptionId = id(data.subscription) ?? id(parent?.subscription);
+      const gift = giftMetadata(details?.metadata) ?? giftMetadata(data.metadata);
+      if (gift) {
+        const amount = cents(data.amount_paid);
+        const invoiceId = text(data.id);
+        const paidAt = seconds(obj(data.status_transitions)?.paid_at) ?? eventAt;
+        if (!invoiceId || amount <= 0) return 'applied';
+        const granted = await grantGift(tx, {
+          ...gift,
+          stripeId: invoiceId,
+          customerId: customerId ?? `invoice:${invoiceId}`,
+          amountCents: amount,
+          currency: text(data.currency) ?? 'usd',
+          paidAt,
+        });
+        return granted.length ? 'granted' : 'applied';
+      }
       // Only subscription invoices for supporting; anything else on the Stripe account is not ours.
       if (!customerId || !subscriptionId) return 'ignored';
       const accountId = await accountFor(tx, { accountId: metadataAccount(details?.metadata), customerId, subscriptionId });
@@ -274,24 +388,33 @@ async function applyEvent(tx: Db, event: StripeEvent, context: { disputedCustome
 export const SupporterBillingService = {
   async status(prisma: PrismaClient, accountId: string, now = new Date()): Promise<SupporterStatusDto> {
     const month = supporterMonth(now);
-    const drop = supporterDropFor(month);
+    const bundle = supporterDropFor(month);
     const [since, membership, profile, drops] = await Promise.all([
       SupporterService.since(prisma, accountId),
       prisma.supporterMembership.findUnique({ where: { accountId } }),
-      prisma.accountProfile.findUnique({ where: { accountId }, select: { showOnSupporterList: true } }),
+      prisma.accountProfile.findUnique({ where: { accountId }, select: { showOnSupporterList: true, releaseNotesCreditOptIn: true } }),
       prisma.accountCosmeticUnlock.findMany({
-        where: { accountId, sourceRulesetId: SUPPORTER_DROP_SOURCE },
+        where: { accountId, sourceRulesetId: { in: [SUPPORTER_DROP_SOURCE, SUPPORTER_TENURE_SOURCE] } },
         select: { key: true, title: true, sourceRulesetVersion: true },
         orderBy: { sourceRulesetVersion: 'desc' },
       }),
     ]);
+    const hasRewards = since !== null;
     return {
       checkoutEnabled: env.stripe.enabled,
-      hasRewards: since !== null,
+      hasRewards,
       since: since?.toISOString() ?? null,
       membership: membership ? membershipDto(membership) : null,
-      listed: since !== null && (profile?.showOnSupporterList ?? false),
-      drop: drop ? { month, name: drop.name, held: drops.some((row) => row.key === drop.key) } : null,
+      listed: hasRewards && (profile?.showOnSupporterList ?? false),
+      releaseNotesCreditOptIn: hasRewards && (profile?.releaseNotesCreditOptIn ?? false),
+      drop: bundle?.length
+        ? {
+          month,
+          name: bundle.length > 1 ? `${bundle[0]!.name} +${bundle.length - 1}` : bundle[0]!.name,
+          held: bundle.every((item) => drops.some((row) => row.key === item.key)),
+        }
+        : null,
+      supporterPreview: previewFor(nextMonth(month), now, hasRewards),
       dropsHeld: drops.map((row) => ({ month: row.sourceRulesetVersion, name: row.title })),
     };
   },
@@ -305,6 +428,18 @@ export const SupporterBillingService = {
       where: { accountId },
       create: { accountId, showOnSupporterList: listed },
       update: { showOnSupporterList: listed },
+    });
+    return SupporterBillingService.status(prisma, accountId);
+  },
+
+  async setReleaseNotesCredit(prisma: PrismaClient, accountId: string, optIn: boolean): Promise<SupporterStatusDto> {
+    if (optIn && !(await SupporterService.since(prisma, accountId))) {
+      throw AppError.conflict('NOT_A_SUPPORTER', 'Release-notes credits are for supporters. Support StreetsEmpire first.');
+    }
+    await prisma.accountProfile.upsert({
+      where: { accountId },
+      create: { accountId, releaseNotesCreditOptIn: optIn },
+      update: { releaseNotesCreditOptIn: optIn },
     });
     return SupporterBillingService.status(prisma, accountId);
   },
@@ -323,8 +458,28 @@ export const SupporterBillingService = {
       subscription_data: { metadata: { accountId: account.id } },
       // Reuse the Stripe customer from an earlier subscription so billing history stays together.
       ...(membership ? { customer: membership.stripeCustomerId } : { customer_email: account.email }),
-      success_url: `${env.frontendOrigin}/account?supporter=thanks`,
-      cancel_url: `${env.frontendOrigin}/account?supporter=cancelled`,
+      success_url: `${env.frontendOrigin}/game/supporter?supporter=thanks`,
+      cancel_url: `${env.frontendOrigin}/game/supporter?supporter=cancelled`,
+    });
+    return { url: session.url };
+  },
+
+  /** One-time gift checkout: payer gets paid-month tenure credit; recipient gets only the current-month bundle. */
+  async startGiftCheckout(prisma: PrismaClient, account: Pick<Account, 'id' | 'email'>, recipientAccountId: string, api: StripeApi = liveStripe()): Promise<SupporterRedirectDto> {
+    if (recipientAccountId === account.id) {
+      throw AppError.conflict('CANNOT_GIFT_SELF', 'Choose another player to gift a supporter month to.');
+    }
+    const recipient = await prisma.account.findUnique({ where: { id: recipientAccountId }, select: { id: true, isActive: true } });
+    if (!recipient?.isActive) throw AppError.notFound('RECIPIENT_NOT_FOUND', 'That player account was not found.');
+    const metadata = { gifterAccountId: account.id, recipientAccountId };
+    const session = await api.createCheckoutSession({
+      mode: 'payment',
+      line_items: [{ price: env.stripe.supporterPriceId, quantity: 1 }],
+      client_reference_id: account.id,
+      metadata,
+      customer_email: account.email,
+      success_url: `${env.frontendOrigin}/game/supporter?supporter=gift-thanks`,
+      cancel_url: `${env.frontendOrigin}/game/supporter?supporter=gift-cancelled`,
     });
     return { url: session.url };
   },
@@ -333,7 +488,7 @@ export const SupporterBillingService = {
   async openPortal(prisma: PrismaClient, accountId: string, api: StripeApi = liveStripe()): Promise<SupporterRedirectDto> {
     const membership = await prisma.supporterMembership.findUnique({ where: { accountId } });
     if (!membership) throw AppError.notFound('NO_SUPPORTER_BILLING', 'There is no supporter billing on this account yet.');
-    return api.createPortalSession({ customer: membership.stripeCustomerId, return_url: `${env.frontendOrigin}/account` });
+    return api.createPortalSession({ customer: membership.stripeCustomerId, return_url: `${env.frontendOrigin}/game/supporter` });
   },
 
   /**

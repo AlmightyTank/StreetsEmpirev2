@@ -52,6 +52,9 @@ function prismaFor(isAdmin: boolean, unlocks: UnlockRow[] = []): PrismaClient {
     },
     accountCosmeticUnlock: {
       findMany: async (args: { where: { kind: string } }) => unlocks.filter((row) => row.kind === args.where.kind),
+      findFirst: async () => unlocks
+        .filter((row) => row.key.startsWith('supporter-'))
+        .sort((a, b) => a.awardedAt.getTime() - b.awardedAt.getTime())[0] ?? null,
     },
     roundPlayer: {
       findUnique: async () => null,
@@ -361,6 +364,7 @@ describe('AccountProfileService Midnight Chrome supporter rewards', () => {
   const supporterUnlocks = (): UnlockRow[] => [
     { key: 'supporter-midnight-chrome', kind: 'ITEM_COLLECTION', title: 'Midnight Chrome Collection', description: '', styleKey: 'midnight-chrome', awardedAt: new Date(0) },
     frameUnlock('midnight-chrome-frame'),
+    { key: 'supporter-banner-accent', kind: 'ACCENT', title: 'Supporter Banner Accent', description: '', styleKey: 'supporter-crimson', awardedAt: new Date(0) },
   ];
   const input = { ...updateInput, activeSiteThemeKey: null };
 
@@ -371,6 +375,7 @@ describe('AccountProfileService Midnight Chrome supporter rewards', () => {
   it('says how a locked supporter collection is earned', async () => {
     const response = await AccountProfileService.settings(prismaFor(false), 'account-1');
 
+    expect(response.convenience).toEqual({ hasRewards: false, presetSlots: 1, loadoutSlots: 1 });
     expect(response.options.crewStyles?.find((option) => option.key === 'midnight-chrome')).toMatchObject({
       locked: true,
       unlockHint: 'Supporter reward.',
@@ -399,6 +404,7 @@ describe('AccountProfileService Midnight Chrome supporter rewards', () => {
 
     const prisma = prismaFor(false, supporterUnlocks());
     const settings = await AccountProfileService.settings(prisma, 'account-1');
+    expect(settings.convenience).toEqual({ hasRewards: true, presetSlots: 4, loadoutSlots: 4 });
     expect(settings.options.surfaces?.map((option) => option.key)).toEqual(['brushed', 'carbon', 'engine-turned']);
     expect(settings.options.effects.map((option) => option.key)).toContain('midnight-chrome');
 
@@ -415,5 +421,23 @@ describe('AccountProfileService Midnight Chrome supporter rewards', () => {
       profileEffect: 'midnight-chrome',
       profileSurface: 'engine-turned',
     });
+  });
+
+  it('equips the supporter banner accent only after the unlock exists', async () => {
+    await expect(AccountProfileService.update(prismaFor(false), 'account-1', {
+      ...input,
+      profileAccent: 'supporter-crimson',
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+
+    const prisma = prismaFor(false, supporterUnlocks());
+    const saved = await AccountProfileService.update(prisma, 'account-1', {
+      ...input,
+      profileAccent: 'supporter-crimson',
+    });
+
+    expect(saved.options.accents.find((option) => option.key === 'supporter-crimson')).toMatchObject({
+      label: 'Supporter Banner Accent',
+    });
+    expect(saved.settings.profileAccent).toBe('supporter-crimson');
   });
 });

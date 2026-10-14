@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { loadRulesetForRound } from '@streets/rules-engine';
@@ -19,6 +19,7 @@ import {
   type SportsbookTicketsDto,
 } from '@streets/shared';
 import { creditLegacySportsbookChips, creditSportsbookChips, debitSportsbookChips } from './casino.service.js';
+import { createPlayerActivity } from './in-app-notification.service.js';
 import { DEFAULT_SPORTSBOOK_PROVIDER_ID, sportsbookProviderName } from './sportsbook/sportsbook-providers.js';
 
 export const SPORTSBOOK_LEAGUES = [
@@ -125,6 +126,42 @@ export function sportsbookTicketDto(bet: TicketRow): SportsbookBetDto {
   };
 }
 
+function sportsbookActivityPayload(input: {
+  betId: string;
+  eventId: string;
+  sport: string;
+  homeTeam: string;
+  awayTeam: string;
+  startsAt: Date;
+  selection: string;
+  oddsAmerican: number;
+  stakeCents: bigint;
+  payoutCents: bigint;
+  status?: string;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  returnCents?: bigint;
+}): Prisma.InputJsonObject {
+  const pickTeam = input.selection === 'HOME' ? input.homeTeam : input.awayTeam;
+  return {
+    betId: input.betId,
+    eventId: input.eventId,
+    sport: input.sport,
+    homeTeam: input.homeTeam,
+    awayTeam: input.awayTeam,
+    startsAt: input.startsAt.toISOString(),
+    selection: input.selection,
+    pickTeam,
+    oddsAmerican: input.oddsAmerican,
+    stakeCents: Number(input.stakeCents),
+    payoutCents: Number(input.payoutCents),
+    ...(input.status ? { status: input.status } : {}),
+    ...(input.homeScore !== undefined ? { homeScore: input.homeScore } : {}),
+    ...(input.awayScore !== undefined ? { awayScore: input.awayScore } : {}),
+    ...(input.returnCents !== undefined ? { returnCents: Number(input.returnCents) } : {}),
+  };
+}
+
 /**
  * 1.8.0-D. What a player already has riding, and (for a wager) what is already on this game and
  * on this side of it from every player. The daily window counts every ticket placed in the last
@@ -203,8 +240,24 @@ export async function settleSportsbookEventTx(
     } else {
       ticketStatus = 'LOST';
     }
-    const changed = await tx.sportsbookBet.updateMany({ where: { id: ticket.id, status: 'OPEN' }, data: { status: ticketStatus, settledAt: now } });
+    const changed = await tx.sportsbookBet.updateMany({ where: { id: ticket.id, status: 'OPEN' }, data: { status: ticketStatus, settledAt: now, settlementNotifiedAt: now } });
     if (!changed.count) continue;
+    await createPlayerActivity(tx, ticket.roundPlayerId, 'SPORTSBOOK_TICKET_SETTLED', sportsbookActivityPayload({
+      betId: ticket.id,
+      eventId: ticket.eventId,
+      sport: event.sport,
+      homeTeam: event.homeTeam,
+      awayTeam: event.awayTeam,
+      startsAt: event.startsAt,
+      selection: ticket.selection,
+      oddsAmerican: ticket.oddsAmerican,
+      stakeCents: ticket.stakeCents,
+      payoutCents: ticket.payoutCents,
+      status: ticketStatus,
+      homeScore,
+      awayScore,
+      returnCents: credit,
+    }));
     summary.tickets += 1;
     summary[ticketStatus === 'WON' ? 'won' : ticketStatus === 'LOST' ? 'lost' : ticketStatus === 'PUSH' ? 'push' : 'void'] += 1;
     if (credit > 0n) {
@@ -261,6 +314,41 @@ export function settleSportsbookEvent(
 }
 
 export const SportsbookService = {
+  async notifyStartedGames(prisma: PrismaClient, now = new Date()): Promise<number> {
+    const tickets = await prisma.sportsbookBet.findMany({
+      where: { status: 'OPEN', startedNotifiedAt: null, event: { startsAt: { lte: now } } },
+      include: { event: true },
+      orderBy: [{ event: { startsAt: 'asc' } }, { createdAt: 'asc' }],
+      take: 200,
+    });
+    let notified = 0;
+    for (const ticket of tickets) {
+      const changed = await prisma.$transaction(async (tx) => {
+        const update = await tx.sportsbookBet.updateMany({
+          where: { id: ticket.id, startedNotifiedAt: null, status: 'OPEN' },
+          data: { startedNotifiedAt: now },
+        });
+        if (!update.count) return 0;
+        await createPlayerActivity(tx, ticket.roundPlayerId, 'SPORTSBOOK_GAME_STARTED', sportsbookActivityPayload({
+          betId: ticket.id,
+          eventId: ticket.eventId,
+          sport: ticket.event.sport,
+          homeTeam: ticket.event.homeTeam,
+          awayTeam: ticket.event.awayTeam,
+          startsAt: ticket.event.startsAt,
+          selection: ticket.selection,
+          oddsAmerican: ticket.oddsAmerican,
+          stakeCents: ticket.stakeCents,
+          payoutCents: ticket.payoutCents,
+          status: ticket.status,
+        }));
+        return 1;
+      });
+      notified += changed;
+    }
+    return notified;
+  },
+
   async board(
     prisma: PrismaClient,
     options: { configured: boolean; pollMinutes: number },

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { SiteLayout } from './components/SiteLayout.js';
 import { PrivacyPage, TermsPage } from './pages/LegalPages.js';
 
@@ -19,6 +19,8 @@ const StatsPage = lazy(() => import('./pages/StatsPage.js').then((module) => ({ 
 const NewsPage = lazy(() => import('./pages/NewsPage.js').then((module) => ({ default: module.NewsPage })));
 const NewsArticlePage = lazy(() => import('./pages/NewsArticlePage.js').then((module) => ({ default: module.NewsArticlePage })));
 const SearchPage = lazy(() => import('./pages/SearchPage.js').then((module) => ({ default: module.SearchPage })));
+const WikiIndexPage = lazy(() => import('./pages/WikiPages.js').then((module) => ({ default: module.WikiIndexPage })));
+const WikiTopicPage = lazy(() => import('./pages/WikiPages.js').then((module) => ({ default: module.WikiTopicPage })));
 const SupportersPage = lazy(() => import('./pages/SupportersPage.js').then((module) => ({ default: module.SupportersPage })));
 const StatusPage = lazy(() => import('./pages/StatusPage.js').then((module) => ({ default: module.StatusPage })));
 const NotFoundPage = lazy(() => import('./pages/SectionPage.js').then((module) => ({ default: module.NotFoundPage })));
@@ -42,16 +44,23 @@ function RouteFallback() {
   );
 }
 
+function GuideTopicRedirect() {
+  const { topic = '' } = useParams();
+  return <Navigate to={`/wiki/${topic}`} replace />;
+}
+
 export function App() {
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route element={<SiteLayout />}>
           <Route index element={<HomePage />} />
-          <Route path="game" element={<ContentPages.GamePage />} />
+          <Route path="game" element={<Navigate to="/wiki" replace />} />
 
-          <Route path="guide" element={<ContentPages.GuidePage />} />
-          <Route path="guide/:topic" element={<ContentPages.GuideTopicPage />} />
+          <Route path="wiki" element={<WikiIndexPage />} />
+          <Route path="wiki/:topic" element={<WikiTopicPage />} />
+          <Route path="guide" element={<Navigate to="/wiki" replace />} />
+          <Route path="guide/:topic" element={<GuideTopicRedirect />} />
 
           <Route path="cities" element={<CitiesPage />} />
           <Route path="cities/:citySlug" element={<CityPage />} />

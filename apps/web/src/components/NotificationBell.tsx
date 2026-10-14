@@ -9,6 +9,22 @@ import { formatWhen } from '../utils/time.js';
 
 const EMPTY_FEED: InAppNotificationFeedDto = { notifications: [], unreadCount: 0 };
 
+function notificationMeta(type: string, tone: string): { icon: string; label: string } {
+  if (type.startsWith('QUEST_')) return { icon: '★', label: 'Quest' };
+  if (type.startsWith('TURF_') || type === 'ALLIANCE_CALL') return { icon: '◆', label: type === 'ALLIANCE_CALL' ? 'Alliance' : 'Turf' };
+  if (type.startsWith('CONVOY_') || type.startsWith('RUN_')) return { icon: '→', label: 'Travel' };
+  if (type.includes('WARRANT') || type.includes('CASE_') || type.startsWith('OFFICIAL_') || type === 'CAPTAIN_TIP') return { icon: '!', label: 'Law' };
+  if (type.startsWith('FACTION_')) return { icon: '◇', label: 'Faction' };
+  if (type.startsWith('LOAN_')) return { icon: '$', label: 'Loans' };
+  if (type.startsWith('RING_')) return { icon: '○', label: 'Ring' };
+  if (type === 'RAID_DEFENSE' || type === 'DRIVE_BY_DEFENSE' || type === 'REVENGE_EXPIRING') return { icon: '×', label: 'Combat' };
+  if (type === 'SUPPLY_LANE_ARRIVED' || type === 'SPECIAL_ORDER_READY') return { icon: '□', label: 'Supply' };
+  if (type === 'GAME_ANNOUNCEMENT') return { icon: 'i', label: 'News' };
+  if (tone === 'bad') return { icon: '!', label: 'Alert' };
+  if (tone === 'good') return { icon: '✓', label: 'Update' };
+  return { icon: '•', label: 'Notice' };
+}
+
 function displayTime(value: string): string {
   const date = new Date(value);
   return formatWhen(date);
@@ -57,8 +73,8 @@ export function NotificationBell() {
   useEffect(() => {
     if (!accountId) return;
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 30_000);
-    const onFocus = () => void refresh();
+    const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 30_000);
+    const onFocus = () => { if (!document.hidden) void refresh(); };
     const onChanged = () => void refresh();
     window.addEventListener('focus', onFocus);
     window.addEventListener('streets:notifications-changed', onChanged);
@@ -193,12 +209,17 @@ export function NotificationBell() {
             ) : !rendered.length ? (
               <div className="se-notification-empty">No recent notifications.</div>
             ) : rendered.map(({ notification, toast }) => {
+              const meta = notificationMeta(notification.activity.type, toast.tone);
               const body = (
                 <>
                   <span className="se-notification-item__top">
-                    <strong>{toast.title}</strong>
+                    <span className={`se-notification-item__meta se-notification-item__meta--${toast.tone}`}>
+                      <span aria-hidden="true">{meta.icon}</span>
+                      {meta.label}
+                    </span>
                     {!notification.readAt ? <span className="se-notification-dot" aria-label="Unread" /> : null}
                   </span>
+                  <strong className="se-notification-item__title">{toast.title}</strong>
                   <span className="se-notification-item__detail">{toast.detail}</span>
                   <span className="se-notification-item__time">{displayTime(notification.activity.createdAt)}</span>
                 </>

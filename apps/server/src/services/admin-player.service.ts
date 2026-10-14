@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { AdminPlayerBattlesDto, AdminPlayerDto, AdminPlayerSearchDto, AdminUnlockDto } from '@streets/shared';
+import { normalizeUsername, type AdminPlayerBattlesDto, type AdminPlayerDto, type AdminPlayerSearchDto, type AdminUnlockDto } from '@streets/shared';
 import { loadRulesetForRound, productEconomy, recipeLadder, type Ruleset } from '@streets/rules-engine';
 import { toActivityDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
@@ -82,7 +82,7 @@ export const AdminPlayerService = {
         OR: [
           { displayName: { contains: query, mode: 'insensitive' } },
           ...(publicPimpId === null ? [] : [{ publicPimpId }]),
-          { account: { usernameNormalized: { contains: query.toLowerCase() } } },
+          { account: { usernameNormalized: { contains: normalizeUsername(query) } } },
           { id: query },
         ],
       },

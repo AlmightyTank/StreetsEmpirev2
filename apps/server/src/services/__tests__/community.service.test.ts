@@ -65,6 +65,23 @@ describe('rankRows', () => {
     expect(ranked.map((entry) => entry.intelRequired)).toEqual([false, false]);
   });
 
+  it('carries the derived supporter mark from contexts without changing order', () => {
+    const rows = [row(1001, 500, 1), row(1002, 400, 2)];
+    const contexts = new Map([
+      ['player-1001', {
+        legacy: { roundsPlayed: 0, roundWins: 0, topTenFinishes: 0, podiumFinishes: 0 },
+        isSupporter: true,
+        supporterSince: '2026-10',
+      }],
+    ]) as unknown as Parameters<typeof rankRows>[2];
+    const ranked = rankRows(rows, 1002, contexts);
+    expect(ranked.map((entry) => entry.rank)).toEqual([1, 2]);
+    expect(ranked.map((entry) => [entry.isSupporter, entry.supporterSince])).toEqual([
+      [true, '2026-10'],
+      [false, null],
+    ]);
+  });
+
   it('awards seasonal hideout milestones', () => {
     const target = {
       ...row(1012, 1, 12),

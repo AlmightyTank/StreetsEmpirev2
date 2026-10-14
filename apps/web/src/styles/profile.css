@@ -416,6 +416,13 @@
 .se-profile-pagehead__avatar--gilded-house-frame { --se-profile-avatar-frame: #edcf7a; --se-profile-avatar-glow: #edcf7a99; }
 .se-profile-pagehead__avatar--dead-or-alive-frame { --se-profile-avatar-frame: #d2aa76; --se-profile-avatar-glow: #d2aa7699; }
 .se-profile-pagehead__avatar--laurel-ascendant-frame { --se-profile-avatar-frame: #c6db77; --se-profile-avatar-glow: #c6db7799; }
+.se-profile-pagehead__avatar--blackwood-gate-frame { --se-profile-avatar-frame: #6ee7b7; --se-profile-avatar-glow: #34d39999; }
+.se-profile-pagehead__avatar--comedy-roadshow-frame { --se-profile-avatar-frame: #fbbf24; --se-profile-avatar-glow: #fb923c99; }
+.se-profile-pagehead__avatar--lost-fortune-frame { --se-profile-avatar-frame: #facc15; --se-profile-avatar-glow: #f59e0b99; }
+.se-profile-pagehead__avatar--star-chart-frame { --se-profile-avatar-frame: #93c5fd; --se-profile-avatar-glow: #60a5fa99; }
+.se-profile-pagehead__avatar--shadow-city-frame { --se-profile-avatar-frame: #a78bfa; --se-profile-avatar-glow: #7c3aed99; }
+.se-profile-pagehead__avatar--guild-arcane-frame { --se-profile-avatar-frame: #34d399; --se-profile-avatar-glow: #10b98199; }
+.se-profile-pagehead__avatar--you-had-to-be-there-frame { --se-profile-avatar-frame: #f472b6; --se-profile-avatar-glow: #c084fc99; }
 
 @media (prefers-reduced-motion: reduce) {
   .se-profile-pagehead__avatar--snowstorm-drake,
@@ -529,6 +536,10 @@
 .se-profile-panel {
   min-width: 0;
   margin: 0;
+}
+
+.se-profile .se-panel::before {
+  display: none;
 }
 
 .se-profile-intel {

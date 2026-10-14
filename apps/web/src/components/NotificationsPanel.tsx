@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { BELL_CATEGORIES, type NotificationCategory, type NotificationSettingsDto, type UpdateNotificationSettingsInput } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { notificationsApi } from '../api/notifications.js';
+import { isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
@@ -73,16 +74,35 @@ function timeZones(current: string): string[] {
   return [...new Set([current, browserTimeZone(), 'UTC', ...supported])];
 }
 
+function isQuietDraft(value: unknown): value is { start: number; end: number; timeZone: string } {
+  if (!value || typeof value !== 'object') return false;
+  const draft = value as Record<string, unknown>;
+  return (
+    typeof draft.start === 'number' &&
+    typeof draft.end === 'number' &&
+    draft.start >= 0 &&
+    draft.start < 24 * 60 &&
+    draft.end >= 0 &&
+    draft.end < 24 * 60 &&
+    isString(draft.timeZone)
+  );
+}
+
 interface NotificationsPanelProps {
   refreshKey?: number;
 }
 
 export function NotificationsPanel({ refreshKey = 0 }: NotificationsPanelProps) {
+  const accountId = useSession((s) => s.account?.id ?? null);
   const [settings, setSettings] = useState<NotificationSettingsDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [quietDraft, setQuietDraft] = useState<{ start: number; end: number; timeZone: string } | null>(null);
+  const [quietDraft, setQuietDraft] = useRememberedState<{ start: number; end: number; timeZone: string } | null>(
+    rememberedKey('account-settings:quietDraft', accountId ?? 'anon'),
+    null,
+    { accept: (v): v is { start: number; end: number; timeZone: string } | null => v === null || isQuietDraft(v) },
+  );
   const setBellMuted = useSession((s) => s.setBellMuted);
   const working = 'Finishing the last thing you asked for.';
 
@@ -175,6 +195,11 @@ export function NotificationsPanel({ refreshKey = 0 }: NotificationsPanelProps) 
         <p>
           Choose what's worth hearing about. <strong>Bell</strong> is the in-game notification center; <strong>Phone & Discord</strong> reaches you when the game is closed.
           Alerts only ever say what you could already see in game.
+        </p>
+        <p className="se-hint">
+          {settings.convenience.hasRewards
+            ? `Supporter rewards active: ${settings.convenience.ruleSlots} notification rule slots are available.`
+            : `Free account limit: ${settings.convenience.ruleSlots} notification rule slot. Supporting expands this to 5.`}
         </p>
 
         {CATEGORY_GROUPS.map((group) => (

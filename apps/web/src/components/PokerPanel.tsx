@@ -73,8 +73,14 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
       }
     };
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 2_500);
-    return () => { alive = false; window.clearInterval(timer); };
+    const refreshWhenVisible = () => { if (!document.hidden) void refresh(); };
+    const timer = window.setInterval(refreshWhenVisible, 2_500);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, [activeTableId]);
 
   const active = state?.activeHand ?? null;

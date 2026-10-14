@@ -10,6 +10,7 @@ const { AdminSupporterService } = await import('../admin-supporter.service.js');
 
 const COLLECTION = 'supporter-midnight-chrome';
 const CARD = 'midnight-chrome-frame';
+const ACCENT = 'supporter-banner-accent';
 const ALL = Object.keys(SUPPORTER_COSMETICS);
 const actor = { id: 'admin-1', username: 'Boss' };
 
@@ -59,7 +60,7 @@ describe('AdminSupporterService.list', () => {
     const prisma = fakePrisma(
       [account('a', 'Alice'), account('b', 'Bob'), account('c', 'Carol')],
       [
-        supporterUnlock('a', COLLECTION, 1), supporterUnlock('a', CARD, 1),
+        supporterUnlock('a', COLLECTION, 1), supporterUnlock('a', CARD, 1), supporterUnlock('a', ACCENT, 1),
         supporterUnlock('b', COLLECTION, 5),
       ],
       { a: CARD },
@@ -69,20 +70,39 @@ describe('AdminSupporterService.list', () => {
 
     expect(result.rewards.map((reward) => reward.key)).toEqual(ALL);
     expect(result.supporters.map((row) => [row.username, row.rewardKeys, row.missingKeys, row.wearingCard])).toEqual([
-      ['Bob', [COLLECTION], [CARD], false],
+      ['Bob', [COLLECTION], [CARD, ACCENT], false],
       ['Alice', ALL, [], true],
-    ]);
-    expect(result.supporters[1]!.since).toBe('2026-10-01T12:00:00.000Z');
+    ]);    expect(result.supporters[1]!.since).toBe('2026-10-01T12:00:00.000Z');
     expect(result.missingCount).toBe(1);
     expect(result.supporters.every((row) => row.membership === null)).toBe(true);
     expect(result).toMatchObject({ activeCount: 0, checkoutEnabled: false, payments: [] });
+  });
+
+  it('shows tenure badges on the roster without touching reward counts', async () => {
+    const prisma = fakePrisma(
+      [account('a', 'Alice'), account('b', 'Bob')],
+      [
+        supporterUnlock('a', COLLECTION, 1), supporterUnlock('a', CARD, 1),
+        supporterUnlock('b', COLLECTION, 2),
+        { accountId: 'a', key: 'supporter-tenure-3', sourceQuestKey: 'supporter', awardedAt: new Date('2027-01-20T00:00:00Z') },
+      ],
+    );
+
+    const result = await AdminSupporterService.list(prisma);
+
+    expect(result.tenure.map((badge) => badge.key)).toEqual(['supporter-tenure-3', 'supporter-tenure-6', 'supporter-tenure-12']);
+    expect(result.supporters.map((row) => [row.username, row.tenureKeys])).toEqual([
+      ['Bob', []],
+      ['Alice', ['supporter-tenure-3']],
+    ]);
+    expect(result.supporters[0]!.rewardKeys).toEqual([COLLECTION]);
   });
 });
 
 describe('AdminSupporterService.grant', () => {
   const prisma = () => fakePrisma(
     [account('a', 'Alice'), account('b', 'Bob'), account('c', 'Carol'), account('admin-1', 'Boss')],
-    [supporterUnlock('b', COLLECTION, 1), supporterUnlock('b', CARD, 1), supporterUnlock('c', COLLECTION, 2)],
+    [supporterUnlock('b', COLLECTION, 1), supporterUnlock('b', CARD, 1), supporterUnlock('b', ACCENT, 1), supporterUnlock('c', COLLECTION, 2)],
   );
 
   it('previews a pasted list without granting anything', async () => {
@@ -94,7 +114,7 @@ describe('AdminSupporterService.grant', () => {
     expect(result.rows.map((row) => [row.input, row.status, row.rewardKeys])).toEqual([
       ['alice', 'new', ALL],
       ['BOB', 'already', []],
-      ['carol', 'missing-rewards', [CARD]],
+      ['carol', 'missing-rewards', [CARD, ACCENT]],
       ['ghost', 'not-found', []],
       ['boss', 'self', []],
       ['Alice', 'duplicate', []],
@@ -141,12 +161,18 @@ describe('AdminSupporterService.backfill', () => {
     );
 
     const preview = await AdminSupporterService.backfill(prisma, actor, { dryRun: true });
-    expect(preview.rows.map((row) => [row.username, row.status, row.rewardKeys])).toEqual([['Bob', 'missing-rewards', [CARD]]]);
+    expect(preview.rows.map((row) => [row.username, row.status, row.rewardKeys])).toEqual([
+      ['Bob', 'missing-rewards', [CARD, ACCENT]],
+      ['Alice', 'missing-rewards', [ACCENT]],
+    ]);
     expect(grantSupporterRewards).not.toHaveBeenCalled();
 
-    grantSupporterRewards.mockResolvedValue([CARD]);
+    grantSupporterRewards.mockResolvedValueOnce([CARD, ACCENT]).mockResolvedValueOnce([ACCENT]);
     const done = await AdminSupporterService.backfill(prisma, actor, { reason: 'New reward released' });
-    expect(grantSupporterRewards).toHaveBeenCalledWith(prisma, actor, 'b', 'New reward released');
-    expect(done.granted).toBe(1);
+    expect(grantSupporterRewards.mock.calls.map((call) => [call[2], call[3]])).toEqual([
+      ['b', 'New reward released'],
+      ['a', 'New reward released'],
+    ]);
+    expect(done.granted).toBe(2);
   });
 });

@@ -3,9 +3,12 @@
  * 1.0.0-G. Mobile and accessibility audit of the game client, in a real browser.
  *
  *   npm run qa:ui -- [--base http://127.0.0.1:5173] [--out ./ui-audit] [--shots] [--strict]
+ *   npm run qa:ui -- --dashboard --shots --strict --base http://127.0.0.1:5173
+ *   --dashboard audits the real signed-in Command Center at all six widths.
  *
  * Against a running web client and API (npm run dev), it visits every major page
- * at phone widths (360 and 390 px) and at desktop width, and for each one records:
+ * at the release width matrix (360/390/768/1024/1440/1920), with both desktop
+ * sidebar modes and representative premium shell themes, and for each one records:
  *
  *   overflow   the page scrolls sideways (anything wider than the screen that is not
  *              inside its own horizontal scroller)
@@ -35,6 +38,7 @@ const option = (name, fallback) => {
 const BASE = option('base', 'http://127.0.0.1:5173').replace(/\/$/, '');
 const OUT = path.resolve(option('out', 'ui-audit'));
 const SHOTS = args.includes('--shots');
+const DASHBOARD_ONLY = args.includes('--dashboard');
 const STRICT = args.includes('--strict');
 const ONLY = option('only', '');
 // The API rate-limits each account; three widths of every page in a row trips it without a pause.
@@ -42,9 +46,12 @@ const PACE_MS = Number(option('pace', '900'));
 const AXE_SOURCE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 
 const WIDTHS = [
-  { name: 'phone-360', width: 360, height: 740, mobile: true },
-  { name: 'phone-390', width: 390, height: 844, mobile: true },
-  { name: 'desktop', width: 1280, height: 900, mobile: false },
+  { name: 'phone-360', width: 360, height: 740, mobile: true, touch: true, rail: false, theme: 'casino-floor' },
+  { name: 'phone-390', width: 390, height: 844, mobile: true, touch: true, rail: false, theme: 'federal-case' },
+  { name: 'tablet-768', width: 768, height: 1024, mobile: false, touch: true, rail: false, theme: 'midnight-market' },
+  { name: 'desktop-1024-expanded', width: 1024, height: 768, mobile: false, touch: false, rail: false, theme: 'casino-floor' },
+  { name: 'desktop-1440-rail', width: 1440, height: 900, mobile: false, touch: false, rail: true, theme: 'federal-case' },
+  { name: 'desktop-1920-expanded', width: 1920, height: 1080, mobile: false, touch: false, rail: false, theme: 'midnight-market' },
 ];
 
 const PUBLIC_PAGES = ['/', '/login', '/register', '/forgot-password'];
@@ -202,28 +209,93 @@ async function dismissIntro(page) {
   }
 }
 
+/** Validate the actual authenticated Command Center layout—not a mock image. */
+async function checkDashboard(page, width) {
+  return page.evaluate(({ name, width: viewport }) => {
+    const root = document.querySelector('.se-dashboard');
+    if (!root) return { issues: ['Dashboard did not render (account may not be in a round).'] };
+    const sections = [
+      '.se-dashboard-hero',
+      '.se-dashboard-snapshot',
+      '.se-dashboard-overview',
+      '.se-dashboard-quick',
+      '.se-dashboard-highlights',
+      '.se-dashboard-command',
+    ];
+    const nodes = sections.map((selector) => root.querySelector(selector));
+    const issues = [];
+    if (nodes.some((node) => !node)) issues.push('Missing one or more required Command Center sections.');
+    const statCards = root.querySelectorAll('.se-dashboard-snapshot__tile');
+    const actions = root.querySelectorAll('.se-dashboard-quick .se-dashboard-action');
+    if (statCards.length !== 6) issues.push(`Expected six stat cards; found ${statCards.length}.`);
+    if (actions.length !== 6) issues.push(`Expected six action cards; found ${actions.length}.`);
+    const story = root.querySelector('.se-dashboard-story');
+    const alerts = root.querySelector('.se-dashboard-command__attention');
+    const hero = root.querySelector('.se-dashboard-hero');
+    if (!story || !alerts || !hero) issues.push('Missing story, attention or hero region.');
+    for (let i = 1; i < nodes.length; i++) {
+      const previous = nodes[i - 1], current = nodes[i];
+      if (previous && current && !(previous.compareDocumentPosition(current) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+        issues.push('Dashboard visual sections are in the wrong reading order.');
+        break;
+      }
+    }
+    const hitAreas = [...root.querySelectorAll('.se-dashboard-action, .se-dashboard-fold__summary')];
+    const small = hitAreas.filter((el) => {
+      const { width, height } = el.getBoundingClientRect();
+      return width < 44 || height < 44;
+    });
+    if (small.length) issues.push(`${small.length} primary actions/disclosures are smaller than 44px.`);
+    // At phone widths, two actions should share a row, not be crushed into six columns.
+    if (viewport <= 390 && actions.length >= 2) {
+      const first = actions[0].getBoundingClientRect();
+      const second = actions[1].getBoundingClientRect();
+      if (Math.abs(first.top - second.top) > 6) issues.push('Quick actions do not form the expected two-column phone grid.');
+    }
+    const status = root.querySelector('.se-dashboard-hero__identity h1')?.textContent?.trim() ?? '';
+    if (status !== 'Command Center') issues.push('Command Center heading is missing or incorrect.');
+    if (root.scrollWidth > root.clientWidth + 2) issues.push('Dashboard content overflows its own grid.');
+    return { issues, statCards: statCards.length, actionCards: actions.length, hero: Boolean(hero), story: Boolean(story), theme: name };
+  }, { name: width.name, width: width.width });
+}
+
 async function auditPage(browser, state, url, width) {
   const context = await browser.newContext({
-    viewport: { width: width.width, height: width.height }, isMobile: width.mobile, hasTouch: width.mobile, storageState: state,
+    viewport: { width: width.width, height: width.height }, isMobile: width.mobile, hasTouch: width.touch, storageState: state,
     reducedMotion: 'reduce',
   });
   const page = await context.newPage();
+  await page.addInitScript(({ rail }) => {
+    window.localStorage.setItem('streets.sidebar.rail.v1', rail ? '1' : '0');
+  }, { rail: width.rail });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message.slice(0, 160)));
   await page.goto(BASE + url, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => undefined);
   await page.waitForTimeout(600);
   await dismissIntro(page);
+  // Exercise the shell CSS independently of whether the audit account owns a
+  // paid theme. This changes presentation only; permissions and page data still
+  // come from the signed-in audit account.
+  await page.evaluate((theme) => {
+    const app = document.querySelector('.se-app');
+    if (!app) return;
+    for (const name of [...app.classList]) {
+      if (name.startsWith('se-site-theme--')) app.classList.remove(name);
+    }
+    app.classList.add(`se-site-theme--${theme}`);
+  }, width.theme);
   const finalPath = new URL(page.url()).pathname;
-  const measured = await page.evaluate(measure, width.mobile);
-  const focus = width.name === 'desktop' ? await focusCheck(page) : null;
+  const measured = await page.evaluate(measure, width.touch);
+  const dashboard = DASHBOARD_ONLY && url === '/game' ? await checkDashboard(page, width) : null;
+  const focus = width.width >= 1024 ? await focusCheck(page) : null;
   const axe = width.name !== 'phone-360' ? await axeCheck(page) : [];
   if (SHOTS) {
     mkdirSync(path.join(OUT, 'shots'), { recursive: true });
     await page.screenshot({ path: path.join(OUT, 'shots', `${url.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'home'}-${width.name}.png`), fullPage: true });
   }
   await context.close();
-  return { url, finalPath, width: width.name, errors, ...measured, focus, axe };
+  return { url, finalPath, width: width.name, rail: width.rail, theme: width.theme, errors, ...measured, dashboard, focus, axe };
 }
 
 const browser = await chromium.launch({
@@ -242,7 +314,7 @@ try {
       ...(admin.extras.round ? [[admin.state, `/game/admin/rounds/${admin.extras.round}`]] : []),
       ...(admin.extras.account ? [[admin.state, `/game/admin/accounts/${admin.extras.account}`]] : []),
     ] : []),
-  ].filter(([, url]) => !ONLY || url.includes(ONLY));
+  ].filter(([, url]) => (!DASHBOARD_ONLY || url === '/game') && (!ONLY || url.includes(ONLY)));
   for (const [state, url] of plan) {
     for (const width of WIDTHS) {
       const row = await auditPage(browser, state, url, width);
@@ -269,6 +341,7 @@ const overflowRows = results.filter((row) => row.overflow);
 const targetRows = results.filter((row) => row.targets.fail.length);
 const focusRows = results.filter((row) => row.focus && (row.focus.unringed.length || !row.focus.firstIsSkip));
 const errorRows = results.filter((row) => row.errors.length);
+const dashboardRows = results.filter((row) => row.dashboard?.issues.length);
 const serious = [...axeById.values()].filter((v) => v.impact === 'serious' || v.impact === 'critical');
 const lines = [
   '# UI audit', '', `${BASE} · ${new Date().toISOString()} · ${new Set(results.map((row) => row.url)).size} pages × ${WIDTHS.length} widths`, '',
@@ -278,7 +351,8 @@ const lines = [
   `| Targets 24-43 px (phones, noted) | ${results.reduce((n, row) => n + row.targets.small, 0)} of ${results.reduce((n, row) => n + row.targets.total, 0)} |`,
   `| Keyboard focus | ${focusRows.length ? `${focusRows.length} page(s) with an unmarked stop or no skip link` : 'visible on every stop; skip link first'} |`,
   `| axe WCAG 2.2 AA | ${axeById.size ? `${[...axeById.values()].reduce((n, v) => n + v.count, 0)} findings in ${axeById.size} rule(s), ${serious.length} serious/critical` : 'no violations'} |`,
-  `| Script errors | ${errorRows.length ? errorRows.length : 'none'} |`, '',
+  `| Script errors | ${errorRows.length ? errorRows.length : 'none'} |`,
+  `| Command Center layout | ${dashboardRows.length ? `${dashboardRows.length} widths require attention` : DASHBOARD_ONLY ? 'all six widths passed structure checks' : 'not specifically audited'} |`, '',
 ];
 if (overflowRows.length) {
   lines.push('## Sideways scrolling', '');
@@ -306,9 +380,13 @@ if (errorRows.length) {
   lines.push('## Script errors', '');
   for (const row of errorRows) lines.push(`- ${row.url} @ ${row.width}: ${row.errors.join(' | ')}`);
 }
+if (dashboardRows.length) {
+  lines.push('## Command Center layout', '');
+  for (const row of dashboardRows) lines.push(`- ${row.width} / ${row.theme}: ${row.dashboard.issues.join('; ')}`);
+}
 mkdirSync(OUT, { recursive: true });
 writeFileSync(path.join(OUT, 'report.md'), `${lines.join('\n')}\n`);
 writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(results, null, 2));
 console.log(`\n${lines.slice(4, 12).join('\n')}\n\nReport: ${path.join(OUT, 'report.md')}`);
-const failed = overflowRows.length || targetRows.length || serious.length || focusRows.length || errorRows.length;
+const failed = overflowRows.length || targetRows.length || serious.length || focusRows.length || errorRows.length || dashboardRows.length;
 if (STRICT && failed) process.exit(1);

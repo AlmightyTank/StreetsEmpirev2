@@ -238,11 +238,13 @@ describe('PimpConsoleService.activity', () => {
         ]),
         findMany: vi.fn().mockResolvedValue([events[0]]),
       },
+      accountCosmeticUnlock: { findFirst: vi.fn().mockResolvedValue(null) },
     } as unknown as PrismaClient;
 
     const result = await PimpConsoleService.activity(prisma, owner.accountId, 'combat');
 
     expect(result.counts).toMatchObject({ all: 2, combat: 1, travel: 1 });
+    expect(result.pageSize).toBe(50);
     expect(result.events).toEqual([expect.objectContaining({
       group: 'combat',
       href: '/game/combat',
@@ -250,6 +252,7 @@ describe('PimpConsoleService.activity', () => {
     })]);
     expect(prisma.playerActivity.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { roundPlayerId: owner.id, type: { in: expect.arrayContaining(['RAID_DEFENSE']) } },
+      take: 50,
     }));
   });
 });

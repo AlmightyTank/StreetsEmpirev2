@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CrewMemberDto } from '@streets/shared';
 import { crewApi } from '../api/crew.js';
+import { isBoolean, rememberedKey, useRememberedState } from '../utils/remembered.js';
+import { useSession } from '../stores/session.js';
 import '../styles/crew-team.css';
 
 const labels = { ENFORCER: 'raid strength', SCOUT: 'scouting income' } as const;
@@ -17,7 +19,13 @@ export function CrewTeamPicker({ role, specialty, selectedIds, onChange, disable
   const [members, setMembers] = useState<CrewMemberDto[]>([]);
   const [enabled, setEnabled] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const playerId = useSession((s) => s.me?.id ?? null);
+  // Minimized stays minimized between visits (per player, per team).
+  const [collapsed, setCollapsed] = useRememberedState(
+    rememberedKey(`crew-team:collapsed:${role}:${specialty}`, playerId),
+    false,
+    { accept: isBoolean },
+  );
   useEffect(() => {
     let active = true;
     Promise.all([
@@ -36,13 +44,16 @@ export function CrewTeamPicker({ role, specialty, selectedIds, onChange, disable
   if (!loaded || !enabled) return null;
   const effect = Math.min(5, Math.max(0, ...eligible.filter((member) => selected.has(member.id)).map((member) => member.specialtyEffectPercent)));
   const title = `Optional team · ${specialty === 'ENFORCER' ? 'Raid enforcers' : 'Scouts'}`;
+  const selectedNames = members.filter((member) => selected.has(member.id)).map((member) => member.name);
+  const barCount = selectedIds.length ? `${selectedIds.length} selected` : eligible.length ? `${eligible.length} available` : 'No available specialists';
   return (
     <fieldset className={`se-crew-team${collapsed ? ' is-collapsed' : ''}`} disabled={disabled}>
       <legend>{title}</legend>
       <div className="se-crew-team__bar">
-        <span>
-          {selectedIds.length ? `${selectedIds.length} selected` : eligible.length ? `${eligible.length} available` : 'No available specialists'}
+        <span title={selectedNames.length ? selectedNames.join(', ') : undefined}>
+          {barCount}
           {' · '}{effect}% {labels[specialty]}
+          {collapsed && selectedNames.length ? ` · ${selectedNames.slice(0, 2).join(', ')}${selectedNames.length > 2 ? ` +${selectedNames.length - 2}` : ''}` : ''}
         </span>
         <button type="button" className="se-btn se-btn--sm" onClick={() => setCollapsed((value) => !value)}>
           {collapsed ? 'Expand' : 'Minimize'}

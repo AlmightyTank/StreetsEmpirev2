@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type {
   AccountProfileSettingsDto,
@@ -11,8 +11,9 @@ import type {
   ProfileEffect,
   ProfileSurface,
   UiDensity,
+  UsernameChangeStatusDto,
 } from '@streets/shared';
-import { CREW_NAME_MAX, DEFAULT_AVATAR_PARTS, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
+import { USERNAME_MAX, CREW_NAME_MAX, DEFAULT_AVATAR_PARTS, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { siteThemeCompanionLook } from '@streets/rulesets';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
@@ -25,7 +26,6 @@ import { YourDataPanel } from '../components/YourDataPanel.js';
 import { TwoFactorPanel } from '../components/TwoFactorPanel.js';
 import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
-import { SupporterPanel } from '../components/SupporterPanel.js';
 import { ItemCrewCosmeticsEditor } from '../components/ItemCrewCosmeticsEditor.js';
 import { AvatarBuilder } from '../components/AvatarBuilder.js';
 import { AvatarPortrait } from '../components/BuiltAvatar.js';
@@ -33,6 +33,7 @@ import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
+import { isBoolean, isString, readRemembered, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
 import { formatWhen } from '../utils/time.js';
 
@@ -67,6 +68,45 @@ function sessionDevice(session: AccountSessionDto): string {
   return session.userAgent ? 'Browser session' : 'Unknown device';
 }
 
+/** The name-change rule in one line, with when the player may change it next. */
+function usernameChangeHint(status: UsernameChangeStatusDto | null): string {
+  if (!status) return 'Letters, numbers, underscores and hyphens. You can change it again after 3 new rounds or 90 days.';
+  const rule = `After a change, you can change it again once ${status.cooldownRounds} new rounds start or ${status.cooldownDays} days pass, whichever comes first. Your old name is held for you for ${status.holdDays} days.`;
+  if (status.canChange) return status.lastChangedAt ? `You can change your name now. ${rule}` : `Your first change is free. ${rule}`;
+  const left = status.cooldownRounds - status.roundsSinceChange;
+  return `Next change after ${left} more round${left === 1 ? '' : 's'} start, or on ${formatDate(status.availableAt)}.`;
+}
+
+function isAvatarMode(value: unknown): value is AvatarMode {
+  return value === 'initials' || value === 'image' || value === 'built';
+}
+
+function isAvatarParts(value: unknown): value is AvatarParts {
+  if (!value || typeof value !== 'object') return false;
+  const parts = value as Record<string, unknown>;
+  return parts.base === 'boy' || parts.base === 'girl';
+}
+
+function isCosmeticsDraft(value: unknown): value is AccountProfileSettingsDto {
+  if (!value || typeof value !== 'object') return false;
+  const draft = value as Record<string, unknown>;
+  return typeof draft.profileAccent === 'string' && typeof draft.uiDensity === 'string' && typeof draft.moneyFormat === 'string';
+}
+
+const SETTING_SECTIONS = [
+  'settings-account',
+  'settings-connections',
+  'settings-alerts',
+  'settings-security',
+  'settings-game',
+  'settings-profile',
+  'settings-data',
+] as const;
+
+function isSettingSection(value: unknown): value is string {
+  return typeof value === 'string' && (SETTING_SECTIONS as readonly string[]).includes(value);
+}
+
 function initials(name: string): string {
   return name
     .split(/\s+/)
@@ -87,26 +127,36 @@ export function AccountSettingsPage() {
   const [searchParams] = useSearchParams();
   const accountMessage = searchParams.get('accountMessage');
 
-  const [newEmail, setNewEmail] = useState('');
+  const accountId = account.id;
+  const cosmeticsKey = rememberedKey('account-settings:cosmetics', accountId);
+  // Captured before useRememberedState writes: true only when an unsaved draft survived navigation.
+  const hadCosmeticsDraft = useRef(readRemembered(cosmeticsKey, { accept: isCosmeticsDraft }).found).current;
+
+  // Non-sensitive drafts survive leaving the page and coming back (per browser, per account).
+  // Passwords and one-time codes stay ephemeral on purpose and are never remembered.
+  const [newEmail, setNewEmail] = useRememberedState(rememberedKey('account-settings:newEmail', accountId), '', { accept: isString });
+  const [newUsername, setNewUsername] = useRememberedState(rememberedKey('account-settings:newUsername', accountId), '', { accept: isString });
+  const [usernameStatus, setUsernameStatus] = useState<UsernameChangeStatusDto | null>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [revokeOtherSessionsOnPasswordChange, setRevokeOtherSessionsOnPasswordChange] = useState(true);
+  const [revokeOtherSessionsOnPasswordChange, setRevokeOtherSessionsOnPasswordChange] = useRememberedState(rememberedKey('account-settings:revokeOthers', accountId), true, { accept: isBoolean });
   const [connectionsVersion, setConnectionsVersion] = useState(0);
   const [message, setMessage] = useState<string | null>(accountMessage);
   const [tone, setTone] = useState<'error' | 'info'>('info');
   const [fields, setFields] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState<'recovery' | 'verify' | 'email' | 'password' | 'sessions' | 'cosmetics' | null>(null);
+  const [busy, setBusy] = useState<'recovery' | 'verify' | 'email' | 'username' | 'password' | 'sessions' | 'cosmetics' | null>(null);
   /** One line for every button while another request is in flight. */
   const working = 'Finishing the last thing you asked for.';
   const [sessions, setSessions] = useState<AccountSessionDto[]>([]);
   // The list grows with every sign-in; show the latest few until asked for all.
-  const [showAllSessions, setShowAllSessions] = useState(false);
+  const [showAllSessions, setShowAllSessions] = useRememberedState(rememberedKey('account-settings:showAllSessions', accountId), false, { accept: isBoolean });
   const [profileSettings, setProfileSettings] = useState<AccountProfileSettingsResponseDto | null>(null);
-  const [cosmetics, setCosmetics] = useState(DEFAULT_PROFILE_SETTINGS);
-  const [avatarMode, setAvatarMode] = useState<AvatarMode>('initials');
+  const [cosmetics, setCosmetics] = useRememberedState<AccountProfileSettingsDto>(cosmeticsKey, DEFAULT_PROFILE_SETTINGS, { accept: isCosmeticsDraft });
+  const [avatarMode, setAvatarMode] = useRememberedState<AvatarMode>(rememberedKey('account-settings:avatarMode', accountId), 'initials', { accept: isAvatarMode });
   // What each avatar choice holds, so trying another one and coming back loses nothing.
-  const [imageDraft, setImageDraft] = useState('');
-  const [avatarDraft, setAvatarDraft] = useState<AvatarParts>(DEFAULT_AVATAR_PARTS.boy);
+  const [imageDraft, setImageDraft] = useRememberedState(rememberedKey('account-settings:imageDraft', accountId), '', { accept: isString });
+  const [avatarDraft, setAvatarDraft] = useRememberedState<AvatarParts>(rememberedKey('account-settings:avatarDraft', accountId), DEFAULT_AVATAR_PARTS.boy, { accept: isAvatarParts });
+  const [lastSection, setLastSection] = useRememberedState(rememberedKey('account-settings:section', accountId), 'settings-account', { accept: isSettingSection });
 
   useEffect(() => {
     let active = true;
@@ -114,6 +164,8 @@ export function AccountSettingsPage() {
       .then((response) => {
         if (!active) return;
         setProfileSettings(response);
+        // An unsaved draft left on the page wins over the saved server copy.
+        if (hadCosmeticsDraft) return;
         setCosmetics(response.settings);
         setAvatarMode(avatarModeOf(response.settings));
         setImageDraft(response.settings.profileImageUrl ?? '');
@@ -123,6 +175,7 @@ export function AccountSettingsPage() {
         if (active) {
           setProfileSettings({
             settings: cosmetics,
+            convenience: { hasRewards: false, presetSlots: 1, loadoutSlots: 1 },
             options: {
               titles: [],
               badges: [],
@@ -167,6 +220,14 @@ export function AccountSettingsPage() {
 
   useEffect(() => {
     let active = true;
+    authApi.usernameStatus()
+      .then((response) => { if (active) setUsernameStatus(response.status); })
+      .catch(() => { if (active) setUsernameStatus(null); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
     authApi.sessions()
       .then((response) => {
         if (active) setSessions(response.sessions);
@@ -176,6 +237,28 @@ export function AccountSettingsPage() {
       });
     return () => { active = false; };
   }, []);
+
+  // Coming back lands where you left off: without a #hash in the URL, restore the last section.
+  useEffect(() => {
+    if (window.location.hash) {
+      const seen = window.location.hash.slice(1);
+      if ((SETTING_SECTIONS as readonly string[]).includes(seen)) setLastSection(seen);
+      return;
+    }
+    if (lastSection && lastSection !== 'settings-account') {
+      document.getElementById(lastSection)?.scrollIntoView();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const onHash = () => {
+      const seen = window.location.hash.slice(1);
+      if ((SETTING_SECTIONS as readonly string[]).includes(seen)) setLastSection(seen);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [setLastSection]);
 
   async function sendRecovery() {
     setBusy('recovery');
@@ -224,6 +307,33 @@ export function AccountSettingsPage() {
       setTone('info');
       setMessage(response.message);
       setNewEmail('');
+    } catch (error) {
+      setTone('error');
+      if (error instanceof ApiError) {
+        setMessage(error.message);
+        setFields(error.fields ?? {});
+      } else {
+        setMessage('Something went wrong. Try that again.');
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function changeUsername(username: string) {
+    setBusy('username');
+    setMessage(null);
+    setFields({});
+
+    try {
+      const response = await authApi.changeUsername({ username });
+      useSession.setState({ account: response.account });
+      setUsernameStatus(response.status);
+      // The name in the current round changes too.
+      if (me) await useSession.getState().refreshRound();
+      setTone('info');
+      setMessage(response.message);
+      setNewUsername('');
     } catch (error) {
       setTone('error');
       if (error instanceof ApiError) {
@@ -435,6 +545,44 @@ export function AccountSettingsPage() {
             </div>
           </Panel>
 
+          <Panel title="Change pimp name">
+            <form onSubmit={(event) => { event.preventDefault(); void changeUsername(newUsername); }} noValidate>
+              <Field
+                label="New pimp name"
+                name="username"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                autoComplete="username"
+                required
+                maxLength={USERNAME_MAX}
+                error={fields.username}
+                hint={usernameChangeHint(usernameStatus)}
+              />
+              <Button
+                className="se-btn se-btn--primary se-btn--block"
+                disabledReason={busy !== null ? working : usernameStatus && !usernameStatus.canChange ? usernameChangeHint(usernameStatus) : null}
+              >
+                {busy === 'username' ? 'Changing...' : 'Change name'}
+              </Button>
+            </form>
+            {usernameStatus?.reclaim ? (
+              <>
+                <p className="se-hint">
+                  <strong>{usernameStatus.reclaim.username}</strong> is held for you until {formatDate(usernameStatus.reclaim.until)}.
+                  Nobody else can take it, and taking it back is free.
+                </p>
+                <Button
+                  type="button"
+                  className="se-btn se-btn--ghost se-btn--block"
+                  onClick={() => void changeUsername(usernameStatus.reclaim!.username)}
+                  disabledReason={busy !== null ? working : null}
+                >
+                  {`Take back ${usernameStatus.reclaim.username}`}
+                </Button>
+              </>
+            ) : null}
+          </Panel>
+
           <Panel title="Set a password by email">
             <p>
               Signed up with Discord, or forgot your current password? We will email a link to{' '}
@@ -632,7 +780,14 @@ export function AccountSettingsPage() {
         <ReplayTutorial className="se-btn se-btn--ghost" />
       </Panel>
 
-      <SupporterPanel />
+      <Panel title="Supporting">
+        <p>
+          Supporter status, rewards, billing, gifts and supporter votes now live on their own page with a full rewards showcase.
+        </p>
+        <Link className="se-btn se-btn--primary" to={`/game/supporter${searchParams.get('supporter') ? `?supporter=${encodeURIComponent(searchParams.get('supporter')!)}` : ''}`}>
+          Open supporter page
+        </Link>
+      </Panel>
       </section>
 
       <section id="settings-profile" className="se-settings-section" aria-labelledby="settings-profile-title">
@@ -645,6 +800,11 @@ export function AccountSettingsPage() {
           <p className="se-muted">Loading your unlocked badges...</p>
         ) : (
           <form onSubmit={saveCosmetics} noValidate>
+            <p className="se-hint">
+              {profileSettings.convenience.hasRewards
+                ? `Supporter rewards active: ${formatNumber(profileSettings.convenience.presetSlots)} profile presets and ${formatNumber(profileSettings.convenience.loadoutSlots)} cosmetic loadout slots are available.`
+                : `Free account limits: ${formatNumber(profileSettings.convenience.presetSlots)} profile preset and ${formatNumber(profileSettings.convenience.loadoutSlots)} cosmetic loadout slot. Supporting expands both to 4.`}
+            </p>
             <div className="se-account-cosmetics">
               <div>
                 <div className="se-field">

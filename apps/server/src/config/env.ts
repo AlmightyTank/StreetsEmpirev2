@@ -283,11 +283,13 @@ export const env = {
   discordBot: {
     guildId: parsed.data.DISCORD_GUILD_ID,
     apiToken: parsed.data.DISCORD_BOT_API_TOKEN,
-    enabled: Boolean(parsed.data.DISCORD_BOT_API_TOKEN),
+    /** Off in tests so no test run ever queues or serves a real Discord bot API. */
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.DISCORD_BOT_API_TOKEN),
     push: {
       url: parsed.data.DISCORD_BOT_PUSH_URL,
       timeoutMs: parsed.data.DISCORD_BOT_PUSH_TIMEOUT_MS,
-      enabled: Boolean(parsed.data.DISCORD_BOT_API_TOKEN && parsed.data.DISCORD_BOT_PUSH_URL),
+      /** Off in tests so no test run ever calls a real Discord bot. */
+      enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.DISCORD_BOT_API_TOKEN && parsed.data.DISCORD_BOT_PUSH_URL),
     },
   },
   stripe: {

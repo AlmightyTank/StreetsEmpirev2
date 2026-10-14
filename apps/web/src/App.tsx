@@ -36,6 +36,7 @@ import { AlliancePage } from './pages/AlliancePage.js';
 import { AllianceDetailPage } from './pages/AlliancesPage.js';
 import { CombatPage } from './pages/CombatPage.js';
 import { StreetPassPage } from './pages/StreetPassPage.js';
+import { SupporterPage } from './pages/SupporterPage.js';
 import { XpProgressPage } from './pages/XpProgressPage.js';
 import { ConsolePage } from './pages/ConsolePage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
@@ -183,6 +184,7 @@ export function App() {
         <Route path="products" element={<Navigate to="/game/stores/pip" replace />} />
         <Route path="produce" element={<Protected><LiveRound><ProducePage /></LiveRound></Protected>} />
         <Route path="street-pass" element={<Protected><LiveRound><StreetPassPage /></LiveRound></Protected>} />
+        <Route path="supporter" element={<RequireAccount><SupporterPage /></RequireAccount>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
         <Route path="supply" element={<Protected><LiveRound><SupplyPage /></LiveRound></Protected>} />

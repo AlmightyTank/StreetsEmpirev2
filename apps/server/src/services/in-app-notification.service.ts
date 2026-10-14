@@ -7,6 +7,14 @@ import {
   type NotificationCategory,
 } from '@streets/shared';
 import type { Db } from '../utils/db.js';
+import { SupporterService } from './supporter.service.js';
+
+export const FREE_IN_APP_NOTIFICATION_LIMIT = 40;
+export const SUPPORTER_IN_APP_NOTIFICATION_LIMIT = 100;
+
+async function historyLimit(prisma: PrismaClient, accountId: string): Promise<number> {
+  return await SupporterService.since(prisma, accountId) ? SUPPORTER_IN_APP_NOTIFICATION_LIMIT : FREE_IN_APP_NOTIFICATION_LIMIT;
+}
 
 const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   // 1.0.0-E: an admin's game-wide announcement.
@@ -59,6 +67,9 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'RING_SURFACED',
   'RING_STOLEN',
   'RING_DESTROYED',
+  // Sportsbook tickets: kickoff and grading should reach the player even if they are away.
+  'SPORTSBOOK_GAME_STARTED',
+  'SPORTSBOOK_TICKET_SETTLED',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {
@@ -163,10 +174,11 @@ export async function bellWhere(prisma: PrismaClient, accountId: string, roundPl
 }
 
 export const InAppNotificationService = {
-  async inbox(prisma: PrismaClient, accountId: string, limit = 40): Promise<InAppNotificationFeedDto> {
+  async inbox(prisma: PrismaClient, accountId: string, limit?: number): Promise<InAppNotificationFeedDto> {
     const roundPlayerId = await currentRoundPlayerId(prisma, accountId);
+    const take = limit ?? await historyLimit(prisma, accountId);
     if (!roundPlayerId) {
-      return { unreadCount: 0, notifications: [] };
+      return { unreadCount: 0, notifications: [], historyLimit: take };
     }
 
     const bellMuted = await mutedCategories(prisma, accountId);
@@ -175,7 +187,7 @@ export const InAppNotificationService = {
       prisma.inAppNotification.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        take: limit,
+        take,
         select: {
           id: true,
           readAt: true,
@@ -190,6 +202,7 @@ export const InAppNotificationService = {
     return {
       bellMuted,
       unreadCount,
+      historyLimit: take,
       notifications: rows.map((row) => ({
         id: row.id,
         readAt: row.readAt?.toISOString() ?? null,

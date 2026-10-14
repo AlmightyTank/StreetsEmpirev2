@@ -22,6 +22,15 @@ function sentence(value: string): string {
   return /[.!?]$/.test(value) ? value : `${value}.`;
 }
 
+function sportsbookOdds(value: unknown): string {
+  const odds = num(value);
+  return odds > 0 ? `+${odds}` : String(odds);
+}
+
+function sportsbookTeams(p: Record<string, unknown>): string {
+  return `${str(p.awayTeam, 'Away')} at ${str(p.homeTeam, 'Home')}`;
+}
+
 function productFindSummary(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((row) => {
@@ -434,6 +443,26 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: formatCents(num(p.compCents)) + ' in comps · ' + str(p.cityName),
       };
 
+    case 'SPORTSBOOK_GAME_STARTED':
+      return {
+        text: `Your sportsbook ticket started: ${str(p.pickTeam, 'your pick')} in ${sportsbookTeams(p)}.`,
+        detail: `${str(p.sport, 'Sportsbook')} · ${sportsbookOdds(p.oddsAmerican)} · stake ${formatCents(num(p.stakeCents))}${str(p.startsAt) ? ` · ${formatWhen(str(p.startsAt))}` : ''}`,
+      };
+
+    case 'SPORTSBOOK_TICKET_SETTLED': {
+      const status = str(p.status, 'settled');
+      const won = status === 'WON';
+      const returned = num(p.returnCents);
+      return {
+        text: `Sportsbook ticket ${status.toLowerCase()}: ${str(p.pickTeam, 'your pick')} in ${sportsbookTeams(p)}.`,
+        detail: [
+          `${str(p.sport, 'Sportsbook')} · ${sportsbookOdds(p.oddsAmerican)}`,
+          p.homeScore !== undefined && p.awayScore !== undefined ? `final ${num(p.awayScore)}-${num(p.homeScore)}` : '',
+          returned > 0 ? `${won ? 'paid' : 'returned'} ${formatCents(returned)}` : `lost ${formatCents(num(p.stakeCents))}`,
+        ].filter(Boolean).join(' · '),
+      };
+    }
+
     case 'HIDEOUT_UPGRADE':
       return {
         text: `Upgraded ${str(p.name, 'the hideout')} to level ${formatNumber(num(p.level))}.`,
@@ -784,7 +813,7 @@ export type ActivityGroup = 'combat' | 'street' | 'market' | 'progress' | 'trave
 
 export function activityGroup(type: ActivityDto['type']): ActivityGroup {
   if (type.startsWith('RAID_') || type.startsWith('DRIVE_BY_') || type.startsWith('COMBAT_') || type === 'BATTLE_VOIDED') return 'combat';
-  if (type.startsWith('STORE_') || type.startsWith('CASINO_')) return 'market';
+  if (type.startsWith('STORE_') || type.startsWith('CASINO_') || type.startsWith('SPORTSBOOK_')) return 'market';
   if (type.startsWith('QUEST_') || type.startsWith('FAVOR_') || type === 'HIDEOUT_UPGRADE' || type === 'WEAPON_UNLOCK') return 'progress';
   if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_') || type.startsWith('TRIP_') || type.startsWith('BOSS_') || type.startsWith('SIT_DOWN') || type === 'OUTPOST_VISIT') return 'travel';
   if (type.startsWith('TURF_') || type.startsWith('BUSINESS_')) return 'turf';
@@ -871,6 +900,8 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     CASINO_SESSION_OPENED: 'Casino session',
     CASINO_SESSION_CLOSED: 'Casino session closed',
     CASINO_STATUS_UP: 'Casino status',
+    SPORTSBOOK_GAME_STARTED: 'Ticket started',
+    SPORTSBOOK_TICKET_SETTLED: 'Ticket settled',
     CASE_STAGE_UP: 'Case',
     WARRANT_DRAFTED: 'Warrant',
     WARRANT_SERVED: 'Warrant served',

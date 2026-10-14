@@ -35,57 +35,74 @@ export type IconName =
   | 'rankings' | 'alliance' | 'contacts' | 'profile' | 'activity'
   | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin' | 'pass' | 'casino';
 
+/**
+ * One destination per gameplay feature, but just six readable groups.
+ * Deep links remain the same; the menu hierarchy is presentation-only.
+ * The first group is the everyday loop. Advanced systems stay one click away.
+ */
 export const SECTIONS: NavSection[] = [
   {
-    id: 'play',
-    title: 'Play',
+    id: 'command',
+    title: 'Command',
     pages: [
       { key: 'dashboard', label: 'Dashboard', short: 'Home', to: '/game', icon: 'dashboard' },
+      { key: 'quests', label: 'Quests', to: '/game/quests', icon: 'activity', aliases: ['/game/reputation'] },
       { key: 'scout', label: 'Scout', to: '/game/scout', icon: 'scout' },
       { key: 'produce', label: 'Produce', to: '/game/produce', icon: 'produce' },
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },
+    ],
+  },
+  {
+    id: 'empire',
+    title: 'Build Your Empire',
+    defaultOpen: false,
+    pages: [
+      { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },
+      { key: 'crew-roster', label: 'Crew Assignments', short: 'Crew', to: '/game/crew', icon: 'contacts' },
+      { key: 'dealers', label: 'Dealer Crews', short: 'Dealers', to: '/game/dealers', icon: 'contacts' },
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
       { key: 'supply', label: 'Bulk Orders', short: 'Supply', to: '/game/supply', icon: 'stores' },
-      { key: 'dealers', label: 'Dealer Crews', short: 'Dealers', to: '/game/dealers', icon: 'contacts' },
-      { key: 'crew-roster', label: 'Crew Assignments', short: 'Crew', to: '/game/crew', icon: 'contacts' },
       { key: 'loans', label: 'Loan Shark', short: 'Loans', to: '/game/loans', icon: 'stores' },
-      { key: 'casino', label: 'Casino', to: '/game/casino', icon: 'casino', prefix: '/game/casino/' },
-      { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },
       { key: 'travel', label: 'Travel', to: '/game/travel', icon: 'cities' },
       { key: 'turf', label: 'Turf', to: '/game/turf', icon: 'cities' },
     ],
   },
   {
-    id: 'progress',
-    title: 'Progress',
+    id: 'competition',
+    title: 'Competition',
+    defaultOpen: false,
     pages: [
-      { key: 'xp-progress', label: 'XP Progress', short: 'XP', to: '/game/xp-progress', icon: 'profile' },
-      { key: 'quests', label: 'Quests', to: '/game/quests', icon: 'activity', aliases: ['/game/reputation'] },
-      { key: 'events', label: 'Events', to: '/game/events', icon: 'activity' },
-      { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
+      { key: 'casino', label: 'Casino', to: '/game/casino', icon: 'casino', prefix: '/game/casino/' },
+      { key: 'alliance', label: 'Alliance', to: '/game/alliance', icon: 'alliance', aliases: ['/game/alliances'], prefix: '/game/alliances/' },
+      { key: 'players', label: 'Players', to: '/game/players', icon: 'contacts', aliases: ['/game/contacts'], prefix: '/game/players/', prefixes: ['/game/forum/'] },
+      { key: 'rankings', label: 'Rankings', short: 'Ranks', to: '/game/rankings', icon: 'rankings', aliases: roundAftermathPublicEnabled ? ['/game/hall-of-fame', '/game/round-archive'] : ['/game/hall-of-fame'] },
     ],
   },
   {
-    id: 'people',
-    title: 'People',
+    id: 'career',
+    title: 'Progress & Rewards',
+    defaultOpen: false,
     pages: [
-      { key: 'players', label: 'Players', to: '/game/players', icon: 'contacts', aliases: ['/game/contacts'], prefix: '/game/players/', prefixes: ['/game/forum/'] },
-      { key: 'rankings', label: 'Rankings', short: 'Ranks', to: '/game/rankings', icon: 'rankings', aliases: roundAftermathPublicEnabled ? ['/game/hall-of-fame', '/game/round-archive'] : ['/game/hall-of-fame'] },
-      { key: 'alliance', label: 'Alliance', to: '/game/alliance', icon: 'alliance', aliases: ['/game/alliances'], prefix: '/game/alliances/' },
+      { key: 'xp-progress', label: 'XP Progress', short: 'XP', to: '/game/xp-progress', icon: 'profile' },
+      { key: 'events', label: 'Events', to: '/game/events', icon: 'activity' },
+      { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
+      { key: 'supporter', label: 'Supporter', to: '/game/supporter', icon: 'pass' },
       { key: 'profile', label: 'Profile', to: '/game/profile', icon: 'profile' },
-      { key: 'console', label: 'Console', to: '/game/console', icon: 'activity', aliases: ['/game/activity'] },
     ],
   },
   {
     id: 'community',
-    title: 'Community',
+    title: 'Messages & News',
+    defaultOpen: false,
     pages: [
+      { key: 'console', label: 'Console', to: '/game/console', icon: 'activity', aliases: ['/game/activity'] },
       { key: 'news', label: 'News & Surveys', short: 'News', to: '/game/news', icon: 'news', aliases: ['/game/surveys'] },
     ],
   },
   {
-    id: 'game',
-    title: 'Game',
+    id: 'support',
+    title: 'Help & Settings',
+    defaultOpen: false,
     pages: [
       { key: 'status', label: 'Status & Support', short: 'Status', to: '/game/status', icon: 'status', aliases: ['/game/report-bug'] },
       { key: 'rules', label: 'Rules', to: '/game/rules', icon: 'rules' },
@@ -94,36 +111,63 @@ export const SECTIONS: NavSection[] = [
   },
 ];
 
-export const ADMIN_SECTION: NavSection = {
-  id: 'admin',
-  title: 'Admin',
-  pages: [
-    { key: 'admin-law', label: 'Law', to: '/game/admin/law', icon: 'admin' },
-    { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefix: '/game/admin/accounts/' },
-    { key: 'admin-supporters', label: 'Supporters', to: '/game/admin/supporters', icon: 'admin' },
-    { key: 'admin-factions', label: 'Factions', to: '/game/admin/factions', icon: 'admin' },
-    { key: 'admin-crew', label: 'Crew Roster', to: '/game/admin/crew', icon: 'admin' },
-    { key: 'admin-vehicles', label: 'Vehicles', to: '/game/admin/vehicles', icon: 'admin' },
-    { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets', icon: 'admin' },
-    { key: 'admin-rounds', label: 'Rounds', to: '/game/admin/rounds', icon: 'admin', prefix: '/game/admin/rounds/' },
-    { key: 'admin-monitoring', label: 'Monitoring', to: '/game/admin/monitoring', icon: 'admin' },
-    { key: 'admin-news', label: 'News and Banners', short: 'News', to: '/game/admin/news', icon: 'admin' },
-    { key: 'admin-surveys', label: 'Surveys', to: '/game/admin/surveys', icon: 'admin' },
-    { key: 'admin-quests', label: 'Quests', to: '/game/admin/quests', icon: 'admin' },
-    { key: 'admin-integrations', label: 'Integrations', short: 'Integr.', to: '/game/admin/integrations', icon: 'admin' },
-    { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports', icon: 'admin' },
-    { key: 'admin-bugs', label: 'Bug Reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin' },
-    { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy', icon: 'admin' },
-    { key: 'admin-supply', label: 'Supply Operations', to: '/game/admin/supply', icon: 'admin' },
-    { key: 'admin-loans', label: 'Loan Shark', short: 'Loans', to: '/game/admin/loans', icon: 'admin' },
-    { key: 'admin-casino', label: 'Casino', to: '/game/admin/casino', icon: 'admin' },
-    { key: 'admin-combat', label: 'Combat and Exploits', short: 'Combat', to: '/game/admin/combat', icon: 'admin' },
-    { key: 'admin-turf', label: 'Turf', to: '/game/admin/turf', icon: 'admin' },
-    { key: 'admin-audit', label: 'Audit log', short: 'Audit', to: '/game/admin/audit', icon: 'admin' },
-    { key: 'admin-events', label: 'Event Operations', short: 'Events', to: '/game/admin/events', icon: 'admin' },
-    { key: 'admin-signals', label: 'Signals', to: '/game/admin/signals', icon: 'admin' },
-  ],
-};
+/** Admin-only tools grouped by the job an operator is trying to complete. */
+export const ADMIN_SECTIONS: NavSection[] = [
+  {
+    id: 'admin-operations',
+    title: 'Admin · Operations',
+    pages: [
+      { key: 'admin-rounds', label: 'Rounds', to: '/game/admin/rounds', icon: 'admin', prefix: '/game/admin/rounds/' },
+      { key: 'admin-law', label: 'Law', to: '/game/admin/law', icon: 'admin' },
+      { key: 'admin-factions', label: 'Factions', to: '/game/admin/factions', icon: 'admin' },
+      { key: 'admin-crew', label: 'Crew Roster', to: '/game/admin/crew', icon: 'admin' },
+      { key: 'admin-vehicles', label: 'Vehicles', to: '/game/admin/vehicles', icon: 'admin' },
+      { key: 'admin-combat', label: 'Combat and Exploits', short: 'Combat', to: '/game/admin/combat', icon: 'admin' },
+      { key: 'admin-turf', label: 'Turf', to: '/game/admin/turf', icon: 'admin' },
+      { key: 'admin-events', label: 'Event Operations', short: 'Events', to: '/game/admin/events', icon: 'admin' },
+    ],
+  },
+  {
+    id: 'admin-players',
+    title: 'Admin · Players',
+    pages: [
+      { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefixes: ['/game/admin/accounts/', '/game/admin/players/'] },
+      { key: 'admin-supporters', label: 'Supporters', to: '/game/admin/supporters', icon: 'admin' },
+      { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports', icon: 'admin' },
+      { key: 'admin-bugs', label: 'Bug Reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin' },
+    ],
+  },
+  {
+    id: 'admin-economy',
+    title: 'Admin · Economy',
+    pages: [
+      { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy', icon: 'admin' },
+      { key: 'admin-supply', label: 'Supply Operations', to: '/game/admin/supply', icon: 'admin' },
+      { key: 'admin-loans', label: 'Loan Shark', short: 'Loans', to: '/game/admin/loans', icon: 'admin' },
+      { key: 'admin-casino', label: 'Casino', to: '/game/admin/casino', icon: 'admin' },
+    ],
+  },
+  {
+    id: 'admin-content',
+    title: 'Admin · Content',
+    pages: [
+      { key: 'admin-news', label: 'News and Banners', short: 'News', to: '/game/admin/news', icon: 'admin' },
+      { key: 'admin-surveys', label: 'Surveys', to: '/game/admin/surveys', icon: 'admin' },
+      { key: 'admin-quests', label: 'Quests', to: '/game/admin/quests', icon: 'admin' },
+      { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets', icon: 'admin' },
+    ],
+  },
+  {
+    id: 'admin-monitoring',
+    title: 'Admin · Monitoring',
+    pages: [
+      { key: 'admin-monitoring', label: 'Monitoring', to: '/game/admin/monitoring', icon: 'admin' },
+      { key: 'admin-integrations', label: 'Integrations', short: 'Integr.', to: '/game/admin/integrations', icon: 'admin' },
+      { key: 'admin-signals', label: 'Signals', to: '/game/admin/signals', icon: 'admin' },
+      { key: 'admin-audit', label: 'Audit log', short: 'Audit', to: '/game/admin/audit', icon: 'admin' },
+    ],
+  },
+];
 
 function pagesByKey(sections: readonly NavSection[]): Map<string, NavPage> {
   return new Map(sections.flatMap((section) => section.pages.map((page) => [page.key, page] as const)));
@@ -135,31 +179,21 @@ function pickPages(pages: ReadonlyMap<string, NavPage>, keys: readonly string[])
 
 export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSection[] {
   const pages = pagesByKey(sections);
-  return [
-    {
-      id: 'new-player-core',
-      title: 'Start Here',
-      pages: pickPages(pages, ['dashboard', 'scout', 'stores', 'supply', 'produce', 'raids', 'quests']),
-    },
-    {
-      id: 'new-player-next',
-      title: 'Next Steps',
-      defaultOpen: false,
-      pages: pickPages(pages, ['dealers', 'crew-roster', 'loans', 'hideout', 'travel', 'turf', 'casino', 'events', 'street-pass']),
-    },
-    {
-      id: 'new-player-people',
-      title: 'People',
-      defaultOpen: false,
-      pages: pickPages(pages, ['console', 'players', 'alliance', 'rankings', 'profile']),
-    },
-    {
-      id: 'new-player-game',
-      title: 'Game',
-      defaultOpen: false,
-      pages: pickPages(pages, ['news', 'status', 'rules', 'account']),
-    },
-  ].filter((section) => section.pages.length > 0);
+  // Preserve one visible command loop; no duplicate routes or separate rookie-only pages.
+  const groups = [
+    ['new-player-core', 'Start Here', ['dashboard', 'quests', 'scout', 'produce', 'raids', 'stores']],
+    ['new-player-empire', 'Build Your Empire', ['hideout', 'crew-roster', 'dealers', 'supply', 'loans', 'travel', 'turf']],
+    ['new-player-competition', 'Competition', ['casino', 'alliance', 'players', 'rankings']],
+    ['new-player-career', 'Progress & Rewards', ['xp-progress', 'events', 'street-pass', 'supporter', 'profile']],
+    ['new-player-community', 'Messages & News', ['console', 'news']],
+    ['new-player-support', 'Help & Settings', ['status', 'rules', 'account']],
+  ] as const;
+  return groups.map(([id, title, keys], index) => ({
+    id,
+    title,
+    defaultOpen: index === 0,
+    pages: pickPages(pages, keys),
+  })).filter((group) => group.pages.length > 0);
 }
 
 export function useNewPlayerNavModel(): boolean {
@@ -177,7 +211,7 @@ export function useSections(): NavSection[] {
       ? SECTIONS
       : SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => page.key !== 'street-pass') }));
     const playerSections = newPlayerNav ? newPlayerSectionsFor(sections) : sections;
-    return isAdmin ? [...playerSections, ADMIN_SECTION] : playerSections;
+    return isAdmin ? [...playerSections, ...ADMIN_SECTIONS] : playerSections;
   }, [isAdmin, hasPass, newPlayerNav]);
 }
 
@@ -192,10 +226,23 @@ export function isCurrent(page: NavPage, pathname: string): boolean {
   return pathMatches(pathname, page.to, page.aliases, page.prefix, page.prefixes);
 }
 
+/** Shared desktop/sidebar and mobile-directory search without changing route access. */
+export function filterNavSections(sections: readonly NavSection[], query: string): NavSection[] {
+  const term = query.trim().toLocaleLowerCase();
+  if (!term) return [...sections];
+  return sections.map((section) => ({
+    ...section,
+    pages: section.pages.filter((page) =>
+      page.label.toLocaleLowerCase().includes(term)
+      || page.short?.toLocaleLowerCase().includes(term)
+      || section.title.toLocaleLowerCase().includes(term)),
+  })).filter((section) => section.pages.length > 0);
+}
+
 /* ---------- Phone tab bar slots ---------- */
 
 export const TAB_COUNT = 4;
-export const DEFAULT_TABS = ['dashboard', 'scout', 'produce', 'raids'];
+export const DEFAULT_TABS = ['dashboard', 'quests', 'scout', 'stores'];
 const TABS_STORAGE_KEY = 'streets.tabbar.v1';
 
 const TAB_KEY_MIGRATIONS: Record<string, string> = {

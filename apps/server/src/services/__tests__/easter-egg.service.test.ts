@@ -3,7 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { Db } from '../../utils/db.js';
 import { EasterEggService } from '../easter-egg.service.js';
 
-function fakeDb(alreadyHeld: boolean) {
+function fakeDb(alreadyHeld: boolean, lastActiveAt = new Date('2026-10-21T12:00:00Z')) {
   const createMany = vi.fn(async () => ({ count: alreadyHeld ? 0 : 1 }));
   const activityCreate = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'activity-1', createdAt: new Date(), ...data }));
   const notificationCreate = vi.fn(async () => ({}));
@@ -13,7 +13,7 @@ function fakeDb(alreadyHeld: boolean) {
     inAppNotification: { create: notificationCreate },
     roundPlayer: {
       findUnique: vi.fn(async () => ({ accountId: 'account-1' })),
-      findFirst: vi.fn(async () => ({ id: 'player-1' })),
+      findFirst: vi.fn(async () => ({ id: 'player-1', lastActiveAt })),
     },
   };
   return { db, createMany, activityCreate, notificationCreate };
@@ -51,5 +51,17 @@ describe('EasterEggService', () => {
       .resolves.toMatchObject({ isNew: true, egg: { key: 'egg-april-fool' } });
     await expect(EasterEggService.discoverFromClient(prisma, 'account-1', 'KONAMI', new Date('2026-10-12T12:00:00Z')))
       .resolves.toMatchObject({ isNew: true });
+  });
+
+  it('only grants the Back to the Future car skin to accounts that played on October 21', async () => {
+    const { db } = fakeDb(false, new Date('2026-10-19T12:00:00Z'));
+    const prisma = { ...db, $transaction: (run: (tx: unknown) => unknown) => run(db) } as unknown as PrismaClient;
+
+    await expect(EasterEggService.discoverFromClient(prisma, 'account-1', 'GREAT_SCOTT', new Date('2026-10-21T12:00:00Z')))
+      .rejects.toMatchObject({ code: 'EASTER_EGG_NOT_PLAYED' });
+
+    db.roundPlayer.findFirst.mockResolvedValueOnce({ id: 'player-1', lastActiveAt: new Date('2026-10-21T12:00:00Z') });
+    await expect(EasterEggService.discoverFromClient(prisma, 'account-1', 'GREAT_SCOTT', new Date('2026-10-21T12:00:00Z')))
+      .resolves.toMatchObject({ isNew: true, egg: { key: 'egg-great-scott' }, collection: { key: 'time-machine' } });
   });
 });

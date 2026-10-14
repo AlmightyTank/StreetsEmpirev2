@@ -8,6 +8,7 @@ import {
 import { Link, useParams } from 'react-router-dom';
 import { PublicApiError, publicSiteApi } from '../api/public.js';
 import { formatPublicDate } from '../components/PublicGameBlocks.js';
+import { PublicPageHero } from '../components/PublicPageBits.js';
 
 type State =
   | { kind: 'loading' }
@@ -52,20 +53,16 @@ export function GameArchivePage() {
   }, [gameId]);
 
   if (state.kind === 'loading') {
-    return <div className="site-page"><section className="site-section"><div className="container"><div className="site-panel public-state"><strong>Loading season record…</strong></div></div></section></div>;
+    return <div className="site-page"><section className="site-section"><div className="container"><div className="site-panel public-state"><strong>Opening the season record…</strong></div></div></section></div>;
   }
 
   if (state.kind === 'not-found') {
     return (
       <div className="site-page">
-        <section className="site-page-hero">
-          <div className="container">
-            <p className="site-kicker">Season archive</p>
-            <h1>Game not found.</h1>
-            <p>That completed season is not in the public archive.</p>
-            <Link className="btn btn-primary" to="/games">Back to Games</Link>
-          </div>
-        </section>
+        <PublicPageHero eyebrow="Season archive" title="We can't find that season.">
+          <p>That completed season is not in the public archive.</p>
+          <Link className="btn btn-primary" to="/games">Back to seasons</Link>
+        </PublicPageHero>
       </div>
     );
   }
@@ -78,7 +75,7 @@ export function GameArchivePage() {
             <div className="site-panel public-state">
               <strong>This season record is temporarily unavailable.</strong>
               <p>Try the season archive again later.</p>
-              <Link className="btn btn-outline-light" to="/games">Back to Games</Link>
+              <Link className="btn btn-outline-light" to="/games">Back to seasons</Link>
             </div>
           </div>
         </section>
@@ -104,26 +101,26 @@ export function GameArchivePage() {
     <div className="site-page">
       <section className="site-page-hero archive-hero">
         <div className="container">
-          <p className="site-kicker">Season archive</p>
+          <p className="site-kicker">Season record</p>
           <div className="archive-hero__status">
             <span className="site-status-badge">{game.status}</span>
             <span>{formatPublicDate(game.startsAt)} – {formatPublicDate(game.endedAt)}</span>
           </div>
           <h1>{game.name}</h1>
-          <p>{game.ruleset.name} · ruleset {game.ruleset.version}</p>
+          <p>{game.ruleset.name} · ruleset {game.ruleset.version} · frozen final results</p>
         </div>
       </section>
 
       <section className="site-section site-section--tight">
         <div className="container public-game-stack">
           <section className="site-panel archive-champion-panel">
-            <span className="site-card__eyebrow">{game.champions.length > 1 ? 'Season co-champions' : 'Season champion'}</span>
+            <span className="site-card__eyebrow">{game.champions.length > 1 ? 'Winners' : 'Winner'}</span>
             {game.champions.length ? (
               <div className="archive-champions">
                 {game.champions.map((champion) => (
                   <div key={champion.publicPimpId}>
                     <strong><PlayerName row={champion} /></strong>
-                    <span>{champion.city.name} · {formatCentsCompact(champion.netWorthCents)} final net worth</span>
+                <span>{champion.city.name} · finished with {formatCentsCompact(champion.netWorthCents)}</span>
                   </div>
                 ))}
               </div>
@@ -145,7 +142,7 @@ export function GameArchivePage() {
             <div className="site-panel__head public-panel-title">
               <div>
                 <span className="site-card__eyebrow">Final result</span>
-                <h2>National Standings</h2>
+                <h2>Everyone who placed</h2>
               </div>
               <span>{formatNumber(game.standings.length)} ranked players</span>
             </div>
@@ -179,8 +176,8 @@ export function GameArchivePage() {
             <section className="site-panel">
               <div className="site-panel__head public-panel-title">
                 <div>
-                  <span className="site-card__eyebrow">Final result</span>
-                  <h2>Alliance Standings</h2>
+                  <span className="site-card__eyebrow">Crew results</span>
+                  <h2>Alliance standings</h2>
                 </div>
               </div>
               {game.allianceStandings.length ? (
@@ -203,7 +200,7 @@ export function GameArchivePage() {
               <div className="site-panel__head public-panel-title">
                 <div>
                   <span className="site-card__eyebrow">City results</span>
-                  <h2>City Champions</h2>
+                  <h2>Local winners</h2>
                 </div>
               </div>
               {game.cityResults.length ? (
@@ -227,7 +224,7 @@ export function GameArchivePage() {
           </div>
 
           <div className="archive-back">
-            <Link className="btn btn-outline-light" to="/games">← All Games</Link>
+            <Link className="btn btn-outline-light" to="/games">← All seasons</Link>
             <Link className="btn btn-outline-light" to="/hall-of-fame">Hall of Fame</Link>
           </div>
         </div>

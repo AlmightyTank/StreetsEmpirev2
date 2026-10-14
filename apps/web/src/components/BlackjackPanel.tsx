@@ -9,6 +9,7 @@ import {
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
 import { ActionDock, deltaChip } from './ActionDock.js';
+import { CasinoBetControl } from './CasinoExperience.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
@@ -391,34 +392,28 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                       <strong>Bet {wagerCents ? formatCents(wagerCents) : '—'}</strong>
                       <span>{casinoPage.openSession ? 'Floor ' + formatCents(casinoPage.openSession.bankrollCents) : 'No session open'}</span>
                     </div>
-                    <div className="se-dock__amount se-slots__dock-bet" role="group" aria-label="Bet">
-                      <label htmlFor="blackjack-bet">Bet</label>
-                      <button type="button" className="se-btn se-btn--sm" disabled={busy !== null} aria-label="Lower the bet" onClick={() => stepWager(-selectedTable.betStepCents)}>−</button>
-                      <input
-                        id="blackjack-bet"
-                        className="se-input"
-                        inputMode="decimal"
-                        value={wager}
-                        disabled={busy !== null}
-                        onChange={(event) => {
-                          setWager(event.target.value);
-                          dealAction.current = newActionId();
-                        }}
-                      />
-                      <button type="button" className="se-btn se-btn--sm" disabled={busy !== null} aria-label="Raise the bet" onClick={() => stepWager(selectedTable.betStepCents)}>+</button>
-                      <button
-                        type="button"
-                        className="se-btn se-btn--sm"
-                        disabled={busy !== null}
-                        onClick={() => {
-                          const bankroll = casinoPage.openSession?.bankrollCents ?? 0;
-                          const max = Math.min(selectedTable.maxBetCents, bankroll);
-                          const stepped = Math.floor(max / selectedTable.betStepCents) * selectedTable.betStepCents;
-                          setWager(String(Math.max(selectedTable.minBetCents, stepped) / 100));
-                          dealAction.current = newActionId();
-                        }}
-                      >Max</button>
-                    </div>
+                    <CasinoBetControl
+                      id="blackjack-bet"
+                      label="Bet"
+                      className="se-slots__dock-bet"
+                      value={wager}
+                      disabled={busy !== null}
+                      decreaseLabel="Lower the bet"
+                      increaseLabel="Raise the bet"
+                      onDecrease={() => stepWager(-selectedTable.betStepCents)}
+                      onIncrease={() => stepWager(selectedTable.betStepCents)}
+                      onChange={(value) => {
+                        setWager(value);
+                        dealAction.current = newActionId();
+                      }}
+                      onMax={() => {
+                        const bankroll = casinoPage.openSession?.bankrollCents ?? 0;
+                        const max = Math.min(selectedTable.maxBetCents, bankroll);
+                        const stepped = Math.floor(max / selectedTable.betStepCents) * selectedTable.betStepCents;
+                        setWager(String(Math.max(selectedTable.minBetCents, stepped) / 100));
+                        dealAction.current = newActionId();
+                      }}
+                    />
                     <Button type="submit" className="se-btn se-btn--primary" disabledReason={dealBlock}>
                       {busy === 'deal' ? 'Dealing...' : settledHand ? 'Deal again' : 'Deal'}
                     </Button>

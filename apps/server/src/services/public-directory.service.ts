@@ -22,6 +22,7 @@ import type {
 import { toRoundDto } from '../game/dto.js';
 import { RoundService } from './round.service.js';
 import { PublicSiteService } from './public-site.service.js';
+import { SupporterService } from './supporter.service.js';
 import { profileTitleForKey } from './profile-titles.js';
 import { PlatformService } from './platform.service.js';
 
@@ -56,6 +57,7 @@ function publicRanking(
     alliance: { name: string; tag: string } | null;
   },
   rank: number,
+  supporter?: { isSupporter: boolean; supporterSince: string | null },
 ): PublicRankingEntryDto {
   return {
     rank,
@@ -64,6 +66,8 @@ function publicRanking(
     netWorthCents: Number(row.netWorthCents),
     city: row.city,
     alliance: row.alliance,
+    isSupporter: supporter?.isSupporter ?? false,
+    supporterSince: supporter?.supporterSince ?? null,
   };
 }
 
@@ -123,6 +127,7 @@ export const PublicDirectoryService = {
       orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
       take: Math.max(1, Math.min(limit, 250)),
       select: {
+        accountId: true,
         publicPimpId: true,
         displayName: true,
         netWorthCents: true,
@@ -131,12 +136,13 @@ export const PublicDirectoryService = {
         alliance: { select: { name: true, tag: true } },
       },
     });
+    const supporterFlags = await SupporterService.flags(prisma, rows.map((row) => row.accountId));
 
     return {
       generatedAt: new Date().toISOString(),
       round: await roundDto(prisma, round),
       rankings: rankingRows(rows).map(({ row, rank }) => ({
-        ...publicRanking(row, rank),
+        ...publicRanking(row, rank, supporterFlags.get(row.accountId)),
         movement: row.dailyStartingNationalRank === null ? null : row.dailyStartingNationalRank - rank,
       })),
     };
@@ -172,7 +178,7 @@ export const PublicDirectoryService = {
     });
     if (!player) return null;
 
-    const [nationalAhead, localAhead, history] = await Promise.all([
+    const [nationalAhead, localAhead, history, supporterFlags] = await Promise.all([
       prisma.roundPlayer.count({
         where: { roundId: round.id, account: { isActive: true }, netWorthCents: { gt: player.netWorthCents } },
       }),
@@ -194,14 +200,17 @@ export const PublicDirectoryService = {
           nationalRank: true,
           city: { select: { slug: true, name: true } },
           alliance: { select: { name: true, tag: true } },
-          round: { select: { slug: true, name: true, startsAt: true, endsAt: true } },
+          round: { select: { id: true, slug: true, name: true, startsAt: true, endsAt: true } },
         },
       }),
+      SupporterService.flags(prisma, [player.accountId]),
     ]);
 
     const national = nationalAhead + 1;
     const local = localAhead + 1;
     const rankedHistory = history.filter((row) => row.nationalRank !== null);
+    const stampRows = await SupporterService.seasonStamps(prisma, history.map((row) => row.round.id));
+    const supported = (roundId: string) => stampRows.get(roundId)?.has(player.accountId) ?? false;
     const bestNationalRank = rankedHistory.reduce<number | null>(
       (best, row) => best === null ? row.nationalRank : Math.min(best, row.nationalRank!),
       null,
@@ -228,6 +237,8 @@ export const PublicDirectoryService = {
           titlePlacement: player.account.profile?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
           accent: player.account.profile?.profileAccent ?? 'default',
         },
+        isSupporter: supporterFlags.get(player.accountId)?.isSupporter ?? false,
+        supporterSince: supporterFlags.get(player.accountId)?.supporterSince ?? null,
         joinedAt: player.createdAt.toISOString(),
         lastActiveAt: player.lastActiveAt.toISOString(),
       },
@@ -251,6 +262,7 @@ export const PublicDirectoryService = {
           finalNetWorthCents: Number(row.netWorthCents),
           localRank: row.localRank,
           nationalRank: row.nationalRank,
+          supportedSeason: supported(row.round.id),
         })),
       },
     };
@@ -382,6 +394,7 @@ export const PublicDirectoryService = {
         where: { roundId: round.id, account: { isActive: true } },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         select: {
+          accountId: true,
           publicPimpId: true,
           displayName: true,
           netWorthCents: true,
@@ -391,6 +404,8 @@ export const PublicDirectoryService = {
       }),
       prisma.turf.findMany({ where: { roundId: round.id }, select: { city: { select: { slug: true } }, holderId: true } }),
     ]);
+
+    const supporterFlags = await SupporterService.flags(prisma, players.map((player) => player.accountId));
 
     const available = ruleset.cities
       ? Object.entries(ruleset.cities).map(([slug, rules]) => ({ slug, name: rules.name }))
@@ -413,7 +428,7 @@ export const PublicDirectoryService = {
           economyNetWorthCents: cityPlayers.reduce((sum, row) => sum + Number(row.netWorthCents), 0),
           turfBlocksHeld: cityTurf.filter((row) => row.holderId !== null).length,
           turfBlocksTotal: cityTurf.length,
-          topPlayers: rankingRows(cityPlayers.slice(0, 3)).map(({ row, rank }) => publicRanking(row, rank)),
+          topPlayers: rankingRows(cityPlayers.slice(0, 3)).map(({ row, rank }) => publicRanking(row, rank, supporterFlags.get(row.accountId))),
         };
       }),
     };
@@ -517,6 +532,7 @@ export const PublicDirectoryService = {
         where: { roundId: { in: roundIds }, nationalRank: 1, account: { isActive: true } },
         select: {
           roundId: true,
+          accountId: true,
           publicPimpId: true,
           displayName: true,
           netWorthCents: true,
@@ -537,6 +553,9 @@ export const PublicDirectoryService = {
         },
       }),
     ]);
+
+    const stamps = await SupporterService.seasonStamps(prisma, roundIds);
+    const supported = (roundId: string, accountId: string) => stamps.get(roundId)?.has(accountId) ?? false;
 
     const career = new Map<string, { displayName: string; wins: number; topTenFinishes: number; roundsPlayed: number; total: number }>();
     for (const row of finishers) {
@@ -560,6 +579,7 @@ export const PublicDirectoryService = {
           netWorthCents: Number(row.netWorthCents),
           city: row.city,
           alliance: row.alliance,
+          supportedSeason: supported(row.roundId, row.accountId),
         })),
       })),
       career: [...career.values()]

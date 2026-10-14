@@ -9,7 +9,7 @@ import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { ShelfArt } from './ItemTile.js';
 import { Panel } from './Panel.js';
-import { AccessBadge, ProductRecipeNote } from './ProductAccess.js';
+import { ProductRecipeNote } from './ProductAccess.js';
 import { QuantitySteps } from './QuantitySteps.js';
 import { QuestLockNote } from './QuestLink.js';
 
@@ -153,20 +153,13 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
 
   const id = `product-${product.key}`;
   return (
-    <Panel title={product.name}>
-      {pip.favorDiscountPercent ? (
-        <p className="se-hint"><strong>Pip's Connection:</strong> {formatNumber(pip.favorDiscountPercent)}% buy discount active.</p>
-      ) : null}
-      {pip.relationshipBuyDiscountPercent || pip.relationshipSellBonusPercent ? (
-        <p className="se-hint se-good">
-          Relationship perk — {relationshipSummary(pip)}.
-        </p>
-      ) : null}
-      {pip.factionDiscount ? (
-        <p className="se-hint se-good">
-          {pip.factionDiscount.factionName} perk — {formatNumber(pip.factionDiscount.percent)}% off buying.
-        </p>
-      ) : null}
+    <Panel
+      title={product.name}
+      className={`se-store-shelf${!pip.purchaseUnlocked ? ' se-store-shelf--locked' : ''}${pip.stock === 0 ? ' se-store-shelf--soldout' : ''}`}
+      aside={<span className={`se-store-shelf__status${!pip.purchaseUnlocked || pip.stock === 0 ? ' se-store-shelf__status--warn' : ''}`}>
+        {pip.purchaseUnlocked ? pip.stock === 0 ? 'Sold out' : `${formatNumber(pip.stock)} / ${formatNumber(pip.cap)} in stock` : 'Buy locked'}
+      </span>}
+    >
       <div className="se-store-shelf__top">
         <ShelfArt itemKey={product.key} locked={!pip.purchaseUnlocked} soldOut={pip.purchaseUnlocked && pip.stock === 0} />
         <div className="se-store-prices">
@@ -175,31 +168,11 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
           <span>Sell <strong className="se-num">{price(pip.sellCents)}</strong></span>
         </div>
       </div>
-      <MarketBadges market={pip.market} />
-      {/* Quest Recipe Unlocks D: buying here and cooking it are separate permissions. */}
-      <div className="se-access-badges">
-        <AccessBadge label="Buy" access={pip.purchaseUnlocked ? { state: 'open' } : { state: 'locked', unlockName: pip.unlockName ?? product.name, quest: pip.unlockQuest ?? null }} />
-        <AccessBadge
-          label="Cook"
-          access={!product.recipe
-            ? { state: 'none' }
-            : product.recipeAccess?.unlocked === false
-              ? { state: 'locked', unlockName: product.recipeAccess.unlockName, quest: product.recipeAccess.unlockQuest }
-              : { state: 'open' }}
-        />
-      </div>
-      <p className="se-hint">{product.blurb}</p>
       {!pip.purchaseUnlocked ? (
-        <div className="se-store-favor">
-          <h3 className="se-store-favor__title">Purchase access locked</h3>
-          <p className="se-hint">
-            {pip.unlockDescription ?? `Pip has not opened ${product.name} purchases to you yet.`}
-          </p>
-          <QuestLockNote unlockName={pip.unlockName ?? `${product.name} purchases`} quest={pip.unlockQuest} after="You can still sell stock you already own." />
-        </div>
+        <p className="se-store-shelf__notice">
+          Purchases locked · Sell stock you already own, or unlock buying through jobs.
+        </p>
       ) : null}
-      <ProductRecipeNote product={product} />
-      <ShelfLine pip={pip} name={product.name} onArrival={onDone} />
       <form onSubmit={submit}>
         <div className="se-store-order">
           <div>
@@ -226,13 +199,43 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
         </p>
         <div className="se-store-actions">
           <Button className="se-btn se-btn--primary se-btn--block" disabledReason={block}>
-            {buying ? 'Buy' : 'Sell'} {product.name}{valid && typeof quantity === 'number' ? ` · ${price(quantity * unit)}` : ''}
+            {buying ? 'Buy' : 'Sell'}{valid && typeof quantity === 'number' ? ` · ${price(quantity * unit)}` : ''}
           </Button>
           <Button type="button" className="se-btn se-btn--block" disabledReason={block} onClick={addToBasket}>
             Add to basket
           </Button>
         </div>
       </form>
+      <details className="se-store-shelf__details">
+        <summary>Market, restock &amp; access details</summary>
+      {pip.favorDiscountPercent ? (
+        <p className="se-hint"><strong>Pip's Connection:</strong> {formatNumber(pip.favorDiscountPercent)}% buy discount active.</p>
+      ) : null}
+      {pip.relationshipBuyDiscountPercent || pip.relationshipSellBonusPercent ? (
+        <p className="se-hint se-good">
+          Relationship perk — {relationshipSummary(pip)}.
+        </p>
+      ) : null}
+      {pip.factionDiscount ? (
+        <p className="se-hint se-good">
+          {pip.factionDiscount.factionName} perk — {formatNumber(pip.factionDiscount.percent)}% off buying.
+        </p>
+      ) : null}
+      <MarketBadges market={pip.market} />
+      {/* Quest Recipe Unlocks D: buying here and cooking it are separate permissions. */}
+      <p className="se-hint">{product.blurb}</p>
+      {!pip.purchaseUnlocked ? (
+        <div className="se-store-favor">
+          <h3 className="se-store-favor__title">Purchase access locked</h3>
+          <p className="se-hint">
+            {pip.unlockDescription ?? `Pip has not opened ${product.name} purchases to you yet.`}
+          </p>
+          <QuestLockNote unlockName={pip.unlockName ?? `${product.name} purchases`} quest={pip.unlockQuest} after="You can still sell stock you already own." />
+        </div>
+      ) : null}
+      <ProductRecipeNote product={product} />
+      <ShelfLine pip={pip} name={product.name} onArrival={onDone} />
+      </details>
       {trade.error ? <Alert>{trade.error}</Alert> : null}
       {trade.result ? (
         <p className="se-hint se-good">

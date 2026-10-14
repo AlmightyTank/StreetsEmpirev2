@@ -6,6 +6,20 @@ import { selectProfileBadges } from './profile-badges.js';
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
 
+const SUPPORTER_FORUM_FLAIR: ProfileBadgeDto = {
+  key: 'supporter-active',
+  title: 'Supporter',
+  description: 'Currently supporting StreetsEmpire.',
+  category: 'quest',
+  rarity: 'epic',
+  permanent: false,
+};
+
+async function activeSupporterFlair(prisma: PrismaClient, accountId: string): Promise<ProfileBadgeDto[]> {
+  const membership = await prisma.supporterMembership.findUnique({ where: { accountId }, select: { status: true } });
+  return membership?.status === 'active' || membership?.status === 'trialing' ? [SUPPORTER_FORUM_FLAIR] : [];
+}
+
 export const ProfileBadgeService = {
   /**
    * Badges for a permanent account, for the forum. Players in the current round
@@ -13,14 +27,15 @@ export const ProfileBadgeService = {
    * legacy badges between rounds.
    */
   async forAccount(prisma: PrismaClient, accountId: string): Promise<ProfileBadgeDto[]> {
+    const supporterFlair = await activeSupporterFlair(prisma, accountId);
     const round = await RoundService.getCurrent(prisma);
     const player = round ? await RoundPlayerService.find(prisma, round.id, accountId) : null;
     if (round && player) {
       const profile = await CommunityService.profile(
         prisma, round.id, player.publicPimpId, 0, loadRulesetForRound(round), { forumGroups: false },
       );
-      return profile.badges;
+      return [...supporterFlair, ...profile.badges];
     }
-    return selectProfileBadges(await permanentAwardsForAccount(prisma, accountId, round?.id ?? null));
+    return [...supporterFlair, ...selectProfileBadges(await permanentAwardsForAccount(prisma, accountId, round?.id ?? null))];
   },
 };

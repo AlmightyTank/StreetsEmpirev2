@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import type { PublicPlayerProfileDto } from '@streets/shared';
 import { CREW_COSMETIC_KEYS, formatCents, formatNumber, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { communityApi } from '../api/community.js';
@@ -81,6 +81,10 @@ export function PlayerProfileHoverLayer() {
   const closeTimer = useRef<number | null>(null);
   const suppressFocus = useRef(false);
   const lastTap = useRef<HTMLAnchorElement | null>(null);
+  const navigatedAt = useRef(0);
+  const lastPointerMove = useRef(0);
+  const location = useLocation();
+  const locationKey = `${location.pathname}${location.search}`;
 
   function clearCloseTimer() {
     if (closeTimer.current !== null) {
@@ -133,9 +137,13 @@ export function PlayerProfileHoverLayer() {
 
     function onPointerOver(event: PointerEvent) {
       if (media.matches || !(event.target instanceof Element)) return;
+      if (cardRef.current?.contains(event.target)) clearCloseTimer();
+      // After a page swap the browser re-fires pointerover for whatever
+      // renders under a stationary cursor. Ignore it until the pointer
+      // really moves so a card doesn't open uninvited.
+      if (lastPointerMove.current < navigatedAt.current) return;
       const trigger = profileTrigger(event.target);
       if (trigger && !trigger.hoverRoot.contains(event.relatedTarget as Node | null)) activate(trigger.anchor, trigger.hoverRoot);
-      if (cardRef.current?.contains(event.target)) clearCloseTimer();
     }
     function onPointerOut(event: PointerEvent) {
       if (media.matches || !(event.target instanceof Element)) return;
@@ -154,6 +162,9 @@ export function PlayerProfileHoverLayer() {
       const next = event.relatedTarget as Node | null;
       if (targetRef.current?.anchor.contains(next) || cardRef.current?.contains(next)) return;
       scheduleClose();
+    }
+    function onPointerMove() {
+      lastPointerMove.current = Date.now();
     }
     function onClick(event: MouseEvent) {
       if (!media.matches || !(event.target instanceof Element)) return;
@@ -183,6 +194,7 @@ export function PlayerProfileHoverLayer() {
     }
 
     document.addEventListener('pointerover', onPointerOver);
+    document.addEventListener('pointermove', onPointerMove);
     document.addEventListener('pointerout', onPointerOut);
     document.addEventListener('focusin', onFocusIn);
     document.addEventListener('focusout', onFocusOut);
@@ -191,6 +203,7 @@ export function PlayerProfileHoverLayer() {
     return () => {
       media.removeEventListener('change', update);
       document.removeEventListener('pointerover', onPointerOver);
+      document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerout', onPointerOut);
       document.removeEventListener('focusin', onFocusIn);
       document.removeEventListener('focusout', onFocusOut);
@@ -219,8 +232,13 @@ export function PlayerProfileHoverLayer() {
   useLayoutEffect(() => {
     if (!target || touch) return;
     const hoverRoot = target.hoverRoot;
+    const anchor = target.anchor;
     let animationFrame = 0;
     function updatePosition() {
+      if (!hoverRoot.isConnected || !anchor.isConnected) {
+        close();
+        return;
+      }
       const rect = hoverRoot.getBoundingClientRect();
       const width = Math.min(CARD_WIDTH, window.innerWidth - VIEWPORT_GUTTER * 2);
       const left = Math.max(VIEWPORT_GUTTER, Math.min(rect.left, window.innerWidth - width - VIEWPORT_GUTTER));
@@ -251,6 +269,14 @@ export function PlayerProfileHoverLayer() {
   }, [target, touch]);
 
   useEffect(() => () => clearCloseTimer(), []);
+
+  // The layer lives beside <Outlet/> so it survives page swaps. The old
+  // anchor unmounts but the portal card would stay stuck open.
+  useEffect(() => {
+    navigatedAt.current = Date.now();
+    close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationKey]);
 
   if (!target) return null;
   const to = `/game/players/${target.id}`;
@@ -301,8 +327,8 @@ export function PlayerProfileHoverLayer() {
         </span>
         <span className="se-profile-hover-card__identity-copy">
           {profile?.cosmetics.title ? <span className="se-profile-hover-card__title">{profile.cosmetics.title}</span> : null}
-          <strong><span>{profile?.displayName ?? target.label}</span>{signature ? <SupporterMark /> : null}</strong>
-          <small>PLAYER #{formatNumber(target.id)}{signature ? ' · SUPPORTER' : ''}</small>
+          <strong><span>{profile?.displayName ?? target.label}</span>{profile?.isSupporter ? <SupporterMark /> : null}</strong>
+          <small>PLAYER #{formatNumber(target.id)}{profile?.isSupporter ? ' · SUPPORTER' : ''}</small>
         </span>
       </div>
       {profile ? (

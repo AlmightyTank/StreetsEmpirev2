@@ -67,11 +67,13 @@ export function roleKeysFor(input: {
   nationalRank: number | null;
   legacy: PublicLegacyDto;
   forumGroups: ForumGroupBadgeDto[];
+  supporter?: boolean;
   betaTester?: boolean;
   /** 0.3.0-C. The tag of the live alliance they are in this round. */
   allianceTag?: string | null;
 }): string[] {
   const keys = ['linked'];
+  if (input.supporter) keys.push('supporter');
   if (input.betaTester) keys.push('beta-tester');
   if (input.inRound) keys.push('player');
   if (input.inRound && input.allianceTag) keys.push(`alliance:${input.allianceTag.toUpperCase()}`);
@@ -445,6 +447,7 @@ const recapPlayerSchema = z.object({
   eligibleCompetitor: z.boolean(),
   nationalRank: z.number().int().nullable(),
   netWorthCents: z.string().regex(/^-?\d+$/),
+  drugUnitsHeld: z.number().int().nonnegative().optional(),
 }).passthrough();
 const recapRecordSchema = z.object({
   status: z.string(),
@@ -455,7 +458,7 @@ const recapRecordSchema = z.object({
   unit: z.string().optional(),
 }).passthrough();
 
-export function roundRecapDto(roundId: string, globalValue: Prisma.JsonValue, playersValue: Prisma.JsonValue, alliancesValue: Prisma.JsonValue, recordsValue: Prisma.JsonValue): DiscordRoundRecapDto {
+export function roundRecapDto(roundId: string, globalValue: Prisma.JsonValue, playersValue: Prisma.JsonValue, alliancesValue: Prisma.JsonValue, recordsValue: Prisma.JsonValue, citiesValue: Prisma.JsonValue = null): DiscordRoundRecapDto {
   const global = z.object({
     participants: z.number().int().nonnegative().optional(),
     eligibleCompetitors: z.number().int().nonnegative().optional(),
@@ -469,6 +472,23 @@ export function roundRecapDto(roundId: string, globalValue: Prisma.JsonValue, pl
   const players = z.array(recapPlayerSchema).parse(playersValue);
   const alliances = z.array(z.unknown()).safeParse(alliancesValue);
   const records = z.record(z.string(), z.unknown()).parse(recordsValue);
+  const cityRows = z.array(z.object({
+    cityName: z.string(),
+    turfBlocksHeld: z.number().int().nonnegative(),
+  }).passthrough()).safeParse(citiesValue);
+  const allianceRows = z.array(z.object({
+    name: z.string(),
+    tag: z.string(),
+    turfBlocksHeld: z.number().int().nonnegative(),
+  }).passthrough()).safeParse(alliancesValue);
+  const strongest = <T extends { turfBlocksHeld: number }>(rows: T[]): T[] => {
+    const highest = Math.max(0, ...rows.map((row) => row.turfBlocksHeld));
+    return highest === 0 ? [] : rows.filter((row) => row.turfBlocksHeld === highest).slice(0, 3);
+  };
+  const drugsHeld = players.every((player) => player.drugUnitsHeld !== undefined)
+    ? players.reduce((sum, player) => sum + (player.drugUnitsHeld ?? 0), 0)
+    : null;
+  const drugsHeldAtCutoff = drugsHeld !== null && Number.isSafeInteger(drugsHeld) ? drugsHeld : null;
   const playerById = new Map(players.map((player) => [player.roundPlayerId, player]));
   const topPlayers = players
     .filter((player) => player.eligibleCompetitor && player.nationalRank !== null)
@@ -486,9 +506,10 @@ export function roundRecapDto(roundId: string, globalValue: Prisma.JsonValue, pl
     { key: 'wealth', title: 'Round Champion' },
     { key: 'wealth', title: 'Wealth King' },
     { key: 'turf', title: 'Turf Warlord' },
-    { key: 'drugUnitsHeld', title: 'Drug Kingpin' },
     { key: 'crew', title: 'Crew Commander' },
+    { key: 'drugUnitsHeld', title: 'Drug Kingpin' },
     { key: 'businesses', title: 'Business Tycoon' },
+    { key: 'crime', title: 'Most Feared (attempts)' },
   ] as const;
   const champions: DiscordRoundRecapDto['champions'] = [];
   for (const definition of awardDefinitions) {
@@ -525,6 +546,13 @@ export function roundRecapDto(roundId: string, globalValue: Prisma.JsonValue, pl
     turfBlocksHeld: global.playerHeldTurfBlocks ?? null,
     activeBusinessesHeld: global.activeBusinessesHeld ?? null,
     crimeActionsAttempted: global.crimeActions ?? null,
+    drugsHeldAtCutoff,
+    cityTurfLeaders: cityRows.success
+      ? strongest(cityRows.data).map((row) => ({ cityName: row.cityName, blocksHeld: row.turfBlocksHeld }))
+      : null,
+    allianceTurfLeaders: allianceRows.success
+      ? strongest(allianceRows.data).map((row) => ({ name: row.name, tag: row.tag, blocksHeld: row.turfBlocksHeld }))
+      : null,
     topPlayers,
     champions,
   };
@@ -548,7 +576,7 @@ async function claimRoundEnds(prisma: PrismaClient, now: Date): Promise<DiscordR
         },
       ],
     },
-    include: { aftermathReport: { select: { globalAggregate: true, playerAggregates: true, allianceAggregate: true, categoryRecords: true } } },
+    include: { aftermathReport: { select: { globalAggregate: true, playerAggregates: true, allianceAggregate: true, categoryRecords: true, cityAggregates: true } } },
     orderBy: { endsAt: 'asc' },
     take: 5,
   });
@@ -561,6 +589,7 @@ async function claimRoundEnds(prisma: PrismaClient, now: Date): Promise<DiscordR
       round.aftermathReport.playerAggregates,
       round.aftermathReport.allianceAggregate,
       round.aftermathReport.categoryRecords,
+      round.aftermathReport.cityAggregates,
     );
     const claimed = await prisma.round.updateMany({
       where: {
@@ -599,7 +628,7 @@ export const DiscordBotService = {
   async rolesFor(prisma: PrismaClient, discordIds: string[]): Promise<Record<string, string[]>> {
     const accounts = await prisma.account.findMany({
       where: { discordId: { in: discordIds }, isActive: true },
-      select: { id: true, discordId: true, forumLink: { select: { forumOrigin: true, forumUserId: true } } },
+      select: { id: true, discordId: true, supporterMembership: { select: { status: true } }, forumLink: { select: { forumOrigin: true, forumUserId: true } } },
     });
     if (!accounts.length) return {};
 
@@ -633,6 +662,7 @@ export const DiscordBotService = {
         nationalRank: ranked ? rankByAccount.get(account.id) ?? null : null,
         legacy: legacyByAccount.get(account.id) ?? emptyLegacy(),
         forumGroups: forumGroups[index]!,
+        supporter: account.supporterMembership?.status === 'active' || account.supporterMembership?.status === 'trialing',
         betaTester: env.betaTester.discordLinked,
         // Alliance roles only mean something while the round can still change.
         allianceTag: round && (round.status === 'ACTIVE' || round.status === 'REGISTRATION') ? allianceByAccount.get(account.id) ?? null : null,

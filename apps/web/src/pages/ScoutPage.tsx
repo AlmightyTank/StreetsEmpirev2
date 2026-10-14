@@ -6,6 +6,7 @@ import { STATUE_ENCOUNTER_KEY, formatNumber } from '@streets/shared';
 import { EncounterEggNote, StatueWatch } from '../components/EasterEggs.js';
 import { actionsApi } from '../api/actions.js';
 import { ActionDock, resultChips } from '../components/ActionDock.js';
+import { ActionReadiness, OperationDetails } from '../components/ActionReadiness.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -16,6 +17,7 @@ import { TurnSpend } from '../components/TurnSpend.js';
 import { WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { HeatNotice } from '../components/HeatPanel.js';
 import { CrewTeamPicker } from '../components/CrewTeamPicker.js';
+import { EmpireAreaLegend } from '../components/EmpireManagement.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { scoutReceiptLines } from '../receipts/actionReceipts.js';
@@ -41,6 +43,10 @@ function ScoutMetric({
   );
 }
 
+function isIdList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length <= 5 && value.every((entry) => typeof entry === 'string');
+}
+
 function coverageTone(district: DistrictDto | undefined): 'good' | 'warn' | 'bad' {
   if (!district || district.exposedFraction <= 0) return 'good';
   return district.exposedFraction < 0.35 ? 'warn' : 'bad';
@@ -58,7 +64,8 @@ export function ScoutPage() {
   const [district, setDistrict] = useRememberedState<string>(rememberedKey('scout.district', me?.id), '', { accept: isString });
   const [turns, setTurns] = useRememberedState<number | ''>(rememberedKey('scout.turns', me?.id), 13, { accept: isTurns });
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [scoutTeam, setScoutTeam] = useState<string[]>([]);
+  // Lena stays picked between visits (per player); stale ids simply match nothing.
+  const [scoutTeam, setScoutTeam] = useRememberedState<string[]>(rememberedKey('scout.team', me?.id), [], { accept: isIdList });
 
   // Refetched whenever the crew changes, because the visible coverage on offer
   // depends on how many people and armed fit thugs the player has available.
@@ -156,36 +163,19 @@ export function ScoutPage() {
 
         {loadError ? <Alert>{loadError}</Alert> : null}
         {action.error ? <Alert>{action.error}</Alert> : null}
+        <ActionReadiness
+          title="Street readiness"
+          status={action.busy ? 'Crew is out' : scoutBlock ? 'Needs attention' : 'Ready to scout'}
+          blockedReason={scoutBlock}
+          items={[
+            { key: 'turns', label: 'Turns available', value: formatNumber(available) },
+            { key: 'crew', label: 'Working crew', value: formatNumber(me.resources.whores), hint: 'Whores available' },
+            { key: 'cover', label: 'Armed protection', value: formatNumber(me.resources.armedThugs), tone: me.resources.armedThugs ? 'good' : 'warn' },
+            { key: 'area', label: 'Selected district', value: selectedDistrict?.name ?? 'Choose district', hint: selectedDistrict ? `${coveredPercent}% covered` : undefined, tone: selectedDistrict?.districtAccess?.unlocked === false ? 'bad' : undefined },
+          ]}
+        />
 
-        <details className="se-scout-map-details" open>
-          <summary>
-            <span><span className="se-eyebrow">City overview · {me.city.name}</span><strong>District map</strong></span>
-            <span>{selectedDistrict?.name ?? 'Choose an area'} · {coveredPercent}% covered</span>
-          </summary>
-          <div className="se-citymap-layout">
-            <CityDistrictMap
-              citySlug={me.city.slug}
-              cityName={me.city.name}
-              districts={mapDistricts}
-              selectedDistrict={district}
-              onSelect={setDistrict}
-              disabled={action.busy}
-            />
-            <aside className="se-citymap-brief" aria-label="Scout map coverage summary">
-              <div className="se-citymap-brief__control">
-                <span className="se-eyebrow">Current field read</span>
-                <strong>{selectedDistrict?.name ?? 'Pick a district'}</strong>
-                <span>{selectedDistrict ? `${coveredPercent}% crew covered · ${exposurePercent}% exposed` : 'Choose an area to see crew coverage.'}</span>
-              </div>
-              <div className="se-citymap-brief__legend" aria-label="Scout coverage legend">
-                <span><i className="se-citymap__legend-dot se-citymap__legend-dot--mine" />Covered</span>
-                <span><i className="se-citymap__legend-dot se-citymap__legend-dot--held" />Some crew exposed</span>
-                <span><i className="se-citymap__legend-dot se-citymap__legend-dot--pressure" />High exposure</span>
-              </div>
-              <p>Map colors show how your current crew fits this district’s protection rule.</p>
-            </aside>
-          </div>
-        </details>
+
 
         <div className="se-scout-plan">
           <section className="se-scout-plan__main">
@@ -294,8 +284,114 @@ export function ScoutPage() {
           </aside>
         </div>
 
+        <ActionDock
+          label="Send the crew"
+          onSubmit={onSubmit}
+          outcome={action.result ? {
+            id: action.result,
+            title: `${action.result.result.district.name} · ${formatNumber(action.result.result.turnsUsed)} turns`,
+            chips: resultChips(action.result, receiptLines!),
+            receipt: (
+              <>
+                <ActionResult
+                  title="Scouting Results"
+                  subtitle={action.result.result.district.name}
+                  result={action.result}
+                  lines={receiptLines!}
+                />
+                {pendingEncounter ? (
+                  <Panel title={pendingEncounter.title} className="se-scout-panel">
+                    <p className="se-scout-copy">{pendingEncounter.text}</p>
+                    {pendingEncounter.key === STATUE_ENCOUNTER_KEY && !encounterAction.result ? (
+                      <StatueWatch active={!encounterAction.busy} onReached={() => void resolveEncounter('run')} />
+                    ) : null}
+                    {encounterAction.error ? <Alert>{encounterAction.error}</Alert> : null}
+                    {encounterAction.result ? (
+                      <div className="se-scout-intel__note se-scout-intel__note--good">
+                        <strong>{encounterAction.result.result.choiceLabel}</strong>
+                        <span>{encounterAction.result.result.text}</span>
+                        <EncounterEggNote egg={encounterAction.result.result.easterEgg} />
+                      </div>
+                    ) : (
+                      <div className="se-actions">
+                        {pendingEncounter.choices!.map((choice) => (
+                          <Button
+                            key={choice.key}
+                            type="button"
+                            className="se-btn se-btn--secondary"
+                            onClick={() => void resolveEncounter(choice.key)}
+                            disabledReason={encounterAction.busy ? 'Working that response...' : null}
+                          >
+                            {choice.label}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </Panel>
+                ) : null}
+              </>
+            ),
+            onDismiss: action.clear,
+          } : null}
+        >
+          <div>
+            <span className="se-dock__label">Ready to move</span>
+            <strong>
+              {selectedDistrict ? selectedDistrict.name : 'Choose a district'}
+            </strong>
+            <span>
+              {chosenTurns > 0 && chosenTurns <= available
+                ? `${formatNumber(remainingTurns)} turns left after`
+                : `${formatNumber(available)} turns available`}
+            </span>
+          </div>
+          <TurnSpend
+            value={turns}
+            onChange={setTurns}
+            available={available}
+            disabled={action.busy}
+            disabledReason={action.busy ? 'Your crew is still out on the last job.' : null}
+          />
+          <CrewTeamPicker role="WORKER" specialty="SCOUT" selectedIds={scoutTeam} onChange={setScoutTeam} disabled={action.busy} refreshKey={action.result} />
+          <Button className="se-btn se-btn--primary" disabledReason={scoutBlock}>
+            {action.busy ? 'Working the block...' : action.result ? 'Send again' : 'Send crew scouting'}
+          </Button>
+        </ActionDock>
+
+        <details className="se-scout-map-details">
+          <summary>
+            <span><span className="se-eyebrow">City overview · {me.city.name}</span><strong>District map</strong></span>
+            <span>{selectedDistrict?.name ?? 'Choose an area'} · {coveredPercent}% covered</span>
+          </summary>
+          <div className="se-citymap-layout">
+            <CityDistrictMap
+              citySlug={me.city.slug}
+              cityName={me.city.name}
+              districts={mapDistricts}
+              selectedDistrict={district}
+              onSelect={setDistrict}
+              disabled={action.busy}
+            />
+            <aside className="se-citymap-brief" aria-label="Scout map coverage summary">
+              <div className="se-citymap-brief__control">
+                <span className="se-eyebrow">Current field read</span>
+                <strong>{selectedDistrict?.name ?? 'Pick a district'}</strong>
+                <span>{selectedDistrict ? `${coveredPercent}% crew covered · ${exposurePercent}% exposed` : 'Choose an area to see crew coverage.'}</span>
+              </div>
+              <EmpireAreaLegend label="Scout coverage legend" items={[
+                { key: 'covered', label: 'Covered', tone: 'mine' },
+                { key: 'warn', label: 'Some crew exposed', tone: 'held' },
+                { key: 'bad', label: 'High exposure', tone: 'pressure' },
+                { key: 'locked', label: 'Locked', tone: 'locked' },
+              ]} />
+              <p>Map colors show how your current crew fits this district’s protection rule.</p>
+            </aside>
+          </div>
+        </details>
+
         <HeatNotice />
 
+        <OperationDetails title="Crew, equipment & supplies" summary="Crew coverage, inventory, supply plan and scouting tips">
         <section className="se-scout-section">
           <div className="se-scout-sectionhead">
             <div>
@@ -392,80 +488,9 @@ export function ScoutPage() {
             </div>
           </div>
         </section>
+        </OperationDetails>
 
-        <ActionDock
-          label="Send the crew"
-          onSubmit={onSubmit}
-          outcome={action.result ? {
-            id: action.result,
-            title: `${action.result.result.district.name} · ${formatNumber(action.result.result.turnsUsed)} turns`,
-            chips: resultChips(action.result, receiptLines!),
-            receipt: (
-              <>
-                <ActionResult
-                  title="Scouting Results"
-                  subtitle={action.result.result.district.name}
-                  result={action.result}
-                  lines={receiptLines!}
-                />
-                {pendingEncounter ? (
-                  <Panel title={pendingEncounter.title} className="se-scout-panel">
-                    <p className="se-scout-copy">{pendingEncounter.text}</p>
-                    {pendingEncounter.key === STATUE_ENCOUNTER_KEY && !encounterAction.result ? (
-                      <StatueWatch active={!encounterAction.busy} onReached={() => void resolveEncounter('run')} />
-                    ) : null}
-                    {encounterAction.error ? <Alert>{encounterAction.error}</Alert> : null}
-                    {encounterAction.result ? (
-                      <div className="se-scout-intel__note se-scout-intel__note--good">
-                        <strong>{encounterAction.result.result.choiceLabel}</strong>
-                        <span>{encounterAction.result.result.text}</span>
-                        <EncounterEggNote egg={encounterAction.result.result.easterEgg} />
-                      </div>
-                    ) : (
-                      <div className="se-actions">
-                        {pendingEncounter.choices!.map((choice) => (
-                          <Button
-                            key={choice.key}
-                            type="button"
-                            className="se-btn se-btn--secondary"
-                            onClick={() => void resolveEncounter(choice.key)}
-                            disabledReason={encounterAction.busy ? 'Working that response...' : null}
-                          >
-                            {choice.label}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
-                  </Panel>
-                ) : null}
-              </>
-            ),
-            onDismiss: action.clear,
-          } : null}
-        >
-          <div>
-            <span className="se-dock__label">Ready to move</span>
-            <strong>
-              {selectedDistrict ? selectedDistrict.name : 'Choose a district'}
-            </strong>
-            <span>
-              {chosenTurns > 0 && chosenTurns <= available
-                ? `${formatNumber(remainingTurns)} turns left after`
-                : `${formatNumber(available)} turns available`}
-            </span>
-          </div>
-          <TurnSpend
-            value={turns}
-            onChange={setTurns}
-            available={available}
-            disabled={action.busy}
-            disabledReason={action.busy ? 'Your crew is still out on the last job.' : null}
-          />
-          <CrewTeamPicker role="WORKER" specialty="SCOUT" selectedIds={scoutTeam} onChange={setScoutTeam} disabled={action.busy} refreshKey={action.result} />
-          <Button className="se-btn se-btn--primary" disabledReason={scoutBlock}>
-            {action.busy ? 'Working the block...' : action.result ? 'Send again' : 'Send crew scouting'}
-          </Button>
-        </ActionDock>
+
       </div>
     </GameLayout>
   );

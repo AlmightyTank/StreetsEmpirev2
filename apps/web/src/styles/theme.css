@@ -2561,6 +2561,7 @@ a:hover { color: var(--se-accent-hover); }
 .se-profile-accent--clean-books-ivory { --se-profile-accent: #efe6d2; }
 .se-profile-accent--sunset-coral { --se-profile-accent: #ff8a70; }
 .se-profile-accent--night-map-plum { --se-profile-accent: #b45cff; }
+.se-profile-accent--supporter-crimson { --se-profile-accent: #ff3b5f; }
 
 .se-profile-frame {
   position: relative;
@@ -3690,6 +3691,7 @@ a:hover { color: var(--se-accent-hover); }
 .se-swatch--clean-books-ivory { --se-swatch: #efe6d2; }
 .se-swatch--sunset-coral { --se-swatch: #ff8a70; }
 .se-swatch--night-map-plum { --se-swatch: #b45cff; }
+.se-swatch--supporter-crimson { --se-swatch: #ff3b5f; }
 .se-swatch--on {
   border-color: var(--se-swatch);
   color: var(--se-text);
@@ -3964,13 +3966,15 @@ a:hover { color: var(--se-accent-hover); }
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   width: 100%;
-  padding: 10px 12px 10px 14px;
+  padding: 11px 12px 11px 14px;
   border: 0;
   border-bottom: 1px solid var(--se-line-soft);
   border-left: 3px solid #6899f3;
-  background: rgba(255, 255, 255, 0.025);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+    rgba(255, 255, 255, 0.025);
   color: inherit;
   font: inherit;
   text-align: left;
@@ -3999,11 +4003,30 @@ a:hover { color: var(--se-accent-hover); }
   gap: 10px;
 }
 
-.se-notification-item__top strong {
-  color: var(--se-text);
-  font-size: 11px;
+.se-notification-item__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: max-content;
+  padding: 2px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 9px;
+  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.se-notification-item__meta--good { color: var(--se-accent); border-color: rgba(var(--se-accent-rgb), 0.25); }
+.se-notification-item__meta--warn { color: var(--se-warn); border-color: rgba(245, 158, 11, 0.28); }
+.se-notification-item__meta--bad { color: var(--se-bad); border-color: rgba(239, 68, 68, 0.3); }
+
+.se-notification-item__title {
+  color: var(--se-text);
+  font-size: 13px;
+  line-height: 17px;
 }
 
 .se-notification-dot {

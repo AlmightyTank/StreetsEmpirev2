@@ -19,6 +19,61 @@ export const usernameSchema = z
     'Pimp name can only use letters, numbers, underscores and hyphens.',
   );
 
+/**
+ * The one key a pimp name is unique by. AMightyTank and amightytank are the same player,
+ * so every lookup and every write of Account.usernameNormalized goes through this. The
+ * database refuses a row whose usernameNormalized is not lower(username), so it must stay
+ * a plain lowercase to match Postgres.
+ */
+export function normalizeUsername(username: string): string {
+  return username.toLowerCase();
+}
+
+/** A player may change their own name again once this many new rounds have started... */
+export const USERNAME_CHANGE_COOLDOWN_ROUNDS = 3;
+/** ...or once this many days have passed, whichever comes first. The first change is free. */
+export const USERNAME_CHANGE_COOLDOWN_DAYS = 90;
+/** A name a player gives up is held this long so only they can take it back. */
+export const USERNAME_HOLD_DAYS = 30;
+
+export interface UsernameChangeStatusDto {
+  canChange: boolean;
+  /** Null until the player has changed their name once. */
+  lastChangedAt: string | null;
+  /** When the time limit runs out. Null when a change is allowed now. */
+  availableAt: string | null;
+  /** New rounds started since the last change, toward USERNAME_CHANGE_COOLDOWN_ROUNDS. */
+  roundsSinceChange: number;
+  cooldownRounds: number;
+  cooldownDays: number;
+  holdDays: number;
+  /** The name the player just gave up, held for them: taking it back is free until `until`. */
+  reclaim: { username: string; until: string } | null;
+}
+
+/** Whether a player may change their name now: free the first time, then 3 rounds or 90 days. */
+export function usernameChangeStatus(input: {
+  lastChangedAt: Date | null;
+  roundsStartedSince: number;
+  now: Date;
+  reclaim?: UsernameChangeStatusDto['reclaim'];
+}): UsernameChangeStatusDto {
+  const base = { cooldownRounds: USERNAME_CHANGE_COOLDOWN_ROUNDS, cooldownDays: USERNAME_CHANGE_COOLDOWN_DAYS, holdDays: USERNAME_HOLD_DAYS, reclaim: input.reclaim ?? null };
+  if (!input.lastChangedAt) return { ...base, canChange: true, lastChangedAt: null, availableAt: null, roundsSinceChange: 0 };
+  const availableAt = new Date(input.lastChangedAt.getTime() + USERNAME_CHANGE_COOLDOWN_DAYS * 86_400_000);
+  const canChange = input.now >= availableAt || input.roundsStartedSince >= USERNAME_CHANGE_COOLDOWN_ROUNDS;
+  return {
+    ...base,
+    canChange,
+    lastChangedAt: input.lastChangedAt.toISOString(),
+    availableAt: canChange ? null : availableAt.toISOString(),
+    roundsSinceChange: input.roundsStartedSince,
+  };
+}
+
+export const changeUsernameSchema = z.object({ username: usernameSchema }).strict();
+export type ChangeUsernameInput = z.infer<typeof changeUsernameSchema>;
+
 export const emailSchema = z
   .string()
   .trim()
@@ -103,6 +158,8 @@ export const profileAccentSchema = z.enum([
   'clean-books-ivory',
   'sunset-coral',
   'night-map-plum',
+  // Supporter cosmetic-only banner/profile accent.
+  'supporter-crimson',
 ]);
 export const CREW_NAME_MIN = 3;
 export const CREW_NAME_MAX = 32;

@@ -1,0 +1,69 @@
+.se-social-nav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(145px, 1fr));
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--se-line);
+  background: var(--se-panel);
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+
+.se-social-nav__item {
+  display: grid;
+  min-width: 145px;
+  gap: 3px;
+  padding: 11px 13px;
+  border-right: 1px solid var(--se-line);
+  color: var(--se-text);
+  text-decoration: none;
+  scroll-snap-align: start;
+}
+
+.se-social-nav__item:last-child { border-right: 0; }
+.se-social-nav__item:hover { background: rgba(var(--se-accent-rgb), .045); }
+.se-social-nav__item.is-active {
+  box-shadow: inset 0 -3px 0 var(--se-accent);
+  background: rgba(var(--se-accent-rgb), .075);
+}
+.se-social-nav__item small {
+  color: var(--se-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.se-social-nav__item strong { font-size: 12px; }
+.se-social-nav__item:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: -3px;
+}
+
+/* Keep profile actions readable and tappable when names and badges wrap on phones. */
+@media (max-width: 520px) {
+  .se-profile-pagehead .se-inline-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .se-profile-pagehead .se-inline-actions .se-btn { justify-content: center; }
+}
+
+@media (max-width: 760px) {
+  .se-social-nav { grid-template-columns: repeat(5, minmax(132px, 1fr)); }
+  .se-social-nav__item { min-width: 132px; padding: 10px; }
+
+  .se-console-message { padding: 13px 12px; }
+  .se-console-message__subject,
+  .se-console-message__preview {
+    display: -webkit-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .se-console-message__subject,
+  .se-console-bubble__body { font-size: 12px; line-height: 1.55; }
+  .se-console-thread { padding-inline: 10px; }
+}

@@ -9,6 +9,7 @@ import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { StreetPassService } from './street-pass.service.js';
 import { RoundAftermathService } from './round-aftermath.service.js';
 import { RingService } from './ring.service.js';
+import { SupporterService } from './supporter.service.js';
 
 /**
  * Any current round is joinable until it ends. The lifecycle status is the
@@ -197,6 +198,10 @@ export const RoundService = {
         ...(endsAt ? { endsAt, ...(endsAt.getTime() < round.startsAt.getTime() ? { startsAt: endsAt } : {}) } : {}),
       },
     });
+    // Supporter season stamp: any account with a real paid invoice inside the
+    // final season window supported this season. Uses the ended row so an
+    // early close stamps the actual (shortened) window.
+    await SupporterService.stampSeason(tx, round.id, ended.startsAt, ended.endsAt, finalAt);
     await RoundAftermathService.finalize(tx, round.id, freezeAt);
     return { closed: true, round: ended, previous: round };
   },

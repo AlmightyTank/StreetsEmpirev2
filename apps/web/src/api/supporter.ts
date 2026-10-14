@@ -1,10 +1,14 @@
-import type { SupporterRedirectDto, SupporterStatusDto } from '@streets/shared';
+import type { SupporterPollsDto, SupporterRedirectDto, SupporterStatusDto } from '@streets/shared';
 import { api } from './client.js';
 
-/** Account → Supporting: status, Stripe Checkout and the Stripe billing portal. */
+/** Supporter page: status, Stripe Checkout and the Stripe billing portal. */
 export const supporterApi = {
   status: () => api.get<SupporterStatusDto>('/supporter'),
   checkout: () => api.post<SupporterRedirectDto>('/supporter/checkout', {}),
+  giftCheckout: (recipientAccountId: string) => api.post<SupporterRedirectDto>('/supporter/gift-checkout', { recipientAccountId }),
   portal: () => api.post<SupporterRedirectDto>('/supporter/portal', {}),
+  polls: () => api.get<SupporterPollsDto>('/supporter/polls'),
+  vote: (pollId: string, optionKey: string) => api.post<SupporterPollsDto>(`/supporter/polls/${encodeURIComponent(pollId)}/vote`, { optionKey }),
   setListed: (listed: boolean) => api.post<SupporterStatusDto>('/supporter/listing', { listed }),
+  setReleaseCredit: (optIn: boolean) => api.post<SupporterStatusDto>('/supporter/release-credit', { optIn }),
 };

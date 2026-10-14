@@ -2,19 +2,17 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 
 const primaryNav = [
-  { to: '/game', label: 'Game' },
-  { to: '/cities', label: 'Cities' },
-  { to: '/turf', label: 'Turf' },
+  { to: '/wiki', label: 'Wiki' },
+  { to: '/games', label: 'Seasons' },
   { to: '/rankings', label: 'Rankings' },
-  { to: '/games', label: 'Games' },
   { to: '/news', label: 'News' },
-  { to: '/guide', label: 'Guide' },
   { to: '/community', label: 'Community' },
 ] as const;
 
 const exploreLinks = [
+  { to: '/cities', label: 'Cities' },
+  { to: '/turf', label: 'Turf map' },
   { to: '/hall-of-fame', label: 'Hall of Fame' },
-  ...(import.meta.env.VITE_ROUND_AFTERMATH_PUBLIC_ENABLED === 'false' ? [] : [{ to: '/game/round-archive', label: 'Round archive' }]),
   { to: '/alliances', label: 'Alliances' },
   { to: '/stats', label: 'Statistics' },
   { to: '/roadmap', label: 'Roadmap' },
@@ -24,8 +22,9 @@ const exploreLinks = [
 const pageMeta = (pathname: string): { title: string; description: string; noindex?: boolean } => {
   const segment = pathname.split('/').filter(Boolean)[0] ?? '';
   const map: Record<string, { title: string; description: string; noindex?: boolean }> = {
+    wiki: { title: 'Wiki', description: 'Simple guides to StreetsEmpire: how seasons work, how to earn, fight, take turf and survive the law.' },
     game: { title: 'The Game', description: 'Learn how StreetsEmpire seasons, economy, combat, travel, turf, businesses, the law, factions and the casino fit together.' },
-    guide: { title: 'How to Play', description: 'Player guides for StreetsEmpire systems from first turns through city control.' },
+    guide: { title: 'Wiki', description: 'Player guides for StreetsEmpire systems from first turns through city control.' },
     cities: { title: 'Cities', description: 'Explore StreetsEmpire cities, districts, public economy and current turf control.' },
     turf: { title: 'Turf', description: 'Follow current district control and recent public turf captures in StreetsEmpire.' },
     games: { title: 'Games', description: 'Browse the current StreetsEmpire game and permanent completed-season archive.' },
@@ -166,7 +165,7 @@ export function SiteLayout() {
               <SiteLogoMark />
               <span>STREETSEMPIRE</span>
             </Link>
-            <p>Build a crew, control turf and compete through seasons that reset power but preserve history.</p>
+            <p>Free seasonal strategy in your browser. New here? Start with the wiki, then join a season.</p>
           </div>
 
           <div>
@@ -195,7 +194,7 @@ export function SiteLayout() {
 
         <div className="container site-footer__bottom">
           <span>StreetsEmpire</span>
-          <span>Public archive · live season hub</span>
+          <span>Free to play · no pay-to-win · <Link to="/wiki">wiki</Link></span>
         </div>
       </footer>
     </div>

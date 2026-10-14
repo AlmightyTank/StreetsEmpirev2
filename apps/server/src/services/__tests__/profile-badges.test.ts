@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { PublicAwardDto } from '@streets/shared';
+import { classicOgV01 } from '@streets/rulesets';
 import { selectProfileBadges } from '../profile-badges.js';
 import { ForumGroupsService, parseForumGroups } from '../forum-groups.service.js';
+import { ProfileBadgeService } from '../profile-badges.service.js';
+import { RoundService } from '../round.service.js';
+import { RoundPlayerService } from '../round-player.service.js';
+import { CommunityService } from '../community.service.js';
 
 function award(key: string, rarity: PublicAwardDto['rarity'], category: PublicAwardDto['category'], unlocked = true): PublicAwardDto {
   return { key, title: key, description: `${key} description`, category, rarity, unlocked, earnedAt: null, progress: null };
@@ -101,5 +106,21 @@ describe('ForumGroupsService.groupsFor', () => {
 
     for (const id of ['0', '../admin', '1e5']) expect(await ForumGroupsService.groupsFor(id, { fetch: ok })).toEqual([]);
     expect(calls).toBe(3);
+  });
+});
+
+describe('ProfileBadgeService forum supporter flair', () => {
+  it('adds active supporter flair and removes it when membership expires', async () => {
+    vi.spyOn(RoundService, 'getCurrent').mockResolvedValue({ id: 'round-1', rulesetId: classicOgV01.meta.id, rulesetVersion: classicOgV01.meta.version } as any);
+    vi.spyOn(RoundPlayerService, 'find').mockResolvedValue({ publicPimpId: 1001 } as any);
+    vi.spyOn(CommunityService, 'profile').mockResolvedValue({ badges: [] } as any);
+    const prisma = (status: string | null) => ({
+      supporterMembership: { findUnique: async () => status ? { status } : null },
+    }) as any;
+
+    expect((await ProfileBadgeService.forAccount(prisma('active'), 'account-1')).map((badge) => badge.key)).toContain('supporter-active');
+    expect((await ProfileBadgeService.forAccount(prisma('trialing'), 'account-1')).map((badge) => badge.key)).toContain('supporter-active');
+    expect((await ProfileBadgeService.forAccount(prisma('canceled'), 'account-1')).map((badge) => badge.key)).not.toContain('supporter-active');
+    expect((await ProfileBadgeService.forAccount(prisma(null), 'account-1')).map((badge) => badge.key)).not.toContain('supporter-active');
   });
 });

@@ -7,7 +7,7 @@ const LIST_MAX = 1000;
 
 /**
  * The public supporter thank-you list. Only supporters who turned it on in
- * Account → Supporting appear, and only their name and the month they started:
+ * the Supporter page appear, and only their name and the month they started:
  * nothing about amounts, payments or whether they still support. Closed and
  * banned accounts drop off; a deleted account's profile, and so its choice, is erased.
  */

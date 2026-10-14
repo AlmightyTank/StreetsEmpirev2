@@ -12,6 +12,7 @@ import securityPlugin from './plugins/security.js';
 import routes from './routes/index.js';
 import { metrics } from './services/metrics.service.js';
 import { acceptRequestId, LOG_REDACT_PATHS, logContextFields, withLogContext } from './utils/request-context.js';
+import { safeRequestLogSerializer } from './utils/safe-request-log.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -24,6 +25,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       mixin: logContextFields,
       // ...and never a secret, wherever one turns up.
       redact: { paths: [...LOG_REDACT_PATHS], censor: '[redacted]' },
+      serializers: { req: safeRequestLogSerializer },
     },
     trustProxy: env.trustProxy,
     // A request id from the proxy is kept when it looks like one; otherwise we make our own.

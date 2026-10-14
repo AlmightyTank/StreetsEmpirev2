@@ -51,7 +51,7 @@ describe('1.6.5-D loan activity', () => {
 
   it('raises a toast for a missed installment, and only that', () => {
     expect(gameEventToastFor(activity('LOAN_INSTALLMENT_MISSED', { offerName: 'Quick Cash', sequence: 1, shortCents: 1, lateFeeCents: 0, debtAfterCents: 1 }), 'crack'))
-      .toMatchObject({ title: 'Loan installment missed', tone: 'bad', href: '/game/loans' });
+      .toMatchObject({ title: 'Missed loan installment 1', tone: 'bad', href: '/game/loans' });
     expect(gameEventToastFor(activity('LOAN_PAYMENT', { kind: 'SCHEDULED' }), 'crack')).toBeNull();
   });
 });
@@ -69,8 +69,8 @@ describe('1.6.5-E collections', () => {
   });
 
   it('raises a toast for each standing change', () => {
-    expect(gameEventToastFor(activity('LOAN_COLLECTIONS', { to: 'COLLECTIONS' }), 'crack')).toMatchObject({ title: 'You are in collections', tone: 'bad', href: '/game/loans' });
-    expect(gameEventToastFor(activity('LOAN_COLLECTIONS', { to: 'RECOVERING' }), 'crack')).toMatchObject({ title: 'Out of collections', tone: 'warn' });
-    expect(gameEventToastFor(activity('LOAN_COLLECTIONS', { to: 'CLEAR' }), 'crack')).toMatchObject({ title: 'Back in good standing', tone: 'good' });
+    expect(gameEventToastFor(activity('LOAN_COLLECTIONS', { to: 'COLLECTIONS' }), 'crack')).toMatchObject({ title: 'Loan shark put you in collections', tone: 'bad', href: '/game/loans' });
+    expect(gameEventToastFor(activity('LOAN_COLLECTIONS', { to: 'RECOVERING' }), 'crack')).toMatchObject({ title: 'Collections cleared', tone: 'warn' });
+    expect(gameEventToastFor(activity('LOAN_COLLECTIONS', { to: 'CLEAR' }), 'crack')).toMatchObject({ title: 'Back in good standing with the loan shark', tone: 'good' });
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, classicOgV06F, classicOgV08H, classicOgV11E, classicOgV11F, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, classicOgV06F, classicOgV08H, classicOgV11E, classicOgV11F, rulesets, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -64,11 +64,16 @@ describe('ruleset loader', () => {
     expect(isKnownRulesetId('classic-og-v1.1-f')).toBe(true);
     expect(loadRuleset('classic-og-v1.1-e', '1.1.0-E')).toBe(classicOgV11E);
     expect(loadRuleset('classic-og-v1.1-f', '1.1.0-F')).toBe(classicOgV11F);
-    for (const id of ['classic-og-v1.2-a', 'classic-og-v1.2-b', 'classic-og-v1.2-c', 'classic-og-v1.2-d', 'classic-og-v1.2-e', 'classic-og-v1.2-e2', 'classic-og-v1.2-f', 'classic-og-v1.3-a', 'classic-og-v1.3-b', 'classic-og-v1.3-c', 'classic-og-v1.3-d', 'classic-og-v1.3-e', 'classic-og-v1.3-f', 'classic-og-v1.3-g', 'classic-og-v1.4-a', 'classic-og-v1.4-b', 'classic-og-v1.4-b2', 'classic-og-v1.4-c', 'classic-og-v1.4-c2', 'classic-og-v1.4-d', 'classic-og-v1.4-e', 'classic-og-v1.4-f', 'classic-og-v1.4-g', 'classic-og-v1.5-a', 'classic-og-v1.5-b', 'classic-og-v1.5-c', 'classic-og-v1.5-d', 'classic-og-v1.5-e', 'classic-og-v1.5-e2', 'classic-og-v1.5-e3', 'classic-og-v1.6-a', 'classic-og-v1.6-b', 'classic-og-v1.6-c', 'classic-og-v1.6-d', 'classic-og-v1.6-e', 'classic-og-v1.6-f', 'classic-og-v1.6-g', 'classic-og-v1.6-h', 'classic-og-v1.6.5-a', 'classic-og-v1.6.5-b', 'classic-og-v1.6.5-c', 'classic-og-v1.6.5-e', 'classic-og-v1.6.5-e2', 'classic-og-v1.6.5-g', 'classic-og-v1.7-a', 'classic-og-v1.7-b', 'classic-og-v1.7-c', 'classic-og-v1.7-d', 'classic-og-v1.7-e', 'classic-og-v1.8-e', 'classic-og-v1.8-f', 'classic-og-v1.8-g', 'classic-og-v1.8-h', 'classic-og-v1.8-i', 'classic-og-v1.8-j', 'classic-og-v1.8-k', 'classic-og-v1.8-l', 'classic-og-v1.8-m', 'classic-og-v1.8-n', 'classic-og-v1.8-o']) {
+    for (const id of ['classic-og-v1.2-a', 'classic-og-v1.2-b', 'classic-og-v1.2-c', 'classic-og-v1.2-d', 'classic-og-v1.2-e', 'classic-og-v1.2-e2', 'classic-og-v1.2-f', 'classic-og-v1.3-a', 'classic-og-v1.3-b', 'classic-og-v1.3-c', 'classic-og-v1.3-d', 'classic-og-v1.3-e', 'classic-og-v1.3-f', 'classic-og-v1.3-g', 'classic-og-v1.4-a', 'classic-og-v1.4-b', 'classic-og-v1.4-b2', 'classic-og-v1.4-c', 'classic-og-v1.4-c2', 'classic-og-v1.4-d', 'classic-og-v1.4-e', 'classic-og-v1.4-f', 'classic-og-v1.4-g', 'classic-og-v1.5-a', 'classic-og-v1.5-b', 'classic-og-v1.5-c', 'classic-og-v1.5-d', 'classic-og-v1.5-e', 'classic-og-v1.5-e2', 'classic-og-v1.5-e3', 'classic-og-v1.6-a', 'classic-og-v1.6-b', 'classic-og-v1.6-c', 'classic-og-v1.6-d', 'classic-og-v1.6-e', 'classic-og-v1.6-f', 'classic-og-v1.6-g', 'classic-og-v1.6-h', 'classic-og-v1.6.5-a', 'classic-og-v1.6.5-b', 'classic-og-v1.6.5-c', 'classic-og-v1.6.5-e', 'classic-og-v1.6.5-e2', 'classic-og-v1.6.5-g', 'classic-og-v1.7-a', 'classic-og-v1.7-b', 'classic-og-v1.7-c', 'classic-og-v1.7-d', 'classic-og-v1.7-e', 'classic-og-v1.8-e', 'classic-og-v1.8-f', 'classic-og-v1.8-g', 'classic-og-v1.8-h', 'classic-og-v1.8-i', 'classic-og-v1.8-j', 'classic-og-v1.8-k', 'classic-og-v1.8-l', 'classic-og-v1.8-m', 'classic-og-v1.8-n', 'classic-og-v1.8-o', 'classic-og-v1.8-p', 'classic-og-v1.8-q', 'classic-og-v1.8-r']) {
       expect(isKnownRulesetId(id)).toBe(true);
     }
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(135);
+    const listed = listRulesets();
+    const registered = Object.keys(rulesets);
+    expect(listed).toHaveLength(registered.length);
+    expect(new Set(listed.map((ruleset) => ruleset.meta.id)).size).toBe(registered.length);
+    expect(isKnownRulesetId('classic-og-v1.8-r')).toBe(true);
+    expect(loadRuleset('classic-og-v1.8-r', '1.8.0-R').meta.name).toBe('Classic OG - Hidden Streets Comedy');
   });
 });
 

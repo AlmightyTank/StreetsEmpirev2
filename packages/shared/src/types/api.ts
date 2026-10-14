@@ -115,6 +115,10 @@ export type ActivityType =
   | 'RING_STOLEN'
   /** The Ring was destroyed at the foundry. */
   | 'RING_DESTROYED'
+  /** A sportsbook ticket's game has kicked off. */
+  | 'SPORTSBOOK_GAME_STARTED'
+  /** A sportsbook ticket was graded as won, lost, push or void. */
+  | 'SPORTSBOOK_TICKET_SETTLED'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'
@@ -208,7 +212,8 @@ export type ProfileAccent =
   | 'gavel-bronze'
   | 'clean-books-ivory'
   | 'sunset-coral'
-  | 'night-map-plum';
+  | 'night-map-plum'
+  | 'supporter-crimson';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
@@ -287,6 +292,14 @@ export interface AccountProfileSettingsDto {
 
 export interface AccountProfileSettingsResponseDto {
   settings: AccountProfileSettingsDto;
+  convenience: {
+    /** Permanent supporter rewards unlock the expanded convenience slots. */
+    hasRewards: boolean;
+    /** Saved settings/profile presets available to this account. */
+    presetSlots: number;
+    /** Saved cosmetic item/crew loadout slots available to this account. */
+    loadoutSlots: number;
+  };
   options: {
     titles: BadgeCosmeticOptionDto[];
     badges: BadgeCosmeticOptionDto[];
@@ -2093,7 +2106,7 @@ export interface SupporterMembershipDto {
   endedAt: string | null;
 }
 
-/** Account → Supporting. Rewards are kept for good; the membership says whether they support now. */
+/** Supporter page status. Rewards are kept for good; the membership says whether they support now. */
 export interface SupporterStatusDto {
   /** Stripe checkout is set up on this server. */
   checkoutEnabled: boolean;
@@ -2103,10 +2116,49 @@ export interface SupporterStatusDto {
   membership: SupporterMembershipDto | null;
   /** Shown on the public supporter thank-you list. Off unless the player turns it on. */
   listed: boolean;
+  /** Opt-in credit in supporter release notes. Off by default. */
+  releaseNotesCreditOptIn: boolean;
   /** This month's supporter drop, and whether the account has it. Null when the month has none. */
   drop: { month: string; name: string; held: boolean } | null;
-  /** Monthly drops the account holds, newest first. */
+  /** Staged next-month drop preview, visible only to supporters during the early-preview window. */
+  supporterPreview: {
+    month: string;
+    name: string;
+    availableAt: string;
+    items: { name: string; description: string; kind: string; rarity: string; styleKey: string | null }[];
+  } | null;
+  /** Monthly drops and tenure badges the account holds, newest first. */
   dropsHeld: { month: string; name: string }[];
+}
+
+export interface SupporterPollOptionDto {
+  key: string;
+  label: string;
+  description: string | null;
+  votes?: number;
+}
+
+export interface SupporterPollDto {
+  id: string;
+  title: string;
+  description: string | null;
+  opensAt: string;
+  closesAt: string | null;
+  options: SupporterPollOptionDto[];
+  myVote: string | null;
+}
+
+export interface SupporterPollsDto {
+  hasRewards: boolean;
+  poll: SupporterPollDto | null;
+}
+
+export interface SupporterPollStageInput {
+  title: string;
+  description?: string | null;
+  options: { key: string; label: string; description?: string | null }[];
+  opensAt?: string | null;
+  closesAt?: string | null;
 }
 
 /** The public supporter thank-you list: only players who chose to be on it. */

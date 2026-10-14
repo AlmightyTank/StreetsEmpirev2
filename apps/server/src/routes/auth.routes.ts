@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { RULES_VERSION, changeEmailSchema, closeAccountSchema, deleteAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
+import { RULES_VERSION, changeEmailSchema, changeUsernameSchema, closeAccountSchema, deleteAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, normalizeUsername, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
 import { adminNeedsSecondFactor } from '../auth/play-access.js';
@@ -11,6 +11,7 @@ import { createSession, destroySession, sessionHardEnd } from '../auth/sessions.
 import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
 import { AccountProfileService } from '../services/account-profile.service.js';
+import { UsernameChangeService } from '../services/username-change.service.js';
 import { AccountClosureService } from '../services/support.service.js';
 import { AccountDataService } from '../services/account-data.service.js';
 import { noteSignIn, notePasswordChanged } from '../services/sign-in-notice.service.js';
@@ -19,6 +20,7 @@ import { TwoFactorService } from '../services/two-factor.service.js';
 import { matchKey } from '../services/admin-signals.service.js';
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
+import { beginDiscordOAuthCallback, existingDiscordOAuthCallback } from '../services/discord-oauth-callback-guard.js';
 import { sendCurrentEmailVerification, sendEmailChangeVerification, sendPasswordResetEmail, sendTwoFactorNotice } from '../services/email.service.js';
 import { SupporterBillingService } from '../services/supporter-billing.service.js';
 import { AppError } from '../utils/errors.js';
@@ -37,6 +39,8 @@ async function getDecoyHash(): Promise<string> {
 
 const DISCORD_STATE_COOKIE = 'se_discord_oauth_state';
 const DISCORD_LINK_COOKIE = 'se_discord_oauth_link';
+/** Signed OAuth redirect URI, kept with state to avoid proxy header drift. */
+const DISCORD_REDIRECT_URI_COOKIE = 'se_discord_oauth_redirect_uri';
 /** rc.3. A sign-in waiting for its authenticator code. */
 const TWO_FACTOR_COOKIE = 'se_2fa_challenge';
 /** rc.4. "Trust this browser": sign-ins from it skip the code. */
@@ -97,13 +101,22 @@ function accountRedirect(message: string): string {
   return url.toString();
 }
 
-function postLoginRedirect(): string {
-  return new URL('/join', env.frontendOrigin).toString();
+function postLoginRedirect(callbackUri?: string): string {
+  // The session cookie is host-only. When beta and live share an auth backend
+  // configuration, returning the player to a different frontend host loses the
+  // cookie and makes a successful Discord login look like a sign-out.
+  const redirect = callbackUri ? new URL(callbackUri) : null;
+  const authorizedHost = redirect?.hostname === 'beta.streetsempire.dev'
+    || redirect?.hostname === 'play.streetsempire.dev';
+  return new URL('/join', authorizedHost && redirect ? redirect.origin : env.frontendOrigin).toString();
 }
 
 /** rc.3. Where the Discord callback sends a sign-in that still needs its authenticator code. */
-function twoFactorRedirect(): string {
-  const url = new URL('/login', env.frontendOrigin);
+function twoFactorRedirect(callbackUri?: string): string {
+  const redirect = callbackUri ? new URL(callbackUri) : null;
+  const authorizedHost = redirect?.hostname === 'beta.streetsempire.dev'
+    || redirect?.hostname === 'play.streetsempire.dev';
+  const url = new URL('/login', authorizedHost && redirect ? redirect.origin : env.frontendOrigin);
   url.searchParams.set('twoFactor', '1');
   return url.toString();
 }
@@ -130,6 +143,13 @@ function requestOrigin(request: FastifyRequest): string {
 
 function discordRedirectUri(request: FastifyRequest): string {
   return env.discord.redirectUri || `${requestOrigin(request)}/api/auth/discord/callback`;
+}
+
+function setDiscordRedirectCookie(reply: FastifyReply, redirectUri: string): void {
+  reply.setCookie(DISCORD_REDIRECT_URI_COOKIE, redirectUri, {
+    httpOnly: true, sameSite: 'lax', secure: env.isProduction, signed: true,
+    path: '/api/auth', maxAge: 10 * 60,
+  });
 }
 
 function setDiscordStateCookie(reply: FastifyReply, state: string): void {
@@ -282,10 +302,11 @@ async function uniqueUsername(prisma: PrismaClient, base: string): Promise<strin
     const suffix = i === 0 ? '' : String(i);
     const candidate = `${fallback.slice(0, 20 - suffix.length)}${suffix}`;
     const existing = await prisma.account.findUnique({
-      where: { usernameNormalized: candidate.toLowerCase() },
+      where: { usernameNormalized: normalizeUsername(candidate) },
       select: { id: true },
     });
-    if (!existing) return candidate;
+    // A name someone just gave up is held for them; Discord sign-up skips it like a taken one.
+    if (!existing && !(await UsernameChangeService.isHeld(prisma, candidate))) return candidate;
   }
 
   return `discord_${randomBytes(5).toString('hex')}`.slice(0, 20);
@@ -418,7 +439,7 @@ async function accountForDiscordUser(
   return prisma.account.create({
     data: {
       username,
-      usernameNormalized: username.toLowerCase(),
+      usernameNormalized: normalizeUsername(username),
       email,
       emailVerifiedAt: now,
       passwordHash: await hashPassword(randomBytes(32).toString('base64url')),
@@ -496,7 +517,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(registerSchema, request.body);
     // rc.5: the bot check comes first, before anything touches the database.
     await assertHuman(body.captchaToken, request.ip, request.log);
-    const usernameNormalized = body.username.toLowerCase();
+    const usernameNormalized = normalizeUsername(body.username);
 
     const clash = await fastify.prisma.account.findFirst({
       where: {
@@ -519,6 +540,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         { email: 'That email is already registered.' },
       );
     }
+    // Free of other accounts, but it may still be held for whoever just gave it up.
+    await UsernameChangeService.assertAvailable(fastify.prisma, body.username, null);
 
     // rc.2: one address may only make so many accounts a day (a household or a school
     // can share one, so the cap is generous). Going over is refused and flagged.
@@ -657,6 +680,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     authorize.searchParams.set('state', state);
 
     setDiscordStateCookie(reply, state);
+    setDiscordRedirectCookie(reply, redirectUri);
     if (linkMode) setDiscordLinkCookie(reply);
     reply.setCookie(DISCORD_REMEMBER_COOKIE, query.remember ? '1' : '0', {
       httpOnly: true, sameSite: 'lax', secure: env.isProduction, signed: true, path: '/api/auth', maxAge: 10 * 60,
@@ -666,10 +690,23 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/discord/callback', async (request, reply) => {
     const query = discordCallbackSchema.parse(request.query);
+    // A one-time code may be requested twice by an embedded browser. The first
+    // callback clears the state cookie; check an ALREADY VERIFIED claim before
+    // validating the cookie again, so the replay cannot send the user back to
+    // sign-in after the successful response.
+    const replay = query.code && query.state
+      ? existingDiscordOAuthCallback(query.code, query.state)
+      : null;
+    if (replay) {
+      fastify.log.info('duplicate Discord callback already processed');
+      return reply.redirect((await replay) ?? authRedirect('Discord login expired. Try again.'));
+    }
     const expectedState = readDiscordStateCookie(request);
     const linkMode = readDiscordLinkCookie(request);
+    const savedRedirectUri = readSignedCookie(request, DISCORD_REDIRECT_URI_COOKIE);
     clearDiscordStateCookie(reply);
     clearDiscordLinkCookie(reply);
+    reply.clearCookie(DISCORD_REDIRECT_URI_COOKIE, { path: '/api/auth' });
 
     if (query.error) {
       return reply.redirect(linkMode
@@ -683,32 +720,53 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         : authRedirect('Discord login expired. Try again.'));
     }
 
+    const callbackClaim = beginDiscordOAuthCallback(query.code, query.state);
+    if (callbackClaim.duplicate) {
+      fastify.log.info('duplicate Discord OAuth callback suppressed');
+      const target = await callbackClaim.redirect;
+      // The redirect alone is not authentication. The client must still
+      // hold the first response's verified session/2FA cookie.
+      return reply.redirect(target ?? authRedirect('Discord login expired. Try again.'));
+    }
+    const conclude = (target: string) => {
+      callbackClaim.finish(target);
+      return reply.redirect(target);
+    };
+
+    // Exchange against the *same* redirect_uri sent to Discord, even if proxy
+    // forwarding headers differ between the authorize and callback requests.
+    const redirectUri = savedRedirectUri || discordRedirectUri(request);
+    let stage = 'token_exchange';
     try {
-      const accessToken = await exchangeDiscordCode(query.code, discordRedirectUri(request));
+      const accessToken = await exchangeDiscordCode(query.code, redirectUri);
+      stage = 'discord_profile';
       const discordUser = await fetchDiscordUser(accessToken);
+      stage = 'account_resolution';
 
       if (linkMode) {
-        if (!request.auth) return reply.redirect(authRedirect('Log in before linking Discord.'));
+        if (!request.auth) return conclude(authRedirect('Log in before linking Discord.'));
         // rc.2: someone with only an admin's password must not be able to attach their own
         // Discord and so reach the admin tools. An admin signs in with Discord instead (a
         // Discord account on the same verified email links itself), or the operator
         // removes the role, the player links, and the role goes back.
         if (adminNeedsSecondFactor(request.auth.account, request.auth.session)) {
-          return reply.redirect(accountRedirect('Admins cannot link Discord from a password-only sign-in. Sign in with your authenticator code, or use "Sign in with Discord" with a Discord account on this email.'));
+          return conclude(accountRedirect('Admins cannot link Discord from a password-only sign-in. Sign in with your authenticator code, or use "Sign in with Discord" with a Discord account on this email.'));
         }
         await linkDiscordToAccount(fastify.prisma, request.auth.account, discordUser);
-        return reply.redirect(accountRedirect('Discord is linked.'));
+        return conclude(accountRedirect('Discord is linked.'));
       }
 
       const account = await accountForDiscordUser(fastify.prisma, discordUser);
+      stage = 'beta_access';
       assertBetaAccess(account, env.betaAccess.inviteOnly);
       const remember = readSignedCookie(request, DISCORD_REMEMBER_COOKIE) !== '0';
       reply.clearCookie(DISCORD_REMEMBER_COOKIE, { path: '/api/auth' });
       // rc.3: two-step sign-in applies to Discord sign-ins too (unless this browser is trusted, rc.4).
       if (account.twoFactorEnabledAt && !(await TwoFactorService.isTrustedDevice(fastify.prisma, account.id, readSignedCookie(request, TRUSTED_DEVICE_COOKIE)))) {
         setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'DISCORD', remember));
-        return reply.redirect(twoFactorRedirect());
+        return conclude(twoFactorRedirect(redirectUri));
       }
+      stage = 'session_creation';
       const { token } = await createSession(fastify.prisma, account.id, {
         userAgent: request.headers['user-agent'],
         ip: request.ip,
@@ -718,13 +776,17 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       fastify.setSessionCookie(reply, token, remember);
       await noteSignIn(fastify.prisma, request, reply, account);
 
-      return reply.redirect(postLoginRedirect());
+      const destination = postLoginRedirect(redirectUri);
+      fastify.log.info({ accountId: account.id, redirectHost: new URL(destination).hostname },
+        'discord login session created');
+      return conclude(destination);
     } catch (error) {
-      fastify.log.warn({ err: error }, linkMode ? 'discord link failed' : 'discord login failed');
+      // Log the failing step without including OAuth tokens or the code.
+      fastify.log.warn({ err: error, stage }, linkMode ? 'discord link failed' : 'discord login failed');
       if (error instanceof AppError) {
-        return reply.redirect(linkMode ? accountRedirect(error.message) : authRedirect(error.message));
+        return conclude(linkMode ? accountRedirect(error.message) : authRedirect(error.message));
       }
-      return reply.redirect(linkMode
+      return conclude(linkMode
         ? accountRedirect('Discord linking failed. Try again.')
         : authRedirect('Discord login failed. Try again.'));
     }
@@ -1309,6 +1371,17 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put('/profile-settings', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(updateAccountProfileSettingsSchema, request.body);
     return AccountProfileService.update(fastify.prisma, request.auth!.account.id, body);
+  });
+
+  /** Whether the player may change their own name now, and if not, when. */
+  fastify.get('/username', { preHandler: fastify.requireAuth }, async (request) =>
+    ({ status: await UsernameChangeService.status(fastify.prisma, request.auth!.account.id) }));
+
+  /** The player renames themselves: free the first time, then once 3 rounds start or 90 days pass. */
+  fastify.post('/username', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(changeUsernameSchema, request.body);
+    const { account, status } = await UsernameChangeService.change(fastify.prisma, request.auth!.account.id, body.username);
+    return { account: toAccountDto(account, request.auth!.session), status, message: `You are now ${account.username}.` };
   });
 
   fastify.get('/me', { preHandler: fastify.requireAuth }, async (request) => {
