@@ -1,0 +1,192 @@
+name: StreetsEmpire Desktop — Windows, macOS, Linux
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-platforms.yml"
+  push:
+    branches:
+      - beta
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-platforms.yml"
+
+jobs:
+  desktop-builds:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows x64
+            os: windows-latest
+            script: dist:win
+            artifact: StreetsEmpire-Windows-x64
+            glob: desktop/dist/StreetsEmpire-Portable-*.exe
+          - label: macOS Intel x64
+            os: macos-15
+            script: dist:mac:x64
+            artifact: StreetsEmpire-macOS-Intel
+            glob: desktop/dist/StreetsEmpire-macOS-x64-*.zip
+          - label: macOS Apple Silicon arm64
+            os: macos-15
+            script: dist:mac:arm64
+            artifact: StreetsEmpire-macOS-Apple-Silicon
+            glob: desktop/dist/StreetsEmpire-macOS-arm64-*.zip
+          - label: Linux x64
+            os: ubuntu-24.04
+            script: dist:linux
+            artifact: StreetsEmpire-Linux-x64
+            glob: desktop/dist/StreetsEmpire-Linux-x86_64-*.AppImage
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install desktop dependencies
+        run: npm install --prefix desktop --no-audit --no-fund
+      - name: Unit tests
+        run: npm test --prefix desktop
+      - name: Check JavaScript syntax
+        run: npm run check --prefix desktop
+      - name: Build portable desktop artifact
+        env:
+          STREETSEMPIRE_DISCORD_CLIENT_ID: ${{ vars.STREETSEMPIRE_DISCORD_CLIENT_ID }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run ${{ matrix.script }} --prefix desktop
+      - name: Upload portable desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.glob }}
+          if-no-files-found: error
+ 
+  # Only verified builds on beta are made discoverable to players.
+  # PRs stay as short-lived Actions artifacts and can never publish releases.
+  publish-desktop-beta:
+    name: Publish latest desktop beta
+    needs: desktop-builds
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/beta') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/beta')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: desktop-beta-release
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check newest beta revision and release configuration
+        id: publish-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STREETSEMPIRE_DISCORD_CLIENT_ID: ${{ vars.STREETSEMPIRE_DISCORD_CLIENT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          beta_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/beta" --jq '.object.sha')"
+          if [[ "$beta_sha" != "$GITHUB_SHA" ]]; then
+            echo "Superseded by newer beta commit ${beta_sha}; skip stale release."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ ! "${STREETSEMPIRE_DISCORD_CLIENT_ID:-}" =~ ^[0-9]{17,20}$ ]]; then
+            echo "::error::Set the repository Actions variable STREETSEMPIRE_DISCORD_CLIENT_ID before publishing a download."
+            exit 1
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Download all platform binaries
+        if: steps.publish-check.outputs.ready == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: StreetsEmpire-*
+          merge-multiple: true
+          path: release-assets
+
+      - name: Validate four platform downloads and write checksums
+        if: steps.publish-check.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          win=(release-assets/StreetsEmpire-Portable-*.exe)
+          intel=(release-assets/StreetsEmpire-macOS-x64-*.zip)
+          apple=(release-assets/StreetsEmpire-macOS-arm64-*.zip)
+          linux=(release-assets/StreetsEmpire-Linux-x86_64-*.AppImage)
+          if (( ${#win[@]} != 1 || ${#intel[@]} != 1 || ${#apple[@]} != 1 || ${#linux[@]} != 1 )); then
+            echo "::error::Exactly one binary per supported platform is required."
+            find release-assets -maxdepth 1 -type f -print
+            exit 1
+          fi
+          (cd release-assets && sha256sum StreetsEmpire-* > SHA256SUMS.txt)
+          ls -lh release-assets
+
+      - name: Prepare release notes
+        if: steps.publish-check.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./desktop/package.json').version")"
+          echo "DESKTOP_VERSION=$version" >> "$GITHUB_ENV"
+          {
+            echo "# StreetsEmpire Desktop Beta — v${version}"
+            echo
+            echo "The current **portable desktop builds** for all supported operating systems."
+            echo "This release replaces the previous desktop beta after all four builds and tests succeed."
+            echo
+            echo "| System | Asset |"
+            echo "| --- | --- |"
+            echo "| Windows x64 | `StreetsEmpire-Portable-${version}.exe` |"
+            echo "| macOS Intel | `StreetsEmpire-macOS-x64-${version}.zip` |"
+            echo "| macOS Apple Silicon | `StreetsEmpire-macOS-arm64-${version}.zip` |"
+            echo "| Linux x86_64 | `StreetsEmpire-Linux-x86_64-${version}.AppImage` |"
+            echo
+            echo "**Build:** ${GITHUB_SHA}"
+            echo "**Checks:** https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo "These are **unsigned, unnotarized beta test builds**, not a stable production release."
+            echo "Windows SmartScreen and macOS Gatekeeper may show warnings; managed devices may block them."
+            echo "Use the `SHA256SUMS.txt` asset to verify downloaded files."
+            echo
+            echo "The desktop app uses the existing online game, so new website features do **not** require a fresh desktop download."
+            echo "Download new desktop versions when app functionality or integrations change."
+          } > release-notes.md
+
+      - name: Create or refresh the permanent desktop-beta release
+        if: steps.publish-check.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="desktop-beta"
+          title="StreetsEmpire Desktop Beta — v${DESKTOP_VERSION}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # Keep one permanent link pointing to the newest, successfully built beta.
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/${tag}" \
+              -f sha="$GITHUB_SHA" -F force=true >/dev/null
+            # Upload first; then remove old versioned assets that no longer exist.
+            gh release upload "$tag" release-assets/* --clobber
+            while IFS= read -r name; do
+              if [[ ! -f "release-assets/$name" ]]; then
+                gh release delete-asset "$tag" "$name" --yes
+              fi
+            done < <(gh release view "$tag" --json assets --jq '.assets[].name')
+            gh release edit "$tag" --title "$title" --notes-file release-notes.md --prerelease
+          else
+            gh release create "$tag" release-assets/* \
+              --target "$GITHUB_SHA" --title "$title" --notes-file release-notes.md \
+              --prerelease --latest=false
+          fi
+          echo "### Latest portable desktop builds" >> "$GITHUB_STEP_SUMMARY"
+          echo "https://github.com/${GITHUB_REPOSITORY}/releases/tag/desktop-beta" >> "$GITHUB_STEP_SUMMARY"
+
