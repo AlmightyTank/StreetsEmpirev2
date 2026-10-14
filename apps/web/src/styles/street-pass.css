@@ -413,29 +413,64 @@
   gap: 4px;
 }
 
-.se-pass-theme-preview__dots {
-  display: flex;
-  flex-wrap: wrap;
+/* Compact navigation replaces dozens of tiny, wrapped dots on phones. */
+.se-pass-theme-preview__nav {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
   justify-content: center;
-  gap: 9px;
-  margin: 0;
-  padding: 4px 0 2px;
+  gap: 12px;
+  width: min(100%, 440px);
+  margin: 0 auto;
 }
 
-.se-pass-theme-preview__dots button {
-  width: 10px;
-  height: 10px;
+.se-pass-theme-preview__nav-arrow {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
   padding: 0;
-  border: 1px solid rgba(226, 238, 255, 0.42);
-  border-radius: 50%;
-  background: rgba(226, 238, 255, 0.12);
+  border: 1px solid rgba(226, 238, 255, 0.34);
+  border-radius: 8px;
+  background: rgba(226, 238, 255, 0.08);
+  color: var(--se-text);
   cursor: pointer;
 }
 
-.se-pass-theme-preview__dots button.is-active {
+.se-pass-theme-preview__nav-arrow span {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.se-pass-theme-preview__nav-arrow:hover {
   border-color: var(--se-accent);
-  background: var(--se-accent);
-  box-shadow: 0 0 14px rgba(var(--se-accent-rgb), 0.42);
+  background: rgba(var(--se-accent-rgb), 0.14);
+}
+
+.se-pass-theme-preview__nav-arrow:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: 3px;
+}
+
+.se-pass-theme-preview__nav-current {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  text-align: center;
+}
+
+.se-pass-theme-preview__nav-current strong {
+  color: var(--se-text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.se-pass-theme-preview__nav-current span {
+  overflow: hidden;
+  color: var(--se-text-dim);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .se-pass-theme-preview__mock {
@@ -1650,9 +1685,19 @@
 .se-pass-theme-preview__frame-stage {
   position: relative;
   isolation: isolate;
-  width: min(72%, 340px);
+  width: min(82%, 340px);
   aspect-ratio: 1;
   margin-inline: auto;
+}
+
+/* Render the real equipped frame here so the preview never uses a separate crop. */
+.se-pass-theme-preview__frame-stage > .se-avatar-portrait {
+  width: 100%;
+  height: 100%;
+}
+
+.se-pass-theme-preview__frame-stage .se-avatar-portrait__art {
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.38));
 }
 
 .se-pass-theme-preview__frame-art {
