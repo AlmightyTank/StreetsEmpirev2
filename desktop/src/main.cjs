@@ -14,7 +14,7 @@ const LATEST_DESKTOP_DOWNLOAD_URL = 'https://github.com/AlmightyTank/StreetsEmpi
 let win = null;
 let settings = null;
 let awayTimer = null;
-let presence = new DiscordPresence(config.discordClientId);
+let presence = new DiscordPresence(config.discordClientId, config.discordAssets);
 const hasApplicationId = Boolean(presence.clientId);
 
 function settingsPath() {

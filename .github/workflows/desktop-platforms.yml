@@ -57,6 +57,8 @@ jobs:
       - name: Build portable desktop artifact
         env:
           STREETSEMPIRE_DISCORD_CLIENT_ID: ${{ vars.STREETSEMPIRE_DISCORD_CLIENT_ID }}
+          STREETSEMPIRE_DISCORD_LARGE_IMAGE_KEY: ${{ vars.STREETSEMPIRE_DISCORD_LARGE_IMAGE_KEY }}
+          STREETSEMPIRE_DISCORD_SMALL_IMAGE_KEY: ${{ vars.STREETSEMPIRE_DISCORD_SMALL_IMAGE_KEY }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npm run ${{ matrix.script }} --prefix desktop
       - name: Upload portable desktop artifact
