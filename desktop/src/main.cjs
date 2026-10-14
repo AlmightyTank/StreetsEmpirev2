@@ -4,7 +4,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { app, BrowserWindow, Menu, dialog, shell, session } = require('electron');
 const { DiscordPresence } = require('./discord-ipc.cjs');
-const { OAuthCallbackGuard } = require('./oauth-callback-guard.cjs');
 const { GAME_ORIGINS, trustedNavigation, externalLink, presenceForUrl } = require('./activity.cjs');
 const config = require('./generated-config.json');
 
@@ -103,6 +102,29 @@ function openWebsite() {
   void shell.openExternal(gameUrl());
 }
 
+async function showSessionStatus() {
+  if (!win || win.isDestroyed()) return;
+  const origin = GAME_ORIGINS[settings.environment];
+  const current = win.webContents.getURL();
+  const currentHost = (() => { try { return new URL(current).hostname; } catch { return 'unknown'; } })();
+  const cookies = await win.webContents.session.cookies.get({ url: origin, name: 'se_session' });
+  const hasCookie = cookies.length > 0;
+  void dialog.showMessageBox(win, {
+    type: hasCookie ? 'info' : 'warning',
+    title: 'StreetsEmpire — Sign-in Session',
+    message: hasCookie ? 'A StreetsEmpire session cookie is saved in this app.' : 'No StreetsEmpire session cookie was saved in this app.',
+    detail: [
+      `Selected game: ${settings.environment}`,
+      `Game host: ${new URL(origin).hostname}`,
+      `Current page host: ${currentHost}`,
+      `Session cookie stored: ${hasCookie ? 'Yes' : 'No'}`,
+      'Your account must remain signed in on the same host after Discord authorization.',
+      hasCookie ? 'If sign-in still fails, the server may be rejecting the session. Check server logs.' : 'Try a fresh Discord login; if the problem continues, test in a normal browser.',
+    ].join('\\n'),
+    buttons: ['OK'],
+  });
+}
+
 function showDiscordStatus() {
   const status = presence.getStatus();
   const currentPage = win && !win.isDestroyed()
@@ -148,6 +170,7 @@ function buildMenu() {
         { type: 'separator' },
         { label: 'Reload', accelerator: 'CmdOrCtrl+R', click: () => win?.webContents.reload() },
         { label: 'Open in Browser', click: openWebsite },
+        { label: 'Check Sign-in Session…', click: () => void showSessionStatus() },
         { type: 'separator' },
         { role: 'quit' },
       ],
@@ -194,18 +217,9 @@ function navigateSafely(event, legacyUrl) {
 
 function createWindow() {
   const gameSession = session.fromPartition('persist:streetsempire-game');
-  // Discord authorization codes can only be exchanged once. Drop a duplicate
-  // callback before it reaches the API (including programmatic navigations).
-  const oauthGuard = new OAuthCallbackGuard();
-  gameSession.webRequest.onBeforeRequest({
-    urls: [
-      'https://play.streetsempire.dev/api/auth/discord/callback*',
-      'https://beta.streetsempire.dev/api/auth/discord/callback*',
-    ],
-  }, (details, callback) => {
-    const redirectURL = oauthGuard.redirectForReplay(details.url);
-    callback(redirectURL ? { redirectURL } : {});
-  });
+  // Let the server complete OAuth redirects so its validated session cookie
+  // arrives with the original response. The server handles repeated one-time
+  // callback codes safely; rewriting navigation here can race cookie storage.
   gameSession.setPermissionRequestHandler((_contents, _permission, respond) => respond(false));
   gameSession.setPermissionCheckHandler(() => false);
 
