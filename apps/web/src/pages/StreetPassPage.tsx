@@ -8,8 +8,8 @@ import { Button } from '../components/Button.js';
 import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { rewardText } from '../components/RewardChip.js';
-import { BuiltAvatar } from '../components/BuiltAvatar.js';
-import { avatarFrameOpeningStyle } from '../components/avatarFrameOpenings.js';
+import { AvatarPortrait, BuiltAvatar } from '../components/BuiltAvatar.js';
+import { avatarFrameSpec } from '../components/avatarFrameOpenings.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { ITEM_ART, itemArtUrl, rewardArtKey } from '../items/itemArt.js';
 import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
@@ -135,6 +135,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
   }));
   const activeCollectionStyle = active ? cosmeticCollectionStyle(active.key) : null;
   const activeWeapon = activeCollectionStyle ? collectionPreviewItems[activeCollectionStyle] : null;
+  const activeFrame = active?.kind === 'frame' ? avatarFrameSpec(active.key) : undefined;
 
   useEffect(() => {
     if (activeIndex < previews.length) return;
@@ -143,7 +144,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
 
   if (!active) return null;
 
-  const eyebrow = active.kind === 'theme' ? 'Theme preview' : active.kind === 'title' ? 'Name preview' : 'Cosmetic preview';
+  const eyebrow = active.kind === 'theme' ? 'Theme preview' : active.kind === 'title' ? 'Name preview' : active.kind === 'frame' ? 'Avatar frame preview' : 'Cosmetic preview';
   const description = active.kind === 'theme'
     ? `Unlocks at tier ${formatNumber(active.tier)} and can be selected from account settings after you claim it.`
     : active.kind === 'title'
@@ -200,20 +201,30 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
             className={`se-pass-theme-preview__frame-stage se-pass-theme-preview__frame-stage--${active.key}`}
             role="img"
             aria-label={`${displayName}'s avatar shown with ${active.label}`}
-            style={avatarFrameOpeningStyle(active.key)}
           >
-            {profileImageUrl ? (
-              <img className="se-pass-theme-preview__frame-avatar" src={profileImageUrl} alt="" />
-            ) : profileAvatar ? (
-              <span className="se-pass-theme-preview__frame-avatar" aria-hidden="true">
-                <BuiltAvatar parts={profileAvatar} />
-              </span>
+            {activeFrame ? (
+              <AvatarPortrait
+                imageUrl={profileImageUrl}
+                avatar={profileAvatar}
+                fallback={playerInitials(displayName)}
+                frameKey={activeFrame.profileKey}
+              />
             ) : (
-              <span className="se-pass-theme-preview__frame-avatar se-pass-theme-preview__frame-avatar--initials" aria-hidden="true">
-                {playerInitials(displayName)}
-              </span>
+              <>
+                {profileImageUrl ? (
+                  <img className="se-pass-theme-preview__frame-avatar" src={profileImageUrl} alt="" />
+                ) : profileAvatar ? (
+                  <span className="se-pass-theme-preview__frame-avatar" aria-hidden="true">
+                    <BuiltAvatar parts={profileAvatar} />
+                  </span>
+                ) : (
+                  <span className="se-pass-theme-preview__frame-avatar se-pass-theme-preview__frame-avatar--initials" aria-hidden="true">
+                    {playerInitials(displayName)}
+                  </span>
+                )}
+                <img className="se-pass-theme-preview__frame-art" src={itemArtUrl(active.art)} alt="" />
+              </>
             )}
-            <img className="se-pass-theme-preview__frame-art" src={itemArtUrl(active.art)} alt="" />
           </div>
         ) : active.kind === 'item' && activeCollectionStyle && activeWeapon ? (
           <div className="se-pass-theme-preview__weapon-stage">
@@ -248,19 +259,28 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
         )}
       </article>
       {previews.length > 1 ? (
-        <div className="se-pass-theme-preview__dots" role="tablist" aria-label="Cosmetic previews">
-          {previews.map((preview, index) => (
-            <button
-              key={preview.key}
-              type="button"
-              className={index === activeIndex ? 'is-active' : undefined}
-              aria-label={`Show ${preview.label}`}
-              aria-selected={index === activeIndex}
-              role="tab"
-              onClick={() => setActiveIndex(index)}
-            />
-          ))}
-        </div>
+        <nav className="se-pass-theme-preview__nav" aria-label="Cosmetic previews">
+          <button
+            type="button"
+            className="se-pass-theme-preview__nav-arrow"
+            aria-label="Previous cosmetic preview"
+            onClick={() => setActiveIndex((current) => (current - 1 + previews.length) % previews.length)}
+          >
+            <span aria-hidden="true">‹</span>
+          </button>
+          <span className="se-pass-theme-preview__nav-current" role="status" aria-live="polite" aria-atomic="true">
+            <strong>{formatNumber(activeIndex + 1)} / {formatNumber(previews.length)}</strong>
+            <span>{active.label}</span>
+          </span>
+          <button
+            type="button"
+            className="se-pass-theme-preview__nav-arrow"
+            aria-label="Next cosmetic preview"
+            onClick={() => setActiveIndex((current) => (current + 1) % previews.length)}
+          >
+            <span aria-hidden="true">›</span>
+          </button>
+        </nav>
       ) : null}
     </section>
   );
