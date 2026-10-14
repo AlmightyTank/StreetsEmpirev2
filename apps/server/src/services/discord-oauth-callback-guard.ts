@@ -19,6 +19,25 @@ function hashCallback(code: string, state: string): string {
   return createHash('sha256').update(code).update('\0').update(state).digest('hex');
 }
 
+/**
+ * Identify only callbacks whose code/state were already validated and claimed
+ * by this server. Safe to call BEFORE checking the state cookie on a replay:
+ * the original callback may already have cleared it in its Set-Cookie header.
+ * A replay only receives a navigation URL; it never creates an authenticated
+ * session, refreshes a cookie, or exchanges the one-time code again.
+ */
+export function existingDiscordOAuthCallback(code: string, state: string, now = Date.now()): Promise<string | null> | null {
+  const entry = recent.get(hashCallback(code, state));
+  if (!entry || now - entry.at >= WINDOW_MS) return null;
+  return Promise.race([
+    entry.completed,
+    new Promise<null>((resolve) => {
+      const timer = setTimeout(() => resolve(null), WAIT_MS);
+      timer.unref?.();
+    }),
+  ]);
+}
+
 export function beginDiscordOAuthCallback(code: string, state: string, now = Date.now()):
   | { duplicate: true; redirect: Promise<string | null> }
   | { duplicate: false; finish: (redirect: string) => void } {
