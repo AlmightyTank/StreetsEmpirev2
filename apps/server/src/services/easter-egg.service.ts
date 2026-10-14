@@ -120,8 +120,11 @@ export const EasterEggService = {
     const player = await prisma.roundPlayer.findFirst({
       where: { accountId, round: { status: 'ACTIVE' } },
       orderBy: { createdAt: 'desc' },
-      select: { id: true },
+      select: { id: true, lastActiveAt: true },
     });
+    if (id === 'GREAT_SCOTT' && (!player || !easterEggDayNear(player.lastActiveAt, 'BACK_TO_THE_FUTURE'))) {
+      throw AppError.badRequest('EASTER_EGG_NOT_PLAYED', 'Wrong timeline, Doc. The Time Machine paint job only unlocks if you played on the 21st of October.');
+    }
     return prisma.$transaction((tx) => EasterEggService.discover(tx, { accountId, roundPlayerId: player?.id ?? null, id, at }));
   },
 };
