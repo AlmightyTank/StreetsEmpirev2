@@ -987,6 +987,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                       <Button
                         type="button"
                         className="se-btn se-btn--sm"
+                        data-tour="recon-raid"
                         disabledReason={
                           busy
                             ? 'Your last hit is still going through.'

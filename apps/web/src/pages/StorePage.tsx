@@ -271,7 +271,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
           </p>
         </EconomyQuote>
         <div className="se-store-actions">
-          <Button className="se-btn se-btn--primary se-btn--block" disabledReason={tradeBlock}>
+          <Button className="se-btn se-btn--primary se-btn--block" disabledReason={tradeBlock} data-tour="shop-supplies">
             {purchaseLocked ? 'Purchases locked' : `${buying ? 'Buy' : 'Sell'}${total !== null ? ` · ${formatCents(total)}` : ''}`}
           </Button>
           <Button

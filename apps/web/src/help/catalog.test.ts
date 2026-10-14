@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ONBOARDING_GUIDE_STEPS, ONBOARDING_PAGE_KEYS } from '@streets/shared';
-import { GUIDE_STEPS, INTRO_CARDS, PAGE_HELP, PAGE_INTROS, pageHelpFor, pageIntroFor } from './catalog.js';
+import { TOUR_STEP_KEYS } from '@streets/shared';
+import { GUIDE_STEPS, INTRO_CARDS, PAGE_HELP, PAGE_INTROS, TOUR_STEPS, pageHelpFor, pageIntroFor } from './catalog.js';
 
 const rulesPage = readFileSync(new URL('../pages/RulesPage.tsx', import.meta.url), 'utf8');
 
@@ -41,5 +42,31 @@ describe('1.0.0-B help catalog', () => {
 
   it('has copy for every getting-started goal', () => {
     for (const key of ONBOARDING_GUIDE_STEPS) expect(GUIDE_STEPS[key]?.title, key).toBeTruthy();
+  });
+
+  it('has a tour tooltip on a real route for every walkthrough step', () => {
+    expect([...TOUR_STEP_KEYS]).toEqual(Object.keys(TOUR_STEPS));
+    for (const key of TOUR_STEP_KEYS) {
+      const copy = TOUR_STEPS[key];
+      expect(copy.title, key).toBeTruthy();
+      expect(copy.detail, key).toBeTruthy();
+      expect(copy.target, key).toBeTruthy();
+      expect(pageHelpFor(copy.to), `${key} → ${copy.to}`).not.toBeNull();
+    }
+  });
+
+  it('anchors every tour tooltip to a real action in its page', () => {
+    const sources: Record<string, string> = {
+      '/game/quests': readFileSync(new URL('../pages/QuestPage.tsx', import.meta.url), 'utf8'),
+      '/game/scout': readFileSync(new URL('../pages/ScoutPage.tsx', import.meta.url), 'utf8'),
+      '/game/stores': readFileSync(new URL('../pages/StorePage.tsx', import.meta.url), 'utf8'),
+      '/game/produce': readFileSync(new URL('../pages/ProducePage.tsx', import.meta.url), 'utf8'),
+      '/game/hideout': readFileSync(new URL('../pages/HideoutPage.tsx', import.meta.url), 'utf8'),
+      '/game/combat': readFileSync(new URL('../pages/CombatPage.tsx', import.meta.url), 'utf8'),
+    };
+    for (const key of TOUR_STEP_KEYS) {
+      const copy = TOUR_STEPS[key];
+      expect(sources[copy.to], `${key} anchor in ${copy.to}`).toContain(`data-tour="${copy.target}"`);
+    }
   });
 });

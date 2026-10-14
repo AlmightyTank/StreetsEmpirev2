@@ -217,6 +217,7 @@ function RoomCard({
       <Button
         type="button"
         className="se-btn se-btn--primary se-btn--block"
+        data-tour="upgrade-hideout"
         disabledReason={blocked
           ?? (maxed ? 'This room is fully upgraded for this season.' : null)
           ?? room.lockReason

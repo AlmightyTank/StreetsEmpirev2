@@ -23,6 +23,22 @@ export type OnboardingPageKey = (typeof ONBOARDING_PAGE_KEYS)[number];
 export const ONBOARDING_GUIDE_STEPS = ['scout', 'recruit', 'restock', 'produce', 'weapon'] as const;
 export type OnboardingGuideStepKey = (typeof ONBOARDING_GUIDE_STEPS)[number];
 
+/**
+ * Guided walkthrough: the ordered core-loop tour. Progress is derived from
+ * real ledger-backed play (never clicks); rewards come from the mapped quest
+ * objectives, never from the tour itself.
+ */
+export const TOUR_STEP_KEYS = [
+  'accept-quest',
+  'scout',
+  'shop-supplies',
+  'grow-crew',
+  'produce',
+  'upgrade-hideout',
+  'recon-raid',
+] as const;
+export type TourStepKey = (typeof TOUR_STEP_KEYS)[number];
+
 export interface OnboardingStateDto {
   intro: {
     /** True when the first-login intro should open by itself. */
@@ -37,6 +53,18 @@ export interface OnboardingStateDto {
     complete: boolean;
     steps: Array<{ key: OnboardingGuideStepKey; done: boolean }>;
   } | null;
+  /** Null outside a season the account has joined. */
+  tour: {
+    /** True when the tour offer should be shown (new players only). */
+    due: boolean;
+    /** True once the player starts the tour and until it is dismissed/completed. */
+    active: boolean;
+    dismissed: boolean;
+    complete: boolean;
+    /** First incomplete step key, or null when complete. */
+    step: TourStepKey | null;
+    steps: Array<{ key: TourStepKey; done: boolean }>;
+  } | null;
 }
 
 export const onboardingActionSchema = z.discriminatedUnion('action', [
@@ -47,5 +75,9 @@ export const onboardingActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('see-page'), page: z.enum(ONBOARDING_PAGE_KEYS) }).strict(),
   z.object({ action: z.literal('dismiss-guide') }).strict(),
   z.object({ action: z.literal('restore-guide') }).strict(),
+  z.object({ action: z.literal('start-tour') }).strict(),
+  z.object({ action: z.literal('advance-tour'), step: z.enum(TOUR_STEP_KEYS) }).strict(),
+  z.object({ action: z.literal('dismiss-tour') }).strict(),
+  z.object({ action: z.literal('restore-tour') }).strict(),
 ]);
 export type OnboardingActionInput = z.infer<typeof onboardingActionSchema>;

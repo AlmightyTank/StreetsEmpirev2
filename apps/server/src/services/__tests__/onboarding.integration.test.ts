@@ -99,6 +99,48 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
     expect(guide.complete).toBe(true);
   });
 
+  it('offers the tour to new players, never by itself to veterans', async () => {
+    const t = await register('obtour');
+    const tourPlayer = await join(t.accountId, roundId, 7704);
+    const tourCookie = t.cookie;
+    const tour = (await get(tourCookie)).json().tour;
+    expect(tour).toMatchObject({ due: true, active: false, dismissed: false, complete: false, step: 'accept-quest' });
+    expect(tour.steps.every((step: { done: boolean }) => !step.done)).toBe(true);
+    const veteran = (await get(veteranCookie)).json().tour;
+    expect(veteran).toMatchObject({ due: false, active: false });
+    // Stash for the next test.
+    fresh = { accountId: t.accountId, playerId: tourPlayer.id, cookie: tourCookie };
+  });
+
+  it('runs the seven-step tour off real play, counting any raid outcome', async () => {
+    const log = (type: string, payload: Prisma.InputJsonObject) => app.prisma.playerActivity.create({ data: { roundPlayerId: fresh.playerId, type: type as never, payload } });
+    expect((await act(fresh.cookie, { action: 'start-tour' })).json().tour).toMatchObject({ due: false, active: true, step: 'accept-quest' });
+    const stepsOf = async () => Object.fromEntries((await get(fresh.cookie)).json().tour.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));
+
+    await log('QUEST_ACCEPTED', { questKey: 'tour-first-job' });
+    expect(await stepsOf()).toMatchObject({ 'accept-quest': true, scout: false });
+    expect((await get(fresh.cookie)).json().tour.step).toBe('scout');
+
+    await log('SCOUT', { turns: 5, thugs: 0, whores: 1 });
+    await log('STORE_BUY', { item: itemName('condoms'), quantity: 10 });
+    await log('STORE_BUY', { lines: [{ item: itemName('beer'), direction: 'buy', quantity: 5 }] });
+    expect(await stepsOf()).toMatchObject({ scout: true, 'shop-supplies': true, 'grow-crew': false });
+
+    await log('SCOUT', { turns: 5, thugs: 2 });
+    await log('PRODUCE_CRACK', { turns: 3, product: 10 });
+    await log('HIDEOUT_UPGRADE', { room: 'safe-room', level: 1 });
+    expect(await stepsOf()).toMatchObject({ 'grow-crew': true, produce: true, 'upgrade-hideout': true, 'recon-raid': false });
+
+    // A lost raid still resolves the attempt and completes the tour.
+    await log('COMBAT_RECON', { target: 'rival' });
+    await log('RAID_ATTACK', { won: false });
+    const tour = (await get(fresh.cookie)).json().tour;
+    expect(tour).toMatchObject({ complete: true, active: false, step: null });
+
+    expect((await act(fresh.cookie, { action: 'dismiss-tour' })).json().tour.dismissed).toBe(true);
+    expect((await act(fresh.cookie, { action: 'restore-tour' })).json().tour.dismissed).toBe(false);
+  });
+
   it('remembers intros, replays them, and hides the guide for one season', async () => {
     expect((await act(fresh.cookie, { action: 'complete-intro' })).json().intro).toMatchObject({ due: false, completedAt: expect.any(String) });
     await act(fresh.cookie, { action: 'see-page', page: 'combat' });

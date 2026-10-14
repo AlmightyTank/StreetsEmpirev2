@@ -1,5 +1,6 @@
 import { classicOgV18R } from '../classic-og-v1.8-r/index.js';
 import { HIDDEN_STREETS_EXPANSION_COSMETICS } from '../hidden-streets-cosmetics.js';
+import { tourCampaignQuests } from '../tour-campaign.js';
 import { defineQuestCatalog, questCosmeticProblems } from '../quest-definitions.js';
 import type {
   QuestCosmeticCatalog,
@@ -299,6 +300,7 @@ const expansionSecrets = {
 
 const questDefinitions = defineQuestCatalog({
   ...base,
+  ...tourCampaignQuests,
   ...expansionSecrets,
 });
 

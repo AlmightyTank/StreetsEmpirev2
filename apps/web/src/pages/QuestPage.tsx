@@ -387,6 +387,7 @@ function QuestCard({
             className="se-btn se-btn--primary"
             disabledReason={busy}
             onClick={() => onAccept(quest.key)}
+            data-tour="accept-quest"
           >
             Accept job
           </Button>
