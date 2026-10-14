@@ -1,15 +1,15 @@
 {
   "name": "streetsempire-desktop",
   "private": true,
-  "version": "0.1.6",
-  "description": "Cross-platform StreetsEmpire desktop game with opt-in Discord Rich Presence",
+  "version": "0.2.0",
+  "description": "Four-tab StreetsEmpire desktop client with persistent Play view and opt-in Discord Rich Presence",
   "main": "src/main.cjs",
   "scripts": {
     "prepare:config": "node scripts/build-config.mjs",
     "start": "npm run prepare:config && electron .",
     "dist:win": "npm run dist:portable",
     "test": "node --test",
-    "check": "node --check src/main.cjs && node --check src/discord-ipc.cjs && node --check src/activity.cjs",
+    "check": "node --check src/main.cjs && node --check src/discord-ipc.cjs && node --check src/activity.cjs && node --check src/shell-state.cjs && node --check src/shell/preload.cjs",
     "dist:portable": "npm run prepare:config && electron-builder --win portable --x64 --publish never",
     "dist:mac:x64": "npm run prepare:config && electron-builder --mac zip --x64 --publish never",
     "dist:mac:arm64": "npm run prepare:config && electron-builder --mac zip --arm64 --publish never",
@@ -25,11 +25,14 @@
     "directories": {
       "output": "dist"
     },
+    "icon": "assets/icon.png",
     "files": [
       "src/**",
+      "assets/**",
       "package.json"
     ],
     "win": {
+      "icon": "assets/icon.ico",
       "target": [
         "portable"
       ],
@@ -39,6 +42,7 @@
       "artifactName": "StreetsEmpire-Portable-${version}.${ext}"
     },
     "mac": {
+      "icon": "assets/icon.icns",
       "target": [
         "zip"
       ],
@@ -49,6 +53,7 @@
       "identity": null
     },
     "linux": {
+      "icon": "assets/icon.png",
       "target": [
         "AppImage"
       ],

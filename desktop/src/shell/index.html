@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'">
+  <title>StreetsEmpire Desktop</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app" class="app" data-tab="play">
+    <header class="chrome" id="chrome">
+      <div class="brand" aria-label="StreetsEmpire Desktop">
+        <div class="brand-mark" aria-hidden="true">SE</div>
+        <div>
+          <strong>StreetsEmpire</strong>
+          <span>Desktop Client</span>
+        </div>
+      </div>
+      <nav class="tabs" aria-label="Desktop sections">
+        <button class="tab" data-tab-target="play" aria-controls="panel-play">Play</button>
+        <button class="tab" data-tab-target="updates" aria-controls="panel-updates">Updates</button>
+        <button class="tab" data-tab-target="discord" aria-controls="panel-discord">Discord</button>
+        <button class="tab" data-tab-target="settings" aria-controls="panel-settings">Settings</button>
+      </nav>
+    </header>
+
+    <main class="main">
+      <section id="panel-play" class="panel play-panel" aria-labelledby="tab-play">
+        <div class="play-toolbar" id="play-toolbar">
+          <fieldset class="segmented" aria-label="Game environment">
+            <legend class="sr-only">Game environment</legend>
+            <button data-env="live" type="button">Live</button>
+            <button data-env="beta" type="button">Beta</button>
+          </fieldset>
+          <span id="play-status" class="status-pill" role="status">Starting</span>
+          <div class="toolbar-actions">
+            <button id="reload-game" type="button">Reload</button>
+            <button id="open-game" type="button">Open in browser</button>
+            <button id="immersive-on" type="button">Immersive</button>
+          </div>
+        </div>
+        <div id="game-slot" class="game-slot" aria-label="StreetsEmpire game viewport">
+          <div id="play-message" class="play-message">Loading StreetsEmpire…</div>
+        </div>
+      </section>
+
+      <section id="panel-updates" class="panel" hidden>
+        <div class="panel-card">
+          <h1>Updates</h1>
+          <p class="muted">Website gameplay updates and desktop executable updates are separate.</p>
+          <div id="updates-content" class="grid"></div>
+        </div>
+      </section>
+
+      <section id="panel-discord" class="panel" hidden>
+        <div class="panel-card">
+          <h1>Discord Rich Presence</h1>
+          <p class="muted">This controls local Rich Presence only. Discord OAuth account sign-in stays inside the website.</p>
+          <div id="discord-status" class="status-card"></div>
+          <div class="actions">
+            <button id="discord-toggle" type="button">Enable Rich Presence</button>
+            <button id="discord-reconnect" type="button">Reconnect</button>
+            <button id="discord-test" type="button">Test activity</button>
+          </div>
+          <div id="discord-preview" class="preview-card"></div>
+        </div>
+      </section>
+
+      <section id="panel-settings" class="panel" hidden>
+        <div class="panel-card">
+          <h1>Settings</h1>
+          <div class="settings-list">
+            <label><span>Default environment</span><select id="setting-environment"><option value="live">Live</option><option value="beta">Beta (invite-only)</option></select></label>
+            <label><span>Reduced motion</span><input id="setting-reduced-motion" type="checkbox"></label>
+            <label><span>Remember immersive preference</span><input id="setting-immersive" type="checkbox"></label>
+            <label><span>Future desktop notifications</span><input id="setting-notifications" type="checkbox"></label>
+          </div>
+          <h2>Diagnostics</h2>
+          <pre id="diagnostics" class="diagnostics">Loading diagnostics…</pre>
+          <button id="refresh-diagnostics" type="button">Refresh diagnostics</button>
+          <button id="settings-release" type="button">Get latest desktop beta</button>
+        </div>
+      </section>
+    </main>
+
+    <button id="immersive-restore" class="immersive-restore" type="button" hidden>Show tabs</button>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
