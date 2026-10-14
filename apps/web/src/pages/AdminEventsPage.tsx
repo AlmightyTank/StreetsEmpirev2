@@ -4,6 +4,7 @@ import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { AdminEncounterTester } from '../components/AdminEncounterTester.js';
 import { Field } from '../components/Field.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -146,6 +147,7 @@ export function AdminEventsPage() {
       </div>
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="success">{notice}</Alert> : null}
+      <AdminEncounterTester />
 
       {report ? <>
         <Panel title="Release checks" aside={`Checked ${new Date(report.generatedAt).toLocaleString()}`} className="se-mb">

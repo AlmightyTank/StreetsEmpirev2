@@ -5,6 +5,7 @@ import { describeActivity } from './ActivityFeed.js';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime } from '../utils/time.js';
+import { isCinematicEncounterActivity } from './encounterAlertPolicy.js';
 
 type ToastTone = 'info' | 'good' | 'warn' | 'bad';
 
@@ -654,6 +655,8 @@ export function GameEventToasts() {
 
     const muted = new Set<string>(bellMuted);
     const next = fresh.flatMap((entry) => {
+      // The cinematic alert layer exclusively renders major combat activities.
+      if (isCinematicEncounterActivity(entry.type)) return [];
       // 0.9.0-G: a category muted in the bell does not pop a toast either.
       const category = BELL_CATEGORY_BY_ACTIVITY[entry.type];
       if (category && muted.has(category)) return [];

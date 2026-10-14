@@ -15,6 +15,7 @@ import './styles/dashboard.css';
 import './styles/scout.css';
 import './styles/produce.css';
 import './styles/raids.css';
+import './styles/encounter-cinema.css';
 import './styles/stores.css';
 import './styles/items.css';
 import './styles/street-pass.css';
