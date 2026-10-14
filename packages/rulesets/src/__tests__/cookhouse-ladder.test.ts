@@ -123,9 +123,16 @@ describe('1.8.0-F Pip\'s Cookhouse Ladder', () => {
   });
 
   it('leaves every earlier ruleset ungated', () => {
-    for (const ruleset of Object.values(rulesets) as Ruleset[]) {
-      if (ruleset === classicOgV18F || ruleset === classicOgV18G || ruleset === classicOgV18H || ruleset === classicOgV18I || ruleset === classicOgV18J || ruleset === classicOgV18K || ruleset === classicOgV18L || ruleset === classicOgV18M || ruleset === classicOgV18N || ruleset === classicOgV18O || ruleset === classicOgV18P || ruleset === classicOgV18Q) continue;
+    // All rulesets before F must remain ungated. Later slices are not
+    // "earlier" just because this test hasn't explicitly named them yet.
+    const all = Object.values(rulesets) as Ruleset[];
+    const from = all.indexOf(classicOgV18F);
+    expect(from).toBeGreaterThan(-1);
+    for (const ruleset of all.slice(0, from)) {
       expect(recipeGates(ruleset).size, ruleset.meta.id).toBe(0);
+    }
+    for (const ruleset of all.slice(from)) {
+      expect(recipeGates(ruleset), ruleset.meta.id).toEqual(recipeGates(classicOgV18F));
     }
     expect(oldQuests.PIP_BULK_ORDER!.objectives[0]!.params).toMatchObject({ where: { productType: 'METH' } });
     expect(oldQuests.PIP_PARTY_FAVORS!.objectives[0]!.params).toMatchObject({ where: { productType: 'ECSTASY' } });
