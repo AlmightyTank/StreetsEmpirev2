@@ -183,6 +183,8 @@ export interface CombatTargetDto {
   specialRaidBlockedReasons?: Partial<Record<SpecialRaidKindDto, string | null>>;
   /** True when this target openly holds the Ring (revealed holder). */
   hasRing?: boolean;
+  /** Owner-scoped training target shown while the guided raid quest is active. */
+  tutorial?: boolean;
 }
 
 

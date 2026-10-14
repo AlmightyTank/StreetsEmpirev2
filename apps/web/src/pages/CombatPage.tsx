@@ -543,6 +543,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   }, [page, mode, driving, doingSpecialRaid, setMode]);
   /** Drive-bys have their own clock. The other forms share the raid clock. */
   const targetBlock = useCallback((target: CombatTargetDto) => {
+    if (target.tutorial && mode !== 'RAID') return 'Use a standard raid against the training target.';
     if (driving) return target.driveByBlockedReason ?? null;
     if (mode === 'DRUG_HOES' || mode === 'STEAL_RIDE' || mode === 'LURE_CREW') return target.specialRaidBlockedReasons?.[mode] ?? null;
     return target.blockedReason;
@@ -551,7 +552,9 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   useEffect(() => {
     if (!page?.targets.length) return;
     if (targetId && page.targets.some((target) => String(target.publicPimpId) === targetId)) return;
-    setTargetId(String(page.targets.find((target) => !targetBlock(target))?.publicPimpId ?? page.targets[0]!.publicPimpId));
+    setTargetId(String(page.targets.find((target) => target.tutorial)?.publicPimpId
+      ?? page.targets.find((target) => !targetBlock(target))?.publicPimpId
+      ?? page.targets[0]!.publicPimpId));
   }, [page, targetId, targetBlock]);
 
   const setSaved = (value: PendingRaid | null) => {
@@ -559,6 +562,9 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     savePendingRaid(browserSessionStorage(), playerId, value);
   };
   const selected = page?.targets.find((target) => String(target.publicPimpId) === targetId);
+  useEffect(() => {
+    if (selected?.tutorial && mode !== 'RAID') setMode('RAID');
+  }, [selected?.tutorial, mode, setMode]);
   const selectedBlock = selected ? targetBlock(selected) : null;
   const rules = page?.rules;
   const recovery = page?.recovery;
@@ -870,7 +876,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 </span>
               </div>
 
-              {(driveBy || specialRaids.length) ? (
+              {!selected?.tutorial && (driveBy || specialRaids.length) ? (
                 <div className="se-seg se-raids-modes" role="group" aria-label="Kind of hit">
                   {([
                     { kind: 'RAID' as const, label: 'Raid' },
@@ -922,7 +928,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                         <option value="">Choose a mark</option>
                         {page.targets.map((target) => (
                           <option key={target.publicPimpId} value={target.publicPimpId}>
-                            {target.alliance ? `[${target.alliance.tag}] ` : ''}{target.displayName} (#{target.publicPimpId}) · {target.strength}{target.hasRing ? ' · has the Ring' : ''}{target.intel ? ' · scouted' : ''}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
+                            {target.alliance ? `[${target.alliance.tag}] ` : ''}{target.displayName} (#{target.publicPimpId}){target.tutorial ? ' · Training target' : ''} · {target.strength}{target.hasRing ? ' · has the Ring' : ''}{target.intel ? ' · scouted' : ''}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
                           </option>
                         ))}
                       </select>
@@ -965,7 +971,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               <div className="se-raids-sectionhead">
                 <div>
                   <span className="se-eyebrow">Target intel</span>
-                  <h2>{selected?.displayName ?? 'No mark selected'}</h2>
+                  <h2>{selected?.displayName ?? 'No mark selected'}{selected?.tutorial ? ' · Training target' : ''}</h2>
                 </div>
                 {selected ? <span className={`se-raids-target-strength se-raids-target-strength--${selected.strength.toLowerCase()}`}>{selected.strength}</span> : null}
               </div>
@@ -973,6 +979,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               {selected ? (
                 <>
                   <TargetCard target={selected} selectedBlock={selectedBlock} driving={driving} />
+                  {selected.tutorial ? <p className="se-hint">This practice crew is here for Take a Shot. Resolve one standard raid—win or lose—to finish the objective.</p> : null}
 
                   {rules?.reconTurnCost !== undefined ? (
                     <div className="se-raids-recon">

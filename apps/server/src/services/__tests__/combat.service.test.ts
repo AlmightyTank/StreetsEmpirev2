@@ -67,6 +67,17 @@ describe('combat eligibility helpers', () => {
     expect(combatAttackerBlock(player({ turns: 9 }), model, now)).toContain('10 turns');
   });
 
+  it('can bypass newcomer protection for training without bypassing a raid shield', () => {
+    const fresh = player({ createdAt: new Date('2026-09-09T12:00:00.000Z') });
+    expect(combatAttackerBlock(fresh, model, now, { bypassNewcomerProtection: true })).toBeNull();
+
+    const shielded = player({
+      createdAt: new Date('2026-09-09T12:00:00.000Z'),
+      raidProtectedUntil: new Date('2026-09-10T06:00:00.000Z'),
+    });
+    expect(combatAttackerBlock(shielded, model, now, { bypassNewcomerProtection: true })).toContain('protected');
+  });
+
   it('lets fresh 0.2.0-D players test raids immediately', () => {
     const modelD = classicOgV02D.combat;
     const freshAttacker = player({ id: 'attacker', accountId: 'attacker-account', createdAt: now });

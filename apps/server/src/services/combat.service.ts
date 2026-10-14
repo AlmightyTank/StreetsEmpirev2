@@ -60,6 +60,7 @@ import { SingleUseFavorService } from './single-use-favor.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
 import { LawService } from './law.service.js';
+import { TutorialCombatTargetService } from './tutorial-combat-target.service.js';
 
 type CombatRules = NonNullable<Ruleset['combat']>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value, (_, v: unknown) => typeof v === 'bigint' ? v.toString() : v));
@@ -248,10 +249,13 @@ export function awayBlock(player: Pick<RoundPlayer, 'lockedUntil' | 'movingUntil
   return null;
 }
 
-export function combatAttackerBlock(player: RoundPlayer, model: CombatRules, now: Date): string | null {
+export function combatAttackerBlock(player: RoundPlayer, model: CombatRules, now: Date, options: { bypassNewcomerProtection?: boolean } = {}): string | null {
   const away = awayBlock(player, now);
   if (away) return away;
-  if (combatProtectionUntil(player, model) > now) return 'You are protected. Wait until your protection ends before raiding.';
+  const protectedUntil = options.bypassNewcomerProtection
+    ? player.raidProtectedUntil
+    : combatProtectionUntil(player, model);
+  if (protectedUntil && protectedUntil > now) return 'You are protected. Wait until your protection ends before raiding.';
   if (player.raidCooldownUntil && player.raidCooldownUntil > now) return 'Your crew is regrouping after its last raid.';
   if (fitThugs(player) < 1) return 'Wait for a thug to recover before raiding.';
   if (player.turns < model.turnCost) return `You need ${model.turnCost} turns to raid.`;
@@ -829,17 +833,25 @@ export const CombatService = {
     const base = { roundId: round.id, serverTime: now.toISOString(), targets: [], nextTarget: null };
     if (!ruleset.combat) return { ...base, enabled: false, rules: null, blockedReason: 'Raids are not available in this older economy round. Join the current 0.2.0-D strategy round to use raids, recon and revenge.', protectedUntil: null, cooldownUntil: null, recovery: null };
     const model = ruleset.combat;
-    let blockedReason = combatAttackerBlock(player, model, now);
-    if (round.pausedAt) blockedReason = 'The season is paused.';
-    else if (round.status !== 'ACTIVE' || round.startsAt > now || round.endsAt <= now) blockedReason = 'This round is not currently open for raids.';
+    const normalAttackerBlock = combatAttackerBlock(player, model, now);
     // 0.5.0-D: movers who have arrived are in their new city's list, not this one.
     await RelocationService.settleDue(prisma, round.id, now);
+    const tutorialTarget = round.status === 'ACTIVE' && round.startsAt <= now && round.endsAt > now
+      ? await TutorialCombatTargetService.ensure(prisma, player, ruleset, now)
+      : null;
+    let blockedReason = combatAttackerBlock(player, model, now, { bypassNewcomerProtection: Boolean(tutorialTarget) });
+    if (round.pausedAt) blockedReason = 'The season is paused.';
+    else if (round.status !== 'ACTIVE' || round.startsAt > now || round.endsAt <= now) blockedReason = 'This round is not currently open for raids.';
     const targets = await prisma.roundPlayer.findMany({
       where: { roundId: round.id, cityId: player.cityId, id: { not: playerId }, publicPimpId: { gt: after }, account: { isActive: true } },
       include: { alliance: { select: { name: true, tag: true } } },
       orderBy: { publicPimpId: 'asc' }, take: 26,
     });
-    const targetIds = targets.slice(0, 25).map((target) => target.id);
+    const listedTargets = [
+      ...(tutorialTarget ? [{ ...tutorialTarget, alliance: null }] : []),
+      ...targets.slice(0, 25),
+    ];
+    const targetIds = listedTargets.map((target) => target.id);
     // Trips D2: a truce from a sit-down blocks every way of hitting that crew.
     const truces = await trucesFor(prisma, player.id, now);
     const [revengeIds, intelRows] = await Promise.all([
@@ -857,8 +869,8 @@ export const CombatService = {
     const ownStrength = strength(player, model);
     // 0.4.0-D: product a raid could take, one query for the whole list.
     const otherProducts = new Map<string, number>();
-    if (ruleset.productEconomy && targets.length) {
-      const sums = await prisma.playerProduct.groupBy({ by: ['roundPlayerId'], where: { roundPlayerId: { in: targets.slice(0, 25).map((target) => target.id) } }, _sum: { quantity: true } });
+    if (ruleset.productEconomy && listedTargets.length) {
+      const sums = await prisma.playerProduct.groupBy({ by: ['roundPlayerId'], where: { roundPlayerId: { in: targetIds } }, _sum: { quantity: true } });
       for (const row of sums) otherProducts.set(row.roundPlayerId, row._sum.quantity ?? 0);
     }
     const burnerFavor = model.strategy
@@ -877,7 +889,9 @@ export const CombatService = {
       : null;
     return {
       ...base, enabled: true, blockedReason,
-      protectedUntil: combatProtectionUntil(player, model) > now ? iso(combatProtectionUntil(player, model)) : null,
+      protectedUntil: tutorialTarget
+        ? (player.raidProtectedUntil && player.raidProtectedUntil > now ? iso(player.raidProtectedUntil) : null)
+        : (combatProtectionUntil(player, model) > now ? iso(combatProtectionUntil(player, model)) : null),
       cooldownUntil: player.raidCooldownUntil && player.raidCooldownUntil > now ? iso(player.raidCooldownUntil) : null,
       recovery: await recoveryDto(prisma, playerId, player, ruleset, model, now),
       rules: { squadCap: model.squadCap, turnCost: model.turnCost, newcomerHours: model.newcomerHours,
@@ -899,13 +913,13 @@ export const CombatService = {
           retaliationHours: model.strategy.retaliation.revengeHours,
         } : {}),
       },
-      targets: targets.slice(0, 25).map((target) => ({
+      targets: listedTargets.map((target) => ({
         publicPimpId: target.publicPimpId, displayName: target.displayName,
         ...(ruleset.alliances ? { alliance: allianceTagDto(target.alliance) } : {}),
         // Stored, because 0.4.0-D worth includes product rows this list does not load.
         netWorthCents: Number(target.netWorthCents),
         strength: strength(target, model) < ownStrength * (1 - model.strength.variance) ? 'Weaker' : strength(target, model) > ownStrength * (1 + model.strength.variance) ? 'Stronger' : 'Comparable',
-        blockedReason: truces.get(target.id) ?? combatTargetBlock(
+        blockedReason: (target.id === tutorialTarget?.id ? blockedReason : tutorialTarget ? normalAttackerBlock : null) ?? truces.get(target.id) ?? combatTargetBlock(
           player,
           target,
           modelWithDefenderHideout(model, ruleset, target),
@@ -916,9 +930,10 @@ export const CombatService = {
         ),
         protectedUntil: combatProtectionUntil(target, model) > now ? iso(combatProtectionUntil(target, model)) : null,
         ...(model.strategy ? { revengeAvailable: revengeIds.has(target.id), intel: intelByTarget.get(target.id) ?? null } : {}),
-        ...(model.driveBy ? { driveByBlockedReason: truces.get(target.id) ?? driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
-        ...(model.specialRaids ? { specialRaidBlockedReasons: Object.fromEntries((Object.keys(model.specialRaids) as SpecialRaidKind[]).map((kind) => [kind, truces.get(target.id) ?? specialRaidTargetBlock(player, target, model, kind, now, revengeIds.has(target.id), Boolean(ruleset.turf?.corner.desertTurnsPerHour))])) } : {}),
+        ...(model.driveBy ? { driveByBlockedReason: target.id === tutorialTarget?.id ? 'Use a standard raid against the training target.' : truces.get(target.id) ?? driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
+        ...(model.specialRaids ? { specialRaidBlockedReasons: Object.fromEntries((Object.keys(model.specialRaids) as SpecialRaidKind[]).map((kind) => [kind, target.id === tutorialTarget?.id ? 'Use a standard raid against the training target.' : truces.get(target.id) ?? specialRaidTargetBlock(player, target, model, kind, now, revengeIds.has(target.id), Boolean(ruleset.turf?.corner.desertTurnsPerHour))])) } : {}),
         ...(ringRevealedHolderId === target.id ? { hasRing: true as const } : {}),
+        ...(target.id === tutorialTarget?.id ? { tutorial: true as const } : {}),
       })),
       nextTarget: targets.length > 25 ? targets[24]!.publicPimpId : null,
       ...(ringState && ringState.holder && ringState.status === 'SURFACED' ? {
@@ -942,7 +957,7 @@ export const CombatService = {
   async raid(prisma: PrismaClient, attackerId: string, rawInput: RaidInputDto): Promise<BattleReportDto> {
     const input = raidSchema.parse(rawInput);
     // Resolve only identity before locking. Eligibility and every mutable input are read again below.
-    const target = await prisma.roundPlayer.findFirst({ where: { roundId: input.roundId, publicPimpId: input.targetPublicPimpId, account: { isActive: true } }, select: { id: true } });
+    const target = await TutorialCombatTargetService.resolve(prisma, attackerId, input.roundId, input.targetPublicPimpId);
     if (!target) throw AppError.notFound('TARGET_NOT_FOUND', 'That target is not in this round.');
     if (target.id === attackerId) throw AppError.badRequest('INVALID_TARGET', 'You cannot raid yourself.');
 
@@ -958,6 +973,9 @@ export const CombatService = {
       // Cross-action IDs are rejected even if the short-lived record has expired.
       const other = await tx.processedAction.findUnique({ where: { roundPlayerId_actionId: { roundPlayerId: attackerId, actionId: input.actionId } } });
       if (other) throw AppError.conflict('ACTION_ID_REUSED', 'That request id has already been used.');
+      if (target.tutorial && !await TutorialCombatTargetService.questActive(tx, attackerId)) {
+        throw AppError.conflict('RAID_BLOCKED', 'That training target is only available during Take a Shot.');
+      }
       const original = await tx.roundPlayer.findUniqueOrThrow({ where: { id: attackerId }, include: { round: true } });
       if (original.roundId !== input.roundId) throw AppError.badRequest('INVALID_TARGET', 'Pick a player in your round.');
       const { ruleset, model } = modelFor(original.round);
@@ -978,7 +996,7 @@ export const CombatService = {
       const defenderProductProtection = hideoutProductProtection(ruleset, defender, d.products ?? {});
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
-      const blocked = combatAttackerBlock(attacker, model, now) ?? combatTargetBlock(
+      const blocked = combatAttackerBlock(attacker, model, now, { bypassNewcomerProtection: target.tutorial }) ?? combatTargetBlock(
         attacker,
         defender,
         defenderModel,
@@ -1573,10 +1591,7 @@ export const CombatService = {
 
   async recon(prisma: PrismaClient, playerId: string, rawInput: CombatReconInputDto): Promise<CombatReconResultDto> {
     const input = combatReconSchema.parse(rawInput);
-    const target = await prisma.roundPlayer.findFirst({
-      where: { roundId: input.roundId, publicPimpId: input.targetPublicPimpId, account: { isActive: true } },
-      select: { id: true },
-    });
+    const target = await TutorialCombatTargetService.resolve(prisma, playerId, input.roundId, input.targetPublicPimpId);
     if (!target) throw AppError.notFound('TARGET_NOT_FOUND', 'That target is not in this round.');
     if (target.id === playerId) throw AppError.badRequest('INVALID_TARGET', 'You cannot recon yourself.');
 
@@ -1586,6 +1601,9 @@ export const CombatService = {
       if (replay) {
         if (replay.action !== 'COMBAT_RECON') throw AppError.conflict('ACTION_ID_REUSED', 'That request id has already been used.');
         return replay.result as unknown as CombatReconResultDto;
+      }
+      if (target.tutorial && !await TutorialCombatTargetService.questActive(tx, playerId)) {
+        throw AppError.conflict('RECON_BLOCKED', 'That training target is only available during Take a Shot.');
       }
 
       const original = await tx.roundPlayer.findUniqueOrThrow({ where: { id: playerId }, include: { round: true } });
