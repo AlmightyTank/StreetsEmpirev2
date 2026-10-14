@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { APP_VERSION, formatCents, formatCentsCompact } from '@streets/shared';
 import { rulesets } from '@streets/rulesets';
 import { GameEventToasts } from '../components/GameEventToasts.js';
+import { CinematicEncounterAlerts } from '../components/CinematicEncounterAlerts.js';
 import { NotificationBell } from '../components/NotificationBell.js';
 import { InstallBanner } from '../components/InstallBanner.js';
 import { EnvironmentRibbon, environmentLabel } from '../components/EnvironmentRibbon.js';
@@ -512,6 +513,7 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
       <MaintenanceBanner />
       <UpdateBanner />
       <GameEventToasts />
+      <CinematicEncounterAlerts />
 
       <main id="main-content" tabIndex={-1} className={narrow ? 'se-authshell' : 'se-shell'}>{children}</main>
 
