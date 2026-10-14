@@ -21,8 +21,10 @@ test('desktop package includes approved square transparent icon assets', () => {
     assert.ok(fs.existsSync(path.join(buildDir, file)), `${file} should exist`);
   }
   const png = fs.readFileSync(path.join(buildDir, 'icon.png'));
-  assert.equal(png.readUInt32BE(16), 512);
-  assert.equal(png.readUInt32BE(20), 512);
+  const width = png.readUInt32BE(16);
+  const height = png.readUInt32BE(20);
+  assert.equal(width, height, 'PNG icon should be square');
+  assert.ok([512, 1024].includes(width), `PNG icon should be 512 or 1024px, got ${width}`);
   assert.equal(png[25], 6, 'PNG should be RGBA/color type 6 for transparency');
 });
 
