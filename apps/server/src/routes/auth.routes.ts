@@ -20,6 +20,7 @@ import { TwoFactorService } from '../services/two-factor.service.js';
 import { matchKey } from '../services/admin-signals.service.js';
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
+import { beginDiscordOAuthCallback } from '../services/discord-oauth-callback-guard.js';
 import { sendCurrentEmailVerification, sendEmailChangeVerification, sendPasswordResetEmail, sendTwoFactorNotice } from '../services/email.service.js';
 import { SupporterBillingService } from '../services/supporter-billing.service.js';
 import { AppError } from '../utils/errors.js';
@@ -699,6 +700,19 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         : authRedirect('Discord login expired. Try again.'));
     }
 
+    const callbackClaim = beginDiscordOAuthCallback(query.code, query.state);
+    if (callbackClaim.duplicate) {
+      fastify.log.info('duplicate Discord OAuth callback suppressed');
+      const target = await callbackClaim.redirect;
+      // The redirect alone is not authentication. The client must still
+      // hold the first response's verified session/2FA cookie.
+      return reply.redirect(target ?? authRedirect('Discord login expired. Try again.'));
+    }
+    const conclude = (target: string) => {
+      callbackClaim.finish(target);
+      return reply.redirect(target);
+    };
+
     // Exchange against the *same* redirect_uri sent to Discord, even if proxy
     // forwarding headers differ between the authorize and callback requests.
     const redirectUri = savedRedirectUri || discordRedirectUri(request);
@@ -710,16 +724,16 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       stage = 'account_resolution';
 
       if (linkMode) {
-        if (!request.auth) return reply.redirect(authRedirect('Log in before linking Discord.'));
+        if (!request.auth) return conclude(authRedirect('Log in before linking Discord.'));
         // rc.2: someone with only an admin's password must not be able to attach their own
         // Discord and so reach the admin tools. An admin signs in with Discord instead (a
         // Discord account on the same verified email links itself), or the operator
         // removes the role, the player links, and the role goes back.
         if (adminNeedsSecondFactor(request.auth.account, request.auth.session)) {
-          return reply.redirect(accountRedirect('Admins cannot link Discord from a password-only sign-in. Sign in with your authenticator code, or use "Sign in with Discord" with a Discord account on this email.'));
+          return conclude(accountRedirect('Admins cannot link Discord from a password-only sign-in. Sign in with your authenticator code, or use "Sign in with Discord" with a Discord account on this email.'));
         }
         await linkDiscordToAccount(fastify.prisma, request.auth.account, discordUser);
-        return reply.redirect(accountRedirect('Discord is linked.'));
+        return conclude(accountRedirect('Discord is linked.'));
       }
 
       const account = await accountForDiscordUser(fastify.prisma, discordUser);
@@ -730,7 +744,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       // rc.3: two-step sign-in applies to Discord sign-ins too (unless this browser is trusted, rc.4).
       if (account.twoFactorEnabledAt && !(await TwoFactorService.isTrustedDevice(fastify.prisma, account.id, readSignedCookie(request, TRUSTED_DEVICE_COOKIE)))) {
         setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'DISCORD', remember));
-        return reply.redirect(twoFactorRedirect());
+        return conclude(twoFactorRedirect());
       }
       stage = 'session_creation';
       const { token } = await createSession(fastify.prisma, account.id, {
@@ -742,14 +756,14 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       fastify.setSessionCookie(reply, token, remember);
       await noteSignIn(fastify.prisma, request, reply, account);
 
-      return reply.redirect(postLoginRedirect());
+      return conclude(postLoginRedirect());
     } catch (error) {
       // Log the failing step without including OAuth tokens or the code.
       fastify.log.warn({ err: error, stage }, linkMode ? 'discord link failed' : 'discord login failed');
       if (error instanceof AppError) {
-        return reply.redirect(linkMode ? accountRedirect(error.message) : authRedirect(error.message));
+        return conclude(linkMode ? accountRedirect(error.message) : authRedirect(error.message));
       }
-      return reply.redirect(linkMode
+      return conclude(linkMode
         ? accountRedirect('Discord linking failed. Try again.')
         : authRedirect('Discord login failed. Try again.'));
     }
