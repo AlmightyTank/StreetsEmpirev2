@@ -533,6 +533,10 @@
   margin: 0;
 }
 
+.se-profile .se-panel::before {
+  display: none;
+}
+
 .se-profile-intel {
   border-left: 3px solid var(--se-line-soft);
 }

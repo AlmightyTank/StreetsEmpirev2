@@ -51,6 +51,10 @@
   background: linear-gradient(90deg, rgba(var(--se-page-rgb), 0.6), transparent 54%);
 }
 
+.se-app.se-route--profile .se-profile .se-panel::before {
+  display: none;
+}
+
 .se-app[class*='se-route--'] .se-panel__head {
   background:
     linear-gradient(90deg, rgba(var(--se-page-rgb), 0.075), transparent 70%),
