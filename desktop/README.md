@@ -11,7 +11,7 @@ and the website itself never has local system/Discord access.
 
 Pull-request builds remain private to workflow artifacts and will **never** replace the downloadable release. A new set is published from `beta` only after all four OS builds pass. The desktop app has **Help → Get Latest Desktop Version (Beta)** to open the same page. New website features need no desktop app rebuild; changes to the desktop app do.
 
-## Portable downloads (0.1.4)
+## Portable downloads (0.1.5)
 
 Build artifacts are generated in [StreetsEmpire Desktop Actions](https://github.com/AlmightyTank/StreetsEmpirev2/actions/workflows/desktop-platforms.yml)
 on the `feature/desktop-game-discord-presence` PR branch, and after merging
@@ -20,10 +20,10 @@ the GitHub artifact ZIP first.
 
 | Platform | GitHub Actions artifact | Actual downloadable app | How to start |
 | --- | --- | --- | --- |
-| Windows 10/11 (64-bit) | `StreetsEmpire-Windows-x64` | `StreetsEmpire-Portable-0.1.4.exe` | Double-click EXE; no installer, administrator permission or system-wide changes |
-| macOS Intel (x64) | `StreetsEmpire-macOS-Intel` | `StreetsEmpire-macOS-x64-0.1.4.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
-| macOS Apple Silicon (M1/M2/M3/M4, arm64) | `StreetsEmpire-macOS-Apple-Silicon` | `StreetsEmpire-macOS-arm64-0.1.4.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
-| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x86_64-0.1.4.AppImage` | `chmod +x StreetsEmpire-Linux-x86_64-0.1.4.AppImage` then run it |
+| Windows 10/11 (64-bit) | `StreetsEmpire-Windows-x64` | `StreetsEmpire-Portable-0.1.5.exe` | Double-click EXE; no installer, administrator permission or system-wide changes |
+| macOS Intel (x64) | `StreetsEmpire-macOS-Intel` | `StreetsEmpire-macOS-x64-0.1.5.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
+| macOS Apple Silicon (M1/M2/M3/M4, arm64) | `StreetsEmpire-macOS-Apple-Silicon` | `StreetsEmpire-macOS-arm64-0.1.5.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
+| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x86_64-0.1.5.AppImage` | `chmod +x StreetsEmpire-Linux-x86_64-0.1.5.AppImage` then run it |
 
 Windows uses electron-builder's **portable** target, macOS uses ZIP archives
 containing a native `.app`, and Linux uses **AppImage**. None of these require
@@ -110,6 +110,41 @@ npm run dist:linux
 
 If you omit the Application ID, the app still opens the game but Discord Rich
 Presence is unavailable. No developer secrets are embedded.
+
+## Discord Presence troubleshooting (desktop v0.1.5)
+
+To share an activity, run the **Discord desktop app** on the **same computer**
+as StreetsEmpire Desktop, sign in to Discord, and ensure Discord →
+**User Settings → Activity Privacy → Share Your Activity** is enabled.
+Rich Presence doesn't work when only the Discord website is open.
+
+Inside StreetsEmpire Desktop:
+
+1. Choose **Discord → Show Playing StreetsEmpire** (must be checked).
+2. Open a page under `/game`, such as Scout or Casino (the login page does not
+   broadcast a game activity). The program displays only coarse page labels.
+3. Choose **Discord → Connection Details…**. You can distinguish a missing
+   Application ID, searching for the local Discord app, a completed handshake,
+   a sent activity, Discord acknowledgment, or a rejected update.
+4. If needed, choose **Reconnect to Discord** after opening Discord. The app
+   also retries the connection automatically.
+5. To separate an RPC connection problem from game-page detection, use
+   **Discord → Test Rich Presence (12 seconds)**. It temporarily shares a
+   harmless test status without exposing any player data.
+
+If the connection details say **Discord accepted activity** but other people
+don't see it, check Discord's Activity Privacy and per-game sharing settings.
+If the connection details report **Rich Presence rejected**, confirm the
+large/small art asset keys were actually uploaded to the same Discord
+application whose public Application ID is embedded in the build.
+
+On Linux/macOS the app now searches the documented XDG runtime and temporary
+socket locations, with the Linux Discord Flatpak socket path as a fallback.
+Platform packaging environments may still prevent access to Discord's socket.
+
+Discord OAuth **sign-in to the game** is a separate feature from Rich Presence:
+it requires backend OAuth credentials, whereas Rich Presence uses only the
+public Application ID and a locally running Discord app.
 
 ## Discord Rich Presence artwork
 
