@@ -27,6 +27,14 @@ describe('cinematic encounter activity mapping', () => {
     }))).toMatchObject({ kind: 'turf', outcome: 'victory', title: 'Downtown held' });
   });
 
+  it('uses real battle descriptions for outgoing attacks', () => {
+    const report = encounterAlertForActivity(activity('RAID_ATTACK', {
+      won: false, opponent: 'Northside', move: 'Raid',
+    }));
+    expect(report).toMatchObject({ kind: 'raid', outcome: 'defeat', title: 'Your raid failed' });
+    expect(report?.description).toContain('Northside');
+  });
+
   it('distinguishes advance warning from completed fights', () => {
     expect(encounterAlertForActivity(activity('TURF_PUSH_INCOMING', {
       district: 'Riverside', landsAt: '2026-10-14T13:00:00.000Z',
