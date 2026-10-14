@@ -37,6 +37,11 @@ let presence = new DiscordPresence(config.discordClientId, config.discordAssets,
 const hasApplicationId = Boolean(presence.clientId);
 const gameViews = new Map();
 
+function appIconPath() {
+  const iconFile = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
+  return path.join(__dirname, '..', 'assets', iconFile);
+}
+
 function settingsPath() {
   return path.join(app.getPath('userData'), SETTINGS_FILE);
 }
@@ -485,6 +490,7 @@ function createWindow() {
     minWidth: 400,
     minHeight: 520,
     show: true,
+    icon: appIconPath(),
     autoHideMenuBar: false,
     backgroundColor: '#101419',
     webPreferences: {

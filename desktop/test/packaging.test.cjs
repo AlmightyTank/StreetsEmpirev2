@@ -26,6 +26,12 @@ test('desktop package includes approved square transparent icon assets', () => {
   assert.equal(png[25], 6, 'PNG should be RGBA/color type 6 for transparency');
 });
 
+test('desktop runtime window uses bundled app icon assets', () => {
+  const mainSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.cjs'), 'utf8');
+  assert.match(mainSource, /process\.platform === 'win32' \? 'icon\.ico' : 'icon\.png'/);
+  assert.match(mainSource, /icon: appIconPath\(\)/);
+});
+
 test('Windows release is a portable executable with no installer or elevation', () => {
   assert.equal(pkg.build.win.icon, 'assets/icon.ico');
   assert.equal(pkg.build.win.requestedExecutionLevel, 'asInvoker');
