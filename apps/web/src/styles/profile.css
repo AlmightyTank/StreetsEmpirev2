@@ -1116,14 +1116,14 @@
 .se-avatar-portrait__face {
   position: absolute;
   z-index: 3;
-  top: 28%;
-  left: 28%;
+  top: var(--se-avatar-opening-top, 28%);
+  left: var(--se-avatar-opening-left, 28%);
   display: grid;
   place-items: center;
   overflow: hidden;
-  width: 44%;
-  aspect-ratio: 1;
-  border-radius: 50%;
+  width: var(--se-avatar-opening-width, 44%);
+  height: var(--se-avatar-opening-height, 44%);
+  border-radius: var(--se-avatar-opening-radius, 50%);
   background: color-mix(in srgb, var(--se-accent) 18%, #111722);
 }
 
@@ -1145,18 +1145,6 @@
   max-width: none;
   object-fit: contain !important;
   pointer-events: none;
-}
-
-.se-avatar-portrait[data-avatar-frame="lantern-district-frame"] .se-avatar-portrait__face {
-  top: 21%;
-  left: 27%;
-  width: 46%;
-}
-
-.se-avatar-portrait[data-avatar-frame="street-pass-s1-frame"] .se-avatar-portrait__face {
-  top: 25%;
-  left: 25%;
-  width: 50%;
 }
 
 .se-avatar-frame {
