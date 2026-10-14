@@ -58,4 +58,30 @@ describe('startBotPresence', () => {
     expect(setActivity).toHaveBeenCalled();
     stop?.();
   });
+
+  it('advances through every card without sticking, even when the API is down', async () => {
+    vi.useFakeTimers();
+    try {
+      const seen: string[] = [];
+      const setActivity = vi.fn((activity: { name: string }) => { seen.push(activity.name); });
+      const silence = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      const stop = startBotPresence({ user: { setActivity } } as never, {
+        playHost: 'streetsempire.com',
+        minutes: 5,
+        getRound: async () => { throw new Error('game is down'); },
+      });
+      // Immediate tick + 12 interval ticks cover the whole list.
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(12 * 5 * 60_000);
+      stop?.();
+      silence.mockRestore();
+      const expected = buildPresenceList({ playHost: 'streetsempire.com' }).map((a) => a.name);
+      expect(seen.slice(0, expected.length)).toEqual(expected);
+      // It wraps around instead of stopping at the end.
+      expect(seen.length).toBeGreaterThan(expected.length);
+      expect(seen[expected.length]).toBe(expected[0]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

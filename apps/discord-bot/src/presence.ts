@@ -93,7 +93,10 @@ export function startPresenceRotator(
     }
     const list = buildPresenceList(ctx);
     const activity = list[index % list.length];
-    if (activity) applyPresence(client, activity);
+    if (activity) {
+      applyPresence(client, activity);
+      console.log(`Bot presence (${(index % list.length) + 1}/${list.length}): ${ActivityType[activity.type]} ${activity.name} — ${activity.state ?? '(no state)'}`);
+    }
     index += 1;
   };
   void tick();
