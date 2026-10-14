@@ -11,7 +11,7 @@ and the website itself never has local system/Discord access.
 
 Pull-request builds remain private to workflow artifacts and will **never** replace the downloadable release. A new set is published from `beta` only after all four OS builds pass. The desktop app has **Help → Get Latest Desktop Version (Beta)** to open the same page. New website features need no desktop app rebuild; changes to the desktop app do.
 
-## Portable downloads (0.1.3)
+## Portable downloads (0.1.4)
 
 Build artifacts are generated in [StreetsEmpire Desktop Actions](https://github.com/AlmightyTank/StreetsEmpirev2/actions/workflows/desktop-platforms.yml)
 on the `feature/desktop-game-discord-presence` PR branch, and after merging
@@ -20,10 +20,10 @@ the GitHub artifact ZIP first.
 
 | Platform | GitHub Actions artifact | Actual downloadable app | How to start |
 | --- | --- | --- | --- |
-| Windows 10/11 (64-bit) | `StreetsEmpire-Windows-x64` | `StreetsEmpire-Portable-0.1.3.exe` | Double-click EXE; no installer, administrator permission or system-wide changes |
-| macOS Intel (x64) | `StreetsEmpire-macOS-Intel` | `StreetsEmpire-macOS-x64-0.1.3.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
-| macOS Apple Silicon (M1/M2/M3/M4, arm64) | `StreetsEmpire-macOS-Apple-Silicon` | `StreetsEmpire-macOS-arm64-0.1.3.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
-| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x86_64-0.1.3.AppImage` | `chmod +x StreetsEmpire-Linux-x86_64-0.1.3.AppImage` then run it |
+| Windows 10/11 (64-bit) | `StreetsEmpire-Windows-x64` | `StreetsEmpire-Portable-0.1.4.exe` | Double-click EXE; no installer, administrator permission or system-wide changes |
+| macOS Intel (x64) | `StreetsEmpire-macOS-Intel` | `StreetsEmpire-macOS-x64-0.1.4.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
+| macOS Apple Silicon (M1/M2/M3/M4, arm64) | `StreetsEmpire-macOS-Apple-Silicon` | `StreetsEmpire-macOS-arm64-0.1.4.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
+| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x86_64-0.1.4.AppImage` | `chmod +x StreetsEmpire-Linux-x86_64-0.1.4.AppImage` then run it |
 
 Windows uses electron-builder's **portable** target, macOS uses ZIP archives
 containing a native `.app`, and Linux uses **AppImage**. None of these require
