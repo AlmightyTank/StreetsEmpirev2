@@ -120,7 +120,7 @@ async function showSessionStatus() {
       `Session cookie stored: ${hasCookie ? 'Yes' : 'No'}`,
       'Your account must remain signed in on the same host after Discord authorization.',
       hasCookie ? 'If sign-in still fails, the server may be rejecting the session. Check server logs.' : 'Try a fresh Discord login; if the problem continues, test in a normal browser.',
-    ].join('\\n'),
+    ].join('\n'),
     buttons: ['OK'],
   });
 }
