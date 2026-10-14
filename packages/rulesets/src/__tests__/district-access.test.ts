@@ -46,8 +46,9 @@ describe('1.8.0-O district access (Quest Access A)', () => {
   it('ships pinned on top of 1.8.0-N and stays inherited by the newest ruleset', () => {
     expect(classicOgV18O.meta).toMatchObject({ id: 'classic-og-v1.8-o', version: '1.8.0-O', name: 'Classic OG - District Access' });
     expect(rulesets[classicOgV18O.meta.id]).toBe(classicOgV18O);
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18R);
+    expect(rulesets[classicOgV18R.meta.id]).toBe(classicOgV18R);
     expect(classicOgV18R.permanentUnlocks).toBe(classicOgV18O.permanentUnlocks);
+    expect(Object.values(rulesets).at(-1)?.permanentUnlocks).toBe(classicOgV18O.permanentUnlocks);
   });
 
   it('locks only the Nightclub and Casino, each opened by one story job', () => {
