@@ -25,7 +25,7 @@ Source of truth for planning: `openspec/changes/empire-cohesion-3-0/` (proposal,
 5. **Law is pressure, not punishment.** Investigations follow the org across cities with bounded raid/bribe/lay-low valves, all priced upfront and audited.
 6. **Competition rewards recognition, not power.** Org wars score influence points only in v1. Rewards are cosmetics, trophies, titles, Hall of Fame — never turns/cash/product/combat/pace.
 7. **New cities earn their place.** A city ships only with distinct leans, costs, connections, turf difficulty, and law profile, proven by sim to enable a strategy that did not exist.
-8. **Rounds pin rulesets.** `classic-og-v3.0-*` slices spread the prior version. Pre-3.0 rounds never see new behavior.
+8. **Rounds pin rulesets.** `classic-og-v3.0-a` seeds from `classic-og-v1.8-s`, later slices spread forward. Pre-3.0 rounds never see new behavior.
 
 ## Release shape
 
@@ -34,7 +34,7 @@ Slices **A–C** build cohesion on the existing map. Slices **D–F** expand and
 | Slice | Theme | Outcome |
 | --- | --- | --- |
 | **3.0-A — Holding read-model** | One card per city | Holding aggregation (corners, fronts, properties + upkeep, crews, stock by place, pressure) with reconcile checks; modifiers default to identity. |
-| **3.0-B — Org layer + contracts** | Identity above alliances | Org create/join/leave, interstate contracts on existing settlement, org dashboard. |
+| **3.0-B — Org layer + contracts** | Evolved alliance (3 sects) | Org found/invite-accept/secede (alliances become sects), interstate contracts on existing settlement, org dashboard. |
 | **3.0-C — Unified logistics** | One planner | Single quote path for pickups/shipments/lanes; existing specialties assignable; no settlement fork. |
 | **3.0-D — New holding nodes** | Map with reason | Northern playable city (default Toronto, confirm via sim) + playable Monterrey; block-holding foot-traffic decision. |
 | **3.0-E — Cross-city law** | Pressure follows the org | Evidence routing to city cases + investigation progress; bounded raids/bribes; case cross-city view. |
@@ -53,9 +53,9 @@ Expose one holding per player per city from existing rows: turf corners, busines
 
 ### 3.0-B — Org layer + interstate contracts
 
-Orgs are new entities above alliances (one org per round, capped roster). Alliances keep their wire. Interstate contracts (move/protect/supply/hold across cities) settle on existing run/shipment/sale paths with single idempotent payouts. Org dashboard shows members, contracts, influence, history.
+Orgs are evolved alliances: a founding alliance invites up to 2 other alliances (max 3 sects, 5 members each, 15 per org). Each sect keeps its alliance wire, revenge, and cooldown semantics; solo players join an org via a sect alliance. Interstate contracts (move/protect/supply/hold across cities) settle on existing run/shipment/sale paths with single idempotent payouts. Org dashboard shows sects, members, contracts, influence, history.
 
-**Gate:** retry/race creates one membership; leaving strands no stock/crews/property; contracts supplement PvP (1.4 guardrail), never the safest optimal money.
+**Gate:** retry/race creates one sect membership; player or whole-sect leave strands no stock/crews/property; contracts supplement PvP (1.4 guardrail), never the safest optimal money.
 
 ### 3.0-C — Unified logistics planner
 
@@ -87,9 +87,10 @@ Season sims (small/large bankrolls × home/hub/dear-market/lane over 7+ days) mu
 
 **Gate:** pre-3.0 behavior proven unchanged by historical-ruleset tests.
 
-## Open decisions (3 locked, 2 recommended)
+## Open decisions (4 locked, 2 recommended)
 
-- ~~Org size~~ **Locked: 15 per org for v1**; alliance-of-alliances deferred.
+- ~~Org model~~ **Locked: evolved alliance — up to 3 alliances merge, each becomes a sect; org cap 15 = 3 × 5** (sect keeps wire/revenge/cooldown; solo joins via a sect).
+- ~~Org size~~ **Locked: 15 per org for v1** (falls out of 3 sects × 5).
 - ~~Northern pick~~ **Locked: Toronto**; Vancouver deferred.
 - ~~Block-holding dealer bonus~~ **Locked: yes, small** — starting hypothesis +8% sales pace when holding the crew's block, shown pre-commit, no stacking, sim sets the final number.
 - Mexico City playable timing: **recommended deferred to 3.1** — 3.0-D ships playable Monterrey, Mexico City stays a supplier-only contact (Freight/Air lots as today). Ship playable Mexico City only if Monterrey season sim shows a distinct hub role plus leftover southern demand that doesn't cannibalize Dallas. Two southern playables at once doubles city-keyed content and risks a must-pick south.
