@@ -72,7 +72,8 @@ describe('ruleset loader', () => {
     const registered = Object.keys(rulesets);
     expect(listed).toHaveLength(registered.length);
     expect(new Set(listed.map((ruleset) => ruleset.meta.id)).size).toBe(registered.length);
-    expect(listed.at(-1)?.meta.id).toBe('classic-og-v1.8-r');
+    expect(isKnownRulesetId('classic-og-v1.8-r')).toBe(true);
+    expect(loadRuleset('classic-og-v1.8-r', '1.8.0-R').meta.name).toBe('Classic OG - Hidden Streets Comedy');
   });
 });
 
