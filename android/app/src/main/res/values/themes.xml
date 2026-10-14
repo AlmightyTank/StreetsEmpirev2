@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.StreetsEmpire" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/se_accent</item>
+        <item name="colorOnPrimary">@color/se_background</item>
+        <item name="android:statusBarColor">@color/se_surface</item>
+        <item name="android:navigationBarColor">@color/se_background</item>
+    </style>
+</resources>

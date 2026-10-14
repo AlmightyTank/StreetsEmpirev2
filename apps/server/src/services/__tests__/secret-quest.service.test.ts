@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { classicOgV07P, classicOgV18R } from '@streets/rulesets';
+import type { Ruleset } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import { activityMatchesSecretTrigger, syncSecretQuestAttempts } from '../secret-quest.service.js';
 
@@ -130,5 +131,34 @@ describe('secret quest activity triggers', () => {
     }]);
     expect(await syncSecretQuestAttempts(db, 'player-1', classicOgV18R)).toEqual([]);
     expect(rows).toHaveLength(1);
+  });
+
+  it('ignores unknown activity event types instead of throwing', async () => {
+    const ruleset = {
+      meta: { id: 'test-ruleset', version: '1' },
+      questDefinitions: {
+        SECRET_BOGUS: {
+          key: 'SECRET_BOGUS',
+          type: 'SECRET',
+          availability: {
+            secretTrigger: { kind: 'ACTIVITY_COUNT', eventTypes: ['NO_SUCH_ACTIVITY_TYPE'], target: 1 },
+          },
+        },
+      },
+    } as unknown as Ruleset;
+    const findMany = vi.fn(async () => []);
+    const db = {
+      questDefinition: { findMany: async () => [{ id: 'def-1', key: 'SECRET_BOGUS' }] },
+      playerQuest: {
+        findMany: async () => [],
+        create: async () => { throw new Error('should not reveal'); },
+      },
+      roundPlayer: { findUnique: async () => ({ heat: 0, whores: 0, netWorthCents: 0n }) },
+      turf: { count: async () => 0 },
+      playerActivity: { findMany },
+    } as unknown as Db;
+
+    await expect(syncSecretQuestAttempts(db, 'player-1', ruleset)).resolves.toEqual([]);
+    expect(findMany).not.toHaveBeenCalled();
   });
 });
