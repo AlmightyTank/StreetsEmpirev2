@@ -1,112 +1,142 @@
-# StreetsEmpire Desktop — portable Windows app
+# StreetsEmpire Desktop — Windows, macOS and Linux
 
-A **no-install**, single-file Windows .exe for the existing StreetsEmpire
-browser game, with optional Discord Rich Presence. It does **not** run a second
-game server or make players create a new account.
+Cross-platform desktop client wrapping the **existing** StreetsEmpire website.
+It is not a second game server. Players log in with their usual StreetsEmpire
+credentials and use the same live game data. Discord Rich Presence is optional,
+and the website itself never has local system/Discord access.
 
-## Run it (no installation or administrator required)
+## Portable downloads (0.1.3)
 
-1. Download **StreetsEmpire-Portable-0.1.2.exe** from the
-   **StreetsEmpire-Windows-Portable** artifact in the Windows GitHub Actions run.
-   Unzip the artifact GitHub downloaded; the .exe itself needs no installation.
-2. Save the .exe in Downloads, on your Desktop, or on a USB drive.
-3. Double-click it. You can right-click → Create shortcut if you want.
-4. Log in to your normal StreetsEmpire account.
+Build artifacts are generated in [StreetsEmpire Desktop Actions](https://github.com/AlmightyTank/StreetsEmpirev2/actions/workflows/desktop-platforms.yml)
+on the `feature/desktop-game-discord-presence` PR branch, and after merging
+on `beta`. Download the artifact matching your operating system and extract
+the GitHub artifact ZIP first.
 
-The portable application does **not** install into Program Files, request
-administrator privileges, modify installation registry entries, or create Start
-menu shortcuts. Electron-builder extracts its runtime into Windows temporary
-storage while running. Delete the .exe when you no longer want the application.
+| Platform | GitHub Actions artifact | Actual downloadable app | How to start |
+| --- | --- | --- | --- |
+| Windows 10/11 (64-bit) | `StreetsEmpire-Windows-x64` | `StreetsEmpire-Portable-0.1.3.exe` | Double-click EXE; no installer, administrator permission or system-wide changes |
+| macOS Intel (x64) | `StreetsEmpire-macOS-Intel` | `StreetsEmpire-macOS-x64-0.1.3.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
+| macOS Apple Silicon (M1/M2/M3/M4, arm64) | `StreetsEmpire-macOS-Apple-Silicon` | `StreetsEmpire-macOS-arm64-0.1.3.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
+| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x64-0.1.3.AppImage` | `chmod +x StreetsEmpire-Linux-x64-0.1.3.AppImage` then run it |
 
-**Player settings and website login sessions stay under the current user's
-Windows AppData folder** (not beside the portable .exe). This is intentional
-so moving the executable to another machine does not also copy login sessions
-or tokens. If you run the same .exe on a second computer, sign in there.
+Windows uses electron-builder's **portable** target, macOS uses ZIP archives
+containing a native `.app`, and Linux uses **AppImage**. None of these require
+a traditional installer. Builds target Intel/x64 Windows and Linux and both
+Intel/x64 and Apple Silicon/arm64 macOS. Linux ARM64 is not included yet.
 
-The executable is **not yet digitally signed**. Windows SmartScreen may show
-"Unknown publisher" or "Windows protected your PC" for the downloaded binary;
-that is a *trust warning*, not a request by the game for administrator rights.
-Windows security policies may still block unsigned binaries. Test builds should
-only be downloaded from this project's GitHub Actions.
+**Unsigned builds:** Test releases have no Windows code-signing certificate,
+Apple Developer ID/notarization or Linux software-vendor signatures. macOS
+Gatekeeper may block the app, even though it is packaged correctly. If you trust
+the exact artifact downloaded from your GitHub Actions run, macOS provides
+an exception through System Settings → Privacy & Security → Open Anyway.
+Windows may warn with SmartScreen, and managed devices can prohibit unknown
+applications altogether. A public release should be properly signed and
+notarized before telling regular players to install/open it.
 
-If you installed the old **0.1.0 / 0.1.1 installer**, you can run the portable
-.exe independently without reinstalling. You can also uninstall the older
-installed app through Windows Settings. Removing an earlier machine-wide
-installation might require a one-time Windows administrator confirmation.
+**Linux caveat:** Depending on the distribution, AppImage may require a
+compatible FUSE runtime. If it cannot launch, review the host's AppImage/FUSE
+support. Desktop Chromium sandboxing may also depend on Linux user namespaces;
+do not disable sandboxing as a blanket workaround.
 
-## Features
+## Accounts, updates and privacy
 
 - Opens https://play.streetsempire.dev by default.
-- **Game → Play Live / Play Beta (invite-only)** switches servers; all game
-  updates are delivered by the existing websites.
-- Existing StreetsEmpire accounts and progress work normally.
-- **Discord → Show Playing StreetsEmpire** enables/disables activity sharing.
-- Discord activity includes broad game locations such as Scouting, Quests,
-  Turf and individual Casino games. No hidden intel, private messages,
-  detailed inventories or player balances are shared.
-- Uses Discord's **installed desktop client** and a public Discord Application
-  ID; does not need a bot/user token or OAuth client secret.
-- If Discord is closed, the game still works, and Presence reconnects later.
-  Minimizing, logging out or closing the desktop window clears the activity.
+- **Game → Play Live** or **Play Beta (invite-only)** switches servers. Beta
+  access requires a StreetsEmpire administrator's approval and is unrelated
+  to Windows/macOS/Linux account permissions.
+- Players get website gameplay updates automatically. New desktop-only
+  features require downloading a new app version.
+- Discord → Show Playing StreetsEmpire is optional and can be turned off.
+  The displayed activity reflects the broad current game section only (e.g.
+  Scout, Quests, Slots, Poker). It never reveals player balances, private
+  messages, targets or hidden intel.
+- A running Discord desktop client is required for Rich Presence to work.
+  Discord being closed should not interrupt the game.
+- App preferences and login session data remain in the **current user's
+  OS application-data directory**, not next to portable files. Moving a
+  portable executable to another computer does not copy account sessions.
+- If you have an older Windows installer version, the new portable EXE can
+  run without uninstalling the old program. You may remove the old installation
+  through Windows Installed Apps. A machine-wide uninstall may request an
+  administrator confirmation.
 
-**Beta access is invite-only and requires in-game admin approval** for accounts
-that aren't yet authorized. This is unrelated to Windows UAC. Play Live for
-regular gameplay.
+## Building locally
 
-## Requirements
+Node.js/npm are needed **only to build** the desktop client, not to use it.
 
-- Windows 10/11 x64, with an internet connection to the StreetsEmpire website.
-- Discord desktop client is optional, but required for Discord Rich Presence.
-- The Discord Application ID needs to be configured at build time for Presence
-  to work. If it's missing, the portable game still runs.
-
-## Build locally (PowerShell)
-
-Node.js/npm are only required **for building** the portable executable, not
-for running a downloaded .exe.
-
-From the repository root:
-
-```powershell
+```bash
 cd desktop
 npm install
-$env:STREETSEMPIRE_DISCORD_CLIENT_ID="YOUR_PUBLIC_DISCORD_APPLICATION_ID"
 npm test
 npm run check
-npm run dist:portable
 ```
 
-Output: `desktop/dist/StreetsEmpire-Portable-0.1.2.exe`.
+Set the public Discord Application ID before packaging if you want status to
+work. It is **not** a Discord Bot Token, OAuth Client Secret or user token.
 
-Omitting the Application ID builds a usable desktop game with Discord Presence
-disabled. The config generator embeds only the **public numeric Application
-ID** in `src/generated-config.json`, which is git-ignored. **Never use a
-Discord bot token, OAuth secret or a user token.**
+Windows PowerShell:
 
-## GitHub Actions build
+```powershell
+$env:STREETSEMPIRE_DISCORD_CLIENT_ID="YOUR_PUBLIC_DISCORD_APPLICATION_ID"
+npm run dist:win
+```
 
-The workflow `.github/workflows/desktop-windows.yml` runs Windows tests and
-packages a single, unsigned **StreetsEmpire-Windows-Portable** artifact. To
-enable Discord status in those builds, set the GitHub Actions **repository
-variable** `STREETSEMPIRE_DISCORD_CLIENT_ID` to the public Discord Developer
-Application ID of the **StreetsEmpire** app before running the workflow.
-You must rebuild after setting the variable.
+macOS Intel:
 
-This portable app does not automatically install updates. Replace the old
-portable .exe with the newest version when desktop features change; ordinary
-gameplay updates continue to arrive from the existing StreetsEmpire website.
+```bash
+export STREETSEMPIRE_DISCORD_CLIENT_ID="YOUR_PUBLIC_DISCORD_APPLICATION_ID"
+npm run dist:mac:x64
+```
 
-## Security and testing
+macOS Apple Silicon:
 
-- The web renderer is sandboxed, without Node integration or a JavaScript
-  bridge to the computer. Discord RPC remains in the Electron main process.
-- Website navigation is restricted to game domains and Discord OAuth; other
-  HTTPS links open in the default browser. File and script URLs are rejected.
-- Portable packaging requests `asInvoker` (run with current-user rights).
-- Player logins are kept in per-user AppData rather than on removable drives.
-- Before publishing, validate the downloaded Windows EXE on a real PC:
-  normal sign-in, Discord OAuth, game navigation, Discord activity,
-  reconnecting Discord after launch, and presence cleanup on closing/minimize.
-- For a public release, code-sign the executable and review its Windows
-  SmartScreen reputation. Untrusted or organization-managed PCs can have
-  stricter execution policies regardless of packaging.
+```bash
+export STREETSEMPIRE_DISCORD_CLIENT_ID="YOUR_PUBLIC_DISCORD_APPLICATION_ID"
+npm run dist:mac:arm64
+```
+
+Linux x64:
+
+```bash
+export STREETSEMPIRE_DISCORD_CLIENT_ID="YOUR_PUBLIC_DISCORD_APPLICATION_ID"
+npm run dist:linux
+```
+
+If you omit the Application ID, the app still opens the game but Discord Rich
+Presence is unavailable. No developer secrets are embedded.
+
+## GitHub Actions
+
+Workflow: `.github/workflows/desktop-platforms.yml`.
+
+It runs all **four native-platform build jobs** independently:
+
+1. Windows x64 → portable EXE
+2. macOS Intel x64 → zipped app
+3. macOS Apple Silicon arm64 → zipped app
+4. Linux x64 → AppImage
+
+Each runner installs desktop dependencies, runs Node unit tests and syntax
+checks, builds its artifact and uploads it. The workflow can be launched
+manually on the feature branch and also runs for PRs, and on the beta branch
+when the desktop code changes.
+
+For Discord activity, configure repository **Settings → Secrets and variables
+→ Actions → Variables** with the public variable named
+`STREETSEMPIRE_DISCORD_CLIENT_ID`. All four builds share that value. After
+adding/changing it, **run the workflow again** to package it into new binaries.
+
+## Security and release validation
+
+- Electron remote web pages run sandboxed, with Node integration disabled,
+  context isolation on and no privileged preload bridge.
+- Navigation is restricted to the game origins and Discord's OAuth origin.
+  Other normal HTTPS links open in the external browser.
+- Discord IPC stays entirely in the Electron main process and never exposes
+  a privileged interface to the game website.
+- The app does not request Windows administrator privileges. On macOS or
+  Linux, run it as a normal user.
+- **Manual testing is still required** for login (including Discord OAuth),
+  presence updates on all three OSes, minimized/closed cleanup and the first
+  run experience. Successful CI proves the programs packaged, not that Discord
+  integration and all gameplay flows have been exercised in each OS.
