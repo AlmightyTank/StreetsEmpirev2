@@ -5,6 +5,12 @@ It is not a second game server. Players log in with their usual StreetsEmpire
 credentials and use the same live game data. Discord Rich Presence is optional,
 and the website itself never has local system/Discord access.
 
+## Latest portable downloads
+
+**One permanent link for everyone:** [Latest StreetsEmpire Desktop Beta](https://github.com/AlmightyTank/StreetsEmpirev2/releases/tag/desktop-beta). After this workflow is merged into `beta` and successfully publishes, that URL always contains the newest tested Windows, macOS Intel, macOS Apple Silicon and Linux downloads, plus their checksums. No GitHub Actions artifact hunting or account sign-in is needed for this public repository. The release is marked as a **pre-release**, not a stable production download.
+
+Pull-request builds remain private to workflow artifacts and will **never** replace the downloadable release. A new set is published from `beta` only after all four OS builds pass. The desktop app has **Help → Get Latest Desktop Version (Beta)** to open the same page. New website features need no desktop app rebuild; changes to the desktop app do.
+
 ## Portable downloads (0.1.3)
 
 Build artifacts are generated in [StreetsEmpire Desktop Actions](https://github.com/AlmightyTank/StreetsEmpirev2/actions/workflows/desktop-platforms.yml)
