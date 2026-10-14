@@ -41,7 +41,7 @@ jobs:
             os: ubuntu-24.04
             script: dist:linux
             artifact: StreetsEmpire-Linux-x64
-            glob: desktop/dist/StreetsEmpire-Linux-x64-*.AppImage
+            glob: desktop/dist/StreetsEmpire-Linux-x86_64-*.AppImage
 
     steps:
       - uses: actions/checkout@v4
