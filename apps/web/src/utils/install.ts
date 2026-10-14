@@ -12,6 +12,19 @@ export interface InstallPromptEvent extends Event {
 
 export type InstallPlatform = 'ios' | 'android' | null;
 
+/**
+ * Native wrappers (Android WebView, Electron desktop) already *are* the app,
+ * so the "Get the app" banner must stay hidden there. The Android shell tags
+ * its user agent with `StreetsEmpireAndroid/<version>`.
+ */
+export function isNativeApp(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  return ua.includes('StreetsEmpireAndroid/')
+    || ua.includes('StreetsEmpireDesktop/')
+    || ua.includes('Electron/');
+}
+
 let deferred: InstallPromptEvent | null = null;
 let installed = false;
 const listeners = new Set<() => void>();
@@ -41,6 +54,7 @@ export function canPromptInstall(): boolean {
 }
 
 export function isInstalled(): boolean {
+  if (isNativeApp()) return true;
   return installed
     || window.matchMedia('(display-mode: standalone)').matches
     || (navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -48,6 +62,7 @@ export function isInstalled(): boolean {
 
 /** Phones and tablets only: desktop browsers have their own install button in the address bar. */
 export function installPlatform(): InstallPlatform {
+  if (isNativeApp()) return null;
   const ua = navigator.userAgent;
   // iPadOS reports itself as a Mac with touch.
   if (/iPhone|iPad|iPod/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1)) return 'ios';

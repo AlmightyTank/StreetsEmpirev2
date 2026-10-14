@@ -4,6 +4,7 @@ import { Shell, useSidebarRail } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
 import { TrackedQuests } from '../components/TrackedQuests.js';
 import { IntroDialog } from '../components/onboarding/IntroDialog.js';
+import { TourOverlay } from '../components/onboarding/TourOverlay.js';
 import { PageGuide } from '../components/onboarding/PageGuide.js';
 import { useOnboarding } from '../stores/onboarding.js';
 import { NavIcon } from '../components/NavIcon.js';
@@ -500,6 +501,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       ) : null}
       <TrackedQuests />
       <IntroDialog />
+      <TourOverlay />
 
       <div className="se-gamegrid">
         <div className="se-gamemain">

@@ -14,6 +14,8 @@ function isIos(): boolean {
 }
 
 function isStandalone(): boolean {
+  const ua = navigator.userAgent || '';
+  if (ua.includes('StreetsEmpireAndroid/') || ua.includes('StreetsEmpireDesktop/')) return true;
   return window.matchMedia('(display-mode: standalone)').matches
     || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 }

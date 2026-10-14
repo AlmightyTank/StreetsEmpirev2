@@ -465,10 +465,12 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
   const me = useSession((s) => s.me);
   const settings = useSession((s) => s.profileSettings);
   const pageTheme = usePageTheme((s) => s.themeKey);
+  const takeShell = usePageTheme((s) => s.takeShell);
   // Popup animation and the viewer's full-shell theme are independent loadout choices.
   // A public profile can preview its owner's theme in the content area without
-  // replacing the viewer's own shell theme.
-  const shellTheme = pageTheme ? null : settings.activeSiteThemeKey;
+  // replacing the viewer's own shell theme. A page that opts into a takeover
+  // (the Collection theme viewer) previews across the whole shell instead.
+  const shellTheme = takeShell && pageTheme ? pageTheme : (pageTheme ? null : settings.activeSiteThemeKey);
   const decorTheme = pageTheme ?? settings.activeSiteThemeKey;
   const logout = useSession((s) => s.logout);
   const navigate = useNavigate();

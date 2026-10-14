@@ -353,7 +353,7 @@ export function ScoutPage() {
             disabledReason={action.busy ? 'Your crew is still out on the last job.' : null}
           />
           <CrewTeamPicker role="WORKER" specialty="SCOUT" selectedIds={scoutTeam} onChange={setScoutTeam} disabled={action.busy} refreshKey={action.result} />
-          <Button className="se-btn se-btn--primary" disabledReason={scoutBlock}>
+          <Button className="se-btn se-btn--primary" disabledReason={scoutBlock} data-tour="scout">
             {action.busy ? 'Working the block...' : action.result ? 'Send again' : 'Send crew scouting'}
           </Button>
         </ActionDock>

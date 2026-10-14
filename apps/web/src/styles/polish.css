@@ -99,11 +99,9 @@ body {
   position: relative;
 }
 
+/* Panels carry the accent divider below the header, never a bar on top. */
 .se-panel::before {
-  content: '';
-  display: block;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.34), transparent 46%);
+  display: none;
 }
 
 .se-stats {
@@ -120,7 +118,7 @@ body {
 
 .se-panel__head {
   padding: 10px 12px;
-  border-bottom-color: rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(var(--se-accent-rgb), 0.38);
   background:
     linear-gradient(180deg, rgba(30, 36, 46, 0.86), rgba(17, 21, 28, 0.9));
 }

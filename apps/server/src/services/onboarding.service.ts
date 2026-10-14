@@ -3,10 +3,12 @@ import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import {
   ONBOARDING_GUIDE_STEPS,
   ONBOARDING_PAGE_KEYS,
+  TOUR_STEP_KEYS,
   type OnboardingActionInput,
   type OnboardingGuideStepKey,
   type OnboardingPageKey,
   type OnboardingStateDto,
+  type TourStepKey,
 } from '@streets/shared';
 import { RoundService } from './round.service.js';
 
@@ -24,6 +26,10 @@ interface StoredOnboarding {
   seenPages?: string[];
   /** The round the guide was dismissed for; a new season shows it again. */
   guideDismissedRoundId?: string | null;
+  /** The guided walkthrough: started/dismissed state plus a display-step hint. */
+  tourStartedAt?: string;
+  tourDismissedRoundId?: string | null;
+  tourStep?: string;
 }
 
 function stored(value: unknown): StoredOnboarding {
@@ -89,6 +95,43 @@ export async function guideProgress(
   };
 }
 
+/**
+ * Guided walkthrough progress: seven ordered core-loop steps, each derived
+ * from real ledger-backed play. The raid step accepts any resolved raid
+ * attempt (win or loss) so losing never strands the player; recon is taught
+ * in the step copy but not gated.
+ */
+export async function tourProgress(
+  prisma: Pick<PrismaClient, '$queryRaw'>,
+  player: { id: string; thugs: number },
+  ruleset: Ruleset,
+): Promise<Record<TourStepKey, boolean>> {
+  const [row] = await prisma.$queryRaw<Array<Record<'quested' | 'scouted' | 'recruited' | 'hired' | 'condoms' | 'beer' | 'produced' | 'hideout' | 'raided', boolean | null>>>(Prisma.sql`
+    SELECT
+      bool_or(a.type::text = 'QUEST_ACCEPTED') AS quested,
+      bool_or(a.type::text = 'SCOUT') AS scouted,
+      bool_or(a.type::text = 'SCOUT' AND jsonb_typeof(a.payload->'thugs') = 'number' AND (a.payload->>'thugs')::float8 > 0) AS recruited,
+      bool_or(${bought(itemNames(ruleset, ['thugs']))}) AS hired,
+      bool_or(${bought(itemNames(ruleset, ['condoms']))}) AS condoms,
+      bool_or(${bought(itemNames(ruleset, ['beer']))}) AS beer,
+      bool_or(a.type::text = 'PRODUCE_CRACK') AS produced,
+      bool_or(a.type::text = 'HIDEOUT_UPGRADE') AS hideout,
+      bool_or(a.type::text = 'RAID_ATTACK') AS raided
+    FROM "PlayerActivity" a
+    WHERE a."roundPlayerId" = ${player.id}
+  `);
+  const start = ruleset.round.startingPlayer as unknown as Partial<Record<string, number>>;
+  return {
+    'accept-quest': Boolean(row?.quested),
+    scout: Boolean(row?.scouted),
+    'shop-supplies': Boolean(row?.condoms) && Boolean(row?.beer),
+    'grow-crew': Boolean(row?.recruited) || Boolean(row?.hired) || player.thugs > (start.thugs ?? 0),
+    produce: Boolean(row?.produced),
+    'upgrade-hideout': Boolean(row?.hideout),
+    'recon-raid': Boolean(row?.raided),
+  };
+}
+
 async function readStored(prisma: PrismaClient, accountId: string): Promise<StoredOnboarding> {
   const profile = await prisma.accountProfile.findUnique({ where: { accountId }, select: { onboarding: true } });
   return stored(profile?.onboarding);
@@ -118,13 +161,33 @@ export const OnboardingService = {
       : null;
 
     let guide: OnboardingStateDto['guide'] = null;
+    let tour: OnboardingStateDto['tour'] = null;
     if (round && player) {
-      const progress = await guideProgress(prisma, player, loadRulesetForRound(round));
+      const ruleset = loadRulesetForRound(round);
+      const progress = await guideProgress(prisma, player, ruleset);
       const steps = ONBOARDING_GUIDE_STEPS.map((key) => ({ key, done: progress[key] }));
       guide = {
         dismissed: value.guideDismissedRoundId === round.id,
         complete: steps.every((step) => step.done),
         steps,
+      };
+      const tourProgressMap = await tourProgress(prisma, player, ruleset);
+      const tourSteps = TOUR_STEP_KEYS.map((key) => ({ key, done: tourProgressMap[key] }));
+      const tourComplete = tourSteps.every((step) => step.done);
+      const firstOpen = tourSteps.find((step) => !step.done)?.key ?? null;
+      const hinted = (TOUR_STEP_KEYS as readonly string[]).includes(value.tourStep ?? '')
+        ? (value.tourStep as TourStepKey)
+        : null;
+      const hintedOpen = hinted && !tourProgressMap[hinted] ? hinted : null;
+      tour = {
+        // Veterans are never interrupted: the offer only shows for accounts
+        // that have not finished a season and have not started/dismissed it.
+        due: !value.tourStartedAt && value.tourDismissedRoundId !== round.id && !tourComplete && finishedSeasons === 0,
+        active: Boolean(value.tourStartedAt) && value.tourDismissedRoundId !== round.id && !tourComplete,
+        dismissed: value.tourDismissedRoundId === round.id,
+        complete: tourComplete,
+        step: hintedOpen ?? firstOpen,
+        steps: tourSteps,
       };
     }
 
@@ -139,6 +202,7 @@ export const OnboardingService = {
       },
       seenPages: ONBOARDING_PAGE_KEYS.filter((key) => seen.has(key)),
       guide,
+      tour,
     };
   },
 
@@ -157,6 +221,9 @@ export const OnboardingService = {
         delete next.introSkippedAt;
         next.seenPages = [];
         next.guideDismissedRoundId = null;
+        delete next.tourStartedAt;
+        next.tourDismissedRoundId = null;
+        delete next.tourStep;
         break;
       case 'see-page':
         next.seenPages = [...new Set([...(value.seenPages ?? []), input.page])].filter((key): key is OnboardingPageKey =>
@@ -169,6 +236,23 @@ export const OnboardingService = {
       }
       case 'restore-guide':
         next.guideDismissedRoundId = null;
+        break;
+      case 'start-tour':
+        next.tourStartedAt = now.toISOString();
+        next.tourDismissedRoundId = null;
+        delete next.tourStep;
+        break;
+      case 'advance-tour':
+        next.tourStep = input.step;
+        break;
+      case 'dismiss-tour': {
+        const round = await RoundService.getCurrent(prisma);
+        next.tourDismissedRoundId = round?.id ?? null;
+        break;
+      }
+      case 'restore-tour':
+        next.tourDismissedRoundId = null;
+        delete next.tourStep;
         break;
     }
     await writeStored(prisma, accountId, next);

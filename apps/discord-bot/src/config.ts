@@ -35,6 +35,8 @@ const schema = z.object({
   DISCORD_STATUS_CHANNEL_ID: optionalChannel('DISCORD_STATUS_CHANNEL_ID'),
   /** How long the game must stay unreachable before the status channel says it is down. */
   DISCORD_OUTAGE_MINUTES: z.coerce.number().int().min(1).max(60).default(3),
+  /** How often the bot rotates its presence/activity. Set 0 to keep Discord's default (no custom activity). */
+  DISCORD_PRESENCE_MINUTES: z.coerce.number().int().min(0).max(60).default(5),
   /** How often alerts (/alerts), the raid feed and round events are checked. */
   DISCORD_ALERTS_MINUTES: z.coerce.number().int().min(1).max(60).default(1),
   /** Local HTTP listener for game-server wake-up nudges. Set port 0 to turn it off. */

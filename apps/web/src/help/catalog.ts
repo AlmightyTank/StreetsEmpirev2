@@ -1,4 +1,4 @@
-import type { OnboardingGuideStepKey, OnboardingPageKey } from '@streets/shared';
+import type { OnboardingGuideStepKey, OnboardingPageKey, TourStepKey } from '@streets/shared';
 
 /**
  * 1.0.0-B. Every word of onboarding and page help lives here, so the tutorial,
@@ -239,4 +239,24 @@ export const GUIDE_STEPS: Record<OnboardingGuideStepKey, GuideStepCopy> = {
   restock: { title: 'Restock condoms and beer', detail: 'Keep the girls working and the thugs happy.', to: '/game/stores' },
   produce: { title: 'Produce your first product', detail: 'Cook your own instead of buying it.', to: '/game/produce' },
   weapon: { title: 'Buy your first weapon', detail: 'Every thug wants one, and armed thugs cover the street.', to: '/game/stores' },
+};
+
+export interface TourStepCopy {
+  title: string;
+  detail: string;
+  /** Route of the page holding this step's highlighted action. */
+  to: string;
+  /** Value of the data-tour attribute the overlay highlights. */
+  target: string;
+}
+
+/** Guided walkthrough: one tooltip per core-loop step, in tour order. */
+export const TOUR_STEPS: Record<TourStepKey, TourStepCopy> = {
+  'accept-quest': { title: 'Take your first job', detail: 'Jobs pay for real work. Accept one to start the tour.', to: '/game/quests', target: 'accept-quest' },
+  scout: { title: 'Work the block', detail: 'Send the crew scouting to earn cash.', to: '/game/scout', target: 'scout' },
+  'shop-supplies': { title: 'Stock up', detail: 'Buy condoms and beer so the crew keeps working.', to: '/game/stores', target: 'shop-supplies' },
+  'grow-crew': { title: 'Grow the crew', detail: 'Scout again until a thug joins, or hire muscle at the store.', to: '/game/scout', target: 'scout' },
+  produce: { title: 'Cook your first batch', detail: 'Producing beats buying. Start a batch.', to: '/game/produce', target: 'produce' },
+  'upgrade-hideout': { title: 'Build the base', detail: 'Upgrade the Safe Room or Workshop once.', to: '/game/hideout', target: 'upgrade-hideout' },
+  'recon-raid': { title: 'Take a shot', detail: 'Recon a mark, then resolve one raid. Losing still counts.', to: '/game/combat', target: 'recon-raid' },
 };

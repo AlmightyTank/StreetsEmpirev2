@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="se_background">#101419</color>
+    <color name="se_surface">#1A2230</color>
+    <color name="se_text">#F2F5F9</color>
+    <color name="se_text_muted">#9AA7B8</color>
+    <color name="se_accent">#E8B33C</color>
+</resources>

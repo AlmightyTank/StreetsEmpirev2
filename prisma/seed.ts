@@ -1,12 +1,14 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
-import { classicOgV01, classicOgV02D, classicOgV15E3, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, rulesets, type Ruleset } from '@streets/rulesets';
 // The panel and the seed create the same bots from one definition. Changing the
 // roster in the service changes it here too.
 import { DEV_TEST_RIVALS, seedDevBots } from '../apps/server/src/services/dev-bots.service.js';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV15E3;
+// Always seed the current round on the latest registered ruleset (last entry in
+// `rulesets`). Pinned historic rounds above stay on their original rulesets.
+const CURRENT_RULESET: Ruleset = Object.values(rulesets).at(-1)!;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
 

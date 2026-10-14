@@ -7,7 +7,7 @@
     </linearGradient>
     <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>
-  <path d="M64 12 104 26v34c0 26-16 44-40 56-24-12-40-30-40-56V26z" fill="#0b1206" fill-opacity=".7" stroke="url(#crest)" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M64 12 104 26v34c0 26-16 44-40 56-24-12-40-30-40-56V26z M36 64a28 28 0 1 0 56 0a28 28 0 1 0-56 0" fill="#0b1206" fill-opacity=".7" fill-rule="evenodd" stroke="url(#crest)" stroke-width="7" stroke-linejoin="round"/>
   <circle cx="64" cy="64" r="28" fill="none" stroke="#a3e635" stroke-width="2" opacity=".85"/>
   <path d="M46 20l4 8 4-8M74 20l4 8 4-8M58 16l6 9 6-9" fill="#d9f99d" stroke="#365314" stroke-width="1" stroke-linejoin="round"/>
   <g filter="url(#glow)" fill="#a3e635">

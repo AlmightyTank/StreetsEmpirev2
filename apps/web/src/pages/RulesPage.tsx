@@ -83,6 +83,7 @@ export function RulesPage() {
                 <a href="#law"><span>12</span> The law</a>
                 <a href="#factions"><span>13</span> Factions</a>
                 <a href="#rank"><span>14</span> Money & rank</a>
+                <a href="#tour"><span>15</span> Guided tour</a>
               </div>
             </aside>
             <div className="se-rules__content">
@@ -446,6 +447,14 @@ export function RulesPage() {
                 Tied net worth shares a rank, and the next rank skips the tied positions.
                 Daily movement compares you against the first snapshot after the reset.
               </li>
+            </ul>
+          </Panel></section>
+
+          <section id="tour" className="se-rules__panel"><Panel title="Guided tour">
+            <ul className="se-list">
+              <li>New players get a seven-step guided tour: take a job, scout, stock up, grow the crew, cook a batch, upgrade the hideout, then recon and raid.</li>
+              <li>Steps complete on real actions only, and every step pays through its job claim. The raid step counts any resolved attempt: losing still finishes the tour.</li>
+              <li>The tour never blocks play and can be skipped or hidden at any time. Veterans never see it unless they replay the tutorial from account settings.</li>
             </ul>
           </Panel></section>
           </div>

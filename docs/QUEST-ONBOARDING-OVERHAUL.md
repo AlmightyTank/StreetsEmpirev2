@@ -1,5 +1,10 @@
 # Guided Quest Overhaul
 
+> Status (1.8.0-S): v1 shipped as the guided walkthrough tour (`openspec/changes/guided-walkthrough-tour/`).
+> Seven ordered jobs (`TOUR_FIRST_JOB` → `TOUR_RAID` in `packages/rulesets/src/tour-campaign.ts`),
+> server-persisted tour state (`OnboardingService`), and a spotlight overlay (`TourOverlay.tsx`).
+> The ten-lesson campaign and specialty board below remain the design target for follow-ups.
+
 ## Goal
 
 Rewrite the opening quest progression as a guided campaign through the core StreetsEmpire loop. After the capstone, open ten optional specialties that introduce the rest of the project and point into its existing contact and faction arcs.

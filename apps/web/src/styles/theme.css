@@ -4258,6 +4258,93 @@ button.se-notification-empty:hover { color: var(--se-text); }
 }
 
 /* 1.0.0-B: onboarding. Dialogs only on first login; everything else sits in the page flow. */
+/* Guided walkthrough tour: spotlight over the real action, never blocking the page. */
+.se-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+}
+
+.se-tour__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.se-tour__spotlight {
+  position: absolute;
+  border: 2px solid var(--se-accent);
+  border-radius: 8px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+}
+
+.se-tour__card {
+  position: absolute;
+  pointer-events: auto;
+  width: min(320px, calc(100vw - 16px));
+  padding: 16px;
+  border: 1px solid var(--se-line);
+  border-radius: 8px;
+  background: var(--se-panel-hi, var(--se-panel));
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  outline: none;
+}
+
+.se-tour__card--fallback {
+  position: fixed;
+  inset: auto 8px calc(8px + env(safe-area-inset-bottom, 0px)) 8px;
+  width: auto;
+}
+
+.se-tour__card h2 {
+  margin: 4px 0 8px;
+  font-size: 20px;
+}
+
+.se-tour__card p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.se-tour__dots {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-tour__dots li {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--se-line);
+}
+
+.se-tour__dots li.is-done {
+  background: var(--se-good, var(--se-accent));
+}
+
+.se-tour__dots li.is-current {
+  background: var(--se-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--se-accent) 35%, transparent);
+}
+
+.se-tour__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .se-tour__card--anchored {
+    position: fixed;
+    inset: auto 8px calc(8px + env(safe-area-inset-bottom, 0px)) 8px;
+    width: auto;
+  }
+}
 .se-intro-backdrop {
   position: fixed;
   inset: 0;

@@ -34,6 +34,7 @@ import { Cooldowns } from './lookup.js';
 import { betaTesterRoles, managedRoles, parseForumGroupList } from './roles.js';
 import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
+import { startBotPresence } from './presence.js';
 import { memberStatus, timeoutMember } from './moderation.js';
 import { startOptionalPushServer } from './push-server.js';
 import { handleStaffButton, handleStaffModal, staffPostMessage } from './staff.js';
@@ -386,6 +387,18 @@ client.once(Events.ClientReady, async (ready) => {
     const roleSync = new RoleSync(guild, managed, api, { allianceRoles: !betaTesterOnly });
     sync = roleSync;
     console.log(`StreetsEmpire bot ready as ${ready.user.tag} in ${guild.name} with ${commandData.length} commands; syncing ${betaTesterOnly ? 'beta tester role only' : 'roles'} every ${config.DISCORD_SYNC_MINUTES} min.`);
+
+    // Rotating presence: "Playing StreetsEmpire" cards point at the game host
+    // (bot presences can't carry a clickable link/button), mixed with street
+    // flavor and a live player-count card from the round status.
+    const playHost = new URL(config.frontendOrigin).host;
+    const stopPresence = startBotPresence(ready, {
+      playHost,
+      minutes: config.DISCORD_PRESENCE_MINUTES,
+      getRound: () => api.round(),
+    });
+    if (stopPresence) console.log(`Rotating bot presence every ${config.DISCORD_PRESENCE_MINUTES} min (play at ${playHost}).`);
+    else console.log('Bot presence rotation is off (DISCORD_PRESENCE_MINUTES=0).');
 
     // Commands are answered while these run.
     startPoller('Role sync', config.DISCORD_SYNC_MINUTES * 60_000, async () => {

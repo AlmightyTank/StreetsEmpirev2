@@ -314,7 +314,7 @@ export function ProducePage() {
                   : null
             }
           />
-          <Button className="se-btn se-btn--primary" disabledReason={produceBlock}>
+          <Button className="se-btn se-btn--primary" disabledReason={produceBlock} data-tour="produce">
             {action.busy ? 'Producing...' : action.result ? 'Cook again' : `Start ${selectedProfile.name} batch`}
           </Button>
         </ActionDock>

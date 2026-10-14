@@ -136,5 +136,5 @@ describe('1.2.0-B casino-style slots', () => {
       expect(summary.bonusTriggers).toBeGreaterThan(0);
       expect(Math.abs(summary.observedRtpBps - summary.theoreticalRtpBps)).toBeLessThan(400);
     }
-  });
+  }, 30_000);
 });

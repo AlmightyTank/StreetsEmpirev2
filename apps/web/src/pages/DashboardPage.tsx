@@ -22,6 +22,7 @@ import { PendingEncountersPanel } from '../components/PendingEncountersPanel.js'
 import { formatClockTime, formatDate, formatDuration, formatWhen } from '../utils/time.js';
 import { dashboardAttentionState, dashboardDisclosureForHash } from '../utils/dashboardAttention.js';
 import { GettingStarted } from '../components/onboarding/GettingStarted.js';
+import { TourOffer } from '../components/onboarding/TourOffer.js';
 
 function RankMovement({ movement }: { movement: number | null }) {
   if (movement === null || movement === 0) {
@@ -423,6 +424,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         {error ? <Alert>{error}</Alert> : null}
 
         <GettingStarted />
+        <TourOffer />
         <PendingEncountersPanel encounters={me.pendingEncounters} />
         <div className="se-dashboard-snapshot" aria-label="Empire at a glance">
           <Link className="se-dashboard-snapshot__tile" to="/game/stores">

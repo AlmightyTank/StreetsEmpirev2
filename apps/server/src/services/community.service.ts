@@ -2,7 +2,9 @@ import type { City, Prisma, PrismaClient } from '@prisma/client';
 import { RelocationService } from './relocation.service.js';
 import { factionTier, factionTierName, factionTierRank, loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import type { FactionKey } from '@streets/rulesets';
+import { rulesets, SUPPORTER_COSMETICS } from '@streets/rulesets';
 import type {
+  CosmeticOptionDto,
   PublicHallOfFameAppearanceDto,
   PublicAchievementCategory,
   PublicAchievementRarity,
@@ -425,6 +427,28 @@ function earliest(a: Date | null, b: Date): Date {
 function movement(startingRank: number | null, currentRank: number): number | null {
   if (startingRank === null) return null;
   return startingRank - currentRank;
+}
+
+/**
+ * Every catalog frame/theme, mirroring the development unlock in
+ * account-profile.service.ts. Keeps the public profile's allow-list identical
+ * to the settings endpoint's so a saved frame always survives the read path.
+ */
+function catalogCosmeticOptions(kind: 'PROFILE_FRAME' | 'SITE_THEME'): CosmeticOptionDto[] {
+  const options: CosmeticOptionDto[] = [];
+  const known = new Set<string>();
+  const consider = (cosmetic: { kind: string; key: string; styleKey?: string | null; name: string; description: string | null }) => {
+    if (cosmetic.kind !== kind) return;
+    const key = cosmetic.styleKey ?? cosmetic.key;
+    if (known.has(key)) return;
+    known.add(key);
+    options.push({ key, label: cosmetic.name, description: cosmetic.description });
+  };
+  for (const cosmetic of Object.values(SUPPORTER_COSMETICS)) consider(cosmetic);
+  for (const ruleset of Object.values(rulesets)) {
+    for (const cosmetic of Object.values(ruleset.cosmetics ?? {})) consider(cosmetic);
+  }
+  return options;
 }
 
 function rankHeldSince(row: RankingRow, rank: number, scope: 'local' | 'national', now: Date): Date {
@@ -1095,7 +1119,21 @@ export const CommunityService = {
       QuestCosmeticService.optionsForAccount(prisma, player.accountId, 'SITE_THEME'),
       SecretCollectionService.forPlayer(prisma, player.id, player.accountId, ruleset),
     ]);
-    const frameOptions = withThemeCompanionFrames(earnedFrames, themeOptions);
+    const themeOptionsWithCatalog = [...themeOptions];
+    const earnedFramesWithCatalog = [...earnedFrames];
+    // Match the settings endpoint: on development every catalog frame/theme is
+    // selectable, so the public profile must accept the same set. Otherwise a
+    // saved dev-catalog frame (e.g. Dead-or-Alive) validates on save but reads
+    // back as null here.
+    if (env.appEnvironment === 'development') {
+      for (const option of catalogCosmeticOptions('SITE_THEME')) {
+        if (!themeOptionsWithCatalog.some((known) => known.key === option.key)) themeOptionsWithCatalog.push(option);
+      }
+      for (const option of catalogCosmeticOptions('PROFILE_FRAME')) {
+        if (!earnedFramesWithCatalog.some((known) => known.key === option.key)) earnedFramesWithCatalog.push(option);
+      }
+    }
+    const frameOptions = withThemeCompanionFrames(earnedFramesWithCatalog, themeOptionsWithCatalog);
     const career = await loadCareerForAccount(prisma, player.accountId, {
       currentRoundId: roundId,
       limit: 10,

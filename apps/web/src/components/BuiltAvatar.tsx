@@ -1,3 +1,4 @@
+import { avatarFrameOpeningStyle, avatarFrameSpec } from './avatarFrameOpenings.js';
 import { useId, type ReactNode } from 'react';
 import { avatarColor, type AvatarParts } from '@streets/shared';
 
@@ -105,22 +106,36 @@ export function AvatarFace({ imageUrl, avatar, fallback }: {
   return <>{fallback}</>;
 }
 
-const AVATAR_FRAME_ART: Record<string, string> = {
-  'street-pass-s1-frame': '/items/street-pass-s1-frame.svg',
-  'chrome-serpent-frame': '/items/street-pass-s1-chrome-serpent-frame.svg',
-  'phantom-convoy-frame': '/items/street-pass-s1-phantom-convoy-frame.svg',
-  'lantern-district-frame': '/items/street-pass-s1-lantern-district-frame.svg',
-  'siren-breaker-frame': '/items/street-pass-s1-siren-breaker-frame.svg',
-  'block-sovereign-frame': '/items/street-pass-s1-block-sovereign-frame.svg',
-  'gilded-house-frame': '/items/street-pass-s1-gilded-house-frame.svg',
-  'dead-or-alive-frame': '/items/street-pass-s1-dead-or-alive-frame.svg',
-  'laurel-ascendant-frame': '/items/street-pass-s1-laurel-ascendant-frame.svg',
-  'snowstorm-drake': '/items/street-pass-s1-snowstorm-frame.svg',
-  'inferno-drake': '/items/street-pass-s1-inferno-frame.svg',
-  'midnight-chrome-frame': '/profile-frames/midnight-chrome-avatar.webp',
+/** Every frame with layered art. Frames absent from the shared specs use the CSS `se-avatar-frame` ring. */
+export function hasAvatarFrameArt(frameKey: string): boolean {
+  return avatarFrameSpec(frameKey) !== undefined;
+}
+
+/**
+ * Street Pass rewards are keyed by cosmetic key (`street-pass-s1-*-frame`)
+ * while equipped frames use the cosmetic's style key (`snowstorm-drake`,
+ * `chrome-serpent-frame`, …). Map a preview cosmetic to its frame spec key so
+ * the pass preview renders the same portrait as every other surface.
+ */
+const COSMETIC_TO_FRAME_KEY: Record<string, string> = {
+  'street-pass-s1-frame': 'street-pass-s1-frame',
+  'street-pass-s1-snowstorm-frame': 'snowstorm-drake',
+  'street-pass-s1-inferno-frame': 'inferno-drake',
+  'street-pass-s1-chrome-serpent-frame': 'chrome-serpent-frame',
+  'street-pass-s1-phantom-convoy-frame': 'phantom-convoy-frame',
+  'street-pass-s1-lantern-district-frame': 'lantern-district-frame',
+  'street-pass-s1-siren-breaker-frame': 'siren-breaker-frame',
+  'street-pass-s1-block-sovereign-frame': 'block-sovereign-frame',
+  'street-pass-s1-gilded-house-frame': 'gilded-house-frame',
+  'street-pass-s1-dead-or-alive-frame': 'dead-or-alive-frame',
+  'street-pass-s1-laurel-ascendant-frame': 'laurel-ascendant-frame',
 };
 
-/** The saved face together with its equipped frame, sized to fill any avatar holder. */
+export function previewFrameKeyForCosmetic(cosmeticKey: string): string | null {
+  return COSMETIC_TO_FRAME_KEY[cosmeticKey] ?? null;
+}
+
+/** One renderer for every surface: optional back layer, avatar opening, front overlay. */
 export function AvatarPortrait({ imageUrl, avatar, fallback, frameKey }: {
   imageUrl: string | null | undefined;
   avatar: AvatarParts | null | undefined;
@@ -129,11 +144,12 @@ export function AvatarPortrait({ imageUrl, avatar, fallback, frameKey }: {
 }) {
   if (!frameKey) return <AvatarFace imageUrl={imageUrl} avatar={avatar} fallback={fallback} />;
 
-  const frameArt = AVATAR_FRAME_ART[frameKey];
+  const frameArt = avatarFrameSpec(frameKey)?.artUrl;
   return (
     <span
       className={`se-avatar-portrait${frameArt ? ' se-avatar-portrait--art' : ' se-avatar-frame'}`}
       data-avatar-frame={frameKey}
+      style={avatarFrameOpeningStyle(frameKey)}
     >
       <span className="se-avatar-portrait__face">
         <AvatarFace imageUrl={imageUrl} avatar={avatar} fallback={fallback} />

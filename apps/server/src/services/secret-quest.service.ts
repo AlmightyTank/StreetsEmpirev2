@@ -1,4 +1,4 @@
-import type { ActivityType } from '@prisma/client';
+import { ActivityType } from '@prisma/client';
 import type { QuestDataObject, QuestDataValue, QuestDefinition, Ruleset, SecretTrigger } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 
@@ -189,10 +189,16 @@ async function triggerSatisfied(
   }
 
   if (trigger.kind === 'ACTIVITY_COUNT' || trigger.kind === 'ACTIVITY_OBJECT_SUM_AT_LEAST') {
-    const eventTypes = strings(trigger.eventTypes);
+    // Ruleset-driven strings: drop anything the DB enum does not know so a
+    // stale/typo'd eventType degrades to "trigger not met" instead of 500ing
+    // the whole quest page (PrismaClientValidationError on type.in).
+    const knownActivityTypes = new Set<string>(Object.values(ActivityType));
+    const eventTypes = strings(trigger.eventTypes).filter((event): event is ActivityType =>
+      knownActivityTypes.has(event),
+    );
     if (!eventTypes.length) return false;
     const activities = await db.playerActivity.findMany({
-      where: { roundPlayerId, type: { in: eventTypes as ActivityType[] } },
+      where: { roundPlayerId, type: { in: eventTypes } },
       select: { type: true, payload: true },
       orderBy: { createdAt: 'asc' },
     });
