@@ -269,8 +269,6 @@
   align-items: flex-start;
   gap: 12px;
   padding: 11px 13px;
-  /* Colored divider between the title block and the description. */
-  border-bottom: 1px solid rgba(var(--se-accent-rgb), 0.38);
 }
 
 .se-quests .se-quest-card .se-panel__title {

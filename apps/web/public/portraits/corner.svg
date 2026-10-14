@@ -16,11 +16,11 @@
     <path d="M46 54 Q41 52 42 59 Q43 66 47 66 Z M82 54 Q87 52 86 59 Q85 66 81 66 Z" fill="url(#skin)"/>
     <path d="M45 52 Q45 32 64 32 Q83 32 83 52 Q84 66 78 74 Q72 80 64 80 Q56 80 50 74 Q44 66 45 52 Z" fill="url(#skin)"/>
     <path d="M43 46 Q42 26 64 25 Q86 26 85 46 Q75 41 64 41 Q53 41 43 46 Z" fill="url(#cap)"/>
-    <path d="M44 44 Q54 50 64 50 Q74 50 84 44 Q86 50 80 52 Q64 56 48 52 Q42 50 44 44 Z" fill="url(#cap)"/>
+    <path d="M82 42 Q102 40 109 47 Q106 54 86 52 Q80 48 82 42 Z" fill="url(#cap)"/>
+    <ellipse cx="64" cy="27" rx="3" ry="1.8" fill="#7a0c14"/>
   </g>
   <path d="M8 126 Q10 98 32 90 L52 86 L64 96 L76 86 L96 90 Q118 98 120 126 Z" fill="url(#shade)" opacity=".7"/>
   <path d="M52 32 Q64 27 76 32" stroke="#ff9a9a" stroke-opacity=".5" stroke-width="1.6" fill="none" stroke-linecap="round"/>
-  <circle cx="64" cy="36" r="4.2" fill="#fff" stroke="#07100a" stroke-width="1"/><path d="M62 36 H66 M64 34 V38" stroke="#c8202a" stroke-width="1.2"/>
   <path d="M50 47 Q55 45 61 47 M78 47 Q73 45 67 47" fill="none" stroke="#2a1a10" stroke-width="2.4" stroke-linecap="round"/>
   <path d="M51 54 Q56 50.4 61 54 Q56 56.88 51 54 Z" fill="#fbf6ee" stroke="#07100a" stroke-width="1"/>
   <circle cx="56" cy="54" r="2.4" fill="#3b2414"/>
