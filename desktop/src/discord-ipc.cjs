@@ -23,10 +23,10 @@ function discordPipePaths(platform = process.platform, env = process.env) {
   ].filter(Boolean);
   // The Flatpak Discord package commonly exports the socket in its app
   // namespace rather than the main XDG runtime directory.
-  if (env.XDG_RUNTIME_DIR) dirs.push(path.join(env.XDG_RUNTIME_DIR, 'app/com.discordapp.Discord'));
+  if (env.XDG_RUNTIME_DIR) dirs.push(path.posix.join(env.XDG_RUNTIME_DIR, 'app/com.discordapp.Discord'));
   const uniqueDirs = [...new Set(dirs)];
   return uniqueDirs.flatMap(dir =>
-    Array.from({ length: PIPE_LIMIT }, (_, i) => path.join(dir, 'discord-ipc-' + i)));
+    Array.from({ length: PIPE_LIMIT }, (_, i) => path.posix.join(dir, 'discord-ipc-' + i)));
 }
 
 function safeStatusError(error) {
