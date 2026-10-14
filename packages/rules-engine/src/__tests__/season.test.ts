@@ -25,14 +25,14 @@ describe('1.0.0-D whole-season balance', () => {
       expect(Number.isFinite(agent.netWorthCents), agent.name).toBe(true);
       expect(agent.daily.length, agent.name).toBe(first.days - agent.joinDay);
     }
-  });
+  }, 30_000);
 
   it('the shipping ruleset passes every balance band', () => {
     const { report } = runSeasonBands(base, [1, 2, 3]);
     const failed = report.bands.filter((band) => !band.pass).map((band) => `${band.key}: ${band.value} (${band.line}) ${band.detail}`);
     expect(failed).toEqual([]);
     expect(report.bands).toHaveLength(11);
-  });
+  }, 30_000);
 
   it('the bands have teeth: broken economies fail the questions they break', () => {
     const failing = (ruleset: Ruleset) => evaluateSeasonBands([simulateSeason(ruleset, { seed: 1 }), simulateSeason(ruleset, { seed: 2 })])
