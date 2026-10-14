@@ -9,6 +9,7 @@ const config = require('./generated-config.json');
 
 const SETTINGS_FILE = 'desktop-settings.json';
 const AWAY_AFTER_MS = 5 * 60_000;
+const LATEST_DESKTOP_DOWNLOAD_URL = 'https://github.com/AlmightyTank/StreetsEmpirev2/releases/tag/desktop-beta';
 
 let win = null;
 let settings = null;
@@ -124,6 +125,14 @@ function buildMenu() {
       label: 'View',
       submenu: [{ role: 'zoomIn' }, { role: 'zoomOut' }, { role: 'resetZoom' },
         { role: 'togglefullscreen' }],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        { label: 'Get Latest Desktop Version (Beta)', click: () => void shell.openExternal(LATEST_DESKTOP_DOWNLOAD_URL) },
+        { type: 'separator' },
+        { label: `Desktop version ${app.getVersion()}`, enabled: false },
+      ],
     },
   ]));
 }
