@@ -1,7 +1,7 @@
 {
   "name": "streets-empire",
   "private": true,
-  "version": "0.1.0",
+  "version": "2.0.0",
   "type": "module",
   "description": "StreetsEmpire - Classic OG reconstruction (ruleset classic-og-v0.1)",
   "workspaces": [
