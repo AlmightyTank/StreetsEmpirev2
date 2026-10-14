@@ -516,11 +516,11 @@
 .se-profile-hover-card[data-avatar-frame]:not([data-avatar-frame="none"]) .se-profile-hover-card__avatar,
 .se-profile-card-preview[data-avatar-frame]:not([data-avatar-frame="none"]) .se-profile-card-preview__avatar {
   overflow: visible;
-  border-color: transparent;
+  border: 0;
+  border-radius: 0;
   background: transparent;
-  box-shadow:
-    0 0 0 2px var(--se-hover-accent, #a4cf5b),
-    0 0 0 5px color-mix(in srgb, var(--se-hover-accent, #a4cf5b) 30%, transparent);
+  /* The frame draws its own shape (art or ring): no base circle, no halo. */
+  box-shadow: none;
 }
 .se-profile-hover-card[data-avatar-frame="kings-crown-frame"] .se-profile-hover-card__avatar,
 .se-profile-card-preview[data-avatar-frame="kings-crown-frame"] .se-profile-card-preview__avatar { --se-hover-accent: #e9c46a; }

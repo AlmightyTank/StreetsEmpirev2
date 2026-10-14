@@ -280,6 +280,14 @@
   box-shadow: none;
 }
 
+/* Art frames carry their detail in a small face opening, so the holder grows
+   to keep the portrait legible (128px matches the Collection showcase). */
+.se-profile-pagehead__avatar--art {
+  width: 128px;
+  height: 128px;
+  flex-basis: 128px;
+}
+
 .se-profile-pagehead__avatar--art::before,
 .se-profile-pagehead__avatar--art::after {
   content: none;

@@ -106,11 +106,12 @@
   }
 }
 
-/* On phones, let the HUD scroll away with the page so content never passes beneath it. */
+/* On phones the HUD follows the page like on desktop. */
 @media (max-width: 899px) {
   .se-app--tabbar .se-topbar {
-    position: static;
-    backdrop-filter: none;
+    position: sticky;
+    top: 0;
+    z-index: 70;
   }
 }
 
@@ -802,6 +803,19 @@ a.se-nav__link--active:hover {
 .se-account--open .se-account__button {
   border-color: var(--se-line);
   background: rgba(255, 255, 255, 0.04);
+}
+
+/* A framed avatar is its own shape: the pill backdrop would peek out behind
+   the art, so the hover affordance moves to the name/chevron instead. */
+.se-account__button:has(.se-account__avatar--framed):hover,
+.se-account--open .se-account__button:has(.se-account__avatar--framed) {
+  border-color: transparent;
+  background: transparent;
+}
+
+.se-account__button:has(.se-account__avatar--framed):hover .se-account__name,
+.se-account__button:has(.se-account__avatar--framed):hover .se-account__chevron {
+  color: var(--se-accent-hover);
 }
 
 .se-account__button:focus-visible {
