@@ -8,6 +8,9 @@ const MAX_FRAME = 256 * 1024;
 const RETRY_MS = 15_000;
 const HANDSHAKE_TIMEOUT_MS = 5_000;
 const PIPE_LIMIT = 10;
+const RICH_PRESENCE_TYPE_PLAYING = 0;
+const MAX_ACTIVITY_TEXT_LENGTH = 128;
+const PLAY_URL = 'https://play.streetsempire.dev';
 
 /** Discord can choose one of ten pipes in several candidate directories. */
 function discordPipePaths(platform = process.platform, env = process.env) {
@@ -33,6 +36,40 @@ function safeStatusError(error) {
   if (typeof error !== 'string') return 'Discord returned an unknown error';
   // Keep diagnostics user friendly. Never surface OAuth data or credentials.
   return error.replace(/https?:\/\/\S+/gi, '[url]').slice(0, 160);
+}
+
+function activityText(value, fallback) {
+  const text = String(value || fallback || '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .slice(0, MAX_ACTIVITY_TEXT_LENGTH);
+  return text || fallback;
+}
+
+function buildRichPresenceActivity(desired, artwork = {}, startedAt = Math.floor(Date.now() / 1000)) {
+  if (!desired) return null;
+  const activity = {
+    // Discord RPC SET_ACTIVITY uses Activity type 0 for Rich Presence "Playing".
+    type: RICH_PRESENCE_TYPE_PLAYING,
+    details: activityText(desired.details, 'Playing StreetsEmpire'),
+    state: activityText(desired.state, 'Building an empire'),
+    timestamps: { start: startedAt },
+    buttons: [{ label: 'Play StreetsEmpire', url: PLAY_URL }],
+  };
+  if (artwork.largeImage || artwork.smallImage) {
+    activity.assets = {
+      ...(artwork.largeImage ? {
+        large_image: artwork.largeImage,
+        large_text: 'StreetsEmpire — Build Your Empire',
+      } : {}),
+      ...(artwork.smallImage ? {
+        small_image: artwork.smallImage,
+        small_text: 'Playing StreetsEmpire',
+      } : {}),
+    };
+  }
+  return activity;
 }
 
 /**
@@ -94,7 +131,10 @@ class DiscordPresence {
     if (!next && !this.desired) return;
     if (next && this.sessionStart === null) this.sessionStart = Math.floor(Date.now() / 1000);
     if (!next) this.sessionStart = null;
-    this.desired = next ? { details: next.details, state: next.state } : null;
+    this.desired = next ? {
+      details: activityText(next.details, 'Playing StreetsEmpire'),
+      state: activityText(next.state, 'Building an empire'),
+    } : null;
     this._sendCurrent();
   }
 
@@ -236,25 +276,10 @@ class DiscordPresence {
     if (key === this.sent) return;
     this.sent = key;
 
-    const activity = this.desired ? {
-      type: 0,
-      details: this.desired.details,
-      state: this.desired.state,
-      timestamps: { start: this.sessionStart ?? Math.floor(Date.now() / 1000) },
-      ...(this.artwork.largeImage || this.artwork.smallImage ? {
-        assets: {
-          ...(this.artwork.largeImage ? {
-            large_image: this.artwork.largeImage,
-            large_text: 'StreetsEmpire — Build Your Empire',
-          } : {}),
-          ...(this.artwork.smallImage ? {
-            small_image: this.artwork.smallImage,
-            small_text: 'Playing StreetsEmpire',
-          } : {}),
-        },
-      } : {}),
-      buttons: [{ label: 'Play StreetsEmpire', url: 'https://play.streetsempire.dev' }],
-    } : null;
+    const activity = buildRichPresenceActivity(
+      this.desired,
+      this.artwork,
+      this.sessionStart ?? Math.floor(Date.now() / 1000));
 
     this.pendingNonce = randomUUID();
     this._status('sending', this.desired
@@ -264,4 +289,4 @@ class DiscordPresence {
   }
 }
 
-module.exports = { DiscordPresence, discordPipePaths };
+module.exports = { DiscordPresence, discordPipePaths, buildRichPresenceActivity };

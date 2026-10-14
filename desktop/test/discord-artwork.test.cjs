@@ -2,7 +2,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { DiscordPresence } = require('../src/discord-ipc.cjs');
+const { DiscordPresence, buildRichPresenceActivity } = require('../src/discord-ipc.cjs');
 
 test('native presence maps Discord registered artwork keys and start time', () => {
   const client = new DiscordPresence('123456789012345678', {
@@ -26,12 +26,35 @@ test('native presence maps Discord registered artwork keys and start time', () =
     small_image: 'streetsempire_logo',
     small_text: 'Playing StreetsEmpire',
   });
+  assert.deepEqual(activity.buttons, [
+    { label: 'Play StreetsEmpire', url: 'https://play.streetsempire.dev' },
+  ]);
   assert.ok(activity.timestamps.start > 0);
   assert.equal(activity.timestamps.end, undefined);
   assert.equal(activity.party, undefined);
   assert.equal(activity.secrets, undefined);
+  assert.equal(activity.supportedPlatforms, undefined);
   client.setPresence(null);
   assert.equal(calls.at(-1).payload.args.activity, null);
+});
+
+test('Rich Presence activity text is concise and one-line', () => {
+  const activity = buildRichPresenceActivity({
+    details: '  Playing\n\tStreetsEmpire  ',
+    state: 'A'.repeat(200),
+  }, {}, 12345);
+  assert.equal(activity.details, 'Playing StreetsEmpire');
+  assert.equal(activity.state.length, 128);
+  assert.equal(activity.timestamps.start, 12345);
+});
+
+test('Rich Presence activity uses safe fallbacks for empty text', () => {
+  const activity = buildRichPresenceActivity({ details: '', state: '' }, {}, 12345);
+  assert.equal(activity.details, 'Playing StreetsEmpire');
+  assert.equal(activity.state, 'Building an empire');
+  assert.deepEqual(activity.buttons, [
+    { label: 'Play StreetsEmpire', url: 'https://play.streetsempire.dev' },
+  ]);
 });
 
 test('no nonexistent/default artwork keys are sent if not configured', () => {
