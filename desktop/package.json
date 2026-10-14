@@ -1,7 +1,7 @@
 {
   "name": "streetsempire-desktop",
   "private": true,
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Cross-platform StreetsEmpire desktop game with opt-in Discord Rich Presence",
   "main": "src/main.cjs",
   "scripts": {

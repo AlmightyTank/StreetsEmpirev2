@@ -11,7 +11,7 @@ and the website itself never has local system/Discord access.
 
 Pull-request builds remain private to workflow artifacts and will **never** replace the downloadable release. A new set is published from `beta` only after all four OS builds pass. The desktop app has **Help → Get Latest Desktop Version (Beta)** to open the same page. New website features need no desktop app rebuild; changes to the desktop app do.
 
-## Portable downloads (0.1.3)
+## Portable downloads (0.1.4)
 
 Build artifacts are generated in [StreetsEmpire Desktop Actions](https://github.com/AlmightyTank/StreetsEmpirev2/actions/workflows/desktop-platforms.yml)
 on the `feature/desktop-game-discord-presence` PR branch, and after merging
@@ -20,10 +20,10 @@ the GitHub artifact ZIP first.
 
 | Platform | GitHub Actions artifact | Actual downloadable app | How to start |
 | --- | --- | --- | --- |
-| Windows 10/11 (64-bit) | `StreetsEmpire-Windows-x64` | `StreetsEmpire-Portable-0.1.3.exe` | Double-click EXE; no installer, administrator permission or system-wide changes |
-| macOS Intel (x64) | `StreetsEmpire-macOS-Intel` | `StreetsEmpire-macOS-x64-0.1.3.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
-| macOS Apple Silicon (M1/M2/M3/M4, arm64) | `StreetsEmpire-macOS-Apple-Silicon` | `StreetsEmpire-macOS-arm64-0.1.3.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
-| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x86_64-0.1.3.AppImage` | `chmod +x StreetsEmpire-Linux-x86_64-0.1.3.AppImage` then run it |
+| Windows 10/11 (64-bit) | `StreetsEmpire-Windows-x64` | `StreetsEmpire-Portable-0.1.4.exe` | Double-click EXE; no installer, administrator permission or system-wide changes |
+| macOS Intel (x64) | `StreetsEmpire-macOS-Intel` | `StreetsEmpire-macOS-x64-0.1.4.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
+| macOS Apple Silicon (M1/M2/M3/M4, arm64) | `StreetsEmpire-macOS-Apple-Silicon` | `StreetsEmpire-macOS-arm64-0.1.4.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
+| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x86_64-0.1.4.AppImage` | `chmod +x StreetsEmpire-Linux-x86_64-0.1.4.AppImage` then run it |
 
 Windows uses electron-builder's **portable** target, macOS uses ZIP archives
 containing a native `.app`, and Linux uses **AppImage**. None of these require
@@ -110,6 +110,45 @@ npm run dist:linux
 
 If you omit the Application ID, the app still opens the game but Discord Rich
 Presence is unavailable. No developer secrets are embedded.
+
+## Discord Rich Presence artwork
+
+The optional Discord artwork uses the fields `assets.large_image`,
+`assets.large_text`, `assets.small_image`, and `assets.small_text` in
+Discord's desktop `SET_ACTIVITY` payload. This is **not** the deprecated
+C library `Discord_UpdatePresence`.
+
+1. Open the [Discord Developer Portal](https://discord.com/developers/applications)
+   and select the **same StreetsEmpire application whose Application ID you
+   set as `STREETSEMPIRE_DISCORD_CLIENT_ID`**.
+2. Find **Rich Presence → Art Assets** for that application and upload a
+   **square** game illustration for the big Rich Presence image, and a small
+   transparent StreetsEmpire emblem. The previously designed 16:9 cover is
+   good for banners but should be square-cropped for the normal large image.
+3. Name the image assets `streetsempire_city` and `streetsempire_logo` in
+   the portal. Names must match **exactly**.
+4. Under GitHub **Settings → Secrets and variables → Actions → Variables**, set
+   these **public repository variables**:
+
+   | Variable | Example value |
+   | --- | --- |
+   | `STREETSEMPIRE_DISCORD_CLIENT_ID` | Your public Discord Application ID |
+   | `STREETSEMPIRE_DISCORD_LARGE_IMAGE_KEY` | `streetsempire_city` |
+   | `STREETSEMPIRE_DISCORD_SMALL_IMAGE_KEY` | `streetsempire_logo` |
+
+5. Rebuild all desktop packages. Existing apps do not acquire the new asset keys
+   automatically; normal web gameplay content still updates automatically.
+6. Opt into **Discord → Show Playing StreetsEmpire** and test with the desktop
+   Discord client running.
+
+The two image keys are optional. When omitted, no imaginary/missing asset keys
+are sent to Discord. A registered large image appears as a large **square**
+Rich Presence illustration, not a fully customizable Discord card background.
+
+The app includes elapsed play time and a **Play StreetsEmpire** button. It
+does not send an `endTimestamp`, `partyId`, `partyMax`, or `joinSecret`
+until real timed sessions and authenticated multiplayer invites exist.
+Do **not** copy sample party secrets from online snippets.
 
 ## GitHub Actions
 
