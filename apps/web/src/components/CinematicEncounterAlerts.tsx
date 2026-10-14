@@ -4,6 +4,7 @@ import { BELL_CATEGORY_BY_ACTIVITY, type ActivityDto } from '@streets/shared';
 import { useSession } from '../stores/session.js';
 import { gameEventToastFor } from './GameEventToasts.js';
 import { describeActivity } from './ActivityFeed.js';
+import { isCinematicEncounterActivity } from './encounterAlertPolicy.js';
 
 export type EncounterAlertKind = 'driveby' | 'raid' | 'turf' | 'convoy' | 'encounter';
 export type EncounterAlertOutcome = 'incoming' | 'victory' | 'defeat' | 'warning';
@@ -19,10 +20,23 @@ export interface EncounterAlert {
   preview?: boolean;
 }
 
-type QueuedEncounterAlert = EncounterAlert & { id: string };
+export type QueuedEncounterAlert = EncounterAlert & { id: string };
 const PREVIEW_EVENT = 'streets:encounter-alert-preview';
-const MAX_QUEUE = 5;
 let previewSequence = 0;
+
+/** FIFO queue without silent overflow: every acknowledged fresh activity gets displayed. */
+export function appendEncounterAlertQueue(
+  current: QueuedEncounterAlert[],
+  incoming: QueuedEncounterAlert[],
+): QueuedEncounterAlert[] {
+  const ids = new Set(current.map((item) => item.id));
+  const unique = incoming.filter((item) => {
+    if (ids.has(item.id)) return false;
+    ids.add(item.id);
+    return true;
+  });
+  return unique.length ? [...current, ...unique] : current;
+}
 
 /** QA-only visual dispatch. This event never calls a game API or mutates gameplay. */
 export function previewEncounterAlert(alert: EncounterAlert): void {
@@ -52,6 +66,7 @@ const STATUS: Record<EncounterAlertOutcome, { label: string; symbol: string }> =
 
 /** Reuse the existing activity/toast copy so this cannot contradict the combat report. */
 export function encounterAlertForActivity(activity: ActivityDto): EncounterAlert | null {
+  if (!isCinematicEncounterActivity(activity.type)) return null;
   const p = activity.payload;
   let kind: EncounterAlertKind;
   let outcome: EncounterAlertOutcome;
@@ -104,7 +119,7 @@ export function encounterAlertForActivity(activity: ActivityDto): EncounterAlert
       : outcome === 'victory' ? 'Your crew came out on top.' : 'Your crew has a new combat report.'),
     opponent: stringField(p, 'opponent', 'attacker', 'defender', 'target'),
     location: stringField(p, 'districtName', 'cityName', 'district', 'city'),
-    href: existing?.href ?? (kind === 'turf' ? '/game/turf' : '/game/console'),
+    href: existing?.href ?? (kind === 'turf' ? '/game/turf' : kind === 'convoy' ? '/game/travel' : '/game/console?view=attacks'),
   };
 }
 
@@ -148,7 +163,7 @@ export function CinematicEncounterAlerts() {
       const alert = encounterAlertForActivity(entry);
       return alert ? [{ ...alert, id: entry.id }] : [];
     });
-    if (next.length) setQueue((current) => [...current, ...next].slice(0, MAX_QUEUE));
+    if (next.length) setQueue((current) => appendEncounterAlertQueue(current, next));
   }, [activity, bellMuted, hydrated, playerId]);
 
   useEffect(() => {
@@ -156,9 +171,9 @@ export function CinematicEncounterAlerts() {
       const item = (event as CustomEvent<EncounterAlert>).detail;
       if (!item || !item.title || !item.description) return;
       previewSequence += 1;
-      setQueue((current) => [...current, {
+      setQueue((current) => appendEncounterAlertQueue(current, [{
         ...item, preview: true, id: 'qa-preview-' + previewSequence,
-      }].slice(0, MAX_QUEUE));
+      }]));
     };
     window.addEventListener(PREVIEW_EVENT, onPreview);
     return () => window.removeEventListener(PREVIEW_EVENT, onPreview);
