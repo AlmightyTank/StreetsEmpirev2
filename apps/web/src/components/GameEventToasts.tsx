@@ -65,6 +65,72 @@ function num(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
+function pieces(...values: Array<string | false | null | undefined>): string {
+  return values.filter((value): value is string => Boolean(value)).join(' · ');
+}
+
+function where(payload: Record<string, unknown>, fallback = 'the streets'): string {
+  return str(payload.cityName) || str(payload.city) || str(payload.store) || str(payload.road) || fallback;
+}
+
+function who(payload: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = str(payload[key]);
+    if (value) return value;
+  }
+  return '';
+}
+
+function turfHref(payload: Record<string, unknown>): string {
+  const city = str(payload.city);
+  return city ? `/game/turf?city=${encodeURIComponent(city)}` : '/game/turf';
+}
+
+function turfPlace(payload: Record<string, unknown>): string {
+  const district = str(payload.districtName) || str(payload.district);
+  const city = str(payload.cityName) || str(payload.city);
+  return [district, city].filter(Boolean).join(', ') || 'your block';
+}
+
+function clock(value: unknown): string {
+  const at = str(value);
+  return at ? formatClockTime(at) : '';
+}
+
+function formatCount(value: number, singular: string, plural = `${singular}s`): string {
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function woundSummary(...values: number[]): string {
+  const total = values.reduce((sum, value) => sum + Math.max(0, value), 0);
+  return total > 0 ? formatCount(total, 'wound') : '';
+}
+
+function turfStrength(payload: Record<string, unknown>): string {
+  const attacker = num(payload.attackerStrength);
+  const defender = num(payload.defenderStrength);
+  if (attacker && defender) return `strength ${attacker} vs ${defender}`;
+  return '';
+}
+
+function turfLoot(payload: Record<string, unknown>): string {
+  const loot = payload.outpostLoot && typeof payload.outpostLoot === 'object' && !Array.isArray(payload.outpostLoot)
+    ? payload.outpostLoot as Record<string, unknown>
+    : null;
+  if (!loot) return '';
+  const cash = num(loot.cashCents);
+  const beer = num(loot.beer);
+  const productCount = loot.products && typeof loot.products === 'object' && !Array.isArray(loot.products)
+    ? Object.values(loot.products as Record<string, unknown>).reduce<number>((sum, value) => sum + num(value), 0)
+    : 0;
+  const pieces = [
+    cash ? 'cash loot' : '',
+    beer ? formatCount(beer, 'beer') : '',
+    productCount ? formatCount(productCount, 'product') : '',
+  ].filter(Boolean);
+  return pieces.length ? `looted ${pieces.join(', ')}` : '';
+}
+
 function questHref(payload: Record<string, unknown>, tab: 'available' | 'active' | 'completed' = 'active'): string {
   const key = str(payload.questKey);
   if (!key) return `/game/quests?tab=${tab}`;
@@ -184,16 +250,16 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
   switch (activity.type) {
     case 'QUEST_OBJECTIVE_COMPLETE':
       return {
-        title: p.bonus ? 'Bonus objective complete' : 'Quest objective complete',
-        detail,
+        title: p.bonus ? `Bonus done: ${str(p.title, 'quest')}` : `Objective done: ${str(p.title, 'quest')}`,
+        detail: pieces(str(p.objective), 'Open Quests to check the next step.') || detail,
         tone: 'good',
         href: questHref(p),
       };
 
     case 'QUEST_READY':
       return {
-        title: 'Quest ready to turn in',
-        detail,
+        title: `${str(p.title, 'Quest')} is ready to turn in`,
+        detail: 'Collect the reward from the quest board.',
         tone: 'good',
         href: questHref(p),
       };
@@ -214,8 +280,8 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
 
     case 'AWAY_BONUS':
       return {
-        title: 'Away bonus received',
-        detail,
+        title: `Away money landed${where(p, '') ? ` from ${where(p, '')}` : ''}`,
+        detail: detail || 'Your crew collected while you were away.',
         tone: 'good',
         href: '/game/activity',
       };
@@ -230,16 +296,16 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
 
     case 'ADMIN_GRANT':
       return {
-        title: 'Admin compensation received',
-        detail,
+        title: 'Admin make-good received',
+        detail: pieces(str(p.reason), detail) || 'Compensation was added to your account.',
         tone: 'good',
         href: '/game/activity',
       };
 
     case 'BATTLE_VOIDED':
       return {
-        title: 'Battle voided',
-        detail,
+        title: 'Battle voided by admins',
+        detail: pieces(str(p.reason), detail) || 'The result was reversed and your ledger was adjusted.',
         tone: 'info',
         href: '/game/activity',
       };
@@ -247,15 +313,19 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'RAID_DEFENSE': {
       const kind = str(p.kind);
       const title = kind === 'DRUG_HOES' || num(p.whoresDrugged) > 0
-        ? 'Someone drugged your hoes'
+        ? `${who(p, 'opponent', 'attacker') || 'Someone'} drugged your hoes`
         : kind === 'STEAL_RIDE' || num(p.lowRidersStolen) > 0
-          ? 'Someone stole your ride'
+          ? `${who(p, 'opponent', 'attacker') || 'Someone'} stole your ride`
           : kind === 'LURE_CREW' || num(p.whoresLured) + num(p.thugsLured) > 0
-            ? 'Someone lured your crew away'
-            : p.won ? 'Raid defended' : 'You were raided';
+            ? `${who(p, 'opponent', 'attacker') || 'Someone'} lured your crew away`
+            : p.won ? `Raid stopped${who(p, 'opponent', 'attacker') ? `: ${who(p, 'opponent', 'attacker')}` : ''}` : `${who(p, 'opponent', 'attacker') || 'Someone'} raided you`;
       return {
         title,
-        detail,
+        detail: pieces(
+          p.won ? 'Your crew held the line.' : 'Your crew took the hit.',
+          woundSummary(num(p.thugsWounded), num(p.whoresWounded), num(p.wounds)),
+          detail,
+        ),
         tone: p.won ? 'warn' : 'bad',
         href: '/game/activity',
       };
@@ -263,60 +333,89 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
 
     case 'DRIVE_BY_DEFENSE':
       return {
-        title: p.won ? 'Drive-by stopped' : 'Drive-by hit your block',
-        detail,
+        title: p.won ? `Drive-by stopped${who(p, 'opponent', 'attacker') ? `: ${who(p, 'opponent', 'attacker')}` : ''}` : `Drive-by hit your block${who(p, 'opponent', 'attacker') ? `: ${who(p, 'opponent', 'attacker')}` : ''}`,
+        detail: pieces(p.won ? 'Your shooters turned them back.' : 'Shots landed before your crew could stop it.', woundSummary(num(p.thugsWounded), num(p.whoresKilled), num(p.wounds)), detail),
         tone: p.won ? 'warn' : 'bad',
         href: '/game/activity',
       };
 
     case 'CONVOY_DEFENSE':
       return {
-        title: p.held || p.escaped ? 'Run defended' : 'Your run was hit',
-        detail,
+        title: p.escaped ? `Run slipped the tail near ${where(p, 'town')}` : p.held ? `Run defended near ${where(p, 'town')}` : `Run hit near ${where(p, 'town')}`,
+        detail: pieces(p.escaped ? 'The crew got clear before the hit.' : p.held ? 'Your convoy fought them off.' : 'The attackers got into your load.', woundSummary(num(p.wounds), num(p.thugsWounded)), detail),
         tone: p.held || p.escaped ? 'warn' : 'bad',
         href: '/game/activity',
       };
 
     case 'TURF_PUSH_DEFENSE':
       return {
-        title: p.stale ? 'Turf push fizzled' : p.held ? 'Block defended' : 'Block lost',
-        detail,
+        title: p.stale ? `Push expired on ${turfPlace(p)}` : p.held ? `${turfPlace(p)} held` : `${turfPlace(p)} fell`,
+        detail: [
+          p.stale ? 'The fight never landed before the cutoff.' : p.held ? 'Your crew kept control of the corner.' : 'The attackers took the corner.',
+          woundSummary(num(p.defenderWounds), num(p.cornerWounds), num(p.ownerBackupWounds)),
+          num(p.allyBackup) ? `${formatCount(num(p.allyBackup), 'ally')} showed` : '',
+          num(p.enforcerDefenseBonusPercent) ? `Enforcers +${num(p.enforcerDefenseBonusPercent)}%` : '',
+        ].filter(Boolean).join(' · ') || detail,
         tone: p.held || p.stale ? 'warn' : 'bad',
-        href: '/game/activity',
+        href: turfHref(p),
       };
 
     case 'TURF_PUSH_INCOMING':
-      return { title: 'Your block is being pushed', detail, tone: 'bad', href: p.city ? `/game/turf?city=${encodeURIComponent(String(p.city))}` : '/game/turf' };
-
-    case 'ALLIANCE_CALL':
       return {
-        title: 'Ally needs backup',
-        detail,
-        tone: 'warn',
-        href: p.kind === 'convoy' ? '/game/travel' : p.city ? `/game/turf?city=${encodeURIComponent(String(p.city))}` : '/game/turf',
+        title: `Lookouts spotted a push on ${turfPlace(p)}`,
+        detail: [
+          clock(p.landsAt) ? `Lands ${clock(p.landsAt)}` : 'The fight is coming soon.',
+          num(p.squad) ? `${formatCount(num(p.squad), 'attacker')} moving in` : '',
+          'Send backup or call your alliance.',
+        ].filter(Boolean).join(' · '),
+        tone: 'bad',
+        href: turfHref(p),
       };
 
+    case 'ALLIANCE_CALL':
+      return p.kind === 'convoy'
+        ? {
+          title: 'Ally needs backup',
+          detail,
+          tone: 'warn',
+          href: '/game/travel',
+        }
+        : {
+          title: `Alliance call: ${turfPlace(p)} under push`,
+          detail: [
+            `${str(p.ally, 'An ally')} needs bodies on the corner.`,
+            clock(p.landsAt) ? `Lands ${clock(p.landsAt)}` : '',
+          ].filter(Boolean).join(' · '),
+          tone: 'warn',
+          href: turfHref(p),
+        };
+
     case 'CONVOY_TAILED':
-      return { title: 'Your run is being tailed', detail, tone: 'bad', href: '/game/travel' };
+      return {
+        title: `Lookouts spotted a tail near ${where(p, 'town')}`,
+        detail: pieces(clock(p.landsAt) ? `Hit lands ${clock(p.landsAt)}` : 'The hit is coming soon.', 'Open Travel to react.'),
+        tone: 'bad',
+        href: '/game/travel',
+      };
 
     case 'REVENGE_EXPIRING':
-      return { title: 'Revenge expires soon', detail, tone: 'warn', href: '/game/combat' };
+      return { title: `Revenge window closing${str(p.attacker) ? `: ${str(p.attacker)}` : ''}`, detail: pieces(clock(p.expiresAt) ? `Closes ${clock(p.expiresAt)}` : '', 'Use it before the street forgets.'), tone: 'warn', href: '/game/combat' };
 
     case 'WARRANT_DRAFTED':
-      return { title: 'A warrant is out for you', detail, tone: 'bad', href: '/game#case' };
+      return { title: 'Warrant drafted', detail: pieces('Police have enough paper to move on you.', detail), tone: 'bad', href: '/game#case' };
 
     case 'OFFICIAL_IA_OPENED':
-      return { title: 'Internal Affairs is looking', detail, tone: 'bad', href: '/game#case' };
+      return { title: 'Internal Affairs opened a file', detail: pieces(str(p.officialName), detail || 'Your official is under scrutiny.'), tone: 'bad', href: '/game#case' };
 
     case 'OFFICIAL_STUNG':
-      return { title: 'Your official was stung', detail, tone: 'bad', href: '/game#case' };
+      return { title: 'Official caught in a sting', detail: pieces(str(p.officialName), detail || 'The protection pipeline took a hit.'), tone: 'bad', href: '/game#case' };
 
     case 'LOAN_COLLECTIONS':
       return p.to === 'COLLECTIONS'
-        ? { title: 'You are in collections', detail, tone: 'bad', href: '/game/loans' }
+        ? { title: 'Loan shark put you in collections', detail: pieces(`${num(p.missedInstallments)} missed installment${num(p.missedInstallments) === 1 ? '' : 's'}`, detail), tone: 'bad', href: '/game/loans' }
         : p.to === 'RECOVERING'
-          ? { title: 'Out of collections', detail, tone: 'warn', href: '/game/loans' }
-          : { title: 'Back in good standing', detail, tone: 'good', href: '/game/loans' };
+          ? { title: 'Collections cleared', detail: pieces('Stay current to reopen borrowing.', detail), tone: 'warn', href: '/game/loans' }
+          : { title: 'Back in good standing with the loan shark', detail: detail || 'Borrowing is available again.', tone: 'good', href: '/game/loans' };
 
     case 'EASTER_EGG_FOUND':
       return {
@@ -327,102 +426,115 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
       };
 
     case 'RING_SURFACED':
-      return { title: 'A strange Ring has surfaced', detail: 'Its bearer cannot be found for a day — unless they attack.', tone: 'warn', href: '/game/combat' };
+      return { title: 'The Ring surfaced', detail: 'Its bearer is hidden for a day — unless they attack and break the spell.', tone: 'warn', href: '/game/combat' };
 
     case 'RING_STOLEN':
       return p.role === 'LOSER'
-        ? { title: 'The Ring was taken from you', detail: 'Win it back in a raid.', tone: 'bad', href: '/game/combat' }
-        : { title: 'You took the Ring', detail: 'Carry it to the old foundry in Detroit — or hold it until the round ends.', tone: 'good', href: '/game/combat' };
+        ? { title: `The Ring was taken${str(p.to) ? ` by ${str(p.to)}` : ''}`, detail: 'Win it back in a raid.', tone: 'bad', href: '/game/combat' }
+        : { title: `You took the Ring${str(p.from) ? ` from ${str(p.from)}` : ''}`, detail: 'Carry it to the old foundry in Detroit — or hold it until the round ends.', tone: 'good', href: '/game/combat' };
 
     case 'RING_DESTROYED':
       return { title: 'The Ring is destroyed', detail: 'Ring-bearer title unlocked.', tone: 'good', href: '/game/combat' };
 
     case 'LOAN_INSTALLMENT_MISSED':
-      return { title: 'Loan installment missed', detail, tone: 'bad', href: '/game/loans' };
+      return { title: `Missed loan installment ${num(p.sequence) || ''}`.trim(), detail: pieces(str(p.offerName), detail), tone: 'bad', href: '/game/loans' };
 
     case 'SUPPLY_LANE_ARRIVED':
       return {
-        title: p.outcome === 'CLEAN' ? 'Lane load landed' : p.outcome === 'SEIZED' ? 'Lane load seized' : 'Lane load searched',
-        detail,
+        title: p.outcome === 'CLEAN' ? `${str(p.routeName, 'Lane')} load landed clean` : p.outcome === 'SEIZED' ? `${str(p.routeName, 'Lane')} load seized` : `${str(p.routeName, 'Lane')} load searched`,
+        detail: pieces(str(p.product), where(p, ''), detail),
         tone: p.outcome === 'CLEAN' ? 'good' : p.outcome === 'SEIZED' ? 'bad' : 'warn',
         href: '/game/supply',
       };
 
     case 'FACTION_WARNING':
-      return { title: `Word from ${String(p.factionName ?? 'a faction')}`, detail, tone: 'warn', href: typeof p.href === 'string' && p.href.startsWith('/game') ? p.href : '/game/quests#factions' };
+      return { title: `Faction warning: ${String(p.factionName ?? 'a faction')}`, detail: detail || 'A trusted contact sent early intel.', tone: 'warn', href: typeof p.href === 'string' && p.href.startsWith('/game') ? p.href : '/game/quests#factions' };
 
     case 'FACTION_TIER_UP':
-      return { title: `${String(p.factionName ?? 'A faction')}: ${String(p.tierName ?? 'new tier')}`, detail, tone: 'good', href: '/game/quests#factions' };
+      return { title: `${String(p.factionName ?? 'A faction')} trust: ${String(p.tierName ?? 'new tier')}`, detail: detail || 'New faction access is available.', tone: 'good', href: '/game/quests#factions' };
 
     case 'CASE_FOLLOWED':
-      return { title: 'Your federal case followed you', detail, tone: 'bad', href: '/game#case' };
+      return { title: 'Federal case followed your move', detail: detail || 'Changing cities did not shake the file.', tone: 'bad', href: '/game#case' };
 
     case 'CAPTAIN_TIP':
-      return { title: 'A word from your Captain', detail, tone: 'warn', href: '/game#case' };
+      return { title: 'Captain tip came in', detail: detail || 'Someone in blue has a warning for you.', tone: 'warn', href: '/game#case' };
 
     case 'WARRANT_SERVED':
-      return { title: 'A warrant was served', detail, tone: 'bad', href: '/game#case' };
+      return { title: 'Warrant served', detail: detail || 'Police acted on the paper.', tone: 'bad', href: '/game#case' };
 
     case 'CASE_STAGE_UP':
       return {
-        title: 'The police have more on you',
-        detail,
+        title: p.stage === 'FEDERAL' ? 'Federal case opened' : p.stage === 'WARRANT' ? 'Case escalated to warrant' : 'Police case advanced',
+        detail: detail || 'Heat from your operation is getting organized.',
         tone: p.stage === 'WARRANT' || p.stage === 'FEDERAL' ? 'bad' : 'warn',
         href: '/game#case',
       };
 
     case 'SPECIAL_ORDER_READY':
       return {
-        title: 'Special order arrived',
-        detail,
+        title: `${str(p.item, 'Special order')} arrived`,
+        detail: pieces(str(p.store), 'It is on the shelf now.') || detail,
         tone: 'good',
         href: p.storeKey ? `/game/stores/${encodeURIComponent(String(p.storeKey))}` : '/game/stores',
       };
 
     case 'RUN_RETURNED':
       return {
-        title: 'Run returned',
-        detail,
+        title: `Run returned${Array.isArray(p.cities) && p.cities.length ? ` from ${(p.cities as unknown[]).map(String).join(', ')}` : ''}`,
+        detail: detail || 'The crew and bankroll are back home.',
         tone: 'good',
         href: '/game/travel',
       };
 
     case 'RUN_INCIDENT':
       return {
-        title: 'Police trouble',
-        detail,
+        title: str(p.kind) === 'ARREST' ? `Run arrested in ${where(p, 'town')}` : str(p.kind) === 'STOP' ? `Run stopped on ${where(p, 'the road')}` : `Run busted in ${where(p, 'town')}`,
+        detail: detail || 'Police interfered with the road crew.',
         tone: 'warn',
         href: '/game/activity',
       };
 
     case 'CONVOY_BACKUP':
       return {
-        title: 'Convoy backup returned',
-        detail,
+        title: num(p.wounds) ? 'Convoy backup came home wounded' : 'Convoy backup returned',
+        detail: pieces(str(p.owner) ? `For ${str(p.owner)}` : '', woundSummary(num(p.wounds)), detail),
         tone: 'info',
         href: '/game/activity',
       };
 
     case 'TURF_CLAIM':
       return {
-        title: p.won ? 'Block captured' : 'Block claim failed',
-        detail,
+        title: p.won ? `Claimed ${turfPlace(p)}` : `${turfPlace(p)} claim failed`,
+        detail: [
+          p.won ? `${formatCount(num(p.thugs), 'thug')} posted on the corner.` : `Locals held with ${formatCount(num(p.locals), 'thug')}.`,
+          turfStrength(p),
+          p.favorKey ? 'A favor cleared local resistance.' : '',
+        ].filter(Boolean).join(' · ') || detail,
         tone: p.won ? 'good' : 'warn',
-        href: '/game/turf',
+        href: turfHref(p),
       };
 
     case 'TURF_PUSH_ATTACK':
       return {
-        title: p.won ? 'Block captured' : 'Turf push failed',
-        detail,
+        title: p.stale ? 'Turf push expired' : p.won ? 'Your push took the block' : 'Your turf push was held off',
+        detail: [
+          p.stale ? 'The fight did not land before the cutoff.' : p.unopposed ? 'The corner was empty when your crew arrived.' : p.won ? 'Your squad posted up after the fight.' : 'Your squad came back without the corner.',
+          num(p.posted) ? `${formatCount(num(p.posted), 'thug')} now posted` : '',
+          woundSummary(num(p.wounds)),
+          turfLoot(p),
+        ].filter(Boolean).join(' · ') || detail,
         tone: p.won ? 'good' : 'warn',
         href: '/game/turf',
       };
 
     case 'TURF_PUSH_BACKUP':
       return {
-        title: 'Turf backup returned',
-        detail,
+        title: p.showedUp === false ? 'Turf backup stood down' : num(p.wounds) ? 'Turf backup came home wounded' : 'Turf backup came home clean',
+        detail: [
+          str(p.defender) ? `For ${str(p.defender)}.` : '',
+          num(p.thugs) ? `${formatCount(num(p.thugs), 'thug')} committed` : '',
+          p.showedUp === false ? 'The fight ended before they were needed.' : num(p.wounds) ? woundSummary(num(p.wounds)) : 'No wounds reported.',
+        ].filter(Boolean).join(' · ') || detail,
         tone: num(p.thugsWounded) || num(p.wounds) ? 'warn' : 'info',
         href: '/game/activity',
       };
@@ -431,8 +543,8 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'PRODUCE_CRACK':
       if (p.busted !== true) return null;
       return {
-        title: 'Police bust',
-        detail,
+        title: activity.type === 'SCOUT' ? 'Scout got busted' : `${crackWord} operation got busted`,
+        detail: detail || 'Police pressure interrupted the work.',
         tone: 'warn',
         href: '/game/activity',
       };
