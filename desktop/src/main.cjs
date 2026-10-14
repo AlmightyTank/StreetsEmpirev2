@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { app, BrowserWindow, Menu, dialog, shell, session } = require('electron');
 const { DiscordPresence } = require('./discord-ipc.cjs');
+const { OAuthCallbackGuard } = require('./oauth-callback-guard.cjs');
 const { GAME_ORIGINS, trustedNavigation, externalLink, presenceForUrl } = require('./activity.cjs');
 const config = require('./generated-config.json');
 
@@ -148,6 +149,18 @@ function navigateSafely(event, legacyUrl) {
 
 function createWindow() {
   const gameSession = session.fromPartition('persist:streetsempire-game');
+  // Discord authorization codes can only be exchanged once. Drop a duplicate
+  // callback before it reaches the API (including programmatic navigations).
+  const oauthGuard = new OAuthCallbackGuard();
+  gameSession.webRequest.onBeforeRequest({
+    urls: [
+      'https://play.streetsempire.dev/api/auth/discord/callback*',
+      'https://beta.streetsempire.dev/api/auth/discord/callback*',
+    ],
+  }, (details, callback) => {
+    const redirectURL = oauthGuard.redirectForReplay(details.url);
+    callback(redirectURL ? { redirectURL } : {});
+  });
   gameSession.setPermissionRequestHandler((_contents, _permission, respond) => respond(false));
   gameSession.setPermissionCheckHandler(() => false);
 
