@@ -1,7 +1,7 @@
 {
   "name": "streetsempire-desktop",
   "private": true,
-  "version": "0.2.0",
+  "version": "2.0.0",
   "description": "Four-tab StreetsEmpire desktop client with persistent Play view and opt-in Discord Rich Presence",
   "main": "src/main.cjs",
   "scripts": {

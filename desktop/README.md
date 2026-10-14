@@ -11,9 +11,9 @@ and the website itself never has local system/Discord access.
 
 Pull-request builds remain private to workflow artifacts and will **never** replace the downloadable release. A new set is published from `beta` only after all four OS builds pass. The desktop app has **Help → Get Latest Desktop Version (Beta)** to open the same page. New website features need no desktop app rebuild; changes to the desktop app do.
 
-## Desktop client refresh (0.2.0 beta)
+## Desktop client refresh (2.0.0)
 
-Starting with desktop **0.2.0 beta**, the app opens to a lightweight trusted
+Starting with desktop **2.0.0**, the app opens to a lightweight trusted
 desktop shell with four primary tabs: **Play**, **Updates**, **Discord**, and
 **Settings**. The existing website remains the game. Live and Beta are controls
 inside Play, not separate desktop navigation, and gameplay pages such as
@@ -33,7 +33,7 @@ release page. Live/Beta gameplay notes are website-owned sources; until a
 confirmed authenticated changelog/news feed is available, the desktop client
 shows a graceful unavailable/manual-link state instead of scraping web pages.
 
-## Portable downloads (0.2.0 beta)
+## Portable downloads (2.0.0)
 
 Build artifacts are generated in [StreetsEmpire Desktop Actions](https://github.com/AlmightyTank/StreetsEmpirev2/actions/workflows/desktop-platforms.yml)
 on the `feature/desktop-game-discord-presence` PR branch, and after merging
@@ -42,10 +42,10 @@ the GitHub artifact ZIP first.
 
 | Platform | GitHub Actions artifact | Actual downloadable app | How to start |
 | --- | --- | --- | --- |
-| Windows 10/11 (64-bit) | `StreetsEmpire-Windows-x64` | `StreetsEmpire-Portable-0.2.0.exe` | Double-click EXE; no installer, administrator permission or system-wide changes |
-| macOS Intel (x64) | `StreetsEmpire-macOS-Intel` | `StreetsEmpire-macOS-x64-0.2.0.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
-| macOS Apple Silicon (M1/M2/M3/M4, arm64) | `StreetsEmpire-macOS-Apple-Silicon` | `StreetsEmpire-macOS-arm64-0.2.0.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
-| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x86_64-0.2.0.AppImage` | `chmod +x StreetsEmpire-Linux-x86_64-0.2.0.AppImage` then run it |
+| Windows 10/11 (64-bit) | `StreetsEmpire-Windows-x64` | `StreetsEmpire-Portable-2.0.0.exe` | Double-click EXE; no installer, administrator permission or system-wide changes |
+| macOS Intel (x64) | `StreetsEmpire-macOS-Intel` | `StreetsEmpire-macOS-x64-2.0.0.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
+| macOS Apple Silicon (M1/M2/M3/M4, arm64) | `StreetsEmpire-macOS-Apple-Silicon` | `StreetsEmpire-macOS-arm64-2.0.0.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
+| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x86_64-2.0.0.AppImage` | `chmod +x StreetsEmpire-Linux-x86_64-2.0.0.AppImage` then run it |
 
 Windows uses electron-builder's **portable** target, macOS uses ZIP archives
 containing a native `.app`, and Linux uses **AppImage**. None of these require
@@ -156,7 +156,7 @@ npm run dist:linux
 If you omit the Application ID, the app still opens the game but Discord Rich
 Presence is unavailable. No developer secrets are embedded.
 
-## Discord Presence troubleshooting (desktop v0.2.0 beta)
+## Discord Presence troubleshooting (desktop v2.0.0)
 
 To share an activity, run the **Discord desktop app** on the **same computer**
 as StreetsEmpire Desktop, sign in to Discord, and ensure Discord →

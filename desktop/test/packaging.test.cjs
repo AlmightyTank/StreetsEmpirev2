@@ -7,8 +7,8 @@ const path = require('node:path');
 const pkg = require('../package.json');
 const { DESKTOP_BETA_RELEASE_URL } = require('../src/shell-state.cjs');
 
-test('desktop beta package metadata points at the 0.2.0 refresh', () => {
-  assert.equal(pkg.version, '0.2.0');
+test('desktop beta package metadata points at the 2.0.0 release', () => {
+  assert.equal(pkg.version, '2.0.0');
   assert.match(pkg.description, /Four-tab StreetsEmpire desktop client/);
   assert.equal(DESKTOP_BETA_RELEASE_URL, 'https://github.com/AlmightyTank/StreetsEmpirev2/releases/tag/desktop-beta');
   assert.equal(pkg.build.icon, 'assets/icon.png');
