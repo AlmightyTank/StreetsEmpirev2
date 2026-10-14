@@ -3343,6 +3343,10 @@ enum ActivityType {
   RING_STOLEN
   /// The Ring was destroyed at the foundry.
   RING_DESTROYED
+  /// A sportsbook ticket's game has kicked off.
+  SPORTSBOOK_GAME_STARTED
+  /// A sportsbook ticket was graded as won, lost, push or void.
+  SPORTSBOOK_TICKET_SETTLED
 }
 
 enum BattleKind {
@@ -4447,12 +4451,15 @@ model SportsbookBet {
   payoutCents  BigInt
   status       String    @default("OPEN")
   settledAt    DateTime?
+  startedNotifiedAt    DateTime?
+  settlementNotifiedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   @@unique([roundPlayerId, actionId])
   @@index([roundPlayerId, createdAt(sort: Desc)])
   @@index([eventId, status])
+  @@index([status, startedNotifiedAt])
   @@index([casinoSessionId])
   @@index([casinoCityId, status])
 }

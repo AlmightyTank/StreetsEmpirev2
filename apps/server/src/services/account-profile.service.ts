@@ -194,17 +194,25 @@ function optionFromCosmetic(cosmetic: QuestCosmeticDefinition): CosmeticOptionDt
   };
 }
 
-function adminSiteThemeOptions(ruleset: Ruleset): CosmeticOptionDto[] {
+function catalogCosmeticOptionsForRuleset(ruleset: Ruleset, kind: 'PROFILE_FRAME' | 'SITE_THEME'): CosmeticOptionDto[] {
   return Object.values(ruleset.cosmetics ?? {})
-    .filter((cosmetic) => cosmetic.kind === 'SITE_THEME')
+    .filter((cosmetic) => cosmetic.kind === kind)
     .map(optionFromCosmetic);
 }
 
-function adminCatalogSiteThemeOptions(): CosmeticOptionDto[] {
+function catalogCosmeticOptions(kind: 'PROFILE_FRAME' | 'SITE_THEME'): CosmeticOptionDto[] {
   const options: CosmeticOptionDto[] = [];
   const known = new Set<string>();
+  for (const cosmetic of Object.values(SUPPORTER_COSMETICS)) {
+    if (cosmetic.kind !== kind) continue;
+    const option = optionFromCosmetic(cosmetic);
+    if (!known.has(option.key)) {
+      options.push(option);
+      known.add(option.key);
+    }
+  }
   for (const ruleset of Object.values(rulesets)) {
-    for (const option of adminSiteThemeOptions(ruleset)) {
+    for (const option of catalogCosmeticOptionsForRuleset(ruleset, kind)) {
       if (!known.has(option.key)) {
         options.push(option);
         known.add(option.key);
@@ -329,18 +337,29 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
     }
   }
   const themeOptions = [...themes];
+  const frameOptions = [...frames];
   const knownThemes = new Set(themeOptions.map((option) => option.key));
+  const knownFrames = new Set(frameOptions.map((option) => option.key));
   const collections = new Set(collectionUnlocks.map((option) => option.key));
-  if (account?.isAdmin && env.seasonalEvents.adminTestMode) {
-    for (const option of adminCatalogSiteThemeOptions()) {
+  const unlockCatalogCosmetics = env.appEnvironment === 'development' || (account?.isAdmin && env.seasonalEvents.adminTestMode);
+  if (unlockCatalogCosmetics) {
+    for (const option of catalogCosmeticOptions('PROFILE_FRAME')) {
+      if (!knownFrames.has(option.key)) {
+        frameOptions.push(option);
+        knownFrames.add(option.key);
+      }
+    }
+    for (const option of catalogCosmeticOptions('SITE_THEME')) {
       if (!knownThemes.has(option.key)) {
         themeOptions.push(option);
         knownThemes.add(option.key);
       }
     }
+  }
+  if (account?.isAdmin && env.seasonalEvents.adminTestMode) {
     for (const style of RELEASED_ITEM_COSMETIC_STYLES) collections.add(style.key);
   }
-  return { accents, frames: withThemeCompanionFrames(frames, themeOptions), themes: themeOptions, collections };
+  return { accents, frames: withThemeCompanionFrames(frameOptions, themeOptions), themes: themeOptions, collections };
 }
 
 export const AccountProfileService = {

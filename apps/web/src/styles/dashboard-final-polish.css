@@ -43,16 +43,43 @@
   padding: 3px 2px;
 }
 
-/* Themes, supporter cosmetics, accents: individual game actions keep their
- * semantic hues, while chrome, buttons and the story action respect the
- * player's chosen accent. The image is decorative, never a fixed shell skin. */
+/* Themes, supporter cosmetics, accents: dashboard chrome follows the player's
+ * chosen accent. The story image is decorative, never a fixed shell skin. */
 .se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story {
   border-color: rgba(var(--se-accent-rgb), .47);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--se-panel) 92%, var(--se-accent)) 0%, color-mix(in srgb, var(--se-panel) 86%, var(--se-accent)) 38%, rgba(var(--se-accent-rgb), .16) 72%, rgba(var(--se-accent-rgb), .07) 100%),
+    url('/assets/dashboard/story-safehouse.svg') center 48% / cover no-repeat,
+    color-mix(in srgb, var(--se-panel) 88%, var(--se-accent));
   box-shadow: inset 3px 0 rgba(var(--se-accent-rgb), .8), 0 10px 30px rgba(0,0,0,.18);
+}
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story__head h2,
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story h3 {
+  color: var(--se-text);
+}
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story .se-eyebrow,
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story__meta > span:first-child {
+  color: color-mix(in srgb, var(--se-accent) 62%, var(--se-text-dim));
+}
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story__meta > span + span {
+  color: color-mix(in srgb, var(--se-accent) 72%, white);
+  background: rgba(var(--se-accent-rgb), .14);
+  border-color: rgba(var(--se-accent-rgb), .24);
 }
 .se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story__glyph,
 .se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story__ready {
   color: color-mix(in srgb, var(--se-accent) 70%, white);
+}
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story__objective {
+  border-color: rgba(var(--se-accent-rgb), .2);
+  background: color-mix(in srgb, var(--se-panel) 86%, var(--se-accent));
+}
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story__meter {
+  background: color-mix(in srgb, var(--se-line) 72%, var(--se-accent));
+}
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story__meter span {
+  background: linear-gradient(90deg, var(--se-accent), color-mix(in srgb, var(--se-accent) 58%, white));
+  box-shadow: 0 0 14px rgba(var(--se-accent-rgb), .34);
 }
 .se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story__footer .se-btn--primary {
   color: #fff;
@@ -62,10 +89,38 @@
 .se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-story__footer .se-btn--primary:hover {
   background: linear-gradient(180deg, rgba(var(--se-accent-rgb), .68), rgba(var(--se-accent-rgb), .36)), #17202a;
 }
-/* Semantically distinct action colors are ornaments; shared accent gives
- * each game entry a consistent active/focus border under supporter themes. */
+/* The quick-action shell uses the chosen theme; individual action tints remain
+ * small gameplay ornaments inside that shell. */
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-quick .se-dashboard-command__actions {
+  border-color: rgba(var(--se-accent-rgb), .34);
+  background:
+    linear-gradient(130deg, rgba(var(--se-accent-rgb), .1), transparent 58%),
+    var(--se-panel);
+  box-shadow: inset 3px 0 rgba(var(--se-accent-rgb), .62), 0 10px 28px rgba(0,0,0,.12);
+}
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-quick .se-dashboard-command__actions .se-eyebrow {
+  color: color-mix(in srgb, var(--se-accent) 70%, var(--se-text-dim));
+}
 .se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-quick .se-dashboard-action {
+  --se-dash-tint: var(--se-accent-rgb);
+  border-color: rgba(var(--se-accent-rgb), .46);
+  background:
+    linear-gradient(180deg, rgba(var(--se-accent-rgb), .18), rgba(var(--se-accent-rgb), .045)),
+    var(--se-panel);
   box-shadow: inset 0 1px rgba(var(--se-accent-rgb), .14);
+}
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-quick .se-dashboard-action__icon {
+  border-color: rgba(var(--se-accent-rgb), .2);
+  color: var(--se-accent);
+  background: rgba(var(--se-accent-rgb), .12);
+}
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-quick .se-dashboard-action__meta {
+  color: var(--se-accent);
+}
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-quick .se-dashboard-action:hover,
+.se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-quick .se-dashboard-action:focus-visible {
+  border-color: var(--se-accent);
+  box-shadow: 0 8px 18px rgba(0,0,0,.2), inset 0 0 30px rgba(var(--se-accent-rgb), .09);
 }
 .se-app[class*="se-site-theme--"] .se-dashboard .se-dashboard-quick .se-dashboard-action:focus-visible {
   border-color: var(--se-accent);
@@ -237,10 +292,10 @@
 }
 @media (prefers-reduced-data: reduce) {
   .se-dashboard .se-dashboard-hero {
-    background-image: linear-gradient(125deg, #111925, #3c3040);
+    background-image: linear-gradient(125deg, var(--se-panel), color-mix(in srgb, var(--se-panel) 72%, var(--se-accent)));
   }
   .se-dashboard .se-dashboard-overview > .se-dashboard-story {
-    background-image: linear-gradient(115deg, #101e19, #183124);
+    background-image: linear-gradient(115deg, var(--se-panel), color-mix(in srgb, var(--se-panel) 72%, var(--se-accent)));
   }
   .se-dashboard .se-dashboard-overview > .se-dashboard-command__attention--urgent {
     background-image: linear-gradient(115deg, #200e17, #451923);

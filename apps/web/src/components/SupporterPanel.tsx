@@ -16,7 +16,7 @@ function day(iso: string | null): string {
 }
 
 /**
- * Account → Supporting. Supporting is cosmetic only: the Midnight Chrome
+  * Supporter page controls. Supporting is cosmetic only: the Midnight Chrome
  * collection, Signature Profile Card, monthly drops, tenure badges and
  * convenience limits are kept cosmetic-only. Payment happens on Stripe's own
  * pages; the rewards unlock as soon as Stripe confirms it.
@@ -55,7 +55,7 @@ export function SupporterPanel() {
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { void loadPolls(); }, [loadPolls]);
 
-  // Coming back from Stripe lands on the account page; bring this panel into view.
+  // Coming back from Stripe lands on this page; bring the controls into view.
   useEffect(() => {
     if (returned) document.getElementById('supporting')?.scrollIntoView({ block: 'start' });
   }, [returned]);

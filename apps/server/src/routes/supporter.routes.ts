@@ -10,7 +10,7 @@ const giftCheckoutSchema = z.object({ recipientAccountId: z.string().min(1) }).s
 const voteSchema = z.object({ optionKey: z.string().min(1).max(80) }).strict();
 const pollParams = z.object({ pollId: z.string().min(1) }).strict();
 
-/** Account → Supporting: the player's supporter status, Stripe Checkout and the billing portal. */
+/** Supporter page: the player's supporter status, Stripe Checkout and the billing portal. */
 const supporterRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', { preHandler: fastify.requireAuth }, async (request) =>
     SupporterBillingService.status(fastify.prisma, request.auth!.account.id));

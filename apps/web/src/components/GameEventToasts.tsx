@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BELL_CATEGORY_BY_ACTIVITY, EXPERIENCE_LEVEL_REWARDS, type ActivityDto, type RoundDto, type RoundPlayerDto } from '@streets/shared';
+import { BELL_CATEGORY_BY_ACTIVITY, EXPERIENCE_LEVEL_REWARDS, formatCents, type ActivityDto, type RoundDto, type RoundPlayerDto } from '@streets/shared';
 import { describeActivity } from './ActivityFeed.js';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
@@ -95,6 +95,15 @@ function turfPlace(payload: Record<string, unknown>): string {
 function clock(value: unknown): string {
   const at = str(value);
   return at ? formatClockTime(at) : '';
+}
+
+function sportsbookGame(payload: Record<string, unknown>): string {
+  return `${str(payload.awayTeam, 'Away')} at ${str(payload.homeTeam, 'Home')}`;
+}
+
+function sportsbookOdds(value: unknown): string {
+  const odds = num(value);
+  return odds > 0 ? `+${odds}` : String(odds);
 }
 
 function formatCount(value: number, singular: string, plural = `${singular}s`): string {
@@ -293,6 +302,29 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
         tone: 'info',
         href: typeof p.href === 'string' ? p.href : '/game/news',
       };
+
+    case 'SPORTSBOOK_GAME_STARTED':
+      return {
+        title: `Game started: ${str(p.pickTeam, 'your pick')}`,
+        detail: pieces(sportsbookGame(p), sportsbookOdds(p.oddsAmerican), clock(p.startsAt) ? `Started ${clock(p.startsAt)}` : '', `Stake ${formatCents(num(p.stakeCents))}`) || detail,
+        tone: 'info',
+        href: '/game/casino/sportsbook',
+      };
+
+    case 'SPORTSBOOK_TICKET_SETTLED': {
+      const status = str(p.status, 'SETTLED');
+      const returned = num(p.returnCents);
+      return {
+        title: status === 'WON' ? `Ticket won: ${str(p.pickTeam, 'your pick')}` : status === 'LOST' ? `Ticket lost: ${str(p.pickTeam, 'your pick')}` : `Ticket ${status.toLowerCase()}: ${str(p.pickTeam, 'your pick')}`,
+        detail: pieces(
+          sportsbookGame(p),
+          p.homeScore !== undefined && p.awayScore !== undefined ? `Final ${num(p.awayScore)}-${num(p.homeScore)}` : '',
+          returned > 0 ? `Return ${formatCents(returned)}` : `Stake ${formatCents(num(p.stakeCents))}`,
+        ) || detail,
+        tone: status === 'WON' ? 'good' : status === 'LOST' ? 'bad' : 'warn',
+        href: '/game/casino/sportsbook',
+      };
+    }
 
     case 'ADMIN_GRANT':
       return {

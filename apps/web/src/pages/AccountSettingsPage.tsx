@@ -26,7 +26,6 @@ import { YourDataPanel } from '../components/YourDataPanel.js';
 import { TwoFactorPanel } from '../components/TwoFactorPanel.js';
 import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
-import { SupporterPanel } from '../components/SupporterPanel.js';
 import { ItemCrewCosmeticsEditor } from '../components/ItemCrewCosmeticsEditor.js';
 import { AvatarBuilder } from '../components/AvatarBuilder.js';
 import { AvatarPortrait } from '../components/BuiltAvatar.js';
@@ -781,7 +780,14 @@ export function AccountSettingsPage() {
         <ReplayTutorial className="se-btn se-btn--ghost" />
       </Panel>
 
-      <SupporterPanel />
+      <Panel title="Supporting">
+        <p>
+          Supporter status, rewards, billing, gifts and supporter votes now live on their own page with a full rewards showcase.
+        </p>
+        <Link className="se-btn se-btn--primary" to={`/game/supporter${searchParams.get('supporter') ? `?supporter=${encodeURIComponent(searchParams.get('supporter')!)}` : ''}`}>
+          Open supporter page
+        </Link>
+      </Panel>
       </section>
 
       <section id="settings-profile" className="se-settings-section" aria-labelledby="settings-profile-title">

@@ -67,6 +67,9 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'RING_SURFACED',
   'RING_STOLEN',
   'RING_DESTROYED',
+  // Sportsbook tickets: kickoff and grading should reach the player even if they are away.
+  'SPORTSBOOK_GAME_STARTED',
+  'SPORTSBOOK_TICKET_SETTLED',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {

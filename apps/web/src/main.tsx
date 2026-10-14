@@ -18,6 +18,7 @@ import './styles/raids.css';
 import './styles/stores.css';
 import './styles/items.css';
 import './styles/street-pass.css';
+import './styles/supporter.css';
 import './styles/travel.css';
 import './styles/city-blocks.css';
 import './styles/quests.css';

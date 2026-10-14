@@ -115,6 +115,10 @@ export type ActivityType =
   | 'RING_STOLEN'
   /** The Ring was destroyed at the foundry. */
   | 'RING_DESTROYED'
+  /** A sportsbook ticket's game has kicked off. */
+  | 'SPORTSBOOK_GAME_STARTED'
+  /** A sportsbook ticket was graded as won, lost, push or void. */
+  | 'SPORTSBOOK_TICKET_SETTLED'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'
@@ -2102,7 +2106,7 @@ export interface SupporterMembershipDto {
   endedAt: string | null;
 }
 
-/** Account → Supporting. Rewards are kept for good; the membership says whether they support now. */
+/** Supporter page status. Rewards are kept for good; the membership says whether they support now. */
 export interface SupporterStatusDto {
   /** Stripe checkout is set up on this server. */
   checkoutEnabled: boolean;

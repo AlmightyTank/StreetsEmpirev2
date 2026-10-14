@@ -163,12 +163,27 @@ mirrors those accounts as `Beta Tester` when `DISCORD_ROLE_SYNC_MODE` is
 
 ## Sportsbook odds cache
 
-The beta API persists TheRundown's pregame snapshots in
-`.runtime/sportsbook-odds.json` inside the beta checkout. The odds refresh is
-limited to one provider poll per 30 minutes from the latest cache file update.
-Scheduled and admin-triggered pulls share this cooldown; an admin pull within the
-window reports the next eligible refresh time without refreshing odds from TheRundown. The
-PostgreSQL sportsbook tables remain the transactional board and ticket store.
+The beta API persists pregame moneyline snapshots in `.runtime/sportsbook-odds.json`
+inside the beta checkout. Configure at least one odds provider key on the **API**
+service, then restart the beta API so the process can see it:
+
+```bash
+THERUNDOWN_API_KEY="<therundown key>"
+THE_ODDS_API_KEY="<the odds api key>"
+SPORTSBOOK_POLL_MINUTES=30
+```
+
+The Odds API key must use `THE_ODDS_API_KEY`; `SPORTSGAMEODDS_API_KEY` is reserved
+for a future adapter and does not populate the board. ESPN Scoreboard is public
+and results-only in the current provider chain: it helps check final scores for
+started games with open tickets, but it does not provide betting odds or create
+board listings by itself.
+
+The odds refresh is limited to one provider poll per 30 minutes from the latest
+cache file update. Scheduled and admin-triggered pulls share this cooldown; an
+admin pull within the window reports the next eligible refresh time without
+refreshing odds from the provider. The PostgreSQL sportsbook tables remain the
+transactional board and ticket store.
 
 ## 3. Create the beta PostgreSQL database
 

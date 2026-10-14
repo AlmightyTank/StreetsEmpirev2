@@ -458,8 +458,8 @@ export const SupporterBillingService = {
       subscription_data: { metadata: { accountId: account.id } },
       // Reuse the Stripe customer from an earlier subscription so billing history stays together.
       ...(membership ? { customer: membership.stripeCustomerId } : { customer_email: account.email }),
-      success_url: `${env.frontendOrigin}/account?supporter=thanks`,
-      cancel_url: `${env.frontendOrigin}/account?supporter=cancelled`,
+      success_url: `${env.frontendOrigin}/game/supporter?supporter=thanks`,
+      cancel_url: `${env.frontendOrigin}/game/supporter?supporter=cancelled`,
     });
     return { url: session.url };
   },
@@ -478,8 +478,8 @@ export const SupporterBillingService = {
       client_reference_id: account.id,
       metadata,
       customer_email: account.email,
-      success_url: `${env.frontendOrigin}/account?supporter=gift-thanks`,
-      cancel_url: `${env.frontendOrigin}/account?supporter=gift-cancelled`,
+      success_url: `${env.frontendOrigin}/game/supporter?supporter=gift-thanks`,
+      cancel_url: `${env.frontendOrigin}/game/supporter?supporter=gift-cancelled`,
     });
     return { url: session.url };
   },
@@ -488,7 +488,7 @@ export const SupporterBillingService = {
   async openPortal(prisma: PrismaClient, accountId: string, api: StripeApi = liveStripe()): Promise<SupporterRedirectDto> {
     const membership = await prisma.supporterMembership.findUnique({ where: { accountId } });
     if (!membership) throw AppError.notFound('NO_SUPPORTER_BILLING', 'There is no supporter billing on this account yet.');
-    return api.createPortalSession({ customer: membership.stripeCustomerId, return_url: `${env.frontendOrigin}/account` });
+    return api.createPortalSession({ customer: membership.stripeCustomerId, return_url: `${env.frontendOrigin}/game/supporter` });
   },
 
   /**
