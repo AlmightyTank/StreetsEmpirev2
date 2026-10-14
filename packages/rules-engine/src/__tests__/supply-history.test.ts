@@ -63,3 +63,4 @@ describe('1.6.0 never reaches a round pinned before it', () => {
     expect(latest?.supplyNetwork).toEqual(rulesets['classic-og-v1.8-r']?.supplyNetwork);
   });
 });
+
