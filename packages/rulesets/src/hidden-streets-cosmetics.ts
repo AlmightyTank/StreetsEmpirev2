@@ -33,3 +33,29 @@ export const BLACKWOOD_COSMETICS = {
     styleKey: 'blackwood-manor',
   },
 } as const satisfies QuestCosmeticCatalog;
+
+/**
+ * Hidden Streets Slice E — Comedy Collection cosmetics.
+ *
+ * Original street-comedy rewards only. The title badge is earned from the
+ * Traveling Sample Case opener, while the frame comes from the Regional
+ * Management secret. Both are static presentation styles and carry no gameplay
+ * power.
+ */
+export const COMEDY_COSMETICS = {
+  'comedy-roadshow-badge': {
+    key: 'comedy-roadshow-badge',
+    name: 'Roadshow Regular',
+    description: 'Solved the city’s strangest roadside comedy case file.',
+    kind: 'TITLE_BADGE',
+    rarity: 'rare',
+  },
+  'comedy-roadshow-frame': {
+    key: 'comedy-roadshow-frame',
+    name: 'Roadshow Frame',
+    description: 'A sunny profile frame for players who survived the city’s joke circuit.',
+    kind: 'PROFILE_FRAME',
+    rarity: 'rare',
+    styleKey: 'comedy-roadshow-frame',
+  },
+} as const satisfies QuestCosmeticCatalog;
