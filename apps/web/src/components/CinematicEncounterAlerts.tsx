@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { BELL_CATEGORY_BY_ACTIVITY, type ActivityDto } from '@streets/shared';
 import { useSession } from '../stores/session.js';
 import { gameEventToastFor } from './GameEventToasts.js';
+import { describeActivity } from './ActivityFeed.js';
 
 export type EncounterAlertKind = 'driveby' | 'raid' | 'turf' | 'convoy' | 'encounter';
 export type EncounterAlertOutcome = 'incoming' | 'victory' | 'defeat' | 'warning';
@@ -45,7 +46,7 @@ const TITLES: Record<EncounterAlertKind, string> = {
 const STATUS: Record<EncounterAlertOutcome, { label: string; symbol: string }> = {
   incoming: { label: 'INCOMING THREAT', symbol: '!' },
   victory: { label: 'CREW VICTORY', symbol: '★' },
-  defeat: { label: 'CREW UNDER ATTACK', symbol: '!' },
+  defeat: { label: 'CREW TOOK A HIT', symbol: '!' },
   warning: { label: 'STREET INTELLIGENCE', symbol: '◆' },
 };
 
@@ -88,11 +89,17 @@ export function encounterAlertForActivity(activity: ActivityDto): EncounterAlert
   }
 
   const existing = gameEventToastFor(activity, 'product');
+  const described = describeActivity(activity, 'product');
+  const outboundTitle = activity.type === 'RAID_ATTACK'
+    ? p.won === true ? 'Your raid succeeded' : 'Your raid failed'
+    : activity.type === 'DRIVE_BY_ATTACK'
+      ? p.won === true ? 'Drive-by landed' : 'Drive-by repelled'
+      : null;
   return {
     kind,
     outcome,
-    title: existing?.title ?? (outcome === 'victory' ? TITLES[kind] + ' won' : TITLES[kind] + ' report'),
-    description: existing?.detail || (outcome === 'incoming'
+    title: existing?.title ?? outboundTitle ?? (outcome === 'victory' ? TITLES[kind] + ' won' : TITLES[kind] + ' report'),
+    description: existing?.detail || [described.text, described.detail].filter(Boolean).join(' ') || (outcome === 'incoming'
       ? 'Your lookouts have spotted an approaching threat.'
       : outcome === 'victory' ? 'Your crew came out on top.' : 'Your crew has a new combat report.'),
     opponent: stringField(p, 'opponent', 'attacker', 'defender', 'target'),
