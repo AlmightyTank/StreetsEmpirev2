@@ -106,50 +106,9 @@ export function AvatarFace({ imageUrl, avatar, fallback }: {
   return <>{fallback}</>;
 }
 
-<<<<<<< Updated upstream
-
-=======
-export interface AvatarFrameSpec {
-  /** Front overlay art: ring/trim that draws over the avatar edge. */
-  frontArtUrl: string;
-  /** Optional backdrop drawn behind the avatar (most frames leave the opening transparent instead). */
-  backArtUrl?: string;
-  /** Opening geometry, in percent of the portrait holder. */
-  top: number;
-  left: number;
-  width: number;
-  /** Width/height ratio for non-square openings (default 1). */
-  aspect?: number;
-  shape: 'circle' | 'square' | 'rect';
-}
-
-const AVATAR_FRAME_SPEC: Record<string, AvatarFrameSpec> = {
-  // Shared opening geometry, measured from each frame's 128x128 viewBox
-  // (circle openings: left/top = (center - radius) / 128). The face sits in
-  // the opening (z 2) and the frame art draws over it (z 3), so the ring/trim
-  // always overlaps the avatar edge instead of hiding behind it.
-  // Group A — geometry-only (art already has a real transparent opening).
-  'snowstorm-drake': { frontArtUrl: '/items/street-pass-s1-snowstorm-frame.svg', shape: 'circle', top: 25.8, left: 25.8, width: 48.4 },
-  'inferno-drake': { frontArtUrl: '/items/street-pass-s1-inferno-frame.svg', shape: 'circle', top: 25.8, left: 25.8, width: 48.4 },
-  'block-sovereign-frame': { frontArtUrl: '/items/street-pass-s1-block-sovereign-frame.svg', shape: 'circle', top: 28.1, left: 28.1, width: 43.75 },
-  'chrome-serpent-frame': { frontArtUrl: '/items/street-pass-s1-chrome-serpent-frame.svg', shape: 'circle', top: 28.9, left: 28.9, width: 42.2 },
-  'laurel-ascendant-frame': { frontArtUrl: '/items/street-pass-s1-laurel-ascendant-frame.svg', shape: 'circle', top: 23.4, left: 26.6, width: 46.9 },
-  // Group B — front overlay (ring/trim art draws over the avatar edge).
-  'lantern-district-frame': { frontArtUrl: '/items/street-pass-s1-lantern-district-frame.svg', shape: 'circle', top: 21.1, left: 27.3, width: 45.3 },
-  'phantom-convoy-frame': { frontArtUrl: '/items/street-pass-s1-phantom-convoy-frame.svg', shape: 'circle', top: 33.6, left: 28.9, width: 42.2 },
-  'siren-breaker-frame': { frontArtUrl: '/items/street-pass-s1-siren-breaker-frame.svg', shape: 'circle', top: 28.1, left: 26.6, width: 46.9 },
-  'gilded-house-frame': { frontArtUrl: '/items/street-pass-s1-gilded-house-frame.svg', shape: 'circle', top: 30.5, left: 27.3, width: 45.3 },
-  // Group C — special shapes (non-circular openings).
-  'street-pass-s1-frame': { frontArtUrl: '/items/street-pass-s1-frame.svg', shape: 'square', top: 18.75, left: 21.9, width: 56.25 },
-  'dead-or-alive-frame': { frontArtUrl: '/items/street-pass-s1-dead-or-alive-frame.svg', shape: 'rect', top: 28.1, left: 29.7, width: 40.6, aspect: 52 / 50 },
-  // Group D — supporter/non-pass frames ride the same system.
-  'midnight-chrome-frame': { frontArtUrl: '/profile-frames/midnight-chrome-avatar.webp', shape: 'circle', top: 12, left: 12, width: 76 },
-};
->>>>>>> Stashed changes
-
-/** Every frame with layered art. Frames absent here use the CSS `se-avatar-frame` ring. */
+/** Every frame with layered art. Frames absent from the shared specs use the CSS `se-avatar-frame` ring. */
 export function hasAvatarFrameArt(frameKey: string): boolean {
-  return Object.hasOwn(AVATAR_FRAME_SPEC, frameKey);
+  return avatarFrameSpec(frameKey) !== undefined;
 }
 
 /**
@@ -185,44 +144,17 @@ export function AvatarPortrait({ imageUrl, avatar, fallback, frameKey }: {
 }) {
   if (!frameKey) return <AvatarFace imageUrl={imageUrl} avatar={avatar} fallback={fallback} />;
 
-<<<<<<< Updated upstream
   const frameArt = avatarFrameSpec(frameKey)?.artUrl;
-=======
-  const spec = AVATAR_FRAME_SPEC[frameKey];
-  if (!spec) {
-    return (
-      <span
-        className="se-avatar-portrait se-avatar-frame"
-        data-avatar-frame={frameKey}
-      >
-        <span className="se-avatar-portrait__face">
-          <AvatarFace imageUrl={imageUrl} avatar={avatar} fallback={fallback} />
-        </span>
-      </span>
-    );
-  }
-
->>>>>>> Stashed changes
   return (
     <span
-      className="se-avatar-portrait se-avatar-portrait--art"
+      className={`se-avatar-portrait${frameArt ? ' se-avatar-portrait--art' : ' se-avatar-frame'}`}
       data-avatar-frame={frameKey}
       style={avatarFrameOpeningStyle(frameKey)}
     >
-      {spec.backArtUrl ? <img className="se-avatar-portrait__back" src={spec.backArtUrl} alt="" /> : null}
-      <span
-        className="se-avatar-portrait__face"
-        style={{
-          top: `${spec.top}%`,
-          left: `${spec.left}%`,
-          width: `${spec.width}%`,
-          aspectRatio: spec.aspect ? String(spec.aspect) : undefined,
-          borderRadius: spec.shape === 'circle' ? '50%' : spec.shape === 'square' ? '3%' : '5%',
-        }}
-      >
+      <span className="se-avatar-portrait__face">
         <AvatarFace imageUrl={imageUrl} avatar={avatar} fallback={fallback} />
       </span>
-      <img className="se-avatar-portrait__art" src={spec.frontArtUrl} alt="" />
+      {frameArt ? <img className="se-avatar-portrait__art" src={frameArt} alt="" /> : null}
     </span>
   );
 }

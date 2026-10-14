@@ -1129,15 +1129,9 @@
 
 .se-avatar-portrait__face {
   position: absolute;
-<<<<<<< Updated upstream
   z-index: 3;
   top: var(--se-avatar-opening-top, 28%);
   left: var(--se-avatar-opening-left, 28%);
-=======
-  z-index: 2;
-  top: 28%;
-  left: 28%;
->>>>>>> Stashed changes
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -1167,11 +1161,9 @@
   pointer-events: none;
 }
 
-<<<<<<< Updated upstream
-=======
 .se-avatar-portrait__art {
   position: absolute !important;
-  z-index: 3 !important;
+  z-index: 2 !important;
   inset: 0;
   display: block;
   width: 100% !important;
@@ -1181,7 +1173,6 @@
   pointer-events: none;
 }
 
->>>>>>> Stashed changes
 .se-avatar-frame {
   --se-avatar-frame-color: var(--se-accent);
   position: relative;

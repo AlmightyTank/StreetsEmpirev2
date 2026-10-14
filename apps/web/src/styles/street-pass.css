@@ -1690,7 +1690,6 @@
   margin-inline: auto;
 }
 
-<<<<<<< Updated upstream
 /* Render the real equipped frame here so the preview never uses a separate crop. */
 .se-pass-theme-preview__frame-stage > .se-avatar-portrait {
   width: 100%;
@@ -1739,11 +1738,6 @@ img.se-pass-theme-preview__frame-avatar {
 
 .se-pass-theme-preview__frame-avatar--initials {
   letter-spacing: -0.04em;
-=======
-.se-pass-theme-preview__frame-stage .se-avatar-portrait {
-  width: 100%;
-  height: 100%;
->>>>>>> Stashed changes
 }
 
 .se-pass-theme-preview--street-pass-s1-ice-dragon-theme .se-pass-theme-preview__mock {

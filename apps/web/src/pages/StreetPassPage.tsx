@@ -8,12 +8,8 @@ import { Button } from '../components/Button.js';
 import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { rewardText } from '../components/RewardChip.js';
-<<<<<<< Updated upstream
 import { AvatarPortrait, BuiltAvatar } from '../components/BuiltAvatar.js';
 import { avatarFrameSpec } from '../components/avatarFrameOpenings.js';
-=======
-import { AvatarPortrait, previewFrameKeyForCosmetic } from '../components/BuiltAvatar.js';
->>>>>>> Stashed changes
 import { useGameAction } from '../hooks/useGameAction.js';
 import { ITEM_ART, itemArtUrl, rewardArtKey } from '../items/itemArt.js';
 import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
@@ -206,7 +202,6 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
             role="img"
             aria-label={`${displayName}'s avatar shown with ${active.label}`}
           >
-<<<<<<< Updated upstream
             {activeFrame ? (
               <AvatarPortrait
                 imageUrl={profileImageUrl}
@@ -227,17 +222,9 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
                     {playerInitials(displayName)}
                   </span>
                 )}
-                <img className="se-pass-theme-preview__frame-art" src={itemArtUrl(active.art)} alt="" />
+                {active.art ? <img className="se-pass-theme-preview__frame-art" src={itemArtUrl(active.art)} alt="" /> : null}
               </>
             )}
-=======
-            <AvatarPortrait
-              imageUrl={profileImageUrl}
-              avatar={profileAvatar}
-              fallback={playerInitials(displayName)}
-              frameKey={previewFrameKeyForCosmetic(active.key)}
-            />
->>>>>>> Stashed changes
           </div>
         ) : active.kind === 'item' && activeCollectionStyle && activeWeapon ? (
           <div className="se-pass-theme-preview__weapon-stage">
