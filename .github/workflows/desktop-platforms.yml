@@ -1,0 +1,67 @@
+name: StreetsEmpire Desktop — Windows, macOS, Linux
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-platforms.yml"
+  push:
+    branches:
+      - beta
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-platforms.yml"
+
+jobs:
+  desktop-builds:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows x64
+            os: windows-latest
+            script: dist:win
+            artifact: StreetsEmpire-Windows-x64
+            glob: desktop/dist/StreetsEmpire-Portable-*.exe
+          - label: macOS Intel x64
+            os: macos-15
+            script: dist:mac:x64
+            artifact: StreetsEmpire-macOS-Intel
+            glob: desktop/dist/StreetsEmpire-macOS-x64-*.zip
+          - label: macOS Apple Silicon arm64
+            os: macos-15
+            script: dist:mac:arm64
+            artifact: StreetsEmpire-macOS-Apple-Silicon
+            glob: desktop/dist/StreetsEmpire-macOS-arm64-*.zip
+          - label: Linux x64
+            os: ubuntu-24.04
+            script: dist:linux
+            artifact: StreetsEmpire-Linux-x64
+            glob: desktop/dist/StreetsEmpire-Linux-x64-*.AppImage
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install desktop dependencies
+        run: npm install --prefix desktop --no-audit --no-fund
+      - name: Unit tests
+        run: npm test --prefix desktop
+      - name: Check JavaScript syntax
+        run: npm run check --prefix desktop
+      - name: Build portable desktop artifact
+        env:
+          STREETSEMPIRE_DISCORD_CLIENT_ID: ${{ vars.STREETSEMPIRE_DISCORD_CLIENT_ID }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run ${{ matrix.script }} --prefix desktop
+      - name: Upload portable desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.glob }}
+          if-no-files-found: error
