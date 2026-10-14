@@ -17,7 +17,7 @@ the GitHub artifact ZIP first.
 | Windows 10/11 (64-bit) | `StreetsEmpire-Windows-x64` | `StreetsEmpire-Portable-0.1.3.exe` | Double-click EXE; no installer, administrator permission or system-wide changes |
 | macOS Intel (x64) | `StreetsEmpire-macOS-Intel` | `StreetsEmpire-macOS-x64-0.1.3.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
 | macOS Apple Silicon (M1/M2/M3/M4, arm64) | `StreetsEmpire-macOS-Apple-Silicon` | `StreetsEmpire-macOS-arm64-0.1.3.zip` | Extract ZIP; open `StreetsEmpire.app`. Moving it to Applications is optional |
-| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x64-0.1.3.AppImage` | `chmod +x StreetsEmpire-Linux-x64-0.1.3.AppImage` then run it |
+| Linux x86_64 | `StreetsEmpire-Linux-x64` | `StreetsEmpire-Linux-x86_64-0.1.3.AppImage` | `chmod +x StreetsEmpire-Linux-x86_64-0.1.3.AppImage` then run it |
 
 Windows uses electron-builder's **portable** target, macOS uses ZIP archives
 containing a native `.app`, and Linux uses **AppImage**. None of these require
