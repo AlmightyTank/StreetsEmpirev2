@@ -65,6 +65,7 @@ import { ForumModerationService } from '../services/forum-moderation.service.js'
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
 import { MonitoringService } from '../services/monitoring.service.js';
 import { AdminEventService } from '../services/admin-event.service.js';
+import { HiddenStreetsAdminService } from '../services/hidden-streets-admin.service.js';
 import { parseBody } from '../utils/validate.js';
 
 const isoDate = z.coerce.date();
@@ -1211,6 +1212,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
   /** 1.8.5-G: event release checks, migration inventory, calendar and audit history. */
   fastify.get('/events', async () => AdminEventService.releaseReport(fastify.prisma));
+
+  /** Hidden Streets beta diagnostics: content families, rewards, checks and live counters. */
+  fastify.get('/hidden-streets', async () => HiddenStreetsAdminService.releaseReport(fastify.prisma));
 
   fastify.get('/events/preview', async (request) => {
     const { rulesetId } = parseBody(eventPreviewQuery, request.query ?? {});

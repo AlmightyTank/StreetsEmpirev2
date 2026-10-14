@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV18N } from '../classic-og-v1.8-n/index.js';
 import { classicOgV18O } from '../classic-og-v1.8-o/index.js';
-import { classicOgV18R } from '../classic-og-v1.8-r/index.js';
+import { classicOgV18S } from '../classic-og-v1.8-s/index.js';
 import { ENCOUNTER_GANG_RULES } from '../encounter-gangs.js';
 import { rulesets } from '../index.js';
 import { questRequiredDistricts } from '../quest-definitions.js';
@@ -46,8 +46,8 @@ describe('1.8.0-O district access (Quest Access A)', () => {
   it('ships pinned on top of 1.8.0-N and stays inherited by the newest ruleset', () => {
     expect(classicOgV18O.meta).toMatchObject({ id: 'classic-og-v1.8-o', version: '1.8.0-O', name: 'Classic OG - District Access' });
     expect(rulesets[classicOgV18O.meta.id]).toBe(classicOgV18O);
-    expect(rulesets[classicOgV18R.meta.id]).toBe(classicOgV18R);
-    expect(classicOgV18R.permanentUnlocks).toBe(classicOgV18O.permanentUnlocks);
+    expect(rulesets[classicOgV18S.meta.id]).toBe(classicOgV18S);
+    expect(classicOgV18S.permanentUnlocks).toBe(classicOgV18O.permanentUnlocks);
     expect(Object.values(rulesets).at(-1)?.permanentUnlocks).toBe(classicOgV18O.permanentUnlocks);
   });
 

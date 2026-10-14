@@ -128,6 +128,13 @@ const profileTitleLabels: Record<string, string> = {
   // Hidden Streets titles read as earned case-file titles.
   'blackwood-gate-badge': 'Blackwood Gatecrasher',
   'comedy-roadshow-badge': 'Roadshow Regular',
+  'lost-fortune-badge': 'Lost Fortune Finder',
+  'pattern-board-badge': 'Pattern Reader',
+  'manor-unmasked-badge': 'Manor Unmasked',
+  'extraction-badge': 'Clean Extraction',
+  'shadow-city-badge': 'Shadow City Legend',
+  'guildmaster-badge': 'Guildmaster',
+  'you-had-to-be-there-badge': 'You Had to Be There',
 
   // Street Pass season titles read as named, with their season.
   'street-pass-s1-fresh-face': 'Fresh Face · Season 1',

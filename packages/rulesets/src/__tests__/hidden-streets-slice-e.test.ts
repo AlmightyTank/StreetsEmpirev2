@@ -23,14 +23,13 @@ function qEntry(key: string): RandomEncounterEntryRules | undefined {
 }
 
 describe('Hidden Streets Slice E comedy collection', () => {
-  it('ships as a new latest ruleset without mutating Slice D', () => {
+  it('ships as a versioned ruleset without mutating Slice D', () => {
     expect(classicOgV18R.meta).toMatchObject({
       id: 'classic-og-v1.8-r',
       version: '1.8.0-R',
       name: 'Classic OG - Hidden Streets Comedy',
     });
     expect(rulesets[classicOgV18R.meta.id]).toBe(classicOgV18R);
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18R);
 
     expect(qCatalog.SECRET_TRAVELING_SAMPLE_CASE).toBeUndefined();
     expect(qEntry('scout-tin-can-golfer')).toBeUndefined();
