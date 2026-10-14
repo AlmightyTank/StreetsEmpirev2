@@ -38,6 +38,8 @@ async function getDecoyHash(): Promise<string> {
 
 const DISCORD_STATE_COOKIE = 'se_discord_oauth_state';
 const DISCORD_LINK_COOKIE = 'se_discord_oauth_link';
+/** Signed OAuth redirect URI, kept with state to avoid proxy header drift. */
+const DISCORD_REDIRECT_URI_COOKIE = 'se_discord_oauth_redirect_uri';
 /** rc.3. A sign-in waiting for its authenticator code. */
 const TWO_FACTOR_COOKIE = 'se_2fa_challenge';
 /** rc.4. "Trust this browser": sign-ins from it skip the code. */
@@ -131,6 +133,13 @@ function requestOrigin(request: FastifyRequest): string {
 
 function discordRedirectUri(request: FastifyRequest): string {
   return env.discord.redirectUri || `${requestOrigin(request)}/api/auth/discord/callback`;
+}
+
+function setDiscordRedirectCookie(reply: FastifyReply, redirectUri: string): void {
+  reply.setCookie(DISCORD_REDIRECT_URI_COOKIE, redirectUri, {
+    httpOnly: true, sameSite: 'lax', secure: env.isProduction, signed: true,
+    path: '/api/auth', maxAge: 10 * 60,
+  });
 }
 
 function setDiscordStateCookie(reply: FastifyReply, state: string): void {
@@ -661,6 +670,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     authorize.searchParams.set('state', state);
 
     setDiscordStateCookie(reply, state);
+    setDiscordRedirectCookie(reply, redirectUri);
     if (linkMode) setDiscordLinkCookie(reply);
     reply.setCookie(DISCORD_REMEMBER_COOKIE, query.remember ? '1' : '0', {
       httpOnly: true, sameSite: 'lax', secure: env.isProduction, signed: true, path: '/api/auth', maxAge: 10 * 60,
@@ -672,8 +682,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const query = discordCallbackSchema.parse(request.query);
     const expectedState = readDiscordStateCookie(request);
     const linkMode = readDiscordLinkCookie(request);
+    const savedRedirectUri = readSignedCookie(request, DISCORD_REDIRECT_URI_COOKIE);
     clearDiscordStateCookie(reply);
     clearDiscordLinkCookie(reply);
+    reply.clearCookie(DISCORD_REDIRECT_URI_COOKIE, { path: '/api/auth' });
 
     if (query.error) {
       return reply.redirect(linkMode
@@ -687,9 +699,15 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         : authRedirect('Discord login expired. Try again.'));
     }
 
+    // Exchange against the *same* redirect_uri sent to Discord, even if proxy
+    // forwarding headers differ between the authorize and callback requests.
+    const redirectUri = savedRedirectUri || discordRedirectUri(request);
+    let stage = 'token_exchange';
     try {
-      const accessToken = await exchangeDiscordCode(query.code, discordRedirectUri(request));
+      const accessToken = await exchangeDiscordCode(query.code, redirectUri);
+      stage = 'discord_profile';
       const discordUser = await fetchDiscordUser(accessToken);
+      stage = 'account_resolution';
 
       if (linkMode) {
         if (!request.auth) return reply.redirect(authRedirect('Log in before linking Discord.'));
@@ -705,6 +723,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const account = await accountForDiscordUser(fastify.prisma, discordUser);
+      stage = 'beta_access';
       assertBetaAccess(account, env.betaAccess.inviteOnly);
       const remember = readSignedCookie(request, DISCORD_REMEMBER_COOKIE) !== '0';
       reply.clearCookie(DISCORD_REMEMBER_COOKIE, { path: '/api/auth' });
@@ -713,6 +732,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'DISCORD', remember));
         return reply.redirect(twoFactorRedirect());
       }
+      stage = 'session_creation';
       const { token } = await createSession(fastify.prisma, account.id, {
         userAgent: request.headers['user-agent'],
         ip: request.ip,
@@ -724,7 +744,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
       return reply.redirect(postLoginRedirect());
     } catch (error) {
-      fastify.log.warn({ err: error }, linkMode ? 'discord link failed' : 'discord login failed');
+      // Log the failing step without including OAuth tokens or the code.
+      fastify.log.warn({ err: error, stage }, linkMode ? 'discord link failed' : 'discord login failed');
       if (error instanceof AppError) {
         return reply.redirect(linkMode ? accountRedirect(error.message) : authRedirect(error.message));
       }
