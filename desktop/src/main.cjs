@@ -251,7 +251,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(async () => {
-    app.setAppUserModelId('dev.streetsempire.desktop');
+    if (process.platform === 'win32') app.setAppUserModelId('dev.streetsempire.desktop');
     settings = readSettings();
     createWindow();
     await askFirstLaunch();
