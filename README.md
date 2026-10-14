@@ -1,5 +1,7 @@
 # StreetsEmpire
 
+**Desktop app (Windows, macOS, Linux):** [Download the latest desktop beta](https://github.com/AlmightyTank/StreetsEmpirev2/releases/tag/desktop-beta) · [Desktop setup and requirements](desktop/README.md). Desktop-only changes produce new downloads; regular web gameplay updates load automatically.
+
 A reconstruction of the OG Pimp War economic loop.
 
 **Live version:** `0.4.0-E` &middot; **Development:** `0.7.0-AA` Hideout & Jobs &middot; **Dev ruleset:** `classic-og-v0.7-aa`
