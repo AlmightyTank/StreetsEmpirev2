@@ -111,6 +111,45 @@ npm run dist:linux
 If you omit the Application ID, the app still opens the game but Discord Rich
 Presence is unavailable. No developer secrets are embedded.
 
+## Discord Rich Presence artwork
+
+The optional Discord artwork uses the fields `assets.large_image`,
+`assets.large_text`, `assets.small_image`, and `assets.small_text` in
+Discord's desktop `SET_ACTIVITY` payload. This is **not** the deprecated
+C library `Discord_UpdatePresence`.
+
+1. Open the [Discord Developer Portal](https://discord.com/developers/applications)
+   and select the **same StreetsEmpire application whose Application ID you
+   set as `STREETSEMPIRE_DISCORD_CLIENT_ID`**.
+2. Find **Rich Presence → Art Assets** for that application and upload a
+   **square** game illustration for the big Rich Presence image, and a small
+   transparent StreetsEmpire emblem. The previously designed 16:9 cover is
+   good for banners but should be square-cropped for the normal large image.
+3. Name the image assets `streetsempire_city` and `streetsempire_logo` in
+   the portal. Names must match **exactly**.
+4. Under GitHub **Settings → Secrets and variables → Actions → Variables**, set
+   these **public repository variables**:
+
+   | Variable | Example value |
+   | --- | --- |
+   | `STREETSEMPIRE_DISCORD_CLIENT_ID` | Your public Discord Application ID |
+   | `STREETSEMPIRE_DISCORD_LARGE_IMAGE_KEY` | `streetsempire_city` |
+   | `STREETSEMPIRE_DISCORD_SMALL_IMAGE_KEY` | `streetsempire_logo` |
+
+5. Rebuild all desktop packages. Existing apps do not acquire the new asset keys
+   automatically; normal web gameplay content still updates automatically.
+6. Opt into **Discord → Show Playing StreetsEmpire** and test with the desktop
+   Discord client running.
+
+The two image keys are optional. When omitted, no imaginary/missing asset keys
+are sent to Discord. A registered large image appears as a large **square**
+Rich Presence illustration, not a fully customizable Discord card background.
+
+The app includes elapsed play time and a **Play StreetsEmpire** button. It
+does not send an `endTimestamp`, `partyId`, `partyMax`, or `joinSecret`
+until real timed sessions and authenticated multiplayer invites exist.
+Do **not** copy sample party secrets from online snippets.
+
 ## GitHub Actions
 
 Workflow: `.github/workflows/desktop-platforms.yml`.
