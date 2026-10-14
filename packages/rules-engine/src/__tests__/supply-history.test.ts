@@ -59,7 +59,7 @@ describe('1.6.0 never reaches a round pinned before it', () => {
 
   it('carries the finished supply network into the newest season ruleset', () => {
     const latest = Object.values(rulesets).at(-1);
-    expect(latest?.meta.id).toBe('classic-og-v1.8-r');
-    expect(latest?.supplyNetwork).toEqual(rulesets['classic-og-v1.8-q']?.supplyNetwork);
+    expect(rulesets['classic-og-v1.8-r']?.supplyNetwork).toEqual(rulesets['classic-og-v1.8-q']?.supplyNetwork);
+    expect(latest?.supplyNetwork).toEqual(rulesets['classic-og-v1.8-r']?.supplyNetwork);
   });
 });
