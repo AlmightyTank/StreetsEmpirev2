@@ -9,6 +9,7 @@ import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../componen
 import { ItemTile } from '../components/ItemTile.js';
 import { rewardText } from '../components/RewardChip.js';
 import { BuiltAvatar } from '../components/BuiltAvatar.js';
+import { avatarFrameOpeningStyle } from '../components/avatarFrameOpenings.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { ITEM_ART, itemArtUrl, rewardArtKey } from '../items/itemArt.js';
 import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
@@ -199,6 +200,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
             className={`se-pass-theme-preview__frame-stage se-pass-theme-preview__frame-stage--${active.key}`}
             role="img"
             aria-label={`${displayName}'s avatar shown with ${active.label}`}
+            style={avatarFrameOpeningStyle(active.key)}
           >
             {profileImageUrl ? (
               <img className="se-pass-theme-preview__frame-avatar" src={profileImageUrl} alt="" />
