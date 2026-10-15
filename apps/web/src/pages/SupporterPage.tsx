@@ -33,7 +33,7 @@ const BENEFITS = [
 /** Dedicated supporter page: explains the cosmetic-only value, then hosts Stripe/supporter account controls. */
 export function SupporterPage() {
   // Same access model as account settings: playable accounts keep the game shell; blocked/pre-join accounts get the plain shell.
-  const canPlay = useSession((s) => Boolean(s.me && !s.account?.verificationRequired && !s.account?.rulesAcceptanceRequired));
+  const canPlay = useSession((s) => Boolean(s.me && !s.account?.verificationRequired && !s.account?.rulesAcceptanceRequired && !s.account?.birthDateRequired));
   const Frame = canPlay ? GameLayout : Shell;
 
   return (
