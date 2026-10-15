@@ -309,6 +309,13 @@ Profiles might record:
 
 **1.8.5 detailed roadmap:** [ROADMAP-1.8.5.md](ROADMAP-1.8.5.md).
 
+### Returning-player briefings and city newspaper (separate player-experience initiatives)
+
+- **[The Street Report roadmap](ROADMAP-STREET-REPORT.md)** — personalized "While You Were Away" briefing on login or return from idle, with real battle/turf/crew/quest/event updates, priority actions, modal orchestration, and archive. **Slices SR-A–G.**
+- **[The Streets Daily roadmap](ROADMAP-STREETS-DAILY.md)** — public newspaper of confirmed territory changes, events, alliance news, and achievements; daily UTC editions, vintage layout, archives, and admin editorial controls. **Slices SD-A–G.**
+
+These roadmaps are planned **without assigning a new release number**. They reuse authoritative 1.8.5 event outcomes but do not take over encounter settlement or create duplicate reward systems. The private Street Report should be implemented before the full public newspaper if released in stages.
+
 ### Theme
 
 Give seasons occasional disruptions and objectives. The 1.8.5 focus is connected random encounters, crew moments, and transparent city conditions.
