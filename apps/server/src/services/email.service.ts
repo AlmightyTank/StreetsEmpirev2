@@ -1,4 +1,5 @@
 import type { FastifyBaseLogger } from 'fastify';
+import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 import {
   renderEmailChange,
@@ -34,15 +35,15 @@ interface TokenEmailInput {
 
 const RESEND_EMAIL_URL = 'https://api.resend.com/emails';
 
-async function sendMail(message: MailMessage, log: FastifyBaseLogger): Promise<void> {
+async function sendViaResend(message: MailMessage, log: FastifyBaseLogger): Promise<void> {
   if (!env.email.enabled) {
     // Name what is missing, so the log says how to fix it.
     const missing = [!env.email.resendApiKey && 'RESEND_API_KEY', !env.email.from && 'EMAIL_FROM'].filter(Boolean).join(' and ');
     const why = missing ? `missing ${missing} in .env` : 'disabled in tests';
     if (env.isProduction) {
-      log.error({ to: message.to, missing }, `Resend is not configured (${why}); email was not sent`);
+      log.error({ to: message.to, missing }, `Email is not configured (${why}); email was not sent`);
     } else {
-      log.warn({ to: message.to, missing, text: message.text }, `Resend is not configured (${why}); email was not sent`);
+      log.warn({ to: message.to, missing, text: message.text }, `Email is not configured (${why}); email was not sent`);
     }
     return;
   }
@@ -68,6 +69,45 @@ async function sendMail(message: MailMessage, log: FastifyBaseLogger): Promise<v
   }
 }
 
+type SmtpTransport = ReturnType<typeof nodemailer.createTransport>;
+let smtpTransporter: SmtpTransport | null = null;
+function smtpTransport(): SmtpTransport {
+  if (!smtpTransporter) {
+    smtpTransporter = nodemailer.createTransport({
+      host: env.email.smtp.host,
+      port: env.email.smtp.port,
+      secure: env.email.smtp.port === 465,
+      auth: { user: env.email.smtp.user, pass: env.email.smtp.pass },
+    });
+  }
+  return smtpTransporter;
+}
+async function sendViaSmtp(message: MailMessage, log: FastifyBaseLogger): Promise<void> {
+  await smtpTransport().sendMail({
+    from: env.email.from,
+    to: message.to,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+  });
+  log.info({ to: message.to }, 'Email sent through the self-hosted relay');
+}
+async function sendMail(message: MailMessage, log: FastifyBaseLogger): Promise<void> {
+  if (!env.email.smtp.configured) {
+    await sendViaResend(message, log);
+    return;
+  }
+  try {
+    await sendViaSmtp(message, log);
+  } catch (error) {
+    log.error({ err: error, to: message.to }, 'Self-hosted SMTP send failed');
+    if (!env.email.resendApiKey) {
+      throw error;
+    }
+    log.warn({ to: message.to }, 'Falling back to Resend');
+    await sendViaResend(message, log);
+  }
+}
 export async function sendPasswordResetEmail(input: TokenEmailInput, log: FastifyBaseLogger): Promise<void> {
   await sendMail(message(input.to, renderPasswordReset(input, context())), log);
 }
