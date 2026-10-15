@@ -8,6 +8,7 @@ import { adminNeedsSecondFactor } from '../auth/play-access.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
 import { createSession, destroySession, sessionHardEnd } from '../auth/sessions.js';
+import { bearerTokenFromHeader, wantsNativeSessionToken } from '../plugins/auth.js';
 import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
 import { AccountProfileService } from '../services/account-profile.service.js';
@@ -600,6 +601,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.setSessionCookie(reply, token);
     await noteSignIn(fastify.prisma, request, reply, account);
 
+    // Native apps cannot read the http-only cookie, so hand them the same
+    // session token as JSON when they identify with X-SE-Native: android.
+    if (wantsNativeSessionToken(request.headers['x-se-native'])) {
+      return reply.status(201).send({ account: toAccountDto(account), sessionToken: token });
+    }
     return reply.status(201).send({ account: toAccountDto(account) });
   });
 
@@ -653,6 +659,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.setSessionCookie(reply, token, remember);
     await noteSignIn(fastify.prisma, request, reply, updated);
 
+    if (wantsNativeSessionToken(request.headers['x-se-native'])) {
+      return { account: toAccountDto(updated), sessionToken: token };
+    }
     return { account: toAccountDto(updated) };
   });
 
@@ -998,7 +1007,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
     if (usedRecoveryCode) {
       const left = await fastify.prisma.twoFactorRecoveryCode.count({ where: { accountId: account.id, usedAt: null } });
+      if (wantsNativeSessionToken(request.headers['x-se-native'])) {
+        return { account: toAccountDto(updated, session), sessionToken, recoveryCodesLeft: left };
+      }
       return { account: toAccountDto(updated, session), recoveryCodesLeft: left };
+    }
+    if (wantsNativeSessionToken(request.headers['x-se-native'])) {
+      return { account: toAccountDto(updated, session), sessionToken };
     }
     return { account: toAccountDto(updated, session) };
   });
@@ -1094,10 +1109,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   /** rc.5. The player deletes their own account (anonymized if they played a season). */
   fastify.post('/account/delete', { preHandler: fastify.requireAuth }, async (request, reply) => {
     const body = parseBody(deleteAccountSchema, request.body ?? {});
-    const subscription = await SupporterBillingService.subscriptionToCancel(fastify.prisma, request.auth!.account.id);
+    const subscriptions = await SupporterBillingService.subscriptionsToCancel(fastify.prisma, request.auth!.account.id);
     const result = await AccountDataService.deleteSelf(fastify.prisma, request.auth!.account, request.auth!.session, body.currentPassword);
     // A deleted account must not keep being billed.
-    await SupporterBillingService.cancelAfterErasure(subscription, request.log);
+    await SupporterBillingService.cancelAfterErasure(subscriptions, request.log);
     fastify.clearSessionCookie(reply);
     return {
       ok: true,
@@ -1316,6 +1331,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.post('/logout', async (request, reply) => {
+    const bearer = bearerTokenFromHeader(request.headers.authorization);
+    if (bearer) {
+      await destroySession(fastify.prisma, bearer);
+    }
     const raw = request.cookies[env.SESSION_COOKIE_NAME];
     if (raw) {
       const unsigned = request.unsignCookie(raw);

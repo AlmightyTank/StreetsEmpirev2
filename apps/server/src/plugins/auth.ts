@@ -47,7 +47,24 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
   });
 
   // Resolve the session once per request. Routes never touch cookies directly.
+  // Native apps send `Authorization: Bearer <session token>`; browsers send
+  // the signed session cookie. Both resolve to the same server session.
   fastify.addHook('onRequest', async (request) => {
+    const bearer = bearerTokenFromHeader(request.headers.authorization);
+    if (bearer) {
+      const resolved = await resolveSession(fastify.prisma, bearer);
+      if (!resolved) return;
+
+      if (env.betaAccess.inviteOnly && !resolved.account.isAdmin && !resolved.account.betaApproved) {
+        return;
+      }
+
+      request.auth = resolved;
+      if (resolved) annotateLogContext({ accountId: resolved.account.id });
+      void touchSession(fastify.prisma, resolved.session);
+      return;
+    }
+
     const raw = request.cookies[env.SESSION_COOKIE_NAME];
     if (!raw) return;
 
@@ -83,3 +100,20 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
 };
 
 export default fp(authPlugin, { name: 'auth', dependencies: ['prisma'] });
+
+/**
+ * Native Android/iOS clients authenticate with the same session token browsers
+ * keep in an http-only cookie, sent as `Authorization: Bearer <token>`.
+ * Returns null when the header is absent or is not a bearer token.
+ */
+export function bearerTokenFromHeader(header: unknown): string | null {
+  if (typeof header !== 'string') return null;
+  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+  const token = match?.[1]?.trim();
+  return token ? token : null;
+}
+
+/** True when the caller is the native app and wants the session token in JSON. */
+export function wantsNativeSessionToken(header: unknown): boolean {
+  return typeof header === 'string' && header.trim().toLowerCase() === 'android';
+}
