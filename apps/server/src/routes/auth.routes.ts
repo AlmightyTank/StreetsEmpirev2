@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { RULES_VERSION, changeEmailSchema, changeUsernameSchema, closeAccountSchema, deleteAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, normalizeUsername, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
+import { RULES_VERSION, changeEmailSchema, changeUsernameSchema, closeAccountSchema, deleteAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, normalizeUsername, birthDateUpdateSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
 import { adminNeedsSecondFactor } from '../auth/play-access.js';
@@ -575,6 +575,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       data: {
         registeredIp: request.ip,
         ageConfirmedAt: body.ageConfirmed ? new Date() : null,
+        ...(body.birthDate ? { birthDate: new Date(`${body.birthDate}T00:00:00.000Z`) } : {}),
         username: body.username,
         usernameNormalized,
         email: body.email,
@@ -607,6 +608,21 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(201).send({ account: toAccountDto(account), sessionToken: token });
     }
     return reply.status(201).send({ account: toAccountDto(account) });
+  });
+
+  /** One-time birthday collection for older accounts and Discord sign-ups. Never exposes the date in a response. */
+  fastify.post('/birthday', { preHandler: fastify.requireAuth }, async (request) => {
+    const { birthDate } = parseBody(birthDateUpdateSchema, request.body);
+    const account = request.auth!.account;
+    const changed = await fastify.prisma.account.updateMany({
+      where: { id: account.id, birthDate: null },
+      data: { birthDate: new Date(`${birthDate}T00:00:00.000Z`) },
+    });
+    if (changed.count === 0) {
+      throw AppError.conflict('BIRTH_DATE_ALREADY_SET', 'Your birthday is already saved. Contact support if it needs correcting.');
+    }
+    const updated = await fastify.prisma.account.findUniqueOrThrow({ where: { id: account.id } });
+    return { account: toAccountDto(updated, request.auth!.session) };
   });
 
   fastify.post('/login', async (request, reply) => {
