@@ -2,6 +2,7 @@ export * from './schemas/auth.js';
 export * from './schemas/game.js';
 export * from './schemas/casino.js';
 export * from './schemas/alliance.js';
+export * from './schemas/operations.js';
 export * from './schemas/playing-together.js';
 export * from './schemas/console.js';
 export * from './schemas/survey.js';

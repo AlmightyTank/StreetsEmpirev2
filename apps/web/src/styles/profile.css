@@ -654,6 +654,77 @@
   padding-bottom: 8px;
 }
 
+.se-legacy {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--se-line);
+}
+
+.se-legacy__head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.se-legacy__head h3 {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+
+.se-legacy-featured {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 55%, var(--se-line));
+  background: color-mix(in srgb, var(--se-accent) 8%, transparent);
+}
+
+.se-legacy-featured > span:not(.se-legacy-card__kind) {
+  color: var(--se-text-dim);
+  font-size: 9px;
+}
+
+.se-legacy-featured .se-btn {
+  margin-left: auto;
+}
+
+.se-legacy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.se-legacy-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 112px;
+  padding: 11px;
+  border: 1px solid var(--se-line);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.se-legacy-card.is-featured {
+  border-color: var(--se-accent);
+}
+
+.se-legacy-card__kind {
+  color: var(--se-accent);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.se-legacy-card .se-btn {
+  align-self: end;
+  justify-self: start;
+  margin-top: 3px;
+}
+
 .se-profile-achievements > .se-panel__body {
   padding: 12px;
 }
@@ -1372,4 +1443,14 @@
   height: 30px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
+}
+.se-profile-career {
+  display: inline-flex;
+  gap: .35rem;
+  margin: .3rem 0 0;
+  padding: .2rem .55rem;
+  border: 1px solid var(--se-line);
+  border-radius: 999px;
+  color: var(--se-muted);
+  font-size: .82rem;
 }

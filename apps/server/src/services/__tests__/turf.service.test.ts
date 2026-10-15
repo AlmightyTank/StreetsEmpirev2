@@ -116,6 +116,7 @@ describe('0.6.0-E durable territory control changes', () => {
     const db: any = {
       turf: { findMany: async () => afterRows },
       turfControlEvent: { create: async ({ data }: any) => { created.push(data); return { id: 'event-1', ...data }; } },
+      cityMemoryEvent: { upsert: async ({ create }: any) => ({ id: 'memory-1', ...create }) },
     };
     const at = new Date('2026-09-20T18:00:00.000Z');
 

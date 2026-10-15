@@ -82,44 +82,46 @@ model Account {
   commsMuteReason      String?
   commsMutedByUsername String?
 
-  sessions               Session[]
-  bugReports             BugReport[]
-  supportTickets         SupportTicket[]
-  twoFactorRecoveryCodes TwoFactorRecoveryCode[]
-  trustedDevices         TrustedDevice[]
-  knownDevices           AccountDevice[]
-  loginChallenges        LoginChallenge[]
-  passwordResetTokens    PasswordResetToken[]
-  accountEmailTokens     AccountEmailToken[]
-  forumLink              ForumLink?
-  forumLinkRequest       ForumLinkRequest?
-  notificationSettings   NotificationSettings?
-  notificationOutbox     NotificationOutbox[]
-  pushSubscriptions      PushSubscription[]
-  profile                AccountProfile?
-  cosmeticUnlocks        AccountCosmeticUnlock[]
-  supporterMembership    SupporterMembership?
+  sessions                         Session[]
+  bugReports                       BugReport[]
+  supportTickets                   SupportTicket[]
+  twoFactorRecoveryCodes           TwoFactorRecoveryCode[]
+  trustedDevices                   TrustedDevice[]
+  knownDevices                     AccountDevice[]
+  loginChallenges                  LoginChallenge[]
+  passwordResetTokens              PasswordResetToken[]
+  accountEmailTokens               AccountEmailToken[]
+  forumLink                        ForumLink?
+  forumLinkRequest                 ForumLinkRequest?
+  notificationSettings             NotificationSettings?
+  notificationOutbox               NotificationOutbox[]
+  pushSubscriptions                PushSubscription[]
+  profile                          AccountProfile?
+  cosmeticUnlocks                  AccountCosmeticUnlock[]
+  legacyEntries                    LegacyEntry[]
+  playerCareer                     PlayerCareer?
+  supporterMembership              SupporterMembership?
   googlePlaySupporterSubscriptions GooglePlaySupporterSubscription[]
-  supporterPayments      SupporterPayment[]
-  supporterSeasonStamps  SupporterSeasonStamp[]
-  supporterVotes         SupporterVote[]
-  roundPlayers           RoundPlayer[]
-  aftermathRewardClaims  RoundAftermathRewardClaim[]
-  authoredNews           GameNews[]                  @relation("GameNewsAuthor")
-  adminAuditEntries      AdminAuditLog[]             @relation("AdminAuditActor")
-  messageBlocksMade      PlayerBlock[]               @relation("PlayerBlocker")
-  messageBlocksReceived  PlayerBlock[]               @relation("PlayerBlocked")
-  messageReports         PlayerMessageReport[]
+  supporterPayments                SupporterPayment[]
+  supporterSeasonStamps            SupporterSeasonStamp[]
+  supporterVotes                   SupporterVote[]
+  roundPlayers                     RoundPlayer[]
+  aftermathRewardClaims            RoundAftermathRewardClaim[]
+  authoredNews                     GameNews[]                        @relation("GameNewsAuthor")
+  adminAuditEntries                AdminAuditLog[]                   @relation("AdminAuditActor")
+  messageBlocksMade                PlayerBlock[]                     @relation("PlayerBlocker")
+  messageBlocksReceived            PlayerBlock[]                     @relation("PlayerBlocked")
+  messageReports                   PlayerMessageReport[]
   /// 0.9.0-H.
-  mutesMade              PlayerMute[]                @relation("PlayerMuter")
-  mutesReceived          PlayerMute[]                @relation("PlayerMuted")
-  moderationNotes        AccountModerationNote[]
-  surveySubmissions      SurveySubmission[]
-  experienceEvents       PlayerExperienceEvent[]
-  experiencePoints       Int                         @default(0)
+  mutesMade                        PlayerMute[]                      @relation("PlayerMuter")
+  mutesReceived                    PlayerMute[]                      @relation("PlayerMuted")
+  moderationNotes                  AccountModerationNote[]
+  surveySubmissions                SurveySubmission[]
+  experienceEvents                 PlayerExperienceEvent[]
+  experiencePoints                 Int                               @default(0)
   /// When the player last changed their own pimp name. Null until the first change, which is free.
-  usernameChangedAt      DateTime?
-  usernameChanges        AccountUsernameChange[]
+  usernameChangedAt                DateTime?
+  usernameChanges                  AccountUsernameChange[]
 
   @@index([registeredIp, createdAt])
 }
@@ -131,14 +133,14 @@ model AccountUsernameChange {
   accountId String
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  fromUsername String
+  fromUsername           String
   /// lower(fromUsername). A name given up is held for its previous owner for 30 days.
   fromUsernameNormalized String
-  toUsername   String
+  toUsername             String
   /// PLAYER for a self-service change, REVERT for a player taking back the name they just
   /// gave up, STAFF for an admin rename (whose old name nobody may take for 30 days).
-  source       String
-  createdAt    DateTime @default(now())
+  source                 String
+  createdAt              DateTime @default(now())
 
   @@index([accountId, createdAt])
   @@index([fromUsernameNormalized, createdAt])
@@ -217,47 +219,62 @@ model AccountProfile {
   accountId String  @id
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  activeTitleKey        String?
-  titlePlacement        String  @default("prefix")
+  activeTitleKey          String?
+  titlePlacement          String  @default("prefix")
   /// 0.9.0-F. Optional public crew name, account-level so it carries across seasons.
-  crewName              String?
-  profileBio            String?
-  profileImageUrl       String?
+  crewName                String?
+  profileBio              String?
+  profileImageUrl         String?
   /// Avatar built from face pieces (base, hair, eyes, shirt, ...). Shown when there is no image.
-  profileAvatar         Json?
-  profileBannerUrl      String?
-  profileEffect         String  @default("none")
-  activeProfileFrameKey String?
-  activeAvatarFrameKey  String?
+  profileAvatar           Json?
+  profileBannerUrl        String?
+  profileEffect           String  @default("none")
+  activeProfileFrameKey   String?
+  activeAvatarFrameKey    String?
   /// Signature Profile Card surface finish: brushed, carbon or engine-turned. Null shows brushed.
-  profileSurface        String?
+  profileSurface          String?
   /// Supporter thank-you list on the public site. Opt-in, so off by default.
-  showOnSupporterList   Boolean @default(false)
+  showOnSupporterList     Boolean @default(false)
   /// Supporter release-notes credits are opt-in and never list payments.
   releaseNotesCreditOptIn Boolean @default(false)
-  activeSiteThemeKey    String?
+  activeSiteThemeKey      String?
   /// Player-selected visual skin per inventory item key. Cosmetic only.
-  itemCosmetics         Json    @default("{}")
+  itemCosmetics           Json    @default("{}")
   /// THUG / HOE visual styles. Crew is aggregate inventory, so the style applies to the whole type.
-  crewCosmetics         Json    @default("{}")
+  crewCosmetics           Json    @default("{}")
   /// Slice E. Visitors see the owner's site theme on their public profile.
-  showThemeOnProfile    Boolean @default(true)
+  showThemeOnProfile      Boolean @default(true)
   /// Slice E. Visitors see the owner's item and crew look on their public profile.
-  showLookOnProfile     Boolean @default(true)
-  featuredBadgeKeys     Json    @default("[]")
-  profileAccent         String  @default("default")
-  uiDensity             String  @default("comfortable")
-  reducedMotion         Boolean @default(false)
-  moneyFormat           String  @default("full")
-  defaultLanding        String  @default("game")
+  showLookOnProfile       Boolean @default(true)
+  featuredBadgeKeys       Json    @default("[]")
+  featuredLegacyEntryId   String?
+  profileAccent           String  @default("default")
+  uiDensity               String  @default("comfortable")
+  reducedMotion           Boolean @default(false)
+  moneyFormat             String  @default("full")
+  defaultLanding          String  @default("game")
   /// Start daily, weekly and city board work as soon as it appears.
-  autoAcceptBoardWork   Boolean @default(true)
+  autoAcceptBoardWork     Boolean @default(true)
   /// 1.0.0-B. Tutorial progress: intro completed/skipped, page intros seen, guide
   /// dismissed for a season. Never gameplay state; see OnboardingService.
-  onboarding            Json    @default("{}")
+  onboarding              Json    @default("{}")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Permanent cosmetic identity. Gameplay and fresh-round resources never read it.
+model PlayerCareer {
+  accountId String  @id
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  career            String
+  history           Json     @default("[]")
+  selectedAt        DateTime @default(now())
+  switchAvailableAt DateTime
+  updatedAt         DateTime @updatedAt
+
+  @@index([career])
 }
 
 /// Permanent account cosmetics. Display metadata is snapshotted when earned so
@@ -311,20 +328,20 @@ model SupporterMembership {
 /// One verified provider payment for a supporter subscription. Kept when the
 /// account is deleted (the link is cleared), since it is a financial record.
 model SupporterPayment {
-  id               String   @id @default(cuid())
-  accountId        String?
-  account          Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  id                String   @id @default(cuid())
+  accountId         String?
+  account           Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
   provider          String   @default("stripe")
   providerPaymentId String   @unique
   stripeInvoiceId   String?  @unique
   stripeCustomerId  String?
-  amountCents      Int
-  currency         String
+  amountCents       Int
+  currency          String
   /// paid, refunded or disputed. Refunds and disputes never take rewards back.
-  status           String
-  paidAt           DateTime
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  status            String
+  paidAt            DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([accountId, paidAt])
   @@index([stripeCustomerId, paidAt])
@@ -334,20 +351,20 @@ model SupporterPayment {
 /// A Google Play supporter subscription. Tokens can be replaced during plan
 /// changes, so history is retained and the newest verified row is authoritative.
 model GooglePlaySupporterSubscription {
-  purchaseToken      String   @id
-  accountId          String
-  account            Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  productId          String
-  status             String
-  currentPeriodEnd   DateTime?
-  autoRenewing       Boolean  @default(false)
-  startedAt          DateTime
-  endedAt            DateTime?
-  latestOrderId      String?
+  purchaseToken       String    @id
+  accountId           String
+  account             Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  productId           String
+  status              String
+  currentPeriodEnd    DateTime?
+  autoRenewing        Boolean   @default(false)
+  startedAt           DateTime
+  endedAt             DateTime?
+  latestOrderId       String?
   linkedPurchaseToken String?
-  lastVerifiedAt     DateTime
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  lastVerifiedAt      DateTime
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([accountId, lastVerifiedAt])
   @@index([status, currentPeriodEnd])
@@ -1321,6 +1338,10 @@ model Round {
   turfControlEvents        TurfControlEvent[]
   turfHoldSegments         TurfHoldSegment[]
   turfCrackdown            TurfCrackdown?
+  cityMemoryEvents         CityMemoryEvent[]
+  operations               Operation[]
+  legacyEntries            LegacyEntry[]
+  intelRumors              IntelRumor[]
   directMessages           DirectMessage[]
   businesses               Business[]
   blockWars                BlockWar[]
@@ -1399,21 +1420,24 @@ model City {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  players           RoundPlayer[]
-  turf              Turf[]
-  turfPresence      TurfPresence[]
-  turfControlEvents TurfControlEvent[]
-  turfCrackdowns    TurfCrackdown[]
-  casinoWallets     CasinoWallet[]
-  casinoSessions    CasinoSession[]
-  casinoLedger      CasinoLedgerEntry[]
-  sportsbookBets    SportsbookBet[]     @relation("SportsbookBetCasinoCity")
-  casinoRatings     CasinoRating[]
-  playerCases       PlayerCase[]
-  caseReceipts      PlayerCaseReceipt[]
-  warrants          PlayerWarrant[]
-  officials         PlayerOfficial[]
-  tips              PlayerTip[]
+  players            RoundPlayer[]
+  turf               Turf[]
+  turfPresence       TurfPresence[]
+  turfControlEvents  TurfControlEvent[]
+  turfCrackdowns     TurfCrackdown[]
+  cityMemoryEvents   CityMemoryEvent[]
+  operations         Operation[]
+  intelRumors        IntelRumor[]
+  casinoWallets      CasinoWallet[]
+  casinoSessions     CasinoSession[]
+  casinoLedger       CasinoLedgerEntry[]
+  sportsbookBets     SportsbookBet[]     @relation("SportsbookBetCasinoCity")
+  casinoRatings      CasinoRating[]
+  playerCases        PlayerCase[]
+  caseReceipts       PlayerCaseReceipt[]
+  warrants           PlayerWarrant[]
+  officials          PlayerOfficial[]
+  tips               PlayerTip[]
   encounterGangsHome EncounterGang[]     @relation("EncounterGangHomeCity")
   encounterGangsHere EncounterGang[]     @relation("EncounterGangCurrentCity")
   encounterGangTurfs EncounterGangTurf[]
@@ -1691,13 +1715,13 @@ model RoundPlayer {
   /// 0.3.0-C. The alliance this player is in now, and since when. Shared revenge only
   /// counts hits on the alliance from after the member joined.
   allianceId            String?
-  alliance              Alliance?            @relation("AllianceMembers", fields: [allianceId], references: [id], onDelete: SetNull)
+  alliance              Alliance?              @relation("AllianceMembers", fields: [allianceId], references: [id], onDelete: SetNull)
   allianceJoinedAt      DateTime?
   /// The alliance this player last left or was kicked from. Until the cooldown passes
   /// they cannot join or found an alliance, and they and that alliance cannot hit each other.
   formerAllianceId      String?
   allianceCooldownUntil DateTime?
-  allianceInvites       AllianceInvite[]     @relation("AllianceInvitee")
+  allianceInvites       AllianceInvite[]       @relation("AllianceInvitee")
   /// 0.4.0-A. Every product except crack, which stays on the `crack` column in every round.
   products              PlayerProduct[]
   productShelves        ProductShelf[]
@@ -1729,27 +1753,31 @@ model RoundPlayer {
   /// Trips A. The boss away from home and back.
   bossTrips             BossTrip[]
   /// Trips C. Hits on a visiting boss: started and taken.
-  bossHitsStarted       BossHit[]            @relation("BossHitAttacker")
-  bossHitsTaken         BossHit[]            @relation("BossHitOwner")
+  bossHitsStarted       BossHit[]              @relation("BossHitAttacker")
+  bossHitsTaken         BossHit[]              @relation("BossHitOwner")
   /// Trips D2. Backup sent to allies' bosses, and sit-downs proposed and received.
   bossHitBackups        BossHitBackup[]
-  sitDownsProposed      SitDown[]            @relation("SitDownProposer")
-  sitDownsInvited       SitDown[]            @relation("SitDownInvitee")
-  convoyTailsOwned      ConvoyTail[]         @relation("ConvoyTailOwner")
-  convoyTailsStarted    ConvoyTail[]         @relation("ConvoyTailAttacker")
+  sitDownsProposed      SitDown[]              @relation("SitDownProposer")
+  sitDownsInvited       SitDown[]              @relation("SitDownInvitee")
+  convoyTailsOwned      ConvoyTail[]           @relation("ConvoyTailOwner")
+  convoyTailsStarted    ConvoyTail[]           @relation("ConvoyTailAttacker")
   convoyBackups         ConvoyBackup[]
   convoyRecon           ConvoyRecon?
   /// 0.6.0-A. Blocks this crew holds, and the blocks it has worked lately.
-  turfHeld              Turf[]               @relation("TurfHolder")
-  businessesStaffed     Business[]           @relation("BusinessStaffOwner")
+  turfHeld              Turf[]                 @relation("TurfHolder")
+  businessesStaffed     Business[]             @relation("BusinessStaffOwner")
   turfPresence          TurfPresence[]
-  turfTaxPaid           TurfTaxLedger[]      @relation("TurfTaxPayer")
-  turfTaxEarned         TurfTaxLedger[]      @relation("TurfTaxHolder")
+  turfTaxPaid           TurfTaxLedger[]        @relation("TurfTaxPayer")
+  turfTaxEarned         TurfTaxLedger[]        @relation("TurfTaxHolder")
   /// 0.6.0-C. Turf wars started against or defended by this crew.
-  turfPushesStarted     TurfPush[]           @relation("TurfPushAttacker")
-  turfPushesDefended    TurfPush[]           @relation("TurfPushDefender")
-  blockWarsDeclared     BlockWar[]           @relation("BlockWarAttacker")
-  blockWarsDefended     BlockWar[]           @relation("BlockWarDefender")
+  turfPushesStarted     TurfPush[]             @relation("TurfPushAttacker")
+  turfPushesDefended    TurfPush[]             @relation("TurfPushDefender")
+  blockWarsDeclared     BlockWar[]             @relation("BlockWarAttacker")
+  blockWarsDefended     BlockWar[]             @relation("BlockWarDefender")
+  operationsLed         Operation[]            @relation("OperationLeader")
+  operationSeats        OperationParticipant[]
+  blackBookIntel        IntelRumor[]           @relation("IntelRumorOwner")
+  blackBookMentions     IntelRumor[]           @relation("IntelRumorTarget")
   blockWarSquads        BlockWarSquad[]
   turfPushBackups       TurfPushBackup[]
   /// 0.6.0-D. Supply/tax boxes for away turf.
@@ -1758,11 +1786,11 @@ model RoundPlayer {
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
-  wirePosts             AllianceWirePost[]   @relation("WireAuthor")
-  contacts              PlayerContact[]      @relation("ContactOwner")
-  contactOf             PlayerContact[]      @relation("ContactTarget")
-  messagesSent          DirectMessage[]      @relation("DirectMessageSender")
-  messagesReceived      DirectMessage[]      @relation("DirectMessageRecipient")
+  wirePosts             AllianceWirePost[]     @relation("WireAuthor")
+  contacts              PlayerContact[]        @relation("ContactOwner")
+  contactOf             PlayerContact[]        @relation("ContactTarget")
+  messagesSent          DirectMessage[]        @relation("DirectMessageSender")
+  messagesReceived      DirectMessage[]        @relation("DirectMessageRecipient")
 
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])
@@ -3173,6 +3201,9 @@ model GameNews {
   createdByAccountId String?
   createdBy          Account? @relation("GameNewsAuthor", fields: [createdByAccountId], references: [id], onDelete: SetNull)
 
+  autoGenerated     Boolean @default(false)
+  cityMemoryEventId String? @unique
+
   /// 0.3.0-B forum announcements mirror. The discussion id is set once the forum
   /// accepted the post; forumError keeps the last failure for a retry.
   forumDiscussionId String?
@@ -3188,7 +3219,7 @@ model GameNews {
 /// The Ring: at most one row per round. The holder is hidden while invisible
 /// and named once revealed; a destroyed Ring stays as a record.
 model RingState {
-  id     String @id @default(cuid())
+  id      String @id @default(cuid())
   roundId String @unique
   round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
 
@@ -3197,7 +3228,7 @@ model RingState {
   holderRoundPlayerId String?
   holder              RoundPlayer? @relation("RingHolder", fields: [holderRoundPlayerId], references: [id], onDelete: SetNull)
 
-  surfacedAt  DateTime @default(now())
+  surfacedAt  DateTime  @default(now())
   destroyedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -3332,6 +3363,8 @@ enum ActivityType {
   BUSINESS_COLLECT
   BUSINESS_RACKET
   BUSINESS_TORCH
+  RANDOM_ENCOUNTER_CHOICE
+  CAREER_CHOSEN
   BLOCK_WAR_DECLARED
   BLOCK_WAR_FIGHT
   BLOCK_WAR_ENDED
@@ -3555,16 +3588,16 @@ model EncounterGang {
 model EncounterGangTurf {
   id String @id @default(cuid())
 
-  gangId String
-  gang   EncounterGang @relation(fields: [gangId], references: [id], onDelete: Cascade)
-  roundId String
-  round   Round         @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  cityId  String
-  city    City          @relation(fields: [cityId], references: [id])
-  district String
-  strength Int          @default(1)
-  status   String       @default("HELD")
-  claimedAt DateTime    @default(now())
+  gangId      String
+  gang        EncounterGang @relation(fields: [gangId], references: [id], onDelete: Cascade)
+  roundId     String
+  round       Round         @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  cityId      String
+  city        City          @relation(fields: [cityId], references: [id])
+  district    String
+  strength    Int           @default(1)
+  status      String        @default("HELD")
+  claimedAt   DateTime      @default(now())
   abandonedAt DateTime?
 
   @@unique([roundId, cityId, district])
@@ -3575,10 +3608,10 @@ model EncounterGangTurf {
 model EncounterGangGrudge {
   id String @id @default(cuid())
 
-  gangId String
-  gang   EncounterGang @relation(fields: [gangId], references: [id], onDelete: Cascade)
+  gangId        String
+  gang          EncounterGang @relation(fields: [gangId], references: [id], onDelete: Cascade)
   roundPlayerId String
-  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  roundPlayer   RoundPlayer   @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
   hits            Int       @default(1)
   expiresAt       DateTime
@@ -4472,19 +4505,19 @@ model SportsbookBet {
   casinoCityId    String?
   casinoCity      City?          @relation("SportsbookBetCasinoCity", fields: [casinoCityId], references: [id], onDelete: SetNull)
 
-  actionId     String
+  actionId             String
   /// Provider whose displayed price was pinned when the ticket was accepted.
-  oddsProvider String    @default("therundown")
-  selection    String
-  oddsAmerican Int
-  stakeCents   BigInt
-  payoutCents  BigInt
-  status       String    @default("OPEN")
-  settledAt    DateTime?
+  oddsProvider         String    @default("therundown")
+  selection            String
+  oddsAmerican         Int
+  stakeCents           BigInt
+  payoutCents          BigInt
+  status               String    @default("OPEN")
+  settledAt            DateTime?
   startedNotifiedAt    DateTime?
   settlementNotifiedAt DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@unique([roundPlayerId, actionId])
   @@index([roundPlayerId, createdAt(sort: Desc)])
@@ -5211,4 +5244,102 @@ model PlayerFactionWarning {
 
   @@unique([roundPlayerId, warningKey])
   @@index([alertsCollectedAt, createdAt])
+}
+
+model CityMemoryEvent {
+  id             String   @id @default(cuid())
+  roundId        String
+  round          Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  cityId         String
+  city           City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  kind           String
+  visibility     String   @default("public")
+  actors         Json     @default("[]")
+  summary        Json     @default("{}")
+  idempotencyKey String   @unique
+  happenedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([roundId, cityId, happenedAt(sort: Desc)])
+  @@index([roundId, kind, happenedAt(sort: Desc)])
+}
+
+model Operation {
+  id           String                 @id @default(cuid())
+  roundId      String
+  round        Round                  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  cityId       String
+  city         City                   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  template     String                 @default("CORNER_TAKEOVER")
+  status       String                 @default("INTEL")
+  leaderId     String
+  leader       RoundPlayer            @relation("OperationLeader", fields: [leaderId], references: [id], onDelete: Cascade)
+  target       Json                   @default("{}")
+  roles        Json                   @default("{}")
+  report       Json?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  participants OperationParticipant[]
+
+  @@index([roundId, status, createdAt(sort: Desc)])
+  @@index([leaderId, createdAt(sort: Desc)])
+}
+
+model OperationParticipant {
+  id            String      @id @default(cuid())
+  operationId   String
+  operation     Operation   @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  role          String
+  status        String      @default("LOCKED")
+  invitedById   String?
+  expiresAt     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([operationId, role])
+  @@index([roundPlayerId, status])
+}
+
+model IntelRumor {
+  id         String       @id @default(cuid())
+  roundId    String
+  round      Round        @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  ownerId    String
+  owner      RoundPlayer  @relation("IntelRumorOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  targetId   String?
+  target     RoundPlayer? @relation("IntelRumorTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  cityId     String
+  city       City         @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  district   String?
+  topic      String
+  confidence String       @default("rumor")
+  sources    Json         @default("[]")
+  detail     Json         @default("{}")
+  expiresAt  DateTime
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@unique([ownerId, topic])
+  @@index([ownerId, expiresAt])
+  @@index([roundId, cityId, confidence])
+  @@index([targetId])
+}
+
+model LegacyEntry {
+  id             String   @id @default(cuid())
+  accountId      String
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  sourceRoundId  String
+  sourceRound    Round    @relation(fields: [sourceRoundId], references: [id], onDelete: Restrict)
+  kind           String
+  title          String
+  summary        Json     @default("{}")
+  coverNewsId    String?
+  idempotencyKey String   @unique
+  awardedAt      DateTime @default(now())
+
+  @@index([accountId, awardedAt(sort: Desc)])
+  @@index([sourceRoundId, kind])
 }

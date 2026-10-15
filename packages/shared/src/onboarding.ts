@@ -20,7 +20,7 @@ export const ONBOARDING_PAGE_KEYS = [
 export type OnboardingPageKey = (typeof ONBOARDING_PAGE_KEYS)[number];
 
 /** Instructional goals, not quests: nothing is rewarded, and they can be dismissed. */
-export const ONBOARDING_GUIDE_STEPS = ['scout', 'recruit', 'restock', 'produce', 'weapon'] as const;
+export const ONBOARDING_GUIDE_STEPS = ['meet_contact', 'open_front', 'face_encounter', 'choose_career'] as const;
 export type OnboardingGuideStepKey = (typeof ONBOARDING_GUIDE_STEPS)[number];
 
 /**

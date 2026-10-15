@@ -13,6 +13,33 @@ export type ContactKindDto = 'CONTACT' | 'ENEMY';
 export type ContactCategoryDto = ContactKindDto | 'ALLIANCE' | 'BLOCKED';
 export type WirePostKindDto = 'MESSAGE' | 'ANNOUNCEMENT';
 
+export type IntelConfidenceDto = 'rumor' | 'likely' | 'confirmed';
+export type IntelSourceKindDto = 'contact' | 'scout' | 'faction_warning';
+
+export interface BlackBookEntryDto {
+  id: string;
+  confidence: IntelConfidenceDto;
+  sourceKinds: IntelSourceKindDto[];
+  observedAt: string;
+  expiresAt: string;
+  ageMinutes: number;
+  target: { publicPimpId: number; displayName: string } | null;
+  city: { slug: string; name: string };
+  district: string | null;
+  strengthBand: 'light' | 'guarded' | 'heavy' | 'unknown';
+  actions: {
+    investigate: string;
+    negotiate: string | null;
+    reinforce: string;
+    strike: string | null;
+  };
+}
+
+export interface BlackBookPageDto {
+  entries: BlackBookEntryDto[];
+  expiredRemoved: number;
+}
+
 export type AllianceCoordinationCardKindDto =
   | 'SHARED_RECON'
   | 'TURF_ACTIVITY'
@@ -604,6 +631,38 @@ export interface CityTurfDto {
   blocks: TurfBlockDto[];
   /** Recent fights in this city that this player took part in, newest first. */
   reports: TurfBattleReportDto[];
+  /** 2.0.0. Latest public city-memory event for this city, if any. */
+  latestEvent?: { kind: string; summary: unknown; happenedAt: string } | null;
+}
+
+/** 2.0.0. A criminal operation: intel, crew lock, execution, outcome report. */
+export interface OperationDto {
+  id: string;
+  template: string;
+  status: 'INTEL' | 'CREW_LOCK' | 'READY' | 'EXECUTING' | 'REPORTED';
+  citySlug: string;
+  cityName: string;
+  district: TurfBlockDto['district'] | null;
+  roles: Record<'driver' | 'enforcer' | 'intel', {
+    roundPlayerId: string | null;
+    displayName: string | null;
+    status: 'LOCKED' | 'INVITED' | 'ACCEPTED' | 'DECLINED' | 'OPEN';
+  }>;
+  isLeader: boolean;
+  /** The viewer's pending invite, if any. */
+  myInvite: { role: 'driver' | 'enforcer' | 'intel'; expiresAt: string | null } | null;
+  report: {
+    success: boolean;
+    stages: Array<{ stage: string; detail: string; wentWrong: boolean }>;
+    payoutCents: number;
+  } | null;
+  createdAt: string;
+}
+
+export interface OperationsPageDto {
+  operations: OperationDto[];
+  /** Hours between operations led by one player (anti-farming). */
+  leaderCooldownHours: number;
 }
 
 export interface TurfTripDto {

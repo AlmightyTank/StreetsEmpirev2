@@ -42,6 +42,20 @@ function turfTime(seconds: number): string {
   return `${(hours / 24).toFixed(1)}d`;
 }
 
+function describeCityMemoryEvent(event: { kind: string; summary: unknown }): string {
+  const summary = (event.summary ?? {}) as Record<string, unknown>;
+  if (event.kind === 'takeover') return 'an alliance seized city control';
+  if (event.kind === 'war_win') {
+    const reason = typeof summary.reason === 'string' ? summary.reason.toLowerCase() : 'settled';
+    const district = typeof summary.district === 'string' ? ` in ${summary.district}` : '';
+    return `a block war ${reason}${district}`;
+  }
+  if (event.kind === 'business_flip') return 'a business changed hands';
+  if (event.kind === 'crackdown') return 'a federal crackdown swept the streets';
+  if (event.kind === 'operation_complete') return 'a criminal operation went down';
+  return 'the streets shifted';
+}
+
 function pulse(city: CityCharacterDto) {
   const blocks = city.turf?.blocks ?? [];
   const held = blocks.filter((block) => block.holder);
@@ -427,6 +441,12 @@ export function TurfPage() {
                       )}
                     </div>
                   </div>
+                  {selected.turf?.latestEvent ? (
+                    <p className="se-hint" role="status">
+                      Last shook the city: {describeCityMemoryEvent(selected.turf.latestEvent)} ·{' '}
+                      {new Date(selected.turf.latestEvent.happenedAt).toLocaleString()}
+                    </p>
+                  ) : null}
 
                   <div className="se-cityblocks-pulse">
                     <CityBlocksMetric label="Player-held" value={`${formatNumber(selectedPulse.held)} / 5`} detail="blocks with player crews" />

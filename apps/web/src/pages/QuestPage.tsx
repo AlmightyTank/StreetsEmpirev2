@@ -3,12 +3,14 @@ import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   formatCents,
   formatNumber,
+  type CareerIdentityDto,
   type FactionPerksDto,
   type PlayerQuestDto,
   type QuestPageDto,
 } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { questsApi } from '../api/quests.js';
+import { communityApi } from '../api/community.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
@@ -447,6 +449,8 @@ export function QuestPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [career, setCareer] = useState<CareerIdentityDto | null>(null);
+  const [careerLens, setCareerLens] = useState(true);
   const lastScrolledTarget = useRef<string | null>(null);
 
   const applyPage = useCallback((
@@ -474,6 +478,7 @@ export function QuestPage() {
 
   useEffect(() => {
     void load();
+    void communityApi.careerIdentity().then((result) => setCareer(result.career)).catch(() => undefined);
   }, [load]);
 
   useEffect(() => {
@@ -558,6 +563,16 @@ export function QuestPage() {
 
   const focusKey = focusedQuestKey(location.search, location.hash);
   const board = useMemo(() => buildQuestBoard(page?.quests ?? [], focusKey), [page, focusKey]);
+  const visibleGroups = useMemo(() => {
+    if (!career || !careerLens) return board.groups;
+    const categories = new Set(career.contractCategories.map((value) => value.toUpperCase()));
+    return board.groups.map((group) => ({
+      ...group,
+      quests: group.quests.filter((quest) => quest.status !== 'AVAILABLE'
+        || categories.has(quest.category.toUpperCase())
+        || categories.has(quest.type.toUpperCase())),
+    })).filter((group) => group.quests.length > 0);
+  }, [board.groups, career, careerLens]);
 
   const trackedToday = useMemo(
     () => page?.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)) ?? [],
@@ -740,6 +755,12 @@ export function QuestPage() {
 
         {error ? <Alert>{error}</Alert> : null}
         {notice ? <Alert tone="info">{notice}</Alert> : null}
+        {career ? (
+          <label className="se-checkrow se-checkrow--toggle se-career-lens">
+            <input type="checkbox" checked={careerLens} onChange={(event) => setCareerLens(event.target.checked)} />
+            <span><strong>{career.title} contract lens</strong><small>Highlights matching available work only. Turn it off to see every contract; rewards and access never change.</small></span>
+          </label>
+        ) : null}
 
         {page ? (
           <>
@@ -766,9 +787,9 @@ export function QuestPage() {
                   <span className="se-eyebrow">Other work</span>
                   <h2 id="se-quests-work-title">Your jobs &amp; contracts</h2>
                 </div>
-                <span className="se-quests-sectionhead__meta">{formatNumber(board.groups.reduce((sum, group) => sum + (group.key === 'history' ? 0 : group.quests.length), 0))} current</span>
+                <span className="se-quests-sectionhead__meta">{formatNumber(visibleGroups.reduce((sum, group) => sum + (group.key === 'history' ? 0 : group.quests.length), 0))} current</span>
               </div>
-              {board.groups.length ? board.groups.map((group) => {
+              {visibleGroups.length ? visibleGroups.map((group) => {
                 const open = expandedGroups[group.key] ?? group.defaultOpen;
                 return (
                   <section id={'quest-board-' + group.key} className="se-quests-group" key={group.key}>

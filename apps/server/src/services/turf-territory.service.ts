@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Ruleset } from '@streets/rules-engine';
 import type { Db } from '../utils/db.js';
+import { emitCityMemoryEvent } from './city-memory.service.js';
 
 type TurfDb = PrismaClient | Db;
 
@@ -76,7 +77,7 @@ export async function recordTerritoryControlChange(
   const after = await territoryControlForCity(tx, input.roundId, input.cityId, input.ruleset);
   if ((input.before?.allianceId ?? null) === (after?.allianceId ?? null)) return;
 
-  await tx.turfControlEvent.create({
+  const event = await tx.turfControlEvent.create({
     data: {
       roundId: input.roundId,
       cityId: input.cityId,
@@ -91,5 +92,20 @@ export async function recordTerritoryControlChange(
       blocksTotal: after?.blocksTotal ?? input.before?.blocksTotal ?? 0,
       happenedAt: input.at,
     },
+  });
+  await emitCityMemoryEvent(tx, {
+    roundId: input.roundId,
+    cityId: input.cityId,
+    kind: 'takeover',
+    actorRoundPlayerIds: [],
+    summary: {
+      turfControlEventId: event.id,
+      previousAllianceId: input.before?.allianceId ?? null,
+      nextAllianceId: after?.allianceId ?? null,
+      previousBlocksHeld: input.before?.blocksHeld ?? 0,
+      nextBlocksHeld: after?.blocksHeld ?? 0,
+    },
+    happenedAt: input.at,
+    idempotencyKey: `turf-control-event:${event.id}`,
   });
 }

@@ -234,11 +234,10 @@ export interface GuideStepCopy {
 }
 
 export const GUIDE_STEPS: Record<OnboardingGuideStepKey, GuideStepCopy> = {
-  scout: { title: 'Scout the streets', detail: 'Spend some turns working a district.', to: '/game/scout' },
-  recruit: { title: 'Recruit your first thug', detail: 'Scouting finds recruits, or hire one at the store.', to: '/game/scout' },
-  restock: { title: 'Restock condoms and beer', detail: 'Keep the girls working and the thugs happy.', to: '/game/stores' },
-  produce: { title: 'Produce your first product', detail: 'Cook your own instead of buying it.', to: '/game/produce' },
-  weapon: { title: 'Buy your first weapon', detail: 'Every thug wants one, and armed thugs cover the street.', to: '/game/stores' },
+  meet_contact: { title: 'Meet your first contact', detail: 'Scout one district for Mama King.', to: '/game/scout' },
+  open_front: { title: 'Open your first front', detail: 'Turn street money into a business the city can see.', to: '/game/businesses' },
+  face_encounter: { title: 'Make a street decision', detail: 'Resolve one pending encounter and own the consequence.', to: '/game' },
+  choose_career: { title: 'Choose what they call you', detail: 'Pick a cosmetic career identity for your first chapter.', to: '/game#origin-career' },
 };
 
 export interface TourStepCopy {

@@ -8,6 +8,7 @@ import { TurfCrackdownService } from './turf-crackdown.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { StreetPassService } from './street-pass.service.js';
 import { RoundAftermathService } from './round-aftermath.service.js';
+import { EmpireLegacyService } from './empire-legacy.service.js';
 import { RingService } from './ring.service.js';
 import { SupporterService } from './supporter.service.js';
 
@@ -203,6 +204,7 @@ export const RoundService = {
     // early close stamps the actual (shortened) window.
     await SupporterService.stampSeason(tx, round.id, ended.startsAt, ended.endsAt, finalAt);
     await RoundAftermathService.finalize(tx, round.id, freezeAt);
+    await EmpireLegacyService.snapshotRound(tx, round.id, freezeAt);
     return { closed: true, round: ended, previous: round };
   },
 

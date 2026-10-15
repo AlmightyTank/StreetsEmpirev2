@@ -49,6 +49,7 @@ import {
 } from './turf.service.js';
 import { endTurfHold, startTurfHold } from './turf-history.service.js';
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
+import { emitCityMemoryEvent } from './city-memory.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
 
 /**
@@ -631,6 +632,15 @@ async function endWar(tx: Db, state: WarState, at: Date, ending: WarEnding): Pro
   const payload = json({ warId: war.id, district: turf.district, ...result });
   const told = new Set([war.attackerId, war.defenderId, war.attackerAllyId, war.defenderAllyId].filter((id): id is string => Boolean(id)));
   for (const playerId of told) await ActivityService.log(tx, playerId, 'BLOCK_WAR_ENDED', payload);
+  await emitCityMemoryEvent(tx, {
+    roundId: war.roundId,
+    cityId: turf.cityId,
+    kind: 'war_win',
+    actorRoundPlayerIds: [...told],
+    summary: { warId: war.id, goal: war.goal, winner: ending.winner, reason: ending.reason, district: turf.district, turfId: turf.id },
+    happenedAt: at,
+    idempotencyKey: `block-war:${war.id}`,
+  });
 }
 
 /**

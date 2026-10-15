@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatRingDto, type CombatSpecialRaidDto, type CombatTargetDto, type CustomizableItemKey, type ItemCosmeticStyleKey, type SpecialRaidKindDto } from '@streets/shared';
 import { combatApi } from '../api/combat.js';
 import { ringApi } from '../api/ring.js';
@@ -447,6 +447,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
 }
 
 function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) {
+  const [searchParams] = useSearchParams();
   const me = useSession((s) => s.me)!;
   const [page, setPage] = useState<CombatPageDto | null>(null);
   const [after, setAfter] = useState(0);
@@ -456,7 +457,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const [latest, setLatest] = useState<BattleReportDto | null>(null);
   const [closingReportId, setClosingReportId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingRaid | null>(() => loadPendingRaid(browserSessionStorage(), playerId));
-  const [targetId, setTargetId] = useState('');
+  const [targetId, setTargetId] = useState(() => searchParams.get('target') ?? '');
   // The kind of hit and the squad size come back; the target is picked fresh each time.
   const [mode, setMode] = useRememberedState<Mode>(rememberedKey('combat.mode', playerId), 'RAID',
     { accept: (value): value is Mode => value === 'RAID' || value === 'DRIVE_BY' || value === 'DRUG_HOES' || value === 'STEAL_RIDE' || value === 'LURE_CREW' });
@@ -967,7 +968,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               </div>
             </div>
 
-            <aside className="se-raids-plan__intel">
+            <aside id="intel" className="se-raids-plan__intel">
               <div className="se-raids-sectionhead">
                 <div>
                   <span className="se-eyebrow">Target intel</span>

@@ -9,6 +9,7 @@ import {
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
+import { ActivityService } from './activity.service.js';
 import { EasterEggService } from './easter-egg.service.js';
 import { applyRandomEncounterEffects, capRandomEncounterEffects } from './random-encounter.service.js';
 import { EncounterGangService } from './encounter-gang.service.js';
@@ -189,6 +190,12 @@ async function resolveFirstClassEncounter(
         skipDuplicates: true,
       });
       await EncounterGangService.recordChoice(tx, roundPlayerId, result.encounterKey, choice.key, now);
+      await ActivityService.log(tx, roundPlayerId, 'RANDOM_ENCOUNTER_CHOICE', {
+        encounterKey: result.encounterKey,
+        title: result.title,
+        choice: result.choice,
+        choiceLabel: result.choiceLabel,
+      });
       return { next, result };
     },
   }, requestedAt);
@@ -264,6 +271,12 @@ export const RandomEncounterChoiceService = {
           },
         });
         await EncounterGangService.recordChoice(tx, roundPlayerId, encounter.key, choice.key, new Date());
+        await ActivityService.log(tx, roundPlayerId, 'RANDOM_ENCOUNTER_CHOICE', {
+          encounterKey: encounter.key,
+          title: encounter.title,
+          choice: choice.key,
+          choiceLabel: choice.label,
+        });
 
         return {
           next,

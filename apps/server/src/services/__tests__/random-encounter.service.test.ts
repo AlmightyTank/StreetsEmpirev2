@@ -4,9 +4,14 @@ import { RandomEncounterService, triggerChance } from '../random-encounter.servi
 import type { PlayerState } from '../action.service.js';
 
 const runMock = vi.hoisted(() => vi.fn());
+const activityLogMock = vi.hoisted(() => vi.fn(async () => undefined));
 
 vi.mock('../action.service.js', () => ({
   ActionService: { run: runMock },
+}));
+
+vi.mock('../activity.service.js', () => ({
+  ActivityService: { log: activityLogMock },
 }));
 
 const { RandomEncounterChoiceService } = await import('../random-encounter-choice.service.js');
@@ -216,6 +221,7 @@ const districtRuleset = {
 describe('RandomEncounterService', () => {
   beforeEach(() => {
     runMock.mockReset();
+    activityLogMock.mockClear();
     runMock.mockImplementation(async (db, roundPlayerId, options) => {
       const outcome = await options.execute({
         tx: db,
@@ -372,6 +378,7 @@ describe('RandomEncounterService', () => {
     expect(db.gameEventParticipation.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'CLAIMED', progress: { effects: { cashCents: -500 } } }) }));
     expect(db.gameEventRewardClaim.createMany).toHaveBeenCalledWith(expect.objectContaining({ data: [expect.objectContaining({ rewardKey: 'pay', idempotencyKey: 'encounter:participation-1:choice:pay' })] }));
     expect(db.gameEventHistory.createMany).toHaveBeenCalled();
+    expect(activityLogMock).toHaveBeenCalledWith(db, 'player-1', 'RANDOM_ENCOUNTER_CHOICE', expect.objectContaining({ choice: 'pay' }));
   });
 
   it('expires first-class choices without a penalty after the 24-hour window', async () => {
