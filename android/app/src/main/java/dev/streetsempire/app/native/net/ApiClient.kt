@@ -7,6 +7,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class ApiError(val status: Int, val code: String, message: String) : Exception(message)
@@ -51,20 +52,38 @@ class ApiClient(private val tokenStore: TokenStore) {
   }
 
   private fun <T> execute(path: String, method: String, bodyJson: String?, parse: (String) -> T): T {
-    http.newCall(request(path, method, bodyJson)).execute().use { response ->
-      val text = response.body?.string().orEmpty()
-      if (!response.isSuccessful) {
-        throw toApiError(response.code, text)
+    try {
+      http.newCall(request(path, method, bodyJson)).execute().use { response ->
+        val text = response.body?.string().orEmpty()
+        if (!response.isSuccessful) {
+          throw toApiError(response.code, text)
+        }
+        return parse(text.ifEmpty { "{}" })
       }
-      return parse(text.ifEmpty { "{}" })
+    } catch (error: ApiError) {
+      throw error
+    } catch (error: IOException) {
+      throw ApiError(
+        status = 0,
+        code = "NETWORK_ERROR",
+        message = "Cannot reach the game server. Check that it is running and try again.",
+      )
     }
   }
 
   fun get(path: String): String = execute(path, "GET", null) { it }
   fun post(path: String, bodyJson: String? = null): String = execute(path, "POST", bodyJson) { it }
 
-  inline fun <reified T> getJson(path: String): T =
-    json.decodeFromString<T>(get(path))
+  inline fun <reified T> getJson(path: String): T {
+    val body = get(path)
+    return try {
+      json.decodeFromString<T>(body)
+    } catch (error: ApiError) {
+      throw error
+    } catch (_: Exception) {
+      throw ApiError(0, "INVALID_RESPONSE", "The game server returned an unreadable response. Try again.")
+    }
+  }
 
   fun toApiError(status: Int, text: String): ApiError {
     return try {

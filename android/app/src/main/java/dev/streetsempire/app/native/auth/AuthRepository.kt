@@ -30,7 +30,7 @@ class AuthRepository(private val api: ApiClient, private val tokens: TokenStore)
   suspend fun turnstileSiteKey(): String? = withContext(Dispatchers.IO) {
     try {
       api.getJson<PlatformMetaDto>("/meta").turnstileSiteKey?.takeIf { it.isNotBlank() }
-    } catch (_: ApiError) {
+    } catch (_: Exception) {
       null
     }
   }
