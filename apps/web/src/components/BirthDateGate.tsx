@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { MINIMUM_AGE, type AccountDto } from '@streets/shared';
+import { MINIMUM_AGE, latestEligibleBirthDate } from '@streets/shared';
 import { authApi } from '../api/auth.js';
 import { ApiError } from '../api/client.js';
 import { Shell } from '../layouts/Shell.js';
@@ -22,8 +22,7 @@ export function BirthDateGate() {
 
   useEffect(() => { dialog.current?.focus(); }, []);
 
-  const today = new Date();
-  const maxBirthDate = `${today.getFullYear() - MINIMUM_AGE}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const maxBirthDate = latestEligibleBirthDate();
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,7 +31,7 @@ export function BirthDateGate() {
     setFieldError(undefined);
     try {
       const { account } = await authApi.saveBirthday({ birthDate });
-      useSession.setState({ account: account as AccountDto });
+      useSession.setState({ account });
       await refreshRound();
     } catch (caught) {
       if (caught instanceof ApiError) {
