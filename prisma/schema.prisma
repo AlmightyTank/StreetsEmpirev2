@@ -41,6 +41,8 @@ model Account {
   /// rc.5. When the player confirmed at sign-up that they are 13 or older. The rules
   /// agreement asks every player too (Discord sign-ups included).
   ageConfirmedAt              DateTime?
+  /// Private date-only birthday. Null on legacy/Discord accounts until collected after sign-in.
+  birthDate                   DateTime? @db.Date
   /// rc.3. Authenticator-app two-step sign-in. Secrets are AES-GCM sealed (auth/totp.ts).
   twoFactorSecret             String?
   /// Set while the player is scanning the QR code, before they confirm a first code.
