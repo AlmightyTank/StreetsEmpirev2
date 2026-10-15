@@ -132,9 +132,12 @@ export function ScoutPage() {
           : null;
 
   const receiptLines = action.result ? scoutReceiptLines(action.result, me) : null;
-  const pendingEncounter = action.result?.result.encounter?.status === 'PENDING' && action.result.result.encounter.id && action.result.result.encounter.choices?.length
-    ? action.result.result.encounter
-    : null;
+  const receiptEncounter = action.result?.result.encounter;
+  // The cinematic popup can resolve this same choice from any page.
+  // Hide the stale inline panel after the authoritative session has settled it.
+  const pendingEncounter = receiptEncounter?.status === 'PENDING' && receiptEncounter.id
+    && receiptEncounter.choices?.length && me.pendingEncounters.some((item) => item.id === receiptEncounter.id)
+    ? receiptEncounter : null;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();

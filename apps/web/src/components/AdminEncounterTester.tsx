@@ -57,6 +57,16 @@ const SCENARIOS = {
     kind: 'encounter', outcome: 'warning', title: 'Something is happening on the street',
     description: 'A stranger waves your crew down with an unusual offer. This is a visual preview; it does not create a choice or grant rewards.',
     location: 'The Back Alleys', opponent: 'Unknown contact',
+    encounter: {
+      key: 'qa-street-opportunity', title: 'Something is happening on the street',
+      text: 'A stranger waves your crew down with an unusual offer.', tone: 'neutral', effects: {},
+      status: 'PENDING',
+      choices: [
+        { key: 'listen', label: 'Hear the offer', text: 'Ask the stranger what they want.', effects: {} },
+        { key: 'question', label: 'Press for answers', text: 'Find out who sent them.', effects: {} },
+        { key: 'leave', label: 'Walk away', text: 'Keep moving.', effects: {} },
+      ],
+    },
   },
   'hidden-encounter': {
     kind: 'encounter', outcome: 'victory', title: 'You discovered a hidden secret',

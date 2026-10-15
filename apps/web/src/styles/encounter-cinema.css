@@ -264,3 +264,59 @@
   .se-encounter-cinema *, .se-encounter-cinema *::before, .se-encounter-cinema *::after { animation: none !important; }
 }
 .se-encounter-cinema--still *, .se-encounter-cinema--still *::before, .se-encounter-cinema--still *::after { animation: none !important; }
+
+/* Choices stay inside the same global cinematic layer as raid/drive-by alerts. */
+.se-encounter-cinema__decision { margin: 16px 0 19px; }
+.se-encounter-cinema__question {
+  color: #f2c978;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+.se-encounter-cinema__choices { display: grid; gap: 9px; }
+.se-encounter-cinema__choice {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 13px 16px;
+  text-align: left;
+  border: 1px solid #617383;
+  border-radius: 7px;
+  color: #f2f5f7;
+  background: #253444;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.se-encounter-cinema__choice:hover:not(:disabled),
+.se-encounter-cinema__choice:focus-visible {
+  outline: 2px solid #e4c179;
+  outline-offset: 1px;
+  background: #31485b;
+}
+.se-encounter-cinema__choice:disabled { opacity: .62; cursor: wait; }
+.se-encounter-cinema__choice strong { font-size: 15px; }
+.se-encounter-cinema__choice span { color: #c9d7e2; font-size: 13px; }
+.se-encounter-cinema__choice small { color: #efd39a; font-size: 12px; }
+.se-encounter-cinema__effects,
+.se-encounter-cinema__resolution {
+  padding: 13px 15px;
+  border-radius: 6px;
+  border: 1px solid #8d7c4e;
+  color: #eedab6;
+  background: #332e24;
+  line-height: 1.5;
+}
+.se-encounter-cinema__effects strong { margin-right: 7px; font-size: 11px; letter-spacing: .09em; }
+.se-encounter-cinema__resolution { display: grid; gap: 7px; }
+.se-encounter-cinema__resolution p { margin: 0; color: #f4f0e6; }
+.se-encounter-cinema__resolution em { font-style: normal; color: #efd39a; }
+.se-encounter-cinema__error { color: #ffb6aa; font-size: 13px; margin-top: 10px; }
+@media (max-width: 560px) {
+  .se-encounter-cinema__dialog { max-height: calc(100dvh - 24px); }
+  .se-encounter-cinema__choice { padding: 13px; min-height: 52px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .se-encounter-cinema__choice { transition: none; }
+}

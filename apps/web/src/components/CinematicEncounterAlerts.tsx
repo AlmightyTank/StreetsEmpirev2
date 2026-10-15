@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BELL_CATEGORY_BY_ACTIVITY, type ActivityDto } from '@streets/shared';
+import { BELL_CATEGORY_BY_ACTIVITY, STATUE_ENCOUNTER_KEY, formatCents, formatNumber, type ActivityDto, type RandomEncounterDto, type RandomEncounterChoiceResult } from '@streets/shared';
+import { actionsApi } from '../api/actions.js';
+import { useGameAction } from '../hooks/useGameAction.js';
+import { EncounterEggNote, StatueWatch } from './EasterEggs.js';
 import { useSession } from '../stores/session.js';
 import { gameEventToastFor } from './GameEventToasts.js';
 import { describeActivity } from './ActivityFeed.js';
@@ -18,9 +21,12 @@ export interface EncounterAlert {
   opponent?: string;
   href?: string;
   preview?: boolean;
+  /** Random encounter from the authoritative action receipt. */
+  encounter?: RandomEncounterDto;
 }
 
 export type QueuedEncounterAlert = EncounterAlert & { id: string };
+export const RANDOM_ENCOUNTER_EVENT = 'streets:random-encounter';
 const PREVIEW_EVENT = 'streets:encounter-alert-preview';
 let previewSequence = 0;
 
@@ -123,6 +129,51 @@ export function encounterAlertForActivity(activity: ActivityDto): EncounterAlert
   };
 }
 
+
+/** Read both legacy and first-class activity payload shapes. Never roll rewards in the UI. */
+function validEncounter(value: unknown): value is RandomEncounterDto {
+  if (!value || typeof value !== 'object') return false;
+  const item = value as Partial<RandomEncounterDto>;
+  return typeof item.key === 'string' && typeof item.title === 'string'
+    && typeof item.text === 'string' && typeof item.tone === 'string'
+    && !!item.effects && typeof item.effects === 'object';
+}
+
+export function randomEncounterFromActivity(activity: ActivityDto): RandomEncounterDto | null {
+  const payload = activity.payload as Record<string, unknown>;
+  if (validEncounter(payload.randomEncounter)) return payload.randomEncounter;
+  if (validEncounter(payload.encounter)) return payload.encounter;
+  return null;
+}
+
+export function alertForRandomEncounter(encounter: RandomEncounterDto): EncounterAlert {
+  return {
+    kind: 'encounter',
+    outcome: encounter.tone === 'good' ? 'victory' : encounter.tone === 'bad' ? 'defeat' : 'warning',
+    title: encounter.title,
+    description: encounter.text,
+    encounter,
+  };
+}
+
+function encounterEffectSummary(effects: RandomEncounterDto['effects']): string {
+  const amount = (value: number, name: string) =>
+    (value > 0 ? '+' : '-') + formatNumber(Math.abs(value)) + ' ' + name;
+  return [
+    effects.cashCents ? (effects.cashCents > 0 ? '+' : '-') + formatCents(Math.abs(effects.cashCents)) + ' cash' : null,
+    effects.heat ? amount(effects.heat, 'Heat') : null,
+    effects.turns ? amount(effects.turns, 'Turns') : null,
+    effects.thugs ? amount(effects.thugs, 'Thugs') : null,
+    effects.woundedThugs ? amount(effects.woundedThugs, 'Wounded thugs') : null,
+    effects.whores ? amount(effects.whores, 'Crew') : null,
+    effects.lowRiders ? amount(effects.lowRiders, 'Vehicles') : null,
+    effects.condoms ? amount(effects.condoms, 'Condoms') : null,
+    effects.medicine ? amount(effects.medicine, 'Medicine') : null,
+    effects.crack ? amount(effects.crack, 'Product') : null,
+    effects.beer ? amount(effects.beer, 'Beer') : null,
+  ].filter(Boolean).join(' · ');
+}
+
 /**
  * One modal per newly arrived combat activity, FIFO. Hydration is intentionally
  * quiet: historical fights must not replay on refresh/sign-in.
@@ -134,6 +185,10 @@ export function CinematicEncounterAlerts() {
   const bellMuted = useSession((s) => s.bellMuted);
   const reducedMotion = useSession((s) => s.profileSettings.reducedMotion);
   const [queue, setQueue] = useState<QueuedEncounterAlert[]>([]);
+  const [previewChoice, setPreviewChoice] = useState<string | null>(null);
+  const choiceAction = useGameAction<RandomEncounterChoiceResult>();
+  const seenEncounters = useRef<Set<string>>(new Set());
+  const dialog = useRef<HTMLElement>(null);
   const seededPlayer = useRef<string | null>(null);
   const seen = useRef<Set<string>>(new Set());
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -143,6 +198,7 @@ export function CinematicEncounterAlerts() {
     if (!playerId) {
       seededPlayer.current = null;
       seen.current.clear();
+      seenEncounters.current.clear();
       setQueue([]);
       return;
     }
@@ -150,6 +206,11 @@ export function CinematicEncounterAlerts() {
     if (seededPlayer.current !== playerId) {
       seededPlayer.current = playerId;
       seen.current = new Set(activity.map((entry) => entry.id));
+      // Seed historical encounters silently on sign-in/refresh.
+      seenEncounters.current = new Set(activity.flatMap((entry) => {
+        const found = randomEncounterFromActivity(entry);
+        return found?.id ? ['random:' + found.id] : [];
+      }));
       setQueue([]);
       return;
     }
@@ -157,14 +218,50 @@ export function CinematicEncounterAlerts() {
     const fresh = activity.slice().reverse().filter((entry) => !seen.current.has(entry.id));
     for (const entry of fresh) seen.current.add(entry.id);
     const muted = new Set<string>(bellMuted);
-    const next: QueuedEncounterAlert[] = fresh.flatMap((entry) => {
+    const next: QueuedEncounterAlert[] = [];
+    for (const entry of fresh) {
       const category = BELL_CATEGORY_BY_ACTIVITY[entry.type];
-      if (category && muted.has(category)) return [];
-      const alert = encounterAlertForActivity(entry);
-      return alert ? [{ ...alert, id: entry.id }] : [];
-    });
+      const combatAlert = encounterAlertForActivity(entry);
+      if (combatAlert && !(category && muted.has(category))) {
+        next.push({ ...combatAlert, id: entry.id });
+      }
+      const encounter = randomEncounterFromActivity(entry);
+      if (encounter) {
+        const id = encounter.id ? 'random:' + encounter.id : 'random:activity:' + entry.id + ':' + encounter.key;
+        if (!seenEncounters.current.has(id)) {
+          seenEncounters.current.add(id);
+          next.push({ ...alertForRandomEncounter(encounter), id });
+        }
+      }
+    }
     if (next.length) setQueue((current) => appendEncounterAlertQueue(current, next));
   }, [activity, bellMuted, hydrated, playerId]);
+
+  // Immediate action receipts cover pages that do not log activity (and avoid polling delay).
+  useEffect(() => {
+    const onEncounter = (event: Event) => {
+      const encounter = (event as CustomEvent<RandomEncounterDto>).detail;
+      if (!validEncounter(encounter)) return;
+      const id = encounter.id ? 'random:' + encounter.id : 'random:direct:' + encounter.key + ':' + Date.now();
+      if (seenEncounters.current.has(id)) return;
+      seenEncounters.current.add(id);
+      setQueue((current) => appendEncounterAlertQueue(current, [{
+        ...alertForRandomEncounter(encounter), id,
+      }]));
+    };
+    window.addEventListener(RANDOM_ENCOUNTER_EVENT, onEncounter);
+    return () => window.removeEventListener(RANDOM_ENCOUNTER_EVENT, onEncounter);
+  }, []);
+
+  useEffect(() => {
+    choiceAction.clear();
+    setPreviewChoice(null);
+  }, [active?.id, choiceAction.clear]);
+
+  async function resolveEncounter(choice: string) {
+    if (!active?.encounter?.id || choiceAction.busy || choiceAction.result) return;
+    await choiceAction.run((actionId) => actionsApi.resolveEncounter(active.encounter!.id!, { choice, actionId }));
+  }
 
   useEffect(() => {
     const onPreview = (event: Event) => {
@@ -184,9 +281,22 @@ export function CinematicEncounterAlerts() {
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeButton.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !choiceAction.busy) {
         event.preventDefault();
         setQueue((current) => current.slice(1));
+      }
+      // Keyboard focus must stay within the current modal.
+      if (event.key === 'Tab' && dialog.current) {
+        const controls = [...dialog.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')];
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (first && last && event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (first && last && !event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -198,13 +308,19 @@ export function CinematicEncounterAlerts() {
 
   if (!active) return null;
   const status = STATUS[active.outcome];
-  const dismiss = () => setQueue((current) => current.slice(1));
+  const dismiss = () => {
+    if (!choiceAction.busy) setQueue((current) => current.slice(1));
+  };
+  const choices = active.encounter?.choices ?? [];
+  const choiceResult = choiceAction.result?.result.encounterId === active.encounter?.id
+    ? choiceAction.result.result : null;
+  const effectsText = active.encounter ? encounterEffectSummary(active.encounter.effects) : '';
 
   return (
     <div className={'se-encounter-cinema se-encounter-cinema--' + active.outcome + (reducedMotion ? ' se-encounter-cinema--still' : '')}
       role="presentation">
       <div className="se-encounter-cinema__backdrop" />
-      <section className="se-encounter-cinema__dialog" role="alertdialog" aria-modal="true"
+      <section ref={dialog} className="se-encounter-cinema__dialog" role={choices.length ? 'dialog' : 'alertdialog'} aria-modal="true"
         aria-labelledby="se-encounter-cinema-title" aria-describedby="se-encounter-cinema-description">
         <div className="se-encounter-cinema__lightbar" aria-hidden="true" />
         <div className="se-encounter-cinema__visual" aria-hidden="true">
@@ -223,6 +339,46 @@ export function CinematicEncounterAlerts() {
           <p className="se-encounter-cinema__category">{TITLES[active.kind]}</p>
           <h2 id="se-encounter-cinema-title">{active.title}</h2>
           <p id="se-encounter-cinema-description" className="se-encounter-cinema__description">{active.description}</p>
+          {active.encounter && choices.length === 0 && effectsText ? (
+            <p className="se-encounter-cinema__effects"><strong>OUTCOME</strong> {effectsText}</p>
+          ) : null}
+          {choices.length > 0 ? (
+            <div className="se-encounter-cinema__decision">
+              {choiceResult ? (
+                <div className="se-encounter-cinema__resolution" role="status">
+                  <strong>{choiceResult.choiceLabel}</strong>
+                  <p>{choiceResult.text}</p>
+                  {encounterEffectSummary(choiceResult.effects) ? <em>{encounterEffectSummary(choiceResult.effects)}</em> : null}
+                  <EncounterEggNote egg={choiceResult.easterEgg} />
+                </div>
+              ) : (
+                <>
+                  <p className="se-encounter-cinema__question">What do you do?</p>
+                  {active.encounter?.key === STATUE_ENCOUNTER_KEY && !active.preview ? (
+                    <StatueWatch active={!choiceAction.busy} onReached={() => void resolveEncounter('run')} />
+                  ) : null}
+                  <div className="se-encounter-cinema__choices">
+                    {choices.map((choice) => (
+                      <button key={choice.key} type="button" className="se-encounter-cinema__choice"
+                        disabled={choiceAction.busy || Boolean(previewChoice)}
+                        onClick={() => {
+                          if (active.preview) setPreviewChoice(choice.key);
+                          else void resolveEncounter(choice.key);
+                        }}>
+                        <strong>{choice.label}</strong>
+                        {choice.text ? <span>{choice.text}</span> : null}
+                        {encounterEffectSummary(choice.effects) ? <small>{encounterEffectSummary(choice.effects)}</small> : null}
+                      </button>
+                    ))}
+                  </div>
+                  {active.preview && previewChoice ? (
+                    <p className="se-encounter-cinema__effects" role="status">Visual preview only — no game action or reward was applied.</p>
+                  ) : null}
+                  {choiceAction.error ? <p className="se-encounter-cinema__error" role="alert">{choiceAction.error} You can retry your choice.</p> : null}
+                </>
+              )}
+            </div>
+          ) : null}
           {active.location || active.opponent ? (
             <div className="se-encounter-cinema__intel">
               {active.location ? <span><small>LOCATION</small><strong>{active.location}</strong></span> : null}
@@ -235,8 +391,9 @@ export function CinematicEncounterAlerts() {
                 {active.outcome === 'incoming' ? 'Respond now' : 'See the report'}
               </Link>
             ) : null}
-            <button ref={closeButton} className="se-btn se-btn--secondary" type="button" onClick={dismiss}>
-              {active.preview ? 'Close preview' : 'Dismiss'}
+            <button ref={closeButton} className="se-btn se-btn--secondary" type="button"
+              disabled={choiceAction.busy} onClick={dismiss}>
+              {active.preview ? 'Close preview' : choiceResult ? 'Continue' : choices.length ? 'Decide later' : 'Continue'}
             </button>
             {queue.length > 1 ? <span className="se-encounter-cinema__queued">{queue.length - 1} more alerts</span> : null}
           </div>
