@@ -85,6 +85,11 @@ const envSchema = z.object({
   VAPID_SUBJECT: z.union([z.literal(''), z.string().regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT must start with mailto: or https://.')]).default(''),
 
   RESEND_API_KEY: z.string().default(''),
+  /** Self-hosted mail relay (Stalwart). Set all four to send game mail from the VPS itself; RESEND_API_KEY stays as fallback. */
+  SMTP_HOST: z.string().default(''),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().default(''),
+  SMTP_PASS: z.string().default(''),
   // Supporter payments through Stripe Checkout. All three, or supporting is turned off.
   STRIPE_SECRET_KEY: z.union([z.literal(''), z.string().regex(/^(sk|rk)_(test|live)_/, 'STRIPE_SECRET_KEY must be a Stripe secret or restricted key.')]).default(''),
   STRIPE_WEBHOOK_SECRET: z.union([z.literal(''), z.string().startsWith('whsec_', 'STRIPE_WEBHOOK_SECRET must start with whsec_.')]).default(''),
@@ -323,9 +328,17 @@ export const env = {
   email: {
     resendApiKey: parsed.data.RESEND_API_KEY,
     from: parsed.data.EMAIL_FROM,
+    smtp: {
+      host: parsed.data.SMTP_HOST,
+      port: parsed.data.SMTP_PORT,
+      user: parsed.data.SMTP_USER,
+      pass: parsed.data.SMTP_PASS,
+      /** Host, user and pass are set, so the self-hosted relay can be used. */
+      configured: Boolean(parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS),
+    },
     /** True when the credentials needed to send mail are present, even in tests where delivery stays disabled. */
-    configured: Boolean(parsed.data.RESEND_API_KEY && parsed.data.EMAIL_FROM),
-    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.RESEND_API_KEY && parsed.data.EMAIL_FROM),
+    configured: Boolean(parsed.data.EMAIL_FROM && (parsed.data.RESEND_API_KEY || (parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS))),
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.EMAIL_FROM && (parsed.data.RESEND_API_KEY || (parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS))),
     passwordResetTtlMinutes: parsed.data.PASSWORD_RESET_TTL_MINUTES,
     verificationTtlMinutes: parsed.data.EMAIL_VERIFICATION_TTL_MINUTES,
   },
