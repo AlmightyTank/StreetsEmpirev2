@@ -9,6 +9,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import java.time.LocalDate
 import java.time.ZoneId
@@ -42,7 +43,7 @@ internal fun BirthdayDateField(
   val latest = nowUtc.minusYears(MINIMUM_AGE)
   val earliest = nowUtc.minusYears(130)
 
-  Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(androidx.compose.ui.unit.Dp(6f))) {
+  Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
     Text("Date of birth", style = MaterialTheme.typography.labelLarge)
     OutlinedButton(
       onClick = {
