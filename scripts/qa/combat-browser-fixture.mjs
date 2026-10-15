@@ -46,7 +46,7 @@ try {
   const suffix = randomUUID().slice(0, 6);
   for (let i = 0; i < 2; i++) {
     const username = `${i === 0 ? 'raider' : 'defender'}_${suffix}`;
-    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, email: `${username}@example.invalid`, password } });
+    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, birthDate: '1990-01-01', username, email: `${username}@example.invalid`, password } });
     if (response.statusCode !== 201) throw new Error(response.body);
     accounts.push(response.json().account.id);
     const data = { ...rules.round.startingPlayer, ...startingStock(rules),
