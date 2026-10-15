@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MINIMUM_AGE, PASSWORD_MIN, USERNAME_MAX, USERNAME_MIN } from '@streets/shared';
+import { MINIMUM_AGE, latestEligibleBirthDate, PASSWORD_MIN, USERNAME_MAX, USERNAME_MIN } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -110,7 +110,7 @@ export function RegisterPage() {
                 value={birthDate}
                 onChange={(event) => setBirthDate(event.target.value)}
                 autoComplete="bday"
-                max={`${new Date().getFullYear() - MINIMUM_AGE}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`}
+                max={latestEligibleBirthDate()}
                 required
                 error={fields.birthDate}
                 hint="Private — used only to confirm you meet the minimum age requirement."
