@@ -38,7 +38,7 @@ model Account {
   closedAt                    DateTime?
   /// rc.2. The address the account signed up from, for the per-address daily sign-up cap.
   registeredIp                String?
-  /// rc.5. When the player confirmed at sign-up that they are 13 or older. The rules
+  /// rc.5. When the player confirmed at sign-up that they meet the minimum age. The rules
   /// agreement asks every player too (Discord sign-ups included).
   ageConfirmedAt              DateTime?
   /// Private date-only birthday. Null on legacy/Discord accounts until collected after sign-in.
