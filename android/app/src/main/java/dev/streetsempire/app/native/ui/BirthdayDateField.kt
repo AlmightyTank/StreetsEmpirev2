@@ -26,7 +26,7 @@ internal fun birthdayError(value: String, today: LocalDate = LocalDate.now(ZoneO
   } catch (_: Exception) {
     return "Select a valid date of birth."
   }
-  if (birthday > today.minusYears(MINIMUM_AGE)) return "You must be at least $MINIMUM_AGE years old."
+  if (birthday > today.minusYears(MINIMUM_AGE.toLong())) return "You must be at least $MINIMUM_AGE years old."
   if (birthday < today.minusYears(130)) return "Check the birth year you selected."
   return null
 }
@@ -40,7 +40,7 @@ internal fun BirthdayDateField(
 ) {
   val context = LocalContext.current
   val nowUtc = LocalDate.now(ZoneOffset.UTC)
-  val latest = nowUtc.minusYears(MINIMUM_AGE)
+  val latest = nowUtc.minusYears(MINIMUM_AGE.toLong())
   val earliest = nowUtc.minusYears(130)
 
   Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
