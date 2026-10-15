@@ -30,6 +30,8 @@ jobs:
         uses: android-actions/setup-android@v3
       - name: Install API 35 SDK
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Use runner Android SDK path
+        run: printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
       - name: Compile native Android beta APK
