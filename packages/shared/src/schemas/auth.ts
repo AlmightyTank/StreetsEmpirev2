@@ -87,6 +87,11 @@ export const passwordSchema = z
   .min(PASSWORD_MIN, `Password must be at least ${PASSWORD_MIN} characters.`)
   .max(PASSWORD_MAX, `Password must be ${PASSWORD_MAX} characters or fewer.`);
 
+/** Latest birthday eligible for play, computed using the same UTC calendar as validation. */
+export function latestEligibleBirthDate(now = new Date()): string {
+  return `${now.getUTCFullYear() - MINIMUM_AGE}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+}
+
 /** A private calendar date. Use UTC date-only comparisons to avoid timezone birthday shifts. */
 export const birthDateSchema = z.string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter your birthday as YYYY-MM-DD.')
