@@ -17,6 +17,7 @@ export function RegisterPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -33,7 +34,7 @@ export function RegisterPage() {
     setFields({});
 
     try {
-      const approvalMessage = await register({ username, email, password, ageConfirmed, ...(captchaToken ? { captchaToken } : {}) });
+      const approvalMessage = await register({ username, email, password, birthDate, ageConfirmed, ...(captchaToken ? { captchaToken } : {}) });
       if (approvalMessage) {
         setMessage(approvalMessage);
         setPassword('');
@@ -102,6 +103,19 @@ export function RegisterPage() {
                 hint={`At least ${PASSWORD_MIN} characters.`}
               />
 
+              <Field
+                label="Date of birth"
+                name="birthDate"
+                type="date"
+                value={birthDate}
+                onChange={(event) => setBirthDate(event.target.value)}
+                autoComplete="bday"
+                max={new Date().toISOString().slice(0, 10)}
+                required
+                error={fields.birthDate}
+                hint="Private — used only to confirm you meet the minimum age requirement."
+              />
+
               <label className="se-checkrow se-checkrow--inline">
                 <input type="checkbox" checked={ageConfirmed} onChange={(event) => setAgeConfirmed(event.target.checked)} required />
                 <span>
@@ -117,7 +131,8 @@ export function RegisterPage() {
               <Button
                 className="se-btn se-btn--primary se-btn--block"
                 disabledReason={busy ? 'Setting up your account now.'
-                  : !ageConfirmed ? `Confirm you are ${MINIMUM_AGE} or older.`
+                  : !birthDate ? 'Enter your date of birth.'
+                    : !ageConfirmed ? `Confirm you are ${MINIMUM_AGE} or older.`
                     : captchaOn && !captchaToken ? 'Finish the "are you human" check.' : null}
               >
                 {busy ? 'Working...' : 'Create account'}
