@@ -35,6 +35,7 @@ import type {
 } from '@streets/shared';
 import { z } from 'zod';
 import { env } from '../config/env.js';
+import { ActiveSupporterService } from './active-supporter.service.js';
 import { toRoundPlayerDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { CommunityService, legacyAchievements, loadLegacyByAccount, loadPublicContexts } from './community.service.js';
@@ -633,7 +634,7 @@ export const DiscordBotService = {
     if (!accounts.length) return {};
 
     const round = await RoundService.getCurrent(prisma);
-    const [standings, legacyByAccount, forumGroups] = await Promise.all([
+    const [standings, legacyByAccount, forumGroups, activeSupporters] = await Promise.all([
       round
         ? prisma.roundPlayer.findMany({
           where: { roundId: round.id, account: { isActive: true } },
@@ -647,6 +648,7 @@ export const DiscordBotService = {
         env.forum.enabled && account.forumLink?.forumOrigin === env.forum.origin
           ? ForumGroupsService.groupsFor(account.forumLink.forumUserId)
           : Promise.resolve([] as ForumGroupBadgeDto[])),
+      ActiveSupporterService.accountIds(prisma, accounts.map((account) => account.id)),
     ]);
 
     const ranks = competitionRanks(standings);
@@ -662,7 +664,7 @@ export const DiscordBotService = {
         nationalRank: ranked ? rankByAccount.get(account.id) ?? null : null,
         legacy: legacyByAccount.get(account.id) ?? emptyLegacy(),
         forumGroups: forumGroups[index]!,
-        supporter: account.supporterMembership?.status === 'active' || account.supporterMembership?.status === 'trialing',
+        supporter: activeSupporters.has(account.id),
         betaTester: env.betaTester.discordLinked,
         // Alliance roles only mean something while the round can still change.
         allianceTag: round && (round.status === 'ACTIVE' || round.status === 'REGISTRATION') ? allianceByAccount.get(account.id) ?? null : null,

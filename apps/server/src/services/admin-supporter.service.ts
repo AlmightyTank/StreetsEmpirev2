@@ -12,7 +12,7 @@ import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAccountService } from './admin-account.service.js';
 import type { AuditActor } from './admin-audit.service.js';
-import { membershipDto } from './supporter-billing.service.js';
+import { membershipDto, playMembershipDto } from './supporter-billing.service.js';
 import { SupporterDropService } from './supporter-drop.service.js';
 
 const REWARD_KEYS: readonly string[] = Object.keys(SUPPORTER_COSMETICS);
@@ -70,13 +70,14 @@ async function commit(
  */
 export const AdminSupporterService = {
   async list(prisma: PrismaClient): Promise<AdminSupportersDto> {
-    const [unlocks, memberships, payments, drops] = await Promise.all([
+    const [unlocks, memberships, playMemberships, payments, drops] = await Promise.all([
       prisma.accountCosmeticUnlock.findMany({
         where: { sourceQuestKey: SUPPORTER_SOURCE },
         select: { accountId: true, awardedAt: true },
         orderBy: { awardedAt: 'asc' },
       }),
       prisma.supporterMembership.findMany(),
+      prisma.googlePlaySupporterSubscription.findMany({ orderBy: { lastVerifiedAt: 'desc' } }),
       prisma.supporterPayment.findMany({
         orderBy: { paidAt: 'desc' },
         take: RECENT_PAYMENTS,
@@ -87,8 +88,12 @@ export const AdminSupporterService = {
     const since = new Map<string, Date>();
     for (const unlock of unlocks) if (!since.has(unlock.accountId)) since.set(unlock.accountId, unlock.awardedAt);
     const membershipBy = new Map(memberships.map((membership) => [membership.accountId, membership]));
+    const playMembershipBy = new Map<string, (typeof playMemberships)[number]>();
+    for (const membership of playMemberships) {
+      if (!playMembershipBy.has(membership.accountId)) playMembershipBy.set(membership.accountId, membership);
+    }
     // A subscriber still waiting on a first payment has no rewards yet, but belongs on the roster.
-    const ids = [...new Set([...since.keys(), ...membershipBy.keys()])];
+    const ids = [...new Set([...since.keys(), ...membershipBy.keys(), ...playMembershipBy.keys()])];
     const [accounts, profiles, held, listedCount] = await Promise.all([
       ids.length
         ? prisma.account.findMany({ where: { id: { in: ids } }, select: { id: true, username: true, isActive: true, lastLoginAt: true } })
@@ -121,7 +126,12 @@ export const AdminSupporterService = {
           missingKeys: missingFrom(keys),
           tenureKeys: TENURE_KEYS.filter((key) => tenureBy.get(account.id)?.includes(key)),
           wearingCard: wearing.has(account.id),
-          membership: membershipBy.has(account.id) ? membershipDto(membershipBy.get(account.id)!) : null,
+          membership: (() => {
+            const stripe = membershipBy.get(account.id);
+            const play = playMembershipBy.get(account.id);
+            const playDto = play ? playMembershipDto(play) : null;
+            return playDto && (playDto.active || !stripe) ? playDto : stripe ? membershipDto(stripe) : null;
+          })(),
         };
       })
       .sort((a, b) => (b.since ?? '').localeCompare(a.since ?? '') || a.username.localeCompare(b.username));
@@ -133,6 +143,7 @@ export const AdminSupporterService = {
       missingCount: supporters.filter((supporter) => supporter.since && supporter.missingKeys.length).length,
       activeCount: supporters.filter((supporter) => supporter.membership?.active).length,
       checkoutEnabled: env.stripe.enabled,
+      playBillingEnabled: env.googlePlay.enabled,
       drops,
       listedCount,
       payments: payments.map((payment) => ({
@@ -143,7 +154,8 @@ export const AdminSupporterService = {
         currency: payment.currency,
         status: payment.status,
         paidAt: payment.paidAt.toISOString(),
-        stripeInvoiceId: payment.stripeInvoiceId,
+        provider: payment.provider === 'google_play' ? 'google_play' as const : 'stripe' as const,
+        providerPaymentId: payment.providerPaymentId,
       })),
     };
   },

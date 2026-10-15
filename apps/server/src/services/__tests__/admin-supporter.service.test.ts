@@ -42,6 +42,7 @@ function fakePrisma(accounts: Account[], unlocks: Unlock[], avatarFrames: Record
           && (!where.usernameNormalized || where.usernameNormalized.in.includes(row.usernameNormalized))),
     },
     supporterMembership: { findMany: async () => [] },
+    googlePlaySupporterSubscription: { findMany: async () => [] },
     supporterPayment: { findMany: async () => [] },
     accountProfile: {
       count: async () => 0,

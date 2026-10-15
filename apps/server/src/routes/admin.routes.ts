@@ -876,7 +876,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/accounts/:accountId/delete', async (request) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(deleteAccountSchema, request.body ?? {});
-    const subscription = await SupporterBillingService.subscriptionToCancel(fastify.prisma, accountId);
+    const subscriptions = await SupporterBillingService.subscriptionsToCancel(fastify.prisma, accountId);
     const result = await AdminAccountService.deleteAccount(
       fastify.prisma,
       request.auth!.account,
@@ -885,7 +885,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       body.reason,
     );
     // A deleted account must not keep being billed.
-    await SupporterBillingService.cancelAfterErasure(subscription, request.log);
+    await SupporterBillingService.cancelAfterErasure(subscriptions, request.log);
     return result;
   });
 

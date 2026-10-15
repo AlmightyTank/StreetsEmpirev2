@@ -1,13 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">StreetsEmpire</string>
-    <string name="env_live">Live</string>
-    <string name="env_beta">Beta</string>
-    <string name="action_reload">Reload game</string>
     <string name="action_retry">Retry</string>
     <string name="offline_title">Could not load StreetsEmpire</string>
-    <string name="offline_message">Check your connection, then try again. Your login stays saved on each server.</string>
-    <string name="beta_dialog_title">Beta is invite-only</string>
-    <string name="beta_dialog_message">Beta accounts need game administrator approval. This is separate from Android permissions. For regular gameplay, choose Live.</string>
-    <string name="beta_dialog_open">Open Beta</string>
+    <string name="offline_message">Check your connection, then try again. Your login stays saved.</string>
 </resources>

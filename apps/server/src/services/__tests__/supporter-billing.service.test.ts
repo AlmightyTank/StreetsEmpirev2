@@ -47,6 +47,10 @@ function fakeDb(accountIds: string[] = ['acc_1']) {
       },
       update: async ({ where, data }: Row) => Object.assign(state.memberships.find((row) => matches(row, where))!, data),
     },
+    googlePlaySupporterSubscription: {
+      findFirst: async () => null,
+      findMany: async () => [],
+    },
     supporterPayment: {
       upsert: async ({ where, create }: Row) => {
         const found = state.payments.find((row) => row.stripeInvoiceId === where.stripeInvoiceId);

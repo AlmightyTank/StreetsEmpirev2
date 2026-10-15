@@ -115,12 +115,19 @@ describe('ProfileBadgeService forum supporter flair', () => {
     vi.spyOn(RoundPlayerService, 'find').mockResolvedValue({ publicPimpId: 1001 } as any);
     vi.spyOn(CommunityService, 'profile').mockResolvedValue({ badges: [] } as any);
     const prisma = (status: string | null) => ({
-      supporterMembership: { findUnique: async () => status ? { status } : null },
+      supporterMembership: { findMany: async () => status && ['active', 'trialing'].includes(status) ? [{ accountId: 'account-1' }] : [] },
+      googlePlaySupporterSubscription: { findMany: async () => [] },
     }) as any;
 
     expect((await ProfileBadgeService.forAccount(prisma('active'), 'account-1')).map((badge) => badge.key)).toContain('supporter-active');
     expect((await ProfileBadgeService.forAccount(prisma('trialing'), 'account-1')).map((badge) => badge.key)).toContain('supporter-active');
     expect((await ProfileBadgeService.forAccount(prisma('canceled'), 'account-1')).map((badge) => badge.key)).not.toContain('supporter-active');
     expect((await ProfileBadgeService.forAccount(prisma(null), 'account-1')).map((badge) => badge.key)).not.toContain('supporter-active');
+
+    const playPrisma = {
+      supporterMembership: { findMany: async () => [] },
+      googlePlaySupporterSubscription: { findMany: async () => [{ accountId: 'account-1' }] },
+    } as any;
+    expect((await ProfileBadgeService.forAccount(playPrisma, 'account-1')).map((badge) => badge.key)).toContain('supporter-active');
   });
 });

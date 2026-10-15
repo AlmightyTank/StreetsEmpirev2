@@ -2091,9 +2091,10 @@ export interface ProductsDto {
   products: ProductStockDto[];
 }
 
-/** A supporter's Stripe subscription, as the account page and the admin roster show it. */
+/** A supporter's current subscription, whether billed by Stripe or Google Play. */
 export interface SupporterMembershipDto {
-  /** Stripe's subscription status, for example active, past_due or canceled. */
+  provider: 'stripe' | 'google_play';
+  /** Provider subscription status, normalized where practical. */
   status: string;
   /** Supporting right now: active or trialing. */
   active: boolean;
@@ -2110,6 +2111,8 @@ export interface SupporterMembershipDto {
 export interface SupporterStatusDto {
   /** Stripe checkout is set up on this server. */
   checkoutEnabled: boolean;
+  /** Present when Google Play billing is configured. Used only by the Android shell. */
+  playBilling: { enabled: boolean; obfuscatedAccountId: string | null };
   hasRewards: boolean;
   /** When the account first got supporter rewards. */
   since: string | null;

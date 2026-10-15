@@ -21,6 +21,7 @@ import siteRoutes from './site.routes.js';
 import supportRoutes from './support.routes.js';
 import supporterRoutes from './supporter.routes.js';
 import stripeWebhookRoutes from './stripe-webhook.routes.js';
+import googlePlayRtdnRoutes from './google-play-rtdn.routes.js';
 import surveyRoutes from './survey.routes.js';
 import casinoRoutes from './casino.routes.js';
 
@@ -37,6 +38,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(patchNotesRoutes, { prefix: '/internal/patch-notes' });
   await fastify.register(opsRoutes, { prefix: '/internal/ops' });
   await fastify.register(stripeWebhookRoutes, { prefix: '/internal/stripe' });
+  await fastify.register(googlePlayRtdnRoutes, { prefix: '/internal/google-play' });
   await fastify.register(adminRoutes, { prefix: '/admin' });
   await fastify.register(roundRoutes, { prefix: '/rounds' });
   await fastify.register(roundAftermathRoutes, { prefix: '/rounds' });

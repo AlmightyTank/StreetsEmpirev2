@@ -94,6 +94,15 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.union([z.literal(''), z.string().regex(/^(sk|rk)_(test|live)_/, 'STRIPE_SECRET_KEY must be a Stripe secret or restricted key.')]).default(''),
   STRIPE_WEBHOOK_SECRET: z.union([z.literal(''), z.string().startsWith('whsec_', 'STRIPE_WEBHOOK_SECRET must start with whsec_.')]).default(''),
   STRIPE_SUPPORTER_PRICE_ID: z.union([z.literal(''), z.string().startsWith('price_', 'STRIPE_SUPPORTER_PRICE_ID must start with price_.')]).default(''),
+  /** Base64-encoded Google service-account JSON with Android Publisher access. */
+  GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: z.string().default(''),
+  GOOGLE_PLAY_PACKAGE_NAME: z.string().default('dev.streetsempire.app'),
+  GOOGLE_PLAY_SUPPORTER_PRODUCT_ID: z.string().default('supporter_monthly'),
+  /** Stable secret used to bind a Play purchase to one game account. Never rotate it. */
+  GOOGLE_PLAY_ACCOUNT_HASH_SECRET: z.union([z.literal(''), z.string().min(32)]).default(''),
+  /** Exact Pub/Sub push audience and OIDC service-account email. Both enable Play RTDN. */
+  GOOGLE_PLAY_RTDN_AUDIENCE: z.union([z.literal(''), z.string().url()]).default(''),
+  GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL: z.union([z.literal(''), z.string().email()]).default(''),
   EMAIL_FROM: z.string().default(''),
   /** How long admin audit entries are kept. 0 keeps them forever. */
   ADMIN_AUDIT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(365),
@@ -304,6 +313,25 @@ export const env = {
     /** Off in tests so no test run ever calls Stripe. */
     enabled: parsed.data.NODE_ENV !== 'test'
       && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET && parsed.data.STRIPE_SUPPORTER_PRICE_ID),
+  },
+  googlePlay: {
+    serviceAccountJsonBase64: parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64,
+    packageName: parsed.data.GOOGLE_PLAY_PACKAGE_NAME,
+    supporterProductId: parsed.data.GOOGLE_PLAY_SUPPORTER_PRODUCT_ID,
+    accountHashSecret: parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET,
+    rtdn: {
+      audience: parsed.data.GOOGLE_PLAY_RTDN_AUDIENCE,
+      serviceAccountEmail: parsed.data.GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL.toLowerCase(),
+      enabled: parsed.data.NODE_ENV !== 'test' && Boolean(
+        parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64
+        && parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET
+        && parsed.data.GOOGLE_PLAY_RTDN_AUDIENCE
+        && parsed.data.GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL
+      ),
+    },
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(
+      parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 && parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET
+    ),
   },
   patchNotes: {
     apiToken: parsed.data.PATCH_NOTES_API_TOKEN,

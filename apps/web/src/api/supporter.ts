@@ -7,6 +7,7 @@ export const supporterApi = {
   checkout: () => api.post<SupporterRedirectDto>('/supporter/checkout', {}),
   giftCheckout: (recipientAccountId: string) => api.post<SupporterRedirectDto>('/supporter/gift-checkout', { recipientAccountId }),
   portal: () => api.post<SupporterRedirectDto>('/supporter/portal', {}),
+  verifyGooglePlay: (purchaseToken: string) => api.post<SupporterStatusDto>('/supporter/google-play/verify', { purchaseToken }),
   polls: () => api.get<SupporterPollsDto>('/supporter/polls'),
   vote: (pollId: string, optionKey: string) => api.post<SupporterPollsDto>(`/supporter/polls/${encodeURIComponent(pollId)}/vote`, { optionKey }),
   setListed: (listed: boolean) => api.post<SupporterStatusDto>('/supporter/listing', { listed }),

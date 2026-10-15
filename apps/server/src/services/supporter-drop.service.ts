@@ -2,12 +2,10 @@ import { Prisma, type PrismaClient } from '@prisma/client';
 import { SUPPORTER_MONTHLY_DROPS, SUPPORTER_TENURE, supporterDropFor, supporterMonth, tenureTiersFor } from '@streets/rulesets';
 import type { AdminSupporterDropDto } from '@streets/shared';
 import { SupporterService } from './supporter.service.js';
+import { ActiveSupporterService } from './active-supporter.service.js';
 
 /** Shown as the actor on audit entries for drops given out at the start of a month. */
 export const DROP_AUDIT_ACTOR = 'Monthly drop';
-/** Subscription statuses that get the month's drop: supporting right now. */
-const DROP_STATUSES = ['active', 'trialing'];
-
 /**
  * Monthly supporter drops. A payment grants the drop for the month it lands in
  * (SupporterBillingService); this gives the current month's drop to everyone
@@ -21,11 +19,7 @@ export const SupporterDropService = {
     const bundle = supporterDropFor(month);
     if (!bundle?.length) return { month, granted: 0 };
     const keys = bundle.map((item) => item.key);
-    const members = await prisma.supporterMembership.findMany({
-      where: { status: { in: DROP_STATUSES } },
-      select: { accountId: true },
-    });
-    const ids = members.map((member) => member.accountId);
+    const ids = [...await ActiveSupporterService.accountIds(prisma, undefined, now)];
     if (!ids.length) return { month, granted: 0 };
     const tenureKeys = SUPPORTER_TENURE.map((tier) => tier.badge.key);
     const heldRows = await prisma.accountCosmeticUnlock.findMany({

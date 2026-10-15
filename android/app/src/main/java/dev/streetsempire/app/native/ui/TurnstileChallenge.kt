@@ -62,23 +62,24 @@ fun TurnstileChallenge(
     """.trimIndent()
   }
 
-  AndroidView(
-    modifier = Modifier.fillMaxWidth().height(80.dp),
-    factory = { context ->
-      WebView(context).apply {
-        settings.javaScriptEnabled = true
-        settings.domStorageEnabled = true
-        settings.loadWithOverviewMode = true
-        settings.useWideViewPort = true
-        webViewClient = WebViewClient()
-        addJavascriptInterface(TurnstileBridge(onToken), "Android")
-        loadDataWithBaseURL(GameConfig.LIVE_ORIGIN, html, "text/html", "utf-8", null)
-      }
-    },
-    update = { view ->
-      view.loadDataWithBaseURL(GameConfig.LIVE_ORIGIN, html, "text/html", "utf-8", null)
-    },
-  )
+  // Keyed so typing in the login fields does NOT reload the widget and wipe
+  // the token. Only a new captchaKey (after a submit) recreates the WebView.
+  androidx.compose.runtime.key(siteKey, captchaKey) {
+    AndroidView(
+      modifier = Modifier.fillMaxWidth().height(80.dp),
+      factory = { context ->
+        WebView(context).apply {
+          settings.javaScriptEnabled = true
+          settings.domStorageEnabled = true
+          settings.loadWithOverviewMode = true
+          settings.useWideViewPort = true
+          webViewClient = WebViewClient()
+          addJavascriptInterface(TurnstileBridge(onToken), "Android")
+          loadDataWithBaseURL(GameConfig.LIVE_ORIGIN, html, "text/html", "utf-8", null)
+        }
+      },
+    )
+  }
 }
 
 @Composable

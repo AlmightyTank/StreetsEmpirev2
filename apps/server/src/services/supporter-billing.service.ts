@@ -1,4 +1,4 @@
-import type { Account, PrismaClient, SupporterMembership } from '@prisma/client';
+import type { Account, GooglePlaySupporterSubscription, PrismaClient, SupporterMembership } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify';
 import { SUPPORTER_DROP_SOURCE, SUPPORTER_TENURE_SOURCE, supporterDropFor, supporterMonth } from '@streets/rulesets';
 import type { SupporterMembershipDto, SupporterRedirectDto, SupporterStatusDto } from '@streets/shared';
@@ -8,6 +8,7 @@ import { AppError } from '../utils/errors.js';
 import { stripeApi, type StripeApi, type StripeEvent } from './stripe.client.js';
 import { SupporterService } from './supporter.service.js';
 import { queueDiscordRoleResync } from './discord-resync.service.js';
+import { GooglePlayBillingService } from './google-play-billing.service.js';
 
 /** Statuses that count as supporting right now. past_due is still retrying a payment. */
 const ACTIVE_STATUSES = new Set(['active', 'trialing']);
@@ -16,6 +17,11 @@ const RUNNING_STATUSES = new Set(['active', 'trialing', 'past_due', 'unpaid']);
 /** Shown as the actor on audit entries written for a Stripe payment. */
 export const STRIPE_AUDIT_ACTOR = 'Stripe';
 const PREVIEW_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+export interface SupporterSubscriptionsToCancel {
+  stripeSubscriptionId: string | null;
+  playPurchaseTokens: string[];
+}
 
 type Obj = Record<string, unknown>;
 
@@ -88,6 +94,7 @@ function giftMetadata(value: unknown): { gifterAccountId: string; recipientAccou
 
 export function membershipDto(row: SupporterMembership): SupporterMembershipDto {
   return {
+    provider: 'stripe',
     status: row.status,
     active: ACTIVE_STATUSES.has(row.status),
     paymentFailing: row.status === 'past_due' || row.status === 'unpaid',
@@ -176,6 +183,21 @@ async function applyMembership(tx: Db, accountId: string, change: MembershipChan
   await queueDiscordRoleResync(tx, { accountIds: [accountId] }, 'Supporter status change');
 }
 
+export function playMembershipDto(row: GooglePlaySupporterSubscription, now = new Date()): SupporterMembershipDto {
+  const active = row.status === 'active' || row.status === 'in_grace_period'
+    || (row.status === 'canceled' && Boolean(row.currentPeriodEnd && row.currentPeriodEnd > now));
+  return {
+    provider: 'google_play',
+    status: row.status,
+    active,
+    paymentFailing: row.status === 'in_grace_period' || row.status === 'on_hold',
+    currentPeriodEnd: row.currentPeriodEnd?.toISOString() ?? null,
+    cancelAtPeriodEnd: active && !row.autoRenewing,
+    startedAt: row.startedAt.toISOString(),
+    endedAt: row.endedAt?.toISOString() ?? null,
+  };
+}
+
 /**
  * Gives the rewards the account is missing, plus the drop for the month the
  * payment landed in, and records it in the audit log as Stripe.
@@ -210,6 +232,7 @@ async function grantGift(tx: Db, gift: { gifterAccountId: string; recipientAccou
     where: { stripeInvoiceId: gift.stripeId },
     create: {
       accountId: gift.gifterAccountId,
+      providerPaymentId: gift.stripeId,
       stripeInvoiceId: gift.stripeId,
       stripeCustomerId: gift.customerId,
       amountCents: gift.amountCents,
@@ -327,6 +350,7 @@ async function applyEvent(tx: Db, event: StripeEvent, context: { disputedCustome
         where: { stripeInvoiceId: invoiceId },
         create: {
           accountId,
+          providerPaymentId: invoiceId,
           stripeInvoiceId: invoiceId,
           stripeCustomerId: customerId,
           amountCents: amount,
@@ -389,9 +413,10 @@ export const SupporterBillingService = {
   async status(prisma: PrismaClient, accountId: string, now = new Date()): Promise<SupporterStatusDto> {
     const month = supporterMonth(now);
     const bundle = supporterDropFor(month);
-    const [since, membership, profile, drops] = await Promise.all([
+    const [since, membership, playMembership, profile, drops] = await Promise.all([
       SupporterService.since(prisma, accountId),
       prisma.supporterMembership.findUnique({ where: { accountId } }),
+      prisma.googlePlaySupporterSubscription.findFirst({ where: { accountId }, orderBy: { lastVerifiedAt: 'desc' } }),
       prisma.accountProfile.findUnique({ where: { accountId }, select: { showOnSupporterList: true, releaseNotesCreditOptIn: true } }),
       prisma.accountCosmeticUnlock.findMany({
         where: { accountId, sourceRulesetId: { in: [SUPPORTER_DROP_SOURCE, SUPPORTER_TENURE_SOURCE] } },
@@ -400,11 +425,19 @@ export const SupporterBillingService = {
       }),
     ]);
     const hasRewards = since !== null;
+    const playDto = playMembership ? playMembershipDto(playMembership, now) : null;
+    const currentMembership: SupporterMembershipDto | null = playDto && (playDto.active || !membership)
+      ? playDto
+      : membership ? membershipDto(membership) : null;
     return {
       checkoutEnabled: env.stripe.enabled,
+      playBilling: {
+        enabled: env.googlePlay.enabled,
+        obfuscatedAccountId: GooglePlayBillingService.obfuscatedAccountId(accountId),
+      },
       hasRewards,
       since: since?.toISOString() ?? null,
-      membership: membership ? membershipDto(membership) : null,
+      membership: currentMembership,
       listed: hasRewards && (profile?.showOnSupporterList ?? false),
       releaseNotesCreditOptIn: hasRewards && (profile?.releaseNotesCreditOptIn ?? false),
       drop: bundle?.length
@@ -513,22 +546,41 @@ export const SupporterBillingService = {
     });
   },
 
-  /** Read before an account is erased, since deleting it outright removes the membership. */
-  async subscriptionToCancel(prisma: PrismaClient, accountId: string): Promise<string | null> {
-    const membership = await prisma.supporterMembership.findUnique({ where: { accountId }, select: { stripeSubscriptionId: true, status: true } });
-    return membership?.stripeSubscriptionId && membership.status !== 'canceled' ? membership.stripeSubscriptionId : null;
+  /** Read before an account is erased, since deleting it outright removes provider identifiers. */
+  async subscriptionsToCancel(prisma: PrismaClient, accountId: string): Promise<SupporterSubscriptionsToCancel> {
+    const [membership, playMemberships] = await Promise.all([
+      prisma.supporterMembership.findUnique({ where: { accountId }, select: { stripeSubscriptionId: true, status: true } }),
+      prisma.googlePlaySupporterSubscription.findMany({
+        where: { accountId, autoRenewing: true, status: { notIn: ['expired', 'replaced'] } },
+        select: { purchaseToken: true },
+      }),
+    ]);
+    return {
+      stripeSubscriptionId: membership?.stripeSubscriptionId && membership.status !== 'canceled'
+        ? membership.stripeSubscriptionId
+        : null,
+      playPurchaseTokens: playMemberships.map((row) => row.purchaseToken),
+    };
   },
 
   /**
    * Stops billing a deleted account. Runs after the deletion commits; a failure is
    * logged for an admin to cancel in the Stripe dashboard, and never undoes the deletion.
    */
-  async cancelAfterErasure(subscriptionId: string | null, log: FastifyBaseLogger, api?: StripeApi): Promise<void> {
-    if (!subscriptionId) return;
-    try {
-      await (api ?? liveStripe()).cancelSubscription(subscriptionId);
-    } catch (error) {
-      log.error({ err: error, subscriptionId }, 'Could not cancel the Stripe subscription of a deleted account; cancel it in the Stripe dashboard.');
+  async cancelAfterErasure(subscriptions: SupporterSubscriptionsToCancel, log: FastifyBaseLogger, api?: StripeApi): Promise<void> {
+    if (subscriptions.stripeSubscriptionId) {
+      try {
+        await (api ?? liveStripe()).cancelSubscription(subscriptions.stripeSubscriptionId);
+      } catch (error) {
+        log.error({ err: error, subscriptionId: subscriptions.stripeSubscriptionId }, 'Could not cancel the Stripe subscription of a deleted account; cancel it in the Stripe dashboard.');
+      }
+    }
+    for (const purchaseToken of subscriptions.playPurchaseTokens) {
+      try {
+        await GooglePlayBillingService.cancelSubscription(purchaseToken);
+      } catch (error) {
+        log.error({ err: error, purchaseTokenSuffix: purchaseToken.slice(-8) }, 'Could not cancel the Google Play subscription of a deleted account; cancel it in Play Console.');
+      }
     }
   },
 };

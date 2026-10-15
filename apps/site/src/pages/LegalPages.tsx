@@ -64,14 +64,14 @@ export function PrivacyPage() {
               <li><strong>Two-step sign-in</strong>: if you turn it on, your authenticator app's secret key (stored encrypted) and your recovery codes (stored only as one-way hashes).</li>
               <li><strong>Bug reports</strong>: what you write, the page you were on, your browser and the game version. Staff read them to fix the game.</li>
               <li><strong>Phone and browser alerts</strong>: if you turn them on, your browser's push address for this site, which your browser maker's push service delivers through.</li>
-              <li><strong>Supporting</strong>: if you support, whether your subscription is active, when it renews or ends, and each payment's amount, date and Stripe invoice number. Your card details go to Stripe and never reach us. If you choose to be on the public thank-you list, your name and the month you started supporting are shown there.</li>
+              <li><strong>Supporting</strong>: if you support, the billing provider, whether your subscription is active, when it renews or ends, and each payment&apos;s amount, date and provider transaction number. Your payment details go to Stripe or Google Play and never reach us. If you choose to be on the public thank-you list, your name and the month you started supporting are shown there.</li>
             </ul>
           ),
         },
         {
           heading: 'Who else handles it',
           body: (
-            <p>Emails (verification, password recovery, and security notices such as a changed password or a sign-in from a new browser) are sent through an email delivery service. The "are you human" check at sign-in, sign-up and password recovery is Cloudflare Turnstile, which looks at your browser to tell people from bots. Push alerts go through your browser maker's push service. Supporter payments are handled by Stripe, which keeps the payment details and its own records under its privacy policy. Discord and the forum see what you do there. There are no advertising or analytics trackers, and nothing is sold.</p>
+            <p>Emails (verification, password recovery, and security notices such as a changed password or a sign-in from a new browser) are sent through an email delivery service. The "are you human" check at sign-in, sign-up and password recovery is Cloudflare Turnstile, which looks at your browser to tell people from bots. Push alerts go through your browser maker&apos;s push service. Supporter payments are handled by Stripe on the website or Google Play in the Android app; they keep payment details and their own records under their privacy policies. Discord and the forum see what you do there. There are no advertising or analytics trackers, and nothing is sold.</p>
           ),
         },
         {

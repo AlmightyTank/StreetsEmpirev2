@@ -97,6 +97,7 @@ model Account {
   profile                AccountProfile?
   cosmeticUnlocks        AccountCosmeticUnlock[]
   supporterMembership    SupporterMembership?
+  googlePlaySupporterSubscriptions GooglePlaySupporterSubscription[]
   supporterPayments      SupporterPayment[]
   supporterSeasonStamps  SupporterSeasonStamp[]
   supporterVotes         SupporterVote[]
@@ -305,14 +306,16 @@ model SupporterMembership {
   @@index([status])
 }
 
-/// One paid Stripe invoice for a supporter subscription. Kept when the account
-/// is deleted (the link is cleared), since it is a financial record.
+/// One verified provider payment for a supporter subscription. Kept when the
+/// account is deleted (the link is cleared), since it is a financial record.
 model SupporterPayment {
   id               String   @id @default(cuid())
   accountId        String?
   account          Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  stripeInvoiceId  String   @unique
-  stripeCustomerId String
+  provider          String   @default("stripe")
+  providerPaymentId String   @unique
+  stripeInvoiceId   String?  @unique
+  stripeCustomerId  String?
   amountCents      Int
   currency         String
   /// paid, refunded or disputed. Refunds and disputes never take rewards back.
@@ -323,6 +326,30 @@ model SupporterPayment {
 
   @@index([accountId, paidAt])
   @@index([stripeCustomerId, paidAt])
+  @@index([provider, paidAt])
+}
+
+/// A Google Play supporter subscription. Tokens can be replaced during plan
+/// changes, so history is retained and the newest verified row is authoritative.
+model GooglePlaySupporterSubscription {
+  purchaseToken      String   @id
+  accountId          String
+  account            Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  productId          String
+  status             String
+  currentPeriodEnd   DateTime?
+  autoRenewing       Boolean  @default(false)
+  startedAt          DateTime
+  endedAt            DateTime?
+  latestOrderId      String?
+  linkedPurchaseToken String?
+  lastVerifiedAt     DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([accountId, lastVerifiedAt])
+  @@index([status, currentPeriodEnd])
+  @@map("google_play_supporter_subscription")
 }
 
 /// One permanent record that an account supported during a season (round).

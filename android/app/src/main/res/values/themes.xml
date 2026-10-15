@@ -3,7 +3,9 @@
     <style name="Theme.StreetsEmpire" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/se_accent</item>
         <item name="colorOnPrimary">@color/se_background</item>
-        <item name="android:statusBarColor">@color/se_surface</item>
-        <item name="android:navigationBarColor">@color/se_background</item>
+        <item name="android:statusBarColor">@color/se_system_bar</item>
+        <item name="android:navigationBarColor">@color/se_system_bar</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

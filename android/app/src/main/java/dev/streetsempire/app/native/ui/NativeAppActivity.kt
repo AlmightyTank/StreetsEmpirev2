@@ -160,10 +160,9 @@ fun LoginScreen(auth: AuthRepository, onSignedIn: () -> Unit, onTwoFactor: () ->
         CircularProgressIndicator()
       } else {
         val captchaOn = siteKey != null
-        val canSubmit = !captchaOn || captchaToken != null
         Button(
           onClick = {
-            if (!canSubmit) {
+            if (captchaOn && captchaToken == null) {
               error = "Finish the \"are you a human\" check first."
               return@Button
             }
@@ -193,11 +192,17 @@ fun LoginScreen(auth: AuthRepository, onSignedIn: () -> Unit, onTwoFactor: () ->
               }
             }
           },
-          enabled = canSubmit,
+          enabled = true,
           modifier = Modifier.fillMaxWidth(),
         ) { Text("Sign in") }
-        if (captchaOn && captchaToken == null) {
-          TurnstileHint()
+        if (captchaOn) {
+          if (captchaToken == null) {
+            TurnstileHint()
+          }
+          TextButton(onClick = {
+            captchaToken = null
+            captchaKey += 1
+          }) { Text("Reload human check") }
         }
       }
       Text("Native sign-in uses the game server directly. No WebView, no shared browser cookies.")

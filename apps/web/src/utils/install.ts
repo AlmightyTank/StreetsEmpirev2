@@ -25,6 +25,10 @@ export function isNativeApp(): boolean {
     || ua.includes('Electron/');
 }
 
+export function isAndroidNativeApp(): boolean {
+  return typeof navigator !== 'undefined' && (navigator.userAgent || '').includes('StreetsEmpireAndroid/');
+}
+
 let deferred: InstallPromptEvent | null = null;
 let installed = false;
 const listeners = new Set<() => void>();

@@ -1558,11 +1558,11 @@ export interface AdminSupporterDto {
   tenureKeys: string[];
   /** Wearing the Signature Profile Card as its avatar frame. */
   wearingCard: boolean;
-  /** The Stripe subscription, if the account ever started one. */
+  /** The current Stripe or Google Play subscription, if the account ever started one. */
   membership: SupporterMembershipDto | null;
 }
 
-/** One paid supporter invoice from Stripe. */
+/** One paid supporter renewal from Stripe or Google Play. */
 export interface AdminSupporterPaymentDto {
   id: string;
   accountId: string | null;
@@ -1572,7 +1572,8 @@ export interface AdminSupporterPaymentDto {
   /** paid, refunded or disputed. Rewards are kept either way. */
   status: string;
   paidAt: string;
-  stripeInvoiceId: string;
+  provider: 'stripe' | 'google_play';
+  providerPaymentId: string;
 }
 
 export interface AdminSupportersDto {
@@ -1582,10 +1583,12 @@ export interface AdminSupportersDto {
   supporters: AdminSupporterDto[];
   /** Supporters missing at least one reward. */
   missingCount: number;
-  /** Subscriptions supporting right now (active or trialing). */
+  /** Subscriptions supporting right now across every billing provider. */
   activeCount: number;
   /** Stripe checkout is set up on this server. */
   checkoutEnabled: boolean;
+  /** Google Play billing is set up on this server. */
+  playBillingEnabled: boolean;
   /** The newest supporter payments. */
   payments: AdminSupporterPaymentDto[];
   /** Every monthly drop in the catalogue, oldest first. */

@@ -1,57 +1,72 @@
-# StreetsEmpire Android — Live + Beta in one app
+# StreetsEmpire Android
 
-Native Kotlin WebView wrapper around the **existing** StreetsEmpire website.
-Same idea as `desktop/`: it is not a second game server. Players sign in with
-their usual StreetsEmpire credentials and use the same live/beta game data.
+Native Kotlin WebView wrapper for the StreetsEmpire live game at
+`https://play.streetsempire.dev/game`. It uses the existing web client and live
+server rather than shipping a second copy of the game.
 
-- **Live:** `https://play.streetsempire.dev/game`
-- **Beta:** `https://beta.streetsempire.dev/game` (invite-only, needs admin approval)
-- One app, top toolbar toggles **Live / Beta**
-- Remembers last `/game/*` page per environment (like the desktop shell)
-- Game + `discord.com` OAuth stay in-app; all other links open in the browser
-- Pull-to-refresh, reload button, offline retry screen, back-button = WebView back
-- Sessions are cookie-based per host, so Live and Beta logins coexist
+- Live server only
+- Google Play monthly supporter subscription (`supporter_monthly`)
+- Game and Discord OAuth stay in-app; other links open in the browser
+- Pull-to-refresh, reload, offline retry, file chooser, and WebView back history
+- HTTPS only and first-party cookie sessions
 
 ## Open and build
 
-Requires Android Studio (Hedgehog or newer) — no Node build needed.
+Requirements: Android Studio, Java 17, Android SDK 35.
 
-1. Open Android Studio → **Open** → select this `android/` folder.
-2. Let Gradle sync (uses `settings.gradle.kts`, AGP 8.5.2, Kotlin 2.0.21).
-3. Run on an emulator (API 26+) or a physical device.
-4. Build APK/AAB:
-   - **Build → Build App Bundle(s) / APK(s) → Build APK(s)**
-   - Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
-   - Release: **Build → Generate Signed Bundle / APK** (needs your own keystore)
+1. Open Android Studio → **Open** → select `android/`.
+2. Let Gradle sync (AGP 8.7.3, Kotlin 2.0.21, Gradle 8.9).
+3. Run on an API 26+ emulator or physical device.
+4. Build with **Build → Build App Bundle(s) / APK(s)**.
 
-Java 17 is required (you have 17.0.12 — good). `minSdk 26`, `targetSdk 34`.
+Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 
-## Files
+For Play distribution, use **Build → Generate Signed Bundle / APK** and keep the
+release keystore outside the repository. The app targets SDK 35 and has
+application ID `dev.streetsempire.app`.
+
+## Google Play supporter setup
+
+1. Create the app in Play Console with package `dev.streetsempire.app`.
+2. Create subscription product `supporter_monthly` and an active monthly base
+   plan. The ID must match `GameConfig.SUPPORTER_PRODUCT_ID` and
+   `GOOGLE_PLAY_SUPPORTER_PRODUCT_ID` on the server.
+3. Link Play Console to a Google Cloud project. Create a service account, grant
+   it the minimum Play Console subscription/order permissions, and base64-encode
+   its JSON key into `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64` on the server.
+4. Set one stable 32+ character `GOOGLE_PLAY_ACCOUNT_HASH_SECRET`. Never rotate
+   it: it binds a Play purchase to the StreetsEmpire account that started it.
+5. Create a Pub/Sub topic and push subscription for Real-time Developer
+   Notifications. Set its HTTPS endpoint to
+   `https://<live-host>/api/internal/google-play/rtdn`, enable authenticated push,
+   and grant its push service account permission to invoke the endpoint. Set an
+   explicit audience (normally the endpoint URL), then copy that exact value and
+   the push service-account email into `GOOGLE_PLAY_RTDN_AUDIENCE` and
+   `GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL`. The server verifies Google's OIDC
+   signature, audience, verified email, package, product, and purchase state.
+6. Upload a signed AAB to an internal test track. Add license testers and install
+   from the Play test link; Billing does not behave like production for a
+   sideloaded debug APK.
+
+The Android client never grants rewards or acknowledges purchases itself. It
+ sends the purchase token to the authenticated live server, which verifies the
+product, package, account binding, and subscription state with Google before
+recording payment or granting supporter rewards.
+
+## Main files
 
 ```text
-android/
-  settings.gradle.kts
-  build.gradle.kts
-  gradle.properties
-  app/build.gradle.kts
-  app/src/main/AndroidManifest.xml
-  app/src/main/java/dev/streetsempire/app/
-    MainActivity.kt   WebView, Live/Beta switch, offline + file-chooser handling
-    GameConfig.kt     Origins + URL allow-list (mirrors desktop/src/activity.cjs)
-  app/src/main/res/layout/activity_main.xml
-  app/src/main/res/values/{strings,colors,themes}.xml
+app/src/main/java/dev/streetsempire/app/
+  MainActivity.kt          Secure WebView and native billing URL bridge
+  GameConfig.kt            Live origin, URL allow-list, and product ID
+  PlayBillingManager.kt    Play Billing client; no local entitlements
 ```
 
 ## Security notes
 
-- HTTPS only (`usesCleartextTraffic=false`, `MIXED_CONTENT_NEVER_ALLOW`).
-- JavaScript + DOM storage on (the game needs it); no `addJavascriptInterface`.
-- Third-party cookies off; first-party `se_session` / `se_beta_session` cookies on.
-- No token scraping: the app never reads cookies or injects into the game DOM.
-- If you later add push (FCM/Web Push) or a Play Store listing, keep the same
-  origin allow-list and add a privacy policy URL + app icon.
-
-## Changing hosts
-
-Edit `GameConfig.kt` (`LIVE_ORIGIN`, `BETA_ORIGIN`). For local testing against
-`http://10.0.2.2:5173`, also add a cleartext exception — do not ship that.
+- Cleartext and mixed content are disabled.
+- JavaScript and DOM storage are enabled because the web game needs them; there
+  is no `addJavascriptInterface` bridge.
+- Third-party cookies are disabled. The app never reads the live session cookie.
+- Billing custom URLs are intercepted only by the native shell; purchase tokens
+  are returned to the trusted live page and verified by the server.

@@ -45,17 +45,18 @@ function money(cents: number, currency: string): string {
   }
 }
 
-/** The Stripe subscription in a few words: supporting now, ending, failing or ended. */
+/** The current billing subscription in a few words: supporting now, ending, failing or ended. */
 function MembershipTag({ membership }: { membership: SupporterMembershipDto | null }) {
-  if (!membership) return <span className="se-muted" title="Granted by an admin, no Stripe subscription">Manual</span>;
+  if (!membership) return <span className="se-muted" title="Granted by an admin, no billing subscription">Manual</span>;
   const until = membership.currentPeriodEnd ? new Date(membership.currentPeriodEnd).toLocaleDateString(undefined, { dateStyle: 'medium' }) : null;
-  if (membership.paymentFailing) return <span className="se-tag se-tag--bad" title={membership.status}>Payment failing</span>;
+  const provider = membership.provider === 'google_play' ? 'Play' : 'Stripe';
+  if (membership.paymentFailing) return <span className="se-tag se-tag--bad" title={`${provider}: ${membership.status}`}>Payment failing</span>;
   if (membership.active) {
     return membership.cancelAtPeriodEnd
-      ? <span className="se-tag se-tag--warn">Ends {until ?? 'soon'}</span>
-      : <span className="se-tag se-tag--good" title={until ? `Renews ${until}` : undefined}>Active</span>;
+      ? <span className="se-tag se-tag--warn" title={provider}>Ends {until ?? 'soon'}</span>
+      : <span className="se-tag se-tag--good" title={`${provider}${until ? ` · renews ${until}` : ''}`}>Active · {provider}</span>;
   }
-  return <span className="se-tag" title={membership.status}>{membership.status === 'canceled' ? 'Ended' : membership.status.replaceAll('_', ' ')}</span>;
+  return <span className="se-tag" title={`${provider}: ${membership.status}`}>{membership.status === 'canceled' ? 'Ended' : membership.status.replaceAll('_', ' ')}</span>;
 }
 
 /** One name per line, or separated by commas or spaces, as pasted from a supporter export. */
@@ -259,7 +260,7 @@ export function AdminSupportersPage() {
       <div className="se-pagehead se-admin-pagehead">
         <div>
           <h1 className="se-title">Supporters</h1>
-          <p className="se-eyebrow">Admin · Stripe supporters and cosmetic rewards, kept for good</p>
+          <p className="se-eyebrow">Admin · supporter billing and cosmetic rewards, kept for good</p>
         </div>
         <div className="se-cta">
           <Link className="se-btn se-btn--ghost" to={`/game/admin/audit?action=${GRANT_ACTION}`}>All supporter grants</Link>
@@ -268,10 +269,10 @@ export function AdminSupportersPage() {
 
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <p className="se-admin-notice" role="status">{notice}</p> : null}
-      {data && !data.checkoutEnabled ? (
+      {data && !data.checkoutEnabled && !data.playBillingEnabled ? (
         <Alert tone="info">
-          Stripe checkout is off on this server, so players cannot support yet. Set STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
-          and STRIPE_SUPPORTER_PRICE_ID to turn it on. Grants below still work.
+          Stripe checkout and Google Play billing are off on this server, so players cannot support yet. Configure at least
+          one billing provider to turn it on. Grants below still work.
         </Alert>
       ) : null}
 
@@ -530,7 +531,8 @@ export function AdminSupportersPage() {
                   <th>Paid</th>
                   <th className="se-table__number">Amount</th>
                   <th>Status</th>
-                  <th>Stripe invoice</th>
+                  <th>Provider</th>
+                  <th>Payment ID</th>
                 </tr>
               </thead>
               <tbody>
@@ -544,7 +546,8 @@ export function AdminSupportersPage() {
                     <td data-label="Paid">{adminWhen(payment.paidAt)}</td>
                     <td className="se-table__number" data-label="Amount">{money(payment.amountCents, payment.currency)}</td>
                     <td data-label="Status"><span className={`se-tag ${PAYMENT_TONE[payment.status] ?? ''}`}>{payment.status}</span></td>
-                    <td data-label="Stripe invoice"><code>{payment.stripeInvoiceId}</code></td>
+                    <td data-label="Provider">{payment.provider === 'google_play' ? 'Google Play' : 'Stripe'}</td>
+                    <td data-label="Payment ID"><code>{payment.providerPaymentId}</code></td>
                   </tr>
                 ))}
               </tbody>
