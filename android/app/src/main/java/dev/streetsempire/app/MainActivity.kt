@@ -133,7 +133,7 @@ class MainActivity : AppCompatActivity() {
                 error: WebResourceError,
             ) {
                 if (request.isForMainFrame) {
-                        offlineView.visibility = View.VISIBLE
+                    offlineView.visibility = View.VISIBLE
                 }
             }
         }
@@ -155,7 +155,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
