@@ -2,8 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import type { DistrictDto, RandomEncounterChoiceResult, ScoutResult } from '@streets/shared';
-import { STATUE_ENCOUNTER_KEY, formatNumber } from '@streets/shared';
-import { EncounterEggNote, StatueWatch } from '../components/EasterEggs.js';
+import { formatNumber } from '@streets/shared';
+import { EncounterEggNote } from '../components/EasterEggs.js';
 import { actionsApi } from '../api/actions.js';
 import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionReadiness, OperationDetails } from '../components/ActionReadiness.js';
@@ -132,9 +132,12 @@ export function ScoutPage() {
           : null;
 
   const receiptLines = action.result ? scoutReceiptLines(action.result, me) : null;
-  const pendingEncounter = action.result?.result.encounter?.status === 'PENDING' && action.result.result.encounter.id && action.result.result.encounter.choices?.length
-    ? action.result.result.encounter
-    : null;
+  const receiptEncounter = action.result?.result.encounter;
+  // The cinematic popup can resolve this same choice from any page.
+  // Hide the stale inline panel after the authoritative session has settled it.
+  const pendingEncounter = receiptEncounter?.status === 'PENDING' && receiptEncounter.id
+    && receiptEncounter.choices?.length && me.pendingEncounters.some((item) => item.id === receiptEncounter.id)
+    ? receiptEncounter : null;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -303,9 +306,6 @@ export function ScoutPage() {
                 {pendingEncounter ? (
                   <Panel title={pendingEncounter.title} className="se-scout-panel">
                     <p className="se-scout-copy">{pendingEncounter.text}</p>
-                    {pendingEncounter.key === STATUE_ENCOUNTER_KEY && !encounterAction.result ? (
-                      <StatueWatch active={!encounterAction.busy} onReached={() => void resolveEncounter('run')} />
-                    ) : null}
                     {encounterAction.error ? <Alert>{encounterAction.error}</Alert> : null}
                     {encounterAction.result ? (
                       <div className="se-scout-intel__note se-scout-intel__note--good">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ActivityDto } from '@streets/shared';
-import { appendEncounterAlertQueue, encounterAlertForActivity, type QueuedEncounterAlert } from '../CinematicEncounterAlerts.js';
+import { alertForRandomEncounter, appendEncounterAlertQueue, encounterAlertForActivity, randomEncounterFromActivity, type QueuedEncounterAlert } from '../CinematicEncounterAlerts.js';
 import { isCinematicEncounterActivity } from '../encounterAlertPolicy.js';
 
 function activity(type: ActivityDto['type'], payload: Record<string, unknown>): ActivityDto {
@@ -80,5 +80,41 @@ describe('cinematic encounter activity mapping', () => {
   it('does not steal ordinary quest and production notifications', () => {
     expect(encounterAlertForActivity(activity('QUEST_READY', { title: 'The Big Deal' }))).toBeNull();
     expect(encounterAlertForActivity(activity('PRODUCE_CRACK', { amount: 20 }))).toBeNull();
+  });
+});
+
+describe('real random encounter cinematic mapping', () => {
+  const van = {
+    id: 'event_one', key: 'scout-colorful-van', title: 'The Colorful Van',
+    text: 'A mysterious van sits at the end of the alley.', tone: 'neutral' as const,
+    status: 'PENDING' as const, effects: {},
+    choices: [{ key: 'follow', label: 'Follow the tracks', text: 'Investigate.', effects: {} }],
+  };
+
+  it('reads both legacy and first-class action activity payload shapes', () => {
+    expect(randomEncounterFromActivity(activity('PRODUCE_CRACK', { encounter: van }))).toEqual(van);
+    expect(randomEncounterFromActivity(activity('RAID_ATTACK', { randomEncounter: van }))).toEqual(van);
+    expect(randomEncounterFromActivity(activity('PRODUCE_CRACK', { encounter: { title: 'incomplete' } }))).toBeNull();
+    expect(randomEncounterFromActivity(activity('PRODUCE_CRACK', {}))).toBeNull();
+  });
+
+  it('keeps the server title, text and decisions intact for the popup', () => {
+    expect(alertForRandomEncounter(van)).toMatchObject({
+      kind: 'encounter', outcome: 'warning', title: van.title, description: van.text,
+      encounter: van,
+    });
+  });
+
+  it('uses the correct color treatment for immediate gains and losses', () => {
+    expect(alertForRandomEncounter({ ...van, tone: 'good', status: 'RESOLVED', choices: [], effects: { cashCents: 500 } }).outcome)
+      .toBe('victory');
+    expect(alertForRandomEncounter({ ...van, tone: 'bad', status: 'RESOLVED', choices: [], effects: { heat: 1 } }).outcome)
+      .toBe('defeat');
+  });
+
+  it('does not suppress additional distinct random encounters in the shared FIFO queue', () => {
+    const first = { ...alertForRandomEncounter(van), id: 'random:event_one' };
+    const second = { ...alertForRandomEncounter({ ...van, id: 'event_two' }), id: 'random:event_two' };
+    expect(appendEncounterAlertQueue([first], [first, second])).toEqual([first, second]);
   });
 });

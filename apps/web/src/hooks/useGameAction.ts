@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import type { GameActionResult } from '@streets/shared';
+import type { GameActionResult, RandomEncounterDto } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
@@ -73,6 +73,14 @@ export function useGameAction<T>(): GameAction<T> {
         // tracked-jobs bar owns its own quest request, so tell it to refresh
         // instead of making every action page know which objectives changed.
         window.dispatchEvent(new Event('streets:quests-changed'));
+
+        // Use the same cinematic layer for every action's server-selected encounter.
+        // Both the top-level and legacy nested receipt shapes are supported.
+        const nested = outcome.result as { encounter?: RandomEncounterDto } | null;
+        const encounter = outcome.encounter ?? nested?.encounter;
+        if (encounter && typeof encounter.key === 'string') {
+          window.dispatchEvent(new CustomEvent('streets:random-encounter', { detail: encounter }));
+        }
 
         // Even when the follow-up refresh fails, the confirmed action receipt
         // is still useful and must remain visible.
