@@ -5,6 +5,10 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+val localServerOrigin = providers.gradleProperty("streetsServerOrigin")
+    .orElse("http://10.0.2.2:5173")
+    .get()
+
 android {
     namespace = "dev.streetsempire.app"
     compileSdk = 35
@@ -15,6 +19,31 @@ android {
         targetSdk = 35
         versionCode = 6
         versionName = "1.0.5"
+        manifestPlaceholders["appLabel"] = "StreetsEmpire"
+        manifestPlaceholders["usesCleartextTraffic"] = "false"
+    }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        create("local") {
+            dimension = "environment"
+            applicationIdSuffix = ".local"
+            versionNameSuffix = "-local"
+            buildConfigField("String", "SERVER_ORIGIN", "\"$localServerOrigin\"")
+            manifestPlaceholders["appLabel"] = "StreetsEmpire Local"
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+        }
+        create("beta") {
+            dimension = "environment"
+            applicationIdSuffix = ".beta"
+            versionNameSuffix = "-beta"
+            buildConfigField("String", "SERVER_ORIGIN", "\"https://beta.streetsempire.dev\"")
+            manifestPlaceholders["appLabel"] = "StreetsEmpire Beta"
+        }
+        create("production") {
+            dimension = "environment"
+            buildConfigField("String", "SERVER_ORIGIN", "\"https://play.streetsempire.dev\"")
+        }
     }
 
     buildTypes {
@@ -37,6 +66,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

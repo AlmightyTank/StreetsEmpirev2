@@ -183,7 +183,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun currentUrl(): String {
         val saved = prefs.getString(KEY_LIVE_URL, null)
-        return GameConfig.sanitizeGameUrl(saved) ?: GameConfig.LIVE_ENTRY
+        return GameConfig.sanitizeGameUrl(saved) ?: GameConfig.GAME_ENTRY
     }
 
     private fun handleBillingUrl(uri: Uri) {

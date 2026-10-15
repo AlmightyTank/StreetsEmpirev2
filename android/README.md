@@ -1,14 +1,14 @@
 # StreetsEmpire Android
 
-Native Kotlin WebView wrapper for the StreetsEmpire live game at
-`https://play.streetsempire.dev/game`. It uses the existing web client and live
-server rather than shipping a second copy of the game.
+Native Kotlin/Compose client for StreetsEmpire. It uses the existing JSON API as
+its backend and retains the WebView game as a temporary fallback while native
+screens reach full parity.
 
-- Live server only
+- Local, beta, and production build flavors
 - Google Play monthly supporter subscription (`supporter_monthly`)
 - Game and Discord OAuth stay in-app; other links open in the browser
 - Pull-to-refresh, reload, offline retry, file chooser, and WebView back history
-- HTTPS only and first-party cookie sessions
+- Bearer sessions for native screens; HTTPS outside local development
 
 ## Open and build
 
@@ -17,9 +17,31 @@ Requirements: Android Studio, Java 17, Android SDK 35.
 1. Open Android Studio → **Open** → select `android/`.
 2. Let Gradle sync (AGP 8.7.3, Kotlin 2.0.21, Gradle 8.9).
 3. Run on an API 26+ emulator or physical device.
-4. Build with **Build → Build App Bundle(s) / APK(s)**.
+4. Select the `localDebug`, `betaDebug`, or `productionRelease` build variant.
 
-Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
+From `android/`, build each environment with:
+
+```powershell
+.\gradlew.bat :app:assembleLocalDebug
+.\gradlew.bat :app:assembleBetaDebug
+.\gradlew.bat :app:bundleProductionRelease
+```
+
+`local` uses `http://10.0.2.2:5173`, which reaches the host machine from the
+Android emulator. Start the web and API development servers with `npm run dev`
+at the repository root first.
+
+For a USB-connected physical device, reverse the Vite port and override the
+local origin:
+
+```powershell
+adb reverse tcp:5173 tcp:5173
+.\gradlew.bat :app:assembleLocalDebug -PstreetsServerOrigin=http://127.0.0.1:5173
+```
+
+The flavors have distinct IDs (`.local` and `.beta` suffixes), so local, beta,
+and production installs can coexist on one device. Cleartext traffic is enabled
+only for the local flavor.
 
 For Play distribution, use **Build → Generate Signed Bundle / APK** and keep the
 release keystore outside the repository. The app targets SDK 35 and has
@@ -38,7 +60,7 @@ application ID `dev.streetsempire.app`.
    it: it binds a Play purchase to the StreetsEmpire account that started it.
 5. Create a Pub/Sub topic and push subscription for Real-time Developer
    Notifications. Set its HTTPS endpoint to
-   `https://<live-host>/api/internal/google-play/rtdn`, enable authenticated push,
+    `https://<live-host>/api/internal/google-play/rtdn`, enable authenticated push,
    and grant its push service account permission to invoke the endpoint. Set an
    explicit audience (normally the endpoint URL), then copy that exact value and
    the push service-account email into `GOOGLE_PLAY_RTDN_AUDIENCE` and
@@ -58,13 +80,13 @@ recording payment or granting supporter rewards.
 ```text
 app/src/main/java/dev/streetsempire/app/
   MainActivity.kt          Secure WebView and native billing URL bridge
-  GameConfig.kt            Live origin, URL allow-list, and product ID
+  GameConfig.kt            Flavor-selected origin, URL allow-list, and product ID
   PlayBillingManager.kt    Play Billing client; no local entitlements
 ```
 
 ## Security notes
 
-- Cleartext and mixed content are disabled.
+- Cleartext is disabled for beta/production and enabled only in local builds.
 - JavaScript and DOM storage are enabled because the web game needs them; there
   is no `addJavascriptInterface` bridge.
 - Third-party cookies are disabled. The app never reads the live session cookie.

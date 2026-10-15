@@ -30,7 +30,7 @@ class ApiClient(private val tokenStore: TokenStore) {
     .readTimeout(15, TimeUnit.SECONDS)
     .build()
 
-  private fun base(): String = GameConfig.LIVE_ORIGIN
+  private fun base(): String = GameConfig.SERVER_ORIGIN
 
   private fun request(path: String, method: String, bodyJson: String?): Request {
     val url = base() + "/api" + path

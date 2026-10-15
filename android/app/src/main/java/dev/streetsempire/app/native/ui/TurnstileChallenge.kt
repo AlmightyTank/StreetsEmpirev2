@@ -75,7 +75,7 @@ fun TurnstileChallenge(
           settings.useWideViewPort = true
           webViewClient = WebViewClient()
           addJavascriptInterface(TurnstileBridge(onToken), "Android")
-          loadDataWithBaseURL(GameConfig.LIVE_ORIGIN, html, "text/html", "utf-8", null)
+          loadDataWithBaseURL(GameConfig.SERVER_ORIGIN, html, "text/html", "utf-8", null)
         }
       },
     )
