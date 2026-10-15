@@ -110,7 +110,7 @@ export function RegisterPage() {
                 value={birthDate}
                 onChange={(event) => setBirthDate(event.target.value)}
                 autoComplete="bday"
-                max={new Date().toISOString().slice(0, 10)}
+                max={`${new Date().getFullYear() - MINIMUM_AGE}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`}
                 required
                 error={fields.birthDate}
                 hint="Private — used only to confirm you meet the minimum age requirement."
