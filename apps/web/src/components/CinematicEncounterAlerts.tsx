@@ -312,8 +312,9 @@ export function CinematicEncounterAlerts() {
     if (!choiceAction.busy) setQueue((current) => current.slice(1));
   };
   const choices = active.encounter?.choices ?? [];
-  const choiceResult = choiceAction.result?.result.encounterId === active.encounter?.id
-    ? choiceAction.result.result : null;
+  const choiceReceipt = choiceAction.result;
+  const choiceResult = choiceReceipt && choiceReceipt.result.encounterId === active.encounter?.id
+    ? choiceReceipt.result : null;
   const effectsText = active.encounter ? encounterEffectSummary(active.encounter.effects) : '';
 
   return (
