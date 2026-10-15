@@ -21,7 +21,7 @@ export function RegisterPage() {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // Age declaration and a bot check when the server has one switched on.
+  // 16+ age declaration and a bot check when the server has one switched on.
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaKey, setCaptchaKey] = useState(0);
