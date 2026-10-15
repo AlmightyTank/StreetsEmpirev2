@@ -65,6 +65,7 @@ import { StatusPage } from './pages/StatusPage.js';
 import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
 import { StorePage, StoresIndexPage } from './pages/StorePage.js';
 import { SupplyPage } from './pages/SupplyPage.js';
+import { HoldingsPage } from './pages/HoldingsPage.js';
 import { LoanSharkPage } from './pages/LoanSharkPage.js';
 import { DealersPage } from './pages/DealersPage.js';
 import { CrewRosterPage } from './pages/CrewRosterPage.js';
@@ -190,6 +191,7 @@ export function App() {
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
         <Route path="supply" element={<Protected><LiveRound><SupplyPage /></LiveRound></Protected>} />
+        <Route path="holdings" element={<Protected><LiveRound><HoldingsPage /></LiveRound></Protected>} />
         <Route path="loans" element={<Protected><LiveRound><LoanSharkPage /></LiveRound></Protected>} />
         <Route path="dealers" element={<Protected><LiveRound><DealersPage /></LiveRound></Protected>} />
         <Route path="crew" element={<Protected><LiveRound><CrewRosterPage /></LiveRound></Protected>} />

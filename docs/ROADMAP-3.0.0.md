@@ -1,110 +1,54 @@
 # StreetsEmpire 3.0.0 — Empire Cohesion
 
-Source of truth for planning: `openspec/changes/empire-cohesion-3-0/` (proposal, design, `regional-holdings` + `organization-layer` specs, tasks). This doc is the readable roadmap derived from those artifacts.
+Planning source of truth: `openspec/changes/empire-cohesion-3-0/`. The [Territory Perks Roadmap](https://github.com/AlmightyTank/StreetsEmpirev2/blob/beta/docs/ROADMAP-TERRITORY-PERKS.md) informs the full passive-perk scope; its sample percentages, districts, tier thresholds, and city list are proposals, not overrides of this plan or the live catalog.
 
-## Purpose
+## Goal
 
-1.x–2.0 built systems that play side by side: turf, business fronts, warehouses/safehouses/hideouts, supply orders/pickups/shipments/lanes, dealer crews, vehicles, crew roster, law/heat/cases, factions/contracts, casino/sportsbook, events. A player holding three cities manages three disconnected loops.
+Make multi-city holdings work together: hold a city, connect it to logistics, compete for zone control with an alliance, see bounded passive perks and their sources, and choose where to reinvest. Map expansion must create strategic tradeoffs rather than repeat existing cities. Existing counts, turf ownership, city-control history, settlement, and bookmarked screens remain authoritative.
 
-3.0 makes multi-city play feel like one organization.
+## Locked rules
 
-**The question:** My blocks in different cities finally work like one organization — why should I hold Chicago + Dallas + a lane instead of just farming one city?
+- One existing **alliance** grows to at most **15 members** on 3.0-pinned rounds. There is no separate org, alliance merger, or three-sect roster. Older rounds retain their own membership cap, 24-hour leave cooldown and combat rules.
+- Existing alliance **city control is three of five blocks**. For a zone, count each alliance's controlled cities there. The alliance with strictly more than every rival controls the zone; **one city can be enough**, while a tie or no controlled cities means no controller.
+- **Zone map:** Northeast = New York City, Boston, Philadelphia; Midwest = Chicago, Detroit, Toronto; South = Tulsa, Dallas, Atlanta, Miami Beach, Monterrey; West = Seattle, San Francisco, Los Angeles, Las Vegas. Toronto and Monterrey are gameplay assignments beyond the U.S. regional map. San Francisco already replaces Beverly Hills in the `1.8-s` seed; rounds pinned before that replacement retain Beverly Hills. Mexico City remains supplier-only in 3.0 and does not count.
+- Alliance pacts enable cooperation **without an attack ban**. An attack between pact allies resolves normally and automatically ends the pact. Both sides see a "pact broken" record; cooperative access and pending backup close immediately, without undoing settled actions. Same-alliance friendly-fire rules stay intact.
+- Territory grants time-limited passive perks. District effects depend on qualifying turf, city identity effects on existing city control. An alliance leading a zone—even through one city—can select that zone's regional power perk immediately. **Only one regional perk is active at a time**, and its strength grows with the **number of zones the alliance controls**, under ruleset-pinned caps. Losing control lowers or revokes future eligible effects; past settlements are never rewritten.
+- A shared server modifier resolver applies eligibility, deterministic rounding, stacking and category caps at settlement; eligible previews and receipts explain sources. No casino outcome-odds boosts, purchased power, or permanent competitive power from milestones. Participation requirements and selection cooldown guard against alliance hopping. The linked roadmap's example rates are simulation hypotheses, not approved values.
+- `classic-og-v3.0-a` seeds directly from `classic-og-v1.8-s`; later slices spread forward. Old pinned rounds do not acquire 3.0 cities, pacts, perks, or zone effects.
 
-**Core loop:**
+## Release slices
 
-> Hold a city → connect it to the network → run interstate work → grow org influence → defend standing → reinvest
-
-**Theme:** Empire Cohesion. **Constraint:** expand map/systems only where they create a cohesion reason (close the northern-lane gap, make the southern branch playable, give orgs a cross-city identity).
-
-## Design principles
-
-1. **Counts stay authoritative.** Turf/business/stock/crew columns remain the source of truth. Holdings and org rows follow them; 3.0-A adds reads, not rewrites.
-2. **Properties enable activity; they do not print money.** Carried forward from 1.6. No passive-income buildings.
-3. **Every dispatch shows the full deal.** Goods cost + fees, fleet capacity, crew effect, route time, visible risk band, storage room, landing-city pressure — before commit. No hidden drains.
-4. **Modifiers are pinned, capped, and visible.** Holding effects default to identity until sim passes. Crew specialty caps (5%) carry forward; no stacking.
-5. **Law is pressure, not punishment.** Investigations follow the org across cities with bounded raid/bribe/lay-low valves, all priced upfront and audited.
-6. **Competition rewards recognition, not power.** Org wars score influence points only in v1. Rewards are cosmetics, trophies, titles, Hall of Fame — never turns/cash/product/combat/pace.
-7. **New cities earn their place.** A city ships only with distinct leans, costs, connections, turf difficulty, and law profile, proven by sim to enable a strategy that did not exist.
-8. **Rounds pin rulesets.** `classic-og-v3.0-a` seeds from `classic-og-v1.8-s`, later slices spread forward. Pre-3.0 rounds never see new behavior.
-
-## Release shape
-
-Slices **A–C** build cohesion on the existing map. Slices **D–F** expand and compete. Slice **G** proves and releases.
-
-| Slice | Theme | Outcome |
+| Slice | Outcome | Gate |
 | --- | --- | --- |
-| **3.0-A — Holding read-model** | One card per city | Holding aggregation (corners, fronts, properties + upkeep, crews, stock by place, pressure) with reconcile checks; modifiers default to identity. |
-| **3.0-B — Org layer + contracts** | Evolved alliance (3 sects) | Org found/invite-accept/secede (alliances become sects), interstate contracts on existing settlement, org dashboard. |
-| **3.0-C — Unified logistics** | One planner | Single quote path for pickups/shipments/lanes; existing specialties assignable; no settlement fork. |
-| **3.0-D — New holding nodes** | Map with reason | Northern playable city (default Toronto, confirm via sim) + playable Monterrey; block-holding foot-traffic decision. |
-| **3.0-E — Cross-city law** | Pressure follows the org | Evidence routing to city cases + investigation progress; bounded raids/bribes; case cross-city view. |
-| **3.0-F — Org wars + aftermath** | Scored competition | Transparent influence windows through the 1.8.5 event system; cosmetic rewards; regional rankings/aftermath. |
-| **3.0-G — Balance, admin, release** | Prove it is fair | Season sims, Holding/Org Operations admin, audited corrections, full QA + historical-ruleset gates. |
+| **3.0-A — Foundation** | Audit real catalogs/control/buffs; per-city holding read-model and reconcile; identity-default 3.0 ruleset. | Existing ownership/counts unchanged; pre-3.0 rounds isolated. |
+| **3.0-B — Alliance cohesion** | Single 15-member alliance, ally pacts and break-on-attack, interstate contracts, alliance UI. | Last-seat races, pact betrayal, idempotent payouts, legacy membership/combat tests. |
+| **3.0-C — Logistics** | One quote for pickups, shipments and lanes; Regional Courier evaluated only in simulation. | Capacity/stock/room conservation, clear refusals, no settlement fork or must-pick lane. |
+| **3.0-D — Map** | Four playable additions: Toronto, Boston, Philadelphia and Monterrey; existing San Francisco stays in the West; complete city content and zone assignments; small block-holding dealer bonus. | Each addition offers a distinct sim-proven strategy; rounds pinned before the San Francisco replacement retain Beverly Hills and its routes; Mexico City remains supplier-only. |
+| **3.0-E — Law** | City evidence plus alliance investigation, bounded raids/bribes, cross-city case view. | No double-write or farm loop; pressure and costs remain legible. |
+| **3.0-F — Local perks** | Audited district and city identity catalogs, shared modifier resolver, action previews and receipts. | Ownership flips immediately affect future settlements; caps, rounding and older rounds tested. |
+| **3.0-G — Zones** | Strict-lead zone standings, one selected scaling regional perk, officer controls, contribution safeguards. | One-city leads and ties work; one perk only, immediate revocation and no stacking exploits. |
+| **3.0-H — Experience** | Alliance > Empire Perks, influence-only alliance wars, territory-gated encounters, cosmetic milestones, rankings and aftermath. | Accessible explanations, privacy-safe views, once-only event/cosmetic grants. |
+| **3.0-I — Release** | Admin diagnostics, simulations, load/exploit and historical-round tests, staged opt-in. | No must-pick zone/perk/city; `qa:release --with-db --with-load` and rollout gates pass. |
 
-Ruleset pins: `classic-og-v3.0-a` through `classic-og-v3.0-g` (names finalized at implementation). Latest is registered only after targeted tests pass; rollback pins new rounds to the prior version.
+Names for later `classic-og-v3.0-*` rulesets are finalized as slices land, not retroactively changed on in-flight rounds. Rollback pins new rounds to a prior version and disables future perk/event activation; settled receipts and historical ownership are never rewritten.
 
-## Slice details
+## Slice notes
 
-### 3.0-A — Holding read-model + ruleset foundation
+**Holdings and logistics.** One per-city holding view aggregates turf, fronts, paid-up properties, dealer crews, stock and law pressure from existing records. Dispatch previews show goods cost and fees, fleet/crew effects, travel time, risk band, room, pressure, and cash remaining. Existing pickup/shipment/lane settlement and reservation rules remain the source of truth.
 
-Expose one holding per player per city from existing rows: turf corners, business fronts, warehouse/safehouse + upkeep-due state, dealer crews (active/paused), stored/inbound/crew stock, law pressure. Deep links go to the existing screens; no routes removed. Add reconcile checks mirroring `SupplyReconcileService` so drift surfaces in admin before any modifier ships.
+**Map with roles.** Toronto closes the northern-lane gap; Boston and Philadelphia give the Northeast meaningful alternatives to New York; Monterrey provides a southern hub. Each addition needs demand, property, turf, law and travel differentiation proven in city/route simulations. San Francisco already supplies the West route/market role in the `1.8-s` seed; Beverly Hills and its original routes remain intact only for rounds pinned before the `1.5-e3` replacement. The dealer-on-owned-block sales-pace bonus starts with **+8% as a hypothesis**, is capped/nonstacking and sim-finalized before pinning. Regional Courier (2,500/load, $3,000 + $4/unit, 6h) is a **sim-only candidate**, not a promised card. Playable Mexico City is deferred pending evidence that Monterrey succeeds as a distinct hub without cannibalizing Dallas.
 
-**Gate:** counts/happiness/net worth unchanged; concurrent syncs create no duplicates; pre-3.0 rulesets build no holdings.
+**Territory perks.** Audit actual district keys and existing effects before registering a catalog: example industrial/market/transit/residential labels and percentage values in the linked roadmap may not match live districts. District, city and regional effects use explicit source IDs, eligible actions, scope, fixed-point rounding, and separate capped stacking categories. A zone's perk identity is chosen by an officer, but its strength depends on total zones led—not a within-zone city-count tier. A selected perk whose source zone is lost becomes inactive until an eligible choice is made. A player can trace applied effects in action receipts and the Empire Perks panel; admin diagnostics show control inputs and reasons an effect is inactive.
 
-### 3.0-B — Org layer + interstate contracts
+**Competition and events.** Interstate contracts reuse existing run/shipment/sale settlement. Alliance wars score visible influence actions in windows, with cosmetic placement awards and no property destruction. Territory-exclusive encounters, region-hold milestones and prestige use the consolidated 1.8.5 event and existing entitlement systems, never a competing scheduler. Permanent awards remain cosmetic; qualifying territory power lasts only while eligibility holds.
 
-Orgs are evolved alliances: a founding alliance forms an org alone and optionally invites up to 2 other alliances (1, 2, or 3 sects; 5 members each, 15 per org max). Each sect keeps its alliance wire, revenge, and cooldown semantics; solo players join an org via a sect alliance. Interstate contracts (move/protect/supply/hold across cities) settle on existing run/shipment/sale paths with single idempotent payouts. Org dashboard shows sects, members, contracts, influence, history.
+## Balance and release safeguards
 
-**Gate:** retry/race creates one sect membership; player or whole-sect leave strands no stock/crews/property; contracts supplement PvP (1.4 guardrail), never the safest optimal money.
-
-### 3.0-C — Unified logistics planner
-
-One quote for pickups, shipments, and lane orders: goods + fees, fleet capacity, crew effect (highest selected, no stacking, 5% cap), time, risk band, room, pressure, cash-after-payment. Over-capacity/no-room plans are refused with the shortfall stated. Settlement paths are untouched.
-
-**Gate:** reservations hold (units leave source at dispatch, inbound holds room); replays cannot double-claim; empty-team flow keeps count-based behavior.
-
-### 3.0-D — New cities as holding nodes
-
-Northern city (default Toronto pending sim) pays off Northern Supply; Monterrey becomes playable with southern supplier rebalancing. Full city-keyed content each: leans, demand, heat, districts, hotels, turf locals, business signature, casino venue, law speeds, property prices. Existing city numbers unchanged. Decide the deferred 1.6-E question here: does holding the block boost its dealer crew traffic — capped, visible, sim-gated, or explicitly deferred again with numbers.
-
-**Gate:** city sim (à la `qa:supply-cities`) ranks each new city best-or-second-best somewhere; no city dominates every product/route.
-
-### 3.0-E — Cross-city law
-
-Arrival/sale/contract writes route evidence to the operating city's case plus org investigation progress in one transaction. Warehouses/crews become bounded raid targets; bribery/lay-low are priced valves with caps/cooldowns. Case view goes cross-city using 1.8.5 city-condition vocabulary (affected districts/actions/end times).
-
-**Gate:** no double-write on retry; exploit sim proves no raid/bribe/lane farming loop; pressure stays legible and escapable.
-
-### 3.0-F — Org wars, rankings, aftermath
-
-Influence-point wars in transparent windows (rules, standings, contribution, end time, rewards shown upfront). Paused rounds freeze windows. Community/seasonal war objectives run through the 1.8.5 first-class event system (single writer). Rewards are account-cosmetic upserts; regional rankings + aftermath + spectator-safe public reads respect privacy/recon boundaries.
-
-**Gate:** late actions don't count; duplicates impossible on race/retry; no competitive power granted.
-
-### 3.0-G — Balance, admin, release
-
-Season sims (small/large bankrolls × home/hub/dear-market/lane over 7+ days) must reconcile every ledger with no must-pick. Admin Holding/Org Operations shows coverage, influence ranges, stock by city, crew economics, reconcile status, plus audited corrections (reason, before/after, no self-correct, frozen finished rounds). Full `qa:release` + `--with-db --with-load`, mobile 360–1920, axe-core, keyboard, retry coverage.
-
-**Gate:** pre-3.0 behavior proven unchanged by historical-ruleset tests.
-
-## Open decisions (4 locked, 2 recommended)
-
-- ~~Org model~~ **Locked: evolved alliance — 1, 2, or 3 alliances merge, each becomes a sect; org cap 15 = 3 × 5** (sect keeps wire/revenge/cooldown; solo joins via a sect).
-- ~~Org size~~ **Locked: 15 per org for v1** (falls out of 3 sects × 5).
-- ~~Northern pick~~ **Locked: Toronto**; Vancouver deferred.
-- ~~Block-holding dealer bonus~~ **Locked: yes, small** — starting hypothesis +8% sales pace when holding the crew's block, shown pre-commit, no stacking, sim sets the final number.
-- Mexico City playable timing: **recommended deferred to 3.1** — 3.0-D ships playable Monterrey, Mexico City stays a supplier-only contact (Freight/Air lots as today). Ship playable Mexico City only if Monterrey season sim shows a distinct hub role plus leftover southern demand that doesn't cannibalize Dallas. Two southern playables at once doubles city-keyed content and risks a must-pick south.
-- Courier route card: **recommended Regional Courier hypothesis** — 2,500/load, $3,000 + $4/unit, 6h, domestic holding-to-holding transfer with no vehicles, medium-low search (partial 10–30% on hit). Gap it fills: sub-Overland restocks for thin crews / vehicle-light players topping up dealer cities, vs shipments (need fleet) / Air (1k, pricey) / Freight (20k, 36h). Sim proves or kills it; default is defer if no gap.
-
-## Explicitly deferred
-
-- Property destruction/seizure/trading; org wars v1 is influence-points only.
-- New currencies; real-money logistics/crew/power purchases (never sell competitive power).
-- Passive-income holdings; automatic bulk pickup/restocking.
-- Player-to-player trading of members/properties; permanent crew death.
-- Competing event scheduler; anything that forks 1.8.5 single-writer settlement.
-- Rewriting historical rounds or in-flight supply/quest/event progress.
+- Simulate catalog values, zone-count scaling and caps across solo/alliance fields and bankroll sizes before enabling each perk slice. No fixed percentage in the linked roadmap is approved by reference alone.
+- Server settlement rechecks live control, membership, contribution and the selected perk; retries and parallel control flips cannot grant expired or duplicate bonuses. Show what changed in receipts and auditable control events.
+- Keep combat modifiers small and bounded; no casino odds changes, purchased advantages, passive-income buildings, member/property trades, or rewriting old rounds.
+- Verify phone and desktop layouts, keyboard navigation, accessibility, stale clients, rollback, admin permissions, and a 7+ day full-season simulation before enabling new rounds.
 
 ## Guiding question
 
-**3.0.0:** Do my holdings across cities work like one organization, where each new city, route, and contract creates a tradeoff worth planning around — without invalidating the Scout/Product/Combat/Travel/Turf/Hideout/Stores game players already know?
+Do my holdings across cities work like one empire, where each new city, route and controlled zone creates a choice worth planning around—without erasing the original street game or making a large alliance unbeatable?

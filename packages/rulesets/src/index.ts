@@ -137,6 +137,8 @@ import { classicOgV18P } from './classic-og-v1.8-p/index.js';
 import { classicOgV18Q } from './classic-og-v1.8-q/index.js';
 import { classicOgV18R } from './classic-og-v1.8-r/index.js';
 import { classicOgV18S } from './classic-og-v1.8-s/index.js';
+import { classicOgV30A } from './classic-og-v3.0-a/index.js';
+import { classicOgV30B } from './classic-og-v3.0-b/index.js';
 import type { Ruleset } from './types.js';
 
 export { classicOgV01 };
@@ -278,6 +280,9 @@ export { classicOgV18P };
 export { classicOgV18Q };
 export { classicOgV18R };
 export { classicOgV18S };
+export { classicOgV30A };
+export { classicOgV30B };
+export { cityHoldingsEnabled } from './classic-og-v3.0-a/index.js';
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './event-system.js';
@@ -432,6 +437,8 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV18Q.meta.id]: classicOgV18Q,
   [classicOgV18R.meta.id]: classicOgV18R,
   [classicOgV18S.meta.id]: classicOgV18S,
+  [classicOgV30A.meta.id]: classicOgV30A,
+  [classicOgV30B.meta.id]: classicOgV30B,
 };
 
 export const DEFAULT_RULESET_ID = classicOgV01.meta.id;

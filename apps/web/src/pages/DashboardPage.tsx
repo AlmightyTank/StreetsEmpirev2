@@ -339,6 +339,7 @@ function HideoutPanel({ hideout }: { hideout: RoundPlayerDto['hideout'] }) {
 }
 
 function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
+  const holdingsAvailable = useSession((s) => s.round?.rulesetId.startsWith('classic-og-v3.0-') ?? false);
   const activity = useSession((s) => s.recentActivity);
   const { refreshing, error, refresh } = useLiveDashboard();
   const [showAllAlerts, setShowAllAlerts] = useState(false);
@@ -795,6 +796,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
           </div>
 
           <div className="se-dashboard-controlgrid">
+            {holdingsAvailable ? <p><Link to="/game/holdings">View city holdings →</Link></p> : null}
             <div className="se-dashboard-stack">
               <HeatPanel />
               <CasePanel />

@@ -76,6 +76,7 @@ import { RandomEncounterChoiceService } from '../services/random-encounter-choic
 import { RandomEncounterService } from '../services/random-encounter.service.js';
 import { EasterEggService } from '../services/easter-egg.service.js';
 import { RingService } from '../services/ring.service.js';
+import { CityHoldingsService } from '../services/city-holdings.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
 
@@ -99,6 +100,13 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
 
     return { round, player };
   }
+
+  fastify.get('/holdings', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const holding = await CityHoldingsService.read(fastify.prisma, loadRulesetForRound(round), round.id, player.id);
+    if (!holding) throw AppError.notFound('HOLDINGS_UNAVAILABLE', 'City holdings are unavailable in this round.');
+    return holding;
+  });
 
   /**
    * Section 45. The whole dashboard in one request.

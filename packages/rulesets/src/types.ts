@@ -3074,6 +3074,14 @@ export interface Ruleset {
     };
   };
   readonly meta: RulesetMeta;
+  /** 3.0-A. Presence gates read-only city holdings; identity multipliers do not alter settlement. */
+  readonly cityHoldings?: {
+    readonly modifiers: {
+      readonly dealerSalesPace: number;
+      readonly demand: number;
+      readonly upkeep: number;
+    };
+  };
   /** 1.8.5-F. Bounded citywide modifiers and optional event follow-ups. */
   readonly cityConditions?: readonly CityConditionRules[];
   readonly round: RoundRules;
