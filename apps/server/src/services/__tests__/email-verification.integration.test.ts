@@ -25,7 +25,7 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('email verification before 
 
   const register = async () => {
     const name = `verify${randomUUID().slice(0, 8)}`;
-    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID(), birthDate: '1990-01-01', ageConfirmed: true } });
     expect(response.statusCode, response.body).toBe(201);
     accountIds.push(response.json().account.id);
     return {
