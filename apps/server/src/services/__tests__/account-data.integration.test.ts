@@ -5,7 +5,7 @@ import { classicOgV01 } from '@streets/rulesets';
 import { MINIMUM_AGE, RULES_AGREEMENT } from '@streets/shared';
 
 /**
- * rc.5. The 13+ age rule, security emails (new browser, changed password), "Download my
+ * rc.5. The minimum-age rule, security emails (new browser, changed password), "Download my
  * data", deleting your own account, and the Turnstile bot check, through the HTTP API.
  */
 const notices: Array<{ to: string; kind: string }> = [];
@@ -116,7 +116,7 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account data and safety (r
     expect(someoneElse.json().error.code).toBe('CAPTCHA_REQUIRED');
   });
 
-  it('records the 13+ confirmation, and the rules ask every player too', async () => {
+  it('records the age confirmation, and the rules ask every player too', async () => {
     const confirmed = await register();
     expect((await app.prisma.account.findUniqueOrThrow({ where: { id: confirmed.id } })).ageConfirmedAt).not.toBeNull();
     expect(RULES_AGREEMENT[0]!.title).toContain(`${MINIMUM_AGE} or older`);

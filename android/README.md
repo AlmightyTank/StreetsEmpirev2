@@ -27,16 +27,24 @@ From `android/`, build each environment with:
 .\gradlew.bat :app:bundleProductionRelease
 ```
 
-`local` uses `http://10.0.2.2:5173`, which reaches the host machine from the
-Android emulator. Start the web and API development servers with `npm run dev`
-at the repository root first.
-
-For a USB-connected physical device, reverse the Vite port and override the
-local origin:
+`local` uses `http://127.0.0.1:3001` through an ADB reverse tunnel to the API
+server on the host. Start the server and create the tunnel before running from
+Android Studio:
 
 ```powershell
-adb reverse tcp:5173 tcp:5173
-.\gradlew.bat :app:assembleLocalDebug -PstreetsServerOrigin=http://127.0.0.1:5173
+npm run dev:server
+adb reverse tcp:3001 tcp:3001
+```
+
+The reverse command must be repeated after restarting or reconnecting the
+emulator/device.
+
+The same setup works for a USB-connected physical device. To override the local
+origin for a different development host:
+
+```powershell
+adb reverse tcp:3001 tcp:3001
+.\gradlew.bat :app:assembleLocalDebug -PstreetsServerOrigin=http://127.0.0.1:3001
 ```
 
 The flavors have distinct IDs (`.local` and `.beta` suffixes), so local, beta,

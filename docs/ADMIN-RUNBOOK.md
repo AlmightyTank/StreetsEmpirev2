@@ -231,10 +231,10 @@ Two steps stand between a new account and the game. Admins are never stopped by 
 
 `EMAIL_FROM` must use that verified domain, and `RESEND_API_KEY` must be a key for the same Resend account.
 
-**Age (rc.5).** Players must be 13 or older.
-- Sign-up has an "I am 13 or older" checkbox, recorded as `ageConfirmedAt`.
+**Age.** Players must be 16 or older.
+- Sign-up has an "I am 16 or older" checkbox, recorded as `ageConfirmedAt`.
 - The rules agreement's first item says the same. Changing the agreement asked every existing player (Discord sign-ups included) to accept it again.
-- If you learn a player is under 13, delete the account (**Accounts → the account → Delete account**) and note why. The terms and privacy page say so.
+- If you learn a player is under 16, delete the account (**Accounts → the account → Delete account**) and note why. The terms and privacy page say so.
 
 **Security emails (rc.5).** Players are emailed when their password is changed or reset, and when their account signs in from a browser it has not used before.
 - **Recognising browsers:** each browser gets a random `se_device` id cookie.

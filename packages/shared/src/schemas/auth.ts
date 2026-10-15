@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { isValidTimeZone, NOTIFICATION_CATEGORIES } from '../notifications.js';
 import { collectionCovers, CUSTOMIZABLE_ITEM_KEYS, isFullCollectionStyle, isReleasedItemCosmeticStyle, styleFitsItem } from '../cosmetics.js';
 import { avatarPartsSchema } from '../avatar-builder.js';
+import { MINIMUM_AGE } from '../rules-agreement.js';
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
@@ -90,8 +91,10 @@ export const registerSchema = z.object({
   username: usernameSchema,
   email: emailSchema,
   password: passwordSchema,
-  /** rc.5. "I am 13 or older" (the rules agreement asks every player again before play). */
-  ageConfirmed: z.boolean().optional(),
+  /** Required age declaration; the rules agreement asks every player again before play. */
+  ageConfirmed: z.boolean().refine((confirmed) => confirmed, {
+    message: `Confirm you are ${MINIMUM_AGE} or older.`,
+  }),
   /** rc.5. Cloudflare Turnstile token, when bot checks are switched on. */
   captchaToken: z.string().max(4096).optional(),
 });

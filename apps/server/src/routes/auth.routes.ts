@@ -1192,7 +1192,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
     const account = await fastify.prisma.account.update({
       where: { id: request.auth!.account.id },
-      data: { rulesAcceptedAt: new Date(), rulesAcceptedVersion: RULES_VERSION },
+      // The first rule is the current minimum-age declaration, so accepting
+      // this version also refreshes the account's recorded age confirmation.
+      data: { ageConfirmedAt: new Date(), rulesAcceptedAt: new Date(), rulesAcceptedVersion: RULES_VERSION },
     });
     return { account: toAccountDto(account, request.auth!.session) };
   });

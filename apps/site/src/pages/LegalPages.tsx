@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { MINIMUM_AGE } from '@streets/shared';
 import { PublicPageHero } from '../components/PublicPageBits.js';
 
 /**
@@ -6,7 +7,7 @@ import { PublicPageHero } from '../components/PublicPageBits.js';
  * when that changes, change these. The operator should read both before launch (they
  * are plain-language pages, not legal advice), and update LEGAL_UPDATED when they do.
  */
-export const LEGAL_UPDATED = '27 September 2026';
+export const LEGAL_UPDATED = '15 October 2026';
 const CONTACT = <a href="https://forum.streetsempire.dev">the StreetsEmpire forum</a>;
 
 function LegalPage({ eyebrow, title, intro, sections }: { eyebrow: string; title: string; intro: string; sections: Array<{ heading: string; body: React.ReactNode }> }) {
@@ -100,7 +101,7 @@ export function PrivacyPage() {
         {
           heading: 'Children',
           body: (
-            <p>StreetsEmpire is for players aged 13 and over. We do not knowingly keep data about anyone younger; if we learn an account belongs to someone under 13, we delete it. A parent or guardian who thinks that has happened can tell staff on {CONTACT}.</p>
+            <p>StreetsEmpire is for players aged {MINIMUM_AGE} and over. We do not knowingly keep data about anyone younger; if we learn an account belongs to someone under {MINIMUM_AGE}, we delete it. A parent or guardian who thinks that has happened can tell staff on {CONTACT}.</p>
           ),
         },
       ]}
@@ -117,7 +118,7 @@ export function TermsPage() {
       sections={[
         {
           heading: 'Age',
-          body: <p>You must be 13 or older to play. StreetsEmpire is a crime strategy game about drugs, raids and turf. If you are under the age of majority where you live, make sure a parent or guardian is fine with you playing. Accounts of players under 13 are deleted.</p>,
+          body: <p>You must be {MINIMUM_AGE} or older to play. StreetsEmpire is a crime strategy game about drugs, raids and turf. If you are under the age of majority where you live, make sure a parent or guardian is fine with you playing. Accounts of players under {MINIMUM_AGE} are deleted.</p>,
         },
         {
           heading: 'One player, one account',

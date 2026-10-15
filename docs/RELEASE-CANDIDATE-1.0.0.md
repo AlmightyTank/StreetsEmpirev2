@@ -308,8 +308,8 @@ rc.5 closes the last gaps before 1.0 that the owner chose.
 
 ### What changed
 
-- **Age 13+.**
-  - Sign-up has an "I am 13 or older" checkbox, recorded on the account.
+- **Age 16+.**
+  - Sign-up has an "I am 16 or older" checkbox, recorded on the account.
   - The rules agreement now starts with the age rule. Its version changed, so every existing player (Discord sign-ups included) accepts it once more.
   - The terms have an Age section, and the privacy page a Children section.
 - **Security emails.** Players are emailed when their password is changed or reset, and when their account signs in from a browser it has not used before.

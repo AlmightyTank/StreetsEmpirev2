@@ -6,7 +6,7 @@ plugins {
 }
 
 val localServerOrigin = providers.gradleProperty("streetsServerOrigin")
-    .orElse("http://10.0.2.2:5173")
+    .orElse("http://127.0.0.1:3001")
     .get()
 
 android {

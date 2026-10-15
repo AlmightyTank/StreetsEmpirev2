@@ -3,24 +3,45 @@ package dev.streetsempire.app.native.ui
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
+import android.util.Patterns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -32,13 +53,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.streetsempire.app.MainActivity
+import dev.streetsempire.app.R
 import dev.streetsempire.app.native.auth.AuthRepository
 import dev.streetsempire.app.native.auth.AuthResult
 import dev.streetsempire.app.native.auth.TokenStore
@@ -65,7 +98,7 @@ class NativeAppActivity : ComponentActivity() {
     val auth = AuthRepository(api, tokens)
     val allowPreview = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     setContent {
-      MaterialTheme {
+      MaterialTheme(colorScheme = StreetsEmpireColors) {
         NativeApp(auth, allowPreview)
       }
     }
@@ -154,8 +187,15 @@ fun LoginScreen(
   allowPreview: Boolean = false,
 ) {
   val scope = rememberCoroutineScope()
+  val focusManager = LocalFocusManager.current
+  var mode by remember { mutableStateOf(AuthMode.SignIn) }
   var identifier by remember { mutableStateOf("") }
+  var username by remember { mutableStateOf("") }
+  var email by remember { mutableStateOf("") }
   var password by remember { mutableStateOf("") }
+  var confirmPassword by remember { mutableStateOf("") }
+  var passwordVisible by remember { mutableStateOf(false) }
+  var ageConfirmed by remember { mutableStateOf(false) }
   var busy by remember { mutableStateOf(false) }
   var error by remember { mutableStateOf<String?>(null) }
   var info by remember { mutableStateOf<String?>(null) }
@@ -169,71 +209,292 @@ fun LoginScreen(
     siteKeyLoaded = true
   }
 
-  Scaffold(topBar = { TopAppBar(title = { Text("StreetsEmpire") }) }) { padding ->
-    Column(Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-      OutlinedTextField(value = identifier, onValueChange = { identifier = it }, label = { Text("Pimp name or email") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-      OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation())
-      if (siteKeyLoaded && siteKey != null) {
-        TurnstileChallenge(siteKey = siteKey!!, captchaKey = captchaKey, onToken = { captchaToken = it })
-      }
-      error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-      info?.let { Text(it) }
-      if (busy) {
-        CircularProgressIndicator()
-      } else {
-        val captchaOn = siteKey != null
-        Button(
-          onClick = {
-            if (captchaOn && captchaToken == null) {
-              error = "Finish the \"are you a human\" check first."
-              return@Button
-            }
-            busy = true
-            error = null
-            info = null
-            scope.launch {
-              try {
-                when (val result = auth.login(identifier, password, captchaToken)) {
-                  is AuthResult.SignedIn -> onSignedIn()
-                  is AuthResult.TwoFactorRequired -> onTwoFactor()
-                  is AuthResult.ApprovalRequired -> info = result.message
-                }
-              } catch (e: ApiError) {
-                error = e.message
-                // Tokens are single-use: force a fresh widget after every attempt.
-                if (e.code == "CAPTCHA_REQUIRED" || e.code == "CAPTCHA_FAILED") {
-                  captchaToken = null
-                  captchaKey += 1
-                  if (siteKey == null) siteKey = auth.turnstileSiteKey()
-                } else {
-                  captchaToken = null
-                  captchaKey += 1
-                }
-              } finally {
-                busy = false
-              }
-            }
-          },
-          enabled = true,
-          modifier = Modifier.fillMaxWidth(),
-        ) { Text("Sign in") }
-        if (captchaOn) {
-          if (captchaToken == null) {
-            TurnstileHint()
-          }
-          TextButton(onClick = {
-            captchaToken = null
-            captchaKey += 1
-          }) { Text("Reload human check") }
-        }
-      }
-      if (allowPreview) {
-        TextButton(onClick = onPreview, modifier = Modifier.fillMaxWidth()) {
-          Text("Preview the app without signing in")
-        }
-      }
-      Text("Native sign-in uses the game server directly. No WebView, no shared browser cookies.")
+  fun switchMode(next: AuthMode) {
+    if (mode == next || busy) return
+    mode = next
+    error = null
+    info = null
+    password = ""
+    confirmPassword = ""
+  }
+
+  fun validationError(): String? = when (mode) {
+    AuthMode.SignIn -> when {
+      identifier.isBlank() -> "Enter your pimp name or email."
+      password.isBlank() -> "Enter your password."
+      else -> null
     }
+    AuthMode.SignUp -> when {
+      username.trim().length !in 3..20 -> "Pimp name must be 3–20 characters."
+      !username.trim().matches(Regex("^[A-Za-z0-9_-]+$")) -> "Use only letters, numbers, underscores, or hyphens in your pimp name."
+      !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() -> "Enter a valid email address."
+      password.length < 8 -> "Password must be at least 8 characters."
+      password != confirmPassword -> "Passwords do not match."
+      !ageConfirmed -> "Confirm that you are at least 16 years old."
+      else -> null
+    }
+  }
+
+  fun submit() {
+    val invalid = validationError()
+    if (invalid != null) {
+      error = invalid
+      return
+    }
+    if (siteKey != null && captchaToken == null) {
+      error = "Finish the human check first."
+      return
+    }
+    focusManager.clearFocus()
+    busy = true
+    error = null
+    info = null
+    scope.launch {
+      try {
+        val result = when (mode) {
+          AuthMode.SignIn -> auth.login(identifier, password, captchaToken)
+          AuthMode.SignUp -> auth.register(username, email, password, ageConfirmed, captchaToken)
+        }
+        when (result) {
+          is AuthResult.SignedIn -> onSignedIn()
+          is AuthResult.TwoFactorRequired -> onTwoFactor()
+          is AuthResult.ApprovalRequired -> info = result.message
+        }
+      } catch (e: ApiError) {
+        error = e.message
+        captchaToken = null
+        captchaKey += 1
+        if (e.code == "CAPTCHA_REQUIRED" || e.code == "CAPTCHA_FAILED") {
+          if (siteKey == null) siteKey = auth.turnstileSiteKey()
+        }
+      } finally {
+        busy = false
+      }
+    }
+  }
+
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .background(MaterialTheme.colorScheme.background)
+      .windowInsetsPadding(WindowInsets.safeDrawing),
+    contentAlignment = Alignment.TopCenter,
+  ) {
+    Column(
+      modifier = Modifier
+        .fillMaxSize()
+        .widthIn(max = 560.dp)
+        .verticalScroll(rememberScrollState())
+        .padding(horizontal = 20.dp, vertical = 24.dp),
+      horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+      Image(
+        painter = painterResource(R.mipmap.ic_launcher_foreground),
+        contentDescription = null,
+        modifier = Modifier.size(88.dp),
+        contentScale = ContentScale.Fit,
+      )
+      Text(
+        text = "STREETSEMPIRE",
+        color = MaterialTheme.colorScheme.onBackground,
+        style = MaterialTheme.typography.headlineMedium.copy(
+          fontWeight = FontWeight.Black,
+          letterSpacing = 2.sp,
+        ),
+      )
+      Text(
+        text = "Build your name. Run your city.",
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.bodyLarge,
+        textAlign = TextAlign.Center,
+      )
+      Spacer(Modifier.height(24.dp))
+
+      Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+      ) {
+        Column(
+          modifier = Modifier.padding(20.dp),
+          verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+          TabRow(selectedTabIndex = mode.ordinal, containerColor = Color.Transparent) {
+            AuthMode.entries.forEach { option ->
+              Tab(
+                selected = mode == option,
+                onClick = { switchMode(option) },
+                text = { Text(option.label, fontWeight = FontWeight.SemiBold) },
+                enabled = !busy,
+              )
+            }
+          }
+
+          Text(
+            text = if (mode == AuthMode.SignIn) "Welcome back, boss" else "Claim your street name",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+          )
+          Text(
+            text = if (mode == AuthMode.SignIn)
+              "Your empire is waiting. Sign in to continue."
+            else
+              "Create an account and start building your empire.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+
+          if (mode == AuthMode.SignIn) {
+            OutlinedTextField(
+              value = identifier,
+              onValueChange = { identifier = it; error = null },
+              label = { Text("Pimp name or email") },
+              modifier = Modifier.fillMaxWidth(),
+              singleLine = true,
+              enabled = !busy,
+              keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            )
+          } else {
+            OutlinedTextField(
+              value = username,
+              onValueChange = { username = it.take(20); error = null },
+              label = { Text("Pimp name") },
+              supportingText = { Text("3–20 characters · letters, numbers, _ or -") },
+              modifier = Modifier.fillMaxWidth(),
+              singleLine = true,
+              enabled = !busy,
+              keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            )
+            OutlinedTextField(
+              value = email,
+              onValueChange = { email = it; error = null },
+              label = { Text("Email") },
+              modifier = Modifier.fillMaxWidth(),
+              singleLine = true,
+              enabled = !busy,
+              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+            )
+          }
+
+          OutlinedTextField(
+            value = password,
+            onValueChange = { password = it; error = null },
+            label = { Text("Password") },
+            supportingText = if (mode == AuthMode.SignUp) ({ Text("At least 8 characters") }) else null,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            enabled = !busy,
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+              TextButton(onClick = { passwordVisible = !passwordVisible }) {
+                Text(if (passwordVisible) "Hide" else "Show")
+              }
+            },
+            keyboardOptions = KeyboardOptions(
+              keyboardType = KeyboardType.Password,
+              imeAction = if (mode == AuthMode.SignIn) ImeAction.Done else ImeAction.Next,
+            ),
+            keyboardActions = KeyboardActions(onDone = { submit() }),
+          )
+
+          if (mode == AuthMode.SignUp) {
+            OutlinedTextField(
+              value = confirmPassword,
+              onValueChange = { confirmPassword = it; error = null },
+              label = { Text("Confirm password") },
+              modifier = Modifier.fillMaxWidth(),
+              singleLine = true,
+              enabled = !busy,
+              visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+              keyboardActions = KeyboardActions(onDone = { submit() }),
+            )
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Checkbox(
+                checked = ageConfirmed,
+                onCheckedChange = { ageConfirmed = it; error = null },
+                enabled = !busy,
+              )
+              Text("I confirm that I am 16 or older.")
+            }
+          }
+
+          if (siteKeyLoaded && siteKey != null) {
+            Surface(
+              modifier = Modifier.fillMaxWidth(),
+              color = MaterialTheme.colorScheme.surfaceVariant,
+              shape = RoundedCornerShape(12.dp),
+            ) {
+              TurnstileChallenge(siteKey = siteKey!!, captchaKey = captchaKey, onToken = { captchaToken = it })
+            }
+          }
+
+          error?.let { AuthMessage(it, isError = true) }
+          info?.let { AuthMessage(it, isError = false) }
+
+          Button(
+            onClick = { submit() },
+            enabled = !busy,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(14.dp),
+          ) {
+            if (busy) {
+              CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+            } else {
+              Text(if (mode == AuthMode.SignIn) "Enter the streets" else "Create my account", fontWeight = FontWeight.Bold)
+            }
+          }
+
+          if (siteKey != null) {
+            TextButton(
+              onClick = { captchaToken = null; captchaKey += 1 },
+              enabled = !busy,
+              modifier = Modifier.fillMaxWidth(),
+            ) { Text("Reload human check") }
+          }
+        }
+      }
+
+      if (allowPreview) {
+        Spacer(Modifier.height(12.dp))
+        TextButton(onClick = onPreview, modifier = Modifier.fillMaxWidth()) {
+          Text("Preview the app with sample data")
+        }
+      }
+      Spacer(Modifier.height(12.dp))
+      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+      Spacer(Modifier.height(12.dp))
+      Text(
+        text = "Secure native sign-in · Connected directly to the StreetsEmpire game server",
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.bodySmall,
+        textAlign = TextAlign.Center,
+      )
+    }
+  }
+}
+
+private enum class AuthMode(val label: String) {
+  SignIn("Sign in"),
+  SignUp("Sign up"),
+}
+
+@Composable
+private fun AuthMessage(message: String, isError: Boolean) {
+  Surface(
+    modifier = Modifier.fillMaxWidth(),
+    color = if (isError) MaterialTheme.colorScheme.error.copy(alpha = 0.12f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+    shape = RoundedCornerShape(12.dp),
+  ) {
+    Text(
+      text = message,
+      modifier = Modifier.padding(12.dp),
+      color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+      style = MaterialTheme.typography.bodyMedium,
+    )
   }
 }
 
@@ -358,6 +619,19 @@ fun HomeScreen(
     }
   }
 }
+
+private val StreetsEmpireColors = darkColorScheme(
+  primary = Color(0xFFE8B33C),
+  onPrimary = Color(0xFF241A00),
+  secondary = Color(0xFF8BC5FF),
+  background = Color(0xFF080C11),
+  onBackground = Color(0xFFF2F5F9),
+  surface = Color(0xFF121923),
+  onSurface = Color(0xFFF2F5F9),
+  surfaceVariant = Color(0xFF1A2431),
+  onSurfaceVariant = Color(0xFFB8C4D2),
+  error = Color(0xFFFFB4AB),
+)
 
 private val previewAccount = AccountDto(
   id = "preview",

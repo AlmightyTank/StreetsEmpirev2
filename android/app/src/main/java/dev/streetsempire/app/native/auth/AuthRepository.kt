@@ -15,7 +15,13 @@ import kotlinx.serialization.encodeToString
 private data class LoginBody(val identifier: String, val password: String, val remember: Boolean = true, val captchaToken: String? = null)
 
 @Serializable
-private data class RegisterBody(val username: String, val email: String, val password: String, val captchaToken: String? = null)
+private data class RegisterBody(
+  val username: String,
+  val email: String,
+  val password: String,
+  val ageConfirmed: Boolean,
+  val captchaToken: String? = null,
+)
 
 @Serializable
 private data class TwoFactorVerifyBody(val code: String)
@@ -48,8 +54,8 @@ class AuthRepository(private val api: ApiClient, private val tokens: TokenStore)
     AuthResult.SignedIn(response.account ?: throw ApiError(0, "NO_ACCOUNT", "Sign-in succeeded without an account. Try again."))
   }
 
-  suspend fun register(username: String, email: String, password: String, captchaToken: String? = null): AuthResult = withContext(Dispatchers.IO) {
-    val raw = api.post("/auth/register", api.json.encodeToString(RegisterBody(username.trim(), email.trim(), password, captchaToken?.takeIf { it.isNotBlank() })))
+  suspend fun register(username: String, email: String, password: String, ageConfirmed: Boolean, captchaToken: String? = null): AuthResult = withContext(Dispatchers.IO) {
+    val raw = api.post("/auth/register", api.json.encodeToString(RegisterBody(username.trim(), email.trim(), password, ageConfirmed, captchaToken?.takeIf { it.isNotBlank() })))
     val response = api.json.decodeFromString<AuthResponse>(raw)
     if (response.approvalRequired) {
       return@withContext AuthResult.ApprovalRequired(response.message ?: "Your account is waiting for approval.")
