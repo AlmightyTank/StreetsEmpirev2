@@ -19,13 +19,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
-    private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var offlineView: View
     private lateinit var billing: PlayBillingManager
 
@@ -74,7 +72,6 @@ class MainActivity : AppCompatActivity() {
         insetsController.isAppearanceLightNavigationBars = false
 
         webView = findViewById(R.id.web_view)
-        swipeRefresh = findViewById(R.id.swipe_refresh)
         offlineView = findViewById(R.id.offline_view)
         findViewById<View>(R.id.btn_retry).setOnClickListener {
             offlineView.visibility = View.GONE
@@ -124,7 +121,6 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
-                swipeRefresh.isRefreshing = false
                 offlineView.visibility = View.GONE
                 GameConfig.sanitizeGameUrl(url)?.let { safe ->
                     prefs.edit().putString(KEY_LIVE_URL, safe).apply()
@@ -137,8 +133,7 @@ class MainActivity : AppCompatActivity() {
                 error: WebResourceError,
             ) {
                 if (request.isForMainFrame) {
-                    swipeRefresh.isRefreshing = false
-                    offlineView.visibility = View.VISIBLE
+                        offlineView.visibility = View.VISIBLE
                 }
             }
         }
@@ -161,7 +156,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        swipeRefresh.setOnRefreshListener { webView.reload() }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
