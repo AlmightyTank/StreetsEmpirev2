@@ -616,7 +616,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const account = request.auth!.account;
     const changed = await fastify.prisma.account.updateMany({
       where: { id: account.id, birthDate: null },
-      data: { birthDate: new Date(`${birthDate}T00:00:00.000Z`) },
+      data: { birthDate: new Date(`${birthDate}T00:00:00.000Z`), ageConfirmedAt: new Date() },
     });
     if (changed.count === 0) {
       throw AppError.conflict('BIRTH_DATE_ALREADY_SET', 'Your birthday is already saved. Contact support if it needs correcting.');
