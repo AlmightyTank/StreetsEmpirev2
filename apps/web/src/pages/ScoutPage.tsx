@@ -197,6 +197,7 @@ export function ScoutPage() {
               onChange={setDistrict}
               disabled={action.busy}
             />
+            <CrewTeamPicker role="WORKER" specialty="SCOUT" selectedIds={scoutTeam} onChange={setScoutTeam} disabled={action.busy} refreshKey={action.result} />
           </section>
 
           <aside className="se-scout-plan__intel">
@@ -352,7 +353,6 @@ export function ScoutPage() {
             disabled={action.busy}
             disabledReason={action.busy ? 'Your crew is still out on the last job.' : null}
           />
-          <CrewTeamPicker role="WORKER" specialty="SCOUT" selectedIds={scoutTeam} onChange={setScoutTeam} disabled={action.busy} refreshKey={action.result} />
           <Button className="se-btn se-btn--primary" disabledReason={scoutBlock} data-tour="scout">
             {action.busy ? 'Working the block...' : action.result ? 'Send again' : 'Send crew scouting'}
           </Button>
