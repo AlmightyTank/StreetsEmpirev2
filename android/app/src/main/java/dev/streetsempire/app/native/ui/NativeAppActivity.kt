@@ -1,6 +1,7 @@
 package dev.streetsempire.app.native.ui
 
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -45,6 +46,9 @@ import dev.streetsempire.app.native.net.AccountDto
 import dev.streetsempire.app.native.net.ApiClient
 import dev.streetsempire.app.native.net.ApiError
 import dev.streetsempire.app.native.net.GameSnapshotDto
+import dev.streetsempire.app.native.net.PlayerSummary
+import dev.streetsempire.app.native.net.RoundSummary
+import dev.streetsempire.app.native.net.TurnsDto
 import kotlinx.coroutines.launch
 
 /**
@@ -59,9 +63,10 @@ class NativeAppActivity : ComponentActivity() {
     val tokens = TokenStore(this)
     val api = ApiClient(tokens)
     val auth = AuthRepository(api, tokens)
+    val allowPreview = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     setContent {
       MaterialTheme {
-        NativeApp(auth)
+        NativeApp(auth, allowPreview)
       }
     }
   }
@@ -71,6 +76,7 @@ private object Routes {
   const val LOGIN = "login"
   const val TWO_FACTOR = "2fa"
   const val HOME = "home"
+  const val PREVIEW = "preview"
   const val SECTION = "section/{name}"
 }
 
@@ -90,7 +96,7 @@ val FULL_PARITY_SECTIONS = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NativeApp(auth: AuthRepository) {
+fun NativeApp(auth: AuthRepository, allowPreview: Boolean = false) {
   val nav = rememberNavController()
   val start = if (auth.isSignedIn()) Routes.HOME else Routes.LOGIN
   NavHost(navController = nav, startDestination = start) {
@@ -98,6 +104,8 @@ fun NativeApp(auth: AuthRepository) {
       LoginScreen(
         onSignedIn = { nav.navigate(Routes.HOME) { popUpTo(Routes.LOGIN) { inclusive = true } } },
         onTwoFactor = { nav.navigate(Routes.TWO_FACTOR) },
+        onPreview = { nav.navigate(Routes.PREVIEW) },
+        allowPreview = allowPreview,
         auth = auth,
       )
     }
@@ -112,6 +120,14 @@ fun NativeApp(auth: AuthRepository) {
         auth = auth,
         onOpenSection = { nav.navigate("section/${it.name}") },
         onSignedOut = { nav.navigate(Routes.LOGIN) { popUpTo(Routes.HOME) { inclusive = true } } },
+      )
+    }
+    composable(Routes.PREVIEW) {
+      HomeScreen(
+        auth = auth,
+        preview = true,
+        onOpenSection = { nav.navigate("section/${it.name}") },
+        onSignedOut = { nav.navigate(Routes.LOGIN) { popUpTo(Routes.PREVIEW) { inclusive = true } } },
       )
     }
     composable(Routes.SECTION) { backStack ->
@@ -130,7 +146,13 @@ fun NativeApp(auth: AuthRepository) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(auth: AuthRepository, onSignedIn: () -> Unit, onTwoFactor: () -> Unit) {
+fun LoginScreen(
+  auth: AuthRepository,
+  onSignedIn: () -> Unit,
+  onTwoFactor: () -> Unit,
+  onPreview: () -> Unit = {},
+  allowPreview: Boolean = false,
+) {
   val scope = rememberCoroutineScope()
   var identifier by remember { mutableStateOf("") }
   var password by remember { mutableStateOf("") }
@@ -205,6 +227,11 @@ fun LoginScreen(auth: AuthRepository, onSignedIn: () -> Unit, onTwoFactor: () ->
           }) { Text("Reload human check") }
         }
       }
+      if (allowPreview) {
+        TextButton(onClick = onPreview, modifier = Modifier.fillMaxWidth()) {
+          Text("Preview the app without signing in")
+        }
+      }
       Text("Native sign-in uses the game server directly. No WebView, no shared browser cookies.")
     }
   }
@@ -247,14 +274,20 @@ fun TwoFactorScreen(auth: AuthRepository, onSignedIn: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(auth: AuthRepository, onOpenSection: (GameSection) -> Unit, onSignedOut: () -> Unit) {
+fun HomeScreen(
+  auth: AuthRepository,
+  onOpenSection: (GameSection) -> Unit,
+  onSignedOut: () -> Unit,
+  preview: Boolean = false,
+) {
   val scope = rememberCoroutineScope()
-  var account by remember { mutableStateOf<AccountDto?>(null) }
-  var snapshot by remember { mutableStateOf<GameSnapshotDto?>(null) }
+  var account by remember(preview) { mutableStateOf<AccountDto?>(if (preview) previewAccount else null) }
+  var snapshot by remember(preview) { mutableStateOf<GameSnapshotDto?>(if (preview) previewSnapshot else null) }
   var error by remember { mutableStateOf<String?>(null) }
-  var loading by remember { mutableStateOf(true) }
+  var loading by remember(preview) { mutableStateOf(!preview) }
 
-  LaunchedEffect(Unit) {
+  LaunchedEffect(preview) {
+    if (preview) return@LaunchedEffect
     scope.launch {
       try {
         account = auth.me()
@@ -278,6 +311,9 @@ fun HomeScreen(auth: AuthRepository, onOpenSection: (GameSection) -> Unit, onSig
     }
     val context = LocalContext.current
     LazyColumn(Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+      if (preview) {
+        item { Text("Preview mode · sample data", color = MaterialTheme.colorScheme.primary) }
+      }
       error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
       item {
         Card(Modifier.fillMaxWidth()) {
@@ -306,6 +342,10 @@ fun HomeScreen(auth: AuthRepository, onOpenSection: (GameSection) -> Unit, onSig
           context.startActivity(Intent(context, MainActivity::class.java))
         }) { Text("Open full game in web view (fallback until parity)") }
         TextButton(onClick = {
+          if (preview) {
+            onSignedOut()
+            return@TextButton
+          }
           scope.launch {
             try {
               auth.logout()
@@ -313,8 +353,30 @@ fun HomeScreen(auth: AuthRepository, onOpenSection: (GameSection) -> Unit, onSig
               onSignedOut()
             }
           }
-        }) { Text("Sign out") }
+        }) { Text(if (preview) "Back to sign in" else "Sign out") }
       }
     }
   }
 }
+
+private val previewAccount = AccountDto(
+  id = "preview",
+  username = "MidnightBoss",
+  email = "preview@streetsempire.dev",
+)
+
+private val previewSnapshot = GameSnapshotDto(
+  round = RoundSummary(
+    id = "preview-season",
+    name = "Empire Season",
+    status = "ACTIVE",
+    msRemaining = 604_800_000,
+    playerCount = 428,
+  ),
+  player = PlayerSummary(
+    id = "preview-player",
+    displayName = "MidnightBoss",
+    netWorthCents = 12_845_700,
+    turns = TurnsDto(turns = 42, turnCap = 100, turnsGeneratedNextTick = 5),
+  ),
+)
