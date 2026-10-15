@@ -22,14 +22,13 @@ function rEntry(key: string): RandomEncounterEntryRules | undefined {
 }
 
 describe('Hidden Streets complete expansion', () => {
-  it('ships as the latest ruleset without mutating Slice E', () => {
+  it('ships as a versioned ruleset without mutating Slice E', () => {
     expect(classicOgV18S.meta).toMatchObject({
       id: 'classic-og-v1.8-s',
       version: '1.8.0-S',
       name: 'Classic OG - Hidden Streets Complete',
     });
     expect(rulesets[classicOgV18S.meta.id]).toBe(classicOgV18S);
-    expect(Object.values(rulesets).at(-1)).toBe(classicOgV18S);
 
     expect(rCatalog.SECRET_LOST_FORTUNE).toBeUndefined();
     expect(rEntry('scout-old-coin')).toBeUndefined();

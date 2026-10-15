@@ -29,7 +29,7 @@ describe('1.7.0 crew profile rulesets', () => {
     expect(rulesets[classicOgV18S.meta.id]).toBe(classicOgV18S);
     expect(Object.values(rulesets).at(-1)?.crewRoster).toBe(classicOgV17E.crewRoster);
     expect(classicOgV18E.crewRoster).toBe(classicOgV17E.crewRoster);
-    const earlier = Object.values(rulesets).filter((ruleset) => !/^classic-og-v1\.[78]-/.test(ruleset.meta.id)) as Ruleset[];
+    const earlier = Object.values(rulesets).filter((ruleset) => !/^classic-og-v(?:1\.[78]|3\.0)-/.test(ruleset.meta.id)) as Ruleset[];
     expect(earlier.length).toBeGreaterThan(100);
     for (const ruleset of earlier) expect(ruleset.crewRoster, ruleset.meta.id).toBeUndefined();
   });
