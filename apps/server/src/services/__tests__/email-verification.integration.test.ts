@@ -23,9 +23,9 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('email verification before 
   const previousResendKey = process.env.RESEND_API_KEY;
   const previousEmailFrom = process.env.EMAIL_FROM;
 
-  const register = async () => {
+  const register = async (birthDate: string | null = '1990-01-01') => {
     const name = `verify${randomUUID().slice(0, 8)}`;
-    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID(), birthDate: '1990-01-01', ageConfirmed: true } });
+    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID(), ...(birthDate ? { birthDate } : {}), ageConfirmed: true } });
     expect(response.statusCode, response.body).toBe(201);
     accountIds.push(response.json().account.id);
     return {
@@ -75,6 +75,30 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('email verification before 
     if (previousEmailFrom === undefined) delete process.env.EMAIL_FROM;
     else process.env.EMAIL_FROM = previousEmailFrom;
     vi.restoreAllMocks();
+  });
+
+  it('requires the private birthday for legacy sign-ins, rejects under-16 dates, and saves once', async () => {
+    const legacy = await register(null);
+    expect(legacy.account).toMatchObject({ birthDateRequired: true });
+    const blocked = await as(legacy.cookie, 'GET', '/api/game/me');
+    expect(blocked.statusCode).toBe(403);
+    expect(blocked.json().error.code).toBe('BIRTH_DATE_REQUIRED');
+
+    const tooYoung = await as(legacy.cookie, 'POST', '/api/auth/birthday', { birthDate: '2013-02-01' });
+    expect(tooYoung.statusCode).toBe(400);
+    expect((await as(legacy.cookie, 'GET', '/api/auth/me')).json().account.birthDateRequired).toBe(true);
+
+    const saved = await as(legacy.cookie, 'POST', '/api/auth/birthday', { birthDate: '2004-02-29' });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(saved.json().account.birthDateRequired).toBe(false);
+    expect(saved.json().account).not.toHaveProperty('birthDate');
+    const account = await app.prisma.account.findUniqueOrThrow({ where: { id: legacy.id } });
+    expect(account.birthDate?.toISOString().slice(0, 10)).toBe('2004-02-29');
+
+    const duplicate = await as(legacy.cookie, 'POST', '/api/auth/birthday', { birthDate: '1998-01-01' });
+    expect(duplicate.statusCode).toBe(409);
+    expect(duplicate.json().error.code).toBe('BIRTH_DATE_ALREADY_SET');
+    expect((await as(legacy.cookie, 'GET', '/api/game/me')).json().error.code).toBe('EMAIL_NOT_VERIFIED');
   });
 
   it('emails a link at sign-up and keeps the game shut until it is used', async () => {
