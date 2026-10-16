@@ -117,6 +117,7 @@ function CaseFileCard({ file, busy, onActivate, onChoose, archive = false }: {
 
 export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
   const [page, setPage] = useState<CriminalCasePageDto>(EMPTY);
+  const [focusedCase, setFocusedCase] = useState<CriminalCaseFileDto | null>(null);
   const [opportunities, setOpportunities] = useState<PublicCaseOpportunity[]>([]);
   const [activePage, setActivePage] = useState(1);
   const [archivePage, setArchivePage] = useState(1);
@@ -160,6 +161,21 @@ export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
     };
   }, [reload]);
 
+  // Archive pagination must not break owner-authorized deep links to old
+  // cases. Retrieve only the requested case via the private owner-checked API.
+  useEffect(() => {
+    if (!focusId || page.active.some((item) => item.id === focusId)
+      || page.archived.some((item) => item.id === focusId)) {
+      setFocusedCase(null);
+      return;
+    }
+    let mounted = true;
+    void caseFilesApi.get(focusId).then((file) => {
+      if (mounted) setFocusedCase(file);
+    }).catch(() => { if (mounted) setFocusedCase(null); });
+    return () => { mounted = false; };
+  }, [focusId, page]);
+
   useEffect(() => {
     if (!focusId || !loaded || focused.current === focusId) return;
     const target = document.getElementById(`case-${focusId}`);
@@ -167,7 +183,7 @@ export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
     focused.current = focusId;
     target.scrollIntoView({ block: 'nearest' });
     target.focus({ preventScroll: true });
-  }, [focusId, page, loaded]);
+  }, [focusId, page, focusedCase, loaded]);
 
   async function change(runId: string, call: () => Promise<unknown>) {
     if (busyId) return;
@@ -176,7 +192,6 @@ export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
     try {
       await call();
       notifyCaseFilesChanged();
-      reload();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'The story action could not be confirmed. Please check your case before trying again.');
     } finally {
@@ -202,6 +217,15 @@ export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
       </header>
       {error ? <Alert tone="error">{error}</Alert> : null}
       {!loaded ? <p className="se-muted" role="status">Opening your private case records…</p> : null}
+      {focusedCase && !page.active.some((item) => item.id === focusedCase.id)
+        && !page.archived.some((item) => item.id === focusedCase.id) ? (
+        <section className="se-casefiles__focused" aria-label="Linked case file">
+          <p className="se-eyebrow">Linked case · from your archive</p>
+          <CaseFileCard file={focusedCase} busy={busyId !== null}
+            onActivate={(id) => void change(id, () => caseFilesApi.activate(id))}
+            onChoose={setDecision} />
+        </section>
+      ) : null}
       {loaded && opportunities.length > 0 ? (
         <section className="se-casefiles__opportunities" aria-labelledby="case-opportunities-heading">
           <h3 id="case-opportunities-heading">Street stories near you</h3>
