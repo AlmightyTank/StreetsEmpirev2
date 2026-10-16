@@ -8,6 +8,7 @@ import { Alert } from './Alert.js';
 import { EmptyState, GameDialog, StatusBadge } from './GameUI.js';
 import { CASE_ACTION_LINKS, CASE_STATUS_LABEL, caseProgress, caseTimeline } from '../utils/caseFiles.js';
 import { formatWhen } from '../utils/time.js';
+import { useSession } from '../stores/session.js';
 
 interface Decision {
   caseId: string;
@@ -120,6 +121,7 @@ function CaseFileCard({ file, busy, onActivate, onChoose, archive = false, repor
 }
 
 export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
+  const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);
   const [page, setPage] = useState<CriminalCasePageDto>(EMPTY);
   const [focusedCase, setFocusedCase] = useState<CriminalCaseFileDto | null>(null);
   const [reports, setReports] = useState<Record<string, { newsId: string; title: string }>>({});
@@ -134,6 +136,7 @@ export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
   const [result, setResult] = useState<CriminalCaseFileDto | null>(null);
   const focused = useRef<string | null>(null);
   const reload = useCallback(() => setRevision((value) => value + 1), []);
+  useEffect(() => { if (activityHead) reload(); }, [activityHead, reload]);
 
   useEffect(() => {
     let active = true;

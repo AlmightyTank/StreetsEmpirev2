@@ -8,6 +8,7 @@ import { useSession } from '../stores/session.js';
 export function DashboardCaseSpotlight() {
   const playerId = useSession((s) => s.me?.id ?? null);
   const rulesetId = useSession((s) => s.round?.rulesetId ?? '');
+  const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);
   const [caseFile, setCaseFile] = useState<CriminalCaseFileDto | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [count, setCount] = useState(0);
@@ -31,7 +32,7 @@ export function DashboardCaseSpotlight() {
       window.removeEventListener('streets:case-files-changed', load);
       window.removeEventListener('streets:quests-changed', load);
     };
-  }, [playerId, storiesEnabled]);
+  }, [playerId, storiesEnabled, activityHead]);
 
   if (!playerId || !storiesEnabled || !loaded) return null;
   const next = caseFile?.nextAction ? CASE_ACTION_LINKS[caseFile.nextAction] : null;

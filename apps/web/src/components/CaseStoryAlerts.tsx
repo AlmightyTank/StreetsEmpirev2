@@ -15,38 +15,68 @@ import { GameDialog } from './GameUI.js';
 export function CaseStoryAlerts() {
   const playerId = useSession((s) => s.me?.id ?? null);
   const rulesetId = useSession((s) => s.round?.rulesetId ?? '');
+  const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);
   const [queue, setQueue] = useState<CaseStorySignal[]>([]);
-  const cache = useRef<Map<string, CriminalCaseFileDto>>(new Map());
-  const initialized = useRef(false);
-  const inFlight = useRef(false);
+  const refreshRef = useRef<(notify: boolean) => void>(() => {});
   const enabled = /^classic-og-v3\.0-[e-z]$/.test(rulesetId);
 
   useEffect(() => {
-    cache.current.clear();
-    initialized.current = false;
-    setQueue([]);
-    if (!playerId || !enabled) return;
     let mounted = true;
+    let initialized = false;
+    let fetching = false;
+    let pending = false;
+    let cache = new Map<string, CriminalCaseFileDto>();
+
     const check = (notify: boolean) => {
-      if (inFlight.current || document.hidden) return;
-      inFlight.current = true;
-      void caseFilesApi.page(1, 1, 30).then((response) => {
+      if (notify) pending = true;
+      if (fetching || document.hidden) return;
+      const shouldNotify = pending;
+      pending = false;
+      fetching = true;
+      void caseFilesApi.page(1, 1, 30).then(({ active, archived }) => {
         if (!mounted) return;
-        const files = [...response.active, ...response.archived];
-        if (initialized.current && notify) {
-          const changes = caseStorySignals(cache.current, files);
-          if (changes.length) setQueue((before) => [...before, ...changes]);
+        if (document.hidden) {
+          // Do not consume a story notification while the player cannot see it.
+          if (shouldNotify) pending = true;
+          return;
         }
-        cache.current = new Map(files.map((file) => [file.id, file]));
-        initialized.current = true;
-      }).catch(() => { /* A failed read never invents a case popup. */ })
-        .finally(() => { inFlight.current = false; });
+        const files = [...active, ...archived];
+        if (initialized && shouldNotify) {
+          const changes = caseStorySignals(cache, files);
+          if (changes.length) setQueue((current) => [...current, ...changes]);
+        }
+        cache = new Map(files.map((file) => [file.id, file]));
+        initialized = true;
+      }).catch(() => {
+        // Uncertain network errors never generate dialogs. The next activity
+        // update or visibility event retries against the authoritative API.
+      }).finally(() => {
+        fetching = false;
+        if (mounted && pending && !document.hidden) check(false);
+      });
     };
-    check(false);
+
+    setQueue([]);
+    refreshRef.current = check;
+    if (!playerId || !enabled) return () => { mounted = false; refreshRef.current = () => {}; };
+    check(false); // silent baseline on mount/login
     const onCompletedAction = () => check(true);
+    const onVisible = () => { if (!document.hidden) check(initialized || pending); };
     window.addEventListener('streets:quests-changed', onCompletedAction);
-    return () => { mounted = false; window.removeEventListener('streets:quests-changed', onCompletedAction); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      mounted = false;
+      refreshRef.current = () => {};
+      window.removeEventListener('streets:quests-changed', onCompletedAction);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [playerId, enabled]);
+
+  // Asynchronous RUN_RETURNED and settlement activities can land without a
+  // foreground action event; the existing dashboard poll refreshes this ID.
+  useEffect(() => {
+    if (activityHead) refreshRef.current(true);
+  }, [activityHead]);
 
   const current = queue[0] ?? null;
   const close = () => setQueue((items) => items.slice(1));
