@@ -8,6 +8,7 @@ import communityRoutes from './community.routes.js';
 import combatRoutes from './combat.routes.js';
 import discordBotRoutes from './discord-bot.routes.js';
 import gameRoutes from './game.routes.js';
+import caseFileRoutes from './case-files.routes.js';
 import healthRoutes from './health.routes.js';
 import notificationRoutes from './notification.routes.js';
 import pimpConsoleRoutes from './pimp-console.routes.js';
@@ -44,6 +45,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(roundAftermathRoutes, { prefix: '/rounds' });
   await fastify.register(roundInfoRoutes, { prefix: '/rounds' });
   await fastify.register(gameRoutes, { prefix: '/game' });
+  await fastify.register(caseFileRoutes, { prefix: '/game' });
   await fastify.register(communityRoutes, { prefix: '/game' });
   await fastify.register(combatRoutes, { prefix: '/game' });
   await fastify.register(allianceRoutes, { prefix: '/game' });
