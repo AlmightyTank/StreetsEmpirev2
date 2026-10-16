@@ -21,6 +21,7 @@ import { PlayerStateService } from './services/player-state.service.js';
 import { refreshSportsbookCache } from './services/sportsbook-feed.service.js';
 import { SportsbookService } from './services/sportsbook.service.js';
 import { SupporterDropService } from './services/supporter-drop.service.js';
+import { EventLifecycleService } from './services/event-lifecycle.service.js';
 
 const app = await buildApp();
 
@@ -38,6 +39,13 @@ try {
   ]);
   if (purgedSessions > 0) app.log.info(`purged ${purgedSessions} expired session(s)`);
   if (purgedActions > 0) app.log.info(`purged ${purgedActions} expired action(s)`);
+
+  // Recover durable event windows before accepting requests. This promotes events whose start
+  // passed during downtime and confirms already-active occurrences remain in progress.
+  const eventRecovery = await EventLifecycleService.sweep(app.prisma, new Date());
+  if (eventRecovery.activated || eventRecovery.expired || eventRecovery.resumed) {
+    app.log.info({ eventRecovery }, 'event lifecycle recovered');
+  }
 
   await app.listen({ host: env.HOST, port: env.PORT });
 } catch (error) {
@@ -67,6 +75,13 @@ const stopSportsbook = Object.values(sportsbookKeys).some(Boolean)
 const stopSupporterDrops = startPoller('Supporter drops', 60 * 60_000, async () => {
   const result = await SupporterDropService.sweep(app.prisma, new Date());
   if (result.granted) app.log.info({ supporterDrop: result }, 'Supporter drop given out');
+}, (message, error) => app.log.error(error, message));
+
+// Scheduled events advance without waiting for a player to open the Events center. The first
+// reconciliation already ran before listen; this keeps later windows moving on their own.
+const stopEvents = startPoller('Event lifecycle', 60_000, async () => {
+  const result = await EventLifecycleService.sweep(app.prisma, new Date());
+  if (result.activated || result.expired) app.log.info({ eventLifecycle: result }, 'event lifecycle advanced');
 }, (message, error) => app.log.error(error, message));
 
 // Alerts: collect what is due, then send push. The Discord bot also collects before it claims.
@@ -112,6 +127,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     stopAlerts();
     stopSportsbook();
     stopSupporterDrops();
+    stopEvents();
     stopTurfWars();
     await app.close();
     process.exit(0);
