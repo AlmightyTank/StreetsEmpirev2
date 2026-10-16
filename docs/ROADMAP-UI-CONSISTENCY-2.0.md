@@ -1,6 +1,6 @@
 # StreetsEmpire 2.0 — Unified UI & Theme Consistency Roadmap
 
-**Status:** Proposed / ready for implementation  
+**Status:** Slices A–G implemented; automated certification passed; pending human visual sign-off  
 **Target branch:** `beta`  
 **Proposed repository path:** `docs/ROADMAP-UI-CONSISTENCY-2.0.md`  
 **Target milestone:** 2.0 release-readiness  
