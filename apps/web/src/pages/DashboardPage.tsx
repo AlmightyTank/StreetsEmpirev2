@@ -6,6 +6,7 @@ import { ActivityFeed } from '../components/ActivityFeed.js';
 import { NavIcon } from '../components/NavIcon.js';
 import type { IconName } from '../layouts/gameNav.js';
 import { DashboardStorySpotlight } from '../components/DashboardStorySpotlight.js';
+import { DashboardCaseSpotlight } from '../components/DashboardCaseSpotlight.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { Alert } from '../components/Alert.js';
@@ -463,6 +464,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         </div>
         <section className="se-dashboard-overview" aria-label="Main story and important alerts">
           <DashboardStorySpotlight />
+          <DashboardCaseSpotlight />
           <div className={`se-dashboard-command__attention${attentionCount ? ' se-dashboard-command__attention--alerts' : ''}${criticalAttention ? ' se-dashboard-command__attention--urgent' : ''}`}>
             <div className="se-dashboard-sectionhead">
               <div>
