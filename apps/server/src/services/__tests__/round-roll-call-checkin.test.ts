@@ -38,4 +38,18 @@ describe('round roll call check-ins', () => {
     expect(view.missedCompletedDays).toBe(1);
     expect(view.allowanceRemaining).toBe(6);
   });
+  it('can finish on round day 28 after skipping the first seven days', async () => {
+    const { db } = database();
+    for (let day = 8; day <= 28; day++) {
+      const now = new Date(START.getTime() + (day - 1) * DAY + HOUR);
+      await RoundRollCallService.checkIn(db, 'r1', 'p1', now);
+    }
+    const result = await RoundRollCallService.view(db, round, 'p1', new Date(START.getTime() + 27 * DAY + HOUR));
+    expect(result.stamps).toBe(21);
+    expect(result.completed).toBe(true);
+    expect(result.allowanceRemaining).toBe(0);
+    const extra = await RoundRollCallService.checkIn(db, 'r1', 'p1', new Date(START.getTime() + 27 * DAY + 2 * HOUR));
+    expect(extra.recorded).toBe(false);
+  });
+
 });
