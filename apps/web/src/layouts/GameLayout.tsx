@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell, useSidebarRail } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
@@ -9,6 +9,7 @@ import { PageGuide } from '../components/onboarding/PageGuide.js';
 import { useOnboarding } from '../stores/onboarding.js';
 import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
+import { usePullDownAllPages } from '../hooks/usePullDownAllPages.js';
 import { useGamePresence } from '../hooks/useGamePresence.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
 import { useSession } from '../stores/session.js';
@@ -246,13 +247,14 @@ function TabBar({ slots, pathname, badges, moreOpen, onMore, onEditSlot, moreBut
  * Every game page as a grid, from the More tab. In edit mode the same grid
  * picks what goes in a tab slot instead of navigating.
  */
-function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onEditSlot, onPick, onReset, onClose }: {
+function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDefault, onEditSlot, onPick, onReset, onClose }: {
   sections: NavSection[];
   pathname: string;
   badges: Record<string, NavBadge>;
   slots: NavPage[];
   /** The tab slot being changed, or null when browsing. */
   editSlot: number | null;
+  fromTop: boolean;
   isDefault: boolean;
   onEditSlot: (index: number | null) => void;
   onPick: (key: string) => void;
@@ -290,7 +292,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onE
   }
 
   return (
-    <div className="se-sheet" onKeyDown={onKeyDown}>
+    <div className={`se-sheet${fromTop ? ' se-sheet--from-top' : ''}`} onKeyDown={onKeyDown}>
       <div className="se-sheet__backdrop" onClick={onClose} aria-hidden="true" />
       <div ref={sheet} className="se-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="se-sheet-title">
         <div className="se-sheet__grip" aria-hidden="true" />
@@ -427,8 +429,10 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   const badges = useNavBadges(pathname, search);
   const pages = sections.flatMap((section) => section.pages);
   const tabs = useTabSlots(pages);
-  const [sheet, setSheet] = useState<{ editSlot: number | null } | null>(null);
+  const [sheet, setSheet] = useState<{ editSlot: number | null; fromTop: boolean } | null>(null);
   const moreButton = useRef<HTMLButtonElement>(null);
+  const openOnPull = useCallback(() => setSheet((current) => current ?? { editSlot: null, fromTop: true }), []);
+  usePullDownAllPages(sheet === null, openOnPull);
   useRouteScroll(pathname, hash);
   // 1.0.0-B: tutorial progress, refreshed as the player acts so the goals tick off.
   const playerId = useSession((s) => s.me?.id ?? null);
@@ -450,12 +454,12 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
         tabbar={
       <>
         <TabBar slots={tabs.slots} pathname={pathname} badges={badges} moreOpen={sheet !== null} moreButton={moreButton}
-          onMore={() => setSheet((open) => (open ? null : { editSlot: null }))}
-          onEditSlot={(index) => setSheet({ editSlot: index })} />
+          onMore={() => setSheet((open) => (open ? null : { editSlot: null, fromTop: false }))}
+          onEditSlot={(index) => setSheet({ editSlot: index, fromTop: false })} />
         {sheet ? (
           <MoreSheet sections={sections} pathname={pathname} badges={badges} slots={tabs.slots}
-            editSlot={sheet.editSlot} isDefault={tabs.isDefault}
-            onEditSlot={(editSlot) => setSheet({ editSlot })}
+            editSlot={sheet.editSlot} fromTop={sheet.fromTop} isDefault={tabs.isDefault}
+            onEditSlot={(editSlot) => setSheet((current) => ({ editSlot, fromTop: current?.fromTop ?? false }))}
             onPick={(key) => { if (sheet.editSlot !== null) tabs.setSlot(sheet.editSlot, key); }}
             onReset={tabs.reset}
             onClose={closeSheet} />
