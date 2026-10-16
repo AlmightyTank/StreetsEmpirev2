@@ -1,7 +1,7 @@
 # Round Roll Call — Slice A: Round-Aware Check-Ins
 
 **Status:** Implemented foundation on `feature/round-roll-call-a`, based on `beta`.
-**Scope:** Attendance ledger, server clock, endpoints, database migration, and tests. No payouts, cosmetic unlocks, frontend popups, or catch-up quests yet.
+**Scope:** Attendance ledger, server clock, endpoints, automatic foreground check-in, database migration, and tests. No payouts, cosmetic unlocks, frontend popups, or catch-up quests yet.
 
 ## Product contract
 
@@ -9,7 +9,7 @@
 - Examples: 14-day round → 7 stamps; 21-day → 14; 28-day → 21; 35-day → 28; 42-day → 35.
 - Seven missed days are included in the math and may occur anywhere. Progress **never resets** after an absence.
 - A round day starts at `round.startsAt + (dayIndex-1)*24h`. The final window ends at the exact `round.endsAt`. Server time is authoritative; there is no client-timezone or midnight shortcut.
-- Only an authenticated account with a RoundPlayer in the current ACTIVE round can record attendance. An authenticated page read is not a stamp; future Slice C will invoke the check-in POST on foreground session entry.
+- Only an authenticated account with a RoundPlayer in the current ACTIVE round can record attendance. The foreground game snapshot performs the authenticated check-in POST. Background dashboard polling never earns a stamp; Slice C will add the visible calendar and claim UI.
 - A player can stamp once per round-relative day, up to the final target. A PostgreSQL unique index guards repeated requests and multiple tabs. The round row lock also serializes check-ins with early round closure.
 - The ledger is **per RoundPlayer** and disappears only if that RoundPlayer is intentionally deleted. A new round has a new track. Permanent cosmetics will instead live on Account in Slice D.
 - No reward or cosmetic is granted in A, even when the final attendance count is reached. B–D will implement rewards, claim receipts, and the final all-or-nothing cosmetic grant.
@@ -28,7 +28,7 @@ A check-in when not ACTIVE, before the start, after the end, or on a round seven
 ## Follow-on slices
 
 - **B:** Versioned round reward catalog with rarity distribution, value caps, and durable per-stamp claim receipts.
-- **C:** First-foreground-session automatic check-in, reward calendar, claim interactions, progress visibility, and celebration UX with no scroll jumps.
+- **C:** Reward calendar, claim interactions, progress visibility, notification and celebration UX with no scroll jumps.
 - **D:** Permanent combined shell + crew cosmetic set granted **only** when the final reward step is claimed. Reuse AccountCosmeticUnlock and existing theme/crew style catalogs.
 - **E:** Auditable, bounded catch-up mechanics and admin tools; preserve the seven-day native attendance allowance.
 - **F:** Economy simulation, anti-abuse verification, migration/round-closure tests, mobile accessibility, and release polish.
