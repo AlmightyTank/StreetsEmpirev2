@@ -15,6 +15,11 @@ import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 import { newActionId } from '../utils/actionId.js';
 import { formatWhen } from '../utils/time.js';
+import {
+  casinoSoundEnabled,
+  playCasinoSound,
+  setCasinoSoundEnabled,
+} from '../lib/casinoAudio.js';
 
 function dollarsToCents(value: string): number | null {
   const clean = value.trim().replaceAll(',', '').replace(/^\$/, '');
@@ -27,6 +32,10 @@ function dollarsToCents(value: string): number | null {
 function signedMoney(value: number): string {
   if (value === 0) return '$0.00';
   return (value > 0 ? '+' : '−') + formatCents(Math.abs(value));
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function blackjackOutcomeLabel(outcome: string | null): string {
@@ -68,6 +77,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
   const [wager, setWager] = useState('10');
   const [lastHand, setLastHand] = useState<CasinoBlackjackHandDto | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabledState] = useState(() => casinoSoundEnabled());
   const [error, setError] = useState<string | null>(null);
   const dealAction = useRef(newActionId());
   const hitAction = useRef(newActionId());
@@ -75,6 +85,36 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
   const doubleAction = useRef(newActionId());
   const splitAction = useRef(newActionId());
   const feltRef = useRef<HTMLDivElement | null>(null);
+
+  async function dealSounds(count: number, flipFirst = false, reveal?: () => void): Promise<void> {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (flipFirst) playCasinoSound('CARD_FLIP', soundEnabled);
+    if (reducedMotion) {
+      if (count > 0) playCasinoSound('CARD_DEAL', soundEnabled);
+      reveal?.();
+      return;
+    }
+    if (flipFirst) await wait(130);
+    if (count === 0) reveal?.();
+    for (let index = 0; index < count; index++) {
+      playCasinoSound('CARD_DEAL', soundEnabled, index);
+      if (index === 0) reveal?.();
+      await wait(145);
+    }
+  }
+
+  function playHandResult(hand: CasinoBlackjackHandDto): void {
+    if (hand.status !== 'SETTLED') return;
+    if (hand.playerHands.some((playerHand) => playerHand.outcome === 'BLACKJACK')) {
+      playCasinoSound('BLACKJACK', soundEnabled);
+    } else if (hand.netCents > 0) {
+      playCasinoSound('SMALL_WIN', soundEnabled);
+    } else if (hand.netCents === 0) {
+      playCasinoSound('TABLE_PUSH', soundEnabled);
+    } else {
+      playCasinoSound('LOSS', soundEnabled);
+    }
+  }
 
   function resetActionIds() {
     dealAction.current = newActionId();
@@ -140,15 +180,20 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
     if (!selectedTable || !wagerCents) return;
     setBusy('deal');
     setError(null);
+    setLastHand(null);
+    playCasinoSound('CHIP_PLACE', soundEnabled);
     try {
       const result = await casinoApi.blackjackDeal({
         tableKey: selectedTable.key,
         wagerCents,
         actionId: dealAction.current,
       });
-      onPageChange(result.page);
-      setState(result.blackjack);
-      setLastHand(result.hand);
+      await dealSounds(4, false, () => {
+        onPageChange(result.page);
+        setState(result.blackjack);
+        setLastHand(result.hand);
+      });
+      playHandResult(result.hand);
       resetActionIds();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'The dealer could not start that hand.');
@@ -166,6 +211,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
         : kind === 'double' ? doubleAction
           : splitAction;
     try {
+      if (kind === 'double' || kind === 'split') playCasinoSound('CHIP_PLACE', soundEnabled);
       const input = { handId: shownHand.id, actionId: actionRef.current };
       const result = kind === 'hit'
         ? await casinoApi.blackjackHit(input)
@@ -174,9 +220,18 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
           : kind === 'double'
             ? await casinoApi.blackjackDouble(input)
             : await casinoApi.blackjackSplit(input);
-      onPageChange(result.page);
-      setState(result.blackjack);
-      setLastHand(result.hand);
+      const beforeCards = shownHand.dealerCards.length
+        + shownHand.playerHands.reduce((sum, hand) => sum + hand.cards.length, 0);
+      const afterCards = result.hand.dealerCards.length
+        + result.hand.playerHands.reduce((sum, hand) => sum + hand.cards.length, 0);
+      const dealerRevealed = shownHand.dealerCards.some((card) => card.hidden)
+        && result.hand.dealerCards.every((card) => !card.hidden);
+      await dealSounds(Math.max(0, afterCards - beforeCards), dealerRevealed, () => {
+        onPageChange(result.page);
+        setState(result.blackjack);
+        setLastHand(result.hand);
+      });
+      playHandResult(result.hand);
       actionRef.current = newActionId();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'The dealer could not complete that action.');
@@ -240,7 +295,22 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
           {selectedTable ? (
             <>
               <div className="se-blackjack__intro">
-                <p>{selectedTable.blurb}</p>
+                <div className="se-blackjack__intro-head">
+                  <p>{selectedTable.blurb}</p>
+                  <button
+                    type="button"
+                    className="se-btn se-btn--ghost se-blackjack__sound"
+                    aria-pressed={soundEnabled}
+                    onClick={() => {
+                      const next = !soundEnabled;
+                      setSoundEnabledState(next);
+                      setCasinoSoundEnabled(next);
+                      if (next) playCasinoSound('CHIP_PLACE', true);
+                    }}
+                  >
+                    {soundEnabled ? 'Sound on' : 'Muted'}
+                  </button>
+                </div>
                 <details className="se-slots__rules">
                   <summary>Table rules</summary>
                   <p className="se-hint">
@@ -257,7 +327,8 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                 </details>
               </div>
 
-              <div ref={feltRef} className={'se-blackjack__felt' + (shownHand?.status === 'SETTLED' ? ' is-settled' : '') + (shownHand ? '' : ' is-empty')}>
+              <div ref={feltRef} className={'se-blackjack__felt' + (shownHand?.status === 'SETTLED' ? ' is-settled' : '') + (shownHand ? '' : ' is-empty') + (busy ? ' is-dealing' : '')}>
+                {busy ? <div className="se-blackjack__table-status" role="status">{busy === 'deal' ? 'DEALING' : busy === 'stand' ? 'DEALER PLAYS' : busy.toUpperCase()}</div> : null}
                 <div className="se-blackjack__dealer">
                   <div className="se-blackjack__label">
                     <span>Dealer</span>
@@ -272,7 +343,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                   <div className="se-blackjack__cards">
                     {shownHand
                       ? shownHand.dealerCards.map((card, index) => (
-                          <PlayingCard key={index} card={card} />
+                          <PlayingCard key={(card.code ?? 'hidden') + ':' + card.hidden + ':' + index} card={card} />
                         ))
                       : [0, 1].map((slot) => <div key={slot} className="se-blackjack__card is-slot" aria-hidden="true" />)}
                   </div>
@@ -293,7 +364,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                       >
                         <div className="se-blackjack__cards">
                           {hand.cards.map((card, index) => (
-                            <PlayingCard key={index} card={card} />
+                            <PlayingCard key={(card.code ?? 'hidden') + ':' + card.hidden + ':' + index} card={card} />
                           ))}
                         </div>
                         <div className="se-blackjack__label">

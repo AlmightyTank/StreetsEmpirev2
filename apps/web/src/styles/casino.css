@@ -760,6 +760,7 @@
   border-left: 1px solid rgba(255,255,255,.45);
   pointer-events: none;
 }
+.se-roulette__pocket.is-winning { z-index: 2; animation: se-roulette-pocket-win .7s ease-in-out infinite alternate; }
 .se-roulette__wheel-ring {
   position: absolute;
   inset: 28%;
@@ -843,6 +844,28 @@
 .se-roulette__wheel.is-spinning .se-roulette__ball {
   animation: se-roulette-ball-drop 4.2s linear both;
 }
+.se-roulette__wheel-status {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  z-index: 6;
+  translate: -50% 0;
+  min-width: 6.6rem;
+  padding: .28rem .5rem;
+  border: 1px solid rgb(231 194 111 / .75);
+  border-radius: 999px;
+  background: rgb(11 17 20 / .88);
+  color: #ecd58f;
+  font-size: .62rem;
+  font-weight: 950;
+  letter-spacing: .11em;
+  text-align: center;
+  text-shadow: 0 1px 2px #000;
+}
+.se-roulette__wheel-status.is-result { min-width: 3rem; font-size: .9rem; animation: se-roulette-result-pop .38s cubic-bezier(.2,.9,.3,1.3) both; }
+.se-roulette__wheel-status.is-red { background: rgb(121 41 41 / .94); }
+.se-roulette__wheel-status.is-black { background: rgb(17 20 24 / .94); }
+.se-roulette__wheel-status.is-green { background: rgb(29 107 71 / .94); }
 
 .se-roulette__readout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
 .se-roulette__readout span {
@@ -889,6 +912,7 @@
   background: var(--se-surface);
 }
 .se-roulette__chips > div { display: flex; flex-wrap: wrap; gap: .4rem; }
+.se-roulette__sound-row { display: flex; justify-content: flex-end; margin-block: -.35rem; }
 .se-roulette__chip {
   min-width: 3.65rem;
   min-height: 2.55rem;
@@ -1065,11 +1089,21 @@
     box-shadow: 0 0 .32rem rgb(255 255 255 / .4), 0 .08rem .2rem rgb(0 0 0 / .55);
   }
 }
+@keyframes se-roulette-pocket-win {
+  from { filter: brightness(1); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 0 .1rem rgb(255 226 145 / .2); }
+  to { filter: brightness(1.65); box-shadow: inset 0 0 0 2px #ffe091, 0 0 .75rem #ffd56e; }
+}
+@keyframes se-roulette-result-pop {
+  from { opacity: 0; transform: scale(.72); }
+  to { opacity: 1; transform: scale(1); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .se-roulette__wheel.is-spinning .se-roulette__pockets,
   .se-roulette__wheel.is-spinning .se-roulette__ball-track,
-  .se-roulette__wheel.is-spinning .se-roulette__ball { animation: none; }
+  .se-roulette__wheel.is-spinning .se-roulette__ball,
+  .se-roulette__pocket.is-winning,
+  .se-roulette__wheel-status.is-result { animation: none; }
 }
 
 @media (max-width: 900px) {
@@ -1751,6 +1785,8 @@
 .se-blackjack .se-casino-picker { justify-self: center; }
 .se-blackjack__intro { display: grid; gap: .25rem; }
 .se-blackjack__intro p { margin: 0; color: var(--se-text-dim); }
+.se-blackjack__intro-head { display: flex; align-items: start; justify-content: space-between; gap: .75rem; }
+.se-blackjack__sound { flex: none; }
 
 .se-blackjack__felt {
   --felt: #146b3a;
@@ -1788,6 +1824,23 @@
   pointer-events: none;
   z-index: -1;
 }
+.se-blackjack__felt.is-dealing { animation: se-blackjack-table-live .18s ease-in-out infinite alternate; }
+.se-blackjack__table-status {
+  position: absolute;
+  top: .55rem;
+  left: 50%;
+  z-index: 4;
+  translate: -50% 0;
+  padding: .22rem .55rem;
+  border: 1px solid rgb(232 196 112 / .6);
+  border-radius: 999px;
+  background: rgb(5 30 16 / .82);
+  color: #f0d88b;
+  font-size: .62rem;
+  font-weight: 950;
+  letter-spacing: .14em;
+  box-shadow: 0 0 12px rgb(232 196 112 / .15);
+}
 
 .se-blackjack__dealer,
 .se-blackjack__hands { display: grid; justify-items: center; gap: .45rem; }
@@ -1823,6 +1876,8 @@
 .se-blackjack__hand.is-active { box-shadow: 0 0 0 2px rgb(232 196 112 / .75), 0 0 22px rgb(232 196 112 / .25); }
 .se-blackjack__hand.is-win .se-blackjack__label strong,
 .se-blackjack__hand.is-blackjack .se-blackjack__label strong { color: #b6ff3a; }
+.se-blackjack__hand.is-win,
+.se-blackjack__hand.is-blackjack { animation: se-blackjack-hand-win .55s ease-out both; }
 .se-blackjack__hand.is-lose,
 .se-blackjack__hand.is-bust { opacity: .72; }
 
@@ -1874,10 +1929,24 @@
 
 .se-blackjack__moves { display: flex; flex-wrap: wrap; gap: .4rem; }
 
+@keyframes se-blackjack-table-live {
+  from { box-shadow: inset 0 0 0 2px rgb(255 214 140 / .28), inset 0 18px 40px rgb(0 0 0 / .35), 0 1px 0 4px #24160c, 0 18px 38px rgb(0 0 0 / .45); }
+  to { box-shadow: inset 0 0 0 2px rgb(255 230 165 / .42), inset 0 18px 40px rgb(0 0 0 / .3), 0 1px 0 4px #24160c, 0 18px 42px rgb(0 0 0 / .5); }
+}
+@keyframes se-blackjack-hand-win {
+  0% { transform: translateY(3px) scale(.985); }
+  65% { transform: translateY(-2px) scale(1.015); }
+  100% { transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .se-blackjack__card { animation: none; }
+  .se-blackjack__card,
+  .se-blackjack__felt.is-dealing,
+  .se-blackjack__hand.is-win,
+  .se-blackjack__hand.is-blackjack { animation: none; }
 }
 @media (max-width: 620px) {
+  .se-blackjack__intro-head { align-items: center; }
   .se-blackjack__felt { padding: 1rem .6rem 2rem; border-width: 9px; border-top-width: 7px; gap: .6rem; }
   .se-blackjack__card { width: 3.2rem; height: 4.5rem; }
   .se-blackjack__cards { min-height: 4.6rem; }

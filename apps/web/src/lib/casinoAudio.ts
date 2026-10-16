@@ -5,6 +5,14 @@ export type CasinoSound =
   | 'PAYOUT_TICK'
   | 'NEAR_MISS'
   | 'LOSS'
+  | 'CHIP_PLACE'
+  | 'CARD_DEAL'
+  | 'CARD_FLIP'
+  | 'TABLE_PUSH'
+  | 'BLACKJACK'
+  | 'ROULETTE_SPIN'
+  | 'ROULETTE_TICK'
+  | 'BALL_DROP'
   | 'SMALL_WIN'
   | 'BIG_WIN'
   | 'MEGA_WIN'
@@ -122,6 +130,39 @@ export function playCasinoSound(sound: CasinoSound, enabled = casinoSoundEnabled
     case 'LOSS':
       tone(ctx, now, 145, 0.1, 0.018, 'triangle', 116);
       noiseBurst(ctx, now, 0.04, 0.012, 500);
+      break;
+    case 'CHIP_PLACE':
+      tone(ctx, now, 1_150 + (accent % 3) * 90, 0.045, 0.018, 'sine');
+      tone(ctx, now + 0.018, 760, 0.055, 0.012, 'triangle');
+      break;
+    case 'CARD_DEAL':
+      noiseBurst(ctx, now, 0.075, 0.028, 900);
+      tone(ctx, now, 210 + (accent % 4) * 18, 0.05, 0.012, 'triangle', 150);
+      break;
+    case 'CARD_FLIP':
+      noiseBurst(ctx, now, 0.11, 0.025, 1_250);
+      tone(ctx, now + 0.035, 280, 0.07, 0.014, 'triangle', 190);
+      break;
+    case 'TABLE_PUSH':
+      tone(ctx, now, 392, 0.11, 0.02, 'triangle');
+      tone(ctx, now + 0.09, 392, 0.14, 0.018, 'triangle');
+      break;
+    case 'BLACKJACK':
+      chord(ctx, [523, 659, 784, 1047], 0.075, 0.04);
+      tone(ctx, now + 0.34, 1_568, 0.28, 0.034, 'sine');
+      break;
+    case 'ROULETTE_SPIN':
+      noiseBurst(ctx, now, 0.12, 0.025, 500);
+      tone(ctx, now, 105, 0.38, 0.018, 'sawtooth', 185);
+      break;
+    case 'ROULETTE_TICK':
+      noiseBurst(ctx, now, 0.028, 0.017, 1_450);
+      tone(ctx, now, 720 + (accent % 5) * 34, 0.035, 0.012, 'square');
+      break;
+    case 'BALL_DROP':
+      noiseBurst(ctx, now, 0.08, 0.03, 650);
+      tone(ctx, now, 340, 0.08, 0.026, 'triangle', 180);
+      tone(ctx, now + 0.08, 210, 0.12, 0.02, 'triangle');
       break;
     case 'SMALL_WIN':
       chord(ctx, [523, 659, 784], 0.09, 0.03);
