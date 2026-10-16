@@ -5208,6 +5208,7 @@ model CityMemoryEvent {
   actors         Json     @default("[]")
   summary        Json     @default("{}")
   idempotencyKey String   @unique
+  happenedAtActive DateTime?
   happenedAt     DateTime @default(now())
   createdAt      DateTime @default(now())
 
@@ -5322,6 +5323,7 @@ model CriminalCaseFile {
   sourceMemoryId String?
   sourceMemory   CityMemoryEvent?   @relation(fields: [sourceMemoryId], references: [id], onDelete: SetNull)
   offerDedupeKey String             @unique
+  offeredAtActive DateTime?
   cluePlan       Json               @default("[]")
   branchKeys     Json               @default("[]")
   status         CriminalCaseStatus @default(AVAILABLE)
@@ -5339,6 +5341,8 @@ model CriminalCaseFile {
   @@index([ownerId, roundId, status, createdAt(sort: Desc)])
   @@index([roundId, cityId, createdAt(sort: Desc)])
   @@index([sourceMemoryId])
+  @@index([ownerId, offeredAtActive])
+  @@index([roundId, cityId, offeredAtActive])
 }
 
 // Every entry links to a verified server-side action receipt. No raw recon
