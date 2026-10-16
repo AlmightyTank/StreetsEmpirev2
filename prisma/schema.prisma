@@ -5331,6 +5331,11 @@ model CriminalCaseFile {
   acceptedAt      DateTime?
   solvedAt        DateTime?
   chosenBranch    String?
+  outcomeTitle    String?
+  outcomeSummary  String?
+  outcomeCategory String?
+  rewardCents     Int                @default(0)
+  rewardClaimedAt DateTime?
   chosenAt        DateTime?
   closedAt        DateTime?
   expiredAt       DateTime?

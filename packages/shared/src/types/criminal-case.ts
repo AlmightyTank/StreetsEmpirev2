@@ -24,6 +24,11 @@ export interface CriminalCaseFileDto {
   nextAction: 'SCOUT' | 'CONTACT' | 'TRAVEL' | 'ENCOUNTER' | null;
   choices: string[];
   chosenBranch: string | null;
+  /** Predictable, non-punitive choices; no concealed random roll. */
+  choiceDetails: Array<{ key: string; title: string; category: string; choiceCostCents: number }>;
+  outcome: { title: string; summary: string; category: string } | null;
+  rewardCents: number;
+  rewardClaimedAt: string | null;
   acceptedAt: string | null;
   solvedAt: string | null;
   closedAt: string | null;
