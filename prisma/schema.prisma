@@ -1281,6 +1281,7 @@ model QuestProgressReceipt {
 
 model Round {
   id   String @id @default(cuid())
+  criminalCaseFiles CriminalCaseFile[]
   name String
   slug String @unique
 
@@ -1409,6 +1410,7 @@ model RoundAftermathRewardClaim {
 /// one and the modifiers are already wired into the ruleset math.
 model City {
   id        String  @id @default(cuid())
+  criminalCaseFiles CriminalCaseFile[]
   slug      String  @unique
   name      String
   sortOrder Int     @default(0)
@@ -1449,6 +1451,7 @@ model City {
 
 model RoundPlayer {
   id String @id @default(cuid())
+  criminalCaseFiles CriminalCaseFile[]
 
   roundId String
   round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
@@ -5195,6 +5198,7 @@ model PlayerFactionWarning {
 
 model CityMemoryEvent {
   id             String   @id @default(cuid())
+  criminalCaseFiles CriminalCaseFile[]
   roundId        String
   round          Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
   cityId         String
@@ -5289,4 +5293,68 @@ model LegacyEntry {
 
   @@index([accountId, awardedAt(sort: Desc)])
   @@index([sourceRoundId, kind])
+}
+
+ 
+// Living Streets 2.0.0-B. Case files are player-owned evidence narratives,
+// separate from federal PlayerCase, quests, and GameEventParticipation.
+enum CriminalCaseStatus {
+  LOCKED
+  AVAILABLE
+  ACTIVE
+  SOLVED
+  CLOSED
+  EXPIRED
+}
+
+model CriminalCaseFile {
+  id             String             @id @default(cuid())
+  roundId        String
+  round          Round              @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  ownerId        String
+  owner          RoundPlayer        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  cityId         String
+  city           City               @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  storyKey       String
+  caseKey        String
+  rulesetId      String
+  rulesetVersion String
+  sourceMemoryId String?
+  sourceMemory   CityMemoryEvent?   @relation(fields: [sourceMemoryId], references: [id], onDelete: SetNull)
+  offerDedupeKey String             @unique
+  cluePlan       Json               @default("[]")
+  branchKeys     Json               @default("[]")
+  status         CriminalCaseStatus @default(AVAILABLE)
+  expiresAtActive DateTime
+  acceptedAt      DateTime?
+  solvedAt        DateTime?
+  chosenBranch    String?
+  chosenAt        DateTime?
+  closedAt        DateTime?
+  expiredAt       DateTime?
+  evidence        CriminalCaseEvidence[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([ownerId, roundId, status, createdAt(sort: Desc)])
+  @@index([roundId, cityId, createdAt(sort: Desc)])
+  @@index([sourceMemoryId])
+}
+
+// Every entry links to a verified server-side action receipt. No raw recon
+// payload or secret case details are written to public Activity/News.
+model CriminalCaseEvidence {
+  id             String           @id @default(cuid())
+  caseId         String
+  caseFile       CriminalCaseFile @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  clueKey        String
+  sourceKind     String
+  sourceReceiptId String
+  observedAt     DateTime
+  recordedAt     DateTime         @default(now())
+
+  @@unique([caseId, clueKey])
+  @@unique([caseId, sourceKind])
+  @@unique([caseId, sourceReceiptId])
+  @@index([caseId, recordedAt])
 }
