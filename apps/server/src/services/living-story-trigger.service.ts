@@ -55,7 +55,7 @@ export async function tryOfferLivingStory(db: Db, input: {
     || cityCount >= LIVING_STORY_LIMITS.maxPerCityRound
     || roundCount >= LIVING_STORY_LIMITS.maxPerRound
     || cooldownCount > 0) return false;
-  return (await CriminalCaseFileService.offerFromCityMemory(db, input)) !== null;
+  return (await CriminalCaseFileService.offerFromCityMemory(db, { ownerId: input.ownerId, storyKey: input.storyKey, cityMemoryId: input.memoryId, now: input.now })) !== null;
 }
 
 /** Only actors get automatic invitations. Public sources require opt-in. */
