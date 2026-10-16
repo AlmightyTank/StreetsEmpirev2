@@ -1,4 +1,5 @@
 import { classicOgV30D } from '../classic-og-v3.0-d/index.js';
+import { classicOgV18S } from '../classic-og-v1.8-s/index.js';
 import { defineLivingStoryCatalog, LIVING_STORIES_STARTER_CATALOG } from '../living-stories.js';
 import type { Ruleset } from '../types.js';
 
@@ -9,7 +10,8 @@ import type { Ruleset } from '../types.js';
  */
 export const classicOgV30E = {
   ...classicOgV30D,
-  meta: { ...classicOgV30D.meta, id: 'classic-og-v3.0-e', version: '3.0.0-E',
+  meta: { ...classicOgV30D.meta, eventSystem: classicOgV18S.meta.eventSystem,
+    id: 'classic-og-v3.0-e', version: '3.0.0-E',
     name: 'Classic OG - Living Streets C' },
   livingStories: defineLivingStoryCatalog({
     STORY_AFTER_THE_SMOKE: { ...LIVING_STORIES_STARTER_CATALOG.STORY_AFTER_THE_SMOKE, enabled: true },

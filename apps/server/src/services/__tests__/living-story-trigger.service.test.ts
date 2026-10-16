@@ -61,6 +61,7 @@ function setup() {
 describe('Living Streets 2.0.0-C settled triggers', () => {
   it('pins opt-in definitions without modifying a historical ruleset', () => {
     expect(livingStoryCatalogForRuleset(classicOgV30D)).toEqual({});
+    expect(classicOgV30E.meta.eventSystem?.cityConditions).toBe('FIRST_CLASS');
     const enabled = Object.values(livingStoryCatalogForRuleset(classicOgV30E));
     expect(enabled).toHaveLength(5);
     expect(enabled.every((definition) => definition.enabled && definition.rewardBudgetCents === 0)).toBe(true);
