@@ -115,7 +115,7 @@ describe('Living Streets 2.0.0-B case file persistence', () => {
     state.memory.cityId = 'boston';
     expect(await offer()).toBeNull();
     state.memory.cityId = 'detroit';
-    state.memory.happenedAt = at(-5);
+    state.memory.happenedAt = at(-25 * 60); // Beyond the full active-clock offer window.
     expect(await offer()).toBeNull();
     expect(state.cases).toHaveLength(0);
   });
