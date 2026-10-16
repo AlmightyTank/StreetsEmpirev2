@@ -42,9 +42,13 @@ function toDto(row: CaseRow, clock: Clock, now: Date): CriminalCaseFileDto {
     clues: plan.map((clue) => ({
       key: clue.key, label: clue.label, sourceKind: clue.sourceKind,
       found: byKey.has(clue.key), observedAt: byKey.get(clue.key)?.observedAt.toISOString() ?? null,
+      hint: clue.label,
     })),
     cluesFound: plan.filter((clue) => byKey.has(clue.key)).length,
     cluesRequired: plan.length,
+    confidence: byKey.size >= 2 ? 'confirmed' : byKey.size === 1 ? 'likely' : 'rumor',
+    nextClueKey: plan.find((clue) => !byKey.has(clue.key))?.key ?? null,
+    nextAction: plan.find((clue) => !byKey.has(clue.key))?.sourceKind ?? null,
     choices: branchesOf(row.branchKeys),
     chosenBranch: row.chosenBranch,
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
@@ -243,7 +247,10 @@ export const CriminalCaseFileService = {
       const plan = cluesOf(row.cluePlan);
       const found = new Set(row.evidence.map((entry) => entry.clueKey));
       const next = plan.find((entry) => !found.has(entry.key));
-      if (!next || next.eventType !== activity.type) return toDto(row, round, now);
+      // Legacy Slice B snapshots used QUEST_CLAIMED as a placeholder for
+      // CONTACT. No arbitrary quest completion can be evidence in D.
+      const expectedType = next?.sourceKind === 'CONTACT' ? 'INFORMANT_TIP' : next?.eventType;
+      if (!next || (expectedType !== activity.type && !(next.sourceKind === 'CONTACT' && activity.type === 'COMBAT_RECON'))) return toDto(row, round, now);
       if (row.evidence.some((entry) => entry.sourceReceiptId === activity.id || entry.sourceKind === next.sourceKind)) {
         return toDto(row, round, now);
       }
