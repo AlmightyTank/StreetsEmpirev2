@@ -1109,6 +1109,26 @@ model PlayerArmedFavor {
 }
 
 // ---------------------------------------------------------------------------
+// Round Roll Call (docs/ROUND-ROLL-CALL.md)
+// ---------------------------------------------------------------------------
+
+/// One earned attendance stamp per round-player per round-relative day.
+/// Never stored on Account: stamps reset each round, cosmetics will not.
+model RoundLoginCheckIn {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// One-based slot, relative to Round.startsAt rather than browser midnight.
+  dayIndex    Int
+  checkedInAt DateTime @default(now())
+
+  @@unique([roundPlayerId, dayIndex])
+  @@index([roundPlayerId, checkedInAt])
+}
+
+// ---------------------------------------------------------------------------
 // Street Pass (docs/STREET-PASS.md)
 // ---------------------------------------------------------------------------
 
@@ -1676,6 +1696,7 @@ model RoundPlayer {
   armedFavors           PlayerArmedFavor[]
   streetPassProgress    StreetPassProgress?
   streetPassClaims      StreetPassClaim[]
+  roundLoginCheckIns     RoundLoginCheckIn[]
   surveySubmissions     SurveySubmission[]
   raidsSent             RaidBattle[]         @relation("RaidAttacker")
   raidsReceived         RaidBattle[]         @relation("RaidDefender")
