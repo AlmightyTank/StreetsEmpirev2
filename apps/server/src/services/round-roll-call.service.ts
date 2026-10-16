@@ -10,7 +10,7 @@ export const ROUND_ROLL_CALL_ALLOWANCE_DAYS = 7;
  * of 24-hour days. It does not use the browser clock or a player's timezone.
  * Partial final days count as a day, and their window closes at endsAt.
  */
-export function roundRollCallClock(round: Pick<Round, 'startsAt' | 'endsAt' | 'status'>, now: Date) {
+export function roundRollCallClock(round: Pick<Round, 'startsAt' | 'endsAt' | 'status'> & { pausedAt?: Date | null }, now: Date) {
   const start = round.startsAt.getTime();
   const end = round.endsAt.getTime();
   const current = now.getTime();
@@ -19,7 +19,7 @@ export function roundRollCallClock(round: Pick<Round, 'startsAt' | 'endsAt' | 's
   const beforeStart = current < start;
   const ended = current >= end || round.status === 'ENDED' || round.status === 'ARCHIVED';
   const roundDay = beforeStart ? 0 : Math.min(roundDays, Math.floor((current - start) / DAY_MS) + 1);
-  const active = round.status === 'ACTIVE' && !beforeStart && !ended && requiredStamps > 0;
+  const active = round.status === 'ACTIVE' && round.pausedAt == null && !beforeStart && !ended && requiredStamps > 0;
   const completedDaySlots = beforeStart ? 0 : ended ? roundDays : Math.min(roundDays, Math.floor((current - start) / DAY_MS));
   const nextDayAt = active
     ? new Date(Math.min(end, start + roundDay * DAY_MS)).toISOString()
