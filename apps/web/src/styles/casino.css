@@ -1358,7 +1358,29 @@
 @keyframes se-winner-pulse { from { opacity: .72; transform: translate(-50%, .08rem) scale(.96); } to { opacity: 1; transform: translate(-50%, 0) scale(1.04); } }
 @media (prefers-reduced-motion: reduce) { .se-scratch__foil, .se-scratch__grid > button.is-winning, .se-scratch__ticket.is-win, .se-horse-racing__horse b, .se-horse-racing__horse.is-winner::after { animation: none; transition: none; } }
 @media (max-width: 760px) { .se-scratch__denoms { grid-template-columns: repeat(4, 1fr); } .se-horse-racing__board { grid-template-columns: 1fr; } }
-@media (max-width: 520px) { .se-scratch__ticket { padding: .55rem; } .se-scratch__grid { gap: .28rem; } .se-scratch__grid > button { min-height: 4.75rem; } .se-scratch__winners > span { width: 4.35rem; } .se-horse-racing__bet { grid-template-columns: 1fr; } .se-horse-racing__horse small { max-width: 4rem; font-size: .52rem; } }
+@media (max-width: 520px) {
+  .se-scratch__ticket { padding: .55rem; }
+  .se-scratch__grid { gap: .28rem; }
+  .se-scratch__grid > button { min-height: 4.75rem; }
+  .se-scratch__winners > span { width: 4.35rem; }
+
+  .se-horse-racing__toolbar { align-items: stretch; flex-wrap: wrap; gap: .4rem; }
+  .se-horse-racing__toolbar > span { flex: 1 1 8rem; min-width: 0; align-self: center; line-height: 1.2; }
+  .se-horse-racing__toolbar .se-btn { flex: 0 0 auto; }
+  .se-horse-racing__board button { grid-template-columns: .4rem minmax(0, 1fr) auto; gap: .45rem; padding: .5rem; }
+  .se-horse-racing__board button > span { min-width: 0; }
+  .se-horse-racing__board button > span b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .se-horse-racing__board button > strong { font-size: .82rem; }
+  .se-horse-racing__track { min-height: 17.1rem; }
+  .se-horse-racing__rail { gap: .35rem; padding-inline: .45rem; font-size: .56rem; letter-spacing: .06em; }
+  .se-horse-racing__rail strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .se-horse-racing__lane { grid-template-columns: 1.7rem minmax(0, 1fr) 1.7rem; padding-inline: .2rem; }
+  .se-horse-racing__horse b { font-size: 1.3rem; }
+  .se-horse-racing__horse small { max-width: 3.7rem; font-size: .5rem; }
+  .se-horse-racing__bet { grid-template-columns: 1fr; }
+  .se-horse-racing__result { min-width: 0; }
+  .se-horse-racing__result span, .se-horse-racing__result strong { overflow-wrap: anywhere; }
+}
 
 /* 1.2.0-E High rollers, VIP rooms and city identity */
 .se-casino-status {
