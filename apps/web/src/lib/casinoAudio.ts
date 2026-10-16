@@ -18,6 +18,8 @@ export type CasinoSound =
   | 'POKER_CHECK'
   | 'POKER_FOLD'
   | 'POKER_ALL_IN'
+  | 'SPORTS_PICK'
+  | 'TICKET_PRINT'
   | 'SMALL_WIN'
   | 'BIG_WIN'
   | 'MEGA_WIN'
@@ -194,6 +196,17 @@ export function playCasinoSound(sound: CasinoSound, enabled = casinoSoundEnabled
         noiseBurst(ctx, now + index * 0.045, 0.035, 0.014, 1_100);
       }
       tone(ctx, now + 0.19, 330, 0.18, 0.026, 'triangle');
+      break;
+    case 'SPORTS_PICK':
+      tone(ctx, now, 520 + (accent % 4) * 45, 0.055, 0.018, 'sine');
+      tone(ctx, now + 0.045, 780 + (accent % 3) * 60, 0.07, 0.015, 'triangle');
+      break;
+    case 'TICKET_PRINT':
+      for (let index = 0; index < 6; index++) {
+        noiseBurst(ctx, now + index * 0.038, 0.022, 0.011, 1_150 + index * 45);
+      }
+      tone(ctx, now + 0.23, 880, 0.075, 0.024, 'sine');
+      tone(ctx, now + 0.29, 1_175, 0.11, 0.022, 'sine');
       break;
     case 'SMALL_WIN':
       chord(ctx, [523, 659, 784], 0.09, 0.03);

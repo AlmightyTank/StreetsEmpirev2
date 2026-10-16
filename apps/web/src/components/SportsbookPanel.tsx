@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   SPORTSBOOK_LIMITS,
   formatAmericanOdds,
@@ -24,6 +24,11 @@ import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 import { rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { formatAgo, formatClockTime, formatDuration, formatWeekdayTime, formatWhen } from '../utils/time.js';
+import {
+  casinoSoundEnabled,
+  playCasinoSound,
+  setCasinoSoundEnabled,
+} from '../lib/casinoAudio.js';
 
 type LeagueFilter = 'ALL' | SportsbookLeagueKey;
 type TicketView = 'open' | 'settled';
@@ -33,6 +38,10 @@ const LEAGUE_FILTERS: readonly LeagueFilter[] = ['ALL', 'NFL', 'NBA', 'MLB', 'NH
 const QUICK_STAKES = [1_000, 2_500, 10_000, 50_000] as const;
 /** Under this, the countdown turns urgent so a late pick is not a surprise. */
 const CLOSING_SOON_MS = 15 * 60_000;
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
 
 const isLeagueFilter = (value: unknown): value is LeagueFilter =>
   typeof value === 'string' && (LEAGUE_FILTERS as readonly string[]).includes(value);
@@ -137,8 +146,13 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
   const [pick, setPick] = useState<Pick | null>(null);
   const [stake, setStake] = useState('25');
   const [busy, setBusy] = useState(false);
+  const [soundEnabled, setSoundEnabledState] = useState(() => casinoSoundEnabled());
+  const [acceptedTicketId, setAcceptedTicketId] = useState<string | null>(null);
+  const [settledTicketId, setSettledTicketId] = useState<string | null>(null);
+  const [settlementStatus, setSettlementStatus] = useState<SportsbookBetDto['status'] | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const ticketStatuses = useRef<Map<string, SportsbookBetDto['status']> | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -171,6 +185,28 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
     }, 15_000);
     return () => window.clearInterval(timer);
   }, [clockOffset]);
+
+  useEffect(() => {
+    if (!page) return;
+    const allTickets = [...page.tickets.open, ...page.tickets.settled];
+    const previous = ticketStatuses.current;
+    if (previous) {
+      const newlySettled = allTickets.filter((bet) => previous.get(bet.id) === 'OPEN' && bet.status !== 'OPEN');
+      if (newlySettled.length) {
+        const result = newlySettled.find((bet) => bet.status === 'WON') ?? newlySettled[0]!;
+        setSettledTicketId(result.id);
+        setSettlementStatus(result.status);
+        if (result.status === 'WON') playCasinoSound('SMALL_WIN', soundEnabled);
+        else if (result.status === 'LOST') playCasinoSound('LOSS', soundEnabled);
+        else playCasinoSound('TABLE_PUSH', soundEnabled);
+        window.setTimeout(() => {
+          setSettledTicketId(null);
+          setSettlementStatus(null);
+        }, 1_200);
+      }
+    }
+    ticketStatuses.current = new Map(allTickets.map((bet) => [bet.id, bet.status]));
+  }, [page, soundEnabled]);
 
   const feed = page?.feed ?? null;
   const events = useMemo(() => page?.events ?? [], [page]);
@@ -222,7 +258,9 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
     if (odds === null) return;
     setNotice('');
     setError('');
-    setPick((current) => (current?.eventId === event.id && current.selection === selection ? null : { eventId: event.id, selection, seenOdds: odds }));
+    const clearing = pick?.eventId === event.id && pick.selection === selection;
+    playCasinoSound(clearing ? 'POKER_FOLD' : 'SPORTS_PICK', soundEnabled, selection === 'HOME' ? 1 : 0);
+    setPick(clearing ? null : { eventId: event.id, selection, seenOdds: odds });
   }
 
   async function place() {
@@ -230,15 +268,20 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
     setBusy(true);
     setError('');
     setNotice('');
+    playCasinoSound('CHIP_PLACE', soundEnabled);
     try {
       const result = await casinoApi.sportsbookBet({
         eventId: pick.eventId, selection: pick.selection, stakeCents, actionId: newActionId(), expectedOdds: pickedOdds,
       });
       const team = pick.selection === 'HOME' ? pickedEvent.homeTeam : pickedEvent.awayTeam;
+      playCasinoSound('TICKET_PRINT', soundEnabled);
+      setAcceptedTicketId(result.bet.id);
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await wait(420);
       setNotice(`Ticket accepted: ${team} ${formatAmericanOdds(result.bet.oddsAmerican)}, ${formatCentsExact(result.bet.stakeCents)} in chips to pay ${formatCentsExact(result.bet.payoutCents)} in chips. No turns were used.`);
       setPick(null);
       setTicketView('open');
       await Promise.all([refresh(), onPlaced()]);
+      window.setTimeout(() => setAcceptedTicketId(null), 1_200);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'The wager could not be placed.');
       // A moved or closed line: reload so the slip shows what the server will accept now.
@@ -257,6 +300,24 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
   return (
     <Panel title="Sportsbook" aside="Pregame · casino chips · no turns">
       <div className="se-sportsbook">
+        <div className="se-sportsbook__toolbar">
+          <span aria-live="polite">
+            {busy ? 'PRINTING TICKET' : settlementStatus ? `TICKET ${RESULT_LABEL[settlementStatus].toUpperCase()}` : feedStatus?.tone === 'good' ? 'LINES LIVE' : 'SPORTS DESK'}
+          </span>
+          <button
+            type="button"
+            className="se-btn se-btn--ghost"
+            aria-pressed={soundEnabled}
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabledState(next);
+              setCasinoSoundEnabled(next);
+              if (next) playCasinoSound('SPORTS_PICK', true);
+            }}
+          >
+            {soundEnabled ? 'Sound on' : 'Muted'}
+          </button>
+        </div>
         <p className="se-hint">
           Moneylines for today and tomorrow. Tickets use the chips in your open casino bankroll. Pick a side, set a stake, and the price locks when the ticket is accepted. Betting closes at the scheduled start.
           {' '}Tickets run {formatCents(limits.minStakeCents)} to {formatCents(limits.maxStakeCents)} and can win up to {formatCents(limits.maxProfitCents)}.
@@ -309,7 +370,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                   const untilStart = Date.parse(event.startsAt) - now;
                   const soon = state === 'OPEN' && untilStart <= CLOSING_SOON_MS;
                   return (
-                    <article className={`se-sportsbook__event${state === 'OPEN' ? '' : ' is-closed'}`} key={event.id}>
+                    <article className={`se-sportsbook__event${state === 'OPEN' ? '' : ' is-closed'}${pick?.eventId === event.id ? ' has-pick' : ''}`} key={event.id}>
                       <header>
                         <span className="se-sportsbook__tag">{event.sport}</span>
                         <time dateTime={event.startsAt}>{kickoffLabel(event.startsAt)}</time>
@@ -349,7 +410,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
             )) : null}
           </div>
 
-          <aside className={`se-sportsbook__slip${pick ? ' has-pick' : ''}`} aria-label="Bet slip">
+          <aside className={`se-sportsbook__slip${pick ? ' has-pick' : ''}${acceptedTicketId ? ' is-accepted' : ''}`} aria-label="Bet slip">
             <h3>Bet slip</h3>
             {pick && pickedEvent ? (
               <div className="se-sportsbook__pick">
@@ -376,7 +437,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
             </label>
             <div className="se-sportsbook__quick" role="group" aria-label="Quick stake">
               {QUICK_STAKES.map((cents) => (
-                <button key={cents} type="button" className="se-sportsbook__chip" onClick={() => setStake(centsToStake(cents))}>
+                <button key={cents} type="button" className="se-sportsbook__chip" onClick={() => { setStake(centsToStake(cents)); playCasinoSound('CHIP_PLACE', soundEnabled, cents); }}>
                   {formatCents(cents)}
                 </button>
               ))}
@@ -384,7 +445,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                 type="button"
                 className="se-sportsbook__chip"
                 disabled={topStakeCents < limits.minStakeCents}
-                onClick={() => setStake(centsToStake(topStakeCents))}
+                onClick={() => { setStake(centsToStake(topStakeCents)); playCasinoSound('CHIP_PLACE', soundEnabled, 3); }}
               >
                 Max
               </button>
@@ -411,7 +472,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
             </details>
             <div className="se-sportsbook__slip-actions">
               <Button type="button" className="se-btn se-btn--primary se-btn--block" disabled={busy} disabledReason={busy ? null : placeReason} onClick={() => void place()}>
-                {busy ? 'Placing…' : 'Place ticket'}
+                {busy ? 'Printing ticket…' : 'Place ticket'}
               </Button>
               {pick ? <button type="button" className="se-btn se-btn--ghost" onClick={() => setPick(null)}>Clear</button> : null}
             </div>
@@ -458,7 +519,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                 const started = Date.parse(bet.startsAt) <= now;
                 const score = finalScore(bet);
                 return (
-                  <article className={`se-sportsbook__ticket is-${bet.status.toLowerCase()}`} key={bet.id}>
+                  <article className={`se-sportsbook__ticket is-${bet.status.toLowerCase()}${bet.id === acceptedTicketId ? ' is-new' : ''}${bet.id === settledTicketId ? ' is-just-settled' : ''}`} key={bet.id}>
                     <header>
                       <strong>{bet.pickTeam} <b>{formatAmericanOdds(bet.oddsAmerican)}</b></strong>
                       <span className="se-sportsbook__result">
