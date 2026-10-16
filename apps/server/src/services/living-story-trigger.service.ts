@@ -89,9 +89,24 @@ export async function listPublicStoryOpportunities(
   const defs = Object.values(livingStoryCatalogForRuleset(ruleset)).filter((def) =>
     def.enabled && def.audience === 'CITY_PLAYERS' && def.trigger.sourceKind === 'CITY_MEMORY');
   if (!defs.length) return [];
+  const activeNow = activeRoundEventTime(round, input.now);
+  // Mirror acceptance availability before showing action-ready cards. POST
+  // repeats the checks under the round-scoped advisory lock.
+  const [ownerCount, cityCount, roundCount, cooldownCount] = await Promise.all([
+    db.criminalCaseFile.count({ where: { ownerId: input.ownerId, roundId: round.id } }),
+    db.criminalCaseFile.count({ where: { cityId: input.cityId, roundId: round.id } }),
+    db.criminalCaseFile.count({ where: { roundId: round.id } }),
+    db.criminalCaseFile.count({ where: { roundId: round.id, ownerId: input.ownerId,
+      offeredAtActive: { gte: new Date(activeNow.getTime() - LIVING_STORY_LIMITS.cooldownActiveMinutes * 60_000) } } }),
+  ]);
+  if (ownerCount >= LIVING_STORY_LIMITS.maxPerOwnerRound
+    || cityCount >= LIVING_STORY_LIMITS.maxPerCityRound
+    || roundCount >= LIVING_STORY_LIMITS.maxPerRound || cooldownCount > 0) return [];
+  const eligibleKinds = [...new Set(defs.flatMap((def) => def.trigger.eventKinds))];
   const rows = await db.cityMemoryEvent.findMany({
     where: { roundId: round.id, cityId: input.cityId, visibility: 'public',
-      happenedAt: { gte: new Date(input.now.getTime() - 24 * 3_600_000) } },
+      kind: { in: eligibleKinds },
+      happenedAtActive: { gte: new Date(activeNow.getTime() - 24 * 3_600_000) } },
     select: { id: true, roundId: true, cityId: true, kind: true, actors: true,
       happenedAt: true, happenedAtActive: true }, orderBy: { happenedAt: 'desc' }, take: 40,
   });
