@@ -62,6 +62,28 @@ describe('buildPresenceList', () => {
     expect(list.some((activity) => activity.state?.includes('Build your empire at streetsempire.com'))).toBe(true);
     expect(list.some((activity) => activity.state?.includes('keeps growing'))).toBe(true);
   });
+
+  it('uses only testing-focused custom statuses in beta mode', () => {
+    const list = buildPresenceList({
+      playHost: 'beta.streetsempire.dev',
+      streamUrl: 'https://twitch.tv/amightytank',
+      betaMode: true,
+      playerCount: 12,
+      roundName: 'Test Round 4',
+      daysLeft: 2,
+      highlights: [{ kind: 'jackpot', message: '🎰 A $125K jackpot just hit' }],
+    });
+    const messages = list.map((activity) => activity.state).join(' ');
+    expect(list).toHaveLength(8);
+    expect(list.every((activity) => activity.type === ActivityType.Custom)).toBe(true);
+    expect(messages).toContain('StreetsEmpire Beta');
+    expect(messages).toContain('Testing new features');
+    expect(messages).toContain('12 hustlers building empires');
+    expect(messages).toContain('🏁 Test Round 4 · 2d left');
+    expect(messages).not.toContain('jackpot');
+    expect(messages).not.toContain('Supporter');
+    expect(messages).not.toContain('LIVE');
+  });
 });
 
 describe('daysLeftFromMs', () => {
@@ -132,6 +154,32 @@ describe('startBotPresence', () => {
       const states = setActivity.mock.calls.map(([activity]) => activity.state);
       expect(states).toContain('🔥 7 hustlers building empires');
       expect(states).toContain('🏁 R1 · 1d left');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not request production highlights in beta mode', async () => {
+    vi.useFakeTimers();
+    try {
+      const setActivity = vi.fn();
+      const getHighlights = vi.fn(async () => ({ highlights: [] }));
+      const silence = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      const stop = startBotPresence({ user: { setActivity } } as never, {
+        playHost: 'beta.streetsempire.dev',
+        betaMode: true,
+        minutes: 5,
+        getRound: async () => ({ round: null }),
+        getHighlights,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      stop?.();
+      silence.mockRestore();
+      expect(getHighlights).not.toHaveBeenCalled();
+      expect(setActivity).toHaveBeenCalledWith(expect.objectContaining({
+        type: ActivityType.Custom,
+        state: '🧪 StreetsEmpire Beta',
+      }));
     } finally {
       vi.useRealTimers();
     }

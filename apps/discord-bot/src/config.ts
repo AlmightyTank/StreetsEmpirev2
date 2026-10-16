@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import { inferAppEnvironment } from '@streets/shared';
 
 // apps/discord-bot/src (dev) or apps/discord-bot/dist (built) -> repo root, shared with the game server.
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -11,6 +12,10 @@ const snowflake = (name: string) => z.string().regex(/^[0-9]{17,20}$/, `${name} 
 const optionalChannel = (name: string) => z.union([z.literal(''), snowflake(name)]).default('');
 
 const schema = z.object({
+  APP_ENV: z.enum(['production', 'beta', 'development', 'test']).optional(),
+  NODE_ENV: z.string().default('development'),
+  BETA_INVITE_ONLY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  SESSION_COOKIE_NAME: z.string().default('se_session'),
   DISCORD_BOT_TOKEN: z.string().min(1, 'DISCORD_BOT_TOKEN is required (Discord developer portal → Bot → Token).'),
   DISCORD_CLIENT_ID: snowflake('DISCORD_CLIENT_ID'),
   DISCORD_GUILD_ID: snowflake('DISCORD_GUILD_ID'),
@@ -51,7 +56,7 @@ const schema = z.object({
   DISCORD_ROLE_SYNC_MODE: z.enum(['full', 'beta-tester-only']).default('full'),
 });
 
-export type BotConfig = z.infer<typeof schema> & { frontendOrigin: string };
+export type BotConfig = z.infer<typeof schema> & { frontendOrigin: string; betaMode: boolean };
 
 export function loadConfig(source: NodeJS.ProcessEnv = process.env): BotConfig {
   const parsed = schema.safeParse(source);
@@ -59,5 +64,15 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): BotConfig {
     const issues = parsed.error.issues.map((issue) => `  ${issue.path.join('.')}: ${issue.message}`).join('\n');
     throw new Error(`Invalid Discord bot configuration:\n${issues}`);
   }
-  return { ...parsed.data, frontendOrigin: new URL(parsed.data.FRONTEND_ORIGIN).origin };
+  const environment = inferAppEnvironment({
+    appEnv: parsed.data.APP_ENV,
+    nodeEnv: parsed.data.NODE_ENV,
+    betaInviteOnly: parsed.data.BETA_INVITE_ONLY,
+    sessionCookieName: parsed.data.SESSION_COOKIE_NAME,
+  });
+  return {
+    ...parsed.data,
+    frontendOrigin: new URL(parsed.data.FRONTEND_ORIGIN).origin,
+    betaMode: environment === 'beta',
+  };
 }

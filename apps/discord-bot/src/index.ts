@@ -394,11 +394,12 @@ client.once(Events.ClientReady, async (ready) => {
     const stopPresence = startBotPresence(ready, {
       playHost,
       streamUrl: config.DISCORD_STREAM_URL,
+      betaMode: config.betaMode,
       minutes: config.DISCORD_PRESENCE_MINUTES,
       getRound: () => api.round(),
       getHighlights: () => api.presenceHighlights(),
     });
-    if (stopPresence) console.log(`Rotating bot presence every ${config.DISCORD_PRESENCE_MINUTES} min (play at ${playHost}; stream ${config.DISCORD_STREAM_URL}).`);
+    if (stopPresence) console.log(`Rotating ${config.betaMode ? 'beta' : 'production'} bot presence every ${config.DISCORD_PRESENCE_MINUTES} min.`);
     else console.log('Bot presence rotation is off (DISCORD_PRESENCE_MINUTES=0).');
 
     // Commands are answered while these run.

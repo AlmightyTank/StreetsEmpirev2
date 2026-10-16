@@ -155,6 +155,11 @@ from the protected game API: recent jackpot size, aggregate open Sportsbook
 action, recent raid loot, and recent scouting results. No player identity or ID
 is returned. When no fact is available—or either API request fails—the bot uses
 the corresponding static prompt while retaining any round data that did load.
+On an `APP_ENV=beta` deployment, this production rotation is replaced entirely
+by beta-only custom statuses about testing features, finding bugs, feedback,
+upcoming cosmetics, plus the same live player-count and current-round cards used
+in production. The bot does not request production activity highlights in this
+mode.
 
 **Moderation from the game.** The admin account page's **Community** panel
 shows a linked player's Discord status (in the server, display name, any timeout)

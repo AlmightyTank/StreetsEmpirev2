@@ -10,6 +10,8 @@ export interface PresenceContext {
   /** Whole days left in the round, when known. */
   daysLeft?: number | null;
   highlights?: Array<{ kind: 'jackpot' | 'sportsbook' | 'raid' | 'scout'; message: string }>;
+  /** Beta deployments use a separate testing-focused rotation exclusively. */
+  betaMode?: boolean;
 }
 
 export interface PresenceActivity {
@@ -34,6 +36,19 @@ export function buildPresenceList(ctx: PresenceContext): PresenceActivity[] {
     ? (ctx.daysLeft === 0 ? 'final day' : `${ctx.daysLeft}d left`)
     : null;
   const highlights = new Map(ctx.highlights?.map((highlight) => [highlight.kind, highlight.message]) ?? []);
+
+  if (ctx.betaMode) {
+    return [
+      { name: 'Custom Status', type: ActivityType.Custom, state: '🧪 StreetsEmpire Beta' },
+      { name: 'Custom Status', type: ActivityType.Custom, state: '🔨 Testing new features' },
+      { name: 'Custom Status', type: ActivityType.Custom, state: '🐛 Hunt bugs. Build an empire.' },
+      { name: 'Custom Status', type: ActivityType.Custom, state: '💬 Share your beta feedback' },
+      { name: 'Custom Status', type: ActivityType.Custom, state: '🚧 The streets are under construction' },
+      { name: 'Custom Status', type: ActivityType.Custom, state: '🎨 Preview upcoming cosmetics' },
+      { name: 'Custom Status', type: ActivityType.Custom, state: players ? `🔥 ${players} building empires` : `🔥 Build your empire at ${host}` },
+      { name: 'Custom Status', type: ActivityType.Custom, state: round ? `🏁 ${round}${crunch ? ` · ${crunch}` : ''}` : '🏙️ StreetsEmpire keeps growing' },
+    ];
+  }
 
   const list: PresenceActivity[] = [
     // Streaming is the only Discord activity type that makes the Twitch URL clickable.
@@ -78,6 +93,7 @@ export function startPresenceRotator(
   deps: {
     playHost: string;
     streamUrl?: string;
+    betaMode?: boolean;
     minutes: number;
     getStatus: () => Promise<{ playerCount: number | null; roundName: string | null; msRemaining: number | null }>;
     getHighlights?: () => Promise<{ highlights: PresenceContext['highlights'] }>;
@@ -85,16 +101,17 @@ export function startPresenceRotator(
 ): () => void {
   let index = 0;
   const tick = async () => {
-    let ctx: PresenceContext = { playHost: deps.playHost, streamUrl: deps.streamUrl };
+    let ctx: PresenceContext = { playHost: deps.playHost, streamUrl: deps.streamUrl, betaMode: deps.betaMode };
     const [statusResult, highlightsResult] = await Promise.allSettled([
       deps.getStatus(),
-      deps.getHighlights?.() ?? Promise.resolve({ highlights: [] }),
+      !deps.betaMode && deps.getHighlights ? deps.getHighlights() : Promise.resolve({ highlights: [] }),
     ]);
     if (statusResult.status === 'fulfilled') {
       const status = statusResult.value;
       ctx = {
         playHost: deps.playHost,
         streamUrl: deps.streamUrl,
+        betaMode: deps.betaMode,
         roundName: status.roundName,
         playerCount: status.playerCount,
         daysLeft: daysLeftFromMs(status.msRemaining),
@@ -120,6 +137,7 @@ export function startBotPresence(
   deps: {
     playHost: string;
     streamUrl?: string;
+    betaMode?: boolean;
     minutes: number;
     getRound: () => Promise<{ round: { name: string; msRemaining: number; playerCount: number } | null }>;
     getHighlights?: () => Promise<{ highlights: PresenceContext['highlights'] }>;
@@ -129,6 +147,7 @@ export function startBotPresence(
   return startPresenceRotator(client, {
     playHost: deps.playHost,
     streamUrl: deps.streamUrl,
+    betaMode: deps.betaMode,
     minutes: deps.minutes,
     getHighlights: deps.getHighlights,
     getStatus: async () => {
