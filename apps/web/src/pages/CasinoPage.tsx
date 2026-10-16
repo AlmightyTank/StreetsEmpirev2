@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto, type CasinoTournamentPageDto } from '@streets/shared';
@@ -246,6 +246,61 @@ export function CasinoPage() {
   const openAction = useRef(newActionId());
   const closeAction = useRef(newActionId());
   const spinAction = useRef(newActionId());
+
+  // Keep the player at the table while results replace earlier results. A
+  // disappearing receipt can shorten the document and otherwise clamp scrollY
+  // before the next win / hand has rendered.
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const savedGameScrollY = useRef<number | null>(null);
+  const [minimumStageHeight, setMinimumStageHeight] = useState(0);
+
+  function rememberGameScroll() {
+    if (!activeGame || !stageRef.current) return;
+    savedGameScrollY.current = window.scrollY;
+    setMinimumStageHeight((current) =>
+      Math.max(current, Math.ceil(stageRef.current?.getBoundingClientRect().height ?? 0)));
+  }
+
+  useEffect(() => {
+    // Never fight a player's deliberate scroll during a slow wheel or hand.
+    const release = () => {
+      savedGameScrollY.current = null;
+      setMinimumStageHeight(0);
+    };
+    const releaseOnKey = (event: globalThis.KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)
+        || (event.key === ' ' && !(event.target instanceof HTMLElement && event.target.closest('button')))) {
+        release();
+      }
+    };
+    window.addEventListener('wheel', release, { passive: true });
+    window.addEventListener('touchmove', release, { passive: true });
+    window.addEventListener('keydown', releaseOnKey);
+    return () => {
+      window.removeEventListener('wheel', release);
+      window.removeEventListener('touchmove', release);
+      window.removeEventListener('keydown', releaseOnKey);
+    };
+  }, []);
+
+  useEffect(() => {
+    savedGameScrollY.current = null;
+    setMinimumStageHeight(0);
+  }, [activeGame]);
+
+  useLayoutEffect(() => {
+    const targetY = savedGameScrollY.current;
+    if (targetY === null) return;
+    savedGameScrollY.current = null;
+    // React has committed the new table state by the next frame.
+    const frame = window.requestAnimationFrame(() => {
+      const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      if (Math.abs(window.scrollY - targetY) > 1) {
+        window.scrollTo(0, Math.min(targetY, maxY));
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [data]);
 
   function load() {
     void casinoApi.page()
@@ -691,7 +746,16 @@ export function CasinoPage() {
               </>
             ) : (
             <section className="se-casino-floor se-casino-table" aria-label={activeInfo!.title}>
-              <div className="se-casino-game-stage" id={'casino-game-panel-' + activeGame}>
+              <div
+                  ref={stageRef}
+                  className="se-casino-game-stage"
+                  id={'casino-game-panel-' + activeGame}
+                  style={minimumStageHeight ? { minHeight: minimumStageHeight } : undefined}
+                  onPointerDownCapture={rememberGameScroll}
+                  onKeyDownCapture={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') rememberGameScroll();
+                  }}
+                >
                 {activeGame === 'slots' ? (
             <Panel title="Slots" aside="Casino-style paylines">
               {data.slotMachines.length ? (
