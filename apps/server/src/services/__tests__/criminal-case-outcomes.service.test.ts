@@ -17,7 +17,10 @@ function fixture(opts: { historical?: boolean; initialRewards?: number } = {}) {
     id: 'round-1', status: 'ACTIVE', pausedAt: null as Date | null, pausedMinutesTotal: 0,
     rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version,
   };
-  const player = { id: 'player-a', cashCents: 10_000n, netWorthCents: 20_000n };
+  const player = { id: 'player-a', cashCents: 10_000n, netWorthCents: 7_500n,
+    city: { slug: 'detroit' },
+    whores: 0, thugs: 0, lowRiders: 0, medicine: 0, crack: 0, condoms: 0, beer: 0,
+    pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0, loanDebtCents: 0n };
   const row: any = {
     id: 'case-1', ownerId: player.id, roundId: round.id, cityId: 'detroit',
     rulesetId: round.rulesetId, rulesetVersion: round.rulesetVersion,
@@ -39,10 +42,19 @@ function fixture(opts: { historical?: boolean; initialRewards?: number } = {}) {
         _sum: { rewardCents: history.reduce((total, entry) => total + entry.rewardCents, 0) },
       })),
     },
-    roundPlayer: { update: vi.fn(async ({ data }: any) => {
-      player.cashCents += data.cashCents.increment;
-      player.netWorthCents += data.netWorthCents.increment;
-    }) },
+    roundPlayer: {
+      findUniqueOrThrow: vi.fn(async () => player),
+      update: vi.fn(async ({ data }: any) => {
+        player.cashCents += data.cashCents.increment;
+        player.netWorthCents = data.netWorthCents;
+      }),
+    },
+    playerProduct: { findMany: vi.fn(async () => []) },
+    casinoWallet: { aggregate: vi.fn(async () => ({ _sum: { chipsCents: 0n } })) },
+    casinoSession: { aggregate: vi.fn(async () => ({ _sum: { bankrollCents: 0n } })) },
+    casinoBlackjackHand: { aggregate: vi.fn(async () => ({ _sum: { committedWagerCents: 0n } })) },
+    casinoPokerHand: { aggregate: vi.fn(async () => ({ _sum: { buyInCents: 0n } })) },
+    casinoPokerSeat: { findMany: vi.fn(async () => []) },
     economyLedgerEntry: { create: vi.fn(async ({ data }: any) => {
       ledger.push(data); history.push({ rewardCents: Number(data.amountCents) }); return data;
     }) },
@@ -76,7 +88,7 @@ describe('2.0.0-E one-time case settlement', () => {
     expect(first.rewardClaimedAt).toBe(now.toISOString());
     expect(first.choiceDetails).toHaveLength(2);
     expect(f.player.cashCents).toBe(12_500n);
-    expect(f.player.netWorthCents).toBe(22_500n);
+    expect(f.player.netWorthCents).toBe(9_375n); // 75% cash valuation, not +2,500.
     expect(f.ledger).toHaveLength(1);
     expect(f.ledger[0].metadata).toEqual({ caseFileId: 'case-1', caseKey: 'CASE_THE_FIFTH_WITNESS' });
     const second = await CriminalCaseFileService.close(f.db, 'player-a', 'case-1', 'SEEK_TRUCE', now);

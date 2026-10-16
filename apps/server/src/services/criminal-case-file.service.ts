@@ -304,7 +304,7 @@ export const CriminalCaseFileService = {
         ? definition.rewardBudgetCents : 0;
       const rewardCents = await CriminalCaseRewardService.grant(tx, {
         roundId: row.roundId, ownerId, caseId: row.id, caseKey: row.caseKey,
-        budgetCents: budget, now,
+        budgetCents: budget, ruleset, now,
       });
       await tx.criminalCaseFile.update({
         where: { id: row.id },
