@@ -9,7 +9,7 @@ Implementation on `feature/living-streets-2.0.0-f`, based on merged 2.0.0-E in `
 - **Dashboard:** compact active-case card, priority to SOLVED cases, then ACTIVE cases and AVAILABLE offers; link into the exact Black Book case by `?tab=cases&focus=id#case-id`. Hidden for historical rounds that don't enable Living Streets.
 - **Action-linked story dialogs:** the same `streets:quests-changed` event already emitted for *confirmed game actions* refreshes the private Case Files snapshot and compares against a silent initial baseline. Only actual new offers, new clues and newly solved cases produce dialogs. Hydration/reconnect/page changes do not replay historical cases. Existing accessible `GameDialog` handles Escape, focus management and scroll locking.
 - **Archive:** owner-only paginated cases, immutable reward/story report, neutral expired-case message, chronological timeline.
-- **Related news:** link to Streets Daily as a separate public reading destination; **never claim** a private case has a public story until a verified publication relation exists. No private clue payload is posted to news.
+- **Related news:** an owner-scoped `GET /api/game/case-files/publications` checks the associated source event is public and an auto-generated Streets Daily article has actually been published in the same round. Only then show a deep link to the published post; private memories and held drafts never get a link. The generic Streets Daily link remains for unrelated articles. No case evidence is posted to news.
 
 ## Interaction requirements
 - Small screens: cards and choice columns wrap, buttons remain reachable, no sticky navigation overlap, no implicit scroll-to-top after case activation or closure.

@@ -36,12 +36,13 @@ function CaseTimeline({ file }: { file: CriminalCaseFileDto }) {
   );
 }
 
-function CaseFileCard({ file, busy, onActivate, onChoose, archive = false }: {
+function CaseFileCard({ file, busy, onActivate, onChoose, archive = false, report }: {
   file: CriminalCaseFileDto;
   busy: boolean;
   onActivate: (caseId: string) => void;
   onChoose: (choice: Decision) => void;
   archive?: boolean;
+  report?: { newsId: string; title: string };
 }) {
   const next = file.nextAction ? CASE_ACTION_LINKS[file.nextAction] : null;
   return (
@@ -110,6 +111,9 @@ function CaseFileCard({ file, busy, onActivate, onChoose, archive = false }: {
           <p className="se-hint">Unverified clues remain sealed until you complete each distinct source action.</p>
         ) : null}
       </details>
+      {report ? <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/news#post-${report.newsId}`}>
+        Read the published Street Report: {report.title}
+      </Link> : null}
       {file.status === 'EXPIRED' ? <p className="se-hint">The trail went cold. Your crew lost nothing by leaving it unfinished.</p> : null}
     </article>
   );
@@ -118,6 +122,7 @@ function CaseFileCard({ file, busy, onActivate, onChoose, archive = false }: {
 export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
   const [page, setPage] = useState<CriminalCasePageDto>(EMPTY);
   const [focusedCase, setFocusedCase] = useState<CriminalCaseFileDto | null>(null);
+  const [reports, setReports] = useState<Record<string, { newsId: string; title: string }>>({});
   const [opportunities, setOpportunities] = useState<PublicCaseOpportunity[]>([]);
   const [activePage, setActivePage] = useState(1);
   const [archivePage, setArchivePage] = useState(1);
@@ -163,6 +168,17 @@ export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
 
   // Archive pagination must not break owner-authorized deep links to old
   // cases. Retrieve only the requested case via the private owner-checked API.
+  useEffect(() => {
+    const ids = [...page.active, ...page.archived, ...(focusedCase ? [focusedCase] : [])].map((file) => file.id);
+    if (!ids.length) { setReports({}); return; }
+    let mounted = true;
+    void caseFilesApi.publications(ids).then(({ reports: links }) => {
+      if (mounted) setReports(Object.fromEntries(links.map((item) =>
+        [item.caseId, { newsId: item.newsId, title: item.title }])));
+    }).catch(() => { if (mounted) setReports({}); });
+    return () => { mounted = false; };
+  }, [page, focusedCase]);
+
   useEffect(() => {
     if (!focusId || page.active.some((item) => item.id === focusId)
       || page.archived.some((item) => item.id === focusId)) {
@@ -221,7 +237,7 @@ export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
         && !page.archived.some((item) => item.id === focusedCase.id) ? (
         <section className="se-casefiles__focused" aria-label="Linked case file">
           <p className="se-eyebrow">Linked case · from your archive</p>
-          <CaseFileCard file={focusedCase} busy={busyId !== null}
+          <CaseFileCard file={focusedCase} report={reports[focusedCase.id]} busy={busyId !== null}
             onActivate={(id) => void change(id, () => caseFilesApi.activate(id))}
             onChoose={setDecision} />
         </section>
@@ -247,7 +263,7 @@ export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
           {page.active.length ? (
             <div className="se-casefiles__list">
               {page.active.map((file) => (
-                <CaseFileCard key={file.id} file={file} busy={busyId !== null}
+                <CaseFileCard key={file.id} file={file} report={reports[file.id]} busy={busyId !== null}
                   onActivate={(id) => void change(id, () => caseFilesApi.activate(id))}
                   onChoose={setDecision} />
               ))}
@@ -264,7 +280,7 @@ export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
             <div className="se-casefiles__sectionhead"><h3 id="casefiles-archive-heading">Case archive</h3><span>Closed, solved or expired</span></div>
             {page.archived.length ? <div className="se-casefiles__list">
               {page.archived.map((file) => (
-                <CaseFileCard key={file.id} file={file} archive busy={busyId !== null}
+                <CaseFileCard key={file.id} file={file} archive report={reports[file.id]} busy={busyId !== null}
                   onActivate={() => {}} onChoose={setDecision} />
               ))}
             </div> : <p className="se-hint">Your final reports and expired cases will be filed here.</p>}

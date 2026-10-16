@@ -15,6 +15,9 @@ export const caseFilesApi = {
     api.get<CriminalCasePageDto>(`/game/case-files?activePage=${activePage}&archivePage=${archivePage}&pageSize=${pageSize}`),
   get: (caseId: string) =>
     api.get<CriminalCaseFileDto>(`/game/case-files/${encodeURIComponent(caseId)}`),
+  publications: (ids: string[]) => api.get<{ reports: Array<{ caseId: string; newsId: string; title: string }> }>(
+    `/game/case-files/publications?ids=${encodeURIComponent(ids.join(','))}`,
+  ),
   opportunities: () =>
     api.get<{ opportunities: PublicCaseOpportunity[] }>('/game/case-files/opportunities'),
   optIn: (memoryId: string) =>
