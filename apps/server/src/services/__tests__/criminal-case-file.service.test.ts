@@ -59,7 +59,7 @@ function makeDb() {
             && (!filter.expiresAtActive?.lte || c.expiresAtActive <= filter.expiresAtActive.lte);
         };
         return state.cases.filter((c) => c.ownerId === where.ownerId && c.roundId === where.roundId
-          && where.OR.some((clause: any) => matches(c, clause))).slice(skip, skip + take).map(withEvidence);
+          && where.OR.some((clause: any) => matches(c, clause))).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(skip, skip + take).map(withEvidence);
       }),
       findFirst: vi.fn(async ({ where }: any) => withEvidence(state.cases.find((c) => c.id === where.id && c.ownerId === where.ownerId))),
       update: vi.fn(async ({ where, data }: any) => {

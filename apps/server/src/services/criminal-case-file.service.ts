@@ -161,7 +161,7 @@ export const CriminalCaseFileService = {
     });
     if (!round) throw AppError.notFound('ROUND_NOT_FOUND', 'Round not found.');
     const activeNow = activeRoundEventTime(round, now);
-    const openStatus = { in: ['AVAILABLE', 'ACTIVE'] as const };
+    const openStatus = { in: ['AVAILABLE', 'ACTIVE'] as Array<'AVAILABLE' | 'ACTIVE'> };
     const activeWhere: Prisma.CriminalCaseFileWhereInput = {
       roundId, ownerId,
       OR: round.pausedAt
