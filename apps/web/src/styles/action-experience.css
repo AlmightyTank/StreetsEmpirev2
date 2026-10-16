@@ -64,7 +64,11 @@
 }
 .se-action-readiness__item--good > strong { color: var(--se-good); }
 .se-action-readiness__item--warn > strong { color: var(--se-warn); }
-.se-action-readiness__item--bad > strong { color: var(--se-bad); }
+/* Blend with readable body ink, so danger labels clear WCAG AA across
+   alternate and premium theme surfaces without replacing the user's accent. */
+.se-action-readiness__item--bad > strong {
+  color: color-mix(in srgb, var(--se-bad) 80%, var(--se-text));
+}
 .se-action-readiness__notice {
   margin: 0;
   color: var(--se-warn);
