@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { ActivityType, Prisma, PrismaClient } from '@prisma/client';
 import { FACTION_TIERS, recipeLadder, contractStanding, factionTierName, factionTierRank, factionTierStartsAt, innerCircleLockedBy, innerCirclePreview, jobStanding as jobStandingFor, lawPriceCents } from '@streets/rules-engine';
 import {
   type ContactKey,
@@ -583,16 +583,14 @@ async function questGateContext(db: Db, roundPlayerId: string, ruleset: Ruleset,
   const eventTypes = [...new Set(definitions(ruleset).flatMap((definition) => definition.prerequisites.flatMap((prerequisite) => {
     if (prerequisite.kind !== 'ACTION_COUNT' || !Array.isArray(prerequisite.params?.eventTypes)) return [];
     return prerequisite.params.eventTypes.filter((value): value is string => typeof value === 'string');
-  })))];
+  })))] as ActivityType[];
   const [player, grouped] = await Promise.all([
     db.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { createdAt: true } }),
-    eventTypes.length
-      ? db.playerActivity.groupBy({
-          by: ['type'],
-          where: { roundPlayerId, type: { in: eventTypes } },
-          _count: { _all: true },
-        })
-      : Promise.resolve([]),
+    db.playerActivity.groupBy({
+      by: ['type'],
+      where: { roundPlayerId, type: { in: eventTypes } },
+      _count: { _all: true },
+    }),
   ]);
   return {
     joinedAt: player?.createdAt,
