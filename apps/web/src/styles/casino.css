@@ -792,6 +792,9 @@
   inset: 7.5%;
   z-index: 2;
   border-radius: 50%;
+  background: var(--se-wheel-sectors);
+  -webkit-mask: radial-gradient(circle, transparent 0 66%, #000 66.5% 100%);
+  mask: radial-gradient(circle, transparent 0 66%, #000 66.5% 100%);
   transform: rotate(0deg);
   will-change: transform;
 }
@@ -801,28 +804,16 @@
   left: 50%;
   display: grid;
   place-items: center;
-  width: 1.42rem;
-  height: 1.9rem;
-  border: 1px solid rgba(255,255,255,.8);
-  border-radius: .05rem;
+  width: 1.05rem;
+  height: 1.6rem;
+  border: 0;
   color: #fff;
   font-family: var(--se-mono);
   font-size: .56rem;
   font-weight: 900;
   line-height: 1;
   text-shadow: 0 1px 0 rgb(0 0 0 / .45);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 .04rem .1rem rgb(0 0 0 / .35);
-}
-.se-roulette__pocket.is-red { background: #a93429; }
-.se-roulette__pocket.is-black { background: #283036; }
-.se-roulette__pocket.is-green { background: #286b36; }
-.se-roulette__pocket::after {
-  content: "";
-  position: absolute;
-  inset: -.08rem -.05rem;
-  border-right: 1px solid rgba(255,255,255,.45);
-  border-left: 1px solid rgba(255,255,255,.45);
-  pointer-events: none;
+  text-align: center;
 }
 .se-roulette__pocket.is-winning { z-index: 2; animation: se-roulette-pocket-win .7s ease-in-out infinite alternate; }
 .se-roulette__wheel-ring {
@@ -1154,8 +1145,8 @@
   }
 }
 @keyframes se-roulette-pocket-win {
-  from { filter: brightness(1); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 0 .1rem rgb(255 226 145 / .2); }
-  to { filter: brightness(1.65); box-shadow: inset 0 0 0 2px #ffe091, 0 0 .75rem #ffd56e; }
+  from { color: #fff; filter: brightness(1); text-shadow: 0 1px 0 rgb(0 0 0 / .45); }
+  to { color: #ffe091; filter: brightness(1.5); text-shadow: 0 0 .3rem #ffd56e, 0 0 .7rem #ffd56e; }
 }
 @keyframes se-roulette-result-pop {
   from { opacity: 0; transform: scale(.72); }
@@ -1199,8 +1190,7 @@
     width: 6.75rem;
     border-width: .28rem;
   }
-  .se-roulette__pocket { width: .72rem; height: .66rem; border-radius: .1rem; font-size: .32rem; }
-  .se-roulette__pocket::after { inset: -.14rem -.03rem; }
+  .se-roulette__pocket { width: .45rem; height: .58rem; font-size: .3rem; }
   .se-roulette__ball { right: .28rem; width: .52rem; }
   .se-roulette__wheel-hub { border-width: 2px; }
   .se-roulette__readout { gap: .3rem; }

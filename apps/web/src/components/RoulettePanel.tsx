@@ -46,6 +46,22 @@ function ballAngleForPocket(wheelPockets: string[], pocket?: string | null): num
   return index * (360 / wheelPockets.length) + DEFAULT_BALL_ANGLE;
 }
 
+function wheelSectorGradient(wheelPockets: string[]): string {
+  const step = 360 / wheelPockets.length;
+  const divider = Math.min(0.55, step * 0.08);
+  const stops = wheelPockets.flatMap((pocket, index) => {
+    const start = index * step;
+    const end = start + step;
+    const color = pocketTone(pocket) === 'green' ? '#286b36' : pocketTone(pocket) === 'red' ? '#a93429' : '#20272c';
+    return [
+      `rgba(245, 239, 216, .82) ${start.toFixed(4)}deg ${(start + divider).toFixed(4)}deg`,
+      `${color} ${(start + divider).toFixed(4)}deg ${(end - divider).toFixed(4)}deg`,
+      `rgba(245, 239, 216, .82) ${(end - divider).toFixed(4)}deg ${end.toFixed(4)}deg`,
+    ];
+  });
+  return `conic-gradient(from ${(-step / 2).toFixed(4)}deg, ${stops.join(', ')})`;
+}
+
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -154,6 +170,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
     '--se-ball-angle': `${ballAngle}deg`,
     '--se-ball-start-angle': `${spinStartAngle}deg`,
     '--se-ball-end-angle': `${spinEndAngle}deg`,
+    '--se-wheel-sectors': wheelSectorGradient(wheelPockets),
   } as CSSProperties;
 
   useEffect(() => {
