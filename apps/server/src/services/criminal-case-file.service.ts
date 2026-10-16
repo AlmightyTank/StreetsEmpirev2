@@ -83,13 +83,15 @@ function requirePlayable(round: Round): void {
     throw AppError.conflict('CASE_ROUND_UNAVAILABLE', 'Case work is unavailable while the round is paused or inactive.');
   }
 }
-async function requireNotExpired(db: Db, row: CaseRow, round: Round, now: Date): Promise<void> {
-  if (currentStatus(row, round, now) !== 'EXPIRED') return;
+async function persistExpiry(db: Db, row: CaseRow, round: Round, now: Date): Promise<CaseRow | null> {
+  if (currentStatus(row, round, now) !== 'EXPIRED') return null;
+  // Return an archived case instead of throwing: a throw would roll back the
+  // same transaction's expiry write.
   await db.criminalCaseFile.updateMany({
     where: { id: row.id, status: { in: [...OPEN] } },
     data: { status: 'EXPIRED', expiredAt: now },
   });
-  throw AppError.conflict('CASE_EXPIRED', 'The trail has gone cold.');
+  return getOwned(db, row.id, row.ownerId);
 }
 
 /**
@@ -174,7 +176,8 @@ export const CriminalCaseFileService = {
       const row = await lockOwned(tx, caseId, ownerId);
       const round = await roundForCase(tx, row);
       requirePlayable(round);
-      await requireNotExpired(tx, row, round, now);
+      const expired = await persistExpiry(tx, row, round, now);
+      if (expired) return toDto(expired, round, now);
       if (row.status === 'AVAILABLE') {
         await tx.criminalCaseFile.update({ where: { id: row.id }, data: { status: 'ACTIVE', acceptedAt: now } });
       } else if (row.status !== 'ACTIVE' && row.status !== 'SOLVED' && row.status !== 'CLOSED') {
