@@ -527,16 +527,24 @@ export function questPrerequisitesMet(
 }
 
 export async function syncDefinitions(db: Db | PrismaClient, ruleset: Ruleset): Promise<void> {
-  for (const definition of definitions(ruleset)) {
-    await db.questDefinition.upsert({
-      where: {
-        rulesetId_rulesetVersion_key: {
-          rulesetId: ruleset.meta.id,
-          rulesetVersion: ruleset.meta.version,
-          key: definition.key,
-        },
-      },
-      create: {
+  const all = definitions(ruleset);
+  if (!all.length) return;
+  // Bulk-diff instead of one upsert per definition: steady state is a single
+  // SELECT and zero writes, no matter how large the quest catalog gets.
+  const existing = await db.questDefinition.findMany({
+    where: {
+      rulesetId: ruleset.meta.id,
+      rulesetVersion: ruleset.meta.version,
+      key: { in: all.map((definition) => definition.key) },
+    },
+  });
+  const byKey = new Map(existing.map((row) => [row.key, row]));
+  const toCreate: Prisma.QuestDefinitionCreateManyInput[] = [];
+  const toUpdate: typeof all = [];
+  for (const definition of all) {
+    const row = byKey.get(definition.key);
+    if (!row) {
+      toCreate.push({
         key: definition.key,
         rulesetId: ruleset.meta.id,
         rulesetVersion: ruleset.meta.version,
@@ -554,8 +562,41 @@ export async function syncDefinitions(db: Db | PrismaClient, ruleset: Ruleset): 
         availability: inputJson(definition.availability),
         repeatability: definition.repeatability,
         expiresAfterMinutes: definition.expiresAfterMinutes,
+      });
+      continue;
+    }
+    const same =
+      row.title === definition.title
+      && row.description === definition.description
+      && (row.contactKey ?? null) === (definition.contactKey ?? null)
+      && row.type === definition.type
+      && row.category === definition.category
+      && row.difficulty === definition.difficulty
+      && row.repeatability === definition.repeatability
+      && (row.expiresAfterMinutes ?? null) === (definition.expiresAfterMinutes ?? null)
+      && JSON.stringify(row.prerequisites) === JSON.stringify(definition.prerequisites)
+      && JSON.stringify(row.objectives) === JSON.stringify(definition.objectives)
+      && JSON.stringify(row.bonusObjectives) === JSON.stringify(definition.bonusObjectives)
+      && JSON.stringify(row.rewards) === JSON.stringify(definition.rewards)
+      && JSON.stringify(row.followUpKeys) === JSON.stringify(definition.followUpKeys)
+      && JSON.stringify(row.availability) === JSON.stringify(definition.availability);
+    if (!same) toUpdate.push(definition);
+  }
+  // skipDuplicates covers two requests racing the first sync of a new ruleset.
+  if (toCreate.length) await db.questDefinition.createMany({ data: toCreate, skipDuplicates: true });
+  // Steady state: empty. Only a ruleset content change lands here, and only
+  // for the definitions that actually changed. (Never touches isEnabled, so
+  // an admin-disabled quest stays disabled, as before.)
+  for (const definition of toUpdate) {
+    await db.questDefinition.update({
+      where: {
+        rulesetId_rulesetVersion_key: {
+          rulesetId: ruleset.meta.id,
+          rulesetVersion: ruleset.meta.version,
+          key: definition.key,
+        },
       },
-      update: {
+      data: {
         title: definition.title,
         description: definition.description,
         contactKey: definition.contactKey,
@@ -753,12 +794,16 @@ export const HandcraftedQuestService = {
     await syncDefinitions(prisma, ruleset);
   },
 
-  async page(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<QuestPageDto> {
-    await syncDefinitions(prisma, ruleset);
+  async page(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, opts: { skipSync?: boolean; skipRefresh?: boolean } = {}): Promise<QuestPageDto> {
+    if (!opts.skipSync) await syncDefinitions(prisma, ruleset);
     return prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, roundPlayerId);
       const now = new Date();
-      await refreshAvailability(tx, roundPlayerId, ruleset, now);
+      // Mutation endpoints (accept/abandon/track) already synced definitions
+      // and refreshed availability inside their write transaction milliseconds
+      // earlier, so they pass skipSync + skipRefresh and go straight to the
+      // read. A standalone page view still does both.
+      if (!opts.skipRefresh) await refreshAvailability(tx, roundPlayerId, ruleset, now);
       const dailyEnabled = definitions(ruleset).some(
         (definition) => definition.type === 'DAILY' && definition.repeatability === 'DAILY',
       );
@@ -986,7 +1031,9 @@ export const HandcraftedQuestService = {
       }
       await startQuest(tx, roundPlayerId, row, ruleset, acceptedAt, tracked < TRACKED_LIMIT);
     });
-    return this.page(prisma, roundPlayerId, ruleset);
+    // Availability was refreshed inside the write transaction above, so skip
+    // the second sync + refresh and go straight to the read.
+    return this.page(prisma, roundPlayerId, ruleset, { skipSync: true, skipRefresh: true });
   },
 
   /** Account-wide, so the choice carries into the next season. Turning it on starts waiting board work right away. */
@@ -1037,7 +1084,9 @@ export const HandcraftedQuestService = {
         },
       });
     });
-    return this.page(prisma, roundPlayerId, ruleset);
+    // Availability was refreshed inside the write transaction above, so skip
+    // the second sync + refresh and go straight to the read.
+    return this.page(prisma, roundPlayerId, ruleset, { skipSync: true, skipRefresh: true });
   },
 
   async track(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, key: string, tracked: boolean): Promise<QuestPageDto> {
@@ -1055,7 +1104,9 @@ export const HandcraftedQuestService = {
       }
       await tx.playerQuest.update({ where: { id: row.id }, data: { isTracked: tracked } });
     });
-    return this.page(prisma, roundPlayerId, ruleset);
+    // Availability was refreshed inside the write transaction above, so skip
+    // the second sync + refresh and go straight to the read.
+    return this.page(prisma, roundPlayerId, ruleset, { skipSync: true, skipRefresh: true });
   },
 
   async claim(

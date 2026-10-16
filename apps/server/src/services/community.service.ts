@@ -37,6 +37,8 @@ import { QuestCosmeticService, withThemeCompanionFrames } from './quest-cosmetic
 import { profileShowcase, profileThemeTags, themeTagFields } from './profile-showcase.service.js';
 import { seasonFeatAwards, type FeatSeason } from './season-feats.js';
 import { emptySeasonTotals, SeasonStatsService, toStatSheet, type SeasonTotals } from './season-stats.service.js';
+import { EmpireLegacyService } from './empire-legacy.service.js';
+import { PlayerCareerService } from './player-career.service.js';
 
 interface RankingRow {
   id: string;
@@ -354,10 +356,12 @@ export async function loadCareerForAccount(
       podium: row.nationalRank! <= 3,
       supportedSeason: supported(row.round.id),
     }));
+  const legacyEntries = await EmpireLegacyService.list(prisma, accountId);
 
   return {
     legacy,
     hallOfFame,
+    legacyEntries,
     seasons: players.map((player) => ({
       round: {
         id: player.round.id,
@@ -1139,6 +1143,7 @@ export const CommunityService = {
       limit: 10,
       totals: history.totals,
     });
+    const careerIdentity = await PlayerCareerService.get(prisma, player.accountId, now);
     const context = contexts.get(player.id) ?? emptyContext();
     const seasonTotals = currentTotals.get(player.id) ?? emptySeasonTotals();
     const awards = [
@@ -1210,6 +1215,7 @@ export const CommunityService = {
       },
       legacy: context.legacy,
       career,
+      careerIdentity,
       awards,
       discoveries,
       showcase: featuredBadgeKeys

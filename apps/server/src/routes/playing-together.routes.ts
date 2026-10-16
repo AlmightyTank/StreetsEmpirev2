@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, lawyerActionSchema, officialHireSchema, tipBuySchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, lawyerActionSchema, officialHireSchema, tipBuySchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema, operationAnswerSchema, operationExecuteSchema, operationInviteSchema, operationLockSchema, operationStartSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -22,6 +22,8 @@ import { PlayerDirectoryService } from '../services/player-directory.service.js'
 import { TurfActionService } from '../services/turf-action.service.js';
 import { BusinessActionService } from '../services/business-action.service.js';
 import { BlockWarService } from '../services/block-war.service.js';
+import { OperationsService } from '../services/operations.service.js';
+import { BlackBookService } from '../services/black-book.service.js';
 import { TurfWarService } from '../services/turf-war.service.js';
 import { TurfOutpostService } from '../services/turf-outpost.service.js';
 import { AppError } from '../utils/errors.js';
@@ -69,6 +71,9 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   app.get('/cities', { preHandler: app.requireAuth }, async (request) =>
     CitiesService.page(app.prisma, await me(request.auth!.account.id)));
 
+  app.get('/black-book', { preHandler: app.requireAuth }, async (request) =>
+    BlackBookService.page(app.prisma, await me(request.auth!.account.id)));
+
   /** 0.6.0-B: claim locals, reinforce a held corner, or pull thugs home. */
   app.post('/turf/claim', { preHandler: app.requireAuth }, async (request) =>
     TurfActionService.claim(app.prisma, await me(request.auth!.account.id), parseBody(turfClaimSchema, request.body ?? {})));
@@ -99,6 +104,19 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     BlockWarService.concede(app.prisma, await me(request.auth!.account.id), parseBody(blockWarEndSchema, request.body ?? {})));
   app.post('/block-war/withdraw', { preHandler: app.requireAuth }, async (request) =>
     BlockWarService.withdraw(app.prisma, await me(request.auth!.account.id), parseBody(blockWarEndSchema, request.body ?? {})));
+  /** 2.0.0: criminal operations - start, lock a role, invite and answer, execute. */
+  app.get('/operations', { preHandler: app.requireAuth }, async (request) =>
+    OperationsService.page(app.prisma, await me(request.auth!.account.id)));
+  app.post('/operation/start', { preHandler: app.requireAuth }, async (request) =>
+    OperationsService.start(app.prisma, await me(request.auth!.account.id), parseBody(operationStartSchema, request.body ?? {})));
+  app.post('/operation/lock', { preHandler: app.requireAuth }, async (request) =>
+    OperationsService.lock(app.prisma, await me(request.auth!.account.id), parseBody(operationLockSchema, request.body ?? {})));
+  app.post('/operation/invite', { preHandler: app.requireAuth }, async (request) =>
+    OperationsService.invite(app.prisma, await me(request.auth!.account.id), parseBody(operationInviteSchema, request.body ?? {})));
+  app.post('/operation/answer', { preHandler: app.requireAuth }, async (request) =>
+    OperationsService.answer(app.prisma, await me(request.auth!.account.id), parseBody(operationAnswerSchema, request.body ?? {})));
+  app.post('/operation/execute', { preHandler: app.requireAuth }, async (request) =>
+    OperationsService.execute(app.prisma, await me(request.auth!.account.id), parseBody(operationExecuteSchema, request.body ?? {})));
   app.post('/business/torch', { preHandler: app.requireAuth }, async (request) =>
     BlockWarService.torch(app.prisma, await me(request.auth!.account.id), parseBody(businessTorchSchema, request.body ?? {})));
   /** 1.1.0-C: run, switch or shut a business's racket. */

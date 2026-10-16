@@ -257,6 +257,7 @@ fun LoginScreen(
   var confirmPassword by remember { mutableStateOf("") }
   var passwordVisible by remember { mutableStateOf(false) }
   var ageConfirmed by remember { mutableStateOf(false) }
+  var birthDate by remember { mutableStateOf("") }
   var busy by remember { mutableStateOf(false) }
   var error by remember { mutableStateOf<String?>(null) }
   var info by remember { mutableStateOf<String?>(null) }
@@ -291,6 +292,7 @@ fun LoginScreen(
       !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() -> "Enter a valid email address."
       password.length < 8 -> "Password must be at least 8 characters."
       password != confirmPassword -> "Passwords do not match."
+      birthdayError(birthDate) != null -> birthdayError(birthDate)
       !ageConfirmed -> "Confirm that you are at least 16 years old."
       else -> null
     }
@@ -314,7 +316,7 @@ fun LoginScreen(
       try {
         val result = when (mode) {
           AuthMode.SignIn -> auth.login(identifier, password, captchaToken)
-          AuthMode.SignUp -> auth.register(username, email, password, ageConfirmed, captchaToken)
+          AuthMode.SignUp -> auth.register(username, email, password, ageConfirmed, birthDate, captchaToken)
         }
         when (result) {
           is AuthResult.SignedIn -> onSignedIn(result.account)
@@ -469,6 +471,7 @@ fun LoginScreen(
               keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
               keyboardActions = KeyboardActions(onDone = { submit() }),
             )
+            BirthdayDateField(value = birthDate, enabled = !busy, onSelect = { birthDate = it; error = null })
             Row(
               modifier = Modifier.fillMaxWidth(),
               verticalAlignment = Alignment.CenterVertically,
@@ -594,6 +597,60 @@ fun TwoFactorScreen(auth: AuthRepository, onSignedIn: (AccountDto) -> Unit) {
   }
 }
 
+/** Native signed-in accounts cannot enter the game before their private birthday is saved. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BirthdayGateScreen(
+  auth: AuthRepository,
+  onSaved: (AccountDto) -> Unit,
+  onSignedOut: () -> Unit,
+) {
+  val scope = rememberCoroutineScope()
+  var birthday by remember { mutableStateOf("") }
+  var busy by remember { mutableStateOf(false) }
+  var error by remember { mutableStateOf<String?>(null) }
+
+  Scaffold(topBar = { TopAppBar(title = { Text("Account age verification") }) }) { padding ->
+    Column(
+      modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
+      verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+      Text("One-time birthday check", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+      Text("StreetsEmpire is for players 16 and older. Your birthday is kept private and is never shown to other players.")
+      BirthdayDateField(value = birthday, enabled = !busy, onSelect = { birthday = it; error = null })
+      error?.let { AuthMessage(it, isError = true) }
+      Button(
+        onClick = {
+          val invalid = birthdayError(birthday)
+          if (invalid != null) {
+            error = invalid
+          } else {
+            busy = true
+            error = null
+            scope.launch {
+              try {
+                onSaved(auth.saveBirthday(birthday))
+              } catch (e: ApiError) {
+                error = e.message
+              } finally {
+                busy = false
+              }
+            }
+          }
+        },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !busy && birthday.isNotBlank(),
+      ) { Text(if (busy) "Saving..." else "Save birthday and continue") }
+      TextButton(onClick = {
+        busy = true
+        scope.launch {
+          try { auth.logout() } finally { onSignedOut() }
+        }
+      }, enabled = !busy) { Text("Sign out") }
+    }
+  }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -613,11 +670,11 @@ fun HomeScreen(
     if (preview) return@LaunchedEffect
     scope.launch {
       try {
-        account = auth.me()
-        snapshot = try {
-          auth.dashboard()
-        } catch (_: ApiError) {
-          null
+        val signedIn = auth.me()
+        account = signedIn
+        // A missing date of birth must be completed before requesting game data.
+        if (!signedIn.birthDateRequired) {
+          snapshot = try { auth.dashboard() } catch (_: ApiError) { null }
         }
         account?.let { freshAccount ->
           snapshot?.let { freshSnapshot -> appState.applyRefresh(freshAccount, dashboard = freshSnapshot) }
@@ -630,6 +687,20 @@ fun HomeScreen(
         loading = false
       }
     }
+  }
+
+  if (!preview && account?.birthDateRequired == true && !loading) {
+    BirthdayGateScreen(
+      auth = auth,
+      onSaved = { updated ->
+        account = updated
+        scope.launch {
+          snapshot = try { auth.dashboard() } catch (_: ApiError) { null }
+        }
+      },
+      onSignedOut = onSignedOut,
+    )
+    return
   }
 
   val sharedState by appState.state.collectAsState()

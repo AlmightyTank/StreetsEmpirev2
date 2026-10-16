@@ -22,6 +22,8 @@ import './styles/street-pass.css';
 import './styles/supporter.css';
 import './styles/travel.css';
 import './styles/city-blocks.css';
+import './styles/operations.css';
+import './styles/black-book.css';
 import './styles/quests.css';
 import './styles/events.css';
 import './styles/surveys.css';

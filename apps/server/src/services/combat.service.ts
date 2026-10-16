@@ -40,6 +40,7 @@ import { assertNotPaused, fitThugs, toState, workingWhores } from './action.serv
 import { BusinessService } from './business.service.js';
 import { TurfService } from './turf.service.js';
 import { ActivityService } from './activity.service.js';
+import { BlackBookService } from './black-book.service.js';
 import { EasterEggService } from './easter-egg.service.js';
 import { RandomEncounterService, encounterActivityPayload } from './random-encounter.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
@@ -1642,6 +1643,17 @@ export const CombatService = {
         where: { observerId_targetId: { observerId: playerId, targetId: target.id } },
         create: { observerId: playerId, targetId: target.id, report: json(report), expiresAt },
         update: { report: json(report), expiresAt },
+      });
+      await BlackBookService.recordSignal(tx, {
+        roundId: observer.roundId,
+        ownerId: observer.id,
+        targetId: defender.id,
+        cityId: defender.cityId,
+        topic: `rival:${defender.id}:defense`,
+        sourceKind: 'scout',
+        strengthBand: report.fitThugs < 25 ? 'light' : report.fitThugs < 100 ? 'guarded' : 'heavy',
+        observedAt: now,
+        expiresAt,
       });
       if (burnerFavor) await SingleUseFavorService.consume(tx, burnerFavor.id);
       await ActivityService.log(tx, playerId, 'COMBAT_RECON', json({

@@ -11,7 +11,9 @@ const page = (key: string) => {
 describe('consolidated game navigation', () => {
   it('makes the core loop immediately accessible and gives Quests a primary shortcut', () => {
     expect(SECTIONS[0]).toMatchObject({ id: 'command', title: 'Command' });
-    expect(SECTIONS[0]!.pages.map((item) => item.key)).toEqual(['dashboard', 'quests', 'scout', 'produce', 'raids']);
+    expect(SECTIONS[0]!.pages.map((item) => item.key)).toEqual([
+      'dashboard', 'quests', 'scout', 'produce', 'raids', 'operations', 'black-book',
+    ]);
     expect(DEFAULT_TABS).toEqual(['dashboard', 'quests', 'scout', 'stores']);
   });
 
@@ -77,7 +79,7 @@ describe('new player navigation model', () => {
     const sections = newPlayerSectionsFor(SECTIONS);
     expect(sections[0]).toMatchObject({ id: 'new-player-core', title: 'Start Here', defaultOpen: true });
     expect(sections[0]!.pages.map((item) => item.key)).toEqual([
-      'dashboard', 'quests', 'scout', 'produce', 'raids', 'stores',
+      'dashboard', 'quests', 'scout', 'produce', 'raids', 'operations', 'black-book', 'stores',
     ]);
     expect(sections.slice(1).every((section) => section.defaultOpen === false)).toBe(true);
   });

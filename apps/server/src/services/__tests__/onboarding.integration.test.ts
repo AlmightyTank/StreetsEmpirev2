@@ -15,7 +15,9 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
   let fresh = { accountId: '', playerId: '', cookie: '' };
   let veteranCookie = '';
 
-  const itemName = (field: string) => Object.values(rules.stores).flatMap((store) => Object.values(store.items)).find((item) => item.field === field)!.name;
+  const itemName = (field: string) => Object.values(rules.stores)
+    .flatMap((store) => Object.values(store.items))
+    .find((item) => item.field === field)!.name;
 
   async function register(prefix: string) {
     const username = `${prefix}_${randomUUID().slice(0, 6)}`;
@@ -77,24 +79,17 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
     expect((await get(veteranCookie)).json().intro.due).toBe(false);
   });
 
-  it('ticks the early goals off from real play, including checkout lines', async () => {
+  it('ticks the four origin beats off from real play', async () => {
     const log = (type: string, payload: Prisma.InputJsonObject) => app.prisma.playerActivity.create({ data: { roundPlayerId: fresh.playerId, type: type as never, payload } });
     await log('SCOUT', { turns: 5, thugs: 0, whores: 1 });
     let steps = Object.fromEntries((await get(fresh.cookie)).json().guide.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));
-    expect(steps).toEqual({ scout: true, recruit: false, restock: false, produce: false, weapon: false });
+    expect(steps).toEqual({ meet_contact: true, open_front: false, face_encounter: false, choose_career: false });
 
-    await log('SCOUT', { turns: 5, thugs: 2 });
-    await log('STORE_BUY', { item: itemName('condoms'), quantity: 10 });
-    // Beer only as a checkout line; a sold line never counts as restocking.
-    await log('STORE_SELL', { lines: [{ item: itemName('beer'), direction: 'sell', quantity: 1 }] });
+    await log('BUSINESS_BUILD', { businessKey: 'CORNER_STORE' });
+    await log('RANDOM_ENCOUNTER_CHOICE', { encounterKey: 'test', choice: 'stand_ground' });
     steps = Object.fromEntries((await get(fresh.cookie)).json().guide.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));
-    expect(steps).toMatchObject({ recruit: true, restock: false });
-    await log('STORE_BUY', { lines: [{ item: itemName('beer'), direction: 'buy', quantity: 5 }] });
-    await log('PRODUCE_CRACK', { turns: 3, product: 10 });
-    steps = Object.fromEntries((await get(fresh.cookie)).json().guide.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));
-    // The guns every crew starts with are not a first weapon.
-    expect(steps).toMatchObject({ restock: true, produce: true, weapon: false });
-    await log('STORE_BUY', { lines: [{ item: itemName('shotguns'), direction: 'buy', quantity: 1 }] });
+    expect(steps).toMatchObject({ open_front: true, face_encounter: true, choose_career: false });
+    await log('CAREER_CHOSEN', { career: 'ENFORCER' });
     const guide = (await get(fresh.cookie)).json().guide;
     expect(guide.complete).toBe(true);
   });

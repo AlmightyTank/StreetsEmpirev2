@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MINIMUM_AGE, PASSWORD_MIN, USERNAME_MAX, USERNAME_MIN } from '@streets/shared';
+import { MINIMUM_AGE, latestEligibleBirthDate, PASSWORD_MIN, USERNAME_MAX, USERNAME_MIN } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -17,10 +17,11 @@ export function RegisterPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // Age declaration and a bot check when the server has one switched on.
+  // 16+ age declaration and a bot check when the server has one switched on.
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaKey, setCaptchaKey] = useState(0);
@@ -33,7 +34,7 @@ export function RegisterPage() {
     setFields({});
 
     try {
-      const approvalMessage = await register({ username, email, password, ageConfirmed, ...(captchaToken ? { captchaToken } : {}) });
+      const approvalMessage = await register({ username, email, password, birthDate, ageConfirmed, ...(captchaToken ? { captchaToken } : {}) });
       if (approvalMessage) {
         setMessage(approvalMessage);
         setPassword('');
@@ -102,6 +103,19 @@ export function RegisterPage() {
                 hint={`At least ${PASSWORD_MIN} characters.`}
               />
 
+              <Field
+                label="Date of birth"
+                name="birthDate"
+                type="date"
+                value={birthDate}
+                onChange={(event) => setBirthDate(event.target.value)}
+                autoComplete="bday"
+                max={latestEligibleBirthDate()}
+                required
+                error={fields.birthDate}
+                hint="Private — used only to confirm you meet the minimum age requirement."
+              />
+
               <label className="se-checkrow se-checkrow--inline">
                 <input type="checkbox" checked={ageConfirmed} onChange={(event) => setAgeConfirmed(event.target.checked)} required />
                 <span>
@@ -117,7 +131,8 @@ export function RegisterPage() {
               <Button
                 className="se-btn se-btn--primary se-btn--block"
                 disabledReason={busy ? 'Setting up your account now.'
-                  : !ageConfirmed ? `Confirm you are ${MINIMUM_AGE} or older.`
+                  : !birthDate ? 'Enter your date of birth.'
+                    : !ageConfirmed ? `Confirm you are ${MINIMUM_AGE} or older.`
                     : captchaOn && !captchaToken ? 'Finish the "are you human" check.' : null}
               >
                 {busy ? 'Working...' : 'Create account'}

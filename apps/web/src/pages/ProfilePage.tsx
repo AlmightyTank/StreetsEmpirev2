@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import type {
   PublicAwardDto,
   PublicCareerDto,
+  PublicLegacyEntryDto,
   PublicPlayerProfileDto,
   PublicSeasonResultDto,
   PublicStatSheetDto,
@@ -477,7 +478,40 @@ function DiscoveriesPanel({ discoveries }: { discoveries: SecretCollectionDto | 
   );
 }
 
-function SeasonHistory({ career }: { career: PublicCareerDto }) {
+function legacyKindLabel(kind: string): string {
+  if (kind === 'season_finish') return 'Season finish';
+  if (kind === 'daily_cover') return 'Streets Daily cover';
+  if (kind === 'city_event') return 'City memory';
+  return 'Legacy receipt';
+}
+
+function SeasonHistory({
+  career,
+  isOwner,
+  onLegacyEntriesChange,
+}: {
+  career: PublicCareerDto;
+  isOwner: boolean;
+  onLegacyEntriesChange: (entries: PublicLegacyEntryDto[]) => void;
+}) {
+  const entries = career.legacyEntries ?? [];
+  const featured = entries.find((entry) => entry.featured) ?? null;
+  const [legacyBusy, setLegacyBusy] = useState<string | null>(null);
+  const [legacyError, setLegacyError] = useState<string | null>(null);
+
+  async function featureLegacy(entryId: string | null) {
+    setLegacyBusy(entryId ?? 'clear');
+    setLegacyError(null);
+    try {
+      const response = await communityApi.featureLegacy(entryId);
+      onLegacyEntriesChange(response.entries);
+    } catch (caught: unknown) {
+      setLegacyError(caught instanceof ApiError ? caught.message : 'Could not update the featured receipt.');
+    } finally {
+      setLegacyBusy(null);
+    }
+  }
+
   return (
     <Panel title="Career history" className="se-profile-panel se-profile-career">
       {career.seasons.length === 0 ? (
@@ -545,6 +579,34 @@ function SeasonHistory({ career }: { career: PublicCareerDto }) {
 
         </div>
       )}
+
+      {entries.length ? (
+        <section className="se-legacy" aria-labelledby="empire-legacy-title">
+          <div className="se-legacy__head">
+            <div><span className="se-eyebrow">Permanent · cosmetic only</span><h3 id="empire-legacy-title">Empire Legacy</h3></div>
+            <span className="se-muted se-num">{formatNumber(entries.length)} receipts</span>
+          </div>
+          {featured ? (
+            <article className="se-legacy-featured">
+              <span className="se-legacy-card__kind">Featured · {legacyKindLabel(featured.kind)}</span>
+              <strong>{featured.title}</strong>
+              <span>{featured.round.name} · {formatDate(featured.round.endedAt)}</span>
+              {isOwner ? <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={legacyBusy !== null} onClick={() => void featureLegacy(null)}>{legacyBusy === 'clear' ? 'Clearing…' : 'Clear showcase'}</button> : null}
+            </article>
+          ) : null}
+          {legacyError ? <Alert>{legacyError}</Alert> : null}
+          <div className="se-legacy-grid">
+            {entries.map((entry) => (
+              <article key={entry.id} className={`se-legacy-card${entry.featured ? ' is-featured' : ''}`}>
+                <span className="se-legacy-card__kind">{legacyKindLabel(entry.kind)}</span>
+                <strong>{entry.title}</strong>
+                <span className="se-muted">{entry.round.name} · {formatDate(entry.awardedAt)}</span>
+                {isOwner && !entry.featured ? <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={legacyBusy !== null} onClick={() => void featureLegacy(entry.id)}>{legacyBusy === entry.id ? 'Featuring…' : 'Feature on profile'}</button> : null}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </Panel>
   );
 }
@@ -631,6 +693,9 @@ export function ProfilePage() {
     const matchesCategory = achievementCategoryFilter === 'all' || award.category === achievementCategoryFilter;
     return matchesStatus && matchesCategory;
   });
+  const updateLegacyEntries = (entries: PublicLegacyEntryDto[]) => {
+    setCareer((current) => current ? { ...current, legacyEntries: entries } : current);
+  };
   return (
     <GameLayout>
       <div className={`se-profile${shownTheme ? ` se-profile--themed se-site-theme--${shownTheme}` : ''}`}>
@@ -679,6 +744,7 @@ export function ProfilePage() {
               </h1>
               {signature ? <span className="se-profile-nameplate-rule" aria-hidden="true" /> : null}
               {player?.crewName ? <p className="se-profile-crew">Crew · <strong>{player.crewName}</strong></p> : null}
+              {player?.careerIdentity ? <p className="se-profile-career" title="Cosmetic career identity; it does not change gameplay power.">Career · <strong>{player.careerIdentity.title}</strong></p> : null}
               {player?.factionAlignment?.length ? (
                 <p className="se-profile-alignment" aria-label="Faction alignment">
                   {player.factionAlignment.map((faction) => (
@@ -716,7 +782,7 @@ export function ProfilePage() {
           <div className="se-profile-loading" role="status">Pulling the street record...</div>
         ) : null}
 
-        {!player && career ? <SeasonHistory career={career} /> : null}
+        {!player && career ? <SeasonHistory career={career} isOwner onLegacyEntriesChange={updateLegacyEntries} /> : null}
         {!player && sheetChoices.length ? <StatSheetPanel key="career" choices={sheetChoices} /> : null}
 
         {player ? (
@@ -794,7 +860,7 @@ export function ProfilePage() {
 
             <StatSheetPanel key={player.publicPimpId} choices={sheetChoices} />
 
-            {career ? <SeasonHistory career={career} /> : null}
+            {career ? <SeasonHistory career={career} isOwner={player.isYou} onLegacyEntriesChange={updateLegacyEntries} /> : null}
 
             <AchievementsPanel
               unlocked={unlocked}

@@ -82,7 +82,7 @@ async function signedIn(browser, credentials, label) {
   if (!username) {
     username = `audit${Math.random().toString(36).slice(2, 8)}`;
     password = `password-${username}`;
-    const made = await api(context, 'POST', '/api/auth/register', { username, email: `${username}@example.invalid`, password });
+    const made = await api(context, 'POST', '/api/auth/register', { ageConfirmed: true, birthDate: '1990-01-01', username, email: `${username}@example.invalid`, password });
     if (made.status >= 300) throw new Error(`could not register an audit player (${made.status} ${made.body?.error?.code ?? ''}); set UI_AUDIT_PLAYER.`);
     await api(context, 'POST', '/api/rounds/current/join', {});
   } else {

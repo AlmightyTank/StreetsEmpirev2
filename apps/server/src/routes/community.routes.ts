@@ -10,6 +10,8 @@ import { env } from '../config/env.js';
 import { forumUserIdSchema } from '../services/forum-proof.js';
 import { parseBody } from '../utils/validate.js';
 import { z } from 'zod';
+import { EmpireLegacyService } from '../services/empire-legacy.service.js';
+import { CAREER_KEYS, PlayerCareerService } from '../services/player-career.service.js';
 
 const MAX_ACTIVITY = 100;
 
@@ -48,6 +50,28 @@ const communityRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/career', { preHandler: fastify.requireAuth }, async (request) => ({
     career: await CommunityService.career(fastify.prisma, request.auth!.account.id),
   }));
+
+  fastify.get('/career-identity', { preHandler: fastify.requireAuth }, async (request) => ({
+    career: await PlayerCareerService.get(fastify.prisma, request.auth!.account.id),
+    choices: CAREER_KEYS,
+  }));
+
+  fastify.post('/career-identity', { preHandler: fastify.requireAuth }, async (request) => {
+    const { settled } = await requireSettledPlayer(request.auth!.account.id);
+    const schema = z.object({ career: z.enum(CAREER_KEYS as [typeof CAREER_KEYS[number], ...typeof CAREER_KEYS]) }).strict();
+    const { career } = parseBody(schema, request.body);
+    return { career: await PlayerCareerService.choose(fastify.prisma, {
+      accountId: request.auth!.account.id,
+      roundPlayerId: settled.player.id,
+      key: career,
+    }) };
+  });
+
+  /** Select one immutable receipt for the public profile; null clears the slot. */
+  fastify.post('/legacy/feature', { preHandler: fastify.requireAuth }, async (request) => {
+    const { entryId } = parseBody(z.object({ entryId: z.string().cuid().nullable() }), request.body);
+    return { entries: await EmpireLegacyService.feature(fastify.prisma, request.auth!.account.id, entryId) };
+  });
 
   /** 0.1.0-E: public, deliberately non-sensitive player profile. */
   fastify.get('/players/:publicPimpId', { preHandler: fastify.requireAuth }, async (request) => {

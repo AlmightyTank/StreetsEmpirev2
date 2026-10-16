@@ -148,6 +148,7 @@ export const AccountDataService = {
         createdAt: account.createdAt,
         lastLoginAt: account.lastLoginAt,
         ageConfirmedAt: account.ageConfirmedAt,
+        birthDate: account.birthDate ? account.birthDate.toISOString().slice(0, 10) : null,
         rulesAcceptedAt: account.rulesAcceptedAt,
         rulesAcceptedVersion: account.rulesAcceptedVersion,
         discord: account.discordId ? { username: account.discordUsername, linkedAt: account.discordLinkedAt } : null,

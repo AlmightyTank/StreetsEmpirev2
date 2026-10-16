@@ -50,6 +50,8 @@ export const SECTIONS: NavSection[] = [
       { key: 'scout', label: 'Scout', to: '/game/scout', icon: 'scout' },
       { key: 'produce', label: 'Produce', to: '/game/produce', icon: 'produce' },
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },
+      { key: 'operations', label: 'Operations', short: 'Ops', to: '/game/operations', icon: 'raids' },
+      { key: 'black-book', label: 'Black Book', short: 'Intel', to: '/game/black-book', icon: 'contacts' },
     ],
   },
   {
@@ -182,7 +184,7 @@ export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSectio
   const pages = pagesByKey(sections);
   // Preserve one visible command loop; no duplicate routes or separate rookie-only pages.
   const groups = [
-    ['new-player-core', 'Start Here', ['dashboard', 'quests', 'scout', 'produce', 'raids', 'stores']],
+    ['new-player-core', 'Start Here', ['dashboard', 'quests', 'scout', 'produce', 'raids', 'operations', 'black-book', 'stores']],
     ['new-player-empire', 'Build Your Empire', ['hideout', 'crew-roster', 'dealers', 'supply', 'loans', 'travel', 'turf']],
     ['new-player-competition', 'Competition', ['casino', 'alliance', 'players', 'rankings']],
     ['new-player-career', 'Progress & Rewards', ['xp-progress', 'events', 'street-pass', 'collection', 'supporter', 'profile']],

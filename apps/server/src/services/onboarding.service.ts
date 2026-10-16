@@ -65,33 +65,23 @@ function bought(names: string[]): Prisma.Sql {
 /** What this season's play has already covered. One query over the player's own ledger. */
 export async function guideProgress(
   prisma: Pick<PrismaClient, '$queryRaw'>,
-  player: { id: string; thugs: number; pistols: number; shotguns: number; tek9s: number; ak47s: number },
-  ruleset: Ruleset,
+  player: { id: string },
+  _ruleset: Ruleset,
 ): Promise<Record<OnboardingGuideStepKey, boolean>> {
-  const weaponFields = ['pistols', 'shotguns', 'tek9s', 'ak47s'] as const;
-  const [row] = await prisma.$queryRaw<Array<Record<'scouted' | 'recruited' | 'hired' | 'produced' | 'condoms' | 'beer' | 'armed', boolean | null>>>(Prisma.sql`
+  const [row] = await prisma.$queryRaw<Array<Record<'scouted' | 'business' | 'encounter' | 'career', boolean | null>>>(Prisma.sql`
     SELECT
       bool_or(a.type::text = 'SCOUT') AS scouted,
-      bool_or(a.type::text = 'SCOUT' AND jsonb_typeof(a.payload->'thugs') = 'number' AND (a.payload->>'thugs')::float8 > 0) AS recruited,
-      bool_or(${bought(itemNames(ruleset, ['thugs']))}) AS hired,
-      bool_or(a.type::text = 'PRODUCE_CRACK') AS produced,
-      bool_or(${bought(itemNames(ruleset, ['condoms']))}) AS condoms,
-      bool_or(${bought(itemNames(ruleset, ['beer']))}) AS beer,
-      bool_or(${bought(itemNames(ruleset, [...weaponFields]))}) AS armed
+      bool_or(a.type::text = 'BUSINESS_BUILD') AS business,
+      bool_or(a.type::text = 'RANDOM_ENCOUNTER_CHOICE') AS encounter,
+      bool_or(a.type::text = 'CAREER_CHOSEN') AS career
     FROM "PlayerActivity" a
     WHERE a."roundPlayerId" = ${player.id}
   `);
-  // Every crew starts with some thugs and guns; only growth beyond that counts.
-  const start = ruleset.round.startingPlayer as unknown as Partial<Record<string, number>>;
-  const startingWeapons = weaponFields.reduce((sum, field) => sum + (start[field] ?? 0), 0);
-  const weapons = weaponFields.reduce((sum, field) => sum + player[field], 0);
   return {
-    scout: Boolean(row?.scouted),
-    // Hired, recruited or rewarded: any thug beyond the crew every player starts with.
-    recruit: Boolean(row?.recruited) || Boolean(row?.hired) || player.thugs > (start.thugs ?? 0),
-    restock: Boolean(row?.condoms) && Boolean(row?.beer),
-    produce: Boolean(row?.produced),
-    weapon: Boolean(row?.armed) || weapons > startingWeapons,
+    meet_contact: Boolean(row?.scouted),
+    open_front: Boolean(row?.business),
+    face_encounter: Boolean(row?.encounter),
+    choose_career: Boolean(row?.career),
   };
 }
 

@@ -72,10 +72,13 @@ import { CrewRosterPage } from './pages/CrewRosterPage.js';
 import { TravelPage } from './pages/TravelPage.js';
 import { CasinoPage } from './pages/CasinoPage.js';
 import { TurfPage } from './pages/TurfPage.js';
+import { OperationsPage } from './pages/OperationsPage.js';
+import { BlackBookPage } from './pages/BlackBookPage.js';
 import { GameRouteLayout } from './layouts/GameLayout.js';
 import { useMaintenanceMessage } from './components/MaintenanceBanner.js';
 import { VerifyEmailGate } from './components/VerifyEmailGate.js';
 import { RulesGate } from './components/RulesGate.js';
+import { BirthDateGate } from './components/BirthDateGate.js';
 import { AdminDiscordGate } from './components/AdminDiscordGate.js';
 import { landingPath, useSession } from './stores/session.js';
 
@@ -98,6 +101,9 @@ function Protected({ children }: { children: ReactNode }) {
 function RequirePlayable({ children }: { children: ReactNode }) {
   const unverified = useSession((s) => s.account?.verificationRequired ?? false);
   const rulesPending = useSession((s) => s.account?.rulesAcceptanceRequired ?? false);
+  const birthDatePending = useSession((s) => s.account?.birthDateRequired ?? false);
+  // Enforce birthday collection immediately on the next signed-in game visit.
+  if (birthDatePending) return <BirthDateGate />;
   if (unverified) return <VerifyEmailGate />;
   // First sign-in (or the rules changed): accept them before anything else.
   if (rulesPending) return <RulesGate />;
@@ -200,6 +206,8 @@ export function App() {
 
         <Route path="travel" element={<Protected><LiveRound><TravelPage /></LiveRound></Protected>} />
         <Route path="turf" element={<Protected><LiveRound><TurfPage /></LiveRound></Protected>} />
+        <Route path="operations" element={<Protected><LiveRound><OperationsPage /></LiveRound></Protected>} />
+        <Route path="black-book" element={<Protected><LiveRound><BlackBookPage /></LiveRound></Protected>} />
         <Route path="blocks" element={<Navigate to="/game/turf" replace />} />
         {/* 0.5.0-A had a Cities page; the road map still lives on Travel. */}
         <Route path="cities" element={<Navigate to="/game/travel" replace />} />

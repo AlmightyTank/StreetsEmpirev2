@@ -914,6 +914,18 @@ export const TurfService = {
     for (const cityId of new Set(rows.map((row) => row.city.id))) {
       controlByCityId.set(cityId, controlFromRows(ruleset, rows.filter((row) => row.city.id === cityId)));
     }
+    // 2.0.0. Latest public memory per city for the "city remembers" banner.
+    const memoryRows = await (db as Db).cityMemoryEvent.findMany({
+      where: { roundId: player.roundId, cityId: { in: [...controlByCityId.keys()] }, visibility: 'public' },
+      orderBy: { happenedAt: 'desc' },
+      select: { cityId: true, kind: true, summary: true, happenedAt: true },
+    });
+    const latestMemoryByCityId = new Map<string, { kind: string; summary: unknown; happenedAt: string }>();
+    for (const entry of memoryRows) {
+      if (!latestMemoryByCityId.has(entry.cityId)) {
+        latestMemoryByCityId.set(entry.cityId, { kind: entry.kind, summary: entry.summary, happenedAt: entry.happenedAt.toISOString() });
+      }
+    }
 
     const byCity = new Map<string, CityTurfDto>();
     // 1.4.0-D: Connected with the Kings, every corner burns less; say so where corners are worked.
@@ -1153,6 +1165,7 @@ export const TurfService = {
         heldAway,
         blocks,
         reports: reportsByCity.get(citySlug) ?? [],
+        latestEvent: latestMemoryByCityId.get(row.city.id) ?? null,
       });
     }
     return byCity;
