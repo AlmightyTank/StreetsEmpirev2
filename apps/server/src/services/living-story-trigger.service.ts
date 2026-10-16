@@ -12,6 +12,16 @@ export const LIVING_STORY_MEMORY_KINDS = [
   'war_win', 'operation_complete', 'npc_gang_migration', 'supply_road_stop', 'takeover', 'city_condition_follow_up',
 ] as const;
 
+/** Shared by real offers, public opportunity reads and admin diagnostics. */
+export function offerQuotaReason(counts: { owner: number; city: number; round: number; cooldown: number }):
+  'OWNER_CAP' | 'CITY_CAP' | 'ROUND_CAP' | 'COOLDOWN' | null {
+  if (counts.owner >= LIVING_STORY_LIMITS.maxPerOwnerRound) return 'OWNER_CAP';
+  if (counts.city >= LIVING_STORY_LIMITS.maxPerCityRound) return 'CITY_CAP';
+  if (counts.round >= LIVING_STORY_LIMITS.maxPerRound) return 'ROUND_CAP';
+  if (counts.cooldown > 0) return 'COOLDOWN';
+  return null;
+}
+
 /** Must run inside the caller's transaction. Only DB-owned source IDs are used. */
 export async function tryOfferLivingStory(db: Db, input: {
   ownerId: string; memoryId: string; storyKey: string; now: Date;
@@ -51,10 +61,7 @@ export async function tryOfferLivingStory(db: Db, input: {
     db.criminalCaseFile.count({ where: { ownerId: player.id, roundId: round.id,
       offeredAtActive: { gte: new Date(activeNow.getTime() - LIVING_STORY_LIMITS.cooldownActiveMinutes * 60_000) } } }),
   ]);
-  if (ownerCount >= LIVING_STORY_LIMITS.maxPerOwnerRound
-    || cityCount >= LIVING_STORY_LIMITS.maxPerCityRound
-    || roundCount >= LIVING_STORY_LIMITS.maxPerRound
-    || cooldownCount > 0) return false;
+  if (offerQuotaReason({ owner: ownerCount, city: cityCount, round: roundCount, cooldown: cooldownCount })) return false;
   return (await CriminalCaseFileService.offerFromCityMemory(db, { ownerId: input.ownerId, storyKey: input.storyKey, cityMemoryId: input.memoryId, now: input.now })) !== null;
 }
 
@@ -99,9 +106,7 @@ export async function listPublicStoryOpportunities(
     db.criminalCaseFile.count({ where: { roundId: round.id, ownerId: input.ownerId,
       offeredAtActive: { gte: new Date(activeNow.getTime() - LIVING_STORY_LIMITS.cooldownActiveMinutes * 60_000) } } }),
   ]);
-  if (ownerCount >= LIVING_STORY_LIMITS.maxPerOwnerRound
-    || cityCount >= LIVING_STORY_LIMITS.maxPerCityRound
-    || roundCount >= LIVING_STORY_LIMITS.maxPerRound || cooldownCount > 0) return [];
+  if (offerQuotaReason({ owner: ownerCount, city: cityCount, round: roundCount, cooldown: cooldownCount })) return [];
   const eligibleKinds = [...new Set(defs.flatMap((def) => def.trigger.eventKinds))];
   const rows = await db.cityMemoryEvent.findMany({
     where: { roundId: round.id, cityId: input.cityId, visibility: 'public',

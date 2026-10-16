@@ -6,7 +6,7 @@ import { activeRoundEventTime, defineLivingStoryCatalog, livingStoryCatalogForRu
 import type { LivingCaseKey, LivingStoryDefinition } from '@streets/rulesets';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import { evaluateLivingStoryOffer } from './living-story-contract.service.js';
-import { LIVING_STORY_LIMITS } from './living-story-trigger.service.js';
+import { LIVING_STORY_LIMITS, offerQuotaReason } from './living-story-trigger.service.js';
 import { AdminAuditService } from './admin-audit.service.js';
 import type { AuditActor } from './admin-audit.service.js';
 
@@ -22,16 +22,6 @@ export interface StoryDraftInput {
 }
 export interface StoryDiagnosticsInput {
   roundId: string; ownerId: string; memoryId: string; storyKey: string;
-}
-
-/** Same cap semantics as tryOfferLivingStory; keep explanations deterministic. */
-export function offerQuotaReason(counts: { owner: number; city: number; round: number; cooldown: number }):
-  'OWNER_CAP' | 'CITY_CAP' | 'ROUND_CAP' | 'COOLDOWN' | null {
-  if (counts.owner >= LIVING_STORY_LIMITS.maxPerOwnerRound) return 'OWNER_CAP';
-  if (counts.city >= LIVING_STORY_LIMITS.maxPerCityRound) return 'CITY_CAP';
-  if (counts.round >= LIVING_STORY_LIMITS.maxPerRound) return 'ROUND_CAP';
-  if (counts.cooldown > 0) return 'COOLDOWN';
-  return null;
 }
 
 async function roundAndCatalog(db: Db, roundId: string) {
