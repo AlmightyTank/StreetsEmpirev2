@@ -25,4 +25,12 @@ describe('round roll call schedule', () => {
     expect(clock.active).toBe(false);
   });
 
+  it('blocks attendance during an active round pause', () => {
+    const start = new Date('2026-10-01T00:00:00Z');
+    const end = new Date(start.getTime() + 28 * 86_400_000);
+    const clock = roundRollCallClock({ startsAt: start, endsAt: end, status: 'ACTIVE', pausedAt: start }, start);
+    expect(clock.requiredStamps).toBe(21);
+    expect(clock.active).toBe(false);
+  });
+
 });
