@@ -15,6 +15,7 @@ import forumRoutes from './forum.routes.js';
 import opsRoutes from './ops.routes.js';
 import patchNotesRoutes from './patch-notes.routes.js';
 import roundInfoRoutes from './round-info.routes.js';
+import roundRollCallRoutes from './round-roll-call.routes.js';
 import roundAftermathRoutes from './round-aftermath.routes.js';
 import roundRoutes from './round.routes.js';
 import siteRoutes from './site.routes.js';
@@ -44,6 +45,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(roundAftermathRoutes, { prefix: '/rounds' });
   await fastify.register(roundInfoRoutes, { prefix: '/rounds' });
   await fastify.register(gameRoutes, { prefix: '/game' });
+  await fastify.register(roundRollCallRoutes, { prefix: '/game' });
   await fastify.register(communityRoutes, { prefix: '/game' });
   await fastify.register(combatRoutes, { prefix: '/game' });
   await fastify.register(allianceRoutes, { prefix: '/game' });
