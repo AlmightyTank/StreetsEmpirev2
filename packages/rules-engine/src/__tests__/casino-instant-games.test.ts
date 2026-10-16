@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV12D } from '@streets/rulesets';
-import { horseRaceOrder, horseReturnCents, scratchPrizeMultiplier, seededRng, weightedIndex } from '../index.js';
+import { horseRaceOdds, horseRaceOrder, horseReturnCents, scratchPrizeMultiplier, seededRng, weightedIndex } from '../index.js';
 
 describe('casino instant games', () => {
   it('selects weighted outcomes at deterministic boundaries', () => {
@@ -24,5 +24,18 @@ describe('casino instant games', () => {
     expect(order).toHaveLength(rules.horses.length);
     expect(horseReturnCents(2_000n, 15_500, true)).toBe(3_100n);
     expect(horseReturnCents(2_000n, 15_500, false)).toBe(0n);
+  });
+
+  it('adjusts live odds without allowing volume or history to create extreme returns', () => {
+    const rules = classicOgV12D.casino.horseRacing!;
+    const odds = horseRaceOdds(rules, {
+      volumeByHorse: { BRASS_KNUCKLES: 1_000_000, LONG_SHOT: 1 },
+      recentWinners: ['BRASS_KNUCKLES', 'BRASS_KNUCKLES', 'BRASS_KNUCKLES'],
+      statusModifierBps: 500,
+    });
+    expect(Object.keys(odds)).toHaveLength(rules.horses.length);
+    expect(odds.BRASS_KNUCKLES).toBeGreaterThan(rules.horses[0]!.returnBps);
+    expect(odds.BRASS_KNUCKLES).toBeLessThanOrEqual(250_000);
+    expect(odds.LONG_SHOT).toBeGreaterThanOrEqual(10_000);
   });
 });

@@ -199,9 +199,16 @@ export function ScratchCardsPanel({ casinoPage, onPageChange }: Props) {
     if (!card || allRevealed) return;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     for (let index = 0; index < card.spots.length; index += 1) {
-      if (!revealed.has(index)) reveal(index);
+      if (revealed.has(index)) continue;
+      playCasinoSound('SCRATCH_SCRAPE', soundEnabled, index);
+      setRevealed((current) => {
+        const next = new Set(current);
+        next.add(index);
+        return next;
+      });
       if (!reduced) await new Promise((resolve) => window.setTimeout(resolve, 90));
     }
+    window.setTimeout(() => finish(card), reduced ? 0 : 180);
   }
 
   function handleCanvasComplete(index: number) {

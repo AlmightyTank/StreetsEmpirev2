@@ -2,6 +2,8 @@ import { randomInt } from 'node:crypto';
 import type { Prisma, PrismaClient, RoundPlayer } from '@prisma/client';
 import {
   horseRaceOrder,
+  horseRaceOdds,
+  casinoStatusTier,
   horseRacingRatingEdgeBps,
   horseReturnCents,
   loadRulesetForRound,
@@ -135,13 +137,29 @@ async function scratchState(db: Db | PrismaClient, roundPlayerId: string): Promi
 }
 
 async function horseState(db: Db | PrismaClient, roundPlayerId: string): Promise<CasinoHorseRaceStateDto> {
-  const { casino } = await playerAndRules(db, roundPlayerId);
+  const { player, casino } = await playerAndRules(db, roundPlayerId);
   const rules = casino.horseRacing;
   if (!rules) return { enabled: false, minBetCents: 0, maxBetCents: 0, betStepCents: 0, horses: [], history: [] };
   const rows = await db.casinoLedgerEntry.findMany({ where: { roundPlayerId, kind: 'HORSE_RACE' }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 12 });
+  const marketRows = await db.casinoLedgerEntry.findMany({
+    where: { cityId: player.cityId, kind: 'HORSE_RACE', roundPlayer: { roundId: player.roundId }, createdAt: { gte: new Date(Date.now() - 6 * 60 * 60 * 1000) } },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 200,
+    select: { metadata: true },
+  });
+  const volumeByHorse: Record<string, number> = {};
+  const recentWinners: string[] = [];
+  for (const row of marketRows) {
+    const meta = row.metadata as Record<string, unknown>;
+    if (typeof meta.horseKey === 'string' && typeof meta.wagerCents === 'number') volumeByHorse[meta.horseKey] = (volumeByHorse[meta.horseKey] ?? 0) + meta.wagerCents;
+    if (typeof meta.winnerKey === 'string') recentWinners.push(meta.winnerKey);
+  }
+  const ratings = await db.casinoRating.findMany({ where: { roundPlayerId: player.id }, select: { theoBasis: true } });
+  const theoCents = ratings.reduce((sum, rating) => sum + rating.theoBasis / 10_000n, 0n);
+  const statusModifierBps = casino.status ? Math.min(500, casinoStatusTier(casino.status, theoCents).index * 100) : 0;
+  const returns = horseRaceOdds(rules, { volumeByHorse, recentWinners, statusModifierBps });
   return {
     enabled: true, minBetCents: rules.minBetCents, maxBetCents: rules.maxBetCents, betStepCents: rules.betStepCents,
-    horses: rules.horses.map((horse) => ({ ...horse, oddsLabel: `${Number((horse.returnBps / 10_000 - 1).toFixed(1))}:1` })),
+    horses: rules.horses.map((horse) => ({ ...horse, returnBps: returns[horse.key] ?? horse.returnBps, oddsLabel: `${Number(((returns[horse.key] ?? horse.returnBps) / 10_000 - 1).toFixed(1))}:1` })),
     history: rows.map(horseDto),
   };
 }
@@ -208,9 +226,26 @@ export const CasinoInstantGamesService = {
       await assertNoTableGame(tx, roundPlayerId);
       const wager = BigInt(input.wagerCents);
       if (session.bankrollCents < wager) throw AppError.conflict('NOT_ENOUGH_BANKROLL', 'There are not enough chips for that race ticket.');
-      const finishOrder = horseRaceOrder(rules, rng);
+      const marketRows = await tx.casinoLedgerEntry.findMany({
+        where: { cityId: city.id, kind: 'HORSE_RACE', roundPlayer: { roundId: player.roundId }, createdAt: { gte: new Date(now.getTime() - 6 * 60 * 60 * 1000) } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 200,
+        select: { metadata: true },
+      });
+      const volumeByHorse: Record<string, number> = {};
+      const recentWinners: string[] = [];
+      for (const row of marketRows) {
+        const meta = row.metadata as Record<string, unknown>;
+        if (typeof meta.horseKey === 'string' && typeof meta.wagerCents === 'number') volumeByHorse[meta.horseKey] = (volumeByHorse[meta.horseKey] ?? 0) + meta.wagerCents;
+        if (typeof meta.winnerKey === 'string') recentWinners.push(meta.winnerKey);
+      }
+      const ratings = await tx.casinoRating.findMany({ where: { roundPlayerId: player.id }, select: { theoBasis: true } });
+      const theoCents = ratings.reduce((sum, rating) => sum + rating.theoBasis / 10_000n, 0n);
+      const statusModifierBps = casino.status ? Math.min(500, casinoStatusTier(casino.status, theoCents).index * 100) : 0;
+      const returns = horseRaceOdds(rules, { volumeByHorse, recentWinners, statusModifierBps });
+      const finishOrder = horseRaceOrder(rules, rng, returns);
       const winner = rules.horses.find((candidate) => candidate.key === finishOrder[0])!;
-      const returned = horseReturnCents(wager, horse.returnBps, winner.key === horse.key);
+      const returnBps = returns[horse.key] ?? horse.returnBps;
+      const returned = horseReturnCents(wager, returnBps, winner.key === horse.key);
       const bankrollAfter = session.bankrollCents - wager + returned;
       await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfter } });
       if (casino.status) {
@@ -219,7 +254,7 @@ export const CasinoInstantGamesService = {
         await CasinoStatusService.recordResult(tx, ruleset, { roundPlayerId, cityId: city.id, play, stakeCents: wager, returnCents: returned, highlight: returned >= wager * 10n ? 'BIG_WIN' : null, now });
       }
       const wallet = await tx.casinoWallet.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } } });
-      const metadata = { horseKey: horse.key, horseName: horse.name, wagerCents: input.wagerCents, finishOrder, winnerKey: winner.key, winnerName: winner.name, returnCents: Number(returned) };
+      const metadata = { horseKey: horse.key, horseName: horse.name, wagerCents: input.wagerCents, returnBps, finishOrder, winnerKey: winner.key, winnerName: winner.name, returnCents: Number(returned) };
       const ledger = await tx.casinoLedgerEntry.create({ data: { roundPlayerId, cityId: city.id, sessionId: session.id, actionId: input.actionId, kind: 'HORSE_RACE', sessionChipDeltaCents: returned - wager, walletChipsAfterCents: wallet?.chipsCents ?? 0n, sessionChipsAfterCents: bankrollAfter, metadata } });
       await PlayerStateService.settleInTransaction(tx, roundPlayerId, { now, markActive: true });
       return horseDto(ledger);

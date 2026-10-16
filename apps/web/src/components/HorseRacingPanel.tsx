@@ -52,6 +52,17 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
     }).catch((cause) => setError(cause instanceof ApiError ? cause.message : 'Could not open the race book.'));
   }, [casinoPage.currentCitySlug, casinoPage.openSession?.id]);
 
+  useEffect(() => {
+    if (!state?.enabled || racing) return;
+    const refresh = window.setInterval(() => {
+      void casinoApi.horseRacing().then((next) => {
+        setState(next);
+        setHorseKey((key) => key && next.horses.some((horse) => horse.key === key) ? key : next.horses[0]?.key ?? null);
+      }).catch(() => undefined);
+    }, 10_000);
+    return () => window.clearInterval(refresh);
+  }, [state?.enabled, racing, casinoPage.currentCitySlug, casinoPage.openSession?.id]);
+
   const wagerCents = dollars(wager);
   const horse = state?.horses.find((runner) => runner.key === horseKey) ?? null;
   const bankroll = casinoPage.openSession?.bankrollCents ?? 0;
@@ -81,7 +92,7 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
     const normalized = baseSpeeds.map((speed) => speed / maxSpeed);
     const finishTargets = new Array(horseCount).fill(0).map((_, index) => {
       const rank = rankOf.get(state?.horses[index]?.key ?? '') ?? index;
-      return 1.03 - rank * 0.035;
+      return FINISH_LINE_RATIO - rank * 0.07;
     });
 
     speedsRef.current = normalized;
@@ -140,7 +151,7 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
     finally { setRacing(false); }
   }
 
-  return <Panel title="Horse Racing" aside="Fixed odds · six runners">
+  return <Panel title="Horse Racing" aside="Live odds · six runners">
     <div className={`se-horse-racing${racing ? ' is-racing' : ''}${race && !racing && race.returnCents > 0 ? ' is-win' : ''}`}>
       <div className="se-horse-racing__toolbar">
         <span>{racing ? 'THEY’RE OFF' : race ? `${race.winnerName.toUpperCase()} WINS` : 'NEXT RACE'}</span>
@@ -172,7 +183,10 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
           <div className="se-horse-racing__lanes">
             {state.horses.map((runner, index) => {
               const rank = order.get(runner.key);
-              const pos = racing ? (positions[index] ?? 0) : (race ? 1 : 0);
+              // Keep the official finish order visible after the animation. Previously
+              // every settled runner used `1`, which stacked all six horses on the
+              // finish marker and made the winner look corrupted.
+              const pos = racing ? (positions[index] ?? 0) : (race ? FINISH_LINE_RATIO - (rank ?? index) * 0.07 : 0);
               const style: RunnerStyle = {
                 '--runner-color': runner.color,
                 '--rank': rank ?? index,
@@ -183,7 +197,7 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
                 <div className={`se-horse-racing__lane${race && !racing && runner.key === race.winnerKey ? ' is-winner' : ''}`} key={runner.key}>
                   <span>{index + 1}</span>
                   <div className="se-horse-racing__runner" style={style}>
-                    <div className={`se-horse-racing__horse${race && !racing && runner.key === race.winnerKey ? ' is-winner' : ''}`} style={{ left: `${pos * FINISH_LINE_RATIO * 100}%` }}>
+                    <div className={`se-horse-racing__horse${race && !racing && runner.key === race.winnerKey ? ' is-winner' : ''}`} style={{ left: `min(${pos * 100}%, calc(100% - 6rem))` }}>
                       <small>{runner.name}</small>
                       <b aria-hidden="true">🏇</b>
                     </div>
@@ -202,7 +216,7 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
           <CasinoBetControl id="horse-wager" label="Win bet" ariaLabel="Horse race wager" value={wager} disabled={racing} onChange={(value) => { setWager(value); actionId.current = newActionId(); }} onDecrease={() => setWager(String(Math.max(state.minBetCents, (wagerCents ?? state.minBetCents) - state.betStepCents) / 100))} onIncrease={() => setWager(String(Math.min(state.maxBetCents, (wagerCents ?? state.minBetCents) + state.betStepCents) / 100))} onMax={() => setWager(String(Math.floor(Math.min(state.maxBetCents, bankroll) / state.betStepCents) * state.betStepCents / 100))} />
           <Button type="button" className="se-btn se-btn--primary" disabledReason={blocked} onClick={() => void run()}>{racing ? 'Race in progress…' : `Bet ${horse?.name ?? 'runner'}`}</Button>
         </div>
-        <p className="se-hint">Your win ticket and the full finish order are settled on the server before the animation starts. The race presentation cannot change the result.</p>
+        <p className="se-hint">Live odds react to recent volume, winners, and casino status. Odds are locked by the server when your ticket is settled; the animation cannot change the result.</p>
       </> : null}
     </div>
   </Panel>;
