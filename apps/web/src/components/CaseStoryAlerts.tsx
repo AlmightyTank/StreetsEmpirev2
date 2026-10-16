@@ -40,6 +40,10 @@ export function CaseStoryAlerts() {
           if (shouldNotify) pending = true;
           return;
         }
+        // An action may arrive while a silent read is in flight. Do not
+        // absorb its updated state into the baseline before the queued
+        // notification can compare it against the last known case snapshot.
+        if (initialized && pending && !shouldNotify) return;
         const files = [...active, ...archived];
         if (initialized && shouldNotify) {
           const changes = caseStorySignals(cache, files);
