@@ -29,7 +29,8 @@ function json(value: unknown): Prisma.InputJsonValue {
 
 export async function emitCityMemoryEvent(db: Db, input: EmitCityMemoryInput) {
   const storyKind = (LIVING_STORY_MEMORY_KINDS as readonly string[]).includes(input.kind);
-  const round = storyKind ? await db.round.findUnique({ where: { id: input.roundId } }) : null;
+  const round = storyKind && db.round?.findUnique
+    ? await db.round.findUnique({ where: { id: input.roundId } }) : null;
   const happenedAt = input.happenedAt ?? new Date();
   const event = await db.cityMemoryEvent.upsert({
     where: { idempotencyKey: input.idempotencyKey },
