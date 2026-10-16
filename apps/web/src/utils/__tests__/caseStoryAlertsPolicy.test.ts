@@ -6,7 +6,7 @@ const file = (status: CriminalCaseFileDto['status'], clues: number): CriminalCas
 describe('New story popup policy', () => {
   it('never replays on hydration (no comparison) and ignores archived offers', () => {
     expect(caseStorySignals(new Map(), [file('CLOSED', 3)])).toEqual([]);
-    expect(caseStorySignals(new Map(), [file('AVAILABLE', 0)]).toMatchObject([{ kind: 'offer' }]);
+    expect(caseStorySignals(new Map(), [file('AVAILABLE', 0)])).toMatchObject([{ kind: 'offer' }]);
   });
   it('reports new evidence and solved cases without repeating unchanged rows', () => {
     expect(caseStorySignals(new Map([['case-1', file('ACTIVE', 1)]]), [file('ACTIVE', 2)])).toMatchObject([{ kind: 'clue' }]);
