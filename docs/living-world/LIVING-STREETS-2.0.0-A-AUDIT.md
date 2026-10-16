@@ -28,8 +28,8 @@ Status: **Slice A implementation / non-active foundation**, branch `feature/livi
 
 ## Starter verified kinds (blueprints, not live content)
 
-- `STORY_AFTER_THE_SMOKE` → `CASE_THE_FIFTH_WITNESS`; actor-only settled `CityMemoryEvent.kind = takeover | war_win`.
-- `STORY_MISSING_LEDGER` → `CASE_MISSING_LEDGER`; actor-only settled `CityMemoryEvent.kind = business_flip`.
+- `STORY_AFTER_THE_SMOKE` → `CASE_THE_FIFTH_WITNESS`; actor-only settled `CityMemoryEvent.kind = war_win` (takeover events have no actor ids).
+- `STORY_MISSING_LEDGER` is deferred: `business_flip` has no verified production writer yet. `CASE_MISSING_LEDGER` retains its stable key but may not be offered until Slice C wires a real source.
 - Remaining planned cases `CASE_GHOST_SHIPMENT`, `CASE_FALSE_COLORS`, `CASE_MIDNIGHT_SIGNAL` have stable keys but **no invented source mapping** until the C/D audits locate real receipts.
 
 ## Gates before Slice B/C

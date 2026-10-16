@@ -19,7 +19,7 @@ describe('2.0.0-A Living Streets ruleset catalog', () => {
   });
   it('is explicitly pinned by a ruleset and validates trigger ownership', () => {
     const ruleset = { meta: { id: 'test', version: '1' }, livingStories: LIVING_STORIES_STARTER_CATALOG } as unknown as Ruleset;
-    expect(livingStoryCatalogForRuleset(ruleset).STORY_MISSING_LEDGER?.trigger.eventKinds).toEqual(['business_flip']);
+    expect(livingStoryCatalogForRuleset(ruleset).STORY_AFTER_THE_SMOKE?.trigger.eventKinds).toEqual(['war_win']);
     expect(() => defineLivingStoryCatalog({
       STORY_ONE: { ...LIVING_STORIES_STARTER_CATALOG.STORY_AFTER_THE_SMOKE, key: 'STORY_ONE',
         trigger: { sourceKind: 'OTHER' as never, eventKinds: ['war_win'] } },
