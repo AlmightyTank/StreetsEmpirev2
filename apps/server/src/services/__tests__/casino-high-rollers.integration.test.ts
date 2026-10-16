@@ -4,11 +4,11 @@ import type { FastifyInstance } from 'fastify';
 import { classicOgV12D, classicOgV12E2, type Ruleset } from '@streets/rulesets';
 import { hotelCents, seededRng, startingStock, tripRules } from '@streets/rules-engine';
 import { BlackjackService } from '../blackjack.service.js';
+import { CasinoInstantGamesService } from '../casino-instant-games.service.js';
 import { CasinoService } from '../casino.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { RouletteService } from '../roulette.service.js';
 import { refreshAwayWorth } from '../run-settle.service.js';
-import { StreetDiceService } from '../street-dice.service.js';
 
 const BASIS = 10_000n;
 
@@ -104,18 +104,18 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-E high rollers with 
     expect(page.status?.homeRoomCitySlug).toBe('new-york-city');
   });
 
-  it('counts true odds as action but adds no theo', async () => {
+  it('rates scratch cards at their posted edge and replays without double rating', async () => {
     const player = await fixture();
     await openBankroll(player.id);
-    // Seed 1 rolls a 5 on the come-out: a point.
-    const round = await StreetDiceService.start(app.prisma, player.id, { tableKey: 'STREET_DICE', wagerCents: 10_000, actionId: randomUUID() }, seededRng(1));
-    expect(round.point).toBe(5);
+    const actionId = randomUUID();
+    const input = { denominationCents: 10_000, actionId };
+    await CasinoInstantGamesService.playScratch(app.prisma, player.id, input, seededRng(1));
     const before = (await CasinoService.page(app.prisma, player.id)).status!;
-    expect(before.theoCents).toBe(141);
-    await StreetDiceService.addOdds(app.prisma, player.id, { roundId: round.id, amountCents: 20_000, actionId: randomUUID() });
+    expect(before.theoCents).toBe(700);
+    await CasinoInstantGamesService.playScratch(app.prisma, player.id, input, seededRng(99));
     const after = (await CasinoService.page(app.prisma, player.id)).status!;
     expect(after.theoCents).toBe(before.theoCents);
-    expect(after.wageredCents).toBe(before.wageredCents + 20_000);
+    expect(after.wageredCents).toBe(before.wageredCents);
   });
 
   it('climbs a tier, logs it, and pays comps at the new tier from the next wager on', async () => {

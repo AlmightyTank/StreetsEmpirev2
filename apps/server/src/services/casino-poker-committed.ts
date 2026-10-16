@@ -4,7 +4,7 @@ import type { Db } from '../utils/db.js';
 /**
  * Chips that left the casino bankroll for Poker and have not come back yet: the
  * buy-in of an unsettled solo hand, plus every multiplayer seat stack and that
- * seat's share of a live pot. Like committed Blackjack and Street Dice wagers,
+ * seat's share of a live pot. Like committed Blackjack wagers,
  * they stay part of casino value and net worth until they return to the bankroll.
  */
 export async function pokerCommittedCents(db: Db | PrismaClient, roundPlayerId: string): Promise<bigint> {

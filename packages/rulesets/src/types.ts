@@ -2622,7 +2622,7 @@ export interface CasinoVenueRules {
 export type CasinoStatusTierKey = 'WALK_IN' | 'REGULAR' | 'PREFERRED' | 'HIGH_ROLLER' | 'WHALE';
 
 /** 1.2.0-E. The game a venue is known for. Presentation only. */
-export type CasinoSignatureGame = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE' | 'POKER';
+export type CasinoSignatureGame = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'SCRATCH_CARDS' | 'HORSE_RACING' | 'POKER';
 
 /** 1.2.0-E. Which part of a venue a table sits in. Absent means the main floor. */
 export type CasinoRoom = 'FLOOR' | 'VIP';
@@ -2671,9 +2671,8 @@ export interface CasinoStatusRules {
     readonly blackjackHitsSoft17: number;
     readonly rouletteAmerican: number;
     readonly rouletteEuropean: number;
-    readonly streetDiceLine: number;
-    /** True odds carry no house edge, so they rate at zero. */
-    readonly streetDiceOdds: number;
+    readonly scratchCards: number;
+    readonly horseRacing: number;
   };
   readonly comps: {
     /** Comps can pay for hotel extensions on a Boss Trip to a casino city. */
@@ -2787,20 +2786,6 @@ export interface CasinoRouletteTableRules {
   readonly maxBetCents: number;
   readonly betStepCents: number;
   readonly maxTotalBetCents: number;
-}
-
-/** 1.2.0-D. Street Dice uses a pass-line point cycle with optional true-odds backing. */
-export interface CasinoStreetDiceTableRules {
-  readonly key: string;
-  readonly name: string;
-  readonly blurb: string;
-  readonly venueKinds: readonly CasinoVenueKind[];
-  /** 1.2.0-E. VIP tables need VIP room access at the venue. Absent means the floor. */
-  readonly room?: CasinoRoom;
-  readonly minBetCents: number;
-  readonly maxBetCents: number;
-  readonly betStepCents: number;
-  readonly maxOddsMultiple: 1 | 2 | 3 | 5;
 }
 
 /** 1.2.0-E. Solo Texas Hold’em buy-in and blind structure. */
@@ -3010,7 +2995,7 @@ export interface LawEvidenceRules {
  * 1.2.0-A. Casino foundation: venues, cashier limits and session bankrolls.
  * 1.2.0-B adds server-authoritative Slots.
  * 1.2.0-C optionally adds reconnect-safe Blackjack.
- * 1.2.0-D adds Roulette and persistent Street Dice.
+ * 1.2.0-D adds Roulette, Scratch Cards and Horse Racing.
  * 1.2.0-E adds rated play, status tiers, comps and VIP rooms.
  */
 export interface CasinoRules {
@@ -3034,8 +3019,21 @@ export interface CasinoRules {
   readonly roulette?: {
     readonly tables: readonly CasinoRouletteTableRules[];
   };
-  readonly streetDice?: {
-    readonly tables: readonly CasinoStreetDiceTableRules[];
+  readonly scratchCards?: {
+    readonly denominationsCents: readonly number[];
+    readonly payoutTiers: readonly { readonly multiplier: number; readonly weight: number }[];
+  };
+  readonly horseRacing?: {
+    readonly minBetCents: number;
+    readonly maxBetCents: number;
+    readonly betStepCents: number;
+    readonly horses: readonly {
+      readonly key: string;
+      readonly name: string;
+      readonly color: string;
+      /** Total return, including stake, in basis points. */
+      readonly returnBps: number;
+    }[];
   };
   readonly poker?: CasinoPokerRules;
   readonly status?: CasinoStatusRules;

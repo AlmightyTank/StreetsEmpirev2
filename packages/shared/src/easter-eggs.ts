@@ -44,7 +44,7 @@ export const EASTER_EGGS = {
   LEET: {
     key: 'egg-l33t',
     title: 'l33t',
-    description: 'Rolled 1,337 pips at Street Dice in a single round.',
+    description: 'Hit a casino return of exactly $1,337. The house checked twice.',
     rarity: 'epic',
   },
   HEISENBERG: {
@@ -152,8 +152,8 @@ export const KONAMI_CODE = [
 
 /** Exactly $42, in cents. */
 export const DONT_PANIC_WAGER_CENTS = 4_200;
-/** Street Dice pips summed over every roll a player makes in one round. */
-export const LEET_PIPS = 1_337;
+/** Exactly $1,337, in cents. */
+export const LEET_RETURN_CENTS = 133_700;
 /** Chance a meth cook comes out at 99.1%. */
 export const HEISENBERG_CHANCE = 1 / 500;
 /** The raid attacker brought at most this share of the defender's thugs. */

@@ -61,20 +61,14 @@ export const casinoRouletteSpinSchema = z.object({
   actionId: actionIdSchema,
 }).strict();
 
-export const casinoStreetDiceStartSchema = z.object({
-  tableKey: z.string().trim().min(1).max(64).regex(/^[A-Z0-9_]+$/, 'Pick a valid Street Dice table.'),
+export const casinoScratchCardPlaySchema = z.object({
+  denominationCents: casinoAmountCents,
+  actionId: actionIdSchema,
+}).strict();
+
+export const casinoHorseRaceBetSchema = z.object({
+  horseKey: z.string().trim().min(1).max(64).regex(/^[A-Z0-9_]+$/, 'Pick a valid horse.'),
   wagerCents: casinoAmountCents,
-  actionId: actionIdSchema,
-}).strict();
-
-export const casinoStreetDiceRollSchema = z.object({
-  roundId: z.string().trim().min(1).max(64),
-  actionId: actionIdSchema,
-}).strict();
-
-export const casinoStreetDiceOddsSchema = z.object({
-  roundId: z.string().trim().min(1).max(64),
-  amountCents: casinoAmountCents,
   actionId: actionIdSchema,
 }).strict();
 
@@ -112,9 +106,8 @@ export type CasinoSlotSpinInput = z.infer<typeof casinoSlotSpinSchema>;
 export type CasinoBlackjackDealInput = z.infer<typeof casinoBlackjackDealSchema>;
 export type CasinoBlackjackActionInput = z.infer<typeof casinoBlackjackActionSchema>;
 export type CasinoRouletteSpinInput = z.infer<typeof casinoRouletteSpinSchema>;
-export type CasinoStreetDiceStartInput = z.infer<typeof casinoStreetDiceStartSchema>;
-export type CasinoStreetDiceRollInput = z.infer<typeof casinoStreetDiceRollSchema>;
-export type CasinoStreetDiceOddsInput = z.infer<typeof casinoStreetDiceOddsSchema>;
+export type CasinoScratchCardPlayInput = z.infer<typeof casinoScratchCardPlaySchema>;
+export type CasinoHorseRaceBetInput = z.infer<typeof casinoHorseRaceBetSchema>;
 export type CasinoPokerStartInput = z.infer<typeof casinoPokerStartSchema>;
 export type CasinoPokerActionInput = z.infer<typeof casinoPokerActionSchema>;
 export type CasinoPokerTableCreateInput = z.infer<typeof casinoPokerTableCreateSchema>;

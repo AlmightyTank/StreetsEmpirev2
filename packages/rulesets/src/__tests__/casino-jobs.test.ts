@@ -89,7 +89,7 @@ describe('1.2.0-F casino Job objectives', () => {
   it('counts distinct games for the floor tour, not repeat play', () => {
     const repeat = play('ACE_FLOOR_TOUR', [wager(), wager(), wager(), wager()]);
     expect(repeat.progress.games?.current).toBe(1);
-    const tour = play('ACE_FLOOR_TOUR', ['SLOTS', 'BLACKJACK', 'ROULETTE', 'STREET_DICE'].map((game) => wager({ game })));
+    const tour = play('ACE_FLOOR_TOUR', ['SLOTS', 'BLACKJACK', 'ROULETTE', 'SCRATCH_CARDS'].map((game) => wager({ game })));
     expect(tour.completed).toBe(true);
   });
 

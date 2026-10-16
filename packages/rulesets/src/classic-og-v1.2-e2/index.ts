@@ -29,7 +29,7 @@ export const classicOgV12E2 = {
         vipRoom: { name: 'The Penthouse Game', blurb: 'A standing game forty floors up. Nobody gets in on a first visit.', minTier: 'REGULAR', visitorMinBodyguards: 0 },
       }),
       detroit: venue(venues.detroit, {
-        identity: { tagline: 'Dice off the back wall and nobody counting but the house.', signatureGame: 'STREET_DICE', accent: 'NEON' },
+        identity: { tagline: 'Six runners, one rail and the whole room yelling at the wire.', signatureGame: 'HORSE_RACING', accent: 'NEON' },
         vipRoom: { name: 'The Garage', blurb: 'A converted body shop where the big point games roll after midnight.', minTier: 'REGULAR', visitorMinBodyguards: 1 },
       }),
       'miami-beach': venue(venues['miami-beach'], {
@@ -53,7 +53,7 @@ export const classicOgV12E2 = {
         vipRoom: { name: 'The Skybox', blurb: 'Glass booths above the floor for the people who own the floor.', minTier: 'PREFERRED', visitorMinBodyguards: 0 },
       }),
       atlanta: venue(venues.atlanta, {
-        identity: { tagline: 'Road money and nightlife money, same table, same night.', signatureGame: 'STREET_DICE', accent: 'PEACH' },
+        identity: { tagline: 'Cheap tickets, bright foil and one symbol away from a score.', signatureGame: 'SCRATCH_CARDS', accent: 'PEACH' },
         vipRoom: { name: 'The Magnolia Room', blurb: 'A members-only parlor behind the club where the stakes go up after two.', minTier: 'REGULAR', visitorMinBodyguards: 0 },
       }),
     },
@@ -125,22 +125,6 @@ export const classicOgV12E2 = {
         },
       ],
     },
-    streetDice: {
-      tables: [
-        ...classicOgV12E.casino.streetDice.tables,
-        {
-          key: 'PRIVATE_DICE',
-          name: 'Private Dice',
-          blurb: 'The VIP room point game. Same pass-line and true-odds rules, bigger line limits.',
-          venueKinds: ALL_ROOMS,
-          room: 'VIP',
-          minBetCents: 25_000,
-          maxBetCents: 2_500_000,
-          betStepCents: 25_000,
-          maxOddsMultiple: 5,
-        },
-      ],
-    },
     status: {
       tiers: [
         { key: 'WALK_IN', name: 'Walk-in', minTheoCents: 0, compRateBps: 0, maxBankrollCents: 100_000_000 },
@@ -154,8 +138,8 @@ export const classicOgV12E2 = {
         blackjackHitsSoft17: 70,
         rouletteAmerican: 526,
         rouletteEuropean: 270,
-        streetDiceLine: 141,
-        streetDiceOdds: 0,
+        scratchCards: 700,
+        horseRacing: 600,
       },
       comps: { hotelExtensions: true },
       casinoFront: { minLevel: 1, grantsVipAccess: true, compBonusBps: 500 },

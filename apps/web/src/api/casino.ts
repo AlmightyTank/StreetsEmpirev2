@@ -14,11 +14,12 @@ import type {
   CasinoRouletteSpinInput,
   CasinoRouletteSpinResponseDto,
   CasinoRouletteStateDto,
-  CasinoStreetDiceOddsInput,
-  CasinoStreetDiceResponseDto,
-  CasinoStreetDiceRollInput,
-  CasinoStreetDiceStartInput,
-  CasinoStreetDiceStateDto,
+  CasinoScratchCardPlayInput,
+  CasinoScratchCardResponseDto,
+  CasinoScratchCardStateDto,
+  CasinoHorseRaceBetInput,
+  CasinoHorseRaceResponseDto,
+  CasinoHorseRaceStateDto,
   CasinoPokerActionInput,
   CasinoPokerResponseDto,
   CasinoTournamentPageDto,
@@ -58,13 +59,12 @@ export const casinoApi = {
   roulette: () => api.get<CasinoRouletteStateDto>('/game/casino/roulette'),
   rouletteSpin: (input: CasinoRouletteSpinInput) =>
     api.post<CasinoRouletteSpinResponseDto>('/game/casino/roulette/spin', input),
-  streetDice: () => api.get<CasinoStreetDiceStateDto>('/game/casino/street-dice'),
-  streetDiceStart: (input: CasinoStreetDiceStartInput) =>
-    api.post<CasinoStreetDiceResponseDto>('/game/casino/street-dice/start', input),
-  streetDiceRoll: (input: CasinoStreetDiceRollInput) =>
-    api.post<CasinoStreetDiceResponseDto>('/game/casino/street-dice/roll', input),
-  streetDiceOdds: (input: CasinoStreetDiceOddsInput) =>
-    api.post<CasinoStreetDiceResponseDto>('/game/casino/street-dice/odds', input),
+  scratchCards: () => api.get<CasinoScratchCardStateDto>('/game/casino/scratch-cards'),
+  scratchCardPlay: (input: CasinoScratchCardPlayInput) =>
+    api.post<CasinoScratchCardResponseDto>('/game/casino/scratch-cards/play', input),
+  horseRacing: () => api.get<CasinoHorseRaceStateDto>('/game/casino/horse-racing'),
+  horseRace: (input: CasinoHorseRaceBetInput) =>
+    api.post<CasinoHorseRaceResponseDto>('/game/casino/horse-racing/races', input),
   poker: () => api.get<CasinoPokerStateDto>('/game/casino/poker'),
   pokerDeal: (input: CasinoPokerStartInput) => api.post<CasinoPokerResponseDto & { page: CasinoPageDto }>('/game/casino/poker/deal', input),
   pokerAction: (input: CasinoPokerActionInput) => api.post<CasinoPokerResponseDto & { page: CasinoPageDto }>('/game/casino/poker/action', input),

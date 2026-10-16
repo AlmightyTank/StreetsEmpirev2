@@ -15,7 +15,7 @@ export interface CasinoVenueDto {
 }
 
 export type CasinoStatusTierKeyDto = 'WALK_IN' | 'REGULAR' | 'PREFERRED' | 'HIGH_ROLLER' | 'WHALE';
-export type CasinoSignatureGameDto = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE' | 'POKER';
+export type CasinoSignatureGameDto = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'SCRATCH_CARDS' | 'HORSE_RACING' | 'POKER';
 export type CasinoRoomDto = 'FLOOR' | 'VIP';
 
 export interface CasinoVenueIdentityDto {
@@ -363,51 +363,21 @@ export interface CasinoRouletteSpinResponseDto {
   spin: CasinoRouletteSpinDto;
 }
 
-export interface CasinoStreetDiceTableDto {
-  key: string;
-  name: string;
-  blurb: string;
-  minBetCents: number;
-  maxBetCents: number;
-  betStepCents: number;
-  maxOddsMultiple: number;
-  availableHere: boolean;
-  /** 1.2.0-E. VIP tables need VIP room access. */
-  room: CasinoRoomDto;
-  /** Why a table this venue carries is closed to the player, e.g. the VIP door. */
-  lockedReason: string | null;
+export interface CasinoScratchSpotDto { symbolKey: string; label: string; glyph: string; prizeCents: number; winning: boolean }
+export interface CasinoScratchCardDto {
+  actionId: string; denominationCents: number; winningSymbols: Array<{ key: string; label: string; glyph: string }>;
+  spots: CasinoScratchSpotDto[]; payoutCents: number; netCents: number; bankrollAfterCents: number; createdAt: string;
 }
+export interface CasinoScratchCardStateDto { enabled: boolean; denominationsCents: number[]; rtpBps: number; history: CasinoScratchCardDto[] }
+export interface CasinoScratchCardResponseDto { page: CasinoPageDto; scratchCards: CasinoScratchCardStateDto; card: CasinoScratchCardDto }
 
-export type CasinoStreetDiceOutcomeDto = 'WIN' | 'LOSE' | 'POINT' | 'CONTINUE';
-
-export interface CasinoStreetDiceRoundDto {
-  id: string;
-  tableKey: string;
-  tableName: string;
-  status: 'ACTIVE' | 'SETTLED';
-  lineWagerCents: number;
-  oddsWagerCents: number;
-  point: number | null;
-  dice: [number, number] | null;
-  total: number | null;
-  outcome: CasinoStreetDiceOutcomeDto | null;
-  totalReturnCents: number;
-  netCents: number;
-  bankrollAfterCents: number;
-  rollCount: number;
-  canRoll: boolean;
-  canAddOdds: boolean;
-  maxOddsCents: number;
-  createdAt: string;
-  settledAt: string | null;
+export interface CasinoHorseDto { key: string; name: string; color: string; returnBps: number; oddsLabel: string }
+export interface CasinoHorseRaceDto {
+  actionId: string; horseKey: string; horseName: string; wagerCents: number; finishOrder: string[];
+  winnerKey: string; winnerName: string; returnCents: number; netCents: number; bankrollAfterCents: number; createdAt: string;
 }
-
-export interface CasinoStreetDiceStateDto {
-  enabled: boolean;
-  tables: CasinoStreetDiceTableDto[];
-  activeRound: CasinoStreetDiceRoundDto | null;
-  history: CasinoStreetDiceRoundDto[];
-}
+export interface CasinoHorseRaceStateDto { enabled: boolean; minBetCents: number; maxBetCents: number; betStepCents: number; horses: CasinoHorseDto[]; history: CasinoHorseRaceDto[] }
+export interface CasinoHorseRaceResponseDto { page: CasinoPageDto; horseRacing: CasinoHorseRaceStateDto; race: CasinoHorseRaceDto }
 
 export interface CasinoPokerCardDto { rank: number; suit: 'C' | 'D' | 'H' | 'S'; }
 export interface CasinoPokerSeatDto {
@@ -461,13 +431,7 @@ export interface CasinoPokerResponseDto {
   hand: CasinoPokerHandDto;
 }
 
-export interface CasinoStreetDiceResponseDto {
-  page: CasinoPageDto;
-  streetDice: CasinoStreetDiceStateDto;
-  round: CasinoStreetDiceRoundDto;
-}
-
-export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE' | 'SPORTSBOOK_BET' | 'SPORTSBOOK_SETTLEMENT' | 'POKER_BUY_IN' | 'POKER_CASH_OUT' | 'POKER_TABLE_BUY_IN' | 'POKER_TABLE_REFUND' | 'COMP_HOTEL';
+export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN' | 'BLACKJACK' | 'ROULETTE' | 'SCRATCH_CARD' | 'HORSE_RACE' | 'SPORTSBOOK_BET' | 'SPORTSBOOK_SETTLEMENT' | 'POKER_BUY_IN' | 'POKER_CASH_OUT' | 'POKER_TABLE_BUY_IN' | 'POKER_TABLE_REFUND' | 'COMP_HOTEL';
 
 export interface CasinoLedgerEntryDto {
   id: string;

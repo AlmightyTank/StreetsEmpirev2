@@ -5,19 +5,9 @@ import { classicOgV12D } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import { EASTER_EGGS } from '@streets/shared';
 import type { Db } from '../../utils/db.js';
-import { CasinoService } from '../casino.service.js';
 import { CasinoStatusService } from '../casino-status.service.js';
-import { StreetDiceService } from '../street-dice.service.js';
 import { RandomEncounterChoiceService } from '../random-encounter-choice.service.js';
 import { ReputationService } from '../reputation.service.js';
-
-function sequenceRng(values: number[], fallback = 0.5): () => number {
-  let index = 0;
-  return () => values[index++] ?? fallback;
-}
-
-/** [0.2, 0.7] rolls a 2 and a 5: a natural 7, which wins on the come-out. */
-const NATURAL_SEVEN = [0.2, 0.7];
 
 describe.runIf(process.env.TURF_INTEGRATION === '1')('Easter eggs with PostgreSQL', () => {
   let app: FastifyInstance;
@@ -52,11 +42,6 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('Easter eggs with PostgreSQ
       },
     });
     return { player, city };
-  }
-
-  async function openBankroll(playerId: string) {
-    await CasinoService.buyChips(app.prisma, playerId, { amountCents: 700_000, actionId: randomUUID() });
-    await CasinoService.startSession(app.prisma, playerId, { amountCents: 500_000, actionId: randomUUID() });
   }
 
   async function titles(): Promise<string[]> {
@@ -100,21 +85,15 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('Easter eggs with PostgreSQ
     expect(notices).toBe(1);
   });
 
-  it('finds l33t on the roll that takes the round past 1,337 pips', async () => {
+  it('finds l33t on an exact $1,337 casino return', async () => {
     const { player, city } = await fixture();
-    await openBankroll(player.id);
-    const table = classicOgV12D.casino.streetDice.tables[0]!;
-    // 1,330 pips already thrown this round; an odds top-up repeating a total must not count.
-    await app.prisma.casinoLedgerEntry.createMany({
-      data: [
-        { roundPlayerId: player.id, cityId: city.id, actionId: randomUUID(), kind: 'STREET_DICE', walletChipsAfterCents: 0n, metadata: { action: 'ROLL', total: 1_330 } },
-        { roundPlayerId: player.id, cityId: city.id, actionId: randomUUID(), kind: 'STREET_DICE', walletChipsAfterCents: 0n, metadata: { action: 'ADD_ODDS', total: 6 } },
-      ],
+    const result = (returnCents: bigint) => CasinoStatusService.recordResult(app.prisma as unknown as Db, classicOgV12D, {
+      roundPlayerId: player.id, cityId: city.id, play: { game: 'HORSE_RACING', tableKey: 'TRACK', actionId: randomUUID() },
+      stakeCents: 10_000n, returnCents, highlight: null, now: new Date(),
     });
+    await result(133_699n);
     expect(await titles()).not.toContain(EASTER_EGGS.LEET.key);
-
-    await StreetDiceService.start(app.prisma, player.id,
-      { tableKey: table.key, wagerCents: table.minBetCents, actionId: randomUUID() }, sequenceRng(NATURAL_SEVEN));
+    await result(133_700n);
     expect(await titles()).toContain(EASTER_EGGS.LEET.key);
   });
 

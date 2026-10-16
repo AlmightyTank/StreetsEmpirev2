@@ -8,7 +8,8 @@ import { ActionDock, deltaChip } from '../components/ActionDock.js';
 import { Alert } from '../components/Alert.js';
 import { BlackjackPanel } from '../components/BlackjackPanel.js';
 import { RoulettePanel } from '../components/RoulettePanel.js';
-import { StreetDicePanel } from '../components/StreetDicePanel.js';
+import { ScratchCardsPanel } from '../components/ScratchCardsPanel.js';
+import { HorseRacingPanel } from '../components/HorseRacingPanel.js';
 import { PokerPanel } from '../components/PokerPanel.js';
 import { CasinoStatusPanel } from '../components/CasinoStatusPanel.js';
 import { CasinoBankrollSummary, CasinoBetControl, CasinoGameSelector } from '../components/CasinoExperience.js';
@@ -51,7 +52,7 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-type CasinoGameKey = 'slots' | 'blackjack' | 'roulette' | 'street-dice' | 'poker' | 'sportsbook';
+type CasinoGameKey = 'slots' | 'blackjack' | 'roulette' | 'scratch-cards' | 'horse-racing' | 'poker' | 'sportsbook';
 
 const CASINO_GAMES: readonly {
   key: CasinoGameKey;
@@ -90,13 +91,22 @@ const CASINO_GAMES: readonly {
     description: 'American and European roulette with straight-up, inside-combination and outside bets.',
   },
   {
-    key: 'street-dice',
-    label: 'Street Dice',
-    icon: '⚄',
+    key: 'scratch-cards',
+    label: 'Scratch Cards',
+    icon: '✦',
     status: 'LIVE',
     live: true,
-    title: 'Street Dice',
-    description: 'Pass-line street craps with persistent points and true-odds backing.',
+    title: 'Scratch Cards',
+    description: 'Pick a ticket, reveal nine symbols and match the posted winners.',
+  },
+  {
+    key: 'horse-racing',
+    label: 'Horse Racing',
+    icon: '🏇',
+    status: 'LIVE',
+    live: true,
+    title: 'Horse Racing',
+    description: 'Back one of six runners at fixed odds and watch them race to the wire.',
   },
   {
     key: 'poker',
@@ -675,7 +685,7 @@ export function CasinoPage() {
                           {entry.display.tone === 'positive' ? '+' : entry.display.tone === 'negative' ? '−' : ''}
                           {formatCents(entry.display.amountCents)}
                         </strong>
-                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'STREET_DICE' || entry.kind === 'SPORTSBOOK_BET' || (entry.kind === 'SPORTSBOOK_SETTLEMENT' && entry.sessionChipDeltaCents !== 0) ? (
+                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'SCRATCH_CARD' || entry.kind === 'HORSE_RACE' || entry.kind === 'SPORTSBOOK_BET' || (entry.kind === 'SPORTSBOOK_SETTLEMENT' && entry.sessionChipDeltaCents !== 0) ? (
                           <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
                         ) : entry.kind === 'BUY_CHIPS' || entry.kind === 'REDEEM_CHIPS' ? (
                           <span>Wallet {formatCents(entry.walletChipsAfterCents)}</span>
@@ -1202,8 +1212,18 @@ export function CasinoPage() {
             />
                 ) : null}
 
-                {activeGame === 'street-dice' ? (
-            <StreetDicePanel
+                {activeGame === 'scratch-cards' ? (
+            <ScratchCardsPanel
+              casinoPage={data}
+              onPageChange={(next) => {
+                setData(next);
+                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+              }}
+            />
+                ) : null}
+
+                {activeGame === 'horse-racing' ? (
+            <HorseRacingPanel
               casinoPage={data}
               onPageChange={(next) => {
                 setData(next);
@@ -1234,7 +1254,7 @@ export function CasinoPage() {
                   />
                 ) : null}
 
-                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'roulette' && activeGame !== 'street-dice' && activeGame !== 'poker' && activeGame !== 'sportsbook' ? (() => {
+                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'roulette' && activeGame !== 'scratch-cards' && activeGame !== 'horse-racing' && activeGame !== 'poker' && activeGame !== 'sportsbook' ? (() => {
                   const game = CASINO_GAMES.find((candidate) => candidate.key === activeGame)!;
                   return (
                     <CasinoGamePlaceholder

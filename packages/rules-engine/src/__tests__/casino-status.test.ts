@@ -5,7 +5,6 @@ import {
   classicOgV12E2,
   type CasinoBlackjackTableRules,
   type CasinoRouletteTableRules,
-  type CasinoStreetDiceTableRules,
   type Ruleset,
 } from '@streets/rulesets';
 import {
@@ -17,6 +16,7 @@ import {
   casinoStatusTier,
   casinoVipAccess,
   effectiveSlotRtpBps,
+  horseRacingRatingEdgeBps,
   loadRuleset,
   rateCasinoHouseTake,
   rateCasinoWager,
@@ -24,7 +24,7 @@ import {
   rouletteRatingEdgeBps,
   seededRng,
   slotRatingEdgeBps,
-  streetDiceRatingEdgeBps,
+  scratchCardRatingEdgeBps,
 } from '../index.js';
 
 const casino = classicOgV12E2.casino;
@@ -36,10 +36,6 @@ function blackjack(key: string): CasinoBlackjackTableRules {
 function roulette(key: string): CasinoRouletteTableRules {
   return casino.roulette.tables.find((table) => table.key === key)!;
 }
-function dice(key: string): CasinoStreetDiceTableRules {
-  return casino.streetDice.tables.find((table) => table.key === key)!;
-}
-
 /** Everything that decides an outcome or a payout, without the posted limits. */
 function blackjackRules(table: CasinoBlackjackTableRules) {
   const { decks, reshuffleAtRemainingCards, dealerHitsSoft17, blackjackPayout, allowDoubleAfterSplit, maxSplitHands, splitAcesOneCard } = table;
@@ -51,7 +47,7 @@ describe('1.2.0-E rulesets', () => {
     expect(loadRuleset('classic-og-v1.2-e2', '1.2.0-E2')).toBe(classicOgV12E2);
     expect((classicOgV12D as Ruleset).casino?.status).toBeUndefined();
     expect((classicOgV12E as Ruleset).casino?.status).toBeUndefined();
-    for (const table of [...classicOgV12E.casino.blackjack.tables, ...classicOgV12E.casino.roulette.tables, ...classicOgV12E.casino.streetDice.tables]) {
+    for (const table of [...classicOgV12E.casino.blackjack.tables, ...classicOgV12E.casino.roulette.tables]) {
       expect((table as { room?: string }).room).toBeUndefined();
     }
   });
@@ -61,7 +57,8 @@ describe('1.2.0-E rulesets', () => {
     expect(casino.poker).toBe(classicOgV12E.casino.poker);
     for (const table of classicOgV12E.casino.blackjack.tables) expect(blackjack(table.key)).toBe(table);
     for (const table of classicOgV12E.casino.roulette.tables) expect(roulette(table.key)).toBe(table);
-    for (const table of classicOgV12E.casino.streetDice.tables) expect(dice(table.key)).toBe(table);
+    expect(casino.scratchCards).toBe(classicOgV12E.casino.scratchCards);
+    expect(casino.horseRacing).toBe(classicOgV12E.casino.horseRacing);
   });
 
   it('gives every venue an identity and a VIP room without changing its floor', () => {
@@ -81,12 +78,11 @@ describe('1.2.0-E rulesets', () => {
     expect(blackjackRules(blackjack('BLACK_ROOM_BLACKJACK'))).toEqual(blackjackRules(blackjack('EMPIRE_HIGH_LIMIT')));
     expect(roulette('SALON_ROULETTE').wheel).toBe(roulette('EURO_ROULETTE').wheel);
     expect(roulette('BLACK_ROOM_ROULETTE').wheel).toBe(roulette('EMPIRE_ROULETTE').wheel);
-    expect(dice('PRIVATE_DICE').maxOddsMultiple).toBe(dice('BACK_ROOM_DICE').maxOddsMultiple);
     expect(blackjack('SALON_BLACKJACK').maxBetCents).toBeGreaterThan(blackjack('STREET_BLACKJACK').maxBetCents);
     expect(blackjack('BLACK_ROOM_BLACKJACK').maxBetCents).toBeGreaterThan(blackjack('EMPIRE_HIGH_LIMIT').maxBetCents);
-    for (const table of [...casino.blackjack.tables, ...casino.roulette.tables, ...casino.streetDice.tables]) {
+    for (const table of [...casino.blackjack.tables, ...casino.roulette.tables]) {
       const isVip = (table as { room?: string }).room === 'VIP';
-      expect(isVip).toBe(['SALON_BLACKJACK', 'BLACK_ROOM_BLACKJACK', 'SALON_ROULETTE', 'BLACK_ROOM_ROULETTE', 'PRIVATE_DICE'].includes(table.key));
+      expect(isVip).toBe(['SALON_BLACKJACK', 'BLACK_ROOM_BLACKJACK', 'SALON_ROULETTE', 'BLACK_ROOM_ROULETTE'].includes(table.key));
     }
   });
 
@@ -117,11 +113,11 @@ describe('1.2.0-E rulesets', () => {
 });
 
 describe('1.2.0-E rated play', () => {
-  it('rates by posted theo, never by result, and rates true odds at zero', () => {
-    const line = rateCasinoWager(status, { wagerCents: 100_000n, edgeBps: streetDiceRatingEdgeBps(status, 'LINE'), theoBeforeCents: 0n });
-    const odds = rateCasinoWager(status, { wagerCents: 500_000n, edgeBps: streetDiceRatingEdgeBps(status, 'ODDS'), theoBeforeCents: 0n });
-    expect(casinoBasisToCents(line.theoBasis)).toBe(1_410n);
-    expect(odds).toEqual({ theoBasis: 0n, compBasis: 0n });
+  it('rates instant games by their posted long-run edge, never by result', () => {
+    const scratch = rateCasinoWager(status, { wagerCents: 100_000n, edgeBps: scratchCardRatingEdgeBps(status), theoBeforeCents: 0n });
+    const horse = rateCasinoWager(status, { wagerCents: 100_000n, edgeBps: horseRacingRatingEdgeBps(status), theoBeforeCents: 0n });
+    expect(casinoBasisToCents(scratch.theoBasis)).toBe(7_000n);
+    expect(casinoBasisToCents(horse.theoBasis)).toBe(6_000n);
   });
 
   it('uses each table\'s pinned edge', () => {

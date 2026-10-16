@@ -20,6 +20,10 @@ export type CasinoSound =
   | 'POKER_ALL_IN'
   | 'SPORTS_PICK'
   | 'TICKET_PRINT'
+  | 'SCRATCH_SCRAPE'
+  | 'RACE_GATE'
+  | 'HOOFBEATS'
+  | 'PHOTO_FINISH'
   | 'SMALL_WIN'
   | 'BIG_WIN'
   | 'MEGA_WIN'
@@ -207,6 +211,27 @@ export function playCasinoSound(sound: CasinoSound, enabled = casinoSoundEnabled
       }
       tone(ctx, now + 0.23, 880, 0.075, 0.024, 'sine');
       tone(ctx, now + 0.29, 1_175, 0.11, 0.022, 'sine');
+      break;
+    case 'SCRATCH_SCRAPE':
+      for (let index = 0; index < 5; index++) noiseBurst(ctx, now + index * 0.025, 0.04, 0.011, 1_800 + (accent % 3) * 240);
+      tone(ctx, now + 0.09, 760 + (accent % 4) * 45, 0.045, 0.01, 'triangle');
+      break;
+    case 'RACE_GATE':
+      noiseBurst(ctx, now, 0.11, 0.045, 240);
+      tone(ctx, now, 115, 0.16, 0.032, 'square', 75);
+      tone(ctx, now + 0.1, 330, 0.09, 0.022, 'triangle');
+      break;
+    case 'HOOFBEATS':
+      for (let index = 0; index < 18; index++) {
+        const beat = now + index * 0.115;
+        noiseBurst(ctx, beat, 0.045, 0.018 + index * 0.0004, 180);
+        tone(ctx, beat, 92 + (index % 2) * 18, 0.055, 0.016, 'triangle', 62);
+      }
+      break;
+    case 'PHOTO_FINISH':
+      noiseBurst(ctx, now, 0.035, 0.028, 2_200);
+      tone(ctx, now, 880, 0.08, 0.024, 'square');
+      tone(ctx, now + 0.09, 1_175, 0.14, 0.028, 'triangle');
       break;
     case 'SMALL_WIN':
       chord(ctx, [523, 659, 784], 0.09, 0.03);

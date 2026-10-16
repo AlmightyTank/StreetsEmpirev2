@@ -160,7 +160,7 @@ export const classicOgV16G = {
         name: 'Route 66 Dice House',
         blurb: 'A roadhouse off the old highway where truckers and oilmen roll dice until sunrise.',
         kind: 'PRIVATE_CLUB',
-        identity: { tagline: 'Cheap drinks, loud dice and nobody in a hurry.', signatureGame: 'STREET_DICE', accent: 'SUNSET' },
+        identity: { tagline: 'Cheap drinks, loud races and nobody leaving before the wire.', signatureGame: 'HORSE_RACING', accent: 'SUNSET' },
         vipRoom: { name: 'The Back Booth', blurb: 'A quiet booth where the regulars play for real money.', minTier: 'REGULAR', visitorMinBodyguards: 0 },
       },
       dallas: {

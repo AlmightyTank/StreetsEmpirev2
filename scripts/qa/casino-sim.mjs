@@ -7,13 +7,12 @@ import {
   buildBlackjackShoe,
   comparePokerHands,
   evaluatePokerHand,
+  horseRaceOrder,
+  horseReturnCents,
   resolveRouletteSpin,
   roulettePockets,
-  rollStreetDice,
   seededRng,
-  streetDiceComeOut,
-  streetDiceLineReturnCents,
-  streetDicePointResult,
+  scratchPrizeMultiplier,
 } from '@streets/rules-engine';
 
 const samples = Number(process.env.CASINO_SIM_SAMPLES ?? 100_000);
@@ -39,33 +38,30 @@ for (const table of rouletteVariants) {
 }
 
 {
+  const rules = classicOgV12E2.casino.scratchCards;
   const rng = seededRng(80_021);
+  let returned = 0;
+  for (let i = 0; i < samples; i++) returned += scratchPrizeMultiplier(rules, rng);
+  const observed = returned / samples;
+  const totalWeight = rules.payoutTiers.reduce((sum, tier) => sum + tier.weight, 0);
+  const expected = rules.payoutTiers.reduce((sum, tier) => sum + tier.multiplier * tier.weight, 0) / totalWeight;
+  console.log(`Scratch Cards: RTP ${(observed * 100).toFixed(2)}% (theoretical ${(expected * 100).toFixed(2)}%)`);
+  assertBand('Scratch Cards', observed, expected, 0.02);
+}
+
+{
+  const rules = classicOgV12E2.casino.horseRacing;
+  const rng = seededRng(80_022);
   const wager = 100n;
-  let returned = 0n;
-  let wins = 0;
-  for (let i = 0; i < samples; i++) {
-    let [a, b] = rollStreetDice(rng);
-    let total = a + b;
-    const first = streetDiceComeOut(total);
-    let won = first === 'WIN';
-    if (first === 'POINT') {
-      const point = total;
-      for (;;) {
-        [a, b] = rollStreetDice(rng);
-        const result = streetDicePointResult(a + b, point);
-        if (result === 'WIN' || result === 'LOSE') {
-          won = result === 'WIN';
-          break;
-        }
-      }
-    }
-    if (won) wins++;
-    returned += streetDiceLineReturnCents(wager, won);
+  for (const horse of rules.horses) {
+    let returned = 0n;
+    for (let i = 0; i < samples; i++) returned += horseReturnCents(wager, horse.returnBps, horseRaceOrder(rules, rng)[0] === horse.key);
+    const observed = Number(returned) / (samples * Number(wager));
+    const inverseTotal = rules.horses.reduce((sum, runner) => sum + 1 / runner.returnBps, 0);
+    const expected = 1 / inverseTotal / 10_000;
+    console.log(`Horse Racing ${horse.name}: RTP ${(observed * 100).toFixed(2)}% (theoretical ${(expected * 100).toFixed(2)}%)`);
+    assertBand(`Horse Racing ${horse.name}`, observed, expected, 0.025);
   }
-  const observed = Number(returned) / (samples * Number(wager));
-  const expected = 244 / 495 * 2;
-  console.log(`Street Dice pass line: RTP ${(observed * 100).toFixed(2)}% (theoretical ${(expected * 100).toFixed(2)}%, ${(wins / samples * 100).toFixed(2)}% winning decisions)`);
-  assertBand('Street Dice pass line', observed, expected, 0.02);
 }
 
 const blackjackVariants = [...new Map(classicOgV12E2.casino.blackjack.tables.map((row) => [

@@ -1264,282 +1264,66 @@
   .se-roulette__controls .se-btn { min-height: 2.75rem; padding-inline: .65rem; font-size: .76rem; }
 }
 
-/* 1.2.0-D — Street Dice */
-.se-street-dice { display: grid; gap: .9rem; min-width: 0; }
-.se-street-dice__toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: .75rem;
-  min-height: 2.35rem;
-  padding: .35rem .45rem .35rem .75rem;
-  border: 1px solid var(--se-border);
-  border-radius: .7rem;
-  background: color-mix(in srgb, var(--se-surface) 92%, transparent);
-}
-.se-street-dice__toolbar > span { color: var(--se-accent); font-size: .72rem; font-weight: 900; letter-spacing: .13em; }
-.se-street-dice__toolbar .se-btn { min-height: 2rem; padding: .35rem .65rem; font-size: .72rem; }
-.se-street-dice__tables { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
-.se-street-dice__table {
-  display: grid;
-  gap: .28rem;
-  padding: .7rem .75rem;
-  border: 1px solid var(--se-border);
-  border-radius: .65rem;
-  background: var(--se-surface);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.se-street-dice__table > span { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; }
-.se-street-dice__table small { color: var(--se-muted); }
-.se-street-dice__table:hover,
-.se-street-dice__table.is-selected { border-color: var(--se-accent); box-shadow: inset 0 0 0 1px var(--se-accent); }
-.se-street-dice__table:disabled { opacity: .7; cursor: not-allowed; }
+/* Scratch cards and the race book. */
+.se-scratch, .se-horse-racing { display: grid; gap: .85rem; min-width: 0; }
+.se-scratch__toolbar, .se-horse-racing__toolbar { display: flex; justify-content: space-between; align-items: center; gap: .7rem; padding: .35rem .45rem .35rem .7rem; border: 1px solid var(--se-border); border-radius: .7rem; background: var(--se-surface); }
+.se-scratch__toolbar > span, .se-horse-racing__toolbar > span { color: var(--se-accent); font-size: .72rem; font-weight: 900; letter-spacing: .13em; }
+.se-scratch__toolbar .se-btn, .se-horse-racing__toolbar .se-btn { min-height: 2rem; padding: .35rem .65rem; font-size: .72rem; }
+.se-scratch__denoms { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: .35rem; }
+.se-scratch__denoms button { min-height: 2.35rem; border: 1px solid var(--se-border); border-radius: 999px; background: var(--se-surface); color: inherit; font-weight: 850; cursor: pointer; }
+.se-scratch__denoms button.is-selected { border-color: var(--se-accent); background: color-mix(in srgb, var(--se-accent) 18%, var(--se-surface)); box-shadow: inset 0 0 0 1px var(--se-accent); }
+.se-scratch__ticket { width: min(100%, 43rem); margin-inline: auto; padding: .8rem; border: 2px solid #dba62e; border-radius: .75rem; background: radial-gradient(circle at 50% 0, #4f1f7c, transparent 48%), linear-gradient(145deg, #251047, #771c6b); box-shadow: 0 .65rem 1.6rem rgb(0 0 0 / .3); color: #fff; }
+.se-scratch__ticket.is-win { animation: se-ticket-win .6s ease-out; border-color: #7fec9d; box-shadow: 0 .65rem 1.6rem rgb(0 0 0 / .3), 0 0 1.5rem rgb(127 236 157 / .24); }
+.se-scratch__ticket > header, .se-scratch__ticket > footer { display: flex; justify-content: space-between; align-items: center; gap: .75rem; }
+.se-scratch__ticket > header div { display: grid; }
+.se-scratch__ticket > header span { color: #efc85e; font-size: .62rem; font-weight: 900; letter-spacing: .18em; }
+.se-scratch__ticket > header strong { font-size: 1.2rem; }
+.se-scratch__ticket > header > b { padding: .4rem .55rem; border-radius: .35rem; background: #efc85e; color: #241133; }
+.se-scratch__winners { display: flex; justify-content: center; gap: .65rem; min-height: 4.7rem; margin: .75rem 0; padding: .55rem; border: 1px solid rgb(255 255 255 / .22); border-radius: .6rem; background: rgb(0 0 0 / .2); }
+.se-scratch__winners > span { width: 5.5rem; display: grid; place-items: center; border-radius: .45rem; background: #f7e6ac; color: #2b173c; }
+.se-scratch__winners b { font-size: 1.65rem; line-height: 1; }
+.se-scratch__winners small { font-size: .62rem; font-weight: 800; text-transform: uppercase; }
+.se-scratch__winners p { align-self: center; margin: 0; color: rgb(255 255 255 / .72); }
+.se-scratch__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .45rem; }
+.se-scratch__grid > button { position: relative; min-height: 6rem; overflow: hidden; border: 1px solid rgb(255 255 255 / .25); border-radius: .48rem; background: #f4df9c; color: #2a1931; cursor: crosshair; }
+.se-scratch__prize { display: grid; place-items: center; gap: .08rem; }
+.se-scratch__prize b { font-size: 1.6rem; line-height: 1; }
+.se-scratch__prize small { font-size: .58rem; font-weight: 800; text-transform: uppercase; }
+.se-scratch__prize strong { color: #67144e; }
+.se-scratch__foil { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: repeating-linear-gradient(125deg, #b9bec3 0 7px, #e9ecef 7px 13px, #9ba1a7 13px 16px); color: #4d5155; font-size: .64rem; font-weight: 950; letter-spacing: .12em; transition: opacity .2s ease, transform .28s ease; }
+.se-scratch__grid > button.is-revealed .se-scratch__foil { opacity: 0; transform: translateX(35%) rotate(5deg); pointer-events: none; }
+.se-scratch__grid > button.is-winning { background: #d8f5b9; box-shadow: inset 0 0 0 2px #67b96e; animation: se-scratch-pop .32s ease-out; }
+.se-scratch__ticket > footer { min-height: 2.4rem; margin-top: .55rem; font-size: .75rem; color: rgb(255 255 255 / .8); }
+.se-scratch__buy { width: min(100%, 43rem); margin-inline: auto; min-height: 2.8rem; }
 
-.se-street-dice__felt {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: .8rem 1rem;
-  align-items: center;
-  padding: 1rem;
-  border: 1px solid color-mix(in srgb, var(--se-accent) 35%, var(--se-border));
-  border-radius: 1rem;
-  background:
-    radial-gradient(circle at 50% 5%, color-mix(in srgb, var(--se-accent) 9%, transparent), transparent 36%),
-    #0c3124;
-  overflow: hidden;
-  transition: border-color .2s ease, box-shadow .2s ease;
-}
-.se-street-dice__felt.is-settling { animation: se-dice-table-settle .34s ease-out; }
-.se-street-dice__felt.is-win { border-color: #69d391; box-shadow: inset 0 0 2rem rgb(105 211 145 / .09); }
-.se-street-dice__felt.is-loss { border-color: #b85c60; }
-.se-street-dice__point {
-  width: 5.8rem;
-  aspect-ratio: 1;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  border: .28rem solid color-mix(in srgb, var(--se-accent) 55%, #fff);
-  border-radius: 50%;
-  background: #0a0c0f;
-  box-shadow: 0 .35rem .8rem rgb(0 0 0 / .28);
-}
-.se-street-dice__point small { color: rgba(255,255,255,.62); font-size: .65rem; font-weight: 800; letter-spacing: .12em; }
-.se-street-dice__point strong { color: #fff; font-size: 1.65rem; }
-.se-street-dice__point.is-on { border-color: #f1c75b; box-shadow: 0 .35rem .8rem rgb(0 0 0 / .28), 0 0 1rem rgb(241 199 91 / .22); }
-
-.se-street-dice__dice {
-  display: flex;
-  justify-content: center;
-  gap: .7rem;
-  min-height: 6.5rem;
-  align-items: center;
-  perspective: 34rem;
-}
-.se-street-dice__dice span {
-  width: 4.8rem;
-  height: 4.8rem;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255,255,255,.55);
-  border-radius: .8rem;
-  background: #f4f1e7;
-  color: #111;
-  font-size: 3.5rem;
-  line-height: 1;
-  box-shadow: 0 .4rem .8rem rgb(0 0 0 / .3);
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
-}
-.se-street-dice__dice.is-rolling span:first-child { animation: se-die-roll-a .82s cubic-bezier(.32,.02,.55,.96) infinite; }
-.se-street-dice__dice.is-rolling span:last-child { animation: se-die-roll-b .71s cubic-bezier(.4,.02,.62,.98) -.18s infinite; }
-
-.se-street-dice__call {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: .12rem;
-  padding: .65rem .75rem;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: .65rem;
-  background: rgb(0 0 0 / .18);
-}
-.se-street-dice__call span { color: var(--se-accent); font-size: .72rem; font-weight: 900; letter-spacing: .1em; }
-.se-street-dice__call strong { line-height: 1.35; }
-
-.se-street-dice__meter {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: .45rem;
-}
-.se-street-dice__meter span {
-  display: grid;
-  gap: .08rem;
-  padding: .5rem .6rem;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: .55rem;
-  background: rgb(0 0 0 / .24);
-}
-.se-street-dice__meter small { color: rgba(255,255,255,.6); }
-.se-street-dice__meter strong { color: #fff; font-family: var(--se-mono); font-variant-numeric: tabular-nums; }
-
-.se-street-dice__odds {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(10rem, .55fr) minmax(0, 1fr);
-  gap: .65rem;
-  align-items: end;
-  padding: .65rem;
-  border: 1px dashed rgba(255,255,255,.2);
-  border-radius: .65rem;
-  background: rgb(0 0 0 / .12);
-}
-.se-street-dice__odds > div:first-child { display: grid; gap: .12rem; }
-.se-street-dice__odds small { color: rgba(255,255,255,.62); }
-.se-street-dice__odds-controls {
-  display: grid;
-  grid-template-columns: auto minmax(4.5rem, 1fr) auto auto auto;
-  gap: .35rem;
-}
-.se-street-dice__actions { grid-column: 1 / -1; }
-.se-street-dice__roll { width: 100%; min-height: 3rem; font-weight: 900; letter-spacing: .08em; }
-
-.se-street-dice__start {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: .6rem;
-  align-items: end;
-  padding: .7rem;
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: .7rem;
-  background: rgb(0 0 0 / .16);
-}
-.se-street-dice__start label { display: grid; gap: .3rem; }
-.se-street-dice__start label > div {
-  display: grid;
-  grid-template-columns: auto minmax(5rem, 1fr) auto auto;
-  gap: .35rem;
-}
-.se-street-dice__comeout { min-height: 2.7rem; white-space: nowrap; font-weight: 900; }
-
-.se-street-dice__rules,
-.se-street-dice__history { border-top: 1px solid var(--se-border); padding-top: .65rem; }
-.se-street-dice__rules summary,
-.se-street-dice__history summary { cursor: pointer; font-weight: 800; }
-.se-street-dice__rules p { color: var(--se-muted); line-height: 1.5; margin-bottom: 0; }
-.se-street-dice__history > div { display: grid; gap: .35rem; margin-top: .55rem; }
-.se-street-dice__history article {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: .7rem;
-  align-items: center;
-  padding: .5rem .6rem;
-  border: 1px solid var(--se-border);
-  border-radius: .55rem;
-  background: var(--se-surface);
-}
-.se-street-dice__history article > span { display: grid; gap: .08rem; }
-.se-street-dice__history small { color: var(--se-muted); }
-.se-street-dice__history .is-win { color: var(--se-accent); }
-
-@keyframes se-die-roll-a {
-  0% { transform: translate3d(0, 0, 0) rotateX(0) rotateY(0) rotateZ(0) scale(1); box-shadow: 0 .3rem .65rem rgb(0 0 0 / .28); }
-  24% { transform: translate3d(-.2rem, -1.15rem, 1.8rem) rotateX(155deg) rotateY(78deg) rotateZ(38deg) scale(1.08); box-shadow: 0 1.15rem 1rem rgb(0 0 0 / .38); }
-  53% { transform: translate3d(.12rem, -.48rem, .6rem) rotateX(310deg) rotateY(214deg) rotateZ(168deg) scale(1.03); }
-  76% { transform: translate3d(.08rem, .12rem, 0) rotateX(418deg) rotateY(325deg) rotateZ(248deg) scale(.96); }
-  88% { transform: translate3d(0, -.16rem, 0) rotateX(430deg) rotateY(355deg) rotateZ(266deg) scale(1.02); }
-  100% { transform: translate3d(0, 0, 0) rotateX(450deg) rotateY(360deg) rotateZ(270deg) scale(1); box-shadow: 0 .3rem .65rem rgb(0 0 0 / .28); }
-}
-@keyframes se-die-roll-b {
-  0% { transform: translate3d(0, 0, 0) rotateX(0) rotateY(0) rotateZ(0) scale(1); box-shadow: 0 .3rem .65rem rgb(0 0 0 / .28); }
-  22% { transform: translate3d(.2rem, -.9rem, 1.4rem) rotateX(-132deg) rotateY(-94deg) rotateZ(-55deg) scale(1.07); box-shadow: 0 1rem .95rem rgb(0 0 0 / .36); }
-  49% { transform: translate3d(-.12rem, -.38rem, .5rem) rotateX(-290deg) rotateY(-205deg) rotateZ(-165deg) scale(1.02); }
-  74% { transform: translate3d(-.08rem, .1rem, 0) rotateX(-405deg) rotateY(-310deg) rotateZ(-252deg) scale(.96); }
-  87% { transform: translate3d(0, -.13rem, 0) rotateX(-430deg) rotateY(-345deg) rotateZ(-274deg) scale(1.02); }
-  100% { transform: translate3d(0, 0, 0) rotateX(-450deg) rotateY(-360deg) rotateZ(-290deg) scale(1); box-shadow: 0 .3rem .65rem rgb(0 0 0 / .28); }
-}
-@keyframes se-dice-table-settle {
-  0% { transform: translate3d(0, -.12rem, 0); }
-  28% { transform: translate3d(.12rem, .08rem, 0); }
-  55% { transform: translate3d(-.07rem, 0, 0); }
-  100% { transform: none; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .se-street-dice__dice.is-rolling span { animation: none; transform: none; }
-  .se-street-dice__felt.is-settling { animation: none; }
-  .se-street-dice__felt { transition: none; }
-}
-
-@media (max-width: 900px) {
-  .se-street-dice__tables { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 620px) {
-  .se-street-dice { gap: .6rem; }
-  .se-street-dice__tables { grid-template-columns: 1fr; gap: .4rem; }
-  .se-street-dice__table { padding: .55rem .6rem; }
-  .se-street-dice__table > span { align-items: baseline; flex-wrap: wrap; }
-  .se-street-dice__felt { gap: .45rem; padding: .55rem; border-radius: .75rem; }
-  .se-street-dice__point { width: 4rem; border-width: .2rem; }
-  .se-street-dice__point small { font-size: .5rem; }
-  .se-street-dice__point strong { font-size: 1.25rem; }
-  .se-street-dice__dice { min-height: 4.6rem; gap: .4rem; }
-  .se-street-dice__dice span {
-    width: 3.7rem;
-    height: 3.7rem;
-    border-radius: .6rem;
-    font-size: 2.75rem;
-  }
-  .se-street-dice__call { padding: .45rem .5rem; }
-  .se-street-dice__call span { font-size: .62rem; }
-  .se-street-dice__call strong { font-size: .8rem; }
-
-  .se-street-dice__meter { gap: .25rem; }
-  .se-street-dice__meter span { padding: .35rem .3rem; }
-  .se-street-dice__meter small { font-size: .58rem; }
-  .se-street-dice__meter strong { font-size: .72rem; overflow-wrap: anywhere; }
-
-  .se-street-dice__odds { grid-template-columns: 1fr; gap: .4rem; padding: .45rem; }
-  .se-street-dice__odds > div:first-child span { font-size: .75rem; }
-  .se-street-dice__odds > div:first-child small { font-size: .65rem; }
-  .se-street-dice__odds-controls {
-    grid-template-columns: 2.35rem minmax(3.7rem, 1fr) 2.35rem auto;
-    gap: .25rem;
-  }
-  .se-street-dice__odds-controls > :last-child { grid-column: 1 / -1; }
-  .se-street-dice__odds-controls .se-btn { min-height: 2.3rem; padding-inline: .45rem; font-size: .72rem; }
-
-  .se-street-dice__actions {
-    position: relative;
-    bottom: auto;
-    z-index: 1;
-    padding: .35rem;
-    border: 1px solid var(--se-border);
-    border-radius: .62rem;
-    background: color-mix(in srgb, var(--se-surface) 96%, transparent);
-    box-shadow: 0 -.3rem 1rem rgb(0 0 0 / .28);
-    backdrop-filter: blur(12px);
-  }
-  .se-street-dice__roll { min-height: 2.8rem; }
-
-  .se-street-dice__start {
-    position: relative;
-    bottom: auto;
-    z-index: 1;
-    grid-template-columns: 1fr;
-    gap: .4rem;
-    padding: .5rem;
-  }
-  .se-street-dice__start label > div { grid-template-columns: 2.35rem minmax(4rem, 1fr) 2.35rem auto; }
-  .se-street-dice__start .se-btn { min-height: 2.45rem; padding-inline: .5rem; }
-  .se-street-dice__rules,
-  .se-street-dice__history { padding-top: .5rem; }
-  .se-street-dice__rules summary,
-  .se-street-dice__history summary { font-size: .85rem; }
-}
+.se-horse-racing__board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
+.se-horse-racing__board button { display: grid; grid-template-columns: .5rem minmax(0, 1fr) auto; align-items: center; gap: .65rem; padding: .58rem; border: 1px solid var(--se-border); border-radius: .58rem; background: var(--se-surface); color: inherit; text-align: left; cursor: pointer; }
+.se-horse-racing__board button > i { align-self: stretch; border-radius: 999px; }
+.se-horse-racing__board button > span { display: grid; gap: .1rem; }
+.se-horse-racing__board small { color: var(--se-muted); }
+.se-horse-racing__board button > strong { color: var(--se-accent); font-family: var(--se-mono); }
+.se-horse-racing__board button.is-selected { border-color: var(--se-accent); box-shadow: inset 0 0 0 1px var(--se-accent); }
+.se-horse-racing__track { overflow: hidden; border: 1px solid #9b7840; border-radius: .7rem; background: repeating-linear-gradient(0deg, rgb(255 255 255 / .03) 0 1px, transparent 1px 3.05rem), #6a4728; box-shadow: inset 0 0 2rem rgb(0 0 0 / .35); }
+.se-horse-racing__rail { display: flex; justify-content: space-between; padding: .35rem .65rem; background: #162d1f; color: #f4dd9b; font-size: .65rem; font-weight: 900; letter-spacing: .1em; }
+.se-horse-racing__lane { position: relative; height: 3.05rem; display: grid; grid-template-columns: 1.7rem minmax(0, 1fr) 1.8rem; align-items: center; border-top: 1px dashed rgb(255 255 255 / .14); }
+.se-horse-racing__lane > span, .se-horse-racing__lane > em { z-index: 2; text-align: center; color: #f4dd9b; font-weight: 900; font-style: normal; }
+.se-horse-racing__runner { --rank: 5; width: 100%; display: flex; align-items: center; gap: .25rem; transform: translateX(0); }
+.se-horse-racing__runner b { filter: drop-shadow(0 .2rem .15rem rgb(0 0 0 / .45)); font-size: 1.65rem; transform: scaleX(-1); }
+.se-horse-racing__runner small { max-width: 6rem; overflow: hidden; color: #fff; font-size: .62rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px #000; }
+.se-horse-racing.is-racing .se-horse-racing__runner { animation: se-horse-run calc(3.25s + var(--rank) * .12s) cubic-bezier(.18,.66,.31,1) forwards; }
+.se-horse-racing__lane.is-winner { background: rgb(242 202 83 / .11); }
+.se-horse-racing__result { display: grid; gap: .12rem; padding: .65rem .75rem; border: 1px solid var(--se-border); border-radius: .6rem; background: var(--se-surface); }
+.se-horse-racing__result span { color: var(--se-muted); font-size: .76rem; }
+.se-horse-racing__result.is-win strong { color: #73d494; }
+.se-horse-racing__result.is-loss strong { color: #df7474; }
+.se-horse-racing__bet { display: grid; grid-template-columns: minmax(0, 1fr) minmax(11rem, auto); gap: .6rem; align-items: end; }
+.se-horse-racing__bet > .se-btn { min-height: 2.75rem; }
+@keyframes se-scratch-pop { 0% { transform: scale(.94); } 65% { transform: scale(1.04); } 100% { transform: scale(1); } }
+@keyframes se-ticket-win { 35% { transform: rotate(-.6deg) scale(1.015); } 70% { transform: rotate(.4deg) scale(1.01); } }
+@keyframes se-horse-run { 0% { transform: translateX(0); } 18% { transform: translateX(15%); } 42% { transform: translateX(38%); } 63% { transform: translateX(56%); } 100% { transform: translateX(calc(100% - 7.2rem)); } }
+@media (prefers-reduced-motion: reduce) { .se-scratch__foil, .se-scratch__grid > button.is-winning, .se-scratch__ticket.is-win, .se-horse-racing.is-racing .se-horse-racing__runner { animation: none; transition: none; } }
+@media (max-width: 760px) { .se-scratch__denoms { grid-template-columns: repeat(4, 1fr); } .se-horse-racing__board { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .se-scratch__ticket { padding: .55rem; } .se-scratch__grid { gap: .28rem; } .se-scratch__grid > button { min-height: 4.75rem; } .se-scratch__winners > span { width: 4.35rem; } .se-horse-racing__bet { grid-template-columns: 1fr; } .se-horse-racing__runner small { display: none; } }
 
 /* 1.2.0-E High rollers, VIP rooms and city identity */
 .se-casino-status {
@@ -1594,7 +1378,7 @@
   color: #1a1408;
   background: #d6a943;
 }
-.se-roulette__table.is-vip, .se-street-dice__table.is-vip { border-style: dashed; }
+.se-roulette__table.is-vip { border-style: dashed; }
 .se-casino__venue-vip { display: block; color: var(--se-muted); margin-bottom: .35rem; }
 .se-casino__venue--gold { border-top: 3px solid #d6a943; }
 .se-casino__venue--neon { border-top: 3px solid #e04fd6; }
@@ -1838,23 +1622,15 @@
    the spin's outcome right above them. */
 .se-slots__stage > .se-dock { grid-column: 1 / -1; }
 .se-slots__dock-bet .se-input { width: 4.5rem; text-align: center; }
-.se-street-dice__dock-bet .se-input,
-.se-street-dice__dock-odds .se-input { width: 4.5rem; text-align: center; }
 .se-slots__dock-bet .se-btn,
-.se-slots__dock-lines .se-btn,
-.se-street-dice__dock-bet .se-btn,
-.se-street-dice__dock-odds .se-btn { min-width: 2rem; }
+.se-slots__dock-lines .se-btn { min-width: 2rem; }
 .se-slots__dock-count { min-width: 4.2rem; color: var(--se-text-dim); font-size: .8rem; text-align: center; white-space: nowrap; }
 .se-slots__dock-count strong { color: var(--se-text); font-family: var(--se-mono); font-size: 1rem; }
 @media (max-width: 700px) {
   .se-dock__controls > .se-slots__dock-bet,
-  .se-dock__controls > .se-slots__dock-lines,
-  .se-dock__controls > .se-street-dice__dock-bet,
-  .se-dock__controls > .se-street-dice__dock-odds { flex-basis: auto; }
+  .se-dock__controls > .se-slots__dock-lines { flex-basis: auto; }
   .se-dock__controls > .se-slots__dock-bet { order: -2; }
   .se-dock__controls > .se-slots__dock-lines { order: -1; }
-  .se-dock__controls > .se-street-dice__dock-bet,
-  .se-dock__controls > .se-street-dice__dock-odds { order: -1; }
 }
 
 /* ---------- Blackjack felt (1.4 overhaul) ----------
