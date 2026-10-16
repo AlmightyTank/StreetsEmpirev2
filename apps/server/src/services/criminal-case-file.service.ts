@@ -1,10 +1,12 @@
 import type { CriminalCaseEvidence, CriminalCaseFile, Prisma, PrismaClient, Round } from '@prisma/client';
-import { activeRoundEventTime, LIVING_CASE_BLUEPRINTS, livingStoryCatalogForRuleset } from '@streets/rulesets';
+import { activeRoundEventTime, LIVING_CASE_BLUEPRINTS, livingStoryCatalogForRuleset, criminalCaseOutcome } from '@streets/rulesets';
 import type { CaseClueDefinition } from '@streets/rulesets';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import type { CriminalCaseFileDto, CriminalCasePageDto, CriminalCaseStatusDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { lockRoundPlayer } from '../utils/db.js';
+import { CriminalCaseRewardService } from './criminal-case-reward.service.js';
 import { evaluateLivingStoryOffer } from './living-story-contract.service.js';
 
 type CaseRow = CriminalCaseFile & { evidence: CriminalCaseEvidence[] };
@@ -50,7 +52,15 @@ function toDto(row: CaseRow, clock: Clock, now: Date): CriminalCaseFileDto {
     nextClueKey: plan.find((clue) => !byKey.has(clue.key))?.key ?? null,
     nextAction: plan.find((clue) => !byKey.has(clue.key))?.sourceKind ?? null,
     choices: branchesOf(row.branchKeys),
+    choiceDetails: branchesOf(row.branchKeys).flatMap((key) => {
+      const outcome = criminalCaseOutcome(row.caseKey, key);
+      return outcome ? [{ key, title: outcome.title, category: outcome.category, choiceCostCents: outcome.choiceCostCents }] : [];
+    }),
     chosenBranch: row.chosenBranch,
+    outcome: row.outcomeTitle && row.outcomeSummary && row.outcomeCategory
+      ? { title: row.outcomeTitle, summary: row.outcomeSummary, category: row.outcomeCategory } : null,
+    rewardCents: row.rewardCents ?? 0,
+    rewardClaimedAt: row.rewardClaimedAt?.toISOString() ?? null,
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
     solvedAt: row.solvedAt?.toISOString() ?? null,
     closedAt: row.closedAt?.toISOString() ?? null,
@@ -267,16 +277,44 @@ export const CriminalCaseFileService = {
     });
   },
 
-  /** No payout, combat or reputation effects in B. Only an audited story choice. */
+  /**
+   * 2.0.0-E. One settled branch, one ledger-backed cash reward at most.
+   * Lock player before case: actions already hold the player lock when they
+   * acquire a case lock. Never invert this order or allow double grants.
+   */
   async close(prisma: PrismaClient, ownerId: string, caseId: string, branchKey: string, now = new Date()): Promise<CriminalCaseFileDto> {
     return prisma.$transaction(async (tx) => {
+      await lockRoundPlayer(tx, ownerId);
       const row = await lockOwned(tx, caseId, ownerId);
       const round = await roundForCase(tx, row);
       requirePlayable(round);
-      if (row.status === 'CLOSED' && row.chosenBranch === branchKey) return toDto(row, round, now);
+      if (row.status === 'CLOSED') {
+        if (row.chosenBranch !== branchKey) throw AppError.conflict('CASE_ALREADY_CLOSED', 'This case already has a different conclusion.');
+        return toDto(row, round, now);
+      }
       if (row.status !== 'SOLVED') throw AppError.conflict('CASE_UNSOLVED', 'Find the evidence before reaching a conclusion.');
       if (!branchesOf(row.branchKeys).includes(branchKey)) throw AppError.badRequest('CASE_BRANCH_INVALID', 'Choose an available conclusion.');
-      await tx.criminalCaseFile.update({ where: { id: row.id }, data: { status: 'CLOSED', chosenBranch: branchKey, chosenAt: now, closedAt: now } });
+      const outcome = criminalCaseOutcome(row.caseKey, branchKey);
+      if (!outcome) throw AppError.conflict('CASE_OUTCOME_UNAVAILABLE', 'This case conclusion is unavailable in the current catalog.');
+      const ruleset = loadRulesetForRound(round);
+      const definition = livingStoryCatalogForRuleset(ruleset)[row.storyKey];
+      // Historical rounds were pinned to a zero-reward ruleset. No retroactive
+      // minting; missing or mismatched definitions cannot grant player cash.
+      const budget = definition?.enabled && definition.caseKey === row.caseKey
+        ? definition.rewardBudgetCents : 0;
+      const rewardCents = await CriminalCaseRewardService.grant(tx, {
+        roundId: row.roundId, ownerId, caseId: row.id, caseKey: row.caseKey,
+        budgetCents: budget, now,
+      });
+      await tx.criminalCaseFile.update({
+        where: { id: row.id },
+        data: {
+          status: 'CLOSED', chosenBranch: branchKey, chosenAt: now, closedAt: now,
+          outcomeTitle: outcome.title, outcomeSummary: outcome.summary,
+          outcomeCategory: outcome.category, rewardCents,
+          rewardClaimedAt: rewardCents > 0 ? now : null,
+        },
+      });
       return toDto(await getOwned(tx, caseId, ownerId), round, now);
     });
   },
