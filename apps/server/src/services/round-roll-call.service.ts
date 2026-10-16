@@ -1,6 +1,6 @@
 import type { PrismaClient, Round } from '@prisma/client';
 import { AppError } from '../utils/errors.js';
-import { lockRound, type Db } from '../utils/db.js';
+import type { Db } from '../utils/db.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const ROUND_ROLL_CALL_ALLOWANCE_DAYS = 7;
@@ -80,12 +80,13 @@ export const RoundRollCallService = {
 
   /**
    * Only authenticated, joined players can call this through the game route.
-   * Round lock serializes check-ins with early round closure; the unique
+   * Shared round lock serializes with early closure without blocking other check-ins; the unique
    * (roundPlayerId, dayIndex) key protects against tabs, retries and races.
    */
   async checkIn(prisma: PrismaClient, roundId: string, roundPlayerId: string, now = new Date()) {
     return prisma.$transaction(async (tx) => {
-      await lockRound(tx, roundId);
+      // FOR SHARE permits concurrent check-ins but blocks round closure's FOR UPDATE.
+      await tx.$queryRaw`SELECT id FROM "Round" WHERE id = ${roundId} FOR SHARE`;
       const round = await tx.round.findUnique({ where: { id: roundId } });
       if (!round) throw AppError.notFound('ROUND_NOT_FOUND', 'That round is no longer available.');
       const clock = roundRollCallClock(round, now);
