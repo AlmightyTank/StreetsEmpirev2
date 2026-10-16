@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { BlackBookPageDto } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { EmptyState, GamePageHeader, StatusBadge } from '../components/GameUI.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 
 const confidenceCopy = {
@@ -31,17 +32,10 @@ export function BlackBookPage() {
   return (
     <GameLayout>
       <div className="se-blackbook">
-        <header className="se-blackbook__hero">
-          <div><span className="se-eyebrow">Street intelligence</span><h1>The Black Book</h1></div>
-          <p>Rumors are not facts. Corroborate a lead before you put your crew on the line.</p>
-        </header>
+        <GamePageHeader eyebrow="Street intelligence" title="The Black Book" description="Rumors are not facts. Corroborate a lead before you put your crew on the line." />
         {error ? <Alert tone="error">{error}</Alert> : null}
         {!page ? <p className="se-muted">Opening the book…</p> : page.entries.length === 0 ? (
-          <section className="se-blackbook__empty">
-            <h2>No live leads</h2>
-            <p>Recon a rival or work your contacts. Old intelligence burns itself when it expires.</p>
-            <Link className="se-btn" to="/game/combat#intel">Investigate a rival</Link>
-          </section>
+          <EmptyState title="No live leads" description="Recon a rival or work your contacts. Old intelligence burns itself when it expires." action={<Link className="se-btn se-btn--primary" to="/game/combat#intel">Investigate a rival</Link>} />
         ) : (
           <div className="se-blackbook__grid">
             {page.entries.map((entry) => (
@@ -51,7 +45,7 @@ export function BlackBookPage() {
                     <span className="se-eyebrow">{entry.city.name}{entry.district ? ` · ${entry.district.replaceAll('_', ' ')}` : ''}</span>
                     <h2>{entry.target?.displayName ?? 'Territory warning'}</h2>
                   </div>
-                  <span className="se-blackbook-card__confidence">{entry.confidence}</span>
+                  <StatusBadge tone={entry.confidence === 'confirmed' ? 'good' : entry.confidence === 'likely' ? 'warning' : 'neutral'}>{entry.confidence}</StatusBadge>
                 </header>
                 <p className="se-blackbook-card__assessment">Defenses look <strong>{entry.strengthBand}</strong>. {confidenceCopy[entry.confidence]}.</p>
                 <div className="se-blackbook-card__sources">

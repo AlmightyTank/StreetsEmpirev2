@@ -3,18 +3,23 @@
  *
  * Dark street, early-2000s information density, modern typography.
  * Compact panels, hard edges, numbers that dominate. Decoration stays quiet.
+ *
+ * This :root block is the authoritative browser token layer. Theme classes may
+ * override color tokens on `.se-app`; components consume tokens rather than
+ * redefining them. `packages/shared/src/theme.ts` mirrors the cross-platform
+ * subset (`STREETSEMPIRE_COLORS/RADII/SHELL`).
  */
 
 :root {
-  --se-bg: #080a0d;
-  --se-panel: #111419;
-  --se-panel-hi: #171c23;
-  --se-line: #2a3039;
-  --se-line-soft: #20262e;
+  --se-bg: #07090c;
+  --se-panel: #12161c;
+  --se-panel-hi: #181d25;
+  --se-line: #303743;
+  --se-line-soft: #202630;
 
-  --se-text: #e8edf4;
-  --se-text-dim: #a7b0bc;
-  --se-muted: #7b8592;
+  --se-text: #e4e9f1;
+  --se-text-dim: #a9b3c0;
+  --se-muted: #8a96a5;
 
   /* Black, crimson and chrome: the StreetsEmpire house palette. */
   --se-accent: #ef4657;
@@ -22,11 +27,73 @@
   --se-accent-hover: #ff7784;
   --se-accent-rgb: 239, 70, 87;
   --se-accent-2: #d6dee8;
+  --se-on-accent: #090b0e;
 
   --se-good: #4ade80;
   --se-good-rgb: 74, 222, 128;
   --se-bad: #f33f63;
+  --se-bad-rgb: 243, 63, 99;
   --se-warn: #ff791a;
+  --se-warn-rgb: 255, 121, 26;
+
+  /* Semantic surfaces. Themes override the palette above, not these aliases. */
+  --se-surface-page: var(--se-bg);
+  --se-surface-panel: var(--se-panel);
+  --se-surface-raised: var(--se-panel-hi);
+  --se-border: var(--se-line);
+  --se-border-subtle: var(--se-line-soft);
+  --se-control-bg: #0d0f12;
+
+  /* Four-pixel spacing rhythm. Feature art may opt out; standard UI should not. */
+  --se-space-1: 4px;
+  --se-space-2: 8px;
+  --se-space-3: 12px;
+  --se-space-4: 16px;
+  --se-space-5: 20px;
+  --se-space-6: 24px;
+  --se-space-8: 32px;
+  --se-space-10: 40px;
+  --se-space-12: 48px;
+
+  /* Shared geometry. Keep the two legacy aliases until Slice C migration. */
+  --se-border-width: 1px;
+  --se-radius-sm: 4px;
+  --se-radius-md: 6px;
+  --se-radius-lg: 10px;
+  --se-radius-xl: 12px;
+  --se-radius: var(--se-radius-md);
+  --se-control-h-sm: 32px;
+  --se-control-h: 38px;
+  --se-control-h-lg: 44px;
+  --se-shadow: 0 18px 38px rgba(0, 0, 0, 0.36);
+  --se-shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.24);
+  --se-focus: 0 0 0 2px rgba(var(--se-accent-rgb), 0.22);
+
+  /* Type scale used by shared chrome. Display art may use fluid sizes. */
+  --se-type-xs: 10px;
+  --se-type-sm: 12px;
+  --se-type-body: 14px;
+  --se-type-lg: 18px;
+  --se-type-title: 22px;
+
+  --se-motion-fast: 120ms;
+  --se-motion-standard: 150ms;
+  --se-motion-slow: 400ms;
+  --se-ease-standard: ease;
+
+  /* Shell dimensions and named elevation scale. */
+  --se-shell-sidebar-w: 232px;
+  --se-shell-topbar-h: 58px;
+  --se-shell-tabbar-h: 60px;
+  --se-shell-content-max: 1320px;
+  --se-layer-dock: 30;
+  --se-layer-help: 40;
+  --se-layer-sidebar: 60;
+  --se-layer-topbar: 70;
+  --se-layer-dialog: 80;
+  --se-layer-menu: 90;
+  --se-layer-cinema: 220;
+  --se-layer-skip: 1000;
 
   --se-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", "Cascadia Mono",
     Menlo, Consolas, monospace;
@@ -52,7 +119,7 @@ body {
   background-attachment: fixed;
   color: var(--se-text);
   font-family: var(--se-sans);
-  font-size: 14px;
+  font-size: var(--se-type-body);
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
@@ -284,13 +351,13 @@ body {
 .se-btn--primary {
   background: var(--se-accent);
   border-color: var(--se-accent);
-  color: #0b0c0e;
+  color: var(--se-on-accent);
 }
 
 .se-btn--primary:hover:not(:disabled) {
   background: var(--se-accent-hover);
   border-color: var(--se-accent-hover);
-  color: #0b0c0e;
+  color: var(--se-on-accent);
 }
 
 /* A faded accent fill still read as a live button; an off primary drops the fill instead. */
@@ -461,148 +528,148 @@ body {
   background-attachment: fixed;
 }
 
-.se-site-accent--default {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--default {
   --se-accent: #ef4657;
   --se-accent-dim: #b72e3d;
   --se-accent-hover: #ff7784;
   --se-accent-rgb: 239, 70, 87;
 }
 /* Retired in 1.8.0-L: the house accent is crimson now, so a saved "crimson" renders as the default. */
-.se-site-accent--crimson {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--crimson {
   --se-accent: #ef4657;
   --se-accent-dim: #b72e3d;
   --se-accent-hover: #ff7784;
   --se-accent-rgb: 239, 70, 87;
 }
-.se-site-accent--gold {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--gold {
   --se-accent: #f1b622;
   --se-accent-dim: #bf911d;
   --se-accent-hover: #fbd460;
   --se-accent-rgb: 241, 182, 34;
 }
-.se-site-accent--green {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--green {
   --se-accent: #4ade80;
   --se-accent-dim: #2f9d5d;
   --se-accent-hover: #72e79d;
   --se-accent-rgb: 74, 222, 128;
 }
-.se-site-accent--blue {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--blue {
   --se-accent: #6899f3;
   --se-accent-dim: #4c70b1;
   --se-accent-hover: #95b8f7;
   --se-accent-rgb: 104, 153, 243;
 }
-.se-site-accent--purple {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--purple {
   --se-accent: #e576e1;
   --se-accent-dim: #a756a4;
   --se-accent-hover: #ed9fea;
   --se-accent-rgb: 229, 118, 225;
 }
-.se-site-accent--ghost-violet {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--ghost-violet {
   --se-accent: #a78bfa;
   --se-accent-dim: #715cc0;
   --se-accent-hover: #c4b5fd;
   --se-accent-rgb: 167, 139, 250;
 }
-.se-site-accent--top-shelf-teal {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--top-shelf-teal {
   --se-accent: #2dd4bf;
   --se-accent-dim: #1d9789;
   --se-accent-hover: #5eead4;
   --se-accent-rgb: 45, 212, 191;
 }
-.se-site-accent--enforcer-red {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--enforcer-red {
   --se-accent: #f93a24;
   --se-accent-dim: #b62a1a;
   --se-accent-hover: #fb7566;
   --se-accent-rgb: 249, 58, 36;
 }
-.se-site-accent--open-road-blue {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--open-road-blue {
   --se-accent: #38bdf8;
   --se-accent-dim: #2388b4;
   --se-accent-hover: #7dd3fc;
   --se-accent-rgb: 56, 189, 248;
 }
-.se-site-accent--clean-slate-ice {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--clean-slate-ice {
   --se-accent: #a5f3fc;
   --se-accent-dim: #65bac4;
   --se-accent-hover: #cffafe;
   --se-accent-rgb: 165, 243, 252;
 }
-.se-site-accent--corner-amber {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--corner-amber {
   --se-accent: #f58514;
   --se-accent-dim: #b3610f;
   --se-accent-hover: #f8aa5a;
   --se-accent-rgb: 245, 133, 20;
 }
-.se-site-accent--velvet-rose {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--velvet-rose {
   --se-accent: #e0607e;
   --se-accent-dim: #a8435c;
   --se-accent-hover: #ec8ea4;
   --se-accent-rgb: 224, 96, 126;
 }
 /* 1.4.0-F faction accents, earned at Connected. */
-.se-site-accent--kings-gold {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--kings-gold {
   --se-accent: #f2c14e;
   --se-accent-dim: #b38d32;
   --se-accent-hover: #f7d77f;
   --se-accent-rgb: 242, 193, 78;
 }
-.se-site-accent--outfit-oxblood {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--outfit-oxblood {
   --se-accent: #c2410c;
   --se-accent-dim: #8a2e09;
   --se-accent-hover: #df6a3a;
   --se-accent-rgb: 194, 65, 12;
 }
-.se-site-accent--saints-chrome {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--saints-chrome {
   --se-accent: #cbd5e1;
   --se-accent-dim: #94a3b8;
   --se-accent-hover: #e2e8f0;
   --se-accent-rgb: 203, 213, 225;
 }
-.se-site-accent--cartel-jade {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--cartel-jade {
   --se-accent: #10b981;
   --se-accent-dim: #0b8460;
   --se-accent-hover: #4fd3a5;
   --se-accent-rgb: 16, 185, 129;
 }
-.se-site-accent--civic-seal {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--civic-seal {
   --se-accent: #818cf8;
   --se-accent-dim: #5b63c4;
   --se-accent-hover: #a5adfb;
   --se-accent-rgb: 129, 140, 248;
 }
 /* 1.8.0-L quest accents. */
-.se-site-accent--original-neon {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--original-neon {
   --se-accent: #b6ff3a;
   --se-accent-dim: #7fb028;
   --se-accent-hover: #c9ff63;
   --se-accent-rgb: 182, 255, 58;
 }
-.se-site-accent--neon-sign-pink {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--neon-sign-pink {
   --se-accent: #ff2ec4;
   --se-accent-dim: #b8208d;
   --se-accent-hover: #ff70d8;
   --se-accent-rgb: 255, 46, 196;
 }
-.se-site-accent--gavel-bronze {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--gavel-bronze {
   --se-accent: #cf9a5c;
   --se-accent-dim: #94693b;
   --se-accent-hover: #e0b886;
   --se-accent-rgb: 207, 154, 92;
 }
-.se-site-accent--clean-books-ivory {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--clean-books-ivory {
   --se-accent: #efe6d2;
   --se-accent-dim: #b3a98f;
   --se-accent-hover: #faf5ea;
   --se-accent-rgb: 239, 230, 210;
 }
-.se-site-accent--sunset-coral {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--sunset-coral {
   --se-accent: #ff8a70;
   --se-accent-dim: #c2634f;
   --se-accent-hover: #ffad9b;
   --se-accent-rgb: 255, 138, 112;
 }
-.se-site-accent--night-map-plum {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--night-map-plum {
   --se-accent: #b45cff;
   --se-accent-dim: #8240bd;
   --se-accent-hover: #cb8dff;

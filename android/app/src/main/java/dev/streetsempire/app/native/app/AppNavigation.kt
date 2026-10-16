@@ -8,6 +8,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object LoginDestination
 @Serializable data object TwoFactorDestination
+@Serializable data object ForgotPasswordDestination
+@Serializable data class ResetPasswordDestination(val token: String = "")
+@Serializable data class VerifyEmailLinkDestination(val token: String = "")
 @Serializable data object OnboardingDestination
 @Serializable data object HomeDestination
 @Serializable data object PreviewDestination
@@ -33,9 +36,19 @@ fun protectedRedirect(state: AppState, requested: ProtectedArea): Any? {
 /** Trusted in-app route conversion; host verification is added at the Android app-link boundary. */
 fun destinationForPath(path: String): Any? {
   val normalized = "/" + path.trim().trim('/').substringBefore('?').substringBefore('#')
+  if (normalized == "/reset-password") {
+    // The token arrives as a query parameter; base64url needs no decoding.
+    val token = path.substringAfter("token=", "").substringBefore('&').substringBefore('#').trim()
+    return ResetPasswordDestination(token)
+  }
+  if (normalized == "/verify-email") {
+    val token = path.substringAfter("token=", "").substringBefore('&').substringBefore('#').trim()
+    return VerifyEmailLinkDestination(token)
+  }
   return when {
     normalized == "/login" -> LoginDestination
     normalized == "/register" -> LoginDestination
+    normalized == "/forgot-password" -> ForgotPasswordDestination
     normalized == "/join" -> OnboardingDestination
     normalized == "/game" -> HomeDestination
     normalized.startsWith("/game/stores/") -> FeatureDestination("Stores")

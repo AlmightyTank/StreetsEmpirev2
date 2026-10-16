@@ -43,8 +43,54 @@ data class PlayerSummary(
   val city: CitySummary,
   val payoutPercent: Int,
   val netWorthCents: Long,
+  val resources: ResourcesSummary,
   val turns: TurnsDto,
+  val happiness: HappinessSummary,
+  /** Null on rounds without Heat. */
+  val heat: HeatSummary?,
+  /** Null when no run is on the road. */
+  val run: RunSummary?,
+  /** Null when not relocating. */
+  val moving: MovingSummary?,
+  /** Null when no convoy situation is pending. */
+  val convoyAlert: ConvoyAlertSummary?,
+  val rank: RankSummary,
 )
+
+/** Required ResourcesDto fields the dashboard renders. Unknown fields stay forward-compatible. */
+@Serializable
+data class ResourcesSummary(
+  val cashCents: Long,
+  val whores: Int,
+  val thugs: Int,
+  val fitThugs: Int,
+  val woundedThugs: Int,
+  val postedThugs: Int,
+  val unarmedThugs: Int,
+  val product: Int,
+  val condoms: Int,
+  val beer: Int,
+  val medicine: Int,
+)
+
+@Serializable
+data class HappinessSummary(val whore: Int, val thug: Int)
+
+/** Required HeatDto fields the dashboard renders. */
+@Serializable
+data class HeatSummary(val heat: Int, val max: Int, val lockedUntil: String?)
+
+@Serializable
+data class RunSummary(val phase: String, val cityName: String)
+
+@Serializable
+data class MovingSummary(val toName: String, val arrivesAt: String)
+
+@Serializable
+data class ConvoyAlertSummary(val kind: String, val cityName: String)
+
+@Serializable
+data class RankSummary(val local: Int?, val national: Int?)
 
 @Serializable
 data class ActivityItem(

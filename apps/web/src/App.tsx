@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
 import { NotFoundPage } from './pages/NotFoundPage.js';
@@ -81,6 +81,8 @@ import { RulesGate } from './components/RulesGate.js';
 import { BirthDateGate } from './components/BirthDateGate.js';
 import { AdminDiscordGate } from './components/AdminDiscordGate.js';
 import { landingPath, useSession } from './stores/session.js';
+
+const UiGalleryPage = import.meta.env.DEV ? lazy(() => import('./pages/UiGalleryPage.js').then((module) => ({ default: module.UiGalleryPage }))) : null;
 
 function SurveyRedirect() {
   const { search } = useLocation();
@@ -178,6 +180,7 @@ export function App() {
       <Route path="/account" element={<RequireAccount><AccountSettingsPage /></RequireAccount>} />
       <Route path="/account/forum-link" element={<ForumLinkPage />} />
       <Route path="/join" element={<Protected><JoinPage /></Protected>} />
+      {UiGalleryPage ? <Route path="/dev/ui" element={<Suspense fallback={<Booting />}><UiGalleryPage /></Suspense>} /> : null}
 
       <Route path="/game" element={<GameRouteLayout />}>
         <Route index element={<Protected><DashboardPage /></Protected>} />

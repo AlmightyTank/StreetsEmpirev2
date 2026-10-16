@@ -4,6 +4,7 @@ import { formatCentsExact } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Panel } from '../components/Panel.js';
+import { EmptyState, GamePageHeader, StatusBadge } from '../components/GameUI.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 
 const ROLES = ['driver', 'enforcer', 'intel'] as const;
@@ -41,7 +42,7 @@ function OperationCard({ operation, busy, act }: {
           <span className="se-eyebrow">Corner takeover · {operation.cityName}</span>
           <h3>{DISTRICTS.find((district) => district.value === operation.district)?.label ?? operation.district ?? 'Unknown district'}</h3>
         </div>
-        <span className={`se-operation__status se-operation__status--${operation.status.toLowerCase()}`}>{operation.status.replace('_', ' ')}</span>
+        <StatusBadge tone={operation.status === 'READY' ? 'good' : operation.status === 'REPORTED' ? 'accent' : 'neutral'}>{operation.status.replace('_', ' ')}</StatusBadge>
       </header>
 
       {operation.myInvite ? (
@@ -152,11 +153,7 @@ export function OperationsPage() {
   return (
     <GameLayout>
       <div className="se-operations">
-        <header className="se-operations__hero">
-          <span className="se-eyebrow">Intel · crew · execution · consequences</span>
-          <h1>Operations</h1>
-          <p>Case a district, lock three specialists, then run the job. Victories hit the Street Daily; failures stay with the crew.</p>
-        </header>
+        <GamePageHeader eyebrow="Intel · crew · execution · consequences" title="Operations" description="Case a district, lock three specialists, then run the job. Victories hit the Street Daily; failures stay with the crew." />
 
         {error ? <Alert>{error}</Alert> : null}
 
@@ -176,7 +173,7 @@ export function OperationsPage() {
         </Panel>
 
         <Panel title="Open operations" aside={loading ? 'Checking the streets…' : `${active.length} active`}>
-          {active.length ? <div className="se-operation-list">{active.map((operation) => <OperationCard key={operation.id} operation={operation} busy={busy} act={act} />)}</div> : <p className="se-muted">No live operation. Pick a city and target above.</p>}
+          {active.length ? <div className="se-operation-list">{active.map((operation) => <OperationCard key={operation.id} operation={operation} busy={busy} act={act} />)}</div> : <EmptyState title="No live operation" description="Pick a city and target above to assemble a crew." />}
         </Panel>
 
         {history.length ? <Panel title="Outcome reports" aside={`${history.length} recent`}><div className="se-operation-list">{history.map((operation) => <OperationCard key={operation.id} operation={operation} busy={busy} act={act} />)}</div></Panel> : null}

@@ -5,13 +5,14 @@
  * Desktop (900px and up) is a two-column frame: a sticky sidebar pinned to the
  * left edge and a fluid content column. Phones keep the top bar, the slim game
  * bar and the tab bar from navigation.css; the sidebar is not rendered there.
- * Loaded last so these rules are the single source for the shell.
+ * Shell dimensions are owned by theme.css; this file composes the layout.
  */
 
 :root {
-  --se-sidebar-w: 232px;
-  --se-topbar-h: 58px;
-  --se-content-max: 1320px;
+  /* Compatibility aliases for existing shell rules. */
+  --se-sidebar-w: var(--se-shell-sidebar-w);
+  --se-topbar-h: var(--se-shell-topbar-h);
+  --se-content-max: var(--se-shell-content-max);
 }
 
 /* --- frame ---------------------------------------------------------------- */
@@ -43,7 +44,7 @@
   .se-sidebar {
     position: sticky;
     top: 0;
-    z-index: 60;
+    z-index: var(--se-layer-sidebar);
     display: flex;
     flex-direction: column;
     gap: 14px;

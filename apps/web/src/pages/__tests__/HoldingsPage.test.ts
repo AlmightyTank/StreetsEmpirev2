@@ -13,7 +13,7 @@ describe('city holding card', () => {
     };
     const html = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(HoldingCard, { city })));
     expect(html).toContain('San Francisco');
-    expect(html).toContain('grid-template-columns:repeat(auto-fit, minmax(min(100%, 12rem), 1fr))');
+    expect(html).toContain('class="se-holdings__facts"');
     expect(html).toContain('href="/game/turf?city=san-francisco"');
     expect(html).toContain('href="/game/supply"');
     expect(html).toContain('href="/game/dealers"');

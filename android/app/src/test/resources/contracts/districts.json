@@ -1,0 +1,30 @@
+{
+  "districts": [
+    {
+      "key": "uptown",
+      "slug": "uptown",
+      "name": "Uptown",
+      "blurb": "Leafy blocks with deep pockets and private security.",
+      "protectionWhoresPerThug": 4,
+      "coveredWhores": 8,
+      "exposedFraction": 0.35,
+      "armedThugs": 2,
+      "unarmedThugs": 1,
+      "requiresArmedThugs": false,
+      "districtAccess": null
+    },
+    {
+      "key": "downtown",
+      "slug": "downtown",
+      "name": "Downtown",
+      "blurb": "Busy streets, thin margins, heavy heat.",
+      "protectionWhoresPerThug": 6,
+      "coveredWhores": 0,
+      "exposedFraction": 0.8,
+      "armedThugs": 0,
+      "unarmedThugs": 3,
+      "requiresArmedThugs": true,
+      "districtAccess": "Finish the Downtown introduction quest first."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+/* Developer-only component gallery. All selectors are scoped to avoid product UI changes. */
+.se-ui-gallery { display: grid; gap: var(--se-space-4); }
+.se-ui-gallery__controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--se-space-3); }
+.se-ui-gallery__controls .se-field { margin: 0; }
+.se-ui-gallery__preview { display: grid; gap: var(--se-space-5); padding: var(--se-space-5); border: var(--se-border-width) solid var(--se-line); border-radius: var(--se-radius-xl); background-color: var(--se-bg); color: var(--se-text); }
+.se-ui-gallery__swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--se-space-2); }
+.se-ui-gallery__swatches > div { display: grid; gap: var(--se-space-1); color: var(--se-text-dim); font-size: var(--se-type-xs); }
+.se-ui-gallery__swatches span { height: 44px; border: var(--se-border-width) solid var(--se-line); border-radius: var(--se-radius-md); }
+.se-ui-gallery__section { display: grid; gap: var(--se-space-3); }
+.se-ui-gallery__actions, .se-ui-gallery__badges { display: flex; flex-wrap: wrap; gap: var(--se-space-2); }
+.se-ui-gallery__form, .se-ui-gallery__stats, .se-ui-gallery__cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--se-space-3); }
+.se-ui-gallery__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.se-ui-gallery__alerts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--se-space-2); }
+.se-ui-gallery__alerts .se-alert { margin: 0; }
+.se-ui-gallery__preview .se-panel { border-radius: var(--se-radius-lg); }
+@media (max-width: 760px) {
+  .se-ui-gallery__controls, .se-ui-gallery__form, .se-ui-gallery__stats, .se-ui-gallery__cards, .se-ui-gallery__alerts { grid-template-columns: 1fr; }
+  .se-ui-gallery__preview { padding: var(--se-space-3); }
+}

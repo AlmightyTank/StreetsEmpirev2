@@ -1,4 +1,4 @@
-package dev.streetsempire.app.native.ui
+package dev.streetsempire.app.native.core.ui
 
 import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.Arrangement

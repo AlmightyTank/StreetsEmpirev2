@@ -1,0 +1,83 @@
+[
+  {
+    "url": "/login",
+    "finalPath": "/login",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 61x40",
+        "a.se-btn.se-btn--primary \"Register\" 75x40",
+        "a \"Forgot your password?\" 121x37",
+        "button.se-btn.se-btn--primary \"Log in\" 340x40",
+        "a.se-btn.se-btn--discord \"Log in with Discord\" 340x40"
+      ],
+      "total": 10
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/login",
+    "finalPath": "/login",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 63x40",
+        "a.se-btn.se-btn--primary \"Register\" 77x40",
+        "a \"Forgot your password?\" 121x37",
+        "button.se-btn.se-btn--primary \"Log in\" 331x40",
+        "a.se-btn.se-btn--discord \"Log in with Discord\" 331x40"
+      ],
+      "total": 10
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/login",
+    "finalPath": "/login",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  }
+]

@@ -46,6 +46,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,23 +73,41 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import dev.streetsempire.app.GameConfig
 import dev.streetsempire.app.MainActivity
 import dev.streetsempire.app.R
 import dev.streetsempire.app.native.core.model.AccountDto
 import dev.streetsempire.app.native.core.model.CitySummary
+import dev.streetsempire.app.native.core.model.ConvoyAlertSummary
 import dev.streetsempire.app.native.core.model.GameSnapshotDto
+import dev.streetsempire.app.native.core.model.HappinessSummary
+import dev.streetsempire.app.native.core.model.HeatSummary
+import dev.streetsempire.app.native.core.model.MovingSummary
 import dev.streetsempire.app.native.core.model.PlayerSummary
+import dev.streetsempire.app.native.core.model.RankSummary
+import dev.streetsempire.app.native.core.model.ResourcesSummary
 import dev.streetsempire.app.native.core.model.RoundSummary
+import dev.streetsempire.app.native.core.model.RunSummary
 import dev.streetsempire.app.native.core.model.TurnsDto
 import dev.streetsempire.app.native.core.network.ApiClient
 import dev.streetsempire.app.native.core.network.ApiError
 import dev.streetsempire.app.native.core.network.TokenStore
 import dev.streetsempire.app.native.core.ui.AdaptiveGameChrome
+import dev.streetsempire.app.native.core.ui.BirthdayDateField
 import dev.streetsempire.app.native.core.ui.StreetsEmpireTheme
+import dev.streetsempire.app.native.core.ui.birthdayError
+import dev.streetsempire.app.native.feature.auth.AppLink
+import dev.streetsempire.app.native.feature.auth.AppLinks
 import dev.streetsempire.app.native.feature.auth.AuthRepository
-import dev.streetsempire.app.native.feature.auth.AuthResult
-import dev.streetsempire.app.native.feature.auth.TurnstileChallenge
+import dev.streetsempire.app.native.feature.auth.AuthMessage
+import dev.streetsempire.app.native.feature.auth.ForgotPasswordScreen
+import dev.streetsempire.app.native.feature.auth.LoginScreen
+import dev.streetsempire.app.native.feature.auth.ResetPasswordScreen
+import dev.streetsempire.app.native.feature.auth.TwoFactorScreen
+import dev.streetsempire.app.native.feature.dashboard.DashboardGateway
+import dev.streetsempire.app.native.feature.dashboard.DashboardScreen
 import dev.streetsempire.app.native.feature.onboarding.OnboardingScreen
+import dev.streetsempire.app.native.feature.onboarding.VerifyEmailLinkScreen
 import kotlinx.coroutines.launch
 
 /**
@@ -98,8 +117,11 @@ import kotlinx.coroutines.launch
  * modules are staged destinations so full parity lands incrementally.
  */
 class NativeAppActivity : ComponentActivity() {
+  private val pendingLink = mutableStateOf<AppLink?>(null)
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    handleAppLink(intent)
     val tokens = TokenStore(this)
     val api = ApiClient(tokens)
     val auth = AuthRepository(api, tokens)
@@ -107,9 +129,25 @@ class NativeAppActivity : ComponentActivity() {
     val allowPreview = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     setContent {
       StreetsEmpireTheme {
-        NativeApp(auth, appState, allowPreview)
+        NativeApp(auth, appState, allowPreview, pendingLink, onLinkConsumed = { pendingLink.value = null })
       }
     }
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    setIntent(intent)
+    handleAppLink(intent)
+  }
+
+  /**
+   * Strict app-link gate: only links matching the flavor's LINK_ORIGIN become
+   * navigation. Untrusted hosts, schemes, ports, paths, and token-less links
+   * are ignored and the user stays where they are.
+   */
+  private fun handleAppLink(intent: Intent?) {
+    val data = intent?.data?.toString()
+    pendingLink.value = AppLinks.parseAppLink(data, GameConfig.LINK_ORIGIN)
   }
 }
 
@@ -129,9 +167,24 @@ val FULL_PARITY_SECTIONS = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NativeApp(auth: AuthRepository, appState: AppStateStore, allowPreview: Boolean = false) {
+fun NativeApp(
+  auth: AuthRepository,
+  appState: AppStateStore,
+  allowPreview: Boolean = false,
+  pendingLink: State<AppLink?>? = null,
+  onLinkConsumed: () -> Unit = {},
+) {
   val nav = rememberNavController()
   val start = rootStartGraph(auth.isSignedIn())
+  val link = pendingLink?.value
+  LaunchedEffect(link) {
+    when (link) {
+      is AppLink.VerifyEmail -> nav.navigate(VerifyEmailLinkDestination(link.token))
+      is AppLink.ResetPassword -> nav.navigate(ResetPasswordDestination(link.token))
+      null -> return@LaunchedEffect
+    }
+    onLinkConsumed()
+  }
   NavHost(navController = nav, startDestination = start) {
     navigation<AuthGraph>(startDestination = LoginDestination) {
       composable<LoginDestination> {
@@ -141,9 +194,29 @@ fun NativeApp(auth: AuthRepository, appState: AppStateStore, allowPreview: Boole
             nav.navigate(OnboardingGraph) { popUpTo<AuthGraph> { inclusive = true } }
           },
           onTwoFactor = { nav.navigate(TwoFactorDestination) },
+          onForgotPassword = { nav.navigate(ForgotPasswordDestination) },
           onPreview = { nav.navigate(PreviewDestination) },
           allowPreview = allowPreview,
           auth = auth,
+        )
+      }
+      composable<ForgotPasswordDestination> {
+        ForgotPasswordScreen(
+          auth = auth,
+          onBackToSignIn = { nav.popBackStack() },
+        )
+      }
+      composable<ResetPasswordDestination> { backStack ->
+        val token = backStack.toRoute<ResetPasswordDestination>().token
+        ResetPasswordScreen(
+          auth = auth,
+          token = token,
+          onSignedIn = {
+            appState.beginBootstrap(it)
+            nav.navigate(OnboardingGraph) { popUpTo<AuthGraph> { inclusive = true } }
+          },
+          onTwoFactor = { nav.navigate(TwoFactorDestination) },
+          onRequestNewLink = { nav.navigate(ForgotPasswordDestination) },
         )
       }
       composable<TwoFactorDestination> {
@@ -153,6 +226,21 @@ fun NativeApp(auth: AuthRepository, appState: AppStateStore, allowPreview: Boole
             nav.navigate(OnboardingGraph) { popUpTo<AuthGraph> { inclusive = true } }
           },
           auth = auth,
+        )
+      }
+      composable<VerifyEmailLinkDestination> { backStack ->
+        val token = backStack.toRoute<VerifyEmailLinkDestination>().token
+        VerifyEmailLinkScreen(
+          gateway = auth,
+          token = token,
+          onContinue = {
+            if (auth.isSignedIn()) {
+              nav.navigate(OnboardingGraph) { popUpTo<AuthGraph> { inclusive = true } }
+            } else {
+              nav.popBackStack(LoginDestination, inclusive = false)
+            }
+          },
+          onBackToSignIn = { nav.popBackStack(LoginDestination, inclusive = false) },
         )
       }
       composable<PreviewDestination> {
@@ -238,365 +326,6 @@ private fun ProtectedContent(
   if (redirect == null) content()
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun LoginScreen(
-  auth: AuthRepository,
-  onSignedIn: (AccountDto) -> Unit,
-  onTwoFactor: () -> Unit,
-  onPreview: () -> Unit = {},
-  allowPreview: Boolean = false,
-) {
-  val scope = rememberCoroutineScope()
-  val focusManager = LocalFocusManager.current
-  var mode by remember { mutableStateOf(AuthMode.SignIn) }
-  var identifier by remember { mutableStateOf("") }
-  var username by remember { mutableStateOf("") }
-  var email by remember { mutableStateOf("") }
-  var password by remember { mutableStateOf("") }
-  var confirmPassword by remember { mutableStateOf("") }
-  var passwordVisible by remember { mutableStateOf(false) }
-  var ageConfirmed by remember { mutableStateOf(false) }
-  var birthDate by remember { mutableStateOf("") }
-  var busy by remember { mutableStateOf(false) }
-  var error by remember { mutableStateOf<String?>(null) }
-  var info by remember { mutableStateOf<String?>(null) }
-  var siteKey by remember { mutableStateOf<String?>(null) }
-  var siteKeyLoaded by remember { mutableStateOf(false) }
-  var captchaToken by remember { mutableStateOf<String?>(null) }
-  var captchaKey by remember { mutableStateOf(0) }
-
-  LaunchedEffect(Unit) {
-    siteKey = auth.turnstileSiteKey()
-    siteKeyLoaded = true
-  }
-
-  fun switchMode(next: AuthMode) {
-    if (mode == next || busy) return
-    mode = next
-    error = null
-    info = null
-    password = ""
-    confirmPassword = ""
-  }
-
-  fun validationError(): String? = when (mode) {
-    AuthMode.SignIn -> when {
-      identifier.isBlank() -> "Enter your pimp name or email."
-      password.isBlank() -> "Enter your password."
-      else -> null
-    }
-    AuthMode.SignUp -> when {
-      username.trim().length !in 3..20 -> "Pimp name must be 3–20 characters."
-      !username.trim().matches(Regex("^[A-Za-z0-9_-]+$")) -> "Use only letters, numbers, underscores, or hyphens in your pimp name."
-      !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() -> "Enter a valid email address."
-      password.length < 8 -> "Password must be at least 8 characters."
-      password != confirmPassword -> "Passwords do not match."
-      birthdayError(birthDate) != null -> birthdayError(birthDate)
-      !ageConfirmed -> "Confirm that you are at least 16 years old."
-      else -> null
-    }
-  }
-
-  fun submit() {
-    val invalid = validationError()
-    if (invalid != null) {
-      error = invalid
-      return
-    }
-    if (siteKey != null && captchaToken == null) {
-      error = "Finish the human check first."
-      return
-    }
-    focusManager.clearFocus()
-    busy = true
-    error = null
-    info = null
-    scope.launch {
-      try {
-        val result = when (mode) {
-          AuthMode.SignIn -> auth.login(identifier, password, captchaToken)
-          AuthMode.SignUp -> auth.register(username, email, password, ageConfirmed, birthDate, captchaToken)
-        }
-        when (result) {
-          is AuthResult.SignedIn -> onSignedIn(result.account)
-          is AuthResult.TwoFactorRequired -> onTwoFactor()
-          is AuthResult.ApprovalRequired -> info = result.message
-        }
-      } catch (e: ApiError) {
-        error = e.message
-        captchaToken = null
-        captchaKey += 1
-        if (e.code == "CAPTCHA_REQUIRED" || e.code == "CAPTCHA_FAILED") {
-          if (siteKey == null) siteKey = auth.turnstileSiteKey()
-        }
-      } finally {
-        busy = false
-      }
-    }
-  }
-
-  Box(
-    modifier = Modifier
-      .fillMaxSize()
-      .background(MaterialTheme.colorScheme.background)
-      .windowInsetsPadding(WindowInsets.safeDrawing),
-    contentAlignment = Alignment.TopCenter,
-  ) {
-    Column(
-      modifier = Modifier
-        .fillMaxSize()
-        .widthIn(max = 560.dp)
-        .verticalScroll(rememberScrollState())
-        .padding(horizontal = 20.dp, vertical = 24.dp),
-      horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-      Image(
-        painter = painterResource(R.mipmap.ic_launcher_foreground),
-        contentDescription = null,
-        modifier = Modifier.size(88.dp),
-        contentScale = ContentScale.Fit,
-      )
-      Text(
-        text = "STREETSEMPIRE",
-        color = MaterialTheme.colorScheme.onBackground,
-        style = MaterialTheme.typography.headlineMedium.copy(
-          fontWeight = FontWeight.Black,
-          letterSpacing = 2.sp,
-        ),
-      )
-      Text(
-        text = "Build your name. Run your city.",
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        style = MaterialTheme.typography.bodyLarge,
-        textAlign = TextAlign.Center,
-      )
-      Spacer(Modifier.height(24.dp))
-
-      Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-      ) {
-        Column(
-          modifier = Modifier.padding(20.dp),
-          verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-          TabRow(selectedTabIndex = mode.ordinal, containerColor = Color.Transparent) {
-            AuthMode.entries.forEach { option ->
-              Tab(
-                selected = mode == option,
-                onClick = { switchMode(option) },
-                text = { Text(option.label, fontWeight = FontWeight.SemiBold) },
-                enabled = !busy,
-              )
-            }
-          }
-
-          Text(
-            text = if (mode == AuthMode.SignIn) "Welcome back, boss" else "Claim your street name",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-          )
-          Text(
-            text = if (mode == AuthMode.SignIn)
-              "Your empire is waiting. Sign in to continue."
-            else
-              "Create an account and start building your empire.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-
-          if (mode == AuthMode.SignIn) {
-            OutlinedTextField(
-              value = identifier,
-              onValueChange = { identifier = it; error = null },
-              label = { Text("Pimp name or email") },
-              modifier = Modifier.fillMaxWidth(),
-              singleLine = true,
-              enabled = !busy,
-              keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            )
-          } else {
-            OutlinedTextField(
-              value = username,
-              onValueChange = { username = it.take(20); error = null },
-              label = { Text("Pimp name") },
-              supportingText = { Text("3–20 characters · letters, numbers, _ or -") },
-              modifier = Modifier.fillMaxWidth(),
-              singleLine = true,
-              enabled = !busy,
-              keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            )
-            OutlinedTextField(
-              value = email,
-              onValueChange = { email = it; error = null },
-              label = { Text("Email") },
-              modifier = Modifier.fillMaxWidth(),
-              singleLine = true,
-              enabled = !busy,
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-            )
-          }
-
-          OutlinedTextField(
-            value = password,
-            onValueChange = { password = it; error = null },
-            label = { Text("Password") },
-            supportingText = if (mode == AuthMode.SignUp) ({ Text("At least 8 characters") }) else null,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            enabled = !busy,
-            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-              TextButton(onClick = { passwordVisible = !passwordVisible }) {
-                Text(if (passwordVisible) "Hide" else "Show")
-              }
-            },
-            keyboardOptions = KeyboardOptions(
-              keyboardType = KeyboardType.Password,
-              imeAction = if (mode == AuthMode.SignIn) ImeAction.Done else ImeAction.Next,
-            ),
-            keyboardActions = KeyboardActions(onDone = { submit() }),
-          )
-
-          if (mode == AuthMode.SignUp) {
-            OutlinedTextField(
-              value = confirmPassword,
-              onValueChange = { confirmPassword = it; error = null },
-              label = { Text("Confirm password") },
-              modifier = Modifier.fillMaxWidth(),
-              singleLine = true,
-              enabled = !busy,
-              visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-              keyboardActions = KeyboardActions(onDone = { submit() }),
-            )
-            BirthdayDateField(value = birthDate, enabled = !busy, onSelect = { birthDate = it; error = null })
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              verticalAlignment = Alignment.CenterVertically,
-            ) {
-              Checkbox(
-                checked = ageConfirmed,
-                onCheckedChange = { ageConfirmed = it; error = null },
-                enabled = !busy,
-              )
-              Text("I confirm that I am 16 or older.")
-            }
-          }
-
-          if (siteKeyLoaded && siteKey != null) {
-            Surface(
-              modifier = Modifier.fillMaxWidth(),
-              color = MaterialTheme.colorScheme.surfaceVariant,
-              shape = RoundedCornerShape(12.dp),
-            ) {
-              TurnstileChallenge(siteKey = siteKey!!, captchaKey = captchaKey, onToken = { captchaToken = it })
-            }
-          }
-
-          error?.let { AuthMessage(it, isError = true) }
-          info?.let { AuthMessage(it, isError = false) }
-
-          Button(
-            onClick = { submit() },
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(14.dp),
-          ) {
-            if (busy) {
-              CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-            } else {
-              Text(if (mode == AuthMode.SignIn) "Enter the streets" else "Create my account", fontWeight = FontWeight.Bold)
-            }
-          }
-
-          if (siteKey != null) {
-            TextButton(
-              onClick = { captchaToken = null; captchaKey += 1 },
-              enabled = !busy,
-              modifier = Modifier.fillMaxWidth(),
-            ) { Text("Reload human check") }
-          }
-        }
-      }
-
-      if (allowPreview) {
-        Spacer(Modifier.height(12.dp))
-        TextButton(onClick = onPreview, modifier = Modifier.fillMaxWidth()) {
-          Text("Preview the app with sample data")
-        }
-      }
-      Spacer(Modifier.height(12.dp))
-      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-      Spacer(Modifier.height(12.dp))
-      Text(
-        text = "Secure native sign-in · Connected directly to the StreetsEmpire game server",
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        style = MaterialTheme.typography.bodySmall,
-        textAlign = TextAlign.Center,
-      )
-    }
-  }
-}
-
-private enum class AuthMode(val label: String) {
-  SignIn("Sign in"),
-  SignUp("Sign up"),
-}
-
-@Composable
-internal fun AuthMessage(message: String, isError: Boolean) {
-  Surface(
-    modifier = Modifier.fillMaxWidth(),
-    color = if (isError) MaterialTheme.colorScheme.error.copy(alpha = 0.12f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-    shape = RoundedCornerShape(12.dp),
-  ) {
-    Text(
-      text = message,
-      modifier = Modifier.padding(12.dp),
-      color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-      style = MaterialTheme.typography.bodyMedium,
-    )
-  }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TwoFactorScreen(auth: AuthRepository, onSignedIn: (AccountDto) -> Unit) {
-  val scope = rememberCoroutineScope()
-  var code by remember { mutableStateOf("") }
-  var busy by remember { mutableStateOf(false) }
-  var error by remember { mutableStateOf<String?>(null) }
-
-  Scaffold(topBar = { TopAppBar(title = { Text("Two-step sign-in") }) }) { padding ->
-    Column(Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-      Text("Enter the 6-digit code from your authenticator app.")
-      OutlinedTextField(value = code, onValueChange = { code = it }, label = { Text("Code") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-      error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-      if (busy) {
-        CircularProgressIndicator()
-      } else {
-        Button(onClick = {
-          busy = true
-          error = null
-          scope.launch {
-            try {
-              val result = auth.verifyTwoFactor(code)
-              if (result is AuthResult.SignedIn) onSignedIn(result.account)
-            } catch (e: ApiError) {
-              error = e.message
-            } finally {
-              busy = false
-            }
-          }
-        }, modifier = Modifier.fillMaxWidth()) { Text("Verify") }
-      }
-    }
-  }
-}
-
 /** Native signed-in accounts cannot enter the game before their private birthday is saved. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -662,41 +391,35 @@ fun HomeScreen(
 ) {
   val scope = rememberCoroutineScope()
   var account by remember(preview) { mutableStateOf<AccountDto?>(if (preview) previewAccount else null) }
-  var snapshot by remember(preview) { mutableStateOf<GameSnapshotDto?>(if (preview) previewSnapshot else null) }
-  var error by remember { mutableStateOf<String?>(null) }
-  var loading by remember(preview) { mutableStateOf(!preview) }
+  var accountError by remember { mutableStateOf<String?>(null) }
+  var accountLoading by remember(preview) { mutableStateOf(!preview) }
+  var dashboardRefresh by remember { mutableStateOf(0) }
+  val previewGateway = remember {
+    object : DashboardGateway {
+      override suspend fun snapshot(): GameSnapshotDto = previewSnapshot
+    }
+  }
 
   LaunchedEffect(preview) {
     if (preview) return@LaunchedEffect
     scope.launch {
       try {
-        val signedIn = auth.me()
-        account = signedIn
-        // A missing date of birth must be completed before requesting game data.
-        if (!signedIn.birthDateRequired) {
-          snapshot = try { auth.dashboard() } catch (_: ApiError) { null }
-        }
-        account?.let { freshAccount ->
-          snapshot?.let { freshSnapshot -> appState.applyRefresh(freshAccount, dashboard = freshSnapshot) }
-            ?: appState.applyAccount(freshAccount)
-        }
+        account = auth.me()
       } catch (e: ApiError) {
-        error = e.message
+        accountError = e.message
         if (appState.handleFailure(e)) onSignedOut()
       } finally {
-        loading = false
+        accountLoading = false
       }
     }
   }
 
-  if (!preview && account?.birthDateRequired == true && !loading) {
+  if (!preview && account?.birthDateRequired == true && !accountLoading) {
     BirthdayGateScreen(
       auth = auth,
       onSaved = { updated ->
         account = updated
-        scope.launch {
-          snapshot = try { auth.dashboard() } catch (_: ApiError) { null }
-        }
+        dashboardRefresh++
       },
       onSignedOut = onSignedOut,
     )
@@ -713,7 +436,7 @@ fun HomeScreen(
       FULL_PARITY_SECTIONS.firstOrNull { it.name == label }?.let(onOpenSection)
     },
   ) { padding ->
-    if (loading) {
+    if (accountLoading) {
       Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) { CircularProgressIndicator() }
       return@AdaptiveGameChrome
     }
@@ -722,18 +445,26 @@ fun HomeScreen(
       if (preview) {
         item { Text("Preview mode · sample data", color = MaterialTheme.colorScheme.primary) }
       }
-      error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+      accountError?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
       item {
-        Card(Modifier.fillMaxWidth()) {
-          Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Welcome, ${account?.username ?: snapshot?.player?.displayName ?: "boss"}", style = MaterialTheme.typography.titleLarge)
-            snapshot?.let {
-              Text("Season: ${it.round.name}")
-              Text("Net worth: $${it.player.netWorthCents / 100}")
-              Text("Turns: ${it.player.turns.turns}/${it.player.turns.turnCap}")
-            } ?: Text("You are signed in. Join the current season on web to see your dashboard here.")
-          }
-        }
+        DashboardScreen(
+          gateway = if (preview) previewGateway else auth,
+          refreshSignal = dashboardRefresh,
+          onSessionExpired = {
+            if (!preview) {
+              appState.invalidateSession()
+              onSignedOut()
+            }
+          },
+          onSnapshot = { snapshot ->
+            if (!preview) {
+              account?.let { freshAccount -> appState.applyRefresh(freshAccount, dashboard = snapshot) }
+            }
+          },
+          onOpenSection = { name ->
+            FULL_PARITY_SECTIONS.firstOrNull { it.name == name }?.let(onOpenSection)
+          },
+        )
       }
       item { Text("Game", style = MaterialTheme.typography.titleMedium) }
       items(FULL_PARITY_SECTIONS) { section ->
@@ -780,6 +511,7 @@ private val previewAccount = AccountDto(
   lastLoginAt = "2026-10-15T12:00:00.000Z",
   verificationRequired = false,
   rulesAcceptanceRequired = false,
+  birthDateRequired = false,
   adminSignInRequired = false,
   twoFactorEnabled = false,
 )
@@ -806,12 +538,31 @@ private val previewSnapshot = GameSnapshotDto(
     city = CitySummary(slug = "new-york", name = "New York City"),
     payoutPercent = 50,
     netWorthCents = 12_845_700,
+    resources = ResourcesSummary(
+      cashCents = 400_000,
+      whores = 2,
+      thugs = 4,
+      fitThugs = 4,
+      woundedThugs = 0,
+      postedThugs = 0,
+      unarmedThugs = 0,
+      product = 10,
+      condoms = 25,
+      beer = 12,
+      medicine = 3,
+    ),
     turns = TurnsDto(
       turns = 42,
       turnCap = 100,
       nextTurnAt = "2026-10-15T12:05:00.000Z",
       turnsGeneratedNextTick = 5,
     ),
+    happiness = HappinessSummary(whore = 80, thug = 70),
+    heat = HeatSummary(heat = 12, max = 100, lockedUntil = null),
+    run = null,
+    moving = null,
+    convoyAlert = null,
+    rank = RankSummary(local = 3, national = 41),
   ),
   recentActivity = emptyList(),
 )

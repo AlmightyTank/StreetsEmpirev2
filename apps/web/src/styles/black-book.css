@@ -1,17 +1,12 @@
 .se-blackbook { display: grid; gap: 1.25rem; }
-.se-blackbook__hero { display: flex; align-items: end; justify-content: space-between; gap: 2rem; padding: 1.5rem; border: 1px solid var(--se-border); background: linear-gradient(135deg, rgba(121, 25, 32, .22), rgba(10, 10, 12, .92)); }
-.se-blackbook__hero h1 { margin: .25rem 0 0; }
-.se-blackbook__hero p { max-width: 38rem; margin: 0; color: var(--se-text-muted); }
 .se-blackbook__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 23rem), 1fr)); gap: 1rem; }
-.se-blackbook-card { display: grid; gap: 1rem; padding: 1.1rem; border: 1px solid var(--se-border); border-left: 3px solid #7b6753; background: var(--se-panel); }
-.se-blackbook-card--likely { border-left-color: #c69b45; }
-.se-blackbook-card--confirmed { border-left-color: #62ad78; }
+.se-blackbook-card { display: grid; gap: 1rem; padding: 1.1rem; border: 1px solid var(--se-line); border-left: 3px solid var(--se-muted); border-radius: var(--se-radius-lg); background: var(--se-panel); }
+.se-blackbook-card--likely { border-left-color: var(--se-warn); }
+.se-blackbook-card--confirmed { border-left-color: var(--se-good); }
 .se-blackbook-card header { display: flex; justify-content: space-between; gap: 1rem; }
 .se-blackbook-card h2 { margin: .2rem 0 0; font-size: 1.2rem; }
 .se-blackbook-card__confidence { align-self: start; padding: .25rem .5rem; border: 1px solid currentColor; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; }
 .se-blackbook-card__assessment { margin: 0; }
 .se-blackbook-card__sources { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; }
-.se-blackbook-card__sources small { width: 100%; color: var(--se-text-muted); }
+.se-blackbook-card__sources small { width: 100%; color: var(--se-text-dim); }
 .se-blackbook-card nav { display: flex; flex-wrap: wrap; gap: .5rem; }
-.se-blackbook__empty { padding: 2rem; text-align: center; border: 1px dashed var(--se-border); }
-@media (max-width: 700px) { .se-blackbook__hero { align-items: start; flex-direction: column; gap: .75rem; } }

@@ -6,6 +6,13 @@ import android.net.Uri
 object GameConfig {
     val SERVER_ORIGIN: String = BuildConfig.SERVER_ORIGIN
 
+    /**
+     * Origin accepted for email deep links (`/verify-email`, `/reset-password`).
+     * Local points at the loopback API tunnel; beta/production are the real
+     * https origins whose emails link back to the app.
+     */
+    val LINK_ORIGIN: String = BuildConfig.LINK_ORIGIN
+
     /** User-agent token the native shell appends; the website uses it to hide install prompts. */
     const val NATIVE_UA_TOKEN = "StreetsEmpireAndroid/1.0.0"
 

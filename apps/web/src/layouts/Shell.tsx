@@ -17,8 +17,9 @@ import { AvatarPortrait } from '../components/BuiltAvatar.js';
 import { usePageTheme } from '../stores/pageTheme.js';
 import { useSession } from '../stores/session.js';
 import { formatWhen } from '../utils/time.js';
+import { resolveThemePresentation } from '../utils/themeResolution.js';
 
-function routeIdentity(pathname: string): string {
+export function routeIdentity(pathname: string): string {
   const path = pathname.split('?')[0] ?? pathname;
 
   if (path === '/') return 'landing';
@@ -32,18 +33,32 @@ function routeIdentity(pathname: string): string {
   if (path === '/game/combat') return 'combat';
   if (path === '/game/scout') return 'scout';
   if (path === '/game/quests') return 'quests';
+  if (path === '/game/events') return 'events';
+  if (path === '/game/xp-progress') return 'xp-progress';
   if (path === '/game/hideout') return 'hideout';
   if (path === '/game/produce') return 'produce';
+  if (path === '/game/street-pass') return 'street-pass';
+  if (path === '/game/collection') return 'collection';
+  if (path === '/game/supporter') return 'supporter';
   if (path.startsWith('/game/stores/')) return 'store-detail';
   if (path === '/game/stores') return 'stores';
+  if (path === '/game/supply') return 'supply';
+  if (path === '/game/holdings') return 'holdings';
+  if (path === '/game/loans') return 'loans';
+  if (path === '/game/dealers') return 'dealers';
+  if (path === '/game/crew') return 'crew';
   if (path === '/game/casino' || path.startsWith('/game/casino/')) return 'casino';
   if (path === '/game/travel') return 'travel';
   if (path === '/game/turf') return 'turf';
+  if (path === '/game/operations') return 'operations';
+  if (path === '/game/black-book') return 'black-book';
   if (path === '/game/rankings') return 'rankings';
   if (path === '/game/alliance') return 'alliance';
   if (path === '/game/alliances') return 'alliances';
   if (path.startsWith('/game/alliances/')) return 'alliance-detail';
   if (path === '/game/contacts') return 'contacts';
+  if (path === '/game/console') return 'console';
+  if (path === '/game/players') return 'players';
   if (path === '/game/profile' || path.startsWith('/game/forum/') || path.startsWith('/game/players/')) return 'profile';
   if (path === '/game/activity') return 'activity';
   if (path === '/game/reputation') return 'reputation';
@@ -51,6 +66,9 @@ function routeIdentity(pathname: string): string {
   if (path === '/game/rules') return 'rules';
   if (path === '/game/hall-of-fame') return 'hall-of-fame';
   if (path === '/game/status') return 'status';
+  if (path === '/game/report-bug') return 'report-bug';
+  if (path === '/game/round-archive' || path.includes('/aftermath')) return 'aftermath';
+  if (path === '/dev/ui') return 'dev-gallery';
   return 'game';
 }
 
@@ -471,8 +489,11 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
   // A public profile can preview its owner's theme in the content area without
   // replacing the viewer's own shell theme. A page that opts into a takeover
   // (the Collection theme viewer) previews across the whole shell instead.
-  const shellTheme = takeShell && pageTheme ? pageTheme : (pageTheme ? null : settings.activeSiteThemeKey);
-  const decorTheme = pageTheme ?? settings.activeSiteThemeKey;
+  const { shellTheme, decorTheme } = resolveThemePresentation({
+    selectedTheme: settings.activeSiteThemeKey,
+    pageTheme,
+    takeShell,
+  });
   const logout = useSession((s) => s.logout);
   const navigate = useNavigate();
   const location = useLocation();

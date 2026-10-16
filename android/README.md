@@ -55,6 +55,36 @@ The flavors have distinct IDs (`.local` and `.beta` suffixes), so local, beta,
 and production installs can coexist on one device. Cleartext traffic is enabled
 only for the local flavor.
 
+## Email app links
+
+Each flavor declares its own link origin (`LINK_ORIGIN`): local uses the
+loopback tunnel `http://127.0.0.1:3001`, beta uses
+`https://beta.streetsempire.dev`, and production uses
+`https://play.streetsempire.dev`. `NativeAppActivity` handles
+`/verify-email` and `/reset-password` on that origin only. `AppLinks`
+(`native/feature/auth/AppLinks.kt`) strictly re-checks scheme, host, port,
+path, and the `token` query parameter, so untrusted hosts can never drive
+navigation even though the manifest filter is coarse.
+
+Beta and production filters set `autoVerify="true"`; the local http origin
+stays a plain deep link. Verification is served from
+`apps/web/public/.well-known/assetlinks.json`. The beta entry currently
+carries this machine's Android debug certificate; before any Play release,
+replace the `TODO-*` fingerprints with the release upload key and the Play
+App Signing fingerprint (Play Console → Setup → App integrity).
+
+Exercise the local links against the emulator:
+
+```powershell
+adb reverse tcp:3001 tcp:3001
+adb shell am start -a android.intent.action.VIEW -d "http://127.0.0.1:3001/reset-password?token=<token>"
+adb shell am start -a android.intent.action.VIEW -d "http://127.0.0.1:3001/verify-email?token=<token>"
+adb shell cmd package query-activities -a android.intent.action.VIEW -d "https://evil.example/verify-email?token=x"
+```
+
+The first two must resolve to `NativeAppActivity` (alongside the browser for
+the unverified local origin); the last must list only the browser.
+
 For Play distribution, use **Build → Generate Signed Bundle / APK** and keep the
 release keystore outside the repository. The app targets SDK 36 and has
 application ID `dev.streetsempire.app`.

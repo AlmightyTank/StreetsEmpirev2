@@ -50,7 +50,11 @@ class AdaptiveGameChromeTest {
 
     compose.onNodeWithTag("compact-navigation").assertIsDisplayed()
     compose.onNodeWithTag("compact-bottom-bar").assertIsDisplayed()
-    compose.onNodeWithText("StreetsEmpire").assertIsDisplayed()
+    // The brand renders as two-tone Streets + Empire nodes (web split-brand),
+    // and it is composed twice: top bar plus the closed drawer sheet. Assert
+    // both units exist and the top-bar instance is the displayed one.
+    compose.onAllNodesWithTag("se-brand").assertCountEquals(2)
+    compose.onNodeWithTag("compact-navigation").assertIsDisplayed()
     compose.onNodeWithTag("bottom-item-More").assertIsDisplayed()
     assertRenderedScreenshot()
   }

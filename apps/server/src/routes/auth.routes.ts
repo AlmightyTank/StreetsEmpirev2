@@ -992,6 +992,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.setSessionCookie(reply, token);
     await noteSignIn(fastify.prisma, request, reply, account);
 
+    if (wantsNativeSessionToken(request.headers['x-se-native'])) {
+      return { account: toAccountDto(account), sessionToken: token };
+    }
     return { account: toAccountDto(account) };
   });
 

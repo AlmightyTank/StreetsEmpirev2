@@ -5,7 +5,7 @@
  */
 .se-app--sidebar,
 .se-app--tabbar {
-  --se-game-corner: 10px;
+  --se-game-corner: var(--se-radius-lg);
 }
 
 .se-app--sidebar .se-gamemain,
@@ -21,7 +21,7 @@
 
 .se-app--sidebar .se-gamemain .se-panel__head,
 .se-app--tabbar .se-gamemain .se-panel__head {
-  min-height: 44px;
+  min-height: var(--se-control-h-lg);
   padding: 10px 14px;
   border-radius: var(--se-game-corner) var(--se-game-corner) 0 0;
 }
@@ -59,7 +59,7 @@
   .se-alliance-hero, .se-contacts-hero, .se-console-hero,
   .se-activity-hero, .se-profile-hero, .se-surveys-hero, .se-pass-hero
 ) {
-  border-radius: 12px;
+  border-radius: var(--se-radius-xl);
 }
 
 /* Desktop menu: fewer visible choices, accent-aware active states, quick search. */

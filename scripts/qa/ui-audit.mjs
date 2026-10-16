@@ -2,9 +2,10 @@
 /**
  * 1.0.0-G. Mobile and accessibility audit of the game client, in a real browser.
  *
- *   npm run qa:ui -- [--base http://127.0.0.1:5173] [--out ./ui-audit] [--shots] [--strict]
+ *   npm run qa:ui -- [--base http://127.0.0.1:5173] [--out ./ui-audit] [--shots] [--strict] [--baseline]
  *   npm run qa:ui -- --dashboard --shots --strict --base http://127.0.0.1:5173
- *   --dashboard audits the real signed-in Command Center at all six widths.
+ *   --dashboard audits the real signed-in Command Center at every selected width.
+ *   --baseline limits the matrix to the 390/768/1440 Slice A reference widths.
  *
  * Against a running web client and API (npm run dev), it visits every major page
  * at the release width matrix (360/390/768/1024/1440/1920), with both desktop
@@ -39,6 +40,7 @@ const BASE = option('base', 'http://127.0.0.1:5173').replace(/\/$/, '');
 const OUT = path.resolve(option('out', 'ui-audit'));
 const SHOTS = args.includes('--shots');
 const DASHBOARD_ONLY = args.includes('--dashboard');
+const BASELINE_ONLY = args.includes('--baseline');
 const STRICT = args.includes('--strict');
 const ONLY = option('only', '');
 // The API rate-limits each account; three widths of every page in a row trips it without a pause.
@@ -46,27 +48,33 @@ const PACE_MS = Number(option('pace', '900'));
 const AXE_SOURCE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 
 const WIDTHS = [
-  { name: 'phone-360', width: 360, height: 740, mobile: true, touch: true, rail: false, theme: 'casino-floor' },
-  { name: 'phone-390', width: 390, height: 844, mobile: true, touch: true, rail: false, theme: 'federal-case' },
-  { name: 'tablet-768', width: 768, height: 1024, mobile: false, touch: true, rail: false, theme: 'midnight-market' },
-  { name: 'desktop-1024-expanded', width: 1024, height: 768, mobile: false, touch: false, rail: false, theme: 'casino-floor' },
-  { name: 'desktop-1440-rail', width: 1440, height: 900, mobile: false, touch: false, rail: true, theme: 'federal-case' },
-  { name: 'desktop-1920-expanded', width: 1920, height: 1080, mobile: false, touch: false, rail: false, theme: 'midnight-market' },
+  { name: 'phone-360', width: 360, height: 740, mobile: true, touch: true, rail: false, theme: 'none', accent: 'default' },
+  { name: 'phone-390', width: 390, height: 844, mobile: true, touch: true, rail: false, theme: 'federal-case', accent: 'crimson' },
+  { name: 'tablet-768', width: 768, height: 1024, mobile: false, touch: true, rail: false, theme: 'midnight-market', accent: 'blue' },
+  { name: 'desktop-1024-expanded', width: 1024, height: 768, mobile: false, touch: false, rail: false, theme: 'casino-floor', accent: 'green' },
+  { name: 'desktop-1440-rail', width: 1440, height: 900, mobile: false, touch: false, rail: true, theme: 'federal-case', accent: 'gold' },
+  { name: 'desktop-1920-expanded', width: 1920, height: 1080, mobile: false, touch: false, rail: false, theme: 'midnight-market', accent: 'purple' },
 ];
+const AUDIT_WIDTHS = BASELINE_ONLY ? WIDTHS.filter(({ width }) => width === 390 || width === 768 || width === 1440) : WIDTHS;
 
-const PUBLIC_PAGES = ['/', '/login', '/register', '/forgot-password'];
+const PUBLIC_PAGES = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/join', '/dev/ui'];
 const PLAYER_PAGES = [
-  '/game', '/game/scout', '/game/produce', '/game/combat', '/game/quests', '/game/hideout',
-  '/game/casino/slots', '/game/casino/blackjack', '/game/casino/roulette', '/game/casino/street-dice', '/game/casino/poker', '/game/casino/sportsbook',
-  '/game/stores', '/game/stores/pip', '/game/stores/charlie', '/game/stores/iron-maya',
-  '/game/travel', '/game/turf', '/game/crew', '/game/blocks', '/game/cities', '/game/rankings', '/game/players',
+  '/game', '/game/scout', '/game/produce', '/game/combat', '/game/quests', '/game/events', '/game/xp-progress', '/game/surveys', '/game/hideout',
+  '/game/street-pass', '/game/collection', '/game/supporter',
+  '/game/casino', '/game/casino/slots', '/game/casino/blackjack', '/game/casino/roulette', '/game/casino/street-dice', '/game/casino/poker', '/game/casino/sportsbook',
+  '/game/products', '/game/stores', '/game/stores/pip', '/game/stores/charlie', '/game/stores/iron-maya',
+  '/game/supply', '/game/holdings', '/game/loans', '/game/dealers', '/game/crew',
+  '/game/travel', '/game/turf', '/game/operations', '/game/black-book', '/game/rankings', '/game/players',
   '/game/alliance', '/game/alliances', '/game/contacts', '/game/console', '/game/profile',
-  '/game/activity', '/game/reputation', '/game/news', '/game/status', '/game/rules', '/game/hall-of-fame', '/game/round-archive', '/account',
+  '/game/news', '/game/status', '/game/rules', '/game/report-bug', '/game/hall-of-fame', '/game/round-archive',
+  '/game/blocks', '/game/cities', '/game/activity', '/game/reputation', '/account', '/account/forum-link',
 ];
 const ADMIN_PAGES = [
-  '/game/admin', '/game/admin/monitoring', '/game/admin/news', '/game/admin/accounts', '/game/admin/quests', '/game/admin/surveys',
-  '/game/admin/integrations', '/game/admin/rulesets', '/game/admin/signals', '/game/admin/audit', '/game/admin/reports', '/game/admin/crew',
-  '/game/admin/economy', '/game/admin/casino', '/game/admin/law', '/game/admin/combat', '/game/admin/turf',
+  '/game/admin', '/game/admin/rounds', '/game/admin/monitoring', '/game/admin/news', '/game/admin/accounts', '/game/admin/supporters',
+  '/game/admin/quests', '/game/admin/surveys', '/game/admin/integrations', '/game/admin/rulesets', '/game/admin/signals',
+  '/game/admin/audit', '/game/admin/events', '/game/admin/reports', '/game/admin/bugs', '/game/admin/crew',
+  '/game/admin/economy', '/game/admin/supply', '/game/admin/loans', '/game/admin/casino', '/game/admin/factions',
+  '/game/admin/vehicles', '/game/admin/law', '/game/admin/combat', '/game/admin/turf',
 ];
 
 async function api(context, method, url, data) {
@@ -277,14 +285,15 @@ async function auditPage(browser, state, url, width) {
   // Exercise the shell CSS independently of whether the audit account owns a
   // paid theme. This changes presentation only; permissions and page data still
   // come from the signed-in audit account.
-  await page.evaluate((theme) => {
+  await page.evaluate(({ theme, accent }) => {
     const app = document.querySelector('.se-app');
     if (!app) return;
     for (const name of [...app.classList]) {
-      if (name.startsWith('se-site-theme--')) app.classList.remove(name);
+      if (name.startsWith('se-site-theme--') || name.startsWith('se-site-accent--')) app.classList.remove(name);
     }
     app.classList.add(`se-site-theme--${theme}`);
-  }, width.theme);
+    app.classList.add(`se-site-accent--${accent}`);
+  }, { theme: width.theme, accent: width.accent });
   const finalPath = new URL(page.url()).pathname;
   const measured = await page.evaluate(measure, width.touch);
   const dashboard = DASHBOARD_ONLY && url === '/game' ? await checkDashboard(page, width) : null;
@@ -295,7 +304,7 @@ async function auditPage(browser, state, url, width) {
     await page.screenshot({ path: path.join(OUT, 'shots', `${url.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'home'}-${width.name}.png`), fullPage: true });
   }
   await context.close();
-  return { url, finalPath, width: width.name, rail: width.rail, theme: width.theme, errors, ...measured, dashboard, focus, axe };
+  return { url, finalPath, width: width.name, rail: width.rail, theme: width.theme, accent: width.accent, errors, ...measured, dashboard, focus, axe };
 }
 
 const browser = await chromium.launch({
@@ -316,7 +325,7 @@ try {
     ] : []),
   ].filter(([, url]) => (!DASHBOARD_ONLY || url === '/game') && (!ONLY || url.includes(ONLY)));
   for (const [state, url] of plan) {
-    for (const width of WIDTHS) {
+    for (const width of AUDIT_WIDTHS) {
       const row = await auditPage(browser, state, url, width);
       await new Promise((resolve) => setTimeout(resolve, PACE_MS));
       results.push(row);
@@ -344,15 +353,15 @@ const errorRows = results.filter((row) => row.errors.length);
 const dashboardRows = results.filter((row) => row.dashboard?.issues.length);
 const serious = [...axeById.values()].filter((v) => v.impact === 'serious' || v.impact === 'critical');
 const lines = [
-  '# UI audit', '', `${BASE} · ${new Date().toISOString()} · ${new Set(results.map((row) => row.url)).size} pages × ${WIDTHS.length} widths`, '',
+  '# UI audit', '', `${BASE} · ${new Date().toISOString()} · ${new Set(results.map((row) => row.url)).size} pages × ${AUDIT_WIDTHS.length} widths`, '',
   `| Check | Result |`, `| --- | --- |`,
   `| Sideways scrolling | ${overflowRows.length ? `${overflowRows.length} page/width(s)` : 'none'} |`,
-  `| Targets under 24 px (phones) | ${targetRows.length ? `${targetRows.reduce((n, row) => n + row.targets.fail.length, 0)} on ${targetRows.length} page/width(s)` : 'none'} |`,
-  `| Targets 24-43 px (phones, noted) | ${results.reduce((n, row) => n + row.targets.small, 0)} of ${results.reduce((n, row) => n + row.targets.total, 0)} |`,
+  `| Targets under 24 px (touch viewports) | ${targetRows.length ? `${targetRows.reduce((n, row) => n + row.targets.fail.length, 0)} on ${targetRows.length} page/width(s)` : 'none'} |`,
+  `| Targets 24-43 px (touch viewports, noted) | ${results.reduce((n, row) => n + row.targets.small, 0)} of ${results.reduce((n, row) => n + row.targets.total, 0)} |`,
   `| Keyboard focus | ${focusRows.length ? `${focusRows.length} page(s) with an unmarked stop or no skip link` : 'visible on every stop; skip link first'} |`,
   `| axe WCAG 2.2 AA | ${axeById.size ? `${[...axeById.values()].reduce((n, v) => n + v.count, 0)} findings in ${axeById.size} rule(s), ${serious.length} serious/critical` : 'no violations'} |`,
   `| Script errors | ${errorRows.length ? errorRows.length : 'none'} |`,
-  `| Command Center layout | ${dashboardRows.length ? `${dashboardRows.length} widths require attention` : DASHBOARD_ONLY ? 'all six widths passed structure checks' : 'not specifically audited'} |`, '',
+  `| Command Center layout | ${dashboardRows.length ? `${dashboardRows.length} widths require attention` : DASHBOARD_ONLY ? `all ${AUDIT_WIDTHS.length} audited widths passed structure checks` : 'not specifically audited'} |`, '',
 ];
 if (overflowRows.length) {
   lines.push('## Sideways scrolling', '');

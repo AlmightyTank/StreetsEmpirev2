@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "action": "scout",
+  "before": { "cashCents": 100000, "netWorthCents": 250000, "turns": 42, "whoreHappiness": 60, "thugHappiness": 55 },
+  "after": { "cashCents": 118400, "netWorthCents": 268400, "turns": 37, "whoreHappiness": 61, "thugHappiness": 55 },
+  "changes": [
+    { "resource": "cash", "before": 100000, "after": 118400, "change": 18400 },
+    { "resource": "turns", "before": 42, "after": 37, "change": -5 }
+  ],
+  "result": {
+    "district": "uptown",
+    "turf": null,
+    "supply": null,
+    "heat": 12,
+    "whoresRecruited": 2,
+    "thugsRecruited": 1,
+    "grossCents": 23000,
+    "crewTakeCents": 4600,
+    "cashCents": 18400
+  },
+  "encounter": {
+    "id": "enc_9f2",
+    "key": "shakedown",
+    "title": "A Shakedown on Fifth",
+    "text": "Two badges flash their shields and name a price to look the other way.",
+    "tone": "danger",
+    "choices": [
+      { "key": "pay", "label": "Pay them off" },
+      { "key": "refuse", "label": "Refuse and walk" }
+    ],
+    "status": "PENDING"
+  }
+}

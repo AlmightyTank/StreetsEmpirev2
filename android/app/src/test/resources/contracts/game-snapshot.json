@@ -27,12 +27,26 @@
       "nextTurnAt": "2026-10-15T10:05:00.000Z",
       "turnsGeneratedNextTick": 5
     },
-    "resources": { "cashCents": 400000, "whores": 2, "thugs": 4 },
-    "happiness": { "value": 75 },
-    "heat": null,
+    "resources": {
+      "cashCents": 400000,
+      "whores": 2,
+      "thugs": 4,
+      "fitThugs": 4,
+      "woundedThugs": 0,
+      "postedThugs": 0,
+      "unarmedThugs": 0,
+      "product": 10,
+      "condoms": 25,
+      "beer": 12,
+      "medicine": 3
+    },
+    "happiness": { "whore": 80, "thug": 70 },
+    "heat": { "heat": 12, "max": 100, "lockedUntil": null },
     "products": null,
     "run": null,
-    "moving": null
+    "moving": null,
+    "convoyAlert": null,
+    "rank": { "local": 3, "national": 41 }
   },
   "recentActivity": [
     {

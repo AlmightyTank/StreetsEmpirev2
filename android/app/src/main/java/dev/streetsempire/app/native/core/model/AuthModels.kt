@@ -16,6 +16,7 @@ data class AccountDto(
   val lastLoginAt: String?,
   val verificationRequired: Boolean,
   val rulesAcceptanceRequired: Boolean,
+  val birthDateRequired: Boolean,
   val adminSignInRequired: Boolean,
   val twoFactorEnabled: Boolean,
 )

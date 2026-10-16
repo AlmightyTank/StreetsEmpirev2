@@ -36,6 +36,7 @@ export * from './platform.js';
 export * from './rules-agreement.js';
 export * from './onboarding.js';
 export * from './monitoring.js';
+export * from './theme.js';
 export * from './support.js';
 export * from './two-factor.js';
 export * from './markdown.js';
