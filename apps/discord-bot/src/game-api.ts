@@ -523,6 +523,13 @@ const statusSchema = z.object({
   turns: z.object({ amountPerInterval: z.number(), intervalMinutes: z.number(), cap: z.number() }).nullable(),
 });
 
+const presenceHighlightsSchema = z.object({
+  highlights: z.array(z.object({
+    kind: z.enum(['jackpot', 'sportsbook', 'raid', 'scout']),
+    message: z.string().min(1).max(128),
+  })).max(4),
+});
+
 const newsSchema = z.object({
   news: z.array(z.object({
     title: z.string(),
@@ -573,6 +580,7 @@ export type BugCategory = BugReportCategory;
 export type BugResolution = BugReportResolution;
 export type RoundEvent = z.infer<typeof roundEventSchema>;
 export type RoundStatus = z.infer<typeof statusSchema>;
+export type PresenceHighlights = z.infer<typeof presenceHighlightsSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;
 
 /** 0.3.0-C. Live alliances in the current round, one Discord role each. */
@@ -696,6 +704,8 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
       await call(okSchema, `/api/internal/discord/round-posts/${encodeURIComponent(roundId)}/failed`, { method: 'POST', body: { error } });
     },
     alliances: () => call(alliancesSchema, '/api/internal/discord/alliances'),
+    /** Anonymous public-presence copy; the response schema has no player fields. */
+    presenceHighlights: () => call(presenceHighlightsSchema, '/api/internal/discord/presence'),
     /** Admin-requested role resyncs, each handed out once. */
     claimResync: () => call(resyncClaimSchema, '/api/internal/discord/resync/claim', { method: 'POST' }),
     round: () => call(statusSchema, '/api/rounds/current/status', { auth: false }),

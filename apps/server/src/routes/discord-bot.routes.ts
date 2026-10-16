@@ -6,6 +6,7 @@ import { botTokenMatches, DiscordBotService } from '../services/discord-bot.serv
 import { claimResyncRequests } from '../services/discord-resync.service.js';
 import { AdminModerationService } from '../services/admin-moderation.service.js';
 import { DiscordStaffService, staffMessageReport } from '../services/discord-staff.service.js';
+import { DiscordPresenceService } from '../services/discord-presence.service.js';
 import { SupportTicketService } from '../services/support-ticket.service.js';
 import { BugReportService } from '../services/support.service.js';
 import { AppError } from '../utils/errors.js';
@@ -114,6 +115,9 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get('/cities', async () => ({ cities: await DiscordBotService.cities(fastify.prisma) }));
+
+  /** Anonymous live-game copy for the bot's public status. Never returns player data. */
+  fastify.get('/presence', async () => DiscordPresenceService.highlights(fastify.prisma));
 
   fastify.get('/city-rankings', async (request) => {
     const { city } = parseBody(z.object({ city: citySlug }).strict(), request.query);

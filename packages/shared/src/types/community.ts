@@ -717,6 +717,15 @@ export interface DiscordCrackdownEventDto {
   thugsPickedUp: number;
 }
 
+/** Anonymous game activity that is safe to show in the Discord bot's public presence. */
+export interface DiscordPresenceHighlightsDto {
+  highlights: Array<{
+    kind: 'jackpot' | 'sportsbook' | 'raid' | 'scout';
+    /** Deliberately contains no player name, id, profile, or Discord account data. */
+    message: string;
+  }>;
+}
+
 export interface DiscordRankAlertDto {
   discordId: string;
   displayName: string;

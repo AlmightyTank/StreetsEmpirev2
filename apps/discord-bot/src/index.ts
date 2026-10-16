@@ -388,16 +388,17 @@ client.once(Events.ClientReady, async (ready) => {
     sync = roleSync;
     console.log(`StreetsEmpire bot ready as ${ready.user.tag} in ${guild.name} with ${commandData.length} commands; syncing ${betaTesterOnly ? 'beta tester role only' : 'roles'} every ${config.DISCORD_SYNC_MINUTES} min.`);
 
-    // Rotating presence: "Playing StreetsEmpire" cards point at the game host
-    // (bot presences can't carry a clickable link/button), mixed with street
-    // flavor and a live player-count card from the round status.
+    // Rotating presence: one clickable Twitch card plus plain custom statuses
+    // for new features, cosmetics, the Supporter page, and anonymous live-game highlights.
     const playHost = new URL(config.frontendOrigin).host;
     const stopPresence = startBotPresence(ready, {
       playHost,
+      streamUrl: config.DISCORD_STREAM_URL,
       minutes: config.DISCORD_PRESENCE_MINUTES,
       getRound: () => api.round(),
+      getHighlights: () => api.presenceHighlights(),
     });
-    if (stopPresence) console.log(`Rotating bot presence every ${config.DISCORD_PRESENCE_MINUTES} min (play at ${playHost}).`);
+    if (stopPresence) console.log(`Rotating bot presence every ${config.DISCORD_PRESENCE_MINUTES} min (play at ${playHost}; stream ${config.DISCORD_STREAM_URL}).`);
     else console.log('Bot presence rotation is off (DISCORD_PRESENCE_MINUTES=0).');
 
     // Commands are answered while these run.

@@ -147,14 +147,14 @@ channel once.
   **Send Messages**, **Embed Links** and **Read Message History** there.
 
 **Presence.** The bot rotates its activity every `DISCORD_PRESENCE_MINUTES`
-(default 5; `0` turns it off). Every other card is **Playing StreetsEmpire**
-with `play at <your game host>` as its state — bot presences can't carry a
-clickable link or button, so the host text is the play link. The rest is street
-flavor mixed with live round data: `Watching 42 hustlers on the block`,
-`Competing turf wars`, `Watching the block / Wiping the block out`,
-`Listening /help`, and a final-day countdown when the round has 3 or fewer
-days left. A down game API falls back to the static list instead of clearing
-presence.
+(default 5; `0` turns it off). One **Streaming StreetsEmpire LIVE** card is
+clickable and opens `DISCORD_STREAM_URL` (Twitch or YouTube). The rest are
+plain custom statuses promoting new features, cosmetic drops, and the
+cosmetic-only Supporter page. The bot also reads anonymous current-round facts
+from the protected game API: recent jackpot size, aggregate open Sportsbook
+action, recent raid loot, and recent scouting results. No player identity or ID
+is returned. When no fact is available—or either API request fails—the bot uses
+the corresponding static prompt while retaining any round data that did load.
 
 **Moderation from the game.** The admin account page's **Community** panel
 shows a linked player's Discord status (in the server, display name, any timeout)
@@ -256,6 +256,7 @@ DISCORD_STATUS_CHANNEL_ID="<public status channel id, or empty for no status pos
 DISCORD_OUTAGE_MINUTES=3
 DISCORD_ALERTS_MINUTES=1
 DISCORD_PRESENCE_MINUTES=5
+DISCORD_STREAM_URL="https://twitch.tv/amightytank"
 ```
 
 - `GAME_API_URL` is where the bot reaches the API, as an origin with no path.
