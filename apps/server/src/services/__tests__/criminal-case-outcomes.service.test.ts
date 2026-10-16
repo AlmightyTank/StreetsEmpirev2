@@ -61,7 +61,7 @@ describe('2.0.0-E authored conclusion contracts', () => {
   });
   it('opt-in F can pay $25; pinned E definitions remain zero-reward', () => {
     expect(classicOgV30E.livingStories.STORY_AFTER_THE_SMOKE.rewardBudgetCents).toBe(0);
-    expect(classicOgV30F.livingStories.STORY_AFTER_THE_SMOKE.rewardBudgetCents).toBe(LIVING_CASE_REWARD_CENTS);
+    expect(classicOgV30F.livingStories.STORY_AFTER_THE_SMOKE?.rewardBudgetCents).toBe(LIVING_CASE_REWARD_CENTS);
     expect(classicOgV30E.meta.id).not.toBe(classicOgV30F.meta.id);
   });
 });
