@@ -1,0 +1,4 @@
+/* Accessible Scout/Produce/Raid readiness labels on dark game-shell themes. */
+.se-action-readiness__item--bad > strong {
+  color: color-mix(in srgb, var(--se-bad) 80%, white);
+}
