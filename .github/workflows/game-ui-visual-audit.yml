@@ -1,25 +1,45 @@
-name: Dashboard Visual Audit
+name: Game UI Visual Audit
 
 on:
   pull_request:
     branches: [beta]
     paths:
-      - 'apps/web/src/pages/DashboardPage.tsx'
-      - 'apps/web/src/components/DashboardStorySpotlight.tsx'
-      - 'apps/web/src/styles/dashboard*.css'
-      - 'apps/web/public/assets/dashboard/**'
+      - 'apps/web/src/**'
+      - 'apps/web/public/**'
       - 'scripts/qa/ui-audit.mjs'
-      - '.github/workflows/dashboard-visual-audit.yml'
+      - 'scripts/qa/ui-style-*.mjs'
+      - 'scripts/qa/ui-style-baseline.json'
+      - '.github/workflows/game-ui-visual-audit.yml'
+      - '.github/pull_request_template.md'
+  schedule:
+    - cron: '17 6 * * 2'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  dashboard-browser:
-    name: Dashboard screenshots / accessibility
+  style-guard:
+    name: UI token / selector guard
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run qa:ui:styles
+
+  browser-smoke:
+    name: Routes / themes / accessibility (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ['1/2', '2/2']
     services:
       postgres:
         image: postgres:17-alpine
@@ -74,14 +94,26 @@ jobs:
           tail -n 75 /tmp/streets-api.log || true
           tail -n 75 /tmp/streets-web.log || true
           exit 1
-      - name: Capture real authenticated Command Center
-        run: npm run qa:ui -- --dashboard --shots --strict --pace 350 --base http://127.0.0.1:5173 --out dashboard-visual-audit
+      - name: Capture deterministic game UI smoke matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            profile="--visual-smoke"
+            routes="/login,/game,/game/scout,/game/combat,/game/stores/pip,/game/casino/slots,/game/rankings"
+            pace=700
+          else
+            profile="--responsive"
+            routes="/login,/game,/game/scout,/game/produce,/game/combat,/game/quests,/game/stores/pip,/game/casino/slots,/game/travel,/game/turf,/game/rankings,/game/profile"
+            pace=1100
+          fi
+          npm run qa:ui -- $profile --deterministic --routes "$routes" --shard "${{ matrix.shard }}" --shots --strict --pace "$pace" --base http://127.0.0.1:5173 --out "game-ui-visual-audit-${{ strategy.job-index }}"
       - name: Upload screenshots and accessibility report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: command-center-visual-audit
-          path: dashboard-visual-audit/
+          name: game-ui-visual-audit-${{ strategy.job-index }}
+          path: game-ui-visual-audit-${{ strategy.job-index }}/
           if-no-files-found: warn
           retention-days: 14
       - name: Show service logs on failure

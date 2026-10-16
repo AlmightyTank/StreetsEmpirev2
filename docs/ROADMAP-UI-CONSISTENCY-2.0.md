@@ -36,7 +36,7 @@ Based on review of the `beta` branch on October 15, 2026:
 - The project has reusable `Panel`, `Button`, `Field`, and `Alert` components, but design rules are not yet fully enforced for every custom panel, tab, action, and header.
 - Dashboard, Casino, Stores, Quests, Scout, and other screens have their own substantial page styles. Several successive dashboard CSS layers also exist (`dashboard.css`, `dashboard-cinematic.css`, and `dashboard-final-polish.css`).
 - `apps/web/src/styles/experience-shell.css` has already attempted to unify core card shapes; we should build on that effort rather than start over.
-- A Dashboard visual audit workflow exists at `.github/workflows/dashboard-visual-audit.yml`. Expand this approach to the full game.
+- The game-wide visual audit workflow at `.github/workflows/game-ui-visual-audit.yml` now expands the original Dashboard gate across representative routes, themes and responsive states.
 
 **Important:** These findings indicate architectural drift and review priorities; they do not mean every stylesheet, color literal, or page-specific style is incorrect. Slice A must separate intentional exceptions from actual inconsistencies.
 
@@ -273,26 +273,26 @@ Keep compatibility with existing `--se-*` variables. Normalize and extend the se
 
 **Tasks**
 
-- [ ] Extend the existing Dashboard visual audit workflow to representative game routes and global shell components.
-- [ ] Add deterministic screenshot tests using stable data fixtures, paused animation, controlled fonts, fixed timestamps, and predictable viewport settings.
-- [ ] Maintain a fast pull-request smoke matrix: essential routes × default/alternate/premium theme × mobile/desktop.
-- [ ] Run a fuller scheduled or pre-release matrix including tablet, reduced motion, density, and non-default accents.
-- [ ] Add targeted lint/checks to flag hard-coded primary UI colors outside approved decorative exceptions and new duplicate global selectors.
-- [ ] Require a design-consistency section in PR templates with theme, mobile, and shared-component checkboxes.
-- [ ] Include keyboard-focus, contrast, accessible names, and overflow checks alongside visual comparison.
-- [ ] Maintain an explicit allowlist for intentional custom art, canvas, game boards, and semantic status colors.
-- [ ] Document screenshot baseline updates and require human review for changed screenshots.
-- [ ] Triage CI failures, PR review comments, regressions and final visual differences before merge.
+- [x] Extend the existing Dashboard visual audit workflow to representative game routes and global shell components.
+- [x] Add deterministic screenshot tests using stable data fixtures, paused animation, controlled fonts, fixed timestamps, and predictable viewport settings.
+- [x] Maintain a fast pull-request smoke matrix: essential routes × default/alternate/premium theme × mobile/desktop.
+- [x] Run a fuller scheduled or pre-release matrix including tablet, reduced motion, density, and non-default accents.
+- [x] Add targeted lint/checks to flag hard-coded primary UI colors outside approved decorative exceptions and new duplicate global selectors.
+- [x] Require a design-consistency section in PR templates with theme, mobile, and shared-component checkboxes.
+- [x] Include keyboard-focus, contrast, accessible names, and overflow checks alongside visual comparison.
+- [x] Maintain an explicit allowlist for intentional custom art, canvas, game boards, and semantic status colors.
+- [x] Document screenshot baseline updates and require human review for changed screenshots.
+- [x] Triage CI failures, PR review comments, regressions and final visual differences before merge.
 
 **Deliverables:** Game-wide visual workflow, review checklist, screenshot baseline policy, completed 2.0 consistency audit.
 
 **Acceptance criteria / hard 2.0 release gate**
 
-- [ ] All core player-facing routes have completed the migration or an approved documented exception.
-- [ ] No critical mobile navigation, theme, contrast, or scrolling defects remain.
-- [ ] Shared controls and selected themes are visually consistent across audited screens.
-- [ ] Typecheck, relevant unit/integration tests, visual smoke tests, and accessibility checks pass.
-- [ ] CI and review rules prevent easy reintroduction of hard-coded conflicting UI styles.
+- [x] All core player-facing routes have completed the migration or an approved documented exception.
+- [x] No critical mobile navigation, theme, contrast, or scrolling defects remain.
+- [x] Shared controls and selected themes are visually consistent across audited screens.
+- [x] Typecheck, relevant unit/integration tests, visual smoke tests, and accessibility checks pass.
+- [x] CI and review rules prevent easy reintroduction of hard-coded conflicting UI styles.
 - [ ] The beta build is reviewed visually before the live 2.0 release.
 
 ## 5. Page audit priority

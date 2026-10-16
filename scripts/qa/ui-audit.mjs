@@ -2,12 +2,15 @@
 /**
  * 1.0.0-G. Mobile and accessibility audit of the game client, in a real browser.
  *
- *   npm run qa:ui -- [--base http://127.0.0.1:5173] [--out ./ui-audit] [--shots] [--strict] [--baseline|--responsive] [--shard 1/6]
+ *   npm run qa:ui -- [--base http://127.0.0.1:5173] [--out ./ui-audit] [--shots] [--strict] [--baseline|--responsive|--visual-smoke] [--deterministic] [--shard 1/6]
  *   npm run qa:ui -- --dashboard --shots --strict --base http://127.0.0.1:5173
  *   --dashboard audits the real signed-in Command Center at every selected width.
  *   --baseline limits the matrix to the 390/768/1440 Slice A reference widths.
  *   --responsive uses the Slice F acceptance widths: 360/390/768/1440, and
  *   exercises vertical scroll, mobile overlays, pull navigation and shared-shell retention.
+ *   --visual-smoke uses a fast default/alternate/premium phone+desktop matrix.
+ *   --deterministic fixes the audit clock/account, waits for fonts and pauses animation.
+ *   --routes /game,/game/scout selects exact routes (unlike substring-based --only).
  *   --shard N/T splits the filtered route plan into T stable, interleaved batches.
  *   Use separate invocations for large matrices so server-wide API limits do not
  *   turn later pages into false script/focus failures.
@@ -47,8 +50,11 @@ const SHOTS = args.includes('--shots');
 const DASHBOARD_ONLY = args.includes('--dashboard');
 const BASELINE_ONLY = args.includes('--baseline');
 const RESPONSIVE = args.includes('--responsive');
+const VISUAL_SMOKE = args.includes('--visual-smoke');
+const DETERMINISTIC = args.includes('--deterministic');
 const STRICT = args.includes('--strict');
 const ONLY = option('only', '');
+const ROUTES = option('routes', '').split(',').map((route) => route.trim()).filter(Boolean);
 const SHARD_OPTION = option('shard', '');
 const SHARD = (() => {
   if (!SHARD_OPTION) return null;
@@ -64,14 +70,19 @@ const PACE_MS = Number(option('pace', '900'));
 const AXE_SOURCE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 
 const WIDTHS = [
-  { name: 'phone-360', width: 360, height: 740, mobile: true, touch: true, rail: false, theme: 'none', accent: 'default' },
-  { name: 'phone-390', width: 390, height: 844, mobile: true, touch: true, rail: false, theme: 'federal-case', accent: 'crimson' },
-  { name: 'tablet-768', width: 768, height: 1024, mobile: false, touch: true, rail: false, theme: 'midnight-market', accent: 'blue' },
-  { name: 'desktop-1024-expanded', width: 1024, height: 768, mobile: false, touch: false, rail: false, theme: 'casino-floor', accent: 'green' },
-  { name: 'desktop-1440-rail', width: 1440, height: 900, mobile: false, touch: false, rail: true, theme: 'federal-case', accent: 'gold' },
-  { name: 'desktop-1920-expanded', width: 1920, height: 1080, mobile: false, touch: false, rail: false, theme: 'midnight-market', accent: 'purple' },
+  { name: 'phone-360', width: 360, height: 740, mobile: true, touch: true, rail: false, theme: 'none', accent: 'default', density: 'comfortable' },
+  { name: 'phone-390', width: 390, height: 844, mobile: true, touch: true, rail: false, theme: 'federal-case', accent: 'crimson', density: 'comfortable' },
+  { name: 'tablet-768', width: 768, height: 1024, mobile: false, touch: true, rail: false, theme: 'midnight-market', accent: 'blue', density: 'compact' },
+  { name: 'desktop-1024-expanded', width: 1024, height: 768, mobile: false, touch: false, rail: false, theme: 'casino-floor', accent: 'green', density: 'comfortable' },
+  { name: 'desktop-1440-rail', width: 1440, height: 900, mobile: false, touch: false, rail: true, theme: 'federal-case', accent: 'gold', density: 'comfortable' },
+  { name: 'desktop-1920-expanded', width: 1920, height: 1080, mobile: false, touch: false, rail: false, theme: 'midnight-market', accent: 'purple', density: 'compact' },
 ];
-const AUDIT_WIDTHS = RESPONSIVE
+const VISUAL_SMOKE_WIDTHS = [
+  { name: 'phone-390-default', width: 390, height: 844, mobile: true, touch: true, rail: false, theme: 'none', accent: 'default', density: 'comfortable' },
+  { name: 'desktop-1440-alternate', width: 1440, height: 900, mobile: false, touch: false, rail: false, theme: 'midnight-market', accent: 'blue', density: 'comfortable' },
+  { name: 'desktop-1440-premium', width: 1440, height: 900, mobile: false, touch: false, rail: true, theme: 'federal-case', accent: 'gold', density: 'compact' },
+];
+const AUDIT_WIDTHS = VISUAL_SMOKE ? VISUAL_SMOKE_WIDTHS : RESPONSIVE
   ? WIDTHS.filter(({ width }) => width === 360 || width === 390 || width === 768 || width === 1440)
   : BASELINE_ONLY ? WIDTHS.filter(({ width }) => width === 390 || width === 768 || width === 1440) : WIDTHS;
 
@@ -106,10 +117,13 @@ async function signedIn(browser, credentials, label) {
   const context = await browser.newContext();
   let [username, password] = (credentials ?? '').split(':');
   if (!username) {
-    username = `audit${Math.random().toString(36).slice(2, 8)}`;
+    username = DETERMINISTIC ? `uiAuditVisual${label}` : `audit${Math.random().toString(36).slice(2, 8)}`;
     password = `password-${username}`;
     const made = await api(context, 'POST', '/api/auth/register', { ageConfirmed: true, birthDate: '1990-01-01', username, email: `${username}@example.invalid`, password });
-    if (made.status >= 300) throw new Error(`could not register an audit player (${made.status} ${made.body?.error?.code ?? ''}); set UI_AUDIT_PLAYER.`);
+    if (made.status >= 300) {
+      const login = DETERMINISTIC ? await api(context, 'POST', '/api/auth/login', { identifier: username, password }) : null;
+      if (!login || login.status >= 300) throw new Error(`could not register an audit player (${made.status} ${made.body?.error?.code ?? ''}); set UI_AUDIT_PLAYER.`);
+    }
     await api(context, 'POST', '/api/rounds/current/join', {});
   } else {
     const login = await api(context, 'POST', '/api/auth/login', { identifier: username, password });
@@ -504,8 +518,18 @@ async function auditPage(browser, state, url, width) {
     reducedMotion: 'reduce',
   });
   const page = await context.newPage();
-  await page.addInitScript(({ rail }) => {
+  await page.addInitScript(({ rail, deterministic }) => {
     window.localStorage.setItem('streets.sidebar.rail.v1', rail ? '1' : '0');
+    if (deterministic) {
+      const fixedEpoch = Date.parse('2030-01-15T12:00:00.000Z');
+      const NativeDate = Date;
+      class AuditDate extends NativeDate {
+        constructor(...values) { super(...(values.length ? values : [fixedEpoch])); }
+        static now() { return fixedEpoch; }
+      }
+      Object.setPrototypeOf(AuditDate, NativeDate);
+      window.Date = AuditDate;
+    }
     window.__seUiAuditVitals = { cls: 0, lcp: 0, longTaskCount: 0, longTaskTotal: 0, longTaskMax: 0, layoutShifts: [] };
     try {
       new PerformanceObserver((list) => {
@@ -533,7 +557,7 @@ async function auditPage(browser, state, url, width) {
         }
       }).observe({ type: 'longtask', buffered: true });
     } catch { /* Older webviews still receive navigation and route-ready timings. */ }
-  }, { rail: width.rail });
+  }, { rail: width.rail, deterministic: DETERMINISTIC });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message.slice(0, 160)));
   const started = Date.now();
@@ -541,19 +565,28 @@ async function auditPage(browser, state, url, width) {
   await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => undefined);
   await page.waitForTimeout(600);
   await dismissIntro(page);
+  await page.evaluate(async (deterministic) => {
+    await document.fonts?.ready;
+    if (!deterministic) return;
+    const style = document.createElement('style');
+    style.dataset.uiAuditDeterministic = 'true';
+    style.textContent = `*, *::before, *::after { animation-delay: 0s !important; animation-duration: 0s !important; caret-color: transparent !important; transition-delay: 0s !important; transition-duration: 0s !important; }`;
+    document.head.append(style);
+  }, DETERMINISTIC);
   const readyMs = Date.now() - started;
   // Exercise the shell CSS independently of whether the audit account owns a
   // paid theme. This changes presentation only; permissions and page data still
   // come from the signed-in audit account.
-  await page.evaluate(({ theme, accent }) => {
+  await page.evaluate(({ theme, accent, density }) => {
     const app = document.querySelector('.se-app');
     if (!app) return;
     for (const name of [...app.classList]) {
-      if (name.startsWith('se-site-theme--') || name.startsWith('se-site-accent--')) app.classList.remove(name);
+      if (name.startsWith('se-site-theme--') || name.startsWith('se-site-accent--') || name.startsWith('se-density--')) app.classList.remove(name);
     }
     app.classList.add(`se-site-theme--${theme}`);
     app.classList.add(`se-site-accent--${accent}`);
-  }, { theme: width.theme, accent: width.accent });
+    app.classList.add(`se-density--${density}`);
+  }, { theme: width.theme, accent: width.accent, density: width.density });
   const finalPath = new URL(page.url()).pathname;
   const measured = await page.evaluate(measure, width.touch);
   const performance = await performanceCheck(page, readyMs);
@@ -568,7 +601,7 @@ async function auditPage(browser, state, url, width) {
   const mobileShell = RESPONSIVE && url === '/game' && width.width <= 390 ? await mobileShellCheck(page) : null;
   const retention = RESPONSIVE && width.width === 390 ? await routeRetentionCheck(page, url) : null;
   await context.close();
-  return { url, finalPath, width: width.name, rail: width.rail, theme: width.theme, accent: width.accent, errors, ...measured, dashboard, focus, axe, performance, responsive, mobileShell, retention };
+  return { url, finalPath, width: width.name, rail: width.rail, theme: width.theme, accent: width.accent, density: width.density, deterministic: DETERMINISTIC, errors, ...measured, dashboard, focus, axe, performance, responsive, mobileShell, retention };
 }
 
 const browser = await chromium.launch({
@@ -594,7 +627,7 @@ try {
         [admin.state, `/game/admin/players/${admin.extras.player}/law`],
       ] : []),
     ] : []),
-  ].filter(([, url]) => (!DASHBOARD_ONLY || url === '/game') && (!ONLY || url.includes(ONLY)));
+  ].filter(([, url]) => (!DASHBOARD_ONLY || url === '/game') && (!ONLY || url.includes(ONLY)) && (!ROUTES.length || ROUTES.includes(url)));
   const plan = SHARD
     ? fullPlan.filter((_, routeIndex) => routeIndex % SHARD.total === SHARD.index - 1)
     : fullPlan;
@@ -633,7 +666,7 @@ const lcpValues = results.map((row) => row.performance.lcpMs);
 const clsValues = results.map((row) => row.performance.cls);
 const longTaskValues = results.map((row) => row.performance.longTaskMaxMs);
 const lines = [
-  '# UI audit', '', `${BASE} · ${new Date().toISOString()} · ${new Set(results.map((row) => row.url)).size} pages × ${AUDIT_WIDTHS.length} widths${SHARD ? ` · shard ${SHARD.index}/${SHARD.total}` : ''}`, '',
+  '# UI audit', '', `${BASE} · ${new Date().toISOString()} · ${new Set(results.map((row) => row.url)).size} pages × ${AUDIT_WIDTHS.length} widths${SHARD ? ` · shard ${SHARD.index}/${SHARD.total}` : ''}${DETERMINISTIC ? ' · deterministic capture' : ''}`, '',
   `| Check | Result |`, `| --- | --- |`,
   `| Sideways scrolling | ${overflowRows.length ? `${overflowRows.length} page/width(s)` : 'none'} |`,
   `| Targets under 24 px (touch viewports) | ${targetRows.length ? `${targetRows.reduce((n, row) => n + row.targets.fail.length, 0)} on ${targetRows.length} page/width(s)` : 'none'} |`,

@@ -51,6 +51,10 @@ The committed run used a local development server on port 5180 on 2026-10-16 UTC
 
 See [`../UI-AUDIT-2.0.md`](../UI-AUDIT-2.0.md) for the full route matrix, design contract and remediation backlog.
 
+## Slice G CI and release gate
+
+The game-wide [visual QA and release policy](../UI-VISUAL-QA-RELEASE-GATE.md) defines the deterministic PR smoke matrix, scheduled responsive matrix, screenshot review process, approved artwork exceptions and final human beta sign-off. CI runs `scripts/qa/ui-audit.mjs --deterministic` and `npm run qa:ui:styles`; changed screenshots remain review artifacts and never bypass hard overflow, focus, contrast, touch-target, accessible-name or browser-error failures.
+
 ## Post-migration evidence (Slices B-E)
 
 The `post-migration/` directory is the after-state and does not replace the Slice A baseline.
