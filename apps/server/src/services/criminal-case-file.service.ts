@@ -228,7 +228,8 @@ export const CriminalCaseFileService = {
       const row = await lockOwned(tx, caseId, ownerId);
       const round = await roundForCase(tx, row);
       requirePlayable(round);
-      await requireNotExpired(tx, row, round, now);
+      const expired = await persistExpiry(tx, row, round, now);
+      if (expired) return toDto(expired, round, now);
       if (row.status !== 'ACTIVE') return toDto(row, round, now);
       const activity = await tx.playerActivity.findUnique({ where: { id: activityId }, select: { id: true, roundPlayerId: true, type: true, createdAt: true } });
       if (!activity || activity.roundPlayerId !== ownerId || !row.acceptedAt || activity.createdAt < row.acceptedAt || activity.createdAt > now) {

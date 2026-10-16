@@ -101,7 +101,7 @@ describe('Living Streets 2.0.0-B case file persistence', () => {
     expect(first?.status).toBe('AVAILABLE');
     expect(second?.id).toBe(first?.id);
     expect(state.cases).toHaveLength(1);
-    expect(state.cases[0].rulesetVersion).toBe('2.0.0-B');
+    expect(state.cases[0]!.rulesetVersion).toBe('2.0.0-B');
     expect(first?.cluesRequired).toBe(LIVING_CASE_BLUEPRINTS.CASE_THE_FIFTH_WITNESS.clues.length);
     expect(state.evidence).toHaveLength(0);
     expect(db.criminalCaseFile.upsert).toHaveBeenCalledTimes(2);
@@ -156,7 +156,7 @@ describe('Living Streets 2.0.0-B case file persistence', () => {
   it('paginates active cases and archive independently without hiding older active cases', async () => {
     const { db, state, offer } = makeDb();
     await offer();
-    const original = state.cases[0];
+    const original = state.cases[0]!;
     state.cases.push(
       { ...original, id: 'case-old', offerDedupeKey: 'other', createdAt: at(-120), status: 'AVAILABLE' },
       { ...original, id: 'case-done', offerDedupeKey: 'done', createdAt: at(-30), status: 'CLOSED' },
@@ -196,15 +196,15 @@ describe('Living Streets 2.0.0-B case file persistence', () => {
     state.round.pausedAt = at(1);
     await expect(CriminalCaseFileService.activate(db, 'player-a', 'case-1', at(30)))
       .rejects.toMatchObject({ code: 'CASE_ROUND_UNAVAILABLE' });
-    const pausedView = await CriminalCaseFileService.page(db, 'round-1', 'player-a', at(2000));
+    const pausedView = await CriminalCaseFileService.page(db, 'round-1', 'player-a', { now: at(2000) });
     expect(pausedView.active).toHaveLength(1);
     expect(pausedView.activeHasMore).toBe(false);
     state.round.pausedAt = null;
-    const lapsed = await CriminalCaseFileService.page(db, 'round-1', 'player-a', at(2000));
-    expect(lapsed.archived[0].status).toBe('EXPIRED');
-    expect(state.cases[0].status).toBe('AVAILABLE'); // GET cannot write.
+    const lapsed = await CriminalCaseFileService.page(db, 'round-1', 'player-a', { now: at(2000) });
+    expect(lapsed.archived[0]!.status).toBe('EXPIRED');
+    expect(state.cases[0]!.status).toBe('AVAILABLE'); // GET cannot write.
     const archived = await CriminalCaseFileService.activate(db, 'player-a', 'case-1', at(2000));
     expect(archived.status).toBe('EXPIRED');
-    expect(state.cases[0].status).toBe('EXPIRED');
+    expect(state.cases[0]!.status).toBe('EXPIRED');
   });
 });

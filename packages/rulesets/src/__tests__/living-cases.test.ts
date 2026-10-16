@@ -18,11 +18,11 @@ describe('Living Streets 2.0.0-B case blueprints', () => {
     expect(blueprint.branchKeys).toEqual(['REVEAL_INSTIGATOR', 'SEEK_TRUCE']);
     expect(() => validateCaseBlueprint({
       ...blueprint,
-      clues: [blueprint.clues[0], { ...blueprint.clues[1], sourceKind: blueprint.clues[0].sourceKind }],
+      clues: [blueprint.clues[0]!, { ...blueprint.clues[1]!, sourceKind: blueprint.clues[0]!.sourceKind }],
     })).toThrow(/distinct/);
     expect(() => validateCaseBlueprint({
       ...blueprint,
-      clues: [{ ...blueprint.clues[0], sourceKind: 'UNKNOWN' as never }, ...blueprint.clues.slice(1)],
+      clues: [{ ...blueprint.clues[0]!, sourceKind: 'UNKNOWN' as never }, ...blueprint.clues.slice(1)],
     })).toThrow(/distinct/);
   });
 });
