@@ -28,7 +28,7 @@ function setup() {
       findUnique: vi.fn(async ({ where }: any) => memories.find((m) => m.id === where.id) ?? null),
       findMany: vi.fn(async ({ where, take }: any) => memories
         .filter((m) => m.roundId === where.roundId && m.cityId === where.cityId && m.visibility === where.visibility
-          && m.happenedAt >= where.happenedAt.gte)
+          && where.kind.in.includes(m.kind) && m.happenedAtActive >= where.happenedAtActive.gte)
         .sort((a, b) => b.happenedAt.getTime() - a.happenedAt.getTime()).slice(0, take)),
     },
     criminalCaseFile: {
