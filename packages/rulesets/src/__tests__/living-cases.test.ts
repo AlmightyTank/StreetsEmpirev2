@@ -20,5 +20,9 @@ describe('Living Streets 2.0.0-B case blueprints', () => {
       ...blueprint,
       clues: [blueprint.clues[0], { ...blueprint.clues[1], sourceKind: blueprint.clues[0].sourceKind }],
     })).toThrow(/distinct/);
+    expect(() => validateCaseBlueprint({
+      ...blueprint,
+      clues: [{ ...blueprint.clues[0], sourceKind: 'UNKNOWN' as never }, ...blueprint.clues.slice(1)],
+    })).toThrow(/distinct/);
   });
 });

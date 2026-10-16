@@ -72,7 +72,8 @@ export function validateCaseBlueprint(blueprint: CriminalCaseBlueprint): void {
   const sources = blueprint.clues.map((clue) => clue.sourceKind);
   if (new Set(keys).size !== keys.length || new Set(sources).size !== sources.length
     || new Set(blueprint.branchKeys).size !== blueprint.branchKeys.length
-    || blueprint.clues.some((clue) => !clue.label.trim() || !clue.eventType.trim())) {
+    || blueprint.clues.some((clue) => !clue.key.trim() || !clue.label.trim() || !clue.eventType.trim()
+      || !(['SCOUT', 'CONTACT', 'ENCOUNTER', 'TRAVEL'] as readonly string[]).includes(clue.sourceKind))) {
     throw new Error('Criminal Case requires distinct verified evidence sources, clue keys and branches');
   }
 }
