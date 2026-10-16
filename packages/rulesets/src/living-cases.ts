@@ -21,7 +21,7 @@ export const LIVING_CASE_BLUEPRINTS: Readonly<Record<LivingCaseKey, CriminalCase
     key: 'CASE_MISSING_LEDGER', title: 'Missing Ledger',
     clues: [
       { key: 'RETRACE_STREET', label: 'Search the street', sourceKind: 'SCOUT', eventType: 'SCOUT' },
-      { key: 'CONTACT_ACCOUNT', label: 'Find a contact lead', sourceKind: 'CONTACT', eventType: 'QUEST_CLAIMED' },
+      { key: 'CONTACT_ACCOUNT', label: 'Find a contact lead', sourceKind: 'CONTACT', eventType: 'INFORMANT_TIP' },
       { key: 'CHECK_ENCOUNTER', label: 'Resolve a street encounter', sourceKind: 'ENCOUNTER', eventType: 'RANDOM_ENCOUNTER_CHOICE' },
     ],
     branchKeys: ['RETURN_LEDGER', 'FOLLOW_STASH_LEAD'],
@@ -31,7 +31,7 @@ export const LIVING_CASE_BLUEPRINTS: Readonly<Record<LivingCaseKey, CriminalCase
     clues: [
       { key: 'FOLLOW_ROUTE', label: 'Complete a route', sourceKind: 'TRAVEL', eventType: 'RUN_RETURNED' },
       { key: 'RETRACE_CARGO', label: 'Search the streets', sourceKind: 'SCOUT', eventType: 'SCOUT' },
-      { key: 'INTERVIEW_SOURCE', label: 'Check a contact lead', sourceKind: 'CONTACT', eventType: 'QUEST_CLAIMED' },
+      { key: 'INTERVIEW_SOURCE', label: 'Check a contact lead', sourceKind: 'CONTACT', eventType: 'INFORMANT_TIP' },
     ],
     branchKeys: ['LOCATE_SUPPLIES', 'HAND_OVER_INTEL'],
   },
@@ -39,7 +39,7 @@ export const LIVING_CASE_BLUEPRINTS: Readonly<Record<LivingCaseKey, CriminalCase
     key: 'CASE_THE_FIFTH_WITNESS', title: 'The Fifth Witness',
     clues: [
       { key: 'FOLLOW_FOOTPRINTS', label: 'Scout the district', sourceKind: 'SCOUT', eventType: 'SCOUT' },
-      { key: 'INTERVIEW_WITNESS', label: 'Consult a contact', sourceKind: 'CONTACT', eventType: 'QUEST_CLAIMED' },
+      { key: 'INTERVIEW_WITNESS', label: 'Consult a contact', sourceKind: 'CONTACT', eventType: 'INFORMANT_TIP' },
       { key: 'HEAR_STREET_ACCOUNT', label: 'Resolve an encounter', sourceKind: 'ENCOUNTER', eventType: 'RANDOM_ENCOUNTER_CHOICE' },
     ],
     branchKeys: ['REVEAL_INSTIGATOR', 'SEEK_TRUCE'],
@@ -49,7 +49,7 @@ export const LIVING_CASE_BLUEPRINTS: Readonly<Record<LivingCaseKey, CriminalCase
     clues: [
       { key: 'STUDY_BLOCK', label: 'Scout the territory', sourceKind: 'SCOUT', eventType: 'SCOUT' },
       { key: 'QUESTION_LOCALS', label: 'Resolve an encounter', sourceKind: 'ENCOUNTER', eventType: 'RANDOM_ENCOUNTER_CHOICE' },
-      { key: 'VERIFY_SOURCE', label: 'Ask a contact', sourceKind: 'CONTACT', eventType: 'QUEST_CLAIMED' },
+      { key: 'VERIFY_SOURCE', label: 'Ask a contact', sourceKind: 'CONTACT', eventType: 'INFORMANT_TIP' },
     ],
     branchKeys: ['EXPOSE_TRICK', 'KEEP_SECRET'],
   },
@@ -64,6 +64,12 @@ export const LIVING_CASE_BLUEPRINTS: Readonly<Record<LivingCaseKey, CriminalCase
   },
 };
 
+export const CASE_EVIDENCE_ACTIVITY_TYPES = ['SCOUT', 'INFORMANT_TIP', 'RUN_RETURNED', 'RANDOM_ENCOUNTER_CHOICE'] as const;
+const EXPECTED_ACTIVITY: Readonly<Record<CaseClueKind, string>> = {
+  SCOUT: 'SCOUT', CONTACT: 'INFORMANT_TIP',
+  TRAVEL: 'RUN_RETURNED', ENCOUNTER: 'RANDOM_ENCOUNTER_CHOICE',
+};
+
 export function validateCaseBlueprint(blueprint: CriminalCaseBlueprint): void {
   if (!blueprint.title.trim() || blueprint.clues.length === 0 || blueprint.branchKeys.length < 2) {
     throw new Error('Invalid Criminal Case blueprint');
@@ -73,6 +79,7 @@ export function validateCaseBlueprint(blueprint: CriminalCaseBlueprint): void {
   if (new Set(keys).size !== keys.length || new Set(sources).size !== sources.length
     || new Set(blueprint.branchKeys).size !== blueprint.branchKeys.length
     || blueprint.clues.some((clue) => !clue.key.trim() || !clue.label.trim() || !clue.eventType.trim()
+      || clue.eventType !== EXPECTED_ACTIVITY[clue.sourceKind]
       || !(['SCOUT', 'CONTACT', 'ENCOUNTER', 'TRAVEL'] as readonly string[]).includes(clue.sourceKind))) {
     throw new Error('Criminal Case requires distinct verified evidence sources, clue keys and branches');
   }

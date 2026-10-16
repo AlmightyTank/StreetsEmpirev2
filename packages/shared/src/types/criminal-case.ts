@@ -6,6 +6,8 @@ export interface CriminalCaseClueDto {
   sourceKind: string;
   found: boolean;
   observedAt: string | null;
+  /** The action to seek; not a target, location, or private recon field. */
+  hint: string;
 }
 export interface CriminalCaseFileDto {
   id: string;
@@ -17,6 +19,9 @@ export interface CriminalCaseFileDto {
   clues: CriminalCaseClueDto[];
   cluesFound: number;
   cluesRequired: number;
+  confidence: 'rumor' | 'likely' | 'confirmed';
+  nextClueKey: string | null;
+  nextAction: 'SCOUT' | 'CONTACT' | 'TRAVEL' | 'ENCOUNTER' | null;
   choices: string[];
   chosenBranch: string | null;
   acceptedAt: string | null;

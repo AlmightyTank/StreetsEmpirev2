@@ -42,9 +42,13 @@ function toDto(row: CaseRow, clock: Clock, now: Date): CriminalCaseFileDto {
     clues: plan.map((clue) => ({
       key: clue.key, label: clue.label, sourceKind: clue.sourceKind,
       found: byKey.has(clue.key), observedAt: byKey.get(clue.key)?.observedAt.toISOString() ?? null,
+      hint: clue.label,
     })),
     cluesFound: plan.filter((clue) => byKey.has(clue.key)).length,
     cluesRequired: plan.length,
+    confidence: byKey.size >= 2 ? 'confirmed' : byKey.size === 1 ? 'likely' : 'rumor',
+    nextClueKey: plan.find((clue) => !byKey.has(clue.key))?.key ?? null,
+    nextAction: plan.find((clue) => !byKey.has(clue.key))?.sourceKind ?? null,
     choices: branchesOf(row.branchKeys),
     chosenBranch: row.chosenBranch,
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
