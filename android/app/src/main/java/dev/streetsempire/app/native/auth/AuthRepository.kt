@@ -20,8 +20,12 @@ private data class RegisterBody(
   val email: String,
   val password: String,
   val ageConfirmed: Boolean,
+  val birthDate: String,
   val captchaToken: String? = null,
 )
+
+@Serializable
+private data class BirthdayBody(val birthDate: String)
 
 @Serializable
 private data class TwoFactorVerifyBody(val code: String)
@@ -54,8 +58,8 @@ class AuthRepository(private val api: ApiClient, private val tokens: TokenStore)
     AuthResult.SignedIn(response.account ?: throw ApiError(0, "NO_ACCOUNT", "Sign-in succeeded without an account. Try again."))
   }
 
-  suspend fun register(username: String, email: String, password: String, ageConfirmed: Boolean, captchaToken: String? = null): AuthResult = withContext(Dispatchers.IO) {
-    val raw = api.post("/auth/register", api.json.encodeToString(RegisterBody(username.trim(), email.trim(), password, ageConfirmed, captchaToken?.takeIf { it.isNotBlank() })))
+  suspend fun register(username: String, email: String, password: String, ageConfirmed: Boolean, birthDate: String, captchaToken: String? = null): AuthResult = withContext(Dispatchers.IO) {
+    val raw = api.post("/auth/register", api.json.encodeToString(RegisterBody(username.trim(), email.trim(), password, ageConfirmed, birthDate, captchaToken?.takeIf { it.isNotBlank() })))
     val response = api.json.decodeFromString<AuthResponse>(raw)
     if (response.approvalRequired) {
       return@withContext AuthResult.ApprovalRequired(response.message ?: "Your account is waiting for approval.")
@@ -77,6 +81,11 @@ class AuthRepository(private val api: ApiClient, private val tokens: TokenStore)
 
   suspend fun me(): AccountDto = withContext(Dispatchers.IO) {
     api.getJson<AuthMeResponse>("/auth/me").account
+  }
+
+  suspend fun saveBirthday(birthDate: String): AccountDto = withContext(Dispatchers.IO) {
+    val raw = api.post("/auth/birthday", api.json.encodeToString(BirthdayBody(birthDate)))
+    api.json.decodeFromString<AuthMeResponse>(raw).account
   }
 
   suspend fun dashboard(): GameSnapshotDto = withContext(Dispatchers.IO) {

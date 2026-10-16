@@ -232,7 +232,9 @@ Two steps stand between a new account and the game. Admins are never stopped by 
 `EMAIL_FROM` must use that verified domain, and `RESEND_API_KEY` must be a key for the same Resend account.
 
 **Age.** Players must be 16 or older.
-- Sign-up has an "I am 16 or older" checkbox, recorded as `ageConfirmedAt`.
+- Sign-up collects a private date of birth and the "I am 16 or older" checkbox, recorded as `ageConfirmedAt`.
+- Legacy and Discord-created accounts without a birthday are asked for it before playing again. The API also blocks gameplay until the date is saved.
+- Full birth dates are never included in public player or session DTOs. Players can contact staff to request a correction.
 - The rules agreement's first item says the same. Changing the agreement asked every existing player (Discord sign-ups included) to accept it again.
 - If you learn a player is under 16, delete the account (**Accounts → the account → Delete account**) and note why. The terms and privacy page say so.
 

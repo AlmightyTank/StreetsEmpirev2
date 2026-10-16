@@ -532,6 +532,6 @@ export function GameLayout({ children }: { children: ReactNode }) {
 export function GameRouteLayout() {
   const me = useSession((state) => state.me);
   // An account that may not play yet gets no game frame (and none of its polling).
-  const blocked = useSession((state) => Boolean(state.account?.verificationRequired || state.account?.rulesAcceptanceRequired));
+  const blocked = useSession((state) => Boolean(state.account?.verificationRequired || state.account?.rulesAcceptanceRequired || state.account?.birthDateRequired));
   return me && !blocked ? <><GameLayoutFrame><Outlet /></GameLayoutFrame><PlayerProfileHoverLayer /></> : <Outlet />;
 }

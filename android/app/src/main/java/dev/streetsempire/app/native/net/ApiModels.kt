@@ -10,6 +10,7 @@ data class AccountDto(
   val email: String = "",
   val verificationRequired: Boolean = false,
   val rulesAcceptanceRequired: Boolean = false,
+  val birthDateRequired: Boolean = false,
   val twoFactorEnabled: Boolean = false,
   val isAdmin: Boolean = false,
 )

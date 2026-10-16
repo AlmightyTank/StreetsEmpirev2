@@ -120,7 +120,7 @@ export function AccountSettingsPage() {
   const account = useSession((s) => s.account)!;
   const me = useSession((s) => s.me);
   // Players keep the game menu here; an account still verifying or accepting the rules gets the plain shell.
-  const canPlay = useSession((s) => Boolean(s.me && !s.account?.verificationRequired && !s.account?.rulesAcceptanceRequired));
+  const canPlay = useSession((s) => Boolean(s.me && !s.account?.verificationRequired && !s.account?.rulesAcceptanceRequired && !s.account?.birthDateRequired));
   const Frame = canPlay ? GameLayout : Shell;
   const round = useSession((s) => s.round);
   const setSessionProfileSettings = useSession((s) => s.setProfileSettings);

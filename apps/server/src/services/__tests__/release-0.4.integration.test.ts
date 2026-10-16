@@ -50,7 +50,7 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.4.0-E products season
 
     for (let i = 0; i < 3; i++) {
       const name = `rel4_${randomUUID().slice(0, 8)}`;
-      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, birthDate: '1990-01-01', username: name, email: `${name}@example.invalid`, password: randomUUID() } });
       expect(registered.statusCode).toBe(201);
       accounts.push(registered.json().account.id);
       cookies.push(registered.cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; '));

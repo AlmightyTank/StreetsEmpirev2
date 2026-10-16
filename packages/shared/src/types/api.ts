@@ -157,6 +157,8 @@ export interface AccountDto {
   verificationRequired: boolean;
   /** True until the player accepts the current game rules (RULES_VERSION). */
   rulesAcceptanceRequired: boolean;
+  /** Private birth date has not been collected. Exact birthday is never sent in session DTOs. */
+  birthDateRequired: boolean;
   /**
    * rc.2. An admin signed in with a password while admin tools require a Discord
    * sign-in: the admin pages are closed until they sign in with Discord.

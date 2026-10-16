@@ -1,6 +1,7 @@
 import type {
   BugReportInput,
   AccountDto,
+  BirthDateUpdateInput,
   AccountSessionsResponseDto,
   AccountProfileSettingsResponseDto,
   ChangeEmailInput,
@@ -38,6 +39,8 @@ interface OptionalAccountResponse extends MessageResponse {
 export const authApi = {
   register: (input: RegisterInput) =>
     api.post<AccountResponse>('/auth/register', input),
+
+  saveBirthday: (input: BirthDateUpdateInput) => api.post<AccountResponse>('/auth/birthday', input),
 
   /** rc.3: with two-step sign-in on, the answer asks for a code instead of signing in. */
   login: (input: LoginInput) => api.post<AccountResponse | TwoFactorRequiredDto>('/auth/login', input),

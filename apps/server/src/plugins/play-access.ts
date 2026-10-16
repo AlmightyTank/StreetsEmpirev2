@@ -14,6 +14,11 @@ const playAccessPlugin: FastifyPluginAsync = async (fastify) => {
     if (!account) return;
     const path = request.url.split('?', 1)[0] ?? request.url;
     if (!isPlayPath(path)) return;
+    if (!account.birthDate) {
+      return reply.status(403).send({
+        error: { code: 'BIRTH_DATE_REQUIRED', message: 'Enter your date of birth before playing.' },
+      });
+    }
     if (canPlay(account) && needsRulesAcceptance(account)) {
       return reply.status(403).send({
         error: { code: 'RULES_NOT_ACCEPTED', message: 'Read and accept the game rules to play.' },

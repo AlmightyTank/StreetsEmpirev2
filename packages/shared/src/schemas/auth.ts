@@ -87,10 +87,41 @@ export const passwordSchema = z
   .min(PASSWORD_MIN, `Password must be at least ${PASSWORD_MIN} characters.`)
   .max(PASSWORD_MAX, `Password must be ${PASSWORD_MAX} characters or fewer.`);
 
+/** Latest birthday eligible for play, computed using the same UTC calendar as validation. */
+export function latestEligibleBirthDate(now = new Date()): string {
+  return `${now.getUTCFullYear() - MINIMUM_AGE}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+}
+
+/** A private calendar date. Use UTC date-only comparisons to avoid timezone birthday shifts. */
+export const birthDateSchema = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter your birthday as YYYY-MM-DD.')
+  .superRefine((value, context) => {
+    const birthDate = new Date(`${value}T00:00:00.000Z`);
+    if (Number.isNaN(birthDate.getTime()) || birthDate.toISOString().slice(0, 10) !== value) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Enter a real calendar date.' });
+      return;
+    }
+    const today = new Date();
+    const years = today.getUTCFullYear() - birthDate.getUTCFullYear()
+      - (today.getUTCMonth() < birthDate.getUTCMonth()
+        || (today.getUTCMonth() === birthDate.getUTCMonth() && today.getUTCDate() < birthDate.getUTCDate()) ? 1 : 0);
+    if (years < MINIMUM_AGE) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: `You must be at least ${MINIMUM_AGE} to create an account.` });
+    } else if (years > 130) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Check the year you entered.' });
+    }
+  });
+
+/** Old API clients can finish birthday collection immediately after signing in.
+ * The web registration form requires this field. */
+export const birthDateUpdateSchema = z.object({ birthDate: birthDateSchema }).strict();
+export type BirthDateUpdateInput = z.infer<typeof birthDateUpdateSchema>;
+
 export const registerSchema = z.object({
   username: usernameSchema,
   email: emailSchema,
   password: passwordSchema,
+  birthDate: birthDateSchema.optional(),
   /** Required age declaration; the rules agreement asks every player again before play. */
   ageConfirmed: z.boolean().refine((confirmed) => confirmed, {
     message: `Confirm you are ${MINIMUM_AGE} or older.`,

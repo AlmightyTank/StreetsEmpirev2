@@ -48,6 +48,7 @@ export function toAccountDto(account: Account, session?: SessionStrength | null)
     lastLoginAt: account.lastLoginAt?.toISOString() ?? null,
     verificationRequired: !canPlay(account),
     rulesAcceptanceRequired: needsRulesAcceptance(account),
+    birthDateRequired: !account.birthDate,
     adminSignInRequired: adminNeedsSecondFactor(account, session),
     twoFactorEnabled: Boolean(account.twoFactorEnabledAt),
   };

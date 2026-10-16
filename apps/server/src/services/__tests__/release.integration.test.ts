@@ -26,7 +26,7 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
     const registered = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: name, email: `${name}@example.invalid`, password: randomUUID(), ageConfirmed: true },
+      payload: { username: name, email: `${name}@example.invalid`, password: randomUUID(), birthDate: '1990-01-01', ageConfirmed: true },
     });
     expect(registered.statusCode).toBe(201);
     accountId = registered.json().account.id;
