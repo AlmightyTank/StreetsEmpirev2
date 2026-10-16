@@ -2,6 +2,9 @@ export type CasinoSound =
   | 'SPIN'
   | 'ANTICIPATION'
   | 'REEL_STOP'
+  | 'PAYOUT_TICK'
+  | 'NEAR_MISS'
+  | 'LOSS'
   | 'SMALL_WIN'
   | 'BIG_WIN'
   | 'MEGA_WIN'
@@ -54,6 +57,27 @@ function tone(
   oscillator.stop(at + duration + 0.02);
 }
 
+function noiseBurst(ctx: AudioContext, at: number, duration: number, gainValue: number, highpass = 700): void {
+  const frameCount = Math.max(1, Math.ceil(ctx.sampleRate * duration));
+  const buffer = ctx.createBuffer(1, frameCount, ctx.sampleRate);
+  const samples = buffer.getChannelData(0);
+  for (let index = 0; index < samples.length; index++) samples[index] = Math.random() * 2 - 1;
+
+  const source = ctx.createBufferSource();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+  source.buffer = buffer;
+  filter.type = 'highpass';
+  filter.frequency.setValueAtTime(highpass, at);
+  gain.gain.setValueAtTime(gainValue, at);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+  source.start(at);
+  source.stop(at + duration + 0.01);
+}
+
 function chord(ctx: AudioContext, notes: number[], spacing = 0.08, gain = 0.035): void {
   const now = ctx.currentTime;
   notes.forEach((note, index) => tone(ctx, now + index * spacing, note, 0.18, gain, 'triangle'));
@@ -67,8 +91,13 @@ export function playCasinoSound(sound: CasinoSound, enabled = casinoSoundEnabled
 
   switch (sound) {
     case 'SPIN':
-      tone(ctx, now, 92, 0.28, 0.025, 'sawtooth', 180);
-      tone(ctx, now + 0.04, 140, 0.18, 0.018, 'triangle', 260);
+      tone(ctx, now, 72, 0.42, 0.022, 'sawtooth', 165);
+      tone(ctx, now + 0.035, 125, 0.28, 0.016, 'triangle', 280);
+      // A short accelerating ratchet sells the physical pull without looping forever.
+      for (let index = 0; index < 12; index++) {
+        const progress = index / 11;
+        noiseBurst(ctx, now + index * (0.064 - progress * 0.021), 0.018, 0.012 + progress * 0.004, 1_100);
+      }
       break;
     case 'ANTICIPATION':
       tone(ctx, now, 330, 0.12, 0.025, 'square');
@@ -77,10 +106,23 @@ export function playCasinoSound(sound: CasinoSound, enabled = casinoSoundEnabled
       break;
     case 'REEL_STOP': {
       const base = 170 + Math.min(5, accent) * 22;
+      noiseBurst(ctx, now, 0.045, 0.032, 420);
       tone(ctx, now, base, 0.055, 0.04, 'square');
       tone(ctx, now + 0.015, base / 2, 0.08, 0.02, 'triangle');
       break;
     }
+    case 'PAYOUT_TICK':
+      tone(ctx, now, 880 + (accent % 4) * 70, 0.045, 0.018, 'sine');
+      noiseBurst(ctx, now, 0.025, 0.009, 1_600);
+      break;
+    case 'NEAR_MISS':
+      tone(ctx, now, 494, 0.11, 0.025, 'triangle');
+      tone(ctx, now + 0.1, 466, 0.16, 0.022, 'triangle', 392);
+      break;
+    case 'LOSS':
+      tone(ctx, now, 145, 0.1, 0.018, 'triangle', 116);
+      noiseBurst(ctx, now, 0.04, 0.012, 500);
+      break;
     case 'SMALL_WIN':
       chord(ctx, [523, 659, 784], 0.09, 0.03);
       break;

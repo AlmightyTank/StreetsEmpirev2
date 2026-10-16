@@ -413,11 +413,13 @@ export function CasinoPage() {
       if (reducedMotion) {
         setRevealedReels(machine.reels);
       } else {
-        const reelDelay = machine.reels === 3 ? 250 : machine.reels === 4 ? 225 : 205;
+        // Let every reel reach full speed before the staggered mechanical stops begin.
+        await wait(460);
+        const reelDelay = machine.reels === 3 ? 310 : machine.reels === 4 ? 285 : 260;
         for (let reel = 0; reel < machine.reels; reel++) {
           if (result.spin.nearMiss?.reel === reel) {
             playCasinoSound('ANTICIPATION', soundEnabled);
-            await wait(520);
+            await wait(680);
           }
           await wait(reelDelay);
           setRevealedReels(reel + 1);
@@ -447,19 +449,21 @@ export function CasinoPage() {
         if (reducedMotion) {
           setDisplayedWinCents(result.spin.payoutCents);
           setDisplayedCreditsCents(result.spin.bankrollAfterCents);
-        } else {
-          const duration = result.spin.winTier === 'JACKPOT' ? 1_600 : result.spin.winTier === 'MEGA' ? 1_250 : 850;
-          const steps = 28;
-          for (let step = 1; step <= steps; step++) {
-            await wait(duration / steps);
-            const progress = step / steps;
-            setDisplayedWinCents(Math.round(result.spin.payoutCents * progress));
-            setDisplayedCreditsCents(Math.round(creditsBeforePayout + result.spin.payoutCents * progress));
+          } else {
+            const duration = result.spin.winTier === 'JACKPOT' ? 1_600 : result.spin.winTier === 'MEGA' ? 1_250 : 850;
+            const steps = 28;
+            for (let step = 1; step <= steps; step++) {
+              await wait(duration / steps);
+              const progress = step / steps;
+              setDisplayedWinCents(Math.round(result.spin.payoutCents * progress));
+              setDisplayedCreditsCents(Math.round(creditsBeforePayout + result.spin.payoutCents * progress));
+              if (step % 2 === 0) playCasinoSound('PAYOUT_TICK', soundEnabled, step);
+            }
           }
+        } else {
+          setDisplayedCreditsCents(result.spin.bankrollAfterCents);
+          playCasinoSound(result.spin.nearMiss ? 'NEAR_MISS' : 'LOSS', soundEnabled);
         }
-      } else {
-        setDisplayedCreditsCents(result.spin.bankrollAfterCents);
-      }
 
       spinAction.current = newActionId();
       await refreshSnapshot({ background: false });
@@ -842,7 +846,12 @@ export function CasinoPage() {
                         ) : null}
 
                         <div
-                          className={'se-slots__cabinet is-' + cabinetTone + (outcomeVisible && result ? ' is-' + result.winTier.toLowerCase() : '')}
+                          className={
+                            'se-slots__cabinet is-' + cabinetTone
+                            + (busy === 'spin' ? ' is-spinning' : '')
+                            + (busy === 'spin' && result?.nearMiss && revealedReels === result.nearMiss.reel ? ' is-anticipating' : '')
+                            + (outcomeVisible && result ? ' is-' + result.winTier.toLowerCase() : '')
+                          }
                           style={{ '--se-slot-reels': machine.reels } as CSSProperties}
                         >
                           <div className="se-slots__cabinet-marquee">
@@ -881,6 +890,7 @@ export function CasinoPage() {
                             {baseGrid.flatMap((row, rowIndex) =>
                               row.map((cell, reelIndex) => {
                                 const reelSpinning = busy === 'spin' && reelIndex >= revealedReels;
+                                const reelSettling = busy === 'spin' && reelIndex === revealedReels - 1;
                                 const winning = outcomeVisible && winningPositions.has(reelIndex + ':' + rowIndex);
                                 const anticipating = reelSpinning && result?.nearMiss?.reel === reelIndex;
                                 const strip = machine.reelStrips[reelIndex] ?? [];
@@ -893,16 +903,26 @@ export function CasinoPage() {
                                     className={
                                       'se-slots__reel'
                                       + (reelSpinning ? ' is-spinning-cell' : '')
+                                      + (reelSettling ? ' is-settling' : '')
                                       + (winning ? ' is-winning' : '')
                                       + (anticipating ? ' is-anticipating' : '')
                                     }
+                                    style={{ '--se-reel-index': reelIndex, '--se-row-index': rowIndex } as CSSProperties}
                                     aria-label={reelSpinning ? 'reel spinning' : cell.label + (winning ? ', winning symbol' : '')}
                                   >
                                     {reelSpinning ? (
                                       <div className="se-slots__strip-track" aria-hidden="true">
-                                        {preview.map((symbol, index) => <span key={index}>{symbol.glyph}</span>)}
+                                        {preview.map((symbol, index) => (
+                                          <span className={Array.from(symbol.glyph).length > 1 ? 'is-word-symbol' : undefined} key={index}>
+                                            {symbol.glyph}
+                                          </span>
+                                        ))}
                                       </div>
-                                    ) : <span>{cell.glyph}</span>}
+                                    ) : (
+                                      <span className={Array.from(cell.glyph).length > 1 ? 'is-word-symbol' : undefined}>
+                                        {cell.glyph}
+                                      </span>
+                                    )}
                                   </div>
                                 );
                               }),
@@ -921,8 +941,17 @@ export function CasinoPage() {
                               </div>
                             ) : null}
                           </div>
-                          <div className="se-slots__cabinet-footer">
-                            <span>CHERRY</span><span>BAR</span><strong>7</strong><span>BAR</span><span>CHERRY</span>
+                          <div className={'se-slots__cabinet-footer' + (busy === 'spin' ? ' is-live' : '')}>
+                            <span className="se-slots__status-lamp" aria-hidden="true" />
+                            <span>
+                              {busy === 'spin'
+                                ? result?.nearMiss && revealedReels === result.nearMiss.reel
+                                  ? 'ONE REEL TO GO…'
+                                  : 'REELS IN MOTION'
+                                : outcomeVisible && result?.payoutCents
+                                  ? 'WIN ' + formatCents(displayedWinCents || result.payoutCents)
+                                  : 'CHERRY · BAR · 7 · BAR · CHERRY'}
+                            </span>
                           </div>
                         </div>
 

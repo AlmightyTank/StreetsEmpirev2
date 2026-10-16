@@ -373,6 +373,8 @@
 .se-slots__cabinet.is-empire-gold { --se-slot-gold: #f5d47b; }
 .se-slots__cabinet.is-big, .se-slots__cabinet.is-mega, .se-slots__cabinet.is-jackpot { animation: se-cabinet-hit .6s ease-out both; }
 .se-slots__cabinet.is-jackpot { animation: se-cabinet-jackpot 1s ease-in-out 2; }
+.se-slots__cabinet.is-spinning { animation: se-cabinet-running .12s linear infinite alternate; }
+.se-slots__cabinet.is-spinning.is-anticipating { animation-duration: .2s; }
 
 .se-slots__reels {
   position: relative;
@@ -403,7 +405,26 @@
   transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 .se-slots__reel::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgb(44 25 5 / .28), transparent 20%, transparent 80%, rgb(44 25 5 / .28)); }
-.se-slots__reel > span { max-width: 100%; overflow: hidden; text-overflow: clip; font-size: clamp(1.45rem, 5.5vw, 3rem); font-weight: 800; line-height: 1; filter: drop-shadow(0 2px 1px rgb(0 0 0 / .14)); }
+.se-slots__reel > span {
+  display: grid;
+  place-items: center;
+  width: calc(100% - .4rem);
+  max-width: 100%;
+  min-height: 1.2em;
+  padding: .08em;
+  overflow: visible;
+  font-size: clamp(1.35rem, 5vw, 3rem);
+  font-weight: 800;
+  line-height: 1.15;
+  filter: drop-shadow(0 2px 1px rgb(0 0 0 / .14));
+}
+.se-slots__reel > span.is-word-symbol,
+.se-slots__strip-track span.is-word-symbol {
+  font-size: clamp(.72rem, 3.2vw, 1.65rem);
+  letter-spacing: -.04em;
+}
+.se-slots__reel.is-spinning-cell { box-shadow: inset 0 0 0 2px rgb(255 255 255 / .4), inset 0 1rem 1.1rem rgb(67 35 4 / .22), inset 0 -1rem 1.1rem rgb(67 35 4 / .22); }
+.se-slots__reel.is-settling { animation: se-reel-settle .26s cubic-bezier(.2,.9,.25,1.35) both; }
 .se-slots__cabinet-footer {
   display: flex;
   justify-content: center;
@@ -421,13 +442,13 @@
   text-shadow: 0 1px 2px #000;
   box-shadow: inset 0 0 12px rgb(0 0 0 / .55);
 }
-.se-slots__cabinet-footer strong { color: #ffdd66; font-family: Georgia, 'Times New Roman', serif; font-size: 1.15rem; }
+.se-slots__cabinet-footer > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.se-slots__status-lamp { width: .48rem; height: .48rem; flex: none; border-radius: 50%; background: #43664d; box-shadow: inset 0 0 2px #000; }
+.se-slots__cabinet-footer.is-live .se-slots__status-lamp { background: #8cffaa; box-shadow: 0 0 8px #68df92; animation: se-status-lamp .42s ease-in-out infinite alternate; }
 .se-slots__reel.is-winning { border-color: var(--se-accent); box-shadow: inset 0 0 0 2px var(--se-accent), 0 0 15px color-mix(in srgb, var(--se-accent) 38%, transparent); transform: translateY(-1px); animation: se-winning-cell .72s ease-in-out infinite alternate; }
 .se-slots__reel.is-anticipating { border-color: color-mix(in srgb, var(--se-accent) 60%, #fff); box-shadow: 0 0 18px color-mix(in srgb, var(--se-accent) 32%, transparent); animation: se-anticipation .3s ease-in-out infinite alternate; }
-.se-slots__strip-track { position: absolute; inset: -220% 0; display: grid; align-content: space-around; justify-items: center; filter: blur(.6px); animation: se-strip-spin .23s linear infinite; }
-.se-slots__strip-track span { display: grid; place-items: center; min-height: 2.2rem; font-size: clamp(1.35rem, 5vw, 2.75rem); font-weight: 800; opacity: .88; }
-.se-slots__reel:nth-child(3n + 2) .se-slots__strip-track { animation-duration: .19s; }
-.se-slots__reel:nth-child(3n) .se-slots__strip-track { animation-duration: .27s; }
+.se-slots__strip-track { position: absolute; inset: -240% 0; display: grid; align-content: space-around; justify-items: center; filter: blur(1px); animation: se-strip-spin .2s linear infinite; animation-delay: calc(var(--se-reel-index, 0) * -37ms + var(--se-row-index, 0) * -19ms); }
+.se-slots__strip-track span { display: grid; place-items: center; width: calc(100% - .4rem); min-height: 2.2rem; padding: .08em; font-size: clamp(1.3rem, 4.8vw, 2.75rem); font-weight: 800; line-height: 1.15; opacity: .88; }
 
 .se-slots__line-overlay { position: absolute; inset: .65rem; width: calc(100% - 1.3rem); height: calc(100% - 1.3rem); pointer-events: none; z-index: 3; overflow: visible; }
 .se-slots__line-overlay polyline { fill: none; stroke: var(--se-accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: .82; filter: drop-shadow(0 0 3px var(--se-accent)); animation: se-line-pulse .65s ease-in-out infinite alternate; }
@@ -474,8 +495,21 @@
 .se-slots__win span { color: var(--se-muted); }
 
 @keyframes se-strip-spin {
-  from { transform: translateY(-18%); }
-  to { transform: translateY(18%); }
+  from { transform: translateY(-15%); }
+  to { transform: translateY(15%); }
+}
+@keyframes se-reel-settle {
+  0% { transform: translateY(-9%); filter: blur(1.5px) brightness(1.18); }
+  58% { transform: translateY(4%); filter: blur(0) brightness(1.08); }
+  100% { transform: translateY(0); filter: none; }
+}
+@keyframes se-cabinet-running {
+  from { translate: 0 -.35px; }
+  to { translate: 0 .35px; }
+}
+@keyframes se-status-lamp {
+  from { opacity: .45; }
+  to { opacity: 1; }
 }
 @keyframes se-winning-cell {
   from { filter: brightness(1); }
@@ -517,7 +551,10 @@
   .se-slots__win-flash,
   .se-slots__cabinet.is-big,
   .se-slots__cabinet.is-mega,
-  .se-slots__cabinet.is-jackpot { animation: none; }
+  .se-slots__cabinet.is-jackpot,
+  .se-slots__cabinet.is-spinning,
+  .se-slots__reel.is-settling,
+  .se-slots__cabinet-footer.is-live .se-slots__status-lamp { animation: none; }
   .se-slots__reel, .se-slots__win { transition: none; }
 }
 
@@ -545,7 +582,9 @@
     border-radius: .35rem;
   }
   .se-slots__reel > span,
-  .se-slots__strip-track span { font-size: clamp(1.1rem, 8vw, 2.2rem); }
+  .se-slots__strip-track span { font-size: clamp(1.05rem, 7vw, 2.2rem); }
+  .se-slots__reel > span.is-word-symbol,
+  .se-slots__strip-track span.is-word-symbol { font-size: clamp(.68rem, 4.5vw, 1.25rem); }
   .se-slots__strip-track span { min-height: 1.6rem; }
   .se-slots__line-overlay { inset: .3rem; width: calc(100% - .6rem); height: calc(100% - .6rem); }
 
