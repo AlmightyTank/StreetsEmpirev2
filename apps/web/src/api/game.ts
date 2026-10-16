@@ -13,6 +13,18 @@ export const gameApi = {
    * `background` marks a keep-alive poll rather than the player arriving, so
    * a tab left open does not keep resetting the away-bonus clock.
    */
-  me: (options: { background?: boolean } = {}) =>
-    api.get<GameSnapshotDto>(`/game/me${options.background ? '?background=1' : ''}`),
+  me: async (options: { background?: boolean } = {}) => {
+    const snapshot = await api.get<GameSnapshotDto>(`/game/me${options.background ? '?background=1' : ''}`);
+    if (!options.background) {
+      // Slice A: a foreground game entry counts once per round day. The server
+      // deduplicates all extra calls; passive dashboard polling never counts.
+      // Attendance must never prevent the main game screen from loading.
+      try {
+        await api.post('/game/round-roll-call/check-in');
+      } catch {
+        // Retry opportunistically on the next foreground snapshot.
+      }
+    }
+    return snapshot;
+  },
 };
