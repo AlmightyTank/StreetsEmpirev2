@@ -83,7 +83,9 @@ export async function recordLivingCaseActivity(db: Db, activity: TrustedReceipt)
     if (!plan.length) continue;
     const foundKeys = new Set(row.evidence.map((e) => e.clueKey));
     const next = plan.find((clue) => !foundKeys.has(clue.key));
-    if (!next || next.eventType !== activity.type
+    const correctAction = next?.eventType === activity.type
+      || (next?.sourceKind === 'CONTACT' && activity.type === 'COMBAT_RECON');
+    if (!next || !correctAction
       || row.evidence.some((e) => e.sourceKind === next.sourceKind || e.sourceReceiptId === activity.id)) continue;
     // Every settled activity ID can support only one case, even if an owner
     // has multiple matching investigations. The DB unique index is final guard.

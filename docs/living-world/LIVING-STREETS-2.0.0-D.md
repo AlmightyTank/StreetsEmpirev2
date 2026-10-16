@@ -7,7 +7,7 @@ Status: Implemented as code on `feature/living-streets-2.0.0-d`, based on merged
 | Clue source | Verified event | Gameplay origin |
 | --- | --- | --- |
 | Scout | `PlayerActivity.type=SCOUT` | Completed Scout action |
-| Contact | `INFORMANT_TIP` | Paid informant intelligence action, not a quest completion |
+| Contact | `INFORMANT_TIP` | Paid informant intelligence action **or** completed combat recon (turns spent); never a quest completion or contact-page view |
 | Travel | `RUN_RETURNED` | Completed travel run, not starting or viewing a run |
 | Encounter | `RANDOM_ENCOUNTER_CHOICE` | Settled legacy or first-class encounter choice |
 

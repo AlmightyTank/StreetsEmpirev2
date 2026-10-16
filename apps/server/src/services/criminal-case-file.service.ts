@@ -250,7 +250,7 @@ export const CriminalCaseFileService = {
       // Legacy Slice B snapshots used QUEST_CLAIMED as a placeholder for
       // CONTACT. No arbitrary quest completion can be evidence in D.
       const expectedType = next?.sourceKind === 'CONTACT' ? 'INFORMANT_TIP' : next?.eventType;
-      if (!next || expectedType !== activity.type) return toDto(row, round, now);
+      if (!next || (expectedType !== activity.type && !(next.sourceKind === 'CONTACT' && activity.type === 'COMBAT_RECON'))) return toDto(row, round, now);
       if (row.evidence.some((entry) => entry.sourceReceiptId === activity.id || entry.sourceKind === next.sourceKind)) {
         return toDto(row, round, now);
       }

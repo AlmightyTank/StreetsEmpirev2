@@ -45,7 +45,7 @@ function makeFixture() {
     },
     $queryRaw: vi.fn(async () => [{ id: 'case-a' }]),
   };
-  const receipt = (id: string, type: 'SCOUT' | 'INFORMANT_TIP' | 'RUN_RETURNED' | 'RANDOM_ENCOUNTER_CHOICE' | 'QUEST_CLAIMED', minutes = 2) => ({
+  const receipt = (id: string, type: 'SCOUT' | 'INFORMANT_TIP' | 'COMBAT_RECON' | 'RUN_RETURNED' | 'RANDOM_ENCOUNTER_CHOICE' | 'QUEST_CLAIMED', minutes = 2) => ({
     id, roundPlayerId: 'player-a', type, createdAt: at(minutes),
   });
   return { round, cases, evidence, db, receipt };
@@ -63,6 +63,14 @@ describe('2.0.0-D server-owned case evidence', () => {
     expect(f.cases[0]!.status).toBe('SOLVED');
     expect(f.cases[1]!.status).toBe('ACTIVE');
     expect(await recordLivingCaseActivity(f.db, f.receipt('encounter-1', 'RANDOM_ENCOUNTER_CHOICE', 4))).toBe(0);
+  });
+
+  it('supports turn-spending recon as an alternative to one-time informant purchases', async () => {
+    const f = makeFixture();
+    expect(await recordLivingCaseActivity(f.db, f.receipt('scout', 'SCOUT'))).toBe(1);
+    expect(await recordLivingCaseActivity(f.db, f.receipt('recon', 'COMBAT_RECON', 3))).toBe(1);
+    expect(f.evidence.map((e) => e.sourceKind)).toEqual(['SCOUT', 'CONTACT']);
+    expect(await recordLivingCaseActivity(f.db, f.receipt('tip-after-recon', 'INFORMANT_TIP', 4))).toBe(0);
   });
 
   it('does not reuse a single receipt across two active cases', async () => {
