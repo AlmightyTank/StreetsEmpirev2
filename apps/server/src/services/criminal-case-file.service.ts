@@ -149,18 +149,49 @@ export const CriminalCaseFileService = {
   },
 
   /** A read never creates offers, evidence, expiry updates, XP or rewards. */
-  async page(prisma: PrismaClient, roundId: string, ownerId: string, now = new Date()): Promise<CriminalCasePageDto> {
-    const [round, records] = await Promise.all([
-      prisma.round.findUnique({ where: { id: roundId }, select: { pausedAt: true, pausedMinutesTotal: true } }),
-      prisma.criminalCaseFile.findMany({ where: { roundId, ownerId }, include, orderBy: { createdAt: 'desc' }, take: 100 }),
-    ]);
+  async page(prisma: PrismaClient, roundId: string, ownerId: string, input: {
+    activePage?: number; archivePage?: number; pageSize?: number; now?: Date;
+  } = {}): Promise<CriminalCasePageDto> {
+    const activePage = Math.max(1, Math.floor(input.activePage ?? 1));
+    const archivePage = Math.max(1, Math.floor(input.archivePage ?? 1));
+    const pageSize = Math.min(100, Math.max(1, Math.floor(input.pageSize ?? 25)));
+    const now = input.now ?? new Date();
+    const round = await prisma.round.findUnique({
+      where: { id: roundId }, select: { pausedAt: true, pausedMinutesTotal: true },
+    });
     if (!round) throw AppError.notFound('ROUND_NOT_FOUND', 'Round not found.');
-    const active: CriminalCaseFileDto[] = [], archived: CriminalCaseFileDto[] = [];
-    for (const row of records) {
-      const view = toDto(row, round, now);
-      (view.status === 'LOCKED' || view.status === 'AVAILABLE' || view.status === 'ACTIVE' ? active : archived).push(view);
-    }
-    return { active, archived };
+    const activeNow = activeRoundEventTime(round, now);
+    const openStatus = { in: ['AVAILABLE', 'ACTIVE'] as const };
+    const activeWhere: Prisma.CriminalCaseFileWhereInput = {
+      roundId, ownerId,
+      OR: round.pausedAt
+        ? [{ status: { in: ['LOCKED', 'AVAILABLE', 'ACTIVE'] } }]
+        : [{ status: 'LOCKED' }, { status: openStatus, expiresAtActive: { gt: activeNow } }],
+    };
+    const archivedWhere: Prisma.CriminalCaseFileWhereInput = {
+      roundId, ownerId,
+      OR: [
+        { status: { in: ['SOLVED', 'CLOSED', 'EXPIRED'] } },
+        ...(!round.pausedAt ? [{ status: openStatus, expiresAtActive: { lte: activeNow } }] : []),
+      ],
+    };
+    const [openRows, archiveRows] = await Promise.all([
+      prisma.criminalCaseFile.findMany({
+        where: activeWhere, include, orderBy: { createdAt: 'desc' },
+        skip: (activePage - 1) * pageSize, take: pageSize + 1,
+      }),
+      prisma.criminalCaseFile.findMany({
+        where: archivedWhere, include, orderBy: { createdAt: 'desc' },
+        skip: (archivePage - 1) * pageSize, take: pageSize + 1,
+      }),
+    ]);
+    return {
+      active: openRows.slice(0, pageSize).map((row) => toDto(row, round, now)),
+      archived: archiveRows.slice(0, pageSize).map((row) => toDto(row, round, now)),
+      pageSize, activePage, archivePage,
+      activeHasMore: openRows.length > pageSize,
+      archivedHasMore: archiveRows.length > pageSize,
+    };
   },
 
   async get(prisma: PrismaClient, ownerId: string, caseId: string, now = new Date()): Promise<CriminalCaseFileDto> {

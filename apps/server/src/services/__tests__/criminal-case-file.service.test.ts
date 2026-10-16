@@ -51,7 +51,16 @@ function makeDb() {
         }
         return withEvidence(row);
       }),
-      findMany: vi.fn(async ({ where }: any) => state.cases.filter((c) => c.ownerId === where.ownerId && c.roundId === where.roundId).map(withEvidence)),
+      findMany: vi.fn(async ({ where, skip = 0, take = 25 }: any) => {
+        const matches = (c: any, filter: any): boolean => {
+          const status = filter.status;
+          return (!status || (typeof status === 'string' ? status === c.status : status.in.includes(c.status)))
+            && (!filter.expiresAtActive?.gt || c.expiresAtActive > filter.expiresAtActive.gt)
+            && (!filter.expiresAtActive?.lte || c.expiresAtActive <= filter.expiresAtActive.lte);
+        };
+        return state.cases.filter((c) => c.ownerId === where.ownerId && c.roundId === where.roundId
+          && where.OR.some((clause: any) => matches(c, clause))).slice(skip, skip + take).map(withEvidence);
+      }),
       findFirst: vi.fn(async ({ where }: any) => withEvidence(state.cases.find((c) => c.id === where.id && c.ownerId === where.ownerId))),
       update: vi.fn(async ({ where, data }: any) => {
         const row = state.cases.find((entry) => entry.id === where.id);
@@ -143,6 +152,27 @@ describe('Living Streets 2.0.0-B case file persistence', () => {
     expect(state.evidence).toHaveLength(3);
   });
 
+
+  it('paginates active cases and archive independently without hiding older active cases', async () => {
+    const { db, state, offer } = makeDb();
+    await offer();
+    const original = state.cases[0];
+    state.cases.push(
+      { ...original, id: 'case-old', offerDedupeKey: 'other', createdAt: at(-120), status: 'AVAILABLE' },
+      { ...original, id: 'case-done', offerDedupeKey: 'done', createdAt: at(-30), status: 'CLOSED' },
+      { ...original, id: 'case-expired', offerDedupeKey: 'expired', createdAt: at(-20), status: 'AVAILABLE', expiresAtActive: at(-1) },
+    );
+    const first = await CriminalCaseFileService.page(db, 'round-1', 'player-a', { pageSize: 1, now: baseNow });
+    expect(first.active.map((c) => c.id)).toEqual(['case-1']);
+    expect(first.activeHasMore).toBe(true);
+    expect(first.archivedHasMore).toBe(true);
+    const nextActive = await CriminalCaseFileService.page(db, 'round-1', 'player-a', { pageSize: 1, activePage: 2, now: baseNow });
+    expect(nextActive.active.map((c) => c.id)).toEqual(['case-old']);
+    const nextArchive = await CriminalCaseFileService.page(db, 'round-1', 'player-a', { pageSize: 1, archivePage: 2, now: baseNow });
+    expect(nextArchive.archived.map((c) => c.id)).toEqual(['case-done']);
+    expect(db.criminalCaseFile.update).not.toHaveBeenCalled();
+  });
+
   it('rejects foreign IDs and ignores historical or other-player evidence', async () => {
     const { db, state, offer } = makeDb();
     await offer();
@@ -168,6 +198,7 @@ describe('Living Streets 2.0.0-B case file persistence', () => {
       .rejects.toMatchObject({ code: 'CASE_ROUND_UNAVAILABLE' });
     const pausedView = await CriminalCaseFileService.page(db, 'round-1', 'player-a', at(2000));
     expect(pausedView.active).toHaveLength(1);
+    expect(pausedView.activeHasMore).toBe(false);
     state.round.pausedAt = null;
     const lapsed = await CriminalCaseFileService.page(db, 'round-1', 'player-a', at(2000));
     expect(lapsed.archived[0].status).toBe('EXPIRED');

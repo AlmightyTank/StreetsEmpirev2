@@ -7,6 +7,11 @@ import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
 const caseParams = z.object({ caseId: z.string().min(1).max(128) }).strict();
+const listQuery = z.object({
+  activePage: z.coerce.number().int().min(1).max(1000000).default(1),
+  archivePage: z.coerce.number().int().min(1).max(1000000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+}).strict();
 const closeBody = z.object({ branchKey: z.string().min(1).max(64) }).strict();
 
 const caseFileRoutes: FastifyPluginAsync = async (fastify) => {
@@ -20,7 +25,7 @@ const caseFileRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/case-files', { preHandler: fastify.requireAuth }, async (request, reply) => {
     const { round, player } = await owner(request.auth!.account.id);
     reply.header('Cache-Control', 'private, no-store');
-    return CriminalCaseFileService.page(fastify.prisma, round.id, player.id);
+    return CriminalCaseFileService.page(fastify.prisma, round.id, player.id, parseBody(listQuery, request.query ?? {}));
   });
 
   fastify.get('/case-files/:caseId', { preHandler: fastify.requireAuth }, async (request, reply) => {

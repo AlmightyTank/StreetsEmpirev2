@@ -28,4 +28,9 @@ export interface CriminalCaseFileDto {
 export interface CriminalCasePageDto {
   active: CriminalCaseFileDto[];
   archived: CriminalCaseFileDto[];
+  pageSize: number;
+  activePage: number;
+  archivePage: number;
+  activeHasMore: boolean;
+  archivedHasMore: boolean;
 }
