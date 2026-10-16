@@ -477,6 +477,20 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
   const navigate = useNavigate();
   const location = useLocation();
   const identity = routeIdentity(location.pathname);
+  const hasGameTabs = Boolean(tabbar);
+
+  // Match the :has()-based mobile overscroll protection on older WebViews.
+  // Scope it to mounted game tab navigation; sign-in and other pages retain
+  // their normal scrolling/refresh behavior.
+  useEffect(() => {
+    if (!hasGameTabs) return;
+    document.documentElement.classList.add('se-mobile-game');
+    document.body.classList.add('se-mobile-game');
+    return () => {
+      document.documentElement.classList.remove('se-mobile-game');
+      document.body.classList.remove('se-mobile-game');
+    };
+  }, [hasGameTabs]);
 
   async function handleLogout() {
     await logout();

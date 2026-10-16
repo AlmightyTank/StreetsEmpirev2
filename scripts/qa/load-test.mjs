@@ -170,7 +170,7 @@ try {
   // Registration and joining.
   let s = new Scenario('Registration + join', BUDGETS.registration);
   await pool(players, 25, async (player) => {
-    s.record(await player.request('POST', '/api/auth/register', { username: player.name, email: `${player.name}@example.invalid`, password: `password-${player.name}` }));
+    s.record(await player.request('POST', '/api/auth/register', { ageConfirmed: true, username: player.name, email: `${player.name}@example.invalid`, password: `password-${player.name}` }));
     s.record(await player.request('POST', '/api/rounds/current/join', {}));
   });
   scenarios.push(s.finish());
@@ -178,7 +178,7 @@ try {
   // The operator: first admin, exactly what `npm run admin` does.
   const admin = new Player(250_000);
   s = new Scenario('Admin setup', 10_000);
-  s.record(await admin.request('POST', '/api/auth/register', { username: admin.name, email: `${admin.name}@example.invalid`, password: `password-${admin.name}` }));
+  s.record(await admin.request('POST', '/api/auth/register', { ageConfirmed: true, username: admin.name, email: `${admin.name}@example.invalid`, password: `password-${admin.name}` }));
   await prisma.account.update({ where: { usernameNormalized: admin.name.toLowerCase() }, data: { isAdmin: true } });
 
   // Login spike: everyone signs in at the same moment.

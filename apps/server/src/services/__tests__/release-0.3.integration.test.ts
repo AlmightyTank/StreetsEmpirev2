@@ -41,7 +41,7 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.3.0-E alliance season
     // Five players join through the real join route; the fifth is an admin.
     for (let i = 0; i < 5; i++) {
       const name = `rel3_${randomUUID().slice(0, 8)}`;
-      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
       expect(registered.statusCode).toBe(201);
       accounts.push(registered.json().account.id);
       cookies.push(registered.cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; '));

@@ -7,7 +7,8 @@ screens reach full parity.
 - Local, beta, and production build flavors
 - Google Play monthly supporter subscription (`supporter_monthly`)
 - Game and Discord OAuth stay in-app; other links open in the browser
-- Pull-to-refresh, reload, offline retry, file chooser, and WebView back history
+- Native web scrolling without pull-to-refresh gesture interception; offline retry,
+  file chooser, and WebView back history
 - Bearer sessions for native screens; HTTPS outside local development
 
 ## Open and build
