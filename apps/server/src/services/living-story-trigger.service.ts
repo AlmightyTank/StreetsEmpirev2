@@ -1,7 +1,7 @@
 import type { Db } from '../utils/db.js';
 import { activeRoundEventTime, livingStoryCatalogForRuleset } from '@streets/rulesets';
 import { loadRulesetForRound } from '@streets/rules-engine';
-import { livingStoryDedupeKey, evaluateLivingStoryOffer } from './living-story-contract.service.js';
+import { evaluateLivingStoryOffer } from './living-story-contract.service.js';
 import { CriminalCaseFileService } from './criminal-case-file.service.js';
 
 export const LIVING_STORY_LIMITS = {

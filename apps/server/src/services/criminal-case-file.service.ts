@@ -113,18 +113,22 @@ export const CriminalCaseFileService = {
     if (!player || !memory || memory.roundId !== player.roundId || memory.cityId !== player.cityId) return null;
     const round = await db.round.findUnique({ where: { id: player.roundId } });
     if (!round || round.status !== 'ACTIVE' || round.pausedAt) return null;
-    // Prevent retroactive invitations using a changed pause counter or old source.
-    if (memory.happenedAt > input.now || input.now.getTime() - memory.happenedAt.getTime() > 60_000) return null;
     const ruleset = loadRulesetForRound(round);
     const def = livingStoryCatalogForRuleset(ruleset)[input.storyKey];
     if (!def || !def.enabled || !LIVING_CASE_BLUEPRINTS[def.caseKey]) return null;
+    // Offer windows run on the same clock as round events; no stale-event
+    // resurrection when the game clock stops for an administrative pause.
+    const nowActive = activeRoundEventTime(round, input.now);
+    const happenedAtActive = memory.happenedAtActive ?? activeRoundEventTime(round, memory.happenedAt);
+    if (memory.happenedAt > input.now || happenedAtActive > nowActive
+      || nowActive.getTime() - happenedAtActive.getTime() >= def.expiresAfterActiveMinutes * 60_000) return null;
     const actors = Array.isArray(memory.actors) ? memory.actors.filter((x): x is string => typeof x === 'string') : [];
     const decision = evaluateLivingStoryOffer(ruleset, input.storyKey, {
       roundId: memory.roundId, cityId: memory.cityId, sourceKind: 'CITY_MEMORY',
       sourceId: memory.id, eventKind: memory.kind,
       visibility: memory.visibility === 'public' ? 'public' : 'involved-only',
       actorRoundPlayerIds: actors,
-      happenedAtActive: activeRoundEventTime(round, memory.happenedAt),
+      happenedAtActive,
     }, {
       roundId: player.roundId, cityId: player.cityId, roundPlayerId: player.id,
       roundClock: round, now: input.now,
@@ -139,6 +143,7 @@ export const CriminalCaseFileService = {
         rulesetId: round.rulesetId, rulesetVersion: round.rulesetVersion,
         storyKey: def.key, caseKey: def.caseKey,
         sourceMemoryId: memory.id, offerDedupeKey: decision.dedupeKey,
+        offeredAtActive: nowActive,
         cluePlan: plan.clues as unknown as Prisma.InputJsonValue,
         branchKeys: plan.branchKeys as unknown as Prisma.InputJsonValue,
         expiresAtActive: decision.expiresAtActive,
