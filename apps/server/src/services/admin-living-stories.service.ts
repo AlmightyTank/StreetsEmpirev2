@@ -24,6 +24,19 @@ export interface StoryDiagnosticsInput {
   roundId: string; ownerId: string; memoryId: string; storyKey: string;
 }
 
+function draftSnapshot(row: {
+  key: string; title: string; caseKey: string; eventKinds: unknown;
+  audience: string; visibility: string; expiresAfterActiveMinutes: number;
+  rewardBudgetCents: number; revision: number; enabled: boolean;
+}) {
+  return {
+    key: row.key, title: row.title, caseKey: row.caseKey,
+    eventKinds: row.eventKinds, audience: row.audience, visibility: row.visibility,
+    expiresAfterActiveMinutes: row.expiresAfterActiveMinutes,
+    rewardBudgetCents: row.rewardBudgetCents, revision: row.revision, enabled: row.enabled,
+  };
+}
+
 async function roundAndCatalog(db: Db, roundId: string) {
   const round = await db.round.findUnique({ where: { id: roundId } });
   if (!round) throw AppError.notFound('ROUND_NOT_FOUND', 'That season could not be found.');
@@ -178,21 +191,34 @@ export const AdminLivingStoriesService = {
       rewardBudgetCents: input.rewardBudgetCents,
       enabled: false, updatedByAccountId: actor.id,
     };
-    const saved = existing
-      ? await db.adminLivingStoryDraft.update({
-        where: { id: existing.id, revision: existing.revision },
-        data: { ...data, revision: { increment: 1 } },
-      })
-      : await db.adminLivingStoryDraft.create({
-        data: { ...data, key: input.key, baseRulesetId: round.rulesetId,
-          baseRulesetVersion: round.rulesetVersion, createdByAccountId: actor.id },
-      });
+    let saved;
+    try {
+      saved = existing
+        ? await db.adminLivingStoryDraft.update({
+          where: { id: existing.id, revision: existing.revision },
+          data: { ...data, revision: { increment: 1 } },
+        })
+        : await db.adminLivingStoryDraft.create({
+          data: { ...data, key: input.key, baseRulesetId: round.rulesetId,
+            baseRulesetVersion: round.rulesetVersion, createdByAccountId: actor.id },
+        });
+    } catch (error) {
+      // The read and guarded update may race a simultaneous admin save.
+      // A unique create collision also means another admin just made this key.
+      // Neither should surface as an INTERNAL_ERROR.
+      if (error && typeof error === 'object' && 'code' in error
+        && (error.code === 'P2025' || error.code === 'P2002')) {
+        throw AppError.conflict('STORY_DRAFT_STALE',
+          'This story draft changed during your save. Reload before trying again.');
+      }
+      throw error;
+    }
     await AdminAuditService.record(db, actor, {
       action: existing ? 'living-story.draft-tune' : 'living-story.draft-create',
       targetType: 'living-story-draft', targetId: saved.id, reason: input.reason,
-      before: existing ? { revision: existing.revision, key: existing.key, enabled: false } : null,
-      after: { key: saved.key, version: saved.baseRulesetVersion,
-        revision: saved.revision, enabled: false, rewardBudgetCents: saved.rewardBudgetCents },
+      before: existing ? draftSnapshot(existing) : null,
+      after: { ...draftSnapshot(saved), baseRulesetId: saved.baseRulesetId,
+        baseRulesetVersion: saved.baseRulesetVersion },
     });
     return { id: saved.id, key: saved.key, revision: saved.revision,
       baseRulesetId: saved.baseRulesetId, enabled: false };
