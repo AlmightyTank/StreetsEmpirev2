@@ -18,7 +18,7 @@ Reports round-pinned ruleset and version; authored case keys, audience, visibili
 The weighting preview explicitly reports **uniform eligibility matches, weight 1**; the system does **not** currently randomly choose between story keys by weighted draw. Do not display fictitious probabilities.
 
 ### Safe test and authoring
-A dry-run simulator constructs a source in memory; it cannot generate actual source receipts or complete a real case. Its audit log captures who tested what, why and the verdict, but contains no confidential clue payload. A real case can only be offered through the already-shipped, verified event writers and the actual player opt-in path.
+A dry-run simulator constructs a source in memory and opens an admin-only accessible story preview dialog; it cannot generate actual source receipts or complete a real case. Its audit log captures who tested what, why and the verdict, but contains no confidential clue payload. A real case can only be offered through the already-shipped, verified event writers and the actual player opt-in path.
 
 A new `AdminLivingStoryDraft` table stores disabled proposals, base ruleset version, allowlisted CityMemory trigger kinds, case template, audience/visibility, expiry and bounded reward budget. Draft edits require the expected revision, are audited and rejected when stale. **None of these drafts are used by live trigger lookup.** Publishing requires adding an approved definition to an explicitly new immutable ruleset version, reviewed and pinned only for future rounds. An existing pinned story key cannot be overwritten via drafts.
 

@@ -5,6 +5,7 @@ import { livingStoryAdminApi, type LivingStoryDiagnosis, type LivingStoryDraftIn
   type LivingStoryOverview } from '../api/livingStoryAdmin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from './Alert.js';
+import { GameDialog } from './GameUI.js';
 import { Panel } from './Panel.js';
 
 const KNOWN_KINDS = ['war_win', 'operation_complete', 'npc_gang_migration',
@@ -28,6 +29,7 @@ export function AdminLivingStoriesPanel() {
   const [draft, setDraft] = useState(INITIAL);
   const [diagnosis, setDiagnosis] = useState<LivingStoryDiagnosis | null>(null);
   const [simResult, setSimResult] = useState<{ contractEligible: boolean; reason: string; note: string } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const [testKind, setTestKind] = useState<string>('war_win');
   const [publicSource, setPublicSource] = useState(false);
   const [participant, setParticipant] = useState(true);
@@ -163,9 +165,17 @@ export function AdminLivingStoriesPanel() {
         </div>
         <button type="button" className="se-btn se-btn--secondary" disabled={busy || !ownerId || !storyKey || !validReason || !roundId}
           onClick={() => void work(async () => {
-            setSimResult(await livingStoryAdminApi.simulate({ roundId, ownerId, storyKey, eventKind: testKind,
-              publicSource, participant, reason: reason.trim() }));
+            const verdict = await livingStoryAdminApi.simulate({ roundId, ownerId, storyKey, eventKind: testKind,
+              publicSource, participant, reason: reason.trim() });
+            setSimResult(verdict);
+            setShowPreview(true);
           })}>Run audited, no-payout QA simulation</button>
+        <GameDialog open={showPreview && simResult !== null} title="QA story trigger preview"
+          description={`${overview?.catalog.find((item) => item.key === storyKey)?.title ?? storyKey}: ${simResult?.contractEligible ? 'A story alert would become eligible' : 'No story alert would appear'}.`}
+          onClose={() => setShowPreview(false)}
+          actions={<button className="se-btn se-btn--primary" type="button" onClick={() => setShowPreview(false)}>Back to diagnostics</button>}>
+          <p className="se-hint">{simResult?.reason}. This is an admin visual preview only. No case, evidence, message to players or payout was created.</p>
+        </GameDialog>
         {simResult ? <p role="status" className="se-hint">
           <strong>{simResult.contractEligible ? 'Hypothetical contract matches' : 'Hypothetical contract blocked'}</strong>
           · {simResult.reason}. {simResult.note}
