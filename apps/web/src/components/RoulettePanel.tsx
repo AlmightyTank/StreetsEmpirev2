@@ -336,6 +336,13 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
           {table ? (
             <>
               <div className="se-roulette__stage">
+                <div className="se-roulette__readout">
+                  <span><small>Bankroll</small><strong>{formatCents(bankrollCents)}</strong></span>
+                  <span><small>On table</small><strong>{formatCents(totalBetCents)}</strong></span>
+                  <span><small>Positions</small><strong>{bets.length}</strong></span>
+                  <span><small>Table max</small><strong>{formatCents(table.maxTotalBetCents)}</strong></span>
+                </div>
+
                 <div
                   className={'se-roulette__wheel' + (spinning ? ' is-spinning' : '')}
                   style={wheelStyle}
@@ -373,13 +380,6 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                       ? spinPhase === 'settling' ? 'NO MORE BETS' : 'SPINNING'
                       : lastSpin ? lastSpin.pocket : 'PLACE BETS'}
                   </div>
-                </div>
-
-                <div className="se-roulette__readout">
-                  <span><small>Bankroll</small><strong>{formatCents(bankrollCents)}</strong></span>
-                  <span><small>On table</small><strong>{formatCents(totalBetCents)}</strong></span>
-                  <span><small>Positions</small><strong>{bets.length}</strong></span>
-                  <span><small>Table max</small><strong>{formatCents(table.maxTotalBetCents)}</strong></span>
                 </div>
 
                 {state.history.length ? (

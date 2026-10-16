@@ -744,7 +744,10 @@
 
 .se-roulette__stage {
   display: grid;
-  grid-template-columns: minmax(16rem, .42fr) minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "readout wheel"
+    "history history";
   gap: 1rem 1.2rem;
   align-items: center;
   padding: 1rem;
@@ -755,14 +758,15 @@
     color-mix(in srgb, var(--se-surface) 94%, var(--se-bg));
 }
 .se-roulette__wheel {
-  --se-wheel-pocket-radius: 6.85rem;
+  grid-area: wheel;
+  --se-wheel-pocket-radius: 9.3rem;
   --se-ball-rail-right: -.08rem;
   --se-ball-mid-right: .22rem;
   --se-ball-near-right: .52rem;
   --se-ball-settle-right: .7rem;
   --se-ball-pocket-right: .78rem;
   position: relative;
-  width: min(17.5rem, 100%);
+  width: min(24rem, 100%);
   aspect-ratio: 1;
   justify-self: center;
   display: grid;
@@ -804,12 +808,12 @@
   left: 50%;
   display: grid;
   place-items: center;
-  width: 1.05rem;
-  height: 1.6rem;
+  width: clamp(1.2rem, 5.2%, 1.55rem);
+  height: clamp(1.7rem, 8%, 2.15rem);
   border: 0;
   color: #fff;
   font-family: var(--se-mono);
-  font-size: .56rem;
+  font-size: clamp(.68rem, 2.35%, .9rem);
   font-weight: 900;
   line-height: 1;
   text-shadow: 0 1px 0 rgb(0 0 0 / .45);
@@ -922,7 +926,13 @@
 .se-roulette__wheel-status.is-black { background: rgb(17 20 24 / .94); }
 .se-roulette__wheel-status.is-green { background: rgb(29 107 71 / .94); }
 
-.se-roulette__readout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.se-roulette__readout {
+  grid-area: readout;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .5rem;
+  min-width: 8.5rem;
+}
 .se-roulette__readout span {
   display: grid;
   gap: .08rem;
@@ -934,6 +944,7 @@
 .se-roulette__readout small { color: var(--se-muted); }
 .se-roulette__readout strong { font-family: var(--se-mono); font-variant-numeric: tabular-nums; }
 .se-roulette__history-strip {
+  grid-area: history;
   grid-column: 1 / -1;
   display: flex;
   gap: .3rem;
@@ -1176,24 +1187,28 @@
 @media (max-width: 620px) {
   .se-roulette { gap: .6rem; }
   .se-roulette__stage {
-    grid-template-columns: 7rem minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "wheel"
+      "readout"
+      "history";
     gap: .55rem;
     padding: .55rem;
   }
   .se-roulette__wheel {
-    --se-wheel-pocket-radius: 2.58rem;
+    --se-wheel-pocket-radius: min(9.3rem, 36vw);
     --se-ball-rail-right: -.04rem;
     --se-ball-mid-right: .08rem;
     --se-ball-near-right: .19rem;
     --se-ball-settle-right: .24rem;
     --se-ball-pocket-right: .28rem;
-    width: 6.75rem;
+    width: min(20rem, 100%);
     border-width: .28rem;
   }
-  .se-roulette__pocket { width: .45rem; height: .58rem; font-size: .3rem; }
-  .se-roulette__ball { right: .28rem; width: .52rem; }
+  .se-roulette__pocket { width: clamp(1rem, 5.2%, 1.35rem); height: clamp(1.45rem, 8%, 1.9rem); font-size: clamp(.56rem, 2.35%, .76rem); }
+  .se-roulette__ball { right: .28rem; width: .7rem; }
   .se-roulette__wheel-hub { border-width: 2px; }
-  .se-roulette__readout { gap: .3rem; }
+  .se-roulette__readout { grid-template-columns: 1fr; min-width: 0; gap: .3rem; }
   .se-roulette__readout span { padding: .38rem .42rem; }
   .se-roulette__readout small { font-size: .62rem; }
   .se-roulette__readout strong { font-size: .77rem; overflow-wrap: anywhere; }
