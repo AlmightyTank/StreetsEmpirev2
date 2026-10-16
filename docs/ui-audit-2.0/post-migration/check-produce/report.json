@@ -1,0 +1,130 @@
+[
+  {
+    "url": "/game/produce",
+    "finalPath": "/game/produce",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 14,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audithrbyst\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"+1\" 80x36",
+        "button.se-btn.se-btn \"+10\" 80x36",
+        "button.se-btn.se-btn \"+100\" 80x36",
+        "button.se-btn.se-btn \"Max\" 80x36",
+        "button.se-btn.se-btn \"Start Crack batch\" 178x40",
+        "button.se-btn.se-btn \"Change\" 73x36",
+        "button.se-btn.se-btn \"Change\" 73x36"
+      ],
+      "total": 28
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "label",
+        "impact": "critical",
+        "help": "Form elements must have labels",
+        "count": 1,
+        "targets": [
+          "#_r_0_"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/produce",
+    "finalPath": "/game/produce",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 13,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audithrbyst\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"+1\" 41x44",
+        "button.se-btn.se-btn \"Start Crack batch\" 178x40",
+        "button.se-btn.se-btn \"Change\" 73x36",
+        "button.se-btn.se-btn \"Change\" 73x36"
+      ],
+      "total": 29
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "label",
+        "impact": "critical",
+        "help": "Form elements must have labels",
+        "count": 1,
+        "targets": [
+          "#_r_0_"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/produce",
+    "finalPath": "/game/produce",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "label",
+        "impact": "critical",
+        "help": "Form elements must have labels",
+        "count": 1,
+        "targets": [
+          "#_r_0_"
+        ]
+      }
+    ]
+  }
+]

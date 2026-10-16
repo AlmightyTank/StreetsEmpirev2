@@ -103,6 +103,23 @@ describe('quest definition foundation', () => {
     ]);
   });
 
+  it('validates time and action availability gates', () => {
+    const broken = {
+      ...freshFaces,
+      prerequisites: [
+        { kind: 'TIME_SINCE_JOIN', params: { minutes: 0 } },
+        { kind: 'ACTION_COUNT', params: { eventTypes: [], count: 0, label: '' } },
+      ],
+    } as unknown as QuestDefinition;
+
+    expect(questDefinitionProblems({ FRESH_FACES: broken })).toEqual([
+      'FRESH_FACES: TIME_SINCE_JOIN requires positive whole minutes',
+      'FRESH_FACES: ACTION_COUNT requires a non-empty eventTypes string array',
+      'FRESH_FACES: ACTION_COUNT requires positive whole count',
+      'FRESH_FACES: ACTION_COUNT label must be a non-empty string',
+    ]);
+  });
+
   it('rejects malformed Phase B objective configuration', () => {
     const broken = {
       ...freshFaces,

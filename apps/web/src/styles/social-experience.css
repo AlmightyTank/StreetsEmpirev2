@@ -33,6 +33,7 @@
   letter-spacing: .08em;
   text-transform: uppercase;
 }
+.se-social-nav__item.is-active small { color: var(--se-text); }
 .se-social-nav__item strong { font-size: 12px; }
 .se-social-nav__item:focus-visible {
   outline: 2px solid var(--se-accent);

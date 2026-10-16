@@ -1,0 +1,6259 @@
+[
+  {
+    "url": "/",
+    "finalPath": "/",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 61x40",
+        "a.se-btn.se-btn--primary \"Register\" 75x40",
+        "a \"Forgot your password?\" 121x37",
+        "button.se-btn.se-btn \"Log in\" 340x40",
+        "a.se-btn.se-btn--discord \"Log in with Discord\" 340x40"
+      ],
+      "total": 10
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/",
+    "finalPath": "/",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 65x40",
+        "a.se-btn.se-btn--primary \"Register\" 79x40",
+        "a \"Forgot your password?\" 121x37",
+        "button.se-btn.se-btn \"Log in\" 331x40",
+        "a.se-btn.se-btn--discord \"Log in with Discord\" 331x40"
+      ],
+      "total": 10
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/",
+    "finalPath": "/",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/login",
+    "finalPath": "/login",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 61x40",
+        "a.se-btn.se-btn--primary \"Register\" 75x40",
+        "a \"Forgot your password?\" 121x37",
+        "button.se-btn.se-btn \"Log in\" 340x40",
+        "a.se-btn.se-btn--discord \"Log in with Discord\" 340x40"
+      ],
+      "total": 10
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/login",
+    "finalPath": "/login",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 65x40",
+        "a.se-btn.se-btn--primary \"Register\" 79x40",
+        "a \"Forgot your password?\" 121x37",
+        "button.se-btn.se-btn \"Log in\" 331x40",
+        "a.se-btn.se-btn--discord \"Log in with Discord\" 331x40"
+      ],
+      "total": 10
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/login",
+    "finalPath": "/login",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/register",
+    "finalPath": "/register",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 4,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 61x40",
+        "a.se-btn.se-btn--primary \"Register\" 75x40",
+        "button.se-btn.se-btn \"Create account\" 340x40",
+        "a.se-btn.se-btn--discord \"Continue with Discord\" 340x40"
+      ],
+      "total": 11
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/register",
+    "finalPath": "/register",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 4,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 65x40",
+        "a.se-btn.se-btn--primary \"Register\" 79x40",
+        "button.se-btn.se-btn \"Create account\" 331x40",
+        "a.se-btn.se-btn--discord \"Continue with Discord\" 331x40"
+      ],
+      "total": 11
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/register",
+    "finalPath": "/register",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/forgot-password",
+    "finalPath": "/forgot-password",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 3,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 61x40",
+        "a.se-btn.se-btn--primary \"Register\" 75x40",
+        "button.se-btn.se-btn \"Send recovery email\" 328x40"
+      ],
+      "total": 6
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/forgot-password",
+    "finalPath": "/forgot-password",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 3,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 65x40",
+        "a.se-btn.se-btn--primary \"Register\" 79x40",
+        "button.se-btn.se-btn \"Send recovery email\" 358x40"
+      ],
+      "total": 6
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/forgot-password",
+    "finalPath": "/forgot-password",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/reset-password",
+    "finalPath": "/reset-password",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 3,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 61x40",
+        "a.se-btn.se-btn--primary \"Register\" 75x40",
+        "button.se-btn.se-btn \"Reset password\" 328x40"
+      ],
+      "total": 7
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/reset-password",
+    "finalPath": "/reset-password",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 3,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 65x40",
+        "a.se-btn.se-btn--primary \"Register\" 79x40",
+        "button.se-btn.se-btn \"Reset password\" 358x40"
+      ],
+      "total": 7
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/reset-password",
+    "finalPath": "/reset-password",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/verify-email",
+    "finalPath": "/verify-email",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 4,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 61x40",
+        "a.se-btn.se-btn--primary \"Register\" 75x40",
+        "a.se-btn.se-btn--primary \"Account settings\" 174x40",
+        "a.se-btn.se-btn--ghost \"Back to game\" 141x40"
+      ],
+      "total": 6
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/verify-email",
+    "finalPath": "/verify-email",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 4,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 65x40",
+        "a.se-btn.se-btn--primary \"Register\" 79x40",
+        "a.se-btn.se-btn--primary \"Account settings\" 174x40",
+        "a.se-btn.se-btn--ghost \"Back to game\" 141x40"
+      ],
+      "total": 6
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/verify-email",
+    "finalPath": "/verify-email",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/join",
+    "finalPath": "/login",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 61x40",
+        "a.se-btn.se-btn--primary \"Register\" 75x40",
+        "a \"Forgot your password?\" 121x37",
+        "button.se-btn.se-btn \"Log in\" 340x40",
+        "a.se-btn.se-btn--discord \"Log in with Discord\" 340x40"
+      ],
+      "total": 10
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/join",
+    "finalPath": "/login",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 65x40",
+        "a.se-btn.se-btn--primary \"Register\" 79x40",
+        "a \"Forgot your password?\" 121x37",
+        "button.se-btn.se-btn \"Log in\" 331x40",
+        "a.se-btn.se-btn--discord \"Log in with Discord\" 331x40"
+      ],
+      "total": 10
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/join",
+    "finalPath": "/login",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/dev/ui",
+    "finalPath": "/dev/ui",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 17,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 61x40",
+        "a.se-btn.se-btn--primary \"Register\" 75x40",
+        "button.se-btn.se-btn--primary \"Open dialog\" 131x40",
+        "select#gallery-theme.se-input \"nonecasino-floorfederal-casemidnight-mar\" 340x43",
+        "select#gallery-accent.se-input \"defaultgoldgreenbluepurpleoriginal-neon\" 340x43",
+        "select#gallery-density.se-input \"comfortablecompact\" 340x43",
+        "button.is-active \"Overview\" 80x32",
+        "button \"Inventory\" 82x32",
+        "button \"Locked\" 66x32",
+        "button.se-btn \"Default\" 97x40",
+        "button.se-btn.se-btn--primary \"Primary\" 100x40",
+        "button.se-btn.se-btn--ghost \"Ghost\" 85x40",
+        "button.se-btn.se-btn--danger \"Danger\" 97x40",
+        "button.se-btn \"Loading: Working\" 125x40",
+        "button.se-btn \"Disabled\" 104x40",
+        "button.se-btn.se-btn--sm \"Manage\" 344x36",
+        "button.se-btn.se-btn--primary \"Get started\" 128x40"
+      ],
+      "total": 22
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/dev/ui",
+    "finalPath": "/dev/ui",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 17,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 65x40",
+        "a.se-btn.se-btn--primary \"Register\" 79x40",
+        "button.se-btn.se-btn--primary \"Open dialog\" 131x40",
+        "select#gallery-theme.se-input \"nonecasino-floorfederal-casemidnight-mar\" 227x41",
+        "select#gallery-accent.se-input \"defaultgoldgreenbluepurpleoriginal-neon\" 227x41",
+        "select#gallery-density.se-input \"comfortablecompact\" 227x41",
+        "button.is-active \"Overview\" 80x32",
+        "button \"Inventory\" 82x32",
+        "button \"Locked\" 66x32",
+        "button.se-btn \"Default\" 97x40",
+        "button.se-btn.se-btn--primary \"Primary\" 100x40",
+        "button.se-btn.se-btn--ghost \"Ghost\" 85x40",
+        "button.se-btn.se-btn--danger \"Danger\" 97x40",
+        "button.se-btn \"Loading: Working\" 125x40",
+        "button.se-btn \"Disabled\" 104x40",
+        "button.se-btn.se-btn--sm \"Manage\" 76x36",
+        "button.se-btn.se-btn--primary \"Get started\" 128x40"
+      ],
+      "total": 22
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/dev/ui",
+    "finalPath": "/dev/ui",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game",
+    "finalPath": "/game",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 24,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn--ghost \"Hide\" 54x36",
+        "a \"Meet your first contact\" 180x40",
+        "a \"Open your first front\" 272x40",
+        "a \"Make a street decision\" 288x40",
+        "a \"Choose what they call you\" 280x40",
+        "button.se-btn.se-btn--primary \"Start the tour\" 121x36",
+        "button.se-btn.se-btn--ghost \"Skip\" 51x36",
+        "a \"Details →\" 48x32",
+        "a \"Produce →\" 54x32",
+        "a \"Restock →\" 52x32",
+        "a \"View turf →\" 59x32",
+        "a.se-btn.se-btn--ghost \"See Ledger’s jobs\" 168x40",
+        "button.se-btn.se-btn \"Retain 7 days · $25,000\" 166x36",
+        "button.se-btn.se-btn \"Hire · $20,000 a week\" 159x36",
+        "button.se-btn.se-btn \"The federal sweep · $25,000\" 197x36",
+        "button.se-btn.se-btn \"Payout is 50%\" 324x40",
+        "a.se-btn.se-btn--primary \"Upgrade hideout\" 169x40",
+        "a.se-btn.se-btn--ghost \"Full activity log\" 135x36"
+      ],
+      "total": 65
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game",
+    "finalPath": "/game",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 27,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn--ghost \"Hide\" 54x36",
+        "a \"Meet your first contact\" 180x40",
+        "a \"Open your first front\" 181x40",
+        "a \"Make a street decision\" 181x40",
+        "a \"Choose what they call you\" 181x40",
+        "button.se-btn.se-btn--primary \"Start the tour\" 121x36",
+        "button.se-btn.se-btn--ghost \"Skip\" 51x36",
+        "a.se-btn.se-btn--primary \"Start mission\" 149x42",
+        "a.se-dashboard-story__all \"All quests →\" 63x24",
+        "a \"Details →\" 48x32",
+        "a \"Produce →\" 54x32",
+        "a \"Restock →\" 52x32",
+        "a \"View turf →\" 59x32",
+        "a.se-btn.se-btn--ghost \"See Ledger’s jobs\" 168x40",
+        "button.se-btn.se-btn \"Retain 7 days · $25,000\" 166x36",
+        "button.se-btn.se-btn \"The federal sweep · $25,000\" 197x36",
+        "button.se-btn.se-btn \"Payout is 50%\" 684x40"
+      ],
+      "total": 66
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game",
+    "finalPath": "/game",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/scout",
+    "finalPath": "/game/scout",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 19,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-scout-intel__turf-link \"Review this district on Turf ↗\" 342x40",
+        "button.se-btn.se-btn \"+1\" 80x36",
+        "button.se-btn.se-btn \"+10\" 80x36",
+        "button.se-btn.se-btn \"+100\" 80x36",
+        "button.se-btn.se-btn \"Max\" 80x36",
+        "button.se-btn.se-btn \"Send crew scouting\" 192x40",
+        "g \"Midtown Back Rooms. Covered. 100% crew c\" 77x38",
+        "g \"Meatpacking After Dark. Covered. 100% cr\" 77x38",
+        "g \"Lower East Side Walkups. Covered. 100% c\" 77x38",
+        "g \"South Bronx Blocks. Covered. 100% crew c\" 77x38",
+        "g \"Bowery Row. Covered. 100% crew covered.\" 77x38",
+        "button.se-tip \"About this: Beer and weapons affect thug\" 24x24",
+        "button.se-btn.se-btn \"Change\" 73x36"
+      ],
+      "total": 36
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 6,
+        "targets": [
+          ".se-action-readiness__item:nth-child(1) > span",
+          ".se-action-readiness__item:nth-child(2) > span",
+          ".se-action-readiness__item:nth-child(2) > small"
+        ]
+      },
+      {
+        "id": "label",
+        "impact": "critical",
+        "help": "Form elements must have labels",
+        "count": 1,
+        "targets": [
+          "#turns-to-spend"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/scout",
+    "finalPath": "/game/scout",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 13,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-scout-intel__turf-link \"Review this district on Turf ↗\" 702x40",
+        "button.se-btn.se-btn \"+1\" 41x44",
+        "button.se-btn.se-btn \"Send crew scouting\" 192x40",
+        "button.se-tip \"About this: Beer and weapons affect thug\" 24x24",
+        "button.se-btn.se-btn \"Change\" 73x36"
+      ],
+      "total": 37
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "label",
+        "impact": "critical",
+        "help": "Form elements must have labels",
+        "count": 1,
+        "targets": [
+          "#turns-to-spend"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/scout",
+    "finalPath": "/game/scout",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 6,
+        "targets": [
+          ".se-action-readiness__item:nth-child(1) > span",
+          ".se-action-readiness__item:nth-child(2) > span",
+          ".se-action-readiness__item:nth-child(2) > small"
+        ]
+      },
+      {
+        "id": "label",
+        "impact": "critical",
+        "help": "Form elements must have labels",
+        "count": 1,
+        "targets": [
+          "#turns-to-spend"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/produce",
+    "finalPath": "/game/produce",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 14,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"+1\" 80x36",
+        "button.se-btn.se-btn \"+10\" 80x36",
+        "button.se-btn.se-btn \"+100\" 80x36",
+        "button.se-btn.se-btn \"Max\" 80x36",
+        "button.se-btn.se-btn \"Start Crack batch\" 178x40",
+        "button.se-btn.se-btn \"Change\" 73x36",
+        "button.se-btn.se-btn \"Change\" 73x36"
+      ],
+      "total": 28
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 5,
+        "targets": [
+          ".se-action-readiness__item:nth-child(1) > span",
+          ".se-action-readiness__item--good > span",
+          ".se-action-readiness__item:nth-child(3) > span"
+        ]
+      },
+      {
+        "id": "label",
+        "impact": "critical",
+        "help": "Form elements must have labels",
+        "count": 1,
+        "targets": [
+          "#turns-to-spend"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/produce",
+    "finalPath": "/game/produce",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 13,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"+1\" 41x44",
+        "button.se-btn.se-btn \"Start Crack batch\" 178x40",
+        "button.se-btn.se-btn \"Change\" 73x36",
+        "button.se-btn.se-btn \"Change\" 73x36"
+      ],
+      "total": 29
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "label",
+        "impact": "critical",
+        "help": "Form elements must have labels",
+        "count": 1,
+        "targets": [
+          "#turns-to-spend"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/produce",
+    "finalPath": "/game/produce",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 5,
+        "targets": [
+          ".se-action-readiness__item:nth-child(1) > span",
+          ".se-action-readiness__item--good > span",
+          ".se-action-readiness__item:nth-child(3) > span"
+        ]
+      },
+      {
+        "id": "label",
+        "impact": "critical",
+        "help": "Form elements must have labels",
+        "count": 1,
+        "targets": [
+          "#turns-to-spend"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/combat",
+    "finalPath": "/game/combat",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 20,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"Refresh street\" 120x36",
+        "button.se-seg__btn.se-seg__btn--on \"Raid\" 110x38",
+        "button.se-seg__btn \"Drive-by\" 110x38",
+        "button.se-seg__btn \"Drug hoes\" 110x38",
+        "button.se-seg__btn \"Steal ride\" 110x38",
+        "button.se-seg__btn \"Lure crew\" 110x38",
+        "button.se-btn.se-btn \"Recon · 2 turns\" 318x36",
+        "button.se-btn.se-btn \"+1\" 41x38",
+        "button.se-btn.se-btn \"+5\" 41x38",
+        "button.se-btn.se-btn \"+10\" 48x38",
+        "button.se-btn.se-btn \"Max\" 52x38",
+        "button.se-btn.se-btn \"Launch raid\" 133x40",
+        "a \"Pip’s\" 32x44"
+      ],
+      "total": 32
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 7,
+        "targets": [
+          ".se-action-readiness__item:nth-child(1) > span",
+          ".se-action-readiness__item:nth-child(2) > span",
+          ".se-action-readiness__item--good > span"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/combat",
+    "finalPath": "/game/combat",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 25,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"Refresh street\" 120x36",
+        "button.se-seg__btn.se-seg__btn--on \"Raid\" 136x38",
+        "button.se-seg__btn \"Drive-by\" 136x38",
+        "button.se-seg__btn \"Drug hoes\" 136x38",
+        "button.se-seg__btn \"Steal ride\" 136x38",
+        "button.se-seg__btn \"Lure crew\" 136x38",
+        "button.se-btn.se-btn \"Recon · 2 turns\" 678x36",
+        "button.se-btn.se-btn \"+1\" 41x34",
+        "button.se-btn.se-btn \"+5\" 41x34",
+        "button.se-btn.se-btn \"+10\" 48x34",
+        "button.se-btn.se-btn \"Max\" 52x34",
+        "button.se-btn.se-btn \"Launch raid\" 170x40",
+        "a \"Pip’s\" 32x44",
+        "button.se-btn.se-btn \"Supply\" 68x36",
+        "button.se-btn.se-btn \"Supply\" 68x36",
+        "button.se-btn.se-btn \"Supply\" 68x36"
+      ],
+      "total": 36
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/combat",
+    "finalPath": "/game/combat",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 6,
+        "targets": [
+          ".se-action-readiness__item:nth-child(1) > span",
+          ".se-action-readiness__item:nth-child(2) > span",
+          ".se-action-readiness__item--good > span"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/quests",
+    "finalPath": "/game/quests",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 26,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"Refresh jobs\" 338x36",
+        "button.se-quest-detail-toggle \"Hide job details−\" 344x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40"
+      ],
+      "total": 52
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/quests",
+    "finalPath": "/game/quests",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 39,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"Refresh jobs\" 107x36",
+        "button.se-quest-detail-toggle \"Hide job details−\" 710x40",
+        "button.se-btn.se-btn \"Accept job\" 94x38",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-btn.se-btn \"Accept job\" 94x38",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-btn.se-btn \"Accept job\" 94x38",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-btn.se-btn \"Accept job\" 94x38"
+      ],
+      "total": 53
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/quests",
+    "finalPath": "/game/quests",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/events",
+    "finalPath": "/game/events",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 10,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn \"Active 0\" 182x40",
+        "button.se-btn.se-btn \"Upcoming 2\" 182x40",
+        "button.se-btn.se-btn \"Completed 0\" 182x40",
+        "button.se-btn.se-btn \"Claimed 0\" 182x40",
+        "a.se-btn.se-btn--ghost \"Browse jobs\" 133x40"
+      ],
+      "total": 24
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/events",
+    "finalPath": "/game/events",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 12,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn \"Active 0\" 102x40",
+        "button.se-btn.se-btn \"Upcoming 2\" 130x40",
+        "button.se-btn.se-btn \"Completed 0\" 135x40",
+        "button.se-btn.se-btn \"Claimed 0\" 115x40",
+        "a.se-btn.se-btn--ghost \"Browse jobs\" 133x40"
+      ],
+      "total": 25
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/events",
+    "finalPath": "/game/events",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/xp-progress",
+    "finalPath": "/game/xp-progress",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 6,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-btn.se-btn--secondary \"View cosmetics\" 155x40"
+      ],
+      "total": 20
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/xp-progress",
+    "finalPath": "/game/xp-progress",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 7,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32"
+      ],
+      "total": 21
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/xp-progress",
+    "finalPath": "/game/xp-progress",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/surveys",
+    "finalPath": "/game/news",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "button.se-tag.se-tag--warn \"All\" 34x21",
+        "button.se-tag \"Street stories\" 98x21",
+        "button.se-tag \"Official\" 63x21"
+      ],
+      "small": 7,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-survey-tab.se-survey-tab--active \"Available 0\" 133x40",
+        "button.se-survey-tab \"Completed 0\" 133x40"
+      ],
+      "total": 23
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/surveys",
+    "finalPath": "/game/news",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "button.se-tag.se-tag--warn \"All\" 34x21",
+        "button.se-tag \"Street stories\" 98x21",
+        "button.se-tag \"Official\" 63x21"
+      ],
+      "small": 9,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-survey-tab.se-survey-tab--active \"Available 0\" 133x40",
+        "button.se-survey-tab \"Completed 0\" 133x40"
+      ],
+      "total": 24
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/surveys",
+    "finalPath": "/game/news",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".is-active > small"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/hideout",
+    "finalPath": "/game/hideout",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 19,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a \"Overview\" 181x35",
+        "a \"Upgrades 4\" 181x35",
+        "a \"Security\" 181x34",
+        "a \"Operations\" 181x34",
+        "button.se-btn.se-btn \"Upgrade Safe Room\" 338x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 342x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 342x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 342x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 342x40",
+        "button.se-btn.se-btn \"Need $25,000\" 342x40",
+        "button.se-btn.se-btn \"Power First\" 129x40",
+        "button.se-btn.se-btn \"Conserve Premium\" 344x40"
+      ],
+      "total": 27
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".se-hideout-chip"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/hideout",
+    "finalPath": "/game/hideout",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 19,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a \"Overview\" 87x35",
+        "a \"Upgrades 4\" 115x35",
+        "a \"Security\" 81x35",
+        "a \"Operations\" 101x35",
+        "button.se-btn.se-btn \"Upgrade Safe Room\" 704x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 330x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 330x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 330x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 330x40",
+        "button.se-btn.se-btn \"Need $25,000\" 330x40"
+      ],
+      "total": 28
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/hideout",
+    "finalPath": "/game/hideout",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/street-pass",
+    "finalPath": "/game/street-pass",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32"
+      ],
+      "total": 21
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "help": "Scrollable region must have keyboard access",
+        "count": 1,
+        "targets": [
+          "ol"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/street-pass",
+    "finalPath": "/game/street-pass",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 7,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32"
+      ],
+      "total": 22
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "help": "Scrollable region must have keyboard access",
+        "count": 1,
+        "targets": [
+          "ol"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/street-pass",
+    "finalPath": "/game/street-pass",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "help": "Scrollable region must have keyboard access",
+        "count": 1,
+        "targets": [
+          "ol"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/collection",
+    "finalPath": "/game/collection",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 8,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--sm \"Stop preview\" 109x36",
+        "button.se-collection-showcase__arrow \"Previous theme\" 40x40",
+        "button.se-collection-showcase__arrow \"Next theme\" 40x40"
+      ],
+      "total": 27
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/collection",
+    "finalPath": "/game/collection",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 10,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--sm \"Stop preview\" 109x36",
+        "button.se-collection-showcase__arrow \"Previous theme\" 40x40",
+        "button.se-collection-showcase__arrow \"Next theme\" 40x40"
+      ],
+      "total": 28
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/collection",
+    "finalPath": "/game/collection",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/supporter",
+    "finalPath": "/game/supporter",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 8,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-btn.se-btn--primary \"Manage or start support\" 235x40",
+        "a.se-btn.se-btn--ghost \"Preview your profile\" 200x40",
+        "button.se-btn.se-btn \"Gift month\" 125x40"
+      ],
+      "total": 17
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/supporter",
+    "finalPath": "/game/supporter",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 10,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "a.se-btn.se-btn--primary \"Manage or start support\" 235x40",
+        "a.se-btn.se-btn--ghost \"Preview your profile\" 200x40",
+        "button.se-btn.se-btn \"Gift month\" 125x40"
+      ],
+      "total": 18
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/supporter",
+    "finalPath": "/game/supporter",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/casino",
+    "finalPath": "/game/casino",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 8,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn \"Get on the floor\" 209x40",
+        "a.se-btn.se-btn--ghost \"See Ace’s jobs\" 344x40",
+        "button.se-btn.se-btn--small \"Refresh standings\" 181x40"
+      ],
+      "total": 28
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/casino",
+    "finalPath": "/game/casino",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 10,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn \"Get on the floor\" 169x40",
+        "a.se-btn.se-btn--ghost \"See Ace’s jobs\" 710x40",
+        "button.se-btn.se-btn--small \"Refresh standings\" 181x40"
+      ],
+      "total": 29
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/casino",
+    "finalPath": "/game/casino",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/casino/slots",
+    "finalPath": "/game/casino/slots",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 16,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn \"Buy chips\" 243x40",
+        "button.se-btn.se-btn \"Redeem chips\" 243x40",
+        "button.se-btn.se-btn--ghost \"Sound on\" 97x40",
+        "button.se-btn.se-btn--sm \"Decrease bet per line\" 34x38",
+        "button.se-btn.se-btn--sm \"Increase bet per line\" 162x38",
+        "button.se-btn.se-btn--sm \"Max\" 52x38",
+        "button.se-btn.se-btn--sm \"Fewer paylines\" 34x38",
+        "button.se-btn.se-btn--sm \"More paylines\" 34x38",
+        "button.se-btn.se-btn \"Pull to spin\" 130x40"
+      ],
+      "total": 47
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/casino/slots",
+    "finalPath": "/game/casino/slots",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 18,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn--ghost \"Sound on\" 112x40",
+        "button.se-btn.se-btn--sm \"Decrease bet per line\" 34x34",
+        "button.se-btn.se-btn--sm \"Increase bet per line\" 34x34",
+        "button.se-btn.se-btn--sm \"Max\" 52x34",
+        "button.se-btn.se-btn--sm \"Fewer paylines\" 34x34",
+        "button.se-btn.se-btn--sm \"More paylines\" 34x34",
+        "button.se-btn.se-btn \"Pull to spin\" 170x40",
+        "button.se-btn.se-btn--ghost \"5 lines\" 89x40",
+        "button.se-btn.se-btn--ghost \"Max lines\" 112x40"
+      ],
+      "total": 48
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/casino/slots",
+    "finalPath": "/game/casino/slots",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/casino/blackjack",
+    "finalPath": "/game/casino/blackjack",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 13,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn \"Buy chips\" 243x40",
+        "button.se-btn.se-btn \"Redeem chips\" 243x40",
+        "button.se-btn.se-btn--sm \"Lower the bet\" 34x38",
+        "button.se-btn.se-btn--sm \"Raise the bet\" 162x38",
+        "button.se-btn.se-btn--sm \"Max\" 52x38",
+        "button.se-btn.se-btn \"Deal\" 73x40"
+      ],
+      "total": 37
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/casino/blackjack",
+    "finalPath": "/game/casino/blackjack",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 13,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn--sm \"Lower the bet\" 34x34",
+        "button.se-btn.se-btn--sm \"Raise the bet\" 34x34",
+        "button.se-btn.se-btn--sm \"Max\" 52x34",
+        "button.se-btn.se-btn \"Deal\" 170x40"
+      ],
+      "total": 38
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/casino/blackjack",
+    "finalPath": "/game/casino/blackjack",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/casino/roulette",
+    "finalPath": "/game/casino/roulette",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 65,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn \"Buy chips\" 243x40",
+        "button.se-btn.se-btn \"Redeem chips\" 243x40",
+        "button.se-roulette__chip.is-selected \"$5\" 54x36",
+        "button.se-roulette__chip \"$10\" 54x36",
+        "button.se-roulette__chip \"$25\" 54x36",
+        "button.se-roulette__chip \"$50\" 54x36",
+        "button.se-roulette__chip \"$125\" 54x36",
+        "button.se-roulette__chip \"$250\" 54x36",
+        "button.is-red \"1\" 34x38",
+        "button.is-black \"2\" 34x38",
+        "button.is-red \"3\" 34x38",
+        "button.is-black \"4\" 34x38",
+        "button.is-red \"5\" 34x38",
+        "button.is-black \"6\" 34x38",
+        "button.is-red \"7\" 34x38",
+        "button.is-black \"8\" 34x38",
+        "button.is-red \"9\" 34x38",
+        "button.is-black \"10\" 34x38"
+      ],
+      "total": 94
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "target-size",
+        "impact": "serious",
+        "help": "All touch targets must be 24px large, or leave sufficient space",
+        "count": 3,
+        "targets": [
+          ".is-red[type=\"button\"]:nth-child(34)",
+          ".is-black[type=\"button\"]:nth-child(35)",
+          ".is-red[type=\"button\"]:nth-child(36)"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/casino/roulette",
+    "finalPath": "/game/casino/roulette",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 53,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-roulette__chip.is-selected \"$5\" 58x41",
+        "button.se-roulette__chip \"$10\" 58x41",
+        "button.se-roulette__chip \"$25\" 58x41",
+        "button.se-roulette__chip \"$50\" 58x41",
+        "button.se-roulette__chip \"$125\" 58x41",
+        "button.se-roulette__chip \"$250\" 58x41",
+        "button.is-red \"1\" 43x45",
+        "button.is-black \"2\" 43x45",
+        "button.is-red \"3\" 43x45",
+        "button.is-black \"4\" 43x45",
+        "button.is-red \"5\" 43x45",
+        "button.is-black \"6\" 43x45",
+        "button.is-red \"7\" 43x45",
+        "button.is-black \"8\" 43x45",
+        "button.is-red \"9\" 43x45",
+        "button.is-black \"10\" 43x45"
+      ],
+      "total": 95
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 2,
+        "targets": [
+          ".is-green.se-roulette__pocket:nth-child(20)",
+          ".is-red.se-roulette__pocket:nth-child(21)"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/casino/roulette",
+    "finalPath": "/game/casino/roulette",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/casino/street-dice",
+    "finalPath": "/game/casino/street-dice",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 12,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn \"Buy chips\" 243x40",
+        "button.se-btn.se-btn \"Redeem chips\" 243x40",
+        "button.se-btn.se-btn--sm \"Decrease line\" 34x38",
+        "button.se-btn.se-btn--sm \"Increase line\" 162x38",
+        "button.se-btn.se-btn--sm \"Max\" 52x38"
+      ],
+      "total": 35
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/casino/street-dice",
+    "finalPath": "/game/casino/street-dice",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 12,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn--sm \"Decrease line\" 34x34",
+        "button.se-btn.se-btn--sm \"Increase line\" 34x34",
+        "button.se-btn.se-btn--sm \"Max\" 52x34"
+      ],
+      "total": 36
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/casino/street-dice",
+    "finalPath": "/game/casino/street-dice",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/casino/poker",
+    "finalPath": "/game/casino/poker",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 12,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn \"Buy chips\" 243x40",
+        "button.se-btn.se-btn \"Redeem chips\" 243x40",
+        "button.se-btn.se-btn \"Sit down and deal\" 344x40",
+        "button.se-btn.se-btn \"Create table\" 344x42",
+        "button.se-btn.se-btn \"Join private table\" 344x42"
+      ],
+      "total": 35
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/casino/poker",
+    "finalPath": "/game/casino/poker",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 11,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn \"Sit down and deal\" 368x40",
+        "button.se-btn.se-btn \"Create table\" 138x42"
+      ],
+      "total": 36
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/casino/poker",
+    "finalPath": "/game/casino/poker",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/casino/sportsbook",
+    "finalPath": "/game/casino/sportsbook",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 22,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn \"Buy chips\" 243x40",
+        "button.se-btn.se-btn \"Redeem chips\" 243x40",
+        "button.se-sportsbook__league.is-active \"All0\" 56x36",
+        "button.se-sportsbook__league \"NFL0\" 65x36",
+        "button.se-sportsbook__league \"NBA0\" 68x36",
+        "button.se-sportsbook__league \"MLB0\" 68x36",
+        "button.se-sportsbook__league \"NHL0\" 68x36",
+        "button.se-sportsbook__chip \"$10\" 49x36",
+        "button.se-sportsbook__chip \"$25\" 49x36",
+        "button.se-sportsbook__chip \"$100\" 56x36",
+        "button.se-sportsbook__chip \"$500\" 56x36",
+        "button.se-sportsbook__chip \"Max\" 52x36",
+        "button.se-btn.se-btn \"Place ticket\" 342x40",
+        "button#sb-tab-open.se-sportsbook__league.is-active \"Open0\" 75x36",
+        "button#sb-tab-settled.se-sportsbook__league \"Settled0\" 84x36"
+      ],
+      "total": 41
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/casino/sportsbook",
+    "finalPath": "/game/casino/sportsbook",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 22,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-sportsbook__league.is-active \"All0\" 56x36",
+        "button.se-sportsbook__league \"NFL0\" 65x36",
+        "button.se-sportsbook__league \"NBA0\" 68x36",
+        "button.se-sportsbook__league \"MLB0\" 68x36",
+        "button.se-sportsbook__league \"NHL0\" 68x36",
+        "button.se-sportsbook__chip \"$10\" 49x36",
+        "button.se-sportsbook__chip \"$25\" 49x36",
+        "button.se-sportsbook__chip \"$100\" 56x36",
+        "button.se-sportsbook__chip \"$500\" 56x36",
+        "button.se-sportsbook__chip \"Max\" 52x36",
+        "button.se-btn.se-btn \"Place ticket\" 708x40",
+        "button#sb-tab-open.se-sportsbook__league.is-active \"Open0\" 75x36",
+        "button#sb-tab-settled.se-sportsbook__league \"Settled0\" 84x36"
+      ],
+      "total": 42
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/casino/sportsbook",
+    "finalPath": "/game/casino/sportsbook",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/products",
+    "finalPath": "/game/stores/pip",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": true,
+    "scrollWidth": 413,
+    "viewport": 390,
+    "wide": [
+      "nav.se-tabbar \"Game tabs\" (right edge 413px)",
+      "button.se-tabbar__tab \"More\" (right edge 409px)"
+    ],
+    "targets": {
+      "fail": [],
+      "small": 41,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-storetabs__tab \"Corner\" 89x42",
+        "a.se-storetabs__tab \"Tommy’s\" 89x42",
+        "a.se-storetabs__tab \"Charlie’s\" 89x42",
+        "a.se-storetabs__tab.se-storetabs__tab--active \"Pip’s\" 89x42",
+        "input#store-shelf-search.se-input \"Search this store...\" 344x43",
+        "button.se-stores-filter.se-stores-filter--active \"All\" 61x40",
+        "button.se-stores-filter \"Available\" 94x40",
+        "button.se-stores-filter \"Locked\" 83x40",
+        "button.se-stores-filter \"Sold out\" 90x40",
+        "button.se-btn.se-btn \"+1\" 82x30",
+        "button.se-btn.se-btn \"+10\" 82x30",
+        "button.se-btn.se-btn \"+100\" 82x30",
+        "button.se-btn.se-btn \"Max\" 82x30",
+        "button.se-btn.se-btn \"+1\" 82x30",
+        "button.se-btn.se-btn \"+10\" 82x30",
+        "button.se-btn.se-btn \"+100\" 82x30",
+        "button.se-btn.se-btn \"Max\" 82x30",
+        "button.se-btn.se-btn \"Max\" 44x30"
+      ],
+      "total": 80
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".se-stores-filter--active"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/products",
+    "finalPath": "/game/stores/pip",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": true,
+    "scrollWidth": 787,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 51,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "input#store-shelf-search.se-input \"Search this store...\" 233x40",
+        "button.se-stores-filter.se-stores-filter--active \"All\" 36x38",
+        "button.se-stores-filter \"Available\" 69x38",
+        "button.se-stores-filter \"Locked\" 58x38",
+        "button.se-stores-filter \"Sold out\" 66x38",
+        "button.se-btn.se-btn \"+1\" 33x30",
+        "button.se-btn.se-btn \"+10\" 40x30",
+        "button.se-btn.se-btn \"+100\" 46x30",
+        "button.se-btn.se-btn \"Max\" 44x30",
+        "button.se-btn.se-btn \"Buy · $10\" 165x39",
+        "button.se-btn.se-btn \"Add to basket\" 165x39",
+        "button.se-btn.se-btn \"+1\" 33x30",
+        "button.se-btn.se-btn \"+10\" 40x30",
+        "button.se-btn.se-btn \"+100\" 46x30",
+        "button.se-btn.se-btn \"Max\" 44x30",
+        "button.se-btn.se-btn \"Buy · $8\" 165x39"
+      ],
+      "total": 81
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/products",
+    "finalPath": "/game/stores/pip",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/stores",
+    "finalPath": "/game/stores/corner",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 30,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-storetabs__tab.se-storetabs__tab--active \"Corner\" 89x42",
+        "a.se-storetabs__tab \"Tommy’s\" 89x42",
+        "a.se-storetabs__tab \"Charlie’s\" 89x42",
+        "a.se-storetabs__tab \"Pip’s\" 89x42",
+        "input#store-shelf-search.se-input \"Search this store...\" 344x43",
+        "button.se-stores-filter.se-stores-filter--active \"All\" 61x40",
+        "button.se-stores-filter \"Available\" 94x40",
+        "button.se-stores-filter \"Locked\" 83x40",
+        "button.se-stores-filter \"Sold out\" 90x40",
+        "button.se-btn.se-btn \"+1\" 65x30",
+        "button.se-btn.se-btn \"+10\" 65x30",
+        "button.se-btn.se-btn \"+100\" 65x30",
+        "button.se-btn.se-btn \"+1,000\" 65x30",
+        "button.se-btn.se-btn \"Max\" 65x30",
+        "button.se-btn.se-btn \"+1\" 82x30",
+        "button.se-btn.se-btn \"+10\" 82x30",
+        "button.se-btn.se-btn \"+100\" 82x30",
+        "button.se-btn.se-btn \"Max\" 82x30"
+      ],
+      "total": 53
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".se-stores-filter--active"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/stores",
+    "finalPath": "/game/stores/corner",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 34,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "input#store-shelf-search.se-input \"Search this store...\" 233x40",
+        "button.se-stores-filter.se-stores-filter--active \"All\" 36x38",
+        "button.se-stores-filter \"Available\" 69x38",
+        "button.se-stores-filter \"Locked\" 58x38",
+        "button.se-stores-filter \"Sold out\" 66x38",
+        "button.se-btn.se-btn \"+1\" 33x30",
+        "button.se-btn.se-btn \"+10\" 40x30",
+        "button.se-btn.se-btn \"+100\" 46x30",
+        "button.se-btn.se-btn \"+1,000\" 57x30",
+        "button.se-btn.se-btn \"Max\" 44x30",
+        "button.se-btn.se-btn \"Buy · $1\" 165x39",
+        "button.se-btn.se-btn \"Add to basket\" 165x39",
+        "button.se-btn.se-btn \"+1\" 33x30",
+        "button.se-btn.se-btn \"+10\" 40x30",
+        "button.se-btn.se-btn \"+100\" 46x30",
+        "button.se-btn.se-btn \"Max\" 44x30"
+      ],
+      "total": 54
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/stores",
+    "finalPath": "/game/stores/corner",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/stores/pip",
+    "finalPath": "/game/stores/pip",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": true,
+    "scrollWidth": 413,
+    "viewport": 390,
+    "wide": [
+      "nav.se-tabbar \"Game tabs\" (right edge 413px)",
+      "button.se-tabbar__tab \"More\" (right edge 409px)"
+    ],
+    "targets": {
+      "fail": [],
+      "small": 41,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-storetabs__tab \"Corner\" 89x42",
+        "a.se-storetabs__tab \"Tommy’s\" 89x42",
+        "a.se-storetabs__tab \"Charlie’s\" 89x42",
+        "a.se-storetabs__tab.se-storetabs__tab--active \"Pip’s\" 89x42",
+        "input#store-shelf-search.se-input \"Search this store...\" 344x43",
+        "button.se-stores-filter.se-stores-filter--active \"All\" 61x40",
+        "button.se-stores-filter \"Available\" 94x40",
+        "button.se-stores-filter \"Locked\" 83x40",
+        "button.se-stores-filter \"Sold out\" 90x40",
+        "button.se-btn.se-btn \"+1\" 82x30",
+        "button.se-btn.se-btn \"+10\" 82x30",
+        "button.se-btn.se-btn \"+100\" 82x30",
+        "button.se-btn.se-btn \"Max\" 82x30",
+        "button.se-btn.se-btn \"+1\" 82x30",
+        "button.se-btn.se-btn \"+10\" 82x30",
+        "button.se-btn.se-btn \"+100\" 82x30",
+        "button.se-btn.se-btn \"Max\" 82x30",
+        "button.se-btn.se-btn \"Max\" 44x30"
+      ],
+      "total": 80
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".se-stores-filter--active"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/stores/pip",
+    "finalPath": "/game/stores/pip",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": true,
+    "scrollWidth": 787,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 51,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "input#store-shelf-search.se-input \"Search this store...\" 233x40",
+        "button.se-stores-filter.se-stores-filter--active \"All\" 36x38",
+        "button.se-stores-filter \"Available\" 69x38",
+        "button.se-stores-filter \"Locked\" 58x38",
+        "button.se-stores-filter \"Sold out\" 66x38",
+        "button.se-btn.se-btn \"+1\" 33x30",
+        "button.se-btn.se-btn \"+10\" 40x30",
+        "button.se-btn.se-btn \"+100\" 46x30",
+        "button.se-btn.se-btn \"Max\" 44x30",
+        "button.se-btn.se-btn \"Buy · $10\" 165x39",
+        "button.se-btn.se-btn \"Add to basket\" 165x39",
+        "button.se-btn.se-btn \"+1\" 33x30",
+        "button.se-btn.se-btn \"+10\" 40x30",
+        "button.se-btn.se-btn \"+100\" 46x30",
+        "button.se-btn.se-btn \"Max\" 44x30",
+        "button.se-btn.se-btn \"Buy · $8\" 165x39"
+      ],
+      "total": 81
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/stores/pip",
+    "finalPath": "/game/stores/pip",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/stores/charlie",
+    "finalPath": "/game/stores/charlie",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 8,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"Retry loading\" 117x36"
+      ],
+      "total": 16
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/stores/charlie",
+    "finalPath": "/game/stores/charlie",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 20,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "input#store-shelf-search.se-input \"Search this store...\" 233x40",
+        "button.se-stores-filter.se-stores-filter--active \"All\" 36x38",
+        "button.se-stores-filter \"Available\" 69x38",
+        "button.se-stores-filter \"Locked\" 58x38",
+        "button.se-stores-filter \"Sold out\" 66x38",
+        "button.se-btn.se-btn \"+1\" 33x30",
+        "button.se-btn.se-btn \"Max\" 44x30",
+        "button.se-btn.se-btn \"Buy · $5,000\" 165x39",
+        "button.se-btn.se-btn \"Add to basket\" 165x39",
+        "a.se-golink \"“Pack Your Bags”\" 85x40",
+        "a.se-golink \"“Heavy Haul”\" 69x40"
+      ],
+      "total": 36
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/stores/charlie",
+    "finalPath": "/game/stores/charlie",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/stores/iron-maya",
+    "finalPath": "/game/stores/iron-maya",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 11,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-storetabs__tab \"Corner\" 89x42",
+        "a.se-storetabs__tab \"Tommy’s\" 89x42",
+        "a.se-storetabs__tab \"Charlie’s\" 89x42",
+        "a.se-storetabs__tab \"Pip’s\" 89x42"
+      ],
+      "total": 19
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/stores/iron-maya",
+    "finalPath": "/game/stores/iron-maya",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 9,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40"
+      ],
+      "total": 20
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/stores/iron-maya",
+    "finalPath": "/game/stores/iron-maya",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/supply",
+    "finalPath": "/game/supply",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32"
+      ],
+      "total": 13
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/supply",
+    "finalPath": "/game/supply",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 7,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/supply",
+    "finalPath": "/game/supply",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/holdings",
+    "finalPath": "/game/holdings",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32"
+      ],
+      "total": 13
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/holdings",
+    "finalPath": "/game/holdings",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 7,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/holdings",
+    "finalPath": "/game/holdings",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/loans",
+    "finalPath": "/game/loans",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32"
+      ],
+      "total": 13
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/loans",
+    "finalPath": "/game/loans",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 7,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/loans",
+    "finalPath": "/game/loans",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/dealers",
+    "finalPath": "/game/dealers",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32"
+      ],
+      "total": 13
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/dealers",
+    "finalPath": "/game/dealers",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 7,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/dealers",
+    "finalPath": "/game/dealers",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/crew",
+    "finalPath": "/game/crew",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32"
+      ],
+      "total": 13
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/crew",
+    "finalPath": "/game/crew",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 7,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/crew",
+    "finalPath": "/game/crew",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/travel",
+    "finalPath": "/game/travel",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 32,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "g \"New York City, home\" 44x33",
+        "g \"Detroit\" 32x33",
+        "g \"Miami Beach\" 49x25",
+        "g \"Seattle\" 53x25",
+        "g \"San Francisco\" 31x25",
+        "g \"Las Vegas\" 65x25",
+        "g \"Los Angeles\" 33x25",
+        "g \"Atlanta\" 54x25",
+        "button.se-citypicker__city.se-citypicker__city--on \"New York\" 83x30",
+        "button.se-citypicker__city \"Detroit\" 83x30",
+        "button.se-citypicker__city \"Miami\" 83x30",
+        "button.se-citypicker__city \"Seattle\" 83x30",
+        "button.se-citypicker__city \"SF\" 83x30",
+        "button.se-citypicker__city \"Las Vegas\" 83x30",
+        "button.se-citypicker__city \"LA\" 83x30",
+        "button.se-citypicker__city \"Atlanta\" 83x30",
+        "button.se-travel-cityline__toggle \"City intel\" 68x26",
+        "button.se-btn.se-btn \"Recon the area · 2 turns\" 184x36"
+      ],
+      "total": 60
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/travel",
+    "finalPath": "/game/travel",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 26,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-citypicker__city.se-citypicker__city--on \"New York\" 84x30",
+        "button.se-citypicker__city \"Detroit\" 84x30",
+        "button.se-citypicker__city \"Miami\" 84x30",
+        "button.se-citypicker__city \"Seattle\" 84x30",
+        "button.se-citypicker__city \"SF\" 84x30",
+        "button.se-citypicker__city \"Las Vegas\" 84x30",
+        "button.se-citypicker__city \"LA\" 84x30",
+        "button.se-citypicker__city \"Atlanta\" 84x30",
+        "button.se-travel-cityline__toggle \"City intel\" 68x26",
+        "button.se-btn.se-btn \"Recon the area · 2 turns\" 184x36",
+        "button.se-travel-tabs__tab.is-active \"Runs0/1\" 90x40",
+        "button.se-travel-tabs__tab \"Garage\" 83x40",
+        "button.se-travel-tabs__tab \"Boss trip\" 97x40",
+        "button.se-travel-tabs__tab \"Move house\" 116x40",
+        "a.se-golink \"Garage\" 41x40",
+        "input#run-ride-along 710x28"
+      ],
+      "total": 61
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/travel",
+    "finalPath": "/game/travel",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/turf",
+    "finalPath": "/game/turf",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 17,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-btn.se-btn--ghost \"Travel / roads\" 120x36",
+        "g \"Midtown Back Rooms. Local control. Local\" 73x36",
+        "g \"Meatpacking After Dark. Local control. L\" 73x36",
+        "g \"Lower East Side Walkups. Local control. \" 73x36",
+        "g \"South Bronx Blocks. Local control. Local\" 73x36",
+        "g \"Bowery Row. Local control. Locals hold t\" 73x36",
+        "a.se-citymap-brief__action \"Jump to district actions ↓\" 324x36",
+        "a.se-turfboard__scout-link \"Scout this district ↗\" 316x36",
+        "input.se-input 316x43",
+        "button.se-btn.se-btn \"Claim with 10\" 316x36"
+      ],
+      "total": 39
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/turf",
+    "finalPath": "/game/turf",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 14,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-btn.se-btn--ghost \"Travel / roads\" 120x36",
+        "a.se-citymap-brief__action \"Jump to district actions ↓\" 334x36",
+        "a.se-turfboard__scout-link \"Scout this district ↗\" 682x36",
+        "input.se-input 682x40",
+        "button.se-btn.se-btn \"Claim with 10\" 114x36"
+      ],
+      "total": 40
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/turf",
+    "finalPath": "/game/turf",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/operations",
+    "finalPath": "/game/operations",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 6,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn \"Start operation\" 344x40"
+      ],
+      "total": 16
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/operations",
+    "finalPath": "/game/operations",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 8,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn \"Start operation\" 163x40"
+      ],
+      "total": 17
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/operations",
+    "finalPath": "/game/operations",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/black-book",
+    "finalPath": "/game/black-book",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 6,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-btn.se-btn--primary \"Investigate a rival\" 184x40"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/black-book",
+    "finalPath": "/game/black-book",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 8,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "a.se-btn.se-btn--primary \"Investigate a rival\" 184x40"
+      ],
+      "total": 15
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/black-book",
+    "finalPath": "/game/black-book",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/rankings",
+    "finalPath": "/game/rankings",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "a \"Open Game #004 - Strategy Raids records \" 265x16",
+        "a.se-aftermath-archive-link \"Browse, filter, and compare every archiv\" 249x16"
+      ],
+      "small": 6,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40"
+      ],
+      "total": 42
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 14,
+        "targets": [
+          ".se-rankings-row--1.se-rankings-row:nth-child(2) > .se-td--title > .se-rankings-player[data-profile-hover-trigger=\"\"] > .se-rankings-player__avatar[aria-hidden=\"true\"]",
+          ".se-rankings-row--1.se-rankings-row:nth-child(3) > .se-td--title > .se-rankings-player[data-profile-hover-trigger=\"\"] > .se-rankings-player__avatar[aria-hidden=\"true\"]",
+          ".se-rankings-row--1.se-rankings-row:nth-child(4) > .se-td--title > .se-rankings-player[data-profile-hover-trigger=\"\"] > .se-rankings-player__avatar[aria-hidden=\"true\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/rankings",
+    "finalPath": "/game/rankings",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "a \"Open Game #004 - Strategy Raids records \" 265x16",
+        "a.se-aftermath-archive-link \"Browse, filter, and compare every archiv\" 249x16"
+      ],
+      "small": 13,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-rankings-tabs__tab.se-rankings-tabs__tab--active \"National16\" 241x42",
+        "button.se-rankings-tabs__tab \"New York City16\" 241x42",
+        "button.se-rankings-tabs__tab \"Alliances0\" 241x42",
+        "button.se-rankings-tabs__tab \"Turf crews0\" 241x42",
+        "button.se-rankings-tabs__tab \"Turf alliances0\" 241x42"
+      ],
+      "total": 43
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/rankings",
+    "finalPath": "/game/rankings",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".is-active > small"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/players",
+    "finalPath": "/game/players",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 83,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "input.se-input \"Name, crew, #1042, or alliance\" 370x43",
+        "button.se-btn.se-btn--primary \"Search\" 91x40",
+        "button.se-players-tabs__tab.se-players-tabs__tab--active \"All16\" 370x40",
+        "button.se-players-tabs__tab \"My city16\" 370x40",
+        "button.se-players-tabs__tab \"Alliance0\" 370x40",
+        "button.se-players-tabs__tab \"Near rank16\" 370x40",
+        "button.se-players-tabs__tab \"Encountered0\" 370x40",
+        "button.se-players-tabs__tab \"Active15\" 370x40",
+        "a.se-playerlink \"Test\" 29x44",
+        "a.se-btn.se-btn--ghost \"Profile\" 272x36",
+        "a.se-btn.se-btn--ghost \"Message\" 272x36",
+        "button.se-btn.se-btn \"Add contact\" 272x36",
+        "button.se-btn.se-btn \"Add enemy\" 272x36",
+        "a.se-btn.se-btn--ghost \"Profile\" 272x36",
+        "a.se-btn.se-btn--ghost \"Message\" 272x36",
+        "button.se-btn.se-btn \"Add contact\" 272x36",
+        "button.se-btn.se-btn \"Add enemy\" 272x36",
+        "a.se-btn.se-btn--ghost \"Profile\" 272x36",
+        "a.se-btn.se-btn--ghost \"Message\" 272x36"
+      ],
+      "total": 114
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/players",
+    "finalPath": "/game/players",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 23,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "input.se-input \"Name, crew, #1042, or alliance\" 639x40",
+        "button.se-btn.se-btn--primary \"Search\" 91x40",
+        "button.se-players-tabs__tab.se-players-tabs__tab--active \"All\" 242x40",
+        "button.se-players-tabs__tab \"My city\" 242x40",
+        "button.se-players-tabs__tab \"Alliance\" 242x40",
+        "button.se-players-tabs__tab \"Near rank\" 242x40",
+        "button.se-players-tabs__tab \"Encountered\" 242x40",
+        "button.se-players-tabs__tab \"Active\" 242x40",
+        "input.se-input \"Name, #, city, alliance, or note\" 736x40",
+        "button.se-contacts-tabs__tab.se-contacts-tabs__tab--active \"All0\" 143x40",
+        "button.se-contacts-tabs__tab \"Contacts0\" 143x40",
+        "button.se-contacts-tabs__tab \"Enemies0\" 143x40",
+        "button.se-contacts-tabs__tab \"Alliance0\" 143x40",
+        "button.se-contacts-tabs__tab \"Blocked0\" 143x40",
+        "button.se-btn.se-btn \"Add contact\" 338x40"
+      ],
+      "total": 38
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/players",
+    "finalPath": "/game/players",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".is-active > small"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/alliance",
+    "finalPath": "/game/alliance",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 9,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-btn.se-btn--ghost \"Alliance rankings\" 144x36",
+        "button.se-btn.se-btn \"Found alliance\" 344x40"
+      ],
+      "total": 24
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/alliance",
+    "finalPath": "/game/alliance",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 11,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-btn.se-btn--ghost \"Alliance rankings\" 144x36",
+        "button.se-btn.se-btn \"Found alliance\" 710x40"
+      ],
+      "total": 25
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/alliance",
+    "finalPath": "/game/alliance",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".is-active > small"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/alliances",
+    "finalPath": "/game/alliance",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 9,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-btn.se-btn--ghost \"Alliance rankings\" 144x36",
+        "button.se-btn.se-btn \"Found alliance\" 344x40"
+      ],
+      "total": 24
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/alliances",
+    "finalPath": "/game/alliance",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 11,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-btn.se-btn--ghost \"Alliance rankings\" 144x36",
+        "button.se-btn.se-btn \"Found alliance\" 710x40"
+      ],
+      "total": 25
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/alliances",
+    "finalPath": "/game/alliance",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".is-active > small"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/contacts",
+    "finalPath": "/game/players",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 83,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "input.se-input \"Name, crew, #1042, or alliance\" 370x43",
+        "button.se-btn.se-btn--primary \"Search\" 91x40",
+        "button.se-players-tabs__tab.se-players-tabs__tab--active \"All16\" 370x40",
+        "button.se-players-tabs__tab \"My city16\" 370x40",
+        "button.se-players-tabs__tab \"Alliance0\" 370x40",
+        "button.se-players-tabs__tab \"Near rank16\" 370x40",
+        "button.se-players-tabs__tab \"Encountered0\" 370x40",
+        "button.se-players-tabs__tab \"Active15\" 370x40",
+        "a.se-playerlink \"Test\" 29x44",
+        "a.se-btn.se-btn--ghost \"Profile\" 272x36",
+        "a.se-btn.se-btn--ghost \"Message\" 272x36",
+        "button.se-btn.se-btn \"Add contact\" 272x36",
+        "button.se-btn.se-btn \"Add enemy\" 272x36",
+        "a.se-btn.se-btn--ghost \"Profile\" 272x36",
+        "a.se-btn.se-btn--ghost \"Message\" 272x36",
+        "button.se-btn.se-btn \"Add contact\" 272x36",
+        "button.se-btn.se-btn \"Add enemy\" 272x36",
+        "a.se-btn.se-btn--ghost \"Profile\" 272x36",
+        "a.se-btn.se-btn--ghost \"Message\" 272x36"
+      ],
+      "total": 114
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/contacts",
+    "finalPath": "/game/players",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "a.se-playerlink \"Test\" 21x44"
+      ],
+      "small": 84,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "input.se-input \"Name, crew, #1042, or alliance\" 639x40",
+        "button.se-btn.se-btn--primary \"Search\" 91x40",
+        "button.se-players-tabs__tab.se-players-tabs__tab--active \"All16\" 242x40",
+        "button.se-players-tabs__tab \"My city16\" 242x40",
+        "button.se-players-tabs__tab \"Alliance0\" 242x40",
+        "button.se-players-tabs__tab \"Near rank16\" 242x40",
+        "button.se-players-tabs__tab \"Encountered0\" 242x40",
+        "button.se-players-tabs__tab \"Active15\" 242x40",
+        "a.se-btn.se-btn--ghost \"Profile\" 72x36",
+        "a.se-btn.se-btn--ghost \"Message\" 78x36",
+        "button.se-btn.se-btn \"Add contact\" 107x36",
+        "button.se-btn.se-btn \"Add enemy\" 94x36",
+        "a.se-btn.se-btn--ghost \"Profile\" 72x36",
+        "a.se-btn.se-btn--ghost \"Message\" 78x36",
+        "button.se-btn.se-btn \"Add contact\" 107x36",
+        "button.se-btn.se-btn \"Add enemy\" 94x36",
+        "a.se-btn.se-btn--ghost \"Profile\" 72x36"
+      ],
+      "total": 115
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/contacts",
+    "finalPath": "/game/players",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".is-active > small"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/console",
+    "finalPath": "/game/console",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 16,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-console-tab.se-console-tab--active \"Messages0\" 183x42",
+        "button.se-console-tab \"Dispatches\" 183x42",
+        "button.se-console-tab \"Alliance Wire\" 183x42",
+        "a.se-console-tab.se-console-tab--link \"Find Players↗\" 183x42",
+        "summary.se-console-tab \"More sections\" 183x42",
+        "button \"Muted & blocked 0\" 208x34",
+        "button \"Inbox\" 182x34",
+        "button \"Archive 0\" 182x34",
+        "button.se-btn.se-btn--primary \"New message\" 370x40",
+        "button.se-btn.se-btn--primary \"Compose\" 104x40"
+      ],
+      "total": 29
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/console",
+    "finalPath": "/game/console",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 18,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-console-tab.se-console-tab--active \"Messages0\" 143x42",
+        "button.se-console-tab \"Dispatches\" 143x42",
+        "button.se-console-tab \"Alliance Wire\" 143x42",
+        "a.se-console-tab.se-console-tab--link \"Find Players↗\" 143x42",
+        "summary.se-console-tab \"More sections\" 143x42",
+        "button \"Muted & blocked 0\" 208x34",
+        "button \"Inbox\" 47x34",
+        "button \"Archive 0\" 67x34",
+        "button.se-btn.se-btn--primary \"New message\" 137x40",
+        "button.se-btn.se-btn--primary \"Compose\" 104x40"
+      ],
+      "total": 30
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/console",
+    "finalPath": "/game/console",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [
+      "Too many requests. Try again in 1 seconds.",
+      "Too many requests. Try again in 1 seconds."
+    ],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": false,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/profile",
+    "finalPath": "/game/profile",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 25,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-btn.se-btn--ghost \"Customize appearance\" 166x39",
+        "button.se-seg__btn.se-seg__btn--on \"All\" 169x30",
+        "button.se-seg__btn \"Earned\" 169x30",
+        "button.se-seg__btn \"Locked\" 169x30",
+        "button.se-seg__btn.se-seg__btn--on \"All\" 169x30",
+        "button.se-seg__btn \"Rank\" 169x30",
+        "button.se-seg__btn \"Wealth\" 169x30",
+        "button.se-seg__btn \"Street\" 169x30",
+        "button.se-seg__btn \"Combat\" 169x30",
+        "button.se-seg__btn \"Intel\" 169x30",
+        "button.se-seg__btn \"Turf\" 169x30",
+        "button.se-seg__btn \"Travel\" 169x30",
+        "button.se-seg__btn \"Economy\" 169x30",
+        "button.se-seg__btn \"Reputation\" 169x30",
+        "button.se-seg__btn \"Hideout\" 169x30",
+        "button.se-seg__btn \"Quest\" 169x30",
+        "button.se-seg__btn \"Casino\" 169x30",
+        "button.se-seg__btn \"Law\" 169x30",
+        "button.se-seg__btn \"Legacy\" 169x30",
+        "button.se-btn.se-btn--ghost \"Show 77\" 78x36"
+      ],
+      "total": 39
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/profile",
+    "finalPath": "/game/profile",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 27,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "a.se-btn.se-btn--ghost \"Customize appearance\" 170x36",
+        "button.se-seg__btn.se-seg__btn--on \"All\" 31x30",
+        "button.se-seg__btn \"Earned\" 49x30",
+        "button.se-seg__btn \"Locked\" 50x30",
+        "button.se-seg__btn.se-seg__btn--on \"All\" 31x30",
+        "button.se-seg__btn \"Rank\" 41x30",
+        "button.se-seg__btn \"Wealth\" 50x30",
+        "button.se-seg__btn \"Street\" 45x30",
+        "button.se-seg__btn \"Combat\" 53x30",
+        "button.se-seg__btn \"Intel\" 39x30",
+        "button.se-seg__btn \"Turf\" 37x30",
+        "button.se-seg__btn \"Travel\" 45x30",
+        "button.se-seg__btn \"Economy\" 59x30",
+        "button.se-seg__btn \"Reputation\" 67x30",
+        "button.se-seg__btn \"Hideout\" 54x30",
+        "button.se-seg__btn \"Quest\" 45x30",
+        "button.se-seg__btn \"Casino\" 48x30",
+        "button.se-seg__btn \"Law\" 37x30"
+      ],
+      "total": 40
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/profile",
+    "finalPath": "/game/profile",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/news",
+    "finalPath": "/game/news",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "button.se-tag.se-tag--warn \"All\" 34x21",
+        "button.se-tag \"Street stories\" 98x21",
+        "button.se-tag \"Official\" 63x21"
+      ],
+      "small": 7,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-survey-tab.se-survey-tab--active \"Available 0\" 133x40",
+        "button.se-survey-tab \"Completed 0\" 133x40"
+      ],
+      "total": 23
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/news",
+    "finalPath": "/game/news",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "button.se-tag.se-tag--warn \"All\" 34x21",
+        "button.se-tag \"Street stories\" 98x21",
+        "button.se-tag \"Official\" 63x21"
+      ],
+      "small": 9,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-survey-tab.se-survey-tab--active \"Available 0\" 133x40",
+        "button.se-survey-tab \"Completed 0\" 133x40"
+      ],
+      "total": 24
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/news",
+    "finalPath": "/game/news",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".is-active > small"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/status",
+    "finalPath": "/game/status",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 8,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-btn.se-btn--primary \"Open raids\" 121x40",
+        "a.se-btn \"Read the wire\" 145x40",
+        "button.se-btn.se-btn \"Send report\" 131x40"
+      ],
+      "total": 19
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/status",
+    "finalPath": "/game/status",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 10,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "a.se-btn.se-btn--primary \"Open raids\" 121x40",
+        "a.se-btn \"Read the wire\" 145x40",
+        "button.se-btn.se-btn \"Send report\" 131x40"
+      ],
+      "total": 20
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/status",
+    "finalPath": "/game/status",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/rules",
+    "finalPath": "/game/rules",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 21,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--ghost \"Replay the tutorial\" 153x36",
+        "a \"01 Fair seasons\" 175x34",
+        "a \"02 Turns\" 175x34",
+        "a \"03 Crew\" 175x34",
+        "a \"04 Shops\" 175x34",
+        "a \"05 Working blocks\" 175x34",
+        "a \"06 Products & Heat\" 175x34",
+        "a \"07 Raids\" 175x34",
+        "a \"08 The road\" 175x34",
+        "a \"09 Boss trips\" 175x34",
+        "a \"10 Turf\" 175x34",
+        "a \"11 Businesses\" 175x34",
+        "a \"12 The law\" 175x34",
+        "a \"13 Factions\" 175x34",
+        "a \"14 Money & rank\" 175x34",
+        "a \"15 Guided tour\" 175x34"
+      ],
+      "total": 29
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/rules",
+    "finalPath": "/game/rules",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 23,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--ghost \"Replay the tutorial\" 153x36",
+        "a \"01 Fair seasons\" 140x34",
+        "a \"02 Turns\" 140x34",
+        "a \"03 Crew\" 140x34",
+        "a \"04 Shops\" 140x34",
+        "a \"05 Working blocks\" 140x34",
+        "a \"06 Products & Heat\" 140x34",
+        "a \"07 Raids\" 140x34",
+        "a \"08 The road\" 140x34",
+        "a \"09 Boss trips\" 140x34",
+        "a \"10 Turf\" 140x34",
+        "a \"11 Businesses\" 140x34",
+        "a \"12 The law\" 140x34",
+        "a \"13 Factions\" 140x34",
+        "a \"14 Money & rank\" 140x34",
+        "a \"15 Guided tour\" 140x34"
+      ],
+      "total": 30
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/rules",
+    "finalPath": "/game/rules",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/report-bug",
+    "finalPath": "/game/report-bug",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 6,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn \"Send report\" 131x40"
+      ],
+      "total": 17
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/report-bug",
+    "finalPath": "/game/report-bug",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 8,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn \"Send report\" 131x40"
+      ],
+      "total": 18
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/report-bug",
+    "finalPath": "/game/report-bug",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/hall-of-fame",
+    "finalPath": "/game/hall-of-fame",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "a.se-aftermath-archive-link \"Browse, filter, and compare every archiv\" 249x16"
+      ],
+      "small": 5,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/hall-of-fame",
+    "finalPath": "/game/hall-of-fame",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "a.se-aftermath-archive-link \"Browse, filter, and compare every archiv\" 249x16"
+      ],
+      "small": 7,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32"
+      ],
+      "total": 15
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/hall-of-fame",
+    "finalPath": "/game/hall-of-fame",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/round-archive",
+    "finalPath": "/game/round-archive",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "a.se-aftermath-archive-link \"Open permanent round report →\" 161x16",
+        "a.se-aftermath-archive-link \"Open permanent round report →\" 161x16"
+      ],
+      "small": 13,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn \"Copy archive link\" 174x40",
+        "input \"Search rounds\" 161x40",
+        "input \"Any year\" 161x40",
+        "select \"All report statesFrozen report available\" 161x40",
+        "select \"Newest firstOldest first\" 161x40",
+        "button.se-btn.se-btn--primary \"Apply filters\" 336x40",
+        "button.se-btn \"Previous\" 106x40",
+        "button.se-btn \"Next\" 74x40"
+      ],
+      "total": 25
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/round-archive",
+    "finalPath": "/game/round-archive",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "a.se-aftermath-archive-link \"Open permanent round report →\" 161x16",
+        "a.se-aftermath-archive-link \"Open permanent round report →\" 161x16"
+      ],
+      "small": 14,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn \"Copy archive link\" 174x40",
+        "input \"Search rounds\" 130x40",
+        "input \"Any year\" 130x40",
+        "select \"All report statesFrozen report available\" 130x40",
+        "select \"Newest firstOldest first\" 130x40",
+        "button.se-btn \"Previous\" 106x40",
+        "button.se-btn \"Next\" 74x40"
+      ],
+      "total": 26
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/round-archive",
+    "finalPath": "/game/round-archive",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/blocks",
+    "finalPath": "/game/turf",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 17,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-btn.se-btn--ghost \"Travel / roads\" 120x36",
+        "g \"Midtown Back Rooms. Local control. Local\" 73x36",
+        "g \"Meatpacking After Dark. Local control. L\" 73x36",
+        "g \"Lower East Side Walkups. Local control. \" 73x36",
+        "g \"South Bronx Blocks. Local control. Local\" 73x36",
+        "g \"Bowery Row. Local control. Locals hold t\" 73x36",
+        "a.se-citymap-brief__action \"Jump to district actions ↓\" 324x36",
+        "a.se-turfboard__scout-link \"Scout this district ↗\" 316x36",
+        "input.se-input 316x43",
+        "button.se-btn.se-btn \"Claim with 10\" 316x36"
+      ],
+      "total": 39
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/blocks",
+    "finalPath": "/game/turf",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 14,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-btn.se-btn--ghost \"Travel / roads\" 120x36",
+        "a.se-citymap-brief__action \"Jump to district actions ↓\" 334x36",
+        "a.se-turfboard__scout-link \"Scout this district ↗\" 682x36",
+        "input.se-input 682x40",
+        "button.se-btn.se-btn \"Claim with 10\" 114x36"
+      ],
+      "total": 40
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/blocks",
+    "finalPath": "/game/turf",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/cities",
+    "finalPath": "/game/travel",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 7,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40"
+      ],
+      "total": 15
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/cities",
+    "finalPath": "/game/travel",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 26,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-citypicker__city.se-citypicker__city--on \"New York\" 84x30",
+        "button.se-citypicker__city \"Detroit\" 84x30",
+        "button.se-citypicker__city \"Miami\" 84x30",
+        "button.se-citypicker__city \"Seattle\" 84x30",
+        "button.se-citypicker__city \"SF\" 84x30",
+        "button.se-citypicker__city \"Las Vegas\" 84x30",
+        "button.se-citypicker__city \"LA\" 84x30",
+        "button.se-citypicker__city \"Atlanta\" 84x30",
+        "button.se-travel-cityline__toggle \"City intel\" 68x26",
+        "button.se-btn.se-btn \"Recon the area · 2 turns\" 184x36",
+        "button.se-travel-tabs__tab.is-active \"Runs0/1\" 90x40",
+        "button.se-travel-tabs__tab \"Garage\" 83x40",
+        "button.se-travel-tabs__tab \"Boss trip\" 97x40",
+        "button.se-travel-tabs__tab \"Move house\" 116x40",
+        "a.se-golink \"Garage\" 41x40",
+        "input#run-ride-along 710x28"
+      ],
+      "total": 61
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/cities",
+    "finalPath": "/game/travel",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/activity",
+    "finalPath": "/game/console",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 26,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-console-tab \"Messages0\" 183x42",
+        "button.se-console-tab.se-console-tab--active \"Dispatches\" 183x42",
+        "button.se-console-tab \"Alliance Wire\" 183x42",
+        "a.se-console-tab.se-console-tab--link \"Find Players↗\" 183x42",
+        "summary.se-console-tab \"More sections\" 183x42",
+        "button \"Muted & blocked 0\" 208x34",
+        "button \"Alerts0\" 182x34",
+        "button \"Operations1\" 182x34",
+        "button \"Attacks0\" 182x34",
+        "button.se-btn.se-btn--primary \"New message\" 370x40",
+        "button.se-console-filter.se-console-filter--active \"All1\" 174x32",
+        "button.se-console-filter \"Attacks0\" 174x32",
+        "button.se-console-filter \"Turf0\" 174x32",
+        "button.se-console-filter \"Travel0\" 174x32",
+        "button.se-console-filter \"Market0\" 174x32",
+        "button.se-console-filter \"Progress0\" 174x32",
+        "button.se-console-filter \"Street0\" 174x32",
+        "button.se-console-filter \"System1\" 174x32",
+        "a.se-btn.se-btn--primary \"Open report\" 169x36"
+      ],
+      "total": 40
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/activity",
+    "finalPath": "/game/console",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 28,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-console-tab \"Messages0\" 143x42",
+        "button.se-console-tab.se-console-tab--active \"Dispatches\" 143x42",
+        "button.se-console-tab \"Alliance Wire\" 143x42",
+        "a.se-console-tab.se-console-tab--link \"Find Players↗\" 143x42",
+        "summary.se-console-tab \"More sections\" 143x42",
+        "button \"Muted & blocked 0\" 208x34",
+        "button \"Alerts0\" 60x34",
+        "button \"Operations1\" 83x34",
+        "button \"Attacks0\" 66x34",
+        "button.se-btn.se-btn--primary \"New message\" 137x40",
+        "button.se-console-filter.se-console-filter--active \"All1\" 57x32",
+        "button.se-console-filter \"Attacks0\" 57x32",
+        "button.se-console-filter \"Turf0\" 57x32",
+        "button.se-console-filter \"Travel0\" 57x32",
+        "button.se-console-filter \"Market0\" 57x32",
+        "button.se-console-filter \"Progress0\" 57x32",
+        "button.se-console-filter \"Street0\" 57x32"
+      ],
+      "total": 41
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/activity",
+    "finalPath": "/game/console",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".is-active > small"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/reputation",
+    "finalPath": "/game/quests",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 27,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"Refresh jobs\" 338x36",
+        "button.se-quest-detail-toggle \"Hide job details−\" 344x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 326x40"
+      ],
+      "total": 53
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/reputation",
+    "finalPath": "/game/quests",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 40,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"Refresh jobs\" 107x36",
+        "button.se-quest-detail-toggle \"Hide job details−\" 710x40",
+        "button.se-btn.se-btn \"Accept job\" 94x38",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-btn.se-btn \"Accept job\" 94x38",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-btn.se-btn \"Accept job\" 94x38",
+        "button.se-quest-detail-toggle \"View objectives, rewards & story+\" 684x40",
+        "button.se-btn.se-btn \"Accept job\" 94x38"
+      ],
+      "total": 54
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/reputation",
+    "finalPath": "/game/quests",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/account",
+    "finalPath": "/account",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 60,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-btn.se-btn--ghost \"View public profile\" 302x36",
+        "a \"01Account\" 85x42",
+        "a \"02Connections\" 110x42",
+        "a \"03Alerts\" 72x42",
+        "a \"04Security\" 84x42",
+        "a \"05Game\" 70x42",
+        "a \"06Profile & look\" 119x42",
+        "a \"07Data & privacy\" 124x42",
+        "button.se-btn.se-btn \"Change name\" 344x40",
+        "button.se-btn.se-btn \"Email me a link\" 344x40",
+        "button.se-btn.se-btn \"Change password\" 344x40",
+        "a.se-btn.se-btn--discord \"Link Discord\" 135x40",
+        "button.se-btn.se-btn \"Connect this device\" 191x40",
+        "input \"Attacks on me in the bell\" 24x24",
+        "input \"Attacks on me on phone and Discord\" 24x24",
+        "input \"Block being pushed in the bell\" 24x24",
+        "input \"Block being pushed on phone and Discord\" 24x24",
+        "input \"My turf in the bell\" 24x24",
+        "input \"My turf on phone and Discord\" 24x24",
+        "input \"Revenge expiring in the bell\" 24x24"
+      ],
+      "total": 121
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 18,
+        "targets": [
+          "label[for=\"item-cosmetic-pistol\"]",
+          "label[for=\"item-cosmetic-shotgun\"]",
+          "label[for=\"item-cosmetic-tek9\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/account",
+    "finalPath": "/account",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 62,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "a.se-btn.se-btn--ghost \"View public profile\" 644x36",
+        "a \"01Account\" 85x35",
+        "a \"02Connections\" 110x35",
+        "a \"03Alerts\" 72x35",
+        "a \"04Security\" 84x35",
+        "a \"05Game\" 70x35",
+        "a \"06Profile & look\" 119x35",
+        "a \"07Data & privacy\" 124x35",
+        "button.se-btn.se-btn \"Change name\" 335x40",
+        "button.se-btn.se-btn \"Email me a link\" 335x40",
+        "button.se-btn.se-btn \"Change password\" 335x40",
+        "a.se-btn.se-btn--discord \"Link Discord\" 135x40",
+        "button.se-btn.se-btn \"Connect this device\" 191x40",
+        "input \"Attacks on me in the bell\" 24x24",
+        "input \"Attacks on me on phone and Discord\" 24x24",
+        "input \"Block being pushed in the bell\" 24x24",
+        "input \"Block being pushed on phone and Discord\" 24x24",
+        "input \"My turf in the bell\" 24x24"
+      ],
+      "total": 122
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/account",
+    "finalPath": "/account",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 18,
+        "targets": [
+          "label[for=\"item-cosmetic-pistol\"]",
+          "label[for=\"item-cosmetic-shotgun\"]",
+          "label[for=\"item-cosmetic-tek9\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/account/forum-link",
+    "finalPath": "/account/forum-link",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "a \"Cancel / account settings\" 155x19"
+      ],
+      "small": 4,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40"
+      ],
+      "total": 8
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/account/forum-link",
+    "finalPath": "/account/forum-link",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [
+        "a \"Cancel / account settings\" 155x19"
+      ],
+      "small": 6,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit3g5h90\" 40x40"
+      ],
+      "total": 9
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/account/forum-link",
+    "finalPath": "/account/forum-link",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  }
+]

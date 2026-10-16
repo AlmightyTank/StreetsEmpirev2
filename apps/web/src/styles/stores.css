@@ -1,5 +1,8 @@
 .se-stores {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
+  overflow: clip;
   gap: 16px;
 }
 
@@ -1023,7 +1026,7 @@
 .se-stores-filter--active:hover {
   border-color: rgba(var(--se-accent-rgb), .5);
   background: rgba(var(--se-accent-rgb), .12);
-  color: var(--se-accent);
+  color: var(--se-text);
 }
 
 .se-stores-toolbar__count {

@@ -42,6 +42,10 @@
 }
 
 .se-playerlink {
+  display: inline-flex;
+  align-items: center;
+  min-inline-size: 24px;
+  min-block-size: 24px;
   color: var(--se-text);
   font-weight: 650;
   text-decoration: none;

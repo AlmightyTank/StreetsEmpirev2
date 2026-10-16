@@ -710,9 +710,9 @@
   text-shadow: 0 1px 0 rgb(0 0 0 / .45);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 .04rem .1rem rgb(0 0 0 / .35);
 }
-.se-roulette__pocket.is-red { background: #f15b3d; }
+.se-roulette__pocket.is-red { background: #a93429; }
 .se-roulette__pocket.is-black { background: #283036; }
-.se-roulette__pocket.is-green { background: #4c9e54; }
+.se-roulette__pocket.is-green { background: #286b36; }
 .se-roulette__pocket::after {
   content: "";
   position: absolute;
@@ -1088,7 +1088,9 @@
   .se-roulette__chip { min-width: 3.2rem; min-height: 2.25rem; padding: .28rem .4rem; font-size: .7rem; }
 
   .se-roulette__felt {
-    grid-template-columns: 2.75rem minmax(28rem, 1fr);
+    /* Reserve the number grid plus its 2-to-1 column so the final three
+       number targets are not covered by the adjacent controls. */
+    grid-template-columns: 2.75rem minmax(31rem, 1fr);
     gap: .25rem;
     padding: .38rem;
     overflow-x: auto;

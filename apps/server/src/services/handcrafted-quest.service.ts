@@ -318,6 +318,33 @@ interface QuestContext {
   /** 1.5.0-E2. For a locked card's "Opens after" list. */
   completed?: ReadonlySet<string>;
   reps?: Readonly<Record<string, number>>;
+  joinedAt?: Date;
+  now?: Date;
+  actionCounts?: Readonly<Record<string, number>>;
+}
+
+interface QuestGateContext {
+  readonly joinedAt?: Date;
+  readonly now?: Date;
+  readonly actionCounts?: Readonly<Record<string, number>>;
+}
+
+function elapsedMinutes(context: QuestGateContext): number {
+  if (!context.joinedAt || !context.now) return -1;
+  return Math.max(0, Math.floor((context.now.getTime() - context.joinedAt.getTime()) / 60_000));
+}
+
+function actionCount(eventTypes: readonly string[], counts: Readonly<Record<string, number>> | undefined): number {
+  return eventTypes.reduce((total, type) => total + (counts?.[type] ?? 0), 0);
+}
+
+function durationLabel(minutes: number): string {
+  const days = Math.floor(minutes / 1_440);
+  const hours = Math.floor((minutes % 1_440) / 60);
+  const mins = minutes % 60;
+  return [days ? `${days}d` : '', hours ? `${hours}h` : '', mins || (!days && !hours) ? `${mins}m` : '']
+    .filter(Boolean)
+    .join(' ');
 }
 
 /**
@@ -338,6 +365,19 @@ function questRequirements(ruleset: Ruleset, definition: QuestDefinition | undef
       const have = context.reps?.[params.contactKey] ?? 0;
       if (have >= params.points) return [];
       return [{ label: `${params.points} rep with ${contactFor(ruleset, params.contactKey)?.shortName ?? params.contactKey} (you have ${have})` }];
+    }
+    if (prerequisite.kind === 'TIME_SINCE_JOIN' && typeof params.minutes === 'number') {
+      const elapsed = elapsedMinutes(context);
+      if (elapsed >= params.minutes) return [];
+      const remaining = elapsed < 0 ? params.minutes : Math.max(1, params.minutes - elapsed);
+      return [{ label: `Available in ${durationLabel(remaining)}` }];
+    }
+    if (prerequisite.kind === 'ACTION_COUNT' && Array.isArray(params.eventTypes) && typeof params.count === 'number') {
+      const eventTypes = params.eventTypes.filter((value): value is string => typeof value === 'string');
+      const have = actionCount(eventTypes, context.actionCounts);
+      if (have >= params.count) return [];
+      const label = typeof params.label === 'string' ? params.label : 'Complete more street actions';
+      return [{ label: `${label} (${have}/${params.count})` }];
     }
     if ((prerequisite.kind === 'FACTION_STANDING_AT_LEAST' || prerequisite.kind === 'FACTION_STANDING_BELOW') && typeof params.factionKey === 'string' && typeof params.tier === 'string') {
       const faction = ruleset.factions?.[params.factionKey as FactionKey]?.name ?? params.factionKey;
@@ -485,6 +525,7 @@ export function questPrerequisitesMet(
   reps: Readonly<Record<string, number>>,
   chosenBranches: Readonly<Record<string, string>>,
   factionTiers: Readonly<Partial<Record<string, FactionTier>>> = {},
+  gateContext: QuestGateContext = {},
 ): boolean {
   return definition.prerequisites.every((prerequisite) => {
     if (prerequisite.kind === 'QUEST_COMPLETED') {
@@ -495,6 +536,18 @@ export function questPrerequisitesMet(
       const key = prerequisite.params?.contactKey;
       const points = prerequisite.params?.points;
       return typeof key === 'string' && typeof points === 'number' && (reps[key] ?? 0) >= points;
+    }
+    if (prerequisite.kind === 'TIME_SINCE_JOIN') {
+      const minutes = prerequisite.params?.minutes;
+      return typeof minutes === 'number' && elapsedMinutes(gateContext) >= minutes;
+    }
+    if (prerequisite.kind === 'ACTION_COUNT') {
+      const eventTypes = prerequisite.params?.eventTypes;
+      const count = prerequisite.params?.count;
+      return Array.isArray(eventTypes)
+        && eventTypes.every((value): value is string => typeof value === 'string')
+        && typeof count === 'number'
+        && actionCount(eventTypes, gateContext.actionCounts) >= count;
     }
     if (prerequisite.kind === 'FACTION_STANDING_AT_LEAST') {
       const factionKey = prerequisite.params?.factionKey;
@@ -524,6 +577,28 @@ export function questPrerequisitesMet(
     }
     return false;
   });
+}
+
+async function questGateContext(db: Db, roundPlayerId: string, ruleset: Ruleset, now: Date): Promise<QuestGateContext> {
+  const eventTypes = [...new Set(definitions(ruleset).flatMap((definition) => definition.prerequisites.flatMap((prerequisite) => {
+    if (prerequisite.kind !== 'ACTION_COUNT' || !Array.isArray(prerequisite.params?.eventTypes)) return [];
+    return prerequisite.params.eventTypes.filter((value): value is string => typeof value === 'string');
+  })))];
+  const [player, grouped] = await Promise.all([
+    db.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { createdAt: true } }),
+    eventTypes.length
+      ? db.playerActivity.groupBy({
+          by: ['type'],
+          where: { roundPlayerId, type: { in: eventTypes } },
+          _count: { _all: true },
+        })
+      : Promise.resolve([]),
+  ]);
+  return {
+    joinedAt: player?.createdAt,
+    now,
+    actionCounts: Object.fromEntries(grouped.map((row) => [row.type, row._count._all])),
+  };
 }
 
 export async function syncDefinitions(db: Db | PrismaClient, ruleset: Ruleset): Promise<void> {
@@ -643,6 +718,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   );
   const reps = await contactPoints(db, roundPlayerId, ruleset);
   const tiers = await FactionService.tiers(db, roundPlayerId, ruleset);
+  const gateContext = await questGateContext(db, roundPlayerId, ruleset, now);
   const adminTestMode = await seasonalEventAdminTestModeForPlayer(db, roundPlayerId);
   const newlyAvailable: string[] = [];
 
@@ -662,7 +738,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
     const seasonalAvailable = seasonalEventAvailable(definition, now, adminTestMode);
-    const available = seasonalAvailable && questPrerequisitesMet(definition, completed, reps, chosenBranches, tiers);
+    const available = seasonalAvailable && questPrerequisitesMet(definition, completed, reps, chosenBranches, tiers, gateContext);
     if (!current) {
       await db.playerQuest.create({
         data: {
@@ -672,7 +748,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
         },
       });
       if (available) newlyAvailable.push(definition.key);
-    } else if (current.status === 'AVAILABLE' && !seasonalAvailable) {
+    } else if (current.status === 'AVAILABLE' && !available) {
       await db.playerQuest.update({ where: { id: current.id }, data: { status: 'LOCKED', isTracked: false } });
     } else if (current.status === 'LOCKED' && available) {
       await db.playerQuest.update({ where: { id: current.id }, data: { status: 'AVAILABLE' } });
@@ -857,6 +933,7 @@ export const HandcraftedQuestService = {
         netWorthCents: (await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { netWorthCents: true } })).netWorthCents,
         completed: new Set(rows.filter((row) => row.status === 'COMPLETED').map((row) => row.questDefinition.key)),
         reps,
+        ...await questGateContext(tx, roundPlayerId, ruleset, now),
       };
       // 1.4.0-D: what standing opens with each faction, and what it says right now.
       const perks = await FactionPerkService.perks(tx, roundPlayerId, ruleset);

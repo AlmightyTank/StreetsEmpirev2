@@ -281,6 +281,26 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
           problems.push(`${catalogKey}: CONTACT_REP_AT_LEAST requires positive points`);
         }
       }
+      if (prerequisite.kind === 'TIME_SINCE_JOIN') {
+        const minutes = prerequisite.params?.minutes;
+        if (!Number.isSafeInteger(minutes) || (minutes as number) <= 0) {
+          problems.push(`${catalogKey}: TIME_SINCE_JOIN requires positive whole minutes`);
+        }
+      }
+      if (prerequisite.kind === 'ACTION_COUNT') {
+        const eventTypes = prerequisite.params?.eventTypes;
+        const count = prerequisite.params?.count;
+        const label = prerequisite.params?.label;
+        if (!nonEmptyStrings(eventTypes)) {
+          problems.push(`${catalogKey}: ACTION_COUNT requires a non-empty eventTypes string array`);
+        }
+        if (!Number.isSafeInteger(count) || (count as number) <= 0) {
+          problems.push(`${catalogKey}: ACTION_COUNT requires positive whole count`);
+        }
+        if (label !== undefined && (typeof label !== 'string' || !label.trim())) {
+          problems.push(`${catalogKey}: ACTION_COUNT label must be a non-empty string`);
+        }
+      }
       if (prerequisite.kind === 'FACTION_STANDING_AT_LEAST' || prerequisite.kind === 'FACTION_STANDING_BELOW') {
         const factionKey = prerequisite.params?.factionKey;
         const tier = prerequisite.params?.tier;

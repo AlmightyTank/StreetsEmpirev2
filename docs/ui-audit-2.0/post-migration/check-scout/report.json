@@ -1,0 +1,135 @@
+[
+  {
+    "url": "/game/scout",
+    "finalPath": "/game/scout",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 19,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit2j8jgh\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-scout-intel__turf-link \"Review this district on Turf ↗\" 342x40",
+        "button.se-btn.se-btn \"+1\" 80x36",
+        "button.se-btn.se-btn \"+10\" 80x36",
+        "button.se-btn.se-btn \"+100\" 80x36",
+        "button.se-btn.se-btn \"Max\" 80x36",
+        "button.se-btn.se-btn \"Send crew scouting\" 192x40",
+        "g \"Midtown Back Rooms. Covered. 100% crew c\" 77x38",
+        "g \"Meatpacking After Dark. Covered. 100% cr\" 77x38",
+        "g \"Lower East Side Walkups. Covered. 100% c\" 77x38",
+        "g \"South Bronx Blocks. Covered. 100% crew c\" 77x38",
+        "g \"Bowery Row. Covered. 100% crew covered.\" 77x38",
+        "button.se-tip \"About this: Beer and weapons affect thug\" 24x24",
+        "button.se-btn.se-btn \"Change\" 73x36"
+      ],
+      "total": 36
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "label",
+        "impact": "critical",
+        "help": "Form elements must have labels",
+        "count": 1,
+        "targets": [
+          "#_r_0_"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/scout",
+    "finalPath": "/game/scout",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 13,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit2j8jgh\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a.se-scout-intel__turf-link \"Review this district on Turf ↗\" 702x40",
+        "button.se-btn.se-btn \"+1\" 41x44",
+        "button.se-btn.se-btn \"Send crew scouting\" 192x40",
+        "button.se-tip \"About this: Beer and weapons affect thug\" 24x24",
+        "button.se-btn.se-btn \"Change\" 73x36"
+      ],
+      "total": 37
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "label",
+        "impact": "critical",
+        "help": "Form elements must have labels",
+        "count": 1,
+        "targets": [
+          "#_r_0_"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/scout",
+    "finalPath": "/game/scout",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "label",
+        "impact": "critical",
+        "help": "Form elements must have labels",
+        "count": 1,
+        "targets": [
+          "#_r_0_"
+        ]
+      }
+    ]
+  }
+]

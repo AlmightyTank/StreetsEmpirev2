@@ -197,3 +197,8 @@
   .se-spinner, .se-btn__spinner { animation-duration: 1.4s; }
   .se-game-card--interactive:hover { transform: none; }
 }
+.se-text-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}

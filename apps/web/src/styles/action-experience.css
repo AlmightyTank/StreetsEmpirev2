@@ -47,7 +47,7 @@
   background: var(--se-panel-hi);
 }
 .se-action-readiness__item > span {
-  color: var(--se-muted);
+  color: var(--se-text-dim);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .02em;
@@ -59,7 +59,7 @@
   overflow-wrap: anywhere;
 }
 .se-action-readiness__item > small {
-  color: var(--se-muted);
+  color: var(--se-text-dim);
   font-size: 10px;
 }
 .se-action-readiness__item--good > strong { color: var(--se-good); }

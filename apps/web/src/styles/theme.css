@@ -461,7 +461,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--se-muted);
+  color: var(--se-text-dim);
   margin-bottom: 5px;
 }
 
@@ -2125,7 +2125,7 @@ a:hover { color: var(--se-accent-hover); }
 .se-tag {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
+  min-height: 24px;
   padding: 2px 7px;
   border: 1px solid var(--se-line);
   border-radius: 999px;

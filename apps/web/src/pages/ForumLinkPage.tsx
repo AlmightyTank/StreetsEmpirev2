@@ -31,6 +31,6 @@ export function ForumLinkPage() {
       <p>Finish connecting the forum account you just confirmed to <strong>{account.username}</strong>? Both profiles will show a public link to each other.</p>
       <Button type="button" className="se-btn se-btn--primary" disabledReason={busy ? 'Connecting the two accounts now.' : null} onClick={finish}>{busy ? 'Linking...' : 'Finish linking'}</Button>
     </> : <p>This linking request is missing. Start again from your account settings.</p>}
-    <p><Link to="/account">{linked ? 'Back to account settings' : 'Cancel / account settings'}</Link></p>
+    <p><Link className="se-text-action" to="/account">{linked ? 'Back to account settings' : 'Cancel / account settings'}</Link></p>
   </Panel></Shell>;
 }

@@ -729,6 +729,9 @@
 
 .se-aftermath-more,
 .se-aftermath-archive-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   width: fit-content;
   border: 0;
   background: none;
@@ -776,6 +779,9 @@
 }
 
 .se-rankings-archive-link a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   color: var(--se-accent);
   text-decoration: none;
 }

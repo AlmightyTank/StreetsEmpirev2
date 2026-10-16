@@ -163,6 +163,10 @@ export type QuestPrerequisiteKind =
   | 'QUEST_COMPLETED'
   | 'CONTACT_REP_AT_LEAST'
   | 'BRANCH_CHOSEN'
+  /** params: { minutes } — elapsed wall-clock time since this player joined the round. */
+  | 'TIME_SINCE_JOIN'
+  /** params: { eventTypes, count, label? } — recorded player actions before this job is offered. */
+  | 'ACTION_COUNT'
   /** 1.4.0-B. params: { factionKey, tier } — the player's standing with the faction is at that tier or above. */
   | 'FACTION_STANDING_AT_LEAST'
   /** 1.4.0-E. params: { factionKey, tier } — the player's standing with the faction is below that tier. */

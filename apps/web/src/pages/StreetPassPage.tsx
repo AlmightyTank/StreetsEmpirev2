@@ -451,7 +451,7 @@ export function StreetPassPage() {
               ) : null}
 
               <section className="se-pass-trackwrap" aria-label="Street Pass tiers">
-                <ol className="se-pass-track" ref={trackRef}>
+                <ol className="se-pass-track" ref={trackRef} tabIndex={0} aria-label="Street Pass reward tiers">
                   {pass.tiers.map((tier) => (
                     <PassTier
                       key={tier.tier}

@@ -245,7 +245,7 @@
   border: 1px solid var(--se-accent-dim);
   border-radius: 50%;
   background: var(--se-panel-hi);
-  color: var(--se-accent);
+  color: var(--se-text);
   font-family: var(--se-mono);
   font-size: 9px;
   font-weight: 900;

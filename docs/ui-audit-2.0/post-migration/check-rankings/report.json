@@ -1,0 +1,102 @@
+[
+  {
+    "url": "/game/rankings",
+    "finalPath": "/game/rankings",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 11,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, auditujgre2\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a \"Open Game #004 - Strategy Raids records \" 262x24",
+        "a.se-aftermath-archive-link \"Browse and compare archived round report\" 225x24",
+        "a.se-aftermath-archive-link \"Browse, filter, and compare every archiv\" 246x24",
+        "a.se-aftermath-archive-link \"View round records & awards →\" 153x24",
+        "a.se-aftermath-archive-link \"View round records & awards →\" 153x24"
+      ],
+      "total": 55
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/rankings",
+    "finalPath": "/game/rankings",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 18,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, auditujgre2\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a \"Open Game #004 - Strategy Raids records \" 262x24",
+        "button.se-rankings-tabs__tab.se-rankings-tabs__tab--active \"National26\" 241x42",
+        "button.se-rankings-tabs__tab \"New York City26\" 241x42",
+        "button.se-rankings-tabs__tab \"Alliances0\" 241x42",
+        "button.se-rankings-tabs__tab \"Turf crews0\" 241x42",
+        "button.se-rankings-tabs__tab \"Turf alliances0\" 241x42",
+        "a.se-aftermath-archive-link \"Browse and compare archived round report\" 225x24",
+        "a.se-aftermath-archive-link \"Browse, filter, and compare every archiv\" 246x24",
+        "a.se-aftermath-archive-link \"View round records & awards →\" 153x24",
+        "a.se-aftermath-archive-link \"View round records & awards →\" 153x24"
+      ],
+      "total": 56
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/rankings",
+    "finalPath": "/game/rankings",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  }
+]

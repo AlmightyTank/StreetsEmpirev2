@@ -204,7 +204,18 @@ async function axeCheck(page) {
       runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] },
       resultTypes: ['violations'],
     });
-    return run.violations.map((v) => ({ id: v.id, impact: v.impact, help: v.help, count: v.nodes.length, targets: v.nodes.slice(0, 3).map((n) => n.target.join(' ')) }));
+    return run.violations.map((v) => ({
+      id: v.id,
+      impact: v.impact,
+      help: v.help,
+      count: v.nodes.length,
+      targets: v.nodes.slice(0, 3).map((n) => n.target.join(' ')),
+      details: v.nodes.slice(0, 3).map((n) => ({
+        target: n.target.join(' '),
+        html: n.html.slice(0, 240),
+        summary: n.failureSummary,
+      })),
+    }));
   });
   return result;
 }
