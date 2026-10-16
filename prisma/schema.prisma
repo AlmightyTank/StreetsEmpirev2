@@ -5368,3 +5368,27 @@ model CriminalCaseEvidence {
   @@unique([sourceReceiptId])
   @@index([caseId, recordedAt])
 }
+
+/** 2.0.0-G: disabled authoring proposals, never executable by live gameplay. */
+model AdminLivingStoryDraft {
+  id                        String   @id @default(cuid())
+  key                       String
+  baseRulesetId             String
+  baseRulesetVersion        String
+  title                     String
+  caseKey                   String
+  eventKinds                Json     @default("[]")
+  audience                  String
+  visibility                String
+  expiresAfterActiveMinutes Int
+  rewardBudgetCents         Int      @default(0)
+  enabled                   Boolean  @default(false)
+  revision                  Int      @default(1)
+  createdByAccountId        String
+  updatedByAccountId        String
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@unique([baseRulesetId, key])
+  @@index([baseRulesetId, updatedAt(sort: Desc)])
+}
