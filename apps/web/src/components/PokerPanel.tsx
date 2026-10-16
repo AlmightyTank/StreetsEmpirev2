@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { formatCents, type CasinoPageDto, type CasinoPokerCardDto, type CasinoPokerHandDto, type CasinoPokerStateDto, type CasinoPokerTableViewDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
@@ -6,15 +6,21 @@ import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 import { newActionId } from '../utils/actionId.js';
+import {
+  casinoSoundEnabled,
+  playCasinoSound,
+  setCasinoSoundEnabled,
+} from '../lib/casinoAudio.js';
 
 type Props = { casinoPage: CasinoPageDto; onPageChange: (page: CasinoPageDto) => void };
 const suits: Record<CasinoPokerCardDto['suit'], string> = { C: '♣', D: '♦', H: '♥', S: '♠' };
 const rankLabel = (rank: number) => rank <= 10 ? String(rank) : ({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' }[rank] ?? '?');
 
-function PlayingCard({ card }: { card?: CasinoPokerCardDto }) {
-  if (!card) return <span className="se-poker-card se-poker-card--back" aria-label="Hidden card">✦</span>;
+function PlayingCard({ card, delay = 0 }: { card?: CasinoPokerCardDto; delay?: number }) {
+  const style = { '--se-card-delay': `${delay}ms` } as CSSProperties;
+  if (!card) return <span className="se-poker-card se-poker-card--back is-dealt" style={style} aria-label="Hidden card">✦</span>;
   const red = card.suit === 'H' || card.suit === 'D';
-  return <span className={'se-poker-card' + (red ? ' is-red' : '')} aria-label={rankLabel(card.rank) + ' ' + suits[card.suit]}>
+  return <span className={'se-poker-card is-dealt' + (red ? ' is-red' : '')} style={style} aria-label={rankLabel(card.rank) + ' ' + suits[card.suit]}>
     <strong>{rankLabel(card.rank)}</strong><span>{suits[card.suit]}</span>
   </span>;
 }
@@ -32,11 +38,25 @@ function pokerOutcome(outcome: string | null, rakeCents: number) {
   return rakeCents ? `${clean} House rake: ${formatCents(rakeCents)}.` : clean;
 }
 
+function cardKey(card: CasinoPokerCardDto | undefined, index: number): string {
+  return card ? `${card.rank}${card.suit}` : `hidden-${index}`;
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isHumanWin(outcome: string | null): boolean {
+  return Boolean(outcome && /\byou (?:win|take|split)\b|opponents folded/i.test(outcome));
+}
+
 export function PokerPanel({ casinoPage, onPageChange }: Props) {
   const [state, setState] = useState<CasinoPokerStateDto | null>(null);
   const [lastHand, setLastHand] = useState<CasinoPokerHandDto | null>(null);
   const [buyIn, setBuyIn] = useState('100');
   const [busy, setBusy] = useState(false);
+  const [soundEnabled, setSoundEnabledState] = useState(() => casinoSoundEnabled());
+  const [tablePulse, setTablePulse] = useState<'action' | 'win' | 'loss' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [tableName, setTableName] = useState('High Stakes Hold’em');
@@ -46,6 +66,41 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
   const [newInvite, setNewInvite] = useState<string | null>(null);
   const [activeTableId, setActiveTableId] = useState<string | null>(null);
   const [tableView, setTableView] = useState<CasinoPokerTableViewDto | null>(null);
+  const tableTransition = useRef<{ handId: string; boardCount: number; myTurn: boolean; outcome: string | null } | null>(null);
+
+  function reducedMotion(): boolean {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  async function cardTimeline(cardCount: number): Promise<void> {
+    if (reducedMotion()) {
+      if (cardCount) playCasinoSound('CARD_DEAL', soundEnabled);
+      return;
+    }
+    for (let index = 0; index < cardCount; index++) {
+      playCasinoSound('CARD_DEAL', soundEnabled, index);
+      await wait(115);
+    }
+  }
+
+  function pulse(kind: 'action' | 'win' | 'loss'): void {
+    setTablePulse(kind);
+    window.setTimeout(() => setTablePulse(null), 520);
+  }
+
+  function playPokerResult(outcome: string | null, humanWon = isHumanWin(outcome)): void {
+    if (!outcome) return;
+    playCasinoSound(humanWon ? 'SMALL_WIN' : 'LOSS', soundEnabled);
+    pulse(humanWon ? 'win' : 'loss');
+  }
+
+  function playPokerAction(action: 'FOLD' | 'CHECK' | 'CALL' | 'RAISE' | 'ALL_IN'): void {
+    if (action === 'FOLD') playCasinoSound('POKER_FOLD', soundEnabled);
+    else if (action === 'CHECK') playCasinoSound('POKER_CHECK', soundEnabled);
+    else if (action === 'ALL_IN') playCasinoSound('POKER_ALL_IN', soundEnabled);
+    else playCasinoSound('CHIP_PLACE', soundEnabled, action === 'RAISE' ? 2 : 1);
+    pulse('action');
+  }
 
   useEffect(() => {
     void casinoApi.poker().then((next) => {
@@ -83,6 +138,35 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
     };
   }, [activeTableId]);
 
+  useEffect(() => {
+    const nextHand = tableView?.hand;
+    if (!nextHand) return;
+    const previous = tableTransition.current;
+    if (previous?.handId === nextHand.id) {
+      const dealt = Math.max(0, nextHand.board.length - previous.boardCount);
+      if (dealt > 0) {
+        for (let index = 0; index < dealt; index++) {
+          window.setTimeout(() => playCasinoSound('CARD_DEAL', soundEnabled, index), index * 95);
+        }
+      }
+      if (!previous.myTurn && nextHand.myTurn) playCasinoSound('POKER_CHECK', soundEnabled);
+      if (!previous.outcome && nextHand.outcome) {
+        const yourSeat = nextHand.seats.find((seat) => seat.isYou);
+        if (yourSeat) playPokerResult(nextHand.outcome, nextHand.outcome.includes(yourSeat.displayName));
+      }
+    }
+    tableTransition.current = {
+      handId: nextHand.id,
+      boardCount: nextHand.board.length,
+      myTurn: nextHand.myTurn,
+      outcome: nextHand.outcome,
+    };
+  }, [tableView, soundEnabled]);
+
+  useEffect(() => {
+    tableTransition.current = null;
+  }, [activeTableId]);
+
   const active = state?.activeHand ?? null;
   const hand = active ?? lastHand;
   const human = hand?.seats.find((seat) => seat.isHuman) ?? null;
@@ -94,8 +178,10 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
   async function deal() {
     if (!amount) return;
     setBusy(true); setError(null); setNotice(null);
+    playCasinoSound('CHIP_PLACE', soundEnabled);
     try {
       const result = await casinoApi.pokerDeal({ buyInCents: amount, actionId: newActionId() });
+      await cardTimeline(4);
       setState(result.poker); setLastHand(result.hand); onPageChange(result.page);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not deal this Poker hand.');
@@ -105,10 +191,20 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
   async function act(action: 'FOLD' | 'CHECK' | 'CALL' | 'RAISE' | 'ALL_IN') {
     if (!active) return;
     setBusy(true); setError(null); setNotice(null);
+    playPokerAction(action);
     try {
       const result = await casinoApi.pokerAction({ handId: active.id, action, actionId: newActionId() });
+      const newBoardCards = Math.max(0, result.hand.board.length - active.board.length);
+      await cardTimeline(newBoardCards);
+      if (result.hand.status === 'SETTLED' && result.hand.seats.some((seat) => !seat.isHuman && seat.cards.length)) {
+        playCasinoSound('CARD_FLIP', soundEnabled);
+        if (!reducedMotion()) await wait(160);
+      }
       setState(result.poker); setLastHand(result.hand); onPageChange(result.page);
-      if (result.hand.status === 'SETTLED') setNotice(pokerOutcome(result.hand.outcome, result.hand.rakeCents));
+      if (result.hand.status === 'SETTLED') {
+        setNotice(pokerOutcome(result.hand.outcome, result.hand.rakeCents));
+        playPokerResult(result.hand.outcome);
+      }
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'That Poker action could not be completed.');
     } finally { setBusy(false); }
@@ -142,12 +238,14 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
   async function startTable(id: string) {
     setActiveTableId(id);
     setBusy(true); setError(null);
-    try { const result = await casinoApi.pokerStartTable(id, newActionId()); setTableView(result.table); onPageChange(result.page); }
+    playCasinoSound('CHIP_PLACE', soundEnabled);
+    try { const result = await casinoApi.pokerStartTable(id, newActionId()); await cardTimeline(4); setTableView(result.table); onPageChange(result.page); }
     catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Could not deal a hand at that table.'); }
     finally { setBusy(false); }
   }
   async function playTable(id: string, action: 'FOLD' | 'CHECK' | 'CALL' | 'RAISE' | 'ALL_IN') {
     setBusy(true); setError(null);
+    playPokerAction(action);
     try { const result = await casinoApi.pokerTableAction(id, { action, actionId: newActionId() }); setTableView(result.table); onPageChange(result.page); if (result.table.hand?.outcome) setNotice(result.table.hand.outcome); }
     catch (caught) { setError(caught instanceof ApiError ? caught.message : 'That Poker action could not be completed.'); }
     finally { setBusy(false); }
@@ -171,7 +269,23 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
     {!casinoPage.openSession ? <p>Open a casino bankroll before sitting at the card table.</p> : null}
     {state?.enabled ? (
       <div className="se-poker-split">
-        <section className="se-poker-box se-poker-box--solo">
+        <div className="se-poker-toolbar">
+          <span>{busy ? 'TABLE ACTION' : tableView?.hand?.myTurn ? 'YOUR TURN' : active ? active.street : 'POKER ROOM'}</span>
+          <button
+            type="button"
+            className="se-btn se-btn--ghost"
+            aria-pressed={soundEnabled}
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabledState(next);
+              setCasinoSoundEnabled(next);
+              if (next) playCasinoSound('CHIP_PLACE', true);
+            }}
+          >
+            {soundEnabled ? 'Sound on' : 'Muted'}
+          </button>
+        </div>
+        <section className={'se-poker-box se-poker-box--solo' + (tablePulse ? ` is-${tablePulse}` : '')}>
           <div className="se-poker-box__head">
             <div>
               <span className="se-eyebrow">House table</span>
@@ -183,12 +297,12 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
           {hand ? <div className="se-poker-table">
             <div className="se-poker-table__meta"><span>{hand.street === 'SHOWDOWN' ? 'SHOWDOWN' : hand.street}</span><strong>Pot {formatCents(hand.potCents)}</strong></div>
             <div className="se-poker-table__board" aria-label="Community cards">
-              {Array.from({ length: 5 }, (_, i) => <PlayingCard key={i} card={hand.board[i]} />)}
+              {Array.from({ length: 5 }, (_, i) => <PlayingCard key={cardKey(hand.board[i], i)} card={hand.board[i]} delay={i * 65} />)}
             </div>
             <div className="se-poker-table__seats">
               {hand.seats.map((seat) => <article className={'se-poker-seat' + (seat.isHuman ? ' is-human' : '') + (seat.folded ? ' is-folded' : '')} key={seat.id}>
                 <div className="se-poker-seat__heading"><strong>{seat.name}{seat.isHuman ? ' (you)' : ''}</strong><span>{seat.folded ? 'FOLDED' : formatCents(seat.stackCents) + ' stack'}</span></div>
-                <div className="se-poker-seat__cards">{[0, 1].map((i) => <PlayingCard key={i} card={seat.cards[i]} />)}</div>
+                <div className="se-poker-seat__cards">{[0, 1].map((i) => <PlayingCard key={cardKey(seat.cards[i], i)} card={seat.cards[i]} delay={i * 70} />)}</div>
                 {seat.handName ? <span className="se-poker-seat__hand">{seat.handName}</span> : null}
                 <small>In pot: {formatCents(seat.contributionCents)}</small>
               </article>)}
@@ -248,12 +362,12 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
             }) : <p>No open tables. Create one and invite a friend.</p>}</div>
           </div>
 
-          {tableView ? <section className="se-poker-table se-poker-table--multiplayer">
+          {tableView ? <section className={'se-poker-table se-poker-table--multiplayer' + (tablePulse ? ` is-${tablePulse}` : '')}>
             <div className="se-poker-table__meta"><span>{tableView.name} · {tableView.hand ? `HAND ${tableView.hand.handNo} · ${tableView.hand.street}` : tableView.status}</span><strong>Pot {formatCents(tableView.hand?.potCents ?? 0)}</strong></div>
-            <div className="se-poker-table__board" aria-label="Community cards">{Array.from({ length: 5 }, (_, i) => <PlayingCard key={i} card={tableView.hand?.board[i]} />)}</div>
+            <div className="se-poker-table__board" aria-label="Community cards">{Array.from({ length: 5 }, (_, i) => <PlayingCard key={cardKey(tableView.hand?.board[i], i)} card={tableView.hand?.board[i]} delay={i * 65} />)}</div>
             {tableView.hand ? <><div className="se-poker-table__seats">{tableView.hand.seats.map((seat) => <article key={seat.seatNo} className={'se-poker-seat' + (seat.isYou ? ' is-human' : '') + (seat.folded ? ' is-folded' : '') + (tableView.hand?.turnSeatNo === seat.seatNo ? ' is-turn' : '')}>
               <div className="se-poker-seat__heading"><strong>{seat.displayName}{seat.isYou ? ' (you)' : ''}</strong><span>{seat.folded ? 'FOLDED' : seat.allIn ? 'ALL IN' : formatCents(seat.stackCents) + ' stack'}</span></div>
-              <div className="se-poker-seat__cards">{[0, 1].map((i) => <PlayingCard key={i} card={seat.cards[i]} />)}</div>
+              <div className="se-poker-seat__cards">{[0, 1].map((i) => <PlayingCard key={cardKey(seat.cards[i], i)} card={seat.cards[i]} delay={i * 70} />)}</div>
               {seat.handName ? <span className="se-poker-seat__hand">{seat.handName}</span> : null}<small>In pot: {formatCents(seat.contributionCents)}</small>
             </article>)}</div>
             {tableView.hand.outcome ? <Alert tone="success">{pokerOutcome(tableView.hand.outcome, tableView.hand.rakeCents)}</Alert> : null}

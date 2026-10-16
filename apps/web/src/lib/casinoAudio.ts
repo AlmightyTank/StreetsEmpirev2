@@ -13,6 +13,11 @@ export type CasinoSound =
   | 'ROULETTE_SPIN'
   | 'ROULETTE_TICK'
   | 'BALL_DROP'
+  | 'DICE_SHAKE'
+  | 'DICE_LAND'
+  | 'POKER_CHECK'
+  | 'POKER_FOLD'
+  | 'POKER_ALL_IN'
   | 'SMALL_WIN'
   | 'BIG_WIN'
   | 'MEGA_WIN'
@@ -163,6 +168,32 @@ export function playCasinoSound(sound: CasinoSound, enabled = casinoSoundEnabled
       noiseBurst(ctx, now, 0.08, 0.03, 650);
       tone(ctx, now, 340, 0.08, 0.026, 'triangle', 180);
       tone(ctx, now + 0.08, 210, 0.12, 0.02, 'triangle');
+      break;
+    case 'DICE_SHAKE':
+      tone(ctx, now, 105, 0.24, 0.018, 'triangle', 155);
+      for (let index = 0; index < 7; index++) {
+        noiseBurst(ctx, now + index * 0.055, 0.025, 0.014, 520 + index * 55);
+      }
+      break;
+    case 'DICE_LAND':
+      noiseBurst(ctx, now, 0.07, 0.04, 280);
+      tone(ctx, now, 150 + (accent % 6) * 12, 0.09, 0.032, 'triangle', 92);
+      tone(ctx, now + 0.07, 235, 0.055, 0.018, 'square');
+      break;
+    case 'POKER_CHECK':
+      tone(ctx, now, 260, 0.055, 0.016, 'triangle');
+      tone(ctx, now + 0.07, 260, 0.055, 0.014, 'triangle');
+      break;
+    case 'POKER_FOLD':
+      noiseBurst(ctx, now, 0.14, 0.024, 780);
+      tone(ctx, now + 0.025, 175, 0.13, 0.016, 'triangle', 105);
+      break;
+    case 'POKER_ALL_IN':
+      for (let index = 0; index < 4; index++) {
+        tone(ctx, now + index * 0.045, 720 + index * 95, 0.075, 0.022, 'square');
+        noiseBurst(ctx, now + index * 0.045, 0.035, 0.014, 1_100);
+      }
+      tone(ctx, now + 0.19, 330, 0.18, 0.026, 'triangle');
       break;
     case 'SMALL_WIN':
       chord(ctx, [523, 659, 784], 0.09, 0.03);

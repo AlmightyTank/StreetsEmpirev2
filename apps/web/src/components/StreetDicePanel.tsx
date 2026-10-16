@@ -13,6 +13,11 @@ import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 import { newActionId } from '../utils/actionId.js';
+import {
+  casinoSoundEnabled,
+  playCasinoSound,
+  setCasinoSoundEnabled,
+} from '../lib/casinoAudio.js';
 
 type Props = {
   casinoPage: CasinoPageDto;
@@ -34,6 +39,10 @@ function signedMoney(value: number): string {
 
 const DIE = ['','⚀','⚁','⚂','⚃','⚄','⚅'];
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 function outcomeCopy(round: CasinoStreetDiceRoundDto): string {
   if (round.outcome === 'POINT') return 'Point is ' + round.point + '. Roll it again before a 7.';
   if (round.outcome === 'CONTINUE') return 'No decision. Point stays ' + round.point + '.';
@@ -49,6 +58,8 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
   const [odds, setOdds] = useState('10');
   const [lastRound, setLastRound] = useState<CasinoStreetDiceRoundDto | null>(null);
   const [busy, setBusy] = useState<'start' | 'roll' | 'odds' | null>(null);
+  const [soundEnabled, setSoundEnabledState] = useState(() => casinoSoundEnabled());
+  const [settling, setSettling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const startAction = useRef(newActionId());
@@ -133,22 +144,40 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
     oddsAction.current = newActionId();
   }
 
+  async function throwTimeline(): Promise<void> {
+    playCasinoSound('DICE_SHAKE', soundEnabled);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    await wait(820);
+  }
+
+  function settleRound(round: CasinoStreetDiceRoundDto): void {
+    playCasinoSound('DICE_LAND', soundEnabled, round.total ?? 0);
+    setSettling(true);
+    window.setTimeout(() => setSettling(false), 360);
+    window.setTimeout(() => {
+      if (round.outcome === 'WIN') playCasinoSound('SMALL_WIN', soundEnabled);
+      else if (round.outcome === 'LOSE') playCasinoSound('LOSS', soundEnabled);
+      else if (round.outcome === 'POINT') playCasinoSound('TABLE_PUSH', soundEnabled);
+    }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180);
+  }
+
   async function start(event: FormEvent) {
     event.preventDefault();
     if (!table || !wagerCents) return;
     setBusy('start');
     setError(null);
     setNotice(null);
+    playCasinoSound('CHIP_PLACE', soundEnabled);
     try {
-      const result = await casinoApi.streetDiceStart({
-        tableKey: table.key,
-        wagerCents,
-        actionId: startAction.current,
-      });
+      const [result] = await Promise.all([
+        casinoApi.streetDiceStart({ tableKey: table.key, wagerCents, actionId: startAction.current }),
+        throwTimeline(),
+      ]);
       onPageChange(result.page);
       setState(result.streetDice);
       setLastRound(result.round);
       setNotice(outcomeCopy(result.round));
+      settleRound(result.round);
       resetActions();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'The dice table could not start that round.');
@@ -163,14 +192,15 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
     setError(null);
     setNotice(null);
     try {
-      const result = await casinoApi.streetDiceRoll({
-        roundId: active.id,
-        actionId: rollAction.current,
-      });
+      const [result] = await Promise.all([
+        casinoApi.streetDiceRoll({ roundId: active.id, actionId: rollAction.current }),
+        throwTimeline(),
+      ]);
       onPageChange(result.page);
       setState(result.streetDice);
       setLastRound(result.round);
       setNotice(outcomeCopy(result.round));
+      settleRound(result.round);
       rollAction.current = newActionId();
       if (result.round.status === 'SETTLED') {
         startAction.current = newActionId();
@@ -188,6 +218,7 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
     setBusy('odds');
     setError(null);
     setNotice(null);
+    playCasinoSound('CHIP_PLACE', soundEnabled);
     try {
       const result = await casinoApi.streetDiceOdds({
         roundId: active.id,
@@ -238,10 +269,27 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
             ))}
           </div>
 
+          <div className="se-street-dice__toolbar">
+            <span>{busy === 'start' || busy === 'roll' ? 'DICE OUT' : active ? `POINT ${active.point}` : 'COME OUT'}</span>
+            <button
+              type="button"
+              className="se-btn se-btn--ghost"
+              aria-pressed={soundEnabled}
+              onClick={() => {
+                const next = !soundEnabled;
+                setSoundEnabledState(next);
+                setCasinoSoundEnabled(next);
+                if (next) playCasinoSound('CHIP_PLACE', true);
+              }}
+            >
+              {soundEnabled ? 'Sound on' : 'Muted'}
+            </button>
+          </div>
+
           {table ? (
             <>
-              <div className="se-street-dice__felt">
-                <div className="se-street-dice__point">
+              <div className={'se-street-dice__felt' + (settling ? ' is-settling' : '') + (shownRound?.outcome === 'WIN' ? ' is-win' : shownRound?.outcome === 'LOSE' ? ' is-loss' : '')}>
+                <div className={'se-street-dice__point' + (active?.point ? ' is-on' : '')}>
                   <small>POINT</small>
                   <strong>{shownRound?.point ?? 'OFF'}</strong>
                 </div>
