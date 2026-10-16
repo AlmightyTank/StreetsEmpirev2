@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatCents, type CasinoPageDto, type CasinoScratchCardDto, type CasinoScratchCardStateDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
@@ -11,7 +11,143 @@ import { newActionId } from '../utils/actionId.js';
 type Props = { casinoPage: CasinoPageDto; onPageChange: (page: CasinoPageDto) => void };
 
 function signed(value: number): string {
-  return value === 0 ? '$0.00' : `${value > 0 ? '+' : '−'}${formatCents(Math.abs(value))}`;
+  if (value === 0) return '$0.00';
+  const sign = value > 0 ? '+' : '-';
+  return sign + formatCents(Math.abs(value));
+}
+
+const SCRATCH_RADIUS = 22;
+const SCRATCH_THRESHOLD = 0.55;
+
+interface ScratchCanvasProps {
+  width: number;
+  height: number;
+  onRevealProgress: (ratio: number) => void;
+  onComplete: () => void;
+  resetKey: string;
+}
+
+function ScratchCanvas({ width, height, onRevealProgress, onComplete, resetKey }: ScratchCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawing = useRef(false);
+  const lastPoint = useRef<{ x: number; y: number } | null>(null);
+  const revealedRef = useRef(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, '#b9bec3');
+    gradient.addColorStop(0.25, '#e9ecef');
+    gradient.addColorStop(0.5, '#9ba1a7');
+    gradient.addColorStop(0.75, '#d4d8dc');
+    gradient.addColorStop(1, '#a8adb2');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    for (let i = -height; i < width; i += 6) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i + height, height);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = 'rgba(77,81,85,0.6)';
+    ctx.font = '900 11px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SCRATCH HERE', width / 2, height / 2);
+
+    revealedRef.current = false;
+  }, [resetKey, width, height]);
+
+  const scratch = useCallback((x: number, y: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.lineWidth = SCRATCH_RADIUS * 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const last = lastPoint.current;
+    if (last) {
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.arc(x, y, SCRATCH_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    lastPoint.current = { x, y };
+
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const pixels = imageData.data;
+    let clear = 0;
+    for (let i = 3; i < pixels.length; i += 4) {
+      if (pixels[i]! < 128) clear++;
+    }
+    const ratio = clear / (width * height);
+    onRevealProgress(ratio);
+
+    if (ratio >= SCRATCH_THRESHOLD && !revealedRef.current) {
+      revealedRef.current = true;
+      ctx.clearRect(0, 0, width, height);
+      onComplete();
+    }
+  }, [width, height, onRevealProgress, onComplete]);
+
+  const getPos = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (canvas.width / rect.width),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height),
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={width}
+      height={height}
+      className="se-scratch__canvas"
+      onPointerDown={(e) => {
+        isDrawing.current = true;
+        lastPoint.current = null;
+        const pos = getPos(e);
+        if (pos) scratch(pos.x, pos.y);
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        if (!isDrawing.current) return;
+        const pos = getPos(e);
+        if (pos) scratch(pos.x, pos.y);
+      }}
+      onPointerUp={() => {
+        isDrawing.current = false;
+        lastPoint.current = null;
+      }}
+      onPointerCancel={() => {
+        isDrawing.current = false;
+        lastPoint.current = null;
+      }}
+      onPointerLeave={() => {
+        isDrawing.current = false;
+        lastPoint.current = null;
+      }}
+    />
+  );
 }
 
 export function ScratchCardsPanel({ casinoPage, onPageChange }: Props) {
@@ -22,6 +158,8 @@ export function ScratchCardsPanel({ casinoPage, onPageChange }: Props) {
   const [busy, setBusy] = useState(false);
   const [soundEnabled, setSoundEnabledState] = useState(() => casinoSoundEnabled());
   const [error, setError] = useState<string | null>(null);
+  const [canvasMode, setCanvasMode] = useState(() => localStorage.getItem('streets:scratch-canvas') === '1');
+  const [, setSpotRevealProgress] = useState<Map<number, number>>(new Map());
   const actionId = useRef(newActionId());
 
   useEffect(() => {
@@ -66,6 +204,16 @@ export function ScratchCardsPanel({ casinoPage, onPageChange }: Props) {
     }
   }
 
+  function handleCanvasComplete(index: number) {
+    reveal(index);
+  }
+
+  function toggleCanvasMode() {
+    const next = !canvasMode;
+    setCanvasMode(next);
+    localStorage.setItem('streets:scratch-canvas', next ? '1' : '0');
+  }
+
   async function buy() {
     if (blocked) return;
     setBusy(true); setError(null);
@@ -77,6 +225,7 @@ export function ScratchCardsPanel({ casinoPage, onPageChange }: Props) {
       setState(result.scratchCards);
       setCard(result.card);
       setRevealed(new Set());
+      setSpotRevealProgress(new Map());
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'The scratch card could not be issued.');
     } finally { setBusy(false); }
@@ -87,7 +236,10 @@ export function ScratchCardsPanel({ casinoPage, onPageChange }: Props) {
       <div className="se-scratch">
         <div className="se-scratch__toolbar">
           <span>{busy ? 'PRINTING TICKET' : card && !allRevealed ? 'SCRATCH TO REVEAL' : allRevealed ? (card!.netCents >= 0 ? 'WINNER CHECKED' : 'TICKET CHECKED') : 'TICKET COUNTER'}</span>
-          <button type="button" className="se-btn se-btn--ghost" aria-pressed={soundEnabled} onClick={() => { const next = !soundEnabled; setSoundEnabledState(next); setCasinoSoundEnabled(next); if (next) playCasinoSound('SCRATCH_SCRAPE', true); }}>{soundEnabled ? 'Sound on' : 'Muted'}</button>
+          <div className="se-scratch__toolbar-actions">
+            <button type="button" className="se-btn se-btn--ghost" aria-pressed={canvasMode} onClick={toggleCanvasMode}>{canvasMode ? 'Canvas mode' : 'Tap mode'}</button>
+            <button type="button" className="se-btn se-btn--ghost" aria-pressed={soundEnabled} onClick={() => { const next = !soundEnabled; setSoundEnabledState(next); setCasinoSoundEnabled(next); if (next) playCasinoSound('SCRATCH_SCRAPE', true); }}>{soundEnabled ? 'Sound on' : 'Muted'}</button>
+          </div>
         </div>
         {error ? <Alert>{error}</Alert> : null}
         {!state ? <p className="se-muted">Opening the ticket case…</p> : null}
@@ -105,6 +257,20 @@ export function ScratchCardsPanel({ casinoPage, onPageChange }: Props) {
             <div className="se-scratch__grid">
               {(card?.spots ?? Array.from({ length: 9 }, () => null)).map((spot, index) => {
                 const shown = revealed.has(index);
+                if (canvasMode && spot && !shown) {
+                  return (
+                    <div key={`${card?.actionId ?? 'blank'}-${index}`} className="se-scratch__canvas-wrap">
+                      <div className="se-scratch__prize"><b>{spot.glyph}</b><small>{spot.label}</small><strong>{formatCents(spot.prizeCents)}</strong></div>
+                      <ScratchCanvas
+                        width={180}
+                        height={140}
+                        resetKey={`${card?.actionId}-${index}`}
+                        onRevealProgress={(ratio) => setSpotRevealProgress(prev => new Map(prev).set(index, ratio))}
+                        onComplete={() => handleCanvasComplete(index)}
+                      />
+                    </div>
+                  );
+                }
                 return <button key={`${card?.actionId ?? 'blank'}-${index}`} type="button" disabled={!spot || shown} className={shown ? `is-revealed${spot?.winning ? ' is-winning' : ''}` : ''} onPointerEnter={(event) => { if (event.buttons) reveal(index); }} onPointerDown={() => reveal(index)} aria-label={spot ? shown ? `${spot.label}, ${formatCents(spot.prizeCents)}${spot.winning ? ', winner' : ''}` : `Scratch spot ${index + 1}` : `Empty spot ${index + 1}`}><span className="se-scratch__foil">SCRATCH</span>{spot ? <span className="se-scratch__prize"><b>{spot.glyph}</b><small>{spot.label}</small><strong>{formatCents(spot.prizeCents)}</strong></span> : null}</button>;
               })}
             </div>
