@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 const MIN_PULL_DISTANCE = 96;
 const MAX_PAGE_SCROLL = 5;
-const BLOCKED_TARGETS = 'a, button, input, select, textarea, [contenteditable="true"], [role="slider"], [data-no-pull-nav]';
+const BLOCKED_TARGETS = 'a, button, input, select, textarea, .se-tablewrap, [role="dialog"], [role="slider"], [contenteditable="true"], [data-no-pull-nav]';
 
 type StartTouch = { identifier: number; x: number; y: number };
 
