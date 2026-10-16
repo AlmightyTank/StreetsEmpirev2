@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { AdminLivingStoryDraft, PrismaClient } from '@prisma/client';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { activeRoundEventTime, defineLivingStoryCatalog, livingStoryCatalogForRuleset,
@@ -191,7 +191,7 @@ export const AdminLivingStoriesService = {
       rewardBudgetCents: input.rewardBudgetCents,
       enabled: false, updatedByAccountId: actor.id,
     };
-    let saved;
+    let saved: AdminLivingStoryDraft;
     try {
       saved = existing
         ? await db.adminLivingStoryDraft.update({

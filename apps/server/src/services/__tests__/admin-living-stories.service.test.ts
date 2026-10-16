@@ -104,5 +104,29 @@ describe('2.0.0-G quota explanations', () => {
     await expect(AdminLivingStoriesService.writeDraft(f.db, f.actor, {
       ...draft, key: 'STORY_AFTER_THE_SMOKE',
     })).rejects.toMatchObject({ code: 'STORY_PINNED' });
+    const tuned = await AdminLivingStoriesService.writeDraft(f.db, f.actor, {
+      ...draft, title: 'Revised Lead', eventKinds: ['takeover'], expectedRevision: 1,
+    });
+    expect(tuned.revision).toBe(2);
+    const audit = f.db.adminAuditLog.create.mock.calls[1]![0]!.data;
+    expect(audit.before).toMatchObject({
+      title: 'A New Lead', eventKinds: ['war_win'], expiresAfterActiveMinutes: 60,
+    });
+    expect(audit.after).toMatchObject({
+      title: 'Revised Lead', eventKinds: ['takeover'], revision: 2,
+    });
+    const race = Object.assign(new Error('stale'), { code: 'P2025' });
+    f.db.adminLivingStoryDraft.update.mockRejectedValueOnce(race);
+    await expect(AdminLivingStoriesService.writeDraft(f.db, f.actor, {
+      ...draft, expectedRevision: 2,
+    })).rejects.toMatchObject({ code: 'STORY_DRAFT_STALE', statusCode: 409 });
+    expect(f.db.adminAuditLog.create).toHaveBeenCalledTimes(2);
+    // Two concurrent creates of the same key also fail with a user-visible 409.
+    f.db.adminLivingStoryDraft.findUnique.mockResolvedValueOnce(null);
+    f.db.adminLivingStoryDraft.create.mockRejectedValueOnce(Object.assign(
+      new Error('duplicate'), { code: 'P2002' },
+    ));
+    await expect(AdminLivingStoriesService.writeDraft(f.db, f.actor, draft))
+      .rejects.toMatchObject({ code: 'STORY_DRAFT_STALE', statusCode: 409 });
   });
 });
