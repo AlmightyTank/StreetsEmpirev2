@@ -162,7 +162,10 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
           ))}
         </div>
         <div className="se-horse-racing__track" aria-live="polite">
-          <div className="se-horse-racing__rail">STREETS EMPIRE DOWNS <span>FINISH</span></div>
+          <div className="se-horse-racing__rail">
+            <strong>STREETS EMPIRE DOWNS</strong>
+            <span>FINISH</span>
+          </div>
           <div className="se-horse-racing__dirt" aria-hidden="true" />
           <div className="se-horse-racing__rails" aria-hidden="true" />
           <div className="se-horse-racing__finish" aria-hidden="true" />

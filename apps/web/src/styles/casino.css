@@ -1326,7 +1326,9 @@
 .se-horse-racing__dirt { position: absolute; inset: 0; z-index: -1; background: repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0, rgba(255,255,255,.04) 1px, transparent 1px 18%); }
 .se-horse-racing__rails { position: absolute; inset: 4px; z-index: 0; border: 2px dashed rgba(244,221,155,.35); border-radius: .4rem; pointer-events: none; }
 .se-horse-racing__finish { position: absolute; top: 0; right: 1.6rem; bottom: 0; width: 1.15rem; z-index: 2; background: repeating-linear-gradient(180deg, #fff 0 .9rem, #1a1a1a .9rem 1.8rem); border-left: 2px solid #1a1a1a; border-right: 2px solid #1a1a1a; box-shadow: 0 0 0 2px rgba(0,0,0,.35); pointer-events: none; }
-.se-horse-racing__rail { display: flex; justify-content: space-between; padding: .35rem .65rem; background: #162d1f; color: #f4dd9b; font-size: .65rem; font-weight: 900; letter-spacing: .1em; border-radius: .6rem .6rem 0 0; }
+.se-horse-racing__rail { position: relative; z-index: 10; display: flex; justify-content: space-between; align-items: center; gap: .75rem; min-height: 2rem; padding: .35rem .65rem; overflow: visible; background: #162d1f; color: #f4dd9b; font-size: .65rem; font-weight: 900; letter-spacing: .1em; border-radius: .6rem .6rem 0 0; }
+.se-horse-racing__rail strong { color: #ffe59b; white-space: nowrap; }
+.se-horse-racing__rail span { flex: 0 0 auto; white-space: nowrap; }
 .se-horse-racing__lanes { position: relative; z-index: 2; display: block; min-height: 17.1rem; }
 .se-horse-racing__lane { position: relative; z-index: 3; height: 2.85rem; display: grid; grid-template-columns: 2rem minmax(0, 1fr) 1.9rem; align-items: center; border-bottom: 1px dashed rgba(255,255,255,.12); padding-inline: .35rem; }
 .se-horse-racing__lane > span, .se-horse-racing__lane > em { z-index: 2; text-align: center; font-weight: 900; font-style: normal; color: #f4dd9b; text-shadow: 0 1px 2px #000; }
@@ -1355,7 +1357,7 @@
 @keyframes se-winner-pulse { from { opacity: .72; transform: translateY(.08rem) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1.04); } }
 @media (prefers-reduced-motion: reduce) { .se-scratch__foil, .se-scratch__grid > button.is-winning, .se-scratch__ticket.is-win, .se-horse-racing__horse b, .se-horse-racing__horse.is-winner::after { animation: none; transition: none; } }
 @media (max-width: 760px) { .se-scratch__denoms { grid-template-columns: repeat(4, 1fr); } .se-horse-racing__board { grid-template-columns: 1fr; } }
-@media (max-width: 520px) { .se-scratch__ticket { padding: .55rem; } .se-scratch__grid { gap: .28rem; } .se-scratch__grid > button { min-height: 4.75rem; } .se-scratch__winners > span { width: 4.35rem; } .se-horse-racing__bet { grid-template-columns: 1fr; } .se-horse-racing__runner small { display: none; } }
+@media (max-width: 520px) { .se-scratch__ticket { padding: .55rem; } .se-scratch__grid { gap: .28rem; } .se-scratch__grid > button { min-height: 4.75rem; } .se-scratch__winners > span { width: 4.35rem; } .se-horse-racing__bet { grid-template-columns: 1fr; } .se-horse-racing__horse small { max-width: 4rem; font-size: .52rem; } }
 
 /* 1.2.0-E High rollers, VIP rooms and city identity */
 .se-casino-status {
