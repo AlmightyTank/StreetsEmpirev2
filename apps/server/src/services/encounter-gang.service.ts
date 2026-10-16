@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { hashParts, loadRulesetForRound } from '@streets/rules-engine';
 import type { DistrictKey, EncounterGangRules, RandomEncounterEntryRules, RandomEncounterTrigger, Ruleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
+import { emitCityMemoryEvent } from './city-memory.service.js';
 import type { PlayerState } from './action.service.js';
 
 const DISTRICTS: readonly DistrictKey[] = ['WINO_SLUMS', 'LOW_RENT', 'URBAN_GHETTO', 'NIGHTCLUB', 'CASINO'];
@@ -111,12 +112,18 @@ function choices(gang: { slug: string; tier: string; wantedUntil: Date | null },
   ];
 }
 
-async function maybeMigrate(tx: Db, gang: { id: string; roundId: string; cityId: string; tier: string; migratedAt: Date | null; lastActionAt: Date | null }, playerCityId: string, rules: EncounterGangRules, now: Date, rng: () => number): Promise<boolean> {
+async function maybeMigrate(tx: Db, gang: { id: string; roundId: string; cityId: string; tier: string; migratedAt: Date | null; lastActionAt: Date | null }, playerCityId: string, rules: EncounterGangRules, now: Date, rng: () => number, actorId?: string): Promise<boolean> {
   if (!['VETERAN', 'KINGPIN'].includes(gang.tier) || gang.cityId === playerCityId || rng() >= 0.15) return false;
   const last = gang.migratedAt ?? gang.lastActionAt;
   if (last && now.getTime() - last.getTime() < rules.migrateAfterHours * 3_600_000) return false;
   await tx.encounterGang.update({ where: { id: gang.id }, data: { cityId: playerCityId, migratedAt: now, memory: { ...root((gang as { memory?: Prisma.JsonValue }).memory), migration: { arrivedAt: now.toISOString(), reason: 'RICHER_STREETS' } } } });
   await tx.encounterGangTurf.updateMany({ where: { gangId: gang.id, status: 'HELD' }, data: { status: 'ABANDONED', abandonedAt: now } });
+  if (actorId) await emitCityMemoryEvent(tx, {
+    roundId: gang.roundId, cityId: playerCityId, kind: 'npc_gang_migration',
+    visibility: 'involved-only', actorRoundPlayerIds: [actorId],
+    summary: { gangId: gang.id, fromCityId: gang.cityId, toCityId: playerCityId },
+    happenedAt: now, idempotencyKey: `npc-migrate:${gang.id}:${now.toISOString()}`,
+  });
   return true;
 }
 
@@ -140,7 +147,7 @@ export const EncounterGangService = {
     });
     if (!gangs.length) {
       const travelers = await input.tx.encounterGang.findMany({ where: { roundId: player.roundId, status: 'ACTIVE', tier: { in: ['VETERAN', 'KINGPIN'] } }, orderBy: { lastActionAt: 'asc' }, take: 4 });
-      for (const gang of travelers) if (await maybeMigrate(input.tx, gang, player.cityId, rules, input.now, rng)) break;
+      for (const gang of travelers) if (await maybeMigrate(input.tx, gang, player.cityId, rules, input.now, rng, input.ruleset.livingStories ? input.roundPlayerId : undefined)) break;
       gangs = await input.tx.encounterGang.findMany({
         where: { roundId: player.roundId, cityId: player.cityId, status: 'ACTIVE' },
         include: { turf: { where: { status: 'HELD' } }, grudges: { where: { roundPlayerId: input.roundPlayerId, expiresAt: { gt: input.now } } } },

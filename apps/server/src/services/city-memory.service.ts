@@ -1,5 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { Db } from '../utils/db.js';
+import { activeRoundEventTime } from '@streets/rulesets';
+import { inviteFromSettledMemory, LIVING_STORY_MEMORY_KINDS } from './living-story-trigger.service.js';
 
 export type CityMemoryKind =
   | 'takeover'
@@ -26,7 +28,11 @@ function json(value: unknown): Prisma.InputJsonValue {
 }
 
 export async function emitCityMemoryEvent(db: Db, input: EmitCityMemoryInput) {
-  return db.cityMemoryEvent.upsert({
+  const storyKind = (LIVING_STORY_MEMORY_KINDS as readonly string[]).includes(input.kind);
+  const round = storyKind && db.round?.findUnique
+    ? await db.round.findUnique({ where: { id: input.roundId } }) : null;
+  const happenedAt = input.happenedAt ?? new Date();
+  const event = await db.cityMemoryEvent.upsert({
     where: { idempotencyKey: input.idempotencyKey },
     create: {
       roundId: input.roundId,
@@ -35,11 +41,16 @@ export async function emitCityMemoryEvent(db: Db, input: EmitCityMemoryInput) {
       visibility: input.visibility ?? 'public',
       actors: json(input.actorRoundPlayerIds ?? []),
       summary: json(input.summary ?? {}),
-      happenedAt: input.happenedAt ?? new Date(),
+      happenedAt,
+      ...(round ? { happenedAtActive: activeRoundEventTime(round, happenedAt) } : {}),
       idempotencyKey: input.idempotencyKey,
     },
     update: {},
   });
+  if (round && round.status === 'ACTIVE' && !round.pausedAt) {
+    await inviteFromSettledMemory(db, event, new Date());
+  }
+  return event;
 }
 
 function actorIds(row: { actors: unknown }): string[] {
