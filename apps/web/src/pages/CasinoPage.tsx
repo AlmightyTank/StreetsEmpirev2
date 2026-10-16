@@ -267,7 +267,7 @@ export function CasinoPage() {
       savedGameScrollY.current = null;
       setMinimumStageHeight(0);
     };
-    const releaseOnKey = (event: globalThis.KeyboardEvent) => {
+    const releaseOnKey = (event: KeyboardEvent) => {
       if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)
         || (event.key === ' ' && !(event.target instanceof HTMLElement && event.target.closest('button')))) {
         release();
@@ -289,11 +289,13 @@ export function CasinoPage() {
   }, [activeGame]);
 
   useLayoutEffect(() => {
-    const targetY = savedGameScrollY.current;
-    if (targetY === null) return;
-    savedGameScrollY.current = null;
-    // React has committed the new table state by the next frame.
+    if (savedGameScrollY.current === null) return;
+    // Wait until the new game result commits. Keep the pending anchor when
+    // consecutive bankroll updates cancel and reschedule this frame.
     const frame = window.requestAnimationFrame(() => {
+      const targetY = savedGameScrollY.current;
+      if (targetY === null) return; // The player chose to scroll in the meantime.
+      savedGameScrollY.current = null;
       const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
       if (Math.abs(window.scrollY - targetY) > 1) {
         window.scrollTo(0, Math.min(targetY, maxY));
