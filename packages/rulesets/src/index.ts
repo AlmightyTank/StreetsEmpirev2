@@ -290,6 +290,7 @@ export { cityHoldingsEnabled } from './classic-og-v3.0-a/index.js';
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './event-system.js';
+export * from './living-stories.js';
 export * from './combat-prototype.js';
 export * from './hideout-v2.js';
 export * from './quest-definitions.js';
