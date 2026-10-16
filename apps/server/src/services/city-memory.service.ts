@@ -47,7 +47,7 @@ export async function emitCityMemoryEvent(db: Db, input: EmitCityMemoryInput) {
     update: {},
   });
   if (round && round.status === 'ACTIVE' && !round.pausedAt) {
-    await inviteFromSettledMemory(db, event, happenedAt);
+    await inviteFromSettledMemory(db, event, new Date());
   }
   return event;
 }

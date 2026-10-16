@@ -38,7 +38,7 @@ export async function tryOfferLivingStory(db: Db, input: {
   if (!check.eligible) return false;
   // Serializes quota checks and case insertion across the round, including
   // simultaneous opt-ins. Retried sources reuse the same case dedupe key.
-  await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'living-stories:' + round.id}))`;
+  await db.$queryRaw`SELECT 1::int AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${'living-stories:' + round.id}))) AS guard`;
   const existing = await db.criminalCaseFile.findUnique({
     where: { offerDedupeKey: check.dedupeKey }, select: { id: true },
   });
@@ -95,8 +95,14 @@ export async function listPublicStoryOpportunities(
     select: { id: true, roundId: true, cityId: true, kind: true, actors: true,
       happenedAt: true, happenedAtActive: true }, orderBy: { happenedAt: 'desc' }, take: 40,
   });
+  const already = await db.criminalCaseFile.findMany({
+    where: { ownerId: input.ownerId, roundId: round.id, sourceMemoryId: { in: rows.map((row) => row.id) } },
+    select: { sourceMemoryId: true, storyKey: true },
+  });
+  const offered = new Set(already.map((row) => row.sourceMemoryId + ':' + row.storyKey));
   const opportunities: Array<{ memoryId: string; storyKey: string; caseKey: string; title: string; expiresAtActive: string }> = [];
   for (const memory of rows) for (const def of defs) {
+    if (offered.has(memory.id + ':' + def.key)) continue;
     const decision = evaluateLivingStoryOffer(ruleset, def.key, {
       roundId: memory.roundId, cityId: memory.cityId, sourceKind: 'CITY_MEMORY',
       sourceId: memory.id, eventKind: memory.kind, visibility: 'public',
