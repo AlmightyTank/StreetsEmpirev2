@@ -2,10 +2,13 @@
 /**
  * 1.0.0-G. Mobile and accessibility audit of the game client, in a real browser.
  *
- *   npm run qa:ui -- [--base http://127.0.0.1:5173] [--out ./ui-audit] [--shots] [--strict] [--baseline]
+ *   npm run qa:ui -- [--base http://127.0.0.1:5173] [--out ./ui-audit] [--shots] [--strict] [--baseline] [--shard 1/6]
  *   npm run qa:ui -- --dashboard --shots --strict --base http://127.0.0.1:5173
  *   --dashboard audits the real signed-in Command Center at every selected width.
  *   --baseline limits the matrix to the 390/768/1440 Slice A reference widths.
+ *   --shard N/T splits the filtered route plan into T stable, interleaved batches.
+ *   Use separate invocations for large matrices so per-account API limits do not
+ *   turn later pages into false script/focus failures.
  *
  * Against a running web client and API (npm run dev), it visits every major page
  * at the release width matrix (360/390/768/1024/1440/1920), with both desktop
@@ -43,7 +46,17 @@ const DASHBOARD_ONLY = args.includes('--dashboard');
 const BASELINE_ONLY = args.includes('--baseline');
 const STRICT = args.includes('--strict');
 const ONLY = option('only', '');
-// The API rate-limits each account; three widths of every page in a row trips it without a pause.
+const SHARD_OPTION = option('shard', '');
+const SHARD = (() => {
+  if (!SHARD_OPTION) return null;
+  const match = /^(\d+)\/(\d+)$/.exec(SHARD_OPTION);
+  if (!match) throw new Error('--shard must use N/T syntax, for example --shard 1/6.');
+  const index = Number(match[1]);
+  const total = Number(match[2]);
+  if (index < 1 || total < 1 || index > total) throw new Error('--shard requires 1 <= N <= T.');
+  return { index, total };
+})();
+// The development API has request throttles; three widths of every page in a row can trip them without a pause.
 const PACE_MS = Number(option('pace', '900'));
 const AXE_SOURCE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 
@@ -99,10 +112,25 @@ async function signedIn(browser, credentials, label) {
   }
   const state = await context.storageState();
   const extras = {};
-  if (label === 'admin') {
+  if (label === 'player') {
+    const directory = await api(context, 'GET', '/api/game/players?view=all&page=1');
+    const profile = directory.body?.players?.[0];
+    if (profile?.publicPimpId) extras.publicPimpId = profile.publicPimpId;
+    const alliances = await api(context, 'GET', '/api/game/alliances');
+    const alliance = alliances.body?.alliances?.[0];
+    if (alliance?.tag) extras.allianceTag = alliance.tag;
+    const archive = await api(context, 'GET', '/api/rounds/aftermath/archive?page=1&pageSize=10&order=newest');
+    const round = archive.body?.rounds?.find((row) => row.reportStatus === 'READY');
+    if (round?.id) extras.aftermathRound = round.id;
+  } else if (label === 'admin') {
     const rounds = await api(context, 'GET', '/api/admin/rounds');
     const round = rounds.body?.rounds?.find((row) => row.status === 'ACTIVE') ?? rounds.body?.rounds?.[0];
-    if (round) extras.round = round.id;
+    if (round) {
+      extras.round = round.id;
+      const health = await api(context, 'GET', `/api/admin/rounds/${encodeURIComponent(round.id)}/health`);
+      const player = health.body?.topPlayers?.[0];
+      if (player?.roundPlayerId) extras.player = player.roundPlayerId;
+    }
     const me = await api(context, 'GET', '/api/auth/me');
     if (me.body?.account?.id) extras.account = me.body.account.id;
   }
@@ -326,15 +354,25 @@ try {
   const player = await signedIn(browser, process.env.UI_AUDIT_PLAYER, 'player');
   const admin = process.env.UI_AUDIT_ADMIN ? await signedIn(browser, process.env.UI_AUDIT_ADMIN, 'admin') : null;
   const anon = { cookies: [], origins: [] };
-  const plan = [
+  const fullPlan = [
     ...PUBLIC_PAGES.map((url) => [anon, url]),
     ...PLAYER_PAGES.map((url) => [player.state, url]),
+    ...(player.extras.publicPimpId ? [[player.state, `/game/players/${player.extras.publicPimpId}`]] : []),
+    ...(player.extras.allianceTag ? [[player.state, `/game/alliances/${encodeURIComponent(player.extras.allianceTag)}`]] : []),
+    ...(player.extras.aftermathRound ? [[player.state, `/game/rounds/${player.extras.aftermathRound}/aftermath`]] : []),
     ...(admin ? [
       ...ADMIN_PAGES.map((url) => [admin.state, url]),
       ...(admin.extras.round ? [[admin.state, `/game/admin/rounds/${admin.extras.round}`]] : []),
       ...(admin.extras.account ? [[admin.state, `/game/admin/accounts/${admin.extras.account}`]] : []),
+      ...(admin.extras.player ? [
+        [admin.state, `/game/admin/players/${admin.extras.player}`],
+        [admin.state, `/game/admin/players/${admin.extras.player}/law`],
+      ] : []),
     ] : []),
   ].filter(([, url]) => (!DASHBOARD_ONLY || url === '/game') && (!ONLY || url.includes(ONLY)));
+  const plan = SHARD
+    ? fullPlan.filter((_, routeIndex) => routeIndex % SHARD.total === SHARD.index - 1)
+    : fullPlan;
   for (const [state, url] of plan) {
     for (const width of AUDIT_WIDTHS) {
       const row = await auditPage(browser, state, url, width);
@@ -364,7 +402,7 @@ const errorRows = results.filter((row) => row.errors.length);
 const dashboardRows = results.filter((row) => row.dashboard?.issues.length);
 const serious = [...axeById.values()].filter((v) => v.impact === 'serious' || v.impact === 'critical');
 const lines = [
-  '# UI audit', '', `${BASE} · ${new Date().toISOString()} · ${new Set(results.map((row) => row.url)).size} pages × ${AUDIT_WIDTHS.length} widths`, '',
+  '# UI audit', '', `${BASE} · ${new Date().toISOString()} · ${new Set(results.map((row) => row.url)).size} pages × ${AUDIT_WIDTHS.length} widths${SHARD ? ` · shard ${SHARD.index}/${SHARD.total}` : ''}`, '',
   `| Check | Result |`, `| --- | --- |`,
   `| Sideways scrolling | ${overflowRows.length ? `${overflowRows.length} page/width(s)` : 'none'} |`,
   `| Targets under 24 px (touch viewports) | ${targetRows.length ? `${targetRows.reduce((n, row) => n + row.targets.fail.length, 0)} on ${targetRows.length} page/width(s)` : 'none'} |`,

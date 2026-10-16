@@ -991,7 +991,7 @@ export function AdminPlayerPage() {
                   <strong>{entry.type}</strong>
                   <span className="se-muted">{adminWhen(entry.createdAt)}</span>
                 </div>
-                <pre className="se-admin-json se-admin-json--inline">{JSON.stringify(entry.payload)}</pre>
+                <pre className="se-admin-json se-admin-json--inline" tabIndex={0} aria-label="Activity details">{JSON.stringify(entry.payload)}</pre>
               </li>
             ))}
           </ol>

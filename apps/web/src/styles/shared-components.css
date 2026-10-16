@@ -200,5 +200,6 @@
 .se-text-action {
   display: inline-flex;
   align-items: center;
+  min-inline-size: 24px;
   min-height: 24px;
 }

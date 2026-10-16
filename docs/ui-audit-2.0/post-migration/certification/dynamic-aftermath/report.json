@@ -1,0 +1,113 @@
+[
+  {
+    "url": "/game/rounds/cmv7gmn3n000ctkdk4mmu2d27/aftermath",
+    "finalPath": "/game/rounds/cmv7gmn3n000ctkdk4mmu2d27/aftermath",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 19,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, auditzf00a0\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-mt \"Copy shareable report link\" 250x40",
+        "button#se-aftermath-tab-summary.se-aftermath-tab.se-aftermath-tab--active \"Entire Round\" 109x40",
+        "button#se-aftermath-tab-cities.se-aftermath-tab \"By City\" 69x40",
+        "button#se-aftermath-tab-alliances.se-aftermath-tab \"Alliances\" 86x40",
+        "button#se-aftermath-tab-me.se-aftermath-tab \"My Empire\" 88x40",
+        "button#se-aftermath-tab-records.se-aftermath-tab \"Records & Awards\" 141x40",
+        "button#se-aftermath-tab-wealth.se-aftermath-tab \"Wealth\" 73x40",
+        "button#se-aftermath-tab-turf.se-aftermath-tab \"Turf\" 54x40",
+        "button#se-aftermath-tab-crew.se-aftermath-tab \"Crew\" 58x40",
+        "button#se-aftermath-tab-drugs.se-aftermath-tab \"Drugs\" 64x40",
+        "button#se-aftermath-tab-businesses.se-aftermath-tab \"Businesses\" 92x40",
+        "button#se-aftermath-tab-crime.se-aftermath-tab \"Crime\" 61x40",
+        "button#se-aftermath-tab-competition.se-aftermath-tab \"Competition\" 104x40",
+        "a.se-aftermath-archive-link \"Browse the round archive\" 123x24"
+      ],
+      "total": 28
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/rounds/cmv7gmn3n000ctkdk4mmu2d27/aftermath",
+    "finalPath": "/game/rounds/cmv7gmn3n000ctkdk4mmu2d27/aftermath",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 21,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, auditzf00a0\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-mt \"Copy shareable report link\" 250x40",
+        "button#se-aftermath-tab-summary.se-aftermath-tab.se-aftermath-tab--active \"Entire Round\" 109x40",
+        "button#se-aftermath-tab-cities.se-aftermath-tab \"By City\" 69x40",
+        "button#se-aftermath-tab-alliances.se-aftermath-tab \"Alliances\" 86x40",
+        "button#se-aftermath-tab-me.se-aftermath-tab \"My Empire\" 88x40",
+        "button#se-aftermath-tab-records.se-aftermath-tab \"Records & Awards\" 141x40",
+        "button#se-aftermath-tab-wealth.se-aftermath-tab \"Wealth\" 73x40",
+        "button#se-aftermath-tab-turf.se-aftermath-tab \"Turf\" 54x40",
+        "button#se-aftermath-tab-crew.se-aftermath-tab \"Crew\" 58x40",
+        "button#se-aftermath-tab-drugs.se-aftermath-tab \"Drugs\" 64x40",
+        "button#se-aftermath-tab-businesses.se-aftermath-tab \"Businesses\" 92x40",
+        "button#se-aftermath-tab-crime.se-aftermath-tab \"Crime\" 61x40",
+        "button#se-aftermath-tab-competition.se-aftermath-tab \"Competition\" 104x40",
+        "a.se-aftermath-archive-link \"Browse the round archive\" 123x24"
+      ],
+      "total": 29
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/rounds/cmv7gmn3n000ctkdk4mmu2d27/aftermath",
+    "finalPath": "/game/rounds/cmv7gmn3n000ctkdk4mmu2d27/aftermath",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  }
+]

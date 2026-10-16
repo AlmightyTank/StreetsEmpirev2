@@ -58,7 +58,12 @@ Exceptions never waive keyboard access, readable status text, overflow behavior,
 - TypeScript: `npm run typecheck -w @streets/web` — passed.
 - Unit/SSR: shared primitives, theme resolution, and Holdings migration tests — passed. Vitest now includes both `.test.ts` and `.test.tsx` files.
 - Production bundle: `npm run build -w @streets/web` — passed; the pre-existing large-chunk advisory remains non-blocking.
-- Browser matrix: Dashboard, Events, Casino Slots, Login, and `/dev/ui` captured at 390, 768, and 1440. All five samples pass overflow, 24px minimum-target, keyboard-focus, axe WCAG 2.2 AA, and script-error checks. Dashboard also passes its structural checks.
-- Evidence: [`ui-audit-2.0/post-migration/`](./ui-audit-2.0/post-migration/).
+- Representative browser matrix: Dashboard, Events, Casino Slots, Login, and `/dev/ui` captured at 390, 768, and 1440. All five samples pass overflow, 24px minimum-target, keyboard-focus, axe WCAG 2.2 AA, and script-error checks. Dashboard also passes its structural checks.
+- Exhaustive automated certification: 91 discovered route instances across 273 viewport rows passed strict checks with zero overflow, sub-24px targets, keyboard/skip-link failures, axe WCAG 2.2 AA violations, or script errors.
+- Evidence: [`ui-audit-2.0/post-migration/`](./ui-audit-2.0/post-migration/) and the [`certification` manifest](./ui-audit-2.0/post-migration/certification/README.md).
 
 The committed Slice A evidence remains the before-state. Post-migration evidence is recorded separately rather than overwriting that baseline.
+
+The exhaustive run is intentionally split into sequential shards. The local development API applies a server-wide request throttle, so a single monolithic or concurrent run can produce false application errors after sustained traffic. Each strict shard uses a fresh disposable player and the same deterministic route and viewport matrix.
+
+Data-backed dynamic routes were included when valid local fixtures existed: public player profile, round aftermath, admin round/account/player, and player-law details. The local audit database contained no alliance or forum-link record, so `/game/alliances/:tag` and `/game/forum/:forumUserId` remain fixture-dependent exceptions rather than fabricated test data. Their shared shell and component families are covered by the canonical social/profile routes. Automated completion does not replace the separate human screenshot sign-off recorded in the Slice A worksheet.

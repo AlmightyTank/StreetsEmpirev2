@@ -344,6 +344,20 @@ These results are a reproducible technical baseline, not visual approval. The fi
 
 The P0 ownership items and first P1 migration wave were implemented after this baseline. See [`UI-CSS-ARCHITECTURE.md`](./UI-CSS-ARCHITECTURE.md) and [`UI-MIGRATION-B-E.md`](./UI-MIGRATION-B-E.md). The Slice A screenshots above intentionally remain unchanged as before-state evidence.
 
+### Post-migration technical certification
+
+The automated Slices B-E gate is complete. Twelve sequential strict reports under the [`certification` evidence directory](./ui-audit-2.0/post-migration/certification/README.md) cover 91 discovered route instances and 273 viewport rows. All rows report:
+
+- zero page-level horizontal overflow;
+- zero interactive targets below 24px;
+- visible desktop keyboard focus with the skip link first;
+- zero axe WCAG 2.2 AA violations; and
+- zero script or page errors.
+
+The route matrix includes canonical public/player/admin routes plus fixture-backed dynamic public profiles, READY round aftermath, admin round/account/player, and player-law pages. No alliance or forum-link fixture existed in the local audit database, so `/game/alliances/:tag` and `/game/forum/:forumUserId` remain documented fixture-dependent exceptions. Their shared shell and component families are exercised by the canonical social/profile routes. Sequential sharding is required because the local development API's server-wide throttle can create false failures during a monolithic run.
+
+This technical certification does not mark the human visual-review item below as approved.
+
 ## Slice A completion gate
 
 - [x] Every declared route is classified, including redirects, dynamic routes and wildcard.

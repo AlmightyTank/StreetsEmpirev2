@@ -1,0 +1,827 @@
+[
+  {
+    "url": "/game/admin",
+    "finalPath": "/game/admin/rounds",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 9,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "a.se-btn.se-btn--ghost \"Monitoring\" 129x40",
+        "a.se-btn.se-btn--ghost \"News and Banners\" 182x40",
+        "a.se-btn.se-btn--ghost \"Surveys\" 98x40",
+        "button.se-btn.se-btn \"Pause\" 62x36",
+        "button.se-btn.se-btn \"End early\" 88x36",
+        "button.se-btn.se-btn \"Archive\" 76x36",
+        "button.se-btn.se-btn \"Archive\" 76x36",
+        "button.se-btn.se-btn \"Schedule round\" 344x40"
+      ],
+      "total": 32
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin",
+    "finalPath": "/game/admin/rounds",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 9,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "a.se-btn.se-btn--ghost \"Monitoring\" 129x40",
+        "a.se-btn.se-btn--ghost \"News and Banners\" 182x40",
+        "a.se-btn.se-btn--ghost \"Surveys\" 98x40",
+        "button.se-btn.se-btn \"Pause\" 62x36",
+        "button.se-btn.se-btn \"End early\" 88x36",
+        "button.se-btn.se-btn \"Archive\" 76x36",
+        "button.se-btn.se-btn \"Archive\" 76x36",
+        "button.se-btn.se-btn \"Schedule round\" 335x40"
+      ],
+      "total": 33
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin",
+    "finalPath": "/game/admin/rounds",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/news",
+    "finalPath": "/game/admin/news",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 29,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn \"Post news\" 344x40",
+        "button.se-btn.se-btn \"Post banner\" 344x40",
+        "button.se-btn.se-btn \"Pin\" 46x36",
+        "button.se-btn.se-btn \"Edit\" 52x36",
+        "button.se-btn.se-btn \"Delete\" 66x36",
+        "button.se-btn.se-btn \"Unpin\" 63x36",
+        "button.se-btn.se-btn \"Edit\" 52x36",
+        "button.se-btn.se-btn \"Delete\" 66x36",
+        "button.se-btn.se-btn \"Unpin\" 63x36",
+        "button.se-btn.se-btn \"Edit\" 52x36",
+        "button.se-btn.se-btn \"Post to Discord again\" 169x36",
+        "button.se-btn.se-btn \"Delete\" 66x36",
+        "button.se-btn.se-btn \"Unpin\" 63x36",
+        "button.se-btn.se-btn \"Edit\" 52x36",
+        "button.se-btn.se-btn \"Post to Discord again\" 169x36",
+        "button.se-btn.se-btn \"Delete\" 66x36",
+        "button.se-btn.se-btn \"Unpin\" 63x36",
+        "button.se-btn.se-btn \"Edit\" 52x36",
+        "button.se-btn.se-btn \"Post to Discord again\" 169x36",
+        "button.se-btn.se-btn \"Delete\" 66x36",
+        "button.se-btn.se-btn \"Unpin\" 63x36",
+        "button.se-btn.se-btn \"Edit\" 52x36",
+        "button.se-btn.se-btn \"Post to Discord again\" 169x36",
+        "button.se-btn.se-btn \"Delete\" 66x36"
+      ],
+      "total": 53
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/news",
+    "finalPath": "/game/admin/news",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 29,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn \"Post news\" 335x40",
+        "button.se-btn.se-btn \"Post banner\" 335x40",
+        "button.se-btn.se-btn \"Pin\" 46x36",
+        "button.se-btn.se-btn \"Edit\" 52x36",
+        "button.se-btn.se-btn \"Delete\" 66x36",
+        "button.se-btn.se-btn \"Unpin\" 63x36",
+        "button.se-btn.se-btn \"Edit\" 52x36",
+        "button.se-btn.se-btn \"Delete\" 66x36",
+        "button.se-btn.se-btn \"Unpin\" 63x36",
+        "button.se-btn.se-btn \"Edit\" 52x36",
+        "button.se-btn.se-btn \"Post to Discord again\" 169x36",
+        "button.se-btn.se-btn \"Delete\" 66x36",
+        "button.se-btn.se-btn \"Unpin\" 63x36",
+        "button.se-btn.se-btn \"Edit\" 52x36",
+        "button.se-btn.se-btn \"Post to Discord again\" 169x36",
+        "button.se-btn.se-btn \"Delete\" 66x36",
+        "button.se-btn.se-btn \"Unpin\" 63x36",
+        "button.se-btn.se-btn \"Edit\" 52x36",
+        "button.se-btn.se-btn \"Post to Discord again\" 169x36",
+        "button.se-btn.se-btn \"Delete\" 66x36",
+        "button.se-btn.se-btn \"Unpin\" 63x36",
+        "button.se-btn.se-btn \"Edit\" 52x36",
+        "button.se-btn.se-btn \"Post to Discord again\" 169x36",
+        "button.se-btn.se-btn \"Delete\" 66x36"
+      ],
+      "total": 53
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/news",
+    "finalPath": "/game/admin/news",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/quests",
+    "finalPath": "/game/admin/quests",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 179,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "a.se-btn.se-btn--ghost \"Rounds\" 96x40",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36",
+        "button.se-btn.se-btn \"Disable\" 279x36"
+      ],
+      "total": 193
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/quests",
+    "finalPath": "/game/admin/quests",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 179,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "a.se-btn.se-btn--ghost \"Rounds\" 96x40",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36",
+        "button.se-btn.se-btn \"Disable\" 73x36"
+      ],
+      "total": 195
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/quests",
+    "finalPath": "/game/admin/quests",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/rulesets",
+    "finalPath": "/game/admin/rulesets",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 71
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/rulesets",
+    "finalPath": "/game/admin/rulesets",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 43
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/rulesets",
+    "finalPath": "/game/admin/rulesets",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/events",
+    "finalPath": "/game/admin/events",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 6,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn--primary \"Open cinematic preview\" 220x40",
+        "button.se-btn.se-btn--secondary \"Test three-alert queue\" 215x40",
+        "button.se-btn.se-btn \"Save disabled draft\" 344x40",
+        "div.se-tablewrap \"Upcoming and live calendar (table)\" 368x32",
+        "div.se-tablewrap \"Event lifecycle history (table)\" 368x32"
+      ],
+      "total": 39
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/events",
+    "finalPath": "/game/admin/events",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 4,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn--primary \"Open cinematic preview\" 220x40",
+        "button.se-btn.se-btn--secondary \"Test three-alert queue\" 215x40",
+        "button.se-btn.se-btn \"Save disabled draft\" 350x40"
+      ],
+      "total": 37
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/events",
+    "finalPath": "/game/admin/events",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/crew",
+    "finalPath": "/game/admin/crew",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/crew",
+    "finalPath": "/game/admin/crew",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/crew",
+    "finalPath": "/game/admin/crew",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/loans",
+    "finalPath": "/game/admin/loans",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/loans",
+    "finalPath": "/game/admin/loans",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/loans",
+    "finalPath": "/game/admin/loans",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/vehicles",
+    "finalPath": "/game/admin/vehicles",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/vehicles",
+    "finalPath": "/game/admin/vehicles",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/vehicles",
+    "finalPath": "/game/admin/vehicles",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/turf",
+    "finalPath": "/game/admin/turf",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 41,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-linkbtn \"New York City · casino\" 135x32",
+        "button.se-linkbtn \"New York City · low rent\" 147x32",
+        "button.se-linkbtn \"New York City · nightclub\" 155x32",
+        "button.se-linkbtn \"New York City · urban ghetto\" 178x32",
+        "button.se-linkbtn \"New York City · wino slums\" 165x32",
+        "button.se-linkbtn \"Detroit · casino\" 93x32",
+        "button.se-linkbtn \"Detroit · low rent\" 104x32",
+        "button.se-linkbtn \"Detroit · nightclub\" 112x32",
+        "button.se-linkbtn \"Detroit · urban ghetto\" 135x32",
+        "button.se-linkbtn \"Detroit · wino slums\" 123x32",
+        "button.se-linkbtn \"Miami Beach · casino\" 129x32",
+        "button.se-linkbtn \"Miami Beach · low rent\" 140x32",
+        "button.se-linkbtn \"Miami Beach · nightclub\" 148x32",
+        "button.se-linkbtn \"Miami Beach · urban ghetto\" 171x32",
+        "button.se-linkbtn \"Miami Beach · wino slums\" 159x32",
+        "button.se-linkbtn \"Seattle · casino\" 92x32",
+        "button.se-linkbtn \"Seattle · low rent\" 103x32",
+        "button.se-linkbtn \"Seattle · nightclub\" 111x32",
+        "button.se-linkbtn \"Seattle · urban ghetto\" 134x32",
+        "button.se-linkbtn \"Seattle · wino slums\" 122x32",
+        "button.se-linkbtn \"Las Vegas · casino\" 110x32",
+        "button.se-linkbtn \"Las Vegas · low rent\" 121x32",
+        "button.se-linkbtn \"Las Vegas · nightclub\" 129x32",
+        "button.se-linkbtn \"Las Vegas · urban ghetto\" 152x32"
+      ],
+      "total": 54
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/turf",
+    "finalPath": "/game/admin/turf",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 41,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-linkbtn \"New York City · casino\" 135x32",
+        "button.se-linkbtn \"New York City · low rent\" 147x32",
+        "button.se-linkbtn \"New York City · nightclub\" 155x32",
+        "button.se-linkbtn \"New York City · urban ghetto\" 178x32",
+        "button.se-linkbtn \"New York City · wino slums\" 165x32",
+        "button.se-linkbtn \"Detroit · casino\" 93x32",
+        "button.se-linkbtn \"Detroit · low rent\" 104x32",
+        "button.se-linkbtn \"Detroit · nightclub\" 112x32",
+        "button.se-linkbtn \"Detroit · urban ghetto\" 135x32",
+        "button.se-linkbtn \"Detroit · wino slums\" 123x32",
+        "button.se-linkbtn \"Miami Beach · casino\" 129x32",
+        "button.se-linkbtn \"Miami Beach · low rent\" 140x32",
+        "button.se-linkbtn \"Miami Beach · nightclub\" 148x32",
+        "button.se-linkbtn \"Miami Beach · urban ghetto\" 171x32",
+        "button.se-linkbtn \"Miami Beach · wino slums\" 159x32",
+        "button.se-linkbtn \"Seattle · casino\" 92x32",
+        "button.se-linkbtn \"Seattle · low rent\" 103x32",
+        "button.se-linkbtn \"Seattle · nightclub\" 111x32",
+        "button.se-linkbtn \"Seattle · urban ghetto\" 134x32",
+        "button.se-linkbtn \"Seattle · wino slums\" 122x32",
+        "button.se-linkbtn \"Las Vegas · casino\" 110x32",
+        "button.se-linkbtn \"Las Vegas · low rent\" 121x32",
+        "button.se-linkbtn \"Las Vegas · nightclub\" 129x32",
+        "button.se-linkbtn \"Las Vegas · urban ghetto\" 152x32"
+      ],
+      "total": 54
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/turf",
+    "finalPath": "/game/admin/turf",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  }
+]

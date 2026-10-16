@@ -64,3 +64,32 @@ The `post-migration/` directory is the after-state and does not replace the Slic
 | [Developer gallery](post-migration/ui-gallery/report.md) | captured | captured | captured | Pass across representative theme/accent pairs |
 
 “Pass” means no page-level horizontal overflow, no target under 24px, visible keyboard focus with the skip link first, no axe WCAG 2.2 AA violation, and no script error. Targets measuring 24–43px remain recorded as advisory improvements. The gallery initially exposed low-contrast shared table headings; changing them from `--se-muted` to `--se-text-dim` resolved the issue across the matrix.
+
+## Exhaustive automated certification
+
+The authoritative Slices B-E gate is the [`post-migration/certification/`](post-migration/certification/) matrix:
+
+| Coverage | Reports | Route instances | Viewport rows | Strict failures |
+| --- | ---: | ---: | ---: | ---: |
+| Public/player canonical routes | 6 | 60 | 180 | 0 |
+| Data-backed dynamic and admin routes | 6 | 31 | 93 | 0 |
+| **Total** | **12** | **91** | **273** | **0** |
+
+Every row passed page overflow, 24px minimum-target, desktop keyboard/skip-link, axe WCAG 2.2 AA, and script-error checks. The matrix uses 390px with `federal-case`/`crimson`, 768px with `midnight-market`/`blue`, and 1440px with `federal-case`/`gold`.
+
+Run public/player coverage sequentially to stay below the local development API's server-wide throttle:
+
+```sh
+npm run qa:ui -- --baseline --strict --shard 1/6 --pace 1400 --base http://127.0.0.1:5173 --out docs/ui-audit-2.0/post-migration/certification/player-public-1-of-6
+# Repeat for shards 2/6 through 6/6, changing the output suffix.
+```
+
+Admin coverage requires a disposable local admin account supplied through `UI_AUDIT_ADMIN`; never place its password in a command committed to the repository. Run the three admin shards sequentially, then revoke the temporary role:
+
+```powershell
+$env:UI_AUDIT_ADMIN = "<temporary-username>:<temporary-password>"
+npm run qa:ui -- --baseline --strict --only /game/admin --shard 1/3 --pace 1400 --base http://127.0.0.1:5173 --out docs/ui-audit-2.0/post-migration/certification/admin-1-of-3
+# Repeat for shards 2/3 and 3/3.
+```
+
+The runner discovers valid fixture-backed URLs for public player profiles, READY aftermath reports, admin rounds/accounts/players, and player-law details. The certification database had no alliance and no forum-link record, so `/game/alliances/:tag` and `/game/forum/:forumUserId` are explicitly fixture-dependent. No fake persistent content was created to make those URLs pass. The automated result is complete for every available route fixture; the human visual-review checklist above remains a separate approval gate.

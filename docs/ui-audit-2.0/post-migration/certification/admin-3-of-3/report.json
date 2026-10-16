@@ -1,0 +1,715 @@
+[
+  {
+    "url": "/game/admin/monitoring",
+    "finalPath": "/game/admin/monitoring",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 3,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-tip \"About this: 4xx answers, and requests tu\" 24x24",
+        "button.se-tip \"About this: 4xx answers, and requests tu\" 24x24"
+      ],
+      "total": 15
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/monitoring",
+    "finalPath": "/game/admin/monitoring",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 3,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-tip \"About this: 4xx answers, and requests tu\" 24x24",
+        "button.se-tip \"About this: 4xx answers, and requests tu\" 24x24"
+      ],
+      "total": 15
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/monitoring",
+    "finalPath": "/game/admin/monitoring",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/supporters",
+    "finalPath": "/game/admin/supporters",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 6,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "a.se-btn.se-btn--ghost \"All supporter grants\" 205x40",
+        "button.se-btn.se-btn \"Preview\" 99x40",
+        "button.se-btn.se-btn \"Grant\" 85x40",
+        "button.se-btn.se-btn \"Give this month's drop now\" 256x40",
+        "button.se-btn.se-btn \"Stage poll\" 118x40"
+      ],
+      "total": 24
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/supporters",
+    "finalPath": "/game/admin/supporters",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 6,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "a.se-btn.se-btn--ghost \"All supporter grants\" 205x40",
+        "button.se-btn.se-btn \"Preview\" 99x40",
+        "button.se-btn.se-btn \"Grant\" 85x40",
+        "button.se-btn.se-btn \"Give this month's drop now\" 256x40",
+        "button.se-btn.se-btn \"Stage poll\" 118x40"
+      ],
+      "total": 24
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/supporters",
+    "finalPath": "/game/admin/supporters",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/integrations",
+    "finalPath": "/game/admin/integrations",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 9,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn \"Resync everyone's roles\" 181x36",
+        "button.se-btn.se-btn \"Add bots to this round\" 178x36",
+        "button.se-btn.se-btn \"Remove every bot\" 138x36",
+        "button.se-btn.se-btn \"Add Razor Ray (razor-ray)\" 198x36",
+        "button.se-btn.se-btn \"Add Cashbox Carlo (cashbox-carlo)\" 259x36",
+        "button.se-btn.se-btn \"Add Iron Maya (iron-maya)\" 199x36",
+        "button.se-btn.se-btn \"Add Low Morale Lou (low-morale-lou)\" 276x36",
+        "button.se-btn.se-btn \"Add Hubcap Hector (hubcap-hector)\" 260x36"
+      ],
+      "total": 21
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/integrations",
+    "finalPath": "/game/admin/integrations",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 9,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn \"Resync everyone's roles\" 181x36",
+        "button.se-btn.se-btn \"Add bots to this round\" 178x36",
+        "button.se-btn.se-btn \"Remove every bot\" 138x36",
+        "button.se-btn.se-btn \"Add Razor Ray (razor-ray)\" 198x36",
+        "button.se-btn.se-btn \"Add Cashbox Carlo (cashbox-carlo)\" 259x36",
+        "button.se-btn.se-btn \"Add Iron Maya (iron-maya)\" 199x36",
+        "button.se-btn.se-btn \"Add Low Morale Lou (low-morale-lou)\" 276x36",
+        "button.se-btn.se-btn \"Add Hubcap Hector (hubcap-hector)\" 260x36"
+      ],
+      "total": 21
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/integrations",
+    "finalPath": "/game/admin/integrations",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/audit",
+    "finalPath": "/game/admin/audit",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn \"Apply\" 80x40",
+        "button.se-btn.se-btn \"Clear\" 80x40",
+        "a.se-btn \"Download CSV\" 149x40",
+        "button.se-btn.se-btn \"Purge 0 old entries\" 188x40"
+      ],
+      "total": 24
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/audit",
+    "finalPath": "/game/admin/audit",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 5,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn \"Apply\" 80x40",
+        "button.se-btn.se-btn \"Clear\" 80x40",
+        "a.se-btn \"Download CSV\" 149x40",
+        "button.se-btn.se-btn \"Purge 0 old entries\" 188x40"
+      ],
+      "total": 24
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/audit",
+    "finalPath": "/game/admin/audit",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/bugs",
+    "finalPath": "/game/admin/bugs",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 3,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-seg__btn.se-seg__btn--on \"Open (0)\" 90x40",
+        "button.se-seg__btn \"Resolved (0)\" 114x40"
+      ],
+      "total": 15
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/bugs",
+    "finalPath": "/game/admin/bugs",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 3,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-seg__btn.se-seg__btn--on \"Open (0)\" 90x40",
+        "button.se-seg__btn \"Resolved (0)\" 114x40"
+      ],
+      "total": 15
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/bugs",
+    "finalPath": "/game/admin/bugs",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/supply",
+    "finalPath": "/game/admin/supply",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/supply",
+    "finalPath": "/game/admin/supply",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/supply",
+    "finalPath": "/game/admin/supply",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/factions",
+    "finalPath": "/game/admin/factions",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/factions",
+    "finalPath": "/game/admin/factions",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 14
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/factions",
+    "finalPath": "/game/admin/factions",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/combat",
+    "finalPath": "/game/admin/combat",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 7,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn--sm \"open\" 57x36",
+        "button.se-btn.se-btn--sm \"reviewed\" 84x36",
+        "button.se-btn.se-btn--sm \"all\" 46x36",
+        "a.se-text-action \"audit3g5h90\" 72x24",
+        "button.se-btn.se-btn \"Dismiss\" 73x36",
+        "button.se-btn.se-btn \"Actioned\" 84x36"
+      ],
+      "total": 21
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/combat",
+    "finalPath": "/game/admin/combat",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 7,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn--sm \"open\" 57x36",
+        "button.se-btn.se-btn--sm \"reviewed\" 84x36",
+        "button.se-btn.se-btn--sm \"all\" 46x36",
+        "a.se-text-action \"audit3g5h90\" 72x24",
+        "button.se-btn.se-btn \"Dismiss\" 73x36",
+        "button.se-btn.se-btn \"Actioned\" 84x36"
+      ],
+      "total": 21
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/combat",
+    "finalPath": "/game/admin/combat",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/accounts/cmvarie1o0lh3tk2s3x5cuqxk",
+    "finalPath": "/game/admin/accounts/cmvarie1o0lh3tk2s3x5cuqxk",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 2,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "a.se-standalone-link \"Full audit history for this account\" 173x38"
+      ],
+      "total": 15
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/accounts/cmvarie1o0lh3tk2s3x5cuqxk",
+    "finalPath": "/game/admin/accounts/cmvarie1o0lh3tk2s3x5cuqxk",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 2,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "a.se-standalone-link \"Full audit history for this account\" 159x36"
+      ],
+      "total": 16
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/accounts/cmvarie1o0lh3tk2s3x5cuqxk",
+    "finalPath": "/game/admin/accounts/cmvarie1o0lh3tk2s3x5cuqxk",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  }
+]

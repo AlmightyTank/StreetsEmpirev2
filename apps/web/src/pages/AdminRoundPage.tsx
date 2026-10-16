@@ -172,7 +172,7 @@ export function AdminRoundPage() {
                   {topPlayers.map((player) => (
                     <tr key={player.roundPlayerId}>
                       <td className="se-td--title">
-                        <Link to={`/game/admin/players/${player.roundPlayerId}`}>{player.displayName}</Link>{' '}
+                        <Link className="se-text-action" to={`/game/admin/players/${player.roundPlayerId}`}>{player.displayName}</Link>{' '}
                         <span className="se-muted">#{player.publicPimpId}{player.nationalRank ? ` · rank ${player.nationalRank}` : ''}</span>
                       </td>
                       <td className="se-table__number se-num" data-label="Net worth">{formatCents(player.netWorthCents)}</td>
