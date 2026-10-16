@@ -84,7 +84,6 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
   const standAction = useRef(newActionId());
   const doubleAction = useRef(newActionId());
   const splitAction = useRef(newActionId());
-  const feltRef = useRef<HTMLDivElement | null>(null);
 
   async function dealSounds(count: number, flipFirst = false, reveal?: () => void): Promise<void> {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -155,14 +154,8 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
     [state, selectedTableKey],
   );
   const shownHand = state?.activeHand ?? lastHand;
-  const shownHandId = shownHand?.id ?? null;
 
-  // A fresh deal brings the whole felt into view above the dock, so the dealer's
-  // up-card and your cards are both on screen when it is your move.
-  useEffect(() => {
-    if (!shownHandId) return;
-    feltRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
-  }, [shownHandId]);
+  // Hand updates stay in place. Never scroll the player's viewport on a deal.
   const currentPlayerHand = shownHand?.status === 'ACTIVE'
     ? shownHand.playerHands[shownHand.activeHandIndex] ?? null
     : null;
@@ -327,7 +320,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                 </details>
               </div>
 
-              <div ref={feltRef} className={'se-blackjack__felt' + (shownHand?.status === 'SETTLED' ? ' is-settled' : '') + (shownHand ? '' : ' is-empty') + (busy ? ' is-dealing' : '')}>
+              <div className={'se-blackjack__felt' + (shownHand?.status === 'SETTLED' ? ' is-settled' : '') + (shownHand ? '' : ' is-empty') + (busy ? ' is-dealing' : '')}>
                 {busy ? <div className="se-blackjack__table-status" role="status">{busy === 'deal' ? 'DEALING' : busy === 'stand' ? 'DEALER PLAYS' : busy.toUpperCase()}</div> : null}
                 <div className="se-blackjack__dealer">
                   <div className="se-blackjack__label">
