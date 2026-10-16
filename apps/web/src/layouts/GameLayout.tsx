@@ -15,6 +15,7 @@ import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
+import { CaseStoryAlerts } from '../components/CaseStoryAlerts.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { formatDuration } from '../utils/time.js';
 import { lockPageScroll } from '../utils/pageScrollLock.js';
@@ -530,6 +531,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
         </div>
       ) : null}
       <TrackedQuests />
+      <CaseStoryAlerts />
       <IntroDialog />
       <TourOverlay />
 

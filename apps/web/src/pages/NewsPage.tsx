@@ -82,7 +82,7 @@ export function NewsPage() {
           ) : (
             <div className="se-news-page__list">
               {visible.map((post) => (
-                <article className={`se-panel se-news-card${post.isPinned ? ' se-news-card--pinned' : ''}${latest?.id === post.id ? ' se-news-card--latest' : ''}`} key={post.id}>
+                <article id={`post-${post.id}`} className={`se-panel se-news-card${post.isPinned ? ' se-news-card--pinned' : ''}${latest?.id === post.id ? ' se-news-card--latest' : ''}`} key={post.id}>
                   <div className="se-news-card__head">
                     <div>
                       <div className="se-news-card__meta">

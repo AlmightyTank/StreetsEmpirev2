@@ -1314,3 +1314,6 @@
   .se-dashboard-hero__status { display: grid; }
   .se-dashboard-hero__ranking { flex-wrap: wrap; }
 }
+
+/* Minimum 44px touch target for the holdings quick link on narrow screens. */
+.se-dashboard-holdings-link { display: inline-flex; align-items: center; min-height: 44px; padding: .45rem .65rem; }
