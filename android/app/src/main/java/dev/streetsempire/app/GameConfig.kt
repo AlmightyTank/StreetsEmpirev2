@@ -2,26 +2,21 @@ package dev.streetsempire.app
 
 import android.net.Uri
 
-/** Single source of truth for the server selected by the Android build flavor. */
+/** Single source of truth for the StreetsEmpire Live app. */
 object GameConfig {
-    val SERVER_ORIGIN: String = BuildConfig.SERVER_ORIGIN
-
-    /**
-     * Origin accepted for email deep links (`/verify-email`, `/reset-password`).
-     * Local points at the loopback API tunnel; beta/production are the real
-     * https origins whose emails link back to the app.
-     */
-    val LINK_ORIGIN: String = BuildConfig.LINK_ORIGIN
+    /** Beta environment used for Android testing. */
+    const val LIVE_ORIGIN = "https://beta.streetsempire.dev"
 
     /** User-agent token the native shell appends; the website uses it to hide install prompts. */
     const val NATIVE_UA_TOKEN = "StreetsEmpireAndroid/1.0.0"
 
-    val GAME_ENTRY: String = "$SERVER_ORIGIN/game"
+    const val LIVE_ENTRY = "$LIVE_ORIGIN/game"
     const val SUPPORTER_PRODUCT_ID = "supporter_monthly"
     const val BILLING_SCHEME = "streetsempire"
 
-    /** External OAuth hosts allowed to load inside the WebView. */
-    private val oauthHosts = setOf(
+    /** Hosts allowed to load inside the WebView (game + Discord OAuth). */
+    private val inAppHosts = setOf(
+        "play.streetsempire.dev",
         "discord.com",
         "www.discord.com",
     )
@@ -32,7 +27,7 @@ object GameConfig {
         return try {
             val uri = Uri.parse(rawUrl)
             if (uri.userInfo != null) return null
-            val origin = SERVER_ORIGIN
+            val origin = LIVE_ORIGIN
             val parsedOrigin = Uri.parse(origin)
             if ("${uri.scheme}://${uri.authority}" != "${parsedOrigin.scheme}://${parsedOrigin.authority}") {
                 return null
@@ -52,11 +47,9 @@ object GameConfig {
         if (rawUrl.isNullOrBlank()) return false
         return try {
             val uri = Uri.parse(rawUrl)
-            if (uri.userInfo != null) return false
-            val configured = Uri.parse(SERVER_ORIGIN)
-            val isConfiguredOrigin = uri.scheme == configured.scheme && uri.authority == configured.authority
-            val isOAuth = uri.scheme == "https" && oauthHosts.contains(uri.host?.lowercase())
-            isConfiguredOrigin || isOAuth
+            uri.scheme == "https" &&
+                uri.userInfo == null &&
+                inAppHosts.contains(uri.host?.lowercase())
         } catch (_: Exception) {
             false
         }

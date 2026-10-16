@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.webkit.JavascriptInterface
 import android.webkit.CookieManager
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -19,11 +20,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
+    private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var offlineView: View
     private lateinit var billing: PlayBillingManager
 
@@ -72,7 +75,12 @@ class MainActivity : AppCompatActivity() {
         insetsController.isAppearanceLightNavigationBars = false
 
         webView = findViewById(R.id.web_view)
+        swipeRefresh = findViewById(R.id.swipe_refresh)
         offlineView = findViewById(R.id.offline_view)
+        // User-agent detection can be changed or omitted by WebView providers.
+        // Expose a tiny explicit marker so the website reliably selects Play
+        // Billing instead of Stripe inside the Android shell.
+        webView.addJavascriptInterface(AndroidShellBridge(), "StreetsEmpireAndroid")
         findViewById<View>(R.id.btn_retry).setOnClickListener {
             offlineView.visibility = View.GONE
             webView.loadUrl(currentUrl())
@@ -121,6 +129,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
+                swipeRefresh.isRefreshing = false
                 offlineView.visibility = View.GONE
                 GameConfig.sanitizeGameUrl(url)?.let { safe ->
                     prefs.edit().putString(KEY_LIVE_URL, safe).apply()
@@ -133,6 +142,7 @@ class MainActivity : AppCompatActivity() {
                 error: WebResourceError,
             ) {
                 if (request.isForMainFrame) {
+                    swipeRefresh.isRefreshing = false
                     offlineView.visibility = View.VISIBLE
                 }
             }
@@ -156,6 +166,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        swipeRefresh.setOnRefreshListener { webView.reload() }
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (webView.canGoBack()) webView.goBack() else finish()
@@ -176,7 +188,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun currentUrl(): String {
         val saved = prefs.getString(KEY_LIVE_URL, null)
-        return GameConfig.sanitizeGameUrl(saved) ?: GameConfig.GAME_ENTRY
+        val safe = GameConfig.sanitizeGameUrl(saved) ?: GameConfig.LIVE_ENTRY
+        return Uri.parse(safe).buildUpon()
+            .appendQueryParameter("se_android", "1")
+            .build()
+            .toString()
     }
 
     private fun handleBillingUrl(uri: Uri) {
@@ -207,6 +223,11 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {
             // No browser available; stay on the current page.
         }
+    }
+
+    private class AndroidShellBridge {
+        @JavascriptInterface
+        fun isNative(): Boolean = true
     }
 
     override fun onDestroy() {

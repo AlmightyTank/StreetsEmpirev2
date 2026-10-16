@@ -8,7 +8,7 @@ import { adminNeedsSecondFactor } from '../auth/play-access.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
 import { createSession, destroySession, sessionHardEnd } from '../auth/sessions.js';
-import { bearerTokenFromHeader, wantsNativeSessionToken } from '../plugins/auth.js';
+import { bearerTokenFromHeader } from '../plugins/auth.js';
 import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
 import { AccountProfileService } from '../services/account-profile.service.js';
@@ -602,11 +602,6 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.setSessionCookie(reply, token);
     await noteSignIn(fastify.prisma, request, reply, account);
 
-    // Native apps cannot read the http-only cookie, so hand them the same
-    // session token as JSON when they identify with X-SE-Native: android.
-    if (wantsNativeSessionToken(request.headers['x-se-native'])) {
-      return reply.status(201).send({ account: toAccountDto(account), sessionToken: token });
-    }
     return reply.status(201).send({ account: toAccountDto(account) });
   });
 
@@ -675,9 +670,6 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.setSessionCookie(reply, token, remember);
     await noteSignIn(fastify.prisma, request, reply, updated);
 
-    if (wantsNativeSessionToken(request.headers['x-se-native'])) {
-      return { account: toAccountDto(updated), sessionToken: token };
-    }
     return { account: toAccountDto(updated) };
   });
 
@@ -992,9 +984,6 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.setSessionCookie(reply, token);
     await noteSignIn(fastify.prisma, request, reply, account);
 
-    if (wantsNativeSessionToken(request.headers['x-se-native'])) {
-      return { account: toAccountDto(account), sessionToken: token };
-    }
     return { account: toAccountDto(account) };
   });
 
@@ -1026,13 +1015,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
     if (usedRecoveryCode) {
       const left = await fastify.prisma.twoFactorRecoveryCode.count({ where: { accountId: account.id, usedAt: null } });
-      if (wantsNativeSessionToken(request.headers['x-se-native'])) {
-        return { account: toAccountDto(updated, session), sessionToken, recoveryCodesLeft: left };
-      }
       return { account: toAccountDto(updated, session), recoveryCodesLeft: left };
-    }
-    if (wantsNativeSessionToken(request.headers['x-se-native'])) {
-      return { account: toAccountDto(updated, session), sessionToken };
     }
     return { account: toAccountDto(updated, session) };
   });

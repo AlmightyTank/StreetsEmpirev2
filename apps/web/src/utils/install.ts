@@ -26,7 +26,18 @@ export function isNativeApp(): boolean {
 }
 
 export function isAndroidNativeApp(): boolean {
-  return typeof navigator !== 'undefined' && (navigator.userAgent || '').includes('StreetsEmpireAndroid/');
+  if (typeof navigator === 'undefined') return false;
+  const bridge = (window as Window & { StreetsEmpireAndroid?: { isNative?: () => boolean } }).StreetsEmpireAndroid;
+  const queryMarked = new URLSearchParams(window.location.search).get('se_android') === '1';
+  if (queryMarked) {
+    try { window.sessionStorage.setItem('se_android', '1'); } catch { /* storage may be disabled */ }
+  }
+  let storedMarker = false;
+  try { storedMarker = window.sessionStorage.getItem('se_android') === '1'; } catch { /* storage may be disabled */ }
+  return queryMarked
+    || storedMarker
+    || bridge?.isNative?.() === true
+    || (navigator.userAgent || '').includes('StreetsEmpireAndroid/');
 }
 
 let deferred: InstallPromptEvent | null = null;

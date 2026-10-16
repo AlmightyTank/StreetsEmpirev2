@@ -14,6 +14,7 @@ import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 import { newActionId } from '../utils/actionId.js';
+import { restoreScrollPosition } from '../utils/scrollPosition.js';
 import { formatWhen } from '../utils/time.js';
 import {
   casinoSoundEnabled,
@@ -84,7 +85,6 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
   const standAction = useRef(newActionId());
   const doubleAction = useRef(newActionId());
   const splitAction = useRef(newActionId());
-  const feltRef = useRef<HTMLDivElement | null>(null);
 
   async function dealSounds(count: number, flipFirst = false, reveal?: () => void): Promise<void> {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -155,14 +155,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
     [state, selectedTableKey],
   );
   const shownHand = state?.activeHand ?? lastHand;
-  const shownHandId = shownHand?.id ?? null;
 
-  // A fresh deal brings the whole felt into view above the dock, so the dealer's
-  // up-card and your cards are both on screen when it is your move.
-  useEffect(() => {
-    if (!shownHandId) return;
-    feltRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
-  }, [shownHandId]);
   const currentPlayerHand = shownHand?.status === 'ACTIVE'
     ? shownHand.playerHands[shownHand.activeHandIndex] ?? null
     : null;
@@ -178,6 +171,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
   async function deal(event: FormEvent) {
     event.preventDefault();
     if (!selectedTable || !wagerCents) return;
+    const scrollTop = window.scrollY;
     setBusy('deal');
     setError(null);
     setLastHand(null);
@@ -192,6 +186,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
         onPageChange(result.page);
         setState(result.blackjack);
         setLastHand(result.hand);
+        restoreScrollPosition(scrollTop);
       });
       playHandResult(result.hand);
       resetActionIds();
@@ -204,6 +199,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
 
   async function act(kind: 'hit' | 'stand' | 'double' | 'split') {
     if (!shownHand) return;
+    const scrollTop = window.scrollY;
     setBusy(kind);
     setError(null);
     const actionRef = kind === 'hit' ? hitAction
@@ -230,6 +226,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
         onPageChange(result.page);
         setState(result.blackjack);
         setLastHand(result.hand);
+        restoreScrollPosition(scrollTop);
       });
       playHandResult(result.hand);
       actionRef.current = newActionId();
@@ -327,7 +324,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                 </details>
               </div>
 
-              <div ref={feltRef} className={'se-blackjack__felt' + (shownHand?.status === 'SETTLED' ? ' is-settled' : '') + (shownHand ? '' : ' is-empty') + (busy ? ' is-dealing' : '')}>
+              <div className={'se-blackjack__felt' + (shownHand?.status === 'SETTLED' ? ' is-settled' : '') + (shownHand ? '' : ' is-empty') + (busy ? ' is-dealing' : '')}>
                 {busy ? <div className="se-blackjack__table-status" role="status">{busy === 'deal' ? 'DEALING' : busy === 'stand' ? 'DEALER PLAYS' : busy.toUpperCase()}</div> : null}
                 <div className="se-blackjack__dealer">
                   <div className="se-blackjack__label">

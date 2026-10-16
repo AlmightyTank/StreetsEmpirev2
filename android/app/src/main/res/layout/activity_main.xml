@@ -18,12 +18,16 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- Keep touch gestures in the WebView; the game's scrollable panels
-             cannot be reliably tracked by a native SwipeRefreshLayout. -->
-        <WebView
-            android:id="@+id/web_view"
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipe_refresh"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent">
+
+            <WebView
+                android:id="@+id/web_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
         <LinearLayout
             android:id="@+id/offline_view"

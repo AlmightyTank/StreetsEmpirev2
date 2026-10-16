@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { SupporterPollsDto, SupporterStatusDto } from '@streets/shared';
 import { ApiError } from '../api/client.js';
@@ -34,6 +34,7 @@ export function SupporterPanel() {
   const [giftRecipient, setGiftRecipient] = useState('');
   const [waiting, setWaiting] = useState(returned === 'thanks');
   const [listingBusy, setListingBusy] = useState(false);
+  const restoreRequested = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -79,7 +80,12 @@ export function SupporterPanel() {
   }, [androidApp]);
 
   useEffect(() => {
-    if (androidApp && status?.playBilling.enabled) window.location.assign('streetsempire://billing/restore');
+    if (!androidApp || !status?.playBilling.enabled || restoreRequested.current) return;
+    // Restore once when the page first confirms Play is available. Do not
+    // repeat this after verifyGooglePlay updates `status`, or every purchase
+    // would trigger another restore query and verification cycle.
+    restoreRequested.current = true;
+    window.location.assign('streetsempire://billing/restore');
   }, [androidApp, status?.playBilling.enabled]);
 
   // Coming back from Stripe lands on this page; bring the controls into view.
@@ -192,8 +198,8 @@ export function SupporterPanel() {
           {status?.hasRewards
             ? 'Thank you for supporting StreetsEmpire. Your Midnight Chrome rewards are unlocked: pick them in Cosmetics below.'
             : waiting
-              ? 'Thank you! Stripe is confirming your payment. Your rewards unlock as soon as it does, usually within a minute.'
-              : 'Thank you! Stripe has not confirmed the payment yet. Your rewards unlock as soon as it does; refresh this page in a few minutes.'}
+               ? `Thank you! ${androidApp ? 'Google Play is confirming your payment' : 'Stripe is confirming your payment'}. Your rewards unlock as soon as it does, usually within a minute.`
+               : `Thank you! ${androidApp ? 'Google Play has not confirmed the payment yet' : 'Stripe has not confirmed the payment yet'}. Your rewards unlock as soon as it does; refresh this page in a few minutes.`}
           {' '}<button type="button" className="se-linkbtn" onClick={dismissReturn}>Dismiss</button>
         </Alert>
       ) : null}

@@ -7,37 +7,19 @@
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="${appLabel}"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.StreetsEmpire"
-        android:usesCleartextTraffic="${usesCleartextTraffic}">
+        android:usesCleartextTraffic="false">
 
         <activity
-            android:name=".native.app.NativeAppActivity"
+            android:name=".MainActivity"
             android:exported="true"
-            android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Email deep links. The manifest filter is intentionally coarse
-                 (scheme + host + path); AppLinks.parseAppLink strictly enforces
-                 the full flavor origin, so untrusted hosts/ports never route.
-                 autoVerify is true only for the https beta/production origins;
-                 the local http loopback origin stays a plain deep link. -->
-            <intent-filter android:autoVerify="${appLinkAutoVerify}">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="${appLinkScheme}" android:host="${appLinkHost}" android:path="/verify-email" />
-                <data android:scheme="${appLinkScheme}" android:host="${appLinkHost}" android:path="/reset-password" />
-            </intent-filter>
         </activity>
-        <activity
-            android:name=".MainActivity"
-            android:exported="false"
-            android:configChanges="orientation|screenSize|keyboardHidden" />
     </application>
 </manifest>

@@ -29,6 +29,7 @@ class PlayBillingManager(
     private var accountToken: String? = null
     private var startAfterConnect = false
     private var restoreAfterConnect = false
+    private val deliveredPurchaseTokens = mutableSetOf<String>()
 
     fun startPurchase(obfuscatedAccountId: String) {
         accountToken = obfuscatedAccountId.takeIf { it.matches(Regex("^[a-f0-9]{64}$")) }
@@ -111,7 +112,10 @@ class PlayBillingManager(
             .setProductType(BillingClient.ProductType.SUBS)
             .build()
         billingClient.queryPurchasesAsync(params) { result, purchases ->
-            if (result.responseCode != BillingClient.BillingResponseCode.OK) return@queryPurchasesAsync
+            if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                onError("Could not restore Google Play purchases (${result.debugMessage}).")
+                return@queryPurchasesAsync
+            }
             purchases.filter { it.products.contains(GameConfig.SUPPORTER_PRODUCT_ID) }
                 .forEach(::deliver)
         }
@@ -127,6 +131,7 @@ class PlayBillingManager(
 
     private fun deliver(purchase: Purchase) {
         if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+            if (!deliveredPurchaseTokens.add(purchase.purchaseToken)) return
             onPurchase(purchase.purchaseToken)
         } else if (purchase.purchaseState == Purchase.PurchaseState.PENDING) {
             onError("Your purchase is pending. Rewards unlock after Google confirms payment.")
