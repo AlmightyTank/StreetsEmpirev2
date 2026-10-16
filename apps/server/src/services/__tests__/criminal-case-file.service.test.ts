@@ -129,7 +129,7 @@ describe('Living Streets 2.0.0-B case file persistence', () => {
     expect((await CriminalCaseFileService.activate(db, 'player-a', 'case-1', at(0))).status).toBe('ACTIVE');
     state.activities.push(
       { id: 'scout-1', roundPlayerId: 'player-a', type: 'SCOUT', createdAt: at(1) },
-      { id: 'contact-1', roundPlayerId: 'player-a', type: 'QUEST_CLAIMED', createdAt: at(2) },
+      { id: 'contact-1', roundPlayerId: 'player-a', type: 'INFORMANT_TIP', createdAt: at(2) },
       { id: 'encounter-1', roundPlayerId: 'player-a', type: 'RANDOM_ENCOUNTER_CHOICE', createdAt: at(3) },
     );
     let result = await CriminalCaseFileService.recordVerifiedActivity(db, 'player-a', 'case-1', 'contact-1', at(2));

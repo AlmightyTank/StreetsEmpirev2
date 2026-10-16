@@ -247,7 +247,10 @@ export const CriminalCaseFileService = {
       const plan = cluesOf(row.cluePlan);
       const found = new Set(row.evidence.map((entry) => entry.clueKey));
       const next = plan.find((entry) => !found.has(entry.key));
-      if (!next || next.eventType !== activity.type) return toDto(row, round, now);
+      // Legacy Slice B snapshots used QUEST_CLAIMED as a placeholder for
+      // CONTACT. No arbitrary quest completion can be evidence in D.
+      const expectedType = next?.sourceKind === 'CONTACT' ? 'INFORMANT_TIP' : next?.eventType;
+      if (!next || expectedType !== activity.type) return toDto(row, round, now);
       if (row.evidence.some((entry) => entry.sourceReceiptId === activity.id || entry.sourceKind === next.sourceKind)) {
         return toDto(row, round, now);
       }
