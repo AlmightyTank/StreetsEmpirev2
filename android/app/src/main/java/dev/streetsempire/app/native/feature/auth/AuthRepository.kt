@@ -1,11 +1,15 @@
-package dev.streetsempire.app.native.auth
+package dev.streetsempire.app.native.feature.auth
 
-import dev.streetsempire.app.native.net.AccountDto
-import dev.streetsempire.app.native.net.ApiClient
-import dev.streetsempire.app.native.net.ApiError
-import dev.streetsempire.app.native.net.AuthResponse
-import dev.streetsempire.app.native.net.GameSnapshotDto
-import dev.streetsempire.app.native.net.PlatformMetaDto
+import dev.streetsempire.app.native.core.model.AccountDto
+import dev.streetsempire.app.native.core.model.AuthResponse
+import dev.streetsempire.app.native.core.model.CurrentRoundDto
+import dev.streetsempire.app.native.core.model.GameSnapshotDto
+import dev.streetsempire.app.native.core.model.MessageResponse
+import dev.streetsempire.app.native.core.model.PlatformMetaDto
+import dev.streetsempire.app.native.core.model.RulesAgreementDto
+import dev.streetsempire.app.native.core.network.ApiClient
+import dev.streetsempire.app.native.core.network.ApiError
+import dev.streetsempire.app.native.core.network.TokenStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -25,6 +29,9 @@ private data class RegisterBody(
 
 @Serializable
 private data class TwoFactorVerifyBody(val code: String)
+
+@Serializable
+private data class AcceptRulesBody(val version: String)
 
 sealed interface AuthResult {
   data class SignedIn(val account: AccountDto) : AuthResult
@@ -77,6 +84,29 @@ class AuthRepository(private val api: ApiClient, private val tokens: TokenStore)
 
   suspend fun me(): AccountDto = withContext(Dispatchers.IO) {
     api.getJson<AuthMeResponse>("/auth/me").account
+  }
+
+  suspend fun rulesAgreement(): RulesAgreementDto = withContext(Dispatchers.IO) {
+    api.getJson<PlatformMetaDto>("/meta").rulesAgreement
+  }
+
+  suspend fun requestEmailVerification(): String = withContext(Dispatchers.IO) {
+    val raw = api.post("/auth/email/verify/request", "{}")
+    api.json.decodeFromString<MessageResponse>(raw).message
+  }
+
+  suspend fun acceptRules(version: String): AccountDto = withContext(Dispatchers.IO) {
+    val raw = api.post("/auth/rules/accept", api.json.encodeToString(AcceptRulesBody(version)))
+    api.json.decodeFromString<AuthMeResponse>(raw).account
+  }
+
+  suspend fun currentRound(): CurrentRoundDto = withContext(Dispatchers.IO) {
+    api.getJson("/rounds/current")
+  }
+
+  suspend fun joinCurrentRound(): CurrentRoundDto = withContext(Dispatchers.IO) {
+    val raw = api.post("/rounds/current/join", "{}")
+    api.json.decodeFromString(raw)
   }
 
   suspend fun dashboard(): GameSnapshotDto = withContext(Dispatchers.IO) {

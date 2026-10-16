@@ -1,10 +1,15 @@
-package dev.streetsempire.app.native.auth
+package dev.streetsempire.app.native.core.network
 
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
-class TokenStore(context: Context) {
+interface CredentialStore : SessionTokenProvider {
+  fun save(token: String)
+  fun clear()
+}
+
+class TokenStore(context: Context) : CredentialStore {
   private val prefs = EncryptedSharedPreferences.create(
     context.applicationContext,
     "se_native_auth",
@@ -13,13 +18,13 @@ class TokenStore(context: Context) {
     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
   )
 
-  fun sessionToken(): String? = prefs.getString(KEY, null)?.takeIf { it.isNotBlank() }
+  override fun sessionToken(): String? = prefs.getString(KEY, null)?.takeIf { it.isNotBlank() }
 
-  fun save(token: String) {
+  override fun save(token: String) {
     prefs.edit().putString(KEY, token).apply()
   }
 
-  fun clear() {
+  override fun clear() {
     prefs.edit().remove(KEY).apply()
   }
 

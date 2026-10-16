@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "That email or pimp name and password do not match."
+  }
+}

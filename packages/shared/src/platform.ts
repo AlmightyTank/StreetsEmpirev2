@@ -82,4 +82,10 @@ export interface PlatformMetaDto {
   } | null;
   /** rc.5/rc.6. Cloudflare Turnstile site key for sign-in, sign-up and password reset; null when bot checks are off. */
   turnstileSiteKey: string | null;
+  /** The exact agreement a client must show before calling /auth/rules/accept. */
+  rulesAgreement: {
+    version: string;
+    minimumAge: number;
+    rules: ReadonlyArray<{ title: string; body: string }>;
+  };
 }

@@ -1,4 +1,4 @@
-package dev.streetsempire.app.native.ui
+package dev.streetsempire.app.native.app
 
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -33,7 +33,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +46,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,19 +69,26 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import dev.streetsempire.app.MainActivity
 import dev.streetsempire.app.R
-import dev.streetsempire.app.native.auth.AuthRepository
-import dev.streetsempire.app.native.auth.AuthResult
-import dev.streetsempire.app.native.auth.TokenStore
-import dev.streetsempire.app.native.net.AccountDto
-import dev.streetsempire.app.native.net.ApiClient
-import dev.streetsempire.app.native.net.ApiError
-import dev.streetsempire.app.native.net.GameSnapshotDto
-import dev.streetsempire.app.native.net.PlayerSummary
-import dev.streetsempire.app.native.net.RoundSummary
-import dev.streetsempire.app.native.net.TurnsDto
+import dev.streetsempire.app.native.core.model.AccountDto
+import dev.streetsempire.app.native.core.model.CitySummary
+import dev.streetsempire.app.native.core.model.GameSnapshotDto
+import dev.streetsempire.app.native.core.model.PlayerSummary
+import dev.streetsempire.app.native.core.model.RoundSummary
+import dev.streetsempire.app.native.core.model.TurnsDto
+import dev.streetsempire.app.native.core.network.ApiClient
+import dev.streetsempire.app.native.core.network.ApiError
+import dev.streetsempire.app.native.core.network.TokenStore
+import dev.streetsempire.app.native.core.ui.AdaptiveGameChrome
+import dev.streetsempire.app.native.core.ui.StreetsEmpireTheme
+import dev.streetsempire.app.native.feature.auth.AuthRepository
+import dev.streetsempire.app.native.feature.auth.AuthResult
+import dev.streetsempire.app.native.feature.auth.TurnstileChallenge
+import dev.streetsempire.app.native.feature.onboarding.OnboardingScreen
 import kotlinx.coroutines.launch
 
 /**
@@ -96,21 +103,14 @@ class NativeAppActivity : ComponentActivity() {
     val tokens = TokenStore(this)
     val api = ApiClient(tokens)
     val auth = AuthRepository(api, tokens)
+    val appState = AppStateStore(tokens)
     val allowPreview = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     setContent {
-      MaterialTheme(colorScheme = StreetsEmpireColors) {
-        NativeApp(auth, allowPreview)
+      StreetsEmpireTheme {
+        NativeApp(auth, appState, allowPreview)
       }
     }
   }
-}
-
-private object Routes {
-  const val LOGIN = "login"
-  const val TWO_FACTOR = "2fa"
-  const val HOME = "home"
-  const val PREVIEW = "preview"
-  const val SECTION = "section/{name}"
 }
 
 data class GameSection(val name: String, val endpoint: String)
@@ -129,59 +129,120 @@ val FULL_PARITY_SECTIONS = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NativeApp(auth: AuthRepository, allowPreview: Boolean = false) {
+fun NativeApp(auth: AuthRepository, appState: AppStateStore, allowPreview: Boolean = false) {
   val nav = rememberNavController()
-  val start = if (auth.isSignedIn()) Routes.HOME else Routes.LOGIN
+  val start = rootStartGraph(auth.isSignedIn())
   NavHost(navController = nav, startDestination = start) {
-    composable(Routes.LOGIN) {
-      LoginScreen(
-        onSignedIn = { nav.navigate(Routes.HOME) { popUpTo(Routes.LOGIN) { inclusive = true } } },
-        onTwoFactor = { nav.navigate(Routes.TWO_FACTOR) },
-        onPreview = { nav.navigate(Routes.PREVIEW) },
-        allowPreview = allowPreview,
-        auth = auth,
-      )
+    navigation<AuthGraph>(startDestination = LoginDestination) {
+      composable<LoginDestination> {
+        LoginScreen(
+          onSignedIn = {
+            appState.beginBootstrap(it)
+            nav.navigate(OnboardingGraph) { popUpTo<AuthGraph> { inclusive = true } }
+          },
+          onTwoFactor = { nav.navigate(TwoFactorDestination) },
+          onPreview = { nav.navigate(PreviewDestination) },
+          allowPreview = allowPreview,
+          auth = auth,
+        )
+      }
+      composable<TwoFactorDestination> {
+        TwoFactorScreen(
+          onSignedIn = {
+            appState.beginBootstrap(it)
+            nav.navigate(OnboardingGraph) { popUpTo<AuthGraph> { inclusive = true } }
+          },
+          auth = auth,
+        )
+      }
+      composable<PreviewDestination> {
+        HomeScreen(
+          auth = auth,
+          appState = appState,
+          preview = true,
+          onOpenSection = { nav.navigate(FeatureDestination(it.name)) },
+          onSignedOut = { nav.popBackStack(LoginDestination, inclusive = false) },
+        )
+      }
     }
-    composable(Routes.TWO_FACTOR) {
-      TwoFactorScreen(
-        onSignedIn = { nav.navigate(Routes.HOME) { popUpTo(Routes.LOGIN) { inclusive = true } } },
-        auth = auth,
-      )
+    navigation<OnboardingGraph>(startDestination = OnboardingDestination) {
+      composable<OnboardingDestination> {
+        ProtectedContent(appState, ProtectedArea.Onboarding, onRedirect = {
+          nav.navigate(AuthGraph) { popUpTo<OnboardingGraph> { inclusive = true } }
+        }) {
+          OnboardingScreen(
+            auth = auth,
+            onAccountChanged = appState::applyAccount,
+            onRoundChanged = appState::applyRound,
+            onSessionExpired = {
+              appState.invalidateSession()
+              nav.navigate(AuthGraph) { popUpTo<OnboardingGraph> { inclusive = true } }
+            },
+            onComplete = {
+              nav.navigate(GameGraph) { popUpTo<OnboardingGraph> { inclusive = true } }
+            },
+            onSignedOut = {
+              appState.invalidateSession()
+              nav.navigate(AuthGraph) { popUpTo<OnboardingGraph> { inclusive = true } }
+            },
+          )
+        }
+      }
     }
-    composable(Routes.HOME) {
-      HomeScreen(
-        auth = auth,
-        onOpenSection = { nav.navigate("section/${it.name}") },
-        onSignedOut = { nav.navigate(Routes.LOGIN) { popUpTo(Routes.HOME) { inclusive = true } } },
-      )
-    }
-    composable(Routes.PREVIEW) {
-      HomeScreen(
-        auth = auth,
-        preview = true,
-        onOpenSection = { nav.navigate("section/${it.name}") },
-        onSignedOut = { nav.navigate(Routes.LOGIN) { popUpTo(Routes.PREVIEW) { inclusive = true } } },
-      )
-    }
-    composable(Routes.SECTION) { backStack ->
-      val name = backStack.arguments?.getString("name").orEmpty()
-      val section = FULL_PARITY_SECTIONS.firstOrNull { it.name == name }
-      Scaffold(topBar = { TopAppBar(title = { Text(name.ifEmpty { "Section" }) }) }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-          Text(section?.endpoint ?: "Unknown section.")
-          Text("Native UI for this module is next. It will use the same endpoint contract as web.")
-          Button(onClick = { nav.popBackStack() }) { Text("Back") }
+    navigation<GameGraph>(startDestination = HomeDestination) {
+      composable<HomeDestination> {
+        ProtectedContent(appState, ProtectedArea.Game, onRedirect = { destination ->
+          when (destination) {
+            LoginDestination -> nav.navigate(AuthGraph) { popUpTo<GameGraph> { inclusive = true } }
+            else -> nav.navigate(OnboardingGraph) { popUpTo<GameGraph> { inclusive = true } }
+          }
+        }) {
+          HomeScreen(
+            auth = auth,
+            appState = appState,
+            onOpenSection = { nav.navigate(FeatureDestination(it.name)) },
+            onSignedOut = {
+              appState.invalidateSession()
+              nav.navigate(AuthGraph) { popUpTo<GameGraph> { inclusive = true } }
+            },
+          )
+        }
+      }
+      composable<FeatureDestination> { backStack ->
+        val name = backStack.toRoute<FeatureDestination>().name
+        val section = FULL_PARITY_SECTIONS.firstOrNull { it.name == name }
+        Scaffold(topBar = { TopAppBar(title = { Text(name.ifEmpty { "Section" }) }) }) { padding ->
+          Column(Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(section?.endpoint ?: "Unknown section.")
+            Text("Native UI for this module is next. It will use the same endpoint contract as web.")
+            Button(onClick = { nav.popBackStack() }) { Text("Back") }
+          }
         }
       }
     }
   }
 }
 
+@Composable
+private fun ProtectedContent(
+  appState: AppStateStore,
+  area: ProtectedArea,
+  onRedirect: (Any) -> Unit,
+  content: @Composable () -> Unit,
+) {
+  val state by appState.state.collectAsState()
+  val redirect = protectedRedirect(state, area)
+  LaunchedEffect(redirect) {
+    if (redirect != null) onRedirect(redirect)
+  }
+  if (redirect == null) content()
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
   auth: AuthRepository,
-  onSignedIn: () -> Unit,
+  onSignedIn: (AccountDto) -> Unit,
   onTwoFactor: () -> Unit,
   onPreview: () -> Unit = {},
   allowPreview: Boolean = false,
@@ -256,7 +317,7 @@ fun LoginScreen(
           AuthMode.SignUp -> auth.register(username, email, password, ageConfirmed, captchaToken)
         }
         when (result) {
-          is AuthResult.SignedIn -> onSignedIn()
+          is AuthResult.SignedIn -> onSignedIn(result.account)
           is AuthResult.TwoFactorRequired -> onTwoFactor()
           is AuthResult.ApprovalRequired -> info = result.message
         }
@@ -483,7 +544,7 @@ private enum class AuthMode(val label: String) {
 }
 
 @Composable
-private fun AuthMessage(message: String, isError: Boolean) {
+internal fun AuthMessage(message: String, isError: Boolean) {
   Surface(
     modifier = Modifier.fillMaxWidth(),
     color = if (isError) MaterialTheme.colorScheme.error.copy(alpha = 0.12f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
@@ -500,7 +561,7 @@ private fun AuthMessage(message: String, isError: Boolean) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TwoFactorScreen(auth: AuthRepository, onSignedIn: () -> Unit) {
+fun TwoFactorScreen(auth: AuthRepository, onSignedIn: (AccountDto) -> Unit) {
   val scope = rememberCoroutineScope()
   var code by remember { mutableStateOf("") }
   var busy by remember { mutableStateOf(false) }
@@ -519,8 +580,8 @@ fun TwoFactorScreen(auth: AuthRepository, onSignedIn: () -> Unit) {
           error = null
           scope.launch {
             try {
-              auth.verifyTwoFactor(code)
-              onSignedIn()
+              val result = auth.verifyTwoFactor(code)
+              if (result is AuthResult.SignedIn) onSignedIn(result.account)
             } catch (e: ApiError) {
               error = e.message
             } finally {
@@ -537,6 +598,7 @@ fun TwoFactorScreen(auth: AuthRepository, onSignedIn: () -> Unit) {
 @Composable
 fun HomeScreen(
   auth: AuthRepository,
+  appState: AppStateStore,
   onOpenSection: (GameSection) -> Unit,
   onSignedOut: () -> Unit,
   preview: Boolean = false,
@@ -557,18 +619,32 @@ fun HomeScreen(
         } catch (_: ApiError) {
           null
         }
+        account?.let { freshAccount ->
+          snapshot?.let { freshSnapshot -> appState.applyRefresh(freshAccount, dashboard = freshSnapshot) }
+            ?: appState.applyAccount(freshAccount)
+        }
       } catch (e: ApiError) {
         error = e.message
+        if (appState.handleFailure(e)) onSignedOut()
       } finally {
         loading = false
       }
     }
   }
 
-  Scaffold(topBar = { TopAppBar(title = { Text("StreetsEmpire") }) }) { padding ->
+  val sharedState by appState.state.collectAsState()
+  AdaptiveGameChrome(
+    title = "StreetsEmpire",
+    selected = "Dashboard",
+    unreadNotifications = sharedState.unreadNotifications,
+    onNavigate = { label ->
+      if (label == "Dashboard") return@AdaptiveGameChrome
+      FULL_PARITY_SECTIONS.firstOrNull { it.name == label }?.let(onOpenSection)
+    },
+  ) { padding ->
     if (loading) {
       Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) { CircularProgressIndicator() }
-      return@Scaffold
+      return@AdaptiveGameChrome
     }
     val context = LocalContext.current
     LazyColumn(Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -611,6 +687,7 @@ fun HomeScreen(
             try {
               auth.logout()
             } finally {
+              appState.invalidateSession()
               onSignedOut()
             }
           }
@@ -620,37 +697,50 @@ fun HomeScreen(
   }
 }
 
-private val StreetsEmpireColors = darkColorScheme(
-  primary = Color(0xFFE8B33C),
-  onPrimary = Color(0xFF241A00),
-  secondary = Color(0xFF8BC5FF),
-  background = Color(0xFF080C11),
-  onBackground = Color(0xFFF2F5F9),
-  surface = Color(0xFF121923),
-  onSurface = Color(0xFFF2F5F9),
-  surfaceVariant = Color(0xFF1A2431),
-  onSurfaceVariant = Color(0xFFB8C4D2),
-  error = Color(0xFFFFB4AB),
-)
-
 private val previewAccount = AccountDto(
   id = "preview",
   username = "MidnightBoss",
   email = "preview@streetsempire.dev",
+  emailVerifiedAt = "2026-10-15T12:00:00.000Z",
+  discordLinked = false,
+  discordUsername = null,
+  isAdmin = false,
+  createdAt = "2026-10-15T12:00:00.000Z",
+  lastLoginAt = "2026-10-15T12:00:00.000Z",
+  verificationRequired = false,
+  rulesAcceptanceRequired = false,
+  adminSignInRequired = false,
+  twoFactorEnabled = false,
 )
 
 private val previewSnapshot = GameSnapshotDto(
   round = RoundSummary(
     id = "preview-season",
     name = "Empire Season",
+    slug = "empire-season",
     status = "ACTIVE",
+    rulesetId = "classic-og-v3.0-a",
+    rulesetVersion = "3.0.0",
+    startsAt = "2026-10-15T12:00:00.000Z",
+    endsAt = "2026-10-22T12:00:00.000Z",
+    registrationOpensAt = null,
     msRemaining = 604_800_000,
     playerCount = 428,
+    paused = null,
   ),
   player = PlayerSummary(
     id = "preview-player",
+    publicPimpId = 101,
     displayName = "MidnightBoss",
+    city = CitySummary(slug = "new-york", name = "New York City"),
+    payoutPercent = 50,
     netWorthCents = 12_845_700,
-    turns = TurnsDto(turns = 42, turnCap = 100, turnsGeneratedNextTick = 5),
+    turns = TurnsDto(
+      turns = 42,
+      turnCap = 100,
+      nextTurnAt = "2026-10-15T12:05:00.000Z",
+      turnsGeneratedNextTick = 5,
+    ),
   ),
+  recentActivity = emptyList(),
 )

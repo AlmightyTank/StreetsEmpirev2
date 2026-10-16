@@ -14,7 +14,7 @@
         android:usesCleartextTraffic="${usesCleartextTraffic}">
 
         <activity
-            android:name=".native.ui.NativeAppActivity"
+            android:name=".native.app.NativeAppActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|keyboardHidden">

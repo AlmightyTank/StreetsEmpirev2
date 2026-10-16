@@ -1,4 +1,4 @@
-package dev.streetsempire.app.native.ui
+package dev.streetsempire.app.native.feature.auth
 
 import android.annotation.SuppressLint
 import android.webkit.JavascriptInterface

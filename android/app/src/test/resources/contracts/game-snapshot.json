@@ -1,0 +1,45 @@
+{
+  "round": {
+    "id": "round_1",
+    "name": "Empire Season",
+    "slug": "empire-season",
+    "status": "ACTIVE",
+    "rulesetId": "classic-og-v3.0-a",
+    "rulesetVersion": "3.0.0",
+    "startsAt": "2026-10-15T10:00:00.000Z",
+    "endsAt": "2026-10-22T10:00:00.000Z",
+    "registrationOpensAt": null,
+    "msRemaining": 604800000,
+    "playerCount": 428,
+    "paused": null
+  },
+  "player": {
+    "id": "player_1",
+    "publicPimpId": 101,
+    "displayName": "MidnightBoss",
+    "alliance": null,
+    "city": { "slug": "new-york", "name": "New York City", "shortName": "NYC" },
+    "payoutPercent": 50,
+    "netWorthCents": 12845700,
+    "turns": {
+      "turns": 42,
+      "turnCap": 100,
+      "nextTurnAt": "2026-10-15T10:05:00.000Z",
+      "turnsGeneratedNextTick": 5
+    },
+    "resources": { "cashCents": 400000, "whores": 2, "thugs": 4 },
+    "happiness": { "value": 75 },
+    "heat": null,
+    "products": null,
+    "run": null,
+    "moving": null
+  },
+  "recentActivity": [
+    {
+      "id": "activity_1",
+      "type": "PLAYER_JOINED",
+      "payload": { "city": "new-york" },
+      "createdAt": "2026-10-15T10:00:00.000Z"
+    }
+  ]
+}
