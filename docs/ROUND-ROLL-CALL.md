@@ -9,7 +9,7 @@
 - Examples: 14-day round → 7 stamps; 21-day → 14; 28-day → 21; 35-day → 28; 42-day → 35.
 - Seven missed days are included in the math and may occur anywhere. Progress **never resets** after an absence.
 - A round day starts at `round.startsAt + (dayIndex-1)*24h`. The final window ends at the exact `round.endsAt`. Server time is authoritative; there is no client-timezone or midnight shortcut.
-- Only an authenticated account with a RoundPlayer in the current ACTIVE round can record attendance. The foreground game snapshot performs the authenticated check-in POST. Background dashboard polling never earns a stamp; Slice C will add the visible calendar and claim UI.
+- Only an authenticated account with a RoundPlayer in the current ACTIVE, **unpaused** round can record attendance. The foreground game snapshot performs the authenticated check-in POST. Background dashboard polling never earns a stamp; Slice C will add the visible calendar and claim UI.
 - A player can stamp once per round-relative day, up to the final target. A PostgreSQL unique index guards repeated requests and multiple tabs. The round row lock also serializes check-ins with early round closure.
 - The ledger is **per RoundPlayer** and disappears only if that RoundPlayer is intentionally deleted. A new round has a new track. Permanent cosmetics will instead live on Account in Slice D.
 - No reward or cosmetic is granted in A, even when the final attendance count is reached. B–D will implement rewards, claim receipts, and the final all-or-nothing cosmetic grant.
