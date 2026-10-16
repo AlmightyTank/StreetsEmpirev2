@@ -1,3 +1,5 @@
+import type { LivingStoryCatalog } from './living-stories.js';
+
 /**
  * The ruleset contract.
  *
@@ -3086,6 +3088,8 @@ export interface Ruleset {
   };
   /** 1.8.5-F. Bounded citywide modifiers and optional event follow-ups. */
   readonly cityConditions?: readonly CityConditionRules[];
+  /** 2.0.0-A. Opt-in story invitations; absent on existing pinned rounds. No active writer until later slices. */
+  readonly livingStories?: LivingStoryCatalog;
   readonly round: RoundRules;
   readonly turns: TurnRules;
   readonly economy: EconomyRules;
