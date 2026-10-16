@@ -53,6 +53,7 @@ import './styles/public-info.css';
 import './styles/account-settings.css';
 import './styles/easter-eggs.css';
 import './styles/action-experience.css';
+import './styles/action-readiness-accessibility.css';
 import './styles/empire-management.css';
 import './styles/economy-experience.css';
 import './styles/career-experience.css';
