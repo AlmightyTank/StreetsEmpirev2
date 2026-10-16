@@ -21,7 +21,7 @@ export const classicOgV30E = {
     },
     STORY_GHOST_SHIPMENT: {
       key: 'STORY_GHOST_SHIPMENT', title: 'Ghost Shipment', caseKey: 'CASE_GHOST_SHIPMENT',
-      trigger: { sourceKind: 'CITY_MEMORY', eventKinds: ['npc_gang_migration'] },
+      trigger: { sourceKind: 'CITY_MEMORY', eventKinds: ['npc_gang_migration', 'supply_road_stop'] },
       audience: 'ACTORS', visibility: 'OWNER_ONLY',
       expiresAfterActiveMinutes: 24 * 60, rewardBudgetCents: 0, enabled: true,
     },

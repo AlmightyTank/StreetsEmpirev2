@@ -9,7 +9,7 @@ export const LIVING_STORY_LIMITS = {
   cooldownActiveMinutes: 360, autoActorsPerEvent: 1,
 } as const;
 export const LIVING_STORY_MEMORY_KINDS = [
-  'war_win', 'operation_complete', 'npc_gang_migration', 'takeover', 'city_condition_follow_up',
+  'war_win', 'operation_complete', 'npc_gang_migration', 'supply_road_stop', 'takeover', 'city_condition_follow_up',
 ] as const;
 
 /** Must run inside the caller's transaction. Only DB-owned source IDs are used. */
