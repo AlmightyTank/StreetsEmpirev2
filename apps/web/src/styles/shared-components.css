@@ -168,6 +168,10 @@
 .se-action-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--se-space-2); padding: var(--se-space-3) var(--se-space-4); border-top: var(--se-border-width) solid var(--se-line); background: var(--se-panel); }
 .se-action-footer--sticky { position: sticky; z-index: var(--se-layer-dock); bottom: var(--se-space-2); border: var(--se-border-width) solid var(--se-line); border-radius: var(--se-radius-lg); box-shadow: var(--se-shadow); }
 
+@media (max-width: 899px) {
+  .se-app--tabbar .se-action-footer--sticky { bottom: var(--se-mobile-sticky-offset); }
+}
+
 .se-game-dialog-backdrop { position: fixed; z-index: var(--se-layer-dialog); inset: 0; display: grid; place-items: center; padding: var(--se-space-4); background: rgba(0, 0, 0, .72); }
 .se-game-dialog { width: min(560px, 100%); max-height: min(760px, calc(100vh - 32px)); overflow-y: auto; border: var(--se-border-width) solid var(--se-line); border-radius: var(--se-radius-xl); background: var(--se-panel); box-shadow: var(--se-shadow); }
 .se-game-dialog > .se-sectionhead { margin: 0; padding: var(--se-space-4); border-bottom: var(--se-border-width) solid var(--se-line); background: var(--se-panel-hi); }

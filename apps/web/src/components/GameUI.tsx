@@ -1,5 +1,6 @@
 import { cloneElement, isValidElement, useEffect, useId, useRef, type HTMLAttributes, type ReactElement, type ReactNode } from 'react';
 import { Button, type ButtonVariant } from './Button.js';
+import { lockPageScroll } from '../utils/pageScrollLock.js';
 
 export function GamePageHeader({ eyebrow, title, description, actions, art }: {
   eyebrow?: ReactNode;
@@ -154,8 +155,7 @@ export function GameDialog({ open, title, description, children, actions, onClos
   useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlockScroll = lockPageScroll();
     dialog.current?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { onCloseRef.current(); return; }
@@ -170,7 +170,7 @@ export function GameDialog({ open, title, description, children, actions, onClos
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = previousOverflow;
+      unlockScroll();
       previousFocus?.focus();
     };
   }, [open]);

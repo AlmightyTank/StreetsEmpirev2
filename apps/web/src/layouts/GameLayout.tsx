@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell, useSidebarRail } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
@@ -17,6 +17,8 @@ import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.j
 import { JokeDayBanner } from '../components/EasterEggs.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { formatDuration } from '../utils/time.js';
+import { lockPageScroll } from '../utils/pageScrollLock.js';
+import { shouldPreserveRouteScroll } from '../utils/routeScroll.js';
 import {
   isCurrent,
   filterNavSections,
@@ -270,10 +272,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
 
   useEffect(() => {
     closeButton.current?.focus();
-    const root = document.documentElement;
-    const before = root.style.overflow;
-    root.style.overflow = 'hidden';
-    return () => { root.style.overflow = before; };
+    return lockPageScroll();
   }, []);
 
   function onKeyDown(event: KeyboardEvent) {
@@ -377,7 +376,22 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
 function useRouteScroll(pathname: string, hash: string) {
   const navigationType = useNavigationType();
   const lastTarget = useRef<{ pathname: string; hash: string } | null>(null);
+  const observedScrollY = useRef(typeof window === 'undefined' ? 0 : window.scrollY);
+
   useEffect(() => {
+    const remember = () => { observedScrollY.current = window.scrollY; };
+    window.addEventListener('scroll', remember, { passive: true });
+    // Capture link activation before React Router swaps the shared view. A
+    // programmatic scroll and click can happen in the same task, before the
+    // browser has dispatched its asynchronous `scroll` event.
+    document.addEventListener('click', remember, true);
+    return () => {
+      window.removeEventListener('scroll', remember);
+      document.removeEventListener('click', remember, true);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
     const previous = lastTarget.current;
     lastTarget.current = { pathname, hash };
     if (previous && previous.pathname === pathname && previous.hash === hash) return;
@@ -385,16 +399,28 @@ function useRouteScroll(pathname: string, hash: string) {
 
     // Storefronts and casino games share a page shell. Switching counters or
     // games should replace the active view without yanking the player upward.
-    const previousIsStore = previous?.pathname === '/game/stores' || previous?.pathname.startsWith('/game/stores/');
-    const nextIsStore = pathname === '/game/stores' || pathname.startsWith('/game/stores/');
-    if (previousIsStore && nextIsStore && !hash) return;
-
-    const previousIsCasinoGame = previous?.pathname.startsWith('/game/casino/');
-    const nextIsCasinoGame = pathname.startsWith('/game/casino/');
-    if (previousIsCasinoGame && nextIsCasinoGame && !hash) return;
+    if (shouldPreserveRouteScroll(previous?.pathname, pathname, hash)) {
+      // The incoming shared view can briefly be shorter while its data mounts,
+      // which lets the browser clamp scrollY to zero. Restore for several frames
+      // until the replacement storefront/game has enough height.
+      const desiredY = observedScrollY.current;
+      let frame = 0;
+      let tries = 0;
+      const restore = () => {
+        const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        window.scrollTo(0, Math.min(desiredY, maxY));
+        // Keep restoring through the async view swap even when the first frame
+        // is already at the requested position. A later loading render can
+        // temporarily shorten the page and clamp scrollY after this effect.
+        if (tries++ < 60) frame = window.requestAnimationFrame(restore);
+      };
+      restore();
+      return () => window.cancelAnimationFrame(frame);
+    }
 
     if (!hash) {
       window.scrollTo(0, 0);
+      observedScrollY.current = 0;
       return;
     }
     // The target may render a frame or two after the page, once its data is in.
@@ -439,7 +465,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);
   const loadOnboarding = useOnboarding((s) => s.load);
   useEffect(() => {
-    if (playerId) void loadOnboarding();
+    if (playerId) void loadOnboarding(playerId);
   }, [playerId, activityHead, loadOnboarding]);
 
   function closeSheet() {

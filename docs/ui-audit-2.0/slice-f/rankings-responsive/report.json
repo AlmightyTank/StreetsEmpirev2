@@ -1,0 +1,216 @@
+[
+  {
+    "url": "/game/rankings",
+    "finalPath": "/game/rankings",
+    "width": "phone-360",
+    "rail": false,
+    "theme": "none",
+    "accent": "default",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 360,
+    "viewport": 360,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 11,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit2sr8ga\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 312x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a \"Open Game #004 - Strategy Raids records \" 262x24",
+        "a.se-aftermath-archive-link \"Browse and compare archived round report\" 225x24",
+        "a.se-aftermath-archive-link \"Browse, filter, and compare every archiv\" 246x24",
+        "a.se-aftermath-archive-link \"View round records & awards →\" 153x24",
+        "a.se-aftermath-archive-link \"View round records & awards →\" 153x24"
+      ],
+      "total": 91
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [],
+    "performance": {
+      "routeReadyMs": 4031,
+      "domContentLoadedMs": 609.5,
+      "loadMs": 615,
+      "transferBytes": 2887,
+      "cls": 0.0218,
+      "lcpMs": 1748,
+      "longTaskCount": 4,
+      "longTaskTotalMs": 359,
+      "longTaskMaxMs": 108
+    },
+    "responsive": {
+      "issues": [],
+      "verticalScroll": "passed",
+      "maxY": 18387,
+      "sticky": [],
+      "containedHorizontalScrollers": 1
+    },
+    "mobileShell": null,
+    "retention": null
+  },
+  {
+    "url": "/game/rankings",
+    "finalPath": "/game/rankings",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 11,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit2sr8ga\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a \"Open Game #004 - Strategy Raids records \" 262x24",
+        "a.se-aftermath-archive-link \"Browse and compare archived round report\" 225x24",
+        "a.se-aftermath-archive-link \"Browse, filter, and compare every archiv\" 246x24",
+        "a.se-aftermath-archive-link \"View round records & awards →\" 153x24",
+        "a.se-aftermath-archive-link \"View round records & awards →\" 153x24"
+      ],
+      "total": 91
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [],
+    "performance": {
+      "routeReadyMs": 3781,
+      "domContentLoadedMs": 651.2999999970198,
+      "loadMs": 657.2999999970198,
+      "transferBytes": 2887,
+      "cls": 0.1589,
+      "lcpMs": 1276,
+      "longTaskCount": 7,
+      "longTaskTotalMs": 710,
+      "longTaskMaxMs": 155
+    },
+    "responsive": {
+      "issues": [],
+      "verticalScroll": "passed",
+      "maxY": 18219,
+      "sticky": [],
+      "containedHorizontalScrollers": 1
+    },
+    "mobileShell": null,
+    "retention": null
+  },
+  {
+    "url": "/game/rankings",
+    "finalPath": "/game/rankings",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 18,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit2sr8ga\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a \"Open Game #004 - Strategy Raids records \" 262x24",
+        "button.se-rankings-tabs__tab.se-rankings-tabs__tab--active \"National62\" 241x42",
+        "button.se-rankings-tabs__tab \"New York City62\" 241x42",
+        "button.se-rankings-tabs__tab \"Alliances0\" 241x42",
+        "button.se-rankings-tabs__tab \"Turf crews0\" 241x42",
+        "button.se-rankings-tabs__tab \"Turf alliances0\" 241x42",
+        "a.se-aftermath-archive-link \"Browse and compare archived round report\" 225x24",
+        "a.se-aftermath-archive-link \"Browse, filter, and compare every archiv\" 246x24",
+        "a.se-aftermath-archive-link \"View round records & awards →\" 153x24",
+        "a.se-aftermath-archive-link \"View round records & awards →\" 153x24"
+      ],
+      "total": 92
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [],
+    "performance": {
+      "routeReadyMs": 3387,
+      "domContentLoadedMs": 633.1999999880791,
+      "loadMs": 638.1999999880791,
+      "transferBytes": 2887,
+      "cls": 0.3313,
+      "lcpMs": 1756,
+      "longTaskCount": 6,
+      "longTaskTotalMs": 553,
+      "longTaskMaxMs": 115
+    },
+    "responsive": {
+      "issues": [],
+      "verticalScroll": "passed",
+      "maxY": 5710,
+      "sticky": [],
+      "containedHorizontalScrollers": 0
+    },
+    "mobileShell": null,
+    "retention": null
+  },
+  {
+    "url": "/game/rankings",
+    "finalPath": "/game/rankings",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [],
+    "performance": {
+      "routeReadyMs": 3511,
+      "domContentLoadedMs": 750.2000000029802,
+      "loadMs": 757.4000000059605,
+      "transferBytes": 2887,
+      "cls": 0.349,
+      "lcpMs": 1792,
+      "longTaskCount": 6,
+      "longTaskTotalMs": 568,
+      "longTaskMaxMs": 131
+    },
+    "responsive": {
+      "issues": [],
+      "verticalScroll": "passed",
+      "maxY": 4018,
+      "sticky": [],
+      "containedHorizontalScrollers": 0
+    },
+    "mobileShell": null,
+    "retention": null
+  }
+]

@@ -2,12 +2,14 @@
 /**
  * 1.0.0-G. Mobile and accessibility audit of the game client, in a real browser.
  *
- *   npm run qa:ui -- [--base http://127.0.0.1:5173] [--out ./ui-audit] [--shots] [--strict] [--baseline] [--shard 1/6]
+ *   npm run qa:ui -- [--base http://127.0.0.1:5173] [--out ./ui-audit] [--shots] [--strict] [--baseline|--responsive] [--shard 1/6]
  *   npm run qa:ui -- --dashboard --shots --strict --base http://127.0.0.1:5173
  *   --dashboard audits the real signed-in Command Center at every selected width.
  *   --baseline limits the matrix to the 390/768/1440 Slice A reference widths.
+ *   --responsive uses the Slice F acceptance widths: 360/390/768/1440, and
+ *   exercises vertical scroll, mobile overlays, pull navigation and shared-shell retention.
  *   --shard N/T splits the filtered route plan into T stable, interleaved batches.
- *   Use separate invocations for large matrices so per-account API limits do not
+ *   Use separate invocations for large matrices so server-wide API limits do not
  *   turn later pages into false script/focus failures.
  *
  * Against a running web client and API (npm run dev), it visits every major page
@@ -44,6 +46,7 @@ const OUT = path.resolve(option('out', 'ui-audit'));
 const SHOTS = args.includes('--shots');
 const DASHBOARD_ONLY = args.includes('--dashboard');
 const BASELINE_ONLY = args.includes('--baseline');
+const RESPONSIVE = args.includes('--responsive');
 const STRICT = args.includes('--strict');
 const ONLY = option('only', '');
 const SHARD_OPTION = option('shard', '');
@@ -68,7 +71,9 @@ const WIDTHS = [
   { name: 'desktop-1440-rail', width: 1440, height: 900, mobile: false, touch: false, rail: true, theme: 'federal-case', accent: 'gold' },
   { name: 'desktop-1920-expanded', width: 1920, height: 1080, mobile: false, touch: false, rail: false, theme: 'midnight-market', accent: 'purple' },
 ];
-const AUDIT_WIDTHS = BASELINE_ONLY ? WIDTHS.filter(({ width }) => width === 390 || width === 768 || width === 1440) : WIDTHS;
+const AUDIT_WIDTHS = RESPONSIVE
+  ? WIDTHS.filter(({ width }) => width === 360 || width === 390 || width === 768 || width === 1440)
+  : BASELINE_ONLY ? WIDTHS.filter(({ width }) => width === 390 || width === 768 || width === 1440) : WIDTHS;
 
 const PUBLIC_PAGES = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/join', '/dev/ui'];
 const PLAYER_PAGES = [
@@ -248,6 +253,193 @@ async function axeCheck(page) {
   return result;
 }
 
+function percentile(values, percent) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * percent) - 1)];
+}
+
+async function performanceCheck(page, readyMs) {
+  return page.evaluate((routeReadyMs) => {
+    const navigation = performance.getEntriesByType('navigation')[0];
+    const vitals = window.__seUiAuditVitals ?? { cls: 0, lcp: 0, longTaskCount: 0, longTaskTotal: 0, longTaskMax: 0, layoutShifts: [] };
+    return {
+      routeReadyMs,
+      domContentLoadedMs: navigation?.domContentLoadedEventEnd ?? 0,
+      loadMs: navigation?.loadEventEnd ?? 0,
+      transferBytes: navigation?.transferSize ?? 0,
+      cls: Number(vitals.cls.toFixed(4)),
+      lcpMs: Math.round(vitals.lcp),
+      longTaskCount: vitals.longTaskCount,
+      longTaskTotalMs: Math.round(vitals.longTaskTotal),
+      longTaskMaxMs: Math.round(vitals.longTaskMax),
+      layoutShifts: vitals.layoutShifts,
+    };
+  }, readyMs);
+}
+
+async function responsiveLayoutCheck(page) {
+  return page.evaluate(async () => {
+    const issues = [];
+    const scrolling = document.scrollingElement;
+    const startY = window.scrollY;
+    const maxY = scrolling ? Math.max(0, scrolling.scrollHeight - window.innerHeight) : 0;
+    let verticalScroll = 'not-needed';
+    if (maxY > 80) {
+      window.scrollTo(0, Math.min(220, maxY));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      verticalScroll = window.scrollY > startY + 20 ? 'passed' : 'failed';
+      if (verticalScroll === 'failed') issues.push('Document did not scroll vertically after idle.');
+      window.scrollTo(0, startY);
+    }
+
+    const visible = (element) => {
+      const box = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    };
+    const tabbar = document.querySelector('.se-tabbar');
+    const tabbarBox = tabbar && visible(tabbar) ? tabbar.getBoundingClientRect() : null;
+    const sticky = [];
+    for (const element of document.querySelectorAll('.se-dock, .se-action-footer--sticky')) {
+      if (!visible(element)) continue;
+      const returnY = window.scrollY;
+      element.scrollIntoView({ block: 'end' });
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      let box = element.getBoundingClientRect();
+      if (tabbarBox && box.bottom > tabbarBox.top + 1) {
+        // `scrollIntoView({block:'end'})` aligns the element with the physical
+        // viewport edge and can bypass the sticky inset. Verify that the user
+        // can move it fully above fixed mobile navigation instead.
+        window.scrollBy(0, box.bottom - tabbarBox.top + 2);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        box = element.getBoundingClientRect();
+      }
+      const style = getComputedStyle(element);
+      const clear = !tabbarBox || box.bottom <= tabbarBox.top + 1;
+      sticky.push({
+        className: element.className,
+        top: Math.round(box.top),
+        bottom: Math.round(box.bottom),
+        tabbarTop: tabbarBox ? Math.round(tabbarBox.top) : null,
+        computedBottom: style.bottom,
+        mobileStickyOffset: style.getPropertyValue('--se-mobile-sticky-offset').trim(),
+        clear,
+      });
+      if (!clear) issues.push(`Sticky action overlaps the mobile tabbar (${element.className}).`);
+      window.scrollTo(0, returnY);
+    }
+
+    let containedHorizontalScrollers = 0;
+    for (const element of document.querySelectorAll('*')) {
+      const style = getComputedStyle(element);
+      if (!/(auto|scroll)/.test(style.overflowX) || element.scrollWidth <= element.clientWidth + 1 || !visible(element)) continue;
+      containedHorizontalScrollers++;
+      const box = element.getBoundingClientRect();
+      if (box.left < -1 || box.right > window.innerWidth + 1) issues.push(`Contained horizontal scroller escapes the viewport (${element.className || element.tagName}).`);
+    }
+    return { issues, verticalScroll, maxY: Math.round(maxY), sticky, containedHorizontalScrollers };
+  });
+}
+
+async function mobileShellCheck(page) {
+  const issues = [];
+  await page.evaluate(() => window.scrollTo(0, 0));
+
+  const dispatchPull = (endY) => page.evaluate((finishY) => {
+    const target = document.querySelector('.se-gamemain');
+    if (!target) return false;
+    const emit = (type, touches, changedTouches = []) => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'touches', { value: touches });
+      Object.defineProperty(event, 'changedTouches', { value: changedTouches });
+      target.dispatchEvent(event);
+    };
+    const start = { identifier: 71, clientX: 170, clientY: 180 };
+    const end = { identifier: 71, clientX: 174, clientY: finishY };
+    emit('touchstart', [start]);
+    emit('touchmove', [end]);
+    emit('touchend', [], [end]);
+    return true;
+  }, endY);
+
+  if (!await dispatchPull(240)) issues.push('Game content was not available for pull navigation.');
+  await page.waitForTimeout(80);
+  if (await page.locator('.se-sheet').count()) issues.push('A short ordinary drag opened All pages.');
+
+  await dispatchPull(300);
+  await page.waitForTimeout(100);
+  const pulledOpen = await page.locator('.se-sheet--from-top').count() === 1;
+  if (!pulledOpen) {
+    issues.push('A deliberate pull-down did not open All pages from the top.');
+  } else {
+    const lock = await page.evaluate(() => ({ root: document.documentElement.style.overflow, body: document.body.style.overflow, position: document.body.style.position }));
+    if (lock.root !== 'hidden' || lock.body !== 'hidden' || lock.position !== 'fixed') issues.push('All pages did not fully lock the document behind it.');
+    const sheetScroll = await page.locator('.se-sheet__body').evaluate((element) => {
+      const scrollable = element.scrollHeight > element.clientHeight + 1;
+      if (scrollable) element.scrollTop = Math.min(120, element.scrollHeight - element.clientHeight);
+      return { scrollable, moved: !scrollable || element.scrollTop > 0 };
+    });
+    if (!sheetScroll.moved) issues.push('All pages trapped vertical scrolling outside its directory body.');
+    await page.locator('.se-sheet__close').click();
+    await page.waitForTimeout(80);
+  }
+
+  await page.evaluate(() => window.scrollTo(0, Math.min(180, Math.max(0, document.documentElement.scrollHeight - innerHeight))));
+  const beforeOverlayY = await page.evaluate(() => window.scrollY);
+  const more = page.locator('button.se-tabbar__tab', { hasText: 'More' });
+  if (await more.count()) {
+    await more.click();
+    await page.waitForTimeout(80);
+    await page.locator('.se-sheet__close').click();
+    await page.waitForTimeout(80);
+    const restored = await page.evaluate(() => ({ y: window.scrollY, root: document.documentElement.style.overflow, body: document.body.style.overflow, position: document.body.style.position }));
+    if (Math.abs(restored.y - beforeOverlayY) > 2 || restored.root === 'hidden' || restored.body === 'hidden' || restored.position === 'fixed') {
+      issues.push('Closing All pages did not restore document scrolling and position.');
+    }
+  } else {
+    issues.push('Mobile More navigation was not available.');
+  }
+
+  const nextTab = page.locator('a.se-tabbar__tab:not([aria-current="page"])').first();
+  let tabSwitchScroll = 'not-tested';
+  if (await nextTab.count()) {
+    await nextTab.click();
+    await page.waitForTimeout(500);
+    tabSwitchScroll = await page.evaluate(async () => {
+      if (document.body.style.position === 'fixed' || document.documentElement.style.overflow === 'hidden') return 'locked';
+      const max = Math.max(0, document.documentElement.scrollHeight - innerHeight);
+      if (max < 40) return 'not-needed';
+      window.scrollTo(0, Math.min(160, max));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return window.scrollY > 20 ? 'passed' : 'failed';
+    });
+    if (tabSwitchScroll === 'locked' || tabSwitchScroll === 'failed') issues.push('Vertical scrolling did not recover after switching mobile tabs.');
+  }
+  return { issues, pulledOpen, beforeOverlayY, tabSwitchScroll };
+}
+
+async function routeRetentionCheck(page, url) {
+  const selector = url === '/game/stores/pip'
+    ? '.se-storetabs__tab:not(.se-storetabs__tab--active)'
+    : url === '/game/casino/slots' ? '.se-casino-switch__game:not(.is-active)' : null;
+  if (!selector) return null;
+  const link = page.locator(selector).first();
+  if (!await link.count()) return { issues: [`Shared-shell destination was unavailable for ${url}.`] };
+  const before = await page.evaluate(() => {
+    const max = Math.max(0, document.documentElement.scrollHeight - innerHeight);
+    window.scrollTo(0, Math.min(240, max));
+    return window.scrollY;
+  });
+  // Playwright's locator.click() scrolls an offscreen navigation link into
+  // view first, which would manufacture a jump before the app handles the
+  // route. Dispatch the real DOM click at the current scroll position.
+  await link.evaluate((element) => element.click());
+  await page.waitForTimeout(500);
+  const after = await page.evaluate(() => window.scrollY);
+  return { before, after, issues: Math.abs(after - before) <= 12 ? [] : [`Shared-shell switch moved the page from ${before}px to ${after}px.`] };
+}
+
 async function dismissIntro(page) {
   const skip = page.getByRole('button', { name: /skip intro/i });
   if (await skip.count()) {
@@ -314,13 +506,42 @@ async function auditPage(browser, state, url, width) {
   const page = await context.newPage();
   await page.addInitScript(({ rail }) => {
     window.localStorage.setItem('streets.sidebar.rail.v1', rail ? '1' : '0');
+    window.__seUiAuditVitals = { cls: 0, lcp: 0, longTaskCount: 0, longTaskTotal: 0, longTaskMax: 0, layoutShifts: [] };
+    try {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) if (!entry.hadRecentInput) {
+          window.__seUiAuditVitals.cls += entry.value;
+          const sources = [...(entry.sources ?? [])].slice(0, 3).map((source) => {
+            const node = source.node;
+            if (!(node instanceof Element)) return 'unknown';
+            return `${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ''}${[...node.classList].slice(0, 2).map((name) => `.${name}`).join('')}`;
+          });
+          window.__seUiAuditVitals.layoutShifts.push({ value: Number(entry.value.toFixed(4)), sources });
+          window.__seUiAuditVitals.layoutShifts.sort((a, b) => b.value - a.value);
+          window.__seUiAuditVitals.layoutShifts.length = Math.min(8, window.__seUiAuditVitals.layoutShifts.length);
+        }
+      }).observe({ type: 'layout-shift', buffered: true });
+      new PerformanceObserver((list) => {
+        const entries = list.getEntries();
+        if (entries.length) window.__seUiAuditVitals.lcp = entries[entries.length - 1].startTime;
+      }).observe({ type: 'largest-contentful-paint', buffered: true });
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          window.__seUiAuditVitals.longTaskCount++;
+          window.__seUiAuditVitals.longTaskTotal += entry.duration;
+          window.__seUiAuditVitals.longTaskMax = Math.max(window.__seUiAuditVitals.longTaskMax, entry.duration);
+        }
+      }).observe({ type: 'longtask', buffered: true });
+    } catch { /* Older webviews still receive navigation and route-ready timings. */ }
   }, { rail: width.rail });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message.slice(0, 160)));
+  const started = Date.now();
   await page.goto(BASE + url, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => undefined);
   await page.waitForTimeout(600);
   await dismissIntro(page);
+  const readyMs = Date.now() - started;
   // Exercise the shell CSS independently of whether the audit account owns a
   // paid theme. This changes presentation only; permissions and page data still
   // come from the signed-in audit account.
@@ -335,6 +556,8 @@ async function auditPage(browser, state, url, width) {
   }, { theme: width.theme, accent: width.accent });
   const finalPath = new URL(page.url()).pathname;
   const measured = await page.evaluate(measure, width.touch);
+  const performance = await performanceCheck(page, readyMs);
+  const responsive = RESPONSIVE ? await responsiveLayoutCheck(page) : null;
   const dashboard = DASHBOARD_ONLY && url === '/game' ? await checkDashboard(page, width) : null;
   const focus = width.width >= 1024 ? await focusCheck(page) : null;
   const axe = width.name !== 'phone-360' ? await axeCheck(page) : [];
@@ -342,8 +565,10 @@ async function auditPage(browser, state, url, width) {
     mkdirSync(path.join(OUT, 'shots'), { recursive: true });
     await page.screenshot({ path: path.join(OUT, 'shots', `${url.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'home'}-${width.name}.png`), fullPage: true });
   }
+  const mobileShell = RESPONSIVE && url === '/game' && width.width <= 390 ? await mobileShellCheck(page) : null;
+  const retention = RESPONSIVE && width.width === 390 ? await routeRetentionCheck(page, url) : null;
   await context.close();
-  return { url, finalPath, width: width.name, rail: width.rail, theme: width.theme, accent: width.accent, errors, ...measured, dashboard, focus, axe };
+  return { url, finalPath, width: width.name, rail: width.rail, theme: width.theme, accent: width.accent, errors, ...measured, dashboard, focus, axe, performance, responsive, mobileShell, retention };
 }
 
 const browser = await chromium.launch({
@@ -400,7 +625,13 @@ const targetRows = results.filter((row) => row.targets.fail.length);
 const focusRows = results.filter((row) => row.focus && (row.focus.unringed.length || !row.focus.firstIsSkip));
 const errorRows = results.filter((row) => row.errors.length);
 const dashboardRows = results.filter((row) => row.dashboard?.issues.length);
+const responsiveRows = results.filter((row) => row.responsive?.issues.length || row.mobileShell?.issues.length || row.retention?.issues.length);
 const serious = [...axeById.values()].filter((v) => v.impact === 'serious' || v.impact === 'critical');
+const readyValues = results.map((row) => row.performance.routeReadyMs);
+const dclValues = results.map((row) => row.performance.domContentLoadedMs);
+const lcpValues = results.map((row) => row.performance.lcpMs);
+const clsValues = results.map((row) => row.performance.cls);
+const longTaskValues = results.map((row) => row.performance.longTaskMaxMs);
 const lines = [
   '# UI audit', '', `${BASE} · ${new Date().toISOString()} · ${new Set(results.map((row) => row.url)).size} pages × ${AUDIT_WIDTHS.length} widths${SHARD ? ` · shard ${SHARD.index}/${SHARD.total}` : ''}`, '',
   `| Check | Result |`, `| --- | --- |`,
@@ -410,6 +641,12 @@ const lines = [
   `| Keyboard focus | ${focusRows.length ? `${focusRows.length} page(s) with an unmarked stop or no skip link` : 'visible on every stop; skip link first'} |`,
   `| axe WCAG 2.2 AA | ${axeById.size ? `${[...axeById.values()].reduce((n, v) => n + v.count, 0)} findings in ${axeById.size} rule(s), ${serious.length} serious/critical` : 'no violations'} |`,
   `| Script errors | ${errorRows.length ? errorRows.length : 'none'} |`,
+  `| Responsive interactions | ${RESPONSIVE ? responsiveRows.length ? `${responsiveRows.length} page/width(s) require attention` : 'all exercised interactions passed' : 'not exercised (use --responsive)'} |`,
+  `| Audit settled (local p50 / p95) | ${Math.round(percentile(readyValues, .5))} ms / ${Math.round(percentile(readyValues, .95))} ms |`,
+  `| DOMContentLoaded (p50 / p95) | ${Math.round(percentile(dclValues, .5))} ms / ${Math.round(percentile(dclValues, .95))} ms |`,
+  `| LCP observed (p50 / p95) | ${Math.round(percentile(lcpValues, .5))} ms / ${Math.round(percentile(lcpValues, .95))} ms |`,
+  `| CLS (p95 / max) | ${percentile(clsValues, .95).toFixed(4)} / ${Math.max(0, ...clsValues).toFixed(4)} |`,
+  `| Long task max (p95 / max) | ${Math.round(percentile(longTaskValues, .95))} ms / ${Math.round(Math.max(0, ...longTaskValues))} ms |`,
   `| Command Center layout | ${dashboardRows.length ? `${dashboardRows.length} widths require attention` : DASHBOARD_ONLY ? `all ${AUDIT_WIDTHS.length} audited widths passed structure checks` : 'not specifically audited'} |`, '',
 ];
 if (overflowRows.length) {
@@ -442,9 +679,17 @@ if (dashboardRows.length) {
   lines.push('## Command Center layout', '');
   for (const row of dashboardRows) lines.push(`- ${row.width} / ${row.theme}: ${row.dashboard.issues.join('; ')}`);
 }
+if (responsiveRows.length) {
+  lines.push('## Responsive interactions', '');
+  for (const row of responsiveRows) {
+    const issues = [...(row.responsive?.issues ?? []), ...(row.mobileShell?.issues ?? []), ...(row.retention?.issues ?? [])];
+    lines.push(`- ${row.url} @ ${row.width}: ${issues.join('; ')}`);
+  }
+  lines.push('');
+}
 mkdirSync(OUT, { recursive: true });
 writeFileSync(path.join(OUT, 'report.md'), `${lines.join('\n')}\n`);
 writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(results, null, 2));
-console.log(`\n${lines.slice(4, 12).join('\n')}\n\nReport: ${path.join(OUT, 'report.md')}`);
-const failed = overflowRows.length || targetRows.length || serious.length || focusRows.length || errorRows.length || dashboardRows.length;
+console.log(`\n${lines.slice(4, 14).join('\n')}\n\nReport: ${path.join(OUT, 'report.md')}`);
+const failed = overflowRows.length || targetRows.length || serious.length || focusRows.length || errorRows.length || dashboardRows.length || responsiveRows.length;
 if (STRICT && failed) process.exit(1);

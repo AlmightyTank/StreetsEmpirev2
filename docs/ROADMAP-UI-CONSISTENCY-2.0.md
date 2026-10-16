@@ -250,22 +250,22 @@ Keep compatibility with existing `--se-*` variables. Normalize and extend the se
 
 **Tasks**
 
-- [ ] Normalize content gutters, card stacking, responsive grids, typography, panel density, and safe-area spacing.
-- [ ] Preserve the intended mobile pull-down All Pages sheet while preventing accidental native refresh and scroll lock.
-- [ ] Confirm vertical scrolling works after idle, while touch events and overlays are present, and after switching tabs.
-- [ ] Keep sticky primary actions accessible above mobile navigation and device safe areas without covering page content.
-- [ ] Prevent horizontal overflow and unintentional layout jumps in casino games, stores, tables, long names, and status rows.
-- [ ] Standardize responsive tab overflow and nested menu behavior; no trapping scroll inside the wrong region.
-- [ ] Preserve page position when switching store fronts and casino games where the current UX intentionally retains it.
-- [ ] Measure screen-load/interaction responsiveness; avoid creating large overlapping theme selectors or costly visual effects.
-- [ ] Support focus visibility, screen reader labeling, touch targets, and user preferences for reduced motion.
+- [x] Normalize content gutters, card stacking, responsive grids, typography, panel density, and safe-area spacing.
+- [x] Preserve the intended mobile pull-down All Pages sheet while preventing accidental native refresh and scroll lock.
+- [x] Confirm vertical scrolling works after idle, while touch events and overlays are present, and after switching tabs.
+- [x] Keep sticky primary actions accessible above mobile navigation and device safe areas without covering page content.
+- [x] Prevent horizontal overflow and unintentional layout jumps in casino games, stores, tables, long names, and status rows.
+- [x] Standardize responsive tab overflow and nested menu behavior; no trapping scroll inside the wrong region.
+- [x] Preserve page position when switching store fronts and casino games where the current UX intentionally retains it.
+- [x] Measure screen-load/interaction responsiveness; avoid creating large overlapping theme selectors or costly visual effects.
+- [x] Support focus visibility, screen reader labeling, touch targets, and user preferences for reduced motion.
 
 **Acceptance criteria**
 
-- [ ] No core page requires horizontal scrolling outside intentional maps/game boards/tables.
-- [ ] Mobile primary actions remain reachable and are not hidden behind the bottom tabbar.
-- [ ] The pull-down sheet gesture and normal vertical scrolling coexist reliably.
-- [ ] Content remains readable and usable at 360px, 390px, 768px, and 1440px.
+- [x] No core page requires horizontal scrolling outside intentional maps/game boards/tables.
+- [x] Mobile primary actions remain reachable and are not hidden behind the bottom tabbar.
+- [x] The pull-down sheet gesture and normal vertical scrolling coexist reliably.
+- [x] Content remains readable and usable at 360px, 390px, 768px, and 1440px.
 
 ### Slice G — Visual QA, CI guardrails & 2.0 release gate
 

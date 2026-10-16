@@ -3,6 +3,18 @@
   gap: 18px;
 }
 
+/* Keep the footer below the viewport while the non-blocking onboarding state
+   settles. The full dashboard then replaces this stable region in one paint
+   instead of inserting guide cards above already-visible metrics. */
+.se-dashboard-loading {
+  display: flex;
+  min-height: calc(100dvh - var(--se-shell-topbar-h) - var(--se-space-12));
+  gap: var(--se-space-2);
+  align-items: center;
+  justify-content: center;
+  color: var(--se-text-dim);
+}
+
 .se-dashboard-hero {
   position: relative;
   overflow: hidden;

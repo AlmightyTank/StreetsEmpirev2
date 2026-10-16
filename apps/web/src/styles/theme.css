@@ -86,6 +86,17 @@
   --se-shell-topbar-h: 58px;
   --se-shell-tabbar-h: 60px;
   --se-shell-content-max: 1320px;
+  --se-content-gutter-phone: 10px;
+  --se-content-gutter-tablet: 16px;
+  --se-content-gutter-narrow-desktop: 20px;
+  --se-content-gutter-desktop: 28px;
+  --se-shell-content-bottom: 64px;
+  --se-safe-top: env(safe-area-inset-top, 0px);
+  --se-safe-right: env(safe-area-inset-right, 0px);
+  --se-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --se-safe-left: env(safe-area-inset-left, 0px);
+  --se-mobile-nav-offset: calc(var(--se-shell-tabbar-h) + var(--se-safe-bottom));
+  --se-mobile-sticky-offset: calc(var(--se-mobile-nav-offset) + var(--se-space-2));
   --se-layer-dock: 30;
   --se-layer-help: 40;
   --se-layer-sidebar: 60;
@@ -757,7 +768,7 @@ body {
 .se-shell {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 20px 16px 64px;
+  padding: 20px var(--se-content-gutter-tablet) var(--se-shell-content-bottom);
 }
 
 .se-authshell {

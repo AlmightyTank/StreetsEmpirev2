@@ -3,8 +3,8 @@
 
 .se-dock {
   position: sticky;
-  bottom: 10px;
-  z-index: 30;
+  bottom: calc(var(--se-space-2) + 2px);
+  z-index: var(--se-layer-dock);
   display: grid;
   margin: 0;
   border: 1px solid rgba(var(--se-accent-rgb), 0.28);
@@ -206,7 +206,7 @@
 @media (max-width: 899px) {
   /* Sit on top of the phone tab bar rather than behind it. */
   .se-dock {
-    bottom: calc(60px + 8px + env(safe-area-inset-bottom, 0px));
+    bottom: var(--se-mobile-sticky-offset);
   }
 }
 

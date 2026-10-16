@@ -23,6 +23,7 @@ import { formatClockTime, formatDate, formatDuration, formatWhen } from '../util
 import { dashboardAttentionState, dashboardDisclosureForHash } from '../utils/dashboardAttention.js';
 import { GettingStarted } from '../components/onboarding/GettingStarted.js';
 import { TourOffer } from '../components/onboarding/TourOffer.js';
+import { useOnboarding } from '../stores/onboarding.js';
 
 function RankMovement({ movement }: { movement: number | null }) {
   if (movement === null || movement === 0) {
@@ -849,7 +850,18 @@ export function DashboardPage() {
   const roundOver = useSession((s) => s.roundOver);
   const round = useSession((s) => s.round);
   const canJoin = useSession((s) => s.canJoin);
+  const onboardingLoaded = useOnboarding((s) => s.loadedFor === me?.id);
 
+  if (me && !onboardingLoaded) {
+    return (
+      <GameLayout>
+        <div className="se-dashboard-loading" role="status" aria-live="polite">
+          <span className="se-loading" aria-hidden="true" />
+          <span>Preparing Command Center…</span>
+        </div>
+      </GameLayout>
+    );
+  }
   if (me) return <LiveDashboardPage me={me} />;
   if (roundOver) return <RoundOverScreen roundOver={roundOver} nextRound={round} canJoin={canJoin} />;
 

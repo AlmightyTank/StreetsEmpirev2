@@ -93,3 +93,11 @@ npm run qa:ui -- --baseline --strict --only /game/admin --shard 1/3 --pace 1400 
 ```
 
 The runner discovers valid fixture-backed URLs for public player profiles, READY aftermath reports, admin rounds/accounts/players, and player-law details. The certification database had no alliance and no forum-link record, so `/game/alliances/:tag` and `/game/forum/:forumUserId` are explicitly fixture-dependent. No fake persistent content was created to make those URLs pass. The automated result is complete for every available route fixture; the human visual-review checklist above remains a separate approval gate.
+
+## Slice F responsive and interaction evidence
+
+[`slice-f/`](slice-f/) adds the 360px boundary and active behavior checks at 360, 390, 768, and 1440. The seven representative route reports cover the Dashboard, Scout, Produce, Combat, Stores, Casino Slots, and Rankings. All 28 viewport rows pass strict page-overflow, minimum-target, keyboard, axe, script, vertical-scroll, sticky-clearance, nested-scroll, and route-retention checks.
+
+The pull-down check distinguishes a short ordinary drag from a deliberate gesture, verifies the top sheet and its internal scroll, closes it with exact page-position restoration, exercises the bottom More sheet, and confirms vertical scrolling after a mobile tab switch. Store and casino reports separately verify their intentional shared-shell scroll retention.
+
+The optimized-build Dashboard performance sample is [`slice-f/dashboard-production/report.md`](slice-f/dashboard-production/report.md). See [`../UI-RESPONSIVE-PERFORMANCE-A11Y.md`](../UI-RESPONSIVE-PERFORMANCE-A11Y.md) for measurements, contracts, and reproduction commands.

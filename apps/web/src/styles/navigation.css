@@ -114,7 +114,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
   }
 
   /* Room under the footer so the last line never hides behind the bar. */
-  .se-app--tabbar { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+  .se-app--tabbar { padding-bottom: var(--se-mobile-nav-offset); }
 
   .se-tabbar {
     position: fixed;
@@ -124,7 +124,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
     bottom: 0;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    padding: 0 4px env(safe-area-inset-bottom, 0px);
+    padding: 0 calc(var(--se-space-1) + var(--se-safe-right)) var(--se-safe-bottom) calc(var(--se-space-1) + var(--se-safe-left));
     background: rgba(12, 14, 17, 0.97);
     border-top: 1px solid rgba(var(--se-accent-rgb), 0.16);
     box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.4);
@@ -138,7 +138,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
     justify-content: center;
     gap: 3px;
     min-width: 0;
-    height: 60px;
+    height: var(--se-shell-tabbar-h);
     padding: 0 2px;
     border: 0;
     background: none;
@@ -179,7 +179,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
   }
 
   /* The More sheet slides up over the page. */
-  .se-sheet { display: block; position: fixed; inset: 0; z-index: 90; }
+  .se-sheet { display: block; position: fixed; inset: 0; z-index: var(--se-layer-menu); }
   .se-sheet__backdrop {
     position: absolute;
     inset: 0;
@@ -194,7 +194,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
     display: flex;
     flex-direction: column;
     max-height: min(82vh, 640px);
-    padding: 6px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+    padding: 6px calc(14px + var(--se-safe-right)) calc(14px + var(--se-safe-bottom)) calc(14px + var(--se-safe-left));
     background: var(--se-panel);
     border-top: 1px solid rgba(var(--se-accent-rgb), 0.2);
     border-radius: 14px 14px 0 0;
@@ -208,7 +208,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
     bottom: auto;
     max-height: min(82vh, 640px);
     max-height: min(82dvh, 640px);
-    padding: calc(12px + env(safe-area-inset-top, 0px)) 14px 14px;
+    padding: calc(12px + var(--se-safe-top)) calc(14px + var(--se-safe-right)) 14px calc(14px + var(--se-safe-left));
     border-top: 0;
     border-bottom: 1px solid rgba(var(--se-accent-rgb), 0.2);
     border-radius: 0 0 14px 14px;
@@ -228,7 +228,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
   .se-sheet__title { margin: 0; font-size: 16px; font-weight: 700; color: #fff; }
   .se-sheet__actions { display: flex; align-items: center; gap: 6px; }
   .se-sheet__close { min-width: 44px; font-size: 15px; }
-  .se-sheet__body { overflow-y: auto; overscroll-behavior: contain; margin: 0 -14px; padding: 0 14px 4px; }
+  .se-sheet__body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; margin: 0 -14px; padding: 0 14px 4px; }
   .se-sheet__section + .se-sheet__section { margin-top: 12px; }
   .se-sheet__heading {
     margin: 0 0 6px;

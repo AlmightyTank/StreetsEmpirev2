@@ -1,0 +1,317 @@
+[
+  {
+    "url": "/game/produce",
+    "finalPath": "/game/produce",
+    "width": "phone-360",
+    "rail": false,
+    "theme": "none",
+    "accent": "default",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 360,
+    "viewport": 360,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 14,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, auditjyubcy\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 312x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"+1\" 73x36",
+        "button.se-btn.se-btn \"+10\" 73x36",
+        "button.se-btn.se-btn \"+100\" 73x36",
+        "button.se-btn.se-btn \"Max\" 73x36",
+        "button.se-btn.se-btn \"Start Crack batch\" 178x40",
+        "button.se-btn.se-btn \"Change\" 73x36",
+        "button.se-btn.se-btn \"Change\" 73x36"
+      ],
+      "total": 28
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [],
+    "performance": {
+      "routeReadyMs": 4942,
+      "domContentLoadedMs": 940.3000000119209,
+      "loadMs": 947.4000000059605,
+      "transferBytes": 2887,
+      "cls": 0.0027,
+      "lcpMs": 2140,
+      "longTaskCount": 5,
+      "longTaskTotalMs": 455,
+      "longTaskMaxMs": 131,
+      "layoutShifts": [
+        {
+          "value": 0.0027,
+          "sources": [
+            "button.se-btn.se-btn--primary"
+          ]
+        }
+      ]
+    },
+    "responsive": {
+      "issues": [],
+      "verticalScroll": "passed",
+      "maxY": 2969,
+      "sticky": [
+        {
+          "className": "se-dock",
+          "top": 504,
+          "bottom": 672,
+          "tabbarTop": 679,
+          "computedBottom": "68px",
+          "mobileStickyOffset": "calc(calc(60px + 0px) + 8px)",
+          "clear": true
+        }
+      ],
+      "containedHorizontalScrollers": 0
+    },
+    "mobileShell": null,
+    "retention": null
+  },
+  {
+    "url": "/game/produce",
+    "finalPath": "/game/produce",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 14,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, auditjyubcy\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"+1\" 80x36",
+        "button.se-btn.se-btn \"+10\" 80x36",
+        "button.se-btn.se-btn \"+100\" 80x36",
+        "button.se-btn.se-btn \"Max\" 80x36",
+        "button.se-btn.se-btn \"Start Crack batch\" 178x40",
+        "button.se-btn.se-btn \"Change\" 73x36",
+        "button.se-btn.se-btn \"Change\" 73x36"
+      ],
+      "total": 28
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [],
+    "performance": {
+      "routeReadyMs": 3798,
+      "domContentLoadedMs": 800.4000000059605,
+      "loadMs": 806.5,
+      "transferBytes": 2887,
+      "cls": 0.1778,
+      "lcpMs": 1608,
+      "longTaskCount": 4,
+      "longTaskTotalMs": 426,
+      "longTaskMaxMs": 143,
+      "layoutShifts": [
+        {
+          "value": 0.1759,
+          "sources": [
+            "div.se-produce",
+            "header.se-produce-hero",
+            "div.se-pageguide__help"
+          ]
+        },
+        {
+          "value": 0.0019,
+          "sources": [
+            "button.se-btn.se-btn--primary"
+          ]
+        }
+      ]
+    },
+    "responsive": {
+      "issues": [],
+      "verticalScroll": "passed",
+      "maxY": 2804,
+      "sticky": [
+        {
+          "className": "se-dock",
+          "top": 608,
+          "bottom": 776,
+          "tabbarTop": 783,
+          "computedBottom": "68px",
+          "mobileStickyOffset": "calc(calc(60px + 0px) + 8px)",
+          "clear": true
+        }
+      ],
+      "containedHorizontalScrollers": 0
+    },
+    "mobileShell": null,
+    "retention": null
+  },
+  {
+    "url": "/game/produce",
+    "finalPath": "/game/produce",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 13,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, auditjyubcy\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn \"+1\" 41x44",
+        "button.se-btn.se-btn \"Start Crack batch\" 178x40",
+        "button.se-btn.se-btn \"Change\" 73x36",
+        "button.se-btn.se-btn \"Change\" 73x36"
+      ],
+      "total": 29
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [],
+    "performance": {
+      "routeReadyMs": 3709,
+      "domContentLoadedMs": 830,
+      "loadMs": 836.3000000119209,
+      "transferBytes": 2887,
+      "cls": 0.1646,
+      "lcpMs": 1628,
+      "longTaskCount": 3,
+      "longTaskTotalMs": 373,
+      "longTaskMaxMs": 137,
+      "layoutShifts": [
+        {
+          "value": 0.0916,
+          "sources": [
+            "div.se-produce",
+            "header.se-produce-hero",
+            "div.se-pageguide__help"
+          ]
+        },
+        {
+          "value": 0.073,
+          "sources": [
+            "aside.se-produce-plan__read",
+            "button.se-btn.se-btn--primary",
+            "div.se-spend"
+          ]
+        }
+      ]
+    },
+    "responsive": {
+      "issues": [],
+      "verticalScroll": "passed",
+      "maxY": 1634,
+      "sticky": [
+        {
+          "className": "se-dock",
+          "top": 884,
+          "bottom": 956,
+          "tabbarTop": 963,
+          "computedBottom": "68px",
+          "mobileStickyOffset": "calc(calc(60px + 0px) + 8px)",
+          "clear": true
+        }
+      ],
+      "containedHorizontalScrollers": 0
+    },
+    "mobileShell": null,
+    "retention": null
+  },
+  {
+    "url": "/game/produce",
+    "finalPath": "/game/produce",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [],
+    "performance": {
+      "routeReadyMs": 3524,
+      "domContentLoadedMs": 725.7999999970198,
+      "loadMs": 731.2999999970198,
+      "transferBytes": 2887,
+      "cls": 0.0676,
+      "lcpMs": 1456,
+      "longTaskCount": 4,
+      "longTaskTotalMs": 381,
+      "longTaskMaxMs": 117,
+      "layoutShifts": [
+        {
+          "value": 0.0666,
+          "sources": [
+            "div.se-produce",
+            "header.se-produce-hero",
+            "img"
+          ]
+        },
+        {
+          "value": 0.001,
+          "sources": [
+            "button.se-btn.se-btn--primary",
+            "div.se-spend",
+            "span.se-choice__meta"
+          ]
+        }
+      ]
+    },
+    "responsive": {
+      "issues": [],
+      "verticalScroll": "passed",
+      "maxY": 649,
+      "sticky": [
+        {
+          "className": "se-dock",
+          "top": 818,
+          "bottom": 890,
+          "tabbarTop": null,
+          "computedBottom": "10px",
+          "mobileStickyOffset": "calc(calc(60px + 0px) + 8px)",
+          "clear": true
+        }
+      ],
+      "containedHorizontalScrollers": 0
+    },
+    "mobileShell": null,
+    "retention": null
+  }
+]
