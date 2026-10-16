@@ -22,7 +22,7 @@ function database() {
       },
     },
   };
-  return { db: { ...tx, $transaction: (fn: (tx: typeof tx) => Promise<unknown>) => fn(tx) } as unknown as PrismaClient, days };
+  return { db: { ...tx, $transaction: (fn: (transaction: unknown) => Promise<unknown>) => fn(tx) } as unknown as PrismaClient, days };
 }
 
 describe('round roll call check-ins', () => {
