@@ -50,7 +50,7 @@ function CaseFileCard({ file, busy, onActivate, onChoose, archive = false, repor
     <article id={`case-${file.id}`} tabIndex={-1} className={`se-casefile se-casefile--${file.status.toLowerCase()}`}>
       <header className="se-casefile__head">
         <div>
-          <span className="se-eyebrow">Criminal Case File · {file.cityId.replaceAll('_', ' ')}</span>
+          <span className="se-eyebrow">Criminal Case File · Private street report</span>
           <h3>{file.title}</h3>
         </div>
         <StatusBadge tone={file.status === 'SOLVED' || file.status === 'CLOSED' ? 'good'
