@@ -304,7 +304,7 @@ export function RoundRollCallPanel() {
               ? 'All ' + board.requiredStamps + ' rewards'
               : 'Rewards ' + (nearbyStart + 1) + '–' + (nearbyStart + visibleTiers.length) + ' of ' + board.requiredStamps}</span>
           </div>
-          <ol className="se-rollcall__grid" aria-label="Login reward track">
+          <ol className="se-rollcall__grid" id="round-roll-call-calendar" aria-label="Login reward track">
             {visibleTiers.map((tier) => (
               <RollCallDay
                 key={tier.key}
@@ -321,7 +321,7 @@ export function RoundRollCallPanel() {
                 variant="ghost"
                 onClick={() => setShowAllRewards((current) => !current)}
                 aria-expanded={showAllRewards}
-                aria-controls="round-roll-call"
+                aria-controls="round-roll-call-calendar"
               >{showAllRewards ? 'Show rewards near my progress' : 'Show full ' + board.requiredStamps + '-reward calendar'}</Button>
             </div>
           ) : null}
