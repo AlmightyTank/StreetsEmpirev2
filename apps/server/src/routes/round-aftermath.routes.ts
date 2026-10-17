@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { RoundAftermathQueryService } from '../services/round-aftermath-query.service.js';
+import { CrewLegendService } from '../services/crew-legends.service.js';
 import { parseBody } from '../utils/validate.js';
 
 const roundParams = z.object({ roundId: z.string().trim().min(1).max(64) }).strict();
@@ -60,6 +61,11 @@ const roundAftermathRoutes: FastifyPluginAsync = async (fastify) => {
     return RoundAftermathQueryService.personal(fastify.prisma, roundId, request.auth!.account.id);
   });
 
+  fastify.get('/:roundId/aftermath/crew-legends/me', { preHandler: fastify.requireAuth }, async (request, reply) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    reply.header('Cache-Control', 'private, no-store');
+    return CrewLegendService.archive(fastify.prisma, request.auth!.account.id, roundId);
+  });
   fastify.get('/:roundId/aftermath/categories', async (request, reply) => {
     const { roundId } = parseBody(roundParams, request.params);
     reply.header('Cache-Control', 'public, max-age=60');
