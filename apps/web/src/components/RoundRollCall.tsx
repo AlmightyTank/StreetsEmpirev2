@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ApiError } from '../api/client.js';
 import {
   ROUND_ROLL_CALL_CHECKED_IN_EVENT,
+  consumeRoundRollCallStamp,
   roundRollCallApi,
   type RoundRollCallBoard,
   type RoundRollCallClaimResult,
@@ -301,11 +302,11 @@ export function RoundRollCallPanel() {
 }
 
 export function RoundRollCallNotice() {
-  const [notice, setNotice] = useState<{ stamps: number; requiredStamps: number } | null>(null);
+  const [notice, setNotice] = useState<{ stamps: number; requiredStamps: number } | null>(() => consumeRoundRollCallStamp());
 
   useEffect(() => {
     const onCheckIn = (event: Event) => {
-      const result = (event as CustomEvent<{ stamps: number; requiredStamps: number }>).detail;
+      const result = consumeRoundRollCallStamp() ?? (event as CustomEvent<{ stamps: number; requiredStamps: number }>).detail;
       if (result && result.requiredStamps > 0) {
         setNotice({ stamps: result.stamps, requiredStamps: result.requiredStamps });
       }
