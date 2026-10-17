@@ -73,16 +73,22 @@ export const CrewLegendService = {
     });
     let archived = 0;
     for (const player of players) {
+      let awardedForPlayer = 0;
+      let gotLegend = false;
+      for (let skip = 0; awardedForPlayer < CREW_LEGEND_MAX_PER_PLAYER; skip += 100) {
+      // Page through all qualifying loyalty totals. Nickname proof MUST be
+      // evaluated before consuming one of the three memorial slots.
       const members = await tx.crewMember.findMany({
         where: { roundPlayerId: player.id, loyaltyPoints: { gte: CREW_LEGEND_MIN_LOYALTY }, nicknameSuppressed: false },
         orderBy: [{ loyaltyPoints: 'desc' }, { experiencePoints: 'desc' }, { serial: 'asc' }],
-        take: CREW_LEGEND_MAX_PER_PLAYER,
+        take: 100,
+        skip,
         select: {
           id: true, role: true, serial: true, status: true, nicknameKey: true, loyaltyPoints: true,
           experiencePoints: true, joinedAt: true, loyaltyEntries: { where: { points: { gt: 0 } }, select: { source: true, points: true } },
         },
       });
-      let gotLegend = false;
+      if (!members.length) break;
       for (const member of members) {
         const nickname = selectedCrewNickname({ loyaltyPoints: member.loyaltyPoints, receipts: member.loyaltyEntries, nicknameKey: member.nicknameKey });
         if (!nickname) continue;
@@ -100,6 +106,10 @@ export const CrewLegendService = {
         });
         archived += count.count;
         gotLegend = true;
+        awardedForPlayer++;
+        if (awardedForPlayer >= CREW_LEGEND_MAX_PER_PLAYER) break;
+      }
+      if (members.length < 100) break;
       }
       if (gotLegend) {
         await tx.accountCosmeticUnlock.upsert({
