@@ -71,7 +71,7 @@ function RollCallFinalePreview({ target, completed }: { target: number; complete
   );
 }
 
-function RollCallDay({ tier, finale, busy, onClaim }: {
+function RollCallDay({ tier, finale, claimingTier, onClaim }: {
   tier: RoundRollCallTier;
   finale: boolean;
   claimingTier: number | null;
