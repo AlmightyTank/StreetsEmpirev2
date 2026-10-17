@@ -100,11 +100,11 @@ jobs:
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             profile="--visual-smoke"
-            routes="/login,/game,/game/scout,/game/combat,/game/stores/pip,/game/casino/slots,/game/rankings"
+            routes="/login,/game,/game/scout,/game/combat,/game/stores/pip,/game/casino/slots,/game/rankings,/game/street-pass"
             pace=700
           else
             profile="--responsive"
-            routes="/login,/game,/game/scout,/game/produce,/game/combat,/game/quests,/game/stores/pip,/game/casino/slots,/game/travel,/game/turf,/game/rankings,/game/profile"
+            routes="/login,/game,/game/scout,/game/produce,/game/combat,/game/quests,/game/stores/pip,/game/casino/slots,/game/travel,/game/turf,/game/rankings,/game/profile,/game/street-pass"
             pace=1100
           fi
           npm run qa:ui -- $profile --deterministic --routes "$routes" --shard "${{ matrix.shard }}" --shots --strict --pace "$pace" --base http://127.0.0.1:5173 --out "game-ui-visual-audit-${{ strategy.job-index }}"
