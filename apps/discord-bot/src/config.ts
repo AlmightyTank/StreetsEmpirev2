@@ -29,6 +29,8 @@ const schema = z.object({
   DISCORD_FORUM_GROUPS: z.string().default('Admin,Mod'),
   /** Channel for new game news and the round-end standings; empty turns both off. */
   DISCORD_NEWS_CHANNEL_ID: optionalChannel('DISCORD_NEWS_CHANNEL_ID'),
+  /** Subscriber role pinged for published patch notes; exact-name lookup is the default. */
+  DISCORD_GAME_UPDATES_ROLE_ID: optionalChannel('DISCORD_GAME_UPDATES_ROLE_ID'),
   DISCORD_NEWS_MINUTES: z.coerce.number().int().min(1).max(60).default(1),
   /** Channel for raid results; empty turns the raid feed off. */
   DISCORD_RAID_FEED_CHANNEL_ID: optionalChannel('DISCORD_RAID_FEED_CHANNEL_ID'),
@@ -38,6 +40,8 @@ const schema = z.object({
   DISCORD_SUPPORT_CHANNEL_ID: optionalChannel('DISCORD_SUPPORT_CHANNEL_ID'),
   /** Public channel for updates going live, planned maintenance and outages; empty turns them off. */
   DISCORD_STATUS_CHANNEL_ID: optionalChannel('DISCORD_STATUS_CHANNEL_ID'),
+  /** Subscriber role pinged for new deploy, maintenance, and outage logs. */
+  DISCORD_SERVER_UPDATES_ROLE_ID: optionalChannel('DISCORD_SERVER_UPDATES_ROLE_ID'),
   /** How long the game must stay unreachable before the status channel says it is down. */
   DISCORD_OUTAGE_MINUTES: z.coerce.number().int().min(1).max(60).default(3),
   /** How often the bot rotates its presence/activity. Set 0 to keep Discord's default (no custom activity). */
