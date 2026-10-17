@@ -174,10 +174,19 @@
 
 .se-game-dialog-backdrop { position: fixed; z-index: var(--se-layer-dialog); inset: 0; display: grid; place-items: center; padding: var(--se-space-4); background: rgba(0, 0, 0, .72); }
 .se-game-dialog { width: min(560px, 100%); max-height: min(760px, calc(100vh - 32px)); overflow-y: auto; border: var(--se-border-width) solid var(--se-line); border-radius: var(--se-radius-xl); background: var(--se-panel); box-shadow: var(--se-shadow); }
-.se-game-dialog > .se-sectionhead { margin: 0; padding: var(--se-space-4); border-bottom: var(--se-border-width) solid var(--se-line); background: var(--se-panel-hi); }
+.se-game-dialog--wide { width: min(720px, 100%); }
+.se-game-dialog > .se-sectionhead { flex-direction: row; align-items: flex-start; margin: 0; padding: var(--se-space-4); border-bottom: var(--se-border-width) solid var(--se-line); background: var(--se-panel-hi); }
+.se-game-dialog > .se-sectionhead > div { min-width: 0; }
 .se-game-dialog__close { width: var(--se-control-h-sm); height: var(--se-control-h-sm); border: 0; border-radius: var(--se-radius-sm); background: transparent; color: var(--se-text-dim); font-size: 1.4rem; cursor: pointer; }
 .se-game-dialog__close:hover { background: rgba(var(--se-accent-rgb), .1); color: var(--se-text); }
+.se-game-dialog__close:disabled { opacity: .4; cursor: default; }
 .se-game-dialog__body { padding: var(--se-space-4); }
+@media (max-width: 520px) {
+  .se-game-dialog .se-cta { flex-direction: column-reverse; }
+  .se-game-dialog .se-cta .se-btn,
+  .se-game-dialog .se-cta .se-why,
+  .se-game-dialog .se-cta .se-why > .se-btn { width: 100%; }
+}
 
 .se-stat--good { border-left: 3px solid var(--se-good); }
 .se-stat--warning { border-left: 3px solid var(--se-warn); }

@@ -8,6 +8,7 @@ import { adminWhen } from '../utils/admin.js';
 import { AdminWireView } from './AdminWireView.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
+import { GameDialog } from './GameUI.js';
 import { Panel } from './Panel.js';
 
 /** 0.3.0-C moderation: rename an offensive alliance or disband one. Both are audited. */
@@ -112,8 +113,12 @@ export function AdminAlliancesPanel({ roundId, finished }: { roundId: string; fi
       {wireFor ? <AdminWireView allianceId={wireFor} onClose={() => setWireFor(null)} /> : null}
 
       {editing ? (
-        <div className="se-admin-pad">
-          <p className="se-label">Moderating [{editing.tag}] {editing.name}</p>
+        <GameDialog
+          open
+          dismissible={!busy}
+          title={`Moderate [${editing.tag}] ${editing.name}`}
+          onClose={() => { if (!busy) setEditing(null); }}
+        >
           <div className="se-field">
             <label className="se-label" htmlFor="admin-alliance-name">Name</label>
             <input id="admin-alliance-name" className="se-input" maxLength={32} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
@@ -127,17 +132,17 @@ export function AdminAlliancesPanel({ roundId, finished }: { roundId: string; fi
             <textarea id="admin-alliance-reason" className="se-input se-admin-reason" maxLength={500} value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} />
             <p className="se-hint">Saved to the audit log. Disbanding puts every member on the leave cooldown.</p>
           </div>
-          <span className="se-inline-actions">
-            <Button type="button" className="se-btn se-btn--primary se-btn--sm"
+          <div className="se-cta">
+            <Button type="button" className="se-btn se-btn--primary"
               disabledReason={busy ? 'The last admin action is still going through.' : reasonShort
                 ?? (form.name.trim() === editing.name && form.tag.trim().toUpperCase() === editing.tag ? 'Change the name or tag first.' : null)}
               onClick={() => void act('rename')}>Rename</Button>
-            <Button type="button" className="se-btn se-btn--ghost se-btn--sm"
+            <Button type="button" className="se-btn se-btn--ghost"
               disabledReason={busy ? 'The last admin action is still going through.' : finished ? 'This round has finished, so its alliances are frozen.' : reasonShort}
               onClick={() => void act('disband')}>Disband</Button>
-            <button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => setEditing(null)}>Cancel</button>
-          </span>
-        </div>
+            <Button type="button" className="se-btn se-btn--ghost" onClick={() => setEditing(null)} disabledReason={busy ? 'The last admin action is still going through.' : null}>Cancel</Button>
+          </div>
+        </GameDialog>
       ) : null}
     </Panel>
   );

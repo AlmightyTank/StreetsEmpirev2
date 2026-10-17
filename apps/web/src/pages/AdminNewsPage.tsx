@@ -5,6 +5,7 @@ import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
+import { GameDialog } from '../components/GameUI.js';
 import { Markdown } from '../components/Markdown.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -255,7 +256,13 @@ export function AdminNewsPage() {
       {notice ? <p className="se-admin-notice" role="status">{notice}</p> : null}
 
       {pending ? (
-        <Panel title={`${pendingTitle[pending.kind]}: ${pending.post.title}`} className="se-mb">
+        <GameDialog
+          open
+          wide={pending.kind === 'edit'}
+          dismissible={!busy}
+          title={`${pendingTitle[pending.kind]}: ${pending.post.title}`}
+          onClose={() => { if (!busy) setPending(null); }}
+        >
           <form onSubmit={confirmPending} noValidate>
             {pending.kind === 'edit' ? (
               <>
@@ -288,16 +295,17 @@ export function AdminNewsPage() {
                 disabledReason={busy ? working
                   : pending.kind === 'delete'
                     ? (reason.trim().length < 5 ? 'The audit log needs a reason of at least 5 characters.' : null)
-                    : !editTitle.trim() ? 'The post needs a title.'
-                      : !editBody.trim() ? 'The post needs a body.'
-                        : null}
+                    : pending.kind === 'resend' ? null
+                      : !editTitle.trim() ? 'The post needs a title.'
+                        : !editBody.trim() ? 'The post needs a body.'
+                          : null}
               >
                 {busy ? 'Working...' : 'Confirm'}
               </Button>
               <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabledReason={busy ? working : null}>Cancel</Button>
             </div>
           </form>
-        </Panel>
+        </GameDialog>
       ) : null}
 
       <div className="se-grid se-grid--2 se-mb">

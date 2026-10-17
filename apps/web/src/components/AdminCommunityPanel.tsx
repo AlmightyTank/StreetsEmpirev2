@@ -11,6 +11,7 @@ import { ApiError } from '../api/client.js';
 import { adminWhen } from '../utils/admin.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
+import { GameDialog } from './GameUI.js';
 import { Panel, Row } from './Panel.js';
 
 type Pending = 'forum-suspend' | 'forum-lift' | 'discord-timeout' | 'discord-lift';
@@ -118,8 +119,14 @@ export function AdminCommunityPanel({ accountId, isSelf, community, loadError, o
       </div>
 
       {pending ? (
-        <form onSubmit={confirm} noValidate className="se-mt">
-          <p><strong>{PENDING_TEXT[pending].label}.</strong> {PENDING_TEXT[pending].copy}</p>
+        <GameDialog
+          open
+          dismissible={!busy}
+          title={PENDING_TEXT[pending].label}
+          description={PENDING_TEXT[pending].copy}
+          onClose={() => { if (!busy) setPending(null); }}
+        >
+        <form onSubmit={confirm} noValidate>
           {pending === 'forum-suspend' ? (
             <div className="se-field">
               <label className="se-label" htmlFor="community-forum-length">How long</label>
@@ -149,6 +156,7 @@ export function AdminCommunityPanel({ accountId, isSelf, community, loadError, o
             <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabledReason={busy ? 'Working...' : null}>Cancel</Button>
           </div>
         </form>
+        </GameDialog>
       ) : null}
 
       <p className="se-label se-mt">Support tickets</p>

@@ -6,6 +6,7 @@ import { ApiError } from '../api/client.js';
 import { AdminRoundPicker, useAdminRound } from '../components/AdminRoundPicker.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { GameDialog } from '../components/GameUI.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen } from '../utils/admin.js';
@@ -201,17 +202,24 @@ export function AdminLoansPage() {
               </div>
 
               {pending ? (
-                <form onSubmit={correct} className="se-admin-pad se-mb" noValidate>
-                  <p><strong>{pending.label}.</strong> This forgives debt but never pays out cash, keeps the fee and the miss on record, and is saved to the audit log with your reason.</p>
-                  <div className="se-field">
-                    <label htmlFor="loan-correction-reason">Reason (the verified error)</label>
-                    <textarea id="loan-correction-reason" className="se-input" rows={2} value={reason} onChange={(event) => setReason(event.target.value)} />
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    <Button className="se-btn se-btn--primary" type="submit" disabled={busy} disabledReason={reason.trim().length < 3 ? 'Give a reason of at least 3 characters.' : null}>{busy ? 'Saving…' : 'Apply correction'}</Button>
-                    <Button className="se-btn" type="button" onClick={() => { setPending(null); setReason(''); }} disabled={busy}>Cancel</Button>
-                  </div>
-                </form>
+                <GameDialog
+                  open
+                  dismissible={!busy}
+                  title={pending.label}
+                  onClose={() => { if (!busy) { setPending(null); setReason(''); } }}
+                >
+                  <form onSubmit={correct} noValidate>
+                    <p>This forgives debt but never pays out cash, keeps the fee and the miss on record, and is saved to the audit log with your reason.</p>
+                    <div className="se-field">
+                      <label className="se-label" htmlFor="loan-correction-reason">Reason (the verified error)</label>
+                      <textarea id="loan-correction-reason" className="se-input" rows={2} value={reason} onChange={(event) => setReason(event.target.value)} />
+                    </div>
+                    <div className="se-cta">
+                      <Button className="se-btn se-btn--primary" type="submit" disabled={busy} disabledReason={reason.trim().length < 3 ? 'Give a reason of at least 3 characters.' : null}>{busy ? 'Saving…' : 'Apply correction'}</Button>
+                      <Button className="se-btn se-btn--ghost" type="button" onClick={() => { setPending(null); setReason(''); }} disabled={busy}>Cancel</Button>
+                    </div>
+                  </form>
+                </GameDialog>
               ) : null}
 
               <h3 className="se-admin-pad">Payments</h3>
