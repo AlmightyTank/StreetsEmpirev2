@@ -1,5 +1,6 @@
 import type { PrismaClient, Round } from '@prisma/client';
 import { AppError } from '../utils/errors.js';
+import { RoundRollCallCosmeticService } from './round-roll-call-cosmetic.service.js';
 import type { Db } from '../utils/db.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -105,15 +106,30 @@ export const RoundRollCallService = {
       }
 
       const before = await RoundRollCallService.view(tx, round, roundPlayerId, now);
-      if (before.completed || before.alreadyCheckedInToday) {
+      if (before.completed) {
+        // Existing completed players, including those who claimed prior to D,
+        // receive the missing account pair on an authenticated retry.
+        const player = await tx.roundPlayer.findUniqueOrThrow({
+          where: { id: roundPlayerId }, select: { accountId: true },
+        });
+        await RoundRollCallCosmeticService.awardIfEligible(tx, round, roundPlayerId, player.accountId, now);
         return { ...before, recorded: false };
       }
+      if (before.alreadyCheckedInToday) return { ...before, recorded: false };
 
       const inserted = await tx.roundLoginCheckIn.createMany({
         data: [{ roundPlayerId, dayIndex: clock.roundDay, checkedInAt: now }],
         skipDuplicates: true,
       });
       const after = await RoundRollCallService.view(tx, round, roundPlayerId, now);
+      // Full attendance is a server-verified requirement; no earlier stamp
+      // awards permanent cosmetics and no second check-in can duplicate them.
+      if (after.completed) {
+        const player = await tx.roundPlayer.findUniqueOrThrow({
+          where: { id: roundPlayerId }, select: { accountId: true },
+        });
+        await RoundRollCallCosmeticService.awardIfEligible(tx, round, roundPlayerId, player.accountId, now);
+      }
       return { ...after, recorded: inserted.count === 1 };
     });
   },

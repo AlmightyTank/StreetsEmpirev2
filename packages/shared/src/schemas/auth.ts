@@ -233,6 +233,7 @@ export const profileEffectSchema = z.enum([
   'snowstorm',
   'inferno',
   'midnight-chrome',
+  'obsidian-signal',
 ]);
 
 /** Signature Profile Card surface finish (supporter card only). */
@@ -268,6 +269,7 @@ export const itemCosmeticStyleSchema = z.enum([
   'urban-ghost',
   'cartel-gold',
   'midnight-chrome',
+  'obsidian-signal-crew',
   'eight-bit',
   'time-machine',
   'blue-sky',

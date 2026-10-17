@@ -456,4 +456,6 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV30F.meta.id]: classicOgV30F,
 };
 
+export { ROUND_ROLL_CALL_FINALE, ROUND_ROLL_CALL_FINALE_COSMETICS } from './round-roll-call-cosmetics.js';
+
 export const DEFAULT_RULESET_ID = classicOgV01.meta.id;

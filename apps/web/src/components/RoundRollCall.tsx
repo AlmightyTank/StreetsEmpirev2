@@ -13,6 +13,7 @@ import {
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { RewardChip, rewardText } from './RewardChip.js';
+import { ItemTile } from './ItemTile.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 
@@ -36,7 +37,7 @@ function timeLabel(iso: string | null): string | null {
   return when.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-function RollCallFinalePreview({ target, completed }: { target: number; completed: boolean }) {
+function RollCallFinalePreview({ target, completed, owned }: { target: number; completed: boolean; owned: boolean }) {
   return (
     <aside className="se-rollcall-finale" aria-label="Final login reward collection preview">
       <div className="se-rollcall-finale__copy">
@@ -45,16 +46,18 @@ function RollCallFinalePreview({ target, completed }: { target: number; complete
         <p>
           Complete all {target} attendance stamps to qualify for an exclusive, matching
           game-shell theme and crew cosmetic collection. The pair stays with your account
-          across rounds once the cosmetic unlock launches in Slice D.
+          across rounds after completion. Equip both looks from Account Settings.
         </p>
         <small>
-          {completed
-            ? 'Attendance requirement met. The permanent cosmetic grant is coming in Slice D; no cosmetic has been issued yet.'
-            : 'Collection concept preview · the actual exclusive designs and unlock are coming in Slice D.'}
+          {owned
+            ? 'Unlocked permanently · Obsidian Signal is now in your Collection and outfit settings.'
+            : completed
+              ? 'Attendance complete. Your permanent Obsidian Signal set will appear after the account unlock confirms.'
+              : 'Obsidian Signal is locked until you complete your entire attendance track.'}
         </small>
       </div>
-      <div className="se-rollcall-finale__art" aria-hidden="true">
-        <div className="se-rollcall-finale__shell">
+      <div className="se-rollcall-finale__art" aria-label="Obsidian Signal shell and two matching crew outfits">
+        <div className="se-rollcall-finale__shell se-site-theme--obsidian-signal">
           <div className="se-rollcall-finale__chrome"><span>STREETS EMPIRE</span><i /><i /></div>
           <div className="se-rollcall-finale__shellbody">
             <strong>YOUR EMPIRE</strong>
@@ -63,9 +66,12 @@ function RollCallFinalePreview({ target, completed }: { target: number; complete
           </div>
         </div>
         <div className="se-rollcall-finale__crew">
-          <span>CREW IDENTITY</span>
-          <strong>✦</strong>
-          <small>FINAL DAY</small>
+          <span>OBSIDIAN SIGNAL CREW</span>
+          <div className="se-rollcall-finale__crew-previews">
+            <ItemTile item="THUG" size="sm" cosmeticStyle="obsidian-signal-crew" />
+            <ItemTile item="HOE" size="sm" cosmeticStyle="obsidian-signal-crew" />
+          </div>
+          <small>{owned ? 'PERMANENTLY OWNED' : 'FINAL REWARD ONLY'}</small>
         </div>
       </div>
     </aside>
@@ -95,7 +101,7 @@ function RollCallDay({ tier, finale, claimingTier, onClaim }: {
         {tier.rewards.map((reward, index) => (
           <RewardChip reward={reward} key={reward.kind + ':' + (reward.key ?? '') + ':' + index} />
         ))}
-        {finale ? <span className="se-rollcall-day__future">Exclusive shell + crew look · Slice D</span> : null}
+        {finale ? <span className="se-rollcall-day__future">Exclusive Obsidian Signal shell + crew outfit set</span> : null}
       </div>
       <div className="se-rollcall-day__footer">
         {status === 'ready' ? (
@@ -325,7 +331,12 @@ export function RoundRollCallPanel() {
               >{showAllRewards ? 'Show rewards near my progress' : 'Show full ' + board.requiredStamps + '-reward calendar'}</Button>
             </div>
           ) : null}
-          <RollCallFinalePreview target={board.requiredStamps} completed={board.completed} />
+          <RollCallFinalePreview target={board.requiredStamps} completed={board.completed} owned={board.grandPrize.unlocked} />
+          {board.grandPrize.unlocked ? (
+            <p className="se-rollcall__equipped" role="status">
+              Permanent Obsidian Signal collection earned. <Link to="/account">Equip the theme and crew outfits</Link> or <Link to="/game/collection">view your collection</Link>.
+            </p>
+          ) : null}
           <p className="se-rollcall__footnote">
             Seven missed days are already built into the round schedule. Earn one stamp per eligible day;
             completing all stamps is required for the exclusive cosmetic collection.

@@ -48,6 +48,12 @@ export const ITEM_COSMETIC_STYLES = [
     description: 'Deep graphite, brushed chrome and a narrow crimson accent. A supporter collection for crew and rides.',
     released: true,
   },
+  {
+    key: 'obsidian-signal-crew',
+    label: 'Obsidian Signal',
+    description: 'Exclusive Round Roll Call finale: original ice-blue and gold uniforms for both crew types.',
+    released: true,
+  },
   // Easter eggs (see docs/EASTER-EGGS.md).
   {
     key: 'eight-bit',
@@ -160,6 +166,7 @@ const CREW_OUTFIT_DESCRIPTIONS: Partial<Record<ItemCosmeticStyleKey, string>> = 
   'urban-ghost': 'Concrete-grey streetwear: camo puffers, beanies and caps, silver chains.',
   'cartel-gold': 'High-roller dress: cream suit and fedora, velvet and fur, heavy gold.',
   'midnight-chrome': 'Charcoal tailoring and brushed chrome: shield shades, racing jacket, tuxedo blazer, the crimson-set chrome diamond.',
+  'obsidian-signal-crew': 'Midnight graphite tailoring, pale cyan signal visors and gold medal detailing earned only from a completed Roll Call.\n',
   'eight-bit': 'Sixteen colours and a lot of squares.',
 };
 
@@ -188,6 +195,7 @@ export type CrewCosmeticLoadout = Record<CrewCosmeticKey, CrewCosmeticStyleKey>;
  */
 export const COLLECTION_COVERAGE: Partial<Record<ItemCosmeticStyleKey, readonly (CustomizableItemKey | CrewCosmeticKey)[]>> = {
   'midnight-chrome': ['LOW_RIDER', 'SEDAN', 'VAN', 'THUG', 'HOE'],
+  'obsidian-signal-crew': ['THUG', 'HOE'],
 };
 
 /** Whether a collection has authored art for this item or crew type. Classic always does. */

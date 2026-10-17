@@ -1,5 +1,6 @@
 import {
   ITEM_COSMETIC_STYLES,
+  COLLECTION_COVERAGE,
   RELEASED_ITEM_COSMETIC_STYLES,
   isHiddenStyle,
   type ItemCosmeticStyleKey,
@@ -8,6 +9,7 @@ import {
   STREET_PASS_S1,
   STREET_PASS_S1_COSMETICS,
   SUPPORTER_COSMETICS,
+  ROUND_ROLL_CALL_FINALE_COSMETICS,
   SUPPORTER_MONTHLY_DROPS,
   SUPPORTER_TENURE,
   rulesets,
@@ -30,6 +32,7 @@ import {
 export type CollectionSourceKind =
   | 'default'
   | 'street-pass'
+  | 'round-roll-call'
   | 'quest'
   | 'secret'
   | 'faction'
@@ -104,6 +107,9 @@ function buildSources(): Map<string, CollectionSource> {
 
   for (const def of Object.values(SUPPORTER_COSMETICS)) {
     set(displayKeyOf(def), { kind: 'supporter', label: 'Supporter reward' });
+  }
+  for (const def of Object.values(ROUND_ROLL_CALL_FINALE_COSMETICS)) {
+    set(displayKeyOf(def), { kind: 'round-roll-call', label: 'Complete all Round Roll Call stamps · final reward' });
   }
   for (const [month, bundle] of Object.entries(SUPPORTER_MONTHLY_DROPS)) {
     for (const def of bundle) {
@@ -201,6 +207,9 @@ function buildCatalog(): Map<string, QuestCosmeticDefinition> {
   for (const tier of SUPPORTER_TENURE) {
     if (!catalog.has(displayKeyOf(tier.badge))) catalog.set(displayKeyOf(tier.badge), tier.badge);
   }
+  for (const def of Object.values(ROUND_ROLL_CALL_FINALE_COSMETICS)) {
+    catalog.set(displayKeyOf(def), def);
+  }
   // Season names win over the unseasoned base entry for the same look.
   for (const def of Object.values(STREET_PASS_S1_COSMETICS)) {
     catalog.set(displayKeyOf(def), def);
@@ -262,7 +271,7 @@ export function buildItemLooks(catalog: CollectionEntry[] = buildCollectionCatal
     style: style.key,
     label: style.label,
     description: style.description,
-    fullCollection: !('items' in style && style.items),
+    fullCollection: !('items' in style && style.items) && !COLLECTION_COVERAGE[style.key],
     source: style.key === 'classic'
       ? { kind: 'default', label: 'Included for everyone' } satisfies CollectionSource
       : byStyle.get(style.key) ?? ({ kind: 'unavailable', label: 'Not yet earnable' } satisfies CollectionSource),

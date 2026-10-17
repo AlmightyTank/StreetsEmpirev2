@@ -1871,3 +1871,36 @@
   .se-pc__convoy { transform: translate(500px, 0); }
   .se-bs__flock { transform: translate(1100px, 60px); }
 }
+
+
+/* Round Roll Call finale: Obsidian Signal shell.
+   Purely cosmetic. Shared tokens keep desktop, mobile and profile surfaces aligned. */
+.se-site-theme--obsidian-signal {
+  --se-bg: #080e18;
+  --se-panel: #121d2c;
+  --se-panel-hi: #1a2b3c;
+  --se-line: rgba(218, 179, 102, 0.36);
+  --se-line-soft: rgba(120, 222, 229, 0.19);
+  --se-text: #f4f2eb;
+  --se-text-dim: #b4c6d0;
+  --se-muted: #819ba9;
+  --se-accent: #e0b66a;
+  --se-accent-dim: #9f7938;
+  --se-accent-hover: #f6d496;
+  --se-accent-rgb: 224, 182, 106;
+  --se-accent-2: #78dee5;
+  background-image:
+    linear-gradient(90deg, rgba(120, 222, 229, .035) 1px, transparent 1px),
+    radial-gradient(900px 540px at 95% 0%, rgba(120, 222, 229, .19), transparent 64%),
+    radial-gradient(840px 500px at 0% 8%, rgba(218, 179, 102, .15), transparent 65%),
+    linear-gradient(145deg, #080e18, #121a27 55%, #070c14);
+  background-size: 46px 46px, auto, auto, auto;
+}
+.se-site-theme--obsidian-signal .se-topbar,
+.se-site-theme--obsidian-signal .se-sidebar,
+.se-site-theme--obsidian-signal .se-panel {
+  border-color: rgba(218,179,102,.27);
+}
+.se-site-theme--obsidian-signal .se-topbar {
+  box-shadow: inset 0 -1px 0 rgba(120,222,229,.18);
+}
