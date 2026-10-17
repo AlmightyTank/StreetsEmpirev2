@@ -256,3 +256,33 @@
     max-height: 40vh;
   }
 }
+
+@media (max-width: 899px) {
+  /* The send button shares the top row. Turn spend and the optional team
+   * follow, so a tall team picker cannot push the action under the tab bar. */
+  .se-dock__controls > :first-child {
+    order: -2;
+    flex: 1 1 8rem;
+  }
+
+  .se-dock__controls > .se-btn,
+  .se-dock__controls > .se-why {
+    order: -2;
+    flex: 0 1 auto;
+    align-self: center;
+    min-height: 44px;
+    scroll-margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .se-dock__controls > .se-spend,
+  .se-dock__controls > .se-dock__amount {
+    order: -1;
+    flex-basis: 100%;
+  }
+
+  .se-dock__controls > .se-crew-team {
+    order: 1;
+    max-height: 120px;
+    overflow: auto;
+  }
+}
