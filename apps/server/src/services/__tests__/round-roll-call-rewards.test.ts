@@ -69,4 +69,10 @@ describe('Round Roll Call Slice B catalog', () => {
     expect(() => assertRoundRollCallClaimable(21, 0, 0, false))
       .toThrowError('not in this round');
   });
+  it('does not silently switch a round to an unknown future catalog', () => {
+    expect(() => roundRollCallCatalog(21, ROUND_ROLL_CALL_REWARD_VERSION)).not.toThrow();
+    expect(() => roundRollCallCatalog(21, 'round-roll-call-v2'))
+      .toThrow('Unsupported Round Roll Call reward catalog version');
+  });
+
 });
