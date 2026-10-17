@@ -158,6 +158,10 @@ export const AdminCrewReleaseService = {
       if (!crewLoyaltyEnabled(loadRulesetForRound(player.round))) {
         throw AppError.conflict('CREW_LOYALTY_DISABLED', 'This pinned ruleset does not use loyalty.');
       }
+      // Settle awards take a member row lock. Share that lock to prevent
+      // a simultaneous verified award from racing the canonical snapshot.
+      await tx.$queryRaw`SELECT "id" FROM "CrewMember"
+        WHERE "id" = ${memberId} AND "roundPlayerId" = ${roundPlayerId} FOR UPDATE`;
       const member = await tx.crewMember.findFirst({
         where: { id: memberId, roundPlayerId },
         select: { id: true, loyaltyPoints: true, nicknameKey: true, nicknameSuppressed: true },
@@ -166,11 +170,23 @@ export const AdminCrewReleaseService = {
       if (member.loyaltyPoints !== input.expectedPoints) throw AppError.conflict('CREW_CORRECTION_STALE', 'Stored loyalty changed; inspect current provenance before retrying.');
       const sum = await tx.crewLoyaltyEntry.aggregate({ where: { memberId, roundPlayerId }, _sum: { points: true } });
       const canonical = canonicalCrewLoyalty(sum._sum.points ?? 0);
+      // Reconcile only from a completely validated, verified-source ledger.
+      // Bounded scan; unusually large histories require manual investigation.
+      // Never use just the newest 100 receipts to certify a whole account.
+      const receipts = await tx.crewLoyaltyEntry.findMany({
+        where: { memberId, roundPlayerId },
+        take: 10_001,
+        select: { id: true, source: true, points: true, at: true },
+      });
+      if (receipts.length > 10_000) throw AppError.conflict('CREW_LEDGER_TOO_LARGE', 'Evidence exceeds the safe audit window. Do not reconcile without a full ledger review.');
+      const issues = receiptProblems(receipts);
+      const verifiedSum = receipts.reduce((total, row) => total + row.points, 0);
+      if (issues.length || verifiedSum !== canonical) {
+        throw AppError.conflict('CREW_LEDGER_INVALID', 'Receipt evidence failed full provenance or UTC-cap checks. Investigate and correct the underlying source; no score was changed.');
+      }
       if (canonical === member.loyaltyPoints) throw AppError.conflict('CREW_CORRECTION_UNCHANGED', 'Loyalty already matches the immutable ledger.');
       // Do not preserve a nickname that only crossed its threshold because the materialized total drifted.
-      const positive = member.nicknameKey ? await tx.crewLoyaltyEntry.findMany({
-        where: { memberId, roundPlayerId, points: { gt: 0 } }, select: { source: true, points: true },
-      }) : [];
+      const positive = member.nicknameKey ? receipts.filter((entry) => entry.points > 0) : [];
       const keepName = !member.nicknameSuppressed && member.nicknameKey !== null
         && eligibleCrewNicknames({ loyaltyPoints: canonical, receipts: positive }).some((name) => name.key === member.nicknameKey);
       await tx.crewMember.update({
