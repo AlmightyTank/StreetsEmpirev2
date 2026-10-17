@@ -1,6 +1,6 @@
 # StreetsEmpire 2.1.0 — Release Roadmap
 
-**Status:** In progress — Slices A–D merged to `beta`. Slice E adds catalog-only earned nicknames and account-owned archival memorials; see [implementation notes](CREW-LOYALTY-2.1.0-E-NICKNAMES-LEGENDS.md). Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
+**Status:** In progress — Slices A–E merged to `beta`. Slice F adds a compact career explorer and opt-in, proof-backed milestone celebrations; see [implementation notes](CREW-LOYALTY-2.1.0-F-CREW-UI-CELEBRATIONS.md). Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
 
 ## 2.1.0 — Crew Loyalty & Legends
 
