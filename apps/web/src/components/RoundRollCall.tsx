@@ -331,7 +331,7 @@ export function RoundRollCallPanel() {
             </div>
             <Button
               size="sm"
-              variant="secondary"
+              variant="ghost"
               disabled={!board.recovery.eligible || recovering || claimingTier !== null}
               loading={recovering}
               onClick={() => void recoverMissedDay()}
