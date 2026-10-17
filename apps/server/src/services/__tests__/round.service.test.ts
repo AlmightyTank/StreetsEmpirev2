@@ -17,6 +17,7 @@ function round(overrides: Partial<Round> = {}): Round {
     rulesetId: classicOgV01.meta.id,
     rulesetVersion: classicOgV01.meta.version,
     streetPassOverride: null,
+    roundLoginRewardVersion: 'round-roll-call-v1',
     status: 'ACTIVE',
     startsAt: new Date('2026-10-01T00:00:00.000Z'),
     endsAt: new Date('2026-11-01T00:00:00.000Z'),
