@@ -366,7 +366,7 @@ export const ScoutService = {
 
         const local = localDistrict(ruleset, player.city.slug, found.key, found.district);
 
-        await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'WORKER', specialty: 'SCOUT', ...(input.crewMemberIds ? { memberIds: input.crewMemberIds } : {}), at: now, label: 'Scouting trip complete' });
+        await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'WORKER', specialty: 'SCOUT', ...(input.crewMemberIds ? { memberIds: input.crewMemberIds } : {}), at: now, label: 'Scouting trip complete', sourceKey: `SCOUT:${input.actionId}` });
         return {
           next,
           result,

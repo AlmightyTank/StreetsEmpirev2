@@ -1,6 +1,6 @@
 # StreetsEmpire 2.1.0 — Release Roadmap
 
-**Status:** In progress — 2.1.0-A identity audit implemented on a feature branch. Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
+**Status:** In progress — 2.1.0-A merged to beta; 2.1.0-B earned loyalty ledger implemented in PR. Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
 
 ## 2.1.0 — Crew Loyalty & Legends
 
@@ -15,7 +15,7 @@ A roster becomes a cast. Crew members already have stable round identities, name
 | Slice | Name | Deliverable and acceptance |
 | --- | --- | --- |
 | **2.1.0-A** | **Roster identity audit** | Inventory crew assignments, status, stable member IDs, releases, casualty handling, training and history; specify round-vs-account persistence. **Pass:** no lost or phantom crew after roster reconciles. |
-| **2.1.0-B** | **Earned loyalty ledger** | Compute understandable loyalty/milestones from verified assignments, defensives, completed jobs and care; add daily/weekly caps and reason history. **Pass:** idle check-ins, reassign spam and paid items cannot farm loyalty. |
+| **2.1.0-B** | **Earned loyalty ledger** ([implementation notes](CREW-LOYALTY-2.1.0-B-EARNED-LEDGER.md)) | Compute understandable loyalty/milestones from verified assignments, defensives, completed jobs and care; add daily/weekly caps and reason history. **Pass:** idle check-ins, reassign spam and paid items cannot farm loyalty. |
 | **2.1.0-C** | **Personalities & moments** | Add opt-in crew commentary/incident stories using existing descriptive traits. Tie examples to authentic actions without giving undisclosed combat/math bonuses. **Pass:** personalities do not penalize poor RNG or force daily attendance. |
 | **2.1.0-D** | **Mentors & crew bonds** | Optional mentor links for veteran-to-newer members, earned training memories and bounded round progression. **Pass:** benefits, if any, are minor, capped and simulation-tested; no permanent earned power. |
 | **2.1.0-E** | **Nicknames & legends** | Earn names such as *Corner Keeper* or *Road Veteran* from factual milestones; archived crew biographies and account-level collectible remembrance artwork where eligible. **Pass:** nicknames can be moderated and archive snapshots cannot resurrect active members. |

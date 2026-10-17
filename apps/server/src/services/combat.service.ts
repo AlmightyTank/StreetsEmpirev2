@@ -1136,7 +1136,7 @@ export const CombatService = {
         attackingThugs: input.attackingThugs, modelVersion: model.version,
         calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, ...(bossAwayMultiplier !== 1 ? { bossAwayMultiplier } : {}), retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
-      await CrewRosterService.awardCompletedWork(tx, { roundPlayerId: attackerId, ruleset, role: 'THUG', specialty: 'ENFORCER', ...(input.crewMemberIds ? { memberIds: input.crewMemberIds } : {}), at: now, label: 'Raid completed' });
+      await CrewRosterService.awardCompletedWork(tx, { roundPlayerId: attackerId, ruleset, role: 'THUG', specialty: 'ENFORCER', ...(input.crewMemberIds ? { memberIds: input.crewMemberIds } : {}), at: now, label: 'Raid completed', sourceKey: `RAID:${id}` });
       await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       if (combatEncounter?.effects.cashCents) {

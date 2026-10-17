@@ -367,7 +367,7 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     at: returnedAt,
     label: 'Returned from run escort duty',
   });
-  if (namedEscorts === 0) await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'THUG', specialty: 'WHEELMAN', at: returnedAt, label: 'Run completed' });
+  if (namedEscorts === 0) await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'THUG', specialty: 'WHEELMAN', at: returnedAt, label: 'Run completed', sourceKey: `RUN:${run.id}` });
   const awayNetWorthCents = await totalAwayWorth(tx, roundPlayerId, ruleset);
   await tx.roundPlayer.update({
     where: { id: roundPlayerId },

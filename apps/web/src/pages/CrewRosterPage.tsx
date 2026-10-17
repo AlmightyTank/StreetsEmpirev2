@@ -179,6 +179,7 @@ function CrewMemberCard({ member, peers, busy, onExchange, onTrain }: { member: 
       <div className="se-crew-roster__facts">
         <div><span>Current assignment</span><strong>{member.assignment?.label ?? (member.status === 'RELEASED' ? 'Outside the active crew' : 'Home crew')}</strong></div>
         <div><span>Experience</span><strong>{formatNumber(member.experiencePoints)} XP</strong></div>
+        {member.loyalty.enabled ? <div><span>Crew loyalty</span><strong>{member.loyalty.points}/100 · {member.loyalty.tier}</strong></div> : null}
         <div><span>Specialty</span><strong>{specialtyLabels[member.specialty]}</strong></div>
       </div>
       <p className="se-crew-roster__note">
@@ -201,6 +202,14 @@ function CrewMemberCard({ member, peers, busy, onExchange, onTrain }: { member: 
       <div className="se-crew-roster__traits" aria-label="Crew traits">
         {member.traits.map((trait) => <span key={trait}>{trait}</span>)}
       </div>
+      {member.loyalty.enabled ? <details className="se-crew-roster__history">
+        <summary>Loyalty ledger <span>{member.loyalty.history.length} recent receipts</span></summary>
+        <p className="se-crew-roster__note">Earned through completed work, defended corners, and finished shifts or travel. Maximum 8/day, 32/week, 100/round; assignments and paid training do not count. {member.loyalty.nextMilestone !== null ? `Next milestone: ${member.loyalty.nextMilestone}.` : 'All milestones earned.'}</p>
+        {member.loyalty.history.length ? <ol>{member.loyalty.history.map((entry, index) =>
+          <li key={`${entry.at}-${entry.source}-${index}`}>
+            <span>{entry.label}</span><time dateTime={entry.at}>{new Date(entry.at).toLocaleDateString()}</time>
+          </li>)}</ol> : <p className="se-crew-roster__note">Complete eligible work to earn your first loyalty receipt.</p>}
+      </details> : null}
       <details className="se-crew-roster__history">
         <summary>Career history <span>{member.history.length} recent entries</span></summary>
         {member.history.length ? (
