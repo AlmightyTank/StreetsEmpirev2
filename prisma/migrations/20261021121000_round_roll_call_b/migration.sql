@@ -1,3 +1,6 @@
+-- Keep all existing rounds on v1 if newer catalogs are introduced later.
+ALTER TABLE "Round" ADD COLUMN "roundLoginRewardVersion" TEXT NOT NULL DEFAULT 'round-roll-call-v1';
+
 -- Slice B: immutable paid step receipts. One payout per round player + tier.
 CREATE TABLE "RoundLoginRewardClaim" (
     "id" TEXT NOT NULL,
