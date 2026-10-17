@@ -2184,3 +2184,223 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+/* Explore links live in the phone menu. Desktop keeps them in the footer. */
+.site-nav__more {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .site-nav--open .site-nav__more {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .site-nav__more-label {
+    margin: 0.15rem 0 0;
+    color: var(--site-muted);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .site-nav__more-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.3rem;
+  }
+}
+
+/*
+ * Phone pages keep the useful parts on screen.
+ * The simple section head is declared after the earlier breakpoint, so its
+ * 280px second column was still crushing titles into one word per line.
+ */
+@media (max-width: 820px) {
+  .archive-table {
+    min-width: 0;
+  }
+
+  .archive-table thead {
+    display: none;
+  }
+
+  .archive-table tbody,
+  .archive-table tr,
+  .archive-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .archive-table tr {
+    padding: 0.45rem 0.75rem 0.55rem;
+    border-top: 1px solid var(--site-line-soft);
+  }
+
+  .archive-table td {
+    display: grid;
+    grid-template-columns: minmax(92px, 34%) minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: baseline;
+    padding: 0.2rem 0;
+    border: 0;
+    text-align: right;
+  }
+
+  .archive-table td::before {
+    content: attr(data-label);
+    color: var(--site-muted);
+    font-family: inherit;
+    font-size: 0.66rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .archive-table td:first-child {
+    padding-top: 0.3rem;
+  }
+
+  .archive-table td:last-child {
+    padding-bottom: 0.3rem;
+    color: var(--site-text);
+  }
+}
+
+@media (max-width: 700px) {
+  .site-section__head,
+  .site-section__head--simple,
+  .public-game-head {
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+  }
+
+  .site-page-hero {
+    padding: 1.15rem 0 0.9rem;
+  }
+
+  .site-hero {
+    padding: 1.5rem 0 1.15rem;
+  }
+
+  .site-section {
+    padding: 1.25rem 0;
+  }
+
+  .site-section--tight {
+    padding-top: 0.85rem;
+    padding-bottom: 1.1rem;
+  }
+
+  .site-section__head {
+    margin-bottom: 10px;
+  }
+
+  .site-section__head h2,
+  .site-cta h2,
+  .site-page-hero h1 {
+    font-size: clamp(26px, 8vw, 34px);
+  }
+
+  .site-card {
+    min-height: 0;
+    padding: 10px 12px;
+  }
+
+  .site-card h3 {
+    margin: 4px 0;
+  }
+
+  .site-card__link {
+    padding-top: 8px;
+  }
+
+  .content-grid,
+  .news-grid,
+  .world-card-grid,
+  .hof-grid,
+  .turf-grid,
+  .district-grid {
+    gap: 8px;
+  }
+
+  .content-card,
+  .world-card,
+  .news-card,
+  .hof-card,
+  .district-card,
+  .turf-block {
+    padding: 10px 12px;
+  }
+
+  .content-card h2,
+  .world-card h2,
+  .news-card h2,
+  .hof-card h3,
+  .district-card h3,
+  .turf-block h3 {
+    margin: 2px 0 4px;
+    font-size: 1.05rem;
+  }
+
+  .content-card p,
+  .world-card p,
+  .news-card p,
+  .district-card p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    margin: 0;
+    font-size: 0.86rem;
+    line-height: 1.4;
+  }
+
+  .world-card__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15rem 0.75rem;
+    margin: 6px 0 2px;
+  }
+
+  .site-footer__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem 0.65rem;
+    padding-top: 1rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .site-footer__brand {
+    grid-column: 1 / -1;
+  }
+
+  .site-footer__brand p {
+    max-width: none;
+    margin-top: 0.35rem;
+    font-size: 0.85rem;
+  }
+
+  .site-footer h2 {
+    margin-bottom: 0.3rem;
+  }
+
+  .site-footer nav {
+    gap: 0;
+  }
+
+  .site-footer nav a {
+    display: flex;
+    align-items: center;
+    min-height: 32px;
+    font-size: 0.8rem;
+    line-height: 1.25;
+  }
+
+  .site-footer__bottom {
+    min-height: 0;
+    padding-top: 0.65rem;
+    padding-bottom: 0.65rem;
+  }
+}

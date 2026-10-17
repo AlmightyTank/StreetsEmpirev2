@@ -160,11 +160,11 @@ export function GameArchivePage() {
                 <tbody>
                   {game.standings.map((row) => (
                     <tr key={row.publicPimpId}>
-                      <td>#{row.nationalRank}</td>
-                      <td><PlayerName row={row} /></td>
-                      <td>{row.city.name}</td>
-                      <td>{row.alliance ? `[${row.alliance.tag}] ${row.alliance.name}` : 'Independent'}</td>
-                      <td>{formatCentsCompact(row.netWorthCents)}</td>
+                      <td data-label="Rank">#{row.nationalRank}</td>
+                      <td data-label="Player"><PlayerName row={row} /></td>
+                      <td data-label="City">{row.city.name}</td>
+                      <td data-label="Alliance">{row.alliance ? `[${row.alliance.tag}] ${row.alliance.name}` : 'Independent'}</td>
+                      <td data-label="Final net worth">{formatCentsCompact(row.netWorthCents)}</td>
                     </tr>
                   ))}
                 </tbody>

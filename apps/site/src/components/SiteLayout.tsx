@@ -145,6 +145,13 @@ export function SiteLayout() {
               {primaryNav.map((item) => <SiteNavLink key={item.to} {...item} />)}
             </div>
 
+            <div className="site-nav__more">
+              <p className="site-nav__more-label">Explore</p>
+              <div className="site-nav__more-links">
+                {exploreLinks.map((item) => <SiteNavLink key={item.to} {...item} />)}
+              </div>
+            </div>
+
             <div className="site-nav__actions">
               <Link className="btn btn-outline-light btn-sm" to="/search">Search</Link>
               <a className="btn btn-outline-light btn-sm" href="https://beta.streetsempire.dev">Beta</a>
