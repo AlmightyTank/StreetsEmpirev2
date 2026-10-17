@@ -1,7 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { classicOgV30D, classicOgV30E, livingStoryCatalogForRuleset } from '@streets/rulesets';
 import { emitCityMemoryEvent } from '../city-memory.service.js';
-import { LIVING_STORY_LIMITS, listPublicStoryOpportunities, optInPublicStory, tryOfferLivingStory } from '../living-story-trigger.service.js';
+import { LIVING_STORY_LIMITS, listPublicStoryOpportunities, livingStreetsInvitationsEnabled, optInPublicStory, tryOfferLivingStory } from '../living-story-trigger.service.js';
+
+afterEach(() => vi.unstubAllEnvs());
 
 function setup() {
   const now = new Date();
@@ -59,6 +61,32 @@ function setup() {
 }
 
 describe('Living Streets 2.0.0-C settled triggers', () => {
+  it('defaults on for compatibility and accepts explicit kill-switch values', () => {
+    expect(livingStreetsInvitationsEnabled(undefined)).toBe(true);
+    expect(livingStreetsInvitationsEnabled('true')).toBe(true);
+    for (const value of ['0', 'false', 'off', 'disabled', ' FALSE ']) {
+      expect(livingStreetsInvitationsEnabled(value)).toBe(false);
+    }
+  });
+
+  it('pauses new invitations and public opt-ins while preserving source receipts', async () => {
+    const { db, now, round, cases, memories } = setup();
+    vi.stubEnv('LIVING_STREETS_ENABLED', 'false');
+    const memory = await emitCityMemoryEvent(db, {
+      roundId: round.id, cityId: 'detroit', kind: 'war_win', visibility: 'involved-only',
+      actorRoundPlayerIds: ['player-a'], idempotencyKey: 'war:paused-rollout', happenedAt: now,
+    });
+    expect(await tryOfferLivingStory(db, { ownerId: 'player-a', memoryId: memory.id,
+      storyKey: 'STORY_AFTER_THE_SMOKE', now })).toBe(false);
+    expect(await listPublicStoryOpportunities(db, {
+      roundId: round.id, ownerId: 'player-a', cityId: 'detroit', now,
+    })).toEqual([]);
+    expect(await optInPublicStory(db, { roundId: round.id, ownerId: 'player-a',
+      cityId: 'detroit', memoryId: memory.id, now })).toBe(false);
+    expect(cases).toHaveLength(0);
+    expect(memories).toHaveLength(1); // canonical source receipts remain intact
+  });
+
   it('pins opt-in definitions without modifying a historical ruleset', () => {
     expect(livingStoryCatalogForRuleset(classicOgV30D)).toEqual({});
     expect(classicOgV30E.meta.eventSystem?.cityConditions).toBe('FIRST_CLASS');

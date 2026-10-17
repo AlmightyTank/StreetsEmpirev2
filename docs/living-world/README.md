@@ -5,6 +5,7 @@ Proposed versioned feature roadmap series, 2.0.0–2.7.0, drafted from the 2026-
 **Important:** `beta` package version is already `2.0.0`; before shipping, confirm whether that release number is already used by a published build. Never rewrite existing tags or round-pinned rulesets.
 
 - [2.0.0](./ROADMAP-2.0.0-LIVING-STREETS-STORIES.md)
+- [2.0.0-H launch acceptance](./LIVING-STREETS-2.0.0-H.md)
 - [2.1.0](./ROADMAP-2.1.0-CREW-LOYALTY.md)
 - [2.2.0](./ROADMAP-2.2.0-UNDERWORLD-OPERATIONS.md)
 - [2.3.0](./ROADMAP-2.3.0-EMPIRE-ADVISOR.md)
