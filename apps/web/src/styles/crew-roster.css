@@ -369,3 +369,20 @@
   .se-crew-roster__filters { grid-template-columns: minmax(0, 1fr); }
   .se-crew-roster__pagination { align-items: flex-start; flex-direction: column; }
 }
+
+/* 2.1.0-C: private crew story opt-in follows the existing roster surfaces. */
+.se-crew-roster__moments-opt-in {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  margin: 12px 0;
+  border: 1px solid var(--se-line);
+  border-radius: var(--se-radius-lg);
+  background: var(--se-panel);
+  cursor: pointer;
+}
+.se-crew-roster__moments-opt-in input { accent-color: var(--se-accent); margin-top: 4px; }
+.se-crew-roster__moments-opt-in span { display: grid; gap: 4px; min-width: 0; }
+.se-crew-roster__moments-opt-in small { color: var(--se-text-dim); line-height: 1.5; }
+.se-crew-roster__moments strong { color: var(--se-accent); }

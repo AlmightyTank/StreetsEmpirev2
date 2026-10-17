@@ -1,6 +1,6 @@
 # StreetsEmpire 2.1.0 — Release Roadmap
 
-**Status:** In progress — 2.1.0-A merged to beta; 2.1.0-B earned loyalty ledger implemented in PR. Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
+**Status:** In progress — Slices A–B merged into `beta`. Slice C adds opt-in private personality moments; see [implementation notes](CREW-LOYALTY-2.1.0-C-MOMENTS.md). Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
 
 ## 2.1.0 — Crew Loyalty & Legends
 
