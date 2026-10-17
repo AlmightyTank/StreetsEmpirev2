@@ -239,7 +239,9 @@ export function SupporterPanel() {
         <p className="se-muted">Loading...</p>
       ) : running && membership ? (
         <>
-          {membership.paymentFailing ? (
+          {membership.status === 'trialing' ? (
+            <Alert tone="info">Your 3-day trial includes temporary Midnight Chrome cosmetics. Equip them in Cosmetics to try the collection, card and accent; they become permanent after your first paid renewal.</Alert>
+          ) : membership.paymentFailing ? (
             <Alert tone="warning">Your last supporter payment did not go through. Open Manage support in {membership.provider === 'google_play' ? 'Google Play' : 'Stripe'} to fix it.</Alert>
           ) : (
             <p>

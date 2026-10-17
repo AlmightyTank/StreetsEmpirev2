@@ -54,13 +54,18 @@ account (by the player or an admin) cancels its subscription right after the
 deletion commits; if Stripe cannot be reached, the error is logged so an admin
 can cancel it in the Stripe dashboard.
 
-`SupporterMembership` holds the current status (active and trialing count as
-supporting now; past_due and unpaid show as "payment failing"). `SupporterPayment`
+`SupporterMembership` holds the current status (`active` and `trialing` get the
+supporter feature preview; during `trialing`, the Midnight Chrome collection,
+Signature Profile Card and supporter accent are virtual temporary entitlements
+that can be equipped but are never stored as rewards. Permanent rewards require
+a paid invoice, while past_due and unpaid show as "payment failing"). `SupporterPayment`
 keeps each paid invoice, and keeps it, unlinked, if the account is deleted.
 
 ### Setup
 
-1. In Stripe, create a product with a recurring price. Copy the price id.
+1. In Stripe, create a product with a recurring price. Copy the price id. If
+   Checkout creates a 3-day trial, still collects a payment method, and
+   cancels the subscription at trial end when no payment method is available.
 2. Add a webhook endpoint at `https://<site>/api/internal/stripe/webhook` for
    the events in the table above. Copy its signing secret.
 3. Turn on the customer portal in Stripe's billing settings.

@@ -19,7 +19,9 @@ export const SupporterDropService = {
     const bundle = supporterDropFor(month);
     if (!bundle?.length) return { month, granted: 0 };
     const keys = bundle.map((item) => item.key);
-    const ids = [...await ActiveSupporterService.accountIds(prisma, undefined, now)];
+    // Trial users can preview supporter-only features, but drops are permanent
+    // rewards and require a paid subscription.
+    const ids = [...await ActiveSupporterService.accountIds(prisma, undefined, now, true)];
     if (!ids.length) return { month, granted: 0 };
     const tenureKeys = SUPPORTER_TENURE.map((tier) => tier.badge.key);
     const heldRows = await prisma.accountCosmeticUnlock.findMany({

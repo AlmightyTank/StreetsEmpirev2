@@ -10,7 +10,7 @@ import { SupporterService } from './supporter.service.js';
 import { queueDiscordRoleResync } from './discord-resync.service.js';
 import { GooglePlayBillingService } from './google-play-billing.service.js';
 
-/** Statuses that count as supporting right now. past_due is still retrying a payment. */
+/** Statuses that get the supporter feature preview. Rewards still require payment. */
 const ACTIVE_STATUSES = new Set(['active', 'trialing']);
 /** A new checkout is refused while one of these is running; the billing portal manages it instead. */
 const RUNNING_STATUSES = new Set(['active', 'trialing', 'past_due', 'unpaid']);
@@ -488,7 +488,15 @@ export const SupporterBillingService = {
       line_items: [{ price: env.stripe.supporterPriceId, quantity: 1 }],
       client_reference_id: account.id,
       metadata: { accountId: account.id },
-      subscription_data: { metadata: { accountId: account.id } },
+      // Checkout collects a payment method for trials. If it is removed or
+      // cannot be collected by trial end, cancel instead of creating an
+      // unpaid subscription that could accidentally receive rewards.
+      payment_method_collection: 'always',
+      subscription_data: {
+        metadata: { accountId: account.id },
+        trial_period_days: 3,
+        trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
+      },
       // Reuse the Stripe customer from an earlier subscription so billing history stays together.
       ...(membership ? { customer: membership.stripeCustomerId } : { customer_email: account.email }),
       success_url: `${env.frontendOrigin}/game/supporter?supporter=thanks`,

@@ -37,6 +37,7 @@ import { isPermanentAward } from './profile-badges.js';
 import { profileTitleForAward } from './profile-titles.js';
 import { crewCosmeticLoadout, itemCosmeticLoadout } from './profile-showcase.service.js';
 import { SupporterService } from './supporter.service.js';
+import { supporterTrialActive, TRIAL_SUPPORTER_COSMETICS } from './supporter-trial.service.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 export const FREE_PROFILE_PRESET_SLOTS = 1;
@@ -324,12 +325,13 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   /** Item art collection keys this account has earned (Classic is implicit). */
   collections: Set<string>;
 }> {
-  const [questAccents, frames, themes, collectionUnlocks, account] = await Promise.all([
+  const [questAccents, frames, themes, collectionUnlocks, account, trialActive] = await Promise.all([
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'SITE_THEME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ITEM_COLLECTION'),
     prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true } }),
+    supporterTrialActive(prisma, accountId),
   ]);
   const accents = [...PROFILE_ACCENTS];
   const known = new Set(accents.map((option) => option.key));
@@ -344,6 +346,20 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   const knownThemes = new Set(themeOptions.map((option) => option.key));
   const knownFrames = new Set(frameOptions.map((option) => option.key));
   const collections = new Set(collectionUnlocks.map((option) => option.key));
+  if (trialActive) {
+    for (const cosmetic of TRIAL_SUPPORTER_COSMETICS) {
+      const option = optionFromCosmetic(cosmetic);
+      if (cosmetic.kind === 'ACCENT' && !known.has(option.key)) {
+        accents.push(option);
+        known.add(option.key);
+      } else if (cosmetic.kind === 'PROFILE_FRAME' && !knownFrames.has(option.key)) {
+        frameOptions.push(option);
+        knownFrames.add(option.key);
+      } else if (cosmetic.kind === 'ITEM_COLLECTION' && cosmetic.styleKey) {
+        collections.add(cosmetic.styleKey);
+      }
+    }
+  }
   const unlockCatalogCosmetics = env.appEnvironment === 'development' || (account?.isAdmin && env.seasonalEvents.adminTestMode);
   if (unlockCatalogCosmetics) {
     for (const option of catalogCosmeticOptions('PROFILE_FRAME')) {

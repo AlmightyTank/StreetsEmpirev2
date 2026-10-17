@@ -2162,7 +2162,7 @@ export interface SupporterMembershipDto {
   provider: 'stripe' | 'google_play';
   /** Provider subscription status, normalized where practical. */
   status: string;
-  /** Supporting right now: active or trialing. */
+  /** Has access to supporter features now; trial users do not receive permanent rewards. */
   active: boolean;
   /** The last payment failed and Stripe is retrying it. */
   paymentFailing: boolean;
