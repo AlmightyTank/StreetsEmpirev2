@@ -110,7 +110,7 @@ function RollCallDay({ tier, finale, claimingTier, onClaim }: {
             size="sm"
             block
             loading={claimingTier === tier.tier}
-            disabled={claimingTier !== null || recovering}
+            disabled={claimingTier !== null}
             onClick={() => onClaim(tier.tier)}
             aria-label={'Claim ' + RARITY_LABELS[tier.rarity] + ' reward ' + tier.tier}
           >{claimingTier === tier.tier ? 'Claiming…' : 'Claim reward'}</Button>
