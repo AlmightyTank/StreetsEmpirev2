@@ -19,6 +19,14 @@ function errorMessage(caught: unknown): string {
   return caught instanceof ApiError ? caught.message : 'The operation could not be updated.';
 }
 
+const SOURCE_LABELS: Record<string, string> = {
+  'supply-stock': 'Stash',
+  run: 'Shipment',
+  'block-war': 'Block war',
+  'turf-push': 'Turf push',
+  'intel-rumor': 'Rumor',
+};
+
 function roleLabel(role: string): string {
   if (role === 'driver') return 'Driver';
   if (role === 'enforcer') return 'Enforcer';
@@ -35,6 +43,11 @@ function OperationCard({ operation, busy, act }: {
   act: (path: string, body: unknown) => Promise<void>;
 }) {
   const [inviteIds, setInviteIds] = useState<Record<string, string>>({});
+  const [cites, setCites] = useState<Record<string, { sourceKind: string; sourceId: string }>>({});
+  const open = operation.status === 'CREW_LOCK' || operation.status === 'READY';
+  const citeWindows = operation.canCite && open
+    ? operation.checklist.filter((item) => item.sourceKinds && item.sourceKinds.length > 0 && !item.done)
+    : [];
   const reported = operation.status === 'REPORTED' && operation.report;
   const seats = operation.seats.length
     ? operation.seats
@@ -57,6 +70,32 @@ function OperationCard({ operation, busy, act }: {
       {operation.checklist.length ? (
         <div className="se-operation__checklist">
           {operation.checklist.map((item) => <span key={item.key} className={item.done ? 'is-done' : ''}>{item.done ? 'Ready' : 'Need'} {item.label}</span>)}
+        </div>
+      ) : null}
+
+      {citeWindows.length ? (
+        <div className="se-operation__cite">
+          {citeWindows.map((item) => {
+            const kinds = item.sourceKinds ?? [];
+            const draft = cites[item.key] ?? { sourceKind: kinds[0] ?? '', sourceId: '' };
+            return (
+              <form key={item.key} onSubmit={(event) => {
+                event.preventDefault();
+                const sourceId = draft.sourceId.trim();
+                if (!sourceId || !draft.sourceKind) return;
+                void act('/game/operation/cite', { operationId: operation.id, windowKey: item.key, sourceKind: draft.sourceKind, sourceId });
+              }}>
+                <span>Cite {item.label}</span>
+                {kinds.length > 1 ? (
+                  <select className="se-input" aria-label={`${item.label} source`} value={draft.sourceKind} onChange={(event) => setCites((current) => ({ ...current, [item.key]: { ...draft, sourceKind: event.target.value } }))}>
+                    {kinds.map((kind) => <option key={kind} value={kind}>{SOURCE_LABELS[kind] ?? kind}</option>)}
+                  </select>
+                ) : <span>{SOURCE_LABELS[kinds[0] ?? ''] ?? kinds[0]}</span>}
+                <input className="se-input" aria-label={`${item.label} id`} placeholder="Settled result id" value={draft.sourceId} onChange={(event) => setCites((current) => ({ ...current, [item.key]: { sourceKind: draft.sourceKind, sourceId: event.target.value } }))} />
+                <button className="se-btn se-btn--sm" type="submit" disabled={busy || !draft.sourceId.trim()}>Cite</button>
+              </form>
+            );
+          })}
         </div>
       ) : null}
 

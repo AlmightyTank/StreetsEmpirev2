@@ -665,7 +665,9 @@ export interface OperationDto {
     status: 'LOCKED' | 'INVITED' | 'ACCEPTED' | 'DECLINED' | 'OPEN';
   }>;
   seats: OperationSeatDto[];
-  checklist: Array<{ key: string; label: string; done: boolean }>;
+  checklist: Array<{ key: string; label: string; done: boolean; sourceKinds?: string[] }>;
+  /** Leader or a locked seat can cite a settled result. Invites cannot. */
+  canCite: boolean;
   countdownEndsAt: string | null;
   bands: { success: OperationBandDto; partial: OperationBandDto; failure: OperationBandDto } | null;
   isLeader: boolean;
