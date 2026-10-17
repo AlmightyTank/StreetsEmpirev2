@@ -1,6 +1,6 @@
 import type { PrismaClient, Round } from '@prisma/client';
 import type { CrewEarnedNicknameDto, CrewLegendArchiveDto } from '@streets/shared';
-import type { Ruleset } from '@streets/rules-engine';
+import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { crewLoyaltyEnabled } from './crew-loyalty.service.js';
@@ -66,7 +66,7 @@ export const CrewLegendService = {
 
   /** Freeze the top three evidenced biographies per player, once, inside season close. */
   async snapshotAtClose(tx: Db, round: Round, at: Date): Promise<number> {
-    if (!crewLoyaltyEnabled((await import('@streets/rules-engine')).loadRulesetForRound(round))) return 0;
+    if (!crewLoyaltyEnabled(loadRulesetForRound(round))) return 0;
     const players = await tx.roundPlayer.findMany({
       where: { roundId: round.id, account: { isActive: true } },
       select: { id: true, accountId: true },
