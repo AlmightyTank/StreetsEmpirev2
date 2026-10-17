@@ -172,8 +172,8 @@ export function AdminEventsPage() {
         </Panel>
 
         <Panel title="Pinned rulesets" className="se-mb" flush>
-          <div className="se-tablewrap"><table className="se-table"><thead><tr><th>Ruleset</th><th>Version</th><th>First-class owners</th><th>Catalog entries</th></tr></thead>
-            <tbody>{report.rulesets.map((item) => <tr key={item.id}><td>{item.name}</td><td>{item.version}</td><td>{item.firstClassTypes.join(', ')}</td><td>{item.catalogEntries}</td></tr>)}</tbody>
+          <div className="se-tablewrap"><table className="se-table se-table--cards"><thead><tr><th>Ruleset</th><th>Version</th><th>First-class owners</th><th>Catalog entries</th></tr></thead>
+            <tbody>{report.rulesets.map((item) => <tr key={item.id}><td className="se-td--title">{item.name}</td><td data-label="Version">{item.version}</td><td data-label="First-class owners">{item.firstClassTypes.join(', ')}</td><td data-label="Catalog entries">{item.catalogEntries}</td></tr>)}</tbody>
           </table></div>
         </Panel>
 
@@ -187,11 +187,11 @@ export function AdminEventsPage() {
           </div>
           {preview ? <>
             <p className="se-muted">{preview.catalog.length} catalog entries · owners: {preview.firstClassTypes.join(', ') || 'legacy only'}</p>
-            <div className="se-tablewrap"><table className="se-table"><thead><tr><th>Event</th><th>Type / scope</th><th>Schedule</th></tr></thead>
-              <tbody>{preview.catalog.map((entry) => <tr key={`${entry.type}:${entry.key}`}><td><strong>{entry.title}</strong><small>{entry.key}</small></td><td>{entry.type} · {entry.scope}</td><td><code>{JSON.stringify(entry.schedule)}</code></td></tr>)}</tbody>
+            <div className="se-tablewrap"><table className="se-table se-table--cards"><thead><tr><th>Event</th><th>Type / scope</th><th>Schedule</th></tr></thead>
+              <tbody>{preview.catalog.map((entry) => <tr key={`${entry.type}:${entry.key}`}><td className="se-td--title"><strong>{entry.title}</strong><small>{entry.key}</small></td><td data-label="Type / scope">{entry.type} · {entry.scope}</td><td data-label="Schedule"><code>{JSON.stringify(entry.schedule)}</code></td></tr>)}</tbody>
             </table></div>
-            {preview.modifierSimulation.length ? <div className="se-tablewrap"><table className="se-table"><thead><tr><th>Action / district</th><th>Worst-case raw</th><th>Applied cap</th><th>Conditions</th></tr></thead>
-              <tbody>{preview.modifierSimulation.map((row) => <tr key={`${row.action}:${row.district}`}><td>{row.action} · {row.district}</td><td>{row.rawPercent}%</td><td>{row.cappedPercent}%</td><td>{row.sourceKeys.join(', ')}</td></tr>)}</tbody>
+            {preview.modifierSimulation.length ? <div className="se-tablewrap"><table className="se-table se-table--cards"><thead><tr><th>Action / district</th><th>Worst-case raw</th><th>Applied cap</th><th>Conditions</th></tr></thead>
+              <tbody>{preview.modifierSimulation.map((row) => <tr key={`${row.action}:${row.district}`}><td className="se-td--title">{row.action} · {row.district}</td><td data-label="Worst-case raw">{row.rawPercent}%</td><td data-label="Applied cap">{row.cappedPercent}%</td><td data-label="Conditions">{row.sourceKeys.join(', ')}</td></tr>)}</tbody>
             </table></div> : null}
             <div className="se-grid se-grid--2">{preview.checks.map((check) => <p key={check.key}><strong>{check.status} · {check.key}:</strong> {check.detail}</p>)}</div>
           </> : <p className="se-muted">Choose a ruleset to preview its catalog.</p>}
@@ -212,8 +212,8 @@ export function AdminEventsPage() {
             <Field label="Reason" id="admin-event-reason" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} />
             <Button className="se-btn se-btn--primary" disabled={busy || reason.trim().length < 5 || !draft.key.trim() || !draft.title.trim()}>Save disabled draft</Button>
           </form>
-          {drafts.length ? <div className="se-tablewrap"><table className="se-table"><thead><tr><th>QA draft</th><th>State</th><th /></tr></thead><tbody>
-            {drafts.map((item) => <tr key={item.id}><td>{item.title}<small>{item.key}</small></td><td>{item.isEnabled ? 'Enabled' : 'Disabled'}</td><td><Button className="se-btn se-btn--secondary" onClick={() => { setTuningDraftId(item.id); setTuneDraft({ title: item.title, description: item.description, schedule: JSON.stringify(item.schedule, null, 2), objectives: JSON.stringify(item.objectives, null, 2), rewards: JSON.stringify(item.rewards, null, 2), config: JSON.stringify(item.config, null, 2), reason: '' }); }}>Tune</Button></td></tr>)}
+          {drafts.length ? <div className="se-tablewrap"><table className="se-table se-table--cards"><thead><tr><th>QA draft</th><th>State</th><th /></tr></thead><tbody>
+            {drafts.map((item) => <tr key={item.id}><td className="se-td--title">{item.title}<small>{item.key}</small></td><td data-label="State">{item.isEnabled ? 'Enabled' : 'Disabled'}</td><td data-label="Control"><Button className="se-btn se-btn--secondary" onClick={() => { setTuningDraftId(item.id); setTuneDraft({ title: item.title, description: item.description, schedule: JSON.stringify(item.schedule, null, 2), objectives: JSON.stringify(item.objectives, null, 2), rewards: JSON.stringify(item.rewards, null, 2), config: JSON.stringify(item.config, null, 2), reason: '' }); }}>Tune</Button></td></tr>)}
           </tbody></table></div> : null}
           {tuningDraftId ? <form className="se-admin-filters se-event-admin-calendar" onSubmit={(event) => void saveDraftTune(event)}>
             <Field label="Draft title" value={tuneDraft.title} onChange={(event) => setTuneDraft({ ...tuneDraft, title: event.target.value })} maxLength={120} />
@@ -225,8 +225,8 @@ export function AdminEventsPage() {
         </Panel>
 
         <Panel title="Upcoming and live calendar" className="se-mb" flush>
-          <div className="se-tablewrap"><table className="se-table"><thead><tr><th>Event</th><th>Round</th><th>Status</th><th>Window</th><th>Players</th><th>Control</th></tr></thead>
-            <tbody>{report.calendar.map((item) => <tr key={item.id}><td>{item.title}<small>{item.key}</small></td><td>{item.roundName ?? 'Calendar'}</td><td>{item.status}</td><td>{showDate(item.startsAt)}<br />{showDate(item.endsAt)}</td><td>{item.participantCount}</td><td>{item.status === 'SCHEDULED' ? <Button className="se-btn se-btn--secondary" onClick={() => { setSelected(item); setStartsAt(localDateTime(item.startsAt)); setEndsAt(localDateTime(item.endsAt)); }}>Manage</Button> : 'Locked after start'}</td></tr>)}</tbody>
+          <div className="se-tablewrap"><table className="se-table se-table--cards"><thead><tr><th>Event</th><th>Round</th><th>Status</th><th>Window</th><th>Players</th><th>Control</th></tr></thead>
+            <tbody>{report.calendar.map((item) => <tr key={item.id}><td className="se-td--title">{item.title}<small>{item.key}</small></td><td data-label="Round">{item.roundName ?? 'Calendar'}</td><td data-label="Status">{item.status}</td><td data-label="Window">{showDate(item.startsAt)}<br />{showDate(item.endsAt)}</td><td data-label="Players">{item.participantCount}</td><td data-label="Control">{item.status === 'SCHEDULED' ? <Button className="se-btn se-btn--secondary" onClick={() => { setSelected(item); setStartsAt(localDateTime(item.startsAt)); setEndsAt(localDateTime(item.endsAt)); }}>Manage</Button> : 'Locked after start'}</td></tr>)}</tbody>
           </table></div>
           {selected ? <div className="se-event-admin-calendar">
             <h3>{selected.title}</h3>
@@ -241,8 +241,8 @@ export function AdminEventsPage() {
         </Panel>
 
         <Panel title="Event lifecycle history" className="se-mb" flush>
-          <div className="se-tablewrap"><table className="se-table"><thead><tr><th>When</th><th>Event</th><th>Action</th><th>Actor</th></tr></thead>
-            <tbody>{report.history.map((item) => <tr key={item.id}><td>{showDate(item.happenedAt)}</td><td>{item.title}</td><td>{item.action}</td><td>{item.actorLabel ?? 'System'}</td></tr>)}</tbody>
+          <div className="se-tablewrap"><table className="se-table se-table--cards"><thead><tr><th>When</th><th>Event</th><th>Action</th><th>Actor</th></tr></thead>
+            <tbody>{report.history.map((item) => <tr key={item.id}><td className="se-td--title" data-label="When">{showDate(item.happenedAt)}</td><td data-label="Event">{item.title}</td><td data-label="Action">{item.action}</td><td data-label="Actor">{item.actorLabel ?? 'System'}</td></tr>)}</tbody>
           </table></div>
         </Panel>
       </> : <p className="se-muted">Loading event report…</p>}
