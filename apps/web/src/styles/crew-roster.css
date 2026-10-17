@@ -82,6 +82,26 @@
   color: var(--se-text);
 }
 
+.se-crew-roster__places {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--se-line);
+  color: var(--se-text-dim);
+  font-size: 12px;
+}
+
+.se-crew-roster__places span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.se-crew-roster__places strong {
+  color: var(--se-text);
+}
+
 .se-crew-board__metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -173,7 +193,41 @@
 }
 
 .se-crew-board__members--compact {
-  max-height: 180px;
+  max-height: 280px;
+}
+
+.se-crew-board__away {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--se-line);
+}
+
+.se-crew-board__away h3,
+.se-crew-board__place h4 {
+  margin: 0;
+}
+
+.se-crew-board__places {
+  display: grid;
+  gap: 12px;
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.se-crew-board__place {
+  display: grid;
+  gap: 6px;
+}
+
+.se-crew-board__place h4 {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--se-text-dim);
+  font-size: 12px;
 }
 
 .se-crew-board__member {

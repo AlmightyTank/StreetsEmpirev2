@@ -15,6 +15,7 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { useSession } from '../stores/session.js';
 import { Button } from './Button.js';
 import { formatClockTime } from '../utils/time.js';
+import { homeSquadBlock, initialTurfSquad } from '../utils/turfSquad.js';
 
 type TurfResult =
   | TurfClaimResult
@@ -40,15 +41,25 @@ export function TurfActions({
   const action = useGameAction<TurfResult>();
   const me = useSession((s) => s.me);
   const armedAtHome = me?.resources.armedThugs ?? 0;
+  const owned = Boolean(block.isMine);
   const suggested = block.holder
     ? Math.max(1, block.cornerMinimumThugs)
     : Math.max(1, block.cornerMinimumThugs, Math.ceil(block.localsThugs * 1.25));
-  const suggestedWithinCrew = armedAtHome > 0 ? Math.min(suggested, armedAtHome) : suggested;
-  const [thugs, setThugs] = useState(suggestedWithinCrew);
+  const [thugs, setThugs] = useState(() => initialTurfSquad(owned, armedAtHome, suggested, block.cornerThugs));
 
   useEffect(() => {
-    setThugs(suggestedWithinCrew);
-  }, [block.city, block.district, block.holder?.publicPimpId, block.cornerMinimumThugs, block.localsThugs, suggestedWithinCrew]);
+    setThugs(initialTurfSquad(owned, armedAtHome, suggested, block.cornerThugs));
+  }, [block.city, block.district, block.holder?.publicPimpId, block.cornerMinimumThugs, block.localsThugs, block.cornerThugs, armedAtHome, owned, suggested]);
+
+  const sendBlock = homeSquadBlock(armedAtHome, thugs);
+  const sendBlockedReason = sendBlock === 'away'
+    ? 'Your thugs are already away. Nobody fit and armed is at home.'
+    : sendBlock === 'short'
+      ? `You only have ${formatNumber(armedAtHome)} fit, armed thugs at home.`
+      : sendBlock === 'empty'
+        ? 'Choose at least 1 thug who is at home.'
+        : null;
+  const squadMax = owned ? Math.max(block.cornerThugs, armedAtHome, 1) : Math.max(0, armedAtHome);
 
   if (!holdingEnabled) return null;
 
@@ -106,21 +117,22 @@ export function TurfActions({
                 className="se-input"
                 type="number"
                 inputMode="numeric"
-                min={1}
+                min={armedAtHome > 0 ? 1 : 0}
+                max={Math.max(0, armedAtHome)}
                 step={1}
-                value={thugs}
-                disabled={block.push.backupSent || action.busy}
-                onChange={(event) => setThugs(Math.max(1, Math.floor(Number(event.target.value) || 1)))}
+                value={armedAtHome > 0 ? Math.min(thugs, armedAtHome) : 0}
+                disabled={block.push.backupSent || action.busy || armedAtHome < 1}
+                onChange={(event) => setThugs(Math.min(armedAtHome, Math.max(1, Math.floor(Number(event.target.value) || 1))))}
               />
             </label>
             <div className="se-actions-row">
               <Button
                 type="button"
                 className="se-btn se-btn--sm"
-                disabledReason={block.push.backupSent ? 'Your help is already committed.' : action.busy ? 'That turf move is still going through.' : null}
-                onClick={() => void backup(block.push!.id, thugs)}
+                disabledReason={block.push.backupSent ? 'Your help is already committed.' : action.busy ? 'That turf move is still going through.' : sendBlockedReason}
+                onClick={() => void backup(block.push!.id, Math.min(thugs, Math.max(0, armedAtHome)))}
               >
-                {block.push.backupSent ? 'Backup sent' : <>Send {formatNumber(thugs)}</>}
+                {block.push.backupSent ? 'Backup sent' : <>Send {formatNumber(Math.min(thugs, Math.max(0, armedAtHome)))}</>}
               </Button>
               {block.push.role === 'defender' && isHome ? (
                 <Button
@@ -156,16 +168,12 @@ export function TurfActions({
   // Incoming pushes still need to be defendable here by the remote owner.
   if (!isHome) return null;
 
-  const claimAmountBlockedReason = !block.holder && armedAtHome > 0 && thugs > armedAtHome
-    ? `You only have ${formatNumber(armedAtHome)} fit, armed thugs at home.`
-    : null;
-
   const controls = !block.holder ? (
     <Button
       type="button"
       className="se-btn se-btn--sm"
-      disabledReason={action.busy ? 'That corner move is still going through.' : block.claimBlockedReason ?? claimAmountBlockedReason}
-      onClick={() => void run('/game/turf/claim', thugs)}
+      disabledReason={action.busy ? 'That corner move is still going through.' : block.claimBlockedReason ?? sendBlockedReason}
+      onClick={() => void run('/game/turf/claim', Math.min(thugs, Math.max(0, armedAtHome)))}
     >
       Claim with {formatNumber(thugs)}
     </Button>
@@ -174,10 +182,10 @@ export function TurfActions({
       <Button
         type="button"
         className="se-btn se-btn--sm"
-        disabledReason={action.busy ? 'That corner move is still going through.' : null}
-        onClick={() => void run('/game/turf/post', thugs)}
+        disabledReason={action.busy ? 'That corner move is still going through.' : sendBlockedReason}
+        onClick={() => void run('/game/turf/post', Math.min(thugs, Math.max(0, armedAtHome)))}
       >
-        Reinforce +{formatNumber(thugs)}
+        Reinforce +{formatNumber(Math.min(thugs, Math.max(0, armedAtHome)))}
       </Button>
       <Button
         type="button"
@@ -192,8 +200,8 @@ export function TurfActions({
     <Button
       type="button"
       className="se-btn se-btn--danger se-btn--sm"
-      disabledReason={action.busy ? 'That turf move is still going through.' : block.pushBlockedReason}
-      onClick={() => void push(thugs)}
+      disabledReason={action.busy ? 'That turf move is still going through.' : block.pushBlockedReason ?? sendBlockedReason}
+      onClick={() => void push(Math.min(thugs, Math.max(0, armedAtHome)))}
     >
       Push with {formatNumber(thugs)}
     </Button>
@@ -209,13 +217,20 @@ export function TurfActions({
           className="se-input"
           type="number"
           inputMode="numeric"
-          min={1}
-          max={armedAtHome > 0 ? armedAtHome : undefined}
+          min={squadMax > 0 ? 1 : 0}
+          max={squadMax}
           step={1}
-          value={thugs}
-          onChange={(event) => setThugs(Math.max(1, Math.floor(Number(event.target.value) || 1)))}
+          value={squadMax > 0 ? Math.min(thugs, squadMax) : 0}
+          onChange={(event) => {
+            const next = Math.floor(Number(event.target.value) || 0);
+            setThugs(squadMax > 0 ? Math.min(squadMax, Math.max(1, next)) : 0);
+          }}
         />
       </label>
+      <span className="se-hint">
+        {formatNumber(armedAtHome)} fit, armed {armedAtHome === 1 ? 'thug is' : 'thugs are'} at home.
+        {armedAtHome < 1 ? ' Posted crew stays where they were sent.' : ''}
+      </span>
       {!block.holder ? (
         <span className="se-hint">
           Locals have {formatNumber(block.localsThugs)} on this block. The {formatNumber(block.cornerMinimumThugs)}-thug corner minimum is what you must leave posted after a win, not the force needed to beat them.

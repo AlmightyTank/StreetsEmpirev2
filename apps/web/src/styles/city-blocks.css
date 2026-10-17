@@ -535,6 +535,33 @@
   line-height: 1.2;
 }
 
+.se-cityblocks .se-turfboard__posted {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.se-cityblocks .se-turfboard__posted ul {
+  display: grid;
+  gap: 4px;
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.se-cityblocks .se-turfboard__posted li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.se-cityblocks .se-turfboard__posted small {
+  color: var(--se-text-dim);
+}
+
 .se-cityblocks .se-turfboard__outpost {
   border-radius: 3px;
   font-size: 8px;

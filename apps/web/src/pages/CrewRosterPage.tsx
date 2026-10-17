@@ -13,6 +13,7 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { crewProgressSnapshot, nextCrewCelebration, type CrewProgressSnapshot, type CrewCelebration } from '../utils/crew-celebrations.js';
+import { awayThugGroups } from '../utils/crewWhereabouts.js';
 import '../styles/crew-roster.css';
 
 const statusLabels: Record<CrewMemberStatusDto, string> = {
@@ -32,6 +33,30 @@ type AssignmentTarget =
 
 function shortMember(member: CrewMemberDto): string {
   return `#${String(member.serial).padStart(3, '0')} · ${member.name}`;
+}
+
+const assignmentPlaceLabels: Record<NonNullable<CrewMemberDto['assignment']>['kind'], string> = {
+  BUSINESS: 'On a business',
+  DEALER: 'With a dealer crew',
+  TURF: 'Posted on a corner',
+  CORNER_ENFORCER: 'Corner enforcers',
+  CORNER_LOOKOUT: 'Lookouts',
+  STASH_GUARD: 'Stash guards',
+  RUNNER: 'Running product',
+  BODYGUARD: 'Bodyguarding',
+  ESCORT: 'Escorting a run',
+};
+
+function MemberPick({ member, checked, onToggle }: { member: CrewMemberDto; checked: boolean; onToggle: () => void }) {
+  return (
+    <label className="se-crew-board__member">
+      <input type="checkbox" checked={checked} onChange={onToggle} />
+      <span>
+        <strong>{shortMember(member)}</strong>
+        <small>{specialtyLabels[member.specialty]} · {formatNumber(member.specialtyExperiencePoints)} XP</small>
+      </span>
+    </label>
+  );
 }
 
 function CrewJobsBoard({
@@ -54,6 +79,10 @@ function CrewJobsBoard({
   const byId = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
   const selected = selectedIds.flatMap((id) => byId.get(id) ? [byId.get(id)!] : []);
   const available = members.filter((member) => member.role === 'THUG' && member.status === 'AVAILABLE');
+  const awayGroups = awayThugGroups(members);
+  const awayCount = awayGroups.reduce((sum, group) => sum + group.members.length, 0);
+  const thugTotals = roster.totals.find((row) => row.role === 'THUG');
+  const awayOnRecord = thugTotals ? thugTotals.members - thugTotals.byStatus.AVAILABLE : awayCount;
   const selectedAvailable = selected.filter((member) => member.role === 'THUG' && member.status === 'AVAILABLE');
   const guns = me ? me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s : 0;
   const turns = me?.turns.turns ?? 0;
@@ -119,17 +148,30 @@ function CrewJobsBoard({
           {available.length ? (
             <div className="se-crew-board__members">
               {available.slice(0, poolLimit).map((member) => (
-                <label key={member.id} className="se-crew-board__member">
-                  <input type="checkbox" checked={selectedIds.includes(member.id)} onChange={() => toggle(member.id)} />
-                  <span>
-                    <strong>{shortMember(member)}</strong>
-                    <small>{specialtyLabels[member.specialty]} · {formatNumber(member.specialtyExperiencePoints)} XP</small>
-                  </span>
-                </label>
+                <MemberPick key={member.id} member={member} checked={selectedIds.includes(member.id)} onToggle={() => toggle(member.id)} />
               ))}
             </div>
-          ) : <p className="se-muted">No available thugs in this roster page.</p>}
+          ) : <p className="se-muted">{awayCount ? 'Nobody is at home. The thugs who left are listed below, with where they are.' : 'No available thugs in this roster page.'}</p>}
           {available.length > poolLimit ? <button className="se-btn se-btn--ghost se-btn--sm" type="button" onClick={() => setPoolLimit((limit) => limit + 30)}>Show 30 more · {formatNumber(available.length - poolLimit)} remaining</button> : null}
+          <div className="se-crew-board__away">
+            <div className="se-crew-board__sectionhead">
+              <h3>Away</h3>
+              <span>{formatNumber(awayCount)}</span>
+            </div>
+            {awayGroups.length ? (
+              <div className="se-crew-board__places">
+                {awayGroups.map((group) => (
+                  <div key={group.place} className="se-crew-board__place">
+                    <h4>{group.place} <span>{formatNumber(group.members.length)}</span></h4>
+                    {group.members.map((member) => (
+                      <MemberPick key={member.id} member={member} checked={selectedIds.includes(member.id)} onToggle={() => toggle(member.id)} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : <p className="se-muted">No thugs are away.</p>}
+            {awayOnRecord > awayCount ? <p className="se-crew-roster__note">Showing {formatNumber(awayCount)} of {formatNumber(awayOnRecord)} away thugs loaded on this board.</p> : null}
+          </div>
         </section>
 
         <section className="se-crew-board__targets" aria-label="Assignment slots">
@@ -147,7 +189,8 @@ function CrewJobsBoard({
               list={targets.map((entry) => <EmpireRosterCard key={entry.key} eyebrow={entry.kind === 'DEALER' ? 'Dealer crew' : entry.kind === 'RUNNER' ? 'Runners' : 'Corner'} title={entry.title} detail={entry.meta} status={entry.kind === 'DEALER' ? `${entry.count}/${entry.capacity}` : formatNumber(entry.count)} statusTone={entry.count ? 'accent' : 'muted'} selected={entry.key === target.key} onSelect={() => setSelectedTargetKey(entry.key)} selectLabel={`Manage ${entry.title} ${entry.kind.toLowerCase()} assignments`} />)}
               inspector={<EmpireInspector eyebrow={target.kind === 'DEALER' ? 'Dealer crew' : target.kind === 'RUNNER' ? 'Runner route' : 'Held corner'} title={target.title} status={`${formatNumber(target.count)} posted`} statusTone={target.count ? 'accent' : 'muted'} label={`${target.title} assignments`}>
                 <p className="se-hint">{target.meta}</p>
-                {here.length ? <div className="se-crew-board__members se-crew-board__members--compact">{here.map((member) => <label key={member.id} className="se-crew-board__member"><input type="checkbox" checked={selectedIds.includes(member.id)} onChange={() => toggle(member.id)} /><span><strong>{shortMember(member)}</strong><small>{specialtyLabels[member.specialty]} · {formatNumber(member.specialtyExperiencePoints)} XP</small></span></label>)}</div> : <p className="se-muted">No named members are posted here.</p>}
+                {here.length ? <div className="se-crew-board__members se-crew-board__members--compact">{here.map((member) => <MemberPick key={member.id} member={member} checked={selectedIds.includes(member.id)} onToggle={() => toggle(member.id)} />)}</div> : <p className="se-muted">No named members are posted here.</p>}
+                {here.length < target.count ? <p className="se-hint">{formatNumber(target.count - here.length)} posted here {here.length ? 'are not tied to a named thug' : 'have no named thug recorded'}.</p> : null}
                 <div className="se-crew-board__actions">
                   <Button className="se-btn se-btn--sm" disabledReason={assignBlock} onClick={() => void run((actionId) => target.kind === 'DEALER' ? crewApi.assignDealers(target.id, selectedAvailable.map((member) => member.id), actionId) : target.kind === 'RUNNER' ? crewApi.assignRunners(target.id, selectedAvailable.map((member) => member.id), actionId) : crewApi.postTurf(target.district, selectedAvailable.map((member) => member.id), actionId))}>Send selected</Button>
                   <Button className="se-btn se-btn--ghost se-btn--sm" disabledReason={moveBlock} onClick={() => void run((actionId) => target.kind === 'DEALER' ? crewApi.moveDealers(target.id, selectedElsewhere.map((member) => member.id), actionId) : target.kind === 'RUNNER' ? crewApi.moveRunners(target.id, selectedElsewhere.map((member) => member.id), actionId) : crewApi.moveTurf(target.district, selectedElsewhere.map((member) => member.id), actionId))}>Move selected</Button>
@@ -518,6 +561,13 @@ export function CrewRosterPage() {
                     <span>On runs <strong>{formatNumber(row.byStatus.IN_TRANSIT)}</strong></span>
                     <span>Recovering <strong>{formatNumber(row.byStatus.RECOVERING)}</strong></span>
                   </div>
+                  {row.role === 'THUG' && Object.values(row.byAssignment).some((count) => count > 0) ? (
+                    <div className="se-crew-roster__places">
+                      {Object.entries(row.byAssignment).filter(([, count]) => count > 0).map(([kind, count]) => (
+                        <span key={kind}>{assignmentPlaceLabels[kind as keyof typeof assignmentPlaceLabels] ?? kind} <strong>{formatNumber(count)}</strong></span>
+                      ))}
+                    </div>
+                  ) : null}
                 </section>
               ))}
             </div>
@@ -615,7 +665,7 @@ export function CrewRosterPage() {
                           aria-pressed={selectedMember?.id === member.id}
                           onClick={() => setSelectedMemberId(member.id)}>
                           <span className="se-crew-explorer__identity"><strong>{shortMember(member)}</strong>
-                            <small>{member.legend?.nickname?.label ?? specialtyLabels[member.specialty]} · {statusLabels[member.status]}</small></span>
+                            <small>{member.legend?.nickname?.label ?? specialtyLabels[member.specialty]} · {member.assignment?.label ?? statusLabels[member.status]}</small></span>
                           <span className="se-crew-explorer__points">{member.loyalty.enabled ? `${member.loyalty.points}/100 loyalty` : `${formatNumber(member.experiencePoints)} XP`}</span>
                         </button>
                       </li>
