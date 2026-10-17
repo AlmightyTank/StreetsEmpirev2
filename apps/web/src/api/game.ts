@@ -1,6 +1,6 @@
 import type { GameSnapshotDto, PlayerExperienceDto, PlayerExperienceEventDto } from '@streets/shared';
 import { api } from './client.js';
-import { ROUND_ROLL_CALL_CHECKED_IN_EVENT, roundRollCallApi } from './roundRollCall.js';
+import { publishRoundRollCallStamp, roundRollCallApi } from './roundRollCall.js';
 
 export const gameApi = {
   /** Authenticated lightweight player check-in; never settles game state. */
@@ -21,9 +21,7 @@ export const gameApi = {
       try {
         const checkIn = await roundRollCallApi.checkIn();
         if (checkIn.recorded) {
-          window.dispatchEvent(new CustomEvent(ROUND_ROLL_CALL_CHECKED_IN_EVENT, {
-            detail: { stamps: checkIn.stamps, requiredStamps: checkIn.requiredStamps },
-          }));
+          publishRoundRollCallStamp({ stamps: checkIn.stamps, requiredStamps: checkIn.requiredStamps });
         }
       } catch {
         // A transient attendance error must never prevent the game from opening.
