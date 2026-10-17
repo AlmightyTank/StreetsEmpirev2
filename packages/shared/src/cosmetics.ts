@@ -71,6 +71,14 @@ export const ITEM_COSMETIC_STYLES = [
     items: ['SEDAN'],
   },
   {
+    key: 'holiday-road',
+    label: 'Holiday Road Sedan',
+    description: 'A wood-paneled holiday wagon carrying a comically oversized Christmas tree. Sedan only.',
+    released: true,
+    hidden: true,
+    items: ['SEDAN'],
+  },
+  {
     key: 'blue-sky',
     label: 'Blue Sky',
     description: 'Blue glass in a clear bag. 99.1% pure. Meth only.',
