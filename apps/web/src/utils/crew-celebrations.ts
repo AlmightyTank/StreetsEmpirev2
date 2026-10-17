@@ -54,7 +54,7 @@ export function nextCrewCelebration(
     const before = previous.get(key);
     const after = current.get(key);
     if (!before || !after || !member.loyalty.enabled) continue;
-    const threshold = CREW_LOYALTY_MILESTONES.find((value) => before.loyalty < value && after.loyalty >= value);
+    const threshold = [...CREW_LOYALTY_MILESTONES].reverse().find((value) => before.loyalty < value && after.loyalty >= value);
     if (threshold !== undefined) return {
       key: `${key}:loyalty:${threshold}`,
       heading: `${member.name} earned ${member.loyalty.tier}`,
