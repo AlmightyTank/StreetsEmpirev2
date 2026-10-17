@@ -9,7 +9,7 @@ export const ROUND_ROLL_CALL_FINALE = {
   themeKey: 'round-roll-call-obsidian-signal-theme',
   crewKey: 'round-roll-call-obsidian-signal-crew',
   themeStyle: 'obsidian-signal',
-  crewStyle: 'obsidian-signal',
+  crewStyle: 'obsidian-signal-crew',
   name: 'Obsidian Signal',
 } as const;
 
