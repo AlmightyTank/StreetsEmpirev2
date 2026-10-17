@@ -73,6 +73,9 @@ the bot after news is created; the bot also checks for newly published game
 news every `DISCORD_NEWS_MINUTES` (default 1) and posts each item to that
 channel once.
 - In an Announcement channel, it also publishes the post to following servers.
+- **Patch notes** (titles beginning `Patch notes:` or `Patch notes —`) ping **Game Updates**. **All other published news** pings **News Updates**. These are role-only pings, not `@everyone` or user mentions.
+- Create Discord roles named exactly **Game Updates** and **News Updates**. For custom names, set `DISCORD_GAME_UPDATES_ROLE_ID` and `DISCORD_NEWS_UPDATES_ROLE_ID` in the bot's root `.env` to their numerical role IDs. Role IDs take precedence over names; restart the bot after changing roles or IDs.
+- Give the bot permission to mention these roles (either make the roles mentionable or grant the bot **Mention @everyone, @here, and All Roles**). All automated pings are still restricted to the specific configured role.
 - News that already existed when auto-posting was added is never posted.
 - The bot needs **View Channel**, **Send Messages** and **Embed Links** in that
   channel. It checks them before every run and logs what's missing instead of
@@ -143,6 +146,7 @@ channel once.
   down. It stays quiet for up to 20 minutes after posting that an update started,
   since restarts are expected then. A bot restart mid-outage forgets its post, so
   it posts the recovery as a new message.
+- Every new status post (deploy started, planned maintenance or an outage) pings **Server Updates**; edits to the same post at deploy completion or outage recovery do not send a second ping. Create a role named exactly **Server Updates**, or set `DISCORD_SERVER_UPDATES_ROLE_ID` to the role ID. Apply the same mention permission described above.
 - Make it a read-only channel members can see. The bot needs **View Channel**,
   **Send Messages**, **Embed Links** and **Read Message History** there.
 
