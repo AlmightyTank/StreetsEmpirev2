@@ -1,5 +1,6 @@
 import type { GameSnapshotDto, PlayerExperienceDto, PlayerExperienceEventDto } from '@streets/shared';
 import { api } from './client.js';
+import { ROUND_ROLL_CALL_CHECKED_IN_EVENT, roundRollCallApi } from './roundRollCall.js';
 
 export const gameApi = {
   /** Authenticated lightweight player check-in; never settles game state. */
@@ -17,7 +18,14 @@ export const gameApi = {
     const snapshot = await api.get<GameSnapshotDto>(`/game/me${options.background ? '?background=1' : ''}`);
     if (!options.background) {
       // A: only foreground game visits count; repeated visits cannot double-pay.
-      try { await api.post('/game/round-roll-call/check-in'); } catch {
+      try {
+        const checkIn = await roundRollCallApi.checkIn();
+        if (checkIn.recorded) {
+          window.dispatchEvent(new CustomEvent(ROUND_ROLL_CALL_CHECKED_IN_EVENT, {
+            detail: { stamps: checkIn.stamps, requiredStamps: checkIn.requiredStamps },
+          }));
+        }
+      } catch {
         // A transient attendance error must never prevent the game from opening.
       }
     }
