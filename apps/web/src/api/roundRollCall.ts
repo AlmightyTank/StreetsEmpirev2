@@ -38,6 +38,7 @@ export type RollCallRecoveryReason =
 
 export interface RoundRollCallRecoveryStatus {
   used: number;
+  availableNow: number;
   limit: number;
   remaining: number;
   eligible: boolean;

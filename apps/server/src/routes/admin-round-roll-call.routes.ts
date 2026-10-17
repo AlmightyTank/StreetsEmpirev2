@@ -4,6 +4,7 @@ import { parseBody } from '../utils/validate.js';
 import { AppError } from '../utils/errors.js';
 import { RoundRollCallService, roundRollCallClock } from '../services/round-roll-call.service.js';
 import { RoundRollCallRewardService } from '../services/round-roll-call-reward.service.js';
+import { rollCallEconomyProjection, rollCallReleaseWarnings } from '../services/round-roll-call-release.service.js';
 
 const id = z.string().trim().min(1).max(128);
 const overviewQuery = z.object({ roundId: id }).strict();
@@ -37,10 +38,26 @@ const adminRoundRollCallRoutes: FastifyPluginAsync = async (fastify) => {
         },
       }),
     ]);
+    const clock = roundRollCallClock(round, new Date());
+    // Diagnostic endpoints must remain readable even when an invalid or
+    // unsupported round-pinned catalog is the very problem to investigate.
+    let economy: ReturnType<typeof rollCallEconomyProjection> | null = null;
+    try { economy = rollCallEconomyProjection(clock.roundDays, players, round.roundLoginRewardVersion); }
+    catch { /* releaseWarnings below makes the unsupported catalog visible. */ }
+    const releaseWarnings = rollCallReleaseWarnings({
+      players, roundDays: clock.roundDays, requiredStamps: clock.requiredStamps,
+      actualLogins, recoveredStamps, recoveryAudits, rewardClaims,
+      rewardVersion: round.roundLoginRewardVersion,
+    });
+    if (economy === null && !releaseWarnings.includes('UNKNOWN_REWARD_VERSION')) {
+      releaseWarnings.push('REWARD_PROJECTION_INVALID');
+    }
     return {
       roundId,
       status: round.status,
-      clock: roundRollCallClock(round, new Date()),
+      clock,
+      economy,
+      releaseWarnings,
       players,
       actualLogins,
       recoveredStamps,

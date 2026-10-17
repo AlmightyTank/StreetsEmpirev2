@@ -312,7 +312,7 @@ export function RoundRollCallPanel() {
               </p>
               <small>
                 {board.recovery.eligible
-                  ? 'Your native seven-day allowance has been exhausted. You can recover past round day ' + board.recovery.nextDayIndex + ' once.'
+                  ? 'Your seven-day allowance is exhausted. ' + board.recovery.availableNow + (board.recovery.availableNow === 1 ? ' recovery is' : ' recoveries are') + ' available now, starting with past round day ' + board.recovery.nextDayIndex + '. Claim each separately.'
                   : board.recovery.reason === 'limit'
                     ? 'You have used both recovery passes for this round.'
                     : board.recovery.reason === 'allowance'

@@ -98,6 +98,10 @@ export const RoundRollCallService = {
     return prisma.$transaction(async (tx) => {
       // FOR SHARE permits concurrent check-ins but blocks round closure's FOR UPDATE.
       await tx.$queryRaw`SELECT id FROM "Round" WHERE id = ${roundId} FOR SHARE`;
+      // Serialize against makeups (and final claims) on this player's row.
+      // Round then player ordering matches the recovery endpoint and closure.
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM "RoundPlayer" WHERE id = ${roundPlayerId} AND "roundId" = ${roundId} FOR UPDATE`;
+      if (locked.length === 0) throw AppError.notFound('NOT_IN_ROUND', 'This player is not registered in the round.');
       const round = await tx.round.findUnique({ where: { id: roundId } });
       if (!round) throw AppError.notFound('ROUND_NOT_FOUND', 'That round is no longer available.');
       const clock = roundRollCallClock(round, now);

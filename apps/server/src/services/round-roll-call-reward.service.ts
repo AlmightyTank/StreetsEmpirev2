@@ -66,12 +66,21 @@ export const RoundRollCallRewardService = {
       RoundRollCallCosmeticService.ownership(db, player.accountId),
       RoundRollCallRecoveryService.status(db, round, roundPlayerId, now, attendance),
     ]);
+    // A player can complete multiple independently capped makeups in a row,
+    // so count the server-verified days usable right now rather than one.
+    // Do not declare the finale impossible when eligible recoveries bridge
+    // the shortfall, but never count future/unjoined days as recoverable.
+    const futureSlots = attendance.ended ? 0 : Math.max(0,
+      attendance.roundDays - attendance.roundDay + (attendance.alreadyCheckedInToday ? 0 : 1));
+    const canFinishWithCurrentRecovery = recovery.eligible
+      && attendance.stamps + futureSlots + recovery.availableNow >= attendance.requiredStamps;
     const receipts = new Map(claimed.map((claim) => [claim.tier, claim]));
     const catalogVersion = round.roundLoginRewardVersion;
     const catalog = roundRollCallCatalog(attendance.requiredStamps, catalogVersion);
     const ruleset = loadRulesetForRound(round);
     return {
       ...attendance,
+      canStillFinish: attendance.canStillFinish || canFinishWithCurrentRecovery,
       rewardVersion: catalogVersion,
       grandPrize,
       recovery,
