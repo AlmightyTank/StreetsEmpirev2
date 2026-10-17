@@ -73,10 +73,12 @@ the bot after news is created; the bot also checks for newly published game
 news every `DISCORD_NEWS_MINUTES` (default 1) and posts each item to that
 channel once.
 - In an Announcement channel, it also publishes the post to following servers.
-- **Patch notes** (titles beginning `Patch notes:` or `Patch notes —`) ping **Game Updates**. **All other published news** pings **News Updates**. These are role-only pings, not `@everyone` or user mentions.
+- **Patch notes** (titles beginning `Patch notes`, including `Patch notes for 2.2.0`) ping **Game Updates**. **All other published news** pings **News Updates**. These are role-only pings, not `@everyone` or user mentions.
 - Create Discord roles named exactly **Game Updates** and **News Updates**. For custom names, set `DISCORD_GAME_UPDATES_ROLE_ID` and `DISCORD_NEWS_UPDATES_ROLE_ID` in the bot's root `.env` to their numerical role IDs. Role IDs take precedence over names; restart the bot after changing roles or IDs.
 - Give the bot permission to mention these roles (either make the roles mentionable or grant the bot **Mention @everyone, @here, and All Roles**). All automated pings are still restricted to the specific configured role.
 - News that already existed when auto-posting was added is never posted.
+- Patch notes post as a normal message titled `Patch notes for <version>`
+  (MAJOR.MINOR.PATCH, from the app version). Other news still posts as an embed.
 - The bot needs **View Channel**, **Send Messages** and **Embed Links** in that
   channel. It checks them before every run and logs what's missing instead of
   posting, so fixing a permission needs no restart.

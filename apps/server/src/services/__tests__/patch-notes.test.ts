@@ -1,6 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
-import { BODY_MAX, buildPatchNotes, extractPatchNotes } from '../../../../../scripts/ops/patch-notes.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { BODY_MAX, buildPatchNotes, extractPatchNotes, readAppVersion } from '../../../../../scripts/ops/patch-notes.mjs';
 import { PATCH_NOTES_DUPLICATE_MS, PatchNotesService } from '../patch-notes.service.js';
 
 const template = `## What changed
@@ -52,27 +54,47 @@ describe('extractPatchNotes', () => {
   });
 });
 
-describe('buildPatchNotes', () => {
-  const date = new Date('2026-10-10T18:00:00.000Z');
+describe('readAppVersion', () => {
+  it('reads the MAJOR.MINOR.PATCH release from the shared platform source', () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), 'packages/shared/src/platform.ts'), 'utf8');
+    expect(readAppVersion(source)).toMatch(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
+    expect(readAppVersion("export const APP_VERSION = '2.2.0';")).toBe('2.2.0');
+    expect(readAppVersion("export const APP_VERSION = '2.2.0-alpha.1+build.123';")).toBe('2.2.0-alpha.1+build.123');
+  });
 
-  it('lists every PR in merge order under a dated title', () => {
+  it('rejects a date or any version that is not MAJOR.MINOR.PATCH', () => {
+    expect(() => readAppVersion("export const APP_VERSION = 'October 17, 2026';")).toThrow(/MAJOR\.MINOR\.PATCH/);
+    expect(() => readAppVersion("export const APP_VERSION = '2.2';")).toThrow(/MAJOR\.MINOR\.PATCH/);
+    expect(() => buildPatchNotes([], 'October 17, 2026')).toThrow(/MAJOR\.MINOR\.PATCH/);
+  });
+});
+
+describe('buildPatchNotes', () => {
+  const version = '2.2.0';
+
+  it('lists every PR in merge order under the release version', () => {
     const post = buildPatchNotes([
       { number: 12, mergedAt: '2026-10-10T12:00:00Z', body: '## Patch notes\n- Second' },
       { number: 11, mergedAt: '2026-10-10T09:00:00Z', body: '## Patch notes\n- First' },
       { number: 13, mergedAt: '2026-10-10T13:00:00Z', body: '## Patch notes\nnone' },
-    ], date);
-    expect(post).toEqual({ title: 'Patch notes: October 10, 2026', body: '- First\n- Second' });
+    ], version);
+    expect(post).toEqual({ title: 'Patch notes for 2.2.0', body: '- First\n- Second' });
   });
 
   it('posts nothing when no PR had notes', () => {
-    expect(buildPatchNotes([{ number: 1, mergedAt: '2026-10-10T09:00:00Z', body: '## Patch notes\n- ' }], date)).toBeNull();
-    expect(buildPatchNotes([], date)).toBeNull();
+    expect(buildPatchNotes([{ number: 1, mergedAt: '2026-10-10T09:00:00Z', body: '## Patch notes\n- ' }], version)).toBeNull();
+    expect(buildPatchNotes([], version)).toBeNull();
+  });
+
+  it('keeps a pre-release tag on the core version', () => {
+    expect(buildPatchNotes([{ number: 1, mergedAt: '2026-10-10T09:00:00Z', body: '## Patch notes\n- First' }], '2.2.0-alpha.1')!.title)
+      .toBe('Patch notes for 2.2.0-alpha.1');
   });
 
   it('stays within the news body limit and counts what it left out', () => {
     const note = 'x'.repeat(190);
     const body = `## Patch notes\n${Array.from({ length: 40 }, (_, index) => `- ${index} ${note}`).join('\n')}`;
-    const post = buildPatchNotes([{ number: 1, mergedAt: '2026-10-10T09:00:00Z', body }], date)!;
+    const post = buildPatchNotes([{ number: 1, mergedAt: '2026-10-10T09:00:00Z', body }], version)!;
     expect(post.body.length).toBeLessThanOrEqual(BODY_MAX);
     const kept = post.body.split('\n').filter((line) => line.startsWith('- ')).length;
     expect(post.body.endsWith(`…and ${40 - kept} more changes.`)).toBe(true);

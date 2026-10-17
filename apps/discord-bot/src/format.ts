@@ -564,7 +564,34 @@ export function inviteEmbed(status: RoundStatus | null, origin: string): APIEmbe
   };
 }
 
-/** One automatic news channel post. */
+/** Discord rejects message content past this. */
+const CONTENT_MAX = 2000;
+
+/** Deploy patch notes, whether titled with a version or an older date. */
+export function isPatchNotesNews(title: string): boolean {
+  return /^patch notes\b/i.test(title.trim());
+}
+
+/**
+ * Patch notes as a normal channel message. The title is bold and the bullets
+ * stay markdown. No link: a bare URL would unfurl into the embed this replaces.
+ */
+export function patchNotesContent(post: NewsPost): string {
+  const heading = `**${post.isPinned ? '📌 ' : ''}${post.title.trim()}**`;
+  const body = newsMarkdown(post.body).trim();
+  if (!body) return truncate(heading, CONTENT_MAX);
+  const room = CONTENT_MAX - heading.length - 1;
+  if (room < 2) return truncate(heading, CONTENT_MAX);
+  return `${heading}\n${truncate(body, room)}`;
+}
+
+/** One automatic news channel post. Patch notes are plain text; other news stays an embed. */
+export function newsChannelSend(post: NewsPost): { content: string } | { embeds: [APIEmbed] } {
+  if (isPatchNotesNews(post.title)) return { content: patchNotesContent(post) };
+  return { embeds: [newsPostEmbed(post)] };
+}
+
+/** One automatic news channel post that is not patch notes. */
 export function newsPostEmbed(post: NewsPost): APIEmbed {
   return {
     title: truncate(`${post.isPinned ? '📌 ' : ''}${post.title}`, 256),

@@ -20,7 +20,7 @@ import {
   factionFeedEmbed,
   describeDiscordError,
   gameNoticeEmbed,
-  newsPostEmbed,
+  newsChannelSend,
   rankAlertEmbed,
   roundEventEmbed,
   territoryFeedEmbed,
@@ -168,7 +168,16 @@ async function postNews(channel: GuildTextBasedChannel, gameUpdatesRoleId: strin
   // Claimed posts count as posted, which is why the channel is checked before any claim.
   for (const post of await api.claimNews()) {
     try {
-      const message = await channel.send({ embeds: [newsPostEmbed(post)], ...roleMention(isPatchNotesPost(post.title) ? gameUpdatesRoleId : newsUpdatesRoleId) });
+      const payload = newsChannelSend(post);
+      const mention = roleMention(isPatchNotesPost(post.title) ? gameUpdatesRoleId : newsUpdatesRoleId);
+      const text = [mention.content, 'content' in payload ? payload.content : undefined].filter(Boolean).join('\n');
+      const message = await channel.send({
+        ...(text ? { content: text } : {}),
+        ...('embeds' in payload ? { embeds: payload.embeds } : {}),
+        allowedMentions: mention.allowedMentions,
+        // Patch notes are plain text. Suppress link previews so a bullet's URL cannot come back as an embed.
+        ...('content' in payload ? { flags: MessageFlags.SuppressEmbeds } : {}),
+      });
       if (channel.type === ChannelType.GuildAnnouncement) {
         await message.crosspost().catch((error: unknown) => console.warn('Could not publish news to following servers:', error));
       }

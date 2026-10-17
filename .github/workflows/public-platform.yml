@@ -245,7 +245,7 @@ jobs:
               echo
               echo "Edit, delete or publish them now under **Admin → News**."
               echo
-              jq -r '.body' "$notes"
+              jq -r '"**\(.title)**\n\n\(.body)"' "$notes"
             } >> "$GITHUB_STEP_SUMMARY"
           fi
           remember

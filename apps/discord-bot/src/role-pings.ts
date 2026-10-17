@@ -9,9 +9,10 @@ export function roleMention(roleId: string): {
 }
 
 /**
- * Deployed patch notes are titled "Patch notes: <date>". Staff can also use
- * this heading for manually authored patch notes; other news targets News Updates.
+ * Deployed patch notes are titled "Patch notes for <version>" (MAJOR.MINOR.PATCH).
+ * Older posts used "Patch notes: <date>" or "Patch notes —". Staff can use the
+ * same heading for manual notes; other news targets News Updates.
  */
 export function isPatchNotesPost(title: string): boolean {
-  return /^\s*patch\s+notes\s*(?::|[-—–]|$)/i.test(title);
+  return /^\s*patch\s+notes\b/i.test(title);
 }
