@@ -51,6 +51,14 @@ export interface RoundRollCallBoard {
   canStillFinish: boolean;
   nextDayAt: string | null;
   roundEndsAt: string;
+  grandPrize: {
+    unlocked: boolean;
+    themeOwned: boolean;
+    crewOwned: boolean;
+    themeStyle: string;
+    crewStyle: string;
+    name: string;
+  };
   rewardTrack: RoundRollCallTier[];
 }
 
