@@ -78,7 +78,7 @@ export function nextCrewCelebration(
     const before = previous.get(key);
     const after = current.get(key);
     if (!before || !after) continue;
-    const threshold = CREW_BOND_MILESTONES.find((value) => before.bondLessons < value && after.bondLessons >= value);
+    const threshold = [...CREW_BOND_MILESTONES].reverse().find((value) => before.bondLessons < value && after.bondLessons >= value);
     if (threshold !== undefined) return {
       key: `${key}:lessons:${threshold}`,
       heading: 'A crew bond grew stronger',
