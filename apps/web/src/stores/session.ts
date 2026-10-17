@@ -42,6 +42,7 @@ export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   showThemeOnProfile: true,
   showLookOnProfile: true,
   showCrewMoments: false,
+  showCrewCelebrations: false,
   featuredBadgeKeys: [],
   profileAccent: 'default',
   uiDensity: 'comfortable',
