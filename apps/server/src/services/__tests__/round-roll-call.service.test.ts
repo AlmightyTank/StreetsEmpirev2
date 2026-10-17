@@ -62,6 +62,24 @@ describe('round roll call schedule', () => {
       pausedMinutesTotal: 0,
     }, new Date(pauseStartsAt.getTime() + day));
     expect(clock.roundDay).toBe(3);
+    expect(clock.requiredStamps).toBe(21);
+    expect(clock.active).toBe(false);
+  });
+
+  it('keeps the reward track when an open pause lasts several days', () => {
+    const start = new Date('2026-10-01T18:00:00Z');
+    const day = 86_400_000;
+    const pauseStartsAt = new Date(start.getTime() + 10 * day);
+    const clock = roundRollCallClock({
+      startsAt: start,
+      endsAt: new Date(start.getTime() + 28 * day),
+      status: 'ACTIVE',
+      pausedAt: pauseStartsAt,
+      pausedMinutesTotal: 0,
+    }, new Date(pauseStartsAt.getTime() + 4 * day));
+    expect(clock.roundDays).toBe(28);
+    expect(clock.requiredStamps).toBe(21);
+    expect(clock.roundDay).toBe(11);
     expect(clock.active).toBe(false);
   });
 

@@ -7,7 +7,7 @@
 
 - The track requires **ceil((round.endsAt - round.startsAt) / 24 hours) - 7** distinct check-in days; never cap it at 21. Negative results clamp to zero (reward track disabled for rounds no longer than seven days).
 - Examples: 14-day round → 7 stamps; 21-day → 14; 28-day → 21; 35-day → 28; 42-day → 35.
-- Seven missed days are included in the math and may occur anywhere. Progress **never resets** after an absence. Paused time is excluded from eligible round time and does not consume a missed day; extended resumes do not create additional requirements.
+- Seven missed days are included in the math and may occur anywhere. Progress **never resets** after an absence. Paused time is excluded from eligible round time and does not consume a missed day; extended resumes do not create additional requirements. An open pause freezes the current day and leaves the scheduled reward-track length unchanged, so unclaimed rewards do not reshuffle while play is stopped.
 - A round day starts at `round.startsAt + (dayIndex-1)*24h`. The final window ends at the exact `round.endsAt`. Server time is authoritative; there is no client-timezone or midnight shortcut.
 - Only an authenticated account with a RoundPlayer in the current ACTIVE, **unpaused** round can record attendance. The foreground game snapshot performs the authenticated check-in POST. Background dashboard polling never earns a stamp; Slice C will add the visible calendar and claim UI.
 - A player can stamp once per round-relative day, up to the final target. A PostgreSQL unique index guards repeated requests and multiple tabs. The round row lock also serializes check-ins with early round closure.

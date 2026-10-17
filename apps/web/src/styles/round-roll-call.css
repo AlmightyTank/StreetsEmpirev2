@@ -45,6 +45,7 @@
 .se-rollcall-day--rare { --rollcall-edge: var(--se-accent-2); }
 .se-rollcall-day--legendary { --rollcall-edge: var(--se-accent); }
 .se-rollcall-day--ready { border-color: var(--rollcall-edge); box-shadow: inset 0 2px var(--rollcall-edge); }
+.se-rollcall-day--today { border-color: var(--se-accent); box-shadow: inset 3px 0 var(--se-accent); }
 .se-rollcall-day--claimed { border-color: var(--se-good); }
 .se-rollcall-day--locked { opacity: .78; }
 .se-rollcall-day__top { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; flex-wrap: wrap; }

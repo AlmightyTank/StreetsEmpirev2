@@ -22,9 +22,12 @@ export function roundRollCallClock(round: Pick<Round, 'startsAt' | 'endsAt' | 's
   const openPauseMs = round.pausedAt
     ? Math.max(0, Math.min(current, end) - round.pausedAt.getTime())
     : 0;
-  const pausedMs = completedPauseMs + openPauseMs;
-  const effectiveNowMs = Math.max(0, current - start - pausedMs);
-  const effectiveDurationMs = Math.max(0, end - start - pausedMs);
+  // An open pause freezes the current day. It must not shrink the scheduled
+  // track: resume either extends endsAt by the same pause, or records it in
+  // pausedMinutesTotal. Subtracting the open pause from the duration early
+  // drops required stamps and rewrites unclaimed rewards until play resumes.
+  const effectiveNowMs = Math.max(0, current - start - completedPauseMs - openPauseMs);
+  const effectiveDurationMs = Math.max(0, end - start - completedPauseMs);
   const roundDays = Math.max(0, Math.ceil(effectiveDurationMs / DAY_MS));
   const requiredStamps = Math.max(0, roundDays - ROUND_ROLL_CALL_ALLOWANCE_DAYS);
   const beforeStart = current < start;

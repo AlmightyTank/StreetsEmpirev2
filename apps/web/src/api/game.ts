@@ -1,6 +1,6 @@
 import type { GameSnapshotDto, PlayerExperienceDto, PlayerExperienceEventDto } from '@streets/shared';
 import { api } from './client.js';
-import { publishRoundRollCallStamp, roundRollCallApi } from './roundRollCall.js';
+import { noteRoundRollCallContinuity, publishRoundRollCallStamp, roundRollCallApi } from './roundRollCall.js';
 
 export const gameApi = {
   /** Authenticated lightweight player check-in; never settles game state. */
@@ -20,6 +20,9 @@ export const gameApi = {
       // A: only foreground game visits count; repeated visits cannot double-pay.
       try {
         const checkIn = await roundRollCallApi.checkIn();
+        // The next round day checks itself in. Reloading for an update does not
+        // clear stamps; the server still owns the attendance ledger.
+        noteRoundRollCallContinuity(checkIn);
         if (checkIn.recorded) {
           publishRoundRollCallStamp({ stamps: checkIn.stamps, requiredStamps: checkIn.requiredStamps });
         }

@@ -16,6 +16,7 @@ import { RewardChip, rewardText } from './RewardChip.js';
 import { ItemTile } from './ItemTile.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
+import { rollCallWindowStart, todayRewardTier } from '../utils/roundRollCallView.js';
 
 const RARITY_LABELS: Record<RoundRollCallRarity, string> = {
   common: 'Common',
@@ -78,20 +79,22 @@ function RollCallFinalePreview({ target, completed, owned }: { target: number; c
   );
 }
 
-function RollCallDay({ tier, finale, claimingTier, onClaim }: {
+function RollCallDay({ tier, finale, today, claimingTier, onClaim }: {
   tier: RoundRollCallTier;
   finale: boolean;
+  today: boolean;
   claimingTier: number | null;
   onClaim: (tier: number) => void;
 }) {
   const status = roundRollCallStatus(tier);
   return (
     <li
-      className={'se-rollcall-day se-rollcall-day--' + tier.rarity + ' se-rollcall-day--' + status}
+      className={'se-rollcall-day se-rollcall-day--' + tier.rarity + ' se-rollcall-day--' + status + (today ? ' se-rollcall-day--today' : '')}
       data-tier={tier.tier}
+      aria-current={today ? 'date' : undefined}
     >
       <div className="se-rollcall-day__top">
-        <span className="se-rollcall-day__number">Reward {tier.tier}</span>
+        <span className="se-rollcall-day__number">{today ? 'Today · reward ' + tier.tier : 'Reward ' + tier.tier}</span>
         <span className="se-rollcall-day__rarity">{RARITY_LABELS[tier.rarity]}</span>
       </div>
       <div className="se-rollcall-day__mark" aria-hidden="true">
@@ -145,8 +148,14 @@ export function RoundRollCallPanel() {
   const refresh = useCallback(() => setReload((n) => n + 1), []);
 
   useEffect(() => {
-    if (!playerId || !roundId) {
+    if (!playerId) {
       setBoard(null);
+      setLoading(false);
+      return;
+    }
+    // A round id can flicker while a snapshot refreshes. Keep the stamps on
+    // screen until the next board arrives so an update does not look like a reset.
+    if (!roundId) {
       setLoading(false);
       return;
     }
@@ -248,12 +257,12 @@ export function RoundRollCallPanel() {
     ? Math.min(100, Math.round(board.stamps / board.requiredStamps * 100))
     : 0;
 
-  // Keep the Street Pass page compact. A six-card window follows the next
-  // unclaimed step; players can always expand the entire calendar.
+  // Keep the Street Pass page compact. The six-card window stays on today's
+  // reward. Claimed stamps stay on the track; players can expand the rest.
+  const todayTier = board ? todayRewardTier(board) : null;
   const focusIndex = board?.rewardTrack.findIndex((step) => !step.claimed) ?? -1;
   const nearbyStart = board
-    ? Math.max(0, Math.min(Math.max(0, board.rewardTrack.length - 6),
-      focusIndex < 0 ? board.rewardTrack.length - 6 : focusIndex - 1))
+    ? rollCallWindowStart(board.rewardTrack.length, focusIndex, todayTier)
     : 0;
   const visibleTiers = board
     ? showAllRewards ? board.rewardTrack : board.rewardTrack.slice(nearbyStart, nearbyStart + 6)
@@ -266,7 +275,7 @@ export function RoundRollCallPanel() {
         <div>
           <span className="se-eyebrow">Free round attendance · no consecutive streak</span>
           <h2>Round Roll Call</h2>
-          <p>Show up, earn one stamp for each eligible round day, and claim your rewards. Missed days never erase progress.</p>
+          <p>Show up, earn one stamp for each eligible round day, and claim your rewards. Missed days and game updates never erase stamps you already earned.</p>
         </div>
         {board && board.requiredStamps > 0 ? (
           <strong className="se-rollcall__counter" aria-label={board.stamps + ' of ' + board.requiredStamps + ' login stamps'}>
@@ -381,6 +390,7 @@ export function RoundRollCallPanel() {
                 key={tier.key}
                 tier={tier}
                 finale={tier.tier === board.requiredStamps}
+                today={tier.tier === todayTier}
                 claimingTier={claimingTier}
                 onClaim={(step) => void claim(step)}
               />
