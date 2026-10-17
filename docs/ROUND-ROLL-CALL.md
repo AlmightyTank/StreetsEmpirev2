@@ -153,3 +153,32 @@ Manually test a fresh 28-day round with 20/21/22 check-in attempts, a 35-day rou
 ### Manual verification
 
 Use 28- and 35-day rounds, a genuine stamp after 8 absences, a native-allowance player with 7 or fewer misses, joined-late players, a paused round, a completed round, repeated recovery UUIDs, two concurrent recoveries, a third distinct recovery, and the final cosmetic path. Check the admin audit panel in narrow phone layouts and confirm no endpoint lets non-admins read other accounts' records.
+
+## Slice F — Balance, Anti-Abuse, and Release QA (implemented)
+
+**No change** to the `round-roll-call-v1` catalog, the seven missed-day native allowance, the two earned catch-up uses, claim receipts, or Obsidian Signal permanent reward thresholds.
+
+### Concurrency and identity
+- Genuine `POST /round-roll-call/check-in` now takes the same round `FOR SHARE` → round-player `FOR UPDATE` ordering as the recovery transaction. Competing foreground tabs and recovery requests serialize on the player and remain protected by `(roundPlayerId, dayIndex)` uniqueness.
+- If the locked player does not belong to the selected round, the attendance write **fails closed** with `NOT_IN_ROUND`. No stamp is written. No customer may choose an arbitrary historical/future recovery day or present someone else's player ID in the authenticated recover endpoint.
+- Recovery has unique action IDs and per-day receipts, no paid bypass or transferable make-up token; the total remains at two per round.
+- Legitimate full attendance can only grant the permanent matched cosmetic pair through the existing account-level idempotent upsert; round close does not pay unclaimed gameplay rewards.
+- The client reports that the final reward can still be reached when **one already available** makeup bridges the remaining-day deficit. The server continues to own the actual eligibility decision.
+
+### Deterministic economy simulation and release warnings
+- `rollCallEconomyProjection(roundDays, playerCount, pinnedVersion)` is **read-only** and assumes 100% redemption of every tier, calculating per-player and whole-round upper bounds for cash in cents, turns, and the three approved consumables. It rejects unsupported reward catalog versions, invalid lengths, unsafe items, and per-step cap violations.
+- At 28 days / 21 required stamps, the verified maximum is **$19,150 cash, 74 turns and 99 supplies per player**. Even 150 players collecting every step would receive at most $2,872,500 cash, 11,100 turns and 14,850 supplies. These are projected worst cases, not actual grants.
+- Operators see these estimates and flags in **Admin → Rounds → Round details → Round Roll Call diagnostics**.
+- Automatic read-only health flags include recovery stamp/audit mismatch, more recoveries than the two-per-player maximum, impossible total stamp count, overclaimed reward tiers, and unknown reward versions. `/admin/round-roll-call/diagnose` remains the per-player source of evidence and flags partial cosmetic pairs.
+- The matrix tests round lengths 7, 8, 14, 21, 28, 35, 42, 56, 90 and 365 days; 1000-player worst-case exposure; standard 21-tier payouts; seven versus eight misses; catch-up; account enrollment; duplicate reward gates; pause extension; missing player membership; and lack of early cosmetic unlocks.
+
+### Deployment / rollback order
+1. Ensure the prior A/B attendance and reward receipt migrations plus E's `RoundLoginRecovery` and `source` migration are present. **Slice F adds no database migration.**
+2. Run `npm run typecheck`, `npm test`, app build pipeline, style guard, and Game UI Visual Audit in GitHub Actions. Resolve all blocking review comments.
+3. Open admin round diagnostics for one 28-day test round and check the rarity distribution, source totals, warning codes and worst-case budget; run the three endpoint smoke tests (board, repeat check-in, denied recovery).
+4. Test final earned cosmetic pair on a throwaway account; ensure both appear in Account Settings in a new round. Check closure after a pause, after day 28, and an early admin close; **do not** retroactively issue unclaimed cash.
+5. Deploy to beta only after merging and running the existing server deploy script/migrations; verify `/api/health`, check-in and claim responses, admin read-only overview and visual appearance on mobile.
+6. If the feature fails, roll back server/web to the previous beta deployment **without deleting durable attendance or recovery receipts**. The pinned reward catalog and permanent cosmetics stay persistent.
+
+### Release gate
+Pass requires zero unsafe reward kinds, no per-tier budget overruns, no unauthorized recovery or attendance calls, no duplicate payouts, no unpaired permanent entitlements, and green TypeScript, unit tests, builds, UI audits, and code reviews. Admin health warnings should be investigated per player rather than automatically rewriting their records.
