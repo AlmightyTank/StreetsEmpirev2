@@ -160,6 +160,7 @@ export function eventCatalogForRuleset(ruleset: Ruleset): GameEventCatalogEntry[
             weight: entry.weight,
             tone: entry.tone,
             districts: entry.districts ?? [],
+            availableUtc: entry.availableUtc ?? null,
             cash: entry.cash ?? null,
             heat: entry.heat ?? null,
             supplies: entry.supplies ?? null,

@@ -154,7 +154,10 @@ export const EIGHT_BIT_ART_FILES = {
 
 /** Easter egg looks drawn for a single item. */
 export const SINGLE_ITEM_ART_FILES = {
-  SEDAN: { 'time-machine': 'cosmetics/rides/sedan-time-machine.webp' },
+  SEDAN: {
+    'time-machine': 'cosmetics/rides/sedan-time-machine.webp',
+    'holiday-road': 'cosmetics/rides/sedan-holiday-road.svg',
+  },
   METH: { 'blue-sky': 'cosmetics/products/meth-blue-sky.webp' },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 

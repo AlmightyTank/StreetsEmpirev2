@@ -947,6 +947,8 @@ export interface RandomEncounterEntryRules {
   readonly lowRiders?: RandomEncounterNumberEffectRules;
   readonly choices?: readonly RandomEncounterChoiceRules[];
   readonly districts?: readonly DistrictKey[];
+  /** Optional UTC-only draw window; entries without one remain year-round. */
+  readonly availableUtc?: { readonly startsAt: string; readonly endsAt: string };
 }
 
 /**
