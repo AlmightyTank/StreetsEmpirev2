@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import adminRoutes from './admin.routes.js';
 import adminLivingStoriesRoutes from './admin-living-stories.routes.js';
+import adminRoundRollCallRoutes from './admin-round-roll-call.routes.js';
 import allianceRoutes from './alliance.routes.js';
 import playingTogetherRoutes from './playing-together.routes.js';
 import publicRoutes from './public.routes.js';
@@ -44,6 +45,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(googlePlayRtdnRoutes, { prefix: '/internal/google-play' });
   await fastify.register(adminRoutes, { prefix: '/admin' });
   await fastify.register(adminLivingStoriesRoutes, { prefix: '/admin' });
+  await fastify.register(adminRoundRollCallRoutes, { prefix: '/admin' });
   await fastify.register(roundRoutes, { prefix: '/rounds' });
   await fastify.register(roundAftermathRoutes, { prefix: '/rounds' });
   await fastify.register(roundInfoRoutes, { prefix: '/rounds' });

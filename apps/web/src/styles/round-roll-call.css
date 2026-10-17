@@ -140,3 +140,32 @@
   .se-rollcall-finale__crew-previews { gap: 7px; }
   .se-rollcall-finale__crew-previews .se-item-tile { min-width: 72px; }
 }
+
+/* Slice E — bounded, optional catch-up. Inherits shell theme tokens. */
+.se-rollcall__catchup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 12px 0;
+  padding: 16px;
+  border: 1px solid var(--se-line-soft);
+  background: var(--se-panel);
+  border-radius: 14px;
+}
+.se-rollcall__catchup-content { flex: 1 1 220px; min-width: 0; }
+.se-rollcall__catchup-content > strong { display: block; font-weight: 750; }
+.se-rollcall__catchup-content > p { margin: 4px 0; color: var(--se-text-dim); }
+.se-rollcall__catchup-content > small { display: block; margin-top: 5px; color: var(--se-text-dim); line-height: 1.45; }
+.se-rollcall__recovery-result {
+  margin: 8px 0;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 32%, transparent);
+  background: var(--se-panel);
+  border-radius: 10px;
+}
+@media (max-width: 480px) {
+  .se-rollcall__catchup { align-items: stretch; }
+  .se-rollcall__catchup button { width: 100%; min-height: 44px; }
+}

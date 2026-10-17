@@ -132,11 +132,15 @@ export function RoundRollCallPanel() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimResult, setClaimResult] = useState<RoundRollCallClaimResult | null>(null);
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryResult, setRecoveryResult] = useState<string | null>(null);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [showAllRewards, setShowAllRewards] = useState(false);
   const [claimingTier, setClaimingTier] = useState<number | null>(null);
   const [reload, setReload] = useState(0);
   const inFlight = useRef(false);
   const pendingIds = useRef(new Map<number, string>());
+  const pendingRecoveryId = useRef<string | null>(null);
 
   const refresh = useCallback(() => setReload((n) => n + 1), []);
 
@@ -213,6 +217,31 @@ export function RoundRollCallPanel() {
     }
   }
 
+  async function recoverMissedDay() {
+    if (!board?.recovery.eligible || inFlight.current) return;
+    inFlight.current = true;
+    setRecovering(true);
+    setRecoveryError(null);
+    setRecoveryResult(null);
+    const actionId = pendingRecoveryId.current ?? newActionId();
+    pendingRecoveryId.current = actionId;
+    try {
+      const result = await roundRollCallApi.recover(actionId);
+      pendingRecoveryId.current = null;
+      setRecoveryResult(result.replayed
+        ? 'Your previously recovered day ' + result.dayIndex + ' is saved.'
+        : 'Round day ' + result.dayIndex + ' recovered. This counts as a stamp toward your final reward.');
+      try { await useSession.getState().refreshSnapshot({ background: true }); } catch { /* Stamp is already saved. */ }
+    } catch (error: unknown) {
+      if (error instanceof ApiError && !error.isUncertain) pendingRecoveryId.current = null;
+      setRecoveryError(error instanceof Error ? error.message : 'Catch-up not confirmed. Refresh your progress before trying again.');
+    } finally {
+      inFlight.current = false;
+      setRecovering(false);
+      refresh();
+    }
+  }
+
   const readyCount = board?.rewardTrack.filter((step) => step.claimable).length ?? 0;
   const nextReady = board?.rewardTrack.find((step) => step.claimable);
   const progress = board && board.requiredStamps > 0
@@ -274,6 +303,42 @@ export function RoundRollCallPanel() {
             <div><small>Rewards ready</small><strong>{readyCount}</strong></div>
             <div><small>Round day</small><strong>{board.roundDay} / {board.roundDays}</strong></div>
           </div>
+          <aside className="se-rollcall__catchup" aria-label="Missed-day recovery">
+            <div className="se-rollcall__catchup-content">
+              <strong>Missed-day recovery</strong>
+              <p>
+                {board.recovery.used} of {board.recovery.limit} recovery passes used this round.
+                Your seven free missed days are always included and never reset your progress.
+              </p>
+              <small>
+                {board.recovery.eligible
+                  ? 'Your native seven-day allowance has been exhausted. You can recover past round day ' + board.recovery.nextDayIndex + ' once.'
+                  : board.recovery.reason === 'limit'
+                    ? 'You have used both recovery passes for this round.'
+                    : board.recovery.reason === 'allowance'
+                      ? 'No catch-up needed. You still have the built-in missed-day allowance.'
+                      : board.recovery.reason === 'genuine_stamp'
+                        ? 'Earn at least one real login stamp before using recovery.'
+                        : board.recovery.reason === 'complete'
+                          ? 'Your Round Roll Call is complete.'
+                          : board.recovery.reason === 'no_eligible_day'
+                            ? 'No missed round day after your first real check-in is eligible for recovery.'
+                            : 'Recovery is available only in an active, unpaused round.'}
+              </small>
+              {board.recovery.history.length > 0 ? (
+                <small>Recovered round days: {board.recovery.history.map((day) => day.dayIndex).join(', ')}.</small>
+              ) : null}
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={!board.recovery.eligible || recovering || claimingTier !== null}
+              loading={recovering}
+              onClick={() => void recoverMissedDay()}
+            >Recover missed day</Button>
+          </aside>
+          {recoveryResult ? <p className="se-rollcall__recovery-result" role="status">{recoveryResult}</p> : null}
+          {recoveryError ? <Alert title="Could not confirm recovery">{recoveryError} Check the updated calendar before retrying.</Alert> : null}
           <div className="se-rollcall__progress" role="progressbar" aria-label="Round login rewards completed" aria-valuemin={0} aria-valuemax={board.requiredStamps} aria-valuenow={board.stamps}>
             <span style={{ width: progress + '%' }} />
           </div>
