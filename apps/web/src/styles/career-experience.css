@@ -130,3 +130,24 @@
   .se-career-metric { border-right: 0; }
   .se-career-metric:nth-last-child(2) { border-bottom: 1px solid var(--se-line); }
 }
+
+@media (max-width: 899px) {
+  .se-career-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .se-career-nav__item {
+    flex: 0 0 auto;
+    min-width: 128px;
+    padding: 8px 10px;
+  }
+  .se-career-metrics {
+    display: flex;
+    overflow-x: auto;
+  }
+  .se-career-metric {
+    flex: 1 0 108px;
+    border-bottom: 0;
+  }
+}

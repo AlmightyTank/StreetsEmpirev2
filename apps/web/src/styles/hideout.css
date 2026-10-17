@@ -667,12 +667,33 @@
   }
 
   .se-hideout-nav {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
   }
 
   .se-hideout-nav a {
+    flex: 0 0 auto;
     justify-content: space-between;
+    min-height: 36px;
+    padding: 6px 8px;
+  }
+
+  .se-hideout-priority {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .se-hideout-priority > p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .se-hideout-priority__room {
+    padding: 8px 0;
   }
 
   .se-hideout-sectionhead {
@@ -688,6 +709,13 @@
   .se-hideout-detailgrid {
     grid-template-columns: 1fr;
   }
+
+  .se-hideout-overview {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .se-hideout-priority { order: -1; }
 
   .se-hideout-panel--wide {
     grid-column: auto;

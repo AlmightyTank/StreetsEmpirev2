@@ -335,8 +335,15 @@
 
 @media (max-width: 620px) {
   .se-settings-hero {
-    gap: 18px;
-    padding: 20px 16px;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .se-settings-hero__copy > p:last-child {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   .se-settings-hero__identity {

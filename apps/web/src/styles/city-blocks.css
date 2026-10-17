@@ -826,3 +826,19 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+@media (max-width: 899px) {
+  .se-cityblocks { gap: 10px; }
+  .se-cityblocks-hero { padding: 12px 14px; }
+  .se-cityblocks-hero h1 { font-size: 26px; }
+  .se-cityblocks-hero p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .se-citymap {
+    max-height: 180px;
+    aspect-ratio: auto;
+  }
+}

@@ -360,7 +360,21 @@
   .se-rankings-sectionhead > p {
     max-width: none;
     text-align: left;
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
+
+  .se-rankings-hero h1 { font-size: 26px; }
+  .se-rankings-hero { padding: 12px 14px; }
+  .se-rankings-hero p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .se-rankings-metric { min-height: 0; padding: 8px; }
 
   .se-rankings-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -378,14 +392,29 @@
 
 @media (max-width: 480px) {
   .se-rankings-metrics {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .se-rankings-tabs {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .se-rankings-tabs__tab {
     min-height: 44px;
   }
+
+  .se-rankings-metrics,
+  .se-rankings-tabs {
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .se-rankings-metric,
+  .se-rankings-tabs__tab {
+    flex: 1 0 108px;
+  }
+
+  .se-rankings { gap: 10px; }
+  .se-rankings-hero p,
+  .se-rankings-sectionhead > p { -webkit-line-clamp: 1; }
 }
