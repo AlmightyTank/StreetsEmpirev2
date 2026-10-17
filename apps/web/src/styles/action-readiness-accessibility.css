@@ -1,0 +1,11 @@
+/* Accessible Scout/Produce/Raid readiness labels on dark game-shell themes. */
+.se-action-readiness__item--bad > strong {
+  color: color-mix(in srgb, var(--se-bad) 80%, white);
+}
+
+/* The dashboard's city holdings link must have a usable touch target. */
+.se-dashboard-controlgrid > p > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
