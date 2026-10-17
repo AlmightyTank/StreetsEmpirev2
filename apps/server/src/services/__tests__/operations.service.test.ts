@@ -134,7 +134,16 @@ function makeDb() {
       findFirst: vi.fn(async ({ where }: any) => state.blocks.find((row) => matches(row, where)) ?? null),
     },
     supplyStock: {
-      findUnique: vi.fn(async ({ where }: any) => state.stocks.find((row) => row.id === where.id) ?? null),
+      findUnique: vi.fn(async ({ where }: any) => {
+        const stock = state.stocks.find((row) => row.id === where.id);
+        return stock ? {
+          ...stock,
+          warehouse: {
+            roundPlayerId: stock.ownerId ?? 'leader-1',
+            citySlug: stock.citySlug ?? 'vice-city',
+          },
+        } : null;
+      }),
       update: vi.fn(async ({ where, data }: any) => {
         const row = state.stocks.find((entry) => entry.id === where.id)!;
         if (data.quantity?.increment) row.quantity += data.quantity.increment;
@@ -670,4 +679,39 @@ describe('2.2.0 underworld operations', () => {
     await OperationRepairService.setFlag(db, 'round-1', true);
     expect(state.round.underworldOperationsEnabled).toBe(true);
   });
+  it('rejects foreign, wrong-city, and wrong-product stash IDs without moving inventory', async () => {
+    const { db, state } = makeDb();
+    enableCatalog(state);
+    const attempt = (stockId: string) => OperationsService.start(db, 'leader-1', {
+      citySlug: 'vice-city', template: 'STASH_RECOVERY', supplyStockId: stockId,
+    });
+    state.stocks.push(
+      { id: 'foreign', warehouseId: 'wh-2', ownerId: 'player-2', productKey: 'CRACK', quantity: 5 },
+      { id: 'remote', warehouseId: 'wh-3', ownerId: 'leader-1', citySlug: 'elsewhere', productKey: 'CRACK', quantity: 5 },
+      { id: 'wrong-product', warehouseId: 'wh-1', ownerId: 'leader-1', productKey: 'BEER', quantity: 5 },
+    );
+    for (const id of ['foreign', 'remote', 'wrong-product']) {
+      await expect(attempt(id)).rejects.toMatchObject({ code: 'OPERATION_STOCK_SHORT' });
+    }
+    expect(state.operations).toHaveLength(0);
+    expect(state.stocks.every((stock) => stock.quantity === 5)).toBe(true);
+    expect(state.movements).toHaveLength(0);
+    expect(state.ledger).toHaveLength(0);
+  });
+
+  it('rechecks stash ownership when executing, even after a valid operation started', async () => {
+    const { db, state } = makeDb();
+    enableCatalog(state);
+    state.stocks.push({ id: 'stock-1', warehouseId: 'wh-1', ownerId: 'leader-1', productKey: 'CRACK', quantity: 5 });
+    const started = await OperationsService.start(db, 'leader-1', {
+      citySlug: 'vice-city', template: 'STASH_RECOVERY', supplyStockId: 'stock-1',
+    });
+    await OperationsService.lock(db, 'leader-1', { operationId: started.id, role: 'runner' });
+    state.stocks[0].ownerId = 'player-2';
+    await OperationsService.execute(db, 'leader-1', { operationId: started.id });
+    expect(state.stocks[0].quantity).toBe(5);
+    expect(state.players[0].crack).toBe(0);
+    expect(state.movements).toHaveLength(0);
+  });
+
 });
