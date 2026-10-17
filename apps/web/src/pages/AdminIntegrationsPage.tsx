@@ -6,6 +6,7 @@ import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { GameDialog } from '../components/GameUI.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen } from '../utils/admin.js';
@@ -130,7 +131,12 @@ export function AdminIntegrationsPage() {
       {notice ? <p className="se-admin-notice" role="status">{notice}</p> : null}
 
       {pending ? (
-        <Panel title={pendingCopy[pending].title} className="se-mb">
+        <GameDialog
+          open
+          dismissible={!busy}
+          title={pendingCopy[pending].title}
+          onClose={() => { if (!busy) setPending(null); }}
+        >
           <form onSubmit={confirm} noValidate>
             <p>{pendingCopy[pending].copy}</p>
             <div className="se-field">
@@ -149,7 +155,7 @@ export function AdminIntegrationsPage() {
               <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabledReason={busy ? working : null}>Cancel</Button>
             </div>
           </form>
-        </Panel>
+        </GameDialog>
       ) : null}
 
       <div className="se-grid se-grid--2">

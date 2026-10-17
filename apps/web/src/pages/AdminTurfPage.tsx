@@ -7,6 +7,7 @@ import { ApiError } from '../api/client.js';
 import { AdminRoundPicker, useAdminRound } from '../components/AdminRoundPicker.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { GameDialog } from '../components/GameUI.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen } from '../utils/admin.js';
@@ -78,7 +79,7 @@ export function AdminTurfPage() {
       {notice ? <Alert tone="info">{notice}</Alert> : null}
 
       {pending ? (
-        <Panel title={pending.label} className="se-mb">
+        <GameDialog open dismissible={!busy} title={pending.label} onClose={() => { if (!busy) setPending(null); }}>
           <p>{pending.copy}</p>
           <div className="se-field">
             <label className="se-label" htmlFor="admin-turf-reason">Reason</label>
@@ -87,9 +88,9 @@ export function AdminTurfPage() {
           </div>
           <div className="se-cta">
             <Button type="button" className="se-btn se-btn--primary" onClick={() => void repair()} disabledReason={busy ? 'Working...' : reason.trim().length < 5 ? 'Give a reason of at least 5 characters.' : null}>Confirm</Button>
-            <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)}>Cancel</Button>
+            <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabledReason={busy ? 'Working...' : null}>Cancel</Button>
           </div>
-        </Panel>
+        </GameDialog>
       ) : null}
 
       {turf?.drift.length ? (

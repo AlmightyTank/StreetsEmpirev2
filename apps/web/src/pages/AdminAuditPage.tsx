@@ -8,6 +8,7 @@ import { AuditEntryList } from '../components/AdminParts.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
+import { GameDialog } from '../components/GameUI.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen, localInputToIso } from '../utils/admin.js';
@@ -185,7 +186,7 @@ export function AdminAuditPage() {
               <a className="se-btn" href={adminApi.auditExportUrl(applied)}>Download CSV</a>
               {retention.days > 0 ? (
                 <Button type="button" className="se-btn se-btn--ghost" onClick={() => { setPurging(true); setPurgeReason(''); }}
-                  disabledReason={purging ? 'The purge form is already open below.'
+                  disabledReason={purging ? 'The purge confirmation is already open.'
                     : retention.expired === 0 ? 'No entries are older than the retention window.'
                       : null}>
                   Purge {formatNumber(retention.expired)} old entries
@@ -195,21 +196,29 @@ export function AdminAuditPage() {
             <p className="se-hint">The download takes the filters above, newest first, up to {formatNumber(AUDIT_EXPORT_MAX_ROWS)} rows.</p>
 
             {purging ? (
-              <form onSubmit={confirmPurge} noValidate className="se-mt">
-                <div className="se-field">
-                  <label className="se-label" htmlFor="admin-audit-purge-reason">Reason</label>
-                  <textarea id="admin-audit-purge-reason" className="se-input se-admin-reason" maxLength={500}
-                    value={purgeReason} onChange={(event) => setPurgeReason(event.target.value)} />
-                  <p className="se-hint">Saved with the purge record. At least 5 characters. This cannot be undone.</p>
-                </div>
-                <div className="se-cta">
-                  <Button className="se-btn se-btn--primary"
-                    disabledReason={busy ? 'The purge is still running.' : purgeReason.trim().length < 5 ? 'The purge record needs a reason of at least 5 characters.' : null}>
-                    {busy ? 'Purging...' : `Purge ${formatNumber(retention.expired)} entries`}
-                  </Button>
-                  <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPurging(false)} disabledReason={busy ? 'The purge is still running.' : null}>Cancel</Button>
-                </div>
-              </form>
+              <GameDialog
+                open
+                dismissible={!busy}
+                title={`Purge ${formatNumber(retention.expired)} old entries`}
+                description="Removes entries older than the retention window. The purge itself is written to the log, and it cannot be undone."
+                onClose={() => { if (!busy) setPurging(false); }}
+              >
+                <form onSubmit={confirmPurge} noValidate>
+                  <div className="se-field">
+                    <label className="se-label" htmlFor="admin-audit-purge-reason">Reason</label>
+                    <textarea id="admin-audit-purge-reason" className="se-input se-admin-reason" maxLength={500}
+                      value={purgeReason} onChange={(event) => setPurgeReason(event.target.value)} />
+                    <p className="se-hint">Saved with the purge record. At least 5 characters.</p>
+                  </div>
+                  <div className="se-cta">
+                    <Button className="se-btn se-btn--danger"
+                      disabledReason={busy ? 'The purge is still running.' : purgeReason.trim().length < 5 ? 'The purge record needs a reason of at least 5 characters.' : null}>
+                      {busy ? 'Purging...' : `Purge ${formatNumber(retention.expired)} entries`}
+                    </Button>
+                    <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPurging(false)} disabledReason={busy ? 'The purge is still running.' : null}>Cancel</Button>
+                  </div>
+                </form>
+              </GameDialog>
             ) : null}
           </>
         )}

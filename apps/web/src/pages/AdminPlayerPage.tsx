@@ -8,6 +8,7 @@ import { AdminUnlocksPanel } from '../components/AdminUnlocksPanel.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
+import { GameDialog } from '../components/GameUI.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen } from '../utils/admin.js';
@@ -404,7 +405,12 @@ export function AdminPlayerPage() {
       </div>
 
       {voiding ? (
-        <Panel title={`Void: ${voiding.raidForm?.title ?? voiding.kind ?? 'Raid'} vs ${voiding.opponent.displayName}`} className="se-mb">
+        <GameDialog
+          open
+          dismissible={!busy}
+          title={`Void: ${voiding.raidForm?.title ?? voiding.kind ?? 'Raid'} vs ${voiding.opponent.displayName}`}
+          onClose={() => { if (!busy) setVoiding(null); }}
+        >
           <form onSubmit={confirmVoid} noValidate>
             <p>
               Reverses what this battle moved, limited to what the side that gained it still has, takes back its wounds that are still healing,
@@ -422,7 +428,7 @@ export function AdminPlayerPage() {
               <Button type="button" className="se-btn se-btn--ghost" onClick={() => setVoiding(null)} disabledReason={busy ? working : null}>Cancel</Button>
             </div>
           </form>
-        </Panel>
+        </GameDialog>
       ) : null}
 
       {voidResult ? (

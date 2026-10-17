@@ -9,6 +9,7 @@ import { AccountTags, AuditEntryList } from '../components/AdminParts.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
+import { GameDialog } from '../components/GameUI.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -286,7 +287,12 @@ export function AdminAccountPage() {
       </div>
 
       {pending ? (
-        <Panel title={`${pending.sessionId ? 'Sign out this session' : actionText[pending.action].label}: ${account.username}`} className="se-mb">
+        <GameDialog
+          open
+          dismissible={!busy}
+          title={`${pending.sessionId ? 'Sign out this session' : actionText[pending.action].label}: ${account.username}`}
+          onClose={() => { if (!busy) setPending(null); }}
+        >
           <form onSubmit={confirm} noValidate>
             <p>{pending.sessionId ? 'Ends this one session. They can log straight back in.' : actionText[pending.action].copy}</p>
             {pending.action === 'suspend' ? (
@@ -367,7 +373,7 @@ export function AdminAccountPage() {
               <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabledReason={busy ? working : null}>Cancel</Button>
             </div>
           </form>
-        </Panel>
+        </GameDialog>
       ) : null}
 
       <div className="se-grid se-grid--2 se-mb">
