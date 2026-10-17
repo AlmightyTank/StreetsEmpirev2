@@ -185,6 +185,14 @@ export function RoundRollCallPanel() {
     try {
       const response = await roundRollCallApi.claim(tier, actionId);
       pendingIds.current.delete(tier);
+      // The backend confirmed payment: close this tile immediately to prevent
+      // an accidental second click before the authoritative board round-trip.
+      setBoard((current) => current ? {
+        ...current,
+        rewardTrack: current.rewardTrack.map((step) => step.tier === tier
+          ? { ...step, claimed: true, claimable: false, claimedAt: new Date().toISOString() }
+          : step),
+      } : current);
       setClaimResult(response.result);
       // Refresh the in-game resource balances without starting another attendance check-in.
       try { await useSession.getState().refreshSnapshot({ background: true }); } catch { /* Claim already committed. */ }
