@@ -71,6 +71,7 @@ const COUNT_FIELDS = {
 
 const MEMBER_FIELDS = {
   id: true, role: true, serial: true, status: true, assignmentKind: true, assignmentRef: true, experiencePoints: true, specialty: true, specialtyExperiencePoints: true, dealerStaffId: true, loyaltyPoints: true, nicknameKey: true, nicknameSuppressed: true,
+  apprenticeship: { select: { id: true } }, mentoringBonds: { select: { id: true }, take: 1 },
 } as const;
 
 /** Rows per statement, well inside Postgres' bind-parameter limit. */
