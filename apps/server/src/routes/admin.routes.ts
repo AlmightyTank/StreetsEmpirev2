@@ -27,6 +27,7 @@ import { AllianceService } from '../services/alliance.service.js';
 import { WireService } from '../services/wire.service.js';
 import { AdminBattleService } from '../services/admin-battle.service.js';
 import { AdminCrewService } from '../services/admin-crew.service.js';
+import { AdminCrewReleaseService } from '../services/admin-crew-release.service.js';
 import { AdminConvoyService } from '../services/admin-convoy.service.js';
 import { AdminDevBotsService } from '../services/admin-dev-bots.service.js';
 import { AdminDiscordService } from '../services/admin-discord.service.js';
@@ -119,6 +120,9 @@ const roundParams = z.object({ roundId: id }).strict();
 const accountParams = z.object({ accountId: id }).strict();
 const playerParams = z.object({ roundPlayerId: id }).strict();
 const crewMemberParams = z.object({ roundPlayerId: id, memberId: id }).strict();
+const crewLoyaltyRepairSchema = z.object({
+  reason, expectedPoints: z.number().int().min(0).max(100),
+}).strict();
 const crewCorrectionSchema = z.object({
   reason,
   experiencePoints: z.number().int().min(0).max(1_000_000),
@@ -975,6 +979,27 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminCrewService.correct(fastify.prisma, request.auth!.account, roundPlayerId, memberId, input);
   });
 
+  // 2.1.0-G. Staff-only immutable source receipt provenance and guarded repairs.
+  fastify.get('/players/:roundPlayerId/crew/:memberId/provenance', async (request, reply) => {
+    const { roundPlayerId, memberId } = parseBody(crewMemberParams, request.params);
+    reply.header('Cache-Control', 'private, no-store');
+    return AdminCrewReleaseService.provenance(fastify.prisma, roundPlayerId, memberId);
+  });
+
+  fastify.post('/players/:roundPlayerId/crew/:memberId/loyalty/reconcile', async (request, reply) => {
+    const { roundPlayerId, memberId } = parseBody(crewMemberParams, request.params);
+    const input = parseBody(crewLoyaltyRepairSchema, request.body ?? {});
+    reply.header('Cache-Control', 'private, no-store');
+    return AdminCrewReleaseService.reconcile(fastify.prisma, request.auth!.account, roundPlayerId, memberId, input);
+  });
+
+  fastify.post('/players/:roundPlayerId/crew/reconcile', async (request, reply) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    const { reason: correctionReason } = parseBody(reasonBody, request.body ?? {});
+    reply.header('Cache-Control', 'private, no-store');
+    return AdminCrewReleaseService.repairRoster(fastify.prisma, request.auth!.account, roundPlayerId, correctionReason);
+  });
+
   fastify.get('/players/:roundPlayerId/battles', async (request) => {
     const { roundPlayerId } = parseBody(playerParams, request.params);
     const { before } = parseBody(battlesQuery, request.query);
@@ -1051,6 +1076,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/rounds/:roundId/crew', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
     return AdminCrewService.report(fastify.prisma, roundId);
+  });
+
+  fastify.get('/rounds/:roundId/crew/release-health', async (request, reply) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    reply.header('Cache-Control', 'private, no-store');
+    return AdminCrewReleaseService.roundHealth(fastify.prisma, roundId);
   });
 
   fastify.get('/rounds/:roundId/markets', async (request) => {

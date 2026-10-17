@@ -88,6 +88,24 @@ describe('2.1.0-A roster identity audit', () => {
       .toThrow(/erase a career/);
   });
 
+  it('never deletes a zero-XP crew member who earned loyalty or shared bond memories', () => {
+    for (const narrative of [
+      { loyaltyPoints: 8 },
+      { nicknameKey: 'CORNER_KEEPER' },
+      { apprenticeship: { id: 'bond-1' } },
+      { mentoringBonds: [{ id: 'bond-2' }] },
+    ]) {
+      const veteran = member('narrative', 1, { ...narrative, experiencePoints: 0 });
+      const departure = input({ firstBuild: false, counts: empty, members: [veteran], nextSerial: 2 });
+      const plan = planCrewRoster(departure);
+      expect(plan.moves).toContainEqual(expect.objectContaining({ id: 'narrative', to: null }));
+      expect(plan.drops).not.toContain('narrative');
+      expect(() => assertCrewRosterPlan(departure, plan)).not.toThrow();
+      expect(() => assertCrewRosterPlan(departure, { ...plan, moves: [], drops: ['narrative'] }))
+        .toThrow(/erase a career/);
+    }
+  });
+
   it('keeps released legacy dealer careers outside active totals', () => {
     const scenario = input({
       counts: empty, refs: { ...refs, releasedCareers: [{ staffId: 'legacy', experiencePoints: 5 }] },

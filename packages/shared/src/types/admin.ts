@@ -133,6 +133,52 @@ export interface AdminCrewRosterDto {
   topVeterans: Array<{ roundPlayerId: string; displayName: string; memberId: string; role: 'THUG' | 'WORKER'; serial: number; experiencePoints: number; specialty: string; specialtyExperiencePoints: number }>;
 }
 
+/** 2.1.0-G. Staff-only immutable evidence and migration integrity. */
+export interface AdminCrewReleaseHealthDto {
+  roundId: string;
+  status: RoundStatus;
+  loyaltyEnabled: boolean;
+  members: number;
+  receipts: number;
+  positiveReceipts: number;
+  cappedReceipts: number;
+  bonds: number;
+  bondMemories: number;
+  archivedLegends: number;
+  pendingLegacy: number;
+  receiptMismatchSample: Array<{ id: string; roundPlayerId: string; stored: number; earned: number }>;
+  cutoffs: { loyalty: number; perDay: number; perWeek: number; bondMemories: number };
+  archivalPolicy: string;
+}
+export interface AdminCrewProvenanceDto {
+  roundId: string;
+  roundStatus: RoundStatus;
+  loyaltyEnabled: boolean;
+  member: {
+    id: string; serial: number; role: 'THUG' | 'WORKER'; status: string;
+    nicknameKey: string | null; nicknameSuppressed: boolean; loyaltyPoints: number;
+  };
+  earnedFromReceipts: number;
+  storedPointsMatch: boolean;
+  totalReceipts: number;
+  sampledReceipts: number;
+  hasMore: boolean;
+  sampleAnomalies: string[];
+  relatedBonds: number;
+  recent: Array<{ id: string; source: string; sourceKey: string; points: number; summary: string; at: string }>;
+}
+export interface AdminCrewLoyaltyRepairResultDto {
+  memberId: string;
+  before: number;
+  verified: number;
+  nicknameReset: boolean;
+  auditId: string;
+}
+export interface AdminCrewRosterRepairResultDto {
+  outcome: { migrated: boolean; created: number; moved: number; released: number } | null;
+  auditId: string;
+}
+
 export interface AdminCrewCorrectionInput {
   experiencePoints: number;
   specialty: 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE';

@@ -56,7 +56,10 @@ export function assertCrewRosterPlan(input: CrewPlanInput, plan: CrewPlan): void
   for (const id of plan.drops) {
     const row = projected.get(id);
     if (!row || dropped.has(id) || moved.has(id)) invalid(`invalid or duplicate drop ${id}`);
-    if (row.experiencePoints !== 0 || row.dealerStaffId) invalid(`drop would erase a career for ${id}`);
+    if (row.experiencePoints !== 0 || row.dealerStaffId || (row.loyaltyPoints ?? 0) > 0
+      || row.nicknameKey || row.apprenticeship || row.mentoringBonds?.length) {
+      invalid(`drop would erase a career for ${id}`);
+    }
     dropped.add(id);
     projected.delete(id);
   }

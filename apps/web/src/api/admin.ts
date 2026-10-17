@@ -11,6 +11,10 @@ import type {
   AdminCrewCorrectionResult,
   AdminCrewPlayerDto,
   AdminCrewRosterDto,
+  AdminCrewReleaseHealthDto,
+  AdminCrewProvenanceDto,
+  AdminCrewLoyaltyRepairResultDto,
+  AdminCrewRosterRepairResultDto,
   AdminLoanCorrectionInput,
   AdminLoanCorrectionResult,
   AdminLoanPlayerDto,
@@ -115,6 +119,14 @@ export const adminApi = {
   updateRound: (roundId: string, input: AdminUpdateRoundInput) => api.post<AdminRoundResultDto>(roundPath(roundId, 'update'), input),
   roundHealth: (roundId: string) => api.get<AdminRoundHealthDto>(roundPath(roundId, 'health')),
   crewRoster: (roundId: string) => api.get<AdminCrewRosterDto>(roundPath(roundId, 'crew')),
+  crewReleaseHealth: (roundId: string) =>
+    api.get<AdminCrewReleaseHealthDto>(roundPath(roundId, 'crew/release-health')),
+  crewReceiptProvenance: (roundPlayerId: string, memberId: string) =>
+    api.get<AdminCrewProvenanceDto>(`/admin/players/${enc(roundPlayerId)}/crew/${enc(memberId)}/provenance`),
+  reconcileCrewLoyalty: (roundPlayerId: string, memberId: string, reason: string, expectedPoints: number) =>
+    api.post<AdminCrewLoyaltyRepairResultDto>(`/admin/players/${enc(roundPlayerId)}/crew/${enc(memberId)}/loyalty/reconcile`, { reason, expectedPoints }),
+  repairCrewRoster: (roundPlayerId: string, reason: string) =>
+    api.post<AdminCrewRosterRepairResultDto>(`/admin/players/${enc(roundPlayerId)}/crew/reconcile`, { reason }),
   updateStreetPass: (roundId: string, input: AdminStreetPassUpdateInput) => api.post<AdminRoundHealthDto>(roundPath(roundId, 'street-pass'), input),
   rulesetChange: (roundId: string, rulesetId?: string) =>
     api.get<AdminRulesetChangeDto>(`${roundPath(roundId, 'ruleset-change')}${queryString({ rulesetId })}`),
