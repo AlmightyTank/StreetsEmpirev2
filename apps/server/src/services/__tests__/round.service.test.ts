@@ -25,6 +25,7 @@ function round(overrides: Partial<Round> = {}): Round {
     pauseReason: null,
     pausedByUsername: null,
     pausedMinutesTotal: 0,
+    underworldOperationsEnabled: false,
     registrationOpensAt: null,
     alertsOpenedAt: null,
     alertsEndingSoonAt: null,
