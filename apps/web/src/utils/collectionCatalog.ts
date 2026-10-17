@@ -1,5 +1,6 @@
 import {
   ITEM_COSMETIC_STYLES,
+  COLLECTION_COVERAGE,
   RELEASED_ITEM_COSMETIC_STYLES,
   isHiddenStyle,
   type ItemCosmeticStyleKey,
@@ -270,7 +271,7 @@ export function buildItemLooks(catalog: CollectionEntry[] = buildCollectionCatal
     style: style.key,
     label: style.label,
     description: style.description,
-    fullCollection: !('items' in style && style.items),
+    fullCollection: !('items' in style && style.items) && !COLLECTION_COVERAGE[style.key],
     source: style.key === 'classic'
       ? { kind: 'default', label: 'Included for everyone' } satisfies CollectionSource
       : byStyle.get(style.key) ?? ({ kind: 'unavailable', label: 'Not yet earnable' } satisfies CollectionSource),
