@@ -39,12 +39,19 @@ const adminRoundRollCallRoutes: FastifyPluginAsync = async (fastify) => {
       }),
     ]);
     const clock = roundRollCallClock(round, new Date());
-    const economy = rollCallEconomyProjection(clock.roundDays, players, round.roundLoginRewardVersion);
+    // Diagnostic endpoints must remain readable even when an invalid or
+    // unsupported round-pinned catalog is the very problem to investigate.
+    let economy: ReturnType<typeof rollCallEconomyProjection> | null = null;
+    try { economy = rollCallEconomyProjection(clock.roundDays, players, round.roundLoginRewardVersion); }
+    catch { /* releaseWarnings below makes the unsupported catalog visible. */ }
     const releaseWarnings = rollCallReleaseWarnings({
       players, roundDays: clock.roundDays, requiredStamps: clock.requiredStamps,
       actualLogins, recoveredStamps, recoveryAudits, rewardClaims,
       rewardVersion: round.roundLoginRewardVersion,
     });
+    if (economy === null && !releaseWarnings.includes('UNKNOWN_REWARD_VERSION')) {
+      releaseWarnings.push('REWARD_PROJECTION_INVALID');
+    }
     return {
       roundId,
       status: round.status,
