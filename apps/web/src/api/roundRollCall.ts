@@ -33,6 +33,25 @@ export interface RoundRollCallTier {
   rewards: QuestRewardDto[];
 }
 
+export type RollCallRecoveryReason =
+  'ready' | 'closed' | 'complete' | 'limit' | 'allowance' | 'genuine_stamp' | 'no_eligible_day';
+
+export interface RoundRollCallRecoveryStatus {
+  used: number;
+  limit: number;
+  remaining: number;
+  eligible: boolean;
+  reason: RollCallRecoveryReason;
+  nextDayIndex: number | null;
+  genuineStamps: number;
+  history: { dayIndex: number; recoveredAt: string }[];
+}
+export interface RoundRollCallRecoverResult extends RoundRollCallCheckIn {
+  replayed: boolean;
+  dayIndex: number;
+  recovery: RoundRollCallRecoveryStatus;
+}
+
 export interface RoundRollCallBoard {
   rewardVersion: string;
   roundDays: number;
@@ -59,6 +78,7 @@ export interface RoundRollCallBoard {
     crewStyle: string;
     name: string;
   };
+  recovery: RoundRollCallRecoveryStatus;
   rewardTrack: RoundRollCallTier[];
 }
 
@@ -79,6 +99,7 @@ export interface RoundRollCallCheckIn {
 export const roundRollCallApi = {
   board: () => api.get<RoundRollCallBoard>('/game/round-roll-call'),
   checkIn: () => api.post<RoundRollCallCheckIn>('/game/round-roll-call/check-in'),
+  recover: (actionId: string) => api.post<RoundRollCallRecoverResult>('/game/round-roll-call/recover', { actionId }),
   claim: (tier: number, actionId: string) =>
     api.post<GameActionResult<RoundRollCallClaimResult>>('/game/round-roll-call/claim', { tier, actionId }),
 };
