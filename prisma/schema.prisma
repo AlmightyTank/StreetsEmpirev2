@@ -1109,6 +1109,37 @@ model PlayerArmedFavor {
 }
 
 // ---------------------------------------------------------------------------
+// Round Roll Call (docs/ROUND-ROLL-CALL.md)
+// ---------------------------------------------------------------------------
+
+/// A stamp is an authenticated foreground visit to one server-side round day.
+model RoundLoginCheckIn {
+  id String @id @default(cuid())
+  roundPlayerId String
+  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  dayIndex Int
+  checkedInAt DateTime @default(now())
+  @@unique([roundPlayerId, dayIndex])
+  @@index([roundPlayerId, checkedInAt])
+}
+
+/// One atomic paid reward step; ownership and payout are per round player.
+/// Cosmetics in Slice D will separately use persistent AccountCosmeticUnlock.
+model RoundLoginRewardClaim {
+  id String @id @default(cuid())
+  roundPlayerId String
+  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  tier Int
+  rewardVersion String
+  rarity String
+  /// Stable snapshot of what was actually awarded, including amounts in cents.
+  definition Json
+  claimedAt DateTime @default(now())
+  @@unique([roundPlayerId, tier])
+  @@index([roundPlayerId, claimedAt])
+}
+
+// ---------------------------------------------------------------------------
 // Street Pass (docs/STREET-PASS.md)
 // ---------------------------------------------------------------------------
 
@@ -1289,6 +1320,8 @@ model Round {
   rulesetVersion     String
   /// Per-round Street Pass reward edits, frozen when registration opens.
   streetPassOverride Json?
+  /// Reward catalog version fixed for this round; newer seasons never rewrite its prizes.
+  roundLoginRewardVersion String @default("round-roll-call-v1")
 
   status RoundStatus @default(SCHEDULED)
 
@@ -1679,6 +1712,8 @@ model RoundPlayer {
   armedFavors           PlayerArmedFavor[]
   streetPassProgress    StreetPassProgress?
   streetPassClaims      StreetPassClaim[]
+  roundLoginCheckIns     RoundLoginCheckIn[]
+  roundLoginRewardClaims RoundLoginRewardClaim[]
   surveySubmissions     SurveySubmission[]
   raidsSent             RaidBattle[]         @relation("RaidAttacker")
   raidsReceived         RaidBattle[]         @relation("RaidDefender")
