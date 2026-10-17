@@ -3,6 +3,7 @@ import { rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate, NavLink, useParams } from 'react-router-dom';
 import { formatCents, formatNumber, type ProductsDto, type StoreCheckoutLineInput, type StoreCheckoutResult, type StoreDto, type StoreItemDto, type StoreMarketContextDto, type StoreRestockDto, type StoresDto, type StoreSpecialOrderResult, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
+import { onQuestsChanged } from '../quests/questSignals.js';
 import { storesApi } from '../api/stores.js';
 import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionResult, type ResultLine } from '../components/ActionResult.js';
@@ -453,10 +454,13 @@ function StoreView({
     const visible = () => {
       if (document.visibilityState === 'visible') loadProducts();
     };
-    window.addEventListener('streets:quests-changed', loadProducts);
+    const unsubscribe = onQuestsChanged((detail) => {
+      if (detail.scope === 'board') return;
+      loadProducts();
+    });
     document.addEventListener('visibilitychange', visible);
     return () => {
-      window.removeEventListener('streets:quests-changed', loadProducts);
+      unsubscribe();
       document.removeEventListener('visibilitychange', visible);
     };
   }, [slug, loadProducts]);

@@ -545,6 +545,11 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return HandcraftedQuestService.page(fastify.prisma, player.id, loadRulesetForRound(round));
   });
 
+  fastify.get('/quests/tracked', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return HandcraftedQuestService.tracked(fastify.prisma, player.id, loadRulesetForRound(round));
+  });
+
   fastify.put('/quests/auto-accept', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(questAutoAcceptSchema, request.body);
     const { round, player } = await requirePlayer(request.auth!.account.id);
@@ -576,7 +581,16 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(questClaimSchema, request.body);
     const { round, player } = await requirePlayer(request.auth!.account.id);
     const key = String((request.params as { key: string }).key).trim().toUpperCase();
-    return HandcraftedQuestService.claim(fastify.prisma, player.id, loadRulesetForRound(round), key, body);
+    const ruleset = loadRulesetForRound(round);
+    const result = await HandcraftedQuestService.claim(fastify.prisma, player.id, ruleset, key, body);
+    // The claim already refreshed the jobs it can open. Attach that board so the
+    // client does not GET /quests, and still return the receipt if the read fails.
+    try {
+      const page = await HandcraftedQuestService.page(fastify.prisma, player.id, ruleset, { skipSync: true, skipRefresh: true });
+      return { ...result, page };
+    } catch {
+      return result;
+    }
   });
 
   /** Street Pass: the round's track and this player's Cred and claims. `pass` is null on rounds without one. */

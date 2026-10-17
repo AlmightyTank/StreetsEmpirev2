@@ -1743,6 +1743,11 @@ export interface PlayerQuestDto {
   branchChoices: QuestBranchChoiceDto[];
   story?: QuestStoryDto;
   objectives: QuestObjectiveDto[];
+  /**
+   * Set when the job has bonus objectives. Each finished one adds this percent
+   * to cash, turns, goods, and contact reputation.
+   */
+  bonusRewardPercent?: number;
   rewards: QuestRewardDto[];
   seasonalEvent?: {
     eventKey: string;
@@ -1935,6 +1940,16 @@ export interface StreetPassClaimResult {
   passKey: string;
   tier: number;
   rewards: QuestRewardDto[];
+}
+
+/** Tracked active jobs only. Skips the full quest board. */
+export interface TrackedQuestsDto {
+  quests: PlayerQuestDto[];
+}
+
+/** Claim receipt plus the board, so the desk does not fetch quests again. `page` is absent when that read fails. */
+export interface QuestClaimResponse extends GameActionResult<QuestClaimResult> {
+  page?: QuestPageDto;
 }
 
 export interface QuestClaimResult {

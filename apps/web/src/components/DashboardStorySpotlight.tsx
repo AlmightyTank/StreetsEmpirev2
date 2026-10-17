@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { PlayerQuestDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
+import { onQuestsChanged } from '../quests/questSignals.js';
 import { questsApi } from '../api/quests.js';
 import { buildQuestBoard } from '../utils/questBoard.js';
 import { NavIcon } from './NavIcon.js';
@@ -34,8 +35,16 @@ export function DashboardStorySpotlight() {
       });
     };
     refresh();
-    window.addEventListener('streets:quests-changed', refresh);
-    cleanups.push(() => window.removeEventListener('streets:quests-changed', refresh));
+    cleanups.push(onQuestsChanged((detail) => {
+      if (detail.quests) {
+        if (!active) return;
+        setQuests(detail.quests);
+        setFailed(false);
+        return;
+      }
+      if (detail.scope === 'board') return;
+      refresh();
+    }));
     return () => { active = false; for (const cleanup of cleanups) cleanup(); };
   }, []);
 

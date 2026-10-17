@@ -6,6 +6,8 @@ import type {
   ActivityDto,
   DefaultLanding,
   GameSnapshotDto,
+  PlayerSnapshot,
+  RankChanges,
   VerifyEmailTokenInput,
   LoginInput,
   RegisterInput,
@@ -95,6 +97,8 @@ interface SessionState {
   refreshRound: () => Promise<void>;
   /** Section 45/47. Pull the authoritative dashboard state. */
   refreshSnapshot: (options?: { background?: boolean }) => Promise<void>;
+  /** Paint an action receipt's balances before the follow-up /me settle returns. */
+  applyActionSnapshot: (after: PlayerSnapshot, rankChanges?: RankChanges) => void;
 
   register: (input: RegisterInput) => Promise<string | null>;
   /** rc.3: resolves `twoFactorRequired` when the sign-in waits for an authenticator code. */
@@ -184,6 +188,30 @@ export const useSession = create<SessionState>((set, get) => ({
       ...(previousPlayerId === nextPlayerId
         ? {}
         : { recentActivity: [], activityHydratedForPlayerId: null }),
+    });
+  },
+
+  applyActionSnapshot(after, rankChanges) {
+    const me = get().me;
+    if (!me) return;
+    set({
+      me: {
+        ...me,
+        netWorthCents: after.netWorthCents,
+        resources: { ...me.resources, ...after.resources },
+        turns: { ...me.turns, turns: after.turns },
+        happiness: {
+          ...me.happiness,
+          whore: after.whoreHappiness,
+          thug: after.thugHappiness,
+        },
+        rank: rankChanges
+          ? { ...me.rank, local: rankChanges.localAfter, national: rankChanges.nationalAfter }
+          : me.rank,
+        products: me.products?.map((product) => product.key === 'CRACK'
+          ? { ...product, quantity: after.resources.crack }
+          : product) ?? me.products,
+      },
     });
   },
 

@@ -5,6 +5,7 @@ import { livingStoryCatalogForRuleset, rulesets } from '@streets/rulesets';
 import { caseFilesApi } from '../api/caseFiles.js';
 import { caseFileHref } from '../utils/caseFiles.js';
 import { caseStorySignals, type CaseStorySignal } from '../utils/caseStoryAlertsPolicy.js';
+import { onQuestsChanged } from '../quests/questSignals.js';
 import { useSession } from '../stores/session.js';
 import { GameDialog } from './GameUI.js';
 
@@ -68,12 +69,15 @@ export function CaseStoryAlerts() {
     check(false); // silent baseline on mount/login
     const onCompletedAction = () => check(true);
     const onVisible = () => { if (!document.hidden) check(initialized || pending); };
-    window.addEventListener('streets:quests-changed', onCompletedAction);
+    const unsubscribe = onQuestsChanged((detail) => {
+      if (detail.scope === 'board') return;
+      onCompletedAction();
+    });
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       mounted = false;
       refreshRef.current = () => {};
-      window.removeEventListener('streets:quests-changed', onCompletedAction);
+      unsubscribe();
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [playerId, enabled]);

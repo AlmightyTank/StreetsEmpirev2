@@ -24,6 +24,7 @@ import { Portrait } from '../components/Portrait.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 import { confirmAction } from '../stores/confirm.js';
+import { publishQuestsChanged, trackedFromQuests } from '../quests/questSignals.js';
 import { buildQuestBoard, legacyQuestGroup, type QuestBoardGroupKey } from '../utils/questBoard.js';
 
 const BOARD_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
@@ -320,6 +321,9 @@ function QuestCard({
           />
         ))}
       </div>
+      {quest.bonusRewardPercent ? (
+        <p className="se-hint">Each finished bonus adds {quest.bonusRewardPercent}% to cash, turns, goods, and contact reputation.</p>
+      ) : null}
 
       {quest.rewards.length || quest.factionStandings.length ? (
         <div className="se-quest-reward-block">
@@ -471,8 +475,10 @@ export function QuestPage() {
       const responseReceivedAtMs = Date.now();
       applyPage(next, requestStartedAtMs, responseReceivedAtMs);
       setError(null);
+      return next;
     } catch {
       setError('Could not load jobs right now. Try again.');
+      return null;
     }
   }, [applyPage]);
 
@@ -593,7 +599,11 @@ export function QuestPage() {
       const next = await action();
       const responseReceivedAtMs = Date.now();
       applyPage(next, requestStartedAtMs, responseReceivedAtMs);
-      window.dispatchEvent(new Event('streets:quests-changed'));
+      publishQuestsChanged({
+        scope: 'board',
+        quests: next.quests,
+        tracked: trackedFromQuests(next.quests),
+      });
       if (success) setNotice(success);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'That job could not be updated.');
@@ -624,8 +634,10 @@ export function QuestPage() {
     setBusy(key);
     setError(null);
     setNotice(null);
+    const requestStartedAtMs = Date.now();
     try {
       const result = await questsApi.claim(key, crypto.randomUUID(), branchKey);
+      const responseReceivedAtMs = Date.now();
       const locked = result.result.standingChanges.flatMap((change) => change.locked ?? []);
       // Quest Recipe Unlocks D: say which recipe the job opened; Produce and Pip's counter reload on the event below.
       const opened = page?.recipeLadder?.find((rung) => rung.questKey === key);
@@ -636,8 +648,27 @@ export function QuestPage() {
         + (result.result.chosenBranch ? ' Choice locked: ' + (branchTitle ?? result.result.chosenBranch) + '.' : '')
         + (locked.length ? ' Inner Circle locked for the season: ' + locked.join(', ') + '.' : ''),
       );
-      window.dispatchEvent(new Event('streets:quests-changed'));
-      await Promise.all([load(), refreshSnapshot()]);
+      useSession.getState().applyActionSnapshot(result.after, result.rankChanges);
+      if (result.page) {
+        applyPage(result.page, requestStartedAtMs, responseReceivedAtMs);
+        publishQuestsChanged({
+          scope: 'action',
+          quests: result.page.quests,
+          tracked: trackedFromQuests(result.page.quests),
+        });
+      } else {
+        const next = await load();
+        if (next) {
+          publishQuestsChanged({
+            scope: 'action',
+            quests: next.quests,
+            tracked: trackedFromQuests(next.quests),
+          });
+        } else {
+          publishQuestsChanged({ scope: 'action' });
+        }
+      }
+      void refreshSnapshot({ background: true });
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Payment could not be collected.');
     } finally {
@@ -652,8 +683,12 @@ export function QuestPage() {
     try {
       const result = await questsApi.activateFavor(key, crypto.randomUUID());
       setNotice(result.result.name + ' is active until ' + formatClockTime(result.result.expiresAt) + '.');
-      window.dispatchEvent(new Event('streets:quests-changed'));
-      await Promise.all([load(), refreshSnapshot()]);
+      useSession.getState().applyActionSnapshot(result.after, result.rankChanges);
+      const next = await load();
+      publishQuestsChanged(next
+        ? { scope: 'board', quests: next.quests, tracked: trackedFromQuests(next.quests) }
+        : { scope: 'board' });
+      void refreshSnapshot({ background: true });
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'That favor could not be activated.');
     } finally {
@@ -668,8 +703,12 @@ export function QuestPage() {
     try {
       const result = await questsApi.armFavor(key, crypto.randomUUID());
       setNotice(result.result.name + ' is armed for the next eligible action.');
-      window.dispatchEvent(new Event('streets:quests-changed'));
-      await Promise.all([load(), refreshSnapshot()]);
+      useSession.getState().applyActionSnapshot(result.after, result.rankChanges);
+      const next = await load();
+      publishQuestsChanged(next
+        ? { scope: 'board', quests: next.quests, tracked: trackedFromQuests(next.quests) }
+        : { scope: 'board' });
+      void refreshSnapshot({ background: true });
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'That favor could not be armed.');
     } finally {
@@ -684,8 +723,12 @@ export function QuestPage() {
     try {
       const result = await questsApi.disarmFavor(key, crypto.randomUUID());
       setNotice(result.result.name + ' returned to your favor inventory.');
-      window.dispatchEvent(new Event('streets:quests-changed'));
-      await Promise.all([load(), refreshSnapshot()]);
+      useSession.getState().applyActionSnapshot(result.after, result.rankChanges);
+      const next = await load();
+      publishQuestsChanged(next
+        ? { scope: 'board', quests: next.quests, tracked: trackedFromQuests(next.quests) }
+        : { scope: 'board' });
+      void refreshSnapshot({ background: true });
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'That favor could not be disarmed.');
     } finally {

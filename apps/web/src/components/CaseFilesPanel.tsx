@@ -8,6 +8,7 @@ import { Alert } from './Alert.js';
 import { EmptyState, GameDialog, StatusBadge } from './GameUI.js';
 import { CASE_ACTION_LINKS, CASE_STATUS_LABEL, caseProgress, caseTimeline } from '../utils/caseFiles.js';
 import { formatWhen } from '../utils/time.js';
+import { onQuestsChanged } from '../quests/questSignals.js';
 import { useSession } from '../stores/session.js';
 
 interface Decision {
@@ -159,11 +160,14 @@ export function CaseFilesPanel({ focusId }: { focusId: string | null }) {
   useEffect(() => {
     const onChange = () => reload();
     const onVisible = () => { if (!document.hidden) reload(); };
-    window.addEventListener('streets:quests-changed', onChange);
+    const unsubscribe = onQuestsChanged((detail) => {
+      if (detail.scope === 'board') return;
+      onChange();
+    });
     window.addEventListener('streets:case-files-changed', onChange);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
-      window.removeEventListener('streets:quests-changed', onChange);
+      unsubscribe();
       window.removeEventListener('streets:case-files-changed', onChange);
       document.removeEventListener('visibilitychange', onVisible);
     };

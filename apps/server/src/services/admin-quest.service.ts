@@ -14,7 +14,7 @@ import {
   selectedDailyContractKeys,
 } from './daily-contract.service.js';
 import { FavorContentService } from './favor-content.service.js';
-import { syncDefinitions } from './handcrafted-quest.service.js';
+import { invalidateQuestDefinitionSync, syncDefinitions } from './handcrafted-quest.service.js';
 import {
   WEEKLY_CONTRACT_SLOTS,
   selectedWeeklyContractKeys,
@@ -230,6 +230,7 @@ export const AdminQuestService = {
       });
     });
 
+    invalidateQuestDefinitionSync(ruleset);
     return this.content(prisma, roundId);
   },
 

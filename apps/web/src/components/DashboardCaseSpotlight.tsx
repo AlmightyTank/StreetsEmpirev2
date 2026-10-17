@@ -4,6 +4,7 @@ import type { CriminalCaseFileDto } from '@streets/shared';
 import { livingStoryCatalogForRuleset, rulesets } from '@streets/rulesets';
 import { caseFilesApi } from '../api/caseFiles.js';
 import { CASE_ACTION_LINKS, caseFileHref, caseProgress, nextCaseLead } from '../utils/caseFiles.js';
+import { onQuestsChanged } from '../quests/questSignals.js';
 import { useSession } from '../stores/session.js';
 
 export function DashboardCaseSpotlight() {
@@ -28,11 +29,14 @@ export function DashboardCaseSpotlight() {
     };
     load();
     window.addEventListener('streets:case-files-changed', load);
-    window.addEventListener('streets:quests-changed', load);
+    const unsubscribe = onQuestsChanged((detail) => {
+      if (detail.scope === 'board') return;
+      load();
+    });
     return () => {
       mounted = false;
+      unsubscribe();
       window.removeEventListener('streets:case-files-changed', load);
-      window.removeEventListener('streets:quests-changed', load);
     };
   }, [playerId, storiesEnabled, activityHead]);
 

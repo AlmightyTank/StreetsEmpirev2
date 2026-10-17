@@ -599,6 +599,65 @@ export async function communityEventSnapshot(
   return communityEventSnapshotFromParticipants(row, state, required, participantRows);
 }
 
+/** One participation read for every community event on the board. Rows with no participants keep the legacy quest-owned fallback. */
+export async function communityEventSnapshots(
+  db: Db,
+  rows: CommunityEventQuestRow[],
+): Promise<Map<string, CommunityEventSnapshot>> {
+  const snapshots = new Map<string, CommunityEventSnapshot>();
+  const prepared: Array<{ row: CommunityEventQuestRow; state: CommunityEventState; required: QuestObjectiveDefinition[] }> = [];
+  for (const row of rows) {
+    const state = communityEventState(row.rewardState);
+    const required = objectives(row.questDefinition.objectives);
+    if (!state || !required.length) continue;
+    prepared.push({ row, state, required });
+  }
+  if (!prepared.length) return snapshots;
+
+  const participantRows = await db.gameEventParticipation.findMany({
+    where: {
+      occurrence: {
+        roundId: { in: [...new Set(prepared.map((item) => item.state.roundId))] },
+        definition: {
+          sourceKind: 'QUEST_DEFINITION',
+          sourceKey: { in: [...new Set(prepared.map((item) => item.row.questDefinition.key))] },
+        },
+      },
+    },
+    select: {
+      roundPlayerId: true,
+      progress: true,
+      occurrence: {
+        select: {
+          roundId: true,
+          occurrenceKey: true,
+          definition: { select: { sourceKey: true } },
+        },
+      },
+    },
+  });
+
+  for (const item of prepared) {
+    const matches = participantRows.filter((participant) =>
+      participant.occurrence.definition.sourceKey === item.row.questDefinition.key
+      && participant.occurrence.roundId === item.state.roundId
+      && participant.occurrence.occurrenceKey === item.state.roundId);
+    if (matches.length === 0) {
+      const legacy = await communityEventSnapshot(db, item.row);
+      if (legacy) snapshots.set(item.row.id, legacy);
+      continue;
+    }
+    const snapshot = communityEventSnapshotFromParticipants(
+      item.row,
+      item.state,
+      item.required,
+      matches.map((participant) => ({ roundPlayerId: participant.roundPlayerId, progress: participant.progress })),
+    );
+    if (snapshot) snapshots.set(item.row.id, snapshot);
+  }
+  return snapshots;
+}
+
 function communityEventSnapshotFromParticipants(
   row: CommunityEventQuestRow,
   state: CommunityEventState,
