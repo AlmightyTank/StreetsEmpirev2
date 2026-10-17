@@ -9,6 +9,7 @@ import { ActionService } from './action.service.js';
 import { grantRewards, rewardDto } from './reward-grant.service.js';
 import { RoundRollCallService, roundRollCallClock } from './round-roll-call.service.js';
 import { RoundRollCallCosmeticService } from './round-roll-call-cosmetic.service.js';
+import { RoundRollCallRecoveryService } from './round-roll-call-recovery.service.js';
 import {
   roundRollCallCatalog,
   type RoundRollCallRarity,
@@ -61,7 +62,10 @@ export const RoundRollCallRewardService = {
       }),
       db.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { accountId: true } }),
     ]);
-    const [grandPrize] = await Promise.all([RoundRollCallCosmeticService.ownership(db, player.accountId)]);
+    const [grandPrize, recovery] = await Promise.all([
+      RoundRollCallCosmeticService.ownership(db, player.accountId),
+      RoundRollCallRecoveryService.status(db, round, roundPlayerId, now, attendance),
+    ]);
     const receipts = new Map(claimed.map((claim) => [claim.tier, claim]));
     const catalogVersion = round.roundLoginRewardVersion;
     const catalog = roundRollCallCatalog(attendance.requiredStamps, catalogVersion);
@@ -70,6 +74,7 @@ export const RoundRollCallRewardService = {
       ...attendance,
       rewardVersion: catalogVersion,
       grandPrize,
+      recovery,
       rewardTrack: catalog.map((step) => {
         const paid = receipts.get(step.tier);
         return {
