@@ -23,7 +23,7 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatDuration } from '../utils/time.js';
 import { browserSessionStorage, clearPendingAction, loadPendingAction, savePendingAction } from '../utils/pendingAction.js';
-import { addStoreBasketLine, isStoreBasket, removeStoreBasketLine, STORE_BASKET_MAX_AGE_MS, type StoreBasketLine } from '../utils/storeBasket.js';
+import { addStoreBasketLine, basketOverStockReason, capBasketToStock, isStoreBasket, quantityInBasket, removeStoreBasketLine, STORE_BASKET_MAX_AGE_MS, type StoreBasketLine } from '../utils/storeBasket.js';
 
 type Order = Omit<StoreTradeInput, 'actionId'>;
 type BasketLine = StoreBasketLine;
@@ -136,10 +136,12 @@ function relationshipSummary(input: {
   return parts.join(' · ');
 }
 
-function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpers, blocked, onTrade, onSpecialOrder, onAddToBasket, onRestock }: {
+function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpers, blocked, basket, onTrade, onSpecialOrder, onAddToBasket, onRestock }: {
   item: StoreItemDto; store: string; storeName: string; keeper: string; owned: number; cashCents: number;
   /** Why the whole shelf is off, or null when it is open for business. */
-  bulkHelpers: number[]; blocked: string | null; onTrade: (order: Order) => Promise<void>;
+  bulkHelpers: number[]; blocked: string | null;
+  basket: readonly BasketLine[];
+  onTrade: (order: Order) => Promise<void>;
   onSpecialOrder: (store: string, item: string) => Promise<void>;
   onAddToBasket: (line: BasketLine) => void;
   onRestock: () => void;
@@ -158,6 +160,8 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
     : owned;
   const soldOut = buying && item.restock !== null && item.restock.stock === 0;
   const specialOrder = item.restock?.specialOrder ?? null;
+  const inBasket = quantityInBasket(basket, `${store}:${item.key}:${direction}`);
+  const stockLimit = buying && item.restock ? item.restock.stock : null;
   const valid = typeof quantity === 'number' && Number.isSafeInteger(quantity) && quantity > 0 && quantity <= max;
   const total = valid && unitCents !== null ? quantity * unitCents : null;
   const quantityId = `quantity-${item.key}`;
@@ -173,6 +177,9 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
         : !valid || total === null
           ? `Enter a whole number from 1 to ${formatNumber(max)}.`
           : null);
+  const basketBlock = basketOverStockReason({
+    quantity, inBasket, stock: stockLimit, itemName: item.name, keeper,
+  });
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -181,7 +188,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
   }
 
   function addToBasket() {
-    if (blocked || purchaseLocked || !valid || typeof quantity !== 'number' || unitCents === null) return;
+    if (blocked || purchaseLocked || basketBlock || !valid || typeof quantity !== 'number' || unitCents === null) return;
     onAddToBasket({
       key: `${store}:${item.key}:${direction}`,
       store,
@@ -192,6 +199,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
       itemName: item.name,
       unitCents,
       stockLabel,
+      stockLimit,
     });
   }
 
@@ -266,6 +274,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
               {buying ? 'Can buy' : 'Can sell'} {formatNumber(max)}.
               {buying && item.restock && max === item.restock.stock && max > 0
                 ? ' That is the whole shelf.' : ''}
+              {stockLimit !== null && inBasket > 0 ? ` Basket has ${formatNumber(inBasket)}.` : ''}
               {quantity !== '' && !valid ? ' Enter a whole quantity within that limit.' : ''}
             </>}
           </p>
@@ -277,7 +286,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
           <Button
             type="button"
             className="se-btn se-btn--block"
-            disabledReason={tradeBlock ?? (unitCents === null ? 'This item cannot be added to the basket.' : null)}
+            disabledReason={tradeBlock ?? basketBlock ?? (unitCents === null ? 'This item cannot be added to the basket.' : null)}
             onClick={addToBasket}
           >
             Add to basket
@@ -414,12 +423,14 @@ function StoreView({
   onAddToBasket,
   onRemoveFromBasket,
   onClearBasket,
+  onCapBasket,
 }: {
   slug: string;
   basket: BasketLine[];
   onAddToBasket: (line: BasketLine) => void;
   onRemoveFromBasket: (key: string) => void;
   onClearBasket: () => void;
+  onCapBasket: (limits: Readonly<Record<string, number>>) => void;
 }) {
   const me = useSession((s) => s.me);
   const action = useGameAction<StoreTradeResult | StoreCheckoutResult | StoreSpecialOrderResult>();
@@ -468,6 +479,20 @@ function StoreView({
     });
     return () => { active = false; };
   }, [me?.resources, reload]);
+
+  useEffect(() => {
+    if (!catalog) return;
+    const limits: Record<string, number> = {};
+    for (const entry of catalog.stores) {
+      for (const item of entry.items) {
+        if (item.restock) limits[`${entry.key}:${item.key}:buy`] = item.restock.stock;
+      }
+    }
+    for (const product of products?.products ?? []) {
+      if (product.pip) limits[`PIP:${product.key}:buy`] = product.pip.stock;
+    }
+    onCapBasket(limits);
+  }, [catalog, products, onCapBasket]);
 
   async function execute(command: StoreCommand, recoveredActionId?: string) {
     await action.run(async (actionId) => {
@@ -718,6 +743,7 @@ function StoreView({
                       cashCents={me.resources.cashCents}
                       bulkHelpers={catalog.bulkHelpers}
                       blocked={counterBlock}
+                      basket={basket}
                       onTrade={(order) => execute({ kind: 'trade', order })}
                       onSpecialOrder={(sourceStore, sourceItem) => execute({ kind: 'specialOrder', store: sourceStore, item: sourceItem })}
                       onAddToBasket={onAddToBasket}
@@ -731,6 +757,7 @@ function StoreView({
                       cashCents={me.resources.cashCents}
                       bulkHelpers={catalog.bulkHelpers}
                       blocked={counterBlock}
+                      basket={basket}
                       onDone={loadProducts}
                       storeName={store.name}
                       onAddToBasket={onAddToBasket}
@@ -1012,6 +1039,10 @@ export function StorePage() {
     setBasket((current) => addStoreBasketLine(current, line));
   }
 
+  const capBasket = useCallback((limits: Readonly<Record<string, number>>) => {
+    setBasket((current) => capBasketToStock(current, limits));
+  }, []);
+
   function removeFromBasket(key: string) {
     setBasket((current) => removeStoreBasketLine(current, key));
   }
@@ -1024,6 +1055,7 @@ export function StorePage() {
       onAddToBasket={addToBasket}
       onRemoveFromBasket={removeFromBasket}
       onClearBasket={() => setBasket([])}
+      onCapBasket={capBasket}
     />
   );
 }
