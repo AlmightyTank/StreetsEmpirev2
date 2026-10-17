@@ -31,6 +31,10 @@
 .se-operation__checklist { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--se-line); }
 .se-operation__checklist span { font: 700 11px var(--se-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--se-muted); }
 .se-operation__checklist span.is-done { color: var(--se-good); }
+.se-operation__cite { display: grid; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--se-line); }
+.se-operation__cite form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.se-operation__cite form > span { font: 700 11px var(--se-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--se-muted); }
+.se-operation__cite input, .se-operation__cite select { min-width: 0; flex: 1 1 140px; }
 .se-operation-offer { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--se-line); }
 .se-operation-offer p { margin: 0; color: var(--se-text-dim); }
 @media (max-width: 720px) {

@@ -557,6 +557,8 @@ describe('2.2.0 underworld operations', () => {
     await OperationsService.cite(db, 'leader-1', { operationId: score.id, windowKey: 'intel', sourceKind: 'intel-rumor', sourceId: 'rumor-1' });
     const late = await OperationsService.cite(db, 'leader-1', { operationId: score.id, windowKey: 'intel', sourceKind: 'intel-rumor', sourceId: 'rumor-1' });
     expect(late.checklist.filter((item) => item.key === 'intel' && item.done)).toHaveLength(1);
+    expect(late.checklist.find((item) => item.key === 'intel')!.sourceKinds).toEqual(['intel-rumor']);
+    expect(late.canCite).toBe(true);
     const partial = await OperationsService.execute(db, 'leader-1', { operationId: score.id });
     expect(partial.report!.band).toBe('partial');
     expect(partial.report!.totalPayoutCents).toBe(4_000);

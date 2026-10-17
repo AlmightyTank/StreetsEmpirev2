@@ -115,6 +115,7 @@ export function toOperationDto(
         key: window.key,
         label: window.key,
         done: windows.some((row) => row.key === window.key && Boolean(row.sourceId)),
+        sourceKinds: [...window.sourceKinds],
       })),
       ...seatDtos.map((seat) => ({ key: `seat:${seat.role}`, label: seat.role, done: seat.status === 'LOCKED' || seat.status === 'ACCEPTED' })),
     ]
@@ -140,6 +141,7 @@ export function toOperationDto(
     roles: classic,
     seats: seatDtos,
     checklist,
+    canCite: operation.leaderId === viewerId || seats.some((seat) => seat.roundPlayerId === viewerId && (seat.status === 'LOCKED' || seat.status === 'ACCEPTED')),
     countdownEndsAt: countdownEnds,
     bands: snapshot ? {
       success: snapshot.bands.success,
