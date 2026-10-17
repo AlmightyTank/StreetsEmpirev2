@@ -11,6 +11,8 @@
  *       On the VPS, from the checkout: sends that post to the local game API, which
  *       schedules it PATCH_NOTES_HOLD_MINUTES ahead so staff can edit, delete or
  *       publish it from Admin → News before players, Discord or the forum see it.
+ *       The title is "Patch notes for <version>", using APP_VERSION
+ *       (MAJOR.MINOR.PATCH, for example 2.2.0).
  *
  * Plain Node on purpose, like check-environment.mjs: no install step needed.
  */
@@ -23,6 +25,13 @@ import { parseEnvFile } from './check-environment.mjs';
 /** Same limits as Admin → News. */
 export const TITLE_MAX = 120;
 export const BODY_MAX = 4000;
+
+/**
+ * Semantic Versioning 2.0.0: MAJOR.MINOR.PATCH, then an optional pre-release
+ * (`-alpha.1`) and build metadata (`+build.123`).
+ * MAJOR resets MINOR and PATCH. MINOR resets PATCH. PATCH is a drop-in fix.
+ */
+export const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
 
 const HEADING = /^#{1,6}\s/;
 const SECTION = /^#{2,3}\s*patch notes\s*:?\s*$/i;
@@ -45,16 +54,29 @@ export function extractPatchNotes(body) {
   return notes;
 }
 
+/** APP_VERSION from packages/shared/src/platform.ts. Rejects anything that is not SemVer. */
+export function readAppVersion(source) {
+  const match = String(source ?? '').match(/export const APP_VERSION = '([^']*)'/);
+  const version = match?.[1] ?? '';
+  if (!SEMVER.test(version)) {
+    throw new Error(`APP_VERSION must be MAJOR.MINOR.PATCH (for example 2.2.0). Got "${version}".`);
+  }
+  return version;
+}
+
 /**
- * One news post for a deploy, or null when no PR had notes. Pull requests are
- * listed in merge order; past the body limit the rest are counted, not cut mid-line.
+ * One news post for a deploy, or null when no PR had notes. `version` is the
+ * release these notes belong to, MAJOR.MINOR.PATCH. Pull requests are listed
+ * in merge order; past the body limit the rest are counted, not cut mid-line.
  */
-export function buildPatchNotes(pulls, date = new Date()) {
+export function buildPatchNotes(pulls, version) {
+  if (!SEMVER.test(version ?? '')) {
+    throw new Error(`Patch notes need a MAJOR.MINOR.PATCH version (for example 2.2.0). Got "${version ?? ''}".`);
+  }
   const notes = [...pulls]
     .sort((a, b) => Date.parse(a.mergedAt) - Date.parse(b.mergedAt))
     .flatMap((pull) => extractPatchNotes(pull.body));
   if (!notes.length) return null;
-  const day = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
   const lines = [];
   for (const [index, note] of notes.entries()) {
     const line = `- ${note}`;
@@ -67,7 +89,7 @@ export function buildPatchNotes(pulls, date = new Date()) {
     }
     lines.push(line);
   }
-  return { title: `Patch notes: ${day}`.slice(0, TITLE_MAX), body: lines.join('\n') };
+  return { title: `Patch notes for ${version}`.slice(0, TITLE_MAX), body: lines.join('\n') };
 }
 
 function arg(name) {
@@ -99,7 +121,8 @@ async function collect() {
     process.exit(2);
   }
   const pulls = mergedPulls(from, to, branch, repo);
-  const post = buildPatchNotes(pulls);
+  const version = readAppVersion(fs.readFileSync(path.resolve(process.cwd(), 'packages/shared/src/platform.ts'), 'utf8'));
+  const post = buildPatchNotes(pulls, version);
   console.error(`${pulls.length} merged pull request${pulls.length === 1 ? '' : 's'}${pulls.length ? ` (#${pulls.map((pull) => pull.number).join(', #')})` : ''}; ${post ? 'patch notes found' : 'none had patch notes'}.`);
   console.log(JSON.stringify(post));
 }

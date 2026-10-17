@@ -84,12 +84,19 @@ that waits for review:
 2. The workflow finds every PR merged into the deployed branch since the last
    deploy whose notes were handled, and collects their bullets in merge order.
 3. It sends them to the game on the VPS as a global news post titled
-   `Patch notes: <date>`, scheduled `PATCH_NOTES_HOLD_MINUTES` ahead (default
-   120). The run's summary page shows the notes too.
+   `Patch notes for <version>`. `<version>` is `APP_VERSION` in
+   `packages/shared/src/platform.ts`, written as MAJOR.MINOR.PATCH (for example
+   `2.2.0`). Bump MAJOR for breaking changes, MINOR for backward-compatible
+   features, and PATCH for fixes. Bumping MAJOR resets MINOR and PATCH to 0.
+   Bumping MINOR resets PATCH to 0. A pre-release or build tag (`-alpha.1`,
+   `+build.123`) can follow the core numbers. The post is scheduled
+   `PATCH_NOTES_HOLD_MINUTES` ahead (default 120). The run's summary page shows
+   the notes too.
 4. Until then, players, Discord and the forum don't see the post. In
    **Admin → News**, edit it, delete it, or click **Publish now**. If nobody acts,
-   it publishes at the scheduled time and the bot posts it to Discord. Use
-   **Post to forum** after it publishes to mirror it.
+   it publishes at the scheduled time and the bot posts it to the Discord news
+   channel as a normal message, not an embed. Use **Post to forum** after it
+   publishes to mirror it.
 
 Set it up once per server: put a new random 64+ character secret in
 `PATCH_NOTES_API_TOKEN` in the checkout's `.env` (`openssl rand -hex 48`) and

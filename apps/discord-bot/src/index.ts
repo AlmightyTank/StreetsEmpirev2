@@ -20,7 +20,7 @@ import {
   factionFeedEmbed,
   describeDiscordError,
   gameNoticeEmbed,
-  newsPostEmbed,
+  newsChannelSend,
   rankAlertEmbed,
   roundEventEmbed,
   territoryFeedEmbed,
@@ -149,7 +149,13 @@ async function postNews(channel: GuildTextBasedChannel): Promise<void> {
   // Claimed posts count as posted, which is why the channel is checked before any claim.
   for (const post of await api.claimNews()) {
     try {
-      const message = await channel.send({ embeds: [newsPostEmbed(post)], allowedMentions: { parse: [] } });
+      const payload = newsChannelSend(post);
+      const message = await channel.send({
+        ...payload,
+        allowedMentions: { parse: [] },
+        // Patch notes are plain text. Suppress link previews so a bullet's URL cannot come back as an embed.
+        ...('content' in payload ? { flags: MessageFlags.SuppressEmbeds } : {}),
+      });
       if (channel.type === ChannelType.GuildAnnouncement) {
         await message.crosspost().catch((error: unknown) => console.warn('Could not publish news to following servers:', error));
       }
