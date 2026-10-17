@@ -10,7 +10,7 @@ function member(id: string, points: number, nicknames: string[] = [], enabled = 
       nextMilestone: null, history: [],
     },
     legend: { moderated: false, nickname: null, options: nicknames.map((key) => ({ key, label: `Title ${key}`, proof: 'Verified work' })) },
-  } as CrewMemberDto;
+  } as unknown as CrewMemberDto; // Pure helper reads only these fields.
 }
 function bond(lessons: number, endedAt: string | null = null): CrewMentorBondDto {
   return {
