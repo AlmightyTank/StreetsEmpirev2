@@ -192,6 +192,8 @@ export function crewTargets(counts: CrewCounts, refs: CrewRefs): CrewTarget[] {
   });
   const runners = takeBusy(refs.runners ?? []);
   build('THUG', counts.thugs + physicalAway, [
+    // Hurt thugs are away first, so a job cannot keep someone the counts say is wounded.
+    { status: 'RECOVERING', assignmentKind: null, assignmentRef: null, count: counts.woundedThugs },
     ...careers.map((career) => ({
       status: 'ASSIGNED' as const, assignmentKind: 'DEALER' as const, assignmentRef: career.crewId, count: 1,
       staffId: career.staffId, staffExperience: career.experiencePoints,
@@ -205,7 +207,6 @@ export function crewTargets(counts: CrewCounts, refs: CrewRefs): CrewTarget[] {
     ...escorts.map((row) => ({ status: 'ASSIGNED' as const, assignmentKind: 'ESCORT' as const, assignmentRef: row.runId, count: row.count })),
     ...runners.map((row) => ({ status: 'ASSIGNED' as const, assignmentKind: 'RUNNER' as const, assignmentRef: row.crewId, count: row.count })),
     { status: 'IN_TRANSIT', assignmentKind: null, assignmentRef: null, count: busyLeft },
-    { status: 'RECOVERING', assignmentKind: null, assignmentRef: null, count: counts.woundedThugs },
   ]);
   build('WORKER', counts.whores, allocate(
     refs.businesses.filter((row) => row.role === 'WORKER').map((row) => ({ id: row.id, count: row.staff })),

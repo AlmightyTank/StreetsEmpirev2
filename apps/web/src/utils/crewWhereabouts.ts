@@ -10,12 +10,12 @@ export interface CrewWhereaboutsMember {
 
 const CORNER_KINDS = new Set(['TURF', 'CORNER_ENFORCER', 'CORNER_LOOKOUT', 'STASH_GUARD']);
 
-/** Where an away thug is. Home and released members have no whereabouts. */
+/** Where an away thug is. Home and released members have no whereabouts. Hurt thugs are away even if a job is still attached. */
 export function whereaboutsLabel(member: CrewWhereaboutsMember): string | null {
   if (member.role !== 'THUG' || member.status === 'AVAILABLE' || member.status === 'RELEASED') return null;
+  if (member.status === 'RECOVERING') return 'Away, hurt';
   if (member.assignment?.label) return member.assignment.label;
   if (member.status === 'IN_TRANSIT') return 'Away on a run';
-  if (member.status === 'RECOVERING') return 'Recovering';
   return 'Away, place not recorded';
 }
 
@@ -35,5 +35,5 @@ export function awayThugGroups<T extends CrewWhereaboutsMember>(members: readonl
 
 /** Named thugs the roster has on this corner, including lookouts and stash guards. */
 export function thugsPostedOn<T extends CrewWhereaboutsMember>(members: readonly T[], blockId: string): T[] {
-  return members.filter((member) => member.role === 'THUG' && member.assignment?.ref === blockId && CORNER_KINDS.has(member.assignment.kind));
+  return members.filter((member) => member.role === 'THUG' && member.status !== 'RECOVERING' && member.assignment?.ref === blockId && CORNER_KINDS.has(member.assignment.kind));
 }

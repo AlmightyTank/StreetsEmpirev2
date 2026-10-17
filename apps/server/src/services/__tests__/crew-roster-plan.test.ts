@@ -127,6 +127,15 @@ describe('1.7.0-A crew targets', () => {
     expect(targets.filter((row) => row.staffId).map((row) => [row.staffId, row.assignmentRef])).toEqual([['s1', 'c1'], ['s2', 'c1']]);
   });
 
+  it('keeps hurt thugs away when the other columns do not fit', () => {
+    const targets = crewTargets(
+      { ...none, thugs: 5, woundedThugs: 4, busyThugs: 4, businessThugs: 1 },
+      { ...noRefs, businesses: [{ id: 'b1', role: 'THUG', staff: 3 }] },
+    );
+    expect(targets.find((row) => row.status === 'RECOVERING')?.count).toBe(4);
+    expect(targets.filter((row) => row.role === 'THUG').reduce((sum, row) => sum + row.count, 0)).toBe(5);
+  });
+
   it('never calls for more members than the count, even when the columns disagree', () => {
     const counts: CrewCounts = { ...none, thugs: 5, woundedThugs: 4, busyThugs: 4, businessThugs: 1, whores: 2, businessWhores: 9 };
     const targets = crewTargets(counts, { ...noRefs, businesses: [{ id: 'b1', role: 'THUG', staff: 3 }] });

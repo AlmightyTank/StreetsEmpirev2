@@ -10,6 +10,16 @@ describe('crew whereabouts', () => {
     expect(whereaboutsLabel(thug({ id: 'home', status: 'AVAILABLE' }))).toBeNull();
   });
 
+  it('marks a hurt thug away even when a job is still attached', () => {
+    const hurt = thug({
+      id: 'hurt',
+      status: 'RECOVERING',
+      assignment: { kind: 'TURF', ref: 'les', label: 'Lower East Side Walkups · New York City' },
+    });
+    expect(whereaboutsLabel(hurt)).toBe('Away, hurt');
+    expect(awayThugGroups([hurt]).map((group) => group.place)).toEqual(['Away, hurt']);
+  });
+
   it('records the corner a posted thug left for', () => {
     const posted = thug({
       id: 'duke',

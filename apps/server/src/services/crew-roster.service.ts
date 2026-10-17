@@ -12,6 +12,7 @@ import { crewMomentsFor } from './crew-moments.js';
 import { CrewBondService } from './crew-bonds.service.js';
 import { eligibleCrewNicknames, selectedCrewNickname } from './crew-legends.service.js';
 import { IdempotencyService } from './idempotency.service.js';
+import { escortWhereabouts } from './crew-whereabouts.js';
 
 import {
   crewPlaceCounts,
@@ -273,7 +274,7 @@ function memberDto(row: {
   } : null;
   const unavailableReason = row.status === 'ASSIGNED' ? `Currently assigned to ${assignment?.label ?? 'a job'}.`
     : row.status === 'IN_TRANSIT' ? 'Away on a run.'
-      : row.status === 'RECOVERING' ? 'Recovering from injuries.'
+      : row.status === 'RECOVERING' ? 'Away, hurt and recovering from injuries.'
         : row.status === 'RELEASED' ? 'Released from the active crew.' : null;
   return {
     id: row.id,
@@ -879,12 +880,16 @@ export const CrewRosterService = {
       ]);
       const ids = members.map((member) => member.id);
       const refs = [...new Set(members.flatMap((member) => member.assignmentRef ? [[member.assignmentKind, member.assignmentRef] as const] : []))];
-      const [businesses, dealerCrews, turf, events, loyaltyEntries] = await Promise.all([
+      const [businesses, dealerCrews, turf, runs, events, loyaltyEntries] = await Promise.all([
         tx.business.findMany({ where: { id: { in: refs.filter(([kind]) => kind === 'BUSINESS').map(([, ref]) => ref) } }, select: { id: true, kind: true } }),
         tx.dealerCrew.findMany({ where: { id: { in: refs.filter(([kind]) => kind === 'DEALER').map(([, ref]) => ref) } }, select: { id: true, citySlug: true, districtKey: true } }),
         tx.turf.findMany({
           where: { id: { in: refs.filter(([kind]) => kind === 'TURF' || kind === 'CORNER_LOOKOUT' || kind === 'STASH_GUARD').map(([, ref]) => ref) } },
           select: { id: true, district: true, city: { select: { name: true } } },
+        }),
+        tx.run.findMany({
+          where: { id: { in: refs.filter(([kind]) => kind === 'ESCORT').map(([, ref]) => ref) } },
+          select: { id: true, stops: { orderBy: { order: 'asc' }, select: { city: true, route: true, departAt: true, arriveAt: true, leaveAt: true } } },
         }),
         ids.length ? tx.crewMemberEvent.findMany({ where: { memberId: { in: ids } }, orderBy: [{ at: 'desc' }, { id: 'desc' }], select: { memberId: true, kind: true, assignmentKind: true, assignmentRef: true, summary: true, at: true } }) : Promise.resolve([]),
         ids.length && crewLoyaltyEnabled(ruleset) ? tx.crewLoyaltyEntry.findMany({ where: { memberId: { in: ids } }, orderBy: [{ at: 'desc' }, { id: 'desc' }], select: { memberId: true, source: true, points: true, summary: true, at: true } }) : Promise.resolve([]),
@@ -905,6 +910,9 @@ export const CrewRosterService = {
         labels.set(`TURF:${block.id}`, `${district} · ${block.city.name}`);
         labels.set(`CORNER_LOOKOUT:${block.id}`, `Corner lookout · ${district} · ${block.city.name}`);
         labels.set(`STASH_GUARD:${block.id}`, `Stash guard · ${district} · ${block.city.name}`);
+      }
+      for (const run of runs) {
+        labels.set(`ESCORT:${run.id}`, escortWhereabouts(ruleset, run.stops, now));
       }
       const eventsByMember = new Map<string, typeof events>();
       for (const event of events) {

@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { GameActionResult, MarketPriceDto, RandomEncounterDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunOutpostEstablishResult, RunOutpostTransferResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto, VehicleDamageDto } from '@streets/shared';
+import type { CrewMemberDto, GameActionResult, MarketPriceDto, RandomEncounterDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunOutpostEstablishResult, RunOutpostTransferResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto, VehicleDamageDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
+import { crewApi } from '../api/crew.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { ItemLabel } from './ItemTile.js';
 import { QuestLockNote } from './QuestLink.js';
@@ -766,6 +767,42 @@ function PickupHeadHome({ run, onDone }: { run: RunDto; onDone: () => void }) {
   );
 }
 
+function RunEscorts({ runId, count }: { runId: string; count: number }) {
+  const [names, setNames] = useState<CrewMemberDto[]>([]);
+  useEffect(() => {
+    if (count < 1) {
+      setNames([]);
+      return;
+    }
+    let active = true;
+    crewApi.roster({ role: 'THUG', status: 'ASSIGNED', assignment: 'ESCORT', limit: 200 })
+      .then((roster) => {
+        if (active) setNames(roster.members.filter((member) => member.status !== 'RECOVERING' && member.assignment?.ref === runId));
+      })
+      .catch(() => { if (active) setNames([]); });
+    return () => { active = false; };
+  }, [runId, count]);
+  if (count < 1) return null;
+  return (
+    <div className="se-run__escorts">
+      <span className="se-eyebrow">Who is on this run</span>
+      {names.length ? (
+        <ul>
+          {names.map((member) => (
+            <li key={member.id}>
+              <span>#{String(member.serial).padStart(3, '0')} {member.name}</span>
+              <small>{member.assignment?.label ?? 'On a run'}</small>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="se-muted">No named thugs are recorded on this run.</p>}
+      {count > names.length ? (
+        <p className="se-hint">{formatNumber(count - names.length)} on this run {names.length ? 'are not tied to a named thug' : 'have no named thug recorded'}.</p>
+      ) : null}
+    </div>
+  );
+}
+
 /** The whole trip as a line of stops, the run's place on it, and what it carries. */
 export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: () => void }) {
   const { msRemaining } = useCountdown(run.position.until, onDone);
@@ -849,6 +886,7 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
           <Row label="Escorts carry" tooltip="Out of home stock, the best first. A bust or an arrest takes every one."
             value={Object.entries(run.guns).filter(([, count]) => count > 0).map(([key, count]) => gunText(key, count)).join(', ') || 'No guns'} />
         ) : null}
+        <RunEscorts runId={run.id} count={run.escortThugs} />
         {run.cargo.filter((entry) => entry.quantity > 0).map((entry) => (
           <Row key={entry.key} label={nameOf(data.products, entry.key)} value={formatNumber(entry.quantity)} />
         ))}

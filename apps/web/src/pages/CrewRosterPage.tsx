@@ -13,11 +13,11 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { crewProgressSnapshot, nextCrewCelebration, type CrewProgressSnapshot, type CrewCelebration } from '../utils/crew-celebrations.js';
-import { awayThugGroups } from '../utils/crewWhereabouts.js';
+import { awayThugGroups, whereaboutsLabel } from '../utils/crewWhereabouts.js';
 import '../styles/crew-roster.css';
 
 const statusLabels: Record<CrewMemberStatusDto, string> = {
-  AVAILABLE: 'Available', ASSIGNED: 'Assigned', IN_TRANSIT: 'Away on a run', RECOVERING: 'Recovering', RELEASED: 'Released',
+  AVAILABLE: 'Available', ASSIGNED: 'Assigned', IN_TRANSIT: 'Away on a run', RECOVERING: 'Away, hurt', RELEASED: 'Released',
 };
 const specialtyLabels: Record<CrewMemberDto['specialty'], string> = {
   GENERALIST: 'Generalist', ENFORCER: 'Enforcer', WHEELMAN: 'Wheelman', SCOUT: 'Scout', DEALER: 'Dealer', SERVICE: 'Service specialist',
@@ -128,7 +128,7 @@ function CrewJobsBoard({
     setSelectedIds([]);
     await onDone();
   };
-  const assignedTo = (target: AssignmentTarget) => members.filter((member) => member.assignment?.kind === target.kind && member.assignment.ref === target.id);
+  const assignedTo = (target: AssignmentTarget) => members.filter((member) => member.status !== 'RECOVERING' && member.assignment?.kind === target.kind && member.assignment.ref === target.id);
 
   return (
     <Panel title="Crew jobs board" aside={`${formatNumber(available.length)} fit thugs shown`}>
@@ -224,7 +224,7 @@ function CrewMemberCard({ member, peers, bonds, busy, onExchange, onTrain, onNic
         <span className={`se-crew-roster__status se-crew-roster__status--${member.status.toLowerCase()}`}>{statusLabels[member.status]}</span>
       </div>
       <div className="se-crew-roster__facts">
-        <div><span>Current assignment</span><strong>{member.assignment?.label ?? (member.status === 'RELEASED' ? 'Outside the active crew' : 'Home crew')}</strong></div>
+        <div><span>Current assignment</span><strong>{member.status === 'RECOVERING' ? 'Away, hurt' : member.assignment?.label ?? (member.status === 'RELEASED' ? 'Outside the active crew' : 'Home crew')}</strong></div>
         <div><span>Experience</span><strong>{formatNumber(member.experiencePoints)} XP</strong></div>
         {member.loyalty.enabled ? <div><span>Crew loyalty</span><strong>{member.loyalty.points}/100 · {member.loyalty.tier}</strong></div> : null}
         <div><span>Specialty</span><strong>{specialtyLabels[member.specialty]}</strong></div>
@@ -559,7 +559,7 @@ export function CrewRosterPage() {
                     <span>Available <strong>{formatNumber(row.byStatus.AVAILABLE)}</strong></span>
                     <span>Assigned <strong>{formatNumber(row.byStatus.ASSIGNED)}</strong></span>
                     <span>On runs <strong>{formatNumber(row.byStatus.IN_TRANSIT)}</strong></span>
-                    <span>Recovering <strong>{formatNumber(row.byStatus.RECOVERING)}</strong></span>
+                    <span>Away, hurt <strong>{formatNumber(row.byStatus.RECOVERING)}</strong></span>
                   </div>
                   {row.role === 'THUG' && Object.values(row.byAssignment).some((count) => count > 0) ? (
                     <div className="se-crew-roster__places">
@@ -625,7 +625,7 @@ export function CrewRosterPage() {
                 <option value="">All roles</option><option value="THUG">Thugs</option><option value="WORKER">Workers</option>
               </select></label>
               <label>Availability<select className="se-input" value={status ?? ''} onChange={(event) => { setStatus((event.target.value || undefined) as CrewRosterFilters['status']); setOffset(0); }}>
-                <option value="">Active crew</option><option value="AVAILABLE">Available</option><option value="ASSIGNED">Assigned</option><option value="IN_TRANSIT">Away on a run</option><option value="RECOVERING">Recovering</option><option value="RELEASED">Released careers</option>
+                <option value="">Active crew</option><option value="AVAILABLE">Available</option><option value="ASSIGNED">Assigned</option><option value="IN_TRANSIT">Away on a run</option><option value="RECOVERING">Away, hurt</option><option value="RELEASED">Released careers</option>
               </select></label>
               <label>Assignment<select className="se-input" value={assignment ?? ''} onChange={(event) => { setAssignment((event.target.value || undefined) as CrewRosterFilters['assignment']); setOffset(0); }}>
                 <option value="">All assignments</option><option value="BUSINESS">Business</option><option value="DEALER">Dealer crew</option><option value="TURF">Turf</option>
@@ -665,7 +665,7 @@ export function CrewRosterPage() {
                           aria-pressed={selectedMember?.id === member.id}
                           onClick={() => setSelectedMemberId(member.id)}>
                           <span className="se-crew-explorer__identity"><strong>{shortMember(member)}</strong>
-                            <small>{member.legend?.nickname?.label ?? specialtyLabels[member.specialty]} · {member.assignment?.label ?? statusLabels[member.status]}</small></span>
+                            <small>{member.legend?.nickname?.label ?? specialtyLabels[member.specialty]} · {whereaboutsLabel(member) ?? member.assignment?.label ?? statusLabels[member.status]}</small></span>
                           <span className="se-crew-explorer__points">{member.loyalty.enabled ? `${member.loyalty.points}/100 loyalty` : `${formatNumber(member.experiencePoints)} XP`}</span>
                         </button>
                       </li>
