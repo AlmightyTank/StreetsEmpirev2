@@ -2,6 +2,8 @@
 
 **Status:** Proposed. Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
 
+**Engineering contract:** `openspec/changes/empire-advisor-2-3/` (proposal, design, `advisor-signals`, `advisor-recommendations`, `advisor-suppression`, `advisor-dashboard`, `advisor-planning`, `advisor-evaluation`, tasks). This roadmap stays the product description.
+
 ## 2.3.0 — Adaptive Empire Advisor
 
 ### Player fantasy and loop

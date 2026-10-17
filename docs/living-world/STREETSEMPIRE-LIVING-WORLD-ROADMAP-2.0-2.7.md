@@ -150,6 +150,8 @@ Make the existing **one-template Corner Takeover** operation system into small, 
 
 ## 2.3.0 — Adaptive Empire Advisor
 
+Engineering contract: `openspec/changes/empire-advisor-2-3/`. The slice table below stays the product description.
+
 ### Player fantasy and loop
 
 After onboarding, give each player a small, useful **next best action** briefing. The advisor recommends opportunities using live, permitted information, not a new AI-driven economy or omniscient enemy radar.
