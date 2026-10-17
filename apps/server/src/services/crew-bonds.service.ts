@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import type { Ruleset } from '@streets/rules-engine';
 import type { CrewMentorBondDto } from '@streets/shared';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
@@ -46,7 +46,7 @@ const bondSelect = {
   apprentice: { select: { role: true, serial: true } },
   memories: { orderBy: [{ at: 'desc' as const }, { id: 'desc' as const }], take: 3,
     select: { source: true, summary: true, at: true } },
-} as const;
+} satisfies Prisma.CrewMentorBondSelect;
 
 export const CrewBondService = {
   async link(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, input: {
