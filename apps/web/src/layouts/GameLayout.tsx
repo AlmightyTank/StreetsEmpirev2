@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell, useSidebarRail } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
+import { RoundRollCallNotice } from '../components/RoundRollCall.js';
 import { TrackedQuests } from '../components/TrackedQuests.js';
 import { IntroDialog } from '../components/onboarding/IntroDialog.js';
 import { TourOverlay } from '../components/onboarding/TourOverlay.js';
@@ -494,6 +495,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       </>
     }>
       <ConnectionBanner />
+      <RoundRollCallNotice />
       <JokeDayBanner />
       {isBetaEnvironment ? (
         <div className="se-beta-banner" role="status">

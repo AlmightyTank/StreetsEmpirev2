@@ -95,3 +95,24 @@ npm run typecheck
 npx vitest run apps/server/src/services/__tests__/round-roll-call*
 ```
 Check both database migrations (A, B) on a clean database before merging.
+
+
+## Slice C — Immersive player calendar (implemented)
+
+- **Placement:** The Round Roll Call calendar is inside the existing **Street Pass** page at \`/game/street-pass#round-roll-call\`, immediately after the Street Pass hero. No extra primary navigation page, modal-on-every-login, or nested tabs.
+- **Single source of truth:** \`GET /api/game/round-roll-call\` supplies the total stamps, pause-aware day timing, remaining allowance, and each tier's persisted \`claimed\`/\`claimable\` state. Frontend never infers eligibility from browser date or timezone.
+- **Claim controls:** Each earned tier has its own explicit **Claim reward** action; the nearest claimable step is surfaced in a summary row. Requests use a generated actionId retained per tier through uncertain errors; pending requests cannot produce concurrent clicks. Confirmed payouts refresh the board and player resources. Errors retain scroll position and provide retry guidance; no automatic window scroll.
+- **Calendar:** Six rewards nearest the first unclaimed step are shown by default, with an accessible control to expand/collapse the full track without adding page navigation. Responsive 4/3/2-column card grid for large/medium/mobile viewports; rare and legendary tiers remain distinguishable with text and not color alone. Claimed, ready, paused, and not-yet-earned states are visible; ready counts and missed-day allowance are exposed in an accessible progress summary.
+- **Notifications:** A confirmed foreground check-in produces a dismissible, understated shell notice linking to the calendar. The first check-in event survives the initial game-shell mount; background polls, duplicate requests, and browsing the calendar do not raise it. Players keep full control, with no automatic center-screen interruption.
+- **Final cosmetic preview:** A compact, token-based matching shell + crew concept card describes the permanent combined set, the final-day completion requirement, and its **Slice D** status. Slice C **does not grant or simulate ownership**.
+- **Accessibility and polish:** Full button descriptions, native keyboard navigation, live receipt message after claiming, error recovery, disabled concurrent claims, reduced-motion support, respect for theme tokens, and non-overflow layouts for narrow phones.
+- **No server schema or economy change** in C; it consumes the verified A/B endpoints and reward receipt idempotency.
+
+### Verification checklist
+
+1. Log in for the first eligible day: precisely one server stamp, one shell notice, and a claim-ready Common tier.
+2. Navigate/refresh/switch tabs and return: no second stamp, calendar still shows claimed receipts and exact balances.
+3. Claim any reached tier and verify its state flips to Collected without scrolling the page to the top.
+4. Check paused rounds, a missed check-in, late starters, and a track completed exactly on the final eligible day.
+5. On a phone-width viewport, reward cards remain accessible without horizontal page overflow or unreachable buttons.
+6. On a complete track, final cosmetics still explicitly say **not yet issued** until Slice D's entitlement service exists.

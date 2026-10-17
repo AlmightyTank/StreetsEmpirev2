@@ -31,6 +31,7 @@ import './styles/encounter-cinema.css';
 import './styles/stores.css';
 import './styles/items.css';
 import './styles/street-pass.css';
+import './styles/round-roll-call.css';
 import './styles/supporter.css';
 import './styles/travel.css';
 import './styles/city-blocks.css';
