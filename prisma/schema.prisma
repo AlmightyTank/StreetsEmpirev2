@@ -22,6 +22,7 @@ datasource db {
 model Account {
   id                          String    @id @default(cuid())
   username                    String
+  crewLegendArchives CrewLegendArchive[]
   /// Lowercased username. Enforces case-insensitive uniqueness. A database CHECK
   /// (Account_usernameNormalized_lowercase) refuses any row where this is not lower(username).
   usernameNormalized          String    @unique
@@ -2388,6 +2389,8 @@ model CrewMember {
   /// 2.1.0-B. Cosmetic-only round progression; never part of combat or economy.
   loyaltyPoints             Int                 @default(0)
   loyaltyEntries            CrewLoyaltyEntry[]
+  nicknameKey               String?
+  nicknameSuppressed        Boolean             @default(false)
   mentoringBonds            CrewMentorBond[]    @relation("Mentor")
   apprenticeship            CrewMentorBond?     @relation("Apprentice")
 
@@ -2432,6 +2435,34 @@ model CrewLoyaltyEntry {
   @@unique([memberId, sourceKey])
   @@index([memberId, at(sort: Desc)])
   @@index([roundPlayerId, at(sort: Desc)])
+}
+
+/// 2.1.0-E. Detached account biography: no FK to the live round/player/member.
+model CrewLegendArchive {
+  id               String   @id @default(cuid())
+  accountId        String
+  account          Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  sourceRoundId    String
+  roundName        String
+  sourceMemberId   String
+  role             CrewMemberRole
+  serial           Int
+  memberName       String
+  nicknameKey      String
+  nicknameLabel    String
+  proof            String
+  trait            String
+  loyaltyPoints    Int
+  experiencePoints Int
+  finalStatus      CrewMemberStatus
+  joinedAt         DateTime
+  archivedAt       DateTime
+  artworkKey       String
+  suppressedAt     DateTime?
+  suppressReason   String?
+
+  @@unique([accountId, sourceRoundId, sourceMemberId])
+  @@index([accountId, archivedAt(sort: Desc)])
 }
 
 /// 2.1.0-D. An optional round-only mentoring connection. Each apprentice
