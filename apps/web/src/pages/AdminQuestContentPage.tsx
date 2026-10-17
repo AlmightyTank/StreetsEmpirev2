@@ -6,6 +6,7 @@ import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { GameDialog } from '../components/GameUI.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen } from '../utils/admin.js';
@@ -162,7 +163,12 @@ export function AdminQuestContentPage() {
       </Panel>
 
       {pending ? (
-        <Panel title={`${pending.enabled ? 'Disable' : 'Enable'} ${pending.kind}: ${pending.name}`} className="se-mb">
+        <GameDialog
+          open
+          dismissible={!busy}
+          title={`${pending.enabled ? 'Disable' : 'Enable'} ${pending.kind}: ${pending.name}`}
+          onClose={() => { if (!busy) setPending(null); }}
+        >
           <form onSubmit={confirmToggle} noValidate>
             <p>
               {pending.kind === 'favor' && pending.enabled
@@ -195,7 +201,7 @@ export function AdminQuestContentPage() {
               </Button>
             </div>
           </form>
-        </Panel>
+        </GameDialog>
       ) : null}
 
       <div className="se-stats se-mb">

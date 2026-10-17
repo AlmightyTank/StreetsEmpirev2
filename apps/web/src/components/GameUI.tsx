@@ -1,4 +1,5 @@
 import { cloneElement, isValidElement, useEffect, useId, useRef, type HTMLAttributes, type ReactElement, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Button, type ButtonVariant } from './Button.js';
 import { lockPageScroll } from '../utils/pageScrollLock.js';
 
@@ -140,25 +141,34 @@ export function ActionFooter({ children, sticky = false }: { children: ReactNode
   return <footer className={`se-action-footer${sticky ? ' se-action-footer--sticky' : ''}`}>{children}</footer>;
 }
 
-export function GameDialog({ open, title, description, children, actions, onClose }: {
+export function GameDialog({ open, title, description, children, actions, onClose, dismissible = true, wide = false }: {
   open: boolean;
   title: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
   actions?: ReactNode;
   onClose: () => void;
+  /** Escape, the backdrop, and the close button stay quiet while a request is in flight. */
+  dismissible?: boolean;
+  /** Wider card for an edit form. */
+  wide?: boolean;
 }) {
   const titleId = useId();
   const dialog = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
+  const dismissibleRef = useRef(dismissible);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  useEffect(() => { dismissibleRef.current = dismissible; }, [dismissible]);
   useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const unlockScroll = lockPageScroll();
     dialog.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { onCloseRef.current(); return; }
+      if (event.key === 'Escape') {
+        if (dismissibleRef.current) onCloseRef.current();
+        return;
+      }
       if (event.key !== 'Tab' || !dialog.current) return;
       const focusable = Array.from(dialog.current.querySelectorAll<HTMLElement>('button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'));
       if (!focusable.length) { event.preventDefault(); dialog.current.focus(); return; }
@@ -174,8 +184,21 @@ export function GameDialog({ open, title, description, children, actions, onClos
       previousFocus?.focus();
     };
   }, [open]);
-  if (!open) return null;
-  return <div className="se-game-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div ref={dialog} className="se-game-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}><SectionHeader title={<span id={titleId}>{title}</span>} description={description} action={<button type="button" className="se-game-dialog__close" aria-label="Close dialog" onClick={onClose}>×</button>} />{children ? <div className="se-game-dialog__body">{children}</div> : null}{actions ? <ActionFooter>{actions}</ActionFooter> : null}</div></div>;
+  if (!open || typeof document === 'undefined') return null;
+  return createPortal(
+    <div className="se-game-dialog-backdrop" onMouseDown={(event) => { if (dismissible && event.target === event.currentTarget) onClose(); }}>
+      <div ref={dialog} className={`se-game-dialog${wide ? ' se-game-dialog--wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+        <SectionHeader
+          title={<span id={titleId}>{title}</span>}
+          description={description}
+          action={<button type="button" className="se-game-dialog__close" aria-label="Close dialog" disabled={!dismissible} onClick={onClose}>×</button>}
+        />
+        {children ? <div className="se-game-dialog__body">{children}</div> : null}
+        {actions ? <ActionFooter>{actions}</ActionFooter> : null}
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 export function DialogAction({ children, variant = 'default', onClick }: { children: ReactNode; variant?: ButtonVariant; onClick?: () => void }) {

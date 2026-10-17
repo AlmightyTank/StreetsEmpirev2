@@ -17,6 +17,7 @@ import { AuditEntryList } from '../components/AdminParts.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
+import { GameDialog } from '../components/GameUI.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen, localInputToIso } from '../utils/admin.js';
@@ -227,7 +228,12 @@ export function AdminPage() {
       </div>
 
       {pending ? (
-        <Panel title={`${actionLabel[pending.action]}: ${pending.round.name}`} className="se-mb">
+        <GameDialog
+          open
+          dismissible={!busy}
+          title={`${actionLabel[pending.action]}: ${pending.round.name}`}
+          onClose={() => { if (!busy) setPending(null); }}
+        >
           <form onSubmit={confirmAction} noValidate>
             <p>{actionCopy[pending.action]}</p>
             {pending.action === 'resume' ? (
@@ -274,7 +280,7 @@ export function AdminPage() {
               <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabledReason={busy ? working : null}>Cancel</Button>
             </div>
           </form>
-        </Panel>
+        </GameDialog>
       ) : null}
 
       <Panel
