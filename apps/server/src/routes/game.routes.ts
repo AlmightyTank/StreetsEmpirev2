@@ -23,6 +23,8 @@ import {
   crewCornerJobSchema,
   crewRosterQuerySchema,
   crewTrainingSchema,
+  crewMentorLinkSchema,
+  crewMentorEndSchema,
   crewAssignmentSchema,
   crewStaffingOrderSchema,
   dealerStaffAssignSchema,
@@ -70,6 +72,7 @@ import { DealerStaffService } from '../services/dealer-staff.service.js';
 import { DealerCrewService } from '../services/dealer-crew.service.js';
 import { CrewAssignmentService } from '../services/crew-assignment.service.js';
 import { CrewRosterService } from '../services/crew-roster.service.js';
+import { CrewBondService } from '../services/crew-bonds.service.js';
 import { CrewTrainingService } from '../services/crew-training.service.js';
 import { CrewStaffingOrderService } from '../services/crew-staffing-order.service.js';
 import { RandomEncounterChoiceService } from '../services/random-encounter-choice.service.js';
@@ -335,6 +338,24 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const now = new Date();
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
     return CrewRosterService.view(fastify.prisma, player.id, settled.ruleset, query, now);
+  });
+
+  // 2.1.0-D. Owner-scoped, optional mentor relationships; neither endpoint
+  // grants game resources, XP or combat advantage.
+  fastify.post('/crew/mentors', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(crewMentorLinkSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    return CrewBondService.link(fastify.prisma, player.id, settled.ruleset, body, now);
+  });
+  fastify.post('/crew/mentors/end', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(crewMentorEndSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    await CrewBondService.end(fastify.prisma, player.id, body.bondId, settled.ruleset, now);
+    return { ok: true };
   });
 
   fastify.post('/crew/train', { preHandler: fastify.requireAuth }, async (request) => {

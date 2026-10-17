@@ -1,6 +1,7 @@
 import type { Ruleset } from '@streets/rules-engine';
 import type { CrewLoyaltyHistoryDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
+import { CrewBondService } from './crew-bonds.service.js';
 
 /** 2.1.0-B. Cosmetic/narrative reputation, never part of combat, wages or happiness. */
 export const CREW_LOYALTY_CAP = 100;
@@ -93,6 +94,10 @@ export const CrewLoyaltyService = {
     });
     if (points > 0) {
       await tx.crewMember.update({ where: { id: member.id }, data: { loyaltyPoints: { increment: points } } });
+      await CrewBondService.afterLoyaltyReceipt(tx, {
+        roundPlayerId: input.roundPlayerId, memberId: member.id,
+        sourceKey: input.sourceKey, source: input.source, at: input.at,
+      });
     }
     return points;
   },

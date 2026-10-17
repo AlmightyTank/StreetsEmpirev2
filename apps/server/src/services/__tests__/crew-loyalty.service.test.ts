@@ -21,7 +21,7 @@ function mockDb(options: {
     id: 'member-1', status: options.status ?? 'AVAILABLE', loyaltyPoints: options.points ?? 0,
   }]);
   return {
-    db: { $queryRaw: locked, crewLoyaltyEntry: { findUnique, aggregate, create }, crewMember: { update } } as unknown as Db,
+    db: { $queryRaw: locked, crewLoyaltyEntry: { findUnique, aggregate, create }, crewMember: { update }, crewMentorBond: { findMany: vi.fn().mockResolvedValue([]) } } as unknown as Db,
     create, update, findUnique, aggregate, locked,
   };
 }

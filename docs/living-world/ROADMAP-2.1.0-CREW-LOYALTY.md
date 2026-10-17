@@ -1,6 +1,6 @@
 # StreetsEmpire 2.1.0 — Release Roadmap
 
-**Status:** In progress — Slices A–B merged into `beta`. Slice C adds opt-in private personality moments; see [implementation notes](CREW-LOYALTY-2.1.0-C-MOMENTS.md). Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
+**Status:** In progress — Slices A–C merged to `beta`. Slice D implements optional proof-backed mentor bonds; see [implementation notes](CREW-LOYALTY-2.1.0-D-MENTOR-BONDS.md). Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
 
 ## 2.1.0 — Crew Loyalty & Legends
 

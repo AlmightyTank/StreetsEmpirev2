@@ -890,9 +890,29 @@ export interface CrewMemberDto {
   statusSince: string;
 }
 
+/** 2.1.0-D. Story-only bonds; no persistent stat or power increase. */
+export interface CrewMentorBondDto {
+  id: string;
+  mentorId: string;
+  apprenticeId: string;
+  mentorName: string;
+  apprenticeName: string;
+  lessons: number;
+  maxLessons: number;
+  milestone: string;
+  startedAt: string;
+  endedAt: string | null;
+  memories: Array<{ source: string; label: string; at: string }>;
+}
+
 /** 1.7.0-A. The crew as individual members, alongside the counts they follow. */
 export interface CrewRosterDto {
   enabled: boolean;
+  /** 2.1.0-D. Optional round-only mentor links, even when stories are muted. */
+  bondsEnabled?: boolean;
+  bonds?: CrewMentorBondDto[];
+  /** Every member on this page who has ever had a mentor this round. */
+  mentoredMemberIds?: string[];
   /** Selected operation teams are introduced in 1.7.0-E. */
   supportsSelectedTeams: boolean;
   /** When the roster was first built from this player's counts; null before then. */

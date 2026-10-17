@@ -243,6 +243,9 @@ export function CrewRosterPage() {
   const showCrewMoments = useSession((state) => state.profileSettings.showCrewMoments ?? false);
   const setProfileSettings = useSession((state) => state.setProfileSettings);
   const [momentsSaving, setMomentsSaving] = useState(false);
+  const [mentorId, setMentorId] = useState('');
+  const [apprenticeId, setApprenticeId] = useState('');
+  const [bondBusy, setBondBusy] = useState(false);
   const [role, setRole] = useState<CrewRosterFilters['role']>();
   const [status, setStatus] = useState<CrewRosterFilters['status']>();
   const [assignment, setAssignment] = useState<CrewRosterFilters['assignment']>();
@@ -292,6 +295,23 @@ export function CrewRosterPage() {
   useEffect(() => { void loadBoard(); }, [loadBoard, me?.id]);
 
   const allMembers = data?.totals.reduce((sum, row) => sum + row.members, 0) ?? 0;
+  const candidateMembers = boardData?.members ?? data?.members ?? [];
+  const mentorChoice = candidateMembers.find((member) => member.id === mentorId);
+  const activeBonds = data?.bonds?.filter((bond) => !bond.endedAt) ?? [];
+  const availableMentors = candidateMembers.filter((member) =>
+    member.status !== 'RELEASED' && (member.experiencePoints >= 100 || member.loyalty.points >= 25)
+    && !activeBonds.some((bond) => bond.apprenticeId === member.id)
+    && activeBonds.filter((bond) => bond.mentorId === member.id).length < 2
+  );
+  const availableApprentices = candidateMembers.filter((member) =>
+    member.status !== 'RELEASED' && member.loyalty.points < 25
+    && mentorChoice && member.id !== mentorId
+    && member.role === mentorChoice.role && member.experiencePoints < mentorChoice.experiencePoints
+    && !activeBonds.some((bond) => bond.mentorId === member.id)
+    && !(data?.bonds ?? []).some((bond) => bond.apprenticeId === member.id)
+    && !(data?.mentoredMemberIds ?? []).includes(member.id)
+    && !(boardData?.mentoredMemberIds ?? []).includes(member.id)
+  );
 
   const refresh = async () => {
     const [next] = await Promise.all([crewApi.roster(filters), loadBoard()]);
@@ -327,6 +347,34 @@ export function CrewRosterPage() {
       setError(caught instanceof ApiError ? caught.message : 'Could not save the crew stories preference.');
     } finally {
       setMomentsSaving(false);
+    }
+  };
+  const linkMentor = async () => {
+    if (bondBusy || !mentorId || !apprenticeId) return;
+    setBondBusy(true);
+    setError(null);
+    try {
+      await crewApi.linkMentor(mentorId, apprenticeId);
+      setMentorId('');
+      setApprenticeId('');
+      await refresh();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not form that crew bond.');
+    } finally {
+      setBondBusy(false);
+    }
+  };
+  const endMentor = async (bondId: string) => {
+    if (bondBusy) return;
+    setBondBusy(true);
+    setError(null);
+    try {
+      await crewApi.endMentor(bondId);
+      await refresh();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not end that crew bond.');
+    } finally {
+      setBondBusy(false);
     }
   };
   const train = async (memberId: string) => {
@@ -365,6 +413,44 @@ export function CrewRosterPage() {
                 </section>
               ))}
             </div>
+          </Panel>
+        ) : null}
+
+        {data?.bondsEnabled ? (
+          <Panel title="Mentors & crew bonds" aside="Optional · round-only">
+            <p className="se-crew-roster__note">Let an experienced member guide a newer one. A mentor needs 100 earned XP or 25 loyalty; both people must have the same role. They gain a shared memory only after both receive credit for the same genuine operation, not by moving members or paying for training. Maximum five memories, one per UTC day. No combat bonuses.</p>
+            <div className="se-crew-bonds__form">
+              <label>Mentor
+                <select className="se-input" value={mentorId} onChange={(e) => setMentorId(e.target.value)} disabled={bondBusy}>
+                  <option value="">Choose a veteran</option>
+                  {availableMentors.map(m => <option key={m.id} value={m.id}>{shortMember(m)} · {m.experiencePoints} XP · {m.loyalty.points} loyalty</option>)}
+                </select>
+              </label>
+              <label>Apprentice
+                <select className="se-input" value={apprenticeId} onChange={(e) => setApprenticeId(e.target.value)} disabled={bondBusy || !mentorChoice}>
+                  <option value="">Choose a newer member</option>
+                  {availableApprentices.map(m => <option key={m.id} value={m.id}>{shortMember(m)} · {m.experiencePoints} XP</option>)}
+                </select>
+              </label>
+              <Button onClick={() => void linkMentor()} disabledReason={bondBusy ? 'Saving this bond.' : !mentorChoice || !availableApprentices.some((m) => m.id === apprenticeId) ? 'Choose an eligible mentor and apprentice.' : null}>Start mentorship</Button>
+            </div>
+            {(data.bonds ?? []).length ? (
+              <div className="se-crew-bonds__list">
+                {(data.bonds ?? []).map(bond => (
+                  <article className="se-crew-bonds__entry" key={bond.id}>
+                    <div className="se-crew-bonds__entry-heading">
+                      <div><strong>{bond.mentorName} → {bond.apprenticeName}</strong><small>{bond.milestone} · {bond.lessons}/{bond.maxLessons} shared memories{bond.endedAt ? ' · Ended' : ''}</small></div>
+                      {!bond.endedAt ? <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={bondBusy} onClick={() => void endMentor(bond.id)}>End bond</button> : null}
+                    </div>
+                    {bond.memories.length ? <ol>{bond.memories.map((memory, index) => <li key={`${memory.source}-${memory.at}-${index}`}>
+                      <span>{memory.label}</span>
+                      <time dateTime={memory.at}>{new Date(memory.at).toLocaleDateString()}</time>
+                    </li>)}</ol> : <p className="se-muted">No shared work memories yet. Normal work together builds the bond naturally.</p>}
+                  </article>
+                ))}
+              </div>
+            ) : <p className="se-muted">Your crew has no mentor bonds yet.</p>}
+            <p className="se-crew-roster__note">One mentor per apprentice per round; ending a bond keeps its history and does not grant a new mentorship slot to the same apprentice.</p>
           </Panel>
         ) : null}
 

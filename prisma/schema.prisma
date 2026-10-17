@@ -1802,6 +1802,8 @@ model RoundPlayer {
   crewMembers           CrewMember[]
   crewMemberEvents      CrewMemberEvent[]
   crewLoyaltyEntries    CrewLoyaltyEntry[]
+  crewMentorBonds       CrewMentorBond[]
+  crewBondMemories      CrewBondMemory[]
   crewRosterMigration   CrewRosterMigration?
   /// 1.8.6-A. Durable targets for person-first crew assignment jobs.
   crewJobPosts          CrewJobPost[]
@@ -2386,6 +2388,8 @@ model CrewMember {
   /// 2.1.0-B. Cosmetic-only round progression; never part of combat or economy.
   loyaltyPoints             Int                 @default(0)
   loyaltyEntries            CrewLoyaltyEntry[]
+  mentoringBonds            CrewMentorBond[]    @relation("Mentor")
+  apprenticeship            CrewMentorBond?     @relation("Apprentice")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2428,6 +2432,41 @@ model CrewLoyaltyEntry {
   @@unique([memberId, sourceKey])
   @@index([memberId, at(sort: Desc)])
   @@index([roundPlayerId, at(sort: Desc)])
+}
+
+/// 2.1.0-D. An optional round-only mentoring connection. Each apprentice
+/// can link only once per round, preventing reassignment/relink farming.
+model CrewMentorBond {
+  id            String     @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  mentorId      String
+  mentor        CrewMember @relation("Mentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  apprenticeId  String     @unique
+  apprentice    CrewMember @relation("Apprentice", fields: [apprenticeId], references: [id], onDelete: Cascade)
+  lessons       Int        @default(0)
+  startedAt     DateTime
+  endedAt       DateTime?
+  memories      CrewBondMemory[]
+
+  @@index([roundPlayerId, endedAt])
+  @@index([roundPlayerId, mentorId, endedAt])
+}
+
+/// One memory per successful joint operation, no combat or economic modifiers.
+model CrewBondMemory {
+  id            String       @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer  @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  bondId        String
+  bond          CrewMentorBond @relation(fields: [bondId], references: [id], onDelete: Cascade)
+  sourceKey     String
+  source        String
+  summary       String
+  at            DateTime
+
+  @@unique([bondId, sourceKey])
+  @@index([bondId, at(sort: Desc)])
 }
 
 /// 1.8.6-A. A durable assignment target for crew jobs. Later slices attach selected
