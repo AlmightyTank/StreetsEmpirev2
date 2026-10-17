@@ -399,3 +399,9 @@
 .se-crew-bonds__entry li { margin-block: 6px; color: var(--se-text-dim); }
 .se-crew-bonds__entry li time { margin-left: 10px; font-size: 12px; }
 @media (max-width: 800px) { .se-crew-bonds__form { grid-template-columns: minmax(0, 1fr); } .se-crew-bonds__entry-heading { flex-wrap: wrap; } }
+
+/* 2.1.0-E: low-profile earned nickname controls. */
+.se-crew-legend__nickname { color: var(--se-accent); font-size: .85em; font-weight: 500; }
+.se-crew-legend__select { display: grid; gap: 5px; margin: 10px 0; }
+.se-crew-legend__select label { display: grid; gap: 5px; min-width: 0; }
+.se-crew-legend__select small { color: var(--se-text-dim); }

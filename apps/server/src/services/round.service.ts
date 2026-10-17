@@ -10,6 +10,7 @@ import { StreetPassService } from './street-pass.service.js';
 import { RoundRollCallCosmeticService } from './round-roll-call-cosmetic.service.js';
 import { RoundAftermathService } from './round-aftermath.service.js';
 import { EmpireLegacyService } from './empire-legacy.service.js';
+import { CrewLegendService } from './crew-legends.service.js';
 import { RingService } from './ring.service.js';
 import { SupporterService } from './supporter.service.js';
 
@@ -208,6 +209,7 @@ export const RoundService = {
     await SupporterService.stampSeason(tx, round.id, ended.startsAt, ended.endsAt, finalAt);
     await RoundAftermathService.finalize(tx, round.id, freezeAt);
     await EmpireLegacyService.snapshotRound(tx, round.id, freezeAt);
+    await CrewLegendService.snapshotAtClose(tx, ended, freezeAt);
     return { closed: true, round: ended, previous: round };
   },
 

@@ -10,6 +10,7 @@ import { assertCrewRosterPlan } from './crew-roster-identity-audit.js';
 import { CrewLoyaltyService, crewLoyaltyEnabled, crewLoyaltyTier } from './crew-loyalty.service.js';
 import { crewMomentsFor } from './crew-moments.js';
 import { CrewBondService } from './crew-bonds.service.js';
+import { eligibleCrewNicknames, selectedCrewNickname } from './crew-legends.service.js';
 import { IdempotencyService } from './idempotency.service.js';
 
 import {
@@ -69,7 +70,7 @@ const COUNT_FIELDS = {
 } as const;
 
 const MEMBER_FIELDS = {
-  id: true, role: true, serial: true, status: true, assignmentKind: true, assignmentRef: true, experiencePoints: true, specialty: true, specialtyExperiencePoints: true, dealerStaffId: true, loyaltyPoints: true,
+  id: true, role: true, serial: true, status: true, assignmentKind: true, assignmentRef: true, experiencePoints: true, specialty: true, specialtyExperiencePoints: true, dealerStaffId: true, loyaltyPoints: true, nicknameKey: true, nicknameSuppressed: true,
 } as const;
 
 /** Rows per statement, well inside Postgres' bind-parameter limit. */
@@ -262,8 +263,8 @@ async function totalsFor(db: Db | PrismaClient, roundPlayerId: string) {
 
 function memberDto(row: {
   id: string; role: CrewRole; serial: number; status: CrewMemberStatusDto; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null;
-  experiencePoints: number; specialty: CrewMemberDto['specialty']; specialtyExperiencePoints: number; dealerStaffId: string | null; joinedAt: Date; statusSince: Date; loyaltyPoints: number;
-}, assignmentLabel: string | null, history: CrewMemberHistoryDto[], ruleset: Ruleset, loyaltyHistory: CrewLoyaltyHistoryDto[], moments: CrewMemberDto['moments']): CrewMemberDto {
+  experiencePoints: number; specialty: CrewMemberDto['specialty']; specialtyExperiencePoints: number; dealerStaffId: string | null; joinedAt: Date; statusSince: Date; loyaltyPoints: number; nicknameKey: string | null; nicknameSuppressed: boolean;
+}, assignmentLabel: string | null, history: CrewMemberHistoryDto[], ruleset: Ruleset, loyaltyHistory: CrewLoyaltyHistoryDto[], moments: CrewMemberDto['moments'], legend: CrewMemberDto['legend']): CrewMemberDto {
   const assignment = row.assignmentKind ? {
     kind: row.assignmentKind,
     ref: row.assignmentRef,
@@ -293,6 +294,7 @@ function memberDto(row: {
     unavailableReason,
     history,
     moments,
+    legend,
     loyalty: {
       enabled: crewLoyaltyEnabled(ruleset),
       points: crewLoyaltyEnabled(ruleset) ? row.loyaltyPoints : 0,
@@ -958,6 +960,14 @@ export const CrewRosterService = {
             receipts: momentReceipts.get(member.id) ?? [],
             careerEvents: momentEvents.get(member.id) ?? [],
           }) : [],
+          crewLoyaltyEnabled(ruleset) ? (() => {
+            const proof = {
+              loyaltyPoints: member.loyaltyPoints, nicknameKey: member.nicknameKey,
+              suppressed: member.nicknameSuppressed,
+              receipts: loyaltyEntries.filter((entry) => entry.memberId === member.id),
+            };
+            return { nickname: selectedCrewNickname(proof), options: eligibleCrewNicknames(proof), moderated: member.nicknameSuppressed };
+          })() : undefined,
         )),
         total,
       };

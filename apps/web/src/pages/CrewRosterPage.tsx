@@ -160,7 +160,7 @@ function CrewJobsBoard({
   );
 }
 
-function CrewMemberCard({ member, peers, busy, onExchange, onTrain }: { member: CrewMemberDto; peers: CrewMemberDto[]; busy: boolean; onExchange: (memberId: string, replaceMemberId: string) => void; onTrain: (memberId: string) => void }) {
+function CrewMemberCard({ member, peers, busy, onExchange, onTrain, onNickname }: { member: CrewMemberDto; peers: CrewMemberDto[]; busy: boolean; onExchange: (memberId: string, replaceMemberId: string) => void; onTrain: (memberId: string) => void; onNickname: (memberId: string, key: string | null) => void }) {
   const [replaceId, setReplaceId] = useState('');
   const candidates = peers.filter((peer) => peer.id !== member.id && peer.role === member.role && !peer.dealerStaffId && !member.dealerStaffId && (
     (member.status === 'AVAILABLE' && ['ASSIGNED', 'RELEASED'].includes(peer.status))
@@ -173,7 +173,7 @@ function CrewMemberCard({ member, peers, busy, onExchange, onTrain }: { member: 
       <div className="se-crew-roster__member-head">
         <div>
           <span className="se-eyebrow">{member.role === 'THUG' ? 'Thug' : 'Worker'} · #{String(member.serial).padStart(3, '0')}</span>
-          <h3>{member.name}</h3>
+          <h3>{member.name}{member.legend?.nickname && !member.legend.moderated ? <span className="se-crew-legend__nickname"> · {member.legend.nickname.label}</span> : null}</h3>
         </div>
         <span className={`se-crew-roster__status se-crew-roster__status--${member.status.toLowerCase()}`}>{statusLabels[member.status]}</span>
       </div>
@@ -200,6 +200,18 @@ function CrewMemberCard({ member, peers, busy, onExchange, onTrain }: { member: 
       {member.status === 'AVAILABLE' && member.specialty !== 'GENERALIST' && member.specialty !== 'DEALER' && member.specialtyLevel === 1 ? <div className="se-crew-roster__actions">
         <button className="se-btn se-btn--sm" type="button" disabled={busy} onClick={() => onTrain(member.id)}>Train · 1 turn + $5,000 · up to 5 XP</button>
       </div> : null}
+      {member.legend && (member.legend.options.length > 0 || member.legend.moderated) ? (
+        <div className="se-crew-legend__select">
+          <label>Earned nickname
+            <select className="se-input" value={member.legend.nickname?.key ?? ''} disabled={busy || member.legend.moderated || member.status === 'RELEASED'}
+              onChange={(event) => onNickname(member.id, event.target.value || null)}>
+              <option value="">Use first earned name</option>
+              {member.legend.options.map((option) => <option key={option.key} value={option.key}>{option.label} — {option.proof}</option>)}
+            </select>
+          </label>
+          {member.legend.moderated ? <small>Staff moderation has disabled nicknames for this member.</small> : <small>Presets are unlocked through real work. No combat or income benefits.</small>}
+        </div>
+      ) : null}
       <div className="se-crew-roster__traits" aria-label="Crew traits">
         {member.traits.map((trait) => <span key={trait}>{trait}</span>)}
       </div>
@@ -377,6 +389,12 @@ export function CrewRosterPage() {
       setBondBusy(false);
     }
   };
+  const nickname = async (memberId: string, key: string | null) => {
+    setActionBusy(true); setError(null);
+    try { await crewApi.chooseNickname(memberId, key); await refresh(); }
+    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Could not choose that nickname.'); }
+    finally { setActionBusy(false); }
+  };
   const train = async (memberId: string) => {
     setActionBusy(true); setError(null);
     try { await crewApi.train(memberId, crypto.randomUUID()); await refresh(); }
@@ -485,7 +503,7 @@ export function CrewRosterPage() {
             <p className="se-crew-roster__note">Completed raids, scouting trips, and returned runs earn specialty XP. Bonuses cap at 5% and apply only to that job. Training costs 1 turn and $5,000, adds up to 5 XP toward an earned specialty tier, and is capped by completed-work experience.</p>
             {loading ? <p className="se-muted">Checking the roster…</p> : data.members.length ? (
               <>
-                <div className="se-crew-roster__list">{data.members.map((member) => <CrewMemberCard key={member.id} member={member} peers={data.members} busy={actionBusy} onExchange={(id, replaceId) => void exchange(id, replaceId)} onTrain={(id) => void train(id)} />)}</div>
+                <div className="se-crew-roster__list">{data.members.map((member) => <CrewMemberCard key={member.id} member={member} peers={data.members} busy={actionBusy} onExchange={(id, replaceId) => void exchange(id, replaceId)} onTrain={(id) => void train(id)} onNickname={(id, key) => void nickname(id, key)} />)}</div>
                 <div className="se-crew-roster__pagination">
                   <span>Showing {formatNumber(offset + 1)}–{formatNumber(Math.min(offset + data.members.length, data.total))} of {formatNumber(data.total)}</span>
                   <div>

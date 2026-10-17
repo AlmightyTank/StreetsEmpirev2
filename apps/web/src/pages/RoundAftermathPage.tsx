@@ -9,6 +9,7 @@ import type {
   RoundAftermathLeaderboardDto,
   RoundAftermathOverviewDto,
   RoundAftermathPersonalDto,
+  CrewLegendArchiveDto,
   RoundAftermathRecordsDto,
 } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
@@ -207,6 +208,7 @@ export function RoundAftermathPage() {
   const [cityDetail, setCityDetail] = useState<RoundAftermathCityDetailDto | null>(null);
   const [alliances, setAlliances] = useState<RoundAftermathAlliancesDto | null>(null);
   const [personal, setPersonal] = useState<RoundAftermathPersonalDto | null>(null);
+  const [crewLegends, setCrewLegends] = useState<CrewLegendArchiveDto[]>([]);
   const [records, setRecords] = useState<RoundAftermathRecordsDto | null>(null);
   const [tab, setTab] = useState<TabKey>(() => isTabKey(searchParams.get('view')) ? searchParams.get('view') as TabKey : 'summary');
   const [recordsCategory, setRecordsCategory] = useState<RoundAftermathCategoryKey>(() =>
@@ -317,8 +319,12 @@ export function RoundAftermathPage() {
   useEffect(() => {
     let current = true;
     setPersonal(null);
+    setCrewLegends([]);
     setPersonalError(null);
     if (tab !== 'me' || !overview) return () => { current = false; };
+    void roundsApi.aftermathCrewLegends(roundId)
+      .then((records) => { if (current) setCrewLegends(records); })
+      .catch(() => { if (current) setCrewLegends([]); });
     void roundsApi.aftermathMine(roundId)
       .then((result) => { if (current) setPersonal(result); })
       .catch((caught: unknown) => {
@@ -560,6 +566,21 @@ export function RoundAftermathPage() {
               ))}
             </div>
           </section>
+          {crewLegends.length ? <section className="se-aftermath-board" aria-label="Crew legends memorial">
+            <header className="se-aftermath-sectionhead">
+              <div><span className="se-eyebrow">Permanent cosmetic collection</span><h3>Crew Legends</h3></div>
+              <p>Preserved from the final round roster. Artwork and biographies only; never a live crew or stat bonus.</p>
+            </header>
+            <div className="se-crew-legend__archive">
+              {crewLegends.map((legend) => <article key={legend.id} className="se-crew-legend__memento">
+                <img src={legend.artworkUrl} alt="" loading="lazy" width={96} height={110} />
+                <div><strong>{legend.memberName} · {legend.nickname}</strong>
+                  <p>{legend.proof} · {legend.trait} · {legend.loyaltyPoints} loyalty, {legend.experiencePoints} XP at cutoff.</p>
+                  <small>{legend.finalStatus === 'RELEASED' ? 'Released at cutoff' : 'Round-only member'} · {formatDate(legend.archivedAt)}</small>
+                </div>
+              </article>)}
+            </div>
+          </section> : null}
           <section className="se-aftermath-board" aria-label="Milestones and personal bests">
             <div className="se-aftermath-personal-panels">
               <div>
