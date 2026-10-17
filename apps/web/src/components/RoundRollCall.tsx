@@ -126,6 +126,7 @@ export function RoundRollCallPanel() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimResult, setClaimResult] = useState<RoundRollCallClaimResult | null>(null);
+  const [showAllRewards, setShowAllRewards] = useState(false);
   const [claimingTier, setClaimingTier] = useState<number | null>(null);
   const [reload, setReload] = useState(0);
   const inFlight = useRef(false);
@@ -212,6 +213,18 @@ export function RoundRollCallPanel() {
     ? Math.min(100, Math.round(board.stamps / board.requiredStamps * 100))
     : 0;
 
+  // Keep the Street Pass page compact. A six-card window follows the next
+  // unclaimed step; players can always expand the entire calendar.
+  const focusIndex = board?.rewardTrack.findIndex((step) => !step.claimed) ?? -1;
+  const nearbyStart = board
+    ? Math.max(0, Math.min(Math.max(0, board.rewardTrack.length - 6),
+      focusIndex < 0 ? board.rewardTrack.length - 6 : focusIndex - 1))
+    : 0;
+  const visibleTiers = board
+    ? showAllRewards ? board.rewardTrack : board.rewardTrack.slice(nearbyStart, nearbyStart + 6)
+    : [];
+
+
   return (
     <section className="se-rollcall" id="round-roll-call" aria-label="Round Roll Call login rewards" tabIndex={-1}>
       <header className="se-rollcall__heading">
@@ -285,17 +298,33 @@ export function RoundRollCallPanel() {
               >Claim reward {nextReady.tier}</Button>
             </div>
           ) : null}
+          <div className="se-rollcall__shelfhead">
+            <strong>Reward calendar</strong>
+            <span>{showAllRewards
+              ? 'All ' + board.requiredStamps + ' rewards'
+              : 'Rewards ' + (nearbyStart + 1) + '–' + (nearbyStart + visibleTiers.length) + ' of ' + board.requiredStamps}</span>
+          </div>
           <ol className="se-rollcall__grid" aria-label="Login reward track">
-            {board.rewardTrack.map((tier, index) => (
+            {visibleTiers.map((tier) => (
               <RollCallDay
                 key={tier.key}
                 tier={tier}
-                finale={index === board.rewardTrack.length - 1}
+                finale={tier.tier === board.requiredStamps}
                 claimingTier={claimingTier}
                 onClaim={(step) => void claim(step)}
               />
             ))}
           </ol>
+          {board.rewardTrack.length > 6 ? (
+            <div className="se-rollcall__more">
+              <Button
+                variant="ghost"
+                onClick={() => setShowAllRewards((current) => !current)}
+                aria-expanded={showAllRewards}
+                aria-controls="round-roll-call"
+              >{showAllRewards ? 'Show rewards near my progress' : 'Show full ' + board.requiredStamps + '-reward calendar'}</Button>
+            </div>
+          ) : null}
           <RollCallFinalePreview target={board.requiredStamps} completed={board.completed} />
           <p className="se-rollcall__footnote">
             Seven missed days are already built into the round schedule. Earn one stamp per eligible day;
