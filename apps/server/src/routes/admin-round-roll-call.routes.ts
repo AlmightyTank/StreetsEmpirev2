@@ -4,6 +4,7 @@ import { parseBody } from '../utils/validate.js';
 import { AppError } from '../utils/errors.js';
 import { RoundRollCallService, roundRollCallClock } from '../services/round-roll-call.service.js';
 import { RoundRollCallRewardService } from '../services/round-roll-call-reward.service.js';
+import { rollCallEconomyProjection, rollCallReleaseWarnings } from '../services/round-roll-call-release.service.js';
 
 const id = z.string().trim().min(1).max(128);
 const overviewQuery = z.object({ roundId: id }).strict();
@@ -37,10 +38,19 @@ const adminRoundRollCallRoutes: FastifyPluginAsync = async (fastify) => {
         },
       }),
     ]);
+    const clock = roundRollCallClock(round, new Date());
+    const economy = rollCallEconomyProjection(clock.roundDays, players, round.roundLoginRewardVersion);
+    const releaseWarnings = rollCallReleaseWarnings({
+      players, roundDays: clock.roundDays, requiredStamps: clock.requiredStamps,
+      actualLogins, recoveredStamps, recoveryAudits, rewardClaims,
+      rewardVersion: round.roundLoginRewardVersion,
+    });
     return {
       roundId,
       status: round.status,
-      clock: roundRollCallClock(round, new Date()),
+      clock,
+      economy,
+      releaseWarnings,
       players,
       actualLogins,
       recoveredStamps,
