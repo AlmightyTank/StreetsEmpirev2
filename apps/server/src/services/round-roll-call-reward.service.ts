@@ -1,4 +1,5 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient, Round } from '@prisma/client';
+import { loadRulesetForRound } from '@streets/rules-engine';
 import type { GameActionResult, QuestRewardDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import type { Db } from '../utils/db.js';
@@ -34,7 +35,7 @@ export function assertRoundRollCallClaimable(
 
 export const RoundRollCallRewardService = {
   /** Enrich the readonly attendance calendar with catalog labels and claim receipts. */
-  async board(db: Db | PrismaClient, round: Parameters<typeof RoundRollCallService.view>[1], roundPlayerId: string, now = new Date()) {
+  async board(db: Db | PrismaClient, round: Round, roundPlayerId: string, now = new Date()) {
     const [attendance, claimed] = await Promise.all([
       RoundRollCallService.view(db, round, roundPlayerId, now),
       db.roundLoginRewardClaim.findMany({
@@ -44,6 +45,7 @@ export const RoundRollCallRewardService = {
     ]);
     const receipts = new Map(claimed.map((claim) => [claim.tier, claim.claimedAt.toISOString()]));
     const catalog = roundRollCallCatalog(attendance.requiredStamps);
+    const ruleset = loadRulesetForRound(round);
     return {
       ...attendance,
       rewardVersion: ROUND_ROLL_CALL_REWARD_VERSION,
@@ -55,7 +57,7 @@ export const RoundRollCallRewardService = {
         claimed: receipts.has(step.tier),
         claimedAt: receipts.get(step.tier) ?? null,
         claimable: attendance.active && step.tier <= attendance.stamps && !receipts.has(step.tier),
-        rewards: step.rewards.map((reward) => rewardDto(reward, undefined as never)),
+        rewards: step.rewards.map((reward) => rewardDto(reward, ruleset)),
       })),
     };
   },
