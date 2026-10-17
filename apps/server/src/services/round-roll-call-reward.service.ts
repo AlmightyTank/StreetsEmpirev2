@@ -66,14 +66,14 @@ export const RoundRollCallRewardService = {
       RoundRollCallCosmeticService.ownership(db, player.accountId),
       RoundRollCallRecoveryService.status(db, round, roundPlayerId, now, attendance),
     ]);
-    // A player who exceeded the native seven-day allowance can still finish
-    // if one currently available, independently capped makeup bridges the gap.
-    // Do not tell them the finale is impossible while the recovery action
-    // shown immediately below the calendar would make it reachable.
+    // A player can complete multiple independently capped makeups in a row,
+    // so count the server-verified days usable right now rather than one.
+    // Do not declare the finale impossible when eligible recoveries bridge
+    // the shortfall, but never count future/unjoined days as recoverable.
     const futureSlots = attendance.ended ? 0 : Math.max(0,
       attendance.roundDays - attendance.roundDay + (attendance.alreadyCheckedInToday ? 0 : 1));
     const canFinishWithCurrentRecovery = recovery.eligible
-      && attendance.stamps + futureSlots + 1 >= attendance.requiredStamps;
+      && attendance.stamps + futureSlots + recovery.availableNow >= attendance.requiredStamps;
     const receipts = new Map(claimed.map((claim) => [claim.tier, claim]));
     const catalogVersion = round.roundLoginRewardVersion;
     const catalog = roundRollCallCatalog(attendance.requiredStamps, catalogVersion);
