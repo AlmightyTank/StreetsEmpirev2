@@ -309,6 +309,8 @@ export function CrewRosterPage() {
     && member.role === mentorChoice.role && member.experiencePoints < mentorChoice.experiencePoints
     && !activeBonds.some((bond) => bond.mentorId === member.id)
     && !(data?.bonds ?? []).some((bond) => bond.apprenticeId === member.id)
+    && !(data?.mentoredMemberIds ?? []).includes(member.id)
+    && !(boardData?.mentoredMemberIds ?? []).includes(member.id)
   );
 
   const refresh = async () => {

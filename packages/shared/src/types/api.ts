@@ -911,6 +911,8 @@ export interface CrewRosterDto {
   /** 2.1.0-D. Optional round-only mentor links, even when stories are muted. */
   bondsEnabled?: boolean;
   bonds?: CrewMentorBondDto[];
+  /** Every member on this page who has ever had a mentor this round. */
+  mentoredMemberIds?: string[];
   /** Selected operation teams are introduced in 1.7.0-E. */
   supportsSelectedTeams: boolean;
   /** When the roster was first built from this player's counts; null before then. */

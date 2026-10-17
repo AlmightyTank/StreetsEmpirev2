@@ -933,10 +933,17 @@ export const CrewRosterService = {
       }
       const bondsEnabled = crewLoyaltyEnabled(ruleset);
       const bonds = await CrewBondService.list(tx, roundPlayerId, bondsEnabled);
+      const mentoredMemberIds = bondsEnabled && ids.length
+        ? (await tx.crewMentorBond.findMany({
+          where: { roundPlayerId, apprenticeId: { in: ids } },
+          select: { apprenticeId: true },
+        })).map((row) => row.apprenticeId)
+        : [];
       return {
         enabled: true,
         bondsEnabled,
         bonds,
+        mentoredMemberIds,
         supportsSelectedTeams: ruleset.crewRoster?.selectedTeams === true,
         migratedAt: migration?.createdAt.toISOString() ?? null,
         totals,
