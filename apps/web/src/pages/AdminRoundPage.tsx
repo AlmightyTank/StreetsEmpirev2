@@ -7,6 +7,7 @@ import { ApiError } from '../api/client.js';
 import { AdminAllianceBalancePanel } from '../components/AdminAllianceBalancePanel.js';
 import { AdminAlliancesPanel } from '../components/AdminAlliancesPanel.js';
 import { AdminRulesetChangePanel } from '../components/AdminRulesetChangePanel.js';
+import { AdminRoundRollCallPanel } from '../components/AdminRoundRollCallPanel.js';
 import { AdminStreetPassEditor } from '../components/AdminStreetPassEditor.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -293,6 +294,8 @@ export function AdminRoundPage() {
           )}
         </Panel>
       ) : null}
+
+      <AdminRoundRollCallPanel roundId={round.id} />
 
       <AdminAlliancesPanel roundId={round.id} finished={finished} />
       <AdminAllianceBalancePanel roundId={round.id} />
