@@ -116,3 +116,22 @@ Check both database migrations (A, B) on a clean database before merging.
 4. Check paused rounds, a missed check-in, late starters, and a track completed exactly on the final eligible day.
 5. On a phone-width viewport, reward cards remain accessible without horizontal page overflow or unreachable buttons.
 6. On a complete track, final cosmetics still explicitly say **not yet issued** until Slice D's entitlement service exists.
+
+## Slice D — Permanent Exclusive Cosmetics (implemented)
+
+**Obsidian Signal** is a matched pair unlocked only by completing the full number of server-stamped attendance days. It is not a purchase, paid tier, streak or power buff:
+
+- `round-roll-call-obsidian-signal-theme` → `SITE_THEME`, `styleKey=obsidian-signal`. Deep graphite panels with gold and ice-blue signal treatment; respects existing shell, mobile, accent and reduced-motion settings.
+- `round-roll-call-obsidian-signal-crew` → `ITEM_COLLECTION`, `styleKey=obsidian-signal-crew`, authored portraits for both `THUG` and `HOE`. It intentionally covers only these two crew types, not unrelated items, whose art would otherwise silently fall back to Classic.
+- Both are `legendary`, individually stored as permanent `AccountCosmeticUnlock` records with `(accountId,key)` uniqueness and a recorded original round source. Both are upserted in one transaction, so partial grants are rolled back.
+- A real server-verified final stamp awards the pair during foreground check-in. The final reward claim also awards the pair if an already-completed player missed the initial grant. An authenticated check-in on an already-completed track backfills existing players from Slices A–C.
+- Round closure scans qualifying check-ins and grants the permanent pair even if the last gameplay reward was never claimed. It **never** issues unclaimed cash, turns or items after the round closes. An early admin close does not make the original goal trivially shorter.
+- The account locker and Collection page discover both rewards via their account unlocks. Players may equip the theme and either crew outfit independently across future rounds.
+- The UI shows the actual shell and crew imagery and an earned-state link to Account Settings. No cosmetic is described as `coming in Slice D` anymore.
+- Reward catalog version `round-roll-call-v1` and economic payouts are unchanged; **no migration is required** for Slice D.
+
+### QA expectations
+
+Run `npm run typecheck`, unit tests including `round-roll-call-cosmetic.test.ts`, builds and the Game UI Visual Audit.
+
+Manually test a fresh 28-day round with 20/21/22 check-in attempts, a 35-day round at 21 and 28 stamps, repeated final claims, a missed-day finish, existing-complete account catch-up, two concurrent requests, early admin close, and a completed player who never clicked the final cash reward. Verify the pair persists on a subsequent round and appears in the settings and Collection page, with no weapon or gameplay boost.
