@@ -10,7 +10,7 @@ const DAY = 86_400_000;
 const BEGIN = new Date('2026-10-01T18:00:00.000Z');
 const statusAt = (roundDays: number, dayIndex: number, pausedMinutesTotal = 0) => {
   const end = new Date(BEGIN.getTime() + roundDays * DAY + pausedMinutesTotal * 60_000);
-  const round = { startsAt: BEGIN, endsAt: end, pausedMinutesTotal, pausedAt: null, status: 'ACTIVE' };
+  const round = { startsAt: BEGIN, endsAt: end, pausedMinutesTotal, pausedAt: null, status: 'ACTIVE' as const };
   return roundRollCallClock(round, new Date(BEGIN.getTime() + (dayIndex - 1) * DAY + pausedMinutesTotal * 60_000 + 1000));
 };
 const stamp = (dayIndex: number, source = 'LOGIN') => ({ dayIndex, source });
