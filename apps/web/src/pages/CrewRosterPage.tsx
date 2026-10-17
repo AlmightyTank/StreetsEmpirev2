@@ -315,6 +315,8 @@ export function CrewRosterPage() {
         ...settings,
         itemCosmetics: settings.itemCosmetics ?? {},
         crewCosmetics: settings.crewCosmetics ?? { THUG: 'classic', HOE: 'classic' },
+        showThemeOnProfile: settings.showThemeOnProfile ?? true,
+        showLookOnProfile: settings.showLookOnProfile ?? true,
         showCrewMoments: checked,
       });
       setProfileSettings(updated.settings);

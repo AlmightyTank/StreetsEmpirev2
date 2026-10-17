@@ -529,7 +529,7 @@ export const AccountProfileService = {
         crewCosmetics: { ...(input.crewCosmetics ?? DEFAULT_CREW_COSMETICS) },
         showThemeOnProfile: input.showThemeOnProfile ?? true,
         showLookOnProfile: input.showLookOnProfile ?? true,
-        showCrewMoments: input.showCrewMoments ?? false,
+        showCrewMoments: input.showCrewMoments,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,

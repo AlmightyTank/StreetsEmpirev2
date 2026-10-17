@@ -346,7 +346,7 @@ export const updateAccountProfileSettingsSchema = z.object({
   crewCosmetics: crewCosmeticLoadoutSchema,
   showThemeOnProfile: z.boolean().default(true),
   showLookOnProfile: z.boolean().default(true),
-  showCrewMoments: z.boolean().default(false),
+  showCrewMoments: z.boolean().optional(),
   featuredBadgeKeys: z.array(z.string().trim().min(1).max(80)).max(6),
   profileAccent: profileAccentSchema,
   uiDensity: uiDensitySchema,
