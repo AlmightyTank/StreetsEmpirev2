@@ -3,6 +3,7 @@ import { AppError } from '../utils/errors.js';
 import type { Db } from '../utils/db.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
 export const ROUND_ROLL_CALL_ALLOWANCE_DAYS = 7;
 
 /**
@@ -10,19 +11,28 @@ export const ROUND_ROLL_CALL_ALLOWANCE_DAYS = 7;
  * of 24-hour days. It does not use the browser clock or a player's timezone.
  * Partial final days count as a day, and their window closes at endsAt.
  */
-export function roundRollCallClock(round: Pick<Round, 'startsAt' | 'endsAt' | 'status'> & { pausedAt?: Date | null }, now: Date) {
+export function roundRollCallClock(round: Pick<Round, 'startsAt' | 'endsAt' | 'status'> & { pausedAt?: Date | null; pausedMinutesTotal?: number }, now: Date) {
   const start = round.startsAt.getTime();
   const end = round.endsAt.getTime();
   const current = now.getTime();
-  const roundDays = Math.max(0, Math.ceil((end - start) / DAY_MS));
+  // Admin resume extends endsAt for the completed pause. Subtract that paused
+  // time so it never adds attendance requirements or consumes a missed day.
+  const completedPauseMs = Math.max(0, round.pausedMinutesTotal ?? 0) * MINUTE_MS;
+  const openPauseMs = round.pausedAt
+    ? Math.max(0, Math.min(current, end) - round.pausedAt.getTime())
+    : 0;
+  const pausedMs = completedPauseMs + openPauseMs;
+  const effectiveNowMs = Math.max(0, current - start - pausedMs);
+  const effectiveDurationMs = Math.max(0, end - start - pausedMs);
+  const roundDays = Math.max(0, Math.ceil(effectiveDurationMs / DAY_MS));
   const requiredStamps = Math.max(0, roundDays - ROUND_ROLL_CALL_ALLOWANCE_DAYS);
   const beforeStart = current < start;
   const ended = current >= end || round.status === 'ENDED' || round.status === 'ARCHIVED';
-  const roundDay = beforeStart ? 0 : Math.min(roundDays, Math.floor((current - start) / DAY_MS) + 1);
+  const roundDay = beforeStart ? 0 : Math.min(roundDays, Math.floor(effectiveNowMs / DAY_MS) + 1);
   const active = round.status === 'ACTIVE' && round.pausedAt == null && !beforeStart && !ended && requiredStamps > 0;
-  const completedDaySlots = beforeStart ? 0 : ended ? roundDays : Math.min(roundDays, Math.floor((current - start) / DAY_MS));
+  const completedDaySlots = beforeStart ? 0 : ended ? roundDays : Math.min(roundDays, Math.floor(effectiveNowMs / DAY_MS));
   const nextDayAt = active
-    ? new Date(Math.min(end, start + roundDay * DAY_MS)).toISOString()
+    ? new Date(Math.min(end, start + roundDay * DAY_MS + completedPauseMs)).toISOString()
     : null;
 
   return {
