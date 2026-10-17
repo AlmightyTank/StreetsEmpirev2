@@ -16,7 +16,7 @@ function setup(options: { status?: string; self?: boolean; actual?: number; stor
   const audit = vi.fn().mockResolvedValue({ id: 'audit-1' });
   const member = {
     id: 'member-1', loyaltyPoints: options.stored ?? 45,
-    nicknameKey: options.nickname ?? 'TRUSTED_HAND', nicknameSuppressed: false,
+    nicknameKey: options.nickname === undefined ? 'TRUSTED_HAND' : options.nickname, nicknameSuppressed: false,
   };
   const player = {
     id: 'player-1', roundId: 'round-1',
@@ -64,11 +64,11 @@ describe('2.1.0-G — admin correction provenance and fail-closed controls', () 
     const first = new Date('2026-12-28T00:00:00.000Z');
     expect(receiptProblems(Array.from({ length: 9 }, (_, i) => ({
       id: String(i), source: 'DEFENSE_HELD', points: 4,
-      at: new Date(first.getTime() + i * 24 * 60 * 60_000),
+      at: new Date(first.getTime() + Math.floor(i / 2) * 24 * 60 * 60_000),
     })))).toEqual(expect.arrayContaining([expect.stringContaining('Weekly cap exceeded')]));
   });
   it('repairs materialized totals from verified receipts, audits and resets stale names without touching cash', async () => {
-    const { db, update, event, audit } = setup();
+    const { db, update, event, audit } = setup({ nickname: null });
     const result = await AdminCrewReleaseService.reconcile(db, actor, 'player-1', 'member-1',
       { reason: 'Correct numeric drift in materialized loyalty.', expectedPoints: 45 }, at);
     expect(result).toEqual({ memberId: 'member-1', before: 45, verified: 50, nicknameReset: false, auditId: 'audit-1' });
