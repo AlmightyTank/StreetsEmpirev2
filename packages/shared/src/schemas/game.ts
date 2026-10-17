@@ -413,6 +413,12 @@ export const crewMentorEndSchema = z.object({
 }).strict();
 export type CrewMentorEndInput = z.infer<typeof crewMentorEndSchema>;
 
+export const crewNicknameSchema = z.object({
+  memberId: z.string().trim().min(1).max(64),
+  nicknameKey: z.enum(['CORNER_KEEPER','ROAD_VETERAN','SHIFT_ANCHOR','STREET_REGULAR','TRUSTED_HAND']).nullable(),
+}).strict();
+export type CrewNicknameInput = z.infer<typeof crewNicknameSchema>;
+
 /** 1.7.0-D. Train an available member who already earned the selected specialty. */
 export const crewTrainingSchema = z.object({
   memberId: z.string().trim().min(1).max(64),
