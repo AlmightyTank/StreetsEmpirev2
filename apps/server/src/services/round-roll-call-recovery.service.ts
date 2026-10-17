@@ -69,7 +69,7 @@ export const RoundRollCallRecoveryService = {
     if (!player || player.roundId !== round.id) {
       throw AppError.notFound('NOT_IN_ROUND', 'Player does not belong to this round.');
     }
-    return rollCallRecoveryPolicy(round, view, stamps, recoveries);
+    return rollCallRecoveryPolicy(view, stamps, recoveries);
   },
 
   /**
