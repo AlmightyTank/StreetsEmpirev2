@@ -1359,6 +1359,8 @@ model Round {
   pausedByUsername   String?
   /// Minutes of completed pauses, for the record and for extending the end on resume.
   pausedMinutesTotal Int       @default(0)
+  /// 2.2.0. New underworld templates stay off until an admin enables them for this round.
+  underworldOperationsEnabled Boolean @default(false)
 
   registrationOpensAt DateTime?
 
@@ -2014,6 +2016,8 @@ enum SupplyMovementKind {
   RETURNED
   /// 1.6.0-I. An audited staff correction: quantityDelta is signed.
   CORRECTED
+  /// 2.2.0. Units moved by a stash-recovery operation. Not a second inventory.
+  OPERATION_RECOVERY
 }
 
 /// 1.6.0-A. Prepaid bulk stock reserved from a ruleset-defined supplier.
@@ -5381,9 +5385,18 @@ model Operation {
   target       Json                   @default("{}")
   roles        Json                   @default("{}")
   report       Json?
+  /// 2.2.0. Null keeps the Corner Takeover prototype interpreter.
+  catalogKey         String?
+  catalogVersion     String?
+  rulesSnapshot      Json?
+  windows            Json                   @default("[]")
+  committedCostCents Int                    @default(0)
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
   participants OperationParticipant[]
+  transitions  OperationTransition[]
+  sourceClaims OperationSourceClaim[]
+  grants       OperationGrant[]
 
   @@index([roundId, status, createdAt(sort: Desc)])
   @@index([leaderId, createdAt(sort: Desc)])
@@ -5404,6 +5417,46 @@ model OperationParticipant {
 
   @@unique([operationId, role])
   @@index([roundPlayerId, status])
+}
+
+/// 2.2.0. Append-only status history for criminal operations. Business-operations admin does not read these rows.
+model OperationTransition {
+  id          String    @id @default(cuid())
+  operationId String
+  operation   Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  actorId     String?
+  fromStatus  String
+  toStatus    String
+  reason      String
+  createdAt   DateTime  @default(now())
+
+  @@index([operationId, createdAt])
+}
+
+/// 2.2.0. One limited source (stash, shipment, or threat) can be claimed by one operation in a round.
+model OperationSourceClaim {
+  id          String    @id @default(cuid())
+  roundId     String
+  sourceKind  String
+  sourceId    String
+  operationId String
+  operation   Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([roundId, sourceKind, sourceId])
+  @@index([operationId])
+}
+
+/// 2.2.0. Backstop so a retry cannot pay the same participant twice. The ledger itself does not dedupe.
+model OperationGrant {
+  id            String    @id @default(cuid())
+  operationId   String
+  operation     Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  kind          String
+  createdAt     DateTime  @default(now())
+
+  @@unique([operationId, roundPlayerId, kind])
 }
 
 model IntelRumor {

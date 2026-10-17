@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, lawyerActionSchema, officialHireSchema, tipBuySchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema, operationAnswerSchema, operationExecuteSchema, operationInviteSchema, operationLockSchema, operationStartSchema } from '@streets/shared';
+import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, lawyerActionSchema, officialHireSchema, tipBuySchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema, operationAnswerSchema, operationCancelSchema, operationCiteSchema, operationExecuteSchema, operationInviteSchema, operationLockSchema, operationReleaseSchema, operationStartSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -117,6 +117,12 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     OperationsService.answer(app.prisma, await me(request.auth!.account.id), parseBody(operationAnswerSchema, request.body ?? {})));
   app.post('/operation/execute', { preHandler: app.requireAuth }, async (request) =>
     OperationsService.execute(app.prisma, await me(request.auth!.account.id), parseBody(operationExecuteSchema, request.body ?? {})));
+  app.post('/operation/release', { preHandler: app.requireAuth }, async (request) =>
+    OperationsService.release(app.prisma, await me(request.auth!.account.id), parseBody(operationReleaseSchema, request.body ?? {})));
+  app.post('/operation/cancel', { preHandler: app.requireAuth }, async (request) =>
+    OperationsService.cancel(app.prisma, await me(request.auth!.account.id), parseBody(operationCancelSchema, request.body ?? {})));
+  app.post('/operation/cite', { preHandler: app.requireAuth }, async (request) =>
+    OperationsService.cite(app.prisma, await me(request.auth!.account.id), parseBody(operationCiteSchema, request.body ?? {})));
   app.post('/business/torch', { preHandler: app.requireAuth }, async (request) =>
     BlockWarService.torch(app.prisma, await me(request.auth!.account.id), parseBody(businessTorchSchema, request.body ?? {})));
   /** 1.1.0-C: run, switch or shut a business's racket. */

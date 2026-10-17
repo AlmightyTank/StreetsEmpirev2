@@ -636,33 +636,70 @@ export interface CityTurfDto {
 }
 
 /** 2.0.0. A criminal operation: intel, crew lock, execution, outcome report. */
+export interface OperationSeatDto {
+  role: string;
+  roundPlayerId: string | null;
+  displayName: string | null;
+  status: 'LOCKED' | 'INVITED' | 'ACCEPTED' | 'DECLINED' | 'OPEN';
+}
+
+export interface OperationBandDto {
+  payoutCents: number;
+  label: string;
+}
+
 export interface OperationDto {
   id: string;
   template: string;
-  status: 'INTEL' | 'CREW_LOCK' | 'READY' | 'EXECUTING' | 'REPORTED';
+  label: string;
+  catalogKey: string | null;
+  catalogVersion: string | null;
+  status: 'INTEL' | 'CREW_LOCK' | 'READY' | 'EXECUTING' | 'REPORTED' | 'CANCELLED' | 'EXPIRED';
   citySlug: string;
   cityName: string;
   district: TurfBlockDto['district'] | null;
+  /** Prototype cards keep the three classic seats. Templated jobs use `seats`. */
   roles: Record<'driver' | 'enforcer' | 'intel', {
     roundPlayerId: string | null;
     displayName: string | null;
     status: 'LOCKED' | 'INVITED' | 'ACCEPTED' | 'DECLINED' | 'OPEN';
   }>;
+  seats: OperationSeatDto[];
+  checklist: Array<{ key: string; label: string; done: boolean }>;
+  countdownEndsAt: string | null;
+  bands: { success: OperationBandDto; partial: OperationBandDto; failure: OperationBandDto } | null;
   isLeader: boolean;
   /** The viewer's pending invite, if any. */
-  myInvite: { role: 'driver' | 'enforcer' | 'intel'; expiresAt: string | null } | null;
+  myInvite: { role: string; expiresAt: string | null } | null;
   report: {
     success: boolean;
+    band?: 'success' | 'partial' | 'failure';
     stages: Array<{ stage: string; detail: string; wentWrong: boolean }>;
     payoutCents: number;
+    totalPayoutCents?: number;
+    contributions?: Array<{ roundPlayerId: string; role: string; payoutCents?: number }>;
+    capApplied?: boolean;
+    source?: { kind: string | null; id: string | null; escort?: unknown; routeRisk?: unknown } | null;
   } | null;
   createdAt: string;
+}
+
+export interface OperationCatalogCardDto {
+  key: string;
+  label: string;
+  available: boolean;
+  unavailableReason: string | null;
+  startCostCents: number;
+  deadlineHours: number | null;
+  bands: { success: OperationBandDto; partial: OperationBandDto; failure: OperationBandDto } | null;
 }
 
 export interface OperationsPageDto {
   operations: OperationDto[];
   /** Hours between operations led by one player (anti-farming). */
   leaderCooldownHours: number;
+  underworldOperationsEnabled: boolean;
+  catalog: OperationCatalogCardDto[];
 }
 
 export interface TurfTripDto {

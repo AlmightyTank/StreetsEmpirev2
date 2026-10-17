@@ -28,8 +28,14 @@
 .se-operation__report ol { display: grid; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; }
 .se-operation__report li { display: grid; grid-template-columns: 90px 1fr; gap: 10px; }
 .se-operation__report li b { text-transform: uppercase; font: 700 11px var(--se-mono); }
+.se-operation__checklist { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--se-line); }
+.se-operation__checklist span { font: 700 11px var(--se-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--se-muted); }
+.se-operation__checklist span.is-done { color: var(--se-good); }
+.se-operation-offer { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--se-line); }
+.se-operation-offer p { margin: 0; color: var(--se-text-dim); }
 @media (max-width: 720px) {
   .se-operation-start, .se-operation__roles { grid-template-columns: 1fr; }
+  .se-operation__roles { position: sticky; top: 0; z-index: 2; background: var(--se-panel-hi); }
   .se-operation__role { border-right: 0; border-bottom: 1px solid var(--se-line); }
   .se-operation__role:last-child { border-bottom: 0; }
   .se-operation__launch { align-items: stretch; flex-direction: column; }
