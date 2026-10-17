@@ -164,11 +164,11 @@ async function usableSupportChannel(): Promise<TextChannel | null> {
 
 const supportDeps: SupportDeps = { api, origin: config.frontendOrigin, supportChannel: usableSupportChannel, staffChannel: usableStaffChannel };
 
-async function postNews(channel: GuildTextBasedChannel, gameUpdatesRoleId: string): Promise<void> {
+async function postNews(channel: GuildTextBasedChannel, gameUpdatesRoleId: string, newsUpdatesRoleId: string): Promise<void> {
   // Claimed posts count as posted, which is why the channel is checked before any claim.
   for (const post of await api.claimNews()) {
     try {
-      const message = await channel.send({ embeds: [newsPostEmbed(post)], ...roleMention(isPatchNotesPost(post.title) ? gameUpdatesRoleId : '') });
+      const message = await channel.send({ embeds: [newsPostEmbed(post)], ...roleMention(isPatchNotesPost(post.title) ? gameUpdatesRoleId : newsUpdatesRoleId) });
       if (channel.type === ChannelType.GuildAnnouncement) {
         await message.crosspost().catch((error: unknown) => console.warn('Could not publish news to following servers:', error));
       }
@@ -400,6 +400,7 @@ client.once(Events.ClientReady, async (ready) => {
     const guild = await ready.guilds.fetch(config.DISCORD_GUILD_ID);
     readyGuild = guild;
     const gameUpdatesRoleId = await notificationRoleId(guild, config.DISCORD_GAME_UPDATES_ROLE_ID, 'Game Updates');
+    const newsUpdatesRoleId = await notificationRoleId(guild, config.DISCORD_NEWS_UPDATES_ROLE_ID, 'News Updates');
     const serverUpdatesRoleId = await notificationRoleId(guild, config.DISCORD_SERVER_UPDATES_ROLE_ID, 'Server Updates');
     // Guild commands update immediately, unlike global ones.
     await guild.commands.set(commandData);
@@ -444,7 +445,7 @@ client.once(Events.ClientReady, async (ready) => {
       newsChannel = check.channel;
       await api.reportNewsChannel({ channel: check.channel?.name ?? null, problem: check.problem })
         .catch((error: unknown) => console.warn('Could not report the news channel status to the game API:', error instanceof Error ? error.message : error));
-      if (newsChannel) await postNews(newsChannel, gameUpdatesRoleId);
+      if (newsChannel) await postNews(newsChannel, gameUpdatesRoleId, newsUpdatesRoleId);
     });
     startPoller('News auto-post', config.DISCORD_NEWS_MINUTES * 60_000, runNews);
 
