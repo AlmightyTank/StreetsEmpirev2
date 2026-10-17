@@ -192,3 +192,72 @@ button.se-tip[aria-expanded='true'] {
 }
 .se-panel-section > .se-label:first-child { margin-top: 0; }
 .se-session-more { justify-self: start; }
+
+/* Phone game pages: the footer was one stacked column, taller than the screen. */
+@media (max-width: 899px) {
+  .se-footer__inner {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.7rem 0.55rem;
+    padding: 14px 12px 8px;
+  }
+
+  .se-footer__brand {
+    grid-column: 1 / -1;
+  }
+
+  .se-footer__brand p {
+    max-width: none;
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .se-footer__group h2 {
+    margin-bottom: 0.25rem;
+  }
+
+  .se-footer__group nav {
+    gap: 0;
+  }
+
+  .se-footer__group a {
+    min-height: 32px;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .se-footer__bottom {
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .se-getting-started {
+    margin-bottom: 0;
+    padding: 10px 12px;
+  }
+
+  .se-getting-started__head h2 {
+    margin: 0 0 6px;
+    font-size: 16px;
+  }
+
+  .se-getting-started__steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .se-getting-started__steps li {
+    padding: 6px 8px;
+  }
+
+  .se-getting-started__steps small {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
