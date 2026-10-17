@@ -322,7 +322,7 @@ export function RoundRollCallPanel() {
                         : board.recovery.reason === 'complete'
                           ? 'Your Round Roll Call is complete.'
                           : board.recovery.reason === 'no_eligible_day'
-                            ? 'No missed round day since you joined is eligible for recovery.'
+                            ? 'No missed round day after your first real check-in is eligible for recovery.'
                             : 'Recovery is available only in an active, unpaused round.'}
               </small>
               {board.recovery.history.length > 0 ? (
