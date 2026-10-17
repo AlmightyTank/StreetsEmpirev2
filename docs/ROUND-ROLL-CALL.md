@@ -163,7 +163,7 @@ Use 28- and 35-day rounds, a genuine stamp after 8 absences, a native-allowance 
 - If the locked player does not belong to the selected round, the attendance write **fails closed** with `NOT_IN_ROUND`. No stamp is written. No customer may choose an arbitrary historical/future recovery day or present someone else's player ID in the authenticated recover endpoint.
 - Recovery has unique action IDs and per-day receipts, no paid bypass or transferable make-up token; the total remains at two per round.
 - Legitimate full attendance can only grant the permanent matched cosmetic pair through the existing account-level idempotent upsert; round close does not pay unclaimed gameplay rewards.
-- The client reports that the final reward can still be reached when **one already available** makeup bridges the remaining-day deficit. The server continues to own the actual eligibility decision.
+- The client reports that the final reward can still be reached when **one or both already available** makeups bridge the remaining-day deficit. The server continues to own the actual eligibility decision.
 
 ### Deterministic economy simulation and release warnings
 - `rollCallEconomyProjection(roundDays, playerCount, pinnedVersion)` is **read-only** and assumes 100% redemption of every tier, calculating per-player and whole-round upper bounds for cash in cents, turns, and the three approved consumables. It rejects unsupported reward catalog versions, invalid lengths, unsafe items, and per-step cap violations.
