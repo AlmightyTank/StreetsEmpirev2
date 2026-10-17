@@ -286,6 +286,8 @@ export interface AccountProfileSettingsDto {
   showLookOnProfile?: boolean;
   /** Account-private optional crew personality cards, off by default. */
   showCrewMoments?: boolean;
+  /** Optional player-only milestone celebrations; default false. */
+  showCrewCelebrations?: boolean;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;
@@ -893,6 +895,8 @@ export interface CrewMemberDto {
   loyalty: CrewLoyaltyDto;
   /** Optional narrative-only moments, empty until the account opts in. */
   moments: CrewMomentDto[];
+  /** Latest actual positive loyalty receipt, even when narrative moments are disabled. */
+  lastMajorMoment?: CrewLoyaltyHistoryDto | null;
   legend?: { nickname: CrewEarnedNicknameDto | null; options: CrewEarnedNicknameDto[]; moderated: boolean };
   /** The 1.6 dealer career this member carries, if any. */
   dealerStaffId: string | null;

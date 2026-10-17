@@ -264,7 +264,7 @@ async function totalsFor(db: Db | PrismaClient, roundPlayerId: string) {
 function memberDto(row: {
   id: string; role: CrewRole; serial: number; status: CrewMemberStatusDto; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null;
   experiencePoints: number; specialty: CrewMemberDto['specialty']; specialtyExperiencePoints: number; dealerStaffId: string | null; joinedAt: Date; statusSince: Date; loyaltyPoints: number; nicknameKey: string | null; nicknameSuppressed: boolean;
-}, assignmentLabel: string | null, history: CrewMemberHistoryDto[], ruleset: Ruleset, loyaltyHistory: CrewLoyaltyHistoryDto[], moments: CrewMemberDto['moments'], legend: CrewMemberDto['legend']): CrewMemberDto {
+}, assignmentLabel: string | null, history: CrewMemberHistoryDto[], ruleset: Ruleset, loyaltyHistory: CrewLoyaltyHistoryDto[], moments: CrewMemberDto['moments'], legend: CrewMemberDto['legend'], lastMajorMoment: CrewLoyaltyHistoryDto | null): CrewMemberDto {
   const assignment = row.assignmentKind ? {
     kind: row.assignmentKind,
     ref: row.assignmentRef,
@@ -295,6 +295,7 @@ function memberDto(row: {
     history,
     moments,
     legend,
+    lastMajorMoment,
     loyalty: {
       enabled: crewLoyaltyEnabled(ruleset),
       points: crewLoyaltyEnabled(ruleset) ? row.loyaltyPoints : 0,
@@ -927,8 +928,14 @@ export const CrewRosterService = {
           momentEvents.set(event.memberId, bucket);
         }
       }
+      // All entries are already sorted newest-first; zero-point capped entries
+      // cannot masquerade as the last genuinely earned crew milestone.
+      const latestPositiveByMember = new Map<string, CrewLoyaltyHistoryDto>();
       const loyaltyByMember = new Map<string, typeof loyaltyEntries>();
       for (const entry of loyaltyEntries) {
+        if (entry.points > 0 && !latestPositiveByMember.has(entry.memberId)) {
+          latestPositiveByMember.set(entry.memberId, CrewLoyaltyService.history([entry])[0]!);
+        }
         const bucket = loyaltyByMember.get(entry.memberId) ?? [];
         if (bucket.length < 4) bucket.push(entry);
         loyaltyByMember.set(entry.memberId, bucket);
@@ -968,6 +975,7 @@ export const CrewRosterService = {
             };
             return { nickname: selectedCrewNickname(proof), options: eligibleCrewNicknames(proof), moderated: member.nicknameSuppressed };
           })() : undefined,
+          latestPositiveByMember.get(member.id) ?? null,
         )),
         total,
       };

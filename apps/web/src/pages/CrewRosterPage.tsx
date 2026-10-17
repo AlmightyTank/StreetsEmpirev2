@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { CitiesDto, CrewMemberDto, CrewMemberStatusDto, CrewPutToWorkResult, CrewRosterDto, DealerPageDto, GameActionResult, TurfBlockDto } from '@streets/shared';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CitiesDto, CrewMemberDto, CrewMemberStatusDto, CrewMentorBondDto, CrewPutToWorkResult, CrewRosterDto, DealerPageDto, GameActionResult, TurfBlockDto } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { crewApi, type CrewRosterFilters } from '../api/crew.js';
 import { authApi } from '../api/auth.js';
@@ -12,6 +12,7 @@ import { EmpireInspector, EmpireManagementLayout, EmpireMetricStrip, EmpirePageH
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { crewProgressSnapshot, nextCrewCelebration, type CrewProgressSnapshot, type CrewCelebration } from '../utils/crew-celebrations.js';
 import '../styles/crew-roster.css';
 
 const statusLabels: Record<CrewMemberStatusDto, string> = {
@@ -47,6 +48,7 @@ function CrewJobsBoard({
   const me = useSession((state) => state.me);
   const action = useGameAction<CrewPutToWorkResult>();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [poolLimit, setPoolLimit] = useState(30);
   const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(null);
   const members = roster.members;
   const byId = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
@@ -116,7 +118,7 @@ function CrewJobsBoard({
           </div>
           {available.length ? (
             <div className="se-crew-board__members">
-              {available.map((member) => (
+              {available.slice(0, poolLimit).map((member) => (
                 <label key={member.id} className="se-crew-board__member">
                   <input type="checkbox" checked={selectedIds.includes(member.id)} onChange={() => toggle(member.id)} />
                   <span>
@@ -127,6 +129,7 @@ function CrewJobsBoard({
               ))}
             </div>
           ) : <p className="se-muted">No available thugs in this roster page.</p>}
+          {available.length > poolLimit ? <button className="se-btn se-btn--ghost se-btn--sm" type="button" onClick={() => setPoolLimit((limit) => limit + 30)}>Show 30 more · {formatNumber(available.length - poolLimit)} remaining</button> : null}
         </section>
 
         <section className="se-crew-board__targets" aria-label="Assignment slots">
@@ -160,7 +163,7 @@ function CrewJobsBoard({
   );
 }
 
-function CrewMemberCard({ member, peers, busy, onExchange, onTrain, onNickname }: { member: CrewMemberDto; peers: CrewMemberDto[]; busy: boolean; onExchange: (memberId: string, replaceMemberId: string) => void; onTrain: (memberId: string) => void; onNickname: (memberId: string, key: string | null) => void }) {
+function CrewMemberCard({ member, peers, bonds, busy, onExchange, onTrain, onNickname }: { member: CrewMemberDto; peers: CrewMemberDto[]; bonds: CrewMentorBondDto[]; busy: boolean; onExchange: (memberId: string, replaceMemberId: string) => void; onTrain: (memberId: string) => void; onNickname: (memberId: string, key: string | null) => void }) {
   const [replaceId, setReplaceId] = useState('');
   const candidates = peers.filter((peer) => peer.id !== member.id && peer.role === member.role && !peer.dealerStaffId && !member.dealerStaffId && (
     (member.status === 'AVAILABLE' && ['ASSIGNED', 'RELEASED'].includes(peer.status))
@@ -190,7 +193,22 @@ function CrewMemberCard({ member, peers, busy, onExchange, onTrain, onNickname }
             ? `Dealer career · ${formatNumber(member.specialtyExperiencePoints)} XP · pace and cut follow dealer tiers`
             : `Tier ${member.specialtyLevel} · ${member.specialtyEffectPercent}% ${effectLabels[member.specialty]} · ${member.nextSpecialtyMilestone ? `${formatNumber(Math.max(0, member.nextSpecialtyMilestone - member.specialtyExperiencePoints))} XP to next tier` : 'career capped'}`}
       </p>
+      {member.lastMajorMoment ? (
+        <div className="se-crew-explorer__last" aria-label="Most recent verified crew achievement">
+          <strong>Latest verified moment</strong>
+          <p>{member.lastMajorMoment.label}</p>
+          <time dateTime={member.lastMajorMoment.at}>{new Date(member.lastMajorMoment.at).toLocaleDateString()}</time>
+        </div>
+      ) : member.loyalty.enabled ? <p className="se-crew-roster__note">No credited work milestones yet. Assignments and paid training do not generate one.</p> : null}
       {member.unavailableReason ? <p className="se-crew-roster__reason">{member.unavailableReason}</p> : null}
+      {bonds.filter((bond) => bond.mentorId === member.id || bond.apprenticeId === member.id).length > 0 ? (
+        <div className="se-crew-explorer__bonds">
+          <strong>Relationships</strong>
+          {bonds.filter((bond) => bond.mentorId === member.id || bond.apprenticeId === member.id).map((bond) => (
+            <p key={bond.id}>{bond.mentorId === member.id ? `Mentoring ${bond.apprenticeName}` : `Mentored by ${bond.mentorName}`} · {bond.milestone} · {bond.lessons}/{bond.maxLessons} memories{bond.endedAt ? ' · Ended' : ''}</p>
+          ))}
+        </div>
+      ) : null}
       {candidates.length ? <div className="se-crew-roster__actions">
         <label>Swap with <select className="se-input" value={replaceId} onChange={(event) => setReplaceId(event.target.value)}>
           <option value="">Choose a member</option>{candidates.map((peer) => <option key={peer.id} value={peer.id}>#{peer.serial} · {peer.status === 'RELEASED' ? 'released veteran' : peer.assignment?.label ?? peer.status.toLowerCase()}</option>)}
@@ -253,8 +271,17 @@ function CrewMemberCard({ member, peers, busy, onExchange, onTrain, onNickname }
 export function CrewRosterPage() {
   const me = useSession((state) => state.me);
   const showCrewMoments = useSession((state) => state.profileSettings.showCrewMoments ?? false);
+  const showCrewCelebrations = useSession((state) => state.profileSettings.showCrewCelebrations ?? false);
+  const reducedMotion = useSession((state) => state.profileSettings.reducedMotion);
   const setProfileSettings = useSession((state) => state.setProfileSettings);
   const [momentsSaving, setMomentsSaving] = useState(false);
+  const [celebrationsSaving, setCelebrationsSaving] = useState(false);
+  const [celebration, setCelebration] = useState<CrewCelebration | null>(null);
+  const snapshotRef = useRef<Map<string, CrewProgressSnapshot> | null>(null);
+  // Both controls save the *entire* profile: serialize to prevent stale cross-toggle overwrites.
+  const settingsSaveRef = useRef(false);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [pageSearch, setPageSearch] = useState('');
   const [mentorId, setMentorId] = useState('');
   const [apprenticeId, setApprenticeId] = useState('');
   const [bondBusy, setBondBusy] = useState(false);
@@ -306,6 +333,28 @@ export function CrewRosterPage() {
   }, [filtersKey]);
   useEffect(() => { void loadBoard(); }, [loadBoard, me?.id]);
 
+  // Preserve one detail inspector on desktop and mobile; 50 rows are paginated
+  // server-side, and only one expensive career panel is mounted at a time.
+  const visibleMembers = useMemo(() => {
+    const search = pageSearch.trim().toLocaleLowerCase();
+    if (!search) return data?.members ?? [];
+    return (data?.members ?? []).filter((member) =>
+      [member.name, String(member.serial), member.legend?.nickname?.label ?? '',
+        member.assignment?.label ?? '', specialtyLabels[member.specialty]]
+        .some((value) => value.toLocaleLowerCase().includes(search)));
+  }, [data, pageSearch]);
+  const selectedMember = visibleMembers.find((member) => member.id === selectedMemberId) ?? visibleMembers[0] ?? null;
+  // Snapshot only observed verified progress. Initial data sets a baseline;
+  // navigation/reloads never replay old milestones as a fresh reward.
+  useEffect(() => {
+    if (!data?.enabled) { snapshotRef.current = null; return; }
+    const current = crewProgressSnapshot(data.members, data.bonds ?? []);
+    if (snapshotRef.current && showCrewCelebrations) {
+      const event = nextCrewCelebration(snapshotRef.current, current, data.members, data.bonds ?? []);
+      if (event) setCelebration(event);
+    }
+    snapshotRef.current = current;
+  }, [data, showCrewCelebrations]);
   const allMembers = data?.totals.reduce((sum, row) => sum + row.members, 0) ?? 0;
   const candidateMembers = boardData?.members ?? data?.members ?? [];
   const mentorChoice = candidateMembers.find((member) => member.id === mentorId);
@@ -325,6 +374,10 @@ export function CrewRosterPage() {
     && !(boardData?.mentoredMemberIds ?? []).includes(member.id)
   );
 
+  const refreshRoster = useCallback(async () => {
+    const next = await crewApi.roster(filters);
+    setData(next);
+  }, [filters]);
   const refresh = async () => {
     const [next] = await Promise.all([crewApi.roster(filters), loadBoard()]);
     setData(next);
@@ -336,7 +389,8 @@ export function CrewRosterPage() {
     finally { setActionBusy(false); }
   };
   const toggleMoments = async (checked: boolean) => {
-    if (momentsSaving) return;
+    if (settingsSaveRef.current) return;
+    settingsSaveRef.current = true;
     setMomentsSaving(true);
     setError(null);
     try {
@@ -358,7 +412,32 @@ export function CrewRosterPage() {
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not save the crew stories preference.');
     } finally {
+      settingsSaveRef.current = false;
       setMomentsSaving(false);
+    }
+  };
+  const toggleCelebrations = async (checked: boolean) => {
+    if (settingsSaveRef.current) return;
+    settingsSaveRef.current = true;
+    setCelebrationsSaving(true);
+    setError(null);
+    try {
+      const { settings } = await authApi.profileSettings();
+      const updated = await authApi.updateProfileSettings({
+        ...settings,
+        itemCosmetics: settings.itemCosmetics ?? {},
+        crewCosmetics: settings.crewCosmetics ?? { THUG: 'classic', HOE: 'classic' },
+        showThemeOnProfile: settings.showThemeOnProfile ?? true,
+        showLookOnProfile: settings.showLookOnProfile ?? true,
+        showCrewCelebrations: checked,
+      });
+      setProfileSettings(updated.settings);
+      if (!checked) setCelebration(null);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not save the celebration preference.');
+    } finally {
+      settingsSaveRef.current = false;
+      setCelebrationsSaving(false);
     }
   };
   const linkMentor = async () => {
@@ -413,6 +492,17 @@ export function CrewRosterPage() {
         ]} />
 
         {error ? <Alert>{error}</Alert> : null}
+        {showCrewCelebrations && celebration ? (
+          <div className={`se-crew-celebration${reducedMotion ? ' se-crew-celebration--still' : ''}`} role="status" aria-live="polite" aria-atomic="true">
+            <div className="se-crew-celebration__medallion" aria-hidden="true">★</div>
+            <div>
+              <span className="se-eyebrow">Crew achievement · cosmetic recognition</span>
+              <strong>{celebration.heading}</strong>
+              <p>{celebration.message}</p>
+            </div>
+            <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => setCelebration(null)} aria-label="Dismiss crew achievement">Dismiss</button>
+          </div>
+        ) : null}
         {boardError ? <Alert>{boardError}</Alert> : null}
         {data && !data.enabled && !loading ? <Alert>This round does not use individual crew profiles.</Alert> : null}
 
@@ -496,14 +586,49 @@ export function CrewRosterPage() {
             </div>
             {data.members.some((member) => member.loyalty.enabled) ? (
               <label className="se-crew-roster__moments-opt-in">
-                <input type="checkbox" checked={showCrewMoments} disabled={momentsSaving} onChange={(event) => void toggleMoments(event.target.checked)} />
+                <input type="checkbox" checked={showCrewMoments} disabled={momentsSaving || celebrationsSaving} onChange={(event) => void toggleMoments(event.target.checked)} />
                 <span><strong>Show crew stories</strong><small>Private personality moments based on real work and injuries. Optional, no daily chore, and no gameplay power.</small></span>
               </label>
             ) : null}
+            {data.members.some((member) => member.loyalty.enabled) ? (
+              <label className="se-crew-roster__moments-opt-in">
+                <input type="checkbox" checked={showCrewCelebrations} disabled={momentsSaving || celebrationsSaving} onChange={(event) => void toggleCelebrations(event.target.checked)} />
+                <span><strong>Celebrate new crew milestones</strong><small>Optional, off by default. A small dismissible recognition appears only when this roster observes newly earned, server-verified progress. No sound, currency, bonuses, or retroactive popups.</small></span>
+              </label>
+            ) : null}
             <p className="se-crew-roster__note">Completed raids, scouting trips, and returned runs earn specialty XP. Bonuses cap at 5% and apply only to that job. Training costs 1 turn and $5,000, adds up to 5 XP toward an earned specialty tier, and is capped by completed-work experience.</p>
+            <div className="se-crew-explorer__tools">
+              <label htmlFor="se-crew-search-page">Find on this page
+                <input id="se-crew-search-page" className="se-input" type="search" value={pageSearch} onChange={(event) => setPageSearch(event.target.value)}
+                  placeholder="Name, #, specialty, job…" />
+              </label>
+              <button className="se-btn se-btn--ghost se-btn--sm" type="button" disabled={loading} onClick={() => void refreshRoster().catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : 'Could not refresh the roster.'))}>Refresh milestones</button>
+            </div>
             {loading ? <p className="se-muted">Checking the roster…</p> : data.members.length ? (
               <>
-                <div className="se-crew-roster__list">{data.members.map((member) => <CrewMemberCard key={member.id} member={member} peers={data.members} busy={actionBusy} onExchange={(id, replaceId) => void exchange(id, replaceId)} onTrain={(id) => void train(id)} onNickname={(id, key) => void nickname(id, key)} />)}</div>
+                <div className="se-crew-explorer">
+                  <nav className="se-crew-explorer__directory" aria-label="Crew member directory">
+                    <p className="se-muted">Select a member to inspect their full career. {formatNumber(visibleMembers.length)} shown from this page.</p>
+                    <ul>{visibleMembers.map((member) => (
+                      <li key={member.id}>
+                        <button type="button" className="se-crew-explorer__row"
+                          aria-pressed={selectedMember?.id === member.id}
+                          onClick={() => setSelectedMemberId(member.id)}>
+                          <span className="se-crew-explorer__identity"><strong>{shortMember(member)}</strong>
+                            <small>{member.legend?.nickname?.label ?? specialtyLabels[member.specialty]} · {statusLabels[member.status]}</small></span>
+                          <span className="se-crew-explorer__points">{member.loyalty.enabled ? `${member.loyalty.points}/100 loyalty` : `${formatNumber(member.experiencePoints)} XP`}</span>
+                        </button>
+                      </li>
+                    ))}</ul>
+                    {visibleMembers.length === 0 ? <p className="se-muted">No matches on this page. Clear your search or change the roster filters.</p> : null}
+                  </nav>
+                  <section className="se-crew-explorer__inspector" aria-label="Selected crew member career">
+                    {selectedMember ? <CrewMemberCard key={selectedMember.id} member={selectedMember} peers={data.members} bonds={data.bonds ?? []} busy={actionBusy}
+                      onExchange={(id, replaceId) => void exchange(id, replaceId)}
+                      onTrain={(id) => void train(id)}
+                      onNickname={(id, key) => void nickname(id, key)} /> : <p className="se-muted">Choose a member to see their career.</p>}
+                  </section>
+                </div>
                 <div className="se-crew-roster__pagination">
                   <span>Showing {formatNumber(offset + 1)}–{formatNumber(Math.min(offset + data.members.length, data.total))} of {formatNumber(data.total)}</span>
                   <div>
