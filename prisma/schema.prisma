@@ -1320,6 +1320,8 @@ model Round {
   rulesetVersion     String
   /// Per-round Street Pass reward edits, frozen when registration opens.
   streetPassOverride Json?
+  /// Reward catalog version fixed for this round; newer seasons never rewrite its prizes.
+  roundLoginRewardVersion String @default("round-roll-call-v1")
 
   status RoundStatus @default(SCHEDULED)
 
