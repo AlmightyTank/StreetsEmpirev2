@@ -112,13 +112,7 @@ function EventCard({ event, shelf }: { event: PlayerQuestDto; shelf: EventShelf 
       </div>
 
       {event.branchChoices.length ? <div className="se-event-choices"><h3>Choices</h3>{event.branchChoices.map((choice) => <p key={choice.key}><strong>{choice.title}</strong> · {choice.description}</p>)}</div> : null}
-      {event.rewards.length ? (
-        <div className="se-event-rewards">
-          <h3>Rewards</h3>
-          {event.rewards.map((reward, index) => <RewardChip key={`${reward.kind}-${reward.key ?? index}`} reward={reward} />)}
-        </div>
-      ) : null}
-      {event.bonusRewardPercent ? <p className="se-hint">Each finished bonus adds {event.bonusRewardPercent}% to cash, turns, goods, and contact reputation.</p> : null}
+      {event.rewards.length ? <div className="se-event-rewards"><h3>Rewards</h3>{event.rewards.map((reward, index) => <RewardChip key={`${reward.kind}-${reward.key ?? index}`} reward={reward} />)}</div> : null}
       {timeline.length ? (
         <div className="se-event-history"><h3>Event history</h3><ol>{timeline.map((entry) => <li key={entry.label}><span>{entry.label}</span><time dateTime={entry.at}>{formatDate(entry.at)}</time></li>)}</ol></div>
       ) : null}
