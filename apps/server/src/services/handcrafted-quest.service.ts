@@ -1087,6 +1087,24 @@ export const HandcraftedQuestService = {
       await refreshAvailability(tx, roundPlayerId, ruleset);
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN') return;
+      if (isSeasonContractDefinition((ruleset.questDefinitions ?? {})[row.questDefinition.key])) {
+        const other = await tx.playerQuest.findFirst({
+          where: {
+            roundPlayerId,
+            id: { not: row.id },
+            status: { in: ['ACTIVE', 'READY_TO_TURN_IN', 'COMPLETED'] },
+            questDefinition: {
+              type: 'SEASON',
+              rulesetId: ruleset.meta.id,
+              rulesetVersion: ruleset.meta.version,
+            },
+          },
+          select: { id: true },
+        });
+        if (other) {
+          throw AppError.conflict('SEASON_CONTRACT_TAKEN', 'Only one season contract can be going this round.');
+        }
+      }
       if (row.status !== 'AVAILABLE') throw AppError.conflict('QUEST_NOT_AVAILABLE', 'That job is not available yet.');
       const tracked = await tx.playerQuest.count({
         where: { roundPlayerId, isTracked: true, questDefinition: { type: { not: 'EVENT' } } },

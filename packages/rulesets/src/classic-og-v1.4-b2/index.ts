@@ -16,7 +16,7 @@ import { moreWeeklyContracts } from './weekly-contracts.js';
  * days and never twice within six; every weekly once every ten weeks and never twice
  * within five. City boards stop posting two orders in one city, avoid the last
  * board's cities and add a third city job slot. A new Season board deals each round
- * three of nine round-long goals. Everything else is exactly 1.4.0-B.
+ * one of nine round-long goals. Everything else is exactly 1.4.0-B.
  */
 export const classicOgV14B2 = {
   ...classicOgV14B,

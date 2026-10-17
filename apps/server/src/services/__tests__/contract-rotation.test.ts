@@ -152,15 +152,12 @@ describe('contract deck rotation', () => {
     expect(cityContractState({ cityContract: { ...legacy, kind: 'HEIST' } })).toBeNull();
   });
 
-  it('deals each round its own season board of three different categories', () => {
-    const categoryOf = (key: string) => classicOgV14B2.questDefinitions[key as keyof typeof classicOgV14B2.questDefinitions].category;
-    const boards = Array.from({ length: 12 }, (_, index) => selectedSeasonContractKeys(classicOgV14B2, `round-${index}`));
-    for (const board of boards) {
-      expect(board).toHaveLength(SEASON_CONTRACT_SLOTS);
-      expect(new Set(board.map(categoryOf)).size).toBe(SEASON_CONTRACT_SLOTS);
-    }
-    expect(new Set(boards.map((board) => [...board].sort().join())).size).toBeGreaterThanOrEqual(8);
-    expect(new Set(boards.flat()).size).toBe(9);
+  it('deals each round one season contract from its own deck', () => {
+    const boards = Array.from({ length: 24 }, (_, index) => selectedSeasonContractKeys(classicOgV14B2, `round-${index}`));
+    for (const board of boards) expect(board).toHaveLength(SEASON_CONTRACT_SLOTS);
+    expect(new Set(boards.map((board) => board[0])).size).toBeGreaterThan(1);
+    expect(selectedSeasonContractKeys(classicOgV14B2, 'round-7'))
+      .toEqual(selectedSeasonContractKeys(classicOgV14B2, 'round-7'));
     expect(selectedSeasonContractKeys(classicOgV14B, 'round-1')).toEqual([]);
   });
 
@@ -168,24 +165,34 @@ describe('contract deck rotation', () => {
     const definitionRows = Object.values(classicOgV14B2.questDefinitions)
       .filter((quest) => quest.type === 'SEASON')
       .map((quest, index) => ({ id: 'season-' + index, key: quest.key }));
-    const quests: Array<{ questDefinitionId: string; status: string }> = [];
+    const quests: Array<{ id: string; questDefinitionId: string; status: string }> = [];
     const db = {
       roundPlayer: { findUnique: async () => ({ roundId: 'round-one' }) },
       questDefinition: { findMany: async () => definitionRows },
       playerQuest: {
-        findMany: async () => quests.map((row) => ({ questDefinitionId: row.questDefinitionId })),
+        findMany: async () => quests.map((row) => ({ id: row.id, questDefinitionId: row.questDefinitionId, status: row.status })),
         create: async ({ data }: { data: { questDefinitionId: string; status: string } }) => {
-          quests.push({ questDefinitionId: data.questDefinitionId, status: data.status });
+          quests.push({ id: 'pq-' + quests.length, questDefinitionId: data.questDefinitionId, status: data.status });
           return data;
+        },
+        update: async ({ where, data }: { where: { id: string }; data: { status?: string } }) => {
+          const row = quests.find((quest) => quest.id === where.id);
+          if (row && data.status) row.status = data.status;
+          return row;
         },
       },
     } as unknown as Db;
 
     const first = await syncSeasonContractAttempts(db, 'player-1', classicOgV14B2);
     expect(first).toEqual(selectedSeasonContractKeys(classicOgV14B2, 'round-one', new Set(definitionRows.map((row) => row.key))));
-    expect(quests.every((row) => row.status === 'AVAILABLE')).toBe(true);
+    expect(quests.filter((row) => row.status === 'AVAILABLE')).toHaveLength(1);
+    const extra = definitionRows.find((row) => !first.includes(row.key))!;
+    quests.push({ id: 'pq-extra', questDefinitionId: extra.id, status: 'AVAILABLE' });
+    expect(await syncSeasonContractAttempts(db, 'player-1', classicOgV14B2)).toEqual([]);
+    expect(quests.find((row) => row.id === 'pq-extra')!.status).toBe('LOCKED');
+    expect(quests.filter((row) => row.status === 'AVAILABLE')).toHaveLength(1);
     quests[0]!.status = 'COMPLETED';
     expect(await syncSeasonContractAttempts(db, 'player-1', classicOgV14B2)).toEqual([]);
-    expect(quests).toHaveLength(SEASON_CONTRACT_SLOTS);
+    expect(quests.filter((row) => row.status === 'AVAILABLE')).toHaveLength(0);
   });
 });

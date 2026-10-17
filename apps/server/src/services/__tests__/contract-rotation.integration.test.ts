@@ -8,7 +8,7 @@ import { HandcraftedQuestService } from '../handcrafted-quest.service.js';
 import { QuestProgressService } from '../quest-progress.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { selectedDailyContractKeys } from '../daily-contract.service.js';
-import { selectedSeasonContractKeys } from '../season-contract.service.js';
+import { selectedSeasonContractKeys, SEASON_CONTRACT_SLOTS } from '../season-contract.service.js';
 import { selectedWeeklyContractKeys } from '../weekly-contract.service.js';
 
 /**
@@ -83,7 +83,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-B2 contract rotation
     expect(keysOf(page.quests, 'DAILY')).toEqual(selectedDailyContractKeys(classicOgV14B2, now, undefined, round.id).sort());
     expect(keysOf(page.quests, 'WEEKLY')).toEqual(selectedWeeklyContractKeys(classicOgV14B2, now, undefined, round.id).sort());
     expect(keysOf(page.quests, 'SEASON')).toEqual(selectedSeasonContractKeys(classicOgV14B2, round.id).sort());
-    expect(page.seasonContracts).toEqual({ enabled: true, slots: 3, resetAt: endsAt.toISOString() });
+    expect(page.seasonContracts).toEqual({ enabled: true, slots: SEASON_CONTRACT_SLOTS, resetAt: endsAt.toISOString() });
     expect(page.cityContracts.slots).toBe(3);
     expect(page.quests.filter((quest) => quest.type === 'CITY_CONTRACT')).toHaveLength(3);
 

@@ -37,8 +37,8 @@ function season(input: SeasonInput): QuestDefinition {
 }
 
 /**
- * 1.4.0-B2 Season board. Each round deals three of these from its own deck, so a new
- * game gets a different set. They run the whole round, sit outside the active-job
+ * 1.4.0-B2 Season board. Each round deals one of these from its own deck, so a new
+ * game gets a different goal. It runs the whole round, sits outside the active-job
  * limit and can be finished once.
  */
 export const seasonContracts = {
