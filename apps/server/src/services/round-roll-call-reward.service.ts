@@ -8,6 +8,7 @@ import type { Db } from '../utils/db.js';
 import { ActionService } from './action.service.js';
 import { grantRewards, rewardDto } from './reward-grant.service.js';
 import { RoundRollCallService, roundRollCallClock } from './round-roll-call.service.js';
+import { RoundRollCallCosmeticService } from './round-roll-call-cosmetic.service.js';
 import {
   roundRollCallCatalog,
   type RoundRollCallRarity,
@@ -52,13 +53,15 @@ function receiptRewards(value: Prisma.JsonValue): QuestRewardDefinition[] {
 export const RoundRollCallRewardService = {
   /** Enrich the readonly attendance calendar with catalog labels and claim receipts. */
   async board(db: Db | PrismaClient, round: Round, roundPlayerId: string, now = new Date()) {
-    const [attendance, claimed] = await Promise.all([
+    const [attendance, claimed, player] = await Promise.all([
       RoundRollCallService.view(db, round, roundPlayerId, now),
       db.roundLoginRewardClaim.findMany({
         where: { roundPlayerId },
         select: { tier: true, claimedAt: true, rewardVersion: true, rarity: true, definition: true },
       }),
+      db.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { accountId: true } }),
     ]);
+    const [grandPrize] = await Promise.all([RoundRollCallCosmeticService.ownership(db, player.accountId)]);
     const receipts = new Map(claimed.map((claim) => [claim.tier, claim]));
     const catalogVersion = round.roundLoginRewardVersion;
     const catalog = roundRollCallCatalog(attendance.requiredStamps, catalogVersion);
@@ -66,6 +69,7 @@ export const RoundRollCallRewardService = {
     return {
       ...attendance,
       rewardVersion: catalogVersion,
+      grandPrize,
       rewardTrack: catalog.map((step) => {
         const paid = receipts.get(step.tier);
         return {
@@ -139,6 +143,13 @@ export const RoundRollCallRewardService = {
           next,
           definition.rewards,
         );
+        // The permanent pair is awarded ONLY on the final reached reward.
+        // Duplicates are prevented by the account-level unique unlock keys.
+        // Existing players who claimed the finale before D are topped up on
+        // their next verified foreground check-in or at round close.
+        if (definition.tier === clock.requiredStamps) {
+          await RoundRollCallCosmeticService.awardIfEligible(tx, round, roundPlayerId, player.accountId, now);
+        }
         return {
           next,
           result: {
