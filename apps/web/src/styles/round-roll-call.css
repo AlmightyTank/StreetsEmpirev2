@@ -8,7 +8,7 @@
   border-radius: var(--se-radius-lg);
   padding: clamp(12px, 2.5vw, 24px);
   background:
-    radial-gradient(ellipse at 95% 0%, rgba(var(--se-accent-rgb), .09), transparent 42%),
+    radial-gradient(ellipse at 95% 0%, color-mix(in srgb, var(--se-accent) 9%, transparent), transparent 42%),
     var(--se-panel);
   scroll-margin-top: 90px;
 }
@@ -25,13 +25,13 @@
 .se-rollcall__progress { height: 8px; background: var(--se-bg); border: 1px solid var(--se-line); border-radius: 100px; overflow: hidden; }
 .se-rollcall__progress span { display: block; height: 100%; background: var(--se-accent); transition: width .24s ease-out; }
 .se-rollcall__guidance, .se-rollcall__footnote { font-size: 12px; line-height: 1.6; color: var(--se-text-dim); margin: 0; }
-.se-rollcall__ready { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 12px 14px; border: 1px solid var(--se-accent); border-radius: var(--se-radius-md); background: rgba(var(--se-accent-rgb), .07); }
+.se-rollcall__ready { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 12px 14px; border: 1px solid var(--se-accent); border-radius: var(--se-radius-md); background: color-mix(in srgb, var(--se-accent) 7%, transparent); }
 .se-rollcall__ready div { display: grid; gap: 4px; }
 .se-rollcall__ready strong { font-size: 13px; }
 .se-rollcall__ready small { color: var(--se-text-dim); }
-.se-rollcall__receipt { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--se-good); border-radius: var(--se-radius-md); color: var(--se-text); background: rgba(var(--se-good-rgb), .07); animation: se-rollcall-reveal .25s ease-out; }
+.se-rollcall__receipt { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--se-good); border-radius: var(--se-radius-md); color: var(--se-text); background: color-mix(in srgb, var(--se-good) 7%, transparent); animation: se-rollcall-reveal .25s ease-out; }
 .se-rollcall__receipt span { font-size: 12px; color: var(--se-text-dim); }
-.se-rollcall__receipt--legendary { border-color: var(--se-accent); background: rgba(var(--se-accent-rgb), .08); }
+.se-rollcall__receipt--legendary { border-color: var(--se-accent); background: color-mix(in srgb, var(--se-accent) 8%, transparent); }
 .se-rollcall__loading, .se-rollcall__empty { color: var(--se-text-dim); padding: 16px; margin: 0; border: 1px dashed var(--se-line); }
 .se-rollcall__grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
 .se-rollcall-day { min-width: 0; display: flex; flex-direction: column; gap: 7px; padding: 11px; background: var(--se-panel-hi); border: 1px solid var(--se-line); border-radius: var(--se-radius-md); position: relative; overflow: hidden; }
@@ -47,7 +47,7 @@
 .se-rollcall-day__rarity { color: var(--rollcall-edge); text-transform: uppercase; letter-spacing: .04em; font-size: 9px; font-weight: 800; }
 .se-rollcall-day__mark { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--rollcall-edge); color: var(--rollcall-edge); font-size: 18px; }
 .se-rollcall-day--claimed .se-rollcall-day__mark { color: var(--se-good); border-color: var(--se-good); }
-.se-rollcall-day--legendary .se-rollcall-day__mark { background: rgba(var(--se-accent-rgb), .12); }
+.se-rollcall-day--legendary .se-rollcall-day__mark { background: color-mix(in srgb, var(--se-accent) 12%, transparent); }
 .se-rollcall-day__prize { display: flex; flex-wrap: wrap; align-content: start; gap: 5px; flex: 1; min-width: 0; }
 .se-rollcall-day__prize .se-quest-reward { font-size: 11px; max-width: 100%; overflow-wrap: anywhere; }
 .se-rollcall-day__prize .se-quest-reward--art { display: inline-flex; align-items: center; gap: 4px; }
@@ -57,13 +57,13 @@
 .se-rollcall-day__footer .se-btn { white-space: normal; line-height: 1.35; min-height: 40px; }
 .se-rollcall-day__state { display: block; font-size: 10px; color: var(--se-text-dim); line-height: 1.35; min-height: 34px; }
 .se-rollcall-day--claimed .se-rollcall-day__state { color: var(--se-good); font-weight: 700; }
-.se-rollcall-finale { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(200px, .9fr); gap: 15px; min-width: 0; padding: 18px; border: 1px solid var(--se-accent); border-radius: var(--se-radius-md); background: linear-gradient(115deg, rgba(var(--se-accent-rgb), .13), transparent 70%), var(--se-panel-hi); }
+.se-rollcall-finale { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(200px, .9fr); gap: 15px; min-width: 0; padding: 18px; border: 1px solid var(--se-accent); border-radius: var(--se-radius-md); background: linear-gradient(115deg, color-mix(in srgb, var(--se-accent) 13%, transparent), transparent 70%), var(--se-panel-hi); }
 .se-rollcall-finale__copy h3 { font-size: clamp(18px, 2.4vw, 25px); line-height: 1.2; margin: 8px 0; }
 .se-rollcall-finale__copy p { margin: 0 0 12px; font-size: 12px; line-height: 1.6; color: var(--se-text-dim); }
 .se-rollcall-finale__copy small { color: var(--se-text-dim); font-size: 10px; }
 .se-rollcall-finale__art { position: relative; display: grid; grid-template-columns: 1.5fr .65fr; gap: 8px; align-items: center; min-width: 0; }
-.se-rollcall-finale__shell { min-height: 155px; border: 2px solid var(--se-accent); background: var(--se-bg); box-shadow: 0 7px 24px rgba(0,0,0,.2); }
-.se-rollcall-finale__chrome { display: flex; gap: 4px; align-items: center; padding: 8px; background: rgba(var(--se-accent-rgb), .18); border-bottom: 1px solid var(--se-accent); font: 800 9px var(--se-mono); }
+.se-rollcall-finale__shell { min-height: 155px; border: 2px solid var(--se-accent); background: var(--se-bg); box-shadow: 0 7px 24px color-mix(in srgb, var(--se-bg) 30%, transparent); }
+.se-rollcall-finale__chrome { display: flex; gap: 4px; align-items: center; padding: 8px; background: color-mix(in srgb, var(--se-accent) 18%, transparent); border-bottom: 1px solid var(--se-accent); font: 800 9px var(--se-mono); }
 .se-rollcall-finale__chrome > span { flex: 1; }
 .se-rollcall-finale__chrome i { width: 5px; height: 5px; background: var(--se-accent); border-radius: 50%; }
 .se-rollcall-finale__shellbody { padding: 14px 10px; display: grid; gap: 9px; }
