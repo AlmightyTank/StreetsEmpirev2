@@ -2,6 +2,7 @@ import {
   isItemRewardField,
   type ContactKey,
   type FactionKey,
+  type QuestProgressMap,
   type QuestRewardDefinition,
   type Ruleset,
 } from '@streets/rulesets';
@@ -20,6 +21,55 @@ import { QuestCosmeticService } from './quest-cosmetic.service.js';
  */
 
 const CONTACT_MAX = 1000;
+
+/**
+ * Each finished bonus objective adds this percent to numeric payouts.
+ * Unlocks and direct faction-standing grants stay on the listed amount:
+ * those gates are tuned to the base reward, not the optional work.
+ */
+export const BONUS_OBJECTIVE_REWARD_PERCENT = 10;
+
+const BONUS_SCALED_REWARD_KINDS = new Set<QuestRewardDefinition['kind']>([
+  'CASH',
+  'TURNS',
+  'ITEM',
+  'PRODUCT',
+  'CONTACT_REP',
+  'FAVOR_ITEM',
+]);
+
+/** How many of this job's bonus objectives are already finished. */
+export function completedBonusObjectiveCount(
+  bonusObjectives: readonly { id: string }[],
+  bonusProgress: QuestProgressMap,
+): number {
+  let completed = 0;
+  for (const objective of bonusObjectives) {
+    if (bonusProgress[objective.id]?.completed === true) completed += 1;
+  }
+  return completed;
+}
+
+/**
+ * Raise each scalable reward by {@link BONUS_OBJECTIVE_REWARD_PERCENT} for
+ * every finished bonus. Amounts that round to no extra stay as listed.
+ * Standing paid from contact reputation follows the bumped reputation;
+ * a FACTION_STANDING reward is left alone.
+ */
+export function bumpRewardsForCompletedBonuses<T extends QuestRewardDefinition>(
+  rewards: readonly T[],
+  completedBonuses: number,
+): T[] {
+  if (completedBonuses <= 0) return [...rewards];
+  return rewards.map((reward) => {
+    if (!BONUS_SCALED_REWARD_KINDS.has(reward.kind)) return reward;
+    const amount = reward.amount ?? 0;
+    if (!Number.isSafeInteger(amount) || amount <= 0) return reward;
+    const extra = Math.round((amount * BONUS_OBJECTIVE_REWARD_PERCENT * completedBonuses) / 100);
+    if (extra <= 0) return reward;
+    return { ...reward, amount: amount + extra };
+  });
+}
 
 export async function addContactRep(db: Db, roundPlayerId: string, contact: string, amount: number): Promise<number> {
   const current = await db.playerReputation.findUnique({
