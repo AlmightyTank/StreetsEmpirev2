@@ -835,6 +835,21 @@ export interface CrewMemberHistoryDto {
   at: string;
 }
 
+/** 2.1.0-B. One server-settled loyalty receipt. */
+export interface CrewLoyaltyHistoryDto {
+  source: 'JOB_COMPLETED' | 'DEFENSE_HELD' | 'TRAVEL_COMPLETED' | 'DEALER_SHIFT';
+  points: number;
+  label: string;
+  at: string;
+}
+export interface CrewLoyaltyDto {
+  enabled: boolean;
+  points: number;
+  tier: string;
+  nextMilestone: number | null;
+  history: CrewLoyaltyHistoryDto[];
+}
+
 /** 1.7.0-A. One thug or worker with a stable identity. */
 export interface CrewMemberDto {
   id: string;
@@ -854,6 +869,8 @@ export interface CrewMemberDto {
   traits: string[];
   unavailableReason: string | null;
   history: CrewMemberHistoryDto[];
+  /** Narrative progression; cannot modify stats or resources. */
+  loyalty: CrewLoyaltyDto;
   /** The 1.6 dealer career this member carries, if any. */
   dealerStaffId: string | null;
   joinedAt: string;
