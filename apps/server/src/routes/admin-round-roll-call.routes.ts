@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { parseBody } from '../utils/validate.js';
 import { AppError } from '../utils/errors.js';
 import { RoundRollCallService, roundRollCallClock } from '../services/round-roll-call.service.js';
-import { RoundRollCallRecoveryService } from '../services/round-roll-call-recovery.service.js';
 import { RoundRollCallRewardService } from '../services/round-roll-call-reward.service.js';
 
 const id = z.string().trim().min(1).max(128);
