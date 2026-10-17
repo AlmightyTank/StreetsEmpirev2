@@ -7,11 +7,11 @@ const HOUR = 3_600_000;
 const DAY = 86_400_000;
 const round = { id: 'r1', startsAt: START, endsAt: new Date(START.getTime() + 28 * DAY), status: 'ACTIVE' } as Round;
 
-function database() {
+function database(playerExists = true) {
   const days = new Set<number>();
   const unlocked = new Set<string>();
   const tx = {
-    $queryRaw: async () => [],
+    $queryRaw: async (sql: TemplateStringsArray) => sql.join('').includes('RoundPlayer') && playerExists ? [{ id: 'p1' }] : [],
     round: { findUnique: async () => round },
     roundPlayer: { findUniqueOrThrow: async () => ({ accountId: 'a1' }) },
     accountCosmeticUnlock: { upsert: async ({ create }: { create: { key: string } }) => { unlocked.add(create.key); } },
@@ -42,6 +42,17 @@ describe('round roll call check-ins', () => {
     expect(view.missedCompletedDays).toBe(1);
     expect(view.allowanceRemaining).toBe(6);
   });
+  it('checks round membership under the player row lock before recording a stamp', async () => {
+    const { db } = database();
+    const first = await RoundRollCallService.checkIn(db, 'r1', 'p1', new Date(START.getTime() + HOUR));
+    expect(first.recorded).toBe(true);
+    // An unknown player must not gain a stamp via a forged call.
+    const missing = database(false);
+    await expect(RoundRollCallService.checkIn(missing.db, 'r1', 'p1', new Date(START.getTime() + HOUR)))
+      .rejects.toMatchObject({ code: 'NOT_IN_ROUND' });
+    expect(missing.days.size).toBe(0);
+  });
+
   it('can finish on round day 28 after skipping the first seven days', async () => {
     const { db, unlocked } = database();
     for (let day = 8; day <= 28; day++) {
