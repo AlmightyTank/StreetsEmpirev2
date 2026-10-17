@@ -19,6 +19,7 @@ const crew = new Map<string, Person>(Array.from({ length: CREW_SIZE }, (_, i) =>
   `member-${i}`, { loyaltyPoints: 0, status: 'AVAILABLE', resources: 100_000, xp: 75 },
 ]));
 const receipts: Receipt[] = [];
+const byMember = new Map<string, Receipt[]>();
 const db = {
   $queryRaw: async (_sql: TemplateStringsArray, memberId: string) => {
     const row = crew.get(memberId);
@@ -27,15 +28,16 @@ const db = {
   crewLoyaltyEntry: {
     findUnique: async ({ where }: { where: { memberId_sourceKey: { memberId: string; sourceKey: string } } }) => {
       const key = where.memberId_sourceKey;
-      return receipts.find((row) => row.memberId === key.memberId && row.sourceKey === key.sourceKey) ?? null;
+      return (byMember.get(key.memberId) ?? []).find((row) => row.sourceKey === key.sourceKey) ?? null;
     },
     aggregate: async ({ where }: { where: { memberId: string; at: { gte: Date; lt: Date } } }) => ({
-      _sum: { points: receipts.filter((row) => row.memberId === where.memberId
-        && row.at >= where.at.gte && row.at < where.at.lt).reduce((sum, row) => sum + row.points, 0) },
+      _sum: { points: (byMember.get(where.memberId) ?? []).filter((row) => row.at >= where.at.gte && row.at < where.at.lt).reduce((sum, row) => sum + row.points, 0) },
     }),
     create: async ({ data }: { data: Receipt }) => {
-      receipts.push({ ...data, id: `receipt-${receipts.length}` });
-      return { id: receipts[receipts.length - 1]!.id };
+      const row = { ...data, id: `receipt-${receipts.length}` };
+      receipts.push(row);
+      byMember.set(data.memberId, [...(byMember.get(data.memberId) ?? []), row]);
+      return { id: row.id };
     },
   },
   crewMember: {
@@ -72,7 +74,7 @@ for (let day = 0; day < DAYS; day++) {
   }
 }
 for (const [id, person] of crew) {
-  const own = receipts.filter((r) => r.memberId === id);
+  const own = byMember.get(id) ?? [];
   const earned = own.reduce((sum, receipt) => sum + receipt.points, 0);
   if (earned !== person.loyaltyPoints || earned > CREW_LOYALTY_CAP || earned < 0) {
     throw new Error(`Crew ${id} drifted from immutable loyalty receipts.`);
