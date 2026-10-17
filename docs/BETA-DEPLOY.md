@@ -185,6 +185,35 @@ admin pull within the window reports the next eligible refresh time without
 refreshing odds from the provider. The PostgreSQL sportsbook tables remain the
 transactional board and ticket store.
 
+## Browser-install labels (PWA)
+
+The same Vite web build is used by the live and beta game, so the HTML selects
+the install manifest by the **exact browser hostname**, without consulting
+`/api/meta` or needing special Nginx rewrites:
+
+- `https://play.streetsempire.dev`: `/manifest.webmanifest` — app name
+  **StreetsEmpire**.
+- `https://beta.streetsempire.dev`: `/manifest-beta.json` — app name
+  **StreetsEmpire Beta**; its shorter launcher label is **Streets Beta** so
+  the Beta distinction stays visible on small home screens.
+
+The beta JSON is served as `application/json` by normal Nginx MIME handling.
+The same selection sets the iPhone/iPad `apple-mobile-web-app-title`. Both
+installs use `/game` on **their own origin**: neither app redirects into
+the other server. No native Android/desktop wrapper settings are affected.
+
+After deploying, verify both files and their content types:
+
+```bash
+curl -fsSI https://beta.streetsempire.dev/manifest-beta.json
+curl -fsS https://beta.streetsempire.dev/manifest-beta.json
+curl -fsS https://play.streetsempire.dev/manifest.webmanifest
+```
+
+Existing home-screen installs may keep their old names. If a browser does not
+refresh the installed shortcut label, remove that shortcut/app and install it
+again from the appropriate hostname.
+
 ## 3. Create the beta PostgreSQL database
 
 Use the same PostgreSQL server as production, but create a completely different

@@ -112,8 +112,14 @@ async function priorPayoutCents(tx: Db, roundPlayerId: string, templateKey: stri
 }
 
 async function resolveSupply(tx: Db, operation: { id: string; roundId: string; leaderId: string }, snapshot: UnderworldOperationTemplate, stockId: string): Promise<boolean> {
-  const stock = await tx.supplyStock.findUnique({ where: { id: stockId } });
-  if (!stock || stock.quantity < snapshot.units) return false;
+  const stock = await tx.supplyStock.findUnique({
+    where: { id: stockId },
+    include: { warehouse: { select: { roundPlayerId: true } } },
+  });
+  // Source IDs are untrusted. Never take stock out of another player's warehouse
+  // or convert a different product into the catalog's recovery product.
+  if (!stock || stock.warehouse.roundPlayerId !== operation.leaderId
+      || stock.productKey !== snapshot.productKey || stock.quantity < snapshot.units) return false;
   const moved = await tx.supplyStock.updateMany({
     where: { id: stockId, quantity: { gte: snapshot.units } },
     data: { quantity: { decrement: snapshot.units } },
@@ -304,8 +310,15 @@ export const TemplatedOperations = {
     if (input.district) target.district = input.district;
     if (templateKey === 'STASH_RECOVERY') {
       if (!input.supplyStockId) throw AppError.badRequest('OPERATION_SOURCE', 'Name the stash you are recovering.');
-      const stock = await prisma.supplyStock.findUnique({ where: { id: input.supplyStockId } });
-      if (!stock || stock.quantity < template.units) throw AppError.conflict('OPERATION_STOCK_SHORT', 'That stash does not have enough to recover.');
+      const stock = await prisma.supplyStock.findUnique({
+        where: { id: input.supplyStockId },
+        include: { warehouse: { select: { roundPlayerId: true, citySlug: true } } },
+      });
+      if (!stock || stock.warehouse.roundPlayerId !== roundPlayerId
+          || stock.warehouse.citySlug !== input.citySlug
+          || stock.productKey !== template.productKey || stock.quantity < template.units) {
+        throw AppError.conflict('OPERATION_STOCK_SHORT', 'That stash is not available for recovery.');
+      }
       target.supplyStockId = input.supplyStockId;
     }
     if (templateKey === 'CONVOY_PROTECTION') {

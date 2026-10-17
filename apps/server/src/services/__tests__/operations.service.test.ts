@@ -134,7 +134,16 @@ function makeDb() {
       findFirst: vi.fn(async ({ where }: any) => state.blocks.find((row) => matches(row, where)) ?? null),
     },
     supplyStock: {
-      findUnique: vi.fn(async ({ where }: any) => state.stocks.find((row) => row.id === where.id) ?? null),
+      findUnique: vi.fn(async ({ where }: any) => {
+        const stock = state.stocks.find((row) => row.id === where.id);
+        return stock ? {
+          ...stock,
+          warehouse: {
+            roundPlayerId: stock.ownerId ?? 'leader-1',
+            citySlug: stock.citySlug ?? 'vice-city',
+          },
+        } : null;
+      }),
       update: vi.fn(async ({ where, data }: any) => {
         const row = state.stocks.find((entry) => entry.id === where.id)!;
         if (data.quantity?.increment) row.quantity += data.quantity.increment;
@@ -325,7 +334,7 @@ describe('2.0 criminal-operations', () => {
     const { db, state } = makeDb();
     const started = await OperationsService.start(db, 'leader-1', { citySlug: 'vice-city', district: 'CASINO' });
     await OperationsService.invite(db, 'leader-1', { operationId: started.id, role: 'driver', targetPublicPimpId: 2 });
-    state.seats[0].expiresAt = new Date(Date.now() - 1_000);
+    state.seats[0]!.expiresAt = new Date(Date.now() - 1_000);
     await expect(OperationsService.answer(db, 'player-2', { operationId: started.id, accept: true }))
       .rejects.toMatchObject({ code: 'OPERATION_INVITE_MISSING' });
     const reopened = await OperationsService.lock(db, 'leader-1', { operationId: started.id, role: 'driver' });
@@ -387,10 +396,10 @@ describe('2.2.0 underworld operations', () => {
       intelRumor: 'intel-rumor',
     });
     const { db, state } = makeDb();
-    const before = state.players[0].cashCents;
+    const before = state.players[0]!.cashCents;
     await expect(OperationsService.start(db, 'leader-1', { citySlug: 'vice-city', template: 'STASH_RECOVERY', supplyStockId: 'stock-1' }))
       .rejects.toMatchObject({ code: 'OPERATION_UNKNOWN_TEMPLATE' });
-    expect(state.players[0].cashCents).toBe(before);
+    expect(state.players[0]!.cashCents).toBe(before);
     expect(state.operations).toHaveLength(0);
   });
 
@@ -418,20 +427,20 @@ describe('2.2.0 underworld operations', () => {
     const done = await OperationsService.execute(db, 'leader-1', { operationId: started.id });
     expect(done.report!.band).toBe('success');
     expect(ActivityService.log).toHaveBeenCalledTimes(1);
-    expect(state.stocks[0].quantity).toBe(0);
-    expect(state.players[0].crack).toBe(5);
+    expect(state.stocks[0]!.quantity).toBe(0);
+    expect(state.players[0]!.crack).toBe(5);
     expect(state.movements).toHaveLength(1);
     const again = await OperationsService.execute(db, 'leader-1', { operationId: started.id });
     expect(again.report!.totalPayoutCents).toBe(done.report!.totalPayoutCents);
-    expect(state.stocks[0].quantity).toBe(0);
-    expect(state.players[0].crack).toBe(5);
-    state.operations[0].createdAt = new Date(Date.now() - 48 * 3_600_000);
-    state.stocks[0].quantity = 5;
+    expect(state.stocks[0]!.quantity).toBe(0);
+    expect(state.players[0]!.crack).toBe(5);
+    state.operations[0]!.createdAt = new Date(Date.now() - 48 * 3_600_000);
+    state.stocks[0]!.quantity = 5;
     const second = await OperationsService.start(db, 'leader-1', { citySlug: 'vice-city', template: 'STASH_RECOVERY', supplyStockId: 'stock-1' });
     await OperationsService.lock(db, 'leader-1', { operationId: second.id, role: 'runner' });
     const missed = await OperationsService.execute(db, 'leader-1', { operationId: second.id });
     expect(missed.report!.band).toBe('failure');
-    expect(state.players[0].crack).toBe(5);
+    expect(state.players[0]!.crack).toBe(5);
     expect(state.movements).toHaveLength(1);
   });
 
@@ -442,11 +451,11 @@ describe('2.2.0 underworld operations', () => {
     const started = await OperationsService.start(db, 'leader-1', { citySlug: 'vice-city', template: 'STASH_RECOVERY', supplyStockId: 'stock-1' });
     state.round.underworldOperationsEnabled = false;
     await OperationsService.lock(db, 'leader-1', { operationId: started.id, role: 'runner' });
-    state.operations[0].createdAt = new Date(Date.now() - 48 * 3_600_000);
+    state.operations[0]!.createdAt = new Date(Date.now() - 48 * 3_600_000);
     const expired = await OperationsService.execute(db, 'leader-1', { operationId: started.id });
     expect(expired.status).toBe('EXPIRED');
-    expect(state.stocks[0].quantity).toBe(5);
-    expect(state.players[0].crack).toBe(0);
+    expect(state.stocks[0]!.quantity).toBe(5);
+    expect(state.players[0]!.crack).toBe(0);
   });
 
   it('rejects a second claim on the same seat', async () => {
@@ -466,17 +475,17 @@ describe('2.2.0 underworld operations', () => {
   it('releases a seat, cancels with a refund, and will not cancel a receipt', async () => {
     const { db, state } = makeDb();
     enableCatalog(state);
-    const before = state.players[0].cashCents;
+    const before = state.players[0]!.cashCents;
     const started = await OperationsService.start(db, 'leader-1', { citySlug: 'vice-city', template: 'BIG_SCORE' });
-    expect(state.players[0].cashCents).toBe(before - 5_000n);
+    expect(state.players[0]!.cashCents).toBe(before - 5_000n);
     await OperationsService.lock(db, 'leader-1', { operationId: started.id, role: 'intel' });
     const released = await OperationsService.release(db, 'leader-1', { operationId: started.id, role: 'intel' });
     expect(released.seats.find((seat) => seat.role === 'intel')!.status).toBe('OPEN');
     const cancelled = await OperationsService.cancel(db, 'leader-1', { operationId: started.id });
     expect(cancelled.status).toBe('CANCELLED');
-    expect(state.players[0].cashCents).toBe(before);
-    state.operations[0].status = 'REPORTED';
-    state.operations[0].report = { success: false, stages: [], payoutCents: 0 };
+    expect(state.players[0]!.cashCents).toBe(before);
+    state.operations[0]!.status = 'REPORTED';
+    state.operations[0]!.report = { success: false, stages: [], payoutCents: 0 };
     await expect(OperationsService.cancel(db, 'leader-1', { operationId: started.id }))
       .rejects.toMatchObject({ code: 'OPERATION_BAD_STAGE' });
     expect(state.ledger.filter((row) => row.source === 'OPERATION_PAYOUT')).toHaveLength(0);
@@ -496,13 +505,13 @@ describe('2.2.0 underworld operations', () => {
     const defense = await OperationsService.start(db, 'leader-1', { citySlug: 'vice-city', template: 'BLOCK_DEFENSE', threatKind: 'block-war', threatId: 'war-1' });
     await expect(OperationsService.lock(db, 'player-2', { operationId: defense.id, role: 'enforcer' }))
       .rejects.toMatchObject({ code: 'OPERATION_ALLIANCE' });
-    state.players[0].allianceId = 'allied';
+    state.players[0]!.allianceId = 'allied';
     await OperationsService.lock(db, 'player-3', { operationId: defense.id, role: 'enforcer' });
     const solo = await OperationsService.lock(db, 'leader-1', { operationId: stash.id, role: 'runner' });
     expect(solo.status).toBe('READY');
     const done = await OperationsService.execute(db, 'leader-1', { operationId: stash.id });
     expect(done.report!.band).toBe('success');
-    expect(state.players[0].allianceId).toBe('allied');
+    expect(state.players[0]!.allianceId).toBe('allied');
   });
 
   it('does not burn an invite while the round is paused', async () => {
@@ -514,7 +523,7 @@ describe('2.2.0 underworld operations', () => {
     const ledgerBefore = state.ledger.length;
     await OperationsService.invite(db, 'leader-1', { operationId: started.id, role: 'escort', targetPublicPimpId: 2 });
     expect(ActivityService.log).toHaveBeenCalledTimes(1);
-    state.seats[0].expiresAt = new Date(Date.now() - 3_600_000);
+    state.seats[0]!.expiresAt = new Date(Date.now() - 3_600_000);
     state.round.pausedAt = new Date(Date.now() - 48 * 3_600_000);
     const answered = await OperationsService.answer(db, 'player-2', { operationId: started.id, accept: true });
     expect(answered.seats.find((seat) => seat.role === 'escort')!.status).toBe('ACCEPTED');
@@ -532,7 +541,7 @@ describe('2.2.0 underworld operations', () => {
     const first = await OperationsService.execute(db, 'leader-1', { operationId: convoy.id });
     expect(first.report!.source).toMatchObject({ kind: 'run', id: 'run-1', escort: 3, routeRisk: 'BALANCED' });
     expect(first.report!.totalPayoutCents).toBeLessThanOrEqual(40_000);
-    state.operations[0].createdAt = new Date(Date.now() - 48 * 3_600_000);
+    state.operations[0]!.createdAt = new Date(Date.now() - 48 * 3_600_000);
     const copy = await OperationsService.start(db, 'leader-1', { citySlug: 'vice-city', template: 'CONVOY_PROTECTION', runId: 'run-1', escort: 1, routeRisk: 'LOW' });
     await OperationsService.lock(db, 'leader-1', { operationId: copy.id, role: 'driver' });
     const second = await OperationsService.execute(db, 'leader-1', { operationId: copy.id });
@@ -592,18 +601,18 @@ describe('2.2.0 underworld operations', () => {
     state.stocks.push({ id: 'stock-1', warehouseId: 'wh-1', productKey: 'CRACK', quantity: 5 });
     const started = await OperationsService.start(db, 'leader-1', { citySlug: 'vice-city', template: 'STASH_RECOVERY', supplyStockId: 'stock-1' });
     await OperationsService.lock(db, 'leader-1', { operationId: started.id, role: 'runner' });
-    state.stocks[0].quantity = 0;
+    state.stocks[0]!.quantity = 0;
     const failed = await OperationsService.execute(db, 'leader-1', { operationId: started.id });
     expect(failed.report!.band).toBe('failure');
     expect(failed.report!.totalPayoutCents).toBe(0);
-    state.operations[0].createdAt = new Date(Date.now() - 48 * 3_600_000);
-    state.stocks[0].quantity = 5;
+    state.operations[0]!.createdAt = new Date(Date.now() - 48 * 3_600_000);
+    state.stocks[0]!.quantity = 5;
     const again = await OperationsService.start(db, 'leader-1', { citySlug: 'vice-city', template: 'STASH_RECOVERY', supplyStockId: 'stock-1' });
     await OperationsService.lock(db, 'leader-1', { operationId: again.id, role: 'runner' });
-    state.stocks[0].quantity = 0;
+    state.stocks[0]!.quantity = 0;
     await OperationsService.execute(db, 'leader-1', { operationId: again.id });
     expect(state.ledger.filter((row) => row.source === 'OPERATION_PAYOUT')).toHaveLength(0);
-    expect(state.players[0].crack).toBe(0);
+    expect(state.players[0]!.crack).toBe(0);
   });
 
   it('stops invite floods and records a capped grant', async () => {
@@ -662,8 +671,8 @@ describe('2.2.0 underworld operations', () => {
     expect(results.some((result) => result.status === 'fulfilled')).toBe(true);
     const quiet = await OperationsService.execute(db, 'leader-1', { operationId: started.id });
     expect(quiet.status).toBe('REPORTED');
-    expect(state.stocks[0].quantity).toBe(0);
-    expect(state.players[0].crack).toBe(5);
+    expect(state.stocks[0]!.quantity).toBe(0);
+    expect(state.players[0]!.crack).toBe(5);
     expect(state.movements).toHaveLength(1);
     expect(state.grants.filter((row) => row.kind === 'CASH')).toHaveLength(1);
     state.round.underworldOperationsEnabled = false;
@@ -672,4 +681,39 @@ describe('2.2.0 underworld operations', () => {
     await OperationRepairService.setFlag(db, 'round-1', true);
     expect(state.round.underworldOperationsEnabled).toBe(true);
   });
+  it('rejects foreign, wrong-city, and wrong-product stash IDs without moving inventory', async () => {
+    const { db, state } = makeDb();
+    enableCatalog(state);
+    const attempt = (stockId: string) => OperationsService.start(db, 'leader-1', {
+      citySlug: 'vice-city', template: 'STASH_RECOVERY', supplyStockId: stockId,
+    });
+    state.stocks.push(
+      { id: 'foreign', warehouseId: 'wh-2', ownerId: 'player-2', productKey: 'CRACK', quantity: 5 },
+      { id: 'remote', warehouseId: 'wh-3', ownerId: 'leader-1', citySlug: 'elsewhere', productKey: 'CRACK', quantity: 5 },
+      { id: 'wrong-product', warehouseId: 'wh-1', ownerId: 'leader-1', productKey: 'BEER', quantity: 5 },
+    );
+    for (const id of ['foreign', 'remote', 'wrong-product']) {
+      await expect(attempt(id)).rejects.toMatchObject({ code: 'OPERATION_STOCK_SHORT' });
+    }
+    expect(state.operations).toHaveLength(0);
+    expect(state.stocks.every((stock) => stock.quantity === 5)).toBe(true);
+    expect(state.movements).toHaveLength(0);
+    expect(state.ledger).toHaveLength(0);
+  });
+
+  it('rechecks stash ownership when executing, even after a valid operation started', async () => {
+    const { db, state } = makeDb();
+    enableCatalog(state);
+    state.stocks.push({ id: 'stock-1', warehouseId: 'wh-1', ownerId: 'leader-1', productKey: 'CRACK', quantity: 5 });
+    const started = await OperationsService.start(db, 'leader-1', {
+      citySlug: 'vice-city', template: 'STASH_RECOVERY', supplyStockId: 'stock-1',
+    });
+    await OperationsService.lock(db, 'leader-1', { operationId: started.id, role: 'runner' });
+    state.stocks[0]!.ownerId = 'player-2';
+    await OperationsService.execute(db, 'leader-1', { operationId: started.id });
+    expect(state.stocks[0]!.quantity).toBe(5);
+    expect(state.players[0]!.crack).toBe(0);
+    expect(state.movements).toHaveLength(0);
+  });
+
 });

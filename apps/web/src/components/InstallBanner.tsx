@@ -42,6 +42,9 @@ export function InstallBanner() {
   const [canPrompt, setCanPrompt] = useState(canPromptInstall);
   const [open, setOpen] = useState(false);
 
+  // Reflect the same host-selected name used by iOS and Android installs.
+  const appName = document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]')?.content ?? 'StreetsEmpire';
+
   useEffect(() => onInstallChange(() => {
     setCanPrompt(canPromptInstall());
     if (isInstalled()) setHidden(true);
@@ -71,7 +74,7 @@ export function InstallBanner() {
       <div className="se-install__bar">
         <img className="se-install__icon" src="/icons/icon-192.png" alt="" width="36" height="36" />
         <div className="se-install__text">
-          <strong>Get the StreetsEmpire app</strong>
+          <strong>Get the {appName} app</strong>
           <small>Free. Alerts on your lock screen when you're hit.</small>
         </div>
         <button
@@ -92,13 +95,13 @@ export function InstallBanner() {
             <ol>
               <li>Tap <ShareIcon /> <strong>Share</strong> in the browser bar.</li>
               <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
-              <li>Tap <strong>Add</strong>, then open StreetsEmpire from your Home Screen.</li>
+              <li>Tap <strong>Add</strong>, then open {appName} from your Home Screen.</li>
             </ol>
           ) : (
             <ol>
               <li>Tap <MenuIcon /> <strong>menu</strong> in the browser bar.</li>
               <li>Tap <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>
-              <li>Tap <strong>Install</strong>, then open StreetsEmpire from your Home screen.</li>
+              <li>Tap <strong>Install</strong>, then open {appName} from your Home screen.</li>
             </ol>
           )}
           <p>Then turn on alerts under Account settings.</p>

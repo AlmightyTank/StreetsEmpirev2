@@ -1,6 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { Db } from '../utils/db.js';
-import { AppError } from '../utils/errors.js';
 import { abandonTemplated, TemplatedOperations } from './operation-templated.service.js';
 import { operationInclude, pauseOffsetMs, recordOperationTransition, ROUND_CLOCK_SELECT, toOperationDto } from './operation-shared.js';
 import { OperationsService } from './operations.service.js';
