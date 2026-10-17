@@ -20,6 +20,7 @@ import {
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
+import { AppError } from '../utils/errors.js';
 import { AdminModerationService } from '../services/admin-moderation.service.js';
 import { AllianceBalanceService } from '../services/alliance-balance.service.js';
 import { AllianceService } from '../services/alliance.service.js';
@@ -373,6 +374,35 @@ const auditExportQuery = auditQuery.omit({ before: true }).strict();
  */
 const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('onRequest', fastify.requireAdmin);
+
+  // 2.1.0-E. Moderator-only suppression of live or archived preset names.
+  fastify.post('/crew-legends/moderate', async (request) => {
+    const input = parseBody(z.object({
+      kind: z.enum(['ACTIVE_MEMBER', 'ARCHIVED_LEGEND']),
+      id: z.string().trim().min(1).max(64),
+      suppressed: z.boolean(),
+      reason: z.string().trim().min(5).max(500),
+    }).strict(), request.body);
+    return fastify.prisma.$transaction(async (tx) => {
+      if (input.kind === 'ACTIVE_MEMBER') {
+        const target = await tx.crewMember.findUnique({ where: { id: input.id }, select: { id: true } });
+        if (!target) throw AppError.notFound('CREW_MEMBER_NOT_FOUND', 'That crew member was not found.');
+        await tx.crewMember.update({ where: { id: target.id }, data: { nicknameSuppressed: input.suppressed, nicknameKey: null } });
+      } else {
+        const target = await tx.crewLegendArchive.findUnique({ where: { id: input.id }, select: { id: true } });
+        if (!target) throw AppError.notFound('CREW_LEGEND_NOT_FOUND', 'That legend was not found.');
+        await tx.crewLegendArchive.update({ where: { id: target.id }, data: {
+          suppressedAt: input.suppressed ? new Date() : null,
+          suppressReason: input.suppressed ? input.reason : null,
+        } });
+      }
+      await AdminAuditService.record(tx, request.auth!.account, {
+        action: 'crew.legend.moderate', targetType: input.kind, targetId: input.id,
+        reason: input.reason, after: { suppressed: input.suppressed },
+      });
+      return { ok: true };
+    });
+  });
 
   // Rounds
 
