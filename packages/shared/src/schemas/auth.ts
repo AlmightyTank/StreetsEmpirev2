@@ -269,7 +269,7 @@ export const itemCosmeticStyleSchema = z.enum([
   'urban-ghost',
   'cartel-gold',
   'midnight-chrome',
-  'obsidian-signal',
+  'obsidian-signal-crew',
   'eight-bit',
   'time-machine',
   'blue-sky',
