@@ -69,7 +69,14 @@ export function validateRollCallRewards(rewards: readonly QuestRewardDefinition[
   });
 }
 
-export function roundRollCallCatalog(requiredStamps: number): RoundRollCallRewardTier[] {
+export function roundRollCallCatalog(
+  requiredStamps: number,
+  version: string = ROUND_ROLL_CALL_REWARD_VERSION,
+): RoundRollCallRewardTier[] {
+  // Future catalogs must be separately defined and selected by the round pin.
+  if (version !== ROUND_ROLL_CALL_REWARD_VERSION) {
+    throw new Error(`Unsupported Round Roll Call reward catalog version: ${version}`);
+  }
   if (!Number.isSafeInteger(requiredStamps) || requiredStamps < 0 || requiredStamps > 10_000) {
     throw new Error('Round Roll Call requires between 0 and 10000 daily stamps.');
   }
