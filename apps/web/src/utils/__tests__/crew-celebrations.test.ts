@@ -51,6 +51,7 @@ describe('2.1.0-F earned crew milestone celebrations', () => {
     expect(changed([], [], [bond(0)], [bond(1)])?.key).toBe('bond:bond-1:lessons:1');
     expect(changed([], [], [bond(2)], [bond(3)])?.key).toBe('bond:bond-1:lessons:3');
     expect(changed([], [], [bond(4)], [bond(5)])?.key).toBe('bond:bond-1:lessons:5');
+    expect(changed([], [], [bond(0)], [bond(5)])).toMatchObject({ key: 'bond:bond-1:lessons:5', message: expect.stringContaining('5 verified shared memories') });
     expect(changed([], [], [], [bond(5)])).toBeNull();
     expect(changed([], [], [bond(2)], [bond(3, '2026-10-18T00:00:00Z')])).toBeNull();
   });
