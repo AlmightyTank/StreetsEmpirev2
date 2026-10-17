@@ -74,7 +74,7 @@ function RollCallFinalePreview({ target, completed }: { target: number; complete
 function RollCallDay({ tier, finale, busy, onClaim }: {
   tier: RoundRollCallTier;
   finale: boolean;
-  busy: boolean;
+  claimingTier: number | null;
   onClaim: (tier: number) => void;
 }) {
   const status = roundRollCallStatus(tier);
@@ -102,14 +102,14 @@ function RollCallDay({ tier, finale, busy, onClaim }: {
             variant="primary"
             size="sm"
             block
-            loading={busy}
-            disabled={busy}
+            loading={claimingTier === tier.tier}
+            disabled={claimingTier !== null}
             onClick={() => onClaim(tier.tier)}
             aria-label={'Claim ' + RARITY_LABELS[tier.rarity] + ' reward ' + tier.tier}
-          >{busy ? 'Claiming…' : 'Claim reward'}</Button>
+          >{claimingTier === tier.tier ? 'Claiming…' : 'Claim reward'}</Button>
         ) : (
           <span className="se-rollcall-day__state">
-            {status === 'claimed' ? '✓ Collected' : status === 'reached' ? 'Available when round resumes' : 'Not yet earned'}
+            {status === 'claimed' ? '✓ Collected' : status === 'reached' ? 'Earned · claiming unavailable' : 'Not yet earned'}
           </span>
         )}
       </div>
@@ -282,7 +282,7 @@ export function RoundRollCallPanel() {
                 key={tier.key}
                 tier={tier}
                 finale={index === board.rewardTrack.length - 1}
-                busy={claimingTier !== null}
+                claimingTier={claimingTier}
                 onClaim={(step) => void claim(step)}
               />
             ))}
