@@ -96,14 +96,14 @@ export const SLICE_C_ART_FILES = {
     'urban-ghost': 'cosmetics/crew/thug-urban-ghost.webp',
     'cartel-gold': 'cosmetics/crew/thug-cartel-gold.webp',
     'midnight-chrome': 'cosmetics/crew/thug-midnight-chrome.webp',
-    'obsidian-signal': 'round-roll-call/thug-obsidian-signal.svg',
+    'obsidian-signal-crew': 'round-roll-call/thug-obsidian-signal.svg',
   },
   HOE: {
     'midnight-ops': 'cosmetics/crew/hoe-midnight-ops.webp',
     'urban-ghost': 'cosmetics/crew/hoe-urban-ghost.webp',
     'cartel-gold': 'cosmetics/crew/hoe-cartel-gold.webp',
     'midnight-chrome': 'cosmetics/crew/hoe-midnight-chrome.webp',
-    'obsidian-signal': 'round-roll-call/hoe-obsidian-signal.svg',
+    'obsidian-signal-crew': 'round-roll-call/hoe-obsidian-signal.svg',
   },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
