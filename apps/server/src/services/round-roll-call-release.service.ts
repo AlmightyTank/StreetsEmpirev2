@@ -20,7 +20,7 @@ export interface RollCallEconomyTotals {
 export function rollCallEconomyProjection(
   roundDays: number,
   players: number,
-  rewardVersion = ROUND_ROLL_CALL_REWARD_VERSION,
+  rewardVersion: string = ROUND_ROLL_CALL_REWARD_VERSION,
 ) {
   if (!Number.isSafeInteger(roundDays) || roundDays < 0 || roundDays > 10_007) {
     throw new Error('Round Roll Call simulation needs 0..10007 whole round days.');
