@@ -291,6 +291,7 @@ export const TurfWarSettlementService = {
             ruleset: base,
             turfId: turf.id,
             at,
+            sourceKey: `TURF_DEFENSE:${loaded.id}`,
           });
         }
       }

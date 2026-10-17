@@ -877,3 +877,11 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+/* 2.1.0-E: account-owned memorials on the private aftermath page. */
+.se-crew-legend__archive { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.se-crew-legend__memento { display: flex; gap: 14px; padding: 15px; background: var(--se-panel); border: 1px solid var(--se-line); border-radius: var(--se-radius-lg); min-width: 0; }
+.se-crew-legend__memento img { flex: 0 0 96px; object-fit: contain; }
+.se-crew-legend__memento div { min-width: 0; }
+.se-crew-legend__memento p { margin: 6px 0; color: var(--se-text-dim); font-size: 13px; }
+.se-crew-legend__memento small { color: var(--se-text-dim); }

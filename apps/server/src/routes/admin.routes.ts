@@ -20,12 +20,14 @@ import {
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
+import { AppError } from '../utils/errors.js';
 import { AdminModerationService } from '../services/admin-moderation.service.js';
 import { AllianceBalanceService } from '../services/alliance-balance.service.js';
 import { AllianceService } from '../services/alliance.service.js';
 import { WireService } from '../services/wire.service.js';
 import { AdminBattleService } from '../services/admin-battle.service.js';
 import { AdminCrewService } from '../services/admin-crew.service.js';
+import { AdminCrewReleaseService } from '../services/admin-crew-release.service.js';
 import { AdminConvoyService } from '../services/admin-convoy.service.js';
 import { AdminDevBotsService } from '../services/admin-dev-bots.service.js';
 import { AdminDiscordService } from '../services/admin-discord.service.js';
@@ -118,6 +120,9 @@ const roundParams = z.object({ roundId: id }).strict();
 const accountParams = z.object({ accountId: id }).strict();
 const playerParams = z.object({ roundPlayerId: id }).strict();
 const crewMemberParams = z.object({ roundPlayerId: id, memberId: id }).strict();
+const crewLoyaltyRepairSchema = z.object({
+  reason, expectedPoints: z.number().int().min(0).max(100),
+}).strict();
 const crewCorrectionSchema = z.object({
   reason,
   experiencePoints: z.number().int().min(0).max(1_000_000),
@@ -373,6 +378,35 @@ const auditExportQuery = auditQuery.omit({ before: true }).strict();
  */
 const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('onRequest', fastify.requireAdmin);
+
+  // 2.1.0-E. Moderator-only suppression of live or archived preset names.
+  fastify.post('/crew-legends/moderate', async (request) => {
+    const input = parseBody(z.object({
+      kind: z.enum(['ACTIVE_MEMBER', 'ARCHIVED_LEGEND']),
+      id: z.string().trim().min(1).max(64),
+      suppressed: z.boolean(),
+      reason: z.string().trim().min(5).max(500),
+    }).strict(), request.body);
+    return fastify.prisma.$transaction(async (tx) => {
+      if (input.kind === 'ACTIVE_MEMBER') {
+        const target = await tx.crewMember.findUnique({ where: { id: input.id }, select: { id: true } });
+        if (!target) throw AppError.notFound('CREW_MEMBER_NOT_FOUND', 'That crew member was not found.');
+        await tx.crewMember.update({ where: { id: target.id }, data: { nicknameSuppressed: input.suppressed, nicknameKey: null } });
+      } else {
+        const target = await tx.crewLegendArchive.findUnique({ where: { id: input.id }, select: { id: true } });
+        if (!target) throw AppError.notFound('CREW_LEGEND_NOT_FOUND', 'That legend was not found.');
+        await tx.crewLegendArchive.update({ where: { id: target.id }, data: {
+          suppressedAt: input.suppressed ? new Date() : null,
+          suppressReason: input.suppressed ? input.reason : null,
+        } });
+      }
+      await AdminAuditService.record(tx, request.auth!.account, {
+        action: 'crew.legend.moderate', targetType: input.kind, targetId: input.id,
+        reason: input.reason, after: { suppressed: input.suppressed },
+      });
+      return { ok: true };
+    });
+  });
 
   // Rounds
 
@@ -945,6 +979,27 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminCrewService.correct(fastify.prisma, request.auth!.account, roundPlayerId, memberId, input);
   });
 
+  // 2.1.0-G. Staff-only immutable source receipt provenance and guarded repairs.
+  fastify.get('/players/:roundPlayerId/crew/:memberId/provenance', async (request, reply) => {
+    const { roundPlayerId, memberId } = parseBody(crewMemberParams, request.params);
+    reply.header('Cache-Control', 'private, no-store');
+    return AdminCrewReleaseService.provenance(fastify.prisma, roundPlayerId, memberId);
+  });
+
+  fastify.post('/players/:roundPlayerId/crew/:memberId/loyalty/reconcile', async (request, reply) => {
+    const { roundPlayerId, memberId } = parseBody(crewMemberParams, request.params);
+    const input = parseBody(crewLoyaltyRepairSchema, request.body ?? {});
+    reply.header('Cache-Control', 'private, no-store');
+    return AdminCrewReleaseService.reconcile(fastify.prisma, request.auth!.account, roundPlayerId, memberId, input);
+  });
+
+  fastify.post('/players/:roundPlayerId/crew/reconcile', async (request, reply) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    const { reason: correctionReason } = parseBody(reasonBody, request.body ?? {});
+    reply.header('Cache-Control', 'private, no-store');
+    return AdminCrewReleaseService.repairRoster(fastify.prisma, request.auth!.account, roundPlayerId, correctionReason);
+  });
+
   fastify.get('/players/:roundPlayerId/battles', async (request) => {
     const { roundPlayerId } = parseBody(playerParams, request.params);
     const { before } = parseBody(battlesQuery, request.query);
@@ -1021,6 +1076,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/rounds/:roundId/crew', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
     return AdminCrewService.report(fastify.prisma, roundId);
+  });
+
+  fastify.get('/rounds/:roundId/crew/release-health', async (request, reply) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    reply.header('Cache-Control', 'private, no-store');
+    return AdminCrewReleaseService.roundHealth(fastify.prisma, roundId);
   });
 
   fastify.get('/rounds/:roundId/markets', async (request) => {

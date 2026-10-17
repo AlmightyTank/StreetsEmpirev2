@@ -1,3 +1,5 @@
+import type { LivingStoryCatalog } from './living-stories.js';
+
 /**
  * The ruleset contract.
  *
@@ -945,6 +947,8 @@ export interface RandomEncounterEntryRules {
   readonly lowRiders?: RandomEncounterNumberEffectRules;
   readonly choices?: readonly RandomEncounterChoiceRules[];
   readonly districts?: readonly DistrictKey[];
+  /** Optional UTC-only draw window; entries without one remain year-round. */
+  readonly availableUtc?: { readonly startsAt: string; readonly endsAt: string };
 }
 
 /**
@@ -3086,6 +3090,8 @@ export interface Ruleset {
   };
   /** 1.8.5-F. Bounded citywide modifiers and optional event follow-ups. */
   readonly cityConditions?: readonly CityConditionRules[];
+  /** 2.0.0-A. Opt-in story invitations; absent on existing pinned rounds. No active writer until later slices. */
+  readonly livingStories?: LivingStoryCatalog;
   readonly round: RoundRules;
   readonly turns: TurnRules;
   readonly economy: EconomyRules;
@@ -3295,6 +3301,8 @@ export interface LoanOfferRules {
  */
 export interface CrewRosterRules {
   readonly enabled: boolean;
+  /** 2.1.0-B. Explicit opt-in, absent on old pinned rulesets. */
+  readonly loyalty?: { readonly enabled: boolean };
   /** 1.7.0-C career milestones. Effects apply only to the job named by the specialty. */
   readonly experiencePerCompletedJob?: number;
   readonly specialtyUnlockExperience?: number;

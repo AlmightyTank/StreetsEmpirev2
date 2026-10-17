@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Obsidian Signal Thug outfit">
+<defs>
+  <linearGradient id="cloth" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#273448"/><stop offset=".5" stop-color="#0e1522"/><stop offset="1" stop-color="#080f19"/></linearGradient>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f3d68b"/><stop offset=".4" stop-color="#c3913a"/><stop offset="1" stop-color="#8c6226"/></linearGradient>
+  <linearGradient id="visor" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#64e5f1"/><stop offset="1" stop-color="#a0fbff"/></linearGradient>
+  <filter id="glow"><feGaussianBlur stdDeviation="5"/></filter>
+</defs>
+<g opacity=".25" stroke="#64e5f1" fill="none" stroke-width="2"><path d="M58 438H454M82 458H430"/><path d="M79 80L115 48M430 80L397 48"/><circle cx="256" cy="258" r="191"/></g>
+<path d="M80 492L103 322Q127 277 187 273L256 303L324 273Q385 282 410 325L435 492Z" fill="url(#cloth)" stroke="url(#metal)" stroke-width="10"/>
+<path d="M256 304L256 492" stroke="#273344" stroke-width="13"/>
+<path d="M151 324L216 377L256 314L297 377L363 324" stroke="url(#metal)" fill="none" stroke-width="9"/>
+<path d="M178 284L203 225H308L333 284L256 341Z" fill="#9e6b4b" stroke="#573e38" stroke-width="9"/>
+<ellipse cx="256" cy="178" rx="84" ry="104" fill="#b98261" stroke="#6b4c42" stroke-width="8"/>
+<path d="M169 172Q158 70 255 63Q353 69 345 172L320 143L190 143Z" fill="#0b1420" stroke="url(#metal)" stroke-width="8"/>
+<path d="M184 170L326 170L318 215L194 215Z" fill="#0e1b29" stroke="#20384a" stroke-width="8"/>
+<path d="M197 190H312" stroke="url(#visor)" stroke-width="10" stroke-linecap="round"/>
+<path d="M197 190H312" stroke="#64e5f1" stroke-width="18" opacity=".45" filter="url(#glow)"/>
+<path d="M231 240Q255 259 280 240" fill="none" stroke="#70483a" stroke-width="8" stroke-linecap="round"/>
+<path d="M111 405L177 380M335 380L402 405" stroke="#64e5f1" stroke-width="5" opacity=".8"/>
+<g fill="url(#metal)"><path d="M241 391L256 374L271 391L256 408Z"/><path d="M256 412L263 435L256 458L249 435Z"/></g>
+<g font-family="Arial,sans-serif" text-anchor="middle"><text x="256" y="39" font-size="22" letter-spacing="5" fill="#d5b36b">OBSIDIAN SIGNAL</text><text x="256" y="486" font-size="17" letter-spacing="4" fill="#83e6ed">ROLL CALL FINALE</text></g>
+</svg>

@@ -284,6 +284,10 @@ export interface AccountProfileSettingsDto {
   showThemeOnProfile?: boolean;
   /** Slice E. Visitors see this player's item and crew look on their profile. Optional for older clients. */
   showLookOnProfile?: boolean;
+  /** Account-private optional crew personality cards, off by default. */
+  showCrewMoments?: boolean;
+  /** Optional player-only milestone celebrations; default false. */
+  showCrewCelebrations?: boolean;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;
@@ -835,6 +839,39 @@ export interface CrewMemberHistoryDto {
   at: string;
 }
 
+/** 2.1.0-B. One server-settled loyalty receipt. */
+export interface CrewLoyaltyHistoryDto {
+  source: 'JOB_COMPLETED' | 'DEFENSE_HELD' | 'TRAVEL_COMPLETED' | 'DEALER_SHIFT';
+  points: number;
+  label: string;
+  at: string;
+}
+export interface CrewLoyaltyDto {
+  enabled: boolean;
+  points: number;
+  tier: string;
+  nextMilestone: number | null;
+  history: CrewLoyaltyHistoryDto[];
+}
+
+/** 2.1.0-C. Private narrative projections from verified events. */
+export interface CrewMomentDto {
+  source: 'JOB_COMPLETED' | 'DEFENSE_HELD' | 'TRAVEL_COMPLETED' | 'DEALER_SHIFT' | 'RECOVERY_INCIDENT';
+  title: string;
+  description: string;
+  trait: string;
+  at: string;
+}
+
+/** Verified, predefined earned nicknames; never unmoderated free text. */
+export interface CrewEarnedNicknameDto { key: string; label: string; proof: string; }
+export interface CrewLegendArchiveDto {
+  id: string; roundId: string; roundName: string; memberName: string;
+  role: 'THUG' | 'WORKER'; serial: number; nickname: string; proof: string; trait: string;
+  loyaltyPoints: number; experiencePoints: number; finalStatus: CrewMemberStatusDto;
+  joinedAt: string; archivedAt: string; artworkUrl: string;
+}
+
 /** 1.7.0-A. One thug or worker with a stable identity. */
 export interface CrewMemberDto {
   id: string;
@@ -854,15 +891,42 @@ export interface CrewMemberDto {
   traits: string[];
   unavailableReason: string | null;
   history: CrewMemberHistoryDto[];
+  /** Narrative progression; cannot modify stats or resources. */
+  loyalty: CrewLoyaltyDto;
+  /** Optional narrative-only moments, empty until the account opts in. */
+  moments: CrewMomentDto[];
+  /** Latest actual positive loyalty receipt, even when narrative moments are disabled. */
+  lastMajorMoment?: CrewLoyaltyHistoryDto | null;
+  legend?: { nickname: CrewEarnedNicknameDto | null; options: CrewEarnedNicknameDto[]; moderated: boolean };
   /** The 1.6 dealer career this member carries, if any. */
   dealerStaffId: string | null;
   joinedAt: string;
   statusSince: string;
 }
 
+/** 2.1.0-D. Story-only bonds; no persistent stat or power increase. */
+export interface CrewMentorBondDto {
+  id: string;
+  mentorId: string;
+  apprenticeId: string;
+  mentorName: string;
+  apprenticeName: string;
+  lessons: number;
+  maxLessons: number;
+  milestone: string;
+  startedAt: string;
+  endedAt: string | null;
+  memories: Array<{ source: string; label: string; at: string }>;
+}
+
 /** 1.7.0-A. The crew as individual members, alongside the counts they follow. */
 export interface CrewRosterDto {
   enabled: boolean;
+  /** 2.1.0-D. Optional round-only mentor links, even when stories are muted. */
+  bondsEnabled?: boolean;
+  bonds?: CrewMentorBondDto[];
+  /** Every member on this page who has ever had a mentor this round. */
+  mentoredMemberIds?: string[];
   /** Selected operation teams are introduced in 1.7.0-E. */
   supportsSelectedTeams: boolean;
   /** When the roster was first built from this player's counts; null before then. */

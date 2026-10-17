@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 275" role="img" aria-labelledby="t d">
+<title id="t">Crew Legends Memento</title><desc id="d">An antique gold and midnight city silhouette engraved as a memorial plate.</desc>
+<defs><linearGradient id="b" x2="1" y2="1"><stop stop-color="#212632"/><stop offset=".58" stop-color="#121824"/><stop offset="1" stop-color="#070a10"/></linearGradient><linearGradient id="g" x2=".8" y2="1"><stop stop-color="#eee0a9"/><stop offset=".55" stop-color="#c8a968"/><stop offset="1" stop-color="#816337"/></linearGradient></defs>
+<rect x="4" y="4" width="232" height="267" rx="18" fill="url(#b)" stroke="url(#g)" stroke-width="6"/>
+<path d="M19 47h202M19 228h202" stroke="#b79958" stroke-width="2" opacity=".65"/>
+<path d="M28 187V117h17v-30h17v46h16v-21h19v54h16v-60h19v25h17v-47h16v49h18v-18h17v72z" fill="#455064" opacity=".5"/>
+<path d="M74 196c2-38 9-51 26-60v-9c-14-11-16-35-7-49 8-14 33-17 47-6 15 12 14 39-2 54v11c19 10 30 26 34 59z" fill="#b4a485"/>
+<path d="M74 198c1-32 12-54 31-63l12 19 16-19c22 14 32 31 36 63z" fill="#171f2b"/>
+<path d="M91 78c5-21 18-26 33-27 23-1 31 10 31 27l-13-8-16-10-25 13z" fill="#161e29"/>
+<path d="M69 205h101" stroke="#d0ba7e" stroke-width="3"/>
+<path d="M35 27h170" stroke="#f4d89c" stroke-width="1"/><text x="120" y="41" font-family="Georgia,serif" font-size="17" text-anchor="middle" fill="#ebd7a6" letter-spacing="2">CREW LEGENDS</text>
+<text x="120" y="247" font-family="Georgia,serif" font-size="13" text-anchor="middle" fill="#e4c884" letter-spacing="1.6">STREETSEMPIRE</text>
+<circle cx="38" cy="247" r="5" fill="#bd9c62"/><circle cx="202" cy="247" r="5" fill="#bd9c62"/>
+</svg>

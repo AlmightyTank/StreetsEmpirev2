@@ -254,6 +254,7 @@ describe('AccountProfileService Street Pass collection unlocks', () => {
       ['urban-ghost', false],
       ['cartel-gold', true],
       ['midnight-chrome', true],
+      ['obsidian-signal-crew', true],
     ]);
     expect(response.options.crewStyles?.find((option) => option.key === 'cartel-gold')).toMatchObject({
       locked: true,
@@ -276,6 +277,7 @@ describe('AccountProfileService Street Pass collection unlocks', () => {
       'midnight-ops': 'Street Pass · Season 1, tier 18',
       'cartel-gold': 'Street Pass · Season 1, tier 28',
       'midnight-chrome': 'Supporter reward.',
+      'obsidian-signal-crew': 'Finish the Round Roll Call attendance track to earn the permanent pair.',
     });
   });
 

@@ -22,6 +22,7 @@ import {
 } from '@streets/rules-engine';
 import type { MarketPriceDto, RunIncidentDto, SupplyLevelDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
+import { emitCityMemoryEvent } from './city-memory.service.js';
 import { ActivityService } from './activity.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
 import { ConvoyService } from './convoy.service.js';
@@ -219,6 +220,19 @@ async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, ru
       }], incident.at);
     }
     await ActivityService.log(tx, roundPlayerId, 'RUN_INCIDENT', { runId: run.id, ...toIncidentDto(ruleset, incident) } as unknown as Prisma.InputJsonValue);
+    if (ruleset.livingStories?.STORY_GHOST_SHIPMENT?.enabled) {
+      // Road-stop intel reaches the player's home city; original incident
+      // location remains in the private summary, without exposing cargo.
+      const owner = await tx.roundPlayer.findUnique({
+        where: { id: roundPlayerId }, select: { roundId: true, cityId: true },
+      });
+      if (owner) await emitCityMemoryEvent(tx, {
+        roundId: owner.roundId, cityId: owner.cityId, kind: 'supply_road_stop',
+        visibility: 'involved-only', actorRoundPlayerIds: [roundPlayerId],
+        summary: { runIncidentId: incident.id, incidentCity: incident.city },
+        happenedAt: incident.at, idempotencyKey: `run-incident:${incident.id}`,
+      });
+    }
     await LawService.notePoliceLoss(tx, roundPlayerId, ruleset, seizedValueCents(stopped.seized, ruleset) + stopped.fineCents, incident.at);
     // 1.3.0-B: a stop is written down in the city the leg was driving into.
     if (ruleset.law?.evidence) {
@@ -353,7 +367,7 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     at: returnedAt,
     label: 'Returned from run escort duty',
   });
-  if (namedEscorts === 0) await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'THUG', specialty: 'WHEELMAN', at: returnedAt, label: 'Run completed' });
+  if (namedEscorts === 0) await CrewRosterService.awardCompletedWork(tx, { roundPlayerId, ruleset, role: 'THUG', specialty: 'WHEELMAN', at: returnedAt, label: 'Run completed', sourceKey: `RUN:${run.id}` });
   const awayNetWorthCents = await totalAwayWorth(tx, roundPlayerId, ruleset);
   await tx.roundPlayer.update({
     where: { id: roundPlayerId },

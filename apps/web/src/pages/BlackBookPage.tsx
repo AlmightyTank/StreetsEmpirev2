@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { CaseFilesPanel } from '../components/CaseFilesPanel.js';
 import type { BlackBookPageDto } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
@@ -15,6 +16,10 @@ const confidenceCopy = {
 const sourceLabels = { contact: 'Contact', scout: 'Scout', faction_warning: 'Faction warning' } as const;
 
 export function BlackBookPage() {
+  const location = useLocation();
+  const search = new URLSearchParams(location.search);
+  const activeTab = search.get('tab') === 'cases' ? 'cases' : 'intel';
+  const focusId = search.get('focus');
   const [page, setPage] = useState<BlackBookPageDto | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,12 +32,24 @@ export function BlackBookPage() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (activeTab === 'intel') void load(); }, [load, activeTab]);
 
   return (
     <GameLayout>
       <div className="se-blackbook">
         <GamePageHeader eyebrow="Street intelligence" title="The Black Book" description="Rumors are not facts. Corroborate a lead before you put your crew on the line." />
+        <nav className="se-blackbook__views" aria-label="Black Book sections">
+          <Link className={`se-blackbook__view${activeTab === 'intel' ? ' se-blackbook__view--active' : ''}`}
+            aria-current={activeTab === 'intel' ? 'page' : undefined} to="/game/black-book">
+            Street intelligence
+          </Link>
+          <Link className={`se-blackbook__view${activeTab === 'cases' ? ' se-blackbook__view--active' : ''}`}
+            aria-current={activeTab === 'cases' ? 'page' : undefined} to="/game/black-book?tab=cases">
+            Criminal Case Files
+          </Link>
+        </nav>
+        {activeTab === 'cases' ? <CaseFilesPanel focusId={focusId} /> : (
+          <>
         {error ? <Alert tone="error">{error}</Alert> : null}
         {!page ? <p className="se-muted">Opening the book…</p> : page.entries.length === 0 ? (
           <EmptyState title="No live leads" description="Recon a rival or work your contacts. Old intelligence burns itself when it expires." action={<Link className="se-btn se-btn--primary" to="/game/combat#intel">Investigate a rival</Link>} />
@@ -61,6 +78,8 @@ export function BlackBookPage() {
               </article>
             ))}
           </div>
+        )}
+          </>
         )}
       </div>
     </GameLayout>

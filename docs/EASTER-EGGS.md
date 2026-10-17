@@ -75,3 +75,13 @@ One Ring per round, Lord-of-the-Rings style. The art master is
 
 Date eggs accept the day anywhere from UTC−12 to UTC+14, so a player is never
 refused on their own calendar day.
+
+## Holiday Road Sedan (Christmas 2026)
+
+- **Where:** a rare TRAVEL random encounter, **The Perfect Christmas Tree**, in new rounds pinned to `classic-og-v3.0-g`.
+- **When:** server UTC 2026-12-15 inclusive to 2027-01-06 exclusive (the same window as the existing Christmas event). Outside this window the encounter is not in the draw pool.
+- **Choice:** `strap-it-down` helps a stranded family secure the enormous tree. Waving goodbye offers no cosmetic reward. The normal random-encounter popup is reused.
+- **Reward:** `holiday-road-sedan` is a legendary, account-permanent `ITEM_COLLECTION` for the hidden `holiday-road` style, usable on `SEDAN` only. The award happens within the idempotent encounter-choice transaction, stored by `AccountCosmeticUnlock(accountId,key)`; the existing cosmetic locker and ItemTile show the style after ownership.
+- **Art:** `apps/web/public/items/cosmetics/rides/sedan-holiday-road.svg` is a hand-drawn transparent 256×128 served vector; unlike the authored WebP collections, this Easter egg retains its lossless SVG format.
+- **Balance:** appearance only; no changes to vehicle capacity, speed, route risk, price, cash, turns, or other mechanics. Existing pinned rulesets remain unchanged.
+- **QA:** test UTC season boundary conditions, first-class encounter choice resolution, repeated claim idempotency, new-version-only content, and the native SVG in the locker. To activate in a currently running beta round, move that round to `classic-og-v3.0-g` through the normal admin ruleset versioning flow.

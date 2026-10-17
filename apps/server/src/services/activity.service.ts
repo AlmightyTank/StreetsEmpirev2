@@ -2,6 +2,7 @@ import type { ActivityType, Prisma, PrismaClient } from '@prisma/client';
 import type { Db } from '../utils/db.js';
 import { createPlayerActivity } from './in-app-notification.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
+import { recordLivingCaseActivity } from './living-case-evidence.service.js';
 
 /**
  * Section 42. The player's own feed of what they did.
@@ -18,6 +19,9 @@ export const ActivityService = {
   ) {
     const activity = await createPlayerActivity(db, roundPlayerId, type, payload);
     await QuestProgressService.recordActivity(db, activity);
+    // Same authoritative action transaction, after its verified PlayerActivity
+    // receipt has been committed to the transaction. No GET-time progress.
+    await recordLivingCaseActivity(db, activity);
     return activity;
   },
 

@@ -4,6 +4,7 @@ import { emitCityMemoryEvent, listVisibleCityMemory } from '../city-memory.servi
 function makeDb(rows: any[] = []) {
   return {
     rows,
+    round: { findUnique: vi.fn(async () => null) },
     cityMemoryEvent: {
       upsert: vi.fn(async ({ where, create }: any) => {
         let row = rows.find((candidate) => candidate.idempotencyKey === where.idempotencyKey);

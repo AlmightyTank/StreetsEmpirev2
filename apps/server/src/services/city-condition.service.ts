@@ -3,6 +3,7 @@ import { activeRoundEventTime, eventCatalogForRuleset } from '@streets/rulesets'
 import type { CityConditionRules, Ruleset } from '@streets/rulesets';
 import type { CityConditionDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
+import { emitCityMemoryEvent } from './city-memory.service.js';
 
 const MAX_CONDITION_BONUS_PERCENT = 15;
 
@@ -317,6 +318,16 @@ export const CityConditionService = {
         select: { id: true, createdAt: true },
       });
       await recordLifecycle(db, created.id, 'ACTIVATED', input.now);
+      // Only event-settled follow-up city conditions seed a public opportunity.
+      // Scheduled/page-driven condition reads do not grant invitations.
+      if (input.ruleset.livingStories?.STORY_MIDNIGHT_SIGNAL?.enabled) {
+        await emitCityMemoryEvent(db, {
+          roundId: input.round.id, cityId: input.cityId, kind: 'city_condition_follow_up',
+          visibility: 'public', actorRoundPlayerIds: [],
+          summary: { occurrenceId: created.id, conditionKey: condition.key },
+          happenedAt: input.now, idempotencyKey: `city-condition-follow-up:${created.id}`,
+        });
+      }
     }
   },
 };

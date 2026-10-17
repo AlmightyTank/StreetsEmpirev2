@@ -1,4 +1,4 @@
-import type { CrewJobPostKindDto, CrewPutToWorkResult, CrewRosterDto, CrewStaffingOrderDto, CrewStaffingOrderResult, GameActionResult } from '@streets/shared';
+import type { CrewMentorBondDto, CrewJobPostKindDto, CrewPutToWorkResult, CrewRosterDto, CrewStaffingOrderDto, CrewStaffingOrderResult, GameActionResult } from '@streets/shared';
 import { api } from './client.js';
 
 export interface CrewRosterFilters {
@@ -16,6 +16,12 @@ export const crewApi = {
     for (const [key, value] of Object.entries(filters)) if (value !== undefined) query.set(key, String(value));
     return api.get<CrewRosterDto>(`/game/crew${query.size ? `?${query.toString()}` : ''}`);
   },
+  linkMentor: (mentorId: string, apprenticeId: string) =>
+    api.post<CrewMentorBondDto>('/game/crew/mentors', { mentorId, apprenticeId }),
+  endMentor: (bondId: string) =>
+    api.post<{ ok: true }>('/game/crew/mentors/end', { bondId }),
+  chooseNickname: (memberId: string, nicknameKey: string | null) =>
+    api.post<{ ok: true }>('/game/crew/nickname', { memberId, nicknameKey }),
   staffingOrders: () => api.get<CrewStaffingOrderDto[]>('/game/crew/staffing-orders'),
   setStaffingOrder: (kind: Extract<CrewJobPostKindDto, 'DEALER' | 'TURF' | 'CORNER_LOOKOUT' | 'STASH_GUARD' | 'RUNNER'>, targetRef: string, headcount: number, keepTurns: number, actionId: string) =>
     api.post<CrewStaffingOrderResult>('/game/crew/staffing-orders', { kind, targetRef, headcount, keepTurns, actionId }),

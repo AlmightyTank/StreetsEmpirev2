@@ -31,7 +31,7 @@ import { ITEM_ART } from './itemArt.js';
 
 const ITEMS_DIR = path.resolve(import.meta.dirname, '../../public/items');
 const MASTERS_DIR = path.resolve(import.meta.dirname, '../../art/cosmetics');
-const AUTHORED_STYLES = ['midnight-ops', 'urban-ghost', 'cartel-gold', 'midnight-chrome', 'eight-bit', 'time-machine', 'blue-sky'] as const;
+const AUTHORED_STYLES = ['midnight-ops', 'urban-ghost', 'cartel-gold', 'midnight-chrome', 'eight-bit', 'time-machine', 'blue-sky', 'holiday-road'] as const;
 /** Items (Slices A and B) and crew (Slice C). */
 const AUTHORED_KEYS = [...CUSTOMIZABLE_ITEM_KEYS, ...CREW_COSMETIC_KEYS] as const;
 type AuthoredKey = typeof AUTHORED_KEYS[number];
@@ -117,6 +117,7 @@ describe('item cosmetic art resolver', () => {
   it('ships every authored file as a lossless WebP with alpha on a 512px-per-cell canvas', () => {
     for (const key of AUTHORED_KEYS) {
       for (const style of stylesFor(key)) {
+        if (style === 'holiday-road') continue; // This hand-drawn Easter egg ships as a vector SVG.
         const file = path.join(ITEMS_DIR, fileFor(key, style));
         expect(existsSync(file), file).toBe(true);
         const header = readLosslessWebp(file);
@@ -147,6 +148,7 @@ describe('item cosmetic art resolver', () => {
 
   it('keeps a source master for every authored file and no orphan renders', () => {
     const expected = AUTHORED_KEYS.flatMap((key) => stylesFor(key).map((style) => fileFor(key, style)))
+      .filter((file) => file.endsWith('.webp'))
       .map((file) => file.replace(/^cosmetics\//, ''))
       .sort();
     const list = (dir: string, ext: string) => readdirSync(dir, { withFileTypes: true })
@@ -158,6 +160,16 @@ describe('item cosmetic art resolver', () => {
 
     expect(list(MASTERS_DIR, '.svg')).toEqual(expected);
     expect(list(path.join(ITEMS_DIR, 'cosmetics'), '.webp')).toEqual(expected);
+  });
+
+  it('ships the hidden Holiday Road Sedan as a transparent 256x128 SVG and never on another vehicle', () => {
+    const file = SINGLE_ITEM_ART_FILES.SEDAN['holiday-road'];
+    expect(itemCosmeticArtFile('SEDAN', 'holiday-road')).toBe(file);
+    expect(itemCosmeticArtFile('VAN', 'holiday-road')).toBe(ITEM_ART.VAN.file);
+    const art = readFileSync(path.join(ITEMS_DIR, file), 'utf8');
+    expect(art).toContain('viewBox="0 0 256 128"');
+    expect(art).not.toMatch(/<image\\b/i);
+    expect(art).not.toMatch(/<rect[^>]+(?:width="256"|width="100%")/i);
   });
 
   it('makes every non-classic collection earnable on the Season 1 Street Pass or as a supporter reward', () => {

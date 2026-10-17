@@ -22,6 +22,7 @@ datasource db {
 model Account {
   id                          String    @id @default(cuid())
   username                    String
+  crewLegendArchives CrewLegendArchive[]
   /// Lowercased username. Enforces case-insensitive uniqueness. A database CHECK
   /// (Account_usernameNormalized_lowercase) refuses any row where this is not lower(username).
   usernameNormalized          String    @unique
@@ -246,6 +247,10 @@ model AccountProfile {
   showThemeOnProfile      Boolean @default(true)
   /// Slice E. Visitors see the owner's item and crew look on their public profile.
   showLookOnProfile       Boolean @default(true)
+  /// 2.1.0-C. Player-only crew stories; never affects gameplay.
+  showCrewMoments         Boolean @default(false)
+  /// 2.1.0-F. Account-private cosmetic milestone celebrations, off by default.
+  showCrewCelebrations    Boolean @default(false)
   featuredBadgeKeys       Json    @default("[]")
   featuredLegacyEntryId   String?
   profileAccent           String  @default("default")
@@ -1109,6 +1114,57 @@ model PlayerArmedFavor {
 }
 
 // ---------------------------------------------------------------------------
+// Round Roll Call (docs/ROUND-ROLL-CALL.md)
+// ---------------------------------------------------------------------------
+
+/// A stamp is an authenticated foreground visit to one server-side round day.
+model RoundLoginCheckIn {
+  id String @id @default(cuid())
+  roundPlayerId String
+  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  dayIndex Int
+  checkedInAt DateTime @default(now())
+  /// LOGIN is an actual foreground check-in, RECOVERY is an audited missed-day repair.
+  source String @default("LOGIN")
+  @@unique([roundPlayerId, dayIndex])
+  @@index([roundPlayerId, checkedInAt])
+}
+
+/// One bounded, account-owned, server-verified recovery of a missed round day.
+/// No purchases, transferable tokens, or privileged shortcuts may create this receipt.
+model RoundLoginRecovery {
+  id String @id @default(cuid())
+  roundPlayerId String
+  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  dayIndex Int
+  actionId String
+  actorAccountId String
+  reason String @default("SELF_SERVICE")
+  stampsBefore Int
+  missedBefore Int
+  createdAt DateTime @default(now())
+  @@unique([roundPlayerId, dayIndex])
+  @@unique([roundPlayerId, actionId])
+  @@index([roundPlayerId, createdAt])
+}
+
+/// One atomic paid reward step; ownership and payout are per round player.
+/// Cosmetics in Slice D will separately use persistent AccountCosmeticUnlock.
+model RoundLoginRewardClaim {
+  id String @id @default(cuid())
+  roundPlayerId String
+  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  tier Int
+  rewardVersion String
+  rarity String
+  /// Stable snapshot of what was actually awarded, including amounts in cents.
+  definition Json
+  claimedAt DateTime @default(now())
+  @@unique([roundPlayerId, tier])
+  @@index([roundPlayerId, claimedAt])
+}
+
+// ---------------------------------------------------------------------------
 // Street Pass (docs/STREET-PASS.md)
 // ---------------------------------------------------------------------------
 
@@ -1281,6 +1337,7 @@ model QuestProgressReceipt {
 
 model Round {
   id   String @id @default(cuid())
+  criminalCaseFiles CriminalCaseFile[]
   name String
   slug String @unique
 
@@ -1288,6 +1345,8 @@ model Round {
   rulesetVersion     String
   /// Per-round Street Pass reward edits, frozen when registration opens.
   streetPassOverride Json?
+  /// Reward catalog version fixed for this round; newer seasons never rewrite its prizes.
+  roundLoginRewardVersion String @default("round-roll-call-v1")
 
   status RoundStatus @default(SCHEDULED)
 
@@ -1409,6 +1468,7 @@ model RoundAftermathRewardClaim {
 /// one and the modifiers are already wired into the ruleset math.
 model City {
   id        String  @id @default(cuid())
+  criminalCaseFiles CriminalCaseFile[]
   slug      String  @unique
   name      String
   sortOrder Int     @default(0)
@@ -1449,6 +1509,7 @@ model City {
 
 model RoundPlayer {
   id String @id @default(cuid())
+  criminalCaseFiles CriminalCaseFile[]
 
   roundId String
   round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
@@ -1676,6 +1737,9 @@ model RoundPlayer {
   armedFavors           PlayerArmedFavor[]
   streetPassProgress    StreetPassProgress?
   streetPassClaims      StreetPassClaim[]
+  roundLoginCheckIns     RoundLoginCheckIn[]
+  roundLoginRecoveries    RoundLoginRecovery[]
+  roundLoginRewardClaims RoundLoginRewardClaim[]
   surveySubmissions     SurveySubmission[]
   raidsSent             RaidBattle[]         @relation("RaidAttacker")
   raidsReceived         RaidBattle[]         @relation("RaidDefender")
@@ -1740,6 +1804,9 @@ model RoundPlayer {
   /// 1.7.0-A. The individual thugs and workers behind the counts above, and their migration.
   crewMembers           CrewMember[]
   crewMemberEvents      CrewMemberEvent[]
+  crewLoyaltyEntries    CrewLoyaltyEntry[]
+  crewMentorBonds       CrewMentorBond[]
+  crewBondMemories      CrewBondMemory[]
   crewRosterMigration   CrewRosterMigration?
   /// 1.8.6-A. Durable targets for person-first crew assignment jobs.
   crewJobPosts          CrewJobPost[]
@@ -2321,6 +2388,13 @@ model CrewMember {
   statusSince               DateTime
   releasedAt                DateTime?
   events                    CrewMemberEvent[]
+  /// 2.1.0-B. Cosmetic-only round progression; never part of combat or economy.
+  loyaltyPoints             Int                 @default(0)
+  loyaltyEntries            CrewLoyaltyEntry[]
+  nicknameKey               String?
+  nicknameSuppressed        Boolean             @default(false)
+  mentoringBonds            CrewMentorBond[]    @relation("Mentor")
+  apprenticeship            CrewMentorBond?     @relation("Apprentice")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2345,6 +2419,87 @@ model CrewMemberEvent {
 
   @@index([memberId, at])
   @@index([roundPlayerId, at(sort: Desc)])
+}
+
+/// 2.1.0-B. Immutable loyalty receipts from settled gameplay events.
+model CrewLoyaltyEntry {
+  id            String     @id @default(cuid())
+  memberId      String
+  member        CrewMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  source        String
+  sourceKey     String
+  points        Int
+  summary       String
+  at            DateTime
+
+  @@unique([memberId, sourceKey])
+  @@index([memberId, at(sort: Desc)])
+  @@index([roundPlayerId, at(sort: Desc)])
+}
+
+/// 2.1.0-E. Detached account biography: no FK to the live round/player/member.
+model CrewLegendArchive {
+  id               String   @id @default(cuid())
+  accountId        String
+  account          Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  sourceRoundId    String
+  roundName        String
+  sourceMemberId   String
+  role             CrewMemberRole
+  serial           Int
+  memberName       String
+  nicknameKey      String
+  nicknameLabel    String
+  proof            String
+  trait            String
+  loyaltyPoints    Int
+  experiencePoints Int
+  finalStatus      CrewMemberStatus
+  joinedAt         DateTime
+  archivedAt       DateTime
+  artworkKey       String
+  suppressedAt     DateTime?
+  suppressReason   String?
+
+  @@unique([accountId, sourceRoundId, sourceMemberId])
+  @@index([accountId, archivedAt(sort: Desc)])
+}
+
+/// 2.1.0-D. An optional round-only mentoring connection. Each apprentice
+/// can link only once per round, preventing reassignment/relink farming.
+model CrewMentorBond {
+  id            String     @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  mentorId      String
+  mentor        CrewMember @relation("Mentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  apprenticeId  String     @unique
+  apprentice    CrewMember @relation("Apprentice", fields: [apprenticeId], references: [id], onDelete: Cascade)
+  lessons       Int        @default(0)
+  startedAt     DateTime
+  endedAt       DateTime?
+  memories      CrewBondMemory[]
+
+  @@index([roundPlayerId, endedAt])
+  @@index([roundPlayerId, mentorId, endedAt])
+}
+
+/// One memory per successful joint operation, no combat or economic modifiers.
+model CrewBondMemory {
+  id            String       @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer  @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  bondId        String
+  bond          CrewMentorBond @relation(fields: [bondId], references: [id], onDelete: Cascade)
+  sourceKey     String
+  source        String
+  summary       String
+  at            DateTime
+
+  @@unique([bondId, sourceKey])
+  @@index([bondId, at(sort: Desc)])
 }
 
 /// 1.8.6-A. A durable assignment target for crew jobs. Later slices attach selected
@@ -5195,6 +5350,7 @@ model PlayerFactionWarning {
 
 model CityMemoryEvent {
   id             String   @id @default(cuid())
+  criminalCaseFiles CriminalCaseFile[]
   roundId        String
   round          Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
   cityId         String
@@ -5204,6 +5360,7 @@ model CityMemoryEvent {
   actors         Json     @default("[]")
   summary        Json     @default("{}")
   idempotencyKey String   @unique
+  happenedAtActive DateTime?
   happenedAt     DateTime @default(now())
   createdAt      DateTime @default(now())
 
@@ -5289,4 +5446,101 @@ model LegacyEntry {
 
   @@index([accountId, awardedAt(sort: Desc)])
   @@index([sourceRoundId, kind])
+}
+
+ 
+// Living Streets 2.0.0-B. Case files are player-owned evidence narratives,
+// separate from federal PlayerCase, quests, and GameEventParticipation.
+enum CriminalCaseStatus {
+  LOCKED
+  AVAILABLE
+  ACTIVE
+  SOLVED
+  CLOSED
+  EXPIRED
+}
+
+model CriminalCaseFile {
+  id             String             @id @default(cuid())
+  roundId        String
+  round          Round              @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  ownerId        String
+  owner          RoundPlayer        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  cityId         String
+  city           City               @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  storyKey       String
+  caseKey        String
+  rulesetId      String
+  rulesetVersion String
+  sourceMemoryId String?
+  sourceMemory   CityMemoryEvent?   @relation(fields: [sourceMemoryId], references: [id], onDelete: SetNull)
+  offerDedupeKey String             @unique
+  offeredAtActive DateTime?
+  cluePlan       Json               @default("[]")
+  branchKeys     Json               @default("[]")
+  status         CriminalCaseStatus @default(AVAILABLE)
+  expiresAtActive DateTime
+  acceptedAt      DateTime?
+  solvedAt        DateTime?
+  chosenBranch    String?
+  outcomeTitle    String?
+  outcomeSummary  String?
+  outcomeCategory String?
+  rewardCents     Int                @default(0)
+  rewardClaimedAt DateTime?
+  chosenAt        DateTime?
+  closedAt        DateTime?
+  expiredAt       DateTime?
+  evidence        CriminalCaseEvidence[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([ownerId, roundId, status, createdAt(sort: Desc)])
+  @@index([roundId, cityId, createdAt(sort: Desc)])
+  @@index([sourceMemoryId])
+  @@index([ownerId, offeredAtActive])
+  @@index([roundId, cityId, offeredAtActive])
+}
+
+// Every entry links to a verified server-side action receipt. No raw recon
+// payload or secret case details are written to public Activity/News.
+model CriminalCaseEvidence {
+  id             String           @id @default(cuid())
+  caseId         String
+  caseFile       CriminalCaseFile @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  clueKey        String
+  sourceKind     String
+  sourceReceiptId String
+  observedAt     DateTime
+  recordedAt     DateTime         @default(now())
+
+  @@unique([caseId, clueKey])
+  @@unique([caseId, sourceKind])
+  @@unique([caseId, sourceReceiptId])
+  @@unique([sourceReceiptId])
+  @@index([caseId, recordedAt])
+}
+
+/** 2.0.0-G: disabled authoring proposals, never executable by live gameplay. */
+model AdminLivingStoryDraft {
+  id                        String   @id @default(cuid())
+  key                       String
+  baseRulesetId             String
+  baseRulesetVersion        String
+  title                     String
+  caseKey                   String
+  eventKinds                Json     @default("[]")
+  audience                  String
+  visibility                String
+  expiresAfterActiveMinutes Int
+  rewardBudgetCents         Int      @default(0)
+  enabled                   Boolean  @default(false)
+  revision                  Int      @default(1)
+  createdByAccountId        String
+  updatedByAccountId        String
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@unique([baseRulesetId, key])
+  @@index([baseRulesetId, updatedAt(sort: Desc)])
 }

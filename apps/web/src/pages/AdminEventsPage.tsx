@@ -5,6 +5,7 @@ import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { AdminEncounterTester } from '../components/AdminEncounterTester.js';
+import { AdminLivingStoriesPanel } from '../components/AdminLivingStoriesPanel.js';
 import { Field } from '../components/Field.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -175,6 +176,8 @@ export function AdminEventsPage() {
             <tbody>{report.rulesets.map((item) => <tr key={item.id}><td>{item.name}</td><td>{item.version}</td><td>{item.firstClassTypes.join(', ')}</td><td>{item.catalogEntries}</td></tr>)}</tbody>
           </table></div>
         </Panel>
+
+        <AdminLivingStoriesPanel />
 
         <Panel title="QA preview and balance simulation" className="se-mb">
           <div className="se-field"><label className="se-label" htmlFor="admin-event-ruleset">Pinned ruleset</label>

@@ -87,6 +87,9 @@ jobs:
       - name: Run unit tests
         run: npm test
 
+      - name: Simulate 2.1.0-G crew anti-farm balance and legacy ruleset isolation
+        run: npm run qa:crew-release
+
       - name: Run public release integration
         env:
           RELEASE_INTEGRATION: "1"

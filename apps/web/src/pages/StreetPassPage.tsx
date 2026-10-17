@@ -4,6 +4,7 @@ import type { ItemCosmeticStyleKey, QuestRewardDto, StreetPassClaimResult, Stree
 import { formatNumber, formatProfileName, profileNameParts } from '@streets/shared';
 import { streetPassApi } from '../api/streetPass.js';
 import { Alert } from '../components/Alert.js';
+import { RoundRollCallPanel } from '../components/RoundRollCall.js';
 import { Button } from '../components/Button.js';
 import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
 import { ItemTile } from '../components/ItemTile.js';
@@ -395,6 +396,8 @@ export function StreetPassPage() {
             </div>
           ) : null}
         </header>
+
+        <RoundRollCallPanel />
 
         {loadError ? (
           <Alert>

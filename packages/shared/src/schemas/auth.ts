@@ -233,6 +233,7 @@ export const profileEffectSchema = z.enum([
   'snowstorm',
   'inferno',
   'midnight-chrome',
+  'obsidian-signal',
 ]);
 
 /** Signature Profile Card surface finish (supporter card only). */
@@ -268,9 +269,11 @@ export const itemCosmeticStyleSchema = z.enum([
   'urban-ghost',
   'cartel-gold',
   'midnight-chrome',
+  'obsidian-signal-crew',
   'eight-bit',
   'time-machine',
   'blue-sky',
+  'holiday-road',
 ]);
 
 export const crewCosmeticStyleSchema = itemCosmeticStyleSchema.refine(
@@ -343,6 +346,8 @@ export const updateAccountProfileSettingsSchema = z.object({
   crewCosmetics: crewCosmeticLoadoutSchema,
   showThemeOnProfile: z.boolean().default(true),
   showLookOnProfile: z.boolean().default(true),
+  showCrewMoments: z.boolean().optional(),
+  showCrewCelebrations: z.boolean().optional(),
   featuredBadgeKeys: z.array(z.string().trim().min(1).max(80)).max(6),
   profileAccent: profileAccentSchema,
   uiDensity: uiDensitySchema,

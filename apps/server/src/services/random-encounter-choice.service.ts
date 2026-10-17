@@ -6,6 +6,7 @@ import {
   type GameActionResult,
   type RandomEncounterChoiceResult,
 } from '@streets/shared';
+import { HOLIDAY_ROAD_CHOICE_KEY, HOLIDAY_ROAD_COSMETIC_KEY, HOLIDAY_ROAD_ENCOUNTER_KEY, type Ruleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
@@ -13,6 +14,7 @@ import { ActivityService } from './activity.service.js';
 import { EasterEggService } from './easter-egg.service.js';
 import { applyRandomEncounterEffects, capRandomEncounterEffects } from './random-encounter.service.js';
 import { EncounterGangService } from './encounter-gang.service.js';
+import { QuestCosmeticService } from './quest-cosmetic.service.js';
 
 const FIRST_CLASS_ENCOUNTER_ID_PREFIX = 'event_';
 
@@ -65,6 +67,37 @@ async function encounterEasterEgg(
   }
   const found = await EasterEggService.discoverForPlayer(tx, roundPlayerId, id, now);
   return found ? { easterEgg: { title: found.egg.title, description: found.egg.description, isNew: found.isNew } } : {};
+}
+
+/**
+ * Only a stored, server-validated choice from the Holiday Road encounter grants
+ * this permanent, account-level reward. Runs inside the idempotent action tx.
+ */
+async function holidayRoadReward(
+  tx: Db,
+  roundPlayerId: string,
+  ruleset: Ruleset,
+  encounterKey: string,
+  choiceKey: string,
+  now: Date,
+): Promise<{ title: string; description: string; isNew: boolean } | null> {
+  if (encounterKey !== HOLIDAY_ROAD_ENCOUNTER_KEY || choiceKey !== HOLIDAY_ROAD_CHOICE_KEY
+    || ruleset.cosmetics?.[HOLIDAY_ROAD_COSMETIC_KEY]?.kind !== 'ITEM_COLLECTION') return null;
+  const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { accountId: true } });
+  if (!player) return null;
+  const existing = await tx.accountCosmeticUnlock.findUnique({
+    where: { accountId_key: { accountId: player.accountId, key: HOLIDAY_ROAD_COSMETIC_KEY } },
+    select: { key: true },
+  });
+  await QuestCosmeticService.award(
+    tx, player.accountId, ruleset, HOLIDAY_ROAD_COSMETIC_KEY,
+    `RANDOM_ENCOUNTER:${HOLIDAY_ROAD_ENCOUNTER_KEY}`, now,
+  );
+  return existing ? null : {
+    title: 'Holiday Road Sedan',
+    description: 'The Perfect Christmas Tree has unlocked this legendary sedan cosmetic permanently. Equip it in your collection.',
+    isNew: true,
+  };
 }
 
 function choicesOf(choices: Prisma.JsonValue): PendingChoice[] {
@@ -135,7 +168,7 @@ async function resolveFirstClassEncounter(
     action: 'RANDOM_ENCOUNTER_CHOICE',
     actionId: input.actionId,
     idempotencyScope: `RANDOM_ENCOUNTER_CHOICE:${encounterId}`,
-    execute: async ({ tx, current: state, now, round }) => {
+    execute: async ({ tx, current: state, now, round, ruleset }) => {
       const participation = await tx.gameEventParticipation.findFirst({
         where: { id: participationId, roundPlayerId, status: 'OFFERED', occurrence: { definition: { is: { type: 'RANDOM_ENCOUNTER' } } } },
         select: {
@@ -158,6 +191,7 @@ async function resolveFirstClassEncounter(
       const settledState = { ...savedState, selectedChoice: choice.key, selectedAt: now.toISOString(), selectedEffects: effects };
       const encounterKey = String((object(participation.occurrence.config) ?? {}).entryKey ?? participation.occurrence.definition.key);
       const egg = await encounterEasterEgg(tx, roundPlayerId, encounterKey, choice.key, participation.createdAt, now);
+      const holiday = await holidayRoadReward(tx, roundPlayerId, ruleset, encounterKey, choice.key, now);
       const result = {
         encounterId,
         encounterKey,
@@ -167,7 +201,7 @@ async function resolveFirstClassEncounter(
         text: egg.text ?? choice.text,
         cashCents: effects.cashCents ?? 0,
         effects,
-        ...(egg.easterEgg ? { easterEgg: egg.easterEgg } : {}),
+        ...(egg.easterEgg ? { easterEgg: egg.easterEgg } : holiday ? { easterEgg: holiday } : {}),
       };
       await tx.gameEventParticipation.update({
         where: { id: participation.id },
@@ -235,7 +269,7 @@ export const RandomEncounterChoiceService = {
       action: 'RANDOM_ENCOUNTER_CHOICE',
       actionId: input.actionId,
       idempotencyScope: `RANDOM_ENCOUNTER_CHOICE:${encounterId}`,
-      execute: async ({ tx, current, now }) => {
+      execute: async ({ tx, current, now, ruleset }) => {
         const encounter = await tx.randomEncounter.findFirst({
           where: { id: encounterId, roundPlayerId, status: 'PENDING' },
         });
@@ -252,6 +286,7 @@ export const RandomEncounterChoiceService = {
         const effects = capRandomEncounterEffects(effectsOf(choice.effects) ?? {}, current);
         const next = applyRandomEncounterEffects(current, effects);
         const egg = await encounterEasterEgg(tx, roundPlayerId, encounter.key, choice.key, encounter.createdAt, now);
+        const holiday = await holidayRoadReward(tx, roundPlayerId, ruleset, encounter.key, choice.key, now);
         const text = egg.text ?? choice.text;
 
         await tx.randomEncounter.update({
@@ -289,7 +324,7 @@ export const RandomEncounterChoiceService = {
             text,
             cashCents: effects.cashCents ?? 0,
             effects,
-            ...(egg.easterEgg ? { easterEgg: egg.easterEgg } : {}),
+            ...(egg.easterEgg ? { easterEgg: egg.easterEgg } : holiday ? { easterEgg: holiday } : {}),
           },
         };
       },

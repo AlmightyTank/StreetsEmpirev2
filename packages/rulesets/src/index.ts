@@ -141,6 +141,10 @@ import { classicOgV30A } from './classic-og-v3.0-a/index.js';
 import { classicOgV30B } from './classic-og-v3.0-b/index.js';
 import { classicOgV30C } from './classic-og-v3.0-c/index.js';
 import { classicOgV30D } from './classic-og-v3.0-d/index.js';
+import { classicOgV30E } from './classic-og-v3.0-e/index.js';
+import { classicOgV30F } from './classic-og-v3.0-f/index.js';
+import { classicOgV30G } from './classic-og-v3.0-g/index.js';
+import { classicOgV30H } from './classic-og-v3.0-h/index.js';
 import type { Ruleset } from './types.js';
 
 export { classicOgV01 };
@@ -286,10 +290,18 @@ export { classicOgV30A };
 export { classicOgV30B };
 export { classicOgV30C };
 export { classicOgV30D };
+export { classicOgV30E };
+export { classicOgV30F };
+export { classicOgV30G };
+export { classicOgV30H };
+export * from './living-case-outcomes.js';
 export { cityHoldingsEnabled } from './classic-og-v3.0-a/index.js';
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './event-system.js';
+export * from './living-stories.js';
+export * from './holiday-road.js';
+export * from './living-cases.js';
 export * from './combat-prototype.js';
 export * from './hideout-v2.js';
 export * from './quest-definitions.js';
@@ -445,6 +457,12 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV30B.meta.id]: classicOgV30B,
   [classicOgV30C.meta.id]: classicOgV30C,
   [classicOgV30D.meta.id]: classicOgV30D,
+  [classicOgV30E.meta.id]: classicOgV30E,
+  [classicOgV30F.meta.id]: classicOgV30F,
+  [classicOgV30G.meta.id]: classicOgV30G,
+  [classicOgV30H.meta.id]: classicOgV30H,
 };
+
+export { ROUND_ROLL_CALL_FINALE, ROUND_ROLL_CALL_FINALE_COSMETICS } from './round-roll-call-cosmetics.js';
 
 export const DEFAULT_RULESET_ID = classicOgV01.meta.id;

@@ -75,6 +75,14 @@ export function triggerChance(trigger: Pick<RandomEncounterTriggerRules, 'chance
   return 1 - (1 - chance) ** Math.max(1, Math.floor(turns));
 }
 
+/** Inclusive start, exclusive end; evaluated against the action's server UTC time. */
+export function encounterIsInSeason(entry: Pick<RandomEncounterEntryRules, 'availableUtc'>, now: Date): boolean {
+  if (!entry.availableUtc) return true;
+  const start = Date.parse(entry.availableUtc.startsAt);
+  const end = Date.parse(entry.availableUtc.endsAt);
+  return Number.isFinite(start) && Number.isFinite(end) && now.getTime() >= start && now.getTime() < end;
+}
+
 function randomInt(min: number, max: number, rng: () => number): number {
   const low = Math.ceil(min);
   const high = Math.floor(max);
@@ -470,7 +478,8 @@ async function rollFirstClassEncounter(input: ActionEncounterInput & { district?
   const rng = input.rng ?? Math.random;
   if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
   const eligible = trigger.entries.filter((entry) =>
-    (!entry.districts || !input.district || entry.districts.includes(input.district))
+    encounterIsInSeason(entry, input.now)
+    && (!entry.districts || !input.district || entry.districts.includes(input.district))
     && !recentKeys.has(encounterDefinitionKey(triggerKey, entry.key)),
   );
   const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: triggerKey, district: input.district, state: input.next, now: input.now, rng });
@@ -497,7 +506,7 @@ async function rollActionTrigger(input: ActionEncounterInput, triggerKey: Random
     : new Set<string>();
   if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
-  const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
+  const eligible = trigger.entries.filter((entry) => encounterIsInSeason(entry, input.now) && !recentKeys.has(entry.key));
   const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: triggerKey, state: input.next, now: input.now, rng });
   if (gang && !recentKeys.has(gang.key)) eligible.push(gang);
   const picked = pickWeighted(eligible, rng);
@@ -580,6 +589,7 @@ export const RandomEncounterService = {
     if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
     const eligible = trigger.entries.filter((entry) =>
+      encounterIsInSeason(entry, input.now) &&
       (!entry.districts || entry.districts.includes(input.district)) &&
       !recentKeys.has(entry.key),
     );
@@ -607,7 +617,7 @@ export const RandomEncounterService = {
 
     if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
-    const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
+    const eligible = trigger.entries.filter((entry) => encounterIsInSeason(entry, input.now) && !recentKeys.has(entry.key));
     const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: 'PRODUCE', state: input.next, now: input.now, rng });
     if (gang && !recentKeys.has(gang.key)) eligible.push(gang);
     const picked = pickWeighted(eligible, rng);
@@ -637,7 +647,7 @@ export const RandomEncounterService = {
 
     if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
-    const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
+    const eligible = trigger.entries.filter((entry) => encounterIsInSeason(entry, input.now) && !recentKeys.has(entry.key));
     const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: 'TRAVEL', state: input.next, now: input.now, rng });
     if (gang && !recentKeys.has(gang.key)) eligible.push(gang);
     const picked = pickWeighted(eligible, rng);

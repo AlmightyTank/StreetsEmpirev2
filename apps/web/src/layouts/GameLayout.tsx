@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell, useSidebarRail } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
+import { RoundRollCallNotice } from '../components/RoundRollCall.js';
 import { TrackedQuests } from '../components/TrackedQuests.js';
 import { IntroDialog } from '../components/onboarding/IntroDialog.js';
 import { TourOverlay } from '../components/onboarding/TourOverlay.js';
@@ -15,6 +16,7 @@ import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
+import { CaseStoryAlerts } from '../components/CaseStoryAlerts.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { formatDuration } from '../utils/time.js';
 import { lockPageScroll } from '../utils/pageScrollLock.js';
@@ -493,6 +495,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       </>
     }>
       <ConnectionBanner />
+      <RoundRollCallNotice />
       <JokeDayBanner />
       {isBetaEnvironment ? (
         <div className="se-beta-banner" role="status">
@@ -530,6 +533,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
         </div>
       ) : null}
       <TrackedQuests />
+      <CaseStoryAlerts />
       <IntroDialog />
       <TourOverlay />
 
