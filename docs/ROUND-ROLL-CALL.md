@@ -135,3 +135,21 @@ Check both database migrations (A, B) on a clean database before merging.
 Run `npm run typecheck`, unit tests including `round-roll-call-cosmetic.test.ts`, builds and the Game UI Visual Audit.
 
 Manually test a fresh 28-day round with 20/21/22 check-in attempts, a 35-day round at 21 and 28 stamps, repeated final claims, a missed-day finish, existing-complete account catch-up, two concurrent requests, early admin close, and a completed player who never clicked the final cash reward. Verify the pair persists on a subsequent round and appears in the settings and Collection page, with no weapon or gameplay boost.
+
+## Slice E — Limited Catch-Up & Admin Diagnostics (implemented)
+
+**Fairness policy.** Every round still has its original seven-day free absence allowance and original `roundDays - 7` reward target (no streak reset). Catch-up does not reduce the target or grant money, turns, items or cosmetics by itself; it records a historical stamp only when a player actually exceeded those seven native misses.
+
+- Maximum **2 self-service recovery days per RoundPlayer per round**; no purchase, premium entitlement, transferable inventory or pay-to-win gate.
+- A recovery is offered **only** when the round is ACTIVE/unpaused, at least one genuine foreground LOGIN stamp exists, more than seven finished round days are actually missing, the track is not yet complete, and a finished missed day **since the player enrolled** is available. Future days, today's window, and days before joining cannot be recovered.
+- The backend picks the **oldest eligible missed day**; callers cannot choose arbitrary dates. The recovery button stays disabled with a contextual explanation until all conditions are met.
+- Each recovery request needs a client-generated UUID actionId. The server first locks the round `FOR SHARE` (consistent with closure), then its RoundPlayer `FOR UPDATE` to serialize concurrent requests. On retries with the same UUID the saved receipt is returned, never an extra stamp. Native stamp uniqueness `(roundPlayerId,dayIndex)` is still enforced.
+- `RoundLoginCheckIn.source` differentiates real `LOGIN` stamps from `RECOVERY`, and `RoundLoginRecovery` permanently records round-player, recovered day, actorAccountId, action UUID, source, before-state and timestamp. Both rows are committed/rolled back in one transaction.
+- Players see used/remaining recoveries, which missed day can be repaired, the seven-day built-in allowance, recovery receipt and disabled reason inside Street Pass. No page jumps or popups. The same final attendance milestone gates the **Obsidian Signal** pair, regardless of whether the last eligible stamp was genuine or one of the two strictly capped recoveries.
+- Read-only `GET /api/admin/round-roll-call/overview?roundId=...` shows players, natural stamps, recovered stamps, claims, recent recovery receipts and integrity totals. `GET /api/admin/round-roll-call/diagnose?roundId=...&roundPlayerId=...` inspects a player's full stamp/audit history and flags missing audit receipts, cap breaches and partial permanent unlocks. Both routes require admin authentication and send `Cache-Control: private, no-store`.
+- A Roll Call diagnostics panel appears in the existing **Admin → Rounds → Round details** screen with totals, audit history, per-player inspection and anomaly indicators. **Admins cannot mint arbitrary recoveries** through the panel, avoiding an unaudited shortcut.
+- No reward catalog, rarity, claim-payout or other economy changes. The migration adds the `source` field with a default of `LOGIN` for existing attendance and creates `RoundLoginRecovery`.
+
+### Manual verification
+
+Use 28- and 35-day rounds, a genuine stamp after 8 absences, a native-allowance player with 7 or fewer misses, joined-late players, a paused round, a completed round, repeated recovery UUIDs, two concurrent recoveries, a third distinct recovery, and the final cosmetic path. Check the admin audit panel in narrow phone layouts and confirm no endpoint lets non-admins read other accounts' records.
