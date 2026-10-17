@@ -3,6 +3,22 @@ import { api } from './client.js';
 
 export const ROUND_ROLL_CALL_CHECKED_IN_EVENT = 'streets:round-roll-call-checked-in';
 
+export interface RoundRollCallNewStamp { stamps: number; requiredStamps: number; }
+let unshownStamp: RoundRollCallNewStamp | null = null;
+
+/** Handles the first sign-in check-in that may arrive before the game shell mounts. */
+export function publishRoundRollCallStamp(stamp: RoundRollCallNewStamp): void {
+  unshownStamp = stamp;
+  window.dispatchEvent(new CustomEvent(ROUND_ROLL_CALL_CHECKED_IN_EVENT, { detail: stamp }));
+}
+
+export function consumeRoundRollCallStamp(): RoundRollCallNewStamp | null {
+  const stamp = unshownStamp;
+  unshownStamp = null;
+  return stamp;
+}
+
+
 export type RoundRollCallRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
 
 export interface RoundRollCallTier {
