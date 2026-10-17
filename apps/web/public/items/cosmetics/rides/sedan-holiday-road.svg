@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128" role="img" aria-label="Holiday Road wood-paneled station wagon carrying a Christmas tree, StreetsEmpire sedan style">
+  <defs>
+    <filter id="s" x="-15%" y="-30%" width="130%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="paint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1a367"/><stop offset=".33" stop-color="#c66a36"/><stop offset=".72" stop-color="#994522"/><stop offset="1" stop-color="#68321e"/></linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#aa6d38"/><stop offset=".42" stop-color="#885022"/><stop offset="1" stop-color="#623714"/></linearGradient>
+    <linearGradient id="trim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe4aa"/><stop offset=".42" stop-color="#e5b877"/><stop offset=".55" stop-color="#9b682d"/><stop offset="1" stop-color="#efce8a"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#596771"/><stop offset=".5" stop-color="#252f38"/><stop offset="1" stop-color="#12171d"/></linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".42" stop-color="#c5cdd5"/><stop offset=".6" stop-color="#6a7179"/><stop offset="1" stop-color="#e5e9ed"/></linearGradient>
+    <linearGradient id="lamp" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffb553"/><stop offset=".43" stop-color="#e8eef3"/><stop offset="1" stop-color="#ffffff"/></linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4c8b48"/><stop offset=".48" stop-color="#286536"/><stop offset="1" stop-color="#163d2a"/></linearGradient>
+    <radialGradient id="rim" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#bfc6ce"/><stop offset="1" stop-color="#666d75"/></radialGradient>
+    <g id="wheel"><circle r="15" fill="#141414" stroke="#050505" stroke-width="1.4"/><circle r="12.5" fill="none" stroke="#f8efe0" stroke-width="2.8"/><circle r="9.6" fill="#2a2e33" stroke="#879099" stroke-width="1.1"/><circle r="7.6" fill="url(#rim)" stroke="#444a50" stroke-width=".75"/><path d="M-1 -6 V-3 M3.3 -5.3 L1.5 -2.8 M5.8 -2 L2.9 -1 M5.8 2 L2.9 1 M3.3 5.3 L1.5 2.8 M-1 6 V3 M-4.6 4.3 L-2.2 2.2 M-6 0 H-3 M-4.6 -4.3 L-2.2 -2.2" fill="none" stroke="#616870" stroke-width="1.4" stroke-linecap="round"/><circle r="3.5" fill="url(#rim)" stroke="#3a3e45" stroke-width=".8"/><circle r="1.1" fill="#6b727b"/></g>
+    <clipPath id="bodyclip"><path d="M16 99 Q10 98 9 91 L9 71 Q9 66 16 64 L40 61 L58 44 Q63 39.5 72 39.5 L167 39.5 Q177 40 183 48 L196 61 Q230 62 241 67 Q250 70 250 79 L250 91 Q249 98 241 99 L212 99 A19 19 0 0 0 174 99 L88 99 A19 19 0 0 0 50 99 Z"/></clipPath>
+  </defs>
+  <!-- same shadow language and horizontal footprint as Classic Sedan -->
+  <ellipse cx="130" cy="115" rx="120" ry="4.5" fill="#000" opacity=".45"/>
+  <!-- TREE: stylized evergreen is laid horizontally with trunk at the rear (left), tip at the front (right) -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 33 C64 31 127 32 225 34" stroke="#0a0b0d" stroke-width="6.4" fill="none"/>
+    <path d="M22 33 C64 31 127 32 225 34" stroke="#765036" stroke-width="4.4" fill="none"/>
+    <path d="M22 32 C77 30 132 31 220 33" stroke="#c49662" stroke-opacity=".66" stroke-width="1.1" fill="none"/>
+    <path d="M22 34 L32 31 L38 24 L49 25 L55 17 L64 20 L73 13 L82 22 L93 12 L103 22 L116 14 L127 21 L137 16 L149 22 L162 18 L176 25 L183 21 L193 29 L207 30 L219 35 L238 36 L222 39 L210 39 L201 43 L185 41 L176 45 L165 42 L150 48 L138 41 L125 46 L111 42 L97 48 L81 42 L72 48 L57 41 L46 44 L35 39 L22 42 Z" fill="url(#green)" stroke="#0a0b0d" stroke-width="1.3"/>
+    <path d="M35 33 Q44 27 52 33 Q63 23 72 33 Q84 21 93 33 Q108 24 119 34 Q132 25 145 33 Q158 28 169 35 Q184 29 201 37 L210 38 L190 42 L179 39 L166 45 L149 39 L139 44 L124 39 L112 45 L96 40 L85 44 L75 39 L62 44 L52 38 Z" fill="#3e8445" opacity=".9"/>
+    <path d="M37 34 L46 38 L55 31 M60 32 L69 39 L78 29 M80 35 L92 39 L101 28 M111 32 L124 40 L131 30 M140 33 L152 42 L159 29 M173 31 L188 37 L196 33" stroke="#133f28" stroke-width="2" fill="none"/>
+    <g fill="none" stroke="#7faa68" stroke-width=".9" opacity=".85">
+      <path d="M42 31 l-6 -6 M49 30 l-4 -6 M59 29 l-4 -7 M65 29 l-2 -10 M72 28 l4 -8 M83 27 l4 -10 M93 28 l-1 -11 M103 28 l6 -8 M114 27 l2 -10 M123 33 l6 -12 M134 29 l4 -9 M146 30 l7 -9 M158 31 l3 -10 M171 33 l4 -9 M182 33 l8 -9 M194 34 l7 -5"/>
+      <path d="M39 36 l-12 5 M50 35 l-8 8 M60 37 l-10 9 M75 39 l-3 11 M86 38 l-3 9 M98 37 l4 11 M112 39 l1 9 M126 39 l8 8 M142 40 l4 7 M156 39 l7 8 M173 38 l6 7 M190 37 l7 5"/>
+    </g>
+    <!-- irregular snowy patches on top of pine boughs -->
+    <path d="M41 25 q4 -4 8 -1 l4 2 4 -2 4 2 -3 2 -6 -1 -4 1 -7 -1 Z M74 19 q5 -3 9 1 l4 1 4 -2 5 4 -4 1 -7 -1 -6 1 Z M109 22 q4 -4 8 -2 l4 2 5 -2 6 4 -5 1 -7 -1 -4 2 Z M143 22 q5 -3 9 -1 l5 2 4 -2 6 4 -5 1 -6 -1 -5 2 Z M182 29 q3 -3 7 -1 l6 1 5 3 -5 1 -7 -2 Z M207 34 l6 -2 8 5 -7 -1 -4 1 Z" fill="#f0f4f0" stroke="#cfdfe0" stroke-width=".6" stroke-linejoin="round"/>
+    <path d="M45 38 l7 3 7 -3 5 4 8 -2 6 3 M91 42 l8 2 6 -3 10 4 8 -2 M139 43 l6 3 5 -4 6 4 8 -3" stroke="#e9f1e9" stroke-width="1.5" fill="none"/>
+    <path d="M14 32 L26 31 L26 37 L14 39 Z" fill="#a16a40" stroke="#0a0b0d" stroke-width="1"/>
+    <path d="M14 32 L15 39 M18 32 L18 39 M22 32 L22 38" stroke="#d3a36e" stroke-width=".7"/>
+  </g>
+  <!-- roof rail behind the car silhouette -->
+  <path d="M59 39 L180 39" stroke="#0a0b0d" stroke-width="2.5"/><path d="M60 38.5 L179 38.5" stroke="url(#chrome)" stroke-width="1.2"/>
+  <!-- Classic-style body outline, highlighted upper edge and flat-color shadow -->
+  <g filter="url(#s)"><path d="M16 99 Q10 98 9 91 L9 71 Q9 66 16 64 L40 61 L58 44 Q63 39.5 72 39.5 L167 39.5 Q177 40 183 48 L196 61 Q230 62 241 67 Q250 70 250 79 L250 91 Q249 98 241 99 L212 99 A19 19 0 0 0 174 99 L88 99 A19 19 0 0 0 50 99 Z" fill="url(#paint)" stroke="#0a0b0d" stroke-width="1.5" stroke-linejoin="round"/></g>
+  <g clip-path="url(#bodyclip)">
+    <path d="M0 89 Q128 91 256 89 V107 H0 Z" fill="#502719" opacity=".4"/>
+    <!-- wooden paneling: thin cream framing, rich brown wood with single bold grained strokes -->
+    <path d="M17 72 L42 71 L55 69 L202 69 L244 75 L244 90 L202 91 L20 91 Z" fill="url(#trim)" stroke="#5e301d" stroke-width="1"/>
+    <path d="M21 76 L44 75 L57 73 L200 73 L239 78 L240 86 L199 87 L23 87 Z" fill="url(#wood)" stroke="#4f2d19" stroke-width=".8"/>
+    <path d="M24 78 Q51 75 79 78 Q104 80 133 76 T195 78 L233 80 M24 83 Q53 80 81 82 T137 83 Q163 80 198 83 L236 83 M28 85 Q72 87 101 84 M136 85 Q172 86 201 84" fill="none" stroke="#ca9354" stroke-opacity=".52" stroke-width=".7"/>
+    <path d="M44 74 L44 90 M129 72 L129 91 M176 72 L176 90 M198 72 L198 91" stroke="#e9bd7f" stroke-width="2.1"/>
+    <path d="M43 75 L43 90 M128 72 L128 91 M175 72 L175 90" stroke="#713d20" stroke-width=".65"/>
+  </g>
+  <!-- Upper body roof edges: same sharp white highlights as the classic variants -->
+  <path d="M59 44 C61 41 64 41 72 41 L166.5 41 Q176.3 41 182 49 L194 61" stroke="#fff" stroke-opacity=".72" stroke-width="1.1" fill="none"/>
+  <path d="M198 63 Q228 64 242 68" stroke="#fff" stroke-opacity=".55" stroke-width="1" fill="none"/>
+  <path d="M16 65 L41 63" stroke="#fff" stroke-opacity=".55" stroke-width="1" fill="none"/>
+  <!-- Long Country-Squire wagon windows, four panes, black seals and charcoal gradients -->
+  <path d="M47 62 L61 46 Q64 44 70 44 L166 44 Q173 44 177 50 L189 62 Z" fill="#101317" stroke="#0a0b0d" stroke-width="1.3" stroke-linejoin="round"/>
+  <path d="M51 60 L63 47.7 L81 47.7 L81 60 Z" fill="url(#glass)"/>
+  <path d="M86 47.7 H124 V60 H86 Z" fill="url(#glass)"/>
+  <path d="M129 47.7 H164 L175 60 H129 Z" fill="url(#glass)"/>
+  <path d="M168 47.7 Q173 48.2 176 52 L183 60 H176 Z" fill="#1b252e"/>
+  <path d="M82.7 44.5 V62 M126.6 44.5 V62 M165.8 44.5 L179 62" stroke="url(#chrome)" stroke-width="2" fill="none"/>
+  <path d="M56 58 L66 47 M95 57 L105 47 M138 57 L146 47" stroke="#fff" stroke-opacity=".2" stroke-width="2.6"/>
+  <!-- door lines and chrome handles -->
+  <path d="M126 62 L127 97 M177 62 L178 96 M84 63 Q82 76 84 90 M45 64 Q43 77 44 89" fill="none" stroke="#502a1d" stroke-width="1.15"/>
+  <path d="M106 69 h9 a1.3 1.3 0 0 1 0 2.6 h-9 a1.3 1.3 0 0 1 0 -2.6 Z M151 69 h9 a1.3 1.3 0 0 1 0 2.6 h-9 a1.3 1.3 0 0 1 0 -2.6 Z" fill="url(#chrome)" stroke="#482819" stroke-width=".65"/>
+  <path d="M190 61 L180.5 57.5 Q177 57 177 59.5 L178 63 Q183 64 190 62.5 Z" fill="url(#paint)" stroke="#0a0b0d" stroke-width=".9" stroke-linejoin="round"/>
+  <!-- rear lights, front headlights, and chrome bumper elements -->
+  <path d="M9.5 69 L14.7 68.1 V80 L9.5 79 Z" fill="#b71c25" stroke="#0a0b0d" stroke-width=".9"/><path d="M11 69 L13 68.8 L13 76 L11 76 Z" fill="#fa6546"/>
+  <path d="M226 66 Q240 67.5 248 73 L248 81 L226 76.5 Z" fill="url(#lamp)" stroke="#0a0b0d" stroke-width=".85"/>
+  <path d="M231 67.5 L231 77 M243 72 L243 80" stroke="#6e7074" stroke-width="1.3"/>
+  <path d="M247.5 87.5 L252 87.5 L252 91.3 L243.5 92.5 M9 87 L13.5 87 L13.5 92 L6 92" fill="url(#chrome)" stroke="#0a0b0d" stroke-width=".9"/>
+  <path d="M18 94 H48 M90 94 H174 M212 94 H245" stroke="#edc185" stroke-width="1.2" opacity=".8"/>
+  <!-- Snow along body edges / on hood / on roof -->
+  <path d="M59 40 l9 -2 8 2 9 -1 10 1 6 -1 9 1 8 -1 10 1 6 -1 10 1 10 -1 8 1 9 -1 6 2 -10 1 -13 -1 -11 1 -7 -1 -9 1 -10 -1 -8 1 -8 -1 -8 1 -7 -1 -9 2 Z" fill="#f2f5f4" stroke="#cad4d4" stroke-width=".45"/>
+  <path d="M197 62 l14 -1 8 2 10 -1 8 2 6 1 -8 1 -8 -1 -7 1 -9 -2 -8 1 Z" fill="#f2f5f4" stroke="#cad4d4" stroke-width=".5"/>
+  <!-- Three actual rope lashings tied around tree and car, in front of all body art -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M70 17 Q66 27 65 39 Q61 51 61.6 69 L62 93" stroke="#3e2717" stroke-width="3.1"/>
+    <path d="M70 17 Q66 27 65 39 Q61 51 61.6 69 L62 93" stroke="#c28b4c" stroke-width="1.75"/>
+    <path d="M128 15 Q124 26 127 39 Q126 53 126 68 L126.6 94" stroke="#3e2717" stroke-width="3.1"/>
+    <path d="M128 15 Q124 26 127 39 Q126 53 126 68 L126.6 94" stroke="#c28b4c" stroke-width="1.75"/>
+    <path d="M188 28 Q184 34 188 43 Q195 53 204 65 L204 90" stroke="#3e2717" stroke-width="3"/>
+    <path d="M188 28 Q184 34 188 43 Q195 53 204 65 L204 90" stroke="#c28b4c" stroke-width="1.65"/>
+    <path d="M63 26 Q70 22 75 25 M125 25 Q130 21 136 25 M184 35 Q191 31 195 36" stroke="#e7bc7b" stroke-width="1.5"/>
+  </g>
+  <g fill="#9e6c3a" stroke="#4d3018" stroke-width=".55"><circle cx="66" cy="28" r="2.4"/><circle cx="126.4" cy="28" r="2.4"/><circle cx="188" cy="37" r="2.4"/></g>
+  <path d="M64 28 l3 -3 M124 28 l4 -3 M186 37 l4 -3" stroke="#f4d399" stroke-width=".8"/>
+  <!-- whitewall wheels are foreground, keeping Classic Sedan positions -->
+  <use href="#wheel" transform="translate(193 97)"/>
+  <use href="#wheel" transform="translate(69 97)"/>
+</svg>
