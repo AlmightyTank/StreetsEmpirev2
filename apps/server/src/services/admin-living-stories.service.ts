@@ -191,6 +191,8 @@ export const AdminLivingStoriesService = {
       rewardBudgetCents: input.rewardBudgetCents,
       enabled: false, updatedByAccountId: actor.id,
     };
+    // Snapshot before persistence; don't depend on Prisma/mock object identity.
+    const beforeSnapshot = existing ? draftSnapshot(existing) : null;
     let saved: AdminLivingStoryDraft;
     try {
       saved = existing
@@ -216,7 +218,7 @@ export const AdminLivingStoriesService = {
     await AdminAuditService.record(db, actor, {
       action: existing ? 'living-story.draft-tune' : 'living-story.draft-create',
       targetType: 'living-story-draft', targetId: saved.id, reason: input.reason,
-      before: existing ? draftSnapshot(existing) : null,
+      before: beforeSnapshot,
       after: { ...draftSnapshot(saved), baseRulesetId: saved.baseRulesetId,
         baseRulesetVersion: saved.baseRulesetVersion },
     });
