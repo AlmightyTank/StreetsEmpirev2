@@ -6,6 +6,7 @@ import type { CrewAssignmentKindDto, CrewCornerJobInput, CrewMemberDto, CrewMemb
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { crewMemberName, crewMemberSpecialty, crewMemberTraits } from './crew-profile.js';
+import { assertCrewRosterPlan } from './crew-roster-identity-audit.js';
 import { IdempotencyService } from './idempotency.service.js';
 
 import {
@@ -599,6 +600,17 @@ export const CrewRosterService = {
       firstBuild,
       newId: randomUUID,
     });
+    // Fail closed before the first write if reconciliation would create phantom
+    // headcount, lose a dealer identity, or leave an assignment unfilled.
+    assertCrewRosterPlan({
+      counts: player,
+      refs: { ...refs, releasedCareers: releasedCareers.map((row) => ({ staffId: row.id, experiencePoints: row.experiencePoints })) },
+      members: changes.members,
+      placed: changes.placed,
+      nextSerial: (last._max.serial ?? 0) + 1,
+      firstBuild,
+      newId: randomUUID,
+    }, plan);
 
     for (const batch of chunks(plan.creates)) {
       await tx.crewMember.createMany({

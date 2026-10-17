@@ -301,7 +301,9 @@ export function planCrewRoster(input: CrewPlanInput): CrewPlan {
     const index = preferUnlinked
       ? (() => {
           const free = floating.findIndex((row) => row.role === role && !row.dealerStaffId);
-          return free >= 0 ? free : floating.findIndex((row) => row.role === role);
+          // A career is an identity, not a replaceable staffing token: a new dealer
+          // must never overwrite a veteran's existing DealerStaff link.
+          return free;
         })()
       : floating.findIndex((row) => row.role === role);
     return index >= 0 ? floating.splice(index, 1)[0] : undefined;
