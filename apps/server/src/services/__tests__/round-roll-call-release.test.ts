@@ -110,6 +110,20 @@ describe('Round Roll Call Slice F — participation and anti-abuse matrix', () =
     const oneRecovered = createView(10, [1], [2]);
     const receipt = [{ dayIndex: 2, actionId: 'once', createdAt: BEGIN }];
     expect(rollCallRecoveryPolicy(oneRecovered.attendance as never, oneRecovered.stamped, receipt).reason).toBe('allowance');
+    // Day 27: 17 real stamps, 9 missed completed days, two days left to login.
+    // Both available recovery passes are legitimate; 17 + 2 + 2 = 21.
+    const finalWindow = createView(27, Array.from({ length: 17 }, (_, i) => i + 1));
+    const twoReady = rollCallRecoveryPolicy(finalWindow.attendance as never, finalWindow.stamped, []);
+    expect(finalWindow.attendance.missedCompletedDays).toBe(9);
+    expect(twoReady.availableNow).toBe(2);
+    expect(finalWindow.attendance.stamps + 2 + twoReady.availableNow).toBe(21);
+    // Once a receipt is used and the native deficit shrinks to 8, only one
+    // makeup remains available, never a third unbounded recovery.
+    const afterOne = createView(27, Array.from({ length: 17 }, (_, i) => i + 1), [18]);
+    const afterOnePolicy = rollCallRecoveryPolicy(afterOne.attendance as never, afterOne.stamped, [
+      { dayIndex: 18, actionId: 'one', createdAt: BEGIN },
+    ]);
+    expect(afterOnePolicy.availableNow).toBe(1);
   });
 
   it('rejects out-of-range and unearned tiers even after the browser says they are ready', () => {
