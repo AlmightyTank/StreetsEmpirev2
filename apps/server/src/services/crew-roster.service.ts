@@ -9,6 +9,7 @@ import { crewMemberName, crewMemberSpecialty, crewMemberTraits } from './crew-pr
 import { assertCrewRosterPlan } from './crew-roster-identity-audit.js';
 import { CrewLoyaltyService, crewLoyaltyEnabled, crewLoyaltyTier } from './crew-loyalty.service.js';
 import { crewMomentsFor } from './crew-moments.js';
+import { CrewBondService } from './crew-bonds.service.js';
 import { IdempotencyService } from './idempotency.service.js';
 
 import {
@@ -930,8 +931,12 @@ export const CrewRosterService = {
         if (bucket.length < 4) bucket.push(entry);
         loyaltyByMember.set(entry.memberId, bucket);
       }
+      const bondsEnabled = crewLoyaltyEnabled(ruleset);
+      const bonds = await CrewBondService.list(tx, roundPlayerId, bondsEnabled);
       return {
         enabled: true,
+        bondsEnabled,
+        bonds,
         supportsSelectedTeams: ruleset.crewRoster?.selectedTeams === true,
         migratedAt: migration?.createdAt.toISOString() ?? null,
         totals,

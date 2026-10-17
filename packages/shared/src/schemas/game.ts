@@ -401,6 +401,18 @@ export const crewStaffingOrderSchema = z.object({
 
 export type CrewStaffingOrderInput = z.infer<typeof crewStaffingOrderSchema>;
 
+/** Optional round-only mentorship links. No action turns or spend. */
+export const crewMentorLinkSchema = z.object({
+  mentorId: z.string().trim().min(1).max(64),
+  apprenticeId: z.string().trim().min(1).max(64),
+}).strict();
+export type CrewMentorLinkInput = z.infer<typeof crewMentorLinkSchema>;
+
+export const crewMentorEndSchema = z.object({
+  bondId: z.string().trim().min(1).max(64),
+}).strict();
+export type CrewMentorEndInput = z.infer<typeof crewMentorEndSchema>;
+
 /** 1.7.0-D. Train an available member who already earned the selected specialty. */
 export const crewTrainingSchema = z.object({
   memberId: z.string().trim().min(1).max(64),
