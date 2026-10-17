@@ -31,6 +31,8 @@ const schema = z.object({
   DISCORD_NEWS_CHANNEL_ID: optionalChannel('DISCORD_NEWS_CHANNEL_ID'),
   /** Subscriber role pinged for published patch notes; exact-name lookup is the default. */
   DISCORD_GAME_UPDATES_ROLE_ID: optionalChannel('DISCORD_GAME_UPDATES_ROLE_ID'),
+  /** Subscriber role pinged for general news, but not patch notes. */
+  DISCORD_NEWS_UPDATES_ROLE_ID: optionalChannel('DISCORD_NEWS_UPDATES_ROLE_ID'),
   DISCORD_NEWS_MINUTES: z.coerce.number().int().min(1).max(60).default(1),
   /** Channel for raid results; empty turns the raid feed off. */
   DISCORD_RAID_FEED_CHANNEL_ID: optionalChannel('DISCORD_RAID_FEED_CHANNEL_ID'),
