@@ -129,7 +129,7 @@
 }
 .se-rollcall__equipped {
   margin: 0;
-  border: 1px solid rgba(218,179,102,.35);
+  border: 1px solid color-mix(in srgb, var(--se-accent) 35%, transparent);
   background: color-mix(in srgb, var(--se-accent) 8%, var(--se-panel));
   border-radius: var(--se-radius-md);
   padding: 12px 16px;
