@@ -278,6 +278,8 @@ export function CrewRosterPage() {
   const [celebrationsSaving, setCelebrationsSaving] = useState(false);
   const [celebration, setCelebration] = useState<CrewCelebration | null>(null);
   const snapshotRef = useRef<Map<string, CrewProgressSnapshot> | null>(null);
+  // Both controls save the *entire* profile: serialize to prevent stale cross-toggle overwrites.
+  const settingsSaveRef = useRef(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [pageSearch, setPageSearch] = useState('');
   const [mentorId, setMentorId] = useState('');
@@ -387,7 +389,8 @@ export function CrewRosterPage() {
     finally { setActionBusy(false); }
   };
   const toggleMoments = async (checked: boolean) => {
-    if (momentsSaving) return;
+    if (settingsSaveRef.current) return;
+    settingsSaveRef.current = true;
     setMomentsSaving(true);
     setError(null);
     try {
@@ -409,11 +412,13 @@ export function CrewRosterPage() {
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not save the crew stories preference.');
     } finally {
+      settingsSaveRef.current = false;
       setMomentsSaving(false);
     }
   };
   const toggleCelebrations = async (checked: boolean) => {
-    if (celebrationsSaving) return;
+    if (settingsSaveRef.current) return;
+    settingsSaveRef.current = true;
     setCelebrationsSaving(true);
     setError(null);
     try {
@@ -431,6 +436,7 @@ export function CrewRosterPage() {
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not save the celebration preference.');
     } finally {
+      settingsSaveRef.current = false;
       setCelebrationsSaving(false);
     }
   };
@@ -580,13 +586,13 @@ export function CrewRosterPage() {
             </div>
             {data.members.some((member) => member.loyalty.enabled) ? (
               <label className="se-crew-roster__moments-opt-in">
-                <input type="checkbox" checked={showCrewMoments} disabled={momentsSaving} onChange={(event) => void toggleMoments(event.target.checked)} />
+                <input type="checkbox" checked={showCrewMoments} disabled={momentsSaving || celebrationsSaving} onChange={(event) => void toggleMoments(event.target.checked)} />
                 <span><strong>Show crew stories</strong><small>Private personality moments based on real work and injuries. Optional, no daily chore, and no gameplay power.</small></span>
               </label>
             ) : null}
             {data.members.some((member) => member.loyalty.enabled) ? (
               <label className="se-crew-roster__moments-opt-in">
-                <input type="checkbox" checked={showCrewCelebrations} disabled={celebrationsSaving} onChange={(event) => void toggleCelebrations(event.target.checked)} />
+                <input type="checkbox" checked={showCrewCelebrations} disabled={momentsSaving || celebrationsSaving} onChange={(event) => void toggleCelebrations(event.target.checked)} />
                 <span><strong>Celebrate new crew milestones</strong><small>Optional, off by default. A small dismissible recognition appears only when this roster observes newly earned, server-verified progress. No sound, currency, bonuses, or retroactive popups.</small></span>
               </label>
             ) : null}
