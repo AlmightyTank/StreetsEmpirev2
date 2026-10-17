@@ -35,8 +35,19 @@ export function rollCallRecoveryPolicy(
   else if (genuineStamps < 1) reason = 'genuine_stamp';
   else if (!missedEligibleDays.length) reason = 'no_eligible_day';
   else reason = 'ready';
+  // Multiple repairs can be used back-to-back only while the account remains
+  // more than seven actual completed days behind. Never count future/unjoined
+  // days, and never overstate how many times the button is currently usable.
+  const availableNow = reason === 'ready'
+    ? Math.min(
+      Math.max(0, ROUND_ROLL_CALL_RECOVERY_LIMIT - used),
+      Math.max(0, attendance.missedCompletedDays - attendance.allowanceDays),
+      missedEligibleDays.length,
+    )
+    : 0;
   return {
     used,
+    availableNow,
     limit: ROUND_ROLL_CALL_RECOVERY_LIMIT,
     remaining: Math.max(0, ROUND_ROLL_CALL_RECOVERY_LIMIT - used),
     eligible: reason === 'ready',
