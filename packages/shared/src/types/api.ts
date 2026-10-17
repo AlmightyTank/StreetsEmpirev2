@@ -861,6 +861,15 @@ export interface CrewMomentDto {
   at: string;
 }
 
+/** Verified, predefined earned nicknames; never unmoderated free text. */
+export interface CrewEarnedNicknameDto { key: string; label: string; proof: string; }
+export interface CrewLegendArchiveDto {
+  id: string; roundId: string; roundName: string; memberName: string;
+  role: 'THUG' | 'WORKER'; serial: number; nickname: string; proof: string; trait: string;
+  loyaltyPoints: number; experiencePoints: number; finalStatus: CrewMemberStatusDto;
+  joinedAt: string; archivedAt: string; artworkUrl: string;
+}
+
 /** 1.7.0-A. One thug or worker with a stable identity. */
 export interface CrewMemberDto {
   id: string;
@@ -884,6 +893,7 @@ export interface CrewMemberDto {
   loyalty: CrewLoyaltyDto;
   /** Optional narrative-only moments, empty until the account opts in. */
   moments: CrewMomentDto[];
+  legend?: { nickname: CrewEarnedNicknameDto | null; options: CrewEarnedNicknameDto[]; moderated: boolean };
   /** The 1.6 dealer career this member carries, if any. */
   dealerStaffId: string | null;
   joinedAt: string;
