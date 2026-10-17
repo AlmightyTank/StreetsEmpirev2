@@ -1,7 +1,7 @@
 import type { PrismaClient, Round } from '@prisma/client';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
-import { RoundRollCallService, roundRollCallClock } from './round-roll-call.service.js';
+import { RoundRollCallService } from './round-roll-call.service.js';
 import { RoundRollCallCosmeticService } from './round-roll-call-cosmetic.service.js';
 
 export const ROUND_ROLL_CALL_RECOVERY_LIMIT = 2;
@@ -26,7 +26,7 @@ export function rollCallRecoveryPolicy(
   // The existing seven free missed days never reset or become a streak.
   // Self-service repair only activates *after* the native allowance is exhausted.
   let reason: 'ready' | 'closed' | 'complete' | 'limit' | 'allowance' | 'genuine_stamp' | 'no_eligible_day';
-  if (!roundRollCallClock(round, new Date(Math.min(Date.now(), round.endsAt.getTime()))).active || !attendance.active) reason = 'closed';
+  if (!attendance.active) reason = 'closed';
   else if (attendance.completed) reason = 'complete';
   else if (used >= ROUND_ROLL_CALL_RECOVERY_LIMIT) reason = 'limit';
   else if (attendance.missedCompletedDays <= attendance.allowanceDays) reason = 'allowance';
