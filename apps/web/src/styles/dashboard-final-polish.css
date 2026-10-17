@@ -164,7 +164,7 @@
   }
 }
 @container (max-width: 540px) {
-  .se-dashboard { gap: 11px; }
+  .se-dashboard { gap: 8px; }
   .se-dashboard .se-dashboard-hero {
     min-height: 164px;
     padding: 16px;
@@ -185,12 +185,29 @@
     gap: 12px;
   }
   .se-dashboard .se-dashboard-snapshot {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 7px;
   }
+  .se-getting-started,
+  .se-tour-offer { order: 4; }
   .se-dashboard .se-dashboard-snapshot__tile {
-    min-height: 94px;
-    padding: 13px 10px 10px;
+    min-height: 0;
+    padding: 6px 8px;
+    gap: 1px;
+  }
+  .se-dashboard .se-dashboard-snapshot__tile > span:not(.se-dashboard-snapshot__icon),
+  .se-dashboard .se-dashboard-snapshot__tile small,
+  .se-dashboard .se-dashboard-snapshot__tile em,
+  .se-dashboard .se-dashboard-snapshot__tile strong {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .se-dashboard .se-dashboard-snapshot__tile--turns > span {
+    display: grid;
+    gap: 0;
+    min-width: 0;
   }
   .se-dashboard .se-dashboard-snapshot__icon {
     top: 7px;
@@ -234,23 +251,105 @@
     padding: 13px;
   }
   .se-dashboard .se-dashboard-quick .se-dashboard-command__actions {
-    padding: 12px;
+    padding: 8px;
+    gap: 6px;
   }
+  .se-dashboard .se-dashboard-quick .se-eyebrow { display: none; }
+  .se-dashboard .se-dashboard-quick .se-dashboard-sectionhead h2 { margin: 0; font-size: 16px; }
   .se-dashboard .se-dashboard-quick .se-dashboard-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .se-dashboard-quick { order: 1; }
+  .se-dashboard-overview { order: 2; }
+  .se-dashboard-highlights { order: 3; }
+  .se-getting-started,
+  .se-tour-offer { order: 4; }
+  .se-dashboard > .se-dashboard-command,
+  .se-dashboard > .se-dashboard-fold,
+  .se-dashboard > .se-dashboard-section { order: 6; }
+
+  .se-dashboard .se-dashboard-hero {
+    min-height: 0;
+    padding: 10px 12px;
     gap: 8px;
   }
-  .se-dashboard .se-dashboard-quick .se-dashboard-action {
-    min-height: 132px;
-    padding: 12px 8px;
-    gap: 7px;
+  .se-dashboard .se-dashboard-hero__identity h1 {
+    margin: 2px 0 4px;
+    font-size: 26px;
+  }
+  .se-dashboard .se-dashboard-hero__identity p {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+  .se-dashboard .se-dashboard-live { display: none; }
+  .se-dashboard .se-dashboard-hero__ranking {
+    min-height: 36px;
+  }
+  .se-dashboard .se-dashboard-snapshot__tile > small {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* Two-up action cards were growing with the detail paragraph. Title and
+   * the live number are the tappable facts; the sentence stays on wider layouts. */
+  .se-dashboard .se-dashboard-quick .se-dashboard-action,
+  .se-density--compact .se-dashboard .se-dashboard-quick .se-dashboard-action {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    grid-template-areas:
+      "icon title"
+      "icon meta";
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 1px;
+    min-height: 44px;
+    padding: 6px 8px;
+    text-align: left;
   }
   .se-dashboard .se-dashboard-quick .se-dashboard-action__icon {
-    width: 38px;
-    height: 38px;
+    grid-area: icon;
+    width: 32px;
+    height: 32px;
   }
-  .se-dashboard .se-dashboard-quick .se-dashboard-action__body strong { font-size: 13px; }
-  .se-dashboard .se-dashboard-quick .se-dashboard-action__body span { font-size: 11px; }
+  .se-dashboard .se-dashboard-quick .se-dashboard-action__icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  .se-dashboard .se-dashboard-quick .se-dashboard-action__body {
+    display: contents;
+  }
+  .se-dashboard .se-dashboard-quick .se-dashboard-action__body strong {
+    grid-area: title;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .se-dashboard .se-dashboard-quick .se-dashboard-action__body span {
+    display: none;
+  }
+  .se-dashboard .se-dashboard-quick .se-dashboard-action__meta {
+    grid-area: meta;
+    width: auto;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.2;
+    text-align: left;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
   .se-dashboard .se-dashboard-highlights { grid-template-columns: minmax(0, 1fr); }
   .se-dashboard .se-dashboard-highlight {
     min-height: 120px;
@@ -273,11 +372,10 @@
 @container (max-width: 350px) {
   .se-dashboard .se-dashboard-hero { padding: 12px; }
   .se-dashboard .se-dashboard-hero__identity h1 { font-size: 27px; }
-  .se-dashboard .se-dashboard-snapshot__tile { min-height: 100px; }
+  .se-dashboard .se-dashboard-snapshot__tile { min-height: 72px; }
   .se-dashboard .se-dashboard-snapshot__tile > span:not(.se-dashboard-snapshot__icon) { font-size: 10px; }
   .se-dashboard .se-dashboard-quick .se-dashboard-command__actions { padding: 8px; }
-  .se-dashboard .se-dashboard-quick .se-dashboard-action { padding: 11px 6px; }
-  .se-dashboard .se-dashboard-quick .se-dashboard-action__body span { font-size: 10px; }
+  .se-dashboard .se-dashboard-quick .se-dashboard-action { padding: 7px 6px; }
 }
 
 /* Let low-power devices forgo expensive translucent filters. Illustrations

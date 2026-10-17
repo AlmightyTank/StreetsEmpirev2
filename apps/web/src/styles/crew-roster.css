@@ -368,3 +368,14 @@
   .se-crew-roster__filters { grid-template-columns: minmax(0, 1fr); }
   .se-crew-roster__pagination { align-items: flex-start; flex-direction: column; }
 }
+
+@media (max-width: 899px) {
+  .se-crew-roster { display: flex; flex-direction: column; gap: 10px; }
+  .se-crew-roster > .se-panel:has(.se-crew-board) { order: 1; }
+  .se-crew-roster > .se-panel:has(.se-crew-roster__summary) { order: 3; }
+  .se-crew-roster > .se-panel:has(.se-crew-roster__filters) { order: 4; }
+  .se-crew-board { display: flex; flex-direction: column; }
+  .se-crew-board__targets { order: -1; }
+  .se-crew-board__members { max-height: 120px; }
+  .se-crew-board__metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

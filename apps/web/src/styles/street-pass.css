@@ -1944,3 +1944,27 @@ img.se-pass-theme-preview__frame-avatar {
     min-height: 230px;
   }
 }
+
+@media (max-width: 899px) {
+  .se-pass { gap: 10px; }
+  .se-pass-hero { padding: 12px 14px; gap: 10px; }
+  .se-pass-hero h1 { font-size: 26px; margin: 2px 0 6px; }
+  .se-pass-hero__copy p,
+  .se-pass-sectionhead > p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+  .se-pass-track { padding: 8px; }
+  .se-pass-hero__readout,
+  .se-pass-metricgrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .se-pass-hero__readout > span {
+    display: block;
+    border-bottom: 0;
+    border-right: 1px solid var(--se-line);
+  }
+  .se-pass-hero__readout > span:last-child { border-right: 0; }
+}

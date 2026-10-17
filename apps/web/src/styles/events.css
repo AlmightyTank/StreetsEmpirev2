@@ -77,3 +77,15 @@
   .se-event-objective, .se-event-shared > div:first-child, .se-event-history li { align-items: flex-start; flex-direction: column; }
   .se-event-tabs .se-btn { flex: 1 1 calc(50% - 7px); }
 }
+
+@media (max-width: 899px) {
+  .se-events { gap: 10px; }
+  .se-events-hero { padding: 12px 14px; gap: 10px; }
+  .se-events-hero h1 { font-size: 26px; margin: 2px 0 6px; }
+  .se-events-hero p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
