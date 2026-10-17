@@ -1366,7 +1366,7 @@
 
   .se-horse-racing__toolbar { align-items: stretch; flex-wrap: wrap; gap: .4rem; }
   .se-horse-racing__toolbar > span { flex: 1 1 8rem; min-width: 0; align-self: center; line-height: 1.2; }
-  .se-horse-racing__toolbar .se-btn { flex: 0 0 auto; }
+  .se-horse-racing__toolbar > button.se-btn { flex: 0 0 auto; }
   .se-horse-racing__board button { grid-template-columns: .4rem minmax(0, 1fr) auto; gap: .45rem; padding: .5rem; }
   .se-horse-racing__board button > span { min-width: 0; }
   .se-horse-racing__board button > span b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
