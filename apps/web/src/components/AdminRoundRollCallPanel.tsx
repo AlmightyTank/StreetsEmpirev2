@@ -31,7 +31,7 @@ interface Overview {
     perPlayer: { cashCents: number; turns: number; supplies: { beer: number; condoms: number; medicine: number } };
     worstCase: { cashCents: number; turns: number; supplies: number };
     allStepsWithinCaps: boolean;
-  };
+  } | null;
   recoveryLimitPerPlayer: number;
   recentRecoveries: RecoveryAudit[];
 }
@@ -102,22 +102,26 @@ export function AdminRoundRollCallPanel({ roundId }: { roundId: string }) {
           </div>
           <div className="se-admin-pad">
             <h3>Release balance &amp; integrity</h3>
-            <p className="se-hint">
-              Deterministic all-players, all-tiers claim ceiling; not actual payouts and not a
-              currency grant. Reward catalog {overview.economy.rewardVersion}.
-            </p>
-            <div className="se-stats">
-              <Stat label="Cash / player" value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(overview.economy.perPlayer.cashCents / 100)} />
-              <Stat label="Turns / player" value={String(overview.economy.perPlayer.turns)} />
-              <Stat label="Maximum round cash" value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(overview.economy.worstCase.cashCents / 100)} />
-              <Stat label="Maximum supply items" value={String(overview.economy.worstCase.supplies)} />
-            </div>
+            {overview.economy ? (
+              <>
+                <p className="se-hint">
+                  Deterministic all-players, all-tiers claim ceiling; not actual payouts or a currency grant.
+                  {' '}Reward catalog {overview.economy.rewardVersion}.
+                </p>
+                <div className="se-stats">
+                  <Stat label="Cash / player" value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(overview.economy.perPlayer.cashCents / 100)} />
+                  <Stat label="Turns / player" value={String(overview.economy.perPlayer.turns)} />
+                  <Stat label="Maximum round cash" value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(overview.economy.worstCase.cashCents / 100)} />
+                  <Stat label="Maximum supply items" value={String(overview.economy.worstCase.supplies)} />
+                </div>
+              </>
+            ) : <Alert>Cannot simulate this round's pinned reward catalog. The rest of the diagnostics remain available.</Alert>}
             <p role="status" className="se-hint">
-              {overview.releaseWarnings.length === 0 && overview.economy.allStepsWithinCaps
+              {overview.releaseWarnings.length === 0 && overview.economy?.allStepsWithinCaps
                 ? 'All aggregate integrity and per-step economy checks are within expected bounds.'
                 : 'Review required: ' + [
                   ...overview.releaseWarnings,
-                  ...(overview.economy.allStepsWithinCaps ? [] : ['REWARD_CAP_EXCEEDED']),
+                  ...(overview.economy && !overview.economy.allStepsWithinCaps ? ['REWARD_CAP_EXCEEDED'] : []),
                 ].join(', ')}
             </p>
           </div>
