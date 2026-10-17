@@ -1,6 +1,6 @@
 /** Deterministic 2.1.0-G anti-farm / no-economic-carryover release gate.
  * Run with npm run qa:crew-release (no DB required). */
-import { classicOgV30G, classicOgV30H } from '@streets/rulesets';
+import { classicOgV21B, classicOgV21C } from '@streets/rulesets';
 import type { Db } from '../../apps/server/src/utils/db.js';
 import {
   CREW_LOYALTY_CAP, CREW_LOYALTY_DAILY_CAP, CREW_LOYALTY_WEEKLY_CAP,
@@ -58,7 +58,7 @@ for (let day = 0; day < DAYS; day++) {
       const at = new Date(start + day * 86_400_000 + action * 30_000);
       const source = SOURCES[(member + action) % SOURCES.length]!;
       const input = {
-        ruleset: classicOgV30H, roundPlayerId: 'player-release', memberId: id, source,
+        ruleset: classicOgV21C, roundPlayerId: 'player-release', memberId: id, source,
         sourceKey: `GAME_ACTION:${id}:${day}:${action}`,
         summary: 'Server verified completed operation', at,
       };
@@ -96,7 +96,7 @@ for (const [id, person] of crew) {
 }
 const before = receipts.length;
 const disabled = await CrewLoyaltyService.award(db, {
-  ruleset: classicOgV30G, roundPlayerId: 'player-release', memberId: 'member-0',
+  ruleset: classicOgV21B, roundPlayerId: 'player-release', memberId: 'member-0',
   source: 'JOB_COMPLETED', sourceKey: 'legacy-round', summary: 'Legacy work', at: new Date(start),
 });
 if (disabled !== 0 || receipts.length !== before) throw new Error('Pinned pre-loyalty ruleset generated new receipts.');

@@ -6,9 +6,9 @@
 Five starter cases have two named conclusions apiece. The chosen ending saves a case-specific narrative and category (contact, intel, peace, discovery or secrecy). No choice starts a combat action, modifies reputation, discloses another player's recon, spends cash, spends turns, or debits crew/inventory. Narrative is a **story receipt**, not a new tactical boost. Branch outcomes are deterministic: no rerolls or hidden random percentages.
 
 ### Fair reward and legacy policy
-- The new **`classic-og-v3.0-f`** ruleset opts into a maximum **2,500 cents ($25)** for solving any one three-source case, independent of which conclusion is selected.
+- The new **`classic-og-v2.1-a`** ruleset opts into a maximum **2,500 cents ($25)** for solving any one three-source case, independent of which conclusion is selected.
 - Max per player and round: **10,000 cents ($100)**, even if an unexpected bug creates more than the existing four-offer cap. Reward budget is checked against the **round-pinned** story definition and capped in server code.
-- `classic-og-v3.0-e` and earlier pinned rounds remain **zero reward**. No retrospective rewards or stat changes when deploying E.
+- `classic-og-v2.0-a` and earlier pinned rounds remain **zero reward**. No retrospective rewards or stat changes when deploying E.
 - Settlements require an already `SOLVED`, owned case in an active/unpaused round, a valid predefined branch, and a consistent case/round ruleset.
 - Lock order: owner `RoundPlayer` then `CriminalCaseFile`, consistent with gameplay actions. Branch, saved outcome, payout, player cash and ruleset-recomputed net worth (including product inventory, casino commitments and debt), and economy ledger record write **in one transaction**. A replay of the same ending returns the stored case; attempts to switch outcomes after closure return a conflict.
 - Closing a case that has hit the global cap remains possible with a **0-cent** result. Refusing an invitation, going offline, expiring while still open or selecting either branch **never subtracts resources**.

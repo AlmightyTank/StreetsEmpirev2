@@ -1,4 +1,4 @@
-import { classicOgV30C } from '../classic-og-v3.0-c/index.js';
+import { classicOgV19C } from '../classic-og-v1.9-c/index.js';
 import { defineQuestCatalog } from '../quest-definitions.js';
 import type { QuestDefinition, QuestDefinitionCatalog, Ruleset } from '../types.js';
 
@@ -25,7 +25,7 @@ type PacedQuestKey =
   | 'LEDGER_FRIENDS_DOWNTOWN'
   | 'CIVIC_SHAKE_HANDS';
 
-const base = classicOgV30C.questDefinitions! as unknown as QuestDefinitionCatalog & Record<PacedQuestKey, QuestDefinition>;
+const base = classicOgV19C.questDefinitions! as unknown as QuestDefinitionCatalog & Record<PacedQuestKey, QuestDefinition>;
 
 /**
  * Pace side work for newly pinned rounds without changing historical catalogs.
@@ -181,8 +181,8 @@ const questDefinitions = defineQuestCatalog({
   },
 });
 
-export const classicOgV30D = {
-  ...classicOgV30C,
-  meta: { id: 'classic-og-v3.0-d', version: '3.0.0-D', name: 'Classic OG - Side Quest Pacing' },
+export const classicOgV19D = {
+  ...classicOgV19C,
+  meta: { id: 'classic-og-v1.9-d', version: '1.9.0-D', name: 'Classic OG - Side Quest Pacing' },
   questDefinitions,
 } as const satisfies Ruleset;

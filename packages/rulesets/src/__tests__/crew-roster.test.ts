@@ -18,8 +18,8 @@ import { classicOgV18N } from '../classic-og-v1.8-n/index.js';
 import { classicOgV18O } from '../classic-og-v1.8-o/index.js';
 import { classicOgV18S } from '../classic-og-v1.8-s/index.js';
 import { hideoutV2For } from '../hideout-v2.js';
-import { classicOgV30G } from '../classic-og-v3.0-g/index.js';
-import { classicOgV30H } from '../classic-og-v3.0-h/index.js';
+import { classicOgV21B } from '../classic-og-v2.1-b/index.js';
+import { classicOgV21C } from '../classic-og-v2.1-c/index.js';
 import { rulesets } from '../index.js';
 import type { Ruleset } from '../types.js';
 
@@ -29,13 +29,13 @@ describe('1.7.0 crew profile rulesets', () => {
     expect(rulesets[classicOgV17A.meta.id]).toBe(classicOgV17A);
     // 1.8.0-E builds on 1.7.0-E; later rulesets retain the crew roster.
     expect(rulesets[classicOgV18S.meta.id]).toBe(classicOgV18S);
-    // All previously pinned rounds remain identical. Only the newly added H
-    // configuration opts into the narrative loyalty ledger.
-    expect(classicOgV30G.crewRoster).toBe(classicOgV17E.crewRoster);
-    expect(classicOgV30H.crewRoster).toEqual({ ...classicOgV30G.crewRoster, loyalty: { enabled: true } });
-    expect(classicOgV30H.crewRoster).not.toBe(classicOgV17E.crewRoster);
+    // All previously pinned rounds remain identical. Only 2.1.0-C
+    // opts into the narrative loyalty ledger.
+    expect(classicOgV21B.crewRoster).toBe(classicOgV17E.crewRoster);
+    expect(classicOgV21C.crewRoster).toEqual({ ...classicOgV21B.crewRoster, loyalty: { enabled: true } });
+    expect(classicOgV21C.crewRoster).not.toBe(classicOgV17E.crewRoster);
     expect(classicOgV18E.crewRoster).toBe(classicOgV17E.crewRoster);
-    const earlier = Object.values(rulesets).filter((ruleset) => !/^classic-og-v(?:1\.[78]|3\.0)-/.test(ruleset.meta.id)) as Ruleset[];
+    const earlier = Object.values(rulesets).filter((ruleset) => !/^classic-og-v(?:1\.[789]|2\.[012])-/.test(ruleset.meta.id)) as Ruleset[];
     expect(earlier.length).toBeGreaterThan(100);
     for (const ruleset of earlier) expect(ruleset.crewRoster, ruleset.meta.id).toBeUndefined();
   });

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import type { HappinessTermDto, RoundDto, RoundOverDto, RoundPlayerDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
+import { cityHoldingsEnabled, rulesets } from '@streets/rulesets';
 import { ActivityFeed } from '../components/ActivityFeed.js';
 import { NavIcon } from '../components/NavIcon.js';
 import type { IconName } from '../layouts/gameNav.js';
@@ -341,7 +342,10 @@ function HideoutPanel({ hideout }: { hideout: RoundPlayerDto['hideout'] }) {
 }
 
 function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
-  const holdingsAvailable = useSession((s) => s.round?.rulesetId.startsWith('classic-og-v3.0-') ?? false);
+  const holdingsAvailable = useSession((s) => {
+    const ruleset = s.round ? rulesets[s.round.rulesetId] : undefined;
+    return ruleset ? cityHoldingsEnabled(ruleset) : false;
+  });
   const activity = useSession((s) => s.recentActivity);
   const { refreshing, error, refresh } = useLiveDashboard();
   const [showAllAlerts, setShowAllAlerts] = useState(false);

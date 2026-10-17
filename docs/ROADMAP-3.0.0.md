@@ -14,7 +14,7 @@ Make multi-city holdings work together: hold a city, connect it to logistics, co
 - Alliance pacts enable cooperation **without an attack ban**. An attack between pact allies resolves normally and automatically ends the pact. Both sides see a "pact broken" record; cooperative access and pending backup close immediately, without undoing settled actions. Same-alliance friendly-fire rules stay intact.
 - Territory grants time-limited passive perks. District effects depend on qualifying turf, city identity effects on existing city control. An alliance leading a zone—even through one city—can select that zone's regional power perk immediately. **Only one regional perk is active at a time**, and its strength grows with the **number of zones the alliance controls**, under ruleset-pinned caps. Losing control lowers or revokes future eligible effects; past settlements are never rewritten.
 - A shared server modifier resolver applies eligibility, deterministic rounding, stacking and category caps at settlement; eligible previews and receipts explain sources. No casino outcome-odds boosts, purchased power, or permanent competitive power from milestones. Participation requirements and selection cooldown guard against alliance hopping. The linked roadmap's example rates are simulation hypotheses, not approved values.
-- `classic-og-v3.0-a` seeds directly from `classic-og-v1.8-s`; later slices spread forward. Old pinned rounds do not acquire 3.0 cities, pacts, perks, or zone effects.
+- `classic-og-v3.0-a` is not created until 2.0 is finished. When it is added, it inherits `classic-og-v2.2-a`, not `classic-og-v1.8-s`; later slices spread forward. Old pinned rounds do not acquire 3.0 cities, pacts, perks, or zone effects.
 
 ## Release slices
 

@@ -3,7 +3,7 @@
 **Status:** feature branch `feature/living-streets-2.0.0-c`. Stacked after PR #301 (B promotion to `beta`) because the original B PR merged into an already-merged A feature branch rather than into `beta` itself.
 
 ## What's live for a future opted-in round
-A **new immutable ruleset** `classic-og-v3.0-e` (meta version `3.0.0-E`) inherits 3.0-D gameplay and opts into Living Streets. Existing round ruleset IDs and gameplay remain unchanged. This is StreetsEmpire feature release **2.0.0-C**, independent of the historical ruleset naming.
+A **new immutable ruleset** `classic-og-v2.0-a` (meta version `2.0.0-A`) inherits 1.9.0-D gameplay and opts into Living Streets. Existing round ruleset IDs and gameplay remain unchanged. This is StreetsEmpire feature release **2.0.0-C**, independent of the historical ruleset naming.
 
 | Verified producer | City memory kind | Story | Audience |
 | --- | --- | --- | --- |

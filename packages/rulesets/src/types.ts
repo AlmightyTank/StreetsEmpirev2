@@ -1,4 +1,5 @@
 import type { LivingStoryCatalog } from './living-stories.js';
+import type { UnderworldOperationCatalog } from './underworld-operations.js';
 
 /**
  * The ruleset contract.
@@ -3092,6 +3093,8 @@ export interface Ruleset {
   readonly cityConditions?: readonly CityConditionRules[];
   /** 2.0.0-A. Opt-in story invitations; absent on existing pinned rounds. No active writer until later slices. */
   readonly livingStories?: LivingStoryCatalog;
+  /** 2.2.0. Cooperative operation templates. Absent on rounds pinned before this catalog. */
+  readonly underworldOperations?: UnderworldOperationCatalog;
   readonly round: RoundRules;
   readonly turns: TurnRules;
   readonly economy: EconomyRules;

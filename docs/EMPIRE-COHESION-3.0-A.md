@@ -1,6 +1,6 @@
 # 3.0-A: City holdings
 
-`classic-og-v3.0-a` inherits `classic-og-v1.8-s` without changing old rounds. The authenticated `GET /game/holdings` read endpoint and `/game/holdings` card exist only in 3.0 rounds; older rounds receive `HOLDINGS_UNAVAILABLE`. Dashboard navigation is gated by the round's pinned ruleset ID. Existing `/game/turf`, `/game/supply`, `/game/dealers` and `/game#pressure` links remain the management destinations.
+`classic-og-v1.9-a` inherits `classic-og-v1.8-s` without changing old rounds. The authenticated `GET /game/holdings` read endpoint and `/game/holdings` card exist only in 1.9 rounds; older rounds receive `HOLDINGS_UNAVAILABLE`. Dashboard navigation is gated by the round's pinned ruleset ID. Existing `/game/turf`, `/game/supply`, `/game/dealers` and `/game#pressure` links remain the management destinations.
 
 The holding is a read model, not another inventory or owner: turf holder, operating block businesses, warehouse/safehouse, dealer crew/inventory, pending pickups and city case records are queried from authoritative tables. No holding rows are inserted, stock is transferred, or cash/net worth is recalculated. Warehouse and safehouse upkeep-due and foothold state use the existing property boundary rules. Law pressure is cooled on read using pinned city law rules, without updating the case.
 

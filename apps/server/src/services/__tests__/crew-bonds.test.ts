@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { classicOgV30G, classicOgV30H } from '@streets/rulesets';
+import { classicOgV21B, classicOgV21C } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import { assertMentorPair, crewBondMilestone, CrewBondService } from '../crew-bonds.service.js';
 
@@ -30,9 +30,9 @@ describe('2.1.0-D Crew bonds', () => {
 
   it('never consults member data on non-loyalty rounds', async () => {
     const prisma = { $transaction: vi.fn() } as never;
-    await expect(CrewBondService.link(prisma, 'p1', classicOgV30G, { mentorId: 'm1', apprenticeId: 'r1' })).rejects.toMatchObject({ code: 'CREW_BONDS_DISABLED' });
+    await expect(CrewBondService.link(prisma, 'p1', classicOgV21B, { mentorId: 'm1', apprenticeId: 'r1' })).rejects.toMatchObject({ code: 'CREW_BONDS_DISABLED' });
     expect((prisma as { $transaction: ReturnType<typeof vi.fn> }).$transaction).not.toHaveBeenCalled();
-    expect(classicOgV30H.crewRoster?.loyalty?.enabled).toBe(true);
+    expect(classicOgV21C.crewRoster?.loyalty?.enabled).toBe(true);
   });
 
   it('only earns when the partner has a positive matching verified receipt after the link', async () => {

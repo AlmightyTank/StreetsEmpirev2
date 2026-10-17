@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV30B } from '@streets/rulesets';
+import { classicOgV19B } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import type { AllianceWireDto, CombatPageDto, MyAllianceDto } from '@streets/shared';
 import { ReputationService } from '../reputation.service.js';
@@ -14,7 +14,7 @@ describe.runIf(process.env.ALLIANCE_INTEGRATION === '1')('3.0-B alliance capacit
   const accounts: string[] = [];
   const cookies: string[] = [];
   const players: string[] = [];
-  const rules = classicOgV30B;
+  const rules = classicOgV19B;
 
   beforeAll(async () => {
     const { buildApp } = await import('../../app.js');

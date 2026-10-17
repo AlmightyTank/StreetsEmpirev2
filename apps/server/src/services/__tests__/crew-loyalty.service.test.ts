@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { classicOgV17E, classicOgV30G, classicOgV30H } from '@streets/rulesets';
+import { classicOgV17E, classicOgV21B, classicOgV21C } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import {
   CrewLoyaltyService, crewLoyaltyEnabled, crewLoyaltyTier, crewLoyaltyWindow,
@@ -26,7 +26,7 @@ function mockDb(options: {
   };
 }
 const award = (db: Db, sourceKey = 'SCOUT:unique-action') => CrewLoyaltyService.award(db, {
-  ruleset: classicOgV30H,
+  ruleset: classicOgV21C,
   roundPlayerId: 'player-1',
   memberId: 'member-1',
   source: 'JOB_COMPLETED',
@@ -38,11 +38,11 @@ const award = (db: Db, sourceKey = 'SCOUT:unique-action') => CrewLoyaltyService.
 describe('2.1.0-B earned Crew Loyalty', () => {
   it('is explicitly pinned and leaves existing rounds disabled', async () => {
     expect(crewLoyaltyEnabled(classicOgV17E)).toBe(false);
-    expect(crewLoyaltyEnabled(classicOgV30G)).toBe(false);
-    expect(crewLoyaltyEnabled(classicOgV30H)).toBe(true);
+    expect(crewLoyaltyEnabled(classicOgV21B)).toBe(false);
+    expect(crewLoyaltyEnabled(classicOgV21C)).toBe(true);
     const { db, locked } = mockDb();
     await expect(CrewLoyaltyService.award(db, {
-      ruleset: classicOgV30G, roundPlayerId: 'player-1', memberId: 'member-1',
+      ruleset: classicOgV21B, roundPlayerId: 'player-1', memberId: 'member-1',
       source: 'JOB_COMPLETED', sourceKey: 'scout-1', summary: 'Work', at,
     })).resolves.toBe(0);
     expect(locked).not.toHaveBeenCalled();

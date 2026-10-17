@@ -10,17 +10,17 @@ import {
   classicOgV07G,
   classicOgV07H,
   classicOgV07I,
-  classicOgV30G,
-  classicOgV30H,
+  classicOgV21B,
+  classicOgV21C,
   hideoutV2For,
   hideoutV2Problems,
 } from '../index.js';
 
 describe('classic-og-v0.7-a hideout foundation', () => {
   it('preserves the full Hideout v2 extension for new loyalty-enabled rounds', () => {
-    expect(hideoutV2For(classicOgV30H)).toEqual(hideoutV2For(classicOgV30G));
-    expect(hideoutV2For(classicOgV30H)).not.toBeNull();
-    expect(hideoutV2Problems(classicOgV30H)).toEqual([]);
+    expect(hideoutV2For(classicOgV21C)).toEqual(hideoutV2For(classicOgV21B));
+    expect(hideoutV2For(classicOgV21C)).not.toBeNull();
+    expect(hideoutV2Problems(classicOgV21C)).toEqual([]);
   });
 
   it('keeps the 0.6 hideout balance and adds extension metadata only to 0.7', () => {

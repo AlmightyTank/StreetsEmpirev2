@@ -137,14 +137,15 @@ import { classicOgV18P } from './classic-og-v1.8-p/index.js';
 import { classicOgV18Q } from './classic-og-v1.8-q/index.js';
 import { classicOgV18R } from './classic-og-v1.8-r/index.js';
 import { classicOgV18S } from './classic-og-v1.8-s/index.js';
-import { classicOgV30A } from './classic-og-v3.0-a/index.js';
-import { classicOgV30B } from './classic-og-v3.0-b/index.js';
-import { classicOgV30C } from './classic-og-v3.0-c/index.js';
-import { classicOgV30D } from './classic-og-v3.0-d/index.js';
-import { classicOgV30E } from './classic-og-v3.0-e/index.js';
-import { classicOgV30F } from './classic-og-v3.0-f/index.js';
-import { classicOgV30G } from './classic-og-v3.0-g/index.js';
-import { classicOgV30H } from './classic-og-v3.0-h/index.js';
+import { classicOgV19A } from './classic-og-v1.9-a/index.js';
+import { classicOgV19B } from './classic-og-v1.9-b/index.js';
+import { classicOgV19C } from './classic-og-v1.9-c/index.js';
+import { classicOgV19D } from './classic-og-v1.9-d/index.js';
+import { classicOgV20A } from './classic-og-v2.0-a/index.js';
+import { classicOgV21A } from './classic-og-v2.1-a/index.js';
+import { classicOgV21B } from './classic-og-v2.1-b/index.js';
+import { classicOgV21C } from './classic-og-v2.1-c/index.js';
+import { classicOgV22A } from './classic-og-v2.2-a/index.js';
 import type { Ruleset } from './types.js';
 
 export { classicOgV01 };
@@ -286,16 +287,19 @@ export { classicOgV18P };
 export { classicOgV18Q };
 export { classicOgV18R };
 export { classicOgV18S };
-export { classicOgV30A };
-export { classicOgV30B };
-export { classicOgV30C };
-export { classicOgV30D };
-export { classicOgV30E };
-export { classicOgV30F };
-export { classicOgV30G };
-export { classicOgV30H };
+export { classicOgV19A };
+export { classicOgV19B };
+export { classicOgV19C };
+export { classicOgV19D };
+export { classicOgV20A };
+export { classicOgV21A };
+export { classicOgV21B };
+export { classicOgV21C };
+export { classicOgV22A };
+export { UNDERWORLD_OPERATIONS_V1 } from './underworld-operations.js';
+export type { UnderworldOperationTemplate, UnderworldOperationCatalog } from './underworld-operations.js';
 export * from './living-case-outcomes.js';
-export { cityHoldingsEnabled } from './classic-og-v3.0-a/index.js';
+export { cityHoldingsEnabled } from './classic-og-v1.9-a/index.js';
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './event-system.js';
@@ -453,14 +457,15 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV18Q.meta.id]: classicOgV18Q,
   [classicOgV18R.meta.id]: classicOgV18R,
   [classicOgV18S.meta.id]: classicOgV18S,
-  [classicOgV30A.meta.id]: classicOgV30A,
-  [classicOgV30B.meta.id]: classicOgV30B,
-  [classicOgV30C.meta.id]: classicOgV30C,
-  [classicOgV30D.meta.id]: classicOgV30D,
-  [classicOgV30E.meta.id]: classicOgV30E,
-  [classicOgV30F.meta.id]: classicOgV30F,
-  [classicOgV30G.meta.id]: classicOgV30G,
-  [classicOgV30H.meta.id]: classicOgV30H,
+  [classicOgV19A.meta.id]: classicOgV19A,
+  [classicOgV19B.meta.id]: classicOgV19B,
+  [classicOgV19C.meta.id]: classicOgV19C,
+  [classicOgV19D.meta.id]: classicOgV19D,
+  [classicOgV20A.meta.id]: classicOgV20A,
+  [classicOgV21A.meta.id]: classicOgV21A,
+  [classicOgV21B.meta.id]: classicOgV21B,
+  [classicOgV21C.meta.id]: classicOgV21C,
+  [classicOgV22A.meta.id]: classicOgV22A,
 };
 
 export { ROUND_ROLL_CALL_FINALE, ROUND_ROLL_CALL_FINALE_COSMETICS } from './round-roll-call-cosmetics.js';

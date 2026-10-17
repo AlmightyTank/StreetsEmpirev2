@@ -1,18 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
-import { classicOgV30E, classicOgV30F, LIVING_CASE_BLUEPRINTS, LIVING_CASE_REWARD_CENTS,
+import { classicOgV20A, classicOgV21A, LIVING_CASE_BLUEPRINTS, LIVING_CASE_REWARD_CENTS,
   LIVING_CASE_ROUND_REWARD_MAX_CENTS, criminalCaseOutcome, validateLivingCaseOutcomes } from '@streets/rulesets';
 import { CriminalCaseFileService } from '../criminal-case-file.service.js';
 
 vi.mock('@streets/rules-engine', async (importOriginal) => {
   const module = await importOriginal<typeof import('@streets/rules-engine')>();
   return { ...module, loadRulesetForRound: (round: { rulesetId: string }) =>
-    round.rulesetId === 'classic-og-v3.0-f' ? classicOgV30F : classicOgV30E };
+    round.rulesetId === 'classic-og-v2.1-a' ? classicOgV21A : classicOgV20A };
 });
 const now = new Date('2026-10-16T13:00:00.000Z');
 const branches = LIVING_CASE_BLUEPRINTS.CASE_THE_FIFTH_WITNESS.branchKeys;
 
 function fixture(opts: { historical?: boolean; initialRewards?: number } = {}) {
-  const ruleset = opts.historical ? classicOgV30E : classicOgV30F;
+  const ruleset = opts.historical ? classicOgV20A : classicOgV21A;
   const round = {
     id: 'round-1', status: 'ACTIVE', pausedAt: null as Date | null, pausedMinutesTotal: 0,
     rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version,
@@ -72,9 +72,9 @@ describe('2.0.0-E authored conclusion contracts', () => {
     }
   });
   it('opt-in F can pay $25; pinned E definitions remain zero-reward', () => {
-    expect(classicOgV30E.livingStories.STORY_AFTER_THE_SMOKE.rewardBudgetCents).toBe(0);
-    expect(classicOgV30F.livingStories.STORY_AFTER_THE_SMOKE?.rewardBudgetCents).toBe(LIVING_CASE_REWARD_CENTS);
-    expect(classicOgV30E.meta.id).not.toBe(classicOgV30F.meta.id);
+    expect(classicOgV20A.livingStories.STORY_AFTER_THE_SMOKE.rewardBudgetCents).toBe(0);
+    expect(classicOgV21A.livingStories.STORY_AFTER_THE_SMOKE?.rewardBudgetCents).toBe(LIVING_CASE_REWARD_CENTS);
+    expect(classicOgV20A.meta.id).not.toBe(classicOgV21A.meta.id);
   });
 });
 

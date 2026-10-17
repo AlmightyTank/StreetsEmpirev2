@@ -25,7 +25,7 @@ The 1.7.0 roster planner previously discarded unused members with zero XP and no
 - career totals equal the sum of their immutable ledger rows;
 - all earned catalog names use positive source receipts and level thresholds are narrative only;
 - test XP and economy inventory values never change from a loyalty award;
-- a pinned `classicOgV30G` round still cannot generate loyalty receipts.
+- a pinned `classicOgV21B` round still cannot generate loyalty receipts.
 
 The existing `qa:crew-roster`, staffing, combat, release integration and test suites continue to verify job bonuses, selected-team caps, and actual player resources. New admin tests validate the same immutable-provenance repair constraints, self-correction denial, stale expected totals, ended-round freezes and migrations.
 

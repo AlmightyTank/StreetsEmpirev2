@@ -1,17 +1,17 @@
-import { classicOgV30D } from '../classic-og-v3.0-d/index.js';
+import { classicOgV19D } from '../classic-og-v1.9-d/index.js';
 import { classicOgV18S } from '../classic-og-v1.8-s/index.js';
 import { defineLivingStoryCatalog, LIVING_STORIES_STARTER_CATALOG } from '../living-stories.js';
 import type { Ruleset } from '../types.js';
 
 /**
  * Living Streets opt-in for newly created rounds only. Gameplay rules still
- * inherit Classic OG 3.0-D; the release slice is 2.0.0-C (story subsystem).
+ * inherit Classic OG 1.9.0-D; the release slice is 2.0.0-C (story subsystem).
  * Existing rounds are pinned to their original ruleset and remain unchanged.
  */
-export const classicOgV30E = {
-  ...classicOgV30D,
-  meta: { ...classicOgV30D.meta, eventSystem: classicOgV18S.meta.eventSystem,
-    id: 'classic-og-v3.0-e', version: '3.0.0-E',
+export const classicOgV20A = {
+  ...classicOgV19D,
+  meta: { ...classicOgV19D.meta, eventSystem: classicOgV18S.meta.eventSystem,
+    id: 'classic-og-v2.0-a', version: '2.0.0-A',
     name: 'Classic OG - Living Streets C' },
   livingStories: defineLivingStoryCatalog({
     STORY_AFTER_THE_SMOKE: { ...LIVING_STORIES_STARTER_CATALOG.STORY_AFTER_THE_SMOKE, enabled: true },

@@ -2,7 +2,7 @@
 
 ## Scope and activation
 
-This slice adds **narrative-only, capped loyalty** per `CrewMember` with a permanent, source-deduplicated ledger **inside the round**. `loyaltyPoints` is never read by combat, happiness, specialty, economy or staffing calculations. Existing pinned rounds (`classic-og-v3.0-g` and earlier) do not opt in. New `classic-og-v3.0-h` opts in via `crewRoster.loyalty.enabled`.
+This slice adds **narrative-only, capped loyalty** per `CrewMember` with a permanent, source-deduplicated ledger **inside the round**. `loyaltyPoints` is never read by combat, happiness, specialty, economy or staffing calculations. Existing pinned rounds (`classic-og-v2.1-b` and earlier) do not opt in. New `classic-og-v2.1-c` opts in via `crewRoster.loyalty.enabled`.
 
 The historical record is round-scoped. A later 2.1.0-E may produce separately moderated account-level remembrance art, not stat carryover.
 
@@ -34,5 +34,5 @@ A run without named escorts uses its existing completed-work pathway, keyed to r
 
 - `npx vitest run apps/server/src/services/__tests__/crew-loyalty.service.test.ts`: ruleset gating, duplicate receipts, all caps, released members, bad proof, UTC boundary, tiers and history.
 - CI: database migration deploy, Prisma generate, workspaces typecheck, unit/integration and build.
-- Manual beta: create new round pinned `classic-og-v3.0-h`, exercise real scout, defensive win, travel return and dealer-sales settlement, verify cumulative points/history, replay and daily/weekly caps.
+- Manual beta: create new round pinned `classic-og-v2.1-c`, exercise real scout, defensive win, travel return and dealer-sales settlement, verify cumulative points/history, replay and daily/weekly caps.
 - Full loyalty economy/load simulation and admin correction tools belong to Slice G; personalities and moments to Slice C.

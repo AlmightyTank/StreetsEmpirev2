@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Ruleset } from '../types.js';
-import { classicOgV18S, classicOgV30D } from '../index.js';
+import { classicOgV18S, classicOgV19D } from '../index.js';
 import { defineLivingStoryCatalog, livingStoryCatalogForRuleset, LIVING_STORIES_STARTER_CATALOG } from '../living-stories.js';
 
 describe('2.0.0-A Living Streets ruleset catalog', () => {
   it('does not activate content on historical or current pinned rounds', () => {
     expect(livingStoryCatalogForRuleset(classicOgV18S)).toEqual({});
-    expect(livingStoryCatalogForRuleset(classicOgV30D)).toEqual({});
+    expect(livingStoryCatalogForRuleset(classicOgV19D)).toEqual({});
     expect(Object.values(LIVING_STORIES_STARTER_CATALOG).every((def) => !def.enabled && def.rewardBudgetCents === 0)).toBe(true);
   });
   it('rejects mismatched definition keys and nonexistent cases', () => {

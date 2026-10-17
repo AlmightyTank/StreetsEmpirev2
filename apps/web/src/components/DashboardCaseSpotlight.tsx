@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { CriminalCaseFileDto } from '@streets/shared';
+import { livingStoryCatalogForRuleset, rulesets } from '@streets/rulesets';
 import { caseFilesApi } from '../api/caseFiles.js';
 import { CASE_ACTION_LINKS, caseFileHref, caseProgress, nextCaseLead } from '../utils/caseFiles.js';
 import { useSession } from '../stores/session.js';
@@ -12,7 +13,8 @@ export function DashboardCaseSpotlight() {
   const [caseFile, setCaseFile] = useState<CriminalCaseFileDto | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [count, setCount] = useState(0);
-  const storiesEnabled = /^classic-og-v3\.0-[e-z]$/.test(rulesetId);
+  const ruleset = rulesets[rulesetId];
+  const storiesEnabled = ruleset !== undefined && Object.keys(livingStoryCatalogForRuleset(ruleset)).length > 0;
   useEffect(() => {
     if (!playerId || !storiesEnabled) return;
     let mounted = true;

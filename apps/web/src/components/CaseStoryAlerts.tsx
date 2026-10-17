@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { CriminalCaseFileDto } from '@streets/shared';
+import { livingStoryCatalogForRuleset, rulesets } from '@streets/rulesets';
 import { caseFilesApi } from '../api/caseFiles.js';
 import { caseFileHref } from '../utils/caseFiles.js';
 import { caseStorySignals, type CaseStorySignal } from '../utils/caseStoryAlertsPolicy.js';
@@ -18,7 +19,8 @@ export function CaseStoryAlerts() {
   const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);
   const [queue, setQueue] = useState<CaseStorySignal[]>([]);
   const refreshRef = useRef<(notify: boolean) => void>(() => {});
-  const enabled = /^classic-og-v3\.0-[e-z]$/.test(rulesetId);
+  const ruleset = rulesets[rulesetId];
+  const enabled = ruleset !== undefined && Object.keys(livingStoryCatalogForRuleset(ruleset)).length > 0;
 
   useEffect(() => {
     let mounted = true;

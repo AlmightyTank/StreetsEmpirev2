@@ -457,16 +457,17 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v1.8-q': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.8-r': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.8-s': CLASSIC_OG_V07G_HIDEOUT_V2,
-  // 3.0 builds on 1.8-S and keeps the same hideout extension.
-  'classic-og-v3.0-a': CLASSIC_OG_V07G_HIDEOUT_V2,
-  'classic-og-v3.0-b': CLASSIC_OG_V07G_HIDEOUT_V2,
-  'classic-og-v3.0-c': CLASSIC_OG_V07G_HIDEOUT_V2,
-  'classic-og-v3.0-d': CLASSIC_OG_V07G_HIDEOUT_V2,
-  'classic-og-v3.0-e': CLASSIC_OG_V07G_HIDEOUT_V2,
-  'classic-og-v3.0-f': CLASSIC_OG_V07G_HIDEOUT_V2,
-  'classic-og-v3.0-g': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 1.9 through 2.2 build on 1.8-S and keep the same hideout extension.
+  'classic-og-v1.9-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.9-b': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.9-c': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.9-d': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v2.0-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v2.1-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v2.1-b': CLASSIC_OG_V07G_HIDEOUT_V2,
   // 2.1.0-B adds narrative crew loyalty; existing hideout protection stays active.
-  'classic-og-v3.0-h': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v2.1-c': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v2.2-a': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */

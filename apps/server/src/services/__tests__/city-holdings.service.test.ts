@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
-import { classicOgV18S, classicOgV30A } from '@streets/rulesets';
+import { classicOgV18S, classicOgV19A } from '@streets/rulesets';
 import { CityHoldingsService, reconciledHoldingModifiers } from '../city-holdings.service.js';
 
 describe('city holdings read gate', () => {
@@ -21,7 +21,7 @@ describe('city holdings read gate', () => {
        supplyPickup: { findMany: vi.fn().mockResolvedValue([{ id: 'incoming', destinationCitySlug: 'san-francisco', warehouseId: 'stash', productKey: 'WEED', quantity: 5, status: 'IN_TRANSIT' }]) },
        playerCase: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
-    const result = await CityHoldingsService.read(db, classicOgV30A, 'round', 'player');
+    const result = await CityHoldingsService.read(db, classicOgV19A, 'round', 'player');
     expect(result?.cities).toEqual([expect.objectContaining({
       citySlug: 'san-francisco', corners: ['CASINO'], fronts: 1,
        warehouses: [expect.objectContaining({ id: 'stash', kind: 'STASH', upkeepDue: false, stock: [{ productKey: 'WEED', quantity: 12 }] })],
@@ -46,8 +46,8 @@ describe('city holdings read gate', () => {
       playerCase: { findMany: vi.fn().mockResolvedValue([{ city: { slug: 'seattle' }, caseHundredths: 500, caseAt: now, lastEvidenceAt: now }]) },
     } as unknown as PrismaClient;
     const [first, second] = await Promise.all([
-      CityHoldingsService.read(db, classicOgV30A, 'round', 'player', now),
-      CityHoldingsService.read(db, classicOgV30A, 'round', 'player', now),
+      CityHoldingsService.read(db, classicOgV19A, 'round', 'player', now),
+      CityHoldingsService.read(db, classicOgV19A, 'round', 'player', now),
     ]);
     expect(first).toEqual(second);
     expect(first?.cities).toHaveLength(1);
@@ -74,7 +74,7 @@ describe('city holdings read gate', () => {
       supplyPickup: { findMany: vi.fn().mockResolvedValue([]) },
       playerCase: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
-    const result = await CityHoldingsService.read(db, classicOgV30A, 'round', 'player');
+    const result = await CityHoldingsService.read(db, classicOgV19A, 'round', 'player');
     expect(result?.diagnostics).toEqual(['Duplicate corner: seattle:CASINO']);
     expect(result?.modifiers).toEqual({ dealerSalesPace: 1, demand: 1, upkeep: 1 });
   });

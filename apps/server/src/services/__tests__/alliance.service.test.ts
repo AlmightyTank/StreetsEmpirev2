@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RoundPlayer } from '@prisma/client';
-import { classicOgV03C, classicOgV30B } from '@streets/rulesets';
+import { classicOgV03C, classicOgV19B } from '@streets/rulesets';
 import { allianceRelation, allianceTargetBlock, normalizeAllianceName, sharedRevengeScope } from '../alliance.service.js';
 import { combatTargetBlock, driveByTargetBlock, sharedIntelByTarget } from '../combat.service.js';
 
@@ -72,10 +72,10 @@ describe('no friendly fire in combat eligibility', () => {
   const dropped = player({ id: 'dropped', accountId: 'dropped-account', publicPimpId: 1003, formerAllianceId: 'crew', allianceCooldownUntil: later });
 
   it('keeps the same ally and former-ally combat blocks on a 15-seat B round', () => {
-    expect(classicOgV30B.alliances.maxMembers).toBe(15);
-    expect(classicOgV30B.alliances.leaveCooldownHours).toBe(24);
-    expect(combatTargetBlock(attacker, ally, classicOgV30B.combat, now, true)).toContain('your alliance');
-    expect(driveByTargetBlock(attacker, dropped, classicOgV30B.combat, now)).toContain('cooldown');
+    expect(classicOgV19B.alliances.maxMembers).toBe(15);
+    expect(classicOgV19B.alliances.leaveCooldownHours).toBe(24);
+    expect(combatTargetBlock(attacker, ally, classicOgV19B.combat, now, true)).toContain('your alliance');
+    expect(driveByTargetBlock(attacker, dropped, classicOgV19B.combat, now)).toContain('cooldown');
   });
 
   it('blocks raids and drive-bys on allies even when revenge is open', () => {

@@ -3,7 +3,7 @@ import { AdminLivingStoriesService } from '../admin-living-stories.service.js';
 import { LIVING_STORY_LIMITS, offerQuotaReason } from '../living-story-trigger.service.js';
 
 const now = new Date('2026-10-16T18:00:00.000Z');
-const round = { id: 'r1', rulesetId: 'classic-og-v3.0-f', rulesetVersion: '3.0.0-F',
+const round = { id: 'r1', rulesetId: 'classic-og-v2.1-a', rulesetVersion: '2.1.0-A',
   status: 'ACTIVE', pausedAt: null as Date | null, pausedMinutesTotal: 0 };
 function setup() {
   const player = { id: 'p1', roundId: 'r1', cityId: 'detroit' };

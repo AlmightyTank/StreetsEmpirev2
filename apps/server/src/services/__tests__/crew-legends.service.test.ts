@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { classicOgV30H } from '@streets/rulesets';
+import { classicOgV21C } from '@streets/rulesets';
 import type { PrismaClient, Round } from '@prisma/client';
 import type { Db } from '../../utils/db.js';
 import {
@@ -35,7 +35,7 @@ describe('2.1.0-E earned nicknames and immutable memorials', () => {
 
   it('never lets a player select a freeform or unearned nickname', async () => {
     const prisma = { $transaction: vi.fn() } as unknown as PrismaClient;
-    await expect(CrewLegendService.select(prisma, 'player', { ...classicOgV30H, crewRoster: { ...classicOgV30H.crewRoster!, loyalty: { enabled: false } } }, {
+    await expect(CrewLegendService.select(prisma, 'player', { ...classicOgV21C, crewRoster: { ...classicOgV21C.crewRoster!, loyalty: { enabled: false } } }, {
       memberId: 'member', nicknameKey: 'CORNER_KEEPER',
     })).rejects.toMatchObject({ code: 'CREW_LEGENDS_DISABLED' });
     expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -55,7 +55,7 @@ describe('2.1.0-E earned nicknames and immutable memorials', () => {
       crewLegendArchive: { createMany: archive },
       accountCosmeticUnlock: { upsert: unlock },
     } as unknown as Db;
-    const round = { id: 'round-1', name: 'First Round', rulesetId: classicOgV30H.meta.id, rulesetVersion: classicOgV30H.meta.version } as Round;
+    const round = { id: 'round-1', name: 'First Round', rulesetId: classicOgV21C.meta.id, rulesetVersion: classicOgV21C.meta.version } as Round;
     const awarded = await CrewLegendService.snapshotAtClose(db, round, new Date('2026-10-23'));
     expect(awarded).toBe(3);
     expect(archive).toHaveBeenCalledTimes(3);
@@ -86,7 +86,7 @@ describe('2.1.0-E earned nicknames and immutable memorials', () => {
       crewLegendArchive: { createMany: archive },
       accountCosmeticUnlock: { upsert: vi.fn() },
     } as unknown as Db;
-    const round = { id: 'r1', name: 'Round', rulesetId: classicOgV30H.meta.id, rulesetVersion: classicOgV30H.meta.version } as Round;
+    const round = { id: 'r1', name: 'Round', rulesetId: classicOgV21C.meta.id, rulesetVersion: classicOgV21C.meta.version } as Round;
     expect(await CrewLegendService.snapshotAtClose(db, round, new Date('2026-10-23'))).toBe(1);
     expect(page).toHaveBeenCalledTimes(2);
     expect(archive.mock.calls[0]![0].data[0].sourceMemberId).toBe('qualified');

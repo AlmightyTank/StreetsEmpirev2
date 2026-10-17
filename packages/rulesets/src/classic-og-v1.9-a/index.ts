@@ -1,10 +1,10 @@
 import { classicOgV18S } from '../classic-og-v1.8-s/index.js';
 import type { Ruleset } from '../types.js';
 
-/** 3.0-A exposes existing city holdings without introducing an economic modifier. */
-export const classicOgV30A = {
+/** 1.9.0-A exposes existing city holdings without introducing an economic modifier. */
+export const classicOgV19A = {
   ...classicOgV18S,
-  meta: { id: 'classic-og-v3.0-a', version: '3.0.0-A', name: 'Classic OG - Empire Holdings' },
+  meta: { id: 'classic-og-v1.9-a', version: '1.9.0-A', name: 'Classic OG - Empire Holdings' },
   cityHoldings: { modifiers: { dealerSalesPace: 1, demand: 1, upkeep: 1 } },
 } satisfies Ruleset;
 

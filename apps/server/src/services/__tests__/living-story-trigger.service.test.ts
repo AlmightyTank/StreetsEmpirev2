@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { classicOgV30D, classicOgV30E, livingStoryCatalogForRuleset } from '@streets/rulesets';
+import { classicOgV19D, classicOgV20A, livingStoryCatalogForRuleset } from '@streets/rulesets';
 import { emitCityMemoryEvent } from '../city-memory.service.js';
 import { LIVING_STORY_LIMITS, listPublicStoryOpportunities, livingStreetsInvitationsEnabled, optInPublicStory, tryOfferLivingStory } from '../living-story-trigger.service.js';
 
@@ -8,7 +8,7 @@ afterEach(() => vi.unstubAllEnvs());
 function setup() {
   const now = new Date();
   const round = {
-    id: 'round-1', rulesetId: 'classic-og-v3.0-e', rulesetVersion: '3.0.0-E',
+    id: 'round-1', rulesetId: 'classic-og-v2.0-a', rulesetVersion: '2.0.0-A',
     status: 'ACTIVE', pausedAt: null as Date | null, pausedMinutesTotal: 0,
   };
   const players = [
@@ -88,9 +88,9 @@ describe('Living Streets 2.0.0-C settled triggers', () => {
   });
 
   it('pins opt-in definitions without modifying a historical ruleset', () => {
-    expect(livingStoryCatalogForRuleset(classicOgV30D)).toEqual({});
-    expect(classicOgV30E.meta.eventSystem?.cityConditions).toBe('FIRST_CLASS');
-    const enabled = Object.values(livingStoryCatalogForRuleset(classicOgV30E));
+    expect(livingStoryCatalogForRuleset(classicOgV19D)).toEqual({});
+    expect(classicOgV20A.meta.eventSystem?.cityConditions).toBe('FIRST_CLASS');
+    const enabled = Object.values(livingStoryCatalogForRuleset(classicOgV20A));
     expect(enabled).toHaveLength(5);
     expect(enabled.every((definition) => definition.enabled && definition.rewardBudgetCents === 0)).toBe(true);
     expect(enabled.find((def) => def.key === 'STORY_FALSE_COLORS')?.audience).toBe('CITY_PLAYERS');

@@ -24,7 +24,7 @@ Status: **Slice A implementation / non-active foundation**, branch `feature/livi
 - `ACTORS` invitations require the player's round-scoped actor ID in source actors; `CITY_PLAYERS` must come from a public source in the player's current city. `involved-only` records always reject nonactors; public summaries must never include private evidence.
 - Pauses suspend story offers and advancement. Deadlines use **logical active-round timestamps**, not wall time. Source adapters in C must record the active timestamp at settlement using the same pause accounting; otherwise do not offer it.
 - Expiry or ignoring an optional story **never** debits cash, turns, crew, inventory or standing. Rewards are zero in A; later slices use the existing reward service and one authoritative claim.
-- Never mutate existing historical `Ruleset` objects or replace `classic-og-v3.0-d` under active rounds. B/C will create a new opted-in version and immutable story instance/evidence model.
+- Never mutate existing historical `Ruleset` objects or replace `classic-og-v1.9-d` under active rounds. B/C will create a new opted-in version and immutable story instance/evidence model.
 
 ## Starter verified kinds (blueprints, not live content)
 

@@ -7,7 +7,7 @@ const at = (m: number) => new Date(instant.getTime() + m * 60_000);
 function makeFixture() {
   const round = {
     id: 'round-1', status: 'ACTIVE', pausedAt: null as Date | null,
-    pausedMinutesTotal: 0, rulesetId: 'classic-og-v3.0-e', rulesetVersion: '3.0.0-E',
+    pausedMinutesTotal: 0, rulesetId: 'classic-og-v2.0-a', rulesetVersion: '2.0.0-A',
   };
   const blueprint = LIVING_CASE_BLUEPRINTS.CASE_THE_FIFTH_WITNESS;
   const cases: any[] = [

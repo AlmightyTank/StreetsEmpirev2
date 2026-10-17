@@ -1,4 +1,4 @@
-import { classicOgV30F } from '../classic-og-v3.0-f/index.js';
+import { classicOgV21A } from '../classic-og-v2.1-a/index.js';
 import {
   HOLIDAY_ROAD_CHOICE_KEY,
   HOLIDAY_ROAD_COSMETIC_KEY,
@@ -9,17 +9,17 @@ import {
 import type { Ruleset } from '../types.js';
 
 /** Holiday Road: a Christmas-only, low-weight travel encounter, never a paid drop. */
-const travel = classicOgV30F.randomEncounters!.triggers.TRAVEL!;
-export const classicOgV30G = {
-  ...classicOgV30F,
+const travel = classicOgV21A.randomEncounters!.triggers.TRAVEL!;
+export const classicOgV21B = {
+  ...classicOgV21A,
   meta: {
-    ...classicOgV30F.meta,
-    id: 'classic-og-v3.0-g',
-    version: '3.0.0-G',
+    ...classicOgV21A.meta,
+    id: 'classic-og-v2.1-b',
+    version: '2.1.0-B',
     name: 'Classic OG - Holiday Road Encounter',
   },
   cosmetics: {
-    ...classicOgV30F.cosmetics!,
+    ...classicOgV21A.cosmetics!,
     [HOLIDAY_ROAD_COSMETIC_KEY]: {
       key: HOLIDAY_ROAD_COSMETIC_KEY,
       name: 'Holiday Road Sedan',
@@ -30,9 +30,9 @@ export const classicOgV30G = {
     },
   },
   randomEncounters: {
-    ...classicOgV30F.randomEncounters!,
+    ...classicOgV21A.randomEncounters!,
     triggers: {
-      ...classicOgV30F.randomEncounters!.triggers,
+      ...classicOgV21A.randomEncounters!.triggers,
       TRAVEL: {
         ...travel,
         entries: [
