@@ -39,7 +39,7 @@ export function PlayerPage() {
         </section></div>
         <section className="site-panel"><div className="site-panel__head"><div><span className="site-card__eyebrow">Past seasons</span><h2>Career History</h2></div></div>
         {data.career.seasons.length ? <div className="archive-table-wrap"><table className="archive-table"><thead><tr><th>Game</th><th>Name</th><th>National</th><th>Local</th><th>City</th><th>Alliance</th><th>Final Net Worth</th></tr></thead><tbody>
-          {data.career.seasons.map((s)=><tr key={s.round.slug}><td><Link to={`/games/${s.round.slug}`}>{s.round.name}</Link></td><td>{s.displayName} <small>#{s.publicPimpId}</small></td><td>{s.nationalRank ? '#'+s.nationalRank : '—'}</td><td>{s.localRank ? '#'+s.localRank : '—'}</td><td>{s.city.name}</td><td>{s.alliance ? `[${s.alliance.tag}]` : '—'}</td><td>{formatCentsCompact(s.finalNetWorthCents)}</td></tr>)}
+          {data.career.seasons.map((s)=><tr key={s.round.slug}><td data-label="Game"><Link to={`/games/${s.round.slug}`}>{s.round.name}</Link></td><td data-label="Name">{s.displayName} <small>#{s.publicPimpId}</small></td><td data-label="National">{s.nationalRank ? '#'+s.nationalRank : '—'}</td><td data-label="Local">{s.localRank ? '#'+s.localRank : '—'}</td><td data-label="City">{s.city.name}</td><td data-label="Alliance">{s.alliance ? `[${s.alliance.tag}]` : '—'}</td><td data-label="Final net worth">{formatCentsCompact(s.finalNetWorthCents)}</td></tr>)}
         </tbody></table></div> : <p className="public-empty">No completed past seasons yet.</p>}
         </section>
       </> : null}
