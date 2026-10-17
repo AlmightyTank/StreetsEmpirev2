@@ -10,6 +10,7 @@ export interface LivingStoryDraft {
 }
 export interface LivingStoryOverview {
   round: { id: string; status: string; paused: boolean; rulesetId: string; rulesetVersion: string };
+  rollout: { invitationsEnabled: boolean };
   catalog: Array<{
     key: string; title: string; caseKey: string; sourceKind: string;
     audience: string; visibility: string; enabled: boolean; eventKinds: string[];

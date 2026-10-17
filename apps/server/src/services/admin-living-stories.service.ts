@@ -6,7 +6,7 @@ import { activeRoundEventTime, defineLivingStoryCatalog, livingStoryCatalogForRu
 import type { LivingCaseKey, LivingStoryDefinition } from '@streets/rulesets';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import { evaluateLivingStoryOffer } from './living-story-contract.service.js';
-import { LIVING_STORY_LIMITS, offerQuotaReason } from './living-story-trigger.service.js';
+import { LIVING_STORY_LIMITS, livingStreetsInvitationsEnabled, offerQuotaReason } from './living-story-trigger.service.js';
 import { AdminAuditService } from './admin-audit.service.js';
 import type { AuditActor } from './admin-audit.service.js';
 
@@ -62,6 +62,7 @@ export const AdminLivingStoriesService = {
     return {
       round: { id: round.id, status: round.status, paused: Boolean(round.pausedAt),
         rulesetId: round.rulesetId, rulesetVersion: round.rulesetVersion },
+      rollout: { invitationsEnabled: livingStreetsInvitationsEnabled() },
       catalog: Object.values(catalog).map((d) => ({
         key: d.key, title: d.title, caseKey: d.caseKey, audience: d.audience,
         eventKinds: [...d.trigger.eventKinds], sourceKind: d.trigger.sourceKind,
@@ -117,7 +118,8 @@ export const AdminLivingStoriesService = {
         sourceMemoryId: memory.id, storyKey: input.storyKey }, select: { id: true, status: true } }),
     ]);
     const counts = { owner, city, round: total, cooldown };
-    const reason = round.status !== 'ACTIVE' ? 'ROUND_INACTIVE'
+    const reason = !livingStreetsInvitationsEnabled() ? 'ROLLOUT_PAUSED'
+      : round.status !== 'ACTIVE' ? 'ROUND_INACTIVE'
       : !decision.eligible ? decision.reason
         : existing ? 'ALREADY_OFFERED'
           : offerQuotaReason(counts) ?? 'ELIGIBLE';

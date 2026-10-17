@@ -106,7 +106,7 @@ export function AdminLivingStoriesPanel() {
         {notice ? <Alert tone="info">{notice}</Alert> : null}
         {overview ? <>
           <p className="se-hint"><strong>{overview.round.rulesetId}</strong> · {overview.round.rulesetVersion} ·
-            {overview.round.paused ? ' paused' : overview.round.status} · No changes to pinned rulesets</p>
+            {overview.round.paused ? ' paused' : overview.round.status} · New invitations {overview.rollout.invitationsEnabled ? 'enabled' : 'paused'} · No changes to pinned rulesets</p>
           <div className="se-grid se-grid--2">
             <div><span className="se-eyebrow">Cases sampled</span><strong>{overview.caseStats.totalSampled}{overview.caseStats.truncated ? '+' : ''}</strong>
               <p className="se-hint">Solved {overview.caseStats.byStatus.SOLVED ?? 0} · Closed {overview.caseStats.byStatus.CLOSED ?? 0} · Expired {overview.caseStats.byStatus.EXPIRED ?? 0}</p></div>

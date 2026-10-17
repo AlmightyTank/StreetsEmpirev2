@@ -12,6 +12,15 @@ export const LIVING_STORY_MEMORY_KINDS = [
   'war_win', 'operation_complete', 'npc_gang_migration', 'supply_road_stop', 'takeover', 'city_condition_follow_up',
 ] as const;
 
+/**
+ * Operational kill switch for new story invitations. Ruleset pinning remains
+ * the per-round opt-in; this flag lets operators pause new invitations during
+ * a staged rollout without stranding cases players already accepted.
+ */
+export function livingStreetsInvitationsEnabled(value = process.env.LIVING_STREETS_ENABLED): boolean {
+  return !['0', 'false', 'off', 'disabled'].includes((value ?? 'true').trim().toLowerCase());
+}
+
 /** Shared by real offers, public opportunity reads and admin diagnostics. */
 export function offerQuotaReason(counts: { owner: number; city: number; round: number; cooldown: number }):
   'OWNER_CAP' | 'CITY_CAP' | 'ROUND_CAP' | 'COOLDOWN' | null {
@@ -26,6 +35,7 @@ export function offerQuotaReason(counts: { owner: number; city: number; round: n
 export async function tryOfferLivingStory(db: Db, input: {
   ownerId: string; memoryId: string; storyKey: string; now: Date;
 }): Promise<boolean> {
+  if (!livingStreetsInvitationsEnabled()) return false;
   const [player, memory] = await Promise.all([
     db.roundPlayer.findUnique({ where: { id: input.ownerId }, select: { id: true, roundId: true, cityId: true } }),
     db.cityMemoryEvent.findUnique({ where: { id: input.memoryId } }),
@@ -69,6 +79,7 @@ export async function tryOfferLivingStory(db: Db, input: {
 export async function inviteFromSettledMemory(
   db: Db, memory: { id: string; roundId: string; kind: string; actors: unknown; happenedAt: Date }, now: Date,
 ): Promise<number> {
+  if (!livingStreetsInvitationsEnabled()) return 0;
   if (!(LIVING_STORY_MEMORY_KINDS as readonly string[]).includes(memory.kind)) return 0;
   const round = await db.round.findUnique({ where: { id: memory.roundId } });
   if (!round || round.status !== 'ACTIVE' || round.pausedAt) return 0;
@@ -90,6 +101,7 @@ export async function inviteFromSettledMemory(
 export async function listPublicStoryOpportunities(
   db: Db, input: { roundId: string; ownerId: string; cityId: string; now: Date },
 ) {
+  if (!livingStreetsInvitationsEnabled()) return [];
   const round = await db.round.findUnique({ where: { id: input.roundId } });
   if (!round || round.status !== 'ACTIVE' || round.pausedAt) return [];
   const ruleset = loadRulesetForRound(round);
@@ -141,6 +153,7 @@ export async function listPublicStoryOpportunities(
 export async function optInPublicStory(
   db: Db, input: { roundId: string; ownerId: string; cityId: string; memoryId: string; now: Date },
 ): Promise<boolean> {
+  if (!livingStreetsInvitationsEnabled()) return false;
   const memory = await db.cityMemoryEvent.findUnique({ where: { id: input.memoryId } });
   if (!memory || memory.roundId !== input.roundId || memory.cityId !== input.cityId || memory.visibility !== 'public') return false;
   const round = await db.round.findUnique({ where: { id: input.roundId } });
