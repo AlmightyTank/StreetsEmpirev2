@@ -246,6 +246,8 @@ model AccountProfile {
   showThemeOnProfile      Boolean @default(true)
   /// Slice E. Visitors see the owner's item and crew look on their public profile.
   showLookOnProfile       Boolean @default(true)
+  /// 2.1.0-C. Player-only crew stories; never affects gameplay.
+  showCrewMoments         Boolean @default(false)
   featuredBadgeKeys       Json    @default("[]")
   featuredLegacyEntryId   String?
   profileAccent           String  @default("default")

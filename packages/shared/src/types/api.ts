@@ -284,6 +284,8 @@ export interface AccountProfileSettingsDto {
   showThemeOnProfile?: boolean;
   /** Slice E. Visitors see this player's item and crew look on their profile. Optional for older clients. */
   showLookOnProfile?: boolean;
+  /** Account-private optional crew personality cards, off by default. */
+  showCrewMoments?: boolean;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;
@@ -850,6 +852,15 @@ export interface CrewLoyaltyDto {
   history: CrewLoyaltyHistoryDto[];
 }
 
+/** 2.1.0-C. Private narrative projections from verified events. */
+export interface CrewMomentDto {
+  source: 'JOB_COMPLETED' | 'DEFENSE_HELD' | 'TRAVEL_COMPLETED' | 'DEALER_SHIFT' | 'RECOVERY_INCIDENT';
+  title: string;
+  description: string;
+  trait: string;
+  at: string;
+}
+
 /** 1.7.0-A. One thug or worker with a stable identity. */
 export interface CrewMemberDto {
   id: string;
@@ -871,6 +882,8 @@ export interface CrewMemberDto {
   history: CrewMemberHistoryDto[];
   /** Narrative progression; cannot modify stats or resources. */
   loyalty: CrewLoyaltyDto;
+  /** Optional narrative-only moments, empty until the account opts in. */
+  moments: CrewMomentDto[];
   /** The 1.6 dealer career this member carries, if any. */
   dealerStaffId: string | null;
   joinedAt: string;

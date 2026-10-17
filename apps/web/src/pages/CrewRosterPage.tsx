@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CitiesDto, CrewMemberDto, CrewMemberStatusDto, CrewPutToWorkResult, CrewRosterDto, DealerPageDto, GameActionResult, TurfBlockDto } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { crewApi, type CrewRosterFilters } from '../api/crew.js';
+import { authApi } from '../api/auth.js';
 import { dealersApi } from '../api/dealers.js';
 import { api, ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
@@ -202,6 +203,16 @@ function CrewMemberCard({ member, peers, busy, onExchange, onTrain }: { member: 
       <div className="se-crew-roster__traits" aria-label="Crew traits">
         {member.traits.map((trait) => <span key={trait}>{trait}</span>)}
       </div>
+      {member.moments.length ? <details className="se-crew-roster__history se-crew-roster__moments">
+        <summary>Crew stories <span>{member.moments.length} verified moments</span></summary>
+        <p className="se-crew-roster__note">Interpretive flavor inspired by genuine crew actions, not verified dialogue or extra gameplay bonuses.</p>
+        <ol>{member.moments.map((moment, index) => (
+          <li key={`${moment.source}-${moment.at}-${index}`}>
+            <span><strong>{moment.title}</strong> · {moment.description}</span>
+            <time dateTime={moment.at}>{new Date(moment.at).toLocaleDateString()}</time>
+          </li>
+        ))}</ol>
+      </details> : null}
       {member.loyalty.enabled ? <details className="se-crew-roster__history">
         <summary>Loyalty ledger <span>{member.loyalty.history.length} recent receipts</span></summary>
         <p className="se-crew-roster__note">Earned through completed work, defended corners, and finished shifts or travel. Maximum 8/day, 32/week, 100/round; assignments and paid training do not count. {member.loyalty.nextMilestone !== null ? `Next milestone: ${member.loyalty.nextMilestone}.` : 'All milestones earned.'}</p>
@@ -229,6 +240,9 @@ function CrewMemberCard({ member, peers, busy, onExchange, onTrain }: { member: 
 
 export function CrewRosterPage() {
   const me = useSession((state) => state.me);
+  const showCrewMoments = useSession((state) => state.profileSettings.showCrewMoments ?? false);
+  const setProfileSettings = useSession((state) => state.setProfileSettings);
+  const [momentsSaving, setMomentsSaving] = useState(false);
   const [role, setRole] = useState<CrewRosterFilters['role']>();
   const [status, setStatus] = useState<CrewRosterFilters['status']>();
   const [assignment, setAssignment] = useState<CrewRosterFilters['assignment']>();
@@ -288,6 +302,32 @@ export function CrewRosterPage() {
     try { await crewApi.exchange(memberId, replaceMemberId, crypto.randomUUID()); await refresh(); }
     catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Could not update the crew assignment.'); }
     finally { setActionBusy(false); }
+  };
+  const toggleMoments = async (checked: boolean) => {
+    if (momentsSaving) return;
+    setMomentsSaving(true);
+    setError(null);
+    try {
+      // Save against the server's latest profile, not a potentially stale
+      // cosmetic/settings draft. Reuse the authenticated settings endpoint.
+      const { settings } = await authApi.profileSettings();
+      const updated = await authApi.updateProfileSettings({
+        ...settings,
+        itemCosmetics: settings.itemCosmetics ?? {},
+        crewCosmetics: settings.crewCosmetics ?? { THUG: 'classic', HOE: 'classic' },
+        showThemeOnProfile: settings.showThemeOnProfile ?? true,
+        showLookOnProfile: settings.showLookOnProfile ?? true,
+        showCrewMoments: checked,
+      });
+      setProfileSettings(updated.settings);
+      // Re-read from the server: opted-out users receive an empty stories array.
+      const refreshed = await crewApi.roster(filters);
+      setData(refreshed);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not save the crew stories preference.');
+    } finally {
+      setMomentsSaving(false);
+    }
   };
   const train = async (memberId: string) => {
     setActionBusy(true); setError(null);
@@ -350,6 +390,12 @@ export function CrewRosterPage() {
                 <option value="">All specialties</option><option value="GENERALIST">Generalist</option><option value="ENFORCER">Enforcer</option><option value="WHEELMAN">Wheelman</option><option value="SCOUT">Scout</option><option value="DEALER">Dealer</option><option value="SERVICE">Service</option>
               </select></label>
             </div>
+            {data.members.some((member) => member.loyalty.enabled) ? (
+              <label className="se-crew-roster__moments-opt-in">
+                <input type="checkbox" checked={showCrewMoments} disabled={momentsSaving} onChange={(event) => void toggleMoments(event.target.checked)} />
+                <span><strong>Show crew stories</strong><small>Private personality moments based on real work and injuries. Optional, no daily chore, and no gameplay power.</small></span>
+              </label>
+            ) : null}
             <p className="se-crew-roster__note">Completed raids, scouting trips, and returned runs earn specialty XP. Bonuses cap at 5% and apply only to that job. Training costs 1 turn and $5,000, adds up to 5 XP toward an earned specialty tier, and is capped by completed-work experience.</p>
             {loading ? <p className="se-muted">Checking the roster…</p> : data.members.length ? (
               <>

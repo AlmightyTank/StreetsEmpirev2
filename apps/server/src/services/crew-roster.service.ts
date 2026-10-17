@@ -8,6 +8,7 @@ import { AppError } from '../utils/errors.js';
 import { crewMemberName, crewMemberSpecialty, crewMemberTraits } from './crew-profile.js';
 import { assertCrewRosterPlan } from './crew-roster-identity-audit.js';
 import { CrewLoyaltyService, crewLoyaltyEnabled, crewLoyaltyTier } from './crew-loyalty.service.js';
+import { crewMomentsFor } from './crew-moments.js';
 import { IdempotencyService } from './idempotency.service.js';
 
 import {
@@ -261,7 +262,7 @@ async function totalsFor(db: Db | PrismaClient, roundPlayerId: string) {
 function memberDto(row: {
   id: string; role: CrewRole; serial: number; status: CrewMemberStatusDto; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null;
   experiencePoints: number; specialty: CrewMemberDto['specialty']; specialtyExperiencePoints: number; dealerStaffId: string | null; joinedAt: Date; statusSince: Date; loyaltyPoints: number;
-}, assignmentLabel: string | null, history: CrewMemberHistoryDto[], ruleset: Ruleset, loyaltyHistory: CrewLoyaltyHistoryDto[]): CrewMemberDto {
+}, assignmentLabel: string | null, history: CrewMemberHistoryDto[], ruleset: Ruleset, loyaltyHistory: CrewLoyaltyHistoryDto[], moments: CrewMemberDto['moments']): CrewMemberDto {
   const assignment = row.assignmentKind ? {
     kind: row.assignmentKind,
     ref: row.assignmentRef,
@@ -290,6 +291,7 @@ function memberDto(row: {
     traits: crewMemberTraits(row.role, row.serial),
     unavailableReason,
     history,
+    moments,
     loyalty: {
       enabled: crewLoyaltyEnabled(ruleset),
       points: crewLoyaltyEnabled(ruleset) ? row.loyaltyPoints : 0,
@@ -855,7 +857,7 @@ export const CrewRosterService = {
         ...(query.specialty ? { specialty: query.specialty } : {}),
         status: query.status ?? { not: 'RELEASED' },
       };
-      const [migration, totals, total, members] = await Promise.all([
+      const [migration, totals, total, members, storyPreference] = await Promise.all([
         tx.crewRosterMigration.findUnique({ where: { roundPlayerId }, select: { createdAt: true } }),
         totalsFor(tx, roundPlayerId),
         tx.crewMember.count({ where }),
@@ -866,6 +868,9 @@ export const CrewRosterService = {
           take: query.limit,
           select: { ...MEMBER_FIELDS, joinedAt: true, statusSince: true },
         }),
+        tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: {
+          account: { select: { profile: { select: { showCrewMoments: true } } } },
+        } }),
       ]);
       const ids = members.map((member) => member.id);
       const refs = [...new Set(members.flatMap((member) => member.assignmentRef ? [[member.assignmentKind, member.assignmentRef] as const] : []))];
@@ -902,6 +907,23 @@ export const CrewRosterService = {
         if (bucket.length < 4) bucket.push(event);
         eventsByMember.set(event.memberId, bucket);
       }
+      const optedIntoMoments = crewLoyaltyEnabled(ruleset) && (storyPreference.account.profile?.showCrewMoments ?? false);
+      // Project from already-fetched private roster events; no extra event queries
+      // or writes, and no source history leaks to other accounts or public feeds.
+      const momentReceipts = new Map<string, typeof loyaltyEntries>();
+      const momentEvents = new Map<string, typeof events>();
+      if (optedIntoMoments) {
+        for (const entry of loyaltyEntries) {
+          const bucket = momentReceipts.get(entry.memberId) ?? [];
+          bucket.push(entry);
+          momentReceipts.set(entry.memberId, bucket);
+        }
+        for (const event of events) {
+          const bucket = momentEvents.get(event.memberId) ?? [];
+          bucket.push(event);
+          momentEvents.set(event.memberId, bucket);
+        }
+      }
       const loyaltyByMember = new Map<string, typeof loyaltyEntries>();
       for (const entry of loyaltyEntries) {
         const bucket = loyaltyByMember.get(entry.memberId) ?? [];
@@ -919,6 +941,11 @@ export const CrewRosterService = {
           eventHistory(eventsByMember.get(member.id) ?? [], member.joinedAt, labels),
           ruleset,
           CrewLoyaltyService.history(loyaltyByMember.get(member.id) ?? []),
+          optedIntoMoments ? crewMomentsFor({
+            role: member.role, serial: member.serial,
+            receipts: momentReceipts.get(member.id) ?? [],
+            careerEvents: momentEvents.get(member.id) ?? [],
+          }) : [],
         )),
         total,
       };
