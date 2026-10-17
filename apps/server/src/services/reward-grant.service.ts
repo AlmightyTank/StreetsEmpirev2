@@ -3,6 +3,8 @@ import {
   type ContactKey,
   type FactionKey,
   type QuestRewardDefinition,
+  type QuestObjectiveDefinition,
+  type QuestProgressMap,
   type Ruleset,
 } from '@streets/rulesets';
 import { formatCentsExact, type QuestRewardDto } from '@streets/shared';
@@ -20,6 +22,40 @@ import { QuestCosmeticService } from './quest-cosmetic.service.js';
  */
 
 const CONTACT_MAX = 1000;
+
+/** Each independently completed optional quest objective raises eligible numeric rewards by 10%. */
+export const BONUS_OBJECTIVE_REWARD_PERCENT = 10;
+
+export function completedBonusObjectiveCount(
+  objectives: readonly QuestObjectiveDefinition[],
+  progress: QuestProgressMap,
+): number {
+  return objectives.filter((objective) => progress[objective.id]?.completed === true).length;
+}
+
+const BONUS_SCALABLE_REWARD_KINDS = new Set<QuestRewardDefinition['kind']>([
+  'CASH', 'TURNS', 'ITEM', 'PRODUCT', 'CONTACT_REP', 'FACTION_STANDING',
+]);
+
+/**
+ * Scale only stackable numeric payouts. Permanent unlocks, one-off cosmetics,
+ * weapon access and favor grants must never be multiplied by bonus objectives.
+ */
+export function bumpRewardsForCompletedBonuses(
+  rewards: readonly QuestRewardDefinition[],
+  completedBonuses: number,
+): QuestRewardDefinition[] {
+  const count = Number.isSafeInteger(completedBonuses) && completedBonuses > 0 ? completedBonuses : 0;
+  if (!count) return [...rewards];
+  const scale = 100 + count * BONUS_OBJECTIVE_REWARD_PERCENT;
+  return rewards.map((reward) => {
+    if (!BONUS_SCALABLE_REWARD_KINDS.has(reward.kind)
+        || reward.amount === undefined
+        || !Number.isSafeInteger(reward.amount)
+        || reward.amount <= 0) return reward;
+    return { ...reward, amount: Math.floor((reward.amount * scale) / 100) };
+  });
+}
 
 export async function addContactRep(db: Db, roundPlayerId: string, contact: string, amount: number): Promise<number> {
   const current = await db.playerReputation.findUnique({
