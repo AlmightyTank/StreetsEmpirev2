@@ -11,6 +11,8 @@ import {
   type QuestObjectiveDefinition,
   type QuestProgressMap,
   type QuestRewardDefinition,
+  questRequiredDistricts,
+  questRequiredRecipes,
   type QuestType,
   type Ruleset,
 } from '@streets/rulesets';
@@ -89,6 +91,7 @@ import {
   usesFirstClassSeasonalEvents,
 } from './seasonal-event.service.js';
 import { CityConditionService } from './city-condition.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 
 const TRACKED_LIMIT = 3;
 /** Shared-board work: not counted as a personal job and not abandonable. Personal jobs have no cap. */
@@ -152,6 +155,38 @@ async function seasonalEventAdminTestModeForPlayer(db: Db, roundPlayerId: string
 function seasonalEventAvailable(definition: QuestDefinition, now: Date, adminTestMode: boolean): boolean {
   return seasonalEventActive(definition, now)
     || (adminTestMode && Boolean(definition.availability.seasonalEvent));
+}
+
+/**
+ * Keys the bell may call "new quest available".
+ *
+ * Admin test mode can put a future holiday job on the board early, and auto-accept
+ * can start a city contract in the same refresh that discovered it. Neither is work
+ * the player can open from that notification, so both stay off the list. A job that
+ * still needs a locked recipe or district stays off too.
+ */
+export function announceableQuestKeys(
+  candidates: readonly string[],
+  definitions: Readonly<Record<string, QuestDefinition | undefined>>,
+  statuses: ReadonlyMap<string, string>,
+  now: Date,
+  gates: { lockedRecipes?: ReadonlySet<string>; lockedDistricts?: ReadonlySet<string> } = {},
+): string[] {
+  const lockedRecipes = gates.lockedRecipes ?? new Set<string>();
+  const lockedDistricts = gates.lockedDistricts ?? new Set<string>();
+  const seen = new Set<string>();
+  const announced: string[] = [];
+  for (const key of candidates) {
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const definition = definitions[key];
+    if (!definition || statuses.get(key) !== 'AVAILABLE') continue;
+    if (!seasonalEventActive(definition, now)) continue;
+    if (questRequiredRecipes(definition).some((product) => lockedRecipes.has(product))) continue;
+    if (questRequiredDistricts(definition).some((district) => lockedDistricts.has(district))) continue;
+    announced.push(key);
+  }
+  return announced;
 }
 
 function objectives(value: Prisma.JsonValue): QuestObjectiveDefinition[] {
@@ -650,7 +685,56 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
   await autoAcceptBoardWork(db, roundPlayerId, ruleset, now);
   await syncDerivedTurfProgress(db, roundPlayerId, ruleset, questDefinitions, now);
-  return newlyAvailable;
+  return announceRefreshedQuestKeys(db, roundPlayerId, ruleset, newlyAvailable, now);
+}
+
+/** Latest attempt for each candidate, then the public-availability filter. */
+async function announceRefreshedQuestKeys(
+  db: Db,
+  roundPlayerId: string,
+  ruleset: Ruleset,
+  keys: readonly string[],
+  now: Date,
+): Promise<string[]> {
+  const unique = [...new Set(keys)];
+  if (!unique.length) return [];
+
+  const rows = await db.playerQuest.findMany({
+    where: {
+      roundPlayerId,
+      questDefinition: {
+        rulesetId: ruleset.meta.id,
+        rulesetVersion: ruleset.meta.version,
+        key: { in: unique },
+      },
+    },
+    select: {
+      status: true,
+      expiresAt: true,
+      questDefinition: { select: { key: true } },
+    },
+    orderBy: { attempt: 'desc' },
+  });
+  const statuses = new Map<string, string>();
+  for (const row of rows) {
+    const key = row.questDefinition.key;
+    if (statuses.has(key)) continue;
+    const expired = row.expiresAt !== null && row.expiresAt.getTime() <= now.getTime();
+    statuses.set(key, expired && row.status === 'AVAILABLE' ? 'EXPIRED' : row.status);
+  }
+
+  const lockedRecipes = new Set(
+    [...(await PermanentUnlockService.lockedProductionRecipes(db, roundPlayerId, ruleset)).keys()],
+  );
+  const lockedDistricts = new Set(
+    [...(await PermanentUnlockService.districtAccess(db, roundPlayerId, ruleset)).entries()]
+      .filter(([, gate]) => !gate.unlocked)
+      .map(([district]) => district),
+  );
+  return announceableQuestKeys(unique, ruleset.questDefinitions ?? {}, statuses, now, {
+    lockedRecipes,
+    lockedDistricts,
+  });
 }
 
 /** Move an AVAILABLE job to ACTIVE, the same way whether the player clicked Accept or auto-accept did. */
