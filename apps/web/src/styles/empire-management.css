@@ -66,4 +66,18 @@ button.se-empire-roster__select:focus-visible { outline: 2px solid var(--se-acce
 
 @media (min-width: 901px) { .se-empire-management__inspector { position: sticky; top: 74px; } }
 @media (max-width: 900px) { .se-empire-header { grid-template-columns: 1fr; } .se-empire-header__aside { justify-content: flex-start; } .se-empire-management { grid-template-columns: 1fr; } }
-@media (max-width: 520px) { .se-empire-header { padding: 18px 15px; } .se-empire-header h1 { font-size: 34px; } .se-empire-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) {
+  .se-empire-header { padding: 12px 14px; }
+  .se-empire-header h1 { font-size: 26px; margin: 2px 0 6px; }
+  .se-empire-header p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .se-empire-metrics {
+    display: flex;
+    overflow-x: auto;
+  }
+  .se-empire-metric { flex: 1 0 92px; min-height: 0; padding: 8px; }
+}

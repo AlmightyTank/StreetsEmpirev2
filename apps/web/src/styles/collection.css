@@ -406,3 +406,30 @@
   color: var(--se-good, #46a758);
   border-color: var(--se-good, #46a758);
 }
+
+@media (max-width: 899px) {
+  .se-collection { gap: 10px; }
+  .se-collection-hero { gap: 8px; }
+  .se-collection-hero h1 { font-size: 26px; margin: 2px 0; }
+  .se-collection-hero p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .se-collection-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .se-collection-tab {
+    min-height: 44px;
+    padding: 8px 10px;
+  }
+  .se-collection-tab small {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+}

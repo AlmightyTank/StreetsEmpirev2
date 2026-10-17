@@ -449,7 +449,17 @@
 }
 @media (max-width: 620px) {
   .se-travel-head h1 { font-size: 24px; }
-  .se-travel-deck__map .se-citymap { min-height: 0; }
+  .se-travel-deck__map {
+    display: flex;
+    flex-direction: column;
+    max-height: 250px;
+  }
+  .se-travel-deck__map .se-citymap {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 150px;
+    overflow: hidden;
+  }
   .se-travel-sectionhead { display: grid; gap: 4px; }
   .se-travel-sectionhead > p { text-align: left; }
   .se-travel-tabs__tab { padding: 9px 10px; font-size: 11px; }

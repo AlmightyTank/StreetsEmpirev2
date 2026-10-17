@@ -117,7 +117,23 @@
 
 .se-economy-batch:focus-within { outline-color: rgba(var(--se-accent-rgb), 0.38); }
 
+@media (max-width: 899px) {
+  .se-supply__form { display: flex; flex-direction: column; }
+  .se-supply__form > .se-field,
+  .se-supply__form > .se-supply__description { order: 0; }
+  .se-supply__form > .se-btn { order: 1; }
+  .se-supply__form > .se-economy-quote { order: 2; }
+}
+
 @media (max-width: 620px) {
+  .se-economy-header { padding: 12px 14px; }
+  .se-economy-header h1 { font-size: 26px; margin: 2px 0 6px; }
+  .se-economy-header p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
   .se-economy-header,
   .se-economy-pending { align-items: stretch; flex-direction: column; }
   .se-economy-header__aside,
