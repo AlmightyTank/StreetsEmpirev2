@@ -41,6 +41,7 @@ export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   crewCosmetics: { THUG: 'classic', HOE: 'classic' },
   showThemeOnProfile: true,
   showLookOnProfile: true,
+  showCrewMoments: false,
   featuredBadgeKeys: [],
   profileAccent: 'default',
   uiDensity: 'comfortable',
