@@ -249,6 +249,8 @@ model AccountProfile {
   showLookOnProfile       Boolean @default(true)
   /// 2.1.0-C. Player-only crew stories; never affects gameplay.
   showCrewMoments         Boolean @default(false)
+  /// 2.1.0-F. Account-private cosmetic milestone celebrations, off by default.
+  showCrewCelebrations    Boolean @default(false)
   featuredBadgeKeys       Json    @default("[]")
   featuredLegacyEntryId   String?
   profileAccent           String  @default("default")
