@@ -9,7 +9,7 @@ Every member already receives an immutable `CrewLoyaltyEntry` on verified work. 
 **Paid training never earns bond progress.** Switching crew posts, logging in, opening the roster, receiving a zero-point capped loyalty receipt or ending/restarting bonds also earns no progress. No timed attendance checks or penalties for RNG loss; progress only when members happen to take part in the same real action.
 
 ## Provenance, safety, compatibility
-The PostgreSQL `CrewMentorBond` and `CrewBondMemory` models belong to the same RoundPlayer and CrewMember records as Slice A; cascade deletes do not resurrect a released or pruned crew member. Links are created/ended through authenticated owner-scoped endpoints under a RoundPlayer transaction lock. Display is restricted to the player's existing crew roster; max 100 bond records in response. The UI has a small-screen layout and explicit 'End bond' control.
+The PostgreSQL `CrewMentorBond` and `CrewBondMemory` models belong to the same RoundPlayer and CrewMember records as Slice A; cascade deletes do not resurrect a released or pruned crew member. Links are created/ended through authenticated owner-scoped endpoints under a RoundPlayer transaction lock. Display is restricted to the player's existing crew roster; all active bonds returned first, with a maximum of 100 archived bonds in the response. The UI has a small-screen layout and explicit 'End bond' control.
 
 No new ruleset variant: this optional narrative feature is enabled **only in rounds where crew loyalty is enabled**, and leaves older pinned non-loyalty rounds unchanged. The underlying loyalty/action formulas stay the same.
 

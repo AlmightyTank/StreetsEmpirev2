@@ -168,12 +168,21 @@ export const CrewBondService = {
 
   async list(tx: Db, roundPlayerId: string, enabled: boolean): Promise<CrewMentorBondDto[]> {
     if (!enabled) return [];
-    const rows = await tx.crewMentorBond.findMany({
-      where: { roundPlayerId },
-      orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
-      take: 100,
-      select: bondSelect,
-    });
-    return rows.map((row) => CrewBondService.dto(row));
+    // Never hide an old ACTIVE bond behind newer ended history: the player
+    // must always be able to end every active mentorship from the roster.
+    const [active, ended] = await Promise.all([
+      tx.crewMentorBond.findMany({
+        where: { roundPlayerId, endedAt: null },
+        orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+        select: bondSelect,
+      }),
+      tx.crewMentorBond.findMany({
+        where: { roundPlayerId, endedAt: { not: null } },
+        orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+        take: 100,
+        select: bondSelect,
+      }),
+    ]);
+    return [...active, ...ended].map((row) => CrewBondService.dto(row));
   },
 };

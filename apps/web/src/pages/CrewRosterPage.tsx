@@ -295,6 +295,21 @@ export function CrewRosterPage() {
   useEffect(() => { void loadBoard(); }, [loadBoard, me?.id]);
 
   const allMembers = data?.totals.reduce((sum, row) => sum + row.members, 0) ?? 0;
+  const candidateMembers = boardData?.members ?? data?.members ?? [];
+  const mentorChoice = candidateMembers.find((member) => member.id === mentorId);
+  const activeBonds = data?.bonds?.filter((bond) => !bond.endedAt) ?? [];
+  const availableMentors = candidateMembers.filter((member) =>
+    member.status !== 'RELEASED' && (member.experiencePoints >= 100 || member.loyalty.points >= 25)
+    && !activeBonds.some((bond) => bond.apprenticeId === member.id)
+    && activeBonds.filter((bond) => bond.mentorId === member.id).length < 2
+  );
+  const availableApprentices = candidateMembers.filter((member) =>
+    member.status !== 'RELEASED' && member.loyalty.points < 25
+    && mentorChoice && member.id !== mentorId
+    && member.role === mentorChoice.role && member.experiencePoints < mentorChoice.experiencePoints
+    && !activeBonds.some((bond) => bond.mentorId === member.id)
+    && !(data?.bonds ?? []).some((bond) => bond.apprenticeId === member.id)
+  );
 
   const refresh = async () => {
     const [next] = await Promise.all([crewApi.roster(filters), loadBoard()]);
@@ -406,19 +421,16 @@ export function CrewRosterPage() {
               <label>Mentor
                 <select className="se-input" value={mentorId} onChange={(e) => setMentorId(e.target.value)} disabled={bondBusy}>
                   <option value="">Choose a veteran</option>
-                  {(boardData?.members ?? data.members).filter(m => m.status !== 'RELEASED' && (m.experiencePoints >= 100 || m.loyalty.points >= 25))
-                    .map(m => <option key={m.id} value={m.id}>{shortMember(m)} · {m.experiencePoints} XP · {m.loyalty.points} loyalty</option>)}
+                  {availableMentors.map(m => <option key={m.id} value={m.id}>{shortMember(m)} · {m.experiencePoints} XP · {m.loyalty.points} loyalty</option>)}
                 </select>
               </label>
               <label>Apprentice
-                <select className="se-input" value={apprenticeId} onChange={(e) => setApprenticeId(e.target.value)} disabled={bondBusy}>
+                <select className="se-input" value={apprenticeId} onChange={(e) => setApprenticeId(e.target.value)} disabled={bondBusy || !mentorChoice}>
                   <option value="">Choose a newer member</option>
-                  {(boardData?.members ?? data.members).filter(m => m.status !== 'RELEASED' && m.loyalty.points < 25 && m.id !== mentorId
-                    && (!(boardData?.bonds ?? data.bonds ?? []).some(b => b.apprenticeId === m.id)))
-                    .map(m => <option key={m.id} value={m.id}>{shortMember(m)} · {m.experiencePoints} XP</option>)}
+                  {availableApprentices.map(m => <option key={m.id} value={m.id}>{shortMember(m)} · {m.experiencePoints} XP</option>)}
                 </select>
               </label>
-              <Button onClick={() => void linkMentor()} disabledReason={bondBusy ? 'Saving this bond.' : !mentorId || !apprenticeId ? 'Choose two crew members.' : null}>Start mentorship</Button>
+              <Button onClick={() => void linkMentor()} disabledReason={bondBusy ? 'Saving this bond.' : !mentorChoice || !availableApprentices.some((m) => m.id === apprenticeId) ? 'Choose an eligible mentor and apprentice.' : null}>Start mentorship</Button>
             </div>
             {(data.bonds ?? []).length ? (
               <div className="se-crew-bonds__list">
