@@ -469,7 +469,7 @@ export interface SupplyLedgerDto {
 export interface SupplyHistoryItemDto {
   at: string;
   /** LANE: 1.6.0-H, a lane shipment landing, searched or not. */
-  kind: 'ORDERED' | 'PICKED_UP' | 'STORED' | 'ASSIGNED_TO_DEALER' | 'SOLD' | 'RETURNED' | 'LANE' | 'CORRECTED';
+  kind: 'ORDERED' | 'PICKED_UP' | 'STORED' | 'ASSIGNED_TO_DEALER' | 'SOLD' | 'RETURNED' | 'LANE' | 'CORRECTED' | 'OPERATION_RECOVERY';
   productName: string;
   units: number;
   text: string;
