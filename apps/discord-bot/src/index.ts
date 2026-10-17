@@ -39,6 +39,7 @@ import { memberStatus, timeoutMember } from './moderation.js';
 import { startOptionalPushServer } from './push-server.js';
 import { handleStaffButton, handleStaffModal, staffPostMessage } from './staff.js';
 import { OutageWatch, outageMessage, recoveredMessage, statusPostMessage } from './status.js';
+import { isPatchNotesPost, roleMention } from './role-pings.js';
 import { handleTicketButton, handleTicketForm, type SupportDeps } from './support.js';
 
 const config = loadConfig();
@@ -106,6 +107,24 @@ async function checkPostChannel(
 
 let readyGuild: Guild | null = null;
 
+/** Resolve exact subscriber roles once; explicit IDs override names if roles are renamed. */
+async function notificationRoleId(guild: Guild, configuredId: string, name: string): Promise<string> {
+  const roles = await guild.roles.fetch().catch((error: unknown) => {
+    console.warn(`Could not load Discord roles for ${name}:`, error);
+    return null;
+  });
+  const role = configuredId ? roles?.get(configuredId) : roles?.find((candidate) => candidate.name === name);
+  if (!role) {
+    console.warn(`No subscriber role for ${name}; role pings are off until the role exists (or the configured ID is fixed) and the bot restarts.`);
+    return '';
+  }
+  if (!role.mentionable) {
+    console.warn(`Role ${name} is not mentionable. Make it mentionable or allow the bot to Mention @everyone, @here, and All Roles for notifications to work.`);
+  }
+  console.log(`Discord ${name} announcements target role ${role.id}.`);
+  return role.id;
+}
+
 /** The staff channel, when it is set and the bot can post and edit there. */
 async function usableStaffChannel(): Promise<GuildTextBasedChannel | null> {
   if (!readyGuild || !config.DISCORD_STAFF_CHANNEL_ID) return null;
@@ -145,11 +164,11 @@ async function usableSupportChannel(): Promise<TextChannel | null> {
 
 const supportDeps: SupportDeps = { api, origin: config.frontendOrigin, supportChannel: usableSupportChannel, staffChannel: usableStaffChannel };
 
-async function postNews(channel: GuildTextBasedChannel): Promise<void> {
+async function postNews(channel: GuildTextBasedChannel, gameUpdatesRoleId: string): Promise<void> {
   // Claimed posts count as posted, which is why the channel is checked before any claim.
   for (const post of await api.claimNews()) {
     try {
-      const message = await channel.send({ embeds: [newsPostEmbed(post)], allowedMentions: { parse: [] } });
+      const message = await channel.send({ embeds: [newsPostEmbed(post)], ...roleMention(isPatchNotesPost(post.title) ? gameUpdatesRoleId : '') });
       if (channel.type === ChannelType.GuildAnnouncement) {
         await message.crosspost().catch((error: unknown) => console.warn('Could not publish news to following servers:', error));
       }
@@ -183,7 +202,7 @@ async function postStaff(channel: GuildTextBasedChannel): Promise<void> {
 const outages = new OutageWatch(config.DISCORD_OUTAGE_MINUTES * 60_000);
 
 /** Status channel posts. A deploy's finish or failure edits its "updating" post. */
-async function postStatus(channel: GuildTextBasedChannel): Promise<void> {
+async function postStatus(channel: GuildTextBasedChannel, serverUpdatesRoleId: string): Promise<void> {
   for (const post of await api.claimStaffPosts('status')) {
     const message = statusPostMessage(post);
     if (!message) continue;
@@ -192,7 +211,7 @@ async function postStatus(channel: GuildTextBasedChannel): Promise<void> {
     else if (post.deploy) outages.deployEnded();
     try {
       const existing = post.editMessageId ? await channel.messages.fetch(post.editMessageId).catch(() => null) : null;
-      const sent = existing ? await existing.edit(message) : await channel.send({ ...message, allowedMentions: { parse: [] } });
+      const sent = existing ? await existing.edit(message) : await channel.send({ ...message, ...roleMention(serverUpdatesRoleId) });
       await api.staffPostPosted(post.id, sent.id);
     } catch (error) {
       console.error(`Could not post status ${post.kind} ${post.id} to #${channel.name}:`, error);
@@ -380,6 +399,8 @@ client.once(Events.ClientReady, async (ready) => {
 
     const guild = await ready.guilds.fetch(config.DISCORD_GUILD_ID);
     readyGuild = guild;
+    const gameUpdatesRoleId = await notificationRoleId(guild, config.DISCORD_GAME_UPDATES_ROLE_ID, 'Game Updates');
+    const serverUpdatesRoleId = await notificationRoleId(guild, config.DISCORD_SERVER_UPDATES_ROLE_ID, 'Server Updates');
     // Guild commands update immediately, unlike global ones.
     await guild.commands.set(commandData);
     void getCities();
@@ -423,7 +444,7 @@ client.once(Events.ClientReady, async (ready) => {
       newsChannel = check.channel;
       await api.reportNewsChannel({ channel: check.channel?.name ?? null, problem: check.problem })
         .catch((error: unknown) => console.warn('Could not report the news channel status to the game API:', error instanceof Error ? error.message : error));
-      if (newsChannel) await postNews(newsChannel);
+      if (newsChannel) await postNews(newsChannel, gameUpdatesRoleId);
     });
     startPoller('News auto-post', config.DISCORD_NEWS_MINUTES * 60_000, runNews);
 
@@ -490,7 +511,7 @@ client.once(Events.ClientReady, async (ready) => {
         else console.log(`Posting updates, maintenance and outages to #${check.channel!.name}.`);
         statusProblem = check.problem;
       }
-      if (check.channel) await postStatus(check.channel);
+      if (check.channel) await postStatus(check.channel, serverUpdatesRoleId);
     });
 
     // The bot's own call: a down game can't post. One "down" post per outage, edited when it's back.
@@ -503,7 +524,7 @@ client.once(Events.ClientReady, async (ready) => {
       if (!channel) return;
       // A failed send throws before `posted`, so the next probe offers the same news again.
       if (event.event === 'down') {
-        const sent = await channel.send({ ...outageMessage(event.since, Date.now()), allowedMentions: { parse: [] } });
+        const sent = await channel.send({ ...outageMessage(event.since, Date.now()), ...roleMention(serverUpdatesRoleId) });
         outagePost = { channelId: channel.id, messageId: sent.id };
         outages.posted(event);
         console.warn(`The game API has not answered since ${new Date(event.since).toISOString()}; posted an outage notice.`);
@@ -511,7 +532,7 @@ client.once(Events.ClientReady, async (ready) => {
         const posted = outagePost?.channelId === channel.id ? await channel.messages.fetch(outagePost.messageId).catch(() => null) : null;
         const message = recoveredMessage(event.since, event.downForMs);
         if (posted) await posted.edit(message);
-        else await channel.send({ ...message, allowedMentions: { parse: [] } });
+        else await channel.send({ ...message, ...roleMention(serverUpdatesRoleId) });
         outagePost = null;
         outages.posted(event);
         console.log(`The game API is answering again after ${Math.round(event.downForMs / 60_000)} min.`);
