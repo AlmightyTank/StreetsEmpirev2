@@ -18,6 +18,9 @@ const result = spawnSync(process.execPath, [vitest, 'run', ...files], {
   stdio: 'inherit',
   env: {
     ...process.env,
+    // Run baseline eligibility assertions independent of beta's live switch;
+    // the focused test explicitly stubs the disabled case itself.
+    LIVING_STREETS_ENABLED: 'true',
     DATABASE_URL: process.env.DATABASE_URL ?? 'postgresql://qa:qa@127.0.0.1:5432/living_streets_qa?schema=public',
     SESSION_SECRET: process.env.SESSION_SECRET ?? 'living-streets-qa-session-secret-32chars',
   },
