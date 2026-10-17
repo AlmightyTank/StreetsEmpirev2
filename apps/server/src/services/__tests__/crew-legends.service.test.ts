@@ -70,6 +70,28 @@ describe('2.1.0-E earned nicknames and immutable memorials', () => {
     expect(Object.keys(db)).not.toContain('crewMember.create');
   });
 
+  it('continues past higher-loyalty unqualified members to archive an earned name', async () => {
+    const first = Array.from({ length: 100 }, (_, i) => ({
+      id: 'unqualified-' + i, serial: i + 1, role: 'THUG' as const,
+      status: 'AVAILABLE' as const, loyaltyPoints: 26, experiencePoints: 40,
+      nicknameKey: null, joinedAt: new Date('2026-10-01'),
+      loyaltyEntries: receipts('JOB_COMPLETED', 2),
+    }));
+    const eligible = { ...first[0]!, id: 'qualified', serial: 101, loyaltyPoints: 25, loyaltyEntries: receipts('JOB_COMPLETED', 5) };
+    const archive = vi.fn().mockResolvedValue({ count: 1 });
+    const page = vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce([eligible]);
+    const db = {
+      roundPlayer: { findMany: vi.fn().mockResolvedValue([{ id: 'p1', accountId: 'a1' }]) },
+      crewMember: { findMany: page },
+      crewLegendArchive: { createMany: archive },
+      accountCosmeticUnlock: { upsert: vi.fn() },
+    } as unknown as Db;
+    const round = { id: 'r1', name: 'Round', rulesetId: classicOgV30H.meta.id, rulesetVersion: classicOgV30H.meta.version } as Round;
+    expect(await CrewLegendService.snapshotAtClose(db, round, new Date('2026-10-23'))).toBe(1);
+    expect(page).toHaveBeenCalledTimes(2);
+    expect(archive.mock.calls[0]![0].data[0].sourceMemberId).toBe('qualified');
+  });
+
   it('projects only an account-owned, non-suppressed archive with historic strings', async () => {
     const findMany = vi.fn().mockResolvedValue([{
       id: 'legend-1', sourceRoundId: 'round-1', roundName: 'First Round',
