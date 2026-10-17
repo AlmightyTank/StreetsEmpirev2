@@ -1,13 +1,14 @@
 import type { Prisma, PrismaClient, Round } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
+import { z } from 'zod';
 import type { GameActionResult, QuestRewardDto } from '@streets/shared';
+import type { QuestRewardDefinition } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 import type { Db } from '../utils/db.js';
 import { ActionService } from './action.service.js';
 import { grantRewards, rewardDto } from './reward-grant.service.js';
 import { RoundRollCallService, roundRollCallClock } from './round-roll-call.service.js';
 import {
-  ROUND_ROLL_CALL_REWARD_VERSION,
   roundRollCallCatalog,
   type RoundRollCallRarity,
 } from './round-roll-call-rewards.js';
@@ -33,6 +34,21 @@ export function assertRoundRollCallClaimable(
   }
 }
 
+/** Render old claims from their actual payout, never from a newer catalog. */
+const persistedRewardSchema = z.array(z.object({
+  kind: z.enum(['CASH', 'TURNS', 'ITEM']),
+  key: z.string().optional(),
+  amount: z.number().int().positive(),
+}).strict()).min(1);
+
+function receiptRewards(value: Prisma.JsonValue): QuestRewardDefinition[] {
+  const parsed = persistedRewardSchema.safeParse(value);
+  if (!parsed.success) {
+    throw AppError.conflict('ROUND_ROLL_CALL_RECEIPT_INVALID', 'A past reward has invalid saved contents.');
+  }
+  return parsed.data;
+}
+
 export const RoundRollCallRewardService = {
   /** Enrich the readonly attendance calendar with catalog labels and claim receipts. */
   async board(db: Db | PrismaClient, round: Round, roundPlayerId: string, now = new Date()) {
@@ -40,25 +56,31 @@ export const RoundRollCallRewardService = {
       RoundRollCallService.view(db, round, roundPlayerId, now),
       db.roundLoginRewardClaim.findMany({
         where: { roundPlayerId },
-        select: { tier: true, claimedAt: true },
+        select: { tier: true, claimedAt: true, rewardVersion: true, rarity: true, definition: true },
       }),
     ]);
-    const receipts = new Map(claimed.map((claim) => [claim.tier, claim.claimedAt.toISOString()]));
-    const catalog = roundRollCallCatalog(attendance.requiredStamps);
+    const receipts = new Map(claimed.map((claim) => [claim.tier, claim]));
+    const catalogVersion = round.roundLoginRewardVersion;
+    const catalog = roundRollCallCatalog(attendance.requiredStamps, catalogVersion);
     const ruleset = loadRulesetForRound(round);
     return {
       ...attendance,
-      rewardVersion: ROUND_ROLL_CALL_REWARD_VERSION,
-      rewardTrack: catalog.map((step) => ({
-        tier: step.tier,
-        key: step.key,
-        rarity: step.rarity,
-        reached: step.tier <= attendance.stamps,
-        claimed: receipts.has(step.tier),
-        claimedAt: receipts.get(step.tier) ?? null,
-        claimable: attendance.active && step.tier <= attendance.stamps && !receipts.has(step.tier),
-        rewards: step.rewards.map((reward) => rewardDto(reward, ruleset)),
-      })),
+      rewardVersion: catalogVersion,
+      rewardTrack: catalog.map((step) => {
+        const paid = receipts.get(step.tier);
+        return {
+          tier: step.tier,
+          key: paid ? `${paid.rewardVersion}:tier-${step.tier}` : step.key,
+          rewardVersion: paid?.rewardVersion ?? catalogVersion,
+          rarity: paid?.rarity ?? step.rarity,
+          reached: step.tier <= attendance.stamps,
+          claimed: paid != null,
+          claimedAt: paid?.claimedAt.toISOString() ?? null,
+          claimable: attendance.active && step.tier <= attendance.stamps && !paid,
+          rewards: (paid ? receiptRewards(paid.definition) : step.rewards)
+            .map((reward) => rewardDto(reward, ruleset)),
+        };
+      }),
     };
   },
 
@@ -78,7 +100,8 @@ export const RoundRollCallRewardService = {
         if (!clock.active) {
           throw AppError.conflict('ROUND_ROLL_CALL_CLOSED', 'This round is not accepting login reward claims.');
         }
-        const definition = roundRollCallCatalog(clock.requiredStamps)[input.tier - 1];
+        const catalogVersion = round.roundLoginRewardVersion;
+        const definition = roundRollCallCatalog(clock.requiredStamps, catalogVersion)[input.tier - 1];
         const stamps = await tx.roundLoginCheckIn.count({ where: { roundPlayerId } });
         const already = Number.isSafeInteger(input.tier) && input.tier >= 1
           ? await tx.roundLoginRewardClaim.findUnique({
@@ -97,7 +120,7 @@ export const RoundRollCallRewardService = {
           data: {
             roundPlayerId,
             tier: definition.tier,
-            rewardVersion: ROUND_ROLL_CALL_REWARD_VERSION,
+            rewardVersion: catalogVersion,
             rarity: definition.rarity,
             definition: receipt as Prisma.InputJsonValue,
             claimedAt: now,
@@ -119,7 +142,7 @@ export const RoundRollCallRewardService = {
         return {
           next,
           result: {
-            rewardVersion: ROUND_ROLL_CALL_REWARD_VERSION,
+            rewardVersion: catalogVersion,
             tier: definition.tier,
             rarity: definition.rarity,
             rewards: definition.rewards.map((reward) => rewardDto(reward, ruleset)),
