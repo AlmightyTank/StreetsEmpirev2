@@ -14,6 +14,13 @@ function setup(options: { status?: string; self?: boolean; actual?: number; stor
   const update = vi.fn().mockResolvedValue({ id: 'member-1' });
   const event = vi.fn().mockResolvedValue({ id: 'event-1' });
   const audit = vi.fn().mockResolvedValue({ id: 'audit-1' });
+  const claimed = options.actual ?? 50;
+  const receipts = Array.from({ length: Math.ceil(claimed / 2) }, (_, i) => ({
+    id: 'receipt-' + i,
+    source: 'JOB_COMPLETED',
+    points: Math.min(2, claimed - i * 2),
+    at: new Date(Date.UTC(2026, 9, 5) + Math.floor(i / 16) * 7 * 86_400_000 + Math.floor((i % 16) / 4) * 86_400_000),
+  }));
   const member = {
     id: 'member-1', loyaltyPoints: options.stored ?? 45,
     nicknameKey: options.nickname === undefined ? 'TRUSTED_HAND' : options.nickname, nicknameSuppressed: false,
@@ -29,7 +36,7 @@ function setup(options: { status?: string; self?: boolean; actual?: number; stor
     crewMember: { findFirst: vi.fn().mockResolvedValue(member), update },
     crewLoyaltyEntry: {
       aggregate: vi.fn().mockResolvedValue({ _sum: { points: options.actual ?? 50 } }),
-      findMany: vi.fn().mockResolvedValue([]),
+      findMany: vi.fn().mockResolvedValue(receipts),
     },
     crewMemberEvent: { create: event },
     crewRosterMigration: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
@@ -83,6 +90,23 @@ describe('2.1.0-G — admin correction provenance and fail-closed controls', () 
     expect(r.nicknameReset).toBe(true);
     expect(update).toHaveBeenCalledWith({ where: { id: 'member-1' }, data: { loyaltyPoints: 25, nicknameKey: null } });
   });
+  it('refuses reconciliation when the full ledger includes invalid or cap-breaking evidence', async () => {
+    for (const receipts of [
+      [{ id: 'fake', source: 'TRAINED', points: 50, at }],
+      Array.from({ length: 25 }, (_, i) => ({ id: String(i), source: 'JOB_COMPLETED', points: 2, at })),
+      Array.from({ length: 10_001 }, (_, i) => ({ id: String(i), source: 'JOB_COMPLETED', points: 0, at })),
+    ]) {
+      const { db, tx, update, audit } = setup();
+      tx.crewLoyaltyEntry.findMany.mockResolvedValueOnce(receipts);
+      await expect(AdminCrewReleaseService.reconcile(db, actor, 'player-1', 'member-1',
+        { reason: 'Investigate manipulated loyalty evidence.', expectedPoints: 45 })).rejects.toMatchObject({
+          code: receipts.length > 10_000 ? 'CREW_LEDGER_TOO_LARGE' : 'CREW_LEDGER_INVALID',
+        });
+      expect(update).not.toHaveBeenCalled();
+      expect(audit).not.toHaveBeenCalled();
+    }
+  });
+
   it('rejects staff self-service, closed rounds, stale expected points, no-op or impossible receipts', async () => {
     for (const [opts, expected, input] of [
       [{ self: true }, 'ADMIN_SELF_ACTION', 45],
