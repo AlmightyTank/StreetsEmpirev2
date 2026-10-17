@@ -7,7 +7,7 @@
 
 - The track requires **ceil((round.endsAt - round.startsAt) / 24 hours) - 7** distinct check-in days; never cap it at 21. Negative results clamp to zero (reward track disabled for rounds no longer than seven days).
 - Examples: 14-day round → 7 stamps; 21-day → 14; 28-day → 21; 35-day → 28; 42-day → 35.
-- Seven missed days are included in the math and may occur anywhere. Progress **never resets** after an absence.
+- Seven missed days are included in the math and may occur anywhere. Progress **never resets** after an absence. Paused time is excluded from eligible round time and does not consume a missed day; extended resumes do not create additional requirements.
 - A round day starts at `round.startsAt + (dayIndex-1)*24h`. The final window ends at the exact `round.endsAt`. Server time is authoritative; there is no client-timezone or midnight shortcut.
 - Only an authenticated account with a RoundPlayer in the current ACTIVE, **unpaused** round can record attendance. The foreground game snapshot performs the authenticated check-in POST. Background dashboard polling never earns a stamp; Slice C will add the visible calendar and claim UI.
 - A player can stamp once per round-relative day, up to the final target. A PostgreSQL unique index guards repeated requests and multiple tabs. The round row lock also serializes check-ins with early round closure.
@@ -50,14 +50,14 @@ Deploy only after CI and migration validation. `npx prisma migrate deploy` must 
 
 ## Slice B — reward economy and persistence (implemented)
 
-- Stable catalog key: `round-roll-call-v1`. The length of each track is dynamic (round duration less seven days), with the Legendary gameplay tier only in the last position. This is **not** a 21-day cap.
+- Stable catalog key: `round-roll-call-v1`, pinned in `Round.roundLoginRewardVersion` (database default v1) and validated by the server. Claim receipts render from the stored paid JSON, not a replacement catalog. The length of each track is dynamic (round duration less seven days), with the Legendary gameplay tier only in the last position. This is **not** a 21-day cap.
 - A normal 28-day round creates 21 tiers with 10 Common, 6 Uncommon, 4 Rare, and 1 Legendary. The 20 non-final tiers have a deliberate mixed order; other lengths deterministically resample that versioned sequence.
 - Only pre-approved `CASH`, `TURNS`, and three consumables (beer, condoms, medicine) can be paid. Per-tier hard caps: $5,000, 20 turns, or 30 items. No weapons, exclusive combat upgrades, and no permanent gameplay multiplier.
 - The standard 21-tier track totals **$19,150, 74 turns, and 99 consumable items**, plus the future final cosmetic set (not yet awarded). Cash quantities are stored as integer cents.
 - `RoundLoginRewardClaim` stores round-player, tier, reward version, rarity, immutable JSON of rewarded items and claimedAt. The unique `(roundPlayerId,tier)` constraint makes double payouts impossible, even with different request IDs.
 - Claims use `ActionService.run` (player lock, replay key, round/pause gate, settlement, transaction) and the existing `grantRewards` utility. Attendance stamps never pay automatically.
 - The Legendary last-tier **gameplay** reward is a small $5,000 + 15-turn bundle; its permanent shell + crew cosmetic is explicitly deferred to Slice D. Do not grant a shell or crew cosmetic on any earlier tier.
-- Cash/item values are initial balance targets; tuning must create `round-roll-call-v2` rather than silently changing already-issued v1 payouts.
+- Cash/item values are initial balance targets; tuning must create a separately registered `round-roll-call-v2` and change the default only for **new rounds**, never silently altering v1 payouts. Unknown catalog versions fail closed.
 - Claiming closes with the round as regular in-round rewards do. The permanent cosmetic from D will need its own end-of-round entitlement handling if a fully completed player forgets to claim, without paying expired gameplay rewards.
 
 
