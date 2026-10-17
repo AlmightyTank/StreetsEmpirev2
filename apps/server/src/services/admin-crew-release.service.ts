@@ -25,7 +25,6 @@ export interface CrewReceiptAuditRow {
   at: string;
 }
 
-const provenanceSources = ['JOB_COMPLETED', 'DEFENSE_HELD', 'TRAVEL_COMPLETED', 'DEALER_SHIFT'] as const;
 const perSourceLimit: Record<string, number> = {
   JOB_COMPLETED: 2, DEFENSE_HELD: 4, TRAVEL_COMPLETED: 3, DEALER_SHIFT: 2,
 };
