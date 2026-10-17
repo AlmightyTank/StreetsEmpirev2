@@ -39,7 +39,7 @@ describe('2.1.0-A roster identity audit', () => {
     const away = member('escort', 3, { status: 'ASSIGNED', assignmentKind: 'ESCORT', assignmentRef: 'run' });
     const scenario = input({
       firstBuild: false,
-      counts: { ...empty, thugs: 3, woundedThugs: 1, postedThugs: 1 },
+      counts: { ...empty, thugs: 2, woundedThugs: 1, postedThugs: 1 },
       refs: { ...refs, turf: [{ id: 'block', thugs: 1, lookouts: 1 }], escorts: [{ runId: 'run', count: 1 }] },
       members: [lookout, recovering, away], nextSerial: 4,
     });
@@ -79,6 +79,9 @@ describe('2.1.0-A roster identity audit', () => {
       .toThrow(/placement/);
     expect(() => assertCrewRosterPlan(scenario, { ...plan, creates: [...plan.creates, plan.creates[0]!] }))
       .toThrow(/duplicate/);
+    expect(() => assertCrewRosterPlan(scenario, {
+      ...plan, events: [{ memberId: 'ghost', kind: 'JOINED', assignmentKind: null, assignmentRef: null }],
+    })).toThrow(/orphaned event/);
     const veteran = member('earned', 1, { experiencePoints: 9 });
     const loss = input({ firstBuild: false, counts: empty, members: [veteran], nextSerial: 2 });
     expect(() => assertCrewRosterPlan(loss, { ...planCrewRoster(loss), drops: ['earned'], moves: [] }))
