@@ -92,3 +92,83 @@
 .se-admin-rewards li > span { display: grid; gap: 2px; min-width: 0; }
 .se-admin-rewards small { overflow-wrap: anywhere; }
 .se-admin-rewards__art { flex: none; width: 72px; height: 44px; object-fit: contain; }
+
+@media (max-width: 899px) {
+  .se-route--admin .se-gamemain { display: flex; flex-direction: column; }
+  .se-route--admin .se-gamemain > .se-panel:has(.se-admin-checklist) { order: 5; }
+
+  .se-admin-pagehead { padding: 12px 14px; margin-bottom: 10px; }
+  .se-admin-pagehead .se-title { font-size: 26px; margin-bottom: 2px; }
+  .se-admin-pagehead .se-cta {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+  }
+  .se-admin-pagehead .se-cta .se-btn { flex: 0 0 auto; }
+
+  .se-route--admin .se-stats {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .se-route--admin .se-stat { flex: 1 0 108px; min-height: 0; padding: 8px 10px; }
+  .se-route--admin .se-stat__value {
+    font-size: 16px;
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .se-admin-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .se-admin-filters > .se-field { margin-bottom: 0; }
+  .se-admin-filters > .se-field:last-child { grid-column: 1 / -1; }
+  .se-admin-textarea,
+  .se-admin-reason { min-height: 56px; }
+
+  form:has(#admin-news-title),
+  form:has(#admin-supporter-names) { display: flex; flex-direction: column; }
+  form:has(#admin-news-title) > .se-field,
+  form:has(#admin-supporter-names) > .se-field { margin-bottom: 0; }
+  #admin-supporter-names { height: 64px; min-height: 0; }
+  form:has(#admin-news-title) > .se-btn,
+  form:has(#admin-supporter-names) > .se-admin-actions { order: 1; }
+  form:has(#admin-news-title) > .se-checkrow,
+  form:has(#admin-news-title) > .se-field:has(#admin-news-publish-at),
+  form:has(#admin-news-title) > .se-field:has(#admin-news-round),
+  form:has(#admin-supporter-names) > .se-field:has(#admin-supporter-reason) { order: 2; }
+  form:has(#admin-news-title) .se-hint { display: none; }
+  #admin-news-body { height: 52px; min-height: 0; }
+
+  .se-route--admin .se-gamemain:has(#admin-supporter-names) > .se-panel:not(:has(#admin-supporter-names)) { order: 2; }
+  .se-route--admin .se-gamemain:has(#admin-supporter-names) > .se-stats { order: 3; }
+  .se-route--admin .se-gamemain:has(#admin-supporter-names) > .se-alert { order: 4; }
+
+  /* Discord status rows are the readout. The resync control sits under them,
+     and the explanation stays two lines, so the button clears the tab bar. */
+  .se-panel__body--flush > .se-rows + .se-admin-pad:has(.se-btn) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .se-panel__body--flush > .se-rows + .se-admin-pad:has(.se-btn) > :is(.se-btn, .se-why) { order: -1; margin-top: 0; }
+  .se-panel__body--flush > .se-rows + .se-admin-pad:has(.se-btn) > .se-hint {
+    display: -webkit-box;
+    overflow: hidden;
+    margin-top: 0;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .se-route--admin .se-table--cards tr { display: flex; flex-direction: column; }
+  .se-route--admin .se-table--cards td:has(.se-admin-actions) { order: 1; }
+  .se-route--admin .se-table--cards td:not(.se-td--title):not(:has(.se-admin-actions)) { order: 2; }
+  form:has(#admin-news-title) > .se-hint,
+  form:has(#admin-supporter-names) > .se-hint {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
