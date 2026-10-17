@@ -5,24 +5,26 @@ import { RoundRollCallService } from './round-roll-call.service.js';
 import { RoundRollCallCosmeticService } from './round-roll-call-cosmetic.service.js';
 
 export const ROUND_ROLL_CALL_RECOVERY_LIMIT = 2;
-const DAY_MS = 86_400_000;
 type Attendance = Awaited<ReturnType<typeof RoundRollCallService.view>>;
 type LoginStamp = { dayIndex: number; source: string };
 type RecoveryReceipt = { dayIndex: number; actionId: string; createdAt: Date };
 
 export function rollCallRecoveryPolicy(
-  round: Round,
   attendance: Attendance,
   stamps: readonly LoginStamp[],
   recoveries: readonly RecoveryReceipt[],
-  joinedAt: Date,
 ) {
   const used = recoveries.length;
   const genuineStamps = stamps.filter((s) => s.source === 'LOGIN').length;
-  const enrolledDay = Math.max(1, Math.floor(Math.max(0, joinedAt.getTime() - round.startsAt.getTime()) / DAY_MS) + 1);
+  // Using wall-clock createdAt wrongly excludes eligible round days after
+  // completed admin pauses. Anchor eligibility to the first *actual* login
+  // stamp instead: it is a pause-adjusted, server-recorded proof that the
+  // account was already enrolled by that round day, with no pre-enrollment
+  // makeup possibility and no ability to forge earlier attendance.
+  const firstRealDay = Math.min(...stamps.filter((s) => s.source === 'LOGIN').map((s) => s.dayIndex));
   const taken = new Set(stamps.map((s) => s.dayIndex));
   const missedEligibleDays = Array.from({ length: Math.max(0, attendance.completedDaySlots) }, (_, i) => i + 1)
-    .filter((day) => day >= enrolledDay && !taken.has(day));
+    .filter((day) => day >= firstRealDay && !taken.has(day));
   // The existing seven free missed days never reset or become a streak.
   // Self-service repair only activates *after* the native allowance is exhausted.
   let reason: 'ready' | 'closed' | 'complete' | 'limit' | 'allowance' | 'genuine_stamp' | 'no_eligible_day';
@@ -55,7 +57,7 @@ export const RoundRollCallRecoveryService = {
     attendance?: Attendance,
   ) {
     const [player, stamps, recoveries, view] = await Promise.all([
-      db.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { createdAt: true, roundId: true } }),
+      db.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { roundId: true } }),
       db.roundLoginCheckIn.findMany({
         where: { roundPlayerId }, select: { dayIndex: true, source: true }, orderBy: { dayIndex: 'asc' },
       }),
@@ -67,7 +69,7 @@ export const RoundRollCallRecoveryService = {
     if (!player || player.roundId !== round.id) {
       throw AppError.notFound('NOT_IN_ROUND', 'Player does not belong to this round.');
     }
-    return rollCallRecoveryPolicy(round, view, stamps, recoveries, player.createdAt);
+    return rollCallRecoveryPolicy(round, view, stamps, recoveries);
   },
 
   /**
