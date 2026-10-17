@@ -273,6 +273,7 @@ export const itemCosmeticStyleSchema = z.enum([
   'eight-bit',
   'time-machine',
   'blue-sky',
+  'holiday-road',
 ]);
 
 export const crewCosmeticStyleSchema = itemCosmeticStyleSchema.refine(
