@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PrismaClient, Round } from '@prisma/client';
-import { RoundRollCallRecoveryService, rollCallRecoveryPolicy } from '../round-roll-call-recovery.service.js';
+import { RoundRollCallRecoveryService } from '../round-roll-call-recovery.service.js';
 import { RoundRollCallService } from '../round-roll-call.service.js';
 
 const DAY = 86_400_000;
