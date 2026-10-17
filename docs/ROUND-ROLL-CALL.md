@@ -60,6 +60,33 @@ Deploy only after CI and migration validation. `npx prisma migrate deploy` must 
 - Cash/item values are initial balance targets; tuning must create `round-roll-call-v2` rather than silently changing already-issued v1 payouts.
 - Claiming closes with the round as regular in-round rewards do. The permanent cosmetic from D will need its own end-of-round entitlement handling if a fully completed player forgets to claim, without paying expired gameplay rewards.
 
+
+### 21-stamp reference reward table
+
+| Step | Rarity | Payout |
+| ---: | --- | --- |
+| 1 | Common | $1,000 |
+| 2 | Uncommon | 8 turns |
+| 3 | Common | 12 beer |
+| 4 | Uncommon | $1,500 |
+| 5 | Rare | 20 turns |
+| 6 | Common | 12 condoms |
+| 7 | Uncommon | 7 medicine |
+| 8 | Common | $1,200 |
+| 9 | Common | 15 beer |
+| 10 | Rare | $3,000 |
+| 11 | Common | 4 turns |
+| 12 | Uncommon | 8 medicine |
+| 13 | Common | 25 condoms |
+| 14 | Common | $1,250 |
+| 15 | Rare | 15 turns |
+| 16 | Common | 15 beer |
+| 17 | Uncommon | $2,200 |
+| 18 | Common | 5 medicine |
+| 19 | Rare | $4,000 |
+| 20 | Uncommon | 12 turns |
+| 21 | Legendary | $5,000 + 15 turns; **shell + crew cosmetic comes in Slice D** |
+
 ### Slice B verification
 Run after installing dependencies and generating Prisma:
 ```bash
