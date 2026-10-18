@@ -326,9 +326,20 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
   const slotOf = new Map(slots.map((page, index) => [page.key, index]));
 
   useEffect(() => {
-    // Avoid freezing the whole body into a fixed position on Android.
-    // The backdrop consumes gestures; the page directory scrolls natively.
+    // Isolate keyboard and wheel scrolling behind the modal, but never make
+    // the document body position:fixed (which causes viewport jumps on Android).
+    // Overflow hiding keeps the original scroll offset and layout intact.
+    const root = document.documentElement;
+    const body = document.body;
+    const rootOverflow = root.style.overflow;
+    const bodyOverflow = body.style.overflow;
+    root.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
     closeButton.current?.focus({ preventScroll: true });
+    return () => {
+      root.style.overflow = rootOverflow;
+      body.style.overflow = bodyOverflow;
+    };
   }, []);
 
   function onKeyDown(event: KeyboardEvent) {
