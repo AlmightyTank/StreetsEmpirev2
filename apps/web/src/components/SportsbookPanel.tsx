@@ -36,6 +36,7 @@ type TicketView = 'open' | 'settled';
 type Pick = { eventId: string; selection: SportsbookSelection; seenOdds: number };
 
 const LEAGUE_FILTERS: readonly LeagueFilter[] = ['ALL', 'NFL', 'NBA', 'MLB', 'NHL'];
+const LEAGUE_MARKS: Record<LeagueFilter, string> = { ALL: '◆', NFL: '🏈', NBA: '🏀', MLB: '⚾', NHL: '🏒' };
 const QUICK_STAKES = [1_000, 2_500, 10_000, 50_000] as const;
 /** Under this, the countdown turns urgent so a late pick is not a surprise. */
 const CLOSING_SOON_MS = 15 * 60_000;
@@ -118,6 +119,10 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
   const [now, setNow] = useState(() => Date.now());
   const [league, setLeague] = useRememberedState<LeagueFilter>(rememberedKey('sportsbook.league', me?.id), 'ALL', { accept: isLeagueFilter });
   const [ticketView, setTicketView] = useState<TicketView>('open');
+  // Ticket-first on phones, original lines-first flow on desktop.
+  const [mobileLayout, setMobileLayout] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches,
+  );
   const [pick, setPick] = useState<Pick | null>(null);
   // The phone slip starts as a compact, non-modal betting dock; details expand on demand.
   const [slipExpanded, setSlipExpanded] = useState(false);
@@ -130,6 +135,14 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const ticketStatuses = useRef<Map<string, SportsbookBetDto['status']> | null>(null);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 899px)');
+    const onChange = () => setMobileLayout(media.matches);
+    onChange();
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -284,10 +297,63 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
   const record = summary ? `${summary.won}-${summary.lost}-${summary.push}${summary.void ? ` · ${summary.void} void` : ''}` : '';
   const netTone = !summary || summary.netCents === 0 ? '' : summary.netCents > 0 ? 'is-good' : 'is-bad';
 
-  return (
-    <Panel title="Sportsbook" aside="Pregame · casino chips · no turns">
-      <div className={`se-sportsbook${pick ? ' has-selection' : ''}`}>
-        <div className="se-sportsbook__toolbar">
+  const ticketHeader = tickets && summary ? (
+          <section className="sb-tickets-head" aria-label="My sportsbook tickets">
+            <div className="sb-tickets-head__row">
+              <h3>My Tickets</h3>
+              <div className="sb-segment" role="tablist" aria-label="Ticket view">
+                {(['open', 'settled'] as const).map((view) => (
+                  <button
+                    key={view}
+                    type="button"
+                    role="tab"
+                    id={`sb-tab-${view}`}
+                    aria-controls="sb-ticket-list"
+                    aria-selected={ticketView === view}
+                    className={`sb-segment__btn${ticketView === view ? ' is-active' : ''}`}
+                    onClick={() => setTicketView(view)}
+                  >
+                    {view === 'open' ? 'Open' : 'Settled'}
+                    <b>{view === 'open' ? summary.openCount : settledTotal}</b>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="sb-tickets-head__summary">
+              {ticketView === 'open' ? (
+                <span>
+                  <strong>{summary.openCount}</strong> open · <strong>{formatCentsExact(summary.openStakeCents)}</strong> at stake · pays up to <strong className="is-accent">{formatCentsExact(summary.openPayoutCents)}</strong>
+                </span>
+              ) : null}
+              <span>Record {record} · Net <strong className={netTone}>{signedCents(summary.netCents)}</strong></span>
+            </p>
+          </section>
+        ) : null;
+  const ticketCards = tickets ? (
+          <div className="sb-ticket-list" id="sb-ticket-list" role="tabpanel" aria-labelledby={`sb-tab-${ticketView}`}>
+            {shownTickets.length === 0 ? (
+              <p className="sb-empty">
+                {viewTickets.length > 0
+                  ? `No ${ticketView} ${league} tickets.`
+                  : ticketView === 'open' ? 'No open tickets. Pick a side below to place one.' : 'No settled tickets yet.'}
+              </p>
+            ) : null}
+            {shownTickets.map((bet) => (
+              <SportsbookTicketCard
+                key={bet.id}
+                bet={bet}
+                now={now}
+                otherOdds={otherOdds(bet)}
+                className={`${bet.id === acceptedTicketId ? ' is-new' : ''}${bet.id === settledTicketId ? ' is-just-settled' : ''}`}
+              />
+            ))}
+            {ticketView === 'settled' && settledTotal > viewTickets.length ? (
+              <p className="se-hint">Showing your {viewTickets.length} most recent settled tickets. The record covers all {settledTotal}.</p>
+            ) : null}
+          </div>
+        ) : null;
+  const soundToolbar = (
+<div className="se-sportsbook__toolbar">
           <span aria-live="polite">
             {busy ? 'PRINTING TICKET' : settlementStatus ? `TICKET ${RESULT_LABEL[settlementStatus].toUpperCase()}` : 'SPORTS DESK'}
           </span>
@@ -305,11 +371,19 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
             {soundEnabled ? 'Sound on' : 'Muted'}
           </button>
         </div>
+  );
+
+  return (
+    <Panel className="se-sportsbook-panel" title="Sportsbook" aside="Pregame · casino chips · no turns">
+      <div className={`se-sportsbook${pick ? ' has-selection' : ''}`}>
         {!available ? (
           <p className="se-alert se-alert--info" role="status">Sports betting is not part of this round&apos;s rules, so no new tickets can be placed. Tickets you already hold still settle here.</p>
         ) : null}
         {error && !pick ? <p className="se-alert se-alert--error" role="alert">{error}</p> : null}
         {notice ? <p className="se-alert se-alert--success" role="status">{notice}</p> : null}
+
+        {!mobileLayout ? soundToolbar : null}
+        {mobileLayout ? ticketHeader : null}
 
         {banner ? (
           <div className={`sb-banner is-${banner.tone}`} role="status">
@@ -333,12 +407,16 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                 aria-pressed={league === key}
                 onClick={() => setLeague(key)}
               >
+                <span className="sb-leagues__mark" aria-hidden="true">{LEAGUE_MARKS[key]}</span>
                 <span>{key === 'ALL' ? 'All' : key}</span>
                 <b>{count}</b>
               </button>
             );
           })}
         </div>
+
+        {mobileLayout ? ticketCards : null}
+        {mobileLayout ? soundToolbar : null}
 
         <div className="sb-board-head">
           <h3>Lines</h3>
@@ -496,62 +574,8 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
           </aside>
         </div>
 
-        {tickets && summary ? (
-          <section className="sb-tickets-head" aria-label="My sportsbook tickets">
-            <div className="sb-tickets-head__row">
-              <h3>My Tickets</h3>
-              <div className="sb-segment" role="tablist" aria-label="Ticket view">
-                {(['open', 'settled'] as const).map((view) => (
-                  <button
-                    key={view}
-                    type="button"
-                    role="tab"
-                    id={`sb-tab-${view}`}
-                    aria-controls="sb-ticket-list"
-                    aria-selected={ticketView === view}
-                    className={`sb-segment__btn${ticketView === view ? ' is-active' : ''}`}
-                    onClick={() => setTicketView(view)}
-                  >
-                    {view === 'open' ? 'Open' : 'Settled'}
-                    <b>{view === 'open' ? summary.openCount : settledTotal}</b>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className="sb-tickets-head__summary">
-              {ticketView === 'open' ? (
-                <span>
-                  <strong>{summary.openCount}</strong> open · <strong>{formatCentsExact(summary.openStakeCents)}</strong> at stake · pays up to <strong className="is-accent">{formatCentsExact(summary.openPayoutCents)}</strong>
-                </span>
-              ) : null}
-              <span>Record {record} · Net <strong className={netTone}>{signedCents(summary.netCents)}</strong></span>
-            </p>
-          </section>
-        ) : null}
-
-        {tickets ? (
-          <div className="sb-ticket-list" id="sb-ticket-list" role="tabpanel" aria-labelledby={`sb-tab-${ticketView}`}>
-            {shownTickets.length === 0 ? (
-              <p className="sb-empty">
-                {viewTickets.length > 0
-                  ? `No ${ticketView} ${league} tickets.`
-                  : ticketView === 'open' ? 'No open tickets. Pick a side below to place one.' : 'No settled tickets yet.'}
-              </p>
-            ) : null}
-            {shownTickets.map((bet) => (
-              <SportsbookTicketCard
-                key={bet.id}
-                bet={bet}
-                now={now}
-                otherOdds={otherOdds(bet)}
-                className={`${bet.id === acceptedTicketId ? ' is-new' : ''}${bet.id === settledTicketId ? ' is-just-settled' : ''}`}
-              />
-            ))}
-            {ticketView === 'settled' && settledTotal > viewTickets.length ? (
-              <p className="se-hint">Showing your {viewTickets.length} most recent settled tickets. The record covers all {settledTotal}.</p>
-            ) : null}
-          </div>
-        ) : null}
+        {!mobileLayout ? ticketHeader : null}
+        {!mobileLayout ? ticketCards : null}
       </div>
     </Panel>
   );
