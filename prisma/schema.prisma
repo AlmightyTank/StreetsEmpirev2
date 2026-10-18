@@ -3380,6 +3380,7 @@ model GameNews {
   updatedAt DateTime @default(now()) @updatedAt
 
   @@index([roundId, isPinned, publishedAt(sort: Desc)])
+  @@index([discordEditQueuedAt])
 }
 
 /// The Ring: at most one row per round. The holder is hidden while invisible
