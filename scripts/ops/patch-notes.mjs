@@ -77,7 +77,7 @@ export function writeAppVersion(source, version) {
 
 const VERSION_SECTION = /^#{2,3}\s*version\s*:?\s*$/i;
 const RELEASE_COMMIT = /^chore:\s*release\b/i;
-const CHECKED_BOX = /^\[(x|X)\]\s+(major|minor|none)\b/i;
+const CHECKED_BOX = /^\[(x|X)\]\s+(major|minor|none)\s*$/i;
 
 function visibleText(value) {
   return String(value ?? '').replace(/<!--[\s\S]*?-->/g, '');
@@ -101,7 +101,7 @@ function sectionLines(body, heading) {
 function versionChoice(line) {
   const checked = line.match(CHECKED_BOX);
   if (checked) return checked[2].toLowerCase();
-  const word = (line.split(/\s+/)[0] ?? '').toLowerCase();
+  const word = line.trim().toLowerCase();
   return /^(?:major|minor|none|skip)$/.test(word) ? word : null;
 }
 
@@ -207,12 +207,25 @@ function run(command, args) {
 }
 
 /** Merged PRs into `branch` for each mainline commit in from..to: merge, squash and rebase merges alike. */
-export function mergedPulls(from, to, branch, repo) {
+export function mergedPulls(from, to, branch, repo, { includeDirectCommits = false } = {}) {
   const commits = run('git', ['rev-list', '--first-parent', '--reverse', `${from}..${to}`]).split('\n').filter(Boolean);
   const pulls = new Map();
   for (const sha of commits) {
-    for (const pull of JSON.parse(run('gh', ['api', `repos/${repo}/commits/${sha}/pulls`]))) {
-      if (!pull.merged_at || pull.base?.ref !== branch || pulls.has(pull.number)) continue;
+    const associated = JSON.parse(run('gh', ['api', `repos/${repo}/commits/${sha}/pulls`]))
+      .filter((pull) => pull.merged_at && pull.base?.ref === branch);
+    if (includeDirectCommits && associated.length === 0) {
+      const title = run('git', ['log', '-1', '--format=%s', sha]).trim();
+      if (!RELEASE_COMMIT.test(title)) {
+        pulls.set(`direct:${sha}`, {
+          number: 0,
+          mergedAt: run('git', ['log', '-1', '--format=%cI', sha]).trim(),
+          title,
+          body: '',
+        });
+      }
+    }
+    for (const pull of associated) {
+      if (pulls.has(pull.number)) continue;
       pulls.set(pull.number, {
         number: pull.number,
         mergedAt: pull.merged_at,
