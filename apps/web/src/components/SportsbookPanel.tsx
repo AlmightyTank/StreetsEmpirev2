@@ -19,6 +19,7 @@ import {
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
 import { Button } from './Button.js';
+import { SportsbookTeamLogo } from './SportsbookTeamLogo.js';
 import { Panel } from './Panel.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
@@ -550,7 +551,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                   <article className={`se-sportsbook__ticket is-${bet.status.toLowerCase()}${bet.id === acceptedTicketId ? ' is-new' : ''}${bet.id === settledTicketId ? ' is-just-settled' : ''}`} key={bet.id}>
                     <div className="se-sportsbook__ticket-top">
                       <div className="se-sportsbook__ticket-identity">
-                        <span className="se-sportsbook__ticket-mark" aria-hidden="true">{bet.sport}</span>
+                        <SportsbookTeamLogo sport={bet.sport} team={bet.pickTeam} />
                         <div className="se-sportsbook__ticket-info">
                           <div className="se-sportsbook__ticket-pick">
                             <strong>{bet.pickTeam}</strong>
