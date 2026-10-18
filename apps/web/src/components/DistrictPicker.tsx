@@ -1,4 +1,5 @@
 import type { DistrictDto } from '@streets/shared';
+import { Link } from 'react-router-dom';
 import { LockedChoiceOverlay } from './LockedChoiceOverlay.js';
 
 /**
@@ -60,7 +61,20 @@ export function DistrictPicker({
                 ) : null}
               </span>
             </span>
-            {locked ? <LockedChoiceOverlay requirement={`Requires ${district.districtAccess!.unlockName} to scout this district.`} /> : null}
+            {locked ? (
+              <LockedChoiceOverlay requirement={`Requires ${district.districtAccess!.unlockName} to scout this district.`}>
+                {district.districtAccess!.unlockDescription ? (
+                  <span>{district.districtAccess!.unlockDescription} </span>
+                ) : null}
+                {district.districtAccess!.unlockQuest ? (
+                  <Link to={`/game/quests?focus=${encodeURIComponent(district.districtAccess!.unlockQuest!.key)}`}>
+                    View “{district.districtAccess!.unlockQuest!.title}”
+                  </Link>
+                ) : (
+                  <Link to="/game/quests">See available quests</Link>
+                )}
+              </LockedChoiceOverlay>
+            ) : null}
           </label>
         );
       })}
