@@ -141,7 +141,16 @@
     letter-spacing: 0;
     text-transform: capitalize;
   }
-  .se-app--tabbar .sb-banner.is-warn { box-shadow: none; }
+  .se-app--tabbar .sb-banner.is-warn {
+    border-color: color-mix(in srgb, var(--se-warn) 60%, var(--se-line));
+    background: linear-gradient(90deg, color-mix(in srgb, var(--se-warn) 12%, var(--se-bg)), var(--se-bg));
+    box-shadow: none;
+  }
+  .se-app--tabbar .sb-banner.is-off {
+    border-color: var(--se-line);
+    background: var(--se-panel);
+    box-shadow: none;
+  }
 
   .se-app--tabbar .sb-leagues {
     gap: .42rem;
