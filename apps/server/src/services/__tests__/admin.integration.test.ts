@@ -96,12 +96,12 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin API with PostgreSQL
       roundIds.push(response.json().round.id as string);
     }
     const names = responses.map((response) => response.json().round.name as string);
-    const numbers = names.map((name) => Number(/^Game#(\\d+) - /.exec(name)?.[1]));
+    const numbers = names.map((name) => Number(/^Game#(\d+) - /.exec(name)?.[1]));
     expect(numbers.every(Number.isSafeInteger)).toBe(true);
     expect(Math.abs(numbers[0]! - numbers[1]!)).toBe(1);
     expect(names[0]).toContain(` - ${label}`);
     expect(names[1]).toContain(` - Second ${label}`);
-    expect(responses[0]!.json().round.slug).toMatch(/^game-\\d+-new-city-/);
+    expect(responses[0]!.json().round.slug).toMatch(/^game-\d+-new-city-/);
 
     const renamed = await post(`/api/admin/rounds/${roundIds.at(-2)}/update`, {
       name: 'Renamed City',
