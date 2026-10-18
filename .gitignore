@@ -24,3 +24,6 @@ email-previews/
 /.claude
 /.continue
 /openspec
+/android/.gradle/
+/android/.idea/
+*.apk
