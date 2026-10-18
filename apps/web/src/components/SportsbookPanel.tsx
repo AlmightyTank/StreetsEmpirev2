@@ -448,53 +448,53 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
               <p className="se-muted">{pick ? 'This game is no longer on the board.' : 'Pick a side on any open line to build a ticket.'}</p>
             )}
             <div className="se-sportsbook__wager">
-            <label className="se-sportsbook__stake">
-              <span>Stake (chips)</span>
-              <input
+                <label className="se-sportsbook__stake">
+                <span>Stake (chips)</span>
+                <input
                 className="se-input"
                 inputMode="decimal"
                 value={stake}
                 aria-describedby="sb-cash"
                 onChange={(event) => setStake(event.target.value)}
-              />
-            </label>
-            <div className="se-sportsbook__return" aria-live="polite">
-              <div>
+                />
+                </label>
+                <div className="se-sportsbook__return" aria-live="polite">
+                <div>
                 <span>Potential payout</span>
                 <strong>{payoutCents !== null ? formatCentsExact(payoutCents) : '—'}</strong>
-              </div>
-              <small>
+                </div>
+                <small>
                 {payoutCents !== null && stakeCents !== null
                   ? `Includes your stake · ${formatCentsExact(payoutCents - stakeCents)} profit`
                   : 'Choose a side and enter a stake to see your return.'}
-              </small>
-            </div>
+                </small>
+                </div>
             </div>
             <div id="sb-slip-extra" className="se-sportsbook__extras">
-            <div className="se-sportsbook__quick" role="group" aria-label="Quick stake">
-              {QUICK_STAKES.map((cents) => (
+                <div className="se-sportsbook__quick" role="group" aria-label="Quick stake">
+                {QUICK_STAKES.map((cents) => (
                 <button key={cents} type="button" className="se-sportsbook__chip" onClick={() => { setStake(centsToStake(cents)); playCasinoSound('CHIP_PLACE', soundEnabled, cents); }}>
                   {formatCents(cents)}
                 </button>
-              ))}
-              <button
+                ))}
+                <button
                 type="button"
                 className="se-sportsbook__chip"
                 disabled={topStakeCents < limits.minStakeCents}
                 onClick={() => { setStake(centsToStake(topStakeCents)); playCasinoSound('CHIP_PLACE', soundEnabled, 3); }}
-              >
+                >
                 Max
-              </button>
-            </div>
-            <details className="se-sportsbook__limits">
-              <summary>Chip bankroll & betting limits</summary>
-              <small id="sb-cash" className="se-muted">
+                </button>
+                </div>
+                <details className="se-sportsbook__limits">
+                <summary>Chip bankroll & betting limits</summary>
+                <small id="sb-cash" className="se-muted">
                 Floor bankroll: {bankrollCents === null ? 'No session open' : formatCentsExact(bankrollCents)} · uses no turns
                 {pickedOdds !== null ? <><br />Top stake at {formatAmericanOdds(pickedOdds)}: {formatCentsExact(topStakeCents)}</> : null}
                 <br />Last 24 hours: {formatCentsExact(usage.dailyStakeCents)} of {formatCentsExact(limits.dailyStakeCents)} staked
                 <br />Open: {formatCentsExact(usage.openStakeCents)} of {formatCentsExact(limits.openStakeCents)} · {usage.openTickets} of {limits.openTickets} tickets
-              </small>
-            </details>
+                </small>
+                </details>
             </div>
             {error && pick ? <p className="se-alert se-alert--error" role="alert">{error}</p> : null}
             <div className="se-sportsbook__slip-actions">
