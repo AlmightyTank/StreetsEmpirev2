@@ -65,6 +65,8 @@ import './styles/dashboard-cinematic.css';
 import './styles/dashboard-final-polish.css';
 // 6. Development surfaces (selectors are fully scoped).
 import './styles/ui-gallery.css';
+// 7. Final mobile-only game shell skin, after theme and feature layers.
+import './styles/mobile-shell-vision.css';
 import { App } from './App.js';
 // Before React mounts: Android can offer the install prompt immediately.
 import './utils/install.js';
