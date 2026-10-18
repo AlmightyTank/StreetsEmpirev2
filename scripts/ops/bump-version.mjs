@@ -45,7 +45,7 @@ export function planRelease({ to, branch, repo, from = lastVersionCommit(), pull
   if (!hasChanges) return null;
   let pulls = [];
   try {
-    pulls = pullsFor ? pullsFor(from, to) : mergedPulls(from, to, branch, repo);
+    pulls = pullsFor ? pullsFor(from, to) : mergedPulls(from, to, branch, repo, { includeDirectCommits: true });
   } catch (error) {
     console.error(`Version bump left the release unchanged: ${error instanceof Error ? error.message : error}`);
     return null;
