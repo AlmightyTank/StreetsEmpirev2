@@ -59,13 +59,14 @@ const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
 }, (message, error) => app.log.error(error, message));
 
 // 1.8.0-A/C: player requests read the shared pregame cache and never call a provider. Provider
-// snapshots are persisted in .runtime/sportsbook-odds.json with a hard 30-minute refresh window;
-// the database lease and interval keep concurrent instances from spending datapoints.
+// snapshots are persisted in .runtime/sportsbook-odds.json with a hard 30-minute normal
+// refresh window. A 15-minute scheduler tick can recover failed leagues from another provider;
+// the database lease and per-provider cooldowns bound provider usage.
 const sportsbookKeys = { therundown: env.THERUNDOWN_API_KEY, theoddsapi: env.THE_ODDS_API_KEY };
 const stopSportsbook = Object.values(sportsbookKeys).some(Boolean)
-  ? startPoller('Sportsbook odds cache', env.SPORTSBOOK_POLL_MINUTES * 60_000, async () => {
+  ? startPoller('Sportsbook odds cache', 15 * 60_000, async () => {
       const result = await refreshSportsbookCache(app.prisma, sportsbookKeys, new Date(), {
-        minIntervalMs: Math.max(0, env.SPORTSBOOK_POLL_MINUTES * 60_000 - 60_000),
+        minIntervalMs: env.SPORTSBOOK_POLL_MINUTES * 60_000,
       });
       if (result.errors.length || result.warnings.length) app.log.warn({ sportsbook: result }, 'Sportsbook feed run finished with issues');
     }, (message, error) => app.log.error(error, message))
