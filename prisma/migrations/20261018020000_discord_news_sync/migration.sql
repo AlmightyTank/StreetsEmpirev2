@@ -2,7 +2,6 @@
 ALTER TABLE "GameNews"
   ADD COLUMN "discordMessageId" TEXT,
   ADD COLUMN "discordEditQueuedAt" TIMESTAMP(3),
-  ADD COLUMN "discordEditClaimedAt" TIMESTAMP(3),
   ADD COLUMN "discordEditError" TEXT;
 
 -- Track the last review-notice snapshot so the bot can edit it on change/publication.
