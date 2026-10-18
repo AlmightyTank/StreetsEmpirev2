@@ -14,6 +14,11 @@ type ScrollSnapshot = {
 let lockCount = 0;
 let snapshot: ScrollSnapshot | null = null;
 
+/** A navigation request must wait for modal scroll restoration to finish. */
+export function isPageScrollLocked(): boolean {
+  return lockCount > 0;
+}
+
 /**
  * Freeze the document behind a modal surface without losing its scroll position.
  * Locks are reference-counted so stacked overlays cannot prematurely re-enable

@@ -19,8 +19,8 @@ import { JokeDayBanner } from '../components/EasterEggs.js';
 import { CaseStoryAlerts } from '../components/CaseStoryAlerts.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { formatDuration } from '../utils/time.js';
-import { lockPageScroll } from '../utils/pageScrollLock.js';
-import { shouldPreserveRouteScroll } from '../utils/routeScroll.js';
+import { isPageScrollLocked, lockPageScroll } from '../utils/pageScrollLock.js';
+import { anchorScrollTop, isAnchorReady, routeAnchorId, shouldPreserveRouteScroll } from '../utils/routeScroll.js';
 import {
   isCurrent,
   filterNavSections,
@@ -371,21 +371,16 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
   );
 }
 
-/**
- * New pages open at the top, and `#id` links land on that panel. Back and forward
- * leave the browser's own scroll restoration alone.
- */
-function useRouteScroll(pathname: string, hash: string) {
+/** Navigate to the actual destination after async data and collapsed panels have rendered. */
+function useRouteScroll(pathname: string, search: string, hash: string, locationKey: string) {
   const navigationType = useNavigationType();
-  const lastTarget = useRef<{ pathname: string; hash: string } | null>(null);
+  const lastTarget = useRef<{ pathname: string; anchorId: string | null; key: string; completed: boolean } | null>(null);
   const observedScrollY = useRef(typeof window === 'undefined' ? 0 : window.scrollY);
 
   useEffect(() => {
     const remember = () => { observedScrollY.current = window.scrollY; };
     window.addEventListener('scroll', remember, { passive: true });
-    // Capture link activation before React Router swaps the shared view. A
-    // programmatic scroll and click can happen in the same task, before the
-    // browser has dispatched its asynchronous `scroll` event.
+    // Capture the position before a click swaps the view, even in the same task.
     document.addEventListener('click', remember, true);
     return () => {
       window.removeEventListener('scroll', remember);
@@ -394,52 +389,84 @@ function useRouteScroll(pathname: string, hash: string) {
   }, []);
 
   useLayoutEffect(() => {
+    const anchorId = routeAnchorId(pathname, search, hash);
     const previous = lastTarget.current;
-    lastTarget.current = { pathname, hash };
-    if (previous && previous.pathname === pathname && previous.hash === hash) return;
-    if (navigationType === 'POP') return;
+    const current = { pathname, anchorId, key: locationKey, completed: !anchorId };
+    lastTarget.current = current;
+    // Re-clicking the same anchor should still navigate to it. Ordinary search
+    // changes within a page must not reset scroll position. A cancelled seek
+    // (e.g. React StrictMode's setup/cleanup replay) must retry on the next pass.
+    if (previous && previous.pathname === pathname && previous.anchorId === anchorId
+      && (!anchorId || (previous.key === locationKey && previous.completed))) return;
+    if (navigationType === 'POP' && !anchorId) return;
 
-    // Storefronts and casino games share a page shell. Switching counters or
-    // games should replace the active view without yanking the player upward.
-    if (shouldPreserveRouteScroll(previous?.pathname, pathname, hash)) {
-      // The incoming shared view can briefly be shorter while its data mounts,
-      // which lets the browser clamp scrollY to zero. Restore for several frames
-      // until the replacement storefront/game has enough height.
+    // Shared storefront and casino views intentionally retain the player's place.
+    if (!anchorId && shouldPreserveRouteScroll(previous?.pathname, pathname, hash)) {
       const desiredY = observedScrollY.current;
       let frame = 0;
       let tries = 0;
       const restore = () => {
         const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
         window.scrollTo(0, Math.min(desiredY, maxY));
-        // Keep restoring through the async view swap even when the first frame
-        // is already at the requested position. A later loading render can
-        // temporarily shorten the page and clamp scrollY after this effect.
         if (tries++ < 60) frame = window.requestAnimationFrame(restore);
       };
       restore();
       return () => window.cancelAnimationFrame(frame);
     }
 
-    if (!hash) {
+    if (!anchorId) {
       window.scrollTo(0, 0);
       observedScrollY.current = 0;
       return;
     }
-    // The target may render a frame or two after the page, once its data is in.
+
+    // Avoid a stale position while changing pages, but don't jump to the top
+    // when a player picks another link inside the page they're already on.
+    if (previous?.pathname !== pathname) window.scrollTo(0, 0);
+
     let frame = 0;
-    let tries = 0;
-    const seek = () => {
-      const target = document.getElementById(decodeURIComponent(hash.slice(1)));
-      if (target) {
-        target.scrollIntoView({ block: 'start' });
-        target.focus?.({ preventScroll: true });
-      } else if (tries++ < 60) {
-        frame = window.requestAnimationFrame(seek);
-      }
+    let timeout = 0;
+    let finished = false;
+    let observer: MutationObserver | null = null;
+    const stop = () => {
+      finished = true;
+      if (frame) window.cancelAnimationFrame(frame);
+      if (timeout) window.clearTimeout(timeout);
+      observer?.disconnect();
     };
-    seek();
-    return () => window.cancelAnimationFrame(frame);
-  }, [pathname, hash, navigationType]);
+    const seek = () => {
+      frame = 0;
+      if (finished || isPageScrollLocked()) return;
+      const target = document.getElementById(anchorId);
+      if (!target || !isAnchorReady(target) || !target.getClientRects().length) return;
+      const header = document.querySelector<HTMLElement>('.se-app--tabbar .se-topbar');
+      const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
+      window.scrollTo({
+        top: anchorScrollTop(target.getBoundingClientRect().top, window.scrollY, headerBottom),
+        left: window.scrollX,
+        behavior: 'auto',
+      });
+      target.focus({ preventScroll: true });
+      current.completed = true;
+      stop();
+    };
+    const schedule = () => {
+      if (!finished && !frame) frame = window.requestAnimationFrame(seek);
+    };
+    // Data-driven panels (Quests, News, rankings, etc.) can arrive long after
+    // two animation frames. Watch their actual DOM rather than guessing timing.
+    observer = new MutationObserver(schedule);
+    observer.observe(document.body, {
+      childList: true, subtree: true, attributes: true,
+      attributeFilter: ['open', 'hidden', 'class', 'style'],
+    });
+    // Closing a mobile More sheet or dialog restores its saved scroll position.
+    // Retry once the body/root scroll lock has been removed.
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+    timeout = window.setTimeout(stop, 15_000);
+    schedule();
+    return stop;
+  }, [pathname, search, hash, locationKey, navigationType]);
 }
 
 const GameLayoutMountedContext = createContext(false);
@@ -453,7 +480,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
   const isBetaEnvironment = typeof window !== 'undefined' && window.location.hostname === 'beta.streetsempire.dev';
   const sections = useSections();
-  const { pathname, search, hash } = useLocation();
+  const { pathname, search, hash, key } = useLocation();
   const badges = useNavBadges(pathname, search);
   const pages = sections.flatMap((section) => section.pages);
   const tabs = useTabSlots(pages);
@@ -461,7 +488,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   const moreButton = useRef<HTMLButtonElement>(null);
   const openOnPull = useCallback(() => setSheet((current) => current ?? { editSlot: null, fromTop: true }), []);
   usePullDownAllPages(sheet === null, openOnPull);
-  useRouteScroll(pathname, hash);
+  useRouteScroll(pathname, search, hash, key);
   // 1.0.0-B: tutorial progress, refreshed as the player acts so the goals tick off.
   const playerId = useSession((s) => s.me?.id ?? null);
   const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);

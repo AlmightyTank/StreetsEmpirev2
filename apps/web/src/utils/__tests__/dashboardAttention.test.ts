@@ -34,6 +34,7 @@ describe('Dashboard deep-link routing', () => {
     ['#crew-health', 'happiness'],
     ['#crew-inventory', 'crew'],
     ['#heat', 'pressure'],
+    ['#case', 'pressure'],
     ['#payout', 'pressure'],
     ['', null],
     ['#unknown', null],
