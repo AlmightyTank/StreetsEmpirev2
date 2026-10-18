@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anchorScrollTop, isAnchorReady, routeAnchorId, shouldPreserveRouteScroll } from './routeScroll.js';
+import { anchorScrollTop, isAnchorReady, preservedRouteScrollTarget, routeAnchorId, shouldPreserveRouteScroll } from './routeScroll.js';
 
 describe('shared-shell route scroll', () => {
   it('preserves position while switching storefronts', () => {
@@ -15,6 +15,22 @@ describe('shared-shell route scroll', () => {
     expect(shouldPreserveRouteScroll('/game/scout', '/game/produce')).toBe(false);
     expect(shouldPreserveRouteScroll('/game/stores/pip', '/game/stores/charlie', '#basket')).toBe(false);
     expect(shouldPreserveRouteScroll('/game/casino', '/game/casino/slots')).toBe(false);
+  });
+});
+
+describe('shared-shell scroll recovery', () => {
+  it('restores once the new storefront is tall enough', () => {
+    expect(preservedRouteScrollTarget(840, 1800, 600)).toEqual({ top: 840, settled: true });
+  });
+
+  it('clamps short loading views and waits for layout rather than repeatedly forcing scroll', () => {
+    expect(preservedRouteScrollTarget(840, 1000, 600)).toEqual({ top: 400, settled: false });
+    expect(preservedRouteScrollTarget(840, 1500, 600)).toEqual({ top: 840, settled: true });
+  });
+
+  it('handles top-of-page and content shorter than the viewport', () => {
+    expect(preservedRouteScrollTarget(0, 250, 600)).toEqual({ top: 0, settled: true });
+    expect(preservedRouteScrollTarget(20, 250, 600)).toEqual({ top: 0, settled: false });
   });
 });
 

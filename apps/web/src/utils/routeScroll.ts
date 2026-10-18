@@ -15,6 +15,21 @@ export function shouldPreserveRouteScroll(previousPath: string | undefined, next
     || (isCasinoGame(previousPath) && isCasinoGame(nextPath));
 }
 
+/**
+ * Restore a shared page position once it is reachable. A new storefront may
+ * render shorter than the previous one until its data loads, so callers can
+ * observe layout changes until `settled` or the player starts interacting.
+ */
+export function preservedRouteScrollTarget(
+  desiredY: number,
+  documentHeight: number,
+  viewportHeight: number,
+): { top: number; settled: boolean } {
+  const maxY = Math.max(0, documentHeight - viewportHeight);
+  const target = Math.max(0, desiredY);
+  return { top: Math.min(target, maxY), settled: target <= maxY };
+}
+
 /** Resolve every in-game deep link to its rendered element, including legacy quest ?focus= links. */
 export function routeAnchorId(pathname: string, search: string, hash: string): string | null {
   if (hash.length > 1 && hash.startsWith('#')) {
