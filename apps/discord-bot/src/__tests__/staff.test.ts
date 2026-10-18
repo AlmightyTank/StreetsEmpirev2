@@ -92,13 +92,27 @@ describe('bugReportMessage', () => {
 });
 
 describe('patch notes and claimed posts', () => {
-  const notes = { id: 'n1', title: 'Patch notes: October 10, 2026', body: '- Raids show crew size', publishedAt: '2026-10-10T16:20:00.000Z', url: `${origin}/game/admin/news` };
+  const notes = {
+    id: 'n1', title: 'Patch notes: October 10, 2026', body: '- Raids show crew size',
+    publishedAt: '2026-10-10T16:20:00.000Z', updatedAt: '2026-10-10T15:00:00.000Z',
+    state: 'HELD' as const, url: `${origin}/game/admin/news`,
+  };
 
   it('nudges staff to review held notes before they publish', () => {
     const message = patchNotesHeldMessage(notes);
     expect(message.embeds[0]!.title).toBe('📝 Waiting for review: Patch notes: October 10, 2026');
     expect(message.embeds[0]!.fields![0]!.value).toBe(`<t:${Date.parse(notes.publishedAt) / 1000}:R> unless someone edits, deletes or publishes it first.`);
     expect((message.components[0]!.components[0] as Button).url).toBe(notes.url);
+  });
+
+  it('edits the same message to completed after manual or automatic publication', () => {
+    const completed = patchNotesHeldMessage({ ...notes, body: '- Fixed the odds', state: 'PUBLISHED' });
+    expect(completed.embeds[0]!.title).toContain('✅ Completed');
+    expect(completed.embeds[0]!.description).toBe('- Fixed the odds');
+    expect(completed.embeds[0]!.fields).toEqual([{ name: 'Status', value: 'Published · Review completed' }]);
+    expect(completed.embeds[0]!.color).toBe(0x22c55e);
+    const removed = patchNotesHeldMessage({ ...notes, state: 'DELETED', body: '' });
+    expect(removed.embeds[0]!.title).toContain('🚫 Cancelled');
   });
 
   it('turns each claimed post into its message', () => {
