@@ -178,6 +178,8 @@ export function AdminSportsbookPanel() {
                   <td className="se-td--title">{league.name}</td>
                   <td data-label="Source">{league.activeProviderName}{league.pinnedProvider ? <><br /><span className="se-muted">pinned</span></> : null}</td>
                   <td data-label="Last success">{league.lastSuccessAt ? adminWhen(league.lastSuccessAt) : 'never'}</td>
+                  <td data-label="Recovery">{league.pinnedProvider ? 'Pinned'
+                    : league.nextRecoveryAt ? (Date.parse(league.nextRecoveryAt) <= Date.parse(data.generatedAt) ? 'Ready for next check' : adminWhen(league.nextRecoveryAt)) : '—'}</td>
                   <td data-label="Upcoming" className="se-table__number se-num">{formatNumber(league.upcoming)}</td>
                   <td data-label="Pulled" className="se-table__number se-num">{formatNumber(league.pulled)}</td>
                   <td data-label="Controls"><div className="se-admin-actions">
