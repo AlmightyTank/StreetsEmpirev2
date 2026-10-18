@@ -21,6 +21,9 @@ class TwoFingerSwipeRefreshLayout @JvmOverloads constructor(
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> twoFingers = false
             MotionEvent.ACTION_POINTER_DOWN -> if (ev.pointerCount >= 2) twoFingers = true
+            // pointerCount still includes the finger that is lifting.
+            MotionEvent.ACTION_POINTER_UP -> if (ev.pointerCount - 1 < 2) twoFingers = false
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> twoFingers = false
         }
         // Always let the parent see the stream so its drag state stays in sync.
         val wantsIntercept = super.onInterceptTouchEvent(ev)

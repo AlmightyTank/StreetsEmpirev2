@@ -36,8 +36,11 @@ export function neighborTabIndex(
   return null;
 }
 
-/** Touches here are someone else's gesture: typing, sliders, sideways scrollers, open sheets. */
-const IGNORE = 'input, textarea, select, [contenteditable="true"], [role="slider"], [role="dialog"], [data-no-tab-swipe]';
+/**
+ * Touches here are someone else's gesture: typing, sliders, drawing canvases, open
+ * sheets, and anything with its own swipe handling (mark it `data-no-tab-swipe`).
+ */
+const IGNORE = 'input, textarea, select, canvas, [contenteditable="true"], [role="slider"], [role="dialog"], [data-no-tab-swipe]';
 
 function scrollsSideways(element: HTMLElement): boolean {
   if (element.scrollWidth <= element.clientWidth + 1) return false;
