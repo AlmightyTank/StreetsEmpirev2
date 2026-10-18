@@ -26,7 +26,7 @@ describe.runIf(process.env.PROFILE_INTEGRATION === '1')('0.9.0-F profiles, stats
     const response = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { ageConfirmed: true, username, email: `${username}@example.invalid`, password: randomUUID() },
+      payload: { birthDate: '1990-01-01', ageConfirmed: true, username, email: `${username}@example.invalid`, password: randomUUID() },
     });
     expect(response.statusCode, response.body).toBeLessThan(300);
     const id = response.json().account.id as string;
