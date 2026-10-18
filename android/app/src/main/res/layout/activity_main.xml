@@ -62,7 +62,7 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        <dev.streetsempire.app.TwoFingerSwipeRefreshLayout
             android:id="@+id/swipe_refresh"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
@@ -71,7 +71,7 @@
                 android:id="@+id/web_view"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
-        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+        </dev.streetsempire.app.TwoFingerSwipeRefreshLayout>
 
         <LinearLayout
             android:id="@+id/offline_view"

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type KeyboardEvent, type TouchEvent, type ReactNode, type RefObject } from 'react';
 import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell, useSidebarRail } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
@@ -11,6 +11,7 @@ import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useGamePresence } from '../hooks/useGamePresence.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
+import { classifySwipe, useTabSwipe } from '../hooks/useTabSwipe.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
@@ -166,6 +167,11 @@ function SeasonCard() {
 }
 
 const LONG_PRESS_MS = 500;
+/** The tab bar is short, so a smaller flick up is enough to pull up the sheet. */
+const SHEET_SWIPE_DISTANCE = 30;
+/** How far the sheet must be dragged down (px, or share of its height) before letting go closes it. */
+const SHEET_CLOSE_DISTANCE = 100;
+const SHEET_CLOSE_SHARE = 0.25;
 
 /**
  * Phone navigation: four tabs the player can rearrange and a More button for
@@ -189,13 +195,37 @@ function TabBar({ slots, pathname, badges, moreOpen, onMore, onEditSlot, moreBut
     ?? hiddenBadges.find(([key]) => key === 'console')?.[1]
     ?? null;
 
+  const swipeStart = useRef<{ x: number; y: number; at: number } | null>(null);
+
   function cancel() {
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = null;
   }
 
+  // Swiping up from the bar pulls up the All pages sheet.
+  function onSwipeStart(event: TouchEvent) {
+    const touch = event.touches[0];
+    swipeStart.current = event.touches.length === 1 && touch
+      ? { x: touch.clientX, y: touch.clientY, at: event.timeStamp }
+      : null;
+  }
+
+  function onSwipeEnd(event: TouchEvent) {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    const touch = event.changedTouches[0];
+    if (!start || !touch) return;
+    const swipe = classifySwipe(touch.clientX - start.x, touch.clientY - start.y, event.timeStamp - start.at, SHEET_SWIPE_DISTANCE);
+    if (swipe !== 'up') return;
+    cancel();
+    // Swallow the tap the release would otherwise make on the tab under the finger.
+    event.preventDefault();
+    if (!moreOpen) onMore();
+  }
+
   return (
-    <nav className="se-tabbar" aria-label="Game tabs">
+    <nav className="se-tabbar" aria-label="Game tabs" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}
+      onTouchCancel={() => { swipeStart.current = null; }}>
       {slots.map((page, index) => {
         const current = isCurrent(page, pathname);
         return (
@@ -272,6 +302,86 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onE
     const before = root.style.overflow;
     root.style.overflow = 'hidden';
     return () => { root.style.overflow = before; };
+  }, []);
+
+  // Dragging the sheet down (by its top, or anywhere once its list is scrolled to
+  // the top) slides it with the finger; letting go far or fast enough closes it.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const panel = sheet.current;
+    if (!panel) return;
+    const body = panel.querySelector<HTMLElement>('.se-sheet__body');
+    const backdrop = panel.parentElement?.querySelector<HTMLElement>('.se-sheet__backdrop') ?? null;
+    let drag: { x: number; y: number; at: number; armed: boolean; dragging: boolean; dy: number } | null = null;
+
+    const settle = (closing: boolean) => {
+      panel.style.transition = 'transform 180ms ease-out';
+      if (backdrop) backdrop.style.transition = 'opacity 180ms ease-out';
+      if (closing) {
+        panel.style.transform = 'translateY(100%)';
+        if (backdrop) backdrop.style.opacity = '0';
+        window.setTimeout(() => closeRef.current(), 180);
+      } else {
+        panel.style.transform = '';
+        if (backdrop) backdrop.style.opacity = '';
+      }
+    };
+
+    const onStart = (event: globalThis.TouchEvent) => {
+      const touch = event.touches[0];
+      const target = event.target instanceof Element ? event.target : null;
+      if (event.touches.length !== 1 || !touch || !target || target.closest('input, textarea, select')) {
+        drag = null;
+        return;
+      }
+      const inList = body?.contains(target) ?? false;
+      drag = { x: touch.clientX, y: touch.clientY, at: event.timeStamp, armed: !inList || (body?.scrollTop ?? 0) <= 0, dragging: false, dy: 0 };
+    };
+
+    const onMove = (event: globalThis.TouchEvent) => {
+      const touch = event.touches[0];
+      if (!drag?.armed || !touch) return;
+      const dx = touch.clientX - drag.x;
+      const dy = touch.clientY - drag.y;
+      if (!drag.dragging) {
+        if (dy > 8 && dy > Math.abs(dx)) drag.dragging = true;
+        else if (dy < -8 || Math.abs(dx) > 8) { drag.armed = false; return; }
+        else return;
+      }
+      event.preventDefault();
+      drag.dy = Math.max(0, dy);
+      panel.style.transition = 'none';
+      panel.style.transform = `translateY(${drag.dy}px)`;
+      if (backdrop) {
+        backdrop.style.transition = 'none';
+        backdrop.style.opacity = String(Math.max(0, 1 - drag.dy / panel.offsetHeight));
+      }
+    };
+
+    const onEnd = (event: globalThis.TouchEvent) => {
+      const done = drag;
+      drag = null;
+      if (!done?.dragging) return;
+      const fast = done.dy > 40 && done.dy / Math.max(1, event.timeStamp - done.at) > 0.5;
+      settle(fast || done.dy > Math.min(SHEET_CLOSE_DISTANCE, panel.offsetHeight * SHEET_CLOSE_SHARE));
+    };
+
+    const onCancel = () => {
+      if (drag?.dragging) settle(false);
+      drag = null;
+    };
+
+    panel.addEventListener('touchstart', onStart, { passive: true });
+    panel.addEventListener('touchmove', onMove, { passive: false });
+    panel.addEventListener('touchend', onEnd);
+    panel.addEventListener('touchcancel', onCancel);
+    return () => {
+      panel.removeEventListener('touchstart', onStart);
+      panel.removeEventListener('touchmove', onMove);
+      panel.removeEventListener('touchend', onEnd);
+      panel.removeEventListener('touchcancel', onCancel);
+    };
   }, []);
 
   function onKeyDown(event: KeyboardEvent) {
@@ -418,6 +528,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   useStaleGameReload();
   useGamePresence();
   usePageFreshness();
+  useTabSwipe();
   const round = useSession((s) => s.round);
   const experience = useSession((s) => s.me?.experience ?? null);
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);

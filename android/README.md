@@ -9,7 +9,7 @@ their usual StreetsEmpire credentials and use the same live/beta game data.
 - One app, top toolbar toggles **Live / Beta**
 - Remembers last `/game/*` page per environment (like the desktop shell)
 - Game + `discord.com` OAuth stay in-app; all other links open in the browser
-- Pull-to-refresh, reload button, offline retry screen, back-button = WebView back
+- Two-finger pull-to-refresh, reload button, offline retry screen, back-button = WebView back
 - Sessions are cookie-based per host, so Live and Beta logins coexist
 
 ## Open and build
