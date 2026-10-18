@@ -93,6 +93,33 @@ export function slugifyRoundName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/g, '');
 }
 
+/** Accept both older "Game #011" names and the canonical "Game#011" form. */
+export function gameNumber(name: string): number | null {
+  const match = /^Game\s*#\s*(\d+)(?=\s*(?:[-–—]|$))/i.exec(name);
+  const value = match ? Number(match[1]) : NaN;
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+export function roundLabel(name: string): string {
+  return name.trim().replace(/^Game\s*#\s*\d+\s*(?:[-–—]\s*)?/i, '').trim();
+}
+
+/** A minimum of three digits; the series continues naturally past Game#999. */
+export function numberedRoundName(label: string, number: number): string {
+  return `Game#${String(number).padStart(3, '0')} - ${roundLabel(label)}`;
+}
+
+export function nextGameNumber(names: readonly string[]): number {
+  // Legacy unnumbered rounds still count; never re-use a numbered predecessor.
+  return Math.max(names.length, ...names.map((name) => gameNumber(name) ?? 0)) + 1;
+}
+
+export function renamedRoundName(previous: string, label: string): string {
+  const number = gameNumber(previous);
+  // Do not silently renumber legacy rounds or change an existing round's identity.
+  return number === null ? roundLabel(label) : numberedRoundName(label, number);
+}
+
 const STREET_PASS_ITEM_FIELDS = new Set(['condoms', 'medicine', 'crack', 'beer', 'pistols', 'shotguns', 'tek9s', 'ak47s', 'lowRiders', 'thugs', 'whores']);
 
 /** Why these tiers cannot be this ruleset's Street Pass, or null when they can. */
@@ -235,14 +262,22 @@ export const AdminRoundService = {
     if (registrationOpensAt && registrationOpensAt.getTime() > input.startsAt.getTime()) {
       throw AppError.badRequest('INVALID_ROUND_WINDOW', 'Registration has to open before the round starts.', { registrationOpensAt: 'Must be before the start.' });
     }
-    const slug = input.slug ?? slugifyRoundName(input.name);
-    if (!slug) throw AppError.badRequest('INVALID_ROUND_SLUG', 'Give the round a name with letters or numbers.', { slug: 'Required.' });
+    const label = roundLabel(input.name);
+    if (label.length < 3) {
+      throw AppError.badRequest('INVALID_ROUND_NAME', 'Enter a round name of at least three characters (without its number).', { name: 'At least three characters.' });
+    }
 
     try {
       const round = await prisma.$transaction(async (tx) => {
+        // Serialize number allocation across concurrent staff requests.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(3003)`;
+        const existing = await tx.round.findMany({ select: { name: true } });
+        const name = numberedRoundName(label, nextGameNumber(existing.map((row) => row.name)));
+        const slug = input.slug ?? slugifyRoundName(name);
+        if (!slug) throw AppError.badRequest('INVALID_ROUND_SLUG', 'Give the round a name with letters or numbers.', { slug: 'Required.' });
         const created = await tx.round.create({
           data: {
-            name: input.name,
+            name,
             slug,
             rulesetId: ruleset.meta.id,
             rulesetVersion: ruleset.meta.version,
@@ -446,7 +481,10 @@ export const AdminRoundService = {
         throw AppError.conflict('ROUND_FINISHED', `${before.name} has finished, so its details are frozen.`);
       }
 
-      const name = input.name ?? before.name;
+      const name = input.name === undefined ? before.name : renamedRoundName(before.name, input.name);
+      if (name.trim().length < 3 || !roundLabel(name)) {
+        throw AppError.badRequest('INVALID_ROUND_NAME', 'Enter a round name, without its automatic number.', { name: 'Required.' });
+      }
       const startsAt = input.startsAt ?? before.startsAt;
       const endsAt = input.endsAt ?? before.endsAt;
       const registrationOpensAt = input.registrationOpensAt === undefined ? before.registrationOpensAt : input.registrationOpensAt;
