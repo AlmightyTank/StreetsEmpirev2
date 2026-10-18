@@ -6,10 +6,23 @@
  * The Cash / Turns / Heat cards use the existing links and actual live values.
  * Do not change touch-action, scroll containment, or More-sheet gesture zones.
  */
+/* The shared StatusBar also renders in the desktop sidebar. Keep its original
+   vector icons there; the colorful replacement is mobile game chrome only. */
+.se-statusbar__icon--illustrated { display: none; }
+
 @media (max-width: 899px) {
+  /* Default house chrome uses the mockup's electric blue; player-chosen
+     accents and earned site themes retain their own lighting. */
+  .se-app--tabbar {
+    --se-shell-electric: var(--se-accent);
+  }
+  .se-app--tabbar.se-site-theme--none.se-site-accent--default {
+    --se-shell-electric: #328dff;
+  }
+
   .se-app--tabbar.se-site-theme--none {
     background-image:
-      radial-gradient(70% 300px at 55% 0, color-mix(in srgb, var(--se-accent) 11%, transparent), transparent 86%),
+      radial-gradient(70% 320px at 55% 0, color-mix(in srgb, var(--se-shell-electric) 15%, transparent), transparent 86%),
       linear-gradient(180deg, color-mix(in srgb, var(--se-panel) 19%, var(--se-bg)), var(--se-bg) 380px);
     background-attachment: scroll;
   }
@@ -20,14 +33,14 @@
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto auto;
     align-items: center;
-    gap: 9px 8px;
+    gap: 7px 8px;
     width: 100%;
     height: auto;
     min-height: 0;
-    padding: 10px calc(12px + var(--se-safe-right)) 12px calc(12px + var(--se-safe-left));
-    border-bottom: 1px solid color-mix(in srgb, var(--se-accent) 22%, var(--se-line));
+    padding: 8px calc(10px + var(--se-safe-right)) 9px calc(10px + var(--se-safe-left));
+    border-bottom: 1px solid color-mix(in srgb, var(--se-shell-electric) 28%, var(--se-line));
     background:
-      radial-gradient(ellipse at 65% 0, color-mix(in srgb, var(--se-accent) 10%, transparent), transparent 72%),
+      radial-gradient(ellipse at 65% 0, color-mix(in srgb, var(--se-shell-electric) 15%, transparent), transparent 72%),
       linear-gradient(180deg, color-mix(in srgb, var(--se-panel-hi) 85%, var(--se-bg)), var(--se-bg));
     box-shadow:
       0 12px 25px color-mix(in srgb, var(--se-bg) 70%, transparent),
@@ -58,7 +71,7 @@
     justify-self: start;
     gap: 7px;
     min-width: 0;
-    min-height: 44px;
+    min-height: 42px;
     max-width: 100%;
     overflow: hidden;
   }
@@ -67,7 +80,8 @@
     width: 25px;
     height: 25px;
     flex: none;
-    filter: drop-shadow(0 0 9px color-mix(in srgb, var(--se-accent) 55%, transparent));
+    color: var(--se-shell-electric);
+    filter: drop-shadow(0 0 9px color-mix(in srgb, var(--se-shell-electric) 55%, transparent));
   }
 
   .se-app--tabbar .se-brand__mark {
@@ -80,7 +94,8 @@
   }
 
   .se-app--tabbar .se-brand__mark .se-accent {
-    text-shadow: 0 0 16px color-mix(in srgb, var(--se-accent) 30%, transparent);
+    color: var(--se-shell-electric);
+    text-shadow: 0 0 16px color-mix(in srgb, var(--se-shell-electric) 40%, transparent);
   }
 
   .se-app--tabbar .se-brand__ver { display: none; }
@@ -145,7 +160,7 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: stretch;
-    gap: clamp(5px, 1.4vw, 10px);
+    gap: clamp(5px, 1.2vw, 10px);
     width: 100%;
     min-width: 0;
     margin: 0;
@@ -158,24 +173,25 @@
   .se-app--tabbar .se-topbar a.se-statusbar__item {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(17px, auto) minmax(0, 1fr);
+    grid-template-columns: 29px minmax(0, 1fr);
     grid-template-rows: auto auto;
     align-content: center;
     align-items: center;
-    gap: 2px 7px;
+    gap: 1px 5px;
     min-width: 0;
-    min-height: 67px;
+    min-height: 56px;
     margin: 0;
-    padding: 8px 15px 9px 9px;
+    padding: 5px 11px 5px 7px;
     overflow: hidden;
-    border: 1px solid color-mix(in srgb, var(--se-accent) 32%, var(--se-line));
-    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--se-shell-electric) 42%, var(--se-line));
+    border-radius: 11px;
     background:
-      linear-gradient(145deg, color-mix(in srgb, var(--se-accent) 9%, transparent), transparent 65%),
+      linear-gradient(145deg, color-mix(in srgb, var(--se-shell-electric) 11%, transparent), transparent 65%),
       linear-gradient(180deg, color-mix(in srgb, var(--se-panel-hi) 86%, var(--se-bg)), color-mix(in srgb, var(--se-panel) 53%, var(--se-bg)));
     box-shadow:
       inset 0 1px 0 color-mix(in srgb, var(--se-text) 7%, transparent),
-      0 4px 12px color-mix(in srgb, var(--se-bg) 60%, transparent);
+      0 3px 11px color-mix(in srgb, var(--se-bg) 65%, transparent),
+      0 0 13px color-mix(in srgb, var(--se-shell-electric) 5%, transparent);
     color: var(--se-text);
     text-decoration: none;
     transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
@@ -183,8 +199,8 @@
 
   .se-app--tabbar .se-topbar a.se-statusbar__item:hover,
   .se-app--tabbar .se-topbar a.se-statusbar__item:focus-visible {
-    border-color: color-mix(in srgb, var(--se-accent) 78%, var(--se-line));
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--se-accent) 15%, transparent);
+    border-color: color-mix(in srgb, var(--se-shell-electric) 78%, var(--se-line));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--se-shell-electric) 20%, transparent);
   }
 
   .se-app--tabbar .se-topbar a.se-statusbar__item::after {
@@ -201,17 +217,21 @@
     pointer-events: none;
   }
 
+  /* Explicit SVG selector outranks the generic mobile icon display rule. */
+  .se-app--tabbar .se-topbar svg.se-statusbar__icon--legacy { display: none; }
+  .se-app--tabbar .se-topbar svg.se-statusbar__icon--illustrated { display: block; }
+
   .se-app--tabbar .se-topbar .se-statusbar__icon {
     grid-column: 1;
     grid-row: 1 / 3;
     display: block;
     align-self: center;
-    width: 23px;
-    height: 23px;
-    filter: drop-shadow(0 0 7px currentColor);
+    width: 29px;
+    height: 29px;
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--se-shell-electric) 25%, transparent));
   }
 
-  .se-app--tabbar .se-topbar .se-statusbar__icon--turns { color: var(--se-accent); }
+  .se-app--tabbar .se-topbar .se-statusbar__icon--turns { color: var(--se-shell-electric); }
 
   .se-app--tabbar .se-topbar .se-statusbar__k,
   .se-app--tabbar .se-topbar .se-statusbar__k:not(.se-statusbar__k--keep) {
@@ -232,8 +252,8 @@
     grid-column: 2;
     grid-row: 2;
     min-width: 0;
-    font-size: clamp(11px, 2.65vw, 17px);
-    line-height: 1.25;
+    font-size: clamp(12px, 3.45vw, 17px);
+    line-height: 1.2;
     font-weight: 850;
     font-variant-numeric: tabular-nums;
     letter-spacing: -.035em;
@@ -256,9 +276,9 @@
   .se-app--tabbar .se-tabbar {
     min-height: calc(var(--se-shell-tabbar-h) + var(--se-safe-bottom));
     padding: 2px calc(5px + var(--se-safe-right)) var(--se-safe-bottom) calc(5px + var(--se-safe-left));
-    border-top: 1px solid color-mix(in srgb, var(--se-accent) 29%, var(--se-line));
+    border-top: 1px solid color-mix(in srgb, var(--se-shell-electric) 35%, var(--se-line));
     background:
-      linear-gradient(180deg, color-mix(in srgb, var(--se-accent) 6%, transparent), transparent 70%),
+      linear-gradient(180deg, color-mix(in srgb, var(--se-shell-electric) 8%, transparent), transparent 70%),
       color-mix(in srgb, var(--se-bg) 91%, var(--se-panel));
     box-shadow: 0 -8px 27px color-mix(in srgb, var(--se-bg) 72%, transparent);
     backdrop-filter: blur(17px);
@@ -280,8 +300,8 @@
   .se-app--tabbar .se-tabbar__icon > .se-navicon {
     position: relative;
     z-index: 1;
-    width: 23px;
-    height: 23px;
+    width: 25px;
+    height: 25px;
     opacity: .88;
   }
 
@@ -289,7 +309,11 @@
   .se-app--tabbar .se-tabbar__tab--active .se-tabbar__icon,
   .se-app--tabbar .se-tabbar__tab[aria-expanded='true'],
   .se-app--tabbar .se-tabbar__tab[aria-expanded='true'] .se-tabbar__icon {
-    color: var(--se-accent);
+    color: var(--se-shell-electric);
+  }
+  .se-app--tabbar .se-tabbar__tab--active .se-tabbar__icon > .se-navicon,
+  .se-app--tabbar .se-tabbar__tab[aria-expanded='true'] .se-tabbar__icon > .se-navicon {
+    filter: drop-shadow(0 0 7px color-mix(in srgb, var(--se-shell-electric) 60%, transparent));
   }
 
   .se-app--tabbar .se-tabbar__tab--active .se-tabbar__icon::before,
@@ -298,7 +322,7 @@
     position: absolute;
     inset: -3px;
     border-radius: 50%;
-    background: radial-gradient(circle, color-mix(in srgb, var(--se-accent) 20%, transparent), transparent 75%);
+    background: radial-gradient(circle, color-mix(in srgb, var(--se-shell-electric) 22%, transparent), transparent 75%);
     pointer-events: none;
   }
 
@@ -329,16 +353,16 @@
   .se-app--tabbar .se-account__avatar:not(.se-account__avatar--framed) { width: 36px; height: 36px; }
 
   .se-app--tabbar .se-topbar a.se-statusbar__item {
-    grid-template-columns: 16px minmax(0, 1fr);
-    gap: 2px 4px;
-    min-height: 60px;
-    padding: 7px 4px;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 1px 3px;
+    min-height: 53px;
+    padding: 5px 3px;
   }
   .se-app--tabbar .se-topbar a.se-statusbar__item::after { display: none; }
-  .se-app--tabbar .se-topbar .se-statusbar__icon { width: 16px; height: 16px; }
+  .se-app--tabbar .se-topbar .se-statusbar__icon { width: 22px; height: 22px; }
   .se-app--tabbar .se-topbar .se-statusbar__k,
   .se-app--tabbar .se-topbar .se-statusbar__k:not(.se-statusbar__k--keep) { font-size: 8px; }
-  .se-app--tabbar .se-topbar .se-statusbar__v { font-size: clamp(10px, 2.9vw, 12px); }
+  .se-app--tabbar .se-topbar .se-statusbar__v { font-size: clamp(11px, 3.2vw, 13px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
