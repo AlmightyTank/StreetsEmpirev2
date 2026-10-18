@@ -2,9 +2,14 @@
  * 1.0.0-A. What is running, and where.
  *
  * APP_VERSION is the application release, independent of any round's pinned
- * ruleset version. Bump it with each milestone.
+ * ruleset version. It follows Semantic Versioning: MAJOR.MINOR.PATCH
+ * (for example 2.1.0). Deploys bump the patch number on their own. A pull
+ * request checks minor or major under its Version section to raise those
+ * instead: minor resets patch, and major (2.x.x becomes 3.0.0) resets both.
+ * See scripts/ops/bump-version.mjs. Deploy patch notes use this version in
+ * their title.
  */
-export const APP_VERSION = '2.0.0';
+export const APP_VERSION = '2.1.0';
 
 export const APP_ENVIRONMENTS = ['production', 'beta', 'development', 'test'] as const;
 export type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];

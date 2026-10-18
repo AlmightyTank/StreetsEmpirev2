@@ -74,6 +74,8 @@ news every `DISCORD_NEWS_MINUTES` (default 1) and posts each item to that
 channel once.
 - In an Announcement channel, it also publishes the post to following servers.
 - News that already existed when auto-posting was added is never posted.
+- Patch notes post as a normal message titled `Patch notes for <version>`
+  (MAJOR.MINOR.PATCH, from the app version). Other news still posts as an embed.
 - The bot needs **View Channel**, **Send Messages** and **Embed Links** in that
   channel. It checks them before every run and logs what's missing instead of
   posting, so fixing a permission needs no restart.

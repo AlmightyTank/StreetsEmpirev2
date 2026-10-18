@@ -14,8 +14,10 @@ import {
   helpEmbed,
   inviteEmbed,
   memberEmbed,
+  newsChannelSend,
   newsEmbed,
   newsPostEmbed,
+  patchNotesContent,
   profileEmbed,
   rankingsEmbed,
   reminderText,
@@ -511,8 +513,45 @@ describe('inviteEmbed', () => {
 });
 
 describe('news posts and turn reminders', () => {
+  const newsPost = {
+    id: 'n1',
+    title: 'Big *update*',
+    body: `## What's new\n- **bold** ${'x'.repeat(2000)}`,
+    isPinned: true,
+    publishedAt: '2026-09-14T10:00:00.000Z',
+    authorName: 'Admin',
+    url: `${origin}/game/news`,
+  };
+
+  it('posts patch notes as a normal message titled with the release version', () => {
+    const post = {
+      ...newsPost,
+      title: 'Patch notes for 2.2.0',
+      body: '- Raids pay out\n- Turf holds',
+      isPinned: false,
+      authorName: null,
+    };
+    expect(newsChannelSend(post)).toEqual({
+      content: '**Patch notes for 2.2.0**\n- Raids pay out\n- Turf holds',
+    });
+    expect(newsChannelSend(post)).not.toHaveProperty('embeds');
+  });
+
+  it('keeps an already held dated patch-notes title as plain text', () => {
+    expect(patchNotesContent({ ...newsPost, title: 'Patch notes: October 17, 2026', body: '- One fix', isPinned: false }))
+      .toBe('**Patch notes: October 17, 2026**\n- One fix');
+  });
+
+  it('fits a long patch-notes message inside Discord\'s content limit', () => {
+    const content = patchNotesContent({ ...newsPost, title: 'Patch notes for 2.2.0', body: 'x'.repeat(4000), isPinned: true });
+    expect(content.startsWith('**📌 Patch notes for 2.2.0**\n')).toBe(true);
+    expect(content.length).toBeLessThanOrEqual(2000);
+    expect(content.endsWith('…')).toBe(true);
+  });
+
   it('builds a bounded news channel post that keeps its markdown', () => {
-    const embed = newsPostEmbed({ id: 'n1', title: 'Big *update*', body: `## What's new\n- **bold** ${'x'.repeat(2000)}`, isPinned: true, publishedAt: '2026-09-14T10:00:00.000Z', authorName: 'Admin', url: `${origin}/game/news` });
+    const embed = newsPostEmbed(newsPost);
+    expect(newsChannelSend(newsPost)).toEqual({ embeds: [embed] });
     expect(embed.title).toBe('📌 Big *update*');
     expect(embed.description!.startsWith("**What's new**\n- **bold** ")).toBe(true);
     expect(embed.description!.length).toBeLessThanOrEqual(1500);

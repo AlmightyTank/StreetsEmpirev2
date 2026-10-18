@@ -1,6 +1,19 @@
 import type { PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
-import { BODY_MAX, buildPatchNotes, extractPatchNotes } from '../../../../../scripts/ops/patch-notes.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { planRelease } from '../../../../../scripts/ops/bump-version.mjs';
+import {
+  BODY_MAX,
+  buildPatchNotes,
+  bumpVersion,
+  classifyRelease,
+  extractPatchNotes,
+  readAppVersion,
+  releaseLevel,
+  writeAppVersion,
+} from '../../../../../scripts/ops/patch-notes.mjs';
 import { PATCH_NOTES_DUPLICATE_MS, PatchNotesService } from '../patch-notes.service.js';
 
 const template = `## What changed
@@ -52,27 +65,97 @@ describe('extractPatchNotes', () => {
   });
 });
 
-describe('buildPatchNotes', () => {
-  const date = new Date('2026-10-10T18:00:00.000Z');
+describe('readAppVersion', () => {
+  it('reads the MAJOR.MINOR.PATCH release from the shared platform source', () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), 'packages/shared/src/platform.ts'), 'utf8');
+    expect(readAppVersion(source)).toMatch(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
+    expect(readAppVersion("export const APP_VERSION = '2.2.0';")).toBe('2.2.0');
+    expect(readAppVersion("export const APP_VERSION = '2.2.0-alpha.1+build.123';")).toBe('2.2.0-alpha.1+build.123');
+  });
 
-  it('lists every PR in merge order under a dated title', () => {
+  it('rejects a date or any version that is not MAJOR.MINOR.PATCH', () => {
+    expect(() => readAppVersion("export const APP_VERSION = 'October 17, 2026';")).toThrow(/MAJOR\.MINOR\.PATCH/);
+    expect(() => readAppVersion("export const APP_VERSION = '2.2';")).toThrow(/MAJOR\.MINOR\.PATCH/);
+    expect(() => buildPatchNotes([], 'October 17, 2026')).toThrow(/MAJOR\.MINOR\.PATCH/);
+  });
+});
+
+describe('release bumps', () => {
+  const source = "export const APP_VERSION = '2.0.0';\n";
+
+  it('bumps patch on its own, minor for a feature, and major when 2.x.x is finished', () => {
+    expect(bumpVersion('2.0.0', 'patch')).toBe('2.0.1');
+    expect(bumpVersion('2.0.4', 'minor')).toBe('2.1.0');
+    expect(bumpVersion('2.8.3', 'major')).toBe('3.0.0');
+    expect(bumpVersion('2.1.0-rc.4+build.9', 'patch')).toBe('2.1.1');
+    expect(writeAppVersion(source, '2.1.0')).toBe("export const APP_VERSION = '2.1.0';\n");
+  });
+
+  it('raises minor or major only from the pull request, and leaves an empty template as a patch', () => {
+    const template = `## Version\n- [ ] minor\n- [ ] major\n\n## Patch notes\n- Raids pay out.`;
+    expect(classifyRelease({ title: 'feat: crew legends', body: template })).toBe('patch');
+    expect(classifyRelease({ title: 'Add a dice game', labels: ['feature'], body: 'BREAKING CHANGE: old clients cannot join.' })).toBe('patch');
+    expect(classifyRelease({ title: 'feat: crew legends', body: '## Version\n- [x] minor\n- [ ] major' })).toBe('minor');
+    expect(classifyRelease({ title: 'docs: readme', body: '## Version\nnone' })).toBe('skip');
+  });
+
+  it('moves 2.x.x to 3.0.0 when the pull request checks major', () => {
+    const finished = { title: 'Last 2.x piece', body: '## Version\n- [ ] minor\n- [x] major' };
+    expect(classifyRelease(finished)).toBe('major');
+    expect(classifyRelease({ title: 'fix: save', body: '## Version\n- [x] minor\n- [x] major' })).toBe('major');
+    expect(releaseLevel([
+      { title: 'fix: save', body: '' },
+      finished,
+      { title: 'feat: dice', body: '## Version\n- [x] minor' },
+    ])).toBe('major');
+    expect(releaseLevel([{ title: 'chore: release 2.1.0', body: '' }], true)).toBeNull();
+    expect(releaseLevel([], false)).toBeNull();
+    expect(releaseLevel([], true)).toBe('patch');
+  });
+
+  it('plans the next release from pulls merged after the current version', () => {
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    const parent = execFileSync('git', ['rev-parse', 'HEAD~1'], { encoding: 'utf8' }).trim();
+    expect(planRelease({ to: head, from: head, pullsFor: () => [] })).toBeNull();
+    expect(planRelease({
+      to: head,
+      from: parent,
+      pullsFor: () => [{ title: 'feat: automatic releases', body: '## Version\nminor' }],
+    })).toEqual({ level: 'minor', previous: '2.1.0', version: '2.2.0' });
+    expect(planRelease({
+      to: head,
+      from: parent,
+      pullsFor: () => [{ title: 'docs: notes', body: '## Version\nnone' }],
+    })).toBeNull();
+  });
+});
+
+describe('buildPatchNotes', () => {
+  const version = '2.2.0';
+
+  it('lists every PR in merge order under the release version', () => {
     const post = buildPatchNotes([
       { number: 12, mergedAt: '2026-10-10T12:00:00Z', body: '## Patch notes\n- Second' },
       { number: 11, mergedAt: '2026-10-10T09:00:00Z', body: '## Patch notes\n- First' },
       { number: 13, mergedAt: '2026-10-10T13:00:00Z', body: '## Patch notes\nnone' },
-    ], date);
-    expect(post).toEqual({ title: 'Patch notes: October 10, 2026', body: '- First\n- Second' });
+    ], version);
+    expect(post).toEqual({ title: 'Patch notes for 2.2.0', body: '- First\n- Second' });
   });
 
   it('posts nothing when no PR had notes', () => {
-    expect(buildPatchNotes([{ number: 1, mergedAt: '2026-10-10T09:00:00Z', body: '## Patch notes\n- ' }], date)).toBeNull();
-    expect(buildPatchNotes([], date)).toBeNull();
+    expect(buildPatchNotes([{ number: 1, mergedAt: '2026-10-10T09:00:00Z', body: '## Patch notes\n- ' }], version)).toBeNull();
+    expect(buildPatchNotes([], version)).toBeNull();
+  });
+
+  it('keeps a pre-release tag on the core version', () => {
+    expect(buildPatchNotes([{ number: 1, mergedAt: '2026-10-10T09:00:00Z', body: '## Patch notes\n- First' }], '2.2.0-alpha.1')!.title)
+      .toBe('Patch notes for 2.2.0-alpha.1');
   });
 
   it('stays within the news body limit and counts what it left out', () => {
     const note = 'x'.repeat(190);
     const body = `## Patch notes\n${Array.from({ length: 40 }, (_, index) => `- ${index} ${note}`).join('\n')}`;
-    const post = buildPatchNotes([{ number: 1, mergedAt: '2026-10-10T09:00:00Z', body }], date)!;
+    const post = buildPatchNotes([{ number: 1, mergedAt: '2026-10-10T09:00:00Z', body }], version)!;
     expect(post.body.length).toBeLessThanOrEqual(BODY_MAX);
     const kept = post.body.split('\n').filter((line) => line.startsWith('- ')).length;
     expect(post.body.endsWith(`…and ${40 - kept} more changes.`)).toBe(true);
