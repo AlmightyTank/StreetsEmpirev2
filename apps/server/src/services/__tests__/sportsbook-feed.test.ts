@@ -4,6 +4,8 @@ import {
   resultBackoffMinutes,
   snapshotCoverage,
   sportsbookOddsCacheDue,
+  sportsbookNextRecoveryAt,
+  sportsbookProviderCooldownElapsed,
   sportsbookPollDates,
   shouldPollSportsbookDate,
 } from '../sportsbook-feed.service.js';
@@ -137,6 +139,25 @@ describe('1.8.0-C sportsbook feed', () => {
     expect(sportsbookOddsCacheDue(updatedAt, new Date('2026-10-11T15:29:59.999Z'))).toBe(false);
     expect(sportsbookOddsCacheDue(updatedAt, new Date('2026-10-11T15:30:00.000Z'))).toBe(true);
     expect(sportsbookOddsCacheDue(null, new Date('2026-10-11T15:00:00.000Z'))).toBe(true);
+  });
+
+  it('waits 15 minutes after a failed source and respects a separate 30-minute alternate cooldown', () => {
+    const at = (minutes: number) => new Date(Date.parse('2026-10-11T15:00:00.000Z') + minutes * 60_000);
+    const failed = {
+      lastAttemptAt: at(0).toISOString(), lastSuccessAt: at(-30).toISOString(),
+      lastError: '503 from primary', lastErrorAt: at(0).toISOString(), eventsSeen: 2,
+    };
+    const unused = {
+      lastAttemptAt: null, lastSuccessAt: null, lastError: '', lastErrorAt: null, eventsSeen: 0,
+    };
+    expect(sportsbookNextRecoveryAt(failed, [unused])).toEqual(at(15));
+    expect(sportsbookProviderCooldownElapsed(unused, at(15))).toBe(true);
+    const recentlyTried = { ...unused, lastAttemptAt: at(0).toISOString() };
+    expect(sportsbookNextRecoveryAt(failed, [recentlyTried])).toEqual(at(30));
+    expect(sportsbookProviderCooldownElapsed(recentlyTried, at(15))).toBe(false);
+    expect(sportsbookProviderCooldownElapsed(recentlyTried, at(30))).toBe(true);
+    expect(sportsbookNextRecoveryAt({ ...failed, lastError: '', lastSuccessAt: at(0).toISOString() }, [unused])).toBeNull();
+    expect(sportsbookNextRecoveryAt(failed, [])).toBeNull();
   });
 
   it('reads provider status codes, words and flags into one outcome', () => {
