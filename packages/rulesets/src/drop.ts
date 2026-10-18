@@ -895,17 +895,19 @@ export const CROWN_EARN_RULES = {
   eventCap: 50,
 } as const;
 
-/* ---------- Supporter discount ---------- */
+/* ---------- Discounts ---------- */
 
 /**
  * Active, paid supporters (not free trials) pay this much less for Drop items,
- * bundles and Street Pass skips. Applied last, after any bundle adjustment.
+ * bundles and Street Pass skips. A birthday week gives BIRTHDAY_DISCOUNT_PERCENT
+ * (birthday.ts) instead; an account gets the larger of the two, never both.
+ * Applied last, after any bundle adjustment. Crown packs are never discounted.
  */
 export const SUPPORTER_DROP_DISCOUNT_PERCENT = 10;
 
-/** The supporter price: the discount rounded in the player's favour, never below 1 Crown. */
-export function supporterDropPrice(price: number, percent = SUPPORTER_DROP_DISCOUNT_PERCENT): number {
-  if (!Number.isSafeInteger(price) || price <= 0) return price;
+/** A discounted Drop price: rounded in the player's favour, never below 1 Crown. */
+export function discountedDropPrice(price: number, percent: number): number {
+  if (!Number.isSafeInteger(price) || price <= 0 || percent <= 0) return price;
   return Math.max(1, Math.floor((price * (100 - percent)) / 100));
 }
 

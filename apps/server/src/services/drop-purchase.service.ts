@@ -4,7 +4,7 @@ import type { DropOrderDto, DropPurchaseResultDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { CrownWalletService, lockCrownWallet } from './crown-wallet.service.js';
-import { offerKeys, priceForAccount, resolveOffer, supporterDiscountFor } from './drop-catalog.service.js';
+import { dropDiscountFor, offerKeys, priceForAccount, resolveOffer } from './drop-catalog.service.js';
 import { DropSettingsService, requireDropEnabled, switchesFor } from './drop-settings.service.js';
 import { RoundService } from './round.service.js';
 
@@ -114,8 +114,8 @@ export const DropPurchaseService = {
         where: { accountId, key: { in: keys } },
         select: { key: true },
       })).map((row) => row.key));
-      const discount = await supporterDiscountFor(tx, accountId, now);
-      const { price, basePrice, grants } = priceForAccount(offer, catalog, owned, discount !== null);
+      const discount = await dropDiscountFor(tx, accountId, now);
+      const { price, basePrice, grants } = priceForAccount(offer, catalog, owned, discount?.percent ?? 0);
       if (!grants.length) {
         throw AppError.conflict('DROP_ALREADY_OWNED', offer.kind === 'ITEM' ? 'You already own that.' : 'You already own everything in that bundle.');
       }
@@ -137,7 +137,7 @@ export const DropPurchaseService = {
             badge: offer.badge,
             listPrice: offer.priceCrowns,
             ownedBefore: [...owned],
-            ...(discount !== null ? { supporterDiscountPercent: discount, priceBeforeDiscount: basePrice } : {}),
+            ...(discount ? { discountPercent: discount.percent, discountReason: discount.reason, priceBeforeDiscount: basePrice } : {}),
           },
           createdAt: now,
         },

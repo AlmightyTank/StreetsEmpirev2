@@ -5,6 +5,7 @@ import { ConnectionBanner } from '../components/ConnectionBanner.js';
 import { RoundRollCallNotice } from '../components/RoundRollCall.js';
 import { TrackedQuests } from '../components/TrackedQuests.js';
 import { IntroDialog } from '../components/onboarding/IntroDialog.js';
+import { BirthdayGift } from '../components/BirthdayGift.js';
 import { TourOverlay } from '../components/onboarding/TourOverlay.js';
 import { PageGuide } from '../components/onboarding/PageGuide.js';
 import { useOnboarding } from '../stores/onboarding.js';
@@ -708,6 +709,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       <CaseStoryAlerts />
       <IntroDialog />
       <TourOverlay />
+      <BirthdayGift />
 
       <div className="se-gamegrid">
         <div className="se-gamemain">

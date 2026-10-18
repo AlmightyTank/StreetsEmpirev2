@@ -303,6 +303,8 @@ export interface AccountProfileSettingsDto {
   showCrewMoments?: boolean;
   /** Optional player-only milestone celebrations; default false. */
   showCrewCelebrations?: boolean;
+  /** Birthdays: a cake on the name on the day. Opt-in, off by default. */
+  showBirthdayCake?: boolean;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;

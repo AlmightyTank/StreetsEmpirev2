@@ -14,7 +14,7 @@ import type {
   ItemCosmeticStyleKey,
   StreetPassSkipQuoteDto,
 } from '@streets/shared';
-import { supporterDropPrice } from '@streets/rulesets';
+import { discountedDropPrice } from '@streets/rulesets';
 import { formatNumber } from '@streets/shared';
 import { dropApi } from '../api/drop.js';
 import { ApiError } from '../api/client.js';
@@ -398,7 +398,11 @@ function ShopView() {
       </div>
 
       {data.wallet?.held ? <Alert tone="warning" title="Wallet on hold">{data.wallet.holdReason ?? 'Support is reviewing a payment.'} Spending is paused; your items are safe.</Alert> : null}
-      {data.supporterDiscountPercent ? <Alert tone="success" title="Supporter pricing">Thanks for supporting: every item, bundle and Street Pass skip is {data.supporterDiscountPercent}% off while your membership is active.</Alert> : null}
+      {data.discount?.reason === 'BIRTHDAY' ? (
+        <Alert tone="success" title="Happy birthday!">Everything in The Drop and every Street Pass skip is {data.discount.percent}% off until {formatWhen(data.discount.endsAt!)}. Crown packs aren't included.</Alert>
+      ) : data.discount ? (
+        <Alert tone="success" title="Supporter pricing">Thanks for supporting: every item, bundle and Street Pass skip is {data.discount.percent}% off while your membership is active.</Alert>
+      ) : null}
 
       <OfferSection title="Featured" hint={featured ? `${featured.name} rotates out in ${timeLeft(data.featured.endsAt, now).replace(' left', '')}.` : undefined} offers={section('FEATURED')} render={card} />
       <OfferSection title="Daily offers" hint={`New picks in ${timeLeft(data.daily.resetsAt, now).replace(' left', '')} (${formatWhen(data.daily.resetsAt)}).`} offers={section('DAILY')} render={card} />
@@ -794,13 +798,13 @@ function PassView() {
 
   const count = quote ? Math.max(1, Math.min(tiers, quote.remaining || 1)) : 1;
   const basePrice = quote ? skipPrice(count, quote.single, quote.tenPack) : 0;
-  const price = quote?.supporterDiscountPercent ? supporterDropPrice(basePrice, quote.supporterDiscountPercent) : basePrice;
+  const price = discountedDropPrice(basePrice, quote?.discount?.percent ?? 0);
 
   async function skip() {
     if (!quote) return;
     const ok = await confirmAction({
       title: `Skip ${count} Street Pass tier${count === 1 ? '' : 's'}?`,
-      body: `${formatNumber(price)} Crowns${price < basePrice ? ` (supporter price, was ${formatNumber(basePrice)})` : ''}. You go from tier ${quote.tier} to tier ${quote.tier + count}, then claim each tier's rewards on the Street Pass as usual.`,
+      body: `${formatNumber(price)} Crowns${price < basePrice ? ` (${quote.discount?.reason === 'BIRTHDAY' ? 'birthday' : 'supporter'} price, was ${formatNumber(basePrice)})` : ''}. You go from tier ${quote.tier} to tier ${quote.tier + count}, then claim each tier's rewards on the Street Pass as usual.`,
       confirmLabel: `Skip for ${formatNumber(price)} Crowns`,
     });
     if (!ok) return;
@@ -825,7 +829,7 @@ function PassView() {
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="success" title="Tiers skipped">{notice} <Link to="/game/street-pass">Open the Street Pass</Link></Alert> : null}
       {!quote ? (error ? null : <Panel title="Street Pass skips" loading>{null}</Panel>) : (
-        <Panel title="Skip Street Pass tiers" subtitle={`${formatNumber(quote.single)} Crowns a tier, or ${formatNumber(quote.tenPack)} for ten.${quote.supporterDiscountPercent ? ` Supporters save ${quote.supporterDiscountPercent}%.` : ''}`}>
+        <Panel title="Skip Street Pass tiers" subtitle={`${formatNumber(quote.single)} Crowns a tier, or ${formatNumber(quote.tenPack)} for ten.${quote.discount ? ` ${quote.discount.reason === 'BIRTHDAY' ? 'Birthday' : 'Supporter'} price: ${quote.discount.percent}% off.` : ''}`}>
           {!quote.enabled ? <Alert tone="info">Street Pass skips are not available right now.</Alert> : quote.remaining === 0 ? (
             <p>You've reached the last tier. Nothing left to skip.</p>
           ) : (

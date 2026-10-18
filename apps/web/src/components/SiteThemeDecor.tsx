@@ -109,6 +109,8 @@ const themeScenes: Partial<Record<string, ComponentType>> = {
   'casino-floor': lazy(() => import('./theme-scenes/GildedHouseScene.js')),
   'federal-case': lazy(() => import('./theme-scenes/DeadOrAliveScene.js')),
   'midnight-market': lazy(() => import('./theme-scenes/LaurelAscendantScene.js')),
+  // Birthdays: worn on the day only.
+  'birthday-shell': lazy(() => import('./theme-scenes/BirthdayScene.js')),
   // The Drop shells.
   'kingpin-luxe-shell': lazy(() => import('./theme-scenes/KingpinLuxeScene.js')),
   'neon-underworld-shell': lazy(() => import('./theme-scenes/NeonUnderworldScene.js')),

@@ -39,6 +39,7 @@ import { profileTitleForAward } from './profile-titles.js';
 import { crewCosmeticLoadout, itemCosmeticLoadout } from './profile-showcase.service.js';
 import { SupporterService } from './supporter.service.js';
 import { supporterTrialActive, TRIAL_SUPPORTER_COSMETICS } from './supporter-trial.service.js';
+import { birthdayLookOptions } from './birthday.service.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 export const FREE_PROFILE_PRESET_SLOTS = 1;
@@ -291,6 +292,7 @@ function toSettingsDto(
     showLookOnProfile: profile?.showLookOnProfile ?? true,
     showCrewMoments: profile?.showCrewMoments ?? false,
     showCrewCelebrations: profile?.showCrewCelebrations ?? false,
+    showBirthdayCake: profile?.showBirthdayCake ?? false,
     featuredBadgeKeys,
     profileAccent,
     uiDensity,
@@ -330,13 +332,14 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   /** Item art collection keys this account has earned (Classic is implicit). */
   collections: Set<string>;
 }> {
-  const [questAccents, frames, themes, collectionUnlocks, account, trialActive] = await Promise.all([
+  const [questAccents, frames, themes, collectionUnlocks, account, trialActive, birthday] = await Promise.all([
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'SITE_THEME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ITEM_COLLECTION'),
     prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true } }),
     supporterTrialActive(prisma, accountId),
+    birthdayLookOptions(prisma, accountId, new Date()),
   ]);
   const accents = [...PROFILE_ACCENTS];
   const known = new Set(accents.map((option) => option.key));
@@ -346,8 +349,9 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
       known.add(option.key);
     }
   }
-  const themeOptions = [...themes];
-  const frameOptions = [...frames];
+  // The birthday frame and theme are offered on the day only (birthday.service).
+  const themeOptions = [...themes, ...birthday.themes];
+  const frameOptions = [...frames, ...birthday.frames];
   const knownThemes = new Set(themeOptions.map((option) => option.key));
   const knownFrames = new Set(frameOptions.map((option) => option.key));
   const collections = new Set(collectionUnlocks.map((option) => option.key));
@@ -528,6 +532,7 @@ export const AccountProfileService = {
         showLookOnProfile: input.showLookOnProfile ?? true,
         showCrewMoments: input.showCrewMoments ?? false,
         showCrewCelebrations: input.showCrewCelebrations ?? false,
+        showBirthdayCake: input.showBirthdayCake ?? false,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
@@ -555,6 +560,7 @@ export const AccountProfileService = {
         showLookOnProfile: input.showLookOnProfile ?? true,
         showCrewMoments: input.showCrewMoments,
         showCrewCelebrations: input.showCrewCelebrations,
+        showBirthdayCake: input.showBirthdayCake,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,

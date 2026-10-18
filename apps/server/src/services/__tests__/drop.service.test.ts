@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
-import { CROWN_EARN_RULES, DROP_BUNDLES, DROP_ITEMS, bundleListPrice, dropDailyWindow, dropWeeklyWindow, featuredCollectionFor, supporterDropPrice } from '@streets/rulesets';
+import { CROWN_EARN_RULES, DROP_BUNDLES, DROP_ITEMS, bundleListPrice, dropDailyWindow, dropWeeklyWindow, featuredCollectionFor, discountedDropPrice } from '@streets/rulesets';
 import type { StripeEvent } from '../stripe.client.js';
 
 vi.mock('../round.service.js', () => ({ RoundService: { getCurrent: async () => null } }));
@@ -25,6 +25,7 @@ function fakeDb() {
     offers: [] as Row[],
     catalog: [] as Row[],
     memberships: [] as Row[],
+    birthDates: new Map<string, Date>(),
   };
   let id = 0;
   const next = (prefix: string) => `${prefix}_${++id}`;
@@ -75,6 +76,7 @@ function fakeDb() {
         return row;
       },
     },
+    account: { findUnique: async ({ where }: Row) => (state.birthDates.has(where.id) ? { birthDate: state.birthDates.get(where.id) } : null) },
     supporterMembership: { findMany: async ({ where }: Row) => state.memberships.filter((row) => matches(row, { accountId: where.accountId, status: where.status })) },
     googlePlaySupporterSubscription: { findMany: async () => [] },
     accountCosmeticUnlock: {
@@ -202,9 +204,21 @@ describe('Drop purchases', () => {
     const result = await DropPurchaseService.purchase(prisma(db), 'acc', { offerId: bundleOffer.id, actionId: 'action-0005' }, now);
     const list = bundleListPrice(bundle);
     const cut = Math.ceil((bundle.priceCrowns * (list - DROP_ITEMS[ownedKey]!.priceCrowns)) / list);
-    expect(result.order.priceCrowns).toBe(supporterDropPrice(cut));
-    expect(db.state.orders[0].metadata).toMatchObject({ supporterDiscountPercent: 10, priceBeforeDiscount: cut });
-    expect(db.state.wallets.get('acc').balance).toBe(10_000 - supporterDropPrice(cut));
+    expect(result.order.priceCrowns).toBe(discountedDropPrice(cut, 10));
+    expect(db.state.orders[0].metadata).toMatchObject({ discountPercent: 10, discountReason: 'SUPPORTER', priceBeforeDiscount: cut });
+    expect(db.state.wallets.get('acc').balance).toBe(10_000 - discountedDropPrice(cut, 10));
+  });
+
+  it('gives the birthday week 15% instead of a supporter 10%, never both', async () => {
+    const db = fakeDb();
+    db.state.memberships.push({ accountId: 'acc', status: 'active' });
+    const today = new Date(now.getTime());
+    db.state.birthDates.set('acc', new Date(Date.UTC(1990, today.getUTCMonth(), today.getUTCDate())));
+    const offer = (await liveOffers(db)).find((candidate) => candidate.kind === 'ITEM')!;
+    await credit(db, 'acc', 10_000, 'seed');
+    const result = await DropPurchaseService.purchase(prisma(db), 'acc', { offerId: offer.id, actionId: 'action-0007' }, now);
+    expect(result.order.priceCrowns).toBe(discountedDropPrice(DROP_ITEMS[offer.refKey]!.priceCrowns, 15));
+    expect(db.state.orders[0].metadata).toMatchObject({ discountPercent: 15, discountReason: 'BIRTHDAY' });
   });
 
   it('charges a free trial the full price', async () => {

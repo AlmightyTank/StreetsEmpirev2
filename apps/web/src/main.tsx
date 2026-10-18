@@ -36,6 +36,7 @@ import './styles/supporter.css';
 import './styles/drop.css';
 import './styles/drop-art.css';
 import './styles/drop-shells.css';
+import './styles/birthday.css';
 import './styles/travel.css';
 import './styles/city-blocks.css';
 import './styles/operations.css';

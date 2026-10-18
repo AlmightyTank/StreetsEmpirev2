@@ -315,6 +315,7 @@ export * from './quest-contacts.js';
 export * from './street-pass.js';
 export * from './supporter.js';
 export * from './drop.js';
+export * from './birthday.js';
 export * from './encounter-gangs.js';
 
 /** Every ruleset the engine can load, keyed by its public id. */
