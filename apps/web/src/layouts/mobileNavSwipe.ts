@@ -10,20 +10,8 @@ export function isMobileNavSwipe(
   return vertical >= 72 && vertical > horizontal * 1.5;
 }
 
-/**
- * Distance or a purposeful flick dismisses the sheet. Never make a tiny
- * scroll/tap close navigation; the list itself does not use this gesture.
- * velocity is in pixels per millisecond in the closing direction.
- */
-export function shouldDismissSheetDrag(distance: number, velocity: number, sheetHeight: number): boolean {
-  if (!Number.isFinite(distance) || !Number.isFinite(velocity) || !Number.isFinite(sheetHeight)
-      || distance < 0 || sheetHeight <= 0) return false;
-  const threshold = Math.min(96, Math.max(56, sheetHeight * 0.16));
-  return distance >= threshold || (distance >= 32 && velocity >= 0.55);
-}
-
-/** Dim the sheet backdrop using the cached panel height, without layout reads during a drag. */
-export function sheetDragOpacity(distance: number, sheetHeight: number): number {
-  if (!Number.isFinite(distance) || !Number.isFinite(sheetHeight) || sheetHeight <= 0) return 1;
-  return Math.max(0, Math.min(1, 1 - Math.max(0, distance) / Math.max(240, sheetHeight)));
+/** Header-only dismissal; never inspect page or directory scroll gestures. */
+export function isSheetDismissSwipe(startX: number, startY: number, endX: number, endY: number, direction: 'up' | 'down'): boolean {
+  const vertical = (endY - startY) * (direction === 'down' ? 1 : -1);
+  return vertical >= 48 && vertical > Math.abs(endX - startX) * 1.5;
 }
