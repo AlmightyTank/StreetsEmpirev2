@@ -209,6 +209,24 @@ function TabBar({ slots, pathname, badges, moreOpen, onMore, onSwipeUp, onEditSl
     if (touch) touchStart.current = { identifier: touch.identifier, x: touch.clientX, y: touch.clientY };
   }
 
+  function handleTouchMove(event: TouchEvent<HTMLElement>) {
+    const initial = touchStart.current;
+    if (!initial) return;
+    if (event.touches.length !== 1) {
+      touchStart.current = null;
+      cancel();
+      return;
+    }
+    const touch = event.touches[0];
+    if (!touch || touch.identifier !== initial.identifier) {
+      touchStart.current = null;
+      cancel();
+      return;
+    }
+    // A swipe must cancel the long-press tab editor before the timer fires.
+    if (Math.abs(touch.clientY - initial.y) > 12 || Math.abs(touch.clientX - initial.x) > 12) cancel();
+  }
+
   function handleTouchEnd(event: TouchEvent<HTMLElement>) {
     const initial = touchStart.current;
     touchStart.current = null;
@@ -231,8 +249,8 @@ function TabBar({ slots, pathname, badges, moreOpen, onMore, onSwipeUp, onEditSl
 
   return (
     <nav className="se-tabbar" aria-label="Game tabs"
-      onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
-      onTouchCancel={() => { touchStart.current = null; }}
+      onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
+      onTouchCancel={() => { touchStart.current = null; cancel(); }}
       onClickCapture={handleClickCapture}>
       {slots.map((page, index) => {
         const current = isCurrent(page, pathname);
