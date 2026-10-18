@@ -192,10 +192,56 @@ jobs:
 
       - name: Push the CI-validated release version
         id: release
+        env:
+          # An explicitly pinned manual deployment may intentionally roll back a ref.
+          ALLOW_HISTORICAL_DEPLOY: ${{ github.event_name == 'workflow_dispatch' && inputs.commit_sha != '' }}
         shell: bash
         run: |
           set -euo pipefail
           sha="$DEPLOY_COMMIT"
+
+          # Accept only the same release GitHub Actions may have pushed already.
+          # The content checksum ties that release to the version validated by CI.
+          release_already_pushed() {
+            local candidate="$1" parent title changed_paths checksum
+            [[ -n "${RELEASE_VERSION:-}" ]] || return 1
+            parent="$(git rev-parse "$candidate^" 2>/dev/null || true)"
+            title="$(git log -1 --format=%s "$candidate")"
+            [[ "$parent" == "$DEPLOY_COMMIT" && "$title" == "chore: release $RELEASE_VERSION [skip ci]" ]] || return 1
+            # No unvalidated changes may travel with the reused release commit.
+            changed_paths="$(git diff-tree --no-commit-id --name-only -r "$candidate")"
+            [[ "$changed_paths" == "packages/shared/src/platform.ts" ]] || return 1
+            checksum="$(git show "$candidate:packages/shared/src/platform.ts" | sha256sum | cut -d ' ' -f 1)"
+            [[ "$checksum" == "$RELEASE_VERSION_CHECKSUM" ]]
+          }
+
+          # A newer push has its own CI run. Never fail or deploy stale code
+          # just because its branch changed while this run was validating.
+          report_superseded() {
+            local current="$1"
+            if git merge-base --is-ancestor "$DEPLOY_COMMIT" "$current"; then
+              echo "::notice::Skipping deployment of $DEPLOY_COMMIT: $DEPLOY_BRANCH advanced to $current."
+              echo "deploy=false" >> "$GITHUB_OUTPUT"
+              echo "Deployment of $DEPLOY_COMMIT was superseded by $current; the newer push's CI handles deployment." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "::error::$DEPLOY_BRANCH diverged from validated commit $DEPLOY_COMMIT. Refusing unsafe deployment."
+            exit 1
+          }
+
+          git fetch --no-tags origin "refs/heads/$DEPLOY_BRANCH"
+          remote_tip="$(git rev-parse FETCH_HEAD)"
+          if [[ "$remote_tip" != "$DEPLOY_COMMIT" && "${ALLOW_HISTORICAL_DEPLOY:-false}" != "true" ]]; then
+            if release_already_pushed "$remote_tip"; then
+              sha="$remote_tip"
+              echo "Reusing already-pushed validated release $RELEASE_VERSION ($sha)."
+              echo "sha=$sha" >> "$GITHUB_OUTPUT"
+              echo "deploy=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            report_superseded "$remote_tip"
+          fi
+
           if [[ -n "${RELEASE_VERSION:-}" ]]; then
             node scripts/ops/bump-version.mjs apply --version "$RELEASE_VERSION"
             actual_checksum="$(sha256sum packages/shared/src/platform.ts | cut -d ' ' -f 1)"
@@ -213,27 +259,29 @@ jobs:
               sha="$(git rev-parse HEAD)"
               echo "Released validated $RELEASE_VERSION ($sha)."
             else
-              # A retry may race the same previously pushed release commit.
-              git fetch origin "$DEPLOY_BRANCH"
-              remote_tip="$(git rev-parse "refs/remotes/origin/$DEPLOY_BRANCH")"
-              remote_parent="$(git rev-parse "$remote_tip^" 2>/dev/null || true)"
-              remote_title="$(git log -1 --format=%s "$remote_tip")"
-              if [[ "$remote_parent" == "$DEPLOY_COMMIT" && "$remote_title" == "chore: release $RELEASE_VERSION [skip ci]" ]]; then
+              # A concurrent run may have released this commit or a newer push.
+              git fetch --no-tags origin "refs/heads/$DEPLOY_BRANCH"
+              remote_tip="$(git rev-parse FETCH_HEAD)"
+              if release_already_pushed "$remote_tip"; then
                 sha="$remote_tip"
                 echo "Reusing already-pushed validated release $RELEASE_VERSION ($sha)."
-              else
-                echo "::error::Release push failed and remote branch is not the matching release of $DEPLOY_COMMIT. Refusing to deploy stale code."
+              elif [[ "$remote_tip" == "$DEPLOY_COMMIT" ]]; then
+                echo "::error::Release push failed although $DEPLOY_BRANCH still points to $DEPLOY_COMMIT. Check repository write permissions."
                 exit 1
+              else
+                report_superseded "$remote_tip"
               fi
             fi
           else
             echo "No release bump for $DEPLOY_COMMIT."
           fi
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
 
       # The Discord status channel says an update is starting, then edits that post when
       # it finishes or fails (scripts/ops/deploy-status.mjs). Notices only ever warn.
       - name: Announce the update
+        if: steps.release.outputs.deploy == 'true'
         continue-on-error: true
         env:
           RELEASE_SHA: ${{ steps.release.outputs.sha }}
@@ -245,6 +293,7 @@ jobs:
             "$VPS_USER@$VPS_HOST" "cd $CHECKOUT_DIR && node scripts/ops/deploy-status.mjs started $RELEASE_SHA"
 
       - name: Deploy selected commit
+        if: steps.release.outputs.deploy == 'true'
         env:
           RELEASE_SHA: ${{ steps.release.outputs.sha }}
         shell: bash
@@ -264,6 +313,7 @@ jobs:
             "$VPS_USER@$VPS_HOST" "$remote_command"
 
       - name: Announce the update finished
+        if: steps.release.outputs.deploy == 'true'
         continue-on-error: true
         env:
           RELEASE_SHA: ${{ steps.release.outputs.sha }}
@@ -275,6 +325,7 @@ jobs:
             "$VPS_USER@$VPS_HOST" "cd $CHECKOUT_DIR && node scripts/ops/deploy-status.mjs finished $RELEASE_SHA"
 
       - name: Check out history for patch notes
+        if: steps.release.outputs.deploy == 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.release.outputs.sha }}
@@ -284,6 +335,7 @@ jobs:
       # post that waits in Admin → News for review. See docs/AUTO-DEPLOY.md. The
       # deploy already succeeded, so a problem here only warns.
       - name: Hold patch notes for review
+        if: steps.release.outputs.deploy == 'true'
         continue-on-error: true
         shell: bash
         env:
@@ -340,7 +392,7 @@ jobs:
 
       # Runs only when a step above failed: the starting post says the update hit a problem.
       - name: Announce a failed update
-        if: failure()
+        if: failure() && steps.release.outputs.deploy == 'true'
         continue-on-error: true
         env:
           RELEASE_SHA: ${{ steps.release.outputs.sha || needs.validate.outputs.commit_sha }}
