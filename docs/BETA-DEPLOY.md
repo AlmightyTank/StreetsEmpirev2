@@ -179,11 +179,20 @@ and results-only in the current provider chain: it helps check final scores for
 started games with open tickets, but it does not provide betting odds or create
 board listings by itself.
 
-The odds refresh is limited to one provider poll per 30 minutes from the latest
-cache file update. Scheduled and admin-triggered pulls share this cooldown; an
-admin pull within the window reports the next eligible refresh time without
-refreshing odds from the provider. The PostgreSQL sportsbook tables remain the
-transactional board and ticket store.
+Normal odds refreshes retain the 30-minute (or configured longer) file-backed
+cache cooldown. A lightweight scheduler also checks **every 15 minutes** for
+leagues whose active provider failed. After 15 minutes, it can request **only an
+alternate provider** that has not been polled for that league in the preceding
+30 minutes, subject to provider quota floors, open circuits, league pins and
+the existing failover-per-run limits. This does not restart the normal cache
+clock or repeatedly poll already healthy leagues.
+
+Scheduled and admin-triggered pulls use the same server-side cooldown and
+database lease, so reloading a player page never makes external requests.
+Successful recovery updates the database odds and automatically reopens eligible
+pregame lines; invalid or stale lines remain unbettable. Admin > Casino Operations
+shows each league's active provider and when recovery is next eligible.
+The PostgreSQL sportsbook tables remain the transactional board and ticket store.
 
 ## Browser-install labels (PWA)
 
