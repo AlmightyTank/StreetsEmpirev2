@@ -595,3 +595,22 @@
     gap: 3px;
   }
 }
+
+/* A locked scouting district cannot be hovered into an available-looking state. */
+.se-scout-plan .se-choice--gated,
+.se-scout-plan .se-choice--gated:hover {
+  min-height: 176px;
+  border-color: color-mix(in srgb, var(--se-bad) 24%, var(--se-line));
+  background:
+    radial-gradient(circle at 75% 25%, rgba(91, 31, 48, 0.18), transparent 60%),
+    var(--se-panel);
+  box-shadow: none;
+}
+
+.se-scout-plan .se-choice--gated .se-choice__body {
+  padding-inline: 14px;
+}
+
+@media (max-width: 700px) {
+  .se-scout-plan .se-choice--gated { min-height: 168px; }
+}

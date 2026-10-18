@@ -216,3 +216,95 @@
   min-inline-size: 24px;
   min-height: 24px;
 }
+
+/* Reusable locked-selection treatment: covered and visibly unavailable.
+   Quest links on non-selectable recipe cards remain navigable. */
+.se-choice--gated {
+  position: relative;
+  isolation: isolate;
+  min-height: 176px;
+  overflow: hidden;
+  cursor: not-allowed;
+}
+
+.se-choice--gated > .se-choice__body {
+  opacity: 0.3;
+  filter: grayscale(0.55) blur(1.6px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.se-choice--gated:hover,
+.se-choice--gated.se-choice--on {
+  box-shadow: none;
+  border-color: var(--se-line);
+}
+
+.se-locked-choice {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 18px 14px;
+  background:
+    radial-gradient(ellipse at 50% 52%, rgba(139, 28, 43, 0.2), transparent 70%),
+    linear-gradient(130deg, rgba(8, 11, 19, 0.82), rgba(12, 15, 24, 0.91));
+  color: var(--se-text-dim);
+  text-align: center;
+  pointer-events: none;
+}
+
+.se-locked-choice__icon {
+  width: 30px;
+  height: 30px;
+  color: var(--se-text);
+  opacity: 0.9;
+  flex: 0 0 auto;
+}
+
+.se-locked-choice__banner {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  padding: 7px 10px;
+  border-top: 1px solid color-mix(in srgb, var(--se-bad) 65%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--se-bad) 65%, transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--se-bad) 25%, transparent), transparent);
+  color: color-mix(in srgb, var(--se-bad) 55%, white);
+  font-family: var(--se-mono);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.se-locked-choice__requirement {
+  max-width: 34ch;
+  color: var(--se-text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.se-locked-choice__action {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.se-locked-choice__action a {
+  position: relative;
+  color: var(--se-accent);
+  pointer-events: auto;
+  text-underline-offset: 3px;
+}
+
+.se-locked-choice__action a:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-choice--gated > .se-choice__body { filter: grayscale(0.55); }
+}

@@ -842,3 +842,12 @@
     aspect-ratio: auto;
   }
 }
+
+/* Scout access gates do not turn locked tiles into map buttons; other map
+   users retain their own selection rules. */
+.se-districtmap__tile--unavailable {
+  cursor: not-allowed;
+}
+.se-districtmap__tile--unavailable:hover .se-districtmap__box {
+  stroke-width: 3;
+}

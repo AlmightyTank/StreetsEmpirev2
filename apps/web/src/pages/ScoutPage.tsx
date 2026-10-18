@@ -22,6 +22,7 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { scoutReceiptLines } from '../receipts/actionReceipts.js';
 import { useSession } from '../stores/session.js';
+import { isScoutDistrictUnlocked, resolveScoutDistrict } from '../utils/scoutDistrictSelection.js';
 
 function ScoutMetric({
   label,
@@ -76,10 +77,7 @@ export function ScoutPage() {
       .districts()
       .then((response) => {
         setDistricts(response.districts);
-        setDistrict((current) => {
-          if (response.districts.some((row) => row.key === requestedDistrict)) return requestedDistrict;
-          return current && response.districts.some((row) => row.key === current) ? current : response.districts[0]?.key || '';
-        });
+        setDistrict((current) => resolveScoutDistrict(response.districts, requestedDistrict, current));
       })
       .catch(() => setLoadError('Could not load the districts. Try again in a moment.'));
   }, [crewSize, requestedDistrict]);
@@ -87,7 +85,7 @@ export function ScoutPage() {
   if (!me) return <Navigate to="/join" replace />;
 
   const available = me.turns.turns;
-  const selectedDistrict = districts.find((row) => row.key === district);
+  const selectedDistrict = districts.find((row) => row.key === district && isScoutDistrictUnlocked(row));
   const exposurePercent = selectedDistrict ? Math.round(selectedDistrict.exposedFraction * 100) : 0;
   const coveredPercent = 100 - exposurePercent;
   const districtTone = coverageTone(selectedDistrict);
@@ -107,24 +105,23 @@ export function ScoutPage() {
       detail: `${100 - exposure}% crew covered`,
     };
   });
-  const supplyJobs = district
-    ? [{ job: district, label: selectedDistrict?.name ?? 'This district' }]
+  const supplyJobs = selectedDistrict
+    ? [{ job: selectedDistrict.key, label: selectedDistrict.name }]
     : [];
 
   const canScout =
     !action.busy &&
-    district !== '' &&
-    selectedDistrict?.districtAccess?.unlocked !== false &&
+    Boolean(selectedDistrict) &&
     typeof turns === 'number' &&
     turns >= 1 &&
     turns <= available;
 
   const scoutBlock = action.busy
     ? 'Your crew is still out on the last job.'
-    : district === ''
-      ? 'Pick a district to work first.'
-      : selectedDistrict?.districtAccess?.unlocked === false
-        ? `Complete ${selectedDistrict.districtAccess.unlockQuest?.title ?? 'the required quest'} to unlock this district.`
+    : !selectedDistrict
+      ? districts.length && districts.every((row) => !isScoutDistrictUnlocked(row))
+        ? 'There are no unlocked districts available yet.'
+        : 'Pick an unlocked district to work first.'
       : typeof turns !== 'number' || turns < 1
         ? 'Say how many turns to spend - at least one.'
         : turns > available
@@ -138,6 +135,11 @@ export function ScoutPage() {
   const pendingEncounter = receiptEncounter?.status === 'PENDING' && receiptEncounter.id
     && receiptEncounter.choices?.length && me.pendingEncounters.some((item) => item.id === receiptEncounter.id)
     ? receiptEncounter : null;
+
+  function chooseDistrict(key: string) {
+    if (action.busy || !isScoutDistrictUnlocked(districts.find((row) => row.key === key))) return;
+    setDistrict(key);
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -197,7 +199,7 @@ export function ScoutPage() {
             <DistrictPicker
               districts={districts}
               value={district}
-              onChange={setDistrict}
+              onChange={chooseDistrict}
               disabled={action.busy}
             />
             <CrewTeamPicker role="WORKER" specialty="SCOUT" selectedIds={scoutTeam} onChange={setScoutTeam} disabled={action.busy} refreshKey={action.result} />
@@ -219,14 +221,6 @@ export function ScoutPage() {
             <p className="se-scout-intel__blurb">
               {selectedDistrict?.blurb ?? 'Choose a district to see the protection situation for your current crew.'}
             </p>
-            {selectedDistrict?.districtAccess?.unlocked === false ? (
-              <Alert>
-                <strong>{selectedDistrict.districtAccess.unlockName} required.</strong>{' '}
-                {selectedDistrict.districtAccess.unlockDescription}{' '}
-                {selectedDistrict.districtAccess.unlockQuest ? <Link to={'/game/quests?focus=' + encodeURIComponent(selectedDistrict.districtAccess.unlockQuest.key)}>View “{selectedDistrict.districtAccess.unlockQuest.title}”</Link> : null}
-              </Alert>
-            ) : null}
-
             {selectedDistrict ? (
               <>
                 <div className="se-scout-intel__coverage">
@@ -369,8 +363,9 @@ export function ScoutPage() {
               cityName={me.city.name}
               districts={mapDistricts}
               selectedDistrict={district}
-              onSelect={setDistrict}
+              onSelect={chooseDistrict}
               disabled={action.busy}
+              disableLocked
             />
             <aside className="se-citymap-brief" aria-label="Scout map coverage summary">
               <div className="se-citymap-brief__control">

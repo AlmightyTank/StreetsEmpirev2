@@ -60,6 +60,7 @@ export function CityDistrictMap({
   selectedDistrict,
   onSelect,
   disabled = false,
+  disableLocked = false,
 }: {
   citySlug: string;
   cityName: string;
@@ -67,13 +68,15 @@ export function CityDistrictMap({
   selectedDistrict: string | null;
   onSelect: (district: string) => void;
   disabled?: boolean;
+  /** Scout uses access-gated tiles; other map consumers retain their own interaction rules. */
+  disableLocked?: boolean;
 }) {
   const layout = cityMapFor(citySlug);
   const byDistrict = new Map(districts.map((entry) => [entry.district, entry]));
   const shown = MAP_DISTRICTS.filter((key) => byDistrict.has(key));
 
   function onKey(event: KeyboardEvent, district: MapDistrictKey) {
-    if (disabled || (event.key !== 'Enter' && event.key !== ' ')) return;
+    if (disabled || (disableLocked && byDistrict.get(district)?.status === 'locked') || (event.key !== 'Enter' && event.key !== ' ')) return;
     event.preventDefault();
     onSelect(district);
   }
@@ -106,19 +109,20 @@ export function CityDistrictMap({
           const label = tileLabel(layout.tiles[district], entry.name);
           const compact = splitLabel(label);
           const selected = selectedDistrict === district;
+          const tileDisabled = disabled || (disableLocked && entry.status === 'locked');
           const status = `${entry.tag ? `[${entry.tag}] ` : ''}${entry.statusText}`;
           const lots = entry.lots ?? [];
           const statusRoom = w - PAD * 2 - (lots.length ? lots.length * 15 + 6 : 0);
           return (
             <g
               key={district}
-              className={`se-districtmap__tile se-districtmap__tile--${entry.status}${selected ? ' se-districtmap__tile--selected' : ''}`}
+              className={`se-districtmap__tile se-districtmap__tile--${entry.status}${selected ? ' se-districtmap__tile--selected' : ''}${tileDisabled ? ' se-districtmap__tile--unavailable' : ''}`}
               role="button"
-              tabIndex={disabled ? -1 : 0}
+              tabIndex={tileDisabled ? -1 : 0}
               aria-pressed={selected}
-              aria-disabled={disabled || undefined}
+              aria-disabled={tileDisabled || undefined}
               aria-label={`${entry.name}. ${entry.statusText}${entry.tag ? `, [${entry.tag}]` : ''}${entry.detail ? `. ${entry.detail}` : ''}.`}
-              onClick={() => !disabled && onSelect(district)}
+              onClick={() => { if (!tileDisabled) onSelect(district); }}
               onKeyDown={(event) => onKey(event, district)}
             >
               <title>{entry.detail ? `${entry.name} · ${entry.detail}` : entry.name}</title>
