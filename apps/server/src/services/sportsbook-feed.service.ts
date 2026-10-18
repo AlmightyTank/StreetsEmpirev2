@@ -799,6 +799,9 @@ export async function refreshSportsbookCache(
       let alternates = 0;
 
       for (const id of order) {
+        const providerStatus = providerRuns.get(id)?.leagues[league.key];
+        // Normal and recovery runs both honour the last odds attempt per provider/league.
+        if (!sportsbookProviderCooldownElapsed(providerStatus, now)) continue;
         if (id !== preferred) {
           if (alternates >= SPORTSBOOK_FALLBACKS_PER_LEAGUE || fallbacksThisRun >= SPORTSBOOK_FALLBACKS_PER_RUN) break;
           alternates += 1;
