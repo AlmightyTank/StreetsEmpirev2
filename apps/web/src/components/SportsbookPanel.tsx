@@ -206,8 +206,8 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
     const dialog = slipRef.current;
     if (!dialog) return;
 
-    // On phones the sheet is modal: start on its close control, then keep Tab
-    // inside it. Do not intercept other global dialogs that take focus later.
+    // This is a compact, non-modal tray: keyboard users must be able to reach
+    // the board behind it and continue comparing lines while it is open.
     dialog.querySelector<HTMLButtonElement>('.se-sportsbook__slip-close')?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       // Global menus and dialogs may open over this sheet. Only handle keys
@@ -218,24 +218,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
         setSlipExpanded(false);
         return;
       }
-      if (event.key !== 'Tab') return;
-      const controls = [...dialog.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])',
-      )].filter((control) => control.getClientRects().length > 0);
-      if (!controls.length) {
-        event.preventDefault();
-        dialog.focus();
-        return;
-      }
-      const first = controls[0]!;
-      const last = controls[controls.length - 1]!;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+
     };
     document.addEventListener('keydown', onKeyDown);
     return () => {
@@ -328,7 +311,8 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
     const clearing = pick?.eventId === event.id && pick.selection === selection;
     playCasinoSound(clearing ? 'POKER_FOLD' : 'SPORTS_PICK', soundEnabled, selection === 'HOME' ? 1 : 0);
     setPick(clearing ? null : { eventId: event.id, selection, seenOdds: odds });
-    setSlipExpanded(!clearing);
+    // Selecting a price must never cover the mobile board; open the tray only on request.
+    setSlipExpanded(!clearing && !mobileSlip);
   }
 
   async function place() {
@@ -494,7 +478,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                 <strong>{pickedEvent
                   ? `${pick.selection === 'HOME' ? pickedEvent.homeTeam : pickedEvent.awayTeam} ${formatAmericanOdds(pickedOdds)}`
                   : 'Game no longer on the board'}</strong>
-                <small>{pickedEvent ? 'Tap to review bet slip' : 'Tap to clear or change your pick'}</small>
+                <small>{pickedEvent ? `Stake ${stakeCents !== null ? formatCentsExact(stakeCents) : '—'} · Tap to edit` : 'Tap to clear or change your pick'}</small>
               </span>
               <span className="se-sportsbook__slip-mini-return">
                 <small>Payout</small>
@@ -503,22 +487,11 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
               <span aria-hidden="true">↑</span>
             </button>
           ) : null}
-          {pick && slipExpanded ? (
-            <button
-              type="button"
-              className="se-sportsbook__slip-backdrop"
-              aria-label="Close bet slip and browse games"
-              onClick={() => setSlipExpanded(false)}
-            />
-          ) : null}
           <aside
             ref={slipRef}
             id="sb-bet-slip"
             className={`se-sportsbook__slip${pick ? ' has-pick' : ''}${slipExpanded ? ' is-expanded' : ''}${acceptedTicketId ? ' is-accepted' : ''}`}
-            role={mobileSlip && pick && slipExpanded ? 'dialog' : undefined}
-            aria-modal={mobileSlip && pick && slipExpanded ? true : undefined}
             aria-label="Bet slip"
-            tabIndex={mobileSlip && pick && slipExpanded ? -1 : undefined}
           >
             <div className="se-sportsbook__slip-head">
               <h3>Bet slip</h3>
