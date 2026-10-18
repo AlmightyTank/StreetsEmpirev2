@@ -150,7 +150,7 @@
   .se-sportsbook__slip-mini {
     display: flex; position: fixed; left: .7rem; right: .7rem;
     bottom: calc(60px + .55rem + env(safe-area-inset-bottom, 0px));
-    z-index: 1001; align-items: center; gap: .65rem; min-height: 4.1rem;
+    z-index: 50; align-items: center; gap: .65rem; min-height: 4.1rem;
     padding: .6rem .8rem; border: 1px solid var(--se-accent); border-radius: .8rem;
     background: var(--se-surface); color: var(--se-text); font: inherit; text-align: left;
     box-shadow: 0 -.5rem 1.5rem rgb(0 0 0 / .35); cursor: pointer;
@@ -162,13 +162,13 @@
   .se-sportsbook__slip-mini-return strong { color: var(--se-accent); }
   .se-sportsbook__slip-mini:focus-visible, .se-sportsbook__slip-close:focus-visible { outline: 2px solid var(--se-focus, var(--se-accent)); outline-offset: 2px; }
   .se-sportsbook__slip-backdrop {
-    display: block; position: fixed; inset: 0; z-index: 1002;
+    display: block; position: fixed; inset: 0; z-index: 51;
     border: 0; background: rgb(0 0 0 / .65); cursor: pointer; touch-action: none;
   }
   .se-sportsbook__slip.has-pick.is-expanded {
     display: grid; position: fixed; top: max(4.5rem, env(safe-area-inset-top, 0px));
     bottom: calc(60px + .5rem + env(safe-area-inset-bottom, 0px));
-    left: .7rem; right: .7rem; z-index: 1003;
+    left: .7rem; right: .7rem; z-index: 52;
     align-content: start; min-height: 0; overflow-y: auto;
     overscroll-behavior: contain; box-shadow: 0 1rem 2.5rem rgb(0 0 0 / .55);
   }
