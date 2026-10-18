@@ -18,6 +18,22 @@ describe('shared-shell route scroll', () => {
   });
 });
 
+describe('shared-shell scroll recovery', () => {
+  it('restores once the new storefront is tall enough', () => {
+    expect(preservedRouteScrollTarget(840, 1800, 600)).toEqual({ top: 840, settled: true });
+  });
+
+  it('clamps short loading views and waits for layout rather than repeatedly forcing scroll', () => {
+    expect(preservedRouteScrollTarget(840, 1000, 600)).toEqual({ top: 400, settled: false });
+    expect(preservedRouteScrollTarget(840, 1500, 600)).toEqual({ top: 840, settled: true });
+  });
+
+  it('handles top-of-page and content shorter than the viewport', () => {
+    expect(preservedRouteScrollTarget(0, 250, 600)).toEqual({ top: 0, settled: true });
+    expect(preservedRouteScrollTarget(20, 250, 600)).toEqual({ top: 0, settled: false });
+  });
+});
+
 describe('in-game deep links', () => {
   it('decodes anchors, prefers the current hash, and handles malformed escape sequences', () => {
     expect(routeAnchorId('/game/quests', '?focus=old', '#quest-new%20job')).toBe('quest-new job');
