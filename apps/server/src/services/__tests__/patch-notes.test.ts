@@ -97,6 +97,10 @@ describe('release bumps', () => {
     expect(classifyRelease({ title: 'Add a dice game', labels: ['feature'], body: 'BREAKING CHANGE: old clients cannot join.' })).toBe('patch');
     expect(classifyRelease({ title: 'feat: crew legends', body: '## Version\n- [x] minor\n- [ ] major' })).toBe('minor');
     expect(classifyRelease({ title: 'docs: readme', body: '## Version\nnone' })).toBe('skip');
+    expect(classifyRelease({ title: 'docs: prose', body: '## Version\nmajor changes are listed below' })).toBe('patch');
+    expect(classifyRelease({ title: 'docs: prose', body: '## Version\nminor fixes only' })).toBe('patch');
+    expect(classifyRelease({ title: 'docs: prose', body: '## Version\nnone of these are breaking' })).toBe('patch');
+    expect(classifyRelease({ title: 'docs: prose', body: '## Version\n- [x] major changes' })).toBe('patch');
   });
 
   it('moves 2.x.x to 3.0.0 when the pull request checks major', () => {
@@ -111,6 +115,7 @@ describe('release bumps', () => {
     expect(releaseLevel([{ title: 'chore: release 2.1.0', body: '' }], true)).toBeNull();
     expect(releaseLevel([], false)).toBeNull();
     expect(releaseLevel([], true)).toBe('patch');
+    expect(releaseLevel([{ title: 'docs: skip', body: '## Version\nnone' }, { title: 'fix: direct commit', body: '' }])).toBe('patch');
   });
 
   it('plans the next release from pulls merged after the current version', () => {
