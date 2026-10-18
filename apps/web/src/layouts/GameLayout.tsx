@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type TouchEvent, type ReactNode, type RefObject } from 'react';
 import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell, useSidebarRail } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
@@ -10,9 +10,9 @@ import { PageGuide } from '../components/onboarding/PageGuide.js';
 import { useOnboarding } from '../stores/onboarding.js';
 import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
-import { usePullDownAllPages } from '../hooks/usePullDownAllPages.js';
 import { useGamePresence } from '../hooks/useGamePresence.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
+import { isMobileNavSwipe } from './mobileNavSwipe.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
@@ -176,17 +176,20 @@ const LONG_PRESS_MS = 500;
  * Phone navigation: four tabs the player can rearrange and a More button for
  * everything else. Long-press a tab to swap what sits there.
  */
-function TabBar({ slots, pathname, badges, moreOpen, onMore, onEditSlot, moreButton }: {
+function TabBar({ slots, pathname, badges, moreOpen, onMore, onSwipeUp, onEditSlot, moreButton }: {
   slots: NavPage[];
   pathname: string;
   badges: Record<string, NavBadge>;
   moreOpen: boolean;
   onMore: () => void;
+  onSwipeUp: () => void;
   onEditSlot: (index: number) => void;
   moreButton: RefObject<HTMLButtonElement | null>;
 }) {
   const timer = useRef<number | null>(null);
   const fired = useRef(false);
+  const touchStart = useRef<{ identifier: number; x: number; y: number } | null>(null);
+  const suppressClickUntil = useRef(0);
   const onBar = new Set(slots.map((page) => page.key));
   const elsewhere = !slots.some((page) => isCurrent(page, pathname));
   const hiddenBadges = Object.entries(badges).filter(([key]) => !onBar.has(key));
@@ -199,8 +202,38 @@ function TabBar({ slots, pathname, badges, moreOpen, onMore, onEditSlot, moreBut
     timer.current = null;
   }
 
+  function handleTouchStart(event: TouchEvent<HTMLElement>) {
+    touchStart.current = null;
+    if (moreOpen || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    if (touch) touchStart.current = { identifier: touch.identifier, x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLElement>) {
+    const initial = touchStart.current;
+    touchStart.current = null;
+    if (!initial || moreOpen || event.touches.length !== 0) return;
+    const touch = Array.from(event.changedTouches).find((item) => item.identifier === initial.identifier);
+    if (!touch || !isMobileNavSwipe(initial.x, initial.y, touch.clientX, touch.clientY, 'up')) return;
+    // Don't let the touch-generated click navigate to the tab under the finger.
+    suppressClickUntil.current = Date.now() + 500;
+    cancel();
+    onSwipeUp();
+  }
+
+  function handleClickCapture(event: MouseEvent<HTMLElement>) {
+    if (Date.now() < suppressClickUntil.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClickUntil.current = 0;
+    }
+  }
+
   return (
-    <nav className="se-tabbar" aria-label="Game tabs">
+    <nav className="se-tabbar" aria-label="Game tabs"
+      onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
+      onTouchCancel={() => { touchStart.current = null; }}
+      onClickCapture={handleClickCapture}>
       {slots.map((page, index) => {
         const current = isCurrent(page, pathname);
         return (
@@ -267,6 +300,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
 }) {
   const sheet = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const gripStart = useRef<{ identifier: number; x: number; y: number } | null>(null);
   const editing = editSlot !== null;
   const [query, setQuery] = useState('');
   const visible = filterNavSections(sections, query);
@@ -292,11 +326,29 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }
 
+  function handleGripStart(event: TouchEvent<HTMLButtonElement>) {
+    gripStart.current = null;
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    if (touch) gripStart.current = { identifier: touch.identifier, x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleGripEnd(event: TouchEvent<HTMLButtonElement>) {
+    const initial = gripStart.current;
+    gripStart.current = null;
+    if (!initial || event.touches.length !== 0) return;
+    const touch = Array.from(event.changedTouches).find((item) => item.identifier === initial.identifier);
+    if (touch && isMobileNavSwipe(initial.x, initial.y, touch.clientX, touch.clientY, fromTop ? 'up' : 'down')) onClose();
+  }
+
   return (
     <div className={`se-sheet${fromTop ? ' se-sheet--from-top' : ''}`} onKeyDown={onKeyDown}>
       <div className="se-sheet__backdrop" onClick={onClose} aria-hidden="true" />
       <div ref={sheet} className="se-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="se-sheet-title">
-        <div className="se-sheet__grip" aria-hidden="true" />
+        <button type="button" className="se-sheet__grip"
+          aria-label={fromTop ? 'Close All pages (swipe up or tap)' : 'Close All pages (swipe down or tap)'}
+          onClick={onClose} onTouchStart={handleGripStart} onTouchEnd={handleGripEnd}
+          onTouchCancel={() => { gripStart.current = null; }} />
         <header className="se-sheet__head">
           <h2 id="se-sheet-title" className="se-sheet__title">{editing ? 'Edit tabs' : 'All pages'}</h2>
           <div className="se-sheet__actions">
@@ -523,8 +575,6 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   const tabs = useTabSlots(pages);
   const [sheet, setSheet] = useState<{ editSlot: number | null; fromTop: boolean } | null>(null);
   const moreButton = useRef<HTMLButtonElement>(null);
-  const openOnPull = useCallback(() => setSheet((current) => current ?? { editSlot: null, fromTop: true }), []);
-  usePullDownAllPages(sheet === null, openOnPull);
   useRouteScroll(pathname, search, hash, key);
   // 1.0.0-B: tutorial progress, refreshed as the player acts so the goals tick off.
   const playerId = useSession((s) => s.me?.id ?? null);
@@ -547,6 +597,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       <>
         <TabBar slots={tabs.slots} pathname={pathname} badges={badges} moreOpen={sheet !== null} moreButton={moreButton}
           onMore={() => setSheet((open) => (open ? null : { editSlot: null, fromTop: false }))}
+          onSwipeUp={() => setSheet((open) => open ?? { editSlot: null, fromTop: false })}
           onEditSlot={(index) => setSheet({ editSlot: index, fromTop: false })} />
         {sheet ? (
           <MoreSheet sections={sections} pathname={pathname} badges={badges} slots={tabs.slots}
