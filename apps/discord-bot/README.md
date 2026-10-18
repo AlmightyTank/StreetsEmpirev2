@@ -207,7 +207,9 @@ You can reuse the application you already use for Discord login
 1. **Bot** tab: click **Reset Token** and copy it. This is `DISCORD_BOT_TOKEN`.
    Treat it like a password.
 2. On the same tab, under **Privileged Gateway Intents**, turn on **Server
-   Members Intent** and save. Role sync can't list members without it.
+   Members Intent** and **Message Content Intent**, then save. Role sync can't
+   list members without the first, and the optional message safety net needs the
+   second.
 3. Invite the bot with this URL, using your application ID. The permissions
    requested are **Manage Roles** and **Moderate Members** (for timeouts from the
    admin account page; leave it off and timeouts say what is missing):
@@ -251,6 +253,9 @@ DISCORD_BOT_PUSH_TIMEOUT_MS=2000
 DISCORD_BOT_TOKEN="<bot token>"
 DISCORD_CLIENT_ID="<application id>"
 DISCORD_GUILD_ID="<server id>"
+# Optional contextual hate-speech safety net; Discord AutoMod remains the pre-send filter.
+OPENAI_MODERATION_API_KEY="<OpenAI API key, or empty to disable>"
+OPENAI_MODERATION_TIMEOUT_MS=1500
 GAME_API_URL="http://127.0.0.1:3001"
 DISCORD_BOT_LISTEN_HOST="127.0.0.1"
 DISCORD_BOT_LISTEN_PORT=3002
@@ -277,6 +282,10 @@ DISCORD_STREAM_URL="https://twitch.tv/amightytank"
   listens on `DISCORD_BOT_LISTEN_HOST` and `DISCORD_BOT_LISTEN_PORT`; set the
   port to `0` to disable the listener and rely on polling only.
 - `FRONTEND_ORIGIN` is only used for links in replies.
+- `OPENAI_MODERATION_API_KEY` enables a post-send check using
+  `omni-moderation-latest`; hate and threatening-hate messages are deleted.
+  Provider failures fail open. For true pre-send blocking, configure keyword
+  rules under Discord **Server Settings → AutoMod** as well.
 - `DISCORD_FORUM_GROUPS` lists which forum groups get a "Forum <group>" role.
   Names match the forum's group names, ignoring case. Leave it empty for none.
   Forum roles need forum linking (`FORUM_LINK_SECRET`) turned on.

@@ -20,6 +20,9 @@ const schema = z.object({
   DISCORD_CLIENT_ID: snowflake('DISCORD_CLIENT_ID'),
   DISCORD_GUILD_ID: snowflake('DISCORD_GUILD_ID'),
   DISCORD_BOT_API_TOKEN: z.string().min(64, 'DISCORD_BOT_API_TOKEN must match the game server and be 64+ characters.'),
+  /** Optional OpenAI moderation key. Empty disables the message-content fallback. */
+  OPENAI_MODERATION_API_KEY: z.string().default(''),
+  OPENAI_MODERATION_TIMEOUT_MS: z.coerce.number().int().min(250).max(10_000).default(1500),
   /** Where the bot reaches the game API; an origin, e.g. http://127.0.0.1:3001 on the VPS. */
   GAME_API_URL: z.string().url().default('http://127.0.0.1:3001'),
   /** Public game origin for links in replies. */
