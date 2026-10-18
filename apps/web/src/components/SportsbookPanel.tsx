@@ -146,6 +146,9 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
   const [pick, setPick] = useState<Pick | null>(null);
   // Keep browsing possible on phones: the full betting controls open only on demand.
   const [slipExpanded, setSlipExpanded] = useState(false);
+  const [mobileSlip, setMobileSlip] = useState(false);
+  const slipRef = useRef<HTMLElement | null>(null);
+  const slipOpenerRef = useRef<HTMLButtonElement | null>(null);
   const [stake, setStake] = useState('25');
   const [busy, setBusy] = useState(false);
   const [soundEnabled, setSoundEnabledState] = useState(() => casinoSoundEnabled());
@@ -187,6 +190,63 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
     }, 15_000);
     return () => window.clearInterval(timer);
   }, [clockOffset]);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(max-width: 900px)');
+    const update = () => setMobileSlip(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileSlip || !pick || !slipExpanded) return;
+    const dialog = slipRef.current;
+    if (!dialog) return;
+
+    // On phones the sheet is modal: start on its close control, then keep Tab
+    // inside it. Do not intercept other global dialogs that take focus later.
+    dialog.querySelector<HTMLButtonElement>('.se-sportsbook__slip-close')?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setSlipExpanded(false);
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog.contains(document.activeElement)) return;
+      const controls = [...dialog.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])',
+      )].filter((control) => control.getClientRects().length > 0);
+      if (!controls.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = controls[0]!;
+      const last = controls[controls.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      if (dialog.contains(document.activeElement)) {
+        window.requestAnimationFrame(() => {
+          const original = slipOpenerRef.current;
+          const target = original?.isConnected && !original.disabled
+            ? original
+            : document.querySelector<HTMLButtonElement>('.se-sportsbook__slip-mini');
+          if (target?.isConnected && target.getClientRects().length) target.focus();
+        });
+      }
+    };
+  }, [mobileSlip, slipExpanded, pick?.eventId, pick?.selection]);
 
   useEffect(() => {
     if (!page) return;
@@ -255,7 +315,8 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
   else if (stakeCents === null) placeReason = 'Enter a stake in dollars, such as 25 or 25.00.';
   else placeReason = sportsbookStakeCheck(stakeCents, pickedOdds, limits, usage)?.message ?? null;
 
-  function choose(event: SportsbookEventDto, selection: SportsbookSelection) {
+  function choose(event: SportsbookEventDto, selection: SportsbookSelection, opener: HTMLButtonElement) {
+    slipOpenerRef.current = opener;
     const odds = sideOdds(event, selection);
     if (odds === null) return;
     setNotice('');
@@ -395,7 +456,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                               aria-pressed={selected}
                               disabled={busy || !available || state !== 'OPEN' || odds === null}
                               title={odds === null ? 'No moneyline for this side.' : undefined}
-                              onClick={() => choose(event, selection)}
+                              onClick={(clickEvent) => choose(event, selection, clickEvent.currentTarget)}
                             >
                               <span>
                                 <small>{selection === 'HOME' ? 'Home' : 'Away'}</small>
@@ -414,17 +475,22 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
             )) : null}
           </div>
 
-          {pick && pickedEvent && !slipExpanded ? (
+          {pick && !slipExpanded ? (
             <button
               type="button"
               className="se-sportsbook__slip-mini"
               aria-controls="sb-bet-slip"
               aria-expanded={false}
-              onClick={() => setSlipExpanded(true)}
+              onClick={(clickEvent) => {
+                slipOpenerRef.current = clickEvent.currentTarget;
+                setSlipExpanded(true);
+              }}
             >
               <span className="se-sportsbook__slip-mini-pick">
-                <strong>{pick.selection === 'HOME' ? pickedEvent.homeTeam : pickedEvent.awayTeam} {formatAmericanOdds(pickedOdds)}</strong>
-                <small>Tap to review bet slip</small>
+                <strong>{pickedEvent
+                  ? `${pick.selection === 'HOME' ? pickedEvent.homeTeam : pickedEvent.awayTeam} ${formatAmericanOdds(pickedOdds)}`
+                  : 'Game no longer on the board'}</strong>
+                <small>{pickedEvent ? 'Tap to review bet slip' : 'Tap to clear or change your pick'}</small>
               </span>
               <span className="se-sportsbook__slip-mini-return">
                 <small>Payout</small>
@@ -441,7 +507,15 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
               onClick={() => setSlipExpanded(false)}
             />
           ) : null}
-          <aside id="sb-bet-slip" className={`se-sportsbook__slip${pick ? ' has-pick' : ''}${slipExpanded ? ' is-expanded' : ''}${acceptedTicketId ? ' is-accepted' : ''}`} aria-label="Bet slip">
+          <aside
+            ref={slipRef}
+            id="sb-bet-slip"
+            className={`se-sportsbook__slip${pick ? ' has-pick' : ''}${slipExpanded ? ' is-expanded' : ''}${acceptedTicketId ? ' is-accepted' : ''}`}
+            role={mobileSlip && pick && slipExpanded ? 'dialog' : undefined}
+            aria-modal={mobileSlip && pick && slipExpanded ? true : undefined}
+            aria-label="Bet slip"
+            tabIndex={mobileSlip && pick && slipExpanded ? -1 : undefined}
+          >
             <div className="se-sportsbook__slip-head">
               <h3>Bet slip</h3>
               <button type="button" className="se-sportsbook__slip-close" onClick={() => setSlipExpanded(false)}>
