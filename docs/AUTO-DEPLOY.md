@@ -1,8 +1,10 @@
 # Automatic VPS deployments
 
-A push to `beta` or `main` runs validation against that exact pushed commit.
-After typechecking, tests, migrations in a disposable CI database, and the full
-build pass, GitHub Actions connects to the VPS and deploys that same commit:
+A push to `beta` or `main` runs CI against the pushed source, including
+the proposed `APP_VERSION` bump. The release number is calculated and applied
+in the CI checkout **before** typechecking, tests, disposable-database migrations
+and the full build. Only after those checks pass does GitHub Actions commit and
+push the validated version to the target branch and deploy it to the VPS:
 
 - `beta` → `/opt/streets-empire/StreetsEmpirev2-beta` → beta services/database.
 - `main` → `/opt/streets-empire/StreetsEmpirev2` → production services/database.
@@ -42,8 +44,10 @@ In **Actions → Public Platform → Run workflow**:
    commit SHA from that branch to deploy a specific version.
 3. Run the workflow and watch the validation and deployment jobs.
 
-The selected commit is tested before deployment. The VPS script also verifies that
-it is a commit in the selected branch's history. To roll back, choose an earlier
+The selected commit is tested before deployment. Choosing an explicit
+`commit_sha` skips the automatic version bump, so a rollback cannot push a new
+release. The VPS script also verifies that the selected SHA is a commit in the
+target branch's history. To roll back, choose an earlier
 known-good SHA from the same branch. The normal backup, migration, restart, and
 health checks still apply. This does not reverse database migrations; use the
 database recovery process in [RECOVERY.md](RECOVERY.md) if a rollback requires
@@ -83,8 +87,13 @@ that waits for review:
    out, for changes players won't notice.
 2. The workflow finds every PR merged into the deployed branch since the last
    deploy whose notes were handled, and collects their bullets in merge order.
-3. Before the deploy, the workflow bumps `APP_VERSION` in
-   `packages/shared/src/platform.ts` and pushes that commit. The number is
+3. In the validation job, the workflow prepares `APP_VERSION` in
+   `packages/shared/src/platform.ts` and runs all CI checks with the new value.
+   When CI passes, the deployment job applies the *same* version, checks its
+   content hash against the tested file, commits it to `beta` or `main` and
+   deploys that commit. A failed check cannot push a release. The bot's
+   `[skip ci]` release commit does not start a second CI/deploy cycle because
+   this workflow already tested the exact version contents. The number is
    MAJOR.MINOR.PATCH. An ordinary change bumps PATCH on its own (`2.1.0` becomes
    `2.1.1`). Minor and major come from the pull request: check **minor** under
    `## Version` to install a feature (`2.1.4` becomes `2.2.0`), or check
