@@ -21,3 +21,9 @@ export function shouldDismissSheetDrag(distance: number, velocity: number, sheet
   const threshold = Math.min(96, Math.max(56, sheetHeight * 0.16));
   return distance >= threshold || (distance >= 32 && velocity >= 0.55);
 }
+
+/** Dim the sheet backdrop using the cached panel height, without layout reads during a drag. */
+export function sheetDragOpacity(distance: number, sheetHeight: number): number {
+  if (!Number.isFinite(distance) || !Number.isFinite(sheetHeight) || sheetHeight <= 0) return 1;
+  return Math.max(0, Math.min(1, 1 - Math.max(0, distance) / Math.max(240, sheetHeight)));
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isMobileNavSwipe, shouldDismissSheetDrag } from './mobileNavSwipe.js';
+import { isMobileNavSwipe, shouldDismissSheetDrag, sheetDragOpacity } from './mobileNavSwipe.js';
 
 describe('mobile All pages sheet gestures', () => {
   it('opens the sheet on a deliberate upward swipe from the tab bar', () => {
@@ -38,5 +38,18 @@ describe('mobile sheet pull-to-dismiss', () => {
     expect(shouldDismissSheetDrag(20, 1, 640)).toBe(false);
     expect(shouldDismissSheetDrag(-20, 0.8, 640)).toBe(false);
     expect(shouldDismissSheetDrag(Number.NaN, 1, 640)).toBe(false);
+  });
+});
+
+describe('mobile sheet drag backdrop', () => {
+  it('fades in one direction with bounded values', () => {
+    expect(sheetDragOpacity(0, 640)).toBe(1);
+    expect(sheetDragOpacity(320, 640)).toBe(0.5);
+    expect(sheetDragOpacity(1280, 640)).toBe(0);
+    expect(sheetDragOpacity(-20, 640)).toBe(1);
+  });
+  it('does not produce invalid opacity on bad heights', () => {
+    expect(sheetDragOpacity(40, 0)).toBe(1);
+    expect(sheetDragOpacity(Number.NaN, 640)).toBe(1);
   });
 });
