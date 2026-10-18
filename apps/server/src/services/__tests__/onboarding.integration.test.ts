@@ -21,7 +21,7 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
 
   async function register(prefix: string) {
     const username = `${prefix}_${randomUUID().slice(0, 6)}`;
-    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, email: `${username}@example.invalid`, password: randomUUID() } });
+    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { birthDate: '1990-01-01', ageConfirmed: true, username, email: `${username}@example.invalid`, password: randomUUID() } });
     expect(response.statusCode, response.body).toBeLessThan(300);
     const accountId = response.json().account.id as string;
     accounts.push(accountId);

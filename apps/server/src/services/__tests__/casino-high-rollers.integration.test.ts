@@ -75,7 +75,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-E high rollers with 
     const name = 'casino_e2_' + randomUUID().slice(0, 6);
     const registered = await app.inject({
       method: 'POST', url: '/api/auth/register',
-      payload: { username: name, email: name + '@example.invalid', password: randomUUID() },
+      payload: { ageConfirmed: true, username: name, email: name + '@example.invalid', password: randomUUID() },
     });
     accountId = registered.json().account.id;
   });

@@ -39,7 +39,7 @@ describe.runIf(process.env.SUPPLY_INTEGRATION === '1')('1.6.0-I supply release l
     app = await (await import('../../app.js')).buildApp();
     const register = async (prefix: string) => {
       const name = `${prefix}_${randomUUID().slice(0, 8)}`;
-      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
       accounts.push(registered.json().account.id);
       return { id: registered.json().account.id as string, username: name };
     };

@@ -48,7 +48,7 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('trips D2 with PostgreSQL
     vi.spyOn(RoundService, 'getCurrent').mockImplementation(current);
     for (let index = 0; index < homes.length; index++) {
       const name = `dtwo_${randomUUID().slice(0, 6)}`;
-      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { birthDate: '1990-01-01', ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
       accounts.push(registered.json().account.id);
       cookies.push(registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; '));
       pimps.push(8100 + index);

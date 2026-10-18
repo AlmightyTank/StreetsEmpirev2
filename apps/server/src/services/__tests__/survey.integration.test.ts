@@ -69,7 +69,7 @@ describe.runIf(process.env.SURVEY_INTEGRATION === '1')('Survey Phase B with Post
     const registered = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username, email: `${username}@example.invalid`, password: randomUUID() },
+      payload: { ageConfirmed: true, username, email: `${username}@example.invalid`, password: randomUUID() },
     });
     expect(registered.statusCode, registered.body).toBeLessThan(300);
     accountId = registered.json().account.id;

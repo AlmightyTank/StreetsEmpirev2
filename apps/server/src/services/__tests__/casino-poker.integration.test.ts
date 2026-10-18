@@ -55,7 +55,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-E solo Poker with Po
     const { buildApp } = await import('../../app.js');
     app = await buildApp();
     const name = 'poker_' + randomUUID().slice(0, 6);
-    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: name + '@example.invalid', password: randomUUID() } });
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: name, email: name + '@example.invalid', password: randomUUID() } });
     accountId = registered.json().account.id;
   });
 
@@ -101,7 +101,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-E solo Poker with Po
   it('plays a persistent multiplayer hand with private cards, turns, and cash-out refunds', async () => {
     const first = await fixture();
     const accountName = 'poker_' + randomUUID().slice(0, 6);
-    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: accountName, email: accountName + '@example.invalid', password: randomUUID() } });
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: accountName, email: accountName + '@example.invalid', password: randomUUID() } });
     const secondAccountId = registered.json().account.id as string;
     extraAccountIds.push(secondAccountId);
     const city = await app.prisma.city.findUniqueOrThrow({ where: { slug: 'new-york-city' } });
@@ -136,7 +136,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-E solo Poker with Po
 
   async function guest(roundId: string) {
     const accountName = 'poker_' + randomUUID().slice(0, 6);
-    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: accountName, email: accountName + '@example.invalid', password: randomUUID() } });
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: accountName, email: accountName + '@example.invalid', password: randomUUID() } });
     const guestAccountId = registered.json().account.id as string;
     extraAccountIds.push(guestAccountId);
     const city = await app.prisma.city.findUniqueOrThrow({ where: { slug: 'new-york-city' } });

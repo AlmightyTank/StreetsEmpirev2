@@ -24,7 +24,7 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('mixed street finds with
     const registered = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() },
+      payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() },
     });
     accountId = registered.json().account.id;
 

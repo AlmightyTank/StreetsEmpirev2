@@ -28,7 +28,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('reward grants with 
     const { buildApp } = await import('../../app.js');
     app = await buildApp();
     const name = `pass_${randomUUID().slice(0, 6)}`;
-    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
     accountId = registered.json().account.id;
     const round = await app.prisma.round.create({ data: {
       name: 'Street Pass fixture', slug: `street-pass-${randomUUID()}`,

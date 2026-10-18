@@ -42,7 +42,7 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('relocation with PostgreS
     vi.spyOn(RoundService, 'getCurrent').mockImplementation(current);
     for (let index = 0; index < 2; index++) {
       const name = `mover_${randomUUID().slice(0, 6)}`;
-      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { birthDate: '1990-01-01', ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
       accounts.push(registered.json().account.id);
       cookies.push(registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; '));
       const player = await app.prisma.roundPlayer.create({ data: { ...rules.round.startingPlayer, ...startingStock(rules),

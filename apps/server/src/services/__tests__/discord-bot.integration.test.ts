@@ -20,7 +20,7 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     app = await (await import('../../app.js')).buildApp();
     for (let i = 0; i < 3; i++) {
       const username = `bot_${randomUUID().slice(0, 8)}`;
-      const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, email: `${username}@example.invalid`, password: randomUUID() } });
+      const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username, email: `${username}@example.invalid`, password: randomUUID() } });
       expect(response.statusCode, response.body).toBe(201);
       const discordId = snowflake();
       await app.prisma.account.update({ where: { id: response.json().account.id }, data: { discordId, discordUsername: username } });
