@@ -23,7 +23,7 @@ describe('sportsbook ticket team logos', () => {
     expect(sportsbookTeamLogoUrl('NFL', 'NY Giants')).toContain('/nfl/500/scoreboard/nyg.png');
     expect(sportsbookTeamLogoUrl('MLB', 'San Francisco Giants')).toContain('/mlb/500/scoreboard/sf.png');
     expect(sportsbookTeamLogoUrl('MLB', 'Athletics')).toContain('/mlb/500/scoreboard/ath.png');
-    expect(sportsbookTeamLogoUrl('NBA', 'Philadelphia Sixers')).toContain('/nba/500/scoreboard/phi.png');
+    expect(sportsbookTeamLogoUrl('NBA', 'Sixers')).toContain('/nba/500/scoreboard/phi.png');
     expect(sportsbookTeamLogoUrl('NHL', 'St. Louis Blues')).toContain('/nhl/500/scoreboard/stl.png');
   });
 
