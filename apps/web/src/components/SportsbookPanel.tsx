@@ -311,39 +311,6 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
         {error && !pick ? <p className="se-alert se-alert--error" role="alert">{error}</p> : null}
         {notice ? <p className="se-alert se-alert--success" role="status">{notice}</p> : null}
 
-        {tickets && summary ? (
-          <section className="sb-tickets-head" aria-label="My sportsbook tickets">
-            <div className="sb-tickets-head__row">
-              <h3>My Tickets</h3>
-              <div className="sb-segment" role="tablist" aria-label="Ticket view">
-                {(['open', 'settled'] as const).map((view) => (
-                  <button
-                    key={view}
-                    type="button"
-                    role="tab"
-                    id={`sb-tab-${view}`}
-                    aria-controls="sb-ticket-list"
-                    aria-selected={ticketView === view}
-                    className={`sb-segment__btn${ticketView === view ? ' is-active' : ''}`}
-                    onClick={() => setTicketView(view)}
-                  >
-                    {view === 'open' ? 'Open' : 'Settled'}
-                    <b>{view === 'open' ? summary.openCount : settledTotal}</b>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className="sb-tickets-head__summary">
-              {ticketView === 'open' ? (
-                <span>
-                  <strong>{summary.openCount}</strong> open · <strong>{formatCentsExact(summary.openStakeCents)}</strong> at stake · pays up to <strong className="is-accent">{formatCentsExact(summary.openPayoutCents)}</strong>
-                </span>
-              ) : null}
-              <span>Record {record} · Net <strong className={netTone}>{signedCents(summary.netCents)}</strong></span>
-            </p>
-          </section>
-        ) : null}
-
         {banner ? (
           <div className={`sb-banner is-${banner.tone}`} role="status">
             <span className="sb-banner__pulse" aria-hidden="true" />
@@ -372,30 +339,6 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
             );
           })}
         </div>
-
-        {tickets ? (
-          <div className="sb-ticket-list" id="sb-ticket-list" role="tabpanel" aria-labelledby={`sb-tab-${ticketView}`}>
-            {shownTickets.length === 0 ? (
-              <p className="sb-empty">
-                {viewTickets.length > 0
-                  ? `No ${ticketView} ${league} tickets.`
-                  : ticketView === 'open' ? 'No open tickets. Pick a side below to place one.' : 'No settled tickets yet.'}
-              </p>
-            ) : null}
-            {shownTickets.map((bet) => (
-              <SportsbookTicketCard
-                key={bet.id}
-                bet={bet}
-                now={now}
-                otherOdds={otherOdds(bet)}
-                className={`${bet.id === acceptedTicketId ? ' is-new' : ''}${bet.id === settledTicketId ? ' is-just-settled' : ''}`}
-              />
-            ))}
-            {ticketView === 'settled' && settledTotal > viewTickets.length ? (
-              <p className="se-hint">Showing your {viewTickets.length} most recent settled tickets. The record covers all {settledTotal}.</p>
-            ) : null}
-          </div>
-        ) : null}
 
         <div className="sb-board-head">
           <h3>Lines</h3>
@@ -552,6 +495,63 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
             </div>
           </aside>
         </div>
+
+        {tickets && summary ? (
+          <section className="sb-tickets-head" aria-label="My sportsbook tickets">
+            <div className="sb-tickets-head__row">
+              <h3>My Tickets</h3>
+              <div className="sb-segment" role="tablist" aria-label="Ticket view">
+                {(['open', 'settled'] as const).map((view) => (
+                  <button
+                    key={view}
+                    type="button"
+                    role="tab"
+                    id={`sb-tab-${view}`}
+                    aria-controls="sb-ticket-list"
+                    aria-selected={ticketView === view}
+                    className={`sb-segment__btn${ticketView === view ? ' is-active' : ''}`}
+                    onClick={() => setTicketView(view)}
+                  >
+                    {view === 'open' ? 'Open' : 'Settled'}
+                    <b>{view === 'open' ? summary.openCount : settledTotal}</b>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="sb-tickets-head__summary">
+              {ticketView === 'open' ? (
+                <span>
+                  <strong>{summary.openCount}</strong> open · <strong>{formatCentsExact(summary.openStakeCents)}</strong> at stake · pays up to <strong className="is-accent">{formatCentsExact(summary.openPayoutCents)}</strong>
+                </span>
+              ) : null}
+              <span>Record {record} · Net <strong className={netTone}>{signedCents(summary.netCents)}</strong></span>
+            </p>
+          </section>
+        ) : null}
+
+        {tickets ? (
+          <div className="sb-ticket-list" id="sb-ticket-list" role="tabpanel" aria-labelledby={`sb-tab-${ticketView}`}>
+            {shownTickets.length === 0 ? (
+              <p className="sb-empty">
+                {viewTickets.length > 0
+                  ? `No ${ticketView} ${league} tickets.`
+                  : ticketView === 'open' ? 'No open tickets. Pick a side below to place one.' : 'No settled tickets yet.'}
+              </p>
+            ) : null}
+            {shownTickets.map((bet) => (
+              <SportsbookTicketCard
+                key={bet.id}
+                bet={bet}
+                now={now}
+                otherOdds={otherOdds(bet)}
+                className={`${bet.id === acceptedTicketId ? ' is-new' : ''}${bet.id === settledTicketId ? ' is-just-settled' : ''}`}
+              />
+            ))}
+            {ticketView === 'settled' && settledTotal > viewTickets.length ? (
+              <p className="se-hint">Showing your {viewTickets.length} most recent settled tickets. The record covers all {settledTotal}.</p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </Panel>
   );
