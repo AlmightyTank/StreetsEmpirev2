@@ -914,7 +914,7 @@ export async function refreshSportsbookCache(
       const nextCache: OddsCacheFile = {
         version: 1,
         // A recovery run must not reset the shared normal-poll clock.
-        updatedAt: normalOddsPoll ? completedAt.toISOString() : initialCache.updatedAt,
+        updatedAt: normalOddsPoll ? completedAt.toISOString() : (initialCache.updatedAt ?? latestOddsAt?.toISOString() ?? null),
         snapshots: [...cachedSnapshots.values()],
       };
       await writeOddsCache(cacheFilePath, nextCache);
