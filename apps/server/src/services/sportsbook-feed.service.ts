@@ -636,7 +636,7 @@ export async function refreshSportsbookCache(
   prisma: PrismaClient,
   keyOrKeys: string | SportsbookFeedKeys,
   now = new Date(),
-  options: FeedDeps & { minIntervalMs?: number } = {},
+  options: FeedDeps & { minIntervalMs?: number; normalIntervalMs?: number } = {},
 ): Promise<SportsbookRefreshResult> {
   const result: SportsbookRefreshResult = {
     skipped: null, oddsPolled: false, cacheUpdatedAt: null, nextOddsPollAt: null, snapshots: 0, failedSnapshots: 0, pulled: 0, resultChecks: 0, settled: 0, failovers: 0, errors: [], warnings: [],
@@ -693,7 +693,7 @@ export async function refreshSportsbookCache(
     .filter((date): date is Date => date !== null)
     .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
   const latestOddsAt = fileUpdatedAt ?? latestDbOddsAt;
-  const minOddsIntervalMs = Math.max(SPORTSBOOK_ODDS_CACHE_INTERVAL_MS, options.minIntervalMs ?? 0);
+  const minOddsIntervalMs = Math.max(SPORTSBOOK_ODDS_CACHE_INTERVAL_MS, options.minIntervalMs ?? 0, options.normalIntervalMs ?? 0);
   const oddsCacheDue = sportsbookOddsCacheDue(latestOddsAt, now, minOddsIntervalMs);
   result.cacheUpdatedAt = latestOddsAt?.toISOString() ?? null;
   result.nextOddsPollAt = latestOddsAt ? new Date(latestOddsAt.getTime() + minOddsIntervalMs).toISOString() : null;
