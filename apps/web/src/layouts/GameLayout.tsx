@@ -12,7 +12,7 @@ import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useGamePresence } from '../hooks/useGamePresence.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
-import { isMobileNavSwipe } from './mobileNavSwipe.js';
+import { isMobileNavSwipe, shouldDismissSheetDrag } from './mobileNavSwipe.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
@@ -318,7 +318,11 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
 }) {
   const sheet = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
-  const gripStart = useRef<{ identifier: number; x: number; y: number } | null>(null);
+  const backdrop = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ identifier: number; x: number; y: number; lastY: number; lastAt: number; velocity: number; distance: number; moved: boolean } | null>(null);
+  const settleTimer = useRef<number | null>(null);
+  const closing = useRef(false);
+  const suppressGripClickUntil = useRef(0);
   const editing = editSlot !== null;
   const [query, setQuery] = useState('');
   const visible = filterNavSections(sections, query);
@@ -326,7 +330,11 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
 
   useEffect(() => {
     closeButton.current?.focus();
-    return lockPageScroll();
+    const unlock = lockPageScroll();
+    return () => {
+      if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
+      unlock();
+    };
   }, []);
 
   function onKeyDown(event: KeyboardEvent) {
@@ -344,30 +352,147 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }
 
-  function handleGripStart(event: TouchEvent<HTMLButtonElement>) {
-    gripStart.current = null;
-    if (event.touches.length !== 1) return;
-    const touch = event.touches[0];
-    if (touch) gripStart.current = { identifier: touch.identifier, x: touch.clientX, y: touch.clientY };
+  /**
+   * Only the header is a drag surface. The page directory keeps native
+   * overflow scrolling, including downward gestures at the top of its list.
+   * Update the panel directly on touchmove to avoid rerendering every tile.
+   */
+  function clearSettleTimer() {
+    if (settleTimer.current !== null) {
+      window.clearTimeout(settleTimer.current);
+      settleTimer.current = null;
+    }
   }
 
-  function handleGripEnd(event: TouchEvent<HTMLButtonElement>) {
-    const initial = gripStart.current;
-    gripStart.current = null;
-    if (!initial || event.touches.length !== 0) return;
-    const touch = Array.from(event.changedTouches).find((item) => item.identifier === initial.identifier);
-    if (touch && isMobileNavSwipe(initial.x, initial.y, touch.clientX, touch.clientY, fromTop ? 'up' : 'down')) onClose();
+  function settleDrag(dismiss: boolean) {
+    const panel = sheet.current;
+    const shade = backdrop.current;
+    if (!panel) return;
+    clearSettleTimer();
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      || document.documentElement.classList.contains('se-reduced-motion');
+    const duration = reducedMotion ? 0 : 180;
+    const direction = fromTop ? -1 : 1;
+    closing.current = dismiss;
+    panel.style.animation = 'none';
+    panel.style.transition = `transform ${duration}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
+    panel.style.transform = `translate3d(0, ${dismiss ? direction * (panel.offsetHeight + 16) : 0}px, 0)`;
+    if (shade) {
+      shade.style.animation = 'none';
+      shade.style.transition = `opacity ${duration}ms ease-out`;
+      shade.style.opacity = dismiss ? '0' : '1';
+    }
+    settleTimer.current = window.setTimeout(() => {
+      settleTimer.current = null;
+      if (dismiss) {
+        onClose();
+        return;
+      }
+      panel.classList.remove('se-sheet__panel--dragging');
+      panel.style.transform = '';
+      panel.style.transition = '';
+      panel.style.animation = '';
+      if (shade) {
+        shade.style.opacity = '';
+        shade.style.transition = '';
+        shade.style.animation = '';
+      }
+    }, duration + 20);
+  }
+
+  function handleDragStart(event: TouchEvent<HTMLDivElement>) {
+    drag.current = null;
+    if (closing.current || settleTimer.current !== null || event.touches.length !== 1) return;
+    const target = event.target;
+    if (target instanceof Element
+        && target.closest('a, button, input, select, textarea, [role="button"]')
+        && !target.closest('.se-sheet__grip')) return;
+    const touch = event.touches[0];
+    if (!touch) return;
+    drag.current = {
+      identifier: touch.identifier,
+      x: touch.clientX,
+      y: touch.clientY,
+      lastY: touch.clientY,
+      lastAt: event.timeStamp,
+      velocity: 0,
+      distance: 0,
+      moved: false,
+    };
+  }
+
+  function handleDragMove(event: TouchEvent<HTMLDivElement>) {
+    const current = drag.current;
+    if (!current) return;
+    if (event.touches.length !== 1) { drag.current = null; if (current.moved) settleDrag(false); return; }
+    const touch = event.touches[0];
+    if (!touch || touch.identifier !== current.identifier) return;
+    const direction = fromTop ? -1 : 1;
+    const travel = direction * (touch.clientY - current.y);
+    const horizontal = Math.abs(touch.clientX - current.x);
+    if (!current.moved && horizontal > 20 && horizontal > Math.abs(travel)) {
+      drag.current = null;
+      return;
+    }
+    if (!current.moved && travel < 8) return;
+    current.moved = true;
+    current.distance = Math.max(0, travel);
+    const elapsed = Math.max(1, event.timeStamp - current.lastAt);
+    const speed = direction * (touch.clientY - current.lastY) / elapsed;
+    current.velocity = current.velocity * 0.35 + speed * 0.65;
+    current.lastY = touch.clientY;
+    current.lastAt = event.timeStamp;
+    const panel = sheet.current;
+    if (!panel) return;
+    panel.classList.add('se-sheet__panel--dragging');
+    panel.style.animation = 'none';
+    panel.style.transition = 'none';
+    panel.style.transform = `translate3d(0, ${direction * current.distance}px, 0)`;
+    const shade = backdrop.current;
+    if (shade) {
+      shade.style.animation = 'none';
+      shade.style.transition = 'none';
+      shade.style.opacity = String(Math.max(0, 1 - current.distance / Math.max(240, panel.offsetHeight)));
+    }
+  }
+
+  function handleDragEnd(event: TouchEvent<HTMLDivElement>) {
+    const current = drag.current;
+    drag.current = null;
+    if (!current || event.touches.length !== 0) return;
+    const touch = Array.from(event.changedTouches).find((item) => item.identifier === current.identifier);
+    if (!touch || !current.moved) return;
+    // A released drag must never generate the grip's click/tap dismissal.
+    suppressGripClickUntil.current = Date.now() + 500;
+    const direction = fromTop ? -1 : 1;
+    const travel = Math.max(0, direction * (touch.clientY - current.y));
+    const panelHeight = sheet.current?.offsetHeight ?? 640;
+    settleDrag(shouldDismissSheetDrag(travel, current.velocity, panelHeight));
+  }
+
+  function handleDragCancel() {
+    const current = drag.current;
+    drag.current = null;
+    if (current?.moved) settleDrag(false);
   }
 
   return (
     <div className={`se-sheet${fromTop ? ' se-sheet--from-top' : ''}`} onKeyDown={onKeyDown}>
-      <div className="se-sheet__backdrop" onClick={onClose} aria-hidden="true" />
+      <div ref={backdrop} className="se-sheet__backdrop" onClick={onClose} aria-hidden="true" />
       <div ref={sheet} className="se-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="se-sheet-title">
-        <button type="button" className="se-sheet__grip"
-          aria-label={fromTop ? 'Close All pages (swipe up or tap)' : 'Close All pages (swipe down or tap)'}
-          onClick={onClose} onTouchStart={handleGripStart} onTouchEnd={handleGripEnd}
-          onTouchCancel={() => { gripStart.current = null; }} />
-        <header className="se-sheet__head">
+        <div className="se-sheet__drag-area" onTouchStart={handleDragStart}
+          onTouchMove={handleDragMove} onTouchEnd={handleDragEnd} onTouchCancel={handleDragCancel}>
+          <button type="button" className="se-sheet__grip"
+            aria-label={fromTop ? 'Close All pages (swipe up or tap)' : 'Close All pages (swipe down or tap)'}
+            onClick={(event) => {
+              if (Date.now() < suppressGripClickUntil.current) {
+                event.preventDefault();
+                suppressGripClickUntil.current = 0;
+                return;
+              }
+              onClose();
+            }} />
+          <header className="se-sheet__head">
           <h2 id="se-sheet-title" className="se-sheet__title">{editing ? 'Edit tabs' : 'All pages'}</h2>
           <div className="se-sheet__actions">
             {editing ? (
@@ -380,7 +505,8 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
             )}
             <button ref={closeButton} type="button" className="se-btn se-btn--ghost se-btn--sm se-sheet__close" aria-label="Close" onClick={onClose}>✕</button>
           </div>
-        </header>
+          </header>
+        </div>
 
         {editing ? (
           <div className="se-sheet__edit">
