@@ -84,7 +84,9 @@
 }
 .se-sportsbook__slip.has-pick { border-color: color-mix(in srgb, var(--se-accent) 55%, var(--se-border)); }
 .se-sportsbook__slip-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
-.se-sportsbook__slip-mini, .se-sportsbook__slip-backdrop, .se-sportsbook__slip-close { display: none; }
+.se-sportsbook__slip-details, .se-sportsbook__slip-close { display: none; }
+/* Desktop keeps the full review card; phones group the essential stake/payout fields. */
+.se-sportsbook__wager, .se-sportsbook__extras { display: contents; }
 .se-sportsbook__slip.is-accepted { animation: se-sportsbook-accepted .55s cubic-bezier(.2,.78,.24,1.12); border-color: var(--se-good); }
 .se-sportsbook__pick { display: grid; gap: .2rem; }
 .se-sportsbook__pick > strong { font-size: 1.05rem; }
@@ -144,39 +146,51 @@
 @media (max-width: 900px) {
   .se-casino__venues { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .se-sportsbook__layout { grid-template-columns: minmax(0, 1fr); }
-  /* A selected bet takes up just one short row while the odds board and tickets scroll. */
-  .se-sportsbook.has-selection { padding-bottom: 5rem; }
+  /* The board remains scrollable. The selected ticket uses a short dock above the game tabs. */
+  .se-sportsbook.has-selection { padding-bottom: 12.5rem; }
   .se-sportsbook__slip { display: none; }
-  .se-sportsbook__slip-mini {
-    display: flex; position: fixed; left: .7rem; right: .7rem;
-    bottom: calc(60px + .55rem + env(safe-area-inset-bottom, 0px));
-    z-index: 50; align-items: center; gap: .65rem; min-height: 4.1rem;
-    padding: .6rem .8rem; border: 1px solid var(--se-accent); border-radius: .8rem;
-    background: var(--se-surface); color: var(--se-text); font: inherit; text-align: left;
-    box-shadow: 0 -.5rem 1.5rem rgb(0 0 0 / .35); cursor: pointer;
-  }
-  .se-sportsbook__slip-mini-pick { display: grid; gap: .15rem; min-width: 0; flex: 1 1 auto; }
-  .se-sportsbook__slip-mini-pick strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .92rem; }
-  .se-sportsbook__slip-mini small { color: var(--se-muted); font-size: .72rem; }
-  .se-sportsbook__slip-mini-return { display: grid; gap: .1rem; flex: 0 0 auto; text-align: right; font-variant-numeric: tabular-nums; }
-  .se-sportsbook__slip-mini-return strong { color: var(--se-accent); }
-  .se-sportsbook__slip-mini:focus-visible, .se-sportsbook__slip-close:focus-visible { outline: 2px solid var(--se-focus, var(--se-accent)); outline-offset: 2px; }
-  .se-sportsbook__slip-backdrop {
-    display: block; position: fixed; inset: 0; z-index: 51;
-    border: 0; background: rgb(0 0 0 / .65); cursor: pointer; touch-action: none;
-  }
-  .se-sportsbook__slip.has-pick.is-expanded {
-    display: grid; position: fixed; top: max(4.5rem, env(safe-area-inset-top, 0px));
+  .se-sportsbook__slip.has-pick {
+    display: grid; position: fixed; top: auto; left: auto; right: .7rem;
     bottom: calc(60px + .5rem + env(safe-area-inset-bottom, 0px));
-    left: .7rem; right: .7rem; z-index: 52;
-    align-content: start; min-height: 0; overflow-y: auto;
-    overscroll-behavior: contain; box-shadow: 0 1rem 2.5rem rgb(0 0 0 / .55);
+    z-index: 50; width: min(27rem, calc(100vw - 1.4rem));
+    align-content: start; gap: .35rem; padding: .55rem .65rem;
+    max-height: min(55dvh, 25rem); overflow-y: auto; overscroll-behavior: contain;
+    box-shadow: 0 -.35rem 1.3rem rgb(0 0 0 / .36);
   }
-  .se-sportsbook__slip-close {
-    display: inline-flex; align-items: center; gap: .4rem; min-height: 2.4rem;
-    padding: .3rem .65rem; border: 1px solid var(--se-border); border-radius: .5rem;
-    background: var(--se-bg); color: var(--se-text); font: inherit; cursor: pointer;
+  .se-sportsbook__slip-head h3 { margin-right: auto; font-size: .88rem; }
+  .se-sportsbook__slip-details, .se-sportsbook__slip-close {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 2rem; padding: .25rem .55rem; border: 1px solid var(--se-border);
+    border-radius: .45rem; background: var(--se-bg); color: var(--se-text);
+    font: inherit; font-size: .77rem; cursor: pointer;
   }
+  .se-sportsbook__slip-close { min-width: 2rem; font-size: 1.2rem; line-height: 1; }
+  .se-sportsbook__slip-details:focus-visible, .se-sportsbook__slip-close:focus-visible {
+    outline: 2px solid var(--se-focus, var(--se-accent)); outline-offset: 2px;
+  }
+  .se-sportsbook__pick { min-width: 0; }
+  .se-sportsbook__pick > strong {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .91rem;
+  }
+  .se-sportsbook__pick-matchup { display: none; }
+  .se-sportsbook__wager {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; align-items: stretch;
+  }
+  .se-sportsbook__stake { display: grid; grid-template-columns: minmax(0, 1fr); gap: .15rem; min-width: 0; }
+  .se-sportsbook__stake > span { color: var(--se-muted); font-size: .72rem; }
+  .se-sportsbook__stake .se-input { width: 100%; min-width: 0; min-height: 2.4rem; padding: .35rem .5rem; }
+  .se-sportsbook__return { gap: 0; padding: .25rem .5rem; }
+  .se-sportsbook__return > div { display: grid; gap: .1rem; }
+  .se-sportsbook__return span { font-size: .65rem; }
+  .se-sportsbook__return strong { font-size: 1.05rem; }
+  .se-sportsbook__return small { display: none; }
+  .se-sportsbook__extras { display: none; }
+  .se-sportsbook__slip.is-expanded .se-sportsbook__extras { display: grid; gap: .45rem; }
+  .se-sportsbook__slip.is-expanded .se-sportsbook__pick-matchup { display: block; }
+  .se-sportsbook__slip.is-expanded .se-sportsbook__return small { display: block; }
+  .se-sportsbook__slip-actions { gap: 0; }
+  .se-sportsbook__slip-actions .se-btn--primary { min-height: 2.5rem; padding: .4rem .7rem; }
+  .se-sportsbook__slip-actions > .se-btn--ghost { display: none; }
 }
 @media (max-width: 560px) {
   .se-casino__venues { grid-template-columns: 1fr; }
@@ -186,7 +200,15 @@
   .se-casino__ledger-amount { width: 100%; grid-template-columns: auto 1fr auto; align-items: baseline; justify-items: start; text-align: left; border-top: 1px solid var(--se-border); padding-top: .55rem; }
   .se-casino__ledger-amount strong { justify-self: center; }
   .se-casino__ledger-amount span { justify-self: end; }
-  .se-sportsbook__prices { grid-template-columns: 1fr; }
+  /* Show both teams and both odds together instead of stacking tall full-width buttons. */
+  .se-sportsbook__event { gap: .4rem; padding: .55rem; }
+  .se-sportsbook__prices { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
+  .se-sportsbook__price {
+    display: flex; flex-direction: column; align-items: stretch; justify-content: space-between;
+    gap: .25rem; min-height: 4.1rem; padding: .4rem .5rem; font-size: .83rem;
+  }
+  .se-sportsbook__price > span { line-height: 1.2; }
+  .se-sportsbook__price b { margin-left: auto; font-size: .94rem; }
   .se-sportsbook__countdown { margin-left: 0; flex-basis: 100%; }
 }
 
