@@ -29,6 +29,6 @@ describe('sportsbook ticket team logos', () => {
   it('does not fabricate assets for malformed or unknown teams', () => {
     expect(sportsbookTeamLogoUrl('NFL', 'Somebody Else')).toBeNull();
     expect(sportsbookTeamLogoUrl('NFL', '')).toBeNull();
-    expect(sportsbookTeamLogoUrl('MLB', 'New York Giants')).toBeNull();
+    expect(sportsbookTeamLogoUrl('MLB', 'New York Cosmos')).toBeNull();
   });
 });
