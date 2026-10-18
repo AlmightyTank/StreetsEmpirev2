@@ -227,6 +227,8 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
     user-select: none;
   }
   .se-sheet__panel--dragging { animation: none !important; will-change: transform; }
+  /* Keep content scrolling native; drag interception is confined to the header. */
+  .se-sheet__body { -webkit-overflow-scrolling: touch; }
   .se-sheet__grip {
     display: flex;
     align-items: center;
