@@ -374,7 +374,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
 /** Navigate to the actual destination after async data and collapsed panels have rendered. */
 function useRouteScroll(pathname: string, search: string, hash: string, locationKey: string) {
   const navigationType = useNavigationType();
-  const lastTarget = useRef<{ pathname: string; anchorId: string | null; key: string } | null>(null);
+  const lastTarget = useRef<{ pathname: string; anchorId: string | null; key: string; completed: boolean } | null>(null);
   const observedScrollY = useRef(typeof window === 'undefined' ? 0 : window.scrollY);
 
   useEffect(() => {
@@ -391,11 +391,13 @@ function useRouteScroll(pathname: string, search: string, hash: string, location
   useLayoutEffect(() => {
     const anchorId = routeAnchorId(pathname, search, hash);
     const previous = lastTarget.current;
-    lastTarget.current = { pathname, anchorId, key: locationKey };
+    const current = { pathname, anchorId, key: locationKey, completed: !anchorId };
+    lastTarget.current = current;
     // Re-clicking the same anchor should still navigate to it. Ordinary search
-    // changes within a page, on the other hand, must not reset scroll position.
+    // changes within a page must not reset scroll position. A cancelled seek
+    // (e.g. React StrictMode's setup/cleanup replay) must retry on the next pass.
     if (previous && previous.pathname === pathname && previous.anchorId === anchorId
-      && (!anchorId || previous.key === locationKey)) return;
+      && (!anchorId || (previous.key === locationKey && previous.completed))) return;
     if (navigationType === 'POP' && !anchorId) return;
 
     // Shared storefront and casino views intentionally retain the player's place.
@@ -445,6 +447,7 @@ function useRouteScroll(pathname: string, search: string, hash: string, location
         behavior: 'auto',
       });
       target.focus({ preventScroll: true });
+      current.completed = true;
       stop();
     };
     const schedule = () => {
