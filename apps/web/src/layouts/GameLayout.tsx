@@ -400,18 +400,55 @@ function useRouteScroll(pathname: string, search: string, hash: string, location
       && (!anchorId || (previous.key === locationKey && previous.completed))) return;
     if (navigationType === 'POP' && !anchorId) return;
 
-    // Shared storefront and casino views intentionally retain the player's place.
+    // Shared storefronts and casino games keep their scroll position without
+    // repeatedly fighting a swipe. Restore once, then only retry when an async
+    // view grows enough to reach the original position. Player input wins.
     if (!anchorId && shouldPreserveRouteScroll(previous?.pathname, pathname, hash)) {
       const desiredY = observedScrollY.current;
       let frame = 0;
-      let tries = 0;
-      const restore = () => {
-        const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-        window.scrollTo(0, Math.min(desiredY, maxY));
-        if (tries++ < 60) frame = window.requestAnimationFrame(restore);
+      let timeout = 0;
+      let observer: ResizeObserver | null = null;
+      let stopped = false;
+      const onScrollKey = (event: globalThis.KeyboardEvent) => {
+        if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) stop();
       };
+      const stop = () => {
+        if (stopped) return;
+        stopped = true;
+        if (frame) window.cancelAnimationFrame(frame);
+        if (timeout) window.clearTimeout(timeout);
+        observer?.disconnect();
+        document.removeEventListener('touchstart', stop, true);
+        document.removeEventListener('pointerdown', stop, true);
+        document.removeEventListener('wheel', stop, true);
+        document.removeEventListener('keydown', onScrollKey, true);
+      };
+      const restore = () => {
+        frame = 0;
+        if (stopped || isPageScrollLocked()) return;
+        const { top, settled } = preservedRouteScrollTarget(
+          desiredY, document.documentElement.scrollHeight, window.innerHeight,
+        );
+        if (Math.abs(window.scrollY - top) > 1) window.scrollTo(0, top);
+        if (settled) stop();
+      };
+      const schedule = () => {
+        if (!stopped && !frame) frame = window.requestAnimationFrame(restore);
+      };
+      document.addEventListener('touchstart', stop, { capture: true, passive: true });
+      document.addEventListener('pointerdown', stop, { capture: true, passive: true });
+      document.addEventListener('wheel', stop, { capture: true, passive: true });
+      document.addEventListener('keydown', onScrollKey, true);
+      // ResizeObserver only fires when the new store/game actually changes size.
+      if (typeof ResizeObserver !== 'undefined') {
+        observer = new ResizeObserver(schedule);
+        const content = document.querySelector<HTMLElement>('.se-gamemain');
+        observer.observe(content ?? document.documentElement);
+      }
+      // Never keep scroll restoration alive indefinitely on a shorter store.
+      timeout = window.setTimeout(stop, 3000);
       restore();
-      return () => window.cancelAnimationFrame(frame);
+      return stop;
     }
 
     if (!anchorId) {
