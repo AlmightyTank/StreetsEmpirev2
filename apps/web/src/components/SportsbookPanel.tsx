@@ -287,24 +287,6 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
   return (
     <Panel className="se-sportsbook-panel" title="Sportsbook" aside="Pregame · casino chips · no turns">
       <div className={`se-sportsbook${pick ? ' has-selection' : ''}`}>
-        <div className="se-sportsbook__toolbar">
-          <span aria-live="polite">
-            {busy ? 'PRINTING TICKET' : settlementStatus ? `TICKET ${RESULT_LABEL[settlementStatus].toUpperCase()}` : 'SPORTS DESK'}
-          </span>
-          <button
-            type="button"
-            className="se-btn se-btn--ghost"
-            aria-pressed={soundEnabled}
-            onClick={() => {
-              const next = !soundEnabled;
-              setSoundEnabledState(next);
-              setCasinoSoundEnabled(next);
-              if (next) playCasinoSound('SPORTS_PICK', true);
-            }}
-          >
-            {soundEnabled ? 'Sound on' : 'Muted'}
-          </button>
-        </div>
         {!available ? (
           <p className="se-alert se-alert--info" role="status">Sports betting is not part of this round&apos;s rules, so no new tickets can be placed. Tickets you already hold still settle here.</p>
         ) : null}
@@ -397,6 +379,25 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
             ) : null}
           </div>
         ) : null}
+
+        <div className="se-sportsbook__toolbar">
+          <span aria-live="polite">
+            {busy ? 'PRINTING TICKET' : settlementStatus ? `TICKET ${RESULT_LABEL[settlementStatus].toUpperCase()}` : 'SPORTS DESK'}
+          </span>
+          <button
+            type="button"
+            className="se-btn se-btn--ghost"
+            aria-pressed={soundEnabled}
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabledState(next);
+              setCasinoSoundEnabled(next);
+              if (next) playCasinoSound('SPORTS_PICK', true);
+            }}
+          >
+            {soundEnabled ? 'Sound on' : 'Muted'}
+          </button>
+        </div>
 
         <div className="sb-board-head">
           <h3>Lines</h3>
