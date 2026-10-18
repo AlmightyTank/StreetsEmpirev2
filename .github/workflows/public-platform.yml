@@ -203,11 +203,14 @@ jobs:
           # Accept only the same release GitHub Actions may have pushed already.
           # The content checksum ties that release to the version validated by CI.
           release_already_pushed() {
-            local candidate="$1" parent title checksum
+            local candidate="$1" parent title changed_paths checksum
             [[ -n "${RELEASE_VERSION:-}" ]] || return 1
             parent="$(git rev-parse "$candidate^" 2>/dev/null || true)"
             title="$(git log -1 --format=%s "$candidate")"
             [[ "$parent" == "$DEPLOY_COMMIT" && "$title" == "chore: release $RELEASE_VERSION [skip ci]" ]] || return 1
+            # No unvalidated changes may travel with the reused release commit.
+            changed_paths="$(git diff-tree --no-commit-id --name-only -r "$candidate")"
+            [[ "$changed_paths" == "packages/shared/src/platform.ts" ]] || return 1
             checksum="$(git show "$candidate:packages/shared/src/platform.ts" | sha256sum | cut -d ' ' -f 1)"
             [[ "$checksum" == "$RELEASE_VERSION_CHECKSUM" ]]
           }
