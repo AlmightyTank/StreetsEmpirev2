@@ -643,6 +643,18 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'luxe-lacquer',
     'underworld-violet',
     'heist-frost',
+    'biscayne-flamingo',
+    'speakeasy-merlot',
+    'funk-tangerine',
+    'redline-red',
+    'wet-paint-mint',
+    'hazard-yellow',
+    'dockside-harbor',
+    'jewel-sapphire',
+    'bayou-firefly',
+    'mirage-turquoise',
+    'rewind-magenta',
+    'felt-green',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';

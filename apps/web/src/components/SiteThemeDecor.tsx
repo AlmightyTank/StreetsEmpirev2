@@ -113,6 +113,18 @@ const themeScenes: Partial<Record<string, ComponentType>> = {
   'kingpin-luxe-shell': lazy(() => import('./theme-scenes/KingpinLuxeScene.js')),
   'neon-underworld-shell': lazy(() => import('./theme-scenes/NeonUnderworldScene.js')),
   'winter-heist-shell': lazy(() => import('./theme-scenes/WinterHeistScene.js')),
+  'biscayne-sunset-shell': lazy(() => import('./theme-scenes/BiscayneSunsetScene.js')),
+  'velvet-speakeasy-shell': lazy(() => import('./theme-scenes/VelvetSpeakeasyScene.js')),
+  'platinum-funk-shell': lazy(() => import('./theme-scenes/PlatinumFunkScene.js')),
+  'redline-syndicate-shell': lazy(() => import('./theme-scenes/RedlineSyndicateScene.js')),
+  'wet-paint-shell': lazy(() => import('./theme-scenes/WetPaintScene.js')),
+  'hazard-cook-shell': lazy(() => import('./theme-scenes/HazardCookScene.js')),
+  'dockside-shell': lazy(() => import('./theme-scenes/DocksideScene.js')),
+  'crown-jewels-shell': lazy(() => import('./theme-scenes/CrownJewelsScene.js')),
+  'bayou-smoke-shell': lazy(() => import('./theme-scenes/BayouSmokeScene.js')),
+  'desert-mirage-shell': lazy(() => import('./theme-scenes/DesertMirageScene.js')),
+  'rewind-shell': lazy(() => import('./theme-scenes/RewindScene.js')),
+  'snake-eyes-shell': lazy(() => import('./theme-scenes/SnakeEyesScene.js')),
 };
 
 function ThemeSceneAtmosphere({ themeKey, Scene }: { themeKey: string; Scene: ComponentType }) {

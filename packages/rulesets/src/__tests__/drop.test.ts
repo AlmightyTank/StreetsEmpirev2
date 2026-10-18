@@ -25,8 +25,8 @@ const items = Object.values(DROP_ITEMS);
 const bundles = Object.values(DROP_BUNDLES);
 
 describe('The Drop catalogue', () => {
-  it('ships three collections, at least 18 SKUs, a shell theme each and a bundle per collection', () => {
-    expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(3);
+  it('ships fifteen collections, at least 18 SKUs, a shell theme each and a bundle per collection', () => {
+    expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(15);
     expect(items.length).toBeGreaterThanOrEqual(18);
     for (const collection of Object.keys(DROP_COLLECTIONS)) {
       expect(items.filter((item) => item.collection === collection).length).toBeGreaterThanOrEqual(7);

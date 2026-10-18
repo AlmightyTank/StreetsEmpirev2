@@ -39,7 +39,7 @@ describe('The Drop art', () => {
     for (const look of looks) {
       const style = look.styleKey!;
       const dressed = look.preview.type === 'ITEM' ? look.preview.items : [];
-      for (const key of ['SEDAN', 'VAN', 'LOW_RIDER', 'TEK9', 'SHOTGUN', 'PISTOL', 'THUG', 'HOE']) {
+      for (const key of ['SEDAN', 'VAN', 'LOW_RIDER', 'TEK9', 'SHOTGUN', 'PISTOL', 'AK47', 'THUG', 'HOE']) {
         const fits = styleFitsItem(style, key) && collectionCovers(style, key);
         expect(fits, `${style} on ${key}`).toBe(dressed.includes(key));
       }
@@ -51,7 +51,9 @@ describe('The Drop art', () => {
     expect(itemCosmeticLoadoutSchema.safeParse({ VAN: 'kingpin-luxe-sedan' }).success).toBe(false);
     expect(crewCosmeticLoadoutSchema.safeParse({ THUG: 'winter-heist-crew', HOE: 'winter-heist-crew' }).success).toBe(true);
     expect(crewCosmeticLoadoutSchema.safeParse({ THUG: 'classic', HOE: 'neon-underworld-thug' }).success).toBe(false);
-    for (const accent of ['luxe-lacquer', 'underworld-violet', 'heist-frost']) expect(profileAccentSchema.safeParse(accent).success).toBe(true);
+    const accents = Object.values(DROP_ITEMS).filter((item) => item.kind === 'ACCENT').map((item) => item.styleKey!);
+    expect(accents).toHaveLength(15);
+    for (const accent of accents) expect(profileAccentSchema.safeParse(accent).success, accent).toBe(true);
   });
 });
 
@@ -60,7 +62,7 @@ describe('The Drop shell themes', () => {
     const css = readFileSync(path.resolve(import.meta.dirname, '../styles/drop-shells.css'), 'utf8');
     const decor = readFileSync(path.resolve(import.meta.dirname, '../components/SiteThemeDecor.tsx'), 'utf8');
     const shells = Object.values(DROP_ITEMS).filter((item) => item.kind === 'SITE_THEME');
-    expect(shells).toHaveLength(3);
+    expect(shells).toHaveLength(15);
     for (const shell of shells) {
       expect(css).toContain(`.se-site-theme--${shell.styleKey} {`);
       expect(css).toContain(`.se-site-theme-decor--${shell.styleKey}`);
