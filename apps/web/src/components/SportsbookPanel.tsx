@@ -144,6 +144,8 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
   const [league, setLeague] = useRememberedState<LeagueFilter>(rememberedKey('sportsbook.league', me?.id), 'ALL', { accept: isLeagueFilter });
   const [ticketView, setTicketView] = useState<TicketView>('open');
   const [pick, setPick] = useState<Pick | null>(null);
+  // Keep browsing possible on phones: the full betting controls open only on demand.
+  const [slipExpanded, setSlipExpanded] = useState(false);
   const [stake, setStake] = useState('25');
   const [busy, setBusy] = useState(false);
   const [soundEnabled, setSoundEnabledState] = useState(() => casinoSoundEnabled());
@@ -261,6 +263,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
     const clearing = pick?.eventId === event.id && pick.selection === selection;
     playCasinoSound(clearing ? 'POKER_FOLD' : 'SPORTS_PICK', soundEnabled, selection === 'HOME' ? 1 : 0);
     setPick(clearing ? null : { eventId: event.id, selection, seenOdds: odds });
+    setSlipExpanded(!clearing);
   }
 
   async function place() {
@@ -279,6 +282,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await wait(420);
       setNotice(`Ticket accepted: ${team} ${formatAmericanOdds(result.bet.oddsAmerican)}, ${formatCentsExact(result.bet.stakeCents)} in chips to pay ${formatCentsExact(result.bet.payoutCents)} in chips. No turns were used.`);
       setPick(null);
+      setSlipExpanded(false);
       setTicketView('open');
       await Promise.all([refresh(), onPlaced()]);
       window.setTimeout(() => setAcceptedTicketId(null), 1_200);
@@ -299,7 +303,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
 
   return (
     <Panel title="Sportsbook" aside="Pregame · casino chips · no turns">
-      <div className="se-sportsbook">
+      <div className={`se-sportsbook${pick ? ' has-selection' : ''}`}>
         <div className="se-sportsbook__toolbar">
           <span aria-live="polite">
             {busy ? 'PRINTING TICKET' : settlementStatus ? `TICKET ${RESULT_LABEL[settlementStatus].toUpperCase()}` : feedStatus?.tone === 'good' ? 'LINES LIVE' : 'SPORTS DESK'}
@@ -410,8 +414,40 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
             )) : null}
           </div>
 
-          <aside className={`se-sportsbook__slip${pick ? ' has-pick' : ''}${acceptedTicketId ? ' is-accepted' : ''}`} aria-label="Bet slip">
-            <h3>Bet slip</h3>
+          {pick && pickedEvent && !slipExpanded ? (
+            <button
+              type="button"
+              className="se-sportsbook__slip-mini"
+              aria-controls="sb-bet-slip"
+              aria-expanded={false}
+              onClick={() => setSlipExpanded(true)}
+            >
+              <span className="se-sportsbook__slip-mini-pick">
+                <strong>{pick.selection === 'HOME' ? pickedEvent.homeTeam : pickedEvent.awayTeam} {formatAmericanOdds(pickedOdds)}</strong>
+                <small>Tap to review bet slip</small>
+              </span>
+              <span className="se-sportsbook__slip-mini-return">
+                <small>Payout</small>
+                <strong>{payoutCents !== null ? formatCentsExact(payoutCents) : '—'}</strong>
+              </span>
+              <span aria-hidden="true">↑</span>
+            </button>
+          ) : null}
+          {pick && slipExpanded ? (
+            <button
+              type="button"
+              className="se-sportsbook__slip-backdrop"
+              aria-label="Close bet slip and browse games"
+              onClick={() => setSlipExpanded(false)}
+            />
+          ) : null}
+          <aside id="sb-bet-slip" className={`se-sportsbook__slip${pick ? ' has-pick' : ''}${slipExpanded ? ' is-expanded' : ''}${acceptedTicketId ? ' is-accepted' : ''}`} aria-label="Bet slip">
+            <div className="se-sportsbook__slip-head">
+              <h3>Bet slip</h3>
+              <button type="button" className="se-sportsbook__slip-close" onClick={() => setSlipExpanded(false)}>
+                Close <span aria-hidden="true">×</span>
+              </button>
+            </div>
             {pick && pickedEvent ? (
               <div className="se-sportsbook__pick">
                 <strong>{pick.selection === 'HOME' ? pickedEvent.homeTeam : pickedEvent.awayTeam} <b>{formatAmericanOdds(pickedOdds)}</b></strong>
@@ -474,7 +510,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
               <Button type="button" className="se-btn se-btn--primary se-btn--block" disabled={busy} disabledReason={busy ? null : placeReason} onClick={() => void place()}>
                 {busy ? 'Printing ticket…' : 'Place ticket'}
               </Button>
-              {pick ? <button type="button" className="se-btn se-btn--ghost" onClick={() => setPick(null)}>Clear</button> : null}
+              {pick ? <button type="button" className="se-btn se-btn--ghost" onClick={() => { setPick(null); setSlipExpanded(false); }}>Clear</button> : null}
             </div>
           </aside>
         </div>
