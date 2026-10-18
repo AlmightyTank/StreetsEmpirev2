@@ -6,6 +6,8 @@ import {
   DROP_KEY_PREFIX,
   bundleListPrice,
   bundlePriceFor,
+  SUPPORTER_DROP_DISCOUNT_PERCENT,
+  supporterDropPrice,
   dropDailyWindow,
   dropWeeklyWindow,
   featuredCollectionFor,
@@ -29,6 +31,7 @@ import type {
 } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { ActiveSupporterService } from './active-supporter.service.js';
 import { CrownWalletService } from './crown-wallet.service.js';
 import { DropSettingsService, switchesFor, type DropSettingsValues } from './drop-settings.service.js';
 import { RoundService } from './round.service.js';
@@ -314,18 +317,33 @@ export function bundleDto(bundle: DropBundleDefinition, entry: CatalogEntry, cat
   };
 }
 
-/** What the account would pay for this offer now, after bundle adjustment. */
-export function priceForAccount(offer: ResolvedOffer, catalog: Catalog, owned: ReadonlySet<string>): { price: number; grants: string[] } {
-  if (offer.kind === 'ITEM') return { price: offer.priceCrowns, grants: owned.has(offer.refKey) ? [] : [offer.refKey] };
+/**
+ * What the account would pay for this offer now: the bundle adjustment first,
+ * then the supporter discount. `basePrice` is the price before that discount.
+ */
+export function priceForAccount(
+  offer: ResolvedOffer,
+  catalog: Catalog,
+  owned: ReadonlySet<string>,
+  supporter = false,
+): { price: number; basePrice: number; grants: string[] } {
+  const discounted = (basePrice: number, grants: string[]) => ({ price: supporter ? supporterDropPrice(basePrice) : basePrice, basePrice, grants });
+  if (offer.kind === 'ITEM') return discounted(offer.priceCrowns, owned.has(offer.refKey) ? [] : [offer.refKey]);
   const bundle = DROP_BUNDLES[offer.refKey];
-  if (!bundle) return { price: 0, grants: [] };
+  if (!bundle) return { price: 0, basePrice: 0, grants: [] };
   const prices = bundle.itemKeys.map((key) => ({ key, price: catalog.get(key)?.priceCrowns ?? 0 }));
   const adjusted = bundlePriceFor(offer.priceCrowns, prices, owned);
-  return { price: adjusted.price, grants: adjusted.missing };
+  return discounted(adjusted.price, adjusted.missing);
 }
 
-function offerDto(offer: ResolvedOffer, catalog: Catalog, owned: ReadonlySet<string>, now: Date): DropOfferDto {
-  const { price, grants } = priceForAccount(offer, catalog, owned);
+/** The supporter discount this account gets in The Drop, or null. */
+export async function supporterDiscountFor(db: Db | PrismaClient, accountId: string | null, now: Date): Promise<number | null> {
+  if (!accountId) return null;
+  return await ActiveSupporterService.paid(db, accountId, now) ? SUPPORTER_DROP_DISCOUNT_PERCENT : null;
+}
+
+function offerDto(offer: ResolvedOffer, catalog: Catalog, owned: ReadonlySet<string>, now: Date, supporter: boolean): DropOfferDto {
+  const { price, basePrice, grants } = priceForAccount(offer, catalog, owned, supporter);
   const keys = offerKeys(offer.kind, offer.refKey);
   let state: DropOfferStateDto = 'AVAILABLE';
   if (offer.startsAt.getTime() > now.getTime()) state = 'COMING_SOON';
@@ -338,7 +356,8 @@ function offerDto(offer: ResolvedOffer, catalog: Catalog, owned: ReadonlySet<str
     refKey: offer.refKey,
     slot: offer.slot,
     badge: offer.badge,
-    priceCrowns: price || offer.priceCrowns,
+    priceCrowns: price || (supporter ? supporterDropPrice(offer.priceCrowns) : offer.priceCrowns),
+    basePriceCrowns: basePrice || offer.priceCrowns,
     startsAt: offer.startsAt.toISOString(),
     endsAt: offer.endsAt?.toISOString() ?? null,
     state,
@@ -362,11 +381,12 @@ function visible(entry: CatalogEntry | undefined, owned: boolean, upcoming: bool
 
 export const DropCatalogService = {
   async storefront(prisma: PrismaClient, accountId: string | null, now = new Date()): Promise<DropStorefrontDto> {
-    const [settings, catalog, owned, round] = await Promise.all([
+    const [settings, catalog, owned, round, discount] = await Promise.all([
       DropSettingsService.get(prisma),
       loadCatalog(prisma),
       ownedDropKeys(prisma, accountId),
       RoundService.getCurrent(prisma),
+      supporterDiscountFor(prisma, accountId, now),
     ]);
     const switches = switchesFor(settings);
     const rotation = await rotationAt(prisma, settings, catalog, now);
@@ -383,20 +403,26 @@ export const DropCatalogService = {
       serverTime: now.toISOString(),
       switches,
       wallet,
+      supporterDiscountPercent: discount,
       featured: { collection: rotation.featuredCollection ? collectionDto(rotation.featuredCollection) : null, endsAt: rotation.featuredEndsAt.toISOString() },
       daily: { resetsAt: rotation.dailyResetsAt.toISOString() },
       collections: Object.keys(DROP_COLLECTIONS).map((key) => collectionDto(key)!),
       items,
       bundles,
       offers: switches.storefront
-        ? [...rotation.offers, ...rotation.upcoming].map((offer) => offerDto(offer, catalog, owned, now))
+        ? [...rotation.offers, ...rotation.upcoming].map((offer) => offerDto(offer, catalog, owned, now, discount !== null))
         : [],
     };
   },
 
   async detail(prisma: PrismaClient, accountId: string | null, slug: string, now = new Date()): Promise<DropItemDetailDto> {
     const key = `${DROP_KEY_PREFIX}${slug}`;
-    const [settings, catalog, owned] = await Promise.all([DropSettingsService.get(prisma), loadCatalog(prisma), ownedDropKeys(prisma, accountId)]);
+    const [settings, catalog, owned, discount] = await Promise.all([
+      DropSettingsService.get(prisma),
+      loadCatalog(prisma),
+      ownedDropKeys(prisma, accountId),
+      supporterDiscountFor(prisma, accountId, now),
+    ]);
     const rotation = await rotationAt(prisma, settings, catalog, now);
     const offers = [...rotation.offers, ...rotation.upcoming].filter((offer) => offer.refKey === key);
     const item = DROP_ITEMS[key];
@@ -414,7 +440,8 @@ export const DropCatalogService = {
         ? { ...bundleDto(bundle, entry!, catalog, owned), items: bundle.itemKeys.map((itemKey) => itemDto(DROP_ITEMS[itemKey]!, catalog.get(itemKey)!, owned)) }
         : null,
       collection: collectionDto((item ?? bundle)!.collection),
-      offers: switches.storefront ? offers.map((offer) => offerDto(offer, catalog, owned, now)) : [],
+      supporterDiscountPercent: discount,
+      offers: switches.storefront ? offers.map((offer) => offerDto(offer, catalog, owned, now, discount !== null)) : [],
     };
   },
 
@@ -430,6 +457,7 @@ export const DropCatalogService = {
       item: item ? itemDto(item, entry, owned) : null,
       bundle: bundle ? { ...bundleDto(bundle, entry, catalog, owned), items: bundle.itemKeys.map((itemKey) => itemDto(DROP_ITEMS[itemKey]!, catalog.get(itemKey)!, owned)) } : null,
       collection: collectionDto((item ?? bundle)!.collection),
+      supporterDiscountPercent: null,
       offers: [],
     };
   },

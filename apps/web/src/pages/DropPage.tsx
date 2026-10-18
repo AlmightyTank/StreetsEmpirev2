@@ -14,6 +14,7 @@ import type {
   ItemCosmeticStyleKey,
   StreetPassSkipQuoteDto,
 } from '@streets/shared';
+import { supporterDropPrice } from '@streets/rulesets';
 import { formatNumber } from '@streets/shared';
 import { dropApi } from '../api/drop.js';
 import { ApiError } from '../api/client.js';
@@ -214,7 +215,8 @@ function DropCard({ item, bundle, offer, items, collection, now }: {
         <div className="se-drop-card__foot">
           {owned ? <StateChip owned offer={offer} /> : (
             <span className="se-drop-card__price">
-              {bundle && bundle.yourPriceCrowns < bundle.listPriceCrowns ? <Crowns value={bundle.listPriceCrowns} strike /> : null}
+              {offer && offer.basePriceCrowns > offer.priceCrowns ? <Crowns value={offer.basePriceCrowns} strike />
+                : bundle && bundle.yourPriceCrowns < bundle.listPriceCrowns ? <Crowns value={bundle.listPriceCrowns} strike /> : null}
               <Crowns value={price} />
             </span>
           )}
@@ -396,6 +398,7 @@ function ShopView() {
       </div>
 
       {data.wallet?.held ? <Alert tone="warning" title="Wallet on hold">{data.wallet.holdReason ?? 'Support is reviewing a payment.'} Spending is paused; your items are safe.</Alert> : null}
+      {data.supporterDiscountPercent ? <Alert tone="success" title="Supporter pricing">Thanks for supporting: every item, bundle and Street Pass skip is {data.supporterDiscountPercent}% off while your membership is active.</Alert> : null}
 
       <OfferSection title="Featured" hint={featured ? `${featured.name} rotates out in ${timeLeft(data.featured.endsAt, now).replace(' left', '')}.` : undefined} offers={section('FEATURED')} render={card} />
       <OfferSection title="Daily offers" hint={`New picks in ${timeLeft(data.daily.resetsAt, now).replace(' left', '')} (${formatWhen(data.daily.resetsAt)}).`} offers={section('DAILY')} render={card} />
@@ -547,6 +550,7 @@ function ItemView() {
               <div key={offer.id} className="se-drop-buy__offer">
                 <div>
                   <span className={`se-drop-badge se-drop-badge--${offer.badge.toLowerCase()}`}>{BADGE_LABEL[offer.badge]}</span>
+                  {offer.basePriceCrowns > offer.priceCrowns ? <Crowns value={offer.basePriceCrowns} strike /> : null}
                   <Crowns value={offer.priceCrowns} />
                   <small>{offer.endsAt ? `${timeLeft(offer.endsAt, now)} · until ${formatWhen(offer.endsAt)}` : 'No end date'}</small>
                 </div>
@@ -789,13 +793,14 @@ function PassView() {
   useEffect(() => { load(); }, [load]);
 
   const count = quote ? Math.max(1, Math.min(tiers, quote.remaining || 1)) : 1;
-  const price = quote ? skipPrice(count, quote.single, quote.tenPack) : 0;
+  const basePrice = quote ? skipPrice(count, quote.single, quote.tenPack) : 0;
+  const price = quote?.supporterDiscountPercent ? supporterDropPrice(basePrice, quote.supporterDiscountPercent) : basePrice;
 
   async function skip() {
     if (!quote) return;
     const ok = await confirmAction({
       title: `Skip ${count} Street Pass tier${count === 1 ? '' : 's'}?`,
-      body: `${formatNumber(price)} Crowns. You go from tier ${quote.tier} to tier ${quote.tier + count}, then claim each tier's rewards on the Street Pass as usual.`,
+      body: `${formatNumber(price)} Crowns${price < basePrice ? ` (supporter price, was ${formatNumber(basePrice)})` : ''}. You go from tier ${quote.tier} to tier ${quote.tier + count}, then claim each tier's rewards on the Street Pass as usual.`,
       confirmLabel: `Skip for ${formatNumber(price)} Crowns`,
     });
     if (!ok) return;
@@ -820,7 +825,7 @@ function PassView() {
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="success" title="Tiers skipped">{notice} <Link to="/game/street-pass">Open the Street Pass</Link></Alert> : null}
       {!quote ? (error ? null : <Panel title="Street Pass skips" loading>{null}</Panel>) : (
-        <Panel title="Skip Street Pass tiers" subtitle={`${formatNumber(quote.single)} Crowns a tier, or ${formatNumber(quote.tenPack)} for ten.`}>
+        <Panel title="Skip Street Pass tiers" subtitle={`${formatNumber(quote.single)} Crowns a tier, or ${formatNumber(quote.tenPack)} for ten.${quote.supporterDiscountPercent ? ` Supporters save ${quote.supporterDiscountPercent}%.` : ''}`}>
           {!quote.enabled ? <Alert tone="info">Street Pass skips are not available right now.</Alert> : quote.remaining === 0 ? (
             <p>You've reached the last tier. Nothing left to skip.</p>
           ) : (
@@ -842,7 +847,7 @@ function PassView() {
                 </label>
               </div>
               <div className="se-drop-buy__offer">
-                <div><Crowns value={price} /><small>{count >= 10 ? 'Ten-pack price applied.' : `${10 - (count % 10)} more for the ten-pack price.`}</small></div>
+                <div>{price < basePrice ? <Crowns value={basePrice} strike /> : null}<Crowns value={price} /><small>{count >= 10 ? 'Ten-pack price applied.' : `${10 - (count % 10)} more for the ten-pack price.`}</small></div>
                 <Button variant="primary" loading={busy} disabledReason={(quote.balance ?? 0) < price ? `You need ${formatNumber(price - (quote.balance ?? 0))} more Crowns.` : null} onClick={() => void skip()}>
                   Skip for {formatNumber(price)}
                 </Button>

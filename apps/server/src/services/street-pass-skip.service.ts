@@ -4,6 +4,7 @@ import {
   streetPassCredToReach,
   streetPassSkipPrice,
   streetPassTierForCred,
+  supporterDropPrice,
   type Ruleset,
   type StreetPassRules,
 } from '@streets/rulesets';
@@ -11,6 +12,7 @@ import type { GameActionResult, StreetPassSkipQuoteDto, StreetPassSkipResultDto 
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
+import { supporterDiscountFor } from './drop-catalog.service.js';
 import { CrownWalletService } from './crown-wallet.service.js';
 import { assertActionId } from './drop-purchase.service.js';
 import { DropSettingsService, requireDropEnabled, switchesFor } from './drop-settings.service.js';
@@ -35,9 +37,10 @@ export const StreetPassSkipService = {
   async quote(prisma: PrismaClient, accountId: string, roundPlayerId: string, ruleset: Ruleset): Promise<StreetPassSkipQuoteDto> {
     const rules = ruleset.streetPass;
     const settings = await DropSettingsService.get(prisma);
-    const [progress, wallet] = await Promise.all([
+    const [progress, wallet, discount] = await Promise.all([
       prisma.streetPassProgress.findUnique({ where: { roundPlayerId } }),
       prisma.crownWallet.findUnique({ where: { accountId }, select: { balance: true } }),
+      supporterDiscountFor(prisma, accountId, new Date()),
     ]);
     const tierCount = rules?.tiers.length ?? 0;
     const tier = rules ? streetPassTierForCred(rules, progress?.passKey === rules.key ? progress.cred : 0) : 0;
@@ -48,6 +51,7 @@ export const StreetPassSkipService = {
       remaining: Math.max(0, tierCount - tier),
       single: STREET_PASS_SKIP_PRICES.single,
       tenPack: STREET_PASS_SKIP_PRICES.tenPack,
+      supporterDiscountPercent: discount,
       balance: wallet?.balance ?? 0,
     };
   },
@@ -81,7 +85,9 @@ export const StreetPassSkipService = {
           throw AppError.conflict('STREET_PASS_SKIP_PAST_END', `Only ${last - fromTier} tier${last - fromTier === 1 ? '' : 's'} left to skip.`);
         }
         const toTier = fromTier + input.tiers;
-        const price = streetPassSkipPrice(input.tiers);
+        const basePrice = streetPassSkipPrice(input.tiers);
+        const discount = await supporterDiscountFor(tx, player.accountId, now);
+        const price = discount !== null ? supporterDropPrice(basePrice) : basePrice;
         const targetCred = streetPassCredToReach(rules, toTier);
 
         const order = await tx.dropOrder.create({
@@ -95,7 +101,14 @@ export const StreetPassSkipService = {
             priceCrowns: price,
             grantedKeys: [],
             roundPlayerId,
-            metadata: { fromTier, toTier, credBefore: cred, credAfter: targetCred, roundId: round.id },
+            metadata: {
+              fromTier,
+              toTier,
+              credBefore: cred,
+              credAfter: targetCred,
+              roundId: round.id,
+              ...(discount !== null ? { supporterDiscountPercent: discount, priceBeforeDiscount: basePrice } : {}),
+            },
             createdAt: now,
           },
         });

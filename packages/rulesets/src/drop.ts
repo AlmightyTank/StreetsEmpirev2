@@ -895,6 +895,20 @@ export const CROWN_EARN_RULES = {
   eventCap: 50,
 } as const;
 
+/* ---------- Supporter discount ---------- */
+
+/**
+ * Active, paid supporters (not free trials) pay this much less for Drop items,
+ * bundles and Street Pass skips. Applied last, after any bundle adjustment.
+ */
+export const SUPPORTER_DROP_DISCOUNT_PERCENT = 10;
+
+/** The supporter price: the discount rounded in the player's favour, never below 1 Crown. */
+export function supporterDropPrice(price: number, percent = SUPPORTER_DROP_DISCOUNT_PERCENT): number {
+  if (!Number.isSafeInteger(price) || price <= 0) return price;
+  return Math.max(1, Math.floor((price * (100 - percent)) / 100));
+}
+
 /* ---------- Street Pass level skips ---------- */
 
 /** Crown price of Street Pass level skips. Any tier can be skipped. */

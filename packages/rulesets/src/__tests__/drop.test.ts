@@ -19,6 +19,8 @@ import {
   pickDaily,
   rulesets,
   streetPassSkipPrice,
+  SUPPORTER_DROP_DISCOUNT_PERCENT,
+  supporterDropPrice,
 } from '../index.js';
 
 const items = Object.values(DROP_ITEMS);
@@ -151,5 +153,24 @@ describe('Rotation windows', () => {
     const collections = Object.keys(DROP_COLLECTIONS);
     expect(new Set([0, 1, 2].map((week) => featuredCollectionFor(week, collections))).size).toBe(3);
     expect(featuredCollectionFor(5, [])).toBeNull();
+  });
+});
+
+describe('Supporter discount', () => {
+  it('takes 10% off, rounded in the player\'s favour, and never below 1 Crown', () => {
+    expect(SUPPORTER_DROP_DISCOUNT_PERCENT).toBe(10);
+    expect(supporterDropPrice(2_800)).toBe(2_520);
+    expect(supporterDropPrice(250)).toBe(225);
+    expect(supporterDropPrice(155)).toBe(139);
+    expect(supporterDropPrice(1)).toBe(1);
+    expect(supporterDropPrice(0)).toBe(0);
+    expect(supporterDropPrice(streetPassSkipPrice(10))).toBe(1_080);
+  });
+
+  it('always leaves a supporter price below the list price for every Drop item and bundle', () => {
+    for (const entry of [...items, ...bundles]) {
+      expect(supporterDropPrice(entry.priceCrowns)).toBeLessThan(entry.priceCrowns);
+      expect(Number.isSafeInteger(supporterDropPrice(entry.priceCrowns))).toBe(true);
+    }
   });
 });

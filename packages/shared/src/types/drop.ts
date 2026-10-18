@@ -78,7 +78,10 @@ export interface DropOfferDto {
   refKey: string;
   slot: DropOfferSlotDto;
   badge: DropOfferBadgeDto;
+  /** What this account pays, after any bundle adjustment and supporter discount. */
   priceCrowns: number;
+  /** The price before the supporter discount; equals priceCrowns when none applies. */
+  basePriceCrowns: number;
   startsAt: string;
   /** Null for a permanent catalog offer. */
   endsAt: string | null;
@@ -120,6 +123,8 @@ export interface DropStorefrontDto {
   switches: DropSwitchesDto;
   /** Null for a signed-out visitor. */
   wallet: DropWalletDto | null;
+  /** The active supporter discount on Drop prices, as a percent, or null. */
+  supporterDiscountPercent: number | null;
   featured: { collection: DropCollectionDto | null; endsAt: string };
   daily: { resetsAt: string };
   collections: DropCollectionDto[];
@@ -133,6 +138,8 @@ export interface DropItemDetailDto {
   item: DropItemDto | null;
   bundle: (DropBundleDto & { items: DropItemDto[] }) | null;
   collection: DropCollectionDto | null;
+  /** The active supporter discount on Drop prices, as a percent, or null. */
+  supporterDiscountPercent: number | null;
   /** Offers that sell this item or bundle right now, or start later. */
   offers: DropOfferDto[];
 }
@@ -212,6 +219,8 @@ export interface StreetPassSkipQuoteDto {
   remaining: number;
   single: number;
   tenPack: number;
+  /** The active supporter discount on skips, as a percent, or null. */
+  supporterDiscountPercent: number | null;
   balance: number | null;
 }
 
