@@ -178,7 +178,7 @@
     border-left: 3px solid var(--sb-electric);
     border-radius: .85rem;
     background: var(--sb-card);
-    box-shadow: 0 0 11px color-mix(in srgb, var(--sb-electric) 12%, transparent), 0 5px 15px rgb(0 0 0 / .28);
+    box-shadow: 0 0 11px color-mix(in srgb, var(--sb-electric) 12%, transparent), var(--se-shadow-soft);
   }
   .se-app--tabbar .sb-card::before {
     opacity: .3;
