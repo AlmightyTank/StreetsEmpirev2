@@ -150,16 +150,22 @@ export function messageReportMessage(report: StaffMessageReport): StaffMessage {
   };
 }
 
-/** Held deploy patch notes: a nudge to review them before they publish themselves. */
+/** The same staff message follows a draft from review through publication or deletion. */
 export function patchNotesHeldMessage(notes: NonNullable<StaffPost['patchNotes']>): StaffMessage {
   const publishes = Math.floor(Date.parse(notes.publishedAt) / 1000);
+  const completed = notes.state === 'PUBLISHED';
+  const deleted = notes.state === 'DELETED';
   return {
     embeds: [{
-      title: truncate(`📝 Waiting for review: ${notes.title}`, 256),
+      title: truncate(`${completed ? '✅ Completed' : deleted ? '🚫 Cancelled' : '📝 Waiting for review'}: ${notes.title}`, 256),
       url: notes.url,
-      color: OPEN_COLOR,
-      description: truncate(notes.body, 1500),
-      fields: [{ name: 'Publishes', value: `<t:${publishes}:R> unless someone edits, deletes or publishes it first.` }],
+      color: completed ? 0x22c55e : deleted ? 0x6b7480 : OPEN_COLOR,
+      description: deleted ? 'This news post was deleted in Admin → News.' : truncate(notes.body, 1500),
+      fields: completed
+        ? [{ name: 'Status', value: 'Published · Review completed' }]
+        : deleted
+          ? [{ name: 'Status', value: 'Cancelled · No longer awaiting review' }]
+          : [{ name: 'Publishes', value: `<t:${publishes}:R> unless someone edits, deletes or publishes it first.` }],
     }],
     components: [{ type: ComponentType.ActionRow, components: [linkButton('Review in Admin → News', notes.url)] }],
   };
