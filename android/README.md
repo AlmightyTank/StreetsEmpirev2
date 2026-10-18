@@ -1,8 +1,8 @@
 # StreetsEmpire Android
 
-Native Kotlin WebView wrapper for the StreetsEmpire live game at
-`https://play.streetsempire.dev/game`. It uses the existing web client and live
-server rather than shipping a second copy of the game.
+Native Kotlin WebView wrapper for the StreetsEmpire web game. The Android
+project has separate production and beta variants; it uses the existing web
+client and server rather than shipping a second copy of the game.
 
 - Live server only
 - Google Play monthly supporter subscription (`supporter_monthly`)
@@ -12,18 +12,54 @@ server rather than shipping a second copy of the game.
 
 ## Open and build
 
-Requirements: Android Studio, Java 17, Android SDK 35.
+Requirements: Android Studio, Java 17, Android SDK 36.
 
 1. Open Android Studio → **Open** → select `android/`.
 2. Let Gradle sync (AGP 8.7.3, Kotlin 2.0.21, Gradle 8.9).
-3. Run on an API 26+ emulator or physical device.
-4. Build with **Build → Build App Bundle(s) / APK(s)**.
+3. Select `betaDebug` for device testing, or `productionRelease` for Play.
+4. Run on an API 26+ emulator or physical device.
 
-Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
+Build variants:
 
-For Play distribution, use **Build → Generate Signed Bundle / APK** and keep the
-release keystore outside the repository. The app targets SDK 35 and has
-application ID `dev.streetsempire.app`.
+| Variant | URL | Package | Purpose |
+| --- | --- | --- | --- |
+| `betaDebug` | `https://beta.streetsempire.dev` | `dev.streetsempire.app.beta` | Local/internal beta testing |
+| `productionRelease` | `https://play.streetsempire.dev` | `dev.streetsempire.app` | Google Play testing/release |
+
+Debug APK: `app/build/outputs/apk/beta/debug/app-beta-debug.apk`
+
+For Play distribution, keep the release keystore outside the repository. Gradle
+uses these local-only variables when building the release bundle:
+
+```powershell
+$env:ANDROID_RELEASE_STORE_FILE = 'C:\secure\streets-empire-upload.jks'
+$env:ANDROID_RELEASE_STORE_PASSWORD = 'your-keystore-password'
+$env:ANDROID_RELEASE_KEY_ALIAS = 'streets-empire-upload'
+$env:ANDROID_RELEASE_KEY_PASSWORD = 'your-key-password'
+.gradlew.bat :app:bundleProductionRelease
+```
+
+The uploadable bundle is `app/build/outputs/bundle/productionRelease/app-production-release.aab`.
+Release builds are configured to include full native crash/ANR symbols when the
+native dependency provides symbol metadata. For APK builds, the generated ZIP
+will be at `app/build/outputs/native-debug-symbols/productionRelease/` and can be
+uploaded in Play Console alongside the matching artifact. The current
+`androidx.graphics.path` prebuilt library does not provide separate symbol
+metadata, so this project may still show Play Console's native-symbol warning;
+that warning is informational and does not block testing or release.
+If any signing variable is missing, Gradle intentionally produces an unsigned
+artifact instead. Verify the signing report before uploading. The app targets
+SDK 36 and has application ID `dev.streetsempire.app`.
+
+Create a new upload keystore once, outside the repository, with Java 17+:
+
+```powershell
+keytool -genkeypair -v -keystore C:\secure\streets-empire-upload.jks `
+  -alias streets-empire-upload -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Back up the keystore and both passwords securely. Losing the upload key can
+block future Play updates.
 
 ## Google Play supporter setup
 

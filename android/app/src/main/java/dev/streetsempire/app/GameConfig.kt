@@ -2,20 +2,20 @@ package dev.streetsempire.app
 
 import android.net.Uri
 
-/** Single source of truth for the StreetsEmpire Live app. */
+/** Environment-specific configuration supplied by the Android build flavor. */
 object GameConfig {
-    /** Beta environment used for Android testing. */
-    const val LIVE_ORIGIN = "https://beta.streetsempire.dev"
+    val LIVE_ORIGIN: String = BuildConfig.LIVE_ORIGIN
 
     /** User-agent token the native shell appends; the website uses it to hide install prompts. */
     const val NATIVE_UA_TOKEN = "StreetsEmpireAndroid/1.0.0"
 
-    const val LIVE_ENTRY = "$LIVE_ORIGIN/game"
+    val LIVE_ENTRY: String = "$LIVE_ORIGIN/game"
     const val SUPPORTER_PRODUCT_ID = "supporter_monthly"
     const val BILLING_SCHEME = "streetsempire"
 
     /** Hosts allowed to load inside the WebView (game + Discord OAuth). */
     private val inAppHosts = setOf(
+        "beta.streetsempire.dev",
         "play.streetsempire.dev",
         "discord.com",
         "www.discord.com",
