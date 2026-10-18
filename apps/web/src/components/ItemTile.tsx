@@ -3,7 +3,7 @@ import type { CustomizableItemKey, ItemCosmeticStyleKey } from '@streets/shared'
 import { hasItemArt, ITEM_ART, type ItemArtKey } from '../items/itemArt.js';
 import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
 import { useSession } from '../stores/session.js';
-import { ItemZoom } from './ItemZoom.js';
+import { ItemZoom, type ZoomOrigin } from './ItemZoom.js';
 
 /**
  * A small picture ahead of a list row's label. `slot` reserves room for a
@@ -74,8 +74,9 @@ export function ItemTile({
   zoomable?: boolean;
 }) {
   const art = ITEM_ART[item];
-  const [zoomed, setZoomed] = useState(false);
-  const closeZoom = useCallback(() => setZoomed(false), []);
+  // The tile's on-screen box at click time; the popup grows out of it. Null while closed.
+  const [zoomFrom, setZoomFrom] = useState<ZoomOrigin | null>(null);
+  const closeZoom = useCallback(() => setZoomFrom(null), []);
   const profileSettings = useSession((state) => state.profileSettings);
   const accountStyle = item === 'THUG' || item === 'HOE'
     ? profileSettings.crewCosmetics?.[item] ?? 'classic'
@@ -91,7 +92,8 @@ export function ItemTile({
   const openZoom = (event: MouseEvent | KeyboardEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    setZoomed(true);
+    const { left, top, width, height } = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    setZoomFrom({ left, top, width, height });
   };
   const tip = title ?? (quantity === undefined ? art.name : `${art.name} ×${quantity.toLocaleString()}`);
 
@@ -113,7 +115,7 @@ export function ItemTile({
         ? <span className="se-item-tile__qty">{quantityText ?? formatQuantity(quantity!)}</span>
         : null}
     </figure>
-    {zoomed ? <ItemZoom item={item} skin={skin} onClose={closeZoom} /> : null}
+    {zoomFrom ? <ItemZoom item={item} skin={skin} origin={zoomFrom} onClose={closeZoom} /> : null}
     </>
   );
 }
