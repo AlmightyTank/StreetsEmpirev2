@@ -151,8 +151,7 @@ const statsSchema = z.object({
   rank: z.object({ local: z.number().nullable(), national: z.number().nullable() }),
 });
 
-const newsClaimSchema = z.object({
-  news: z.array(z.object({
+const newsPostSchema = z.object({
     id: z.string(),
     title: z.string(),
     body: z.string(),
@@ -160,8 +159,9 @@ const newsClaimSchema = z.object({
     publishedAt: z.string(),
     authorName: z.string().nullable(),
     url: z.string().url(),
-  })),
 });
+const newsClaimSchema = z.object({ news: z.array(newsPostSchema) });
+const newsEditsClaimSchema = z.object({ edits: z.array(newsPostSchema.extend({ messageId: z.string() })) });
 
 const okSchema = z.object({ ok: z.literal(true) });
 
@@ -211,7 +211,10 @@ const staffPostSchema = z.object({
   editMessageId: z.string().nullable(),
   bugReport: staffBugReportSchema.optional(),
   messageReport: staffMessageReportSchema.optional(),
-  patchNotes: z.object({ id: z.string(), title: z.string(), body: z.string(), publishedAt: z.string(), url: z.string() }).optional(),
+  patchNotes: z.object({
+    id: z.string(), title: z.string(), body: z.string(), publishedAt: z.string(),
+    updatedAt: z.string().nullable(), state: z.enum(['HELD', 'PUBLISHED', 'DELETED']), url: z.string(),
+  }).optional(),
   deploy: z.object({ phase: z.enum(['started', 'finished', 'failed']), commit: z.string(), at: z.string() }).optional(),
   maintenance: z.object({ message: z.string(), startsAt: z.string(), endsAt: z.string() }).optional(),
 });
@@ -650,6 +653,15 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
       call(newsCreatedSchema, '/api/internal/discord/news', { method: 'POST', body: input }),
     /** Claimed posts count as posted, even if sending them fails. */
     claimNews: async () => (await call(newsClaimSchema, '/api/internal/discord/news/claim', { method: 'POST' })).news,
+    /** Remember where the announcement went so later edits target that exact message. */
+    newsPosted: async (newsId: string, messageId: string) => {
+      await call(okSchema, `/api/internal/discord/news/${encodeURIComponent(newsId)}/posted`, { method: 'POST', body: { messageId } });
+    },
+    claimNewsEdits: async () =>
+      (await call(newsEditsClaimSchema, '/api/internal/discord/news/edits/claim', { method: 'POST' })).edits,
+    newsEditFailed: async (newsId: string, error: string) => {
+      await call(okSchema, `/api/internal/discord/news/${encodeURIComponent(newsId)}/edits/failed`, { method: 'POST', body: { error } });
+    },
     /** Discord refused a claimed post; the admin panel shows why and offers a resend. */
     newsFailed: async (newsId: string, error: string) => {
       await call(okSchema, `/api/internal/discord/news/${encodeURIComponent(newsId)}/failed`, { method: 'POST', body: { error } });
@@ -684,8 +696,11 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     /** Staff channel posts, each handed out once. */
     claimStaffPosts: async (audience: 'staff' | 'status' = 'staff') =>
       (await call(staffClaimSchema, '/api/internal/discord/staff-posts/claim', { method: 'POST', body: { audience } })).posts,
-    staffPostPosted: async (postId: string, messageId: string) => {
-      await call(okSchema, `/api/internal/discord/staff-posts/${encodeURIComponent(postId)}/posted`, { method: 'POST', body: { messageId } });
+    staffPostPosted: async (
+      postId: string, messageId: string,
+      sync?: { state: 'HELD' | 'PUBLISHED' | 'DELETED'; updatedAt: string | null },
+    ) => {
+      await call(okSchema, `/api/internal/discord/staff-posts/${encodeURIComponent(postId)}/posted`, { method: 'POST', body: { messageId, ...(sync ? { sync } : {}) } });
     },
     staffPostFailed: async (postId: string, error: string) => {
       await call(okSchema, `/api/internal/discord/staff-posts/${encodeURIComponent(postId)}/failed`, { method: 'POST', body: { error } });

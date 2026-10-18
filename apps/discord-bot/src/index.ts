@@ -181,12 +181,38 @@ async function postNews(channel: GuildTextBasedChannel, gameUpdatesRoleId: strin
       if (channel.type === ChannelType.GuildAnnouncement) {
         await message.crosspost().catch((error: unknown) => console.warn('Could not publish news to following servers:', error));
       }
+      // Delivery succeeded even if the acknowledgement fails; never mark the
+      // send as failed and accidentally offer a duplicate public announcement.
+      await api.newsPosted(post.id, message.id)
+        .catch((error: unknown) => console.warn(`Discord news "${post.title}" was posted but its message ID could not be recorded:`, error));
       console.log(`Posted news "${post.title}" to #${channel.name}.`);
     } catch (error) {
       console.error(`Could not post news "${post.title}":`, error);
       // The admin panel shows why, and an admin can resend it once that is fixed.
       await api.newsFailed(post.id, describeDiscordError(error, channel.name))
         .catch((reportError: unknown) => console.error(`Could not report the failed news post "${post.title}" to the game API:`, reportError));
+    }
+  }
+
+  // A text edit targets the tracked original. Do not send a second announcement or
+  // ping the subscriber role again; Discord edits should be quiet.
+  for (const post of await api.claimNewsEdits()) {
+    try {
+      const original = await channel.messages.fetch(post.messageId);
+      const payload = newsChannelSend(post);
+      const mention = roleMention(isPatchNotesPost(post.title) ? gameUpdatesRoleId : newsUpdatesRoleId);
+      const content = [mention.content, 'content' in payload ? payload.content : undefined].filter(Boolean).join('\n');
+      await original.edit({
+        content: content || null,
+        embeds: 'embeds' in payload ? payload.embeds : [],
+        allowedMentions: { parse: [] },
+        flags: 'content' in payload ? MessageFlags.SuppressEmbeds : [],
+      });
+      console.log(`Updated original Discord news "${post.title}" in #${channel.name}.`);
+    } catch (error) {
+      console.error(`Could not edit Discord news "${post.title}":`, error);
+      await api.newsEditFailed(post.id, describeDiscordError(error, channel.name))
+        .catch((reportError: unknown) => console.error(`Could not report the failed Discord edit for "${post.title}":`, reportError));
     }
   }
 }
@@ -198,8 +224,9 @@ async function postStaff(channel: GuildTextBasedChannel): Promise<void> {
     if (!message) continue;
     try {
       const existing = post.editMessageId ? await channel.messages.fetch(post.editMessageId).catch(() => null) : null;
+      if (post.editMessageId && !existing) throw new Error('Original staff message could not be found; refusing to create a duplicate.');
       const sent = existing ? await existing.edit(message) : await channel.send({ ...message, allowedMentions: { parse: [] } });
-      await api.staffPostPosted(post.id, sent.id);
+      await api.staffPostPosted(post.id, sent.id, post.patchNotes ? { state: post.patchNotes.state, updatedAt: post.patchNotes.updatedAt } : undefined);
     } catch (error) {
       console.error(`Could not post staff ${post.kind} ${post.id} to #${channel.name}:`, error);
       await api.staffPostFailed(post.id, describeDiscordError(error, channel.name))
@@ -442,10 +469,10 @@ client.once(Events.ClientReady, async (ready) => {
     // Checked on every run, so fixing the channel or its permissions needs no restart.
     // Each run also tells the game API, whose admin news panel shows why news is stuck.
     // Resolved before the alert poller starts, which posts round endings to it.
-    let newsChannel = (await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID')).channel;
+    let newsChannel = (await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID', [PermissionFlagsBits.ReadMessageHistory])).channel;
     let newsProblem: string | null | undefined;
     const runNews = serialTask('News auto-post', async () => {
-      const check = await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID');
+      const check = await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID', [PermissionFlagsBits.ReadMessageHistory]);
       if (check.problem !== newsProblem) {
         if (check.problem) console.warn(`News auto-post is off: ${check.problem}`);
         else console.log(`Posting new game news to #${check.channel!.name} (checking every ${config.DISCORD_NEWS_MINUTES} min).`);

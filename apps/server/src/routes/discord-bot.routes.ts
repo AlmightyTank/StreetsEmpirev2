@@ -64,6 +64,9 @@ const openTicketSchema = z.object({
 const attachTicketSchema = z.object({ threadId: snowflake, staffMessageId: snowflake.nullable() }).strict();
 const closeTicketSchema = z.object({ discordId: snowflake, name: z.string().trim().min(1).max(100) }).strict();
 const staffPostedSchema = z.object({ messageId: snowflake }).strict();
+const staffReviewPostedSchema = staffPostedSchema.extend({
+  sync: z.object({ state: z.enum(['HELD', 'PUBLISHED', 'DELETED']), updatedAt: z.string().datetime().nullable() }).optional(),
+}).strict();
 const newsFailedSchema = z.object({ error: z.string().trim().min(1).max(500) }).strict();
 const alertsClaimSchema = z.object({ feed: z.boolean().optional() }).strict();
 const newsStatusSchema = z.object({
@@ -194,13 +197,32 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/staff-posts/:postId/posted', async (request) => {
     const { postId } = parseBody(staffPostParams, request.params);
-    await DiscordStaffService.posted(fastify.prisma, postId, parseBody(staffPostedSchema, request.body).messageId);
+    const { messageId, sync } = parseBody(staffReviewPostedSchema, request.body);
+    await DiscordStaffService.posted(fastify.prisma, postId, messageId, sync);
     return { ok: true };
   });
 
   fastify.post('/staff-posts/:postId/failed', async (request) => {
     const { postId } = parseBody(staffPostParams, request.params);
     await DiscordStaffService.failed(fastify.prisma, postId, parseBody(newsFailedSchema, request.body ?? {}).error);
+    return { ok: true };
+  });
+
+  fastify.post('/news/:newsId/posted', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    const { messageId } = parseBody(staffPostedSchema, request.body);
+    await DiscordBotService.newsPosted(fastify.prisma, newsId, messageId);
+    return { ok: true };
+  });
+
+  fastify.post('/news/edits/claim', async () => ({
+    edits: await DiscordBotService.claimNewsEdits(fastify.prisma),
+  }));
+
+  fastify.post('/news/:newsId/edits/failed', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    const { error } = parseBody(newsFailedSchema, request.body ?? {});
+    await DiscordBotService.newsEditFailed(fastify.prisma, newsId, error);
     return { ok: true };
   });
 

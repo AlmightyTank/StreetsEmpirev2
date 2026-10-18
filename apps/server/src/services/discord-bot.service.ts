@@ -1160,6 +1160,54 @@ export const DiscordBotService = {
     });
   },
 
+  /** Save the original message ID: edits must not produce a second Discord post. */
+  async newsPosted(prisma: PrismaClient, newsId: string, messageId: string): Promise<void> {
+    await prisma.gameNews.updateMany({
+      where: { id: newsId, discordPostedAt: { not: null } },
+      data: { discordMessageId: messageId, discordError: null },
+    });
+  },
+
+  /** One-at-a-time edit claims; if an admin edits again mid-send, its new queue survives. */
+  async claimNewsEdits(prisma: PrismaClient, limit = 10): Promise<Array<DiscordNewsPostDto & { messageId: string }>> {
+    const now = new Date();
+    return prisma.$transaction(async (tx) => {
+      const rows = await tx.gameNews.findMany({
+        where: {
+          discordMessageId: { not: null },
+          discordEditQueuedAt: { not: null },
+          discordEditError: null,
+          publishedAt: { lte: now },
+        },
+        include: { createdBy: { select: { username: true } } },
+        orderBy: { discordEditQueuedAt: 'asc' },
+        take: limit,
+      });
+      const claimed: Array<DiscordNewsPostDto & { messageId: string }> = [];
+      for (const row of rows) {
+        const locked = await tx.gameNews.updateMany({
+          where: { id: row.id, discordEditQueuedAt: row.discordEditQueuedAt },
+          data: { discordEditQueuedAt: null },
+        });
+        if (!locked.count || !row.discordMessageId) continue;
+        claimed.push({
+          id: row.id, title: row.title, body: row.body, isPinned: row.isPinned,
+          publishedAt: row.publishedAt.toISOString(), authorName: row.createdBy?.username ?? null,
+          url: gameUrl('/game/news'), messageId: row.discordMessageId,
+        });
+      }
+      return claimed;
+    });
+  },
+
+  /** Failed edits stay attached to the same message, awaiting an admin retry. */
+  async newsEditFailed(prisma: PrismaClient, newsId: string, error: string): Promise<void> {
+    await prisma.gameNews.updateMany({
+      where: { id: newsId, discordMessageId: { not: null } },
+      data: { discordEditError: error.slice(0, 500) },
+    });
+  },
+
   /** Discord refused a claimed post: keep why, and take it off Discord until an admin resends it. */
   async newsFailed(prisma: PrismaClient, newsId: string, error: string): Promise<void> {
     await prisma.gameNews.updateMany({ where: { id: newsId, discordPostedAt: { not: null } }, data: { discordPostedAt: null, discordError: error } });
