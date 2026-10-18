@@ -160,7 +160,8 @@ export const AdminNewsService = {
       if (!before) throw AppError.notFound('NEWS_NOT_FOUND', 'That news post does not exist.');
       if (input.publishNow && before.publishedAt <= now) throw AppError.conflict('NEWS_ALREADY_PUBLISHED', 'That post is already published.');
       const textChanged = (input.title !== undefined && input.title !== before.title)
-        || (input.body !== undefined && input.body !== before.body);
+        || (input.body !== undefined && input.body !== before.body)
+        || (input.pinned !== undefined && input.pinned !== before.isPinned);
       const data = {
         ...(input.title !== undefined && input.title !== before.title ? { title: input.title } : {}),
         ...(input.body !== undefined && input.body !== before.body ? { body: input.body } : {}),
