@@ -251,8 +251,8 @@
   gap: 9px;
   padding: 18px 14px;
   background:
-    radial-gradient(ellipse at 50% 52%, rgba(139, 28, 43, 0.2), transparent 70%),
-    linear-gradient(130deg, rgba(8, 11, 19, 0.82), rgba(12, 15, 24, 0.91));
+    radial-gradient(ellipse at 50% 52%, color-mix(in srgb, var(--se-bad) 20%, transparent), transparent 70%),
+    linear-gradient(130deg, color-mix(in srgb, var(--se-panel) 82%, transparent), color-mix(in srgb, var(--se-panel-hi) 91%, transparent));
   color: var(--se-text-dim);
   text-align: center;
   pointer-events: none;
