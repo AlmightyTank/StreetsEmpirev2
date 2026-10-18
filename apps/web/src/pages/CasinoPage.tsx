@@ -28,6 +28,7 @@ import { formatWhen } from '../utils/time.js';
 import { preserveScrollDuring, restoreScrollPosition } from '../utils/scrollPosition.js';
 import '../styles/casino.css';
 import '../styles/sportsbook.css';
+import '../styles/sportsbook-vision.css';
 import '../styles/casino-experience.css';
 
 function dollarsToCents(value: string): number | null {
