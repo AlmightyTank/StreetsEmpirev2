@@ -288,7 +288,7 @@ export function RankingsPage() {
                 <p>Rank movement compares your current position with the previous ranking snapshot. Rank streak shows how long the current position has been held.</p>
               </div>
 
-              <div className="se-rankings-metrics">
+              <div className="se-rankings-metrics" role="region" aria-label="Your ranking statistics" tabIndex={0}>
                 <RankingMetric
                   label="National rank"
                   value={`#${formatNumber(data.me.nationalRank)}`}

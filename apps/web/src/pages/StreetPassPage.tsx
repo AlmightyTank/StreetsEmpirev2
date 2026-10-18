@@ -481,6 +481,7 @@ export function StreetPassPage() {
                 <CareerMetricStrip
                   label="Round progress"
                   className="se-pass-metricgrid"
+                  scrollable
                   items={[
                     { label: 'Street Cred', value: formatNumber(pass.cred), detail: 'earned this round', tone: 'accent' },
                     { label: 'Tiers claimed', value: `${formatNumber(claimedCount)} / ${formatNumber(pass.tierCount)}`, detail: `${formatNumber(pass.tier)} reached` },
