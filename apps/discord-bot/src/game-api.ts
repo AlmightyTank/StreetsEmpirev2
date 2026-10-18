@@ -211,7 +211,10 @@ const staffPostSchema = z.object({
   editMessageId: z.string().nullable(),
   bugReport: staffBugReportSchema.optional(),
   messageReport: staffMessageReportSchema.optional(),
-  patchNotes: z.object({ id: z.string(), title: z.string(), body: z.string(), publishedAt: z.string(), url: z.string() }).optional(),
+  patchNotes: z.object({
+    id: z.string(), title: z.string(), body: z.string(), publishedAt: z.string(),
+    updatedAt: z.string().nullable(), state: z.enum(['HELD', 'PUBLISHED', 'DELETED']), url: z.string(),
+  }).optional(),
   deploy: z.object({ phase: z.enum(['started', 'finished', 'failed']), commit: z.string(), at: z.string() }).optional(),
   maintenance: z.object({ message: z.string(), startsAt: z.string(), endsAt: z.string() }).optional(),
 });
