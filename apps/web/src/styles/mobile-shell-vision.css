@@ -7,7 +7,7 @@
  * Do not change touch-action, scroll containment, or More-sheet gesture zones.
  */
 @media (max-width: 899px) {
-  .se-app--tabbar {
+  .se-app--tabbar.se-site-theme--none {
     background-image:
       radial-gradient(70% 300px at 55% 0, color-mix(in srgb, var(--se-accent) 11%, transparent), transparent 86%),
       linear-gradient(180deg, color-mix(in srgb, var(--se-panel) 19%, var(--se-bg)), var(--se-bg) 380px);
@@ -34,6 +34,20 @@
       inset 0 -1px 0 color-mix(in srgb, var(--se-accent) 9%, transparent);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
+  }
+
+  /* Theme owners keep their earned top-bar texture and HUD surface. */
+  .se-app--tabbar:not(.se-site-theme--none) .se-topbar {
+    background: var(--se-theme-topbar-layer), color-mix(in srgb, var(--se-theme-topbar-bg) 94%, var(--se-bg));
+  }
+  .se-app--tabbar:not(.se-site-theme--none) .se-topbar a.se-statusbar__item {
+    background: var(--se-theme-stat-fill);
+    border-color: color-mix(in srgb, var(--se-accent) 36%, var(--se-line));
+  }
+  .se-app--tabbar:not(.se-site-theme--none) .se-tabbar {
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--se-accent) 7%, transparent), transparent 80%),
+      color-mix(in srgb, var(--se-theme-topbar-bg) 93%, var(--se-bg));
   }
 
   .se-app--tabbar .se-topbar > .se-brand {
