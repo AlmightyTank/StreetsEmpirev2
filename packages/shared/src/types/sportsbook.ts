@@ -182,6 +182,8 @@ export interface AdminSportsbookDto {
   leagues: Array<SportsbookLeagueFeedStatus & {
     key: SportsbookLeagueKey; name: string; upcoming: number; pulled: number;
     activeProvider: string; activeProviderName: string; pinnedProvider: string | null; chain: string[];
+    /** Next eligible alternate attempt after a failed league poll; null when no recovery is pending. */
+    nextRecoveryAt: string | null;
   }>;
   exposure: { openTickets: number; openStakeCents: number; openPayoutCents: number };
   settledLast24h: { events: number; tickets: number };
