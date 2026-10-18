@@ -113,8 +113,8 @@ jobs:
     environment:
       name: ${{ (inputs.deploy_branch || github.ref_name) == 'main' && 'production' || 'beta' }}
     permissions:
-      contents: read
-      # Patch notes read the bodies of the pull requests in each deploy.
+      # The release step pushes the APP_VERSION bump. Patch notes read pull request bodies.
+      contents: write
       pull-requests: read
     env:
       DEPLOY_BRANCH: ${{ inputs.deploy_branch || github.ref_name }}
@@ -150,18 +150,59 @@ jobs:
           printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
           chmod 600 "$HOME/.ssh/known_hosts"
 
+      # Bumps APP_VERSION before the game is deployed, then pushes that commit.
+      # [skip ci] keeps the push from starting a second deploy. A failure here
+      # deploys the original commit and leaves the version where it was.
+      - name: Check out the commit to release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.commit_sha }}
+          fetch-depth: 0
+
+      - name: Bump the release version
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          plan="$RUNNER_TEMP/release.json"
+          node scripts/ops/bump-version.mjs plan --to "$DEPLOY_COMMIT" --branch "$DEPLOY_BRANCH" --repo "$GITHUB_REPOSITORY" > "$plan" \
+            || echo 'null' > "$plan"
+          sha="$DEPLOY_COMMIT"
+          if jq -e '. != null and .version != null' "$plan" >/dev/null; then
+            version="$(jq -r '.version' "$plan")"
+            node scripts/ops/bump-version.mjs apply --version "$version"
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -am "chore: release $version [skip ci]"
+            if git push origin "HEAD:$DEPLOY_BRANCH"; then
+              sha="$(git rev-parse HEAD)"
+              echo "Released $version ($sha)."
+            else
+              echo "::warning::Could not push the $version release commit. Deploying $DEPLOY_COMMIT without a version bump."
+              git checkout -- packages/shared/src/platform.ts
+              sha="$DEPLOY_COMMIT"
+            fi
+          else
+            echo "No release bump for $DEPLOY_COMMIT."
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
       # The Discord status channel says an update is starting, then edits that post when
       # it finishes or fails (scripts/ops/deploy-status.mjs). Notices only ever warn.
       - name: Announce the update
         continue-on-error: true
+        env:
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
         shell: bash
         run: |
           set -euo pipefail
           ssh -i "$HOME/.ssh/streets-empire-deploy" \
             -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$VPS_USER@$VPS_HOST" "cd $CHECKOUT_DIR && node scripts/ops/deploy-status.mjs started $DEPLOY_COMMIT"
+            "$VPS_USER@$VPS_HOST" "cd $CHECKOUT_DIR && node scripts/ops/deploy-status.mjs started $RELEASE_SHA"
 
       - name: Deploy selected commit
+        env:
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -172,7 +213,7 @@ jobs:
           esac
           printf -v checkout_arg '%q' "$checkout_dir"
           printf -v branch_arg '%q' "$DEPLOY_BRANCH"
-          printf -v commit_arg '%q' "$DEPLOY_COMMIT"
+          printf -v commit_arg '%q' "$RELEASE_SHA"
           remote_command="cd $checkout_arg && bash scripts/ops/deploy-ref.sh $branch_arg $commit_arg"
           ssh -i "$HOME/.ssh/streets-empire-deploy" \
             -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
@@ -180,17 +221,19 @@ jobs:
 
       - name: Announce the update finished
         continue-on-error: true
+        env:
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
         shell: bash
         run: |
           set -euo pipefail
           ssh -i "$HOME/.ssh/streets-empire-deploy" \
             -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$VPS_USER@$VPS_HOST" "cd $CHECKOUT_DIR && node scripts/ops/deploy-status.mjs finished $DEPLOY_COMMIT"
+            "$VPS_USER@$VPS_HOST" "cd $CHECKOUT_DIR && node scripts/ops/deploy-status.mjs finished $RELEASE_SHA"
 
       - name: Check out history for patch notes
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.validate.outputs.commit_sha }}
+          ref: ${{ steps.release.outputs.sha }}
           fetch-depth: 0
 
       # Turns the "## Patch notes" sections of the PRs in this deploy into one news
@@ -201,6 +244,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
         run: |
           set -euo pipefail
           case "$DEPLOY_BRANCH" in
@@ -209,7 +253,7 @@ jobs:
             *) echo "::error::Unsupported deploy branch: $DEPLOY_BRANCH"; exit 1 ;;
           esac
           printf -v checkout_arg '%q' "$checkout_dir"
-          printf -v commit_arg '%q' "$DEPLOY_COMMIT"
+          printf -v commit_arg '%q' "$RELEASE_SHA"
           vps() {
             ssh -i "$HOME/.ssh/streets-empire-deploy" \
               -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
@@ -221,22 +265,22 @@ jobs:
 
           previous="$(vps "cat $marker 2>/dev/null || true" | tr -d '[:space:]')"
           if [[ ! "$previous" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "No earlier patch notes on this server; later deploys start from $DEPLOY_COMMIT."
+            echo "No earlier patch notes on this server; later deploys start from $RELEASE_SHA."
             remember
             exit 0
           fi
-          if [[ "$previous" == "$DEPLOY_COMMIT" ]]; then
-            echo "Patch notes for $DEPLOY_COMMIT were already handled."
+          if [[ "$previous" == "$RELEASE_SHA" ]]; then
+            echo "Patch notes for $RELEASE_SHA were already handled."
             exit 0
           fi
-          if ! git merge-base --is-ancestor "$previous" "$DEPLOY_COMMIT"; then
+          if ! git merge-base --is-ancestor "$previous" "$RELEASE_SHA"; then
             # A rollback: keep the marker so redeploying forward never repeats notes.
-            echo "$DEPLOY_COMMIT does not follow $previous, so there are no new patch notes."
+            echo "$RELEASE_SHA does not follow $previous, so there are no new patch notes."
             exit 0
           fi
 
           notes="$RUNNER_TEMP/patch-notes.json"
-          node scripts/ops/patch-notes.mjs collect --from "$previous" --to "$DEPLOY_COMMIT" \
+          node scripts/ops/patch-notes.mjs collect --from "$previous" --to "$RELEASE_SHA" \
             --branch "$DEPLOY_BRANCH" --repo "$GITHUB_REPOSITORY" > "$notes"
           if jq -e '. != null' "$notes" > /dev/null; then
             vps "cd $checkout_arg && node scripts/ops/patch-notes.mjs post" < "$notes"
@@ -254,9 +298,11 @@ jobs:
       - name: Announce a failed update
         if: failure()
         continue-on-error: true
+        env:
+          RELEASE_SHA: ${{ steps.release.outputs.sha || needs.validate.outputs.commit_sha }}
         shell: bash
         run: |
           set -euo pipefail
           ssh -i "$HOME/.ssh/streets-empire-deploy" \
             -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$VPS_USER@$VPS_HOST" "cd $CHECKOUT_DIR && node scripts/ops/deploy-status.mjs failed $DEPLOY_COMMIT"
+            "$VPS_USER@$VPS_HOST" "cd $CHECKOUT_DIR && node scripts/ops/deploy-status.mjs failed $RELEASE_SHA"

@@ -2,7 +2,18 @@ import type { PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { BODY_MAX, buildPatchNotes, extractPatchNotes, readAppVersion } from '../../../../../scripts/ops/patch-notes.mjs';
+import { execFileSync } from 'node:child_process';
+import { planRelease } from '../../../../../scripts/ops/bump-version.mjs';
+import {
+  BODY_MAX,
+  buildPatchNotes,
+  bumpVersion,
+  classifyRelease,
+  extractPatchNotes,
+  readAppVersion,
+  releaseLevel,
+  writeAppVersion,
+} from '../../../../../scripts/ops/patch-notes.mjs';
 import { PATCH_NOTES_DUPLICATE_MS, PatchNotesService } from '../patch-notes.service.js';
 
 const template = `## What changed
@@ -66,6 +77,55 @@ describe('readAppVersion', () => {
     expect(() => readAppVersion("export const APP_VERSION = 'October 17, 2026';")).toThrow(/MAJOR\.MINOR\.PATCH/);
     expect(() => readAppVersion("export const APP_VERSION = '2.2';")).toThrow(/MAJOR\.MINOR\.PATCH/);
     expect(() => buildPatchNotes([], 'October 17, 2026')).toThrow(/MAJOR\.MINOR\.PATCH/);
+  });
+});
+
+describe('release bumps', () => {
+  const source = "export const APP_VERSION = '2.0.0';\n";
+
+  it('bumps patch on its own, minor for a feature, and major when 2.x.x is finished', () => {
+    expect(bumpVersion('2.0.0', 'patch')).toBe('2.0.1');
+    expect(bumpVersion('2.0.4', 'minor')).toBe('2.1.0');
+    expect(bumpVersion('2.8.3', 'major')).toBe('3.0.0');
+    expect(bumpVersion('2.1.0-rc.4+build.9', 'patch')).toBe('2.1.1');
+    expect(writeAppVersion(source, '2.1.0')).toBe("export const APP_VERSION = '2.1.0';\n");
+  });
+
+  it('treats an ordinary change as a patch and a feat title as a minor', () => {
+    expect(classifyRelease({ title: 'fix: raids', body: '## Patch notes\n- Raids pay out.' })).toBe('patch');
+    expect(classifyRelease({ title: 'feat: crew legends', body: '## Version\nminor' })).toBe('minor');
+    expect(classifyRelease({ title: 'Add a dice game', labels: ['feature'], body: '' })).toBe('minor');
+    expect(classifyRelease({ title: 'docs: readme', body: '## Version\nnone' })).toBe('skip');
+  });
+
+  it('moves 2.x.x to 3.0.0 when the major line is finished', () => {
+    const finished = { title: 'feat: last 2.x piece', body: 'Finishing with 2.x.x.\n\n## Version\nmajor' };
+    expect(classifyRelease(finished)).toBe('major');
+    expect(classifyRelease({ title: 'fix: save', body: 'BREAKING CHANGE: old clients cannot join.' })).toBe('major');
+    expect(releaseLevel([
+      { title: 'fix: save', body: '' },
+      finished,
+      { title: 'feat: dice', body: '## Version\nminor' },
+    ])).toBe('major');
+    expect(releaseLevel([{ title: 'chore: release 2.1.0', body: '' }], true)).toBeNull();
+    expect(releaseLevel([], false)).toBeNull();
+    expect(releaseLevel([], true)).toBe('patch');
+  });
+
+  it('plans the next release from pulls merged after the current version', () => {
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    const parent = execFileSync('git', ['rev-parse', 'HEAD~1'], { encoding: 'utf8' }).trim();
+    expect(planRelease({ to: head, from: head, pullsFor: () => [] })).toBeNull();
+    expect(planRelease({
+      to: head,
+      from: parent,
+      pullsFor: () => [{ title: 'feat: automatic releases', body: '## Version\nminor' }],
+    })).toEqual({ level: 'minor', previous: '2.1.0', version: '2.2.0' });
+    expect(planRelease({
+      to: head,
+      from: parent,
+      pullsFor: () => [{ title: 'docs: notes', body: '## Version\nnone' }],
+    })).toBeNull();
   });
 });
 
