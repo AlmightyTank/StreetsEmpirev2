@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isMobileNavSwipe, shouldDismissSheetDrag, sheetDragOpacity } from './mobileNavSwipe.js';
+import { isMobileNavSwipe, isSheetDismissSwipe } from './mobileNavSwipe.js';
 
 describe('mobile All pages sheet gestures', () => {
   it('opens the sheet on a deliberate upward swipe from the tab bar', () => {
@@ -24,32 +24,13 @@ describe('mobile All pages sheet gestures', () => {
   });
 });
 
-describe('mobile sheet pull-to-dismiss', () => {
-  it('closes on a sufficiently long downward drag', () => {
-    expect(shouldDismissSheetDrag(105, 0.15, 640)).toBe(true);
-    expect(shouldDismissSheetDrag(60, 0.1, 320)).toBe(true);
+describe('All pages dismiss gesture', () => {
+  it('recognizes a deliberate header pull', () => {
+    expect(isSheetDismissSwipe(120, 180, 124, 242, 'down')).toBe(true);
   });
-  it('closes on a short fast flick, but not on a short slow pull', () => {
-    expect(shouldDismissSheetDrag(40, 0.8, 640)).toBe(true);
-    expect(shouldDismissSheetDrag(40, 0.05, 640)).toBe(false);
-  });
-  it('snaps back for taps, wrong-direction swipes, and invalid distances', () => {
-    expect(shouldDismissSheetDrag(0, 1, 640)).toBe(false);
-    expect(shouldDismissSheetDrag(20, 1, 640)).toBe(false);
-    expect(shouldDismissSheetDrag(-20, 0.8, 640)).toBe(false);
-    expect(shouldDismissSheetDrag(Number.NaN, 1, 640)).toBe(false);
-  });
-});
-
-describe('mobile sheet drag backdrop', () => {
-  it('fades in one direction with bounded values', () => {
-    expect(sheetDragOpacity(0, 640)).toBe(1);
-    expect(sheetDragOpacity(320, 640)).toBe(0.5);
-    expect(sheetDragOpacity(1280, 640)).toBe(0);
-    expect(sheetDragOpacity(-20, 640)).toBe(1);
-  });
-  it('does not produce invalid opacity on bad heights', () => {
-    expect(sheetDragOpacity(40, 0)).toBe(1);
-    expect(sheetDragOpacity(Number.NaN, 640)).toBe(1);
+  it('ignores small, sideways, and opposite-direction gestures', () => {
+    expect(isSheetDismissSwipe(120, 180, 120, 202, 'down')).toBe(false);
+    expect(isSheetDismissSwipe(120, 180, 210, 240, 'down')).toBe(false);
+    expect(isSheetDismissSwipe(120, 180, 120, 110, 'down')).toBe(false);
   });
 });

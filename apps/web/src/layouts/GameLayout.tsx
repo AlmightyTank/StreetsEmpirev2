@@ -12,14 +12,14 @@ import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useGamePresence } from '../hooks/useGamePresence.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
-import { isMobileNavSwipe, shouldDismissSheetDrag, sheetDragOpacity } from './mobileNavSwipe.js';
+import { isMobileNavSwipe, isSheetDismissSwipe } from './mobileNavSwipe.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
 import { CaseStoryAlerts } from '../components/CaseStoryAlerts.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { formatDuration } from '../utils/time.js';
-import { isPageScrollLocked, lockPageScroll } from '../utils/pageScrollLock.js';
+import { isPageScrollLocked } from '../utils/pageScrollLock.js';
 import { anchorScrollTop, isAnchorReady, preservedRouteScrollTarget, routeAnchorId, shouldPreserveRouteScroll } from '../utils/routeScroll.js';
 import {
   isCurrent,
@@ -318,22 +318,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
 }) {
   const sheet = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
-  const backdrop = useRef<HTMLDivElement>(null);
-  const drag = useRef<{
-    pointerId: number;
-    x: number;
-    y: number;
-    lastY: number;
-    lastAt: number;
-    velocity: number;
-    distance: number;
-    height: number;
-    moved: boolean;
-    startedOnGrip: boolean;
-  } | null>(null);
-  const frame = useRef<number | null>(null);
-  const settleTimer = useRef<number | null>(null);
-  const closing = useRef(false);
+  const gripStart = useRef<{ identifier: number; x: number; y: number } | null>(null);
   const suppressGripClickUntil = useRef(0);
   const editing = editSlot !== null;
   const [query, setQuery] = useState('');
@@ -341,13 +326,9 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
   const slotOf = new Map(slots.map((page, index) => [page.key, index]));
 
   useEffect(() => {
+    // Avoid freezing the whole body into a fixed position on Android.
+    // The backdrop consumes gestures; the page directory scrolls natively.
     closeButton.current?.focus({ preventScroll: true });
-    const unlock = lockPageScroll();
-    return () => {
-      if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
-      if (frame.current !== null) window.cancelAnimationFrame(frame.current);
-      unlock();
-    };
   }, []);
 
   function onKeyDown(event: KeyboardEvent) {
@@ -365,173 +346,42 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }
 
-  /**
-   * The drawer header is the only gesture surface. Pointer capture keeps the
-   * gesture attached when the sheet moves under the finger; the scrollable
-   * directory stays fully native, even when scrolled to the top.
-   */
-  function cancelFrame() {
-    if (frame.current !== null) {
-      window.cancelAnimationFrame(frame.current);
-      frame.current = null;
-    }
-  }
-
-  function paintDrag() {
-    frame.current = null;
-    const state = drag.current;
-    const panel = sheet.current;
-    if (!state || !panel || !state.moved) return;
-    const direction = fromTop ? -1 : 1;
-    panel.style.transform = `translate3d(0, ${direction * state.distance}px, 0)`;
-    if (backdrop.current) backdrop.current.style.opacity = String(sheetDragOpacity(state.distance, state.height));
-  }
-
-  function settleDrag(dismiss: boolean) {
-    const panel = sheet.current;
-    const shade = backdrop.current;
-    if (!panel || closing.current) return;
-    cancelFrame();
-    if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      || document.querySelector('.se-reduced-motion') !== null;
-    const duration = reducedMotion ? 0 : 180;
-    closing.current = dismiss;
-    const direction = fromTop ? -1 : 1;
-    panel.style.animation = 'none';
-    panel.style.transition = `transform ${duration}ms cubic-bezier(0.22, 1, 0.36, 1)`;
-    panel.style.transform = `translate3d(0, ${dismiss ? direction * (panel.offsetHeight + 16) : 0}px, 0)`;
-    if (shade) {
-      shade.style.animation = 'none';
-      shade.style.transition = `opacity ${duration}ms ease-out`;
-      shade.style.opacity = dismiss ? '0' : '1';
-    }
-    settleTimer.current = window.setTimeout(() => {
-      settleTimer.current = null;
-      if (dismiss) {
-        onClose();
-        return;
-      }
-      closing.current = false;
-      panel.classList.remove('se-sheet__panel--dragging');
-      panel.style.transition = '';
-      panel.style.transform = '';
-      // Keep the original opening keyframes disabled after a cancelled drag:
-      // reenabling them causes a jump from offscreen on Android.
-      if (shade) {
-        shade.style.transition = '';
-        shade.style.opacity = '';
-      }
-    }, duration + 20);
-  }
-
-  function cancelDrag() {
-    const wasDragging = drag.current?.moved ?? false;
-    drag.current = null;
-    cancelFrame();
-    if (wasDragging) settleDrag(false);
-  }
-
-  function handleSheetPointerDownCapture(event: PointerEvent<HTMLDivElement>) {
-    // Another contact anywhere over the modal (including its scrollable body)
-    // cancels an in-progress header drag, not just another contact on the header.
-    if (drag.current && event.pointerId !== drag.current.pointerId) cancelDrag();
-  }
-
-  function handleDragPointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (!event.isPrimary) {
-      cancelDrag();
-      return;
-    }
-    if (closing.current || settleTimer.current !== null || event.button !== 0) return;
+  function handleGripStart(event: TouchEvent<HTMLDivElement>) {
+    gripStart.current = null;
+    if (event.touches.length !== 1) return;
     const target = event.target;
-    if (!(target instanceof Element)) return;
-    if (target.closest('a, button, input, select, textarea, [role="button"]')
-        && !target.closest('.se-sheet__grip')) return;
-    const panel = sheet.current;
-    if (!panel) return;
-    drag.current = {
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      lastY: event.clientY,
-      lastAt: event.timeStamp,
-      velocity: 0,
-      distance: 0,
-      height: panel.offsetHeight,
-      moved: false,
-      startedOnGrip: Boolean(target.closest('.se-sheet__grip')),
-    };
+    if (target instanceof Element && target.closest('button, a, input, select, textarea')
+      && !target.closest('.se-sheet__grip')) return;
+    const touch = event.touches[0];
+    if (touch) gripStart.current = { identifier: touch.identifier, x: touch.clientX, y: touch.clientY };
   }
 
-  function handleDragPointerMove(event: PointerEvent<HTMLDivElement>) {
-    const state = drag.current;
-    if (!state || event.pointerId !== state.pointerId) return;
-    // Mouse drags can leave the header before we acquire capture. If the
-    // button is no longer pressed, never turn that stale hover into a drag.
-    if (event.pointerType === 'mouse' && event.buttons === 0) {
-      cancelDrag();
-      return;
+  function handleGripMove(event: TouchEvent<HTMLDivElement>) {
+    const initial = gripStart.current;
+    if (!initial) return;
+    if (event.touches.length !== 1) { gripStart.current = null; return; }
+    const touch = event.touches[0];
+    if (!touch || touch.identifier !== initial.identifier) { gripStart.current = null; return; }
+    if (Math.abs(touch.clientY - initial.y) > 9 || Math.abs(touch.clientX - initial.x) > 9) {
+      suppressGripClickUntil.current = Date.now() + 500;
     }
-    const direction = fromTop ? -1 : 1;
-    const deltaY = direction * (event.clientY - state.y);
-    const deltaX = Math.abs(event.clientX - state.x);
-    if (!state.moved) {
-      if (deltaX > 20 && deltaX > Math.abs(deltaY)) { drag.current = null; return; }
-      if (deltaY < 10) return;
-      state.moved = true;
-      const panel = sheet.current;
-      if (!panel) return;
-      panel.classList.add('se-sheet__panel--dragging');
-      panel.style.animation = 'none';
-      panel.style.transition = 'none';
-      if (backdrop.current) {
-        backdrop.current.style.animation = 'none';
-        backdrop.current.style.transition = 'none';
-      }
-      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* pointer already canceled */ }
-    }
-    state.distance = Math.min(state.height + 16, Math.max(0, deltaY));
-    const elapsed = Math.max(1, event.timeStamp - state.lastAt);
-    const speed = direction * (event.clientY - state.lastY) / elapsed;
-    state.velocity = state.velocity * 0.35 + speed * 0.65;
-    state.lastY = event.clientY;
-    state.lastAt = event.timeStamp;
-    if (frame.current === null) frame.current = window.requestAnimationFrame(paintDrag);
   }
 
-  function handleDragPointerLeave(event: PointerEvent<HTMLDivElement>) {
-    const state = drag.current;
-    if (state && state.pointerId === event.pointerId && event.pointerType === 'mouse'
-        && !event.currentTarget.hasPointerCapture(event.pointerId)) cancelDrag();
-  }
-
-  function handleDragPointerUp(event: PointerEvent<HTMLDivElement>) {
-    const state = drag.current;
-    if (!state || event.pointerId !== state.pointerId) return;
-    drag.current = null;
-    cancelFrame();
-    if (!state.moved) return;
-    if (state.startedOnGrip) suppressGripClickUntil.current = Date.now() + 500;
-    const direction = fromTop ? -1 : 1;
-    const distance = Math.min(state.height + 16, Math.max(0, direction * (event.clientY - state.y)));
-    // Apply the final position before running the settle transition.
-    const panel = sheet.current;
-    if (panel) panel.style.transform = `translate3d(0, ${direction * distance}px, 0)`;
-    if (backdrop.current) backdrop.current.style.opacity = String(sheetDragOpacity(distance, state.height));
-    const velocity = event.timeStamp - state.lastAt <= 100 ? state.velocity : 0;
-    settleDrag(shouldDismissSheetDrag(distance, velocity, state.height));
+  function handleGripEnd(event: TouchEvent<HTMLDivElement>) {
+    const initial = gripStart.current;
+    gripStart.current = null;
+    if (!initial || event.touches.length !== 0) return;
+    const touch = Array.from(event.changedTouches).find((item) => item.identifier === initial.identifier);
+    if (touch && isSheetDismissSwipe(initial.x, initial.y, touch.clientX, touch.clientY, fromTop ? 'up' : 'down')) onClose();
   }
 
   return (
-    <div className={`se-sheet${fromTop ? ' se-sheet--from-top' : ''}`}
-      onKeyDown={onKeyDown} onPointerDownCapture={handleSheetPointerDownCapture}>
-      <div ref={backdrop} className="se-sheet__backdrop" onClick={onClose} aria-hidden="true" />
+    <div className={`se-sheet${fromTop ? ' se-sheet--from-top' : ''}`} onKeyDown={onKeyDown}>
+      <div className="se-sheet__backdrop" onClick={onClose} aria-hidden="true" />
       <div ref={sheet} className="se-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="se-sheet-title">
-        <div className="se-sheet__drag-area" onPointerDown={handleDragPointerDown}
-          onPointerMove={handleDragPointerMove} onPointerUp={handleDragPointerUp}
-          onPointerLeave={handleDragPointerLeave}
-          onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}>
+        <div className="se-sheet__drag-area" onTouchStart={handleGripStart}
+          onTouchMove={handleGripMove} onTouchEnd={handleGripEnd}
+          onTouchCancel={() => { gripStart.current = null; }}>
           <button type="button" className="se-sheet__grip"
             aria-label={fromTop ? 'Close All pages (swipe up or tap)' : 'Close All pages (swipe down or tap)'}
             onClick={(event) => {
@@ -780,7 +630,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
 
   function closeSheet() {
     setSheet(null);
-    moreButton.current?.focus();
+    moreButton.current?.focus({ preventScroll: true });
   }
 
   return (
