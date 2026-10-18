@@ -428,6 +428,19 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     expect(fallbackBoard.feed.fallbacks).toContainEqual({ league: 'NFL', provider: 'theoddsapi', providerName: 'The Odds API' });
     expect(fallbackBoard.leagues.find((row) => row.key === 'NFL')).toMatchObject({ activeProvider: 'theoddsapi', isFallback: true });
 
+    // The first run exhausted its two fallbacks on NFL/NBA. MLB receives a recovery
+    // opportunity at 15 minutes without polling TheRundown again or resetting the cache clock.
+    calls.length = 0;
+    const early = await refreshSportsbookCache(app.prisma, keys, at(14), deps);
+    expect(early.skipped).toBe('CACHE_FRESH');
+    expect(calls).toHaveLength(0);
+    const recovered = await refreshSportsbookCache(app.prisma, keys, at(15), deps);
+    expect(recovered.failovers).toBe(1);
+    expect(calls.some((path) => path.includes('/baseball_mlb/odds'))).toBe(true);
+    expect(calls.some((path) => path.includes('/sports/3/events/'))).toBe(false);
+    expect((await app.prisma.sportsbookLeagueProviderState.findUniqueOrThrow({ where: { league: 'MLB' } })).activeOddsProvider).toBe('theoddsapi');
+    expect(JSON.parse(await readFile(cacheFilePath, 'utf8')).updatedAt).toBe(feedNow.toISOString());
+
     calls.length = 0;
     const sticky = await refreshSportsbookCache(app.prisma, keys, at(31), deps);
     expect(sticky.failovers).toBe(0);
