@@ -36,6 +36,6 @@ export type DashboardDisclosure = 'crew' | 'happiness' | 'pressure';
 export function dashboardDisclosureForHash(hash: string): DashboardDisclosure | null {
   if (hash === '#crew-inventory') return 'crew';
   if (hash === '#crew-health') return 'happiness';
-  if (hash === '#heat' || hash === '#payout') return 'pressure';
+  if (hash === '#heat' || hash === '#case' || hash === '#payout') return 'pressure';
   return null;
 }
