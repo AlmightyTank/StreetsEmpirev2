@@ -69,6 +69,7 @@ describe('automatic game round names', () => {
     expect(renamedRoundName('Game#033 - Old', 'New Name')).toBe('Game#033 - New Name');
     expect(renamedRoundName('Game #033 - Old', 'Game#100 - New Name')).toBe('Game#033 - New Name');
     expect(renamedRoundName('Legacy', 'New Name')).toBe('New Name');
+    expect(renamedRoundName('Legacy', 'Game #099 - Renamed')).toBe('Game #099 - Renamed');
   });
 });
 

@@ -116,8 +116,9 @@ export function nextGameNumber(names: readonly string[]): number {
 
 export function renamedRoundName(previous: string, label: string): string {
   const number = gameNumber(previous);
-  // Do not silently renumber legacy rounds or change an existing round's identity.
-  return number === null ? roundLabel(label) : numberedRoundName(label, number);
+  // Legacy unnumbered rounds keep their old free-form rename behavior.
+  // Once a round has a Game number, an edit can change only its title.
+  return number === null ? label.trim() : numberedRoundName(label, number);
 }
 
 const STREET_PASS_ITEM_FIELDS = new Set(['condoms', 'medicine', 'crack', 'beer', 'pistols', 'shotguns', 'tek9s', 'ak47s', 'lowRiders', 'thugs', 'whores']);
@@ -270,7 +271,7 @@ export const AdminRoundService = {
     try {
       const round = await prisma.$transaction(async (tx) => {
         // Serialize number allocation across concurrent staff requests.
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(3003)`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(70333011)`;
         const existing = await tx.round.findMany({ select: { name: true } });
         const name = numberedRoundName(label, nextGameNumber(existing.map((row) => row.name)));
         const slug = input.slug ?? slugifyRoundName(name);
