@@ -787,6 +787,10 @@ export async function refreshSportsbookCache(
         : primary;
       const primaryRecovered = active !== primary && (states.get(primary)?.consecutiveSuccesses ?? 0) >= 2;
       const preferred = pinned && chain.includes(pinned) ? pinned : primaryRecovered ? primary : active;
+      const activeStatus = providerRuns.get(active)?.leagues[league.key];
+      // A successful recovery just refreshed this league; do not charge for it again.
+      if (normalOddsPoll && activeStatus?.lastAttemptAt === activeStatus?.lastSuccessAt
+        && !sportsbookProviderCooldownElapsed(activeStatus, now)) continue;
       const order = pinned ? [preferred]
         : normalOddsPoll ? [preferred, ...chain.filter((id) => id !== preferred)]
         : chain.filter((id) => id !== active && sportsbookProviderCooldownElapsed(providerRuns.get(id)?.leagues[league.key], now));
