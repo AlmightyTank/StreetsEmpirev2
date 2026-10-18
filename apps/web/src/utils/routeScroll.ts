@@ -1,3 +1,5 @@
+import { legacyQuestGroup } from './questBoard.js';
+
 function isStorefront(pathname: string | undefined): boolean {
   return pathname === '/game/stores' || Boolean(pathname?.startsWith('/game/stores/'));
 }
@@ -21,7 +23,9 @@ export function routeAnchorId(pathname: string, search: string, hash: string): s
   }
   if (pathname === '/game/quests') {
     const questKey = new URLSearchParams(search).get('focus');
-    return questKey ? `quest-${questKey}` : null;
+    if (questKey) return `quest-${questKey}`;
+    const group = legacyQuestGroup(search);
+    return group ? `quest-board-${group}` : null;
   }
   return null;
 }
