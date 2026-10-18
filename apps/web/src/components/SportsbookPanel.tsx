@@ -148,6 +148,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
   const [slipExpanded, setSlipExpanded] = useState(false);
   const [mobileSlip, setMobileSlip] = useState(false);
   const slipRef = useRef<HTMLElement | null>(null);
+  const boardRef = useRef<HTMLDivElement | null>(null);
   const slipOpenerRef = useRef<HTMLButtonElement | null>(null);
   const [stake, setStake] = useState('25');
   const [busy, setBusy] = useState(false);
@@ -209,12 +210,15 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
     // inside it. Do not intercept other global dialogs that take focus later.
     dialog.querySelector<HTMLButtonElement>('.se-sportsbook__slip-close')?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
+      // Global menus and dialogs may open over this sheet. Only handle keys
+      // while keyboard focus is still inside our own dialog.
+      if (!dialog.contains(document.activeElement)) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         setSlipExpanded(false);
         return;
       }
-      if (event.key !== 'Tab' || !dialog.contains(document.activeElement)) return;
+      if (event.key !== 'Tab') return;
       const controls = [...dialog.querySelectorAll<HTMLElement>(
         'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])',
       )].filter((control) => control.getClientRects().length > 0);
@@ -241,7 +245,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
           const original = slipOpenerRef.current;
           const target = original?.isConnected && !original.disabled
             ? original
-            : document.querySelector<HTMLButtonElement>('.se-sportsbook__slip-mini');
+            : document.querySelector<HTMLButtonElement>('.se-sportsbook__slip-mini') ?? boardRef.current;
           if (target?.isConnected && target.getClientRects().length) target.focus();
         });
       }
@@ -418,7 +422,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
         </div>
 
         <div className="se-sportsbook__layout">
-          <div className="se-sportsbook__board">
+          <div className="se-sportsbook__board" ref={boardRef} tabIndex={-1} aria-label="Available sportsbook games">
             {!page && !error ? <p className="se-muted">Loading the board…</p> : null}
             {page && visible.length === 0 ? (
               <p className="se-muted">
