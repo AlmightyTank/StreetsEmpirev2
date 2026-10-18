@@ -319,7 +319,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
   const sheet = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const backdrop = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ identifier: number; x: number; y: number; lastY: number; lastAt: number; velocity: number; distance: number; moved: boolean } | null>(null);
+  const drag = useRef<{ identifier: number; x: number; y: number; lastY: number; lastAt: number; velocity: number; distance: number; moved: boolean; startedOnGrip: boolean } | null>(null);
   const settleTimer = useRef<number | null>(null);
   const closing = useRef(false);
   const suppressGripClickUntil = useRef(0);
@@ -418,6 +418,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
       velocity: 0,
       distance: 0,
       moved: false,
+      startedOnGrip: target instanceof Element && Boolean(target.closest('.se-sheet__grip')),
     };
   }
 
@@ -462,12 +463,14 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
     if (!current || event.touches.length !== 0) return;
     const touch = Array.from(event.changedTouches).find((item) => item.identifier === current.identifier);
     if (!touch || !current.moved) return;
-    // A released drag must never generate the grip's click/tap dismissal.
-    suppressGripClickUntil.current = Date.now() + 500;
+    // Ignore a synthetic click only when the drag actually began on the grip.
+    if (current.startedOnGrip) suppressGripClickUntil.current = Date.now() + 500;
     const direction = fromTop ? -1 : 1;
     const travel = Math.max(0, direction * (touch.clientY - current.y));
     const panelHeight = sheet.current?.offsetHeight ?? 640;
-    settleDrag(shouldDismissSheetDrag(travel, current.velocity, panelHeight));
+    // A paused finger is not a flick; stale movement speed should not close it.
+    const velocity = event.timeStamp - current.lastAt <= 100 ? current.velocity : 0;
+    settleDrag(shouldDismissSheetDrag(travel, velocity, panelHeight));
   }
 
   function handleDragCancel() {
