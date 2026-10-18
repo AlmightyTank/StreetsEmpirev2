@@ -64,6 +64,127 @@ export function readAppVersion(source) {
   return version;
 }
 
+/** Replace the APP_VERSION assignment. Pre-release and build tags are not kept. */
+export function writeAppVersion(source, version) {
+  if (!SEMVER.test(version ?? '')) {
+    throw new Error(`APP_VERSION must be MAJOR.MINOR.PATCH (for example 2.2.0). Got "${version ?? ''}".`);
+  }
+  if (!/export const APP_VERSION = '[^']*'/.test(String(source ?? ''))) {
+    throw new Error('APP_VERSION assignment was not found.');
+  }
+  return String(source).replace(/export const APP_VERSION = '[^']*'/, `export const APP_VERSION = '${version}'`);
+}
+
+const VERSION_SECTION = /^#{2,3}\s*version\s*:?\s*$/i;
+const RELEASE_COMMIT = /^chore:\s*release\b/i;
+const FEATURE_TITLE = /^feat(\([^)]*\))?!?:/i;
+const FINISH_LINE = /finish(?:es|ed|ing)?(?:\s+with)?\s+\d+\.x(?:\.\d+|\.x)?/i;
+const END_LINE = /end of (?:the )?\d+\.x/i;
+
+function visibleText(value) {
+  return String(value ?? '').replace(/<!--[\s\S]*?-->/g, '');
+}
+
+function sectionLines(body, heading) {
+  const lines = visibleText(body).split(/\r?\n/);
+  const start = lines.findIndex((line) => heading.test(line.trim()));
+  if (start < 0) return null;
+  const kept = [];
+  for (const raw of lines.slice(start + 1)) {
+    const line = raw.trim();
+    if (HEADING.test(line)) break;
+    const text = line.replace(/^(?:[-*+]|\d+[.)])\s+/, '').trim();
+    if (text) kept.push(text);
+  }
+  return kept;
+}
+
+function labelNames(pull) {
+  return (pull?.labels ?? []).map((label) => String(label?.name ?? label).trim().toLowerCase()).filter(Boolean);
+}
+
+/**
+ * The ## Version section: major, minor, patch, or skip. Major wins when several
+ * words are present. Null when the pull does not say.
+ */
+export function declaredLevel(body) {
+  const lines = sectionLines(body, VERSION_SECTION);
+  if (!lines) return null;
+  const words = lines.map((line) => (line.split(/\s+/)[0] ?? '').toLowerCase());
+  if (words.some((word) => /^(?:major|breaking)\b/.test(word))) return 'major';
+  if (words.some((word) => /^(?:minor|feature)\b/.test(word))) return 'minor';
+  if (words.some((word) => /^(?:patch|fix)\b/.test(word))) return 'patch';
+  if (words.some((word) => /^(?:none|skip|n\/?a)\b/.test(word))) return 'skip';
+  return null;
+}
+
+function signalsMajor(pull) {
+  const title = visibleText(pull?.title);
+  const body = visibleText(pull?.body);
+  const labels = labelNames(pull);
+  if (labels.some((label) => label === 'major' || label === 'breaking')) return true;
+  if (/\bBREAKING CHANGE\b/.test(title) || /\bBREAKING CHANGE\b/.test(body)) return true;
+  return FINISH_LINE.test(title) || FINISH_LINE.test(body) || END_LINE.test(title) || END_LINE.test(body);
+}
+
+function signalsMinor(pull) {
+  const labels = labelNames(pull);
+  if (labels.some((label) => label === 'feature' || label === 'minor' || label === 'enhancement')) return true;
+  return FEATURE_TITLE.test(String(pull?.title ?? '').trim());
+}
+
+/**
+ * How one merged pull request moves the release.
+ * Patch is the default. A feature (`feat:` title, feature label, or "minor")
+ * raises MINOR. Finishing the current MAJOR.x.x line, a breaking change, or
+ * "major" raises MAJOR. "none" leaves this pull out.
+ */
+export function classifyRelease(pull) {
+  if (RELEASE_COMMIT.test(String(pull?.title ?? '').trim())) return 'skip';
+  if (signalsMajor(pull)) return 'major';
+  const declared = declaredLevel(pull?.body);
+  if (declared === 'skip') return 'skip';
+  if (declared === 'minor' || signalsMinor(pull)) return 'minor';
+  return 'patch';
+}
+
+/**
+ * One bump for a deploy. Major wins over minor, minor over patch.
+ * Every pull opting out leaves the version where it is. Changes with no pull
+ * request still take a patch bump.
+ */
+export function releaseLevel(pulls, hasChanges = true) {
+  if (!hasChanges) return null;
+  const levels = (pulls ?? []).map((pull) => classifyRelease(pull));
+  if (levels.includes('major')) return 'major';
+  if (levels.includes('minor')) return 'minor';
+  if (levels.includes('patch')) return 'patch';
+  if (levels.length > 0 && levels.every((level) => level === 'skip')) return null;
+  return 'patch';
+}
+
+/** Next MAJOR.MINOR.PATCH. Major resets minor and patch. Minor resets patch. */
+export function bumpVersion(version, level) {
+  const match = SEMVER.exec(String(version ?? ''));
+  if (!match || !['major', 'minor', 'patch'].includes(level)) {
+    throw new Error(`Cannot bump "${version ?? ''}" by ${level}. A release bump needs major, minor, or patch on a MAJOR.MINOR.PATCH version.`);
+  }
+  let major = Number(match[1]);
+  let minor = Number(match[2]);
+  let patch = Number(match[3]);
+  if (level === 'major') {
+    major += 1;
+    minor = 0;
+    patch = 0;
+  } else if (level === 'minor') {
+    minor += 1;
+    patch = 0;
+  } else {
+    patch += 1;
+  }
+  return `${major}.${minor}.${patch}`;
+}
+
 /**
  * One news post for a deploy, or null when no PR had notes. `version` is the
  * release these notes belong to, MAJOR.MINOR.PATCH. Pull requests are listed
@@ -102,13 +223,19 @@ function run(command, args) {
 }
 
 /** Merged PRs into `branch` for each mainline commit in from..to: merge, squash and rebase merges alike. */
-function mergedPulls(from, to, branch, repo) {
+export function mergedPulls(from, to, branch, repo) {
   const commits = run('git', ['rev-list', '--first-parent', '--reverse', `${from}..${to}`]).split('\n').filter(Boolean);
   const pulls = new Map();
   for (const sha of commits) {
     for (const pull of JSON.parse(run('gh', ['api', `repos/${repo}/commits/${sha}/pulls`]))) {
       if (!pull.merged_at || pull.base?.ref !== branch || pulls.has(pull.number)) continue;
-      pulls.set(pull.number, { number: pull.number, mergedAt: pull.merged_at, body: pull.body ?? '' });
+      pulls.set(pull.number, {
+        number: pull.number,
+        mergedAt: pull.merged_at,
+        title: pull.title ?? '',
+        body: pull.body ?? '',
+        labels: (pull.labels ?? []).map((label) => label?.name).filter(Boolean),
+      });
     }
   }
   return [...pulls.values()];

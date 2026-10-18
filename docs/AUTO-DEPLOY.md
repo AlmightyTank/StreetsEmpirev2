@@ -75,7 +75,7 @@ its own "the game isn't responding" posts.
 
 ## Patch notes
 
-After a successful deploy, the workflow turns the PRs in it into one news post
+A deploy moves the release number, then turns the PRs in it into one news post
 that waits for review:
 
 1. Each PR's description has a `## Patch notes` section (the PR template adds
@@ -83,16 +83,21 @@ that waits for review:
    out, for changes players won't notice.
 2. The workflow finds every PR merged into the deployed branch since the last
    deploy whose notes were handled, and collects their bullets in merge order.
-3. It sends them to the game on the VPS as a global news post titled
-   `Patch notes for <version>`. `<version>` is `APP_VERSION` in
-   `packages/shared/src/platform.ts`, written as MAJOR.MINOR.PATCH (for example
-   `2.2.0`). Bump MAJOR for breaking changes, MINOR for backward-compatible
-   features, and PATCH for fixes. Bumping MAJOR resets MINOR and PATCH to 0.
-   Bumping MINOR resets PATCH to 0. A pre-release or build tag (`-alpha.1`,
-   `+build.123`) can follow the core numbers. The post is scheduled
+3. Before the deploy, the workflow bumps `APP_VERSION` in
+   `packages/shared/src/platform.ts` and pushes that commit. The number is
+   MAJOR.MINOR.PATCH. An ordinary change bumps PATCH on its own (`2.1.0` becomes
+   `2.1.1`). A new feature bumps MINOR and resets PATCH (`2.1.4` becomes
+   `2.2.0`): a `feat:` title, a feature label, or `minor` under `## Version`.
+   Finishing the current major line bumps MAJOR and resets the rest, so `2.8.3`
+   becomes `3.0.0`: write `major` under `## Version`, or say that the change is
+   finishing with `2.x.x`. Write `none` under `## Version` to leave the number
+   where it is. One deploy bumps once, at the highest level in it. The release
+   commit itself does not bump again.
+4. It sends them to the game on the VPS as a global news post titled
+   `Patch notes for <version>`, using that release. The post is scheduled
    `PATCH_NOTES_HOLD_MINUTES` ahead (default 120). The run's summary page shows
    the notes too.
-4. Until then, players, Discord and the forum don't see the post. In
+5. Until then, players, Discord and the forum don't see the post. In
    **Admin → News**, edit it, delete it, or click **Publish now**. If nobody acts,
    it publishes at the scheduled time and the bot posts it to the Discord news
    channel as a normal message, not an embed. Use **Post to forum** after it
