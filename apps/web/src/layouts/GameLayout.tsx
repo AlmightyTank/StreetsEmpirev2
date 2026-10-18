@@ -20,7 +20,7 @@ import { CaseStoryAlerts } from '../components/CaseStoryAlerts.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { formatDuration } from '../utils/time.js';
 import { isPageScrollLocked, lockPageScroll } from '../utils/pageScrollLock.js';
-import { anchorScrollTop, isAnchorReady, routeAnchorId, shouldPreserveRouteScroll } from '../utils/routeScroll.js';
+import { anchorScrollTop, isAnchorReady, preservedRouteScrollTarget, routeAnchorId, shouldPreserveRouteScroll } from '../utils/routeScroll.js';
 import {
   isCurrent,
   filterNavSections,
