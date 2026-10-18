@@ -103,6 +103,7 @@ function fakeApi(overrides: Partial<StripeApi> = {}): StripeApi {
     createPortalSession: vi.fn(async () => ({ url: 'https://billing.stripe.test/p_1' })),
     cancelSubscription: vi.fn(async () => undefined),
     retrieveCharge: vi.fn(async () => ({ id: 'ch_1', customer: 'cus_1' })),
+    retrieveCheckoutSession: vi.fn(async () => ({})),
     ...overrides,
   };
 }

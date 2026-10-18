@@ -5,6 +5,7 @@ import { CONSOLE_UPDATED_EVENT, consoleApi } from '../api/console.js';
 import { SURVEYS_CHANGED_EVENT, surveysApi } from '../api/surveys.js';
 import { formatWhen } from '../utils/time.js';
 import { roundAftermathPublicEnabled } from '../config/features.js';
+import { dropApi } from '../api/drop.js';
 
 /** One page in the game menu. `key` is what the phone tab bar stores. */
 export interface NavPage {
@@ -33,7 +34,7 @@ export interface NavSection {
 export type IconName =
   | 'dashboard' | 'hideout' | 'scout' | 'produce' | 'raids' | 'stores' | 'cities'
   | 'rankings' | 'alliance' | 'contacts' | 'profile' | 'activity'
-  | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin' | 'pass' | 'casino';
+  | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin' | 'pass' | 'casino' | 'drop';
 
 /**
  * One destination per gameplay feature, but just six readable groups.
@@ -89,6 +90,7 @@ export const SECTIONS: NavSection[] = [
       { key: 'events', label: 'Events', to: '/game/events', icon: 'activity' },
       { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
       { key: 'collection', label: 'Collection', short: 'Looks', to: '/game/collection', icon: 'fame' },
+      { key: 'drop', label: 'The Drop', short: 'Drop', to: '/game/drop', icon: 'drop', prefix: '/game/drop/' },
       { key: 'supporter', label: 'Supporter', to: '/game/supporter', icon: 'pass' },
       { key: 'profile', label: 'Profile', to: '/game/profile', icon: 'profile' },
     ],
@@ -148,6 +150,7 @@ export const ADMIN_SECTIONS: NavSection[] = [
       { key: 'admin-supply', label: 'Supply Operations', to: '/game/admin/supply', icon: 'admin' },
       { key: 'admin-loans', label: 'Loan Shark', short: 'Loans', to: '/game/admin/loans', icon: 'admin' },
       { key: 'admin-casino', label: 'Casino', to: '/game/admin/casino', icon: 'admin' },
+      { key: 'admin-drop', label: 'The Drop', to: '/game/admin/drop', icon: 'admin' },
     ],
   },
   {
@@ -187,7 +190,7 @@ export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSectio
     ['new-player-core', 'Start Here', ['dashboard', 'quests', 'scout', 'produce', 'raids', 'operations', 'black-book', 'stores']],
     ['new-player-empire', 'Build Your Empire', ['hideout', 'crew-roster', 'dealers', 'supply', 'loans', 'travel', 'turf']],
     ['new-player-competition', 'Competition', ['casino', 'alliance', 'players', 'rankings']],
-    ['new-player-career', 'Progress & Rewards', ['xp-progress', 'events', 'street-pass', 'collection', 'supporter', 'profile']],
+    ['new-player-career', 'Progress & Rewards', ['xp-progress', 'events', 'street-pass', 'collection', 'drop', 'supporter', 'profile']],
     ['new-player-community', 'Messages & News', ['console', 'news']],
     ['new-player-support', 'Help & Settings', ['status', 'rules', 'account']],
   ] as const;
@@ -205,17 +208,38 @@ export function useNewPlayerNavModel(): boolean {
   return Boolean(me && guide && !guide.complete);
 }
 
+/** The Drop answers 404 while it is off by environment; ask once per page load. */
+let dropAvailability: Promise<boolean> | null = null;
+function dropAvailable(): Promise<boolean> {
+  dropAvailability ??= dropApi.status().then((status) => status.enabled).catch(() => false);
+  return dropAvailability;
+}
+
+export function useDropAvailable(): boolean {
+  const signedIn = useSession((s) => Boolean(s.account));
+  const [available, setAvailable] = useState(false);
+  useEffect(() => {
+    if (!signedIn) return undefined;
+    let live = true;
+    void dropAvailable().then((value) => { if (live) setAvailable(value); });
+    return () => { live = false; };
+  }, [signedIn]);
+  return available;
+}
+
 export function useSections(): NavSection[] {
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
   const hasPass = useSession((s) => Boolean(s.me?.streetPass));
+  const hasDrop = useDropAvailable();
   const newPlayerNav = useNewPlayerNavModel();
   return useMemo(() => {
-    const sections = hasPass
-      ? SECTIONS
-      : SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => page.key !== 'street-pass') }));
+    const hidden = new Set([...(hasPass ? [] : ['street-pass']), ...(hasDrop ? [] : ['drop'])]);
+    const sections = hidden.size
+      ? SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => !hidden.has(page.key)) }))
+      : SECTIONS;
     const playerSections = newPlayerNav ? newPlayerSectionsFor(sections) : sections;
     return isAdmin ? [...playerSections, ...ADMIN_SECTIONS] : playerSections;
-  }, [isAdmin, hasPass, newPlayerNav]);
+  }, [isAdmin, hasPass, hasDrop, newPlayerNav]);
 }
 
 function pathMatches(pathname: string, to: string, aliases: readonly string[] = [], prefix?: string, prefixes: readonly string[] = []): boolean {

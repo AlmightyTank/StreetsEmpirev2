@@ -9,6 +9,7 @@ import { stripeApi, type StripeApi, type StripeEvent } from './stripe.client.js'
 import { SupporterService } from './supporter.service.js';
 import { queueDiscordRoleResync } from './discord-resync.service.js';
 import { GooglePlayBillingService } from './google-play-billing.service.js';
+import { CrownPackService } from './crown-pack.service.js';
 
 /** Statuses that get the supporter feature preview. Rewards still require payment. */
 const ACTIVE_STATUSES = new Set(['active', 'trialing']);
@@ -279,6 +280,10 @@ export type StripeEventOutcome = 'duplicate' | 'ignored' | 'unmatched' | 'applie
 
 async function applyEvent(tx: Db, event: StripeEvent, context: { disputedCustomerId?: string | null }): Promise<StripeEventOutcome> {
   const data = event.data.object;
+  // The Drop: Crown pack checkouts, refunds and disputes are matched first, by
+  // their own metadata and payment intent, so they never touch supporter payments.
+  const crownPack = await CrownPackService.applyStripeEvent(tx, event);
+  if (crownPack) return crownPack;
   const eventAt = new Date(event.created * 1000);
 
   switch (event.type) {
@@ -542,7 +547,11 @@ export const SupporterBillingService = {
     if (seen) return 'duplicate';
     // A dispute names only the charge; look its customer up before taking any locks.
     let disputedCustomerId: string | null = null;
-    if (event.type === 'charge.dispute.created') {
+    const disputedIntent = event.type === 'charge.dispute.created' ? id(event.data.object.payment_intent) : null;
+    const crownPackDispute = disputedIntent
+      ? Boolean(await prisma.crownPackOrder.findUnique({ where: { providerPaymentId: disputedIntent }, select: { id: true } }))
+      : false;
+    if (event.type === 'charge.dispute.created' && !crownPackDispute) {
       const chargeId = id(event.data.object.charge);
       if (chargeId) disputedCustomerId = (await (api ?? liveStripe()).retrieveCharge(chargeId)).customer;
     }

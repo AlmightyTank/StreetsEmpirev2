@@ -15,6 +15,7 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { ITEM_ART, itemArtUrl, rewardArtKey } from '../items/itemArt.js';
 import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { useDropAvailable } from '../layouts/gameNav.js';
 import { useSession } from '../stores/session.js';
 
 /** "$10K", "$2.5K", "$100K": cash counts on a tile. */
@@ -357,6 +358,7 @@ export function StreetPassPage() {
   const claimedCount = pass ? pass.tiers.filter((tier) => tier.claimed).length : 0;
   const nextTier = pass ? pass.tiers.find((tier) => tier.tier === pass.tier + 1) ?? null : null;
   const cosmeticPreviews = pass ? streetPassCosmeticPreviews(pass) : [];
+  const dropOpen = useDropAvailable();
 
   return (
     <GameLayout>
@@ -392,6 +394,7 @@ export function StreetPassPage() {
                     ? `Track finished · ${formatNumber(pass.cred)} Cred`
                     : `${formatNumber(pass.cred)} / ${formatNumber(pass.nextTierCred)} Cred · ${formatNumber(pass.nextTierCred - pass.cred)} to tier ${pass.tier + 1}`}
                 </small>
+                {dropOpen && pass.nextTierCred !== null ? <Link className="se-pass-hero__skip" to="/game/drop/pass">Skip tiers with Crowns</Link> : null}
               </div>
             </div>
           ) : null}

@@ -10,6 +10,7 @@ import type { StreetPassProgress } from '@prisma/client';
 import type { Db } from '../utils/db.js';
 import { dailyContractWindow } from './daily-contract.service.js';
 import { PlayerExperienceService } from './player-experience.service.js';
+import { CrownEarnService } from './crown-earn.service.js';
 
 /**
  * Street Pass step 2: earning Street Cred. Every credit runs inside the
@@ -42,7 +43,7 @@ export function credSourceForQuest(type: QuestType): QuestCredSource {
  * The player's progress row, created on first use with the late-join bonus
  * fixed from when they joined relative to the round's start.
  */
-async function progressFor(tx: Db, roundPlayerId: string, rules: StreetPassRules): Promise<StreetPassProgress> {
+export async function progressFor(tx: Db, roundPlayerId: string, rules: StreetPassRules): Promise<StreetPassProgress> {
   const existing = await tx.streetPassProgress.findUnique({ where: { roundPlayerId } });
   if (existing) return existing;
   const player = await tx.roundPlayer.findUniqueOrThrow({
@@ -73,6 +74,8 @@ export const StreetPassCredService = {
       amount: questXp,
       awardedAt: now,
     });
+    // The Drop: daily, weekly and event contracts also pay Crowns, once per window.
+    await CrownEarnService.onQuestClaimed(tx, roundPlayerId, questType, sourceKey, now);
 
     const rules = ruleset.streetPass;
     if (!rules) return 0;

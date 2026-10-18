@@ -37,6 +37,8 @@ import { AllianceDetailPage } from './pages/AlliancesPage.js';
 import { CombatPage } from './pages/CombatPage.js';
 import { StreetPassPage } from './pages/StreetPassPage.js';
 import { CollectionPage } from './pages/CollectionPage.js';
+import { DropPage } from './pages/DropPage.js';
+import { AdminDropPage } from './pages/AdminDropPage.js';
 import { SupporterPage } from './pages/SupporterPage.js';
 import { XpProgressPage } from './pages/XpProgressPage.js';
 import { ConsolePage } from './pages/ConsolePage.js';
@@ -196,6 +198,11 @@ export function App() {
         <Route path="produce" element={<Protected><LiveRound><ProducePage /></LiveRound></Protected>} />
         <Route path="street-pass" element={<Protected><LiveRound><StreetPassPage /></LiveRound></Protected>} />
         <Route path="collection" element={<Protected><CollectionPage /></Protected>} />
+        <Route path="drop" element={<DropPage view="shop" />} />
+        <Route path="drop/item/:slug" element={<DropPage view="item" />} />
+        <Route path="drop/wallet" element={<RequireAccount><DropPage view="wallet" /></RequireAccount>} />
+        <Route path="drop/crowns" element={<RequireAccount><DropPage view="crowns" /></RequireAccount>} />
+        <Route path="drop/pass" element={<Protected><LiveRound><DropPage view="pass" /></LiveRound></Protected>} />
         <Route path="supporter" element={<RequireAccount><SupporterPage /></RequireAccount>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
@@ -241,6 +248,7 @@ export function App() {
         <Route path="admin/accounts" element={admin(<AdminAccountsPage />)} />
         <Route path="admin/accounts/:accountId" element={admin(<AdminAccountPage />)} />
         <Route path="admin/supporters" element={admin(<AdminSupportersPage />)} />
+        <Route path="admin/drop" element={admin(<AdminDropPage />)} />
         <Route path="admin/players/:roundPlayerId" element={admin(<AdminPlayerPage />)} />
         <Route path="admin/quests" element={admin(<AdminQuestContentPage />)} />
         <Route path="admin/surveys" element={admin(<AdminSurveysPage />)} />

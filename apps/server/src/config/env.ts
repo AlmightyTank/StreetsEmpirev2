@@ -94,10 +94,16 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.union([z.literal(''), z.string().regex(/^(sk|rk)_(test|live)_/, 'STRIPE_SECRET_KEY must be a Stripe secret or restricted key.')]).default(''),
   STRIPE_WEBHOOK_SECRET: z.union([z.literal(''), z.string().startsWith('whsec_', 'STRIPE_WEBHOOK_SECRET must start with whsec_.')]).default(''),
   STRIPE_SUPPORTER_PRICE_ID: z.union([z.literal(''), z.string().startsWith('price_', 'STRIPE_SUPPORTER_PRICE_ID must start with price_.')]).default(''),
+  /** The Drop (docs/THE-DROP.md). Unset: on everywhere except production. */
+  DROP_ENABLED: z.enum(['true', 'false']).optional(),
+  /** Real-money Crown packs, through Stripe Checkout and Google Play alike. Off unless set to true. */
+  DROP_CROWN_PACKS_ENABLED: z.enum(['true', 'false']).default('false'),
   /** Base64-encoded Google service-account JSON with Android Publisher access. */
   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: z.string().default(''),
   GOOGLE_PLAY_PACKAGE_NAME: z.string().default('dev.streetsempire.app'),
   GOOGLE_PLAY_SUPPORTER_PRODUCT_ID: z.string().default('supporter_monthly'),
+  /** Comma-separated Crown pack mapping, for example starter=crowns_starter,street=crowns_street. */
+  GOOGLE_PLAY_CROWN_PACK_PRODUCT_IDS: z.string().default(''),
   /** Stable secret used to bind a Play purchase to one game account. Never rotate it. */
   GOOGLE_PLAY_ACCOUNT_HASH_SECRET: z.union([z.literal(''), z.string().min(32)]).default(''),
   /** Exact Pub/Sub push audience and OIDC service-account email. Both enable Play RTDN. */
@@ -183,6 +189,13 @@ const betaTesterForumGroups = parsed.data.BETA_TESTER_FORUM_GROUPS.split(',')
   .filter(Boolean)
   .slice(0, 10);
 
+const googlePlayCrownPackProductIds = Object.fromEntries(
+  parsed.data.GOOGLE_PLAY_CROWN_PACK_PRODUCT_IDS.split(',')
+    .map((entry) => entry.trim().split('=').map((part) => part.trim()))
+    .filter((parts): parts is [string, string] => parts.length === 2 && Boolean(parts[0]) && Boolean(parts[1]))
+    .map(([packId, productId]) => [packId, productId]),
+);
+
 const forumUrl = new URL(parsed.data.FORUM_ORIGIN);
 if (forumUrl.username || forumUrl.password || forumUrl.pathname !== '/' || forumUrl.search || forumUrl.hash ||
     (forumUrl.protocol !== 'https:' && !(parsed.data.NODE_ENV !== 'production' && forumUrl.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(forumUrl.hostname)))) {
@@ -227,6 +240,16 @@ export const env = {
     // Default 5 in production and beta; off elsewhere, where tests sign up many accounts from one address.
     signupDailyLimitPerIp: parsed.data.SIGNUP_DAILY_LIMIT_PER_IP
       ?? (appEnvironment === 'production' || appEnvironment === 'beta' ? 5 : 0),
+  },
+  drop: {
+    /** Off in production until DROP_ENABLED=true: no storefront, wallet or purchase routes answer. */
+    enabled: parsed.data.DROP_ENABLED ? parsed.data.DROP_ENABLED === 'true' : appEnvironment !== 'production',
+    /** The one real-money switch for Crown packs, on Stripe and Google Play alike. Always off in tests. */
+    crownPacksEnabled: parsed.data.NODE_ENV !== 'test' && parsed.data.DROP_CROWN_PACKS_ENABLED === 'true',
+    /** Stripe Crown packs: the switch above plus Stripe keys. */
+    crownPacksConfigured: parsed.data.NODE_ENV !== 'test'
+      && parsed.data.DROP_CROWN_PACKS_ENABLED === 'true'
+      && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET),
   },
   trustProxy: parsed.data.TRUST_PROXY ? parsed.data.TRUST_PROXY === 'true' : parsed.data.NODE_ENV === 'production',
   logLevel: parsed.data.LOG_LEVEL ?? (parsed.data.NODE_ENV === 'production' ? 'info' : 'debug'),
@@ -317,11 +340,15 @@ export const env = {
     /** Off in tests so no test run ever calls Stripe. */
     enabled: parsed.data.NODE_ENV !== 'test'
       && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET && parsed.data.STRIPE_SUPPORTER_PRICE_ID),
+    /** The webhook runs whenever Stripe is reachable, for supporter and Crown pack events alike. */
+    webhookEnabled: parsed.data.NODE_ENV !== 'test'
+      && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET),
   },
   googlePlay: {
     serviceAccountJsonBase64: parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64,
     packageName: parsed.data.GOOGLE_PLAY_PACKAGE_NAME,
     supporterProductId: parsed.data.GOOGLE_PLAY_SUPPORTER_PRODUCT_ID,
+    crownPackProductIds: googlePlayCrownPackProductIds,
     accountHashSecret: parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET,
     rtdn: {
       audience: parsed.data.GOOGLE_PLAY_RTDN_AUDIENCE,
@@ -335,6 +362,16 @@ export const env = {
     },
     enabled: parsed.data.NODE_ENV !== 'test' && Boolean(
       parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 && parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET
+    ),
+    /**
+     * Google Play Crown packs: the same DROP_CROWN_PACKS_ENABLED switch as Stripe,
+     * Play credentials, every pack's product ID, and authenticated RTDN, since
+     * refunds only reach the server as voided-purchase notifications.
+     */
+    crownPacksConfigured: parsed.data.NODE_ENV !== 'test' && parsed.data.DROP_CROWN_PACKS_ENABLED === 'true' && Boolean(
+      parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 && parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET
+      && parsed.data.GOOGLE_PLAY_RTDN_AUDIENCE && parsed.data.GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL
+      && ['starter', 'street', 'boss', 'kingpin', 'empire'].every((id) => Boolean(googlePlayCrownPackProductIds[id])),
     ),
   },
   patchNotes: {

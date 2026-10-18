@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient, Round } from '@prisma/client';
-import { RoundRollCallService } from '../round-roll-call.service.js';
+
+// Crown milestones have their own tests (drop.service.test.ts); this file is about stamps.
+vi.mock('../crown-earn.service.js', () => ({ CrownEarnService: { onCheckIn: async () => 0 } }));
+const { RoundRollCallService } = await import('../round-roll-call.service.js');
 
 const START = new Date('2026-10-01T18:00:00Z');
 const HOUR = 3_600_000;

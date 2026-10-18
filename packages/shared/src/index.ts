@@ -25,6 +25,7 @@ export * from './types/hideout-v2.js';
 export * from './types/loans.js';
 export * from './types/aftermath.js';
 export * from './types/criminal-case.js';
+export * from './types/drop.js';
 export * from './cosmetics.js';
 export * from './avatar-builder.js';
 export * from './money.js';

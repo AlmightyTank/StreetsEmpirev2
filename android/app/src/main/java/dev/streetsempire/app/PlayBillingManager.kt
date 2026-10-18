@@ -16,6 +16,7 @@ import com.android.billingclient.api.QueryPurchasesParams
 class PlayBillingManager(
     private val activity: Activity,
     private val onPurchase: (String) -> Unit,
+    private val onCrownPurchase: (String, String) -> Unit,
     private val onError: (String) -> Unit,
 ) : PurchasesUpdatedListener {
     private val billingClient = BillingClient.newBuilder(activity)
@@ -29,6 +30,8 @@ class PlayBillingManager(
     private var accountToken: String? = null
     private var startAfterConnect = false
     private var restoreAfterConnect = false
+    private var restoreCrownsAfterConnect = false
+    private var crownProductId: String? = null
     private val deliveredPurchaseTokens = mutableSetOf<String>()
 
     fun startPurchase(obfuscatedAccountId: String) {
@@ -54,6 +57,31 @@ class PlayBillingManager(
         queryOwnedSubscriptions()
     }
 
+    /** Re-sends Crown packs that were paid but never consumed, so the server can credit and consume them. */
+    fun restoreCrownPurchases() {
+        if (!billingClient.isReady) {
+            restoreCrownsAfterConnect = true
+            connect()
+            return
+        }
+        queryOwnedCrownPacks()
+    }
+
+    fun startCrownPurchase(productId: String, obfuscatedAccountId: String) {
+        accountToken = obfuscatedAccountId.takeIf { it.matches(Regex("^[a-f0-9]{64}$")) }
+        crownProductId = productId.takeIf { it.isNotBlank() }
+        if (accountToken == null || crownProductId == null) {
+            onError("Sign in again before buying Crowns.")
+            return
+        }
+        if (!billingClient.isReady) {
+            startAfterConnect = true
+            connect()
+            return
+        }
+        queryCrownProductAndLaunch()
+    }
+
     private fun connect() {
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(result: BillingResult) {
@@ -63,7 +91,11 @@ class PlayBillingManager(
                 }
                 if (startAfterConnect) {
                     startAfterConnect = false
-                    queryProductAndLaunch()
+                    if (crownProductId != null) queryCrownProductAndLaunch() else queryProductAndLaunch()
+                }
+                if (restoreCrownsAfterConnect) {
+                    restoreCrownsAfterConnect = false
+                    queryOwnedCrownPacks()
                 }
                 if (restoreAfterConnect) {
                     restoreAfterConnect = false
@@ -73,6 +105,22 @@ class PlayBillingManager(
 
             override fun onBillingServiceDisconnected() = Unit
         })
+    }
+
+    private fun queryCrownProductAndLaunch() {
+        val product = QueryProductDetailsParams.Product.newBuilder()
+            .setProductId(crownProductId!!)
+            .setProductType(BillingClient.ProductType.INAPP)
+            .build()
+        val params = QueryProductDetailsParams.newBuilder().setProductList(listOf(product)).build()
+        billingClient.queryProductDetailsAsync(params) { result, detailsResult ->
+            val details = detailsResult.productDetailsList.firstOrNull()
+            if (result.responseCode != BillingClient.BillingResponseCode.OK || details == null) {
+                onError("That Crown pack is not available in Google Play yet.")
+                return@queryProductDetailsAsync
+            }
+            launch(details, null)
+        }
     }
 
     private fun queryProductAndLaunch() {
@@ -92,11 +140,11 @@ class PlayBillingManager(
         }
     }
 
-    private fun launch(details: ProductDetails, offerToken: String) {
-        val item = BillingFlowParams.ProductDetailsParams.newBuilder()
+    private fun launch(details: ProductDetails, offerToken: String?) {
+        val itemBuilder = BillingFlowParams.ProductDetailsParams.newBuilder()
             .setProductDetails(details)
-            .setOfferToken(offerToken)
-            .build()
+        if (offerToken != null) itemBuilder.setOfferToken(offerToken)
+        val item = itemBuilder.build()
         val params = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(listOf(item))
             .setObfuscatedAccountId(accountToken!!)
@@ -121,6 +169,20 @@ class PlayBillingManager(
         }
     }
 
+    private fun queryOwnedCrownPacks() {
+        val params = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.INAPP)
+            .build()
+        billingClient.queryPurchasesAsync(params) { result, purchases ->
+            if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                onError("Could not check Google Play for unfinished Crown packs (${result.debugMessage}).")
+                return@queryPurchasesAsync
+            }
+            // Owned one-time products are the ones not consumed yet.
+            purchases.forEach(::deliver)
+        }
+    }
+
     override fun onPurchasesUpdated(result: BillingResult, purchases: List<Purchase>?) {
         when (result.responseCode) {
             BillingClient.BillingResponseCode.OK -> purchases.orEmpty().forEach(::deliver)
@@ -132,7 +194,14 @@ class PlayBillingManager(
     private fun deliver(purchase: Purchase) {
         if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
             if (!deliveredPurchaseTokens.add(purchase.purchaseToken)) return
-            onPurchase(purchase.purchaseToken)
+            val productId = purchase.products.firstOrNull()
+            // Anything but the supporter subscription is a Crown pack, including one restored after a restart.
+            if (productId != null && productId != GameConfig.SUPPORTER_PRODUCT_ID) {
+                onCrownPurchase(productId, purchase.purchaseToken)
+                if (productId == crownProductId) crownProductId = null
+            } else {
+                onPurchase(purchase.purchaseToken)
+            }
         } else if (purchase.purchaseState == Purchase.PurchaseState.PENDING) {
             onError("Your purchase is pending. Rewards unlock after Google confirms payment.")
         }

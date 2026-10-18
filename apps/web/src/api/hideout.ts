@@ -9,6 +9,8 @@ import type {
   HideoutWeaponPriorityInput,
   HideoutWeaponPriorityResult,
   HideoutV2Dto,
+  HideoutCosmeticsDto,
+  UpdateHideoutCosmeticsInput,
 } from '@streets/shared';
 import { api } from './client.js';
 
@@ -47,6 +49,8 @@ export function normalizeHideoutDto(input: HideoutWireDto): HideoutV2Dto {
 
 export const hideoutApi = {
   catalog: () => api.get<HideoutWireDto>('/game/hideout').then(normalizeHideoutDto),
+  cosmetics: () => api.get<HideoutCosmeticsDto>('/game/hideout/cosmetics'),
+  updateCosmetics: (input: UpdateHideoutCosmeticsInput) => api.post<HideoutCosmeticsDto>('/game/hideout/cosmetics', input),
   upgrade: (input: HideoutUpgradeInput) =>
     api.post<GameActionResult<HideoutUpgradeResult>>('/game/hideout/upgrade', input),
   setWeaponPriority: (input: HideoutWeaponPriorityInput) =>

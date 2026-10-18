@@ -10,6 +10,7 @@ import {
   readAvatarParts,
   SIGNATURE_CARD_FRAME_KEY,
   SUPPORTER_UNLOCK_HINT,
+  DROP_UNLOCK_HINT,
 } from '@streets/shared';
 import type {
   AccountProfileSettingsDto,
@@ -26,7 +27,7 @@ import type {
   UiDensity,
   UpdateAccountProfileSettingsInput,
 } from '@streets/shared';
-import { rulesets, SUPPORTER_COSMETICS, ROUND_ROLL_CALL_FINALE_COSMETICS, type QuestCosmeticDefinition, type Ruleset } from '@streets/rulesets';
+import { rulesets, SUPPORTER_COSMETICS, ROUND_ROLL_CALL_FINALE_COSMETICS, DROP_ITEMS, type QuestCosmeticDefinition, type Ruleset } from '@streets/rulesets';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { CommunityService, permanentAwardsForAccount } from './community.service.js';
@@ -63,6 +64,9 @@ function collectionUnlockHints(ruleset: Ruleset | null): Partial<Record<ItemCosm
     if (cosmetic.kind === 'ITEM_COLLECTION' && isReleasedItemCosmeticStyle(cosmetic.styleKey)) hints[cosmetic.styleKey] = SUPPORTER_UNLOCK_HINT;
   }
   hints['obsidian-signal-crew'] = 'Finish the Round Roll Call attendance track to earn the permanent pair.';
+  for (const item of Object.values(DROP_ITEMS)) {
+    if (item.kind === 'ITEM_COLLECTION' && item.styleKey && isReleasedItemCosmeticStyle(item.styleKey)) hints[item.styleKey] = DROP_UNLOCK_HINT;
+  }
   const pass = ruleset?.streetPass;
   if (!ruleset || !pass) return hints;
   for (const tier of pass.tiers) {

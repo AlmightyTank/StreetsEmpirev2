@@ -1,10 +1,13 @@
 import { createHmac } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
+import { crownPack } from '@streets/rulesets';
 import { GoogleAuth, OAuth2Client } from 'google-auth-library';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { queueDiscordRoleResync } from './discord-resync.service.js';
 import { SupporterService } from './supporter.service.js';
+import { queueDropOrderNotification } from './drop-notification.service.js';
+import { CrownWalletService, lockCrownWallet } from './crown-wallet.service.js';
 
 const ANDROID_PUBLISHER_SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
 const ACTIVE_STATES = new Set(['SUBSCRIPTION_STATE_ACTIVE', 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD']);
@@ -27,6 +30,16 @@ interface PlaySubscription {
   }>;
 }
 
+interface PlayProductPurchase {
+  purchaseState?: number;
+  acknowledgementState?: number;
+  consumptionState?: number;
+  orderId?: string;
+  purchaseTimeMillis?: string;
+  regionCode?: string;
+  obfuscatedExternalAccountId?: string;
+}
+
 interface PubSubEnvelope {
   message?: { data?: string; messageId?: string };
   subscription?: string;
@@ -36,7 +49,16 @@ interface DeveloperNotification {
   packageName?: string;
   testNotification?: { version?: string };
   subscriptionNotification?: { purchaseToken?: string; notificationType?: number };
+  oneTimeProductNotification?: { purchaseToken?: string; sku?: string; notificationType?: number };
+  /** productType 2 is a one-time product; refundType 1 is a full refund, 2 a partial one. */
+  voidedPurchaseNotification?: { purchaseToken?: string; orderId?: string; productType?: number; refundType?: number };
 }
+
+/** RTDN oneTimeProductNotification types. */
+const ONE_TIME_PRODUCT_PURCHASED = 1;
+/** RTDN voidedPurchaseNotification values. */
+const VOIDED_ONE_TIME_PRODUCT = 2;
+const VOIDED_FULL_REFUND = 1;
 
 export type PlayNotificationOutcome = 'applied' | 'unmatched' | 'ignored' | 'test';
 
@@ -73,11 +95,33 @@ async function fetchSubscription(purchaseToken: string): Promise<PlaySubscriptio
   }
 }
 
+async function fetchProduct(productId: string, purchaseToken: string): Promise<PlayProductPurchase> {
+  const config = configRequired();
+  const url = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(config.packageName)}`
+    + `/purchases/products/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}`;
+  try {
+    return await playRequest<PlayProductPurchase>(url);
+  } catch {
+    throw new AppError(400, 'PLAY_PURCHASE_INVALID', 'Google Play could not verify that purchase.');
+  }
+}
+
 async function acknowledge(purchaseToken: string): Promise<void> {
   const config = configRequired();
   const url = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(config.packageName)}`
     + `/purchases/subscriptions/${encodeURIComponent(config.supporterProductId)}`
     + `/tokens/${encodeURIComponent(purchaseToken)}:acknowledge`;
+  await playRequest<unknown>(url, 'POST');
+}
+
+/**
+ * Crown packs are consumables: consuming one (which also acknowledges it) lets
+ * the player buy the same pack again. Only ever called after the credit commits.
+ */
+async function consumeProduct(productId: string, purchaseToken: string): Promise<void> {
+  const config = configRequired();
+  const url = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(config.packageName)}`
+    + `/purchases/products/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}:consume`;
   await playRequest<unknown>(url, 'POST');
 }
 
@@ -227,6 +271,81 @@ export const GooglePlayBillingService = {
     await applyPurchase(prisma, accountId, purchaseToken, purchase, now);
   },
 
+  /** Verify and credit one consumable Crown pack. Product, price and account are server-resolved. */
+  async verifyCrownPack(prisma: PrismaClient, accountId: string, productId: string, purchaseToken: string, now = new Date()): Promise<void> {
+    const config = configRequired();
+    if (!config.crownPacksConfigured) throw new AppError(503, 'PLAY_CROWN_PACKS_UNAVAILABLE', 'Google Play Crown packs are not configured yet.');
+    const packId = Object.entries(config.crownPackProductIds).find(([, id]) => id === productId)?.[0];
+    const pack = packId ? crownPack(packId) : null;
+    if (!pack) throw AppError.badRequest('PLAY_PRODUCT_INVALID', 'That Google Play product is not a StreetsEmpire Crown pack.');
+    const purchase = await fetchProduct(productId, purchaseToken);
+    if (purchase.obfuscatedExternalAccountId !== GooglePlayBillingService.obfuscatedAccountId(accountId)) {
+      throw new AppError(403, 'PLAY_ACCOUNT_MISMATCH', 'That Google Play purchase belongs to another StreetsEmpire account.');
+    }
+    if (purchase.purchaseState !== 0) throw AppError.conflict('PLAY_PURCHASE_PENDING', 'Google Play has not confirmed that purchase yet.');
+    const purchasedAt = purchase.purchaseTimeMillis && /^\d+$/.test(purchase.purchaseTimeMillis)
+      ? new Date(Number(purchase.purchaseTimeMillis)) : now;
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.googlePlayCrownPackOrder.findUnique({ where: { purchaseToken } });
+      if (existing?.accountId && existing.accountId !== accountId) throw new AppError(403, 'PLAY_PURCHASE_CLAIMED', 'That Google Play purchase is already linked to another account.');
+      const order = await tx.googlePlayCrownPackOrder.upsert({
+        where: { purchaseToken },
+        create: { purchaseToken, accountId, productId, packId: pack.id, crowns: pack.crowns, status: 'pending', orderId: purchase.orderId ?? null, currency: pack.currency, amountCents: pack.priceCents, purchasedAt, lastVerifiedAt: now },
+        update: { accountId, productId, lastVerifiedAt: now, orderId: purchase.orderId ?? null, purchasedAt },
+      });
+      if (order.status === 'credited') return;
+      await CrownWalletService.apply(tx, {
+        accountId, kind: 'PAID_GRANT', delta: pack.crowns, source: `play-pack:${pack.id}`,
+        externalRef: `play-pack:${purchaseToken}`, reason: `${pack.crowns} Crowns`,
+        metadata: { purchaseToken, orderId: order.orderId, provider: 'google_play' },
+      });
+      await tx.googlePlayCrownPackOrder.update({ where: { purchaseToken }, data: { status: 'credited', creditedAt: now, lastVerifiedAt: now } });
+      await queueDropOrderNotification(tx, accountId, `play-crown-pack:${purchaseToken}`, 'Crowns added to your wallet', `${pack.crowns.toLocaleString('en-US')} Crowns are ready to spend in The Drop.`);
+    });
+    // consumptionState 1 is already consumed. A failed consume is retried by the
+    // next verify of this token; the credit above is idempotent, so it never pays twice.
+    if (purchase.consumptionState !== 1) {
+      try { await consumeProduct(productId, purchaseToken); }
+      catch { throw new AppError(502, 'PLAY_CONSUME_FAILED', 'Your Crowns were added, but Google Play must finish the purchase. Reopen the app to retry.'); }
+    }
+  },
+
+  /**
+   * A voided (refunded or charged-back) Crown pack, from RTDN. Like Stripe: a
+   * full refund takes the Crowns back while they are unspent; a partial refund,
+   * or Crowns already spent, holds the wallet for support instead of going
+   * negative. Runs even with Crown packs switched off, so refunds always land.
+   */
+  async refundCrownPack(prisma: PrismaClient, purchaseToken: string, full: boolean, at = new Date()): Promise<PlayNotificationOutcome> {
+    return prisma.$transaction(async (tx) => {
+      const order = await tx.googlePlayCrownPackOrder.findUnique({ where: { purchaseToken } });
+      if (!order) return 'unmatched';
+      if (order.status === 'refunded') return 'ignored';
+      if (!order.accountId || (order.status !== 'credited' && order.status !== 'refund_review')) {
+        await tx.googlePlayCrownPackOrder.update({ where: { purchaseToken }, data: { status: 'refunded', refundedAt: at, lastVerifiedAt: at } });
+        return 'applied';
+      }
+      const wallet = await lockCrownWallet(tx, order.accountId);
+      if (full && wallet.balance >= order.crowns) {
+        await CrownWalletService.apply(tx, {
+          accountId: order.accountId,
+          kind: 'REVERSAL',
+          delta: -order.crowns,
+          source: 'refund',
+          externalRef: `play-refund:${purchaseToken}`,
+          reason: `Refunded ${order.packId} pack (Google Play)`,
+          metadata: { purchaseToken, orderId: order.orderId, provider: 'google_play' },
+          allowHeld: true,
+        });
+        await tx.googlePlayCrownPackOrder.update({ where: { purchaseToken }, data: { status: 'refunded', refundedAt: at, lastVerifiedAt: at } });
+        return 'applied';
+      }
+      await CrownWalletService.hold(tx, order.accountId, `Refund on Google Play Crown pack ${order.orderId ?? purchaseToken} needs review.`, at);
+      await tx.googlePlayCrownPackOrder.update({ where: { purchaseToken }, data: { status: 'refund_review', refundedAt: at, lastVerifiedAt: at } });
+      return 'applied';
+    });
+  },
+
   async verifyRtdnAuthorization(authorization: string | undefined): Promise<void> {
     const config = env.googlePlay.rtdn;
     if (!config.enabled) throw AppError.notFound('NOT_FOUND', 'Not found.');
@@ -245,7 +364,26 @@ export const GooglePlayBillingService = {
     const { notification, messageId } = parseGooglePlayRtdn(body);
     if (notification.packageName !== configRequired().packageName) return { outcome: 'ignored', messageId };
     if (notification.testNotification) return { outcome: 'test', messageId };
+    const voided = notification.voidedPurchaseNotification;
+    if (voided?.purchaseToken) {
+      // Voided subscriptions keep their supporter rewards, which are never taken back.
+      if (voided.productType !== VOIDED_ONE_TIME_PRODUCT) return { outcome: 'ignored', messageId };
+      const outcome = await GooglePlayBillingService.refundCrownPack(prisma, voided.purchaseToken, voided.refundType === VOIDED_FULL_REFUND, now);
+      return { outcome, messageId };
+    }
     const purchaseToken = notification.subscriptionNotification?.purchaseToken;
+    const productNotification = notification.oneTimeProductNotification;
+    if (productNotification?.purchaseToken && productNotification.sku) {
+      // A cancelled pending purchase has nothing to credit, and with packs switched
+      // off there is nothing to sell; answering keeps Pub/Sub from retrying.
+      if (productNotification.notificationType !== ONE_TIME_PRODUCT_PURCHASED || !env.googlePlay.crownPacksConfigured) {
+        return { outcome: 'ignored', messageId };
+      }
+      const direct = await prisma.googlePlayCrownPackOrder.findUnique({ where: { purchaseToken: productNotification.purchaseToken }, select: { accountId: true } });
+      if (!direct?.accountId) return { outcome: 'unmatched', messageId };
+      await GooglePlayBillingService.verifyCrownPack(prisma, direct.accountId, productNotification.sku, productNotification.purchaseToken, now);
+      return { outcome: 'applied', messageId };
+    }
     if (!purchaseToken) return { outcome: 'ignored', messageId };
 
     const purchase = await fetchSubscription(purchaseToken);

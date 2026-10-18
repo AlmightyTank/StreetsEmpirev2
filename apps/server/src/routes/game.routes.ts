@@ -50,6 +50,7 @@ import { ScoutService } from '../services/scout.service.js';
 import { toState } from '../services/action.service.js';
 import { StoreService } from '../services/store.service.js';
 import { HideoutService } from '../services/hideout.service.js';
+import { HideoutCosmeticService } from '../services/hideout-cosmetic.service.js';
 import { parseBody } from '../utils/validate.js';
 import { ActivityService } from '../services/activity.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
@@ -520,6 +521,14 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       toState(settled.player),
       settled.products,
     );
+  });
+
+  fastify.get('/hideout/cosmetics', { preHandler: fastify.requireAuth }, async (request) =>
+    HideoutCosmeticService.catalog(fastify.prisma, request.auth!.account.id));
+
+  fastify.post('/hideout/cosmetics', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(z.object({ decorationKey: z.string().trim().min(1).max(120).nullable(), streetSignKey: z.string().trim().min(1).max(120).nullable() }).strict(), request.body);
+    return HideoutCosmeticService.update(fastify.prisma, request.auth!.account.id, body);
   });
 
   fastify.post('/hideout/upgrade', { preHandler: fastify.requireAuth }, async (request) => {

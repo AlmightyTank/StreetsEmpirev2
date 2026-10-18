@@ -215,7 +215,10 @@ export type ProfileAccent =
   | 'clean-books-ivory'
   | 'sunset-coral'
   | 'night-map-plum'
-  | 'supporter-crimson';
+  | 'supporter-crimson'
+  | 'luxe-lacquer'
+  | 'underworld-violet'
+  | 'heist-frost';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
@@ -324,6 +327,18 @@ export interface AccountProfileSettingsResponseDto {
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];
   };
+}
+
+export interface HideoutCosmeticsDto {
+  activeDecorationKey: string | null;
+  activeStreetSignKey: string | null;
+  decorations: CosmeticOptionDto[];
+  streetSigns: CosmeticOptionDto[];
+}
+
+export interface UpdateHideoutCosmeticsInput {
+  decorationKey: string | null;
+  streetSignKey: string | null;
 }
 
 /**

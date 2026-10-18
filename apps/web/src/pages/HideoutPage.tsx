@@ -8,6 +8,7 @@ import type {
   HideoutWeaponPriorityDto,
   HideoutWeaponPriorityResult,
   HideoutV2Dto,
+  HideoutCosmeticsDto,
   TravelDto,
 } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
@@ -238,6 +239,58 @@ function RoomCard({
   );
 }
 
+function HideoutLook({
+  cosmetics,
+  busy,
+  onSave,
+}: {
+  cosmetics: HideoutCosmeticsDto;
+  busy: boolean;
+  onSave: (decorationKey: string | null, streetSignKey: string | null) => void;
+}) {
+  const [decorationKey, setDecorationKey] = useState(cosmetics.activeDecorationKey);
+  const [streetSignKey, setStreetSignKey] = useState(cosmetics.activeStreetSignKey);
+  useEffect(() => {
+    setDecorationKey(cosmetics.activeDecorationKey);
+    setStreetSignKey(cosmetics.activeStreetSignKey);
+  }, [cosmetics.activeDecorationKey, cosmetics.activeStreetSignKey]);
+  const decoration = cosmetics.decorations.find((option) => option.key === decorationKey);
+  const sign = cosmetics.streetSigns.find((option) => option.key === streetSignKey);
+  const changed = decorationKey !== cosmetics.activeDecorationKey || streetSignKey !== cosmetics.activeStreetSignKey;
+  return (
+    <section id="hideout-look" className="se-hideout-section">
+      <SectionHeading eyebrow="Presentation" title="Make the hideout yours" copy="Equip account cosmetics for the headquarters wall and the street-facing sign. These looks never change room levels or gameplay." />
+      <div className="se-hideout-look">
+        <div className="se-hideout-renderer" aria-label="Hideout cosmetic preview">
+          <div className={`se-hideout-renderer__room${decoration ? ` se-hideout-renderer__room--${decoration.key}` : ''}`}>
+            <span className="se-hideout-renderer__light" aria-hidden="true" />
+            <div className="se-hideout-renderer__sign">{sign?.label ?? 'STREETS EMPIRE'}</div>
+            <div className="se-hideout-renderer__decor">{decoration?.label ?? 'Your headquarters'}</div>
+          </div>
+          <p>{decoration?.description ?? 'Unlock a hideout decoration to light the room.'} {sign?.description ?? 'Street signs earned in future rewards will appear here.'}</p>
+        </div>
+        <div className="se-hideout-look__controls">
+          <label>Hideout decoration
+            <select value={decorationKey ?? ''} onChange={(event) => setDecorationKey(event.target.value || null)}>
+              <option value="">None</option>
+              {cosmetics.decorations.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+            </select>
+          </label>
+          <label>Street sign
+            <select value={streetSignKey ?? ''} onChange={(event) => setStreetSignKey(event.target.value || null)}>
+              <option value="">Default sign</option>
+              {cosmetics.streetSigns.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+            </select>
+          </label>
+          <Button type="button" className="se-btn se-btn--primary" disabledReason={busy ? 'Saving your hideout look.' : !changed ? 'Your hideout look is already saved.' : null} onClick={() => onSave(decorationKey, streetSignKey)}>
+            Save hideout look
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /** Shows the current headquarters state and controls for seasonal room upgrades. */
 export function HideoutPage() {
   const me = useSession((s) => s.me);
@@ -248,6 +301,9 @@ export function HideoutPage() {
   const [travel, setTravel] = useState<TravelDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
+  const [cosmetics, setCosmetics] = useState<HideoutCosmeticsDto | null>(null);
+  const [cosmeticBusy, setCosmeticBusy] = useState(false);
+  const [cosmeticError, setCosmeticError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -260,6 +316,7 @@ export function HideoutPage() {
       .catch((caught: unknown) => {
         if (active) setLoadError(caught instanceof ApiError ? caught.message : 'Could not load the hideout.');
       });
+    hideoutApi.cosmetics().then((data) => { if (active) setCosmetics(data); }).catch(() => { if (active) setCosmetics(null); });
 
     api.get<TravelDto>('/game/travel')
       .then((data) => { if (active) setTravel(data); })
@@ -267,6 +324,18 @@ export function HideoutPage() {
 
     return () => { active = false; };
   }, [me?.resources.cashCents, reload]);
+
+  async function saveCosmetics(decorationKey: string | null, streetSignKey: string | null) {
+    setCosmeticBusy(true);
+    setCosmeticError(null);
+    try {
+      setCosmetics(await hideoutApi.updateCosmetics({ decorationKey, streetSignKey }));
+    } catch (caught) {
+      setCosmeticError(caught instanceof ApiError ? caught.message : 'Could not save the hideout look.');
+    } finally {
+      setCosmeticBusy(false);
+    }
+  }
 
   async function upgrade(room: HideoutRoomV2Dto) {
     await action.run((actionId) => hideoutApi.upgrade({ room: room.key, actionId }));
@@ -352,6 +421,7 @@ export function HideoutPage() {
         ) : null}
         {action.error ? <Alert>{action.error}</Alert> : null}
         {specializationAction.error ? <Alert>{specializationAction.error}</Alert> : null}
+        {cosmeticError ? <Alert>{cosmeticError}</Alert> : null}
 
         {!hideout && !loadError ? (
           <Panel title="Loading"><p className="se-muted">Checking the locks...</p></Panel>
@@ -367,6 +437,7 @@ export function HideoutPage() {
           <>
             <nav className="se-hideout-nav" aria-label="Hideout sections">
               <a href="#hideout-overview">Overview</a>
+              <a href="#hideout-look">Look</a>
               <a href="#hideout-upgrades">Upgrades <span>{formatNumber(readyRooms.length)}</span></a>
               {hasSecurity ? <a href="#hideout-security">Security</a> : null}
               {hasOperations ? <a href="#hideout-operations">Operations</a> : null}
@@ -471,6 +542,8 @@ export function HideoutPage() {
                 )}
               </aside>
             </section>
+
+            {cosmetics ? <HideoutLook cosmetics={cosmetics} busy={cosmeticBusy} onSave={(decorationKey, streetSignKey) => void saveCosmetics(decorationKey, streetSignKey)} /> : null}
 
             <section id="hideout-upgrades" className="se-hideout-section">
               <SectionHeading

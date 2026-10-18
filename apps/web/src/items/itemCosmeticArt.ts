@@ -162,6 +162,28 @@ export const SINGLE_ITEM_ART_FILES = {
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
 /**
+ * The Drop looks (docs/THE-DROP.md), one per SKU, relative to public/items/.
+ * Plain SVG from scripts/art/generate-drop-art.mjs; each dresses only its item.
+ */
+export const DROP_ART_FILES = {
+  SEDAN: { 'kingpin-luxe-sedan': 'cosmetics/drop/sedan-kingpin-luxe.svg' },
+  LOW_RIDER: { 'neon-underworld-low-rider': 'cosmetics/drop/low-rider-neon-underworld.svg' },
+  VAN: { 'winter-heist-van': 'cosmetics/drop/van-winter-heist.svg' },
+  TEK9: { 'neon-underworld-tek9': 'cosmetics/drop/tek9-neon-underworld.svg' },
+  SHOTGUN: { 'winter-heist-shotgun': 'cosmetics/drop/shotgun-winter-heist.svg' },
+  THUG: {
+    'kingpin-luxe-thug': 'cosmetics/drop/thug-kingpin-luxe.svg',
+    'neon-underworld-thug': 'cosmetics/drop/thug-neon-underworld.svg',
+    'winter-heist-crew': 'cosmetics/drop/thug-winter-heist.svg',
+  },
+  HOE: {
+    'kingpin-luxe-hoe': 'cosmetics/drop/hoe-kingpin-luxe.svg',
+    'neon-underworld-hoe': 'cosmetics/drop/hoe-neon-underworld.svg',
+    'winter-heist-crew': 'cosmetics/drop/hoe-winter-heist.svg',
+  },
+} as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
+
+/**
  * Authored cosmetic art registry.
  *
  * Only files that exist in the repository belong here. ItemTile always falls
@@ -170,12 +192,12 @@ export const SINGLE_ITEM_ART_FILES = {
  */
 const ITEM_COSMETIC_ART = {
   PISTOL: { classic: 'pistol.svg', ...SLICE_A_ART_FILES.PISTOL, ...EIGHT_BIT_ART_FILES.PISTOL },
-  SHOTGUN: { classic: 'shotgun.svg', ...SLICE_A_ART_FILES.SHOTGUN, ...EIGHT_BIT_ART_FILES.SHOTGUN },
-  TEK9: { classic: 'tek9.svg', ...SLICE_A_ART_FILES.TEK9, ...EIGHT_BIT_ART_FILES.TEK9 },
+  SHOTGUN: { classic: 'shotgun.svg', ...SLICE_A_ART_FILES.SHOTGUN, ...EIGHT_BIT_ART_FILES.SHOTGUN, ...DROP_ART_FILES.SHOTGUN },
+  TEK9: { classic: 'tek9.svg', ...SLICE_A_ART_FILES.TEK9, ...EIGHT_BIT_ART_FILES.TEK9, ...DROP_ART_FILES.TEK9 },
   AK47: { classic: 'ak47.svg', ...SLICE_A_ART_FILES.AK47, ...EIGHT_BIT_ART_FILES.AK47 },
-  LOW_RIDER: { classic: 'low-rider.svg', ...SLICE_A_ART_FILES.LOW_RIDER, ...EIGHT_BIT_ART_FILES.LOW_RIDER },
-  SEDAN: { classic: 'sedan.svg', ...VEHICLE_ART_FILES.SEDAN, ...EIGHT_BIT_ART_FILES.SEDAN, ...SINGLE_ITEM_ART_FILES.SEDAN },
-  VAN: { classic: 'van.svg', ...VEHICLE_ART_FILES.VAN, ...EIGHT_BIT_ART_FILES.VAN },
+  LOW_RIDER: { classic: 'low-rider.svg', ...SLICE_A_ART_FILES.LOW_RIDER, ...EIGHT_BIT_ART_FILES.LOW_RIDER, ...DROP_ART_FILES.LOW_RIDER },
+  SEDAN: { classic: 'sedan.svg', ...VEHICLE_ART_FILES.SEDAN, ...EIGHT_BIT_ART_FILES.SEDAN, ...SINGLE_ITEM_ART_FILES.SEDAN, ...DROP_ART_FILES.SEDAN },
+  VAN: { classic: 'van.svg', ...VEHICLE_ART_FILES.VAN, ...EIGHT_BIT_ART_FILES.VAN, ...DROP_ART_FILES.VAN },
   CRACK: { classic: 'crack.svg', ...SLICE_B_ART_FILES.CRACK, ...EIGHT_BIT_ART_FILES.CRACK },
   WEED: { classic: 'weed.svg', ...SLICE_B_ART_FILES.WEED, ...EIGHT_BIT_ART_FILES.WEED },
   ECSTASY: { classic: 'ecstasy.svg', ...SLICE_B_ART_FILES.ECSTASY, ...EIGHT_BIT_ART_FILES.ECSTASY },
@@ -185,8 +207,8 @@ const ITEM_COSMETIC_ART = {
   CONDOM: { classic: 'condoms.svg', ...SLICE_B_ART_FILES.CONDOM, ...EIGHT_BIT_ART_FILES.CONDOM },
   MEDICINE: { classic: 'medicine.svg', ...SLICE_B_ART_FILES.MEDICINE, ...EIGHT_BIT_ART_FILES.MEDICINE },
   BEER: { classic: 'beer.svg', ...SLICE_B_ART_FILES.BEER, ...EIGHT_BIT_ART_FILES.BEER },
-  THUG: { classic: 'thug.svg', ...SLICE_C_ART_FILES.THUG, ...EIGHT_BIT_ART_FILES.THUG },
-  HOE: { classic: 'hoe.svg', ...SLICE_C_ART_FILES.HOE, ...EIGHT_BIT_ART_FILES.HOE },
+  THUG: { classic: 'thug.svg', ...SLICE_C_ART_FILES.THUG, ...EIGHT_BIT_ART_FILES.THUG, ...DROP_ART_FILES.THUG },
+  HOE: { classic: 'hoe.svg', ...SLICE_C_ART_FILES.HOE, ...EIGHT_BIT_ART_FILES.HOE, ...DROP_ART_FILES.HOE },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
 export function itemCosmeticArtFile(item: ItemArtKey, style: ItemCosmeticStyleKey): string {

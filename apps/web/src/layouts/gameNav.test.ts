@@ -58,7 +58,7 @@ describe('admin workspace navigation', () => {
     expect(ADMIN_SECTIONS.map((section) => section.title)).toEqual([
       'Admin · Operations', 'Admin · Players', 'Admin · Economy', 'Admin · Content', 'Admin · Monitoring',
     ]);
-    expect(adminPages).toHaveLength(24);
+    expect(adminPages).toHaveLength(25);
     expect(new Set(adminPages.map((item) => item.key)).size).toBe(adminPages.length);
     expect(new Set(adminPages.map((item) => item.to)).size).toBe(adminPages.length);
   });

@@ -256,6 +256,16 @@ describe('AccountProfileService Street Pass collection unlocks', () => {
       ['cartel-gold', true],
       ['midnight-chrome', true],
       ['obsidian-signal-crew', true],
+      ['kingpin-luxe-sedan', true],
+      ['kingpin-luxe-thug', true],
+      ['kingpin-luxe-hoe', true],
+      ['neon-underworld-low-rider', true],
+      ['neon-underworld-thug', true],
+      ['neon-underworld-hoe', true],
+      ['neon-underworld-tek9', true],
+      ['winter-heist-van', true],
+      ['winter-heist-crew', true],
+      ['winter-heist-shotgun', true],
     ]);
     expect(response.options.crewStyles?.find((option) => option.key === 'cartel-gold')).toMatchObject({
       locked: true,
@@ -279,6 +289,16 @@ describe('AccountProfileService Street Pass collection unlocks', () => {
       'cartel-gold': 'Street Pass · Season 1, tier 28',
       'midnight-chrome': 'Supporter reward.',
       'obsidian-signal-crew': 'Finish the Round Roll Call attendance track to earn the permanent pair.',
+      'kingpin-luxe-sedan': 'Sold in The Drop for Crowns.',
+      'kingpin-luxe-thug': 'Sold in The Drop for Crowns.',
+      'kingpin-luxe-hoe': 'Sold in The Drop for Crowns.',
+      'neon-underworld-low-rider': 'Sold in The Drop for Crowns.',
+      'neon-underworld-thug': 'Sold in The Drop for Crowns.',
+      'neon-underworld-hoe': 'Sold in The Drop for Crowns.',
+      'neon-underworld-tek9': 'Sold in The Drop for Crowns.',
+      'winter-heist-van': 'Sold in The Drop for Crowns.',
+      'winter-heist-crew': 'Sold in The Drop for Crowns.',
+      'winter-heist-shotgun': 'Sold in The Drop for Crowns.',
     });
   });
 

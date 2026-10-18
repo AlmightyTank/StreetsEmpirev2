@@ -54,6 +54,72 @@ export const ITEM_COSMETIC_STYLES = [
     description: 'Exclusive Round Roll Call finale: original ice-blue and gold uniforms for both crew types.',
     released: true,
   },
+  // The Drop (docs/THE-DROP.md): one style per SKU, bought with Crowns.
+  {
+    key: 'kingpin-luxe-sedan',
+    label: 'Kingpin Luxe',
+    description: 'Black lacquer, brass pinstripe and turned-metal wheels. A Drop look for the Sedan.',
+    released: true,
+    items: ['SEDAN'],
+  },
+  {
+    key: 'kingpin-luxe-thug',
+    label: 'Kingpin Luxe',
+    description: 'A black double-breasted overcoat with brass cufflinks. A Drop outfit for the Thug.',
+    released: true,
+  },
+  {
+    key: 'kingpin-luxe-hoe',
+    label: 'Kingpin Luxe',
+    description: 'A black satin column gown with brass-chain straps. A Drop outfit for the Hoe.',
+    released: true,
+  },
+  {
+    key: 'neon-underworld-low-rider',
+    label: 'Neon Underworld',
+    description: 'Gunmetal, violet underglow and teal edge lines. A Drop look for the Low-Rider.',
+    released: true,
+    items: ['LOW_RIDER'],
+  },
+  {
+    key: 'neon-underworld-thug',
+    label: 'Neon Underworld',
+    description: 'A steel bomber with violet piping and a teal visor. A Drop outfit for the Thug.',
+    released: true,
+  },
+  {
+    key: 'neon-underworld-hoe',
+    label: 'Neon Underworld',
+    description: 'A gunmetal vinyl jacket with a violet lining and teal edge light. A Drop outfit for the Hoe.',
+    released: true,
+  },
+  {
+    key: 'neon-underworld-tek9',
+    label: 'Neon Underworld',
+    description: 'Gunmetal with violet and teal edge lines. A Drop finish for the Tek-9.',
+    released: true,
+    items: ['TEK9'],
+  },
+  {
+    key: 'winter-heist-van',
+    label: 'Winter Heist',
+    description: 'Frost-white paint, chained tyres and a snow-loaded roof. A Drop look for the Van.',
+    released: true,
+    items: ['VAN'],
+  },
+  {
+    key: 'winter-heist-crew',
+    label: 'Winter Heist',
+    description: 'Padded parkas, knit caps and shearling. A Drop crew set for both crew types.',
+    released: true,
+  },
+  {
+    key: 'winter-heist-shotgun',
+    label: 'Winter Heist',
+    description: 'Frosted steel with a white-wrapped grip. A Drop finish for the shotgun.',
+    released: true,
+    items: ['SHOTGUN'],
+  },
   // Easter eggs (see docs/EASTER-EGGS.md).
   {
     key: 'eight-bit',
@@ -174,6 +240,11 @@ const CREW_OUTFIT_DESCRIPTIONS: Partial<Record<ItemCosmeticStyleKey, string>> = 
   'urban-ghost': 'Concrete-grey streetwear: camo puffers, beanies and caps, silver chains.',
   'cartel-gold': 'High-roller dress: cream suit and fedora, velvet and fur, heavy gold.',
   'midnight-chrome': 'Charcoal tailoring and brushed chrome: shield shades, racing jacket, tuxedo blazer, the crimson-set chrome diamond.',
+  'kingpin-luxe-thug': 'A black double-breasted overcoat, brass cufflinks and a low brim.',
+  'kingpin-luxe-hoe': 'A black satin column gown with brass-chain straps and a lacquer clutch.',
+  'neon-underworld-thug': 'A steel-grey bomber with violet piping, a teal visor and a reflective hem.',
+  'neon-underworld-hoe': 'A gunmetal vinyl jacket with a violet lining, teal edge light and a steel choker.',
+  'winter-heist-crew': 'A padded parka and knit cap, and a belted shearling coat with frost on the collar.',
   'obsidian-signal-crew': 'Midnight graphite tailoring, pale cyan signal visors and gold medal detailing earned only from a completed Roll Call.\n',
   'eight-bit': 'Sixteen colours and a lot of squares.',
 };
@@ -204,6 +275,11 @@ export type CrewCosmeticLoadout = Record<CrewCosmeticKey, CrewCosmeticStyleKey>;
 export const COLLECTION_COVERAGE: Partial<Record<ItemCosmeticStyleKey, readonly (CustomizableItemKey | CrewCosmeticKey)[]>> = {
   'midnight-chrome': ['LOW_RIDER', 'SEDAN', 'VAN', 'THUG', 'HOE'],
   'obsidian-signal-crew': ['THUG', 'HOE'],
+  'kingpin-luxe-thug': ['THUG'],
+  'kingpin-luxe-hoe': ['HOE'],
+  'neon-underworld-thug': ['THUG'],
+  'neon-underworld-hoe': ['HOE'],
+  'winter-heist-crew': ['THUG', 'HOE'],
 };
 
 /** Whether a collection has authored art for this item or crew type. Classic always does. */
@@ -225,6 +301,8 @@ export function isReleasedItemCosmeticStyle(key: string): key is ItemCosmeticSty
 export const DEFAULT_COLLECTION_UNLOCK_HINT = 'Earned on the Street Pass.';
 /** Locked-collection hint for supporter rewards, which are not on any pass. */
 export const SUPPORTER_UNLOCK_HINT = 'Supporter reward.';
+/** Locked-collection hint for looks sold in The Drop. */
+export const DROP_UNLOCK_HINT = 'Sold in The Drop for Crowns.';
 
 export function isOwnedCollection(key: string, owned: ReadonlySet<string>): boolean {
   return key === 'classic' || owned.has(key);

@@ -14,14 +14,14 @@ for the rewards is in `apps/web/public/items/` (see [ITEM-ART.md](ITEM-ART.md)).
 | Question | Decision |
 | --- | --- |
 | Name | **Street Pass** |
-| Price | Free, forever. There is no paid track, now or later. |
+| Price | Free, forever. There is no paid track. Since 2026-10-18 any tier can also be skipped with Crowns from The Drop ([THE-DROP.md](THE-DROP.md)); a skip only adds Cred and tiers are still claimed here. |
 | Season | One pass per round (28 days). It resets with the round. |
 | How strong | Finishing the pass is a real boost: cash, crew, guns, product and favors. |
 | Last tier | A permanent season cosmetic (profile frame) plus a season title badge. |
 | Guns | The pass gives the gun itself, never permanent buying access. |
 
-Free forever keeps the roadmap's "never sell" rule intact
-([ROADMAP-FUTURE.md](ROADMAP-FUTURE.md), 1.9): nothing in the pass can be bought.
+The pass itself stays free. Crown level skips (150 a tier, 1,200 for ten) are
+the one way to move faster; see [THE-DROP.md](THE-DROP.md#street-pass-skips-slice-e).
 
 ## Earning Street Cred
 

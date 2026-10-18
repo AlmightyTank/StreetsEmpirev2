@@ -5,7 +5,7 @@ import { SupporterBillingService } from '../services/supporter-billing.service.j
 import { AppError } from '../utils/errors.js';
 
 /**
- * Stripe's webhook for supporter payments. The signature covers the exact bytes
+ * Stripe's webhook for supporter payments and Crown packs. The signature covers the exact bytes
  * Stripe sent, so this plugin keeps JSON bodies raw instead of parsing them.
  * A 2xx tells Stripe the event is done; anything else makes it retry.
  */
@@ -14,7 +14,7 @@ const stripeWebhookRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addContentTypeParser('application/json', { parseAs: 'buffer' }, (_request, body, done) => done(null, body));
 
   fastify.post('/webhook', async (request) => {
-    if (!env.stripe.enabled) throw AppError.notFound('NOT_FOUND', 'Not found.');
+    if (!env.stripe.webhookEnabled) throw AppError.notFound('NOT_FOUND', 'Not found.');
     const payload = request.body;
     if (!Buffer.isBuffer(payload)) throw AppError.badRequest('STRIPE_WEBHOOK_INVALID', 'Expected a JSON body.');
     const signature = request.headers['stripe-signature'];

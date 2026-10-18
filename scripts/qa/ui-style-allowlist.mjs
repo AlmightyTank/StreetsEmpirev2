@@ -6,6 +6,8 @@ export const APPROVED_ART_FILES = [
   { pattern: /^casino(?:-experience)?\.css$/, reason: 'Casino cards, reels, felt and game boards.' },
   { pattern: /^city-blocks\.css$/, reason: 'Turf map roads, water and ownership visualization.' },
   { pattern: /^collection\.css$/, reason: 'Owned cosmetic previews and collection artwork.' },
+  { pattern: /^drop-art\.css$/, reason: 'The Drop cosmetic artwork: profile frames and shop previews.' },
+  { pattern: /^drop-shells\.css$/, reason: 'The Drop shell themes: theme token definitions, surfaces and scene art, like site-themes.css.' },
   { pattern: /^dashboard-(?:cinematic|final-polish)\.css$/, reason: 'Command Center illustration and cinematic treatment.' },
   { pattern: /^easter-eggs\.css$/, reason: 'Optional decorative effects.' },
   { pattern: /^encounter-cinema\.css$/, reason: 'Full-screen encounter artwork.' },

@@ -640,6 +640,9 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'sunset-coral',
     'night-map-plum',
     'supporter-crimson',
+    'luxe-lacquer',
+    'underworld-violet',
+    'heist-frost',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';
