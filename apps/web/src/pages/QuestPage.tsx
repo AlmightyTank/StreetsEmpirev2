@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   formatCents,
@@ -36,14 +36,13 @@ function isBoardQuest(quest: PlayerQuestDto): boolean {
 }
 
 function focusedQuestKey(search: string, hash: string): string | null {
-  const fromSearch = new URLSearchParams(search).get('focus');
-  if (fromSearch) return fromSearch;
-  if (!hash.startsWith('#quest-')) return null;
-  try {
-    return decodeURIComponent(hash.slice('#quest-'.length));
-  } catch {
-    return hash.slice('#quest-'.length);
+  // In-page links can change the hash while an older ?focus= remains in the URL.
+  // The clicked anchor is the current intent and must win.
+  if (hash.startsWith('#quest-')) {
+    try { return decodeURIComponent(hash.slice('#quest-'.length)); }
+    catch { return hash.slice('#quest-'.length); }
   }
+  return new URLSearchParams(search).get('focus');
 }
 
 function statusLabel(quest: PlayerQuestDto): string {
@@ -455,7 +454,6 @@ export function QuestPage() {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [career, setCareer] = useState<CareerIdentityDto | null>(null);
   const [careerLens, setCareerLens] = useState(true);
-  const lastScrolledTarget = useRef<string | null>(null);
 
   const applyPage = useCallback((
     next: QuestPageDto,
@@ -521,7 +519,7 @@ export function QuestPage() {
       setShowConnections(true);
     }
     if (location.hash === '#quest-progression') setShowProgression(true);
-  }, [page, location.search, location.hash]);
+  }, [page, location.search, location.hash, location.key]);
 
   useEffect(() => {
     const serverNow = serverAdjustedNowMs(Date.now(), clockOffsetMs);
@@ -545,28 +543,6 @@ export function QuestPage() {
     return () => window.clearTimeout(timer);
   }, [page?.dailyContracts.resetAt, page?.weeklyContracts.resetAt, page?.cityContracts.resetAt, page?.quests, clockOffsetMs, load]);
 
-  useEffect(() => {
-    if (!page) return;
-    const focusKey = focusedQuestKey(location.search, location.hash);
-    const id = location.hash ? decodeURIComponent(location.hash.slice(1))
-      : focusKey ? 'quest-' + focusKey : null;
-    if (!id) {
-      lastScrolledTarget.current = null;
-      return;
-    }
-    if (lastScrolledTarget.current === id) return;
-    // Wait until a deep-linked accordion has opened. Only scroll once per target:
-    // refreshing quests or toggling another section must not yank the page away.
-    const frame = window.requestAnimationFrame(() => {
-      const target = document.getElementById(id);
-      if (!target || target.closest('details:not([open])')) return;
-      lastScrolledTarget.current = id;
-      target.scrollIntoView({ block: 'start' });
-      target.focus({ preventScroll: true });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [page, location.hash, location.search, expandedGroups, showConnections, showProgression]);
-
   const focusKey = focusedQuestKey(location.search, location.hash);
   const board = useMemo(() => buildQuestBoard(page?.quests ?? [], focusKey), [page, focusKey]);
   const visibleGroups = useMemo(() => {
@@ -574,11 +550,11 @@ export function QuestPage() {
     const categories = new Set(career.contractCategories.map((value) => value.toUpperCase()));
     return board.groups.map((group) => ({
       ...group,
-      quests: group.quests.filter((quest) => quest.status !== 'AVAILABLE'
+      quests: group.quests.filter((quest) => quest.key === focusKey || quest.status !== 'AVAILABLE'
         || categories.has(quest.category.toUpperCase())
         || categories.has(quest.type.toUpperCase())),
     })).filter((group) => group.quests.length > 0);
-  }, [board.groups, career, careerLens]);
+  }, [board.groups, career, careerLens, focusKey]);
 
   const trackedToday = useMemo(
     () => page?.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)) ?? [],
@@ -913,7 +889,7 @@ export function QuestPage() {
                               <ul className="se-faction-jobs">
                                 {faction.jobs.map((job) => (
                                   <li key={job.key} className={job.status === 'LOCKED' ? 'is-locked' : job.status === 'COMPLETED' ? 'is-done' : 'is-open'}>
-                                    {job.status === 'LOCKED' ? job.title : <a href={`#quest-${job.key}`}>{job.title}</a>}
+                                    {job.status === 'LOCKED' ? job.title : <Link to={`#quest-${encodeURIComponent(job.key)}`}>{job.title}</Link>}
                                     <span>{job.status === 'COMPLETED' ? 'Done' : job.status === 'LOCKED' ? (job.tierName ? `Opens at ${job.tierName}` : 'Locked') : 'Open'}</span>
                                   </li>
                                 ))}
@@ -928,7 +904,7 @@ export function QuestPage() {
                               <small>
                                 {faction.innerCircle.introduction.status === 'LOCKED'
                                   ? 'Vic can introduce you once you are not already known here.'
-                                  : <>Vic can introduce you: <a href={`#quest-${faction.innerCircle.introduction.key}`}>{faction.innerCircle.introduction.title}</a></>}
+                                  : <>Vic can introduce you: <Link to={`#quest-${encodeURIComponent(faction.innerCircle.introduction.key)}`}>{faction.innerCircle.introduction.title}</Link></>}
                               </small>
                             ) : null}
                             {faction.perks ? <FactionPerks perks={faction.perks} /> : null}
