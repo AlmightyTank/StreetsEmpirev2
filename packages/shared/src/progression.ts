@@ -3,6 +3,9 @@ import type { PlayerExperienceDto } from './types/api.js';
 const FIRST_LEVEL_XP = 100;
 const XP_STEP_PER_LEVEL = 50;
 
+/** Lifetime XP from turns and finished jobs pays this much on Saturday and Sunday UTC. */
+export const DOUBLE_EXPERIENCE_MULTIPLIER = 2;
+
 export type ExperienceRewardRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export type ExperienceLevelReward = {
@@ -34,6 +37,36 @@ export function experienceLevelFor(totalXp: number): number {
   let level = 1;
   while (experienceRequiredForLevel(level + 1) <= safeXp) level += 1;
   return level;
+}
+
+/** Saturday and Sunday, measured in UTC so every player shares the same weekend. */
+export function isDoubleExperienceWeekend(at: Date): boolean {
+  if (!Number.isFinite(at.getTime())) return false;
+  const day = at.getUTCDay();
+  return day === 0 || day === 6;
+}
+
+/** Monday 00:00 UTC when `at` is inside a double-XP weekend, otherwise null. */
+export function doubleExperienceWeekendEndsAt(at: Date): Date | null {
+  if (!isDoubleExperienceWeekend(at)) return null;
+  const daysUntilMonday = (8 - at.getUTCDay()) % 7;
+  return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate() + daysUntilMonday));
+}
+
+/** The next Saturday or Monday 00:00 UTC, whichever ends or starts the bonus. */
+export function nextDoubleExperienceChange(at: Date): Date {
+  const endsAt = doubleExperienceWeekendEndsAt(at);
+  if (endsAt) return endsAt;
+  const day = Number.isFinite(at.getTime()) ? at.getUTCDay() : 1;
+  const daysUntilSaturday = day >= 1 && day <= 5 ? 6 - day : 6;
+  return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate() + daysUntilSaturday));
+}
+
+/** Whole XP actually granted. Weekends pay double; anything else is unchanged. */
+export function experienceAwardAmount(base: number, at: Date): number {
+  const amount = Math.max(0, Math.floor(base));
+  if (amount <= 0 || !isDoubleExperienceWeekend(at)) return amount;
+  return amount * DOUBLE_EXPERIENCE_MULTIPLIER;
 }
 
 export function playerExperienceDto(totalXp: number): PlayerExperienceDto {

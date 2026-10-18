@@ -4,6 +4,7 @@ import { EXPERIENCE_LEVEL_REWARDS, experienceRequiredForLevel, formatCents, form
 import { communityApi } from '../api/community.js';
 import { gameApi } from '../api/game.js';
 import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
+import { useDoubleExperienceWeekend } from '../components/DoubleXpBanner.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -109,6 +110,7 @@ export function XpProgressPage() {
     return () => { active = false; };
   }, [accountId, liveExperience?.totalXp]);
 
+  const doubleXp = useDoubleExperienceWeekend();
   const experience = loadedExperience ?? liveExperience;
   const level = experience?.level ?? 1;
   const totalXp = experience?.totalXp ?? 0;
@@ -136,6 +138,11 @@ export function XpProgressPage() {
             <span className="se-eyebrow">Career progression · carries between seasons</span>
             <h1>XP Progress</h1>
             <p>Build your account level, unlock profile rewards, and track the history you leave behind across seasons.</p>
+            {doubleXp.active ? (
+              <p className="se-double-xp-note">Double XP weekend is on. Turns and finished jobs pay 2× lifetime XP until Monday 00:00 UTC.</p>
+            ) : (
+              <p className="se-hint">Turns and finished jobs pay double lifetime XP every Saturday and Sunday, UTC.</p>
+            )}
           </div>
           <div className="se-pass-hero__progress">
             <div>

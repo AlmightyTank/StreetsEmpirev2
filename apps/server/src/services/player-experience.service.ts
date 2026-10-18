@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { EXPERIENCE_LEVEL_REWARDS, experienceLevelFor, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto } from '@streets/shared';
+import { EXPERIENCE_LEVEL_REWARDS, experienceAwardAmount, experienceLevelFor, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 
 export const PlayerExperienceService = {
@@ -28,12 +28,13 @@ export const PlayerExperienceService = {
   /**
    * Award once per completed game event. Call inside the same transaction as
    * the action or quest payout so a failed action cannot leave XP behind.
+   * Saturday and Sunday UTC store double the requested amount.
    */
   async award(
     tx: Db,
     input: { roundPlayerId: string; sourceKey: string; source: string; amount: number; awardedAt: Date },
   ): Promise<{ awardedXp: number; totalXp: number; level: number; unlocked: ExperienceLevelReward[] }> {
-    const amount = Math.max(0, Math.floor(input.amount));
+    const amount = experienceAwardAmount(input.amount, input.awardedAt);
     if (amount <= 0) return { awardedXp: 0, totalXp: 0, level: 1, unlocked: [] };
 
     const player = await tx.roundPlayer.findUnique({

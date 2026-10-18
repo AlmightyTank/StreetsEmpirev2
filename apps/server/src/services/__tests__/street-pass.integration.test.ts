@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Round } from '@prisma/client';
 import { classicOgStreetPassA, classicOgV08H, STREET_PASS_S1, type Ruleset } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
+import { experienceAwardAmount } from '@streets/shared';
 
 /**
  * Street Pass, live on the shipped classic-og-street-pass-a ruleset: Cred from
@@ -96,7 +97,10 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
     expect(view.cred).toBe(12 + STREET_PASS_S1.sources.oneTimeJob);
     expect(view.tier).toBe(0);
     expect(view.nextTierCred).toBe(800);
-    expect((await app.prisma.account.findUniqueOrThrow({ where: { id: accountId } })).experiencePoints).toBe(112);
+    const awardedAt = new Date();
+    expect((await app.prisma.account.findUniqueOrThrow({ where: { id: accountId } })).experiencePoints).toBe(
+      experienceAwardAmount(12, awardedAt) + experienceAwardAmount(100, awardedAt),
+    );
   });
 
   it('caps turn Cred at 400 a day and starts again the next day', async () => {
@@ -122,7 +126,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
       sourceKey: 'milestone-test',
       source: 'TEST',
       amount: 700,
-      awardedAt: new Date(),
+      awardedAt: new Date('2026-10-14T15:00:00.000Z'),
     };
     const first = await app.prisma.$transaction((tx) => progress.award(tx, input));
     const replay = await app.prisma.$transaction((tx) => progress.award(tx, input));

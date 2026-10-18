@@ -3886,6 +3886,36 @@ a:hover { color: var(--se-accent-hover); }
   font-size: 12px;
 }
 
+.se-double-xp {
+  border-color: color-mix(in srgb, var(--se-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--se-accent) 12%, transparent);
+}
+
+.se-double-xp strong {
+  color: var(--se-accent);
+}
+
+.se-double-xp-mark {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 55%, transparent);
+  border-radius: 999px;
+  color: var(--se-accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+}
+
+.se-double-xp-note {
+  margin: 8px 0 0;
+  color: var(--se-accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 @media (max-width: 640px) {
   .se-beta-banner {
     align-items: flex-start;

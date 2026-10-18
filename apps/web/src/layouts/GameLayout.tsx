@@ -17,6 +17,7 @@ import { isMobileNavSwipe, isSheetDismissSwipe } from './mobileNavSwipe.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
+import { DoubleXpBanner, DoubleXpMark, useDoubleExperienceWeekend } from '../components/DoubleXpBanner.js';
 import { CaseStoryAlerts } from '../components/CaseStoryAlerts.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { formatDuration } from '../utils/time.js';
@@ -136,11 +137,12 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
 
 
 /** Season, clock and level. Top of the desktop sidebar; phones get the slim game bar. */
-function SeasonCard() {
+function SeasonCard({ doubleXp }: { doubleXp: boolean }) {
   const round = useSession((s) => s.round);
   const experience = useSession((s) => s.me?.experience ?? null);
   if (!round) return null;
   const clock = round.paused ? 'Paused' : `${formatDuration(round.msRemaining)} left`;
+  const xpLabel = `Level ${experience?.level ?? 1}, ${experience?.xpIntoLevel ?? 0} of ${experience?.xpForLevel ?? 0} XP to the next level.${doubleXp ? ' Double XP weekend is active.' : ''} View your XP progress.`;
   return (
     <div className="se-seasoncard" title={`${round.name} · ${clock}`}>
       <div className="se-seasoncard__head">
@@ -154,13 +156,13 @@ function SeasonCard() {
         <Link
           className="se-seasoncard__xp"
           to="/game/xp-progress"
-          title={`${experience.totalXp.toLocaleString()} lifetime XP`}
-          aria-label={`Level ${experience.level}, ${experience.xpIntoLevel} of ${experience.xpForLevel} XP to the next level. View your XP progress.`}
+          title={`${experience.totalXp.toLocaleString()} lifetime XP${doubleXp ? ' · 2× this weekend' : ''}`}
+          aria-label={xpLabel}
         >
           <span className="se-seasoncard__level">
             <strong>Level {experience.level}</strong>
-            <strong className="se-seasoncard__lvl" aria-hidden="true">L{experience.level}</strong>
-            <span className="se-num">{experience.xpIntoLevel.toLocaleString()} / {experience.xpForLevel.toLocaleString()} XP</span>
+            <strong className="se-seasoncard__lvl" aria-hidden="true">L{experience.level}{doubleXp ? ' 2×' : ''}</strong>
+            <span className="se-num">{experience.xpIntoLevel.toLocaleString()} / {experience.xpForLevel.toLocaleString()} XP<DoubleXpMark active={doubleXp} /></span>
           </span>
           <span className="se-seasoncard__track" aria-hidden="true">
             <span style={{ width: `${experience.progressPercent}%` }} />
@@ -623,6 +625,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   useTabSwipe();
   const round = useSession((s) => s.round);
   const experience = useSession((s) => s.me?.experience ?? null);
+  const doubleXp = useDoubleExperienceWeekend();
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
   const isBetaEnvironment = typeof window !== 'undefined' && window.location.hostname === 'beta.streetsempire.dev';
   const sections = useSections();
@@ -649,7 +652,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   return (
     <GameLayoutMountedContext.Provider value>
       <Shell
-        sidebar={<><SeasonCard /><GameNav sections={sections} pathname={pathname} badges={badges} /></>}
+        sidebar={<><SeasonCard doubleXp={doubleXp.active} /><GameNav sections={sections} pathname={pathname} badges={badges} /></>}
         tabbar={
       <>
         <TabBar slots={tabs.slots} pathname={pathname} badges={badges} moreOpen={sheet !== null} moreButton={moreButton}
@@ -669,6 +672,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       <ConnectionBanner />
       <RoundRollCallNotice />
       <JokeDayBanner />
+      <DoubleXpBanner active={doubleXp.active} endsAt={doubleXp.endsAt} />
       {isBetaEnvironment ? (
         <div className="se-beta-banner" role="status">
           <strong>BETA ENVIRONMENT</strong>
@@ -682,15 +686,15 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
             <Link
               className="se-gamebar__xp"
               to="/game/xp-progress"
-              title={`${experience.totalXp.toLocaleString()} lifetime XP`}
-              aria-label={`Level ${experience.level}, ${experience.xpIntoLevel} of ${experience.xpForLevel} XP to the next level. View your XP progress.`}
+              title={`${experience.totalXp.toLocaleString()} lifetime XP${doubleXp.active ? ' · 2× this weekend' : ''}`}
+              aria-label={`Level ${experience.level}, ${experience.xpIntoLevel} of ${experience.xpForLevel} XP to the next level.${doubleXp.active ? ' Double XP weekend is active.' : ''} View your XP progress.`}
             >
               <strong>Level {experience.level}</strong>
-            <strong className="se-seasoncard__lvl" aria-hidden="true">L{experience.level}</strong>
+            <strong className="se-seasoncard__lvl" aria-hidden="true">L{experience.level}{doubleXp.active ? ' 2×' : ''}</strong>
               <span className="se-gamebar__xp-track" aria-hidden="true">
                 <span style={{ width: `${experience.progressPercent}%` }} />
               </span>
-              <span>{experience.xpIntoLevel.toLocaleString()} / {experience.xpForLevel.toLocaleString()} XP</span>
+              <span>{experience.xpIntoLevel.toLocaleString()} / {experience.xpForLevel.toLocaleString()} XP<DoubleXpMark active={doubleXp.active} /></span>
             </Link>
           ) : null}
           <span className="se-gamebar__time se-num">

@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { EXPERIENCE_LEVEL_REWARDS, experienceLevelFor, experienceRequiredForLevel, playerExperienceDto } from './progression.js';
+import {
+  DOUBLE_EXPERIENCE_MULTIPLIER,
+  EXPERIENCE_LEVEL_REWARDS,
+  doubleExperienceWeekendEndsAt,
+  experienceAwardAmount,
+  experienceLevelFor,
+  experienceRequiredForLevel,
+  isDoubleExperienceWeekend,
+  nextDoubleExperienceChange,
+  playerExperienceDto,
+} from './progression.js';
 
 describe('account experience progression', () => {
   it('uses a steadily rising level curve from level 1', () => {
@@ -22,6 +32,32 @@ describe('account experience progression', () => {
       progressPercent: 50,
     });
     expect(playerExperienceDto(-10)).toMatchObject({ totalXp: 0, level: 1, progressPercent: 0 });
+  });
+
+  it('doubles lifetime XP on Saturday and Sunday UTC and leaves weekdays alone', () => {
+    const friday = new Date('2026-10-16T23:59:59.999Z');
+    const saturday = new Date('2026-10-17T00:00:00.000Z');
+    const sundayNight = new Date('2026-10-18T23:59:59.999Z');
+    const monday = new Date('2026-10-19T00:00:00.000Z');
+
+    expect(isDoubleExperienceWeekend(friday)).toBe(false);
+    expect(isDoubleExperienceWeekend(saturday)).toBe(true);
+    expect(isDoubleExperienceWeekend(sundayNight)).toBe(true);
+    expect(isDoubleExperienceWeekend(monday)).toBe(false);
+    expect(isDoubleExperienceWeekend(new Date(Number.NaN))).toBe(false);
+
+    expect(experienceAwardAmount(75.9, friday)).toBe(75);
+    expect(experienceAwardAmount(75, saturday)).toBe(75 * DOUBLE_EXPERIENCE_MULTIPLIER);
+    expect(experienceAwardAmount(12, sundayNight)).toBe(24);
+    expect(experienceAwardAmount(0, saturday)).toBe(0);
+    expect(experienceAwardAmount(-4, saturday)).toBe(0);
+
+    expect(doubleExperienceWeekendEndsAt(saturday)?.toISOString()).toBe('2026-10-19T00:00:00.000Z');
+    expect(doubleExperienceWeekendEndsAt(sundayNight)?.toISOString()).toBe('2026-10-19T00:00:00.000Z');
+    expect(doubleExperienceWeekendEndsAt(friday)).toBeNull();
+    expect(nextDoubleExperienceChange(friday).toISOString()).toBe('2026-10-17T00:00:00.000Z');
+    expect(nextDoubleExperienceChange(new Date('2026-10-14T15:00:00.000Z')).toISOString()).toBe('2026-10-17T00:00:00.000Z');
+    expect(nextDoubleExperienceChange(saturday).toISOString()).toBe('2026-10-19T00:00:00.000Z');
   });
 
   it('keeps XP level rewards ordered and keyed by level', () => {
