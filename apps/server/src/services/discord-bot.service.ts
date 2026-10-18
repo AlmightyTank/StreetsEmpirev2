@@ -1160,51 +1160,73 @@ export const DiscordBotService = {
     });
   },
 
-  /** Save the original message ID: edits must not produce a second Discord post. */
+  /** Save the original message ID. If edited while the first send was in flight,
+   * reconcile the latest server copy by queueing an idempotent edit. */
   async newsPosted(prisma: PrismaClient, newsId: string, messageId: string): Promise<void> {
-    await prisma.gameNews.updateMany({
-      where: { id: newsId, discordPostedAt: { not: null } },
-      data: { discordMessageId: messageId, discordError: null },
+    await prisma.$transaction(async (tx) => {
+      const row = await tx.gameNews.findUnique({ where: { id: newsId } });
+      if (!row?.discordPostedAt) return;
+      await tx.gameNews.update({
+        where: { id: newsId },
+        data: {
+          discordMessageId: messageId, discordError: null,
+          ...(row.updatedAt > row.discordPostedAt && !row.discordEditQueuedAt
+            ? { discordEditQueuedAt: new Date() } : {}),
+        },
+      });
     });
   },
 
-  /** One-at-a-time edit claims; if an admin edits again mid-send, its new queue survives. */
-  async claimNewsEdits(prisma: PrismaClient, limit = 10): Promise<Array<DiscordNewsPostDto & { messageId: string }>> {
+  /** Lease edits instead of discarding them on claim. A dead bot can retry after two
+   * minutes; a success receipt clears ONLY that exact revision. */
+  async claimNewsEdits(prisma: PrismaClient, limit = 10): Promise<Array<DiscordNewsPostDto & { messageId: string; queuedAt: string }>> {
     const now = new Date();
+    const staleLease = new Date(now.getTime() - 2 * 60_000);
+    const freeLease = { OR: [{ discordEditClaimedAt: null }, { discordEditClaimedAt: { lt: staleLease } }] };
     return prisma.$transaction(async (tx) => {
       const rows = await tx.gameNews.findMany({
         where: {
-          discordMessageId: { not: null },
-          discordEditQueuedAt: { not: null },
-          discordEditError: null,
-          publishedAt: { lte: now },
+          discordMessageId: { not: null }, discordEditQueuedAt: { not: null },
+          discordEditError: null, publishedAt: { lte: now },
+          ...freeLease,
         },
         include: { createdBy: { select: { username: true } } },
         orderBy: { discordEditQueuedAt: 'asc' },
         take: limit,
       });
-      const claimed: Array<DiscordNewsPostDto & { messageId: string }> = [];
+      const claimed: Array<DiscordNewsPostDto & { messageId: string; queuedAt: string }> = [];
       for (const row of rows) {
+        if (!row.discordEditQueuedAt || !row.discordMessageId) continue;
         const locked = await tx.gameNews.updateMany({
-          where: { id: row.id, discordEditQueuedAt: row.discordEditQueuedAt },
-          data: { discordEditQueuedAt: null },
+          where: { id: row.id, discordEditQueuedAt: row.discordEditQueuedAt, ...freeLease },
+          data: { discordEditClaimedAt: now },
         });
-        if (!locked.count || !row.discordMessageId) continue;
+        if (!locked.count) continue;
         claimed.push({
           id: row.id, title: row.title, body: row.body, isPinned: row.isPinned,
           publishedAt: row.publishedAt.toISOString(), authorName: row.createdBy?.username ?? null,
           url: gameUrl('/game/news'), messageId: row.discordMessageId,
+          queuedAt: row.discordEditQueuedAt.toISOString(),
         });
       }
       return claimed;
     });
   },
 
-  /** Failed edits stay attached to the same message, awaiting an admin retry. */
-  async newsEditFailed(prisma: PrismaClient, newsId: string, error: string): Promise<void> {
+  /** Only acknowledge the revision actually edited; later admin edits stay queued. */
+  async newsEditPosted(prisma: PrismaClient, newsId: string, queuedAt: string): Promise<void> {
     await prisma.gameNews.updateMany({
-      where: { id: newsId, discordMessageId: { not: null } },
-      data: { discordEditError: error.slice(0, 500) },
+      where: { id: newsId, discordMessageId: { not: null }, discordEditQueuedAt: new Date(queuedAt) },
+      data: { discordEditQueuedAt: null, discordEditClaimedAt: null, discordEditError: null },
+    });
+  },
+
+  /** Failed edits stay attached to the tracked message until staff retries them.
+   * An old attempt must never obscure a newer queued edit. */
+  async newsEditFailed(prisma: PrismaClient, newsId: string, error: string, queuedAt: string): Promise<void> {
+    await prisma.gameNews.updateMany({
+      where: { id: newsId, discordMessageId: { not: null }, discordEditQueuedAt: new Date(queuedAt) },
+      data: { discordEditError: error.slice(0, 500), discordEditClaimedAt: null },
     });
   },
 

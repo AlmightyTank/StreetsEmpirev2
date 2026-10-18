@@ -208,10 +208,11 @@ async function postNews(channel: GuildTextBasedChannel, gameUpdatesRoleId: strin
         allowedMentions: { parse: [] },
         flags: 'content' in payload ? MessageFlags.SuppressEmbeds : [],
       });
+      await api.newsEditPosted(post.id, post.queuedAt);
       console.log(`Updated original Discord news "${post.title}" in #${channel.name}.`);
     } catch (error) {
       console.error(`Could not edit Discord news "${post.title}":`, error);
-      await api.newsEditFailed(post.id, describeDiscordError(error, channel.name))
+      await api.newsEditFailed(post.id, describeDiscordError(error, channel.name), post.queuedAt)
         .catch((reportError: unknown) => console.error(`Could not report the failed Discord edit for "${post.title}":`, reportError));
     }
   }

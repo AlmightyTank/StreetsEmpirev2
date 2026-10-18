@@ -167,7 +167,7 @@ export const AdminNewsService = {
         ...(input.body !== undefined && input.body !== before.body ? { body: input.body } : {}),
         ...(input.pinned !== undefined && input.pinned !== before.isPinned ? { isPinned: input.pinned } : {}),
         ...(input.publishNow ? { publishedAt: now } : {}),
-        ...(textChanged && before.discordPostedAt ? { discordEditQueuedAt: now, discordEditError: null } : {}),
+        ...(textChanged && before.discordMessageId ? { discordEditQueuedAt: now, discordEditError: null } : {}),
       };
       if (!Object.keys(data).length) throw AppError.badRequest('NO_CHANGES', 'Nothing changed on that post.');
       const after = await tx.gameNews.update({ where: { id: before.id }, data });
@@ -211,7 +211,7 @@ export const AdminNewsService = {
       if (before.discordMessageId) {
         await tx.gameNews.update({
           where: { id: newsId },
-          data: { discordEditQueuedAt: new Date(), discordEditError: null },
+          data: { discordEditQueuedAt: new Date(), discordEditClaimedAt: null, discordEditError: null },
         });
       } else {
         if (!before.discordPostedAt && !before.discordError) {

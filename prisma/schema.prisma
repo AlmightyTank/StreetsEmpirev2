@@ -3357,6 +3357,8 @@ model GameNews {
   discordMessageId String?
   /// A text/title edit waits here until the bot updates that original message.
   discordEditQueuedAt DateTime?
+  /// Claim lease for in-flight edits; a dropped bot run can retry after timeout.
+  discordEditClaimedAt DateTime?
   /// An edit failure blocks retries until staff use Resend, without creating another post.
   discordEditError String?
 
