@@ -1208,6 +1208,17 @@ export function AccountSettingsPage() {
               <label className="se-checkrow se-checkrow--toggle">
                 <input
                   type="checkbox"
+                  checked={cosmetics.showProfanity}
+                  onChange={(event) => setCosmetics((current) => ({ ...current, showProfanity: event.target.checked }))}
+                />
+                <span>
+                  <strong>Show profanity in messages</strong>
+                  <small>Ordinary profanity is hidden by default. Severe slurs are always blocked.</small>
+                </span>
+              </label>
+              <label className="se-checkrow se-checkrow--toggle">
+                <input
+                  type="checkbox"
                   checked={cosmetics.showThemeOnProfile ?? true}
                   onChange={(event) => setCosmetics((current) => ({
                     ...current,

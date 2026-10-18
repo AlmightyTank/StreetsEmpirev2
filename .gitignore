@@ -5,6 +5,8 @@ build/
 .env.*
 !.env.example
 *.log
+*.jks
+*.keystore
 .DS_Store
 .vite/
 coverage/
@@ -22,3 +24,6 @@ email-previews/
 /.claude
 /.continue
 /openspec
+/android/.gradle/
+/android/.idea/
+*.apk

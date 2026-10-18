@@ -5,26 +5,72 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+// Keep Play signing material outside the repository. The same variables work in
+// Android Studio, Gradle, and CI without putting passwords in build files.
+val playStoreFile = System.getenv("ANDROID_RELEASE_STORE_FILE")
+    ?: providers.gradleProperty("ANDROID_RELEASE_STORE_FILE").orNull
+val playStorePassword = System.getenv("ANDROID_RELEASE_STORE_PASSWORD")
+    ?: providers.gradleProperty("ANDROID_RELEASE_STORE_PASSWORD").orNull
+val playKeyAlias = System.getenv("ANDROID_RELEASE_KEY_ALIAS")
+    ?: providers.gradleProperty("ANDROID_RELEASE_KEY_ALIAS").orNull
+val playKeyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
+    ?: providers.gradleProperty("ANDROID_RELEASE_KEY_PASSWORD").orNull
+val playSigningValues = listOf(playStoreFile, playStorePassword, playKeyAlias, playKeyPassword)
+val playSigningConfigured = playSigningValues.all { !it.isNullOrBlank() }
+
 android {
     namespace = "dev.streetsempire.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "dev.streetsempire.app"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 6
-        versionName = "1.0.5"
+        targetSdk = 36
+        versionCode = 7
+        versionName = "1.0.7"
+    }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        create("production") {
+            dimension = "environment"
+            resValue("string", "app_name", "StreetsEmpire")
+            buildConfigField("String", "LIVE_ORIGIN", "\"https://play.streetsempire.dev\"")
+        }
+        create("beta") {
+            dimension = "environment"
+            applicationIdSuffix = ".beta"
+            versionNameSuffix = "-beta"
+            resValue("string", "app_name", "StreetsEmpire Beta")
+            buildConfigField("String", "LIVE_ORIGIN", "\"https://beta.streetsempire.dev\"")
+        }
+    }
+
+    signingConfigs {
+        create("playRelease") {
+            if (playSigningConfigured) {
+                storeFile = file(playStoreFile!!)
+                storePassword = playStorePassword
+                keyAlias = playKeyAlias
+                keyPassword = playKeyPassword
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (playSigningConfigured) {
+                signingConfig = signingConfigs.getByName("playRelease")
+            }
         }
     }
 
@@ -37,6 +83,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

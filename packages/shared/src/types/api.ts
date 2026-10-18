@@ -297,6 +297,8 @@ export interface AccountProfileSettingsDto {
   reducedMotion: boolean;
   moneyFormat: MoneyFormat;
   defaultLanding: DefaultLanding;
+  /** Show ordinary profanity in game communication instead of masking it. */
+  showProfanity: boolean;
 }
 
 export interface AccountProfileSettingsResponseDto {

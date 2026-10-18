@@ -32,6 +32,7 @@ import { SupporterService } from './supporter.service.js';
 import { assertCanCommunicate, checkDirectMessage, commsMuted, flagMessage } from './communication-guard.js';
 import { wakeDiscordBot } from './discord-bot-push.service.js';
 import { DiscordStaffService } from './discord-staff.service.js';
+import { assertCommunicationContent, maskOrdinaryProfanity, maskSevereSlurs, monitorCommunicationContent } from './content-moderation.service.js';
 
 const SEND_MIN_INTERVAL_MS = 5_000;
 const SEND_WINDOW_MS = 10 * 60_000;
@@ -194,6 +195,7 @@ function messageDto(
   reported: boolean,
   blocked: boolean,
   muted: boolean,
+  showProfanity: boolean,
 ): DirectMessageDto {
   const incoming = row.recipientId === ownerId;
   const counterpart = incoming ? row.sender : row.recipient;
@@ -204,8 +206,8 @@ function messageDto(
       publicPimpId: counterpart.publicPimpId,
       displayName: counterpart.displayName,
     },
-    subject: row.subject,
-    body: row.body,
+    subject: showProfanity ? maskSevereSlurs(row.subject) : maskOrdinaryProfanity(row.subject),
+    body: showProfanity ? maskSevereSlurs(row.body) : maskOrdinaryProfanity(row.body),
     createdAt: row.createdAt.toISOString(),
     // Read state is private to the recipient; do not expose recipient activity timing to senders.
     readAt: incoming ? row.readAt?.toISOString() ?? null : null,
@@ -314,6 +316,8 @@ async function decorateMessages(
   owner: Awaited<ReturnType<typeof currentPlayer>>,
   rows: MessageRow[],
 ): Promise<DirectMessageDto[]> {
+  const profile = await prisma.accountProfile?.findUnique({ where: { accountId: owner.accountId }, select: { showProfanity: true } });
+  const showProfanity = profile?.showProfanity ?? false;
   if (!rows.length) return [];
 
   const messageIds = rows.map((row) => row.id);
@@ -365,6 +369,7 @@ async function decorateMessages(
       reported.has(row.id),
       blockedAccounts.has(counterpartAccountId),
       mutedAccounts.has(counterpartAccountId),
+      showProfanity,
     );
   });
 }
@@ -610,6 +615,7 @@ export const PimpConsoleService = {
     input: SendDirectMessageInput,
     now = new Date(),
   ): Promise<SendMessageResultDto> {
+    assertCommunicationContent(input.subject, input.body);
     const owner = await currentPlayer(prisma, accountId);
 
     const replay = await prisma.directMessage.findUnique({
@@ -741,6 +747,7 @@ export const PimpConsoleService = {
       return { row: created, replayed: false as const, flagged: Boolean(flagId) };
     });
     if ('flagged' in row && row.flagged) wakeDiscordBot('staff');
+    monitorCommunicationContent(input.subject, input.body);
 
     return {
       message: await oneMessageDto(prisma, owner, row.row),

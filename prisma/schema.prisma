@@ -267,6 +267,8 @@ model AccountProfile {
   reducedMotion           Boolean @default(false)
   moneyFormat             String  @default("full")
   defaultLanding          String  @default("game")
+  /// Whether this player wants ordinary profanity shown in communication.
+  showProfanity            Boolean @default(false)
   /// Start daily, weekly and city board work as soon as it appears.
   autoAcceptBoardWork     Boolean @default(true)
   /// 1.0.0-B. Tutorial progress: intro completed/skipped, page intros seen, guide

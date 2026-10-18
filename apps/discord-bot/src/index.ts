@@ -41,6 +41,7 @@ import { handleStaffButton, handleStaffModal, staffPostMessage } from './staff.j
 import { OutageWatch, outageMessage, recoveredMessage, statusPostMessage } from './status.js';
 import { isPatchNotesPost, roleMention } from './role-pings.js';
 import { handleTicketButton, handleTicketForm, type SupportDeps } from './support.js';
+import { moderateMessage } from './content-moderation.js';
 
 const config = loadConfig();
 const api = createGameApi({ baseUrl: config.GAME_API_URL, token: config.DISCORD_BOT_API_TOKEN });
@@ -50,7 +51,7 @@ const managed = betaTesterOnly ? betaTesterRoles() : managedRoles(forumGroups);
 
 // GuildMembers is a privileged intent: enable "Server Members Intent" in the developer portal.
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent],
   allowedMentions: { parse: [] },
 });
 
@@ -620,6 +621,26 @@ client.once(Events.ClientReady, async (ready) => {
 client.on(Events.GuildMemberAdd, (member) => {
   if (member.guild.id !== config.DISCORD_GUILD_ID || !sync) return;
   sync.syncMembers([member]).catch((error: unknown) => console.error(`Role sync failed for new member ${member.id}:`, error));
+});
+
+// OpenAI is a post-send safety net. Discord AutoMod should remain enabled for
+// pre-send keyword blocking; this catches contextual hate that AutoMod cannot.
+client.on(Events.MessageCreate, (message) => {
+  if (!config.OPENAI_MODERATION_API_KEY || message.guildId !== config.DISCORD_GUILD_ID || message.author.bot) return;
+  moderateMessage({
+    text: message.content,
+    apiKey: config.OPENAI_MODERATION_API_KEY,
+    timeoutMs: config.OPENAI_MODERATION_TIMEOUT_MS,
+  }).then(async (blocked) => {
+    if (!blocked) return;
+    await message.delete().catch((error: unknown) => {
+      console.warn(`Could not remove hateful message ${message.id}:`, error instanceof Error ? error.message : error);
+    });
+    console.warn(`Removed a hateful message from ${message.author.id} in channel ${message.channelId}.`);
+  }).catch((error: unknown) => {
+    // Fail open on provider/network errors; never punish a member without a result.
+    console.warn('OpenAI message moderation failed; leaving the message in place:', error instanceof Error ? error.message : error);
+  });
 });
 
 client.on(Events.InteractionCreate, (interaction) => {

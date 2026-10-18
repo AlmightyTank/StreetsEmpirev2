@@ -23,7 +23,6 @@ import { CasePanel } from '../components/CasePanel.js';
 import { PendingEncountersPanel } from '../components/PendingEncountersPanel.js';
 import { formatClockTime, formatDate, formatDuration, formatWhen } from '../utils/time.js';
 import { dashboardAttentionState, dashboardDisclosureForHash } from '../utils/dashboardAttention.js';
-import { GettingStarted } from '../components/onboarding/GettingStarted.js';
 import { TourOffer } from '../components/onboarding/TourOffer.js';
 import { useOnboarding } from '../stores/onboarding.js';
 
@@ -419,7 +418,6 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
 
         {error ? <Alert>{error}</Alert> : null}
 
-        <GettingStarted />
         <TourOffer />
         <PendingEncountersPanel encounters={me.pendingEncounters} />
         <div className="se-dashboard-snapshot" aria-label="Empire at a glance">

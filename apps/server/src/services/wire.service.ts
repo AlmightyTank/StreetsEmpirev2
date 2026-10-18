@@ -16,6 +16,7 @@ import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { assertCanCommunicate } from './communication-guard.js';
 import { SupporterService } from './supporter.service.js';
+import { assertCommunicationContent, maskOrdinaryProfanity, maskSevereSlurs, monitorCommunicationContent } from './content-moderation.service.js';
 
 type Author = Pick<RoundPlayer, 'id' | 'publicPimpId' | 'displayName' | 'accountId'>;
 
@@ -36,6 +37,7 @@ function toPostDto(
   viewerId: string,
   viewerLeads: boolean,
   supporter?: { isSupporter: boolean; supporterSince: string | null },
+  showProfanity = false,
 ): WirePostDto {
   const isYours = post.authorId === viewerId;
   const kind = post.kind === 'ANNOUNCEMENT' ? 'ANNOUNCEMENT' : 'MESSAGE';
@@ -47,7 +49,7 @@ function toPostDto(
       isSupporter: supporter?.isSupporter ?? false,
       supporterSince: supporter?.supporterSince ?? null,
     },
-    body: post.body,
+    body: showProfanity ? maskSevereSlurs(post.body) : maskOrdinaryProfanity(post.body),
     kind,
     pinned: post.pinned,
     createdAt: post.createdAt.toISOString(),
@@ -272,10 +274,11 @@ export const WireService = {
       prisma,
       [...rows, ...(pinned ? [pinned] : [])].map((row) => row.author.accountId),
     );
+    const showProfanity = (await prisma.accountProfile?.findUnique({ where: { accountId: player.accountId }, select: { showProfanity: true } }))?.showProfanity ?? false;
     return {
-      pinnedAnnouncement: pinned ? toPostDto(pinned, player.id, leads, supporterFlags.get(pinned.author.accountId)) : null,
+      pinnedAnnouncement: pinned ? toPostDto(pinned, player.id, leads, supporterFlags.get(pinned.author.accountId), showProfanity) : null,
       cards,
-      posts: rows.slice(0, WIRE_PAGE_SIZE).map((row) => toPostDto(row, player.id, leads, supporterFlags.get(row.author.accountId))),
+      posts: rows.slice(0, WIRE_PAGE_SIZE).map((row) => toPostDto(row, player.id, leads, supporterFlags.get(row.author.accountId), showProfanity)),
       nextBefore: rows.length > WIRE_PAGE_SIZE ? rows[WIRE_PAGE_SIZE - 1]!.id : null,
       cooldownUntil: cooldownUntil && cooldownUntil > now ? cooldownUntil.toISOString() : null,
       canPostAnnouncement: leads,
@@ -286,6 +289,7 @@ export const WireService = {
   /** The author's row is locked while the cooldown is checked, so two quick posts cannot both land. */
   async post(prisma: PrismaClient, playerId: string, rawInput: unknown): Promise<AllianceWireDto> {
     const input = wirePostSchema.parse(rawInput);
+    assertCommunicationContent('', input.body);
     const { round } = await membership(prisma, playerId);
     if (!roundOpen(round, new Date())) throw AppError.conflict('ROUND_NOT_PLAYABLE', `${round.name} is closed. The wire is read-only now.`);
     await prisma.$transaction(async (tx) => {
@@ -316,6 +320,7 @@ export const WireService = {
         },
       });
     });
+    monitorCommunicationContent('', input.body);
     return WireService.list(prisma, playerId);
   },
 
