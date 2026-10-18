@@ -172,7 +172,7 @@ export function AdminSportsbookPanel() {
           <div className="se-tablewrap se-mt">
             <table className="se-table se-table--cards">
               <caption className="se-sr">Odds feed by league</caption>
-              <thead><tr><th>League</th><th>Source</th><th>Last success</th><th className="se-table__number">Upcoming</th><th className="se-table__number">Pulled</th><th>Controls</th><th>Last error</th></tr></thead>
+              <thead><tr><th>League</th><th>Source</th><th>Last success</th><th>Recovery</th><th className="se-table__number">Upcoming</th><th className="se-table__number">Pulled</th><th>Controls</th><th>Last error</th></tr></thead>
               <tbody>{data.leagues.map((league) => (
                 <tr key={league.key}>
                   <td className="se-td--title">{league.name}</td>
