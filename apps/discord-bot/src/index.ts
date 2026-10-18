@@ -181,7 +181,10 @@ async function postNews(channel: GuildTextBasedChannel, gameUpdatesRoleId: strin
       if (channel.type === ChannelType.GuildAnnouncement) {
         await message.crosspost().catch((error: unknown) => console.warn('Could not publish news to following servers:', error));
       }
-      await api.newsPosted(post.id, message.id);
+      // Delivery succeeded even if the acknowledgement fails; never mark the
+      // send as failed and accidentally offer a duplicate public announcement.
+      await api.newsPosted(post.id, message.id)
+        .catch((error: unknown) => console.warn(`Discord news "${post.title}" was posted but its message ID could not be recorded:`, error));
       console.log(`Posted news "${post.title}" to #${channel.name}.`);
     } catch (error) {
       console.error(`Could not post news "${post.title}":`, error);
@@ -466,10 +469,10 @@ client.once(Events.ClientReady, async (ready) => {
     // Checked on every run, so fixing the channel or its permissions needs no restart.
     // Each run also tells the game API, whose admin news panel shows why news is stuck.
     // Resolved before the alert poller starts, which posts round endings to it.
-    let newsChannel = (await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID')).channel;
+    let newsChannel = (await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID', [PermissionFlagsBits.ReadMessageHistory])).channel;
     let newsProblem: string | null | undefined;
     const runNews = serialTask('News auto-post', async () => {
-      const check = await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID');
+      const check = await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID', [PermissionFlagsBits.ReadMessageHistory]);
       if (check.problem !== newsProblem) {
         if (check.problem) console.warn(`News auto-post is off: ${check.problem}`);
         else console.log(`Posting new game news to #${check.channel!.name} (checking every ${config.DISCORD_NEWS_MINUTES} min).`);
