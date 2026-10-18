@@ -36,6 +36,7 @@ type TicketView = 'open' | 'settled';
 type Pick = { eventId: string; selection: SportsbookSelection; seenOdds: number };
 
 const LEAGUE_FILTERS: readonly LeagueFilter[] = ['ALL', 'NFL', 'NBA', 'MLB', 'NHL'];
+const LEAGUE_MARKS: Record<LeagueFilter, string> = { ALL: '◆', NFL: '🏈', NBA: '🏀', MLB: '⚾', NHL: '🏒' };
 const QUICK_STAKES = [1_000, 2_500, 10_000, 50_000] as const;
 /** Under this, the countdown turns urgent so a late pick is not a surprise. */
 const CLOSING_SOON_MS = 15 * 60_000;
@@ -349,6 +350,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                 aria-pressed={league === key}
                 onClick={() => setLeague(key)}
               >
+                <span className="sb-leagues__mark" aria-hidden="true">{LEAGUE_MARKS[key]}</span>
                 <span>{key === 'ALL' ? 'All' : key}</span>
                 <b>{count}</b>
               </button>
