@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anchorScrollTop, isAnchorReady, routeAnchorId, shouldPreserveRouteScroll } from './routeScroll.js';
+import { anchorScrollTop, isAnchorReady, preservedRouteScrollTarget, routeAnchorId, shouldPreserveRouteScroll } from './routeScroll.js';
 
 describe('shared-shell route scroll', () => {
   it('preserves position while switching storefronts', () => {
