@@ -766,6 +766,9 @@ model DiscordStaffPost {
   messageId String?
   /// Why Discord refused it, as the bot reported it.
   error     String?
+  /// Last patch-notes snapshot shown in the staff channel, for in-place refreshes.
+  syncedNewsAt DateTime?
+  syncedState  String?
 
   @@index([claimedAt, createdAt])
   @@index([kind, targetId])
@@ -3350,6 +3353,12 @@ model GameNews {
   /// Why Discord refused the post, as the bot reported it. Set together with
   /// discordPostedAt = null; the bot skips it until an admin resends it.
   discordError    String?
+  /// Discord's original news-channel message. Null for legacy posts and failed sends.
+  discordMessageId String?
+  /// A text/title edit waits here until the bot updates that original message.
+  discordEditQueuedAt DateTime?
+  /// An edit failure blocks retries until staff use Resend, without creating another post.
+  discordEditError String?
 
   /// 1.0.0-E. A broadcast reaches every player of the season: the bell and their alert channels.
   broadcast   Boolean   @default(false)
