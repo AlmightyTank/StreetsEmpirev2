@@ -281,3 +281,24 @@ export function itemCosmeticArtFile(item: ItemArtKey, style: ItemCosmeticStyleKe
 export function itemCosmeticArtUrl(item: ItemArtKey, style: ItemCosmeticStyleKey): string {
   return `/items/${itemCosmeticArtFile(item, style)}`;
 }
+
+/**
+ * The SVG masters behind the rendered WebP skins, keyed by their path from this
+ * file. The build emits each one as an asset; only the URL strings are bundled.
+ */
+const COSMETIC_MASTER_URLS = import.meta.glob<string>('../../art/cosmetics/**/*.svg', {
+  query: '?url',
+  import: 'default',
+  eager: true,
+});
+
+/**
+ * Art for the enlarged item view. Rendered skins are 512px per cell, which
+ * blurs when blown up on a high-density screen, so this serves the skin's
+ * vector master instead; anything already vector (Classic, Drop) is unchanged.
+ */
+export function itemCosmeticZoomUrl(item: ItemArtKey, style: ItemCosmeticStyleKey): string {
+  const rendered = itemCosmeticArtFile(item, style).match(/^cosmetics\/(.+)\.webp$/);
+  const master = rendered ? COSMETIC_MASTER_URLS[`../../art/cosmetics/${rendered[1]}.svg`] : undefined;
+  return master ?? itemCosmeticArtUrl(item, style);
+}

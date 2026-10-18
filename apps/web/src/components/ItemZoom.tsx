@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { ITEM_COSMETIC_STYLES, type ItemCosmeticStyleKey } from '@streets/shared';
 import { ITEM_ART, type ItemArtKey } from '../items/itemArt.js';
-import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
+import { itemCosmeticArtUrl, itemCosmeticZoomUrl } from '../items/itemCosmeticArt.js';
 
 /** A tile's on-screen box when it was clicked, so the art can grow out of it. */
 export interface ZoomOrigin {
@@ -55,6 +55,7 @@ export function ItemZoom({
   const stage = useRef<HTMLElement>(null);
   const close = useRef<HTMLButtonElement>(null);
   const closing = useRef(false);
+  const [sharpReady, setSharpReady] = useState(false);
   const [w, h] = art.cells;
   const style = ITEM_COSMETIC_STYLES.find((option) => option.key === skin);
   const skinName = style?.label ?? 'Classic';
@@ -150,10 +151,20 @@ export function ItemZoom({
         </header>
         <figure
           ref={stage}
-          className={`se-item-zoom__stage se-item-tile--${art.rarity.toLowerCase()}`}
+          className={`se-item-zoom__stage se-item-tile--${art.rarity.toLowerCase()}${sharpReady ? ' se-item-zoom__stage--sharp' : ''}`}
           style={{ '--se-item-w': w, '--se-item-h': h } as CSSProperties}
         >
-          <img src={itemCosmeticArtUrl(item, skin)} alt={`${art.name}, ${skinName} skin`} decoding="async" draggable={false} />
+          {/* The tile's raster, already loaded, sits under the sharp vector master so the
+              grow animation never starts empty; the master covers it once it arrives. */}
+          <img src={itemCosmeticArtUrl(item, skin)} alt="" aria-hidden="true" draggable={false} />
+          <img
+            className="se-item-zoom__sharp"
+            src={itemCosmeticZoomUrl(item, skin)}
+            alt={`${art.name}, ${skinName} skin`}
+            decoding="async"
+            draggable={false}
+            onLoad={() => setSharpReady(true)}
+          />
         </figure>
         {style && style.key !== 'classic' ? <p className="se-item-zoom__desc" data-zoom-fade>{style.description}</p> : null}
       </div>

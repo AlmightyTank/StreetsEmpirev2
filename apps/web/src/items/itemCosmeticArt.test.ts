@@ -21,6 +21,7 @@ import {
   SINGLE_ITEM_ART_FILES,
   itemCosmeticArtFile,
   itemCosmeticArtUrl,
+  itemCosmeticZoomUrl,
   SLICE_A_ART_FILES,
   SLICE_B_ART_FILES,
   SLICE_C_ART_FILES,
@@ -160,6 +161,21 @@ describe('item cosmetic art resolver', () => {
 
     expect(list(MASTERS_DIR, '.svg')).toEqual(expected);
     expect(list(path.join(ITEMS_DIR, 'cosmetics'), '.webp')).toEqual(expected);
+  });
+
+  it('zooms every rendered skin from its vector master and leaves vector art as it is', () => {
+    for (const [item, styles] of Object.entries(AUTHORED_ITEM_ART_FILES)) {
+      for (const [style, file] of Object.entries(styles as Record<string, string>)) {
+        const zoom = itemCosmeticZoomUrl(item as keyof typeof ITEM_ART, style as ItemCosmeticStyleKey);
+        if (file.endsWith('.webp')) {
+          expect(zoom, `${item} ${style}`).toMatch(/\.svg(\?|$)/);
+          expect(zoom).not.toBe(itemCosmeticArtUrl(item as keyof typeof ITEM_ART, style as ItemCosmeticStyleKey));
+        } else {
+          expect(zoom).toBe(itemCosmeticArtUrl(item as keyof typeof ITEM_ART, style as ItemCosmeticStyleKey));
+        }
+      }
+    }
+    expect(itemCosmeticZoomUrl('PISTOL', 'classic')).toBe(itemCosmeticArtUrl('PISTOL', 'classic'));
   });
 
   it('ships the hidden Holiday Road Sedan as a transparent 256x128 SVG and never on another vehicle', () => {

@@ -360,7 +360,13 @@
   height: 90%;
   object-fit: contain;
   user-select: none;
+  transition: opacity 0.18s ease;
 }
+
+/* The vector master waits invisible until it has loaded, then swaps in for the tile's raster. */
+.se-item-zoom__sharp { opacity: 0; }
+.se-item-zoom__stage--sharp .se-item-zoom__sharp { opacity: 1; }
+.se-item-zoom__stage--sharp img:not(.se-item-zoom__sharp) { opacity: 0; }
 
 .se-item-zoom__desc {
   margin: 0;
