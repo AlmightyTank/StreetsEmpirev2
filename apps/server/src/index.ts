@@ -65,9 +65,7 @@ const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
 const sportsbookKeys = { therundown: env.THERUNDOWN_API_KEY, theoddsapi: env.THE_ODDS_API_KEY };
 const stopSportsbook = Object.values(sportsbookKeys).some(Boolean)
   ? startPoller('Sportsbook odds cache', 15 * 60_000, async () => {
-      const result = await refreshSportsbookCache(app.prisma, sportsbookKeys, new Date(), {
-        minIntervalMs: env.SPORTSBOOK_POLL_MINUTES * 60_000,
-      });
+      const result = await refreshSportsbookCache(app.prisma, sportsbookKeys, new Date());
       if (result.errors.length || result.warnings.length) app.log.warn({ sportsbook: result }, 'Sportsbook feed run finished with issues');
     }, (message, error) => app.log.error(error, message))
   : () => {};
