@@ -854,6 +854,10 @@ export interface AdminNewsPostDto {
   roundName: string | null;
   authorName: string | null;
   discordPostedAt: string | null;
+  /** The tracked original public Discord message, if this bot created it. */
+  discordMessageId: string | null;
+  discordEditQueuedAt: string | null;
+  discordEditError: string | null;
   /** Why Discord refused the post, as the bot reported it. Resend clears it. */
   discordError: string | null;
   /** Why the post is not on Discord yet, in words for the admin; null once it is. */
