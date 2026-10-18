@@ -6,6 +6,10 @@
  * The Cash / Turns / Heat cards use the existing links and actual live values.
  * Do not change touch-action, scroll containment, or More-sheet gesture zones.
  */
+/* The shared StatusBar also renders in the desktop sidebar. Keep its original
+   vector icons there; the colorful replacement is mobile game chrome only. */
+.se-statusbar__icon--illustrated { display: none; }
+
 @media (max-width: 899px) {
   /* Default house chrome uses the mockup's electric blue; player-chosen
      accents and earned site themes retain their own lighting. */
@@ -212,6 +216,9 @@
     opacity: .7;
     pointer-events: none;
   }
+
+  .se-app--tabbar .se-topbar .se-statusbar__icon--legacy { display: none; }
+  .se-app--tabbar .se-topbar .se-statusbar__icon--illustrated { display: block; }
 
   .se-app--tabbar .se-topbar .se-statusbar__icon {
     grid-column: 1;
