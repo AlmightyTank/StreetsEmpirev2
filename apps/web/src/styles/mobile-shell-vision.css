@@ -242,8 +242,15 @@
 
   .se-app--tabbar .se-topbar .se-statusbar__v--wide { display: none; }
   .se-app--tabbar .se-topbar .se-statusbar__v--narrow { display: inline; }
-  .se-app--tabbar .se-topbar .se-statusbar__item--worth,
+  /* Older rulesets may omit Heat. The third plate becomes Net Worth then. */
+  .se-app--tabbar .se-topbar .se-statusbar--has-heat .se-statusbar__item--worth,
   .se-app--tabbar .se-topbar .se-statusbar__meter { display: none; }
+
+  /* Native same-page links + the skip link honor the *measured* HUD height. */
+  .se-app--tabbar #main-content,
+  .se-app--tabbar #main-content [id] {
+    scroll-margin-top: var(--se-mobile-header-offset, 162px);
+  }
 
   /* The same bottom navigation interactions, but with softly lit icons. */
   .se-app--tabbar .se-tabbar {
