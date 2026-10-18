@@ -129,6 +129,9 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
     border-top: 1px solid rgba(var(--se-accent-rgb), 0.16);
     box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(8px);
+    /* The bottom bar owns the upward reveal gesture, preventing document pan.
+       Native vertical scrolling remains available everywhere in game content. */
+    touch-action: none;
   }
 
   .se-tabbar__tab {

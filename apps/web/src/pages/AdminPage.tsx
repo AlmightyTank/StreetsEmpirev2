@@ -48,7 +48,7 @@ const statusPhrase: Record<RoundStatus, string> = {
   ARCHIVED: 'archived',
 };
 
-const emptyForm = { name: '', slug: '', rulesetId: '', startsAt: '', endsAt: '', registrationOpensAt: '' };
+const emptyForm = { name: '', rulesetId: '', startsAt: '', endsAt: '', registrationOpensAt: '' };
 
 function statusTone(status: RoundStatus): string {
   if (status === 'ACTIVE') return ' se-tag--good';
@@ -181,7 +181,6 @@ export function AdminPage() {
         name: form.name.trim(),
         rulesetId: form.rulesetId,
         startsAt,
-        ...(form.slug.trim() ? { slug: form.slug.trim() } : {}),
         ...(endsAt ? { endsAt } : {}),
         ...(registrationOpensAt ? { registrationOpensAt } : {}),
       });
@@ -386,23 +385,14 @@ export function AdminPage() {
           <form id="schedule-round" onSubmit={scheduleRound} noValidate>
             <Field
               id="admin-round-name"
-              label="Name"
+              label="Round name"
               value={form.name}
               onChange={(event) => update('name', event.target.value)}
               required
               minLength={3}
               maxLength={80}
               error={fields.name}
-              hint="Shown to players, e.g. Game #011 - Alliances."
-            />
-            <Field
-              id="admin-round-slug"
-              label="Slug"
-              value={form.slug}
-              onChange={(event) => update('slug', event.target.value)}
-              maxLength={60}
-              error={fields.slug}
-              hint="Optional. Made from the name when left blank."
+              hint="Just type the name. StreetsEmpire adds Game#001, Game#002, etc. automatically."
             />
             <div className="se-field">
               <label className="se-label" htmlFor="admin-round-ruleset">Ruleset</label>
