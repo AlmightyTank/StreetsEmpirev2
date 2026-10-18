@@ -161,7 +161,7 @@ const newsPostSchema = z.object({
     url: z.string().url(),
 });
 const newsClaimSchema = z.object({ news: z.array(newsPostSchema) });
-const newsEditsClaimSchema = z.object({ edits: z.array(newsPostSchema.extend({ messageId: z.string() })) });
+const newsEditsClaimSchema = z.object({ edits: z.array(newsPostSchema.extend({ messageId: z.string(), queuedAt: z.string() })) });
 
 const okSchema = z.object({ ok: z.literal(true) });
 
@@ -659,8 +659,11 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     },
     claimNewsEdits: async () =>
       (await call(newsEditsClaimSchema, '/api/internal/discord/news/edits/claim', { method: 'POST' })).edits,
-    newsEditFailed: async (newsId: string, error: string) => {
-      await call(okSchema, `/api/internal/discord/news/${encodeURIComponent(newsId)}/edits/failed`, { method: 'POST', body: { error } });
+    newsEditPosted: async (newsId: string, queuedAt: string) => {
+      await call(okSchema, `/api/internal/discord/news/${encodeURIComponent(newsId)}/edits/posted`, { method: 'POST', body: { queuedAt } });
+    },
+    newsEditFailed: async (newsId: string, error: string, queuedAt: string) => {
+      await call(okSchema, `/api/internal/discord/news/${encodeURIComponent(newsId)}/edits/failed`, { method: 'POST', body: { error, queuedAt } });
     },
     /** Discord refused a claimed post; the admin panel shows why and offers a resend. */
     newsFailed: async (newsId: string, error: string) => {

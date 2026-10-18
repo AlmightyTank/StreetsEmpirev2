@@ -19,7 +19,7 @@ function fakePrisma(posts: Post[], reports: Array<typeof report>, news: Array<{ 
     discordStaffPost: {
       findMany: async ({ where }: { where?: { kind?: string; messageId?: unknown; createdAt?: { gte: Date } } } = {}) =>
         where?.kind === 'PATCH_NOTES_HELD'
-          ? posts.filter((post) => post.kind === 'PATCH_NOTES_HELD' && post.messageId && post.createdAt >= where.createdAt!.gte)
+          ? posts.filter((post) => post.kind === 'PATCH_NOTES_HELD' && post.messageId)
           : posts.filter((post) => !post.claimedAt).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
       updateMany: async ({ where, data }: { where: { id: { in: string[] } | string; claimedAt?: null }; data: Partial<Post> }) => {
         const ids = typeof where.id === 'string' ? [where.id] : where.id.in;
@@ -111,6 +111,24 @@ describe('DiscordStaffService.claim', () => {
     news.length = 0;
     const [deleted] = await DiscordStaffService.claim(prisma, afterDeadline);
     expect(deleted).toMatchObject({ editMessageId: '1234567890123456789', patchNotes: { state: 'DELETED' } });
+  });
+
+  it('updates already-posted reviews even beyond the seven-day maximum hold', async () => {
+    const old = {
+      ...post('week-old', 'PATCH_NOTES_HELD', 'news-old', STAFF_POST_MAX_AGE_MS + 60_000, '1234567890123456789'),
+      claimedAt: new Date(now.getTime() - STAFF_POST_MAX_AGE_MS - 60_000),
+      syncedState: 'HELD',
+    };
+    const prisma = fakePrisma([old], [], [{
+      id: 'news-old', title: 'Patch notes for 2.2.4', body: '- Updated fixes',
+      publishedAt: new Date(now.getTime() - 1000),
+      updatedAt: now,
+    }]);
+    const [completion] = await DiscordStaffService.claim(prisma, now);
+    expect(completion).toMatchObject({
+      editMessageId: '1234567890123456789',
+      patchNotes: { state: 'PUBLISHED', title: 'Patch notes for 2.2.4' },
+    });
   });
 
   it('queues nothing while the bot API is off', async () => {

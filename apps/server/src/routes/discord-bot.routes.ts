@@ -68,6 +68,8 @@ const staffReviewPostedSchema = staffPostedSchema.extend({
   sync: z.object({ state: z.enum(['HELD', 'PUBLISHED', 'DELETED']), updatedAt: z.string().datetime().nullable() }).optional(),
 }).strict();
 const newsFailedSchema = z.object({ error: z.string().trim().min(1).max(500) }).strict();
+const newsEditAckSchema = z.object({ queuedAt: z.string().datetime() }).strict();
+const newsEditFailedSchema = newsFailedSchema.extend({ queuedAt: z.string().datetime() }).strict();
 const alertsClaimSchema = z.object({ feed: z.boolean().optional() }).strict();
 const newsStatusSchema = z.object({
   channel: z.string().trim().min(1).max(100).nullable(),
@@ -219,10 +221,17 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
     edits: await DiscordBotService.claimNewsEdits(fastify.prisma),
   }));
 
+  fastify.post('/news/:newsId/edits/posted', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    const { queuedAt } = parseBody(newsEditAckSchema, request.body);
+    await DiscordBotService.newsEditPosted(fastify.prisma, newsId, queuedAt);
+    return { ok: true };
+  });
+
   fastify.post('/news/:newsId/edits/failed', async (request) => {
     const { newsId } = parseBody(newsParams, request.params);
-    const { error } = parseBody(newsFailedSchema, request.body ?? {});
-    await DiscordBotService.newsEditFailed(fastify.prisma, newsId, error);
+    const { error, queuedAt } = parseBody(newsEditFailedSchema, request.body ?? {});
+    await DiscordBotService.newsEditFailed(fastify.prisma, newsId, error, queuedAt);
     return { ok: true };
   });
 

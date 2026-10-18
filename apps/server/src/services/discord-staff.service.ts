@@ -198,8 +198,10 @@ export const DiscordStaffService = {
     // a held post publishes automatically after its review window, or is deleted.
     if (audience === 'staff' && posts.length < limit) {
       const held = await prisma.discordStaffPost.findMany({
-        where: { kind: 'PATCH_NOTES_HELD', messageId: { not: null }, createdAt: { gte: new Date(now.getTime() - STAFF_POST_MAX_AGE_MS) } },
-        orderBy: { createdAt: 'asc' },
+        where: { kind: 'PATCH_NOTES_HELD', messageId: { not: null } },
+        // Do not use the new-post expiry for an already posted review card:
+        // a seven-day hold must still turn green when its timer expires.
+        orderBy: { createdAt: 'desc' },
         take: 100,
       });
       if (held.length) {
