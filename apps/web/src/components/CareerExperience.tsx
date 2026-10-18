@@ -44,13 +44,19 @@ export type CareerMetric = {
   tone?: 'accent' | 'good' | 'warn' | 'muted';
 };
 
-export function CareerMetricStrip({ items, label = 'Career summary', className }: {
+export function CareerMetricStrip({ items, label = 'Career summary', className, scrollable = false }: {
   items: CareerMetric[];
   label?: string;
   className?: string;
+  scrollable?: boolean;
 }) {
   return (
-    <div className={`se-career-metrics${className ? ` ${className}` : ''}`} aria-label={label}>
+    <div
+      className={`se-career-metrics${className ? ` ${className}` : ''}`}
+      role={scrollable ? 'region' : undefined}
+      aria-label={label}
+      tabIndex={scrollable ? 0 : undefined}
+    >
       {items.map((item) => (
         <div className={`se-career-metric${item.tone ? ` se-career-metric--${item.tone}` : ''}`} key={item.label}>
           <span className="se-career-metric__label">{item.label}</span>
