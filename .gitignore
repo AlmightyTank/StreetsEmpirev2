@@ -5,6 +5,8 @@ build/
 .env.*
 !.env.example
 *.log
+*.jks
+*.keystore
 .DS_Store
 .vite/
 coverage/
