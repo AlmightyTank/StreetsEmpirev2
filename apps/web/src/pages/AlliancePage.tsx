@@ -194,7 +194,7 @@ export function AlliancePage() {
           </div>
 
           <div className="se-alliance-hero__side">
-            <a className="se-btn se-btn--ghost se-btn--sm" href="#alliance-rankings">Alliance rankings</a>
+            <Link className="se-btn se-btn--ghost se-btn--sm" to="#alliance-rankings">Alliance rankings</Link>
           </div>
         </header>
 
