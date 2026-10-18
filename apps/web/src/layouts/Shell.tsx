@@ -150,22 +150,49 @@ function nextTurnActionPath(pathname: string) {
   return TURN_ACTION_PAGES[0];
 }
 
-/** Small solid glyphs for the HUD chips, so each number reads at a glance. */
-const HUD_ICONS = {
-  cash: 'M2 6h20v12H2zM12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM5 9v6M19 9v6',
-  turns: 'M13 2 4 14h7l-1 8 9-12h-7z',
-  heat: 'M12 22a7 7 0 0 0 7-7c0-4-3-6.5-4-10-2 1.5-3 3.5-3 5.5C11 9 10 8 9.5 6.5 7 9 5 11.7 5 15a7 7 0 0 0 7 7z',
-  worth: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
-} as const;
-
-function HudIcon({ name }: { name: keyof typeof HUD_ICONS }) {
-  const solid = name === 'turns' || name === 'heat';
+/**
+ * Colorful but lightweight vector HUD art. These are inline SVGs rather than
+ * externally loaded images so the sticky HUD renders immediately offline.
+ * The controls themselves retain their existing links and real game values.
+ */
+function HudIcon({ name }: { name: 'cash' | 'turns' | 'heat' | 'worth' }) {
+  if (name === 'cash') {
+    return (
+      <svg className="se-statusbar__icon se-statusbar__icon--cash" viewBox="0 0 40 40" width="24" height="24" aria-hidden="true" focusable="false">
+        <path d="M4 20 25 11 37 18 16 27Z" fill="#0d7043"/>
+        <path d="M4 15 25 6 37 13 16 22Z" fill="#42d98a"/>
+        <path d="M4 15v7l12 7v-7Z" fill="#0b9456"/>
+        <path d="M16 22v7l21-9v-7Z" fill="#146940"/>
+        <path d="M9 15.5 25 9l7 4-16 6.5Z" fill="#8cf8b9"/>
+        <path d="M20.5 11 26 8.7l6 3.5-5.5 2.3Z" fill="#128654"/>
+        <path d="M11 12l4 2.4v10.5l-4-2.3Z" fill="#f8d574"/>
+        <path d="M15 14.4 25 10l4 2.3-14 6.1Z" fill="#ffe6a1"/>
+        <path d="M5 23 16 29 36 20" fill="none" stroke="#58e49a" strokeWidth="1.25"/>
+      </svg>
+    );
+  }
+  if (name === 'turns') {
+    return (
+      <svg className="se-statusbar__icon se-statusbar__icon--turns" viewBox="0 0 40 40" width="24" height="24" aria-hidden="true" focusable="false">
+        <path d="M23 2 8 22h11l-3 16 17-24H22Z" fill="#2797ff"/>
+        <path d="M23 2 12 21h10l-5 16 16-23H22Z" fill="#75d6ff"/>
+        <path d="M23 4 15 20h8l-4 12 11-17H21Z" fill="#c8f4ff" opacity=".72"/>
+      </svg>
+    );
+  }
+  if (name === 'heat') {
+    return (
+      <svg className="se-statusbar__icon se-statusbar__icon--heat" viewBox="0 0 40 40" width="24" height="24" aria-hidden="true" focusable="false">
+        <path d="M21 2C23 11 33 13 33 25a13 13 0 0 1-26 0c0-8 5-13 10-18-1 7 0 10 4 12 2-5 2-11 0-17Z" fill="#ff6133"/>
+        <path d="M20 14c2 6 8 7 8 14a8.2 8.2 0 0 1-16.4 0c0-5 2.5-8 5.2-11-.3 4 1.2 6 3.2 7 1.4-2 1.8-6 0-10Z" fill="#ffa42c"/>
+        <path d="M20 25c2 3.5 4 4.5 4 8a4 4 0 0 1-8 0c0-3 2-5 4-8Z" fill="#ffe57b"/>
+      </svg>
+    );
+  }
   return (
-    <svg className={`se-statusbar__icon se-statusbar__icon--${name}`} viewBox="0 0 24 24" width="18" height="18"
-      aria-hidden="true" focusable="false"
-      fill={solid ? 'currentColor' : 'none'} stroke={solid ? 'none' : 'currentColor'}
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d={HUD_ICONS[name]} />
+    <svg className="se-statusbar__icon se-statusbar__icon--worth" viewBox="0 0 24 24" width="18" height="18"
+      aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
     </svg>
   );
 }
