@@ -1,4 +1,6 @@
 import type { DistrictDto } from '@streets/shared';
+import { Link } from 'react-router-dom';
+import { LockedChoiceOverlay } from './LockedChoiceOverlay.js';
 
 /**
  * The same five mechanical district archetypes, dressed for the city the crew
@@ -25,24 +27,26 @@ export function DistrictPicker({
     <div className="se-choices">
       {districts.map((district) => {
         const exposed = Math.round(district.exposedFraction * 100);
+        const locked = district.districtAccess?.unlocked === false;
 
         return (
           <label
             key={district.key}
-            className={`se-choice${value === district.key ? ' se-choice--on' : ''}`}
+            className={`se-choice${!locked && value === district.key ? ' se-choice--on' : ''}${locked ? ' se-choice--gated' : ''}`}
+            aria-disabled={locked || undefined}
           >
             <input
               type="radio"
               name="district"
               className="se-choice__input"
-              checked={value === district.key}
-              disabled={disabled}
-              onChange={() => onChange(district.key)}
+              checked={!locked && value === district.key}
+              disabled={disabled || locked}
+              aria-label={locked ? `${district.name}. Locked. Requires ${district.districtAccess?.unlockName}.` : district.name}
+              onChange={() => { if (!locked && !disabled) onChange(district.key); }}
             />
             <span className="se-choice__body">
               <span className="se-choice__name">{district.name}</span>
               {district.blurb ? <span className="se-choice__blurb">{district.blurb}</span> : null}
-              {district.districtAccess && !district.districtAccess.unlocked ? <span className="se-choice__blurb">Locked · {district.districtAccess.unlockName}</span> : null}
 
               <span className="se-choice__meta">
                 <span className={exposed > 0 ? 'se-bad' : undefined}>
@@ -57,6 +61,20 @@ export function DistrictPicker({
                 ) : null}
               </span>
             </span>
+            {locked ? (
+              <LockedChoiceOverlay requirement={`Requires ${district.districtAccess!.unlockName} to scout this district.`}>
+                {district.districtAccess!.unlockDescription ? (
+                  <span>{district.districtAccess!.unlockDescription} </span>
+                ) : null}
+                {district.districtAccess!.unlockQuest ? (
+                  <Link to={`/game/quests?focus=${encodeURIComponent(district.districtAccess!.unlockQuest!.key)}`}>
+                    View “{district.districtAccess!.unlockQuest!.title}”
+                  </Link>
+                ) : (
+                  <Link to="/game/quests">See available quests</Link>
+                )}
+              </LockedChoiceOverlay>
+            ) : null}
           </label>
         );
       })}

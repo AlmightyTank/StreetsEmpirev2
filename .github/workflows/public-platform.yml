@@ -58,6 +58,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.commit_sha || inputs.deploy_branch || github.sha }}
+          fetch-depth: 2 # Patch-notes tests compare HEAD to its parent.
 
       - name: Record validated commit
         id: target_commit
