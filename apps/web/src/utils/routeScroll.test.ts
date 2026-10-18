@@ -22,7 +22,10 @@ describe('in-game deep links', () => {
   it('decodes anchors, prefers the current hash, and handles malformed escape sequences', () => {
     expect(routeAnchorId('/game/quests', '?focus=old', '#quest-new%20job')).toBe('quest-new job');
     expect(routeAnchorId('/game/quests', '?focus=FIRST_NIGHT_OUT', '')).toBe('quest-FIRST_NIGHT_OUT');
-    expect(routeAnchorId('/game/quests', '?tab=active', '')).toBeNull();
+    expect(routeAnchorId('/game/quests', '?tab=active', '')).toBe('quest-board-active');
+    expect(routeAnchorId('/game/quests', '?tab=completed', '')).toBe('quest-board-history');
+    expect(routeAnchorId('/game/quests', '?tab=daily', '')).toBe('quest-board-contracts');
+    expect(routeAnchorId('/game/quests', '', '')).toBeNull();
     expect(routeAnchorId('/game', '', '#case')).toBe('case');
     expect(routeAnchorId('/game/news', '', '#surveys')).toBe('surveys');
     expect(routeAnchorId('/game', '', '#bad%ZZ')).toBe('bad%ZZ');
