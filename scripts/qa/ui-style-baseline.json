@@ -789,7 +789,7 @@
     ".se-pagehead": 3,
     ".se-contacts-work__rail > .se-panel:last-child": 2,
     ".se-app[class*=\"se-site-theme--\"] .se-dashboard .se-dashboard-quick .se-dashboard-action:focus-visible": 2,
-    ".se-dock__controls > .se-btn": 3,
+    ".se-dock__controls > .se-btn": 4,
     ".se-dock__controls > .se-why > .se-btn": 2,
     "html.se-konami body": 2,
     ".se-encounter-cinema__actions .se-btn": 2,
@@ -820,6 +820,9 @@
     ".se-travel-deck__city .se-panel": 2,
     ".se-travel-tabpanel > .se-panel": 2,
     ".se-confirm__actions .se-btn": 2,
-    ".se-rules__actions .se-btn": 2
+    ".se-rules__actions .se-btn": 2,
+    ".se-admin-filters > .se-field:last-child": 2,
+    ".se-supply__form > .se-field": 2,
+    ".se-supply__form > .se-btn": 2
   }
 }
