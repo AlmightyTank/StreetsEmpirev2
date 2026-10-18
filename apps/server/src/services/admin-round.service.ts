@@ -111,7 +111,7 @@ export function numberedRoundName(label: string, number: number): string {
 
 export function nextGameNumber(names: readonly string[]): number {
   // Legacy unnumbered rounds still count; never re-use a numbered predecessor.
-  return Math.max(names.length, ...names.map((name) => gameNumber(name) ?? 0)) + 1;
+  return names.reduce((max, name) => Math.max(max, gameNumber(name) ?? 0), names.length) + 1;
 }
 
 export function renamedRoundName(previous: string, label: string): string {
@@ -291,7 +291,7 @@ export const AdminRoundService = {
         await TurfService.ensureRound(tx, created.id, ruleset);
         await AdminAuditService.record(tx, actor, { action: 'round.schedule', targetType: 'round', targetId: created.id, after: created });
         return created;
-      });
+      }, LIFECYCLE_TRANSACTION);
       return toAdminRoundDto(round, 0);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -482,8 +482,8 @@ export const AdminRoundService = {
       }
 
       const name = input.name === undefined ? before.name : renamedRoundName(before.name, input.name);
-      if (name.trim().length < 3 || !roundLabel(name)) {
-        throw AppError.badRequest('INVALID_ROUND_NAME', 'Enter a round name, without its automatic number.', { name: 'Required.' });
+      if (input.name !== undefined && roundLabel(name).length < 3) {
+        throw AppError.badRequest('INVALID_ROUND_NAME', 'Enter a round name of at least three characters, without its automatic number.', { name: 'At least three characters.' });
       }
       const startsAt = input.startsAt ?? before.startsAt;
       const endsAt = input.endsAt ?? before.endsAt;
