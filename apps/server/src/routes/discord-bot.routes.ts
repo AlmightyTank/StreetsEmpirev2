@@ -208,6 +208,24 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
     return { ok: true };
   });
 
+  fastify.post('/news/:newsId/posted', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    const { messageId } = parseBody(staffPostedSchema, request.body);
+    await DiscordBotService.newsPosted(fastify.prisma, newsId, messageId);
+    return { ok: true };
+  });
+
+  fastify.post('/news/edits/claim', async () => ({
+    edits: await DiscordBotService.claimNewsEdits(fastify.prisma),
+  }));
+
+  fastify.post('/news/:newsId/edits/failed', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    const { error } = parseBody(newsFailedSchema, request.body ?? {});
+    await DiscordBotService.newsEditFailed(fastify.prisma, newsId, error);
+    return { ok: true };
+  });
+
   fastify.post('/news/:newsId/failed', async (request) => {
     const { newsId } = parseBody(newsParams, request.params);
     const { error } = parseBody(newsFailedSchema, request.body ?? {});
