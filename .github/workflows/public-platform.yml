@@ -58,6 +58,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.commit_sha || inputs.deploy_branch || github.sha }}
+          fetch-depth: 0
 
       - name: Record validated commit
         id: target_commit
@@ -172,9 +173,19 @@ jobs:
               sha="$(git rev-parse HEAD)"
               echo "Released $version ($sha)."
             else
-              echo "::warning::Could not push the $version release commit. Deploying $DEPLOY_COMMIT without a version bump."
-              git checkout -- packages/shared/src/platform.ts
-              sha="$DEPLOY_COMMIT"
+              # A retry can encounter the release commit pushed by the first attempt.
+              # Reuse that exact release rather than deploying the pre-bump SHA.
+              git fetch origin "$DEPLOY_BRANCH"
+              remote_tip="$(git rev-parse "refs/remotes/origin/$DEPLOY_BRANCH")"
+              remote_parent="$(git rev-parse "$remote_tip^" 2>/dev/null || true)"
+              remote_title="$(git log -1 --format=%s "$remote_tip")"
+              if [[ "$remote_parent" == "$DEPLOY_COMMIT" && "$remote_title" == "chore: release $version [skip ci]" ]]; then
+                sha="$remote_tip"
+                echo "Reusing already-pushed release $version ($sha)."
+              else
+                echo "::error::Release push failed and remote branch is not the matching release of $DEPLOY_COMMIT. Refusing to deploy stale code."
+                exit 1
+              fi
             fi
           else
             echo "No release bump for $DEPLOY_COMMIT."
