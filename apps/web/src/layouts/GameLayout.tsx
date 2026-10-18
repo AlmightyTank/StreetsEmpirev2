@@ -532,7 +532,7 @@ function useRouteScroll(pathname: string, search: string, hash: string, location
       };
       const restore = () => {
         frame = 0;
-        if (stopped || isPageScrollLocked()) return;
+        if (stopped || isPageScrollLocked() || document.querySelector('.se-sheet')) return;
         const { top, settled } = preservedRouteScrollTarget(
           desiredY, document.documentElement.scrollHeight, window.innerHeight,
         );
@@ -580,7 +580,7 @@ function useRouteScroll(pathname: string, search: string, hash: string, location
     };
     const seek = () => {
       frame = 0;
-      if (finished || isPageScrollLocked()) return;
+      if (finished || isPageScrollLocked() || document.querySelector('.se-sheet')) return;
       const target = document.getElementById(anchorId);
       if (!target || !isAnchorReady(target) || !target.getClientRects().length) return;
       const header = document.querySelector<HTMLElement>('.se-app--tabbar .se-topbar');
