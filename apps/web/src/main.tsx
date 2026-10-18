@@ -34,6 +34,7 @@ import './styles/street-pass.css';
 import './styles/round-roll-call.css';
 import './styles/supporter.css';
 import './styles/drop.css';
+import './styles/drop-art.css';
 import './styles/drop-shells.css';
 import './styles/travel.css';
 import './styles/city-blocks.css';

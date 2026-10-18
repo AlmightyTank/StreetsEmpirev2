@@ -166,21 +166,28 @@
   background: var(--se-panel);
 }
 
+.se-hideout-renderer {
+  --se-hideout-room-wall: #25262a;
+  --se-hideout-room-wall-lit: #29212f;
+  --se-hideout-room-floor: #101114;
+  --se-hideout-plate: rgba(8, 9, 11, 0.82);
+}
+
 .se-hideout-renderer__room {
   position: relative;
   display: grid;
   min-height: 180px;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgba(var(--se-accent-rgb), 0.28);
+  border: 1px solid color-mix(in srgb, var(--se-accent) 28%, transparent);
   background:
-    linear-gradient(145deg, rgba(var(--se-accent-rgb), 0.13), transparent 42%),
-    linear-gradient(180deg, #25262a, #101114 72%);
+    linear-gradient(145deg, color-mix(in srgb, var(--se-accent) 13%, transparent), transparent 42%),
+    linear-gradient(180deg, var(--se-hideout-room-wall), var(--se-hideout-room-floor) 72%);
 }
 
 .se-hideout-renderer__room--drop-hideout-neon,
 .se-hideout-renderer__room--drop-hideout-brass {
-  background: linear-gradient(145deg, rgba(var(--se-accent-rgb), 0.2), transparent 45%), linear-gradient(180deg, #29212f, #101114 72%);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--se-accent) 20%, transparent), transparent 45%), linear-gradient(180deg, var(--se-hideout-room-wall-lit), var(--se-hideout-room-floor) 72%);
 }
 
 .se-hideout-renderer__light {
@@ -188,7 +195,7 @@
   inset: -45px 15% auto;
   height: 100px;
   border-radius: 50%;
-  background: rgba(var(--se-accent-rgb), 0.14);
+  background: color-mix(in srgb, var(--se-accent) 14%, transparent);
   filter: blur(18px);
 }
 
@@ -197,8 +204,8 @@
   position: relative;
   z-index: 1;
   padding: 7px 12px;
-  border: 1px solid rgba(var(--se-accent-rgb), 0.42);
-  background: rgba(8, 9, 11, 0.82);
+  border: 1px solid color-mix(in srgb, var(--se-accent) 42%, transparent);
+  background: var(--se-hideout-plate);
   color: var(--se-text);
   font-family: var(--se-mono);
   font-size: 11px;

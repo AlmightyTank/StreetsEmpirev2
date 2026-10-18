@@ -1,0 +1,108 @@
+/*
+ * The Drop's cosmetic artwork (docs/THE-DROP.md): profile frames, frame,
+ * banner and title-plate previews. Each collection's own colours live here,
+ * on the art only, like profile.css and collection.css; page chrome stays in
+ * drop.css on the shared tokens. Frame motion stops under reduced motion.
+ */
+
+/* ---------- Drop profile frames ---------- */
+.se-profile-frame--kingpin-luxe-frame { --se-theme-frame: #d6a35c; border-color: #d6a35c; box-shadow: inset 0 0 0 3px #0b0b0f, inset 0 0 24px #d6a35c19, 0 0 18px #d6a35c26; }
+.se-profile-frame--neon-underworld-frame { --se-theme-frame: #b46bff; border-color: #b46bff; box-shadow: inset 0 0 24px #39e6d61f, 0 0 18px #b46bff33; }
+.se-profile-frame--winter-heist-frame { --se-theme-frame: #8fd3ff; border-color: #8fd3ff; box-shadow: inset 0 0 24px #e8f4fb1f, 0 0 18px #8fd3ff2e; }
+.se-profile-frame--kingpin-luxe-frame::after,
+.se-profile-frame--neon-underworld-frame::after,
+.se-profile-frame--winter-heist-frame::after { border: 1px solid color-mix(in srgb, var(--se-theme-frame) 72%, white); }
+.se-profile-frame--neon-underworld-frame::before { inset: 0; background: linear-gradient(90deg, #b46bff24, transparent 40% 60%, #39e6d624); animation: se-drop-neon-pulse 4s ease-in-out infinite; }
+.se-profile-frame--winter-heist-frame::before { inset: 0; background-image: radial-gradient(circle, #ffffffaa 0 1px, transparent 1.6px), radial-gradient(circle, #ffffff77 0 1px, transparent 1.6px); background-size: 46px 46px, 31px 31px; animation: se-drop-snow 9s linear infinite; }
+
+.se-profile-pagehead__avatar--kingpin-luxe-frame { --se-profile-avatar-frame: #d6a35c; --se-profile-avatar-glow: #d6a35c88; }
+.se-profile-pagehead__avatar--neon-underworld-frame { --se-profile-avatar-frame: #b46bff; --se-profile-avatar-glow: #39e6d699; }
+.se-profile-pagehead__avatar--winter-heist-frame { --se-profile-avatar-frame: #8fd3ff; --se-profile-avatar-glow: #e8f4fb99; }
+
+.se-profile-hover-card[data-frame="kingpin-luxe-frame"], .se-profile-card-preview[data-popup-frame="kingpin-luxe-frame"],
+.se-profile-hover-card[data-avatar-frame="kingpin-luxe-frame"], .se-profile-card-preview[data-avatar-frame="kingpin-luxe-frame"] { --se-theme-frame: #d6a35c; }
+.se-profile-hover-card[data-frame="neon-underworld-frame"], .se-profile-card-preview[data-popup-frame="neon-underworld-frame"],
+.se-profile-hover-card[data-avatar-frame="neon-underworld-frame"], .se-profile-card-preview[data-avatar-frame="neon-underworld-frame"] { --se-theme-frame: #b46bff; }
+.se-profile-hover-card[data-frame="winter-heist-frame"], .se-profile-card-preview[data-popup-frame="winter-heist-frame"],
+.se-profile-hover-card[data-avatar-frame="winter-heist-frame"], .se-profile-card-preview[data-avatar-frame="winter-heist-frame"] { --se-theme-frame: #8fd3ff; }
+.se-profile-hover-card:is([data-frame="kingpin-luxe-frame"], [data-frame="neon-underworld-frame"], [data-frame="winter-heist-frame"]),
+.se-profile-card-preview:is([data-popup-frame="kingpin-luxe-frame"], [data-popup-frame="neon-underworld-frame"], [data-popup-frame="winter-heist-frame"]) {
+  border: 2px solid var(--se-theme-frame);
+  box-shadow: 0 18px 54px #000b, 0 0 20px color-mix(in srgb, var(--se-theme-frame) 25%, transparent);
+}
+.se-profile-hover-card:is([data-avatar-frame="kingpin-luxe-frame"], [data-avatar-frame="neon-underworld-frame"], [data-avatar-frame="winter-heist-frame"]) .se-profile-hover-card__avatar,
+.se-profile-card-preview:is([data-avatar-frame="kingpin-luxe-frame"], [data-avatar-frame="neon-underworld-frame"], [data-avatar-frame="winter-heist-frame"]) .se-profile-card-preview__avatar {
+  box-shadow: 0 0 0 2px #0b0b0f, 0 0 0 5px var(--se-theme-frame), 0 0 18px color-mix(in srgb, var(--se-theme-frame) 62%, transparent);
+}
+
+@keyframes se-drop-neon-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@keyframes se-drop-snow { from { background-position: 0 0, 10px 0; } to { background-position: 0 92px, 10px 62px; } }
+
+/* ---------- Shop previews ---------- */
+.se-drop-frame {
+  --se-drop-ring: var(--se-accent);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #3a414d, #161a20);
+  box-shadow: 0 0 0 3px #0b0b0f, 0 0 0 7px var(--se-drop-ring), 0 0 22px color-mix(in srgb, var(--se-drop-ring) 55%, transparent);
+  overflow: hidden;
+}
+.se-drop-art--lg .se-drop-frame { width: 150px; }
+.se-drop-art--sm .se-drop-frame { width: 48px; }
+.se-drop-frame__face { color: var(--se-text-dim); font-weight: 800; letter-spacing: .08em; font-size: 14px; }
+.se-drop-art--lg .se-drop-frame__face { font-size: 28px; }
+.se-drop-frame--kingpin-luxe-frame { --se-drop-ring: #d6a35c; box-shadow: 0 0 0 3px #0b0b0f, 0 0 0 5px #d6a35c, 0 0 0 8px #0b0b0f, 0 0 0 9px #8a6630, 0 0 22px #d6a35c55; }
+.se-drop-frame--neon-underworld-frame { --se-drop-ring: #b46bff; box-shadow: 0 0 0 3px #0b0b0f, 0 0 0 7px #b46bff, 0 0 0 9px #39e6d6, 0 0 26px #b46bff88; animation: se-drop-neon-pulse 4s ease-in-out infinite; }
+.se-drop-frame--winter-heist-frame { --se-drop-ring: #8fd3ff; }
+.se-drop-frame--winter-heist-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, #ffffffcc 0 1px, transparent 1.6px), radial-gradient(circle, #ffffff88 0 1px, transparent 1.6px);
+  background-size: 22px 22px, 15px 15px;
+  animation: se-drop-snow 9s linear infinite;
+}
+
+.se-drop-art--accent { flex-direction: column; gap: 8px; }
+.se-drop-accent__banner {
+  width: 100%;
+  max-width: 220px;
+  height: 46px;
+  border-radius: var(--se-radius-md);
+  background: linear-gradient(110deg, color-mix(in srgb, var(--se-drop-accent) 70%, #000), var(--se-drop-accent) 55%, color-mix(in srgb, var(--se-drop-accent) 55%, #fff));
+  box-shadow: 0 0 22px color-mix(in srgb, var(--se-drop-accent) 35%, transparent);
+}
+.se-drop-art--lg .se-drop-accent__banner { height: 96px; max-width: 360px; }
+.se-drop-accent__swatch { width: 28px; height: 28px; border-radius: 50%; background: var(--se-drop-accent); border: 2px solid var(--se-text); }
+
+.se-drop-title-plate {
+  display: inline-block;
+  max-width: 100%;
+  padding: 8px 14px;
+  border: 1px solid var(--se-line);
+  border-radius: var(--se-radius-md);
+  background: linear-gradient(180deg, #1d222b, #0f1217);
+  color: var(--se-text);
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.se-drop-art--lg .se-drop-title-plate { font-size: 24px; padding: 14px 22px; }
+
+/* ---------- Motion ---------- */
+.se-reduced-motion .se-drop-frame--neon-underworld-frame,
+.se-reduced-motion .se-drop-frame--winter-heist-frame::after,
+.se-reduced-motion .se-profile-frame--neon-underworld-frame::before,
+.se-reduced-motion .se-profile-frame--winter-heist-frame::before { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .se-drop-frame--neon-underworld-frame,
+  .se-drop-frame--winter-heist-frame::after,
+  .se-profile-frame--neon-underworld-frame::before,
+  .se-profile-frame--winter-heist-frame::before { animation: none; }
+}
