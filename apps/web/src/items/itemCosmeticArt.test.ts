@@ -168,7 +168,8 @@ describe('item cosmetic art resolver', () => {
       for (const [style, file] of Object.entries(styles as Record<string, string>)) {
         const zoom = itemCosmeticZoomUrl(item as keyof typeof ITEM_ART, style as ItemCosmeticStyleKey);
         if (file.endsWith('.webp')) {
-          expect(zoom, `${item} ${style}`).toMatch(/\.svg(\?|$)/);
+          // Vite inlines small masters as data: URIs and emits the rest as .svg assets.
+          expect(zoom, `${item} ${style}`).toMatch(/^data:image\/svg\+xml|\.svg(\?|$)/);
           expect(zoom).not.toBe(itemCosmeticArtUrl(item as keyof typeof ITEM_ART, style as ItemCosmeticStyleKey));
         } else {
           expect(zoom).toBe(itemCosmeticArtUrl(item as keyof typeof ITEM_ART, style as ItemCosmeticStyleKey));
