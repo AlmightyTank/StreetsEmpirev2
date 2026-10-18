@@ -54,6 +54,18 @@
   gap: 12px;
 }
 
+@media (max-width: 899px) {
+  .se-supply,
+  .se-supply__grid { gap: 8px; }
+  .se-supply__form { gap: 8px; }
+  .se-supply__form > .se-field { margin-bottom: 0; }
+  .se-supply__form > .se-btn { order: 1; }
+  .se-supply__form > .se-hint,
+  .se-supply__form > .se-supply__description,
+  .se-supply__form > .se-economy-quote { order: 2; }
+  .se-supply__form > .se-field small { display: none; }
+}
+
 .se-supply__description {
   margin: 0;
   color: var(--se-text-dim);

@@ -50,8 +50,12 @@
 }
 
 @media (max-width: 760px) {
-  .se-social-nav { grid-template-columns: repeat(5, minmax(132px, 1fr)); }
-  .se-social-nav__item { min-width: 132px; padding: 10px; }
+  .se-social-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .se-social-nav__item { flex: 0 0 auto; min-width: 132px; padding: 8px 10px; }
 
   .se-console-message { padding: 13px 12px; }
   .se-console-message__subject,
