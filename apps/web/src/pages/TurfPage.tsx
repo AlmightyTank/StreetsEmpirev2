@@ -282,7 +282,7 @@ function CityTurfMap({
             { key: 'pressure', label: 'Active conflict', tone: 'pressure' }, { key: 'locked', label: 'Locked', tone: 'locked' },
           ]} />
           {selectedDistrict ? (
-            <Link className="se-citymap-brief__action" to={`#turf-block-${encodeURIComponent(selectedDistrict)}`}>
+            <Link className="se-citymap-brief__action" to={`/game/turf?city=${encodeURIComponent(city.slug)}&district=${encodeURIComponent(selectedDistrict)}#turf-block-${encodeURIComponent(selectedDistrict)}`}>
               Jump to district actions <span aria-hidden="true">↓</span>
             </Link>
           ) : null}
