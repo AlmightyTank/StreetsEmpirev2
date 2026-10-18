@@ -86,13 +86,13 @@ that waits for review:
 3. Before the deploy, the workflow bumps `APP_VERSION` in
    `packages/shared/src/platform.ts` and pushes that commit. The number is
    MAJOR.MINOR.PATCH. An ordinary change bumps PATCH on its own (`2.1.0` becomes
-   `2.1.1`). A new feature bumps MINOR and resets PATCH (`2.1.4` becomes
-   `2.2.0`): a `feat:` title, a feature label, or `minor` under `## Version`.
-   Finishing the current major line bumps MAJOR and resets the rest, so `2.8.3`
-   becomes `3.0.0`: write `major` under `## Version`, or say that the change is
-   finishing with `2.x.x`. Write `none` under `## Version` to leave the number
-   where it is. One deploy bumps once, at the highest level in it. The release
-   commit itself does not bump again.
+   `2.1.1`). Minor and major come from the pull request: check **minor** under
+   `## Version` to install a feature (`2.1.4` becomes `2.2.0`), or check
+   **major** when that pull request finishes the current major line (`2.8.3`
+   becomes `3.0.0`). Empty boxes do not raise minor or major. Write `none`
+   under `## Version` to leave the number where it is. One deploy bumps once,
+   at the highest level checked in its pull requests. The release commit itself
+   does not bump again.
 4. It sends them to the game on the VPS as a global news post titled
    `Patch notes for <version>`, using that release. The post is scheduled
    `PATCH_NOTES_HOLD_MINUTES` ahead (default 120). The run's summary page shows

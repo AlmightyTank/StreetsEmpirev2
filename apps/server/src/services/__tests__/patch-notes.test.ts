@@ -91,21 +91,22 @@ describe('release bumps', () => {
     expect(writeAppVersion(source, '2.1.0')).toBe("export const APP_VERSION = '2.1.0';\n");
   });
 
-  it('treats an ordinary change as a patch and a feat title as a minor', () => {
-    expect(classifyRelease({ title: 'fix: raids', body: '## Patch notes\n- Raids pay out.' })).toBe('patch');
-    expect(classifyRelease({ title: 'feat: crew legends', body: '## Version\nminor' })).toBe('minor');
-    expect(classifyRelease({ title: 'Add a dice game', labels: ['feature'], body: '' })).toBe('minor');
+  it('raises minor or major only from the pull request, and leaves an empty template as a patch', () => {
+    const template = `## Version\n- [ ] minor\n- [ ] major\n\n## Patch notes\n- Raids pay out.`;
+    expect(classifyRelease({ title: 'feat: crew legends', body: template })).toBe('patch');
+    expect(classifyRelease({ title: 'Add a dice game', labels: ['feature'], body: 'BREAKING CHANGE: old clients cannot join.' })).toBe('patch');
+    expect(classifyRelease({ title: 'feat: crew legends', body: '## Version\n- [x] minor\n- [ ] major' })).toBe('minor');
     expect(classifyRelease({ title: 'docs: readme', body: '## Version\nnone' })).toBe('skip');
   });
 
-  it('moves 2.x.x to 3.0.0 when the major line is finished', () => {
-    const finished = { title: 'feat: last 2.x piece', body: 'Finishing with 2.x.x.\n\n## Version\nmajor' };
+  it('moves 2.x.x to 3.0.0 when the pull request checks major', () => {
+    const finished = { title: 'Last 2.x piece', body: '## Version\n- [ ] minor\n- [x] major' };
     expect(classifyRelease(finished)).toBe('major');
-    expect(classifyRelease({ title: 'fix: save', body: 'BREAKING CHANGE: old clients cannot join.' })).toBe('major');
+    expect(classifyRelease({ title: 'fix: save', body: '## Version\n- [x] minor\n- [x] major' })).toBe('major');
     expect(releaseLevel([
       { title: 'fix: save', body: '' },
       finished,
-      { title: 'feat: dice', body: '## Version\nminor' },
+      { title: 'feat: dice', body: '## Version\n- [x] minor' },
     ])).toBe('major');
     expect(releaseLevel([{ title: 'chore: release 2.1.0', body: '' }], true)).toBeNull();
     expect(releaseLevel([], false)).toBeNull();

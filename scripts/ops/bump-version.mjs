@@ -5,8 +5,8 @@
  *   node scripts/ops/bump-version.mjs plan --to <sha> --branch <name> --repo <owner/name>
  *       Prints JSON { level, previous, version } or null. Looks at pull requests
  *       merged since the commit that last set APP_VERSION. Patch is automatic.
- *       A feature raises minor. Finishing the current major line raises major,
- *       so 2.x.x becomes 3.0.0. Needs git history and gh.
+ *       A pull request raises minor or major only by checking that box, so
+ *       2.x.x becomes 3.0.0 when its pull request checks major. Needs git history and gh.
  *   node scripts/ops/bump-version.mjs apply --version <x.y.z>
  *       Writes that version into packages/shared/src/platform.ts.
  *
