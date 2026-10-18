@@ -44,6 +44,17 @@ function cents(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) ? value : null;
 }
 
+async function paymentOrder(tx: Db, data: Obj): Promise<CrownPackOrder | null> {
+  const paymentIntent = id(data.payment_intent);
+  const chargeMetadata = obj(data.metadata);
+  const paymentIntentMetadata = obj(obj(data.payment_intent)?.metadata);
+  const orderId = text(chargeMetadata?.orderId) ?? text(paymentIntentMetadata?.orderId);
+  return (paymentIntent
+    ? await tx.crownPackOrder.findUnique({ where: { providerPaymentId: paymentIntent } })
+    : null)
+    ?? (orderId ? await tx.crownPackOrder.findUnique({ where: { id: orderId } }) : null);
+}
+
 export function packOrderDto(order: CrownPackOrder): CrownPackOrderDto {
   return {
     id: order.id,
@@ -216,17 +227,21 @@ export const CrownPackService = {
         return creditSession(tx, order, data, at);
       }
       case 'charge.refunded': {
-        const paymentIntent = id(data.payment_intent);
-        if (!paymentIntent) return null;
-        const order = await tx.crownPackOrder.findUnique({ where: { providerPaymentId: paymentIntent } });
+        const order = await paymentOrder(tx, data);
         if (!order) return null;
+        const paymentIntent = id(data.payment_intent);
+        if (paymentIntent && order.providerPaymentId !== paymentIntent) {
+          await tx.crownPackOrder.update({ where: { id: order.id }, data: { providerPaymentId: paymentIntent } });
+        }
         return refund(tx, order, data.refunded === true, at);
       }
       case 'charge.dispute.created': {
-        const paymentIntent = id(data.payment_intent);
-        if (!paymentIntent) return null;
-        const order = await tx.crownPackOrder.findUnique({ where: { providerPaymentId: paymentIntent } });
+        const order = await paymentOrder(tx, data);
         if (!order) return null;
+        const paymentIntent = id(data.payment_intent);
+        if (paymentIntent && order.providerPaymentId !== paymentIntent) {
+          await tx.crownPackOrder.update({ where: { id: order.id }, data: { providerPaymentId: paymentIntent } });
+        }
         if (order.accountId) await CrownWalletService.hold(tx, order.accountId, `Dispute on Crown pack order ${order.id}.`, at);
         await tx.crownPackOrder.update({ where: { id: order.id }, data: { status: 'disputed', lastEventAt: at } });
         return 'applied';

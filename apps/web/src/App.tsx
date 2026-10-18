@@ -198,8 +198,8 @@ export function App() {
         <Route path="produce" element={<Protected><LiveRound><ProducePage /></LiveRound></Protected>} />
         <Route path="street-pass" element={<Protected><LiveRound><StreetPassPage /></LiveRound></Protected>} />
         <Route path="collection" element={<Protected><CollectionPage /></Protected>} />
-        <Route path="drop" element={<RequireAccount><DropPage view="shop" /></RequireAccount>} />
-        <Route path="drop/item/:slug" element={<RequireAccount><DropPage view="item" /></RequireAccount>} />
+        <Route path="drop" element={<DropPage view="shop" />} />
+        <Route path="drop/item/:slug" element={<DropPage view="item" />} />
         <Route path="drop/wallet" element={<RequireAccount><DropPage view="wallet" /></RequireAccount>} />
         <Route path="drop/crowns" element={<RequireAccount><DropPage view="crowns" /></RequireAccount>} />
         <Route path="drop/pass" element={<Protected><LiveRound><DropPage view="pass" /></LiveRound></Protected>} />

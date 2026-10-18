@@ -210,6 +210,18 @@ describe('Crown packs (Stripe)', () => {
     expect(db.state.packOrders[0]).toMatchObject({ status: 'credited', providerPaymentId: 'pi_1' });
   });
 
+  it('matches an early refund by Crown-pack metadata before checkout completes', async () => {
+    const db = fakeDb();
+    db.state.packOrders.push(order());
+    expect(await CrownPackService.applyStripeEvent(db as never, event('charge.refunded', {
+      id: 'ch_early', payment_intent: 'pi_early', refunded: true,
+      metadata: { kind: 'crown-pack', orderId: 'cpo_1' },
+    }))).toBe('applied');
+    expect(await CrownPackService.applyStripeEvent(db as never, paid({ payment_intent: 'pi_early' }))).toBe('duplicate');
+    expect(db.state.wallets.get('acc')?.balance ?? 0).toBe(0);
+    expect(db.state.packOrders[0]).toMatchObject({ status: 'refunded', providerPaymentId: 'pi_early' });
+  });
+
   it('credits nothing for an unpaid session, a tampered amount or another account', async () => {
     const db = fakeDb();
     db.state.packOrders.push(order());

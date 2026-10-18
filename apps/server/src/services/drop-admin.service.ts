@@ -230,6 +230,9 @@ export const DropAdminService = {
       if (before.returnPolicy === 'NEVER_RETURNING' && before.state !== 'LIVE' && nextState === 'LIVE') {
         throw AppError.conflict('DROP_NEVER_RETURNING_LOCKED', 'This item was promised never to return, so it cannot go live again.');
       }
+      if (before.state === 'ARCHIVED' && patch.state !== undefined && nextState !== 'ARCHIVED') {
+        throw AppError.conflict('DROP_ARCHIVED_LOCKED', 'This item was archived permanently and cannot return to the catalog.');
+      }
       const irreversible = (nextPolicy === 'NEVER_RETURNING' && before.returnPolicy !== 'NEVER_RETURNING')
         || (nextState === 'ARCHIVED' && before.state !== 'ARCHIVED');
       if (irreversible && patch.confirmIrreversible !== true) {
@@ -338,11 +341,14 @@ export const DropAdminService = {
       if (!before) throw AppError.notFound('CROWN_ADJUSTMENT_NOT_FOUND', 'That request was not found.');
       if (before.status !== 'PENDING') throw AppError.conflict('CROWN_ADJUSTMENT_DECIDED', 'That request was already decided.');
       if (before.requestedById === actor.id) throw AppError.forbidden('A second admin has to approve or reject this request.');
-      const ledgerEntryId = approve ? await applyAdjustment(tx, before, actor) : null;
-      const after = await tx.crownAdjustmentRequest.update({
-        where: { id: requestId },
-        data: { status: approve ? 'APPLIED' : 'REJECTED', ledgerEntryId, decidedById: actor.id, decidedByUsername: actor.username, decidedAt: new Date() },
+      const decidedAt = new Date();
+      const claimed = await tx.crownAdjustmentRequest.updateMany({
+        where: { id: requestId, status: 'PENDING' },
+        data: { status: approve ? 'APPLIED' : 'REJECTED', decidedById: actor.id, decidedByUsername: actor.username, decidedAt },
       });
+      if (claimed.count !== 1) throw AppError.conflict('CROWN_ADJUSTMENT_DECIDED', 'That request was already decided.');
+      const ledgerEntryId = approve ? await applyAdjustment(tx, before, actor) : null;
+      const after = await tx.crownAdjustmentRequest.update({ where: { id: requestId }, data: { ledgerEntryId } });
       await AdminAuditService.record(tx, actor, {
         action: approve ? 'drop.crowns.approve' : 'drop.crowns.reject',
         targetType: 'Account', targetId: before.accountId, reason, before, after,
