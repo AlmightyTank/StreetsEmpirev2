@@ -12,6 +12,7 @@ import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useGamePresence } from '../hooks/useGamePresence.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
+import { useTabSwipe } from '../hooks/useTabSwipe.js';
 import { isMobileNavSwipe, isSheetDismissSwipe } from './mobileNavSwipe.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
@@ -619,6 +620,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   useStaleGameReload();
   useGamePresence();
   usePageFreshness();
+  useTabSwipe();
   const round = useSession((s) => s.round);
   const experience = useSession((s) => s.me?.experience ?? null);
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
