@@ -1,0 +1,367 @@
+/*
+ * Sportsbook mobile vision: native tickets and open lines, styled as the
+ * approved StreetsEmpire neon mockup. Keep the money/odds/status from the API:
+ * no UI-generated prices, synthetic fixture cards, or assumed live feed.
+ * The shared shell is styled separately in mobile-shell-vision.css.
+ */
+@media (max-width: 899px) {
+  .se-app--tabbar .se-sportsbook-panel {
+    --sb-electric: var(--se-shell-electric, var(--se-accent));
+    --sb-glow: color-mix(in srgb, var(--sb-electric) 25%, transparent);
+    --sb-card:
+      linear-gradient(160deg, color-mix(in srgb, var(--sb-electric) 7%, var(--se-panel-hi)), var(--se-panel) 66%);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  /* The casino selector already names the game. Show My Tickets as the main
+     heading, without another big boxed "Sportsbook" panel above it. */
+  .se-app--tabbar .se-sportsbook-panel > .se-panel__head {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .se-app--tabbar .se-sportsbook-panel > .se-panel__body:not(.se-panel__body--flush) {
+    padding: 0;
+    background: transparent;
+  }
+
+  .se-app--tabbar .se-sportsbook {
+    gap: .65rem;
+    min-width: 0;
+  }
+
+  .se-app--tabbar .sb-tickets-head { gap: .35rem; }
+  .se-app--tabbar .sb-tickets-head__row {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: .4rem;
+    min-width: 0;
+  }
+
+  .se-app--tabbar .sb-tickets-head__row h3 {
+    min-width: 0;
+    font-size: clamp(1.15rem, 5vw, 1.55rem);
+    letter-spacing: -.04em;
+    line-height: 1.2;
+    font-weight: 850;
+    color: var(--se-text);
+  }
+
+  .se-app--tabbar .sb-segment {
+    flex: 0 0 auto;
+    padding: 2px;
+    gap: 4px;
+    border: 0;
+    background: transparent;
+  }
+
+  .se-app--tabbar .sb-segment__btn {
+    justify-content: center;
+    flex: 0 0 auto;
+    gap: .35rem;
+    min-height: 2.35rem;
+    padding: .32rem .65rem;
+    border: 1px solid color-mix(in srgb, var(--sb-electric) 20%, var(--se-line));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--se-panel-hi) 42%, var(--se-bg));
+    font-size: .8rem;
+    font-weight: 750;
+  }
+  .se-app--tabbar .sb-segment__btn b {
+    min-width: 0;
+    padding: 0 .12rem;
+    background: transparent;
+    color: var(--se-text-dim);
+  }
+  .se-app--tabbar .sb-segment__btn.is-active {
+    color: var(--se-text);
+    background: linear-gradient(140deg, color-mix(in srgb, var(--sb-electric) 24%, var(--se-panel-hi)), color-mix(in srgb, var(--sb-electric) 9%, var(--se-panel)));
+    border-color: var(--sb-electric);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sb-electric) 18%, transparent), 0 0 13px var(--sb-glow);
+  }
+  .se-app--tabbar .sb-segment__btn.is-active b { color: var(--sb-electric); }
+
+  .se-app--tabbar .sb-tickets-head__summary {
+    display: grid;
+    justify-content: stretch;
+    gap: .15rem;
+    min-width: 0;
+    font-size: .8rem;
+    line-height: 1.4;
+    letter-spacing: -.01em;
+  }
+  .se-app--tabbar .sb-tickets-head__summary > span { min-width: 0; overflow-wrap: anywhere; }
+  .se-app--tabbar .sb-tickets-head__summary strong.is-accent { color: var(--se-text); }
+
+  .se-app--tabbar .sb-banner {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: .5rem;
+    padding: .48rem .7rem;
+    border-color: color-mix(in srgb, var(--se-good) 62%, var(--se-line));
+    border-radius: .75rem;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--se-good) 12%, var(--se-bg)), var(--se-bg));
+    box-shadow: 0 0 14px color-mix(in srgb, var(--se-good) 8%, transparent);
+  }
+
+  .se-app--tabbar .sb-banner__pulse { width: .62rem; height: .62rem; }
+  .se-app--tabbar .sb-banner__copy { gap: .05rem; }
+  .se-app--tabbar .sb-banner__copy strong {
+    font-size: .82rem;
+    line-height: 1.2;
+    letter-spacing: -.01em;
+    text-transform: capitalize;
+  }
+  .se-app--tabbar .sb-banner__copy small {
+    color: var(--se-text-dim);
+    font-size: .68rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .se-app--tabbar .sb-banner__badge {
+    display: inline-flex;
+    align-items: center;
+    max-width: 7rem;
+    border: 0;
+    padding: .15rem .25rem;
+    text-align: right;
+    font-size: .63rem;
+    letter-spacing: 0;
+    text-transform: capitalize;
+  }
+  .se-app--tabbar .sb-banner.is-warn { box-shadow: none; }
+
+  .se-app--tabbar .sb-leagues {
+    gap: .42rem;
+    min-width: 0;
+    padding: .1rem 1px .35rem;
+    scroll-snap-type: x proximity;
+  }
+  .se-app--tabbar .sb-leagues__pill {
+    scroll-snap-align: start;
+    min-height: 2.4rem;
+    padding: .35rem .7rem;
+    gap: .35rem;
+    border-color: color-mix(in srgb, var(--sb-electric) 22%, var(--se-line));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--se-panel) 70%, var(--se-bg));
+    font-size: .81rem;
+    font-weight: 800;
+  }
+  .se-app--tabbar .sb-leagues__pill.is-active {
+    border-color: var(--sb-electric);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--sb-electric) 25%, var(--se-panel)), color-mix(in srgb, var(--sb-electric) 8%, var(--se-bg)));
+    color: var(--se-text);
+    box-shadow: 0 0 12px var(--sb-glow);
+  }
+  .se-app--tabbar .sb-leagues__pill.is-active b { color: var(--sb-electric); }
+  .se-app--tabbar .sb-leagues__mark { display: inline-grid; place-items: center; font-size: 1rem; line-height: 1; }
+  .se-app--tabbar .sb-leagues__pill b { font-size: .67rem; }
+
+  .se-app--tabbar .sb-ticket-list { gap: .55rem; }
+  .se-app--tabbar .sb-card {
+    gap: .28rem;
+    padding: .48rem .5rem .5rem;
+    border: 1px solid color-mix(in srgb, var(--sb-electric) 70%, var(--se-line));
+    border-left: 3px solid var(--sb-electric);
+    border-radius: .85rem;
+    background: var(--sb-card);
+    box-shadow: 0 0 11px color-mix(in srgb, var(--sb-electric) 12%, transparent), 0 5px 15px rgb(0 0 0 / .28);
+  }
+  .se-app--tabbar .sb-card::before {
+    opacity: .3;
+    background: linear-gradient(90deg, transparent, var(--sb-electric), transparent);
+  }
+
+  .se-app--tabbar .sb-card__top {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: .26rem .4rem;
+    min-width: 0;
+    font-size: .7rem;
+    line-height: 1.25;
+  }
+  .se-app--tabbar .sb-league {
+    padding: .12rem .3rem;
+    border-radius: .28rem;
+    background: color-mix(in srgb, var(--sb-electric) 13%, var(--se-bg));
+    color: var(--se-text-dim);
+    font-size: .65rem;
+  }
+  .se-app--tabbar .sb-card__top time {
+    min-width: 0;
+    color: var(--se-text-dim);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .se-app--tabbar .sb-chip {
+    color: var(--sb-electric);
+    padding: .16rem .35rem;
+    border-color: var(--sb-electric);
+    background: color-mix(in srgb, var(--sb-electric) 12%, var(--se-bg));
+    border-radius: .4rem;
+    font-size: .58rem;
+    box-shadow: 0 0 7px var(--sb-glow);
+    white-space: nowrap;
+  }
+  .se-app--tabbar .sb-chip.is-live,
+  .se-app--tabbar .sb-chip.is-won { color: var(--se-good); border-color: var(--se-good); background: color-mix(in srgb, var(--se-good) 12%, var(--se-bg)); box-shadow: none; }
+  .se-app--tabbar .sb-chip.is-lost { color: var(--se-bad); border-color: var(--se-bad); box-shadow: none; }
+  .se-app--tabbar .sb-chip.is-review,
+  .se-app--tabbar .sb-chip.is-push { color: var(--se-text-dim); border-color: var(--se-line); box-shadow: none; }
+  .se-app--tabbar .sb-card__countdown {
+    min-width: 0;
+    margin: 0;
+    flex-basis: auto;
+    font-size: .67rem;
+    color: var(--se-text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Keep BOTH logos, teams, and prices aligned in one horizontal match row.
+     A 44px target is retained for tappable odds; tickets may be denser. */
+  .se-app--tabbar .sb-matchup {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr);
+    gap: 1px;
+    min-width: 0;
+    align-items: stretch;
+  }
+
+  .se-app--tabbar .sb-side {
+    display: grid;
+    grid-template-columns: 33px minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-content: center;
+    justify-items: stretch;
+    align-items: center;
+    gap: 1px 3px;
+    min-width: 0;
+    padding: .4rem .2rem;
+    border: 1px solid color-mix(in srgb, var(--sb-electric) 15%, var(--se-line-soft));
+    border-radius: .65rem;
+    background: color-mix(in srgb, var(--se-bg) 70%, var(--se-panel));
+    text-align: left;
+  }
+
+  .se-app--tabbar .sb-badge {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    align-self: center;
+    width: 33px;
+    height: 33px;
+    padding: 0;
+    border-radius: .35rem;
+    background: transparent;
+    box-shadow: none;
+  }
+  .se-app--tabbar .sb-badge .se-sportsbook__ticket-mark { border-radius: .25rem; }
+  .se-app--tabbar .sb-badge .se-sportsbook__ticket-mark img { padding: 0; }
+  .se-app--tabbar .sb-badge .se-sportsbook__ticket-mark img.is-loaded { border-radius: .25rem; background: transparent; }
+  .se-app--tabbar .sb-side.is-picked .sb-badge { box-shadow: none; }
+  .se-app--tabbar .sb-side__name { grid-column: 2; grid-row: 1; display: grid; align-content: center; gap: 1px; min-width: 0; }
+  .se-app--tabbar .sb-side__name small { font-size: .6rem; font-weight: 550; line-height: 1.15; color: var(--se-text-dim); }
+  .se-app--tabbar .sb-side__name strong { font-size: .74rem; font-weight: 800; line-height: 1.12; }
+  .se-app--tabbar .sb-side__tag { grid-column: 2; grid-row: 2; font-size: .58rem; letter-spacing: .04em; line-height: 1.1; }
+  .se-app--tabbar .sb-odds {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    align-self: center;
+    justify-self: end;
+    min-width: 0;
+    min-height: 0;
+    padding: .15rem .16rem;
+    border: 0;
+    border-radius: .3rem;
+    background: transparent;
+    color: var(--sb-electric);
+    font-size: .77rem;
+    font-weight: 850;
+    white-space: nowrap;
+  }
+  .se-app--tabbar button.sb-odds {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 2px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    color: var(--sb-electric);
+  }
+  .se-app--tabbar button.sb-odds:disabled { color: var(--se-muted); }
+  .se-app--tabbar button.sb-odds.is-selected,
+  .se-app--tabbar .sb-ticket .sb-odds.is-locked {
+    background: color-mix(in srgb, var(--sb-electric) 14%, var(--se-bg));
+    color: var(--sb-electric);
+    box-shadow: inset 0 0 0 1px var(--sb-electric);
+  }
+  .se-app--tabbar .sb-matchup__vs {
+    align-self: center;
+    justify-self: center;
+    min-width: 21px;
+    width: 21px;
+    height: 25px;
+    padding: 0;
+    border-radius: .32rem;
+    border-color: color-mix(in srgb, var(--sb-electric) 35%, var(--se-line));
+    font-size: .64rem;
+    color: var(--se-text-dim);
+  }
+  .se-app--tabbar .sb-score { flex-wrap: wrap; gap: 0; justify-content: center; font-size: .68rem; }
+
+  .se-app--tabbar .sb-money {
+    gap: 0;
+    margin: 0;
+    border-color: color-mix(in srgb, var(--sb-electric) 16%, var(--se-line));
+    border-radius: .55rem;
+    background: color-mix(in srgb, var(--se-bg) 65%, var(--se-panel));
+  }
+  .se-app--tabbar .sb-money > div { text-align: left; padding: .3rem .45rem; }
+  .se-app--tabbar .sb-money dt { color: var(--se-text-dim); font-size: .56rem; line-height: 1.1; }
+  .se-app--tabbar .sb-money dd { font-size: .82rem; line-height: 1.2; color: var(--se-text); }
+  .se-app--tabbar .sb-money .is-payout dd { color: var(--se-text); text-shadow: none; }
+
+  .se-app--tabbar .sb-event { border-left-width: 1px; }
+  .se-app--tabbar .sb-event .sb-side { min-height: 53px; }
+  .se-app--tabbar .sb-board-head { gap: .35rem; margin-top: .15rem; padding-top: .75rem; }
+  .se-app--tabbar .sb-board-head h3 { font-size: 1.15rem; }
+  .se-app--tabbar .se-sportsbook__toolbar { min-height: 30px; padding: .3rem .5rem; opacity: .9; }
+  .se-app--tabbar .se-sportsbook__toolbar .se-btn { min-height: 32px; }
+  .se-app--tabbar .se-sportsbook__slip { scroll-margin-top: var(--se-mobile-header-offset, 140px); }
+}
+
+/* On the smallest devices, retain the result and real odds rather than
+   clipping content; the status line gets its own row if necessary. */
+@media (max-width: 390px) {
+  .se-app--tabbar .sb-tickets-head__row h3 { font-size: 1.08rem; }
+  .se-app--tabbar .sb-segment__btn { min-height: 2.2rem; padding: .3rem .47rem; font-size: .73rem; }
+  .se-app--tabbar .sb-banner__badge { font-size: .57rem; max-width: 5.2rem; }
+  .se-app--tabbar .sb-card__top { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .se-app--tabbar .sb-card__countdown { grid-column: 1 / -1; white-space: normal; }
+  .se-app--tabbar .sb-side { grid-template-columns: 26px minmax(0, 1fr) auto; gap: 1px 2px; padding: .3rem .12rem; }
+  .se-app--tabbar .sb-badge { width: 26px; height: 26px; }
+  .se-app--tabbar .sb-side__name small { font-size: .55rem; }
+  .se-app--tabbar .sb-side__name strong { font-size: .65rem; }
+  .se-app--tabbar .sb-odds { font-size: .7rem; }
+  .se-app--tabbar .sb-money dd { font-size: .75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-app--tabbar .sb-leagues__pill,
+  .se-app--tabbar .sb-segment__btn,
+  .se-app--tabbar .sb-side { transition: none; }
+}
