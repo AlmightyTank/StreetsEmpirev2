@@ -354,6 +354,7 @@ export const updateAccountProfileSettingsSchema = z.object({
   reducedMotion: z.boolean(),
   moneyFormat: moneyFormatSchema,
   defaultLanding: defaultLandingSchema,
+  showProfanity: z.boolean().default(false),
 });
 
 const notificationCategorySchema = z.enum(NOTIFICATION_CATEGORIES);

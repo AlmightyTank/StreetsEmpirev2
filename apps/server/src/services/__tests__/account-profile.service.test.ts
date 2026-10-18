@@ -78,6 +78,7 @@ const updateInput: UpdateAccountProfileSettingsInput = {
   reducedMotion: false,
   moneyFormat: 'full',
   defaultLanding: 'game',
+  showProfanity: false,
 };
 
 describe('AccountProfileService admin site theme QA', () => {

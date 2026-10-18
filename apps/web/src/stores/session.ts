@@ -51,6 +51,7 @@ export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   reducedMotion: false,
   moneyFormat: 'full',
   defaultLanding: 'game',
+  showProfanity: false,
 };
 
 const LANDING_PATHS: Record<DefaultLanding, string> = {

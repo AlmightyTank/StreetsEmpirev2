@@ -160,6 +160,10 @@ const envSchema = z.object({
   SPORTSGAMEODDS_API_KEY: z.string().default(''),
   /** Shared cached snapshot cadence; deliberately no faster than 15 minutes on free delayed data. */
   SPORTSBOOK_POLL_MINUTES: z.coerce.number().int().min(30).max(180).default(30),
+  /** Optional monitoring-only moderation provider. Deterministic local blocking is always enabled. */
+  PROFANITY_MODERATION_API_KEY: z.string().default(''),
+  PROFANITY_MODERATION_URL: z.string().url().default('https://api.openai.com/v1/moderations'),
+  PROFANITY_MODERATION_TIMEOUT_MS: z.coerce.number().int().min(250).max(10_000).default(2_000),
 });
 
 const parsed = envSchema.safeParse(process.env);

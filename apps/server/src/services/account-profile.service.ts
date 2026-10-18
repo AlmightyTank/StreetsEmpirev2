@@ -293,6 +293,7 @@ function toSettingsDto(
     reducedMotion: profile?.reducedMotion ?? false,
     moneyFormat,
     defaultLanding,
+    showProfanity: profile?.showProfanity ?? false,
   };
 }
 
@@ -529,6 +530,7 @@ export const AccountProfileService = {
         reducedMotion: input.reducedMotion,
         moneyFormat: input.moneyFormat,
         defaultLanding: input.defaultLanding,
+        showProfanity: input.showProfanity,
       },
       update: {
         activeTitleKey,
@@ -555,6 +557,7 @@ export const AccountProfileService = {
         reducedMotion: input.reducedMotion,
         moneyFormat: input.moneyFormat,
         defaultLanding: input.defaultLanding,
+        showProfanity: input.showProfanity,
       },
     });
 
