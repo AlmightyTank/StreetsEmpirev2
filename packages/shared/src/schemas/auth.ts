@@ -194,6 +194,10 @@ export const profileAccentSchema = z.enum([
   'night-map-plum',
   // Supporter cosmetic-only banner/profile accent.
   'supporter-crimson',
+  // The Drop accents, bought with Crowns.
+  'luxe-lacquer',
+  'underworld-violet',
+  'heist-frost',
 ]);
 export const CREW_NAME_MIN = 3;
 export const CREW_NAME_MAX = 32;
@@ -274,6 +278,16 @@ export const itemCosmeticStyleSchema = z.enum([
   'time-machine',
   'blue-sky',
   'holiday-road',
+  'kingpin-luxe-sedan',
+  'kingpin-luxe-thug',
+  'kingpin-luxe-hoe',
+  'neon-underworld-low-rider',
+  'neon-underworld-thug',
+  'neon-underworld-hoe',
+  'neon-underworld-tek9',
+  'winter-heist-van',
+  'winter-heist-crew',
+  'winter-heist-shotgun',
 ]);
 
 export const crewCosmeticStyleSchema = itemCosmeticStyleSchema.refine(

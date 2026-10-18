@@ -54,7 +54,7 @@ describe('easter egg looks', () => {
   it('hides egg looks from the locker until they are owned', () => {
     const keys = (owned: string[]) => collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, new Set(owned)).map((option) => option.key);
     // New released collections must stay visible, while unowned egg rewards stay secret.
-    expect(keys([])).toEqual(['classic', 'midnight-ops', 'urban-ghost', 'cartel-gold', 'midnight-chrome', 'obsidian-signal-crew']);
+    expect(keys([])).toEqual(['classic', 'midnight-ops', 'urban-ghost', 'cartel-gold', 'midnight-chrome', 'obsidian-signal-crew', 'kingpin-luxe-sedan', 'kingpin-luxe-thug', 'kingpin-luxe-hoe', 'neon-underworld-low-rider', 'neon-underworld-thug', 'neon-underworld-hoe', 'neon-underworld-tek9', 'winter-heist-van', 'winter-heist-crew', 'winter-heist-shotgun']);
     expect(keys([])).not.toContain('eight-bit');
     expect(crewCosmeticLoadoutSchema.safeParse({ THUG: 'obsidian-signal-crew', HOE: 'obsidian-signal-crew' }).success).toBe(true);
     expect(itemCosmeticLoadoutSchema.safeParse({ AK47: 'obsidian-signal-crew' }).success).toBe(false);

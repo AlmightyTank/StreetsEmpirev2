@@ -93,6 +93,8 @@ export interface StripeApi {
   createPortalSession(params: Record<string, FormValue>): Promise<{ url: string }>;
   cancelSubscription(subscriptionId: string): Promise<void>;
   retrieveCharge(chargeId: string): Promise<{ id: string; customer: string | null }>;
+  /** A Checkout Session as Stripe has it now, for reconciling a Crown pack order. */
+  retrieveCheckoutSession(sessionId: string): Promise<Record<string, unknown>>;
 }
 
 export function stripeApi(secretKey: string, fetchImpl: typeof fetch = fetch): StripeApi {
@@ -127,6 +129,9 @@ export function stripeApi(secretKey: string, fetchImpl: typeof fetch = fetch): S
     async retrieveCharge(chargeId) {
       const charge = await call<{ id: string; customer: unknown }>('GET', `/charges/${encodeURIComponent(chargeId)}`);
       return { id: charge.id, customer: typeof charge.customer === 'string' ? charge.customer : null };
+    },
+    async retrieveCheckoutSession(sessionId) {
+      return call<Record<string, unknown>>('GET', `/checkout/sessions/${encodeURIComponent(sessionId)}`);
     },
   };
 }

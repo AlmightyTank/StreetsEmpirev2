@@ -104,6 +104,11 @@ model Account {
   supporterMembership              SupporterMembership?
   googlePlaySupporterSubscriptions GooglePlaySupporterSubscription[]
   supporterPayments                SupporterPayment[]
+  crownWallet                      CrownWallet?
+  crownLedger                      CrownLedgerEntry[]
+  dropOrders                       DropOrder[]
+  crownPackOrders                  CrownPackOrder[]
+  crownAdjustments                 CrownAdjustmentRequest[]
   supporterSeasonStamps            SupporterSeasonStamp[]
   supporterVotes                   SupporterVote[]
   roundPlayers                     RoundPlayer[]
@@ -426,6 +431,182 @@ model SupporterVote {
 }
 
 /// Stripe webhook events already applied, so a redelivered event changes nothing.
+// ---------------------------------------------------------------------------
+// The Drop: Crowns and the cosmetic storefront (docs/THE-DROP.md)
+// ---------------------------------------------------------------------------
+
+/// One Crown balance per account, never per round. Only CrownWalletService
+/// changes it, under a row lock and always together with a CrownLedgerEntry, so
+/// the balance always equals the sum of the ledger.
+model CrownWallet {
+  accountId  String    @id
+  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// Whole Crowns. A CHECK keeps it at zero or above.
+  balance    Int       @default(0)
+  /// Bumped on every change.
+  version    Int       @default(0)
+  /// Set when a refunded or disputed pack was already spent: spending stops until support clears it.
+  heldAt     DateTime?
+  holdReason String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+/// Append-only. Every Crown that moves has one row; `externalRef` is the
+/// idempotency key of the event that moved it, so a replay can never apply twice.
+model CrownLedgerEntry {
+  id             String   @id @default(cuid())
+  accountId      String
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// EARN, PAID_GRANT, SPEND, ADJUSTMENT or REVERSAL.
+  kind           String
+  delta          Int
+  balanceAfter   Int
+  /// What moved it, e.g. daily-contract, pack:boss, drop-order, street-pass-skip, admin.
+  source         String
+  externalRef    String   @unique
+  /// The round an EARN was earned in, for the per-round cap. Never used for ownership.
+  roundId        String?
+  reason         String?
+  metadata       Json?
+  actorAccountId String?
+  createdAt      DateTime @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([accountId, kind, roundId])
+  @@index([kind, createdAt])
+}
+
+/// Admin overrides for one Drop item or bundle. Art, names and kinds stay in
+/// code (packages/rulesets/src/drop.ts); a missing row means the code defaults.
+model DropCatalogEntry {
+  key               String   @id
+  /// ITEM or BUNDLE.
+  kind              String
+  /// DRAFT, QA, SCHEDULED, LIVE, VAULTED or ARCHIVED. Only LIVE is sold.
+  state             String   @default("LIVE")
+  priceCrowns       Int?
+  /// MAY_RETURN, PERMANENT or NEVER_RETURNING.
+  returnPolicy      String   @default("MAY_RETURN")
+  inDailyPool       Boolean  @default(true)
+  homepageSlot      Int?
+  updatedAt         DateTime @updatedAt
+  updatedByUsername String?
+}
+
+/// An admin-scheduled offer. Daily and weekly-featured offers are computed
+/// from the rotation and are not stored.
+model DropOffer {
+  id                String    @id @default(cuid())
+  /// ITEM or BUNDLE.
+  kind              String
+  refKey            String
+  /// FEATURED, DAILY or CATALOG.
+  slot              String
+  /// DROP_EXCLUSIVE, DAILY, FEATURED, RETURNING or PERMANENT.
+  badge             String
+  /// Null sells at the catalog price.
+  priceCrowns       Int?
+  startsAt          DateTime
+  endsAt            DateTime?
+  cancelledAt       DateTime?
+  createdByUsername String
+  note              String?
+  createdAt         DateTime  @default(now())
+
+  @@index([startsAt, endsAt])
+  @@index([refKey])
+}
+
+/// One Crown purchase: an item, a bundle or Street Pass level skips. Written in
+/// the same transaction as the debit and the unlocks. Kept, unlinked, if the
+/// account is deleted.
+model DropOrder {
+  id            String   @id @default(cuid())
+  accountId     String?
+  account       Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  /// The client's idempotency key: the same id never charges twice.
+  actionId      String
+  /// ITEM, BUNDLE or STREET_PASS_SKIP.
+  kind          String
+  refKey        String
+  offerId       String?
+  priceCrowns   Int
+  grantedKeys   String[]
+  roundPlayerId String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@unique([accountId, actionId])
+  @@index([accountId, createdAt])
+  @@index([createdAt])
+}
+
+/// A real-money Crown pack checkout. Credited once, only from a verified
+/// provider event. Kept, unlinked, if the account is deleted.
+model CrownPackOrder {
+  id                String    @id @default(cuid())
+  accountId         String?
+  account           Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  provider          String    @default("stripe")
+  packId            String
+  crowns            Int
+  amountCents       Int
+  currency          String
+  /// pending, credited, refunded, refund_review, disputed, failed or expired.
+  status            String    @default("pending")
+  checkoutSessionId String?   @unique
+  /// Stripe payment intent; refunds and disputes are matched on it.
+  providerPaymentId String?   @unique
+  creditedAt        DateTime?
+  refundedAt        DateTime?
+  lastEventAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([accountId, createdAt])
+  @@index([status])
+}
+
+/// Kill switches and tuning for The Drop. One row, id "global".
+model DropSettings {
+  id                       String   @id @default("global")
+  storefrontEnabled        Boolean  @default(true)
+  purchasesEnabled         Boolean  @default(true)
+  earningEnabled           Boolean  @default(true)
+  checkoutEnabled          Boolean  @default(false)
+  streetPassSkipsEnabled   Boolean  @default(true)
+  dailyOfferCount          Int      @default(4)
+  dailyResetHourUtc        Int      @default(0)
+  autoFeatured             Boolean  @default(true)
+  roundEarnCap             Int      @default(500)
+  largeAdjustmentThreshold Int      @default(1000)
+  updatedAt                DateTime @updatedAt
+  updatedByUsername        String?
+}
+
+/// An admin Crown grant or removal. Small ones apply at once; ones at or above
+/// the threshold wait for a second admin.
+model CrownAdjustmentRequest {
+  id                  String    @id @default(cuid())
+  accountId           String
+  account             Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  delta               Int
+  reason              String
+  /// PENDING, APPLIED or REJECTED.
+  status              String    @default("PENDING")
+  requestedById       String
+  requestedByUsername String
+  decidedById         String?
+  decidedByUsername   String?
+  ledgerEntryId       String?
+  createdAt           DateTime  @default(now())
+  decidedAt           DateTime?
+
+  @@index([status, createdAt])
+  @@index([accountId, createdAt])
+}
+
 model StripeWebhookEvent {
   id          String   @id
   type        String

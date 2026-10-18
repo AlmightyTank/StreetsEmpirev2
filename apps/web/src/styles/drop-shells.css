@@ -1,0 +1,283 @@
+/*
+ * The Drop shell themes (docs/THE-DROP.md): full game-shell reskins sold in
+ * The Drop. Visual only, like site-themes.css: palette tokens, panel and
+ * control fills, and an illustrated backdrop under the page content. Scene
+ * animation stops under reduced motion (the shared .se-theme-scene rule).
+ */
+
+.se-site-theme--kingpin-luxe-shell {
+  --se-bg: #070709;
+  --se-panel: #111116;
+  --se-panel-hi: #19181f;
+  --se-line: rgba(214, 163, 92, 0.3);
+  --se-line-soft: rgba(214, 163, 92, 0.15);
+  --se-text: #f3ede2;
+  --se-text-dim: #bfb4a2;
+  --se-muted: #8f8676;
+  --se-accent: #d6a35c;
+  --se-accent-dim: #a57a3d;
+  --se-accent-hover: #ebc488;
+  --se-accent-rgb: 214, 163, 92;
+  --se-accent-2: #6d5a8a;
+  --se-theme-panel-fill:
+    linear-gradient(135deg, rgba(214, 163, 92, 0.07), transparent 38%),
+    linear-gradient(180deg, rgba(27, 26, 32, 0.96), rgba(9, 9, 12, 0.97));
+  --se-theme-stat-fill:
+    linear-gradient(90deg, transparent 0 calc(100% - 3px), rgba(214, 163, 92, 0.35) calc(100% - 3px)),
+    rgba(12, 12, 15, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, #1c1b21, #0c0c10);
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(214, 163, 92, 0.16), transparent 60%),
+    linear-gradient(180deg, #1a1920, #111116);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(214, 163, 92, 0.12), transparent 30%, rgba(214, 163, 92, 0.06));
+  background-image:
+    repeating-linear-gradient(90deg, rgba(214, 163, 92, 0.025) 0 1px, transparent 1px 64px),
+    radial-gradient(900px 540px at 96% 0%, rgba(214, 163, 92, 0.13), transparent 62%),
+    linear-gradient(180deg, #0c0c10, #070709 60%);
+}
+
+.se-site-theme--neon-underworld-shell {
+  --se-bg: #07080e;
+  --se-panel: #11131c;
+  --se-panel-hi: #181b28;
+  --se-line: rgba(180, 107, 255, 0.32);
+  --se-line-soft: rgba(57, 230, 214, 0.16);
+  --se-text: #eef0fb;
+  --se-text-dim: #aab0c8;
+  --se-muted: #7d84a0;
+  --se-accent: #b46bff;
+  --se-accent-dim: #8447c4;
+  --se-accent-hover: #cc98ff;
+  --se-accent-rgb: 180, 107, 255;
+  --se-accent-2: #39e6d6;
+  --se-theme-panel-fill:
+    linear-gradient(160deg, rgba(57, 230, 214, 0.06), transparent 40%),
+    linear-gradient(180deg, rgba(27, 31, 46, 0.95), rgba(10, 11, 18, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(180, 107, 255, 0.08), rgba(57, 230, 214, 0.05)),
+    rgba(11, 12, 19, 0.96);
+  --se-theme-button-fill: linear-gradient(90deg, rgba(180, 107, 255, 0.12), rgba(57, 230, 214, 0.08));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(180, 107, 255, 0.2), rgba(57, 230, 214, 0.08) 55%, transparent);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(180, 107, 255, 0.16), transparent 30%, rgba(57, 230, 214, 0.14));
+  background-image:
+    linear-gradient(180deg, rgba(57, 230, 214, 0.035) 1px, transparent 1px),
+    radial-gradient(820px 500px at 94% 0%, rgba(180, 107, 255, 0.2), transparent 60%),
+    radial-gradient(760px 460px at 4% 100%, rgba(57, 230, 214, 0.12), transparent 60%),
+    linear-gradient(180deg, #0b0c14, #07080e 60%);
+  background-size: 100% 6px, auto, auto, auto;
+}
+
+.se-site-theme--winter-heist-shell {
+  --se-bg: #07101a;
+  --se-panel: #0f1b28;
+  --se-panel-hi: #152637;
+  --se-line: rgba(143, 211, 255, 0.3);
+  --se-line-soft: rgba(232, 244, 251, 0.14);
+  --se-text: #eef6fc;
+  --se-text-dim: #a9c2d4;
+  --se-muted: #7894a8;
+  --se-accent: #8fd3ff;
+  --se-accent-dim: #5c9fc9;
+  --se-accent-hover: #b9e4ff;
+  --se-accent-rgb: 143, 211, 255;
+  --se-accent-2: #b03a48;
+  --se-theme-panel-fill:
+    linear-gradient(180deg, rgba(232, 244, 251, 0.07), transparent 24%),
+    linear-gradient(180deg, rgba(22, 38, 55, 0.95), rgba(9, 17, 26, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(232, 244, 251, 0.06), transparent 50%),
+    rgba(10, 19, 29, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(143, 211, 255, 0.12), rgba(8, 16, 25, 0.9));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(143, 211, 255, 0.16), transparent 60%),
+    linear-gradient(180deg, #172a3c, #0f1b28);
+  --se-theme-topbar-layer:
+    linear-gradient(180deg, rgba(232, 244, 251, 0.1), transparent),
+    linear-gradient(90deg, rgba(143, 211, 255, 0.1), transparent 40%);
+  background-image:
+    radial-gradient(900px 520px at 90% -6%, rgba(143, 211, 255, 0.16), transparent 62%),
+    radial-gradient(720px 420px at 0% 100%, rgba(176, 58, 72, 0.08), transparent 60%),
+    linear-gradient(180deg, #0c1826, #07101a 62%);
+}
+
+/* Shared component surfaces, the same contract as the other premium shells. */
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) {
+  --se-theme-panel-glow: rgba(var(--se-accent-rgb), 0.12);
+  --se-theme-topbar-bg: color-mix(in srgb, var(--se-bg) 86%, #000);
+  --se-theme-border-style: solid;
+  color-scheme: dark;
+}
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) .se-topbar {
+  background: var(--se-theme-topbar-layer), color-mix(in srgb, var(--se-theme-topbar-bg) 92%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--se-accent) 48%, var(--se-line));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42), 0 0 26px var(--se-theme-panel-glow);
+}
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) :is(.se-panel, .se-stats, .se-stat) {
+  background: var(--se-theme-panel-fill);
+  border-style: var(--se-theme-border-style);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 0 18px var(--se-theme-panel-glow);
+}
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) :is(.se-stats, .se-stat) {
+  background: var(--se-theme-stat-fill);
+}
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) .se-panel__head {
+  background: var(--se-theme-head-fill);
+}
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) :is(.se-btn, .se-input) {
+  background: var(--se-theme-button-fill);
+  border-color: color-mix(in srgb, var(--se-accent) 34%, var(--se-line));
+  color: var(--se-text);
+}
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) select.se-input {
+  color-scheme: dark;
+  background-color: color-mix(in srgb, var(--se-panel-hi) 82%, #000);
+}
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) select.se-input option {
+  background: color-mix(in srgb, var(--se-panel-hi) 88%, #000);
+  color: var(--se-text);
+}
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) select.se-input option:checked {
+  background: color-mix(in srgb, var(--se-accent) 36%, #000);
+  color: #fff;
+}
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) .se-btn--primary {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--se-accent) 34%, var(--se-panel-hi)), color-mix(in srgb, var(--se-accent-dim) 34%, #000));
+  border-color: color-mix(in srgb, var(--se-accent) 72%, var(--se-line));
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.72);
+}
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) .se-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--se-accent-hover) 42%, var(--se-panel-hi)), color-mix(in srgb, var(--se-accent-dim) 42%, #000));
+  border-color: color-mix(in srgb, var(--se-accent-hover) 82%, var(--se-line));
+  color: #fff;
+}
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) .se-btn:disabled {
+  color: color-mix(in srgb, var(--se-text) 82%, #fff);
+  opacity: 0.58;
+}
+:is(.se-site-theme--kingpin-luxe-shell, .se-site-theme--neon-underworld-shell, .se-site-theme--winter-heist-shell) .se-footer {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--se-bg) 74%, transparent), var(--se-bg)), color-mix(in srgb, var(--se-panel) 84%, #000);
+  border-top-color: color-mix(in srgb, var(--se-accent) 36%, var(--se-line));
+}
+
+/* Signature touches: a brass double rule, a neon edge, a frosted top light. */
+.se-site-theme--kingpin-luxe-shell :is(.se-panel, .se-stats) {
+  border-color: rgba(214, 163, 92, 0.34);
+  box-shadow: inset 0 0 0 1px #0b0b0f, inset 0 0 0 2px rgba(214, 163, 92, 0.14), 0 0 18px rgba(214, 163, 92, 0.08);
+}
+.se-site-theme--kingpin-luxe-shell .se-panel__title { letter-spacing: .06em; }
+.se-site-theme--neon-underworld-shell :is(.se-panel, .se-stats, .se-stat) {
+  border-color: rgba(180, 107, 255, 0.4);
+  box-shadow: inset 3px 0 0 rgba(180, 107, 255, 0.7), inset 0 1px 0 rgba(57, 230, 214, 0.22), 0 0 22px rgba(180, 107, 255, 0.12);
+}
+.se-site-theme--winter-heist-shell :is(.se-panel, .se-stats) {
+  border-color: rgba(143, 211, 255, 0.36);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.16), 0 0 20px rgba(143, 211, 255, 0.1);
+}
+
+.se-site-theme-decor--kingpin-luxe-shell { --se-pack-color: #d6a35c; }
+.se-site-theme-decor--neon-underworld-shell { --se-pack-color: #b46bff; }
+.se-site-theme-decor--winter-heist-shell { --se-pack-color: #8fd3ff; }
+
+/* ---------- Kingpin Luxe scene ---------- */
+.se-kl__sunburst { top: 0; right: 0; width: min(40vw, 520px); height: auto; }
+.se-kl__skyline { right: 0; bottom: 0; width: min(46vw, 620px); height: auto; opacity: .9; }
+.se-kl__window { animation: se-kl-window 9s ease-in-out infinite; }
+.se-kl__trim {
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #d6a35c 50%, transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  opacity: .55;
+  animation: se-kl-glint 12s ease-in-out infinite;
+}
+@keyframes se-kl-window { 0%, 100% { opacity: .85; } 50% { opacity: .35; } }
+@keyframes se-kl-glint { 0%, 30% { background-position: -40% 0; } 70%, 100% { background-position: 140% 0; } }
+
+/* ---------- Neon Underworld scene (a slow, soft buzz; never a hard flash) ---------- */
+.se-nu__signs { top: 0; right: 0; width: min(36vw, 460px); height: auto; }
+.se-nu__tube { animation: se-nu-buzz 6s ease-in-out infinite; }
+.se-nu__tube--teal { animation-delay: -2s; }
+.se-nu__tube--pink { animation-delay: -4s; animation-duration: 7.5s; }
+.se-nu__rain {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(104deg, transparent 0 22px, rgba(200, 210, 255, 0.07) 22px 23px);
+  background-size: 120px 180px;
+  animation: se-nu-rain 1.6s linear infinite;
+}
+.se-nu__street {
+  position: absolute;
+  inset: auto 0 0;
+  height: 26vh;
+  background:
+    radial-gradient(ellipse 40% 60% at 78% 100%, rgba(180, 107, 255, 0.24), transparent 70%),
+    radial-gradient(ellipse 30% 50% at 92% 100%, rgba(57, 230, 214, 0.18), transparent 70%),
+    repeating-linear-gradient(180deg, transparent 0 9px, rgba(255, 255, 255, 0.025) 9px 10px);
+}
+@keyframes se-nu-buzz { 0%, 46%, 100% { opacity: .95; } 50% { opacity: .62; } 54% { opacity: .9; } }
+@keyframes se-nu-rain { to { background-position: -40px 180px; } }
+
+/* ---------- Winter Heist scene ---------- */
+.se-wh__vault { top: 0; right: 0; width: min(30vw, 360px); height: auto; }
+.se-wh__dial { transform-box: view-box; transform-origin: 200px 60px; animation: se-wh-dial 30s ease-in-out infinite alternate; }
+.se-wh__skyline { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-wh__frost {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 30% 22% at 0 0, rgba(232, 244, 251, 0.16), transparent 70%),
+    radial-gradient(ellipse 26% 20% at 100% 100%, rgba(232, 244, 251, 0.12), transparent 70%);
+}
+.se-wh__snow i {
+  position: absolute;
+  top: -10px;
+  border-radius: 50%;
+  background: #f4fbff;
+  opacity: .75;
+  animation-name: se-wh-snow;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes se-wh-dial { from { transform: rotate(-24deg); } to { transform: rotate(38deg); } }
+@keyframes se-wh-snow { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-30px, 104vh, 0); } }
+/* With motion off the shared rule stops the snow; park it in view instead of above the screen. */
+.se-reduced-motion .se-wh__snow i:nth-child(odd) { top: 30%; }
+.se-reduced-motion .se-wh__snow i:nth-child(even) { top: 64%; }
+@media (prefers-reduced-motion: reduce) {
+  .se-wh__snow i:nth-child(odd) { top: 30%; }
+  .se-wh__snow i:nth-child(even) { top: 64%; }
+}
+
+/* ---------- Shop preview: a miniature shell drawn in the theme's own tokens ---------- */
+.se-drop-art--theme { padding: 0; }
+.se-drop-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22% 1fr;
+  grid-template-rows: 16% 1fr;
+  gap: 4px;
+  width: 100%;
+  max-width: 240px;
+  aspect-ratio: 16 / 10;
+  padding: 4px;
+  border: 1px solid var(--se-line);
+  border-radius: var(--se-radius-md);
+  background-color: var(--se-bg);
+  overflow: hidden;
+}
+.se-drop-art--lg .se-drop-shell { max-width: 460px; }
+.se-drop-shell__top { grid-column: 1 / -1; border-radius: 3px; background: var(--se-theme-topbar-layer, transparent), var(--se-panel); border-bottom: 1px solid color-mix(in srgb, var(--se-accent) 50%, var(--se-line)); }
+.se-drop-shell__side { border-radius: 3px; background: var(--se-panel); border: 1px solid var(--se-line-soft); display: grid; align-content: start; gap: 4px; padding: 4px; }
+.se-drop-shell__side i { height: 4px; border-radius: 2px; background: var(--se-text-dim); opacity: .4; }
+.se-drop-shell__side i:first-child { background: var(--se-accent); opacity: .9; }
+.se-drop-shell__main { display: grid; grid-template-rows: auto 1fr; gap: 4px; min-width: 0; }
+.se-drop-shell__panel { border-radius: 3px; border: 1px solid var(--se-line); background: var(--se-theme-panel-fill, var(--se-panel)); padding: 4px; display: grid; gap: 3px; align-content: start; }
+.se-drop-shell__panel b { height: 5px; width: 50%; border-radius: 2px; background: var(--se-text); opacity: .75; }
+.se-drop-shell__panel i { height: 3px; border-radius: 2px; background: var(--se-text-dim); opacity: .45; }
+.se-drop-shell__btn { justify-self: start; width: 34%; height: 8px; margin-top: 2px; border-radius: 3px; background: var(--se-accent); }

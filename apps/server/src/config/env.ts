@@ -94,6 +94,10 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.union([z.literal(''), z.string().regex(/^(sk|rk)_(test|live)_/, 'STRIPE_SECRET_KEY must be a Stripe secret or restricted key.')]).default(''),
   STRIPE_WEBHOOK_SECRET: z.union([z.literal(''), z.string().startsWith('whsec_', 'STRIPE_WEBHOOK_SECRET must start with whsec_.')]).default(''),
   STRIPE_SUPPORTER_PRICE_ID: z.union([z.literal(''), z.string().startsWith('price_', 'STRIPE_SUPPORTER_PRICE_ID must start with price_.')]).default(''),
+  /** The Drop (docs/THE-DROP.md). Unset: on everywhere except production. */
+  DROP_ENABLED: z.enum(['true', 'false']).optional(),
+  /** Real-money Crown packs through Stripe Checkout. Off unless set to true. */
+  DROP_CROWN_PACKS_ENABLED: z.enum(['true', 'false']).default('false'),
   /** Base64-encoded Google service-account JSON with Android Publisher access. */
   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: z.string().default(''),
   GOOGLE_PLAY_PACKAGE_NAME: z.string().default('dev.streetsempire.app'),
@@ -224,6 +228,14 @@ export const env = {
     signupDailyLimitPerIp: parsed.data.SIGNUP_DAILY_LIMIT_PER_IP
       ?? (appEnvironment === 'production' || appEnvironment === 'beta' ? 5 : 0),
   },
+  drop: {
+    /** Off in production until DROP_ENABLED=true: no storefront, wallet or purchase routes answer. */
+    enabled: parsed.data.DROP_ENABLED ? parsed.data.DROP_ENABLED === 'true' : appEnvironment !== 'production',
+    /** Crown packs also need Stripe keys, and are always off in tests. */
+    crownPacksConfigured: parsed.data.NODE_ENV !== 'test'
+      && parsed.data.DROP_CROWN_PACKS_ENABLED === 'true'
+      && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET),
+  },
   trustProxy: parsed.data.TRUST_PROXY ? parsed.data.TRUST_PROXY === 'true' : parsed.data.NODE_ENV === 'production',
   logLevel: parsed.data.LOG_LEVEL ?? (parsed.data.NODE_ENV === 'production' ? 'info' : 'debug'),
   buildCommit: parsed.data.BUILD_COMMIT?.slice(0, 12) ?? null,
@@ -313,6 +325,9 @@ export const env = {
     /** Off in tests so no test run ever calls Stripe. */
     enabled: parsed.data.NODE_ENV !== 'test'
       && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET && parsed.data.STRIPE_SUPPORTER_PRICE_ID),
+    /** The webhook runs whenever Stripe is reachable, for supporter and Crown pack events alike. */
+    webhookEnabled: parsed.data.NODE_ENV !== 'test'
+      && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET),
   },
   googlePlay: {
     serviceAccountJsonBase64: parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64,
