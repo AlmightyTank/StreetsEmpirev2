@@ -181,6 +181,8 @@ export interface CrownPackDto {
   currency: string;
   crowns: number;
   featured: boolean;
+  /** Google Play product id; present only in the Android catalog response. */
+  platformProductId?: string | null;
 }
 
 export interface CrownPacksDto {

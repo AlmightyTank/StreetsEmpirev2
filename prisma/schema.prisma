@@ -108,6 +108,7 @@ model Account {
   crownLedger                      CrownLedgerEntry[]
   dropOrders                       DropOrder[]
   crownPackOrders                  CrownPackOrder[]
+  googlePlayCrownPackOrders        GooglePlayCrownPackOrder[]
   crownAdjustments                 CrownAdjustmentRequest[]
   supporterSeasonStamps            SupporterSeasonStamp[]
   supporterVotes                   SupporterVote[]
@@ -379,6 +380,31 @@ model GooglePlaySupporterSubscription {
   @@index([accountId, lastVerifiedAt])
   @@index([status, currentPeriodEnd])
   @@map("google_play_supporter_subscription")
+}
+
+/// A verified record for one Google Play Crown pack. The purchase token is the
+/// provider idempotency key; wallet changes remain server-authoritative.
+model GooglePlayCrownPackOrder {
+  purchaseToken  String   @id
+  accountId      String?
+  account        Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  productId      String
+  packId         String
+  crowns         Int
+  status         String   @default("pending")
+  orderId        String?
+  currency       String?
+  amountCents    Int?
+  purchasedAt    DateTime?
+  creditedAt     DateTime?
+  refundedAt     DateTime?
+  lastVerifiedAt DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([accountId, createdAt])
+  @@index([orderId])
+  @@index([status, createdAt])
 }
 
 /// One permanent record that an account supported during a season (round).

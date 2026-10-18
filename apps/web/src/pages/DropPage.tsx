@@ -28,6 +28,7 @@ import { confirmAction } from '../stores/confirm.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 import { isAndroidNativeApp } from '../utils/install.js';
+import { supporterApi } from '../api/supporter.js';
 import { formatWhen, serverClockOffsetMs } from '../utils/time.js';
 
 export type DropView = 'shop' | 'item' | 'wallet' | 'crowns' | 'pass';
@@ -671,10 +672,24 @@ function CrownsView() {
   const [params] = useSearchParams();
   const signedIn = useSession((s) => Boolean(s.account));
   const android = isAndroidNativeApp();
+  const [playAccount, setPlayAccount] = useState<string | null>(null);
   useEffect(() => {
     dropApi.packs(android ? 'android' : undefined).then(setPacks).catch((caught) => setError(errorText(caught)));
     if (signedIn) dropApi.storefront().then((store) => setWallet(store.wallet)).catch(() => undefined);
+    if (android && signedIn) supporterApi.status().then((status) => setPlayAccount(status.playBilling.obfuscatedAccountId)).catch(() => setPlayAccount(null));
   }, [android, signedIn]);
+
+  useEffect(() => {
+    if (!android) return;
+    const purchased = (event: Event) => {
+      const [productId, purchaseToken] = String((event as CustomEvent<string>).detail || '').split('|');
+      if (!productId || !purchaseToken) return;
+      setBusy(productId);
+      void dropApi.verifyGooglePlayPack(productId, purchaseToken).then(() => dropApi.storefront().then((store) => setWallet(store.wallet))).catch((caught) => setError(errorText(caught))).finally(() => setBusy(null));
+    };
+    window.addEventListener('streets:play-crown-purchase', purchased);
+    return () => window.removeEventListener('streets:play-crown-purchase', purchased);
+  }, [android]);
 
   async function checkout(packId: string, label: string) {
     const ok = await confirmAction({
@@ -685,8 +700,14 @@ function CrownsView() {
     if (!ok) return;
     setBusy(packId);
     try {
-      const { url } = await dropApi.checkout(packId);
-      window.location.assign(url);
+       const pack = packs?.packs.find((entry) => entry.id === packId);
+       if (android) {
+         if (!pack?.platformProductId || !playAccount) throw new Error('Google Play Crown packs are not available for this account yet.');
+         window.location.assign(`streetsempire://billing/crown-pack?product=${encodeURIComponent(pack.platformProductId)}&account=${encodeURIComponent(playAccount)}`);
+       } else {
+         const { url } = await dropApi.checkout(packId);
+         window.location.assign(url);
+       }
     } catch (caught) {
       setError(errorText(caught));
       setBusy(null);
@@ -715,10 +736,10 @@ function CrownsView() {
                     variant={pack.featured ? 'primary' : 'default'}
                     block
                     loading={busy === pack.id}
-                    disabledReason={packs.available ? null : 'Crown packs are not on sale right now.'}
+                     disabledReason={packs.available ? null : 'Crown packs are not on sale right now.'}
                     onClick={() => void checkout(pack.id, pack.name)}
                   >
-                    Buy for {money(pack.priceCents, pack.currency)}
+                     {android ? 'Buy in Google Play' : `Buy for ${money(pack.priceCents, pack.currency)}`}
                   </Button>
                 ) : <Link className="se-btn se-btn--block" to="/login">Sign in to buy</Link>}
               </article>

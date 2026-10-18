@@ -226,6 +226,16 @@ The Stripe webhook now runs whenever `STRIPE_SECRET_KEY` and
 
 ## Release checklist
 
+### 2.2.18 launch approvals and disclosures
+
+- Release target: **2.2.18**.
+- Approved USD web Crown packs: Starter $4.99/500, Street $8.99/1,000, Boss $22.99/2,800, Kingpin $36.99/5,000, Empire $89.99/13,500. The server owns these amounts; clients never submit a price.
+- Proposed player-facing disclosure copy (business/legal owner must approve before production): “Crowns are virtual currency for cosmetic items and cosmetic-only Street Pass skips in The Drop. Crowns do not provide competitive advantages, cannot be exchanged for cash, and are not transferable. Purchases are optional. Prices are shown in your store currency at checkout; taxes, local pricing, age limits, and refunds follow the payment platform and applicable law. Cosmetic purchases are permanent unless a platform or support refund process applies. Google Play purchases are processed by Google Play; web purchases are processed by Stripe.”
+- Add the Stripe endpoint `POST /api/internal/stripe/webhook` with: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `charge.dispute.created`, plus the existing supporter events `invoice.paid`, `customer.subscription.created`, `customer.subscription.updated`, and `customer.subscription.deleted`.
+- Google Play one-time Crown products are configured with `GOOGLE_PLAY_CROWN_PACK_PRODUCT_IDS=starter=...,...` before Android checkout is enabled. The app sends only a product ID and purchase token; the server verifies both with Google before crediting Crowns.
+- Hideout and street-sign products are not launch inventory until their renderer/equipper slots and art assets ship. No unsupported SKU may be activated in the catalog.
+- Purchase confirmations are queued after the Crown debit/entitlement transaction commits; notification delivery is retryable and cannot roll back a purchase.
+
 - [x] Artwork original to The Drop; keys and styles checked against every other reward.
 - [x] Balance and offers server-confirmed; client never sends a price.
 - [x] Ledger idempotency and row locking (integration suite).

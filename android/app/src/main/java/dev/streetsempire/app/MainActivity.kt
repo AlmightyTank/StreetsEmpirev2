@@ -89,6 +89,7 @@ class MainActivity : AppCompatActivity() {
         billing = PlayBillingManager(
             this,
             onPurchase = { token -> dispatchBillingEvent("streets:play-purchase", token) },
+            onCrownPurchase = { productId, token -> dispatchBillingEvent("streets:play-crown-purchase", "$productId|$token") },
             onError = { message -> dispatchBillingEvent("streets:play-billing-error", message) },
         )
 
@@ -198,6 +199,7 @@ class MainActivity : AppCompatActivity() {
     private fun handleBillingUrl(uri: Uri) {
         when (uri.path?.trim('/')) {
             "supporter" -> billing.startPurchase(uri.getQueryParameter("account") ?: "")
+            "crown-pack" -> billing.startCrownPurchase(uri.getQueryParameter("product") ?: "", uri.getQueryParameter("account") ?: "")
             "restore" -> billing.restorePurchases()
             "manage" -> openExternal(
                 "https://play.google.com/store/account/subscriptions" +

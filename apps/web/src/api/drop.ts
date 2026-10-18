@@ -27,6 +27,7 @@ export const dropApi = {
   purchase: (offerId: string, actionId: string) => api.post<DropPurchaseResultDto>('/drop/purchase', { offerId, actionId }),
   packs: (platform?: string) => api.get<CrownPacksDto>(`/drop/crowns${platform ? `?platform=${encodeURIComponent(platform)}` : ''}`),
   checkout: (packId: string) => api.post<SupporterRedirectDto>('/drop/crowns/checkout', { packId }),
+  verifyGooglePlayPack: (productId: string, purchaseToken: string) => api.post<{ credited: boolean }>('/drop/crowns/play-purchase', { productId, purchaseToken }),
   skipQuote: () => api.get<StreetPassSkipQuoteDto>('/drop/street-pass-skip'),
   skip: (tiers: number, actionId: string) => api.post<GameActionResult<StreetPassSkipResultDto>>('/drop/street-pass-skip', { tiers, actionId }),
 };

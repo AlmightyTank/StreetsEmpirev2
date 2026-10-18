@@ -16,6 +16,7 @@ import com.android.billingclient.api.QueryPurchasesParams
 class PlayBillingManager(
     private val activity: Activity,
     private val onPurchase: (String) -> Unit,
+    private val onCrownPurchase: (String, String) -> Unit,
     private val onError: (String) -> Unit,
 ) : PurchasesUpdatedListener {
     private val billingClient = BillingClient.newBuilder(activity)
@@ -29,6 +30,7 @@ class PlayBillingManager(
     private var accountToken: String? = null
     private var startAfterConnect = false
     private var restoreAfterConnect = false
+    private var crownProductId: String? = null
     private val deliveredPurchaseTokens = mutableSetOf<String>()
 
     fun startPurchase(obfuscatedAccountId: String) {
@@ -54,6 +56,21 @@ class PlayBillingManager(
         queryOwnedSubscriptions()
     }
 
+    fun startCrownPurchase(productId: String, obfuscatedAccountId: String) {
+        accountToken = obfuscatedAccountId.takeIf { it.matches(Regex("^[a-f0-9]{64}$")) }
+        crownProductId = productId.takeIf { it.isNotBlank() }
+        if (accountToken == null || crownProductId == null) {
+            onError("Sign in again before buying Crowns.")
+            return
+        }
+        if (!billingClient.isReady) {
+            startAfterConnect = true
+            connect()
+            return
+        }
+        queryCrownProductAndLaunch()
+    }
+
     private fun connect() {
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(result: BillingResult) {
@@ -63,7 +80,7 @@ class PlayBillingManager(
                 }
                 if (startAfterConnect) {
                     startAfterConnect = false
-                    queryProductAndLaunch()
+                    if (crownProductId != null) queryCrownProductAndLaunch() else queryProductAndLaunch()
                 }
                 if (restoreAfterConnect) {
                     restoreAfterConnect = false
@@ -73,6 +90,22 @@ class PlayBillingManager(
 
             override fun onBillingServiceDisconnected() = Unit
         })
+    }
+
+    private fun queryCrownProductAndLaunch() {
+        val product = QueryProductDetailsParams.Product.newBuilder()
+            .setProductId(crownProductId!!)
+            .setProductType(BillingClient.ProductType.INAPP)
+            .build()
+        val params = QueryProductDetailsParams.newBuilder().setProductList(listOf(product)).build()
+        billingClient.queryProductDetailsAsync(params) { result, detailsResult ->
+            val details = detailsResult.productDetailsList.firstOrNull()
+            if (result.responseCode != BillingClient.BillingResponseCode.OK || details == null) {
+                onError("That Crown pack is not available in Google Play yet.")
+                return@queryProductDetailsAsync
+            }
+            launch(details, null)
+        }
     }
 
     private fun queryProductAndLaunch() {
@@ -92,11 +125,11 @@ class PlayBillingManager(
         }
     }
 
-    private fun launch(details: ProductDetails, offerToken: String) {
-        val item = BillingFlowParams.ProductDetailsParams.newBuilder()
+    private fun launch(details: ProductDetails, offerToken: String?) {
+        val itemBuilder = BillingFlowParams.ProductDetailsParams.newBuilder()
             .setProductDetails(details)
-            .setOfferToken(offerToken)
-            .build()
+        if (offerToken != null) itemBuilder.setOfferToken(offerToken)
+        val item = itemBuilder.build()
         val params = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(listOf(item))
             .setObfuscatedAccountId(accountToken!!)
@@ -132,7 +165,13 @@ class PlayBillingManager(
     private fun deliver(purchase: Purchase) {
         if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
             if (!deliveredPurchaseTokens.add(purchase.purchaseToken)) return
-            onPurchase(purchase.purchaseToken)
+            val productId = purchase.products.firstOrNull()
+            if (productId != null && productId == crownProductId) {
+                onCrownPurchase(productId, purchase.purchaseToken)
+                crownProductId = null
+            } else {
+                onPurchase(purchase.purchaseToken)
+            }
         } else if (purchase.purchaseState == Purchase.PurchaseState.PENDING) {
             onError("Your purchase is pending. Rewards unlock after Google confirms payment.")
         }

@@ -30,7 +30,7 @@ application ID `dev.streetsempire.app`.
 1. Create the app in Play Console with package `dev.streetsempire.app`.
 2. Create subscription product `supporter_monthly` and an active monthly base
    plan. The ID must match `GameConfig.SUPPORTER_PRODUCT_ID` and
-   `GOOGLE_PLAY_SUPPORTER_PRODUCT_ID` on the server.
+   `GOOGLE_PLAY_SUPPORTER_PRODUCT_ID` on the server. For The Drop Crown packs, configure one-time in-app products and set `GOOGLE_PLAY_CROWN_PACK_PRODUCT_IDS` to the comma-separated `packId=productId` mapping shown in `.env.example`. The same product IDs must be present in the Play Console application.
 3. Link Play Console to a Google Cloud project. Create a service account, grant
    it the minimum Play Console subscription/order permissions, and base64-encode
    its JSON key into `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64` on the server.

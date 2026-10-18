@@ -7,6 +7,7 @@ import { AppError } from '../utils/errors.js';
 import { CrownWalletService, lockCrownWallet } from './crown-wallet.service.js';
 import { DropSettingsService, requireDropEnabled, switchesFor } from './drop-settings.service.js';
 import { stripeApi, type StripeApi, type StripeEvent } from './stripe.client.js';
+import { queueDropOrderNotification } from './drop-notification.service.js';
 
 /**
  * The Drop, Slice D: real-money Crown packs through Stripe Checkout, as
@@ -93,6 +94,7 @@ async function creditSession(tx: Db, order: CrownPackOrder, session: Obj, at: Da
     where: { id: order.id },
     data: { status: 'credited', creditedAt: at, lastEventAt: at, ...(paymentIntent ? { providerPaymentId: paymentIntent } : {}) },
   });
+  await queueDropOrderNotification(tx, order.accountId, `crown-pack:${order.id}`, 'Crowns added to your wallet', `${order.crowns.toLocaleString('en-US')} Crowns are ready to spend in The Drop.`);
   return credit.applied ? 'granted' : 'duplicate';
 }
 
@@ -128,16 +130,15 @@ export const CrownPackService = {
   async packs(prisma: PrismaClient, platform: string | null = null): Promise<CrownPacksDto> {
     const settings = await DropSettingsService.get(prisma);
     const switches = switchesFor(settings);
-    // Google Play needs its own billing review before packs are sold in the app.
     const android = platform === 'android';
-    const available = switches.checkout && !android;
+    const available = switches.checkout && (!android ? env.drop.crownPacksConfigured : env.googlePlay.crownPacksConfigured);
     return {
       available,
       unavailableReason: available ? null
-        : android ? 'Crown packs are not sold in the Android app yet. You can still earn Crowns by playing.'
+         : android ? 'Google Play Crown packs are not configured yet. You can still earn Crowns by playing.'
           : !env.drop.crownPacksConfigured ? 'Crown packs are not on sale yet. You can earn Crowns by playing.'
             : 'Crown pack checkout is paused right now.',
-      packs: CROWN_PACKS.map((pack) => ({ id: pack.id, name: pack.name, priceCents: pack.priceCents, currency: pack.currency, crowns: pack.crowns, featured: pack.featured ?? false })),
+      packs: CROWN_PACKS.map((pack) => ({ id: pack.id, name: pack.name, priceCents: pack.priceCents, currency: pack.currency, crowns: pack.crowns, featured: pack.featured ?? false, platformProductId: android ? env.googlePlay.crownPackProductIds[pack.id] ?? null : null })),
     };
   },
 

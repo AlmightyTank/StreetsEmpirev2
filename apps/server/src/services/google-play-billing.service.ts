@@ -1,10 +1,13 @@
 import { createHmac } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
+import { crownPack } from '@streets/rulesets';
 import { GoogleAuth, OAuth2Client } from 'google-auth-library';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { queueDiscordRoleResync } from './discord-resync.service.js';
 import { SupporterService } from './supporter.service.js';
+import { queueDropOrderNotification } from './drop-notification.service.js';
+import { CrownWalletService } from './crown-wallet.service.js';
 
 const ANDROID_PUBLISHER_SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
 const ACTIVE_STATES = new Set(['SUBSCRIPTION_STATE_ACTIVE', 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD']);
@@ -27,6 +30,16 @@ interface PlaySubscription {
   }>;
 }
 
+interface PlayProductPurchase {
+  purchaseState?: number;
+  acknowledgementState?: number;
+  consumptionState?: number;
+  orderId?: string;
+  purchaseTimeMillis?: string;
+  regionCode?: string;
+  obfuscatedExternalAccountId?: string;
+}
+
 interface PubSubEnvelope {
   message?: { data?: string; messageId?: string };
   subscription?: string;
@@ -36,6 +49,7 @@ interface DeveloperNotification {
   packageName?: string;
   testNotification?: { version?: string };
   subscriptionNotification?: { purchaseToken?: string; notificationType?: number };
+  oneTimeProductNotification?: { purchaseToken?: string; sku?: string; notificationType?: number };
 }
 
 export type PlayNotificationOutcome = 'applied' | 'unmatched' | 'ignored' | 'test';
@@ -73,11 +87,29 @@ async function fetchSubscription(purchaseToken: string): Promise<PlaySubscriptio
   }
 }
 
+async function fetchProduct(productId: string, purchaseToken: string): Promise<PlayProductPurchase> {
+  const config = configRequired();
+  const url = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(config.packageName)}`
+    + `/purchases/products/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}`;
+  try {
+    return await playRequest<PlayProductPurchase>(url);
+  } catch {
+    throw new AppError(400, 'PLAY_PURCHASE_INVALID', 'Google Play could not verify that purchase.');
+  }
+}
+
 async function acknowledge(purchaseToken: string): Promise<void> {
   const config = configRequired();
   const url = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(config.packageName)}`
     + `/purchases/subscriptions/${encodeURIComponent(config.supporterProductId)}`
     + `/tokens/${encodeURIComponent(purchaseToken)}:acknowledge`;
+  await playRequest<unknown>(url, 'POST');
+}
+
+async function acknowledgeProduct(productId: string, purchaseToken: string): Promise<void> {
+  const config = configRequired();
+  const url = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(config.packageName)}`
+    + `/purchases/products/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}:acknowledge`;
   await playRequest<unknown>(url, 'POST');
 }
 
@@ -227,6 +259,43 @@ export const GooglePlayBillingService = {
     await applyPurchase(prisma, accountId, purchaseToken, purchase, now);
   },
 
+  /** Verify and credit one consumable Crown pack. Product, price and account are server-resolved. */
+  async verifyCrownPack(prisma: PrismaClient, accountId: string, productId: string, purchaseToken: string, now = new Date()): Promise<void> {
+    const config = configRequired();
+    if (!config.crownPacksConfigured) throw new AppError(503, 'PLAY_CROWN_PACKS_UNAVAILABLE', 'Google Play Crown packs are not configured yet.');
+    const packId = Object.entries(config.crownPackProductIds).find(([, id]) => id === productId)?.[0];
+    const pack = packId ? crownPack(packId) : null;
+    if (!pack) throw AppError.badRequest('PLAY_PRODUCT_INVALID', 'That Google Play product is not a StreetsEmpire Crown pack.');
+    const purchase = await fetchProduct(productId, purchaseToken);
+    if (purchase.obfuscatedExternalAccountId !== GooglePlayBillingService.obfuscatedAccountId(accountId)) {
+      throw new AppError(403, 'PLAY_ACCOUNT_MISMATCH', 'That Google Play purchase belongs to another StreetsEmpire account.');
+    }
+    if (purchase.purchaseState !== 0) throw AppError.conflict('PLAY_PURCHASE_PENDING', 'Google Play has not confirmed that purchase yet.');
+    const purchasedAt = purchase.purchaseTimeMillis && /^\d+$/.test(purchase.purchaseTimeMillis)
+      ? new Date(Number(purchase.purchaseTimeMillis)) : now;
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.googlePlayCrownPackOrder.findUnique({ where: { purchaseToken } });
+      if (existing?.accountId && existing.accountId !== accountId) throw new AppError(403, 'PLAY_PURCHASE_CLAIMED', 'That Google Play purchase is already linked to another account.');
+      const order = await tx.googlePlayCrownPackOrder.upsert({
+        where: { purchaseToken },
+        create: { purchaseToken, accountId, productId, packId: pack.id, crowns: pack.crowns, status: 'pending', orderId: purchase.orderId ?? null, currency: pack.currency, amountCents: pack.priceCents, purchasedAt, lastVerifiedAt: now },
+        update: { accountId, productId, lastVerifiedAt: now, orderId: purchase.orderId ?? null, purchasedAt },
+      });
+      if (order.status === 'credited') return;
+      await CrownWalletService.apply(tx, {
+        accountId, kind: 'PAID_GRANT', delta: pack.crowns, source: `play-pack:${pack.id}`,
+        externalRef: `play-pack:${purchaseToken}`, reason: `${pack.crowns} Crowns`,
+        metadata: { purchaseToken, orderId: order.orderId, provider: 'google_play' },
+      });
+      await tx.googlePlayCrownPackOrder.update({ where: { purchaseToken }, data: { status: 'credited', creditedAt: now, lastVerifiedAt: now } });
+      await queueDropOrderNotification(tx, accountId, `play-crown-pack:${purchaseToken}`, 'Crowns added to your wallet', `${pack.crowns.toLocaleString('en-US')} Crowns are ready to spend in The Drop.`);
+    });
+    if (purchase.acknowledgementState === 0) {
+      try { await acknowledgeProduct(productId, purchaseToken); }
+      catch { throw new AppError(502, 'PLAY_ACKNOWLEDGEMENT_FAILED', 'The purchase was verified, but Google Play acknowledgement must be retried.'); }
+    }
+  },
+
   async verifyRtdnAuthorization(authorization: string | undefined): Promise<void> {
     const config = env.googlePlay.rtdn;
     if (!config.enabled) throw AppError.notFound('NOT_FOUND', 'Not found.');
@@ -246,6 +315,13 @@ export const GooglePlayBillingService = {
     if (notification.packageName !== configRequired().packageName) return { outcome: 'ignored', messageId };
     if (notification.testNotification) return { outcome: 'test', messageId };
     const purchaseToken = notification.subscriptionNotification?.purchaseToken;
+    const productNotification = notification.oneTimeProductNotification;
+    if (productNotification?.purchaseToken && productNotification.sku) {
+      const direct = await prisma.googlePlayCrownPackOrder.findUnique({ where: { purchaseToken: productNotification.purchaseToken }, select: { accountId: true } });
+      if (!direct?.accountId) return { outcome: 'unmatched', messageId };
+      await GooglePlayBillingService.verifyCrownPack(prisma, direct.accountId, productNotification.sku, productNotification.purchaseToken, now);
+      return { outcome: 'applied', messageId };
+    }
     if (!purchaseToken) return { outcome: 'ignored', messageId };
 
     const purchase = await fetchSubscription(purchaseToken);

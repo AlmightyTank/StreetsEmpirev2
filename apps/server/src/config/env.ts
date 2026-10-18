@@ -102,6 +102,8 @@ const envSchema = z.object({
   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: z.string().default(''),
   GOOGLE_PLAY_PACKAGE_NAME: z.string().default('dev.streetsempire.app'),
   GOOGLE_PLAY_SUPPORTER_PRODUCT_ID: z.string().default('supporter_monthly'),
+  /** Comma-separated Crown pack mapping, for example starter=crowns_starter,street=crowns_street. */
+  GOOGLE_PLAY_CROWN_PACK_PRODUCT_IDS: z.string().default(''),
   /** Stable secret used to bind a Play purchase to one game account. Never rotate it. */
   GOOGLE_PLAY_ACCOUNT_HASH_SECRET: z.union([z.literal(''), z.string().min(32)]).default(''),
   /** Exact Pub/Sub push audience and OIDC service-account email. Both enable Play RTDN. */
@@ -182,6 +184,13 @@ const betaTesterForumGroups = parsed.data.BETA_TESTER_FORUM_GROUPS.split(',')
   .map((name) => name.trim())
   .filter(Boolean)
   .slice(0, 10);
+
+const googlePlayCrownPackProductIds = Object.fromEntries(
+  parsed.data.GOOGLE_PLAY_CROWN_PACK_PRODUCT_IDS.split(',')
+    .map((entry) => entry.trim().split('=').map((part) => part.trim()))
+    .filter((parts): parts is [string, string] => parts.length === 2 && Boolean(parts[0]) && Boolean(parts[1]))
+    .map(([packId, productId]) => [packId, productId]),
+);
 
 const forumUrl = new URL(parsed.data.FORUM_ORIGIN);
 if (forumUrl.username || forumUrl.password || forumUrl.pathname !== '/' || forumUrl.search || forumUrl.hash ||
@@ -333,6 +342,7 @@ export const env = {
     serviceAccountJsonBase64: parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64,
     packageName: parsed.data.GOOGLE_PLAY_PACKAGE_NAME,
     supporterProductId: parsed.data.GOOGLE_PLAY_SUPPORTER_PRODUCT_ID,
+    crownPackProductIds: googlePlayCrownPackProductIds,
     accountHashSecret: parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET,
     rtdn: {
       audience: parsed.data.GOOGLE_PLAY_RTDN_AUDIENCE,
@@ -346,6 +356,10 @@ export const env = {
     },
     enabled: parsed.data.NODE_ENV !== 'test' && Boolean(
       parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 && parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET
+    ),
+    crownPacksConfigured: parsed.data.NODE_ENV !== 'test' && Boolean(
+      parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 && parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET
+      && ['starter', 'street', 'boss', 'kingpin', 'empire'].every((id) => Boolean(googlePlayCrownPackProductIds[id])),
     ),
   },
   patchNotes: {

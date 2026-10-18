@@ -5,7 +5,7 @@
 **Reference branch:** `AlmightyTank/StreetsEmpirev2` → `beta`  
 **Prepared:** October 18, 2026  
 **Suggested document path:** `docs/ROADMAP-THE-DROP.md`  
-**Release version:** To be assigned; do not silently add to the existing 3.0.0 scope.
+**Release version:** 2.2.18 (approved product release target; do not silently add to the existing 3.0.0 scope).
 
 ---
 
@@ -40,9 +40,9 @@ Players can **earn or buy Crowns** and spend them on **entirely new, Drop-origin
 
 ## 2. Pricing & economic design
 
-### 2.1 Proposed Crown packs (USD, draft)
+### 2.1 Approved Crown packs (USD)
 
-**Reference value:** approximately **100 Crowns per US dollar** for the smallest pack, with progressively higher value on larger packs. The numbers below are proposed product pricing; they are **not verified provider prices and are not activated until approved**.
+**Reference value:** approximately **100 Crowns per US dollar** for the smallest pack, with progressively higher value on larger packs. The numbers below are the approved product prices for release 2.2.18. Provider regional pricing, tax handling, and platform-specific product configuration remain deployment tasks.
 
 | Pack | Price (USD) | Crowns credited | Approx. Crowns / USD | Positioning |
 |:---|---:|---:|---:|:---|

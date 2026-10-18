@@ -8,6 +8,8 @@ import { CrownWalletService } from '../services/crown-wallet.service.js';
 import { DropCatalogService } from '../services/drop-catalog.service.js';
 import { DropPurchaseService } from '../services/drop-purchase.service.js';
 import { DropSettingsService, requireDropEnabled, switchesFor } from '../services/drop-settings.service.js';
+import { GooglePlayBillingService } from '../services/google-play-billing.service.js';
+import { queueDropOrderNotification } from '../services/drop-notification.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
 import { StreetPassSkipService } from '../services/street-pass-skip.service.js';
@@ -28,6 +30,7 @@ const skipSchema = z.object({
   actionId: z.string().trim().min(8).max(80),
 }).strict();
 const platformQuery = z.object({ platform: z.string().trim().max(20).optional() }).passthrough();
+const playPurchaseSchema = z.object({ productId: z.string().trim().min(1).max(100), purchaseToken: z.string().trim().min(1).max(2000) }).strict();
 
 /**
  * The Drop (docs/THE-DROP.md). Browsing works signed out with no private
@@ -74,7 +77,11 @@ const dropRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/purchase', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(purchaseSchema, request.body ?? {});
-    return DropPurchaseService.purchase(fastify.prisma, request.auth!.account.id, body);
+    const result = await DropPurchaseService.purchase(fastify.prisma, request.auth!.account.id, body);
+    if (!result.replayed) {
+      await queueDropOrderNotification(fastify.prisma, request.auth!.account.id, `drop-order:${result.order.id}`, 'The Drop purchase is complete', `${result.order.label} is now in your collection.`);
+    }
+    return result;
   });
 
   fastify.get('/crowns', async (request) => {
@@ -84,10 +91,14 @@ const dropRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/crowns/checkout', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(checkoutSchema, request.body ?? {});
-    if (body.platform === 'android') {
-      throw AppError.conflict('CROWN_PACKS_ANDROID', 'Crown packs are not sold in the Android app yet.');
-    }
+    if (body.platform === 'android') throw AppError.conflict('CROWN_PACKS_ANDROID', 'Use Google Play billing in the Android app.');
     return CrownPackService.startCheckout(fastify.prisma, request.auth!.account, body.packId);
+  });
+
+  fastify.post('/crowns/play-purchase', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(playPurchaseSchema, request.body ?? {});
+    await GooglePlayBillingService.verifyCrownPack(fastify.prisma, request.auth!.account.id, body.productId, body.purchaseToken);
+    return { credited: true };
   });
 
   fastify.get('/street-pass-skip', { preHandler: fastify.requireAuth }, async (request) => {
