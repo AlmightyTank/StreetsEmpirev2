@@ -212,7 +212,7 @@ function StatusBar() {
     : '';
 
   return (
-    <div className="se-statusbar">
+    <div className={`se-statusbar${heat ? ' se-statusbar--has-heat' : ''}`}>
       <Link className="se-statusbar__item" to="/game" title="Cash: open the dashboard">
         <HudIcon name="cash" />
         <span className="se-statusbar__k">Cash</span>
@@ -513,6 +513,27 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
     };
   }, [hasGameTabs]);
 
+  // A mobile HUD can grow with width, accessibility text settings and earned
+  // avatar frames. Keep native anchor/scrollIntoView offsets in sync with the
+  // measured sticky header instead of a fixed value that hides target headings.
+  useEffect(() => {
+    if (!hasGameTabs) return;
+    const app = document.querySelector<HTMLElement>('.se-app--tabbar');
+    const header = app?.querySelector<HTMLElement>('.se-topbar');
+    if (!app || !header) return;
+
+    const syncOffset = () => {
+      app.style.setProperty('--se-mobile-header-offset', `${Math.ceil(header.getBoundingClientRect().height) + 12}px`);
+    };
+    syncOffset();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(syncOffset) : null;
+    observer?.observe(header);
+    return () => {
+      observer?.disconnect();
+      app.style.removeProperty('--se-mobile-header-offset');
+    };
+  }, [hasGameTabs]);
+
   async function handleLogout() {
     await logout();
     navigate('/');
@@ -565,8 +586,8 @@ export function Shell({ children, narrow, tabbar, sidebar }: {
         onClick={(event) => {
           event.preventDefault();
           const main = document.getElementById('main-content');
-          main?.focus();
-          main?.scrollIntoView();
+          main?.focus({ preventScroll: true });
+          main?.scrollIntoView({ block: 'start' });
         }}
       >
         Skip to content
