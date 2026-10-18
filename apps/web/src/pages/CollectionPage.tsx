@@ -134,6 +134,7 @@ function ThemeShowcase({ themes, ownedThemes }: { themes: CollectionEntry[]; own
       </div>
       <article
         className="se-collection-showcase__stage"
+        data-no-tab-swipe
         aria-label={`${active.name} preview`}
         onPointerDown={(event) => {
           if (event.pointerType === 'mouse' && event.button !== 0) return;
