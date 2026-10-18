@@ -401,8 +401,14 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
   }
 
   function handleDragStart(event: TouchEvent<HTMLDivElement>) {
+    if (event.touches.length !== 1) {
+      const previous = drag.current;
+      drag.current = null;
+      if (previous?.moved) settleDrag(false);
+      return;
+    }
     drag.current = null;
-    if (closing.current || settleTimer.current !== null || event.touches.length !== 1) return;
+    if (closing.current || settleTimer.current !== null) return;
     const target = event.target;
     if (target instanceof Element
         && target.closest('a, button, input, select, textarea, [role="button"]')
@@ -427,7 +433,11 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
     if (!current) return;
     if (event.touches.length !== 1) { drag.current = null; if (current.moved) settleDrag(false); return; }
     const touch = event.touches[0];
-    if (!touch || touch.identifier !== current.identifier) return;
+    if (!touch || touch.identifier !== current.identifier) {
+      drag.current = null;
+      if (current.moved) settleDrag(false);
+      return;
+    }
     const direction = fromTop ? -1 : 1;
     const travel = direction * (touch.clientY - current.y);
     const horizontal = Math.abs(touch.clientX - current.x);
@@ -459,10 +469,17 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
 
   function handleDragEnd(event: TouchEvent<HTMLDivElement>) {
     const current = drag.current;
-    drag.current = null;
-    if (!current || event.touches.length !== 0) return;
+    if (!current) return;
     const touch = Array.from(event.changedTouches).find((item) => item.identifier === current.identifier);
-    if (!touch || !current.moved) return;
+    // A second finger or an unexpected touch order must never strand the
+    // panel halfway offscreen with an already-faded backdrop.
+    if (!touch && event.touches.length === 1 && event.touches[0]?.identifier === current.identifier) return;
+    drag.current = null;
+    if (event.touches.length !== 0 || !touch) {
+      if (current.moved) settleDrag(false);
+      return;
+    }
+    if (!current.moved) return;
     // Ignore a synthetic click only when the drag actually began on the grip.
     if (current.startedOnGrip) suppressGripClickUntil.current = Date.now() + 500;
     const direction = fromTop ? -1 : 1;
