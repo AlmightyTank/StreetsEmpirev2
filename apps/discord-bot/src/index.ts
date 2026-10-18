@@ -206,7 +206,7 @@ async function postNews(channel: GuildTextBasedChannel, gameUpdatesRoleId: strin
         content: content || null,
         embeds: 'embeds' in payload ? payload.embeds : [],
         allowedMentions: { parse: [] },
-        flags: 'content' in payload ? MessageFlags.SuppressEmbeds : 0,
+        flags: 'content' in payload ? MessageFlags.SuppressEmbeds : [],
       });
       console.log(`Updated original Discord news "${post.title}" in #${channel.name}.`);
     } catch (error) {
