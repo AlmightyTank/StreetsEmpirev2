@@ -129,7 +129,7 @@ export function AdminSportsbookPanel() {
       {!data ? <p className="se-muted">Reading the sportsbook feed…</p> : (
         <>
           <div className="se-stats">
-            <Stat label="Feed" value={FEED_LABEL[data.feed.status]} sub={`last success ${ago(data.feed.lastPolledAt)} · every ${data.pollMinutes} min`} />
+            <Stat label="Feed" value={FEED_LABEL[data.feed.status]} sub={`last success ${ago(data.feed.lastPolledAt)} · every ${data.pollMinutes} min · recovery checks every 15 min`} />
             <Stat
               label="Last attempt"
               value={ago(data.feed.lastAttemptAt)}
