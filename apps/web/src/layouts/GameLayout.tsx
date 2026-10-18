@@ -19,7 +19,7 @@ import { JokeDayBanner } from '../components/EasterEggs.js';
 import { CaseStoryAlerts } from '../components/CaseStoryAlerts.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { formatDuration } from '../utils/time.js';
-import { lockPageScroll } from '../utils/pageScrollLock.js';
+import { isPageScrollLocked, lockPageScroll } from '../utils/pageScrollLock.js';
 import { anchorScrollTop, isAnchorReady, routeAnchorId, shouldPreserveRouteScroll } from '../utils/routeScroll.js';
 import {
   isCurrent,
@@ -434,7 +434,7 @@ function useRouteScroll(pathname: string, search: string, hash: string, location
     };
     const seek = () => {
       frame = 0;
-      if (finished) return;
+      if (finished || isPageScrollLocked()) return;
       const target = document.getElementById(anchorId);
       if (!target || !isAnchorReady(target) || !target.getClientRects().length) return;
       const header = document.querySelector<HTMLElement>('.se-app--tabbar .se-topbar');
@@ -453,10 +453,13 @@ function useRouteScroll(pathname: string, search: string, hash: string, location
     // Data-driven panels (Quests, News, rankings, etc.) can arrive long after
     // two animation frames. Watch their actual DOM rather than guessing timing.
     observer = new MutationObserver(schedule);
-    observer.observe(document.getElementById('main-content') ?? document.body, {
+    observer.observe(document.body, {
       childList: true, subtree: true, attributes: true,
       attributeFilter: ['open', 'hidden', 'class', 'style'],
     });
+    // Closing a mobile More sheet or dialog restores its saved scroll position.
+    // Retry once the body/root scroll lock has been removed.
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
     timeout = window.setTimeout(stop, 15_000);
     schedule();
     return stop;
