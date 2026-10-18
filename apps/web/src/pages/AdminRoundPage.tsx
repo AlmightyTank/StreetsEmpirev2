@@ -18,6 +18,9 @@ import { adminWhen, isoToLocalInput, localInputToIso } from '../utils/admin.js';
 
 const emptyForm = { name: '', startsAt: '', endsAt: '', registrationOpensAt: '', reason: '' };
 
+/** Admins edit the title only; the allocated Game number stays read-only. */
+const roundLabel = (name: string) => name.replace(/^Game\s*#\s*\d+\s*[-–—]\s*/i, '').trim();
+
 export function AdminRoundPage() {
   const { roundId = '' } = useParams();
   const [health, setHealth] = useState<AdminRoundHealthDto | null>(null);
@@ -32,7 +35,7 @@ export function AdminRoundPage() {
       const result = await adminApi.roundHealth(roundId);
       setHealth(result);
       setForm({
-        name: result.round.name,
+        name: roundLabel(result.round.name),
         startsAt: isoToLocalInput(result.round.startsAt),
         endsAt: isoToLocalInput(result.round.endsAt),
         registrationOpensAt: isoToLocalInput(result.round.registrationOpensAt),
@@ -52,7 +55,7 @@ export function AdminRoundPage() {
     if (!health) return;
     const round = health.round;
     const input: AdminUpdateRoundInput = { reason: form.reason.trim() };
-    if (form.name.trim() !== round.name) input.name = form.name.trim();
+    if (form.name.trim() !== roundLabel(round.name)) input.name = form.name.trim();
     if (form.startsAt !== isoToLocalInput(round.startsAt)) {
       const startsAt = localInputToIso(form.startsAt);
       if (startsAt) input.startsAt = startsAt;
@@ -191,7 +194,7 @@ export function AdminRoundPage() {
             <p className="se-hint">This round has finished, so its details are frozen.</p>
           ) : (
             <form onSubmit={save} noValidate>
-              <Field id="admin-round-edit-name" label="Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} maxLength={80} error={fields.name} />
+              <Field id="admin-round-edit-name" label="Round name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} maxLength={80} error={fields.name} hint="Edit the name only; the Game number is preserved automatically." />
               <Field
                 id="admin-round-edit-starts"
                 label="Starts"
