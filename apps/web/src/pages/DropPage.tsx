@@ -691,6 +691,15 @@ function CrownsView() {
     return () => window.removeEventListener('streets:play-crown-purchase', purchased);
   }, [android]);
 
+  // Once per visit, ask the app for packs that were paid but never finished
+  // (the app closed before the server credited them), so they land and get consumed.
+  const crownRestoreRequested = useRef(false);
+  useEffect(() => {
+    if (!android || !signedIn || crownRestoreRequested.current) return;
+    crownRestoreRequested.current = true;
+    window.location.assign('streetsempire://billing/restore-crowns');
+  }, [android, signedIn]);
+
   async function checkout(packId: string, label: string) {
     const ok = await confirmAction({
       title: `Buy the ${label} pack?`,

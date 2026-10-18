@@ -149,7 +149,7 @@ export const CrownPackService = {
          : android ? 'Google Play Crown packs are not configured yet. You can still earn Crowns by playing.'
           : !env.drop.crownPacksConfigured ? 'Crown packs are not on sale yet. You can earn Crowns by playing.'
             : 'Crown pack checkout is paused right now.',
-      packs: CROWN_PACKS.map((pack) => ({ id: pack.id, name: pack.name, priceCents: pack.priceCents, currency: pack.currency, crowns: pack.crowns, featured: pack.featured ?? false, platformProductId: android ? env.googlePlay.crownPackProductIds[pack.id] ?? null : null })),
+      packs: CROWN_PACKS.map((pack) => ({ id: pack.id, name: pack.name, priceCents: pack.priceCents, currency: pack.currency, crowns: pack.crowns, featured: pack.featured ?? false, platformProductId: android && available ? env.googlePlay.crownPackProductIds[pack.id] ?? null : null })),
     };
   },
 

@@ -96,7 +96,7 @@ const envSchema = z.object({
   STRIPE_SUPPORTER_PRICE_ID: z.union([z.literal(''), z.string().startsWith('price_', 'STRIPE_SUPPORTER_PRICE_ID must start with price_.')]).default(''),
   /** The Drop (docs/THE-DROP.md). Unset: on everywhere except production. */
   DROP_ENABLED: z.enum(['true', 'false']).optional(),
-  /** Real-money Crown packs through Stripe Checkout. Off unless set to true. */
+  /** Real-money Crown packs, through Stripe Checkout and Google Play alike. Off unless set to true. */
   DROP_CROWN_PACKS_ENABLED: z.enum(['true', 'false']).default('false'),
   /** Base64-encoded Google service-account JSON with Android Publisher access. */
   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: z.string().default(''),
@@ -240,7 +240,9 @@ export const env = {
   drop: {
     /** Off in production until DROP_ENABLED=true: no storefront, wallet or purchase routes answer. */
     enabled: parsed.data.DROP_ENABLED ? parsed.data.DROP_ENABLED === 'true' : appEnvironment !== 'production',
-    /** Crown packs also need Stripe keys, and are always off in tests. */
+    /** The one real-money switch for Crown packs, on Stripe and Google Play alike. Always off in tests. */
+    crownPacksEnabled: parsed.data.NODE_ENV !== 'test' && parsed.data.DROP_CROWN_PACKS_ENABLED === 'true',
+    /** Stripe Crown packs: the switch above plus Stripe keys. */
     crownPacksConfigured: parsed.data.NODE_ENV !== 'test'
       && parsed.data.DROP_CROWN_PACKS_ENABLED === 'true'
       && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET),
@@ -357,8 +359,14 @@ export const env = {
     enabled: parsed.data.NODE_ENV !== 'test' && Boolean(
       parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 && parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET
     ),
-    crownPacksConfigured: parsed.data.NODE_ENV !== 'test' && Boolean(
+    /**
+     * Google Play Crown packs: the same DROP_CROWN_PACKS_ENABLED switch as Stripe,
+     * Play credentials, every pack's product ID, and authenticated RTDN, since
+     * refunds only reach the server as voided-purchase notifications.
+     */
+    crownPacksConfigured: parsed.data.NODE_ENV !== 'test' && parsed.data.DROP_CROWN_PACKS_ENABLED === 'true' && Boolean(
       parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 && parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET
+      && parsed.data.GOOGLE_PLAY_RTDN_AUDIENCE && parsed.data.GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL
       && ['starter', 'street', 'boss', 'kingpin', 'empire'].every((id) => Boolean(googlePlayCrownPackProductIds[id])),
     ),
   },

@@ -201,6 +201,7 @@ class MainActivity : AppCompatActivity() {
             "supporter" -> billing.startPurchase(uri.getQueryParameter("account") ?: "")
             "crown-pack" -> billing.startCrownPurchase(uri.getQueryParameter("product") ?: "", uri.getQueryParameter("account") ?: "")
             "restore" -> billing.restorePurchases()
+            "restore-crowns" -> billing.restoreCrownPurchases()
             "manage" -> openExternal(
                 "https://play.google.com/store/account/subscriptions" +
                     "?sku=${GameConfig.SUPPORTER_PRODUCT_ID}&package=$packageName"

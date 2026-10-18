@@ -30,6 +30,7 @@ class PlayBillingManager(
     private var accountToken: String? = null
     private var startAfterConnect = false
     private var restoreAfterConnect = false
+    private var restoreCrownsAfterConnect = false
     private var crownProductId: String? = null
     private val deliveredPurchaseTokens = mutableSetOf<String>()
 
@@ -54,6 +55,16 @@ class PlayBillingManager(
             return
         }
         queryOwnedSubscriptions()
+    }
+
+    /** Re-sends Crown packs that were paid but never consumed, so the server can credit and consume them. */
+    fun restoreCrownPurchases() {
+        if (!billingClient.isReady) {
+            restoreCrownsAfterConnect = true
+            connect()
+            return
+        }
+        queryOwnedCrownPacks()
     }
 
     fun startCrownPurchase(productId: String, obfuscatedAccountId: String) {
@@ -81,6 +92,10 @@ class PlayBillingManager(
                 if (startAfterConnect) {
                     startAfterConnect = false
                     if (crownProductId != null) queryCrownProductAndLaunch() else queryProductAndLaunch()
+                }
+                if (restoreCrownsAfterConnect) {
+                    restoreCrownsAfterConnect = false
+                    queryOwnedCrownPacks()
                 }
                 if (restoreAfterConnect) {
                     restoreAfterConnect = false
@@ -154,6 +169,20 @@ class PlayBillingManager(
         }
     }
 
+    private fun queryOwnedCrownPacks() {
+        val params = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.INAPP)
+            .build()
+        billingClient.queryPurchasesAsync(params) { result, purchases ->
+            if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                onError("Could not check Google Play for unfinished Crown packs (${result.debugMessage}).")
+                return@queryPurchasesAsync
+            }
+            // Owned one-time products are the ones not consumed yet.
+            purchases.forEach(::deliver)
+        }
+    }
+
     override fun onPurchasesUpdated(result: BillingResult, purchases: List<Purchase>?) {
         when (result.responseCode) {
             BillingClient.BillingResponseCode.OK -> purchases.orEmpty().forEach(::deliver)
@@ -166,9 +195,10 @@ class PlayBillingManager(
         if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
             if (!deliveredPurchaseTokens.add(purchase.purchaseToken)) return
             val productId = purchase.products.firstOrNull()
-            if (productId != null && productId == crownProductId) {
+            // Anything but the supporter subscription is a Crown pack, including one restored after a restart.
+            if (productId != null && productId != GameConfig.SUPPORTER_PRODUCT_ID) {
                 onCrownPurchase(productId, purchase.purchaseToken)
-                crownProductId = null
+                if (productId == crownProductId) crownProductId = null
             } else {
                 onPurchase(purchase.purchaseToken)
             }

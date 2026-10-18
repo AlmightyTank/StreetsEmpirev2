@@ -48,7 +48,7 @@ export function switchesFor(settings: DropSettingsValues): DropSwitchesDto {
     storefront: on && settings.storefrontEnabled,
     purchases: on && settings.storefrontEnabled && settings.purchasesEnabled,
     earning: on && settings.earningEnabled,
-    checkout: on && settings.checkoutEnabled && env.drop.crownPacksConfigured,
+    checkout: on && settings.checkoutEnabled && (env.drop.crownPacksConfigured || env.googlePlay.crownPacksConfigured),
     streetPassSkips: on && settings.purchasesEnabled && settings.streetPassSkipsEnabled,
   };
 }

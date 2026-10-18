@@ -157,7 +157,7 @@ export const DropAdminService = {
     const heldWallets = await prisma.crownWallet.count({ where: { heldAt: { not: null } } });
     return {
       envEnabled: env.drop.enabled,
-      checkoutConfigured: env.drop.crownPacksConfigured,
+      checkoutConfigured: env.drop.crownPacksConfigured || env.googlePlay.crownPacksConfigured,
       settings: settingsDto(settings),
       totals: {
         wallets: wallets._count._all,
