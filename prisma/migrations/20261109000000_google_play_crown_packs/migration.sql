@@ -8,12 +8,12 @@ CREATE TABLE "GooglePlayCrownPackOrder" (
     "orderId" TEXT,
     "currency" TEXT,
     "amountCents" INTEGER,
-    "purchasedAt" DATETIME,
-    "creditedAt" DATETIME,
-    "refundedAt" DATETIME,
-    "lastVerifiedAt" DATETIME NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "purchasedAt" TIMESTAMP(3),
+    "creditedAt" TIMESTAMP(3),
+    "refundedAt" TIMESTAMP(3),
+    "lastVerifiedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "GooglePlayCrownPackOrder_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "Account" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 CREATE INDEX "GooglePlayCrownPackOrder_accountId_createdAt_idx" ON "GooglePlayCrownPackOrder"("accountId", "createdAt");

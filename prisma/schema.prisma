@@ -245,6 +245,9 @@ model AccountProfile {
   /// Supporter release-notes credits are opt-in and never list payments.
   releaseNotesCreditOptIn Boolean @default(false)
   activeSiteThemeKey      String?
+  /// Account-level hideout presentation; cosmetic only and independent of seasonal room state.
+  activeHideoutDecorationKey String?
+  activeStreetSignKey     String?
   /// Player-selected visual skin per inventory item key. Cosmetic only.
   itemCosmetics           Json    @default("{}")
   /// THUG / HOE visual styles. Crew is aggregate inventory, so the style applies to the whole type.

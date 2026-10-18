@@ -327,6 +327,18 @@ export interface AccountProfileSettingsResponseDto {
   };
 }
 
+export interface HideoutCosmeticsDto {
+  activeDecorationKey: string | null;
+  activeStreetSignKey: string | null;
+  decorations: CosmeticOptionDto[];
+  streetSigns: CosmeticOptionDto[];
+}
+
+export interface UpdateHideoutCosmeticsInput {
+  decorationKey: string | null;
+  streetSignKey: string | null;
+}
+
 /**
  * Produce Product batches. 0.4.0-D replaces the old placeholder list with catalog keys:
  * what a round can actually cook comes from its ruleset. The old names stay accepted so
