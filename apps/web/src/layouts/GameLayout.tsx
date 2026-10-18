@@ -391,11 +391,11 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
       panel.classList.remove('se-sheet__panel--dragging');
       panel.style.transform = '';
       panel.style.transition = '';
-      panel.style.animation = '';
+      // Keep animations disabled after a drag; otherwise clearing the override
+      // would replay the sheet's entrance keyframes on every snap-back.
       if (shade) {
         shade.style.opacity = '';
         shade.style.transition = '';
-        shade.style.animation = '';
       }
     }, duration + 20);
   }
