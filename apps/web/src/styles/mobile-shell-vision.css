@@ -217,8 +217,9 @@
     pointer-events: none;
   }
 
-  .se-app--tabbar .se-topbar .se-statusbar__icon--legacy { display: none; }
-  .se-app--tabbar .se-topbar .se-statusbar__icon--illustrated { display: block; }
+  /* Explicit SVG selector outranks the generic mobile icon display rule. */
+  .se-app--tabbar .se-topbar svg.se-statusbar__icon--legacy { display: none; }
+  .se-app--tabbar .se-topbar svg.se-statusbar__icon--illustrated { display: block; }
 
   .se-app--tabbar .se-topbar .se-statusbar__icon {
     grid-column: 1;
