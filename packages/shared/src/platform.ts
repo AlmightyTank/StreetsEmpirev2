@@ -3,10 +3,11 @@
  *
  * APP_VERSION is the application release, independent of any round's pinned
  * ruleset version. It follows Semantic Versioning: MAJOR.MINOR.PATCH
- * (for example 2.1.0). Deploys bump it: patch for an ordinary change, minor
- * when a feature lands, and major (2.x.x becomes 3.0.0) when that major line
- * is finished. See scripts/ops/bump-version.mjs. Deploy patch notes use this
- * version in their title.
+ * (for example 2.1.0). Deploys bump the patch number on their own. A pull
+ * request checks minor or major under its Version section to raise those
+ * instead: minor resets patch, and major (2.x.x becomes 3.0.0) resets both.
+ * See scripts/ops/bump-version.mjs. Deploy patch notes use this version in
+ * their title.
  */
 export const APP_VERSION = '2.1.0';
 

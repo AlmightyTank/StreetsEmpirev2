@@ -77,9 +77,7 @@ export function writeAppVersion(source, version) {
 
 const VERSION_SECTION = /^#{2,3}\s*version\s*:?\s*$/i;
 const RELEASE_COMMIT = /^chore:\s*release\b/i;
-const FEATURE_TITLE = /^feat(\([^)]*\))?!?:/i;
-const FINISH_LINE = /finish(?:es|ed|ing)?(?:\s+with)?\s+\d+\.x(?:\.\d+|\.x)?/i;
-const END_LINE = /end of (?:the )?\d+\.x/i;
+const CHECKED_BOX = /^\[(x|X)\]\s+(major|minor|none)\b/i;
 
 function visibleText(value) {
   return String(value ?? '').replace(/<!--[\s\S]*?-->/g, '');
@@ -99,52 +97,38 @@ function sectionLines(body, heading) {
   return kept;
 }
 
-function labelNames(pull) {
-  return (pull?.labels ?? []).map((label) => String(label?.name ?? label).trim().toLowerCase()).filter(Boolean);
+/** A checked Version box, or a line that is only major, minor, or none. */
+function versionChoice(line) {
+  const checked = line.match(CHECKED_BOX);
+  if (checked) return checked[2].toLowerCase();
+  const word = (line.split(/\s+/)[0] ?? '').toLowerCase();
+  return /^(?:major|minor|none|skip)$/.test(word) ? word : null;
 }
 
 /**
- * The ## Version section: major, minor, patch, or skip. Major wins when several
- * words are present. Null when the pull does not say.
+ * What the pull request's ## Version section asks for. Only a checked box or
+ * the word itself counts, so an empty template does not raise minor or major.
+ * Major wins when the pull request checks both. Null when it does not say.
  */
 export function declaredLevel(body) {
   const lines = sectionLines(body, VERSION_SECTION);
   if (!lines) return null;
-  const words = lines.map((line) => (line.split(/\s+/)[0] ?? '').toLowerCase());
-  if (words.some((word) => /^(?:major|breaking)\b/.test(word))) return 'major';
-  if (words.some((word) => /^(?:minor|feature)\b/.test(word))) return 'minor';
-  if (words.some((word) => /^(?:patch|fix)\b/.test(word))) return 'patch';
-  if (words.some((word) => /^(?:none|skip|n\/?a)\b/.test(word))) return 'skip';
+  const choices = lines.map(versionChoice).filter(Boolean);
+  if (choices.includes('major')) return 'major';
+  if (choices.includes('minor')) return 'minor';
+  if (choices.includes('none') || choices.includes('skip')) return 'skip';
   return null;
-}
-
-function signalsMajor(pull) {
-  const title = visibleText(pull?.title);
-  const body = visibleText(pull?.body);
-  const labels = labelNames(pull);
-  if (labels.some((label) => label === 'major' || label === 'breaking')) return true;
-  if (/\bBREAKING CHANGE\b/.test(title) || /\bBREAKING CHANGE\b/.test(body)) return true;
-  return FINISH_LINE.test(title) || FINISH_LINE.test(body) || END_LINE.test(title) || END_LINE.test(body);
-}
-
-function signalsMinor(pull) {
-  const labels = labelNames(pull);
-  if (labels.some((label) => label === 'feature' || label === 'minor' || label === 'enhancement')) return true;
-  return FEATURE_TITLE.test(String(pull?.title ?? '').trim());
 }
 
 /**
  * How one merged pull request moves the release.
- * Patch is the default. A feature (`feat:` title, feature label, or "minor")
- * raises MINOR. Finishing the current MAJOR.x.x line, a breaking change, or
- * "major" raises MAJOR. "none" leaves this pull out.
+ * The pull request raises minor or major by checking that box. Anything else
+ * is a patch, and "none" leaves this pull out.
  */
 export function classifyRelease(pull) {
   if (RELEASE_COMMIT.test(String(pull?.title ?? '').trim())) return 'skip';
-  if (signalsMajor(pull)) return 'major';
   const declared = declaredLevel(pull?.body);
-  if (declared === 'skip') return 'skip';
-  if (declared === 'minor' || signalsMinor(pull)) return 'minor';
+  if (declared === 'major' || declared === 'minor' || declared === 'skip') return declared;
   return 'patch';
 }
 
