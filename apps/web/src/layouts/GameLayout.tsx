@@ -341,7 +341,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
   const slotOf = new Map(slots.map((page, index) => [page.key, index]));
 
   useEffect(() => {
-    closeButton.current?.focus();
+    closeButton.current?.focus({ preventScroll: true });
     const unlock = lockPageScroll();
     return () => {
       if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
@@ -432,6 +432,12 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
     if (wasDragging) settleDrag(false);
   }
 
+  function handleSheetPointerDownCapture(event: PointerEvent<HTMLDivElement>) {
+    // Another contact anywhere over the modal (including its scrollable body)
+    // cancels an in-progress header drag, not just another contact on the header.
+    if (drag.current && event.pointerId !== drag.current.pointerId) cancelDrag();
+  }
+
   function handleDragPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (!event.isPrimary) {
       cancelDrag();
@@ -461,6 +467,12 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
   function handleDragPointerMove(event: PointerEvent<HTMLDivElement>) {
     const state = drag.current;
     if (!state || event.pointerId !== state.pointerId) return;
+    // Mouse drags can leave the header before we acquire capture. If the
+    // button is no longer pressed, never turn that stale hover into a drag.
+    if (event.pointerType === 'mouse' && event.buttons === 0) {
+      cancelDrag();
+      return;
+    }
     const direction = fromTop ? -1 : 1;
     const deltaY = direction * (event.clientY - state.y);
     const deltaX = Math.abs(event.clientX - state.x);
@@ -488,6 +500,12 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
     if (frame.current === null) frame.current = window.requestAnimationFrame(paintDrag);
   }
 
+  function handleDragPointerLeave(event: PointerEvent<HTMLDivElement>) {
+    const state = drag.current;
+    if (state && state.pointerId === event.pointerId && event.pointerType === 'mouse'
+        && !event.currentTarget.hasPointerCapture(event.pointerId)) cancelDrag();
+  }
+
   function handleDragPointerUp(event: PointerEvent<HTMLDivElement>) {
     const state = drag.current;
     if (!state || event.pointerId !== state.pointerId) return;
@@ -506,11 +524,13 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
   }
 
   return (
-    <div className={`se-sheet${fromTop ? ' se-sheet--from-top' : ''}`} onKeyDown={onKeyDown}>
+    <div className={`se-sheet${fromTop ? ' se-sheet--from-top' : ''}`}
+      onKeyDown={onKeyDown} onPointerDownCapture={handleSheetPointerDownCapture}>
       <div ref={backdrop} className="se-sheet__backdrop" onClick={onClose} aria-hidden="true" />
       <div ref={sheet} className="se-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="se-sheet-title">
         <div className="se-sheet__drag-area" onPointerDown={handleDragPointerDown}
           onPointerMove={handleDragPointerMove} onPointerUp={handleDragPointerUp}
+          onPointerLeave={handleDragPointerLeave}
           onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}>
           <button type="button" className="se-sheet__grip"
             aria-label={fromTop ? 'Close All pages (swipe up or tap)' : 'Close All pages (swipe down or tap)'}
