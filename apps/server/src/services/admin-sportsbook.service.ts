@@ -16,6 +16,7 @@ import {
   ensureSportsbookEventSource,
   parseLeagueStatus,
   refreshSportsbookCache,
+  sportsbookNextRecoveryAt,
   type FeedDeps,
 } from './sportsbook-feed.service.js';
 import { ProviderError } from './sportsbook/sportsbook-provider.js';
@@ -296,8 +297,14 @@ export const AdminSportsbookService = {
         const activeProvider = leagueProvider?.activeOddsProvider ?? DEFAULT_SPORTSBOOK_PROVIDER_ID;
         const activeState = states.get(activeProvider);
         const leagues = parseLeagueStatus(activeState?.leagueStatus);
+        const alternateStatuses = SPORTSBOOK_ODDS_CHAINS[key]
+          .filter((id) => id !== activeProvider && Boolean(keys[id]))
+          .map((id) => parseLeagueStatus(states.get(id)?.leagueStatus)[key]);
+        const nextRecovery = leagueProvider?.pinnedOddsProvider ? null
+          : sportsbookNextRecoveryAt(leagues[key], alternateStatuses);
         return {
           key, name, activeProvider, activeProviderName: sportsbookProviderName(activeProvider),
+          nextRecoveryAt: isoOrNull(nextRecovery),
           pinnedProvider: leagueProvider?.pinnedOddsProvider ?? null,
           chain: [...SPORTSBOOK_ODDS_CHAINS[key]],
           lastAttemptAt: leagues[key]?.lastAttemptAt ?? null,
