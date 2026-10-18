@@ -361,17 +361,6 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
     if (disclosure === 'happiness') setShowHappinessDetails(true);
     if (disclosure === 'pressure') setShowPressureDetails(true);
   }, [disclosure, location.key]);
-  useEffect(() => {
-    if (!disclosure) return;
-    const frame = window.requestAnimationFrame(() => {
-      const target = document.getElementById(location.hash.slice(1));
-      if (target && !target.closest('details:not([open])')) {
-        target.scrollIntoView({ block: 'start', behavior: 'instant' });
-      }
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [disclosure, location.hash, location.key, showCrewDetails, showHappinessDetails, showPressureDetails]);
-
   const homeWeapons =
     me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s;
   const postedWeapons = me.turf?.postedGuns.total ?? 0;
