@@ -358,7 +358,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
       const rundown = url.pathname.match(/\/api\/v2\/sports\/(\d+)\/events\/([\d-]+)$/);
       if (rundown) {
         const league = LEAGUE_BY_SPORT_ID[rundown[1]!]!;
-        if (!primaryHealthy && (league === 'NFL' || league === 'NBA')) return reply(503, {});
+        if (!primaryHealthy && (league === 'NFL' || league === 'NBA' || league === 'MLB')) return reply(503, {});
         if (primaryHealthy && league === 'NFL') {
           return reply(200, { events: [{
             event_id: legacyId, event_date: kickoff.toISOString(), status: 'STATUS_SCHEDULED',
@@ -393,6 +393,12 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
           home_team: 'Chicago Bulls', away_team: 'Boston Celtics',
           bookmakers: [{ key: 'book', markets: [{ key: 'h2h', outcomes: [
             { name: 'Boston Celtics', price: 120 }, { name: 'Chicago Bulls', price: -140 },
+          ] }] }],
+        }] : odds[1] === 'baseball_mlb' && date === today ? [{
+          id: providerPrefix + 'odds-mlb', commence_time: at(260).toISOString(),
+          home_team: 'New York Yankees', away_team: 'Boston Red Sox',
+          bookmakers: [{ key: 'book', markets: [{ key: 'h2h', outcomes: [
+            { name: 'Boston Red Sox', price: 125 }, { name: 'New York Yankees', price: -145 },
           ] }] }],
         }] : [];
         return new Response(JSON.stringify(games), { status: 200, headers: { 'x-requests-last': '1', 'x-requests-used': '1000', 'x-requests-remaining': '19000' } });
