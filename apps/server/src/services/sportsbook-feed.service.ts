@@ -814,20 +814,20 @@ export async function refreshSportsbookCache(
           ?? { lastAttemptAt: null, lastSuccessAt: null, lastError: '', lastErrorAt: null, eventsSeen: 0 };
         if (halfOpen(id) && halfOpenOutcome.get(id) === 'FAILED') {
           leagueFailure = `${sportsbookProviderName(id)} half-open probe already failed this run`;
-          Object.assign(status, { lastError: leagueFailure, lastErrorAt: iso(now) });
+          Object.assign(status, { lastAttemptAt: iso(now), lastError: leagueFailure, lastErrorAt: iso(now) });
           run.leagues[league.key] = status;
           continue;
         }
         if (circuitOpen(id)) {
           leagueFailure = `${sportsbookProviderName(id)} circuit is open until ${states.get(id)!.circuitOpenUntil!.toISOString()}`;
-          Object.assign(status, { lastError: leagueFailure, lastErrorAt: iso(now) });
+          Object.assign(status, { lastAttemptAt: iso(now), lastError: leagueFailure, lastErrorAt: iso(now) });
           run.leagues[league.key] = status;
           run.errors.push(`${league.key} ${leagueFailure}`);
           continue;
         }
         if (provider.session.quotaBelow(SPORTSBOOK_PROVIDER_QUOTA_FLOORS[id].odds)) {
           leagueFailure = `${sportsbookProviderName(id)} quota is near its floor`;
-          Object.assign(status, { lastError: leagueFailure, lastErrorAt: iso(now) });
+          Object.assign(status, { lastAttemptAt: iso(now), lastError: leagueFailure, lastErrorAt: iso(now) });
           run.leagues[league.key] = status;
           run.errors.push(`${league.key} ${leagueFailure}`);
           continue;
