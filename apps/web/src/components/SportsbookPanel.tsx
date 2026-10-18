@@ -528,16 +528,17 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                 ))}
               </div>
             </div>
-            <p className="se-sportsbook__summary">
+            <div className="se-sportsbook__summary">
               {ticketView === 'open' ? (
-                <>
-                  <span>{summary.openCount} open · {formatCentsExact(summary.openStakeCents)} at stake · pays up to {formatCentsExact(summary.openPayoutCents)}</span>
-                  <span>Record {summary.won}-{summary.lost}-{summary.push}{summary.void ? ` · ${summary.void} void` : ''} · Net {signedCents(summary.netCents)}</span>
-                </>
-              ) : (
-                `Record ${summary.won}-${summary.lost}-${summary.push}${summary.void ? ` · ${summary.void} void` : ''} · Net ${signedCents(summary.netCents)}`
-              )}
-            </p>
+                <span>{summary.openCount} open · {formatCentsExact(summary.openStakeCents)} at stake · pays up to {formatCentsExact(summary.openPayoutCents)}</span>
+              ) : null}
+              <span>
+                Record {summary.won}-{summary.lost}-{summary.push}{summary.void ? ` · ${summary.void} void` : ''} · Net{' '}
+                <strong className={`se-sportsbook__net ${summary.netCents >= 0 ? 'is-positive' : 'is-negative'}`}>
+                  {signedCents(summary.netCents)}
+                </strong>
+              </span>
+            </div>
             <div className="se-sportsbook__ticket-list" id="sb-ticket-list" role="tabpanel" aria-labelledby={`sb-tab-${ticketView}`}>
               {shownTickets.length === 0 ? (
                 <p className="se-muted">{ticketView === 'open' ? 'No open tickets. Pick a side above to place one.' : 'No settled tickets yet.'}</p>
@@ -547,15 +548,26 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                 const score = finalScore(bet);
                 return (
                   <article className={`se-sportsbook__ticket is-${bet.status.toLowerCase()}${bet.id === acceptedTicketId ? ' is-new' : ''}${bet.id === settledTicketId ? ' is-just-settled' : ''}`} key={bet.id}>
-                    <header>
-                      <strong>{bet.pickTeam} <b>{formatAmericanOdds(bet.oddsAmerican)}</b></strong>
+                    <div className="se-sportsbook__ticket-top">
+                      <div className="se-sportsbook__ticket-identity">
+                        <span className="se-sportsbook__ticket-mark" aria-hidden="true">{bet.sport}</span>
+                        <div className="se-sportsbook__ticket-info">
+                          <div className="se-sportsbook__ticket-pick">
+                            <strong>{bet.pickTeam}</strong>
+                            <b>{formatAmericanOdds(bet.oddsAmerican)}</b>
+                          </div>
+                          <span className="se-sportsbook__ticket-matchup">
+                            {bet.sport} · {bet.awayTeam} at {bet.homeTeam}
+                          </span>
+                          <time className="se-sportsbook__ticket-time" dateTime={bet.startsAt}>
+                            {bet.status === 'OPEN' && !started ? formatWeekdayTime(bet.startsAt) : formatWhen(bet.startsAt)}
+                          </time>
+                        </div>
+                      </div>
                       <span className="se-sportsbook__result">
                         {bet.status === 'OPEN' ? openTicketStage(bet, now) : RESULT_LABEL[bet.status]}
                       </span>
-                    </header>
-                    <span className="se-sportsbook__ticket-meta">
-                      {bet.sport} · {bet.awayTeam} at {bet.homeTeam} · {bet.status === 'OPEN' && !started ? `starts ${formatWeekdayTime(bet.startsAt)}` : formatWhen(bet.startsAt)}
-                    </span>
+                    </div>
                     {bet.status === 'OPEN' ? (
                       <dl className="se-sportsbook__figures">
                         <div><dt>Stake</dt><dd>{formatCentsExact(bet.stakeCents)}</dd></div>
@@ -563,13 +575,13 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                         <div><dt>Payout</dt><dd>{formatCentsExact(bet.payoutCents)}</dd></div>
                       </dl>
                     ) : (
-                      <>
-                        {score ? <span className="se-sportsbook__ticket-meta">{score}</span> : null}
+                      <div className="se-sportsbook__ticket-settlement">
+                        {score ? <span className="se-sportsbook__ticket-score">{score}</span> : null}
                         <span className="se-sportsbook__cash">
                           {formatCentsExact(bet.stakeCents)} chip stake · {settledChips(bet)}
                           {bet.settledAt ? <> · settled {formatWhen(bet.settledAt)}</> : null}
                         </span>
-                      </>
+                      </div>
                     )}
                   </article>
                 );
