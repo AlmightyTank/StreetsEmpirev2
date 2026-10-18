@@ -602,7 +602,7 @@
   min-height: 176px;
   border-color: color-mix(in srgb, var(--se-bad) 24%, var(--se-line));
   background:
-    radial-gradient(circle at 75% 25%, rgba(91, 31, 48, 0.18), transparent 60%),
+    radial-gradient(circle at 75% 25%, color-mix(in srgb, var(--se-bad) 18%, transparent), transparent 60%),
     var(--se-panel);
   box-shadow: none;
 }
