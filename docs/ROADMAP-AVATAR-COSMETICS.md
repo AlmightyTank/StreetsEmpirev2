@@ -57,6 +57,17 @@ Each new slot is a new SVG layer and a new key in `AVATAR_PART_OPTIONS`, with
 | `faceMark` | over skin, under facial hair | `none` | Scar, teardrop tattoo, neck tattoo, bandage, black eye |
 | `aura` | behind body, over background | `none` | Cigar smoke, falling cash, neon glow, snowfall, sparkle |
 | `prop` | in front of shoulder | `none` | Phone, cash stack, dice, briefcase, rose |
+| `earrings` | on ears, over hair that leaves the ear showing | `none`, studs, hoops (moved from `accessory`) | Diamond studs, gold hoops, big door-knocker hoops, cross dangle, dice dangle, crown drop, faction-emblem stud, single ear cuff |
+
+**Earrings move out of `accessory`.** Today studs and hoops share the
+`accessory` slot with the chain, shades and glasses, so a player cannot wear a
+chain and earrings together. `earrings` becomes its own slot; the free studs
+and hoops move there and `accessory` keeps the chain, shades and glasses.
+`readAvatarParts()` migrates a saved `accessory: 'studs' | 'hoops'` to
+`earrings` with `accessory: 'none'`, so old avatars look the same. Earrings are
+hidden under long hair that covers the ear (long straight, long curls, locs,
+braids) and under the ski and gas masks; the builder notes when they are
+hidden, like the grill.
 
 `grill` only draws with mouths that show teeth (`grin`, `laugh`, `smile`); with
 other mouths it is kept but hidden, and the builder says so.
@@ -75,20 +86,21 @@ other mouths it is kept but hidden, and the builder says so.
 
 | Source | Grant | Examples |
 | --- | --- | --- |
-| **The Drop** | Bought with Crowns; `sourceQuestKey = 'drop'`, keys `drop-avatar-*` | Kingpin Luxe crown + fur coat; Neon Underworld visor + neon aura; Winter Heist beanie + snowfall aura |
+| **The Drop** | Bought with Crowns; `sourceQuestKey = 'drop'`, keys `drop-avatar-*` | Kingpin Luxe crown + fur coat + brass crown-drop earrings; Neon Underworld visor + neon aura; Winter Heist beanie + snowfall aura |
 | **Street Pass** | Tier reward | Free track: snapback, durag. Premium track: gold grill, sparkle aura |
 | **Gameplay milestones** | Granted in the transaction that earns it | Prison jumpsuit (first arrest), scar (first lost raid as defender), dice prop (casino milestone), city skyline (own turf in that city at round end), briefcase (first loan repaid) |
-| **Round placement** | Granted at round rollover | Top 10: round crown or laurel, stamped with the game number in its title |
-| **Factions** | Joining/ranking in a faction | Faction-colored bandana, emblem pendant |
+| **Round placement** | Granted at round rollover | Top 10: round crown or laurel, stamped with the game number in its title. Top 3: diamond studs |
+| **Factions** | Joining/ranking in a faction | Faction-colored bandana, emblem pendant, emblem stud earring |
 | **Holidays / events** | Event contracts | Santa hat (Holiday Road), pumpkin mask |
 | **Easter eggs** | Hidden until owned | Halo/horns, golden monocle |
-| **Supporter** | Supporter catalogue | Midnight Chrome jacket + chain |
+| **Supporter** | Supporter catalogue | Midnight Chrome jacket + chain, chrome ear cuff |
 
 Drop pricing guide (Crowns), in line with frames at 450:
 
 | Kind | Price |
 | --- | --- |
 | Headwear, grill, prop | 300 |
+| Earrings | 250 |
 | Shirt, accessory | 400 |
 | Background | 350 |
 | Aura (animated) | 500 |
@@ -151,7 +163,7 @@ the avatar with only free parts to other players.
 ### Slice A — Unlock pipeline + first pieces
 
 - `unlock` / `hidden` / `bases` fields, `AVATAR_PART` unlock kind, ownership-aware `readAvatarParts`, server save check.
-- New slots `headwear` and `grill`.
+- New slots `headwear`, `grill` and `earrings` (with the studs/hoops migration out of `accessory`).
 - One piece per source to prove each grant path: Drop Kingpin crown, Street Pass snapback, first-arrest prison jumpsuit, Holiday Road Santa hat.
 - Builder lock states and "How to get".
 
@@ -178,7 +190,7 @@ the avatar with only free parts to other players.
 
 ## 8. Tests
 
-- `avatar-builder.test.ts`: new slots default to `none`; a locked part falls back without ownership and stays with it; every option in every slot is drawable for both bases (or lists `bases`).
+- `avatar-builder.test.ts`: new slots default to `none`; a saved `accessory: 'studs'` or `'hoops'` reads as that earring with `accessory: 'none'`; a locked part falls back without ownership and stays with it; every option in every slot is drawable for both bases (or lists `bases`).
 - `account-profile.service.test.ts`: save refused for an unowned part; accepted once owned; Show my look hides locked parts from other viewers.
 - `collection-coverage.test.ts` / Drop catalog test: avatar unlock keys are unique and never collide with Street Pass, event, supporter or achievement keys.
 - Grant tests per source: granting twice is a no-op.
