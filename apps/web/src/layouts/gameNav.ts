@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useSession } from '../stores/session.js';
 import { useOnboarding } from '../stores/onboarding.js';
 import { CONSOLE_UPDATED_EVENT, consoleApi } from '../api/console.js';
@@ -188,6 +189,34 @@ export function adminSectionsFor(role: StaffRole | null): NavSection[] {
     .filter((section) => section.pages.length > 0);
 }
 
+/**
+ * The admin sidebar is intentionally compact. The workspace above an admin
+ * page still exposes every tool, while the persistent sidebar only needs one
+ * destination per operator work area.
+ */
+export function adminOverviewSectionsFor(role: StaffRole | null): NavSection[] {
+  return adminSectionsFor(role).map((section) => {
+    const pages = section.pages;
+    const first = pages[0];
+    if (!first) return { ...section, pages: [] };
+    return {
+      ...section,
+      pages: [{
+        ...first,
+        key: `${section.id}-overview`,
+        label: section.title.replace('Admin · ', ''),
+        short: undefined,
+        aliases: pages.map((page) => page.to),
+        prefixes: pages.flatMap((page) => [
+          ...(page.prefix ? [`${page.prefix}`] : []),
+          ...(page.prefixes ?? []),
+          `${page.to}/`,
+        ]),
+      }],
+    };
+  }).filter((section) => section.pages.length > 0);
+}
+
 function pagesByKey(sections: readonly NavSection[]): Map<string, NavPage> {
   return new Map(sections.flatMap((section) => section.pages.map((page) => [page.key, page] as const)));
 }
@@ -242,6 +271,7 @@ export function useDropAvailable(): boolean {
 
 export function useSections(): NavSection[] {
   const { role } = useStaff();
+  const { pathname } = useLocation();
   const hasPass = useSession((s) => Boolean(s.me?.streetPass));
   const hasDrop = useDropAvailable();
   const newPlayerNav = useNewPlayerNavModel();
@@ -251,8 +281,11 @@ export function useSections(): NavSection[] {
       ? SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => !hidden.has(page.key)) }))
       : SECTIONS;
     const playerSections = newPlayerNav ? newPlayerSectionsFor(sections) : sections;
-    return [...playerSections, ...adminSectionsFor(role)];
-  }, [role, hasPass, hasDrop, newPlayerNav]);
+    const adminSections = pathname.startsWith('/game/admin')
+      ? adminOverviewSectionsFor(role)
+      : adminSectionsFor(role);
+    return [...playerSections, ...adminSections];
+  }, [role, hasPass, hasDrop, newPlayerNav, pathname]);
 }
 
 function pathMatches(pathname: string, to: string, aliases: readonly string[] = [], prefix?: string, prefixes: readonly string[] = []): boolean {
