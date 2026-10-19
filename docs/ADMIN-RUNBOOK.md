@@ -65,6 +65,14 @@ Staff page flags anyone who has not.
    reaches Discord within a minute, and a staff role added by hand in Discord is removed
    on the next pass (every `DISCORD_SYNC_MINUTES`). Every change is posted to the staff channel.
 
+**`/staff` in Discord.** `/staff set user role reason` and `/staff remove user reason` change a
+role from Discord with exactly the panel's rules (Admins give Mod, JR Mod and Helper; only
+the Founder makes Admins; Founder is never offered). The change is audited as made from
+Discord, a line goes to the staff channel, and the member's Discord roles update at once.
+`/staff list` shows every staff member and who has not linked Discord or the forum.
+`/staff sync user` re-checks one member's roles. Replies are private. Both people must
+have linked Discord to the game.
+
 Roles are matched by ID, never by name, so a role someone names "Admin" is ignored. Forum
 groups named like a staff role (Admin, Mod...) stop being mirrored as `Forum <group>` roles
 once staff roles sync; delete any old `Forum Admin` / `Forum Mod` roles by hand. A bot in

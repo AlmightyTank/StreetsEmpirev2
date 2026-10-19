@@ -1,5 +1,9 @@
 import type { PrismaClient, StaffRole } from '@prisma/client';
 import { STAFF_ROLES, assignableStaffRoles, type AdminStaffDto, type AdminStaffRoleChangeDto } from '@streets/shared';
+import { AppError } from '../utils/errors.js';
+import { AdminAccountService } from './admin-account.service.js';
+import { linkedDiscordAccount } from './discord-staff.service.js';
+import { actorStaffRole } from './staff-guard.js';
 
 const HISTORY_LIMIT = 50;
 
@@ -58,6 +62,36 @@ export const StaffService = {
         createdAt: change.createdAt.toISOString(),
       })),
       assignable: assignableStaffRoles(viewerRole),
+    };
+  },
+
+  /**
+   * /staff set and /staff remove. The caller is their linked game account, and the change
+   * goes through setStaffRole like the panel's, so the rank rules and audit trail are one.
+   */
+  async setFromDiscord(
+    prisma: PrismaClient,
+    input: { discordId: string; targetDiscordId: string; role: StaffRole | null; reason: string },
+  ): Promise<{ username: string; fromRole: StaffRole | null; toRole: StaffRole | null }> {
+    const actor = await linkedDiscordAccount(prisma, input.discordId);
+    const target = await prisma.account.findFirst({ where: { discordId: input.targetDiscordId }, select: { id: true, username: true, staffRole: true } });
+    if (!target) throw AppError.notFound('DISCORD_TARGET_NOT_LINKED', 'That member has not linked a StreetsEmpire account, so they cannot hold a staff role.');
+    const detail = await AdminAccountService.setStaffRole(prisma, actor, target.id, input.role, input.reason, 'DISCORD');
+    return { username: detail.account.username, fromRole: target.staffRole, toRole: detail.account.staffRole };
+  },
+
+  /** /staff list: everyone with a role, with what Discord sync needs from them. Helpers and up. */
+  async listForDiscord(prisma: PrismaClient, discordId: string): Promise<{ members: Array<{ username: string; staffRole: StaffRole; discordId: string | null; forumLinked: boolean; isActive: boolean }> }> {
+    await actorStaffRole(prisma, await linkedDiscordAccount(prisma, discordId), 'staff.view');
+    const members = await prisma.account.findMany({
+      where: { staffRole: { not: null } },
+      select: { username: true, staffRole: true, discordId: true, isActive: true, forumLink: { select: { accountId: true } } },
+    });
+    const order = (role: StaffRole) => STAFF_ROLES.indexOf(role);
+    return {
+      members: members
+        .map((member) => ({ username: member.username, staffRole: member.staffRole!, discordId: member.discordId, forumLinked: Boolean(member.forumLink), isActive: member.isActive }))
+        .sort((a, b) => order(a.staffRole) - order(b.staffRole) || a.username.localeCompare(b.username)),
     };
   },
 };

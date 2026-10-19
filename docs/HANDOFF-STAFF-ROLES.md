@@ -9,7 +9,8 @@ every decision) and the "Getting in" section of [ADMIN-RUNBOOK.md](ADMIN-RUNBOOK
   permissions, the Staff page and the console script.
 - **Stage B is built**: Discord staff roles follow the game (see below). It ships switched
   off: set `DISCORD_STAFF_ROLE_IDS` and `DISCORD_STAFF_SYNC` as the runbook says.
-- **Stages C-E are not started.** C (`/staff` command) is next.
+- **Stage C is built**: the `/staff` Discord command (see below).
+- **Stages D-E are not started.** D (forum group sync) is next.
 - **One manual step after deploy:** `npm run admin -- <owner> --founder` on the server.
   Until then every former admin is a plain Admin, and Admins cannot change each other.
 
@@ -55,14 +56,29 @@ every decision) and the "Getting in" section of [ADMIN-RUNBOOK.md](ADMIN-RUNBOOK
 Not done in B: the Staff page shows only whether Discord is linked, not whether the bot
 has applied the role. The bot reports to the staff channel instead.
 
-## Next: stage C (`/staff` command)
+## Stage C (built): `/staff`
 
-`/staff set user:@member role:<...> reason:<...>`, `/staff remove`, `/staff list`,
-`/staff sync`. The bot only relays: add an internal endpoint (beside the other
-`/api/internal/discord/*` routes, bot-token auth) that resolves the caller's linked
-account and calls `AdminAccountService.setStaffRole(..., source: 'DISCORD')`, so the rank
-rules and the audit trail stay in one place. Founder is never an option. Replies are
-ephemeral, with a public line in the staff channel.
+| Piece | Where |
+|---|---|
+| Command, subcommands `set`, `remove`, `list`, `sync` | `apps/discord-bot/src/commands.ts` (`staffCommand`) |
+| Reply, staff channel line, roster embed | `apps/discord-bot/src/staff-command.ts` |
+| Game endpoints (bot token) | `POST` and `GET /api/internal/discord/staff-roles` in `apps/server/src/routes/discord-bot.routes.ts` |
+| Rules | `StaffService.setFromDiscord` calls `AdminAccountService.setStaffRole(..., 'DISCORD')`; `listForDiscord` needs `staff.view` |
+| Tests | `apps/discord-bot/src/__tests__/staff-command.test.ts`; Discord cases in `staff-roles.integration.test.ts` |
+
+`/staff sync` checks the caller with the existing `isStaff` call (Helper and up) and resyncs
+the member in the bot. Refusals from the game (400, 403, 409) are now shown to the member
+for every command, instead of "not answering".
+
+## Next: stage D (forum groups)
+
+1. Config `FORUM_STAFF_GROUP_IDS=founder:<id>,admin:<id>,...` (Flarum group IDs).
+2. On `setStaffRole` (and a periodic pass), read the linked forum user's groups, swap only
+   the staff groups, write them back with the existing API key (`forum-moderation.service.ts`
+   shows the auth and the read-back pattern), then read back to confirm.
+3. Only the Founder gets Flarum's built-in Admin group (id 1). Admin and below get custom
+   groups with moderator permissions set in Flarum.
+4. Unlinked staff: nothing to push; the Staff page already flags them.
 
 ## Working in this repo
 

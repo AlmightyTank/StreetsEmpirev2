@@ -8,6 +8,7 @@ import { AdminModerationService } from '../services/admin-moderation.service.js'
 import { DiscordStaffService, staffMessageReport } from '../services/discord-staff.service.js';
 import { DiscordPresenceService } from '../services/discord-presence.service.js';
 import { SupportTicketService } from '../services/support-ticket.service.js';
+import { StaffService } from '../services/staff.service.js';
 import { BugReportService } from '../services/support.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
@@ -24,6 +25,13 @@ const allianceQuery = z.union([
   z.object({ tag: z.string().trim().regex(/^[A-Za-z0-9]{2,5}$/) }).strict(),
 ]);
 const memberQuery = z.object({ discordId: snowflake }).strict();
+// Founder is never offered; setStaffRole refuses it anyway.
+const staffRoleFromDiscordSchema = z.object({
+  discordId: snowflake,
+  targetDiscordId: snowflake,
+  role: z.enum(['ADMIN', 'MOD', 'JR_MOD', 'HELPER']).nullable(),
+  reason: z.string().trim().min(5).max(500),
+}).strict();
 const leaderboardQuery = z.object({ stat: z.enum(['raids', 'defenses', 'drive-bys', 'recon', 'rides', 'lures']) }).strict();
 const alertSchema = z.object({ discordId: snowflake, type: z.enum(['attacks', 'round', 'rank', 'turns', 'turf', 'alliance']), enabled: z.boolean() }).strict();
 const newsSchema = z.object({
@@ -171,6 +179,12 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
     const { discordId } = parseBody(memberQuery, request.query);
     return { admin: await SupportTicketService.isStaff(fastify.prisma, discordId) };
   });
+
+  /** /staff set and /staff remove: the game checks the caller's rank, exactly as in the panel. */
+  fastify.post('/staff-roles', async (request) => StaffService.setFromDiscord(fastify.prisma, parseBody(staffRoleFromDiscordSchema, request.body)));
+
+  /** /staff list: Helpers and up. */
+  fastify.get('/staff-roles', async (request) => StaffService.listForDiscord(fastify.prisma, parseBody(memberQuery, request.query).discordId));
 
   /** /support: their open ticket, or a new one with staff-only context for the staff channel. */
   fastify.post('/support-tickets', async (request) => SupportTicketService.open(fastify.prisma, parseBody(openTicketSchema, request.body)));

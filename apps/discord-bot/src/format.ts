@@ -479,6 +479,7 @@ export const HELP_LINES: Array<[string, string]> = [
   ['/sync', 'Update your roles now (once a minute).'],
   ['/help', 'This list. Only you see it.'],
   ['/announce title body', 'Game admins: post news from Discord. Only you see the result.'],
+  ['/staff set|remove|list|sync', 'Staff: manage staff roles. The game checks your rank. Only you see the result.'],
   ['/syncall', 'Mods: re-sync roles for every member. Needs Manage Roles.'],
 ];
 

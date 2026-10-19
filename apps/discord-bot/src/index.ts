@@ -67,6 +67,7 @@ const client = new Client({
 
 let sync: RoleSync | null = null;
 let staffSyncPoster: ((events: StaffSyncEvent[]) => Promise<void>) | null = null;
+let staffLinePoster: ((line: string) => Promise<void>) | null = null;
 let stopPushServer: (() => Promise<void>) | null = null;
 
 let cityCache: { cities: City[]; fetchedAt: number } | null = null;
@@ -85,6 +86,7 @@ const deps: CommandDeps = {
   origin: config.frontendOrigin,
   getSync: () => sync,
   onStaffSync: (events) => void staffSyncPoster?.(events),
+  onStaffCommand: (line) => void staffLinePoster?.(line),
   getCities,
   managed,
   syncCooldowns: new Cooldowns(60_000),
@@ -105,6 +107,13 @@ async function postStaffSync(guild: Guild, events: StaffSyncEvent[], mode: typeo
     if (channel) await channel.send({ content, allowedMentions: { parse: [] } }).catch((error: unknown) => console.warn('Could not post staff role sync:', error));
     else console.log(`${content}\n(${problem})`);
   }
+}
+
+/** One line in the staff channel, or the log when it is unset or broken. Never pings. */
+async function postStaffLine(guild: Guild, content: string): Promise<void> {
+  const { channel, problem } = await checkPostChannel(guild, config.DISCORD_STAFF_CHANNEL_ID, 'DISCORD_STAFF_CHANNEL_ID');
+  if (channel) await channel.send({ content, allowedMentions: { parse: [] } }).catch((error: unknown) => console.warn('Could not post to the staff channel:', error));
+  else console.log(`${content}\n(${problem})`);
 }
 
 async function checkPostChannel(
@@ -470,6 +479,7 @@ client.once(Events.ClientReady, async (ready) => {
     const roleSync = new RoleSync(guild, managed, api, { allianceRoles: !betaTesterOnly, staff: staff.roles.length ? staffMode : 'off' });
     sync = roleSync;
     staffSyncPoster = (events) => postStaffSync(guild, events, staffMode);
+    staffLinePoster = (line) => postStaffLine(guild, line);
     console.log(`StreetsEmpire bot ready as ${ready.user.tag} in ${guild.name} with ${commandData.length} commands; syncing ${betaTesterOnly ? 'beta tester role only' : 'roles'} every ${config.DISCORD_SYNC_MINUTES} min.`);
     if (staff.roles.length) console.log(`Staff roles: ${staffMode} (${staff.roles.map((role) => role.name).join(', ')}).`);
 

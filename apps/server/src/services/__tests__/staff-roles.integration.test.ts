@@ -157,4 +157,34 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Staff roles with PostgreS
     expect(legacy.statusCode, legacy.body).toBe(200);
     expect(legacy.json().account).toMatchObject({ staffRole: null, isAdmin: false });
   });
+
+  it('changes roles from Discord with the same rules, recorded as from Discord', async () => {
+    const { StaffService } = await import('../staff.service.js');
+    const snowflake = () => `${Date.now()}${Math.floor(Math.random() * 1e6)}`.padEnd(18, '7').slice(0, 18);
+    const discord: Record<string, string> = {};
+    for (const who of [founder, admin, mod, jrMod, helper]) {
+      discord[who.id] = snowflake();
+      await app.prisma.account.update({ where: { id: who.id }, data: { discordId: discord[who.id] } });
+    }
+    const asDiscord = (actor: Who, target: Who, role: 'ADMIN' | 'MOD' | 'JR_MOD' | 'HELPER' | null) =>
+      StaffService.setFromDiscord(app.prisma, { discordId: discord[actor.id]!, targetDiscordId: discord[target.id]!, role, reason: 'From the /staff command' });
+
+    await expect(asDiscord(admin, helper, 'MOD')).resolves.toEqual({ username: helper.username, fromRole: null, toRole: 'MOD' });
+    const change = await app.prisma.staffRoleChange.findFirst({ where: { accountId: helper.id }, orderBy: { createdAt: 'desc' } });
+    expect(change).toMatchObject({ toRole: 'MOD', source: 'DISCORD', actorUsername: admin.username });
+
+    await expect(asDiscord(admin, mod, 'ADMIN')).rejects.toMatchObject({ code: 'STAFF_RANK' });
+    await expect(asDiscord(admin, founder, null)).rejects.toMatchObject({ code: 'STAFF_RANK' });
+    await expect(asDiscord(jrMod, mod, 'HELPER')).rejects.toMatchObject({ statusCode: 403 });
+    await expect(StaffService.setFromDiscord(app.prisma, { discordId: discord[admin.id]!, targetDiscordId: snowflake(), role: 'MOD', reason: 'Not linked yet' }))
+      .rejects.toMatchObject({ code: 'DISCORD_TARGET_NOT_LINKED' });
+    await expect(StaffService.setFromDiscord(app.prisma, { discordId: snowflake(), targetDiscordId: discord[mod.id]!, role: 'MOD', reason: 'Who is asking' }))
+      .rejects.toMatchObject({ code: 'DISCORD_NOT_LINKED' });
+
+    const roster = await StaffService.listForDiscord(app.prisma, discord[helper.id]!);
+    const ours = new Set(Object.values(discord));
+    expect(roster.members.filter((member) => member.discordId && ours.has(member.discordId)).map((member) => member.staffRole))
+      .toEqual(['FOUNDER', 'ADMIN', 'MOD', 'JR_MOD']);
+    await expect(StaffService.listForDiscord(app.prisma, discord[mod.id]!)).rejects.toMatchObject({ statusCode: 403 });
+  });
 });
