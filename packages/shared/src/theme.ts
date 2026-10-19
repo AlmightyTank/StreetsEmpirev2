@@ -102,7 +102,6 @@ export const STREETSEMPIRE_NAV_SECTIONS: ThemeNavSection[] = [
       { key: 'xp-progress', label: 'XP Progress', short: 'XP', to: '/game/xp-progress' },
       { key: 'events', label: 'Events', to: '/game/events' },
       { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass' },
-      { key: 'collection', label: 'Collection', short: 'Looks', to: '/game/collection' },
       { key: 'supporter', label: 'Supporter', to: '/game/supporter' },
       { key: 'profile', label: 'Profile', to: '/game/profile' },
     ],

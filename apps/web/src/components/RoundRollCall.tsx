@@ -409,14 +409,14 @@ export function RoundRollCallPanel() {
           <RollCallFinalePreview target={board.requiredStamps} completed={board.completed} owned={board.grandPrize.unlocked} />
           {board.grandPrize.unlocked ? (
             <p className="se-rollcall__equipped" role="status">
-              Permanent Obsidian Signal collection earned. <Link to="/account">Equip the theme and crew outfits</Link> or <Link to="/game/collection">view your collection</Link>.
+              Permanent Obsidian Signal collection earned. <Link to="/account">Equip the theme and crew outfits</Link>.
             </p>
           ) : null}
           <p className="se-rollcall__footnote">
             Seven missed days are already built into the round schedule. Earn one stamp per eligible day;
             completing all stamps is required for the exclusive cosmetic collection.
             Gameplay rewards are capped and never include weapons or permanent power.
-            <Link to="/game/collection"> View your existing cosmetics.</Link>
+            <Link to="/account"> View your existing cosmetics.</Link>
           </p>
         </>
       ) : null}

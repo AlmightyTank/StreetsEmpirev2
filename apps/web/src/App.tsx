@@ -38,7 +38,6 @@ import { AlliancePage } from './pages/AlliancePage.js';
 import { AllianceDetailPage } from './pages/AlliancesPage.js';
 import { CombatPage } from './pages/CombatPage.js';
 import { StreetPassPage } from './pages/StreetPassPage.js';
-import { CollectionPage } from './pages/CollectionPage.js';
 import { DropPage } from './pages/DropPage.js';
 import { AdminDropPage } from './pages/AdminDropPage.js';
 import { SupporterPage } from './pages/SupporterPage.js';
@@ -212,7 +211,8 @@ export function App() {
         <Route path="products" element={<Navigate to="/game/stores/pip" replace />} />
         <Route path="produce" element={<Protected><LiveRound><ProducePage /></LiveRound></Protected>} />
         <Route path="street-pass" element={<Protected><LiveRound><StreetPassPage /></LiveRound></Protected>} />
-        <Route path="collection" element={<Protected><CollectionPage /></Protected>} />
+        {/* The Collection page was retired; cosmetics are equipped from Account. */}
+        <Route path="collection" element={<Navigate to="/account" replace />} />
         <Route path="drop" element={<DropPage view="shop" />} />
         <Route path="drop/item/:slug" element={<DropPage view="item" />} />
         <Route path="drop/wallet" element={<RequireAccount><DropPage view="wallet" /></RequireAccount>} />

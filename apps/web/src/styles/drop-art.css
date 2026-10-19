@@ -1,7 +1,7 @@
 /*
  * The Drop's cosmetic artwork (docs/THE-DROP.md): profile frames, frame,
  * banner and title-plate previews. Each collection's own colours live here,
- * on the art only, like profile.css and collection.css; page chrome stays in
+ * on the art only, like profile.css; page chrome stays in
  * drop.css on the shared tokens. Frame motion stops under reduced motion.
  */
 

@@ -94,7 +94,6 @@ export const SECTIONS: NavSection[] = [
       { key: 'xp-progress', label: 'XP Progress', short: 'XP', to: '/game/xp-progress', icon: 'profile' },
       { key: 'events', label: 'Events', to: '/game/events', icon: 'activity' },
       { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
-      { key: 'collection', label: 'Collection', short: 'Looks', to: '/game/collection', icon: 'fame' },
       { key: 'drop', label: 'The Drop', short: 'Drop', to: '/game/drop', icon: 'drop', prefix: '/game/drop/' },
       { key: 'supporter', label: 'Supporter', to: '/game/supporter', icon: 'pass' },
       { key: 'profile', label: 'Profile', to: '/game/profile', icon: 'profile' },
@@ -232,7 +231,7 @@ export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSectio
     ['new-player-core', 'Start Here', ['dashboard', 'quests', 'scout', 'produce', 'raids', 'operations', 'black-book', 'stores']],
     ['new-player-empire', 'Build Your Empire', ['hideout', 'crew-roster', 'dealers', 'supply', 'loans', 'travel', 'turf']],
     ['new-player-competition', 'Competition', ['casino', 'alliance', 'players', 'rankings']],
-    ['new-player-career', 'Progress & Rewards', ['xp-progress', 'events', 'street-pass', 'collection', 'drop', 'supporter', 'profile']],
+    ['new-player-career', 'Progress & Rewards', ['xp-progress', 'events', 'street-pass', 'drop', 'supporter', 'profile']],
     ['new-player-community', 'Messages & News', ['console', 'news']],
     ['new-player-support', 'Help & Settings', ['status', 'rules', 'account']],
   ] as const;
