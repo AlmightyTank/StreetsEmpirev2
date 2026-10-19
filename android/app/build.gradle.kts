@@ -107,3 +107,23 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.navigation:navigation-compose:2.7.7")
 }
+
+// Play Console asks for a native symbols ZIP when the bundle carries none. The
+// .so files come from prebuilt dependencies (androidx.graphics.path), so this
+// packages the merged libraries in the ABI-folder layout Play expects:
+// app/build/outputs/native-debug-symbols-upload/<variant>/native-debug-symbols.zip
+listOf("productionRelease", "betaRelease").forEach { variant ->
+    val capitalized = variant.replaceFirstChar { it.uppercase() }
+    tasks.register<Zip>("zip${capitalized}NativeSymbols") {
+        group = "publishing"
+        description = "Packages $variant native libraries as a Play Console symbols ZIP."
+        dependsOn("merge${capitalized}NativeLibs")
+        from(layout.buildDirectory.dir("intermediates/merged_native_libs/$variant")) {
+            include("**/lib/*/*.so")
+            eachFile { path = "${file.parentFile.name}/${file.name}" }
+            includeEmptyDirs = false
+        }
+        destinationDirectory.set(layout.buildDirectory.dir("outputs/native-debug-symbols-upload/$variant"))
+        archiveFileName.set("native-debug-symbols.zip")
+    }
+}
