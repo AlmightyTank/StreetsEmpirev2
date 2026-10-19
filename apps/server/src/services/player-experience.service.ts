@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { EXPERIENCE_LEVEL_REWARDS, experienceLevelFor, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
+import { DoubleXpWeekendService } from './double-xp-weekend.service.js';
 
 export const PlayerExperienceService = {
   /** Recent account-wide XP awards, newest first. */
@@ -33,7 +34,8 @@ export const PlayerExperienceService = {
     tx: Db,
     input: { roundPlayerId: string; sourceKey: string; source: string; amount: number; awardedAt: Date },
   ): Promise<{ awardedXp: number; totalXp: number; level: number; unlocked: ExperienceLevelReward[] }> {
-    const amount = Math.max(0, Math.floor(input.amount));
+    const baseAmount = Math.max(0, Math.floor(input.amount));
+    const amount = baseAmount * (await DoubleXpWeekendService.isActive(tx, input.awardedAt) ? 2 : 1);
     if (amount <= 0) return { awardedXp: 0, totalXp: 0, level: 1, unlocked: [] };
 
     const player = await tx.roundPlayer.findUnique({

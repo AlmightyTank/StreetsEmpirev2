@@ -4,6 +4,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 
 /** 1.0.0-F. Fired with the server's message whenever it answers "down for maintenance". */
 export const MAINTENANCE_EVENT = 'se:maintenance';
+export const ADMISSION_REQUIRED_EVENT = 'se:admission-required';
 
 /**
  * Errors arrive from the server already written for a player. The client's
@@ -104,6 +105,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     // 1.0.0-F: the whole game is down for maintenance; the shell shows why, once.
     if (response.status === 503 && error?.code === 'MAINTENANCE') {
       window.dispatchEvent(new CustomEvent(MAINTENANCE_EVENT, { detail: error.message }));
+    }
+    if (response.status === 423 && error?.code === 'ADMISSION_REQUIRED') {
+      window.dispatchEvent(new Event(ADMISSION_REQUIRED_EVENT));
     }
     throw new ApiError(
       response.status,

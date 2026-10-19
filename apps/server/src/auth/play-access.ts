@@ -1,4 +1,4 @@
-import type { Account } from '@prisma/client';
+import type { Account, StaffRole } from '@prisma/client';
 import { RULES_VERSION } from '@streets/shared';
 import { env } from '../config/env.js';
 
@@ -45,14 +45,27 @@ export function sessionHasFreshSecondFactor(
 /**
  * rc.2-rc.4. While REQUIRE_ADMIN_2FA is on, admin tools need a second factor proved in the
  * last ADMIN_2FA_MAX_AGE_HOURS: a stolen password (or a stolen, long-lived session) alone
- * must not open the panel. An admin with an authenticator re-confirms in place.
+ * must not open the panel. Every staff role is held to it, Helper included. A staff
+ * member with an authenticator re-confirms in place.
  */
 export function adminNeedsSecondFactor(
-  account: Pick<Account, 'isAdmin'>,
+  account: Pick<Account, 'isAdmin' | 'staffRole'>,
   session: SessionStrength | null | undefined,
   required = env.accounts.requireAdminSecondFactor,
 ): boolean {
-  return required && account.isAdmin && !sessionHasFreshSecondFactor(session);
+  return required && isStaff(account) && !sessionHasFreshSecondFactor(session);
+}
+
+/**
+ * The account's staff role. The database keeps isAdmin and staffRole in step; reading
+ * isAdmin as ADMIN too covers an account object built in memory with only the old flag.
+ */
+export function staffRoleOf(account: Pick<Account, 'isAdmin' | 'staffRole'>): StaffRole | null {
+  return account.staffRole ?? (account.isAdmin ? 'ADMIN' : null);
+}
+
+export function isStaff(account: Pick<Account, 'isAdmin' | 'staffRole'>): boolean {
+  return staffRoleOf(account) !== null;
 }
 
 export function isPlayPath(path: string): boolean {

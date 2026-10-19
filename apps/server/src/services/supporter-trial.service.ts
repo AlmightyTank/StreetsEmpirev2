@@ -11,4 +11,4 @@ export async function supporterTrialActive(prisma: PrismaClient, accountId: stri
   return membership?.status === 'trialing';
 }
 
-export const TRIAL_SUPPORTER_COSMETICS = Object.values(SUPPORTER_COSMETICS);
+export const TRIAL_SUPPORTER_COSMETICS = Object.values(SUPPORTER_COSMETICS).filter((cosmetic) => cosmetic.kind !== 'CREW_BANNER');

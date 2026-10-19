@@ -27,7 +27,7 @@ describe.runIf(process.env.REPUTATION_INTEGRATION === '1')('handcrafted quest AP
     const registered = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: name, email: name + '@example.invalid', password: randomUUID() },
+      payload: { birthDate: '1990-01-01', ageConfirmed: true, username: name, email: name + '@example.invalid', password: randomUUID() },
     });
     expect(registered.statusCode).toBe(201);
     accountId = registered.json().account.id;

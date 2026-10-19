@@ -14,7 +14,7 @@ export const DEFAULT_DROP_SETTINGS: Omit<DropSettings, 'id' | 'updatedAt' | 'upd
   earningEnabled: true,
   checkoutEnabled: false,
   streetPassSkipsEnabled: true,
-  dailyOfferCount: 4,
+  dailyOfferCount: 8,
   dailyResetHourUtc: 0,
   autoFeatured: true,
   roundEarnCap: CROWN_EARN_RULES.roundCap,

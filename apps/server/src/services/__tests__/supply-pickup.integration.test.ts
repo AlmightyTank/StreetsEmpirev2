@@ -28,7 +28,7 @@ describe.runIf(process.env.SUPPLY_INTEGRATION === '1')('1.6.0-C supply pickups w
   beforeAll(async () => {
     app = await (await import('../../app.js')).buildApp();
     const name = `pickup_${randomUUID().slice(0, 8)}`;
-    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
     accountId = registered.json().account.id;
     const round = await app.prisma.round.create({
       data: {

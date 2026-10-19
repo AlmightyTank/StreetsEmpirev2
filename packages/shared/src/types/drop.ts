@@ -71,6 +71,17 @@ export interface DropBundleDto {
   vaulted: boolean;
 }
 
+/**
+ * A Drop discount: an active paid supporter's, or a birthday week's. The larger
+ * applies; they never stack. Crown packs are never discounted.
+ */
+export interface DropDiscountDto {
+  percent: number;
+  reason: 'SUPPORTER' | 'BIRTHDAY';
+  /** When a birthday discount ends; null for a supporter's, which lasts while the membership does. */
+  endsAt: string | null;
+}
+
 export interface DropOfferDto {
   /** Pass this back to purchase. Rotation offers carry their window in the id. */
   id: string;
@@ -78,7 +89,10 @@ export interface DropOfferDto {
   refKey: string;
   slot: DropOfferSlotDto;
   badge: DropOfferBadgeDto;
+  /** What this account pays, after any bundle adjustment and discount. */
   priceCrowns: number;
+  /** The price before any discount; equals priceCrowns when none applies. */
+  basePriceCrowns: number;
   startsAt: string;
   /** Null for a permanent catalog offer. */
   endsAt: string | null;
@@ -120,7 +134,10 @@ export interface DropStorefrontDto {
   switches: DropSwitchesDto;
   /** Null for a signed-out visitor. */
   wallet: DropWalletDto | null;
-  featured: { collection: DropCollectionDto | null; endsAt: string };
+  /** The discount this account gets on Drop prices right now, or null. */
+  discount: DropDiscountDto | null;
+  /** `collection` is the first featured set, kept for older clients; `collections` lists all of them in order. */
+  featured: { collection: DropCollectionDto | null; collections: DropCollectionDto[]; endsAt: string };
   daily: { resetsAt: string };
   collections: DropCollectionDto[];
   items: DropItemDto[];
@@ -133,6 +150,8 @@ export interface DropItemDetailDto {
   item: DropItemDto | null;
   bundle: (DropBundleDto & { items: DropItemDto[] }) | null;
   collection: DropCollectionDto | null;
+  /** The discount this account gets on Drop prices right now, or null. */
+  discount: DropDiscountDto | null;
   /** Offers that sell this item or bundle right now, or start later. */
   offers: DropOfferDto[];
 }
@@ -212,6 +231,8 @@ export interface StreetPassSkipQuoteDto {
   remaining: number;
   single: number;
   tenPack: number;
+  /** The discount this account gets on skips right now, or null. */
+  discount: DropDiscountDto | null;
   balance: number | null;
 }
 

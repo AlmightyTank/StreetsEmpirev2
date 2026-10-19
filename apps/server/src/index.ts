@@ -20,8 +20,10 @@ import { LawOfficialService } from './services/law-official.service.js';
 import { PlayerStateService } from './services/player-state.service.js';
 import { refreshSportsbookCache } from './services/sportsbook-feed.service.js';
 import { SportsbookService } from './services/sportsbook.service.js';
+import { BirthdayService } from './services/birthday.service.js';
 import { SupporterDropService } from './services/supporter-drop.service.js';
 import { EventLifecycleService } from './services/event-lifecycle.service.js';
+import { DoubleXpWeekendService } from './services/double-xp-weekend.service.js';
 
 const app = await buildApp();
 
@@ -46,6 +48,8 @@ try {
   if (eventRecovery.activated || eventRecovery.expired || eventRecovery.resumed) {
     app.log.info({ eventRecovery }, 'event lifecycle recovered');
   }
+
+  await DoubleXpWeekendService.sweep(app.prisma, new Date());
 
   await app.listen({ host: env.HOST, port: env.PORT });
 } catch (error) {
@@ -78,11 +82,24 @@ const stopSupporterDrops = startPoller('Supporter drops', 60 * 60_000, async () 
   if (result.granted) app.log.info({ supporterDrop: result }, 'Supporter drop given out');
 }, (message, error) => app.log.error(error, message));
 
+// Birthdays: the day-only frame and theme come off within the hour after the day ends.
+const stopBirthdays = startPoller('Birthday looks', 60 * 60_000, async () => {
+  const result = await BirthdayService.sweep(app.prisma, new Date());
+  if (result.cleared) app.log.info({ birthdayLooks: result }, 'Birthday looks taken off');
+}, (message, error) => app.log.error(error, message));
+
 // Scheduled events advance without waiting for a player to open the Events center. The first
 // reconciliation already ran before listen; this keeps later windows moving on their own.
 const stopEvents = startPoller('Event lifecycle', 60_000, async () => {
   const result = await EventLifecycleService.sweep(app.prisma, new Date());
   if (result.activated || result.expired) app.log.info({ eventLifecycle: result }, 'event lifecycle advanced');
+}, (message, error) => app.log.error(error, message));
+
+// Select and schedule one persisted Double XP Weekend for each month. Keeping next month
+// ready lets a first-weekend announcement go out on the preceding Monday.
+const stopDoubleXpWeekends = startPoller('Double XP weekends', 60 * 60_000, async () => {
+  const result = await DoubleXpWeekendService.sweep(app.prisma, new Date());
+  if (result.created) app.log.info({ doubleXpWeekends: result }, 'Double XP weekend schedule updated');
 }, (message, error) => app.log.error(error, message));
 
 // Alerts: collect what is due, then send push. The Discord bot also collects before it claims.
@@ -128,7 +145,9 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     stopAlerts();
     stopSportsbook();
     stopSupporterDrops();
+    stopBirthdays();
     stopEvents();
+    stopDoubleXpWeekends();
     stopTurfWars();
     await app.close();
     process.exit(0);

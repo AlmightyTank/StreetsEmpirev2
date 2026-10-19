@@ -15,6 +15,7 @@ import { FavorInventoryService } from './favor-inventory.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { CrownWalletService } from './crown-wallet.service.js';
 
 /**
  * Paying out rewards, shared by Jobs and the Street Pass so both grant and
@@ -119,10 +120,26 @@ export async function grantRewards(
   next: PlayerState,
   rewards: readonly QuestRewardDefinition[],
 ): Promise<void> {
-  const { tx, roundPlayerId, ruleset, now, sourceKey } = ctx;
+  const { tx, roundPlayerId, accountId, ruleset, now, sourceKey } = ctx;
   const productChanges: Record<string, number> = {};
   for (const reward of rewards) {
-    if (reward.kind === 'CONTACT_REP') {
+    if (reward.kind === 'CROWNS') {
+      const amount = reward.amount;
+      if (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount <= 0) {
+        throw AppError.conflict('QUEST_REWARD_INVALID', 'That reward has an invalid Crown amount.');
+      }
+      const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { roundId: true } });
+      if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'That player no longer exists.');
+      await CrownWalletService.apply(tx, {
+        accountId,
+        kind: 'EARN',
+        delta: amount,
+        source: 'street-pass',
+        externalRef: `earn:street-pass:${roundPlayerId}:${sourceKey}`,
+        roundId: player.roundId,
+        reason: `Street Pass reward · ${sourceKey}`,
+      });
+    } else if (reward.kind === 'CONTACT_REP') {
       if (!reward.key || !ruleset.contacts?.[reward.key as ContactKey]) {
         throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid contact reward.');
       }
@@ -172,6 +189,8 @@ export function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): st
   switch (reward.kind) {
     case 'CASH':
       return formatCentsExact(amount);
+    case 'CROWNS':
+      return `${amount.toLocaleString('en-US')} Crowns`;
     case 'TURNS':
       return `${amount.toLocaleString('en-US')} turns`;
     case 'ITEM': {

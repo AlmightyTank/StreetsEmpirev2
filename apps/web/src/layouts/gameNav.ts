@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useSession } from '../stores/session.js';
 import { useOnboarding } from '../stores/onboarding.js';
 import { CONSOLE_UPDATED_EVENT, consoleApi } from '../api/console.js';
@@ -6,6 +7,8 @@ import { SURVEYS_CHANGED_EVENT, surveysApi } from '../api/surveys.js';
 import { formatWhen } from '../utils/time.js';
 import { roundAftermathPublicEnabled } from '../config/features.js';
 import { dropApi } from '../api/drop.js';
+import { staffCan, type StaffCapability, type StaffRole } from '@streets/shared';
+import { useStaff } from '../utils/staff.js';
 
 /** One page in the game menu. `key` is what the phone tab bar stores. */
 export interface NavPage {
@@ -21,6 +24,8 @@ export interface NavPage {
   prefix?: string;
   /** Extra detail prefixes represented by this destination. */
   prefixes?: string[];
+  /** Admin pages only: the staff capability that opens it. Unset means admin. */
+  capability?: StaffCapability;
 }
 
 export interface NavSection {
@@ -136,10 +141,11 @@ export const ADMIN_SECTIONS: NavSection[] = [
     id: 'admin-players',
     title: 'Admin · Players',
     pages: [
-      { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefixes: ['/game/admin/accounts/', '/game/admin/players/'] },
+      { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefixes: ['/game/admin/accounts/', '/game/admin/players/'], capability: 'accounts.view' },
+      { key: 'admin-staff', label: 'Staff', to: '/game/admin/staff', icon: 'admin', capability: 'staff.view' },
       { key: 'admin-supporters', label: 'Supporters', to: '/game/admin/supporters', icon: 'admin' },
-      { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports', icon: 'admin' },
-      { key: 'admin-bugs', label: 'Bug Reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin' },
+      { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports', icon: 'admin', capability: 'reports.handle' },
+      { key: 'admin-bugs', label: 'Bug Reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin', capability: 'bugs.triage' },
     ],
   },
   {
@@ -174,6 +180,42 @@ export const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
 ];
+
+/** The admin pages a staff role may open, in sections that keep at least one page. */
+export function adminSectionsFor(role: StaffRole | null): NavSection[] {
+  if (!role) return [];
+  return ADMIN_SECTIONS
+    .map((section) => ({ ...section, pages: section.pages.filter((page) => staffCan(role, page.capability ?? 'admin')) }))
+    .filter((section) => section.pages.length > 0);
+}
+
+/**
+ * The admin sidebar is intentionally compact. The workspace above an admin
+ * page still exposes every tool, while the persistent sidebar only needs one
+ * destination per operator work area.
+ */
+export function adminOverviewSectionsFor(role: StaffRole | null): NavSection[] {
+  return adminSectionsFor(role).map((section) => {
+    const pages = section.pages;
+    const first = pages[0];
+    if (!first) return { ...section, pages: [] };
+    return {
+      ...section,
+      pages: [{
+        ...first,
+        key: `${section.id}-overview`,
+        label: section.title.replace('Admin · ', ''),
+        short: undefined,
+        aliases: pages.map((page) => page.to),
+        prefixes: pages.flatMap((page) => [
+          ...(page.prefix ? [`${page.prefix}`] : []),
+          ...(page.prefixes ?? []),
+          `${page.to}/`,
+        ]),
+      }],
+    };
+  }).filter((section) => section.pages.length > 0);
+}
 
 function pagesByKey(sections: readonly NavSection[]): Map<string, NavPage> {
   return new Map(sections.flatMap((section) => section.pages.map((page) => [page.key, page] as const)));
@@ -228,7 +270,8 @@ export function useDropAvailable(): boolean {
 }
 
 export function useSections(): NavSection[] {
-  const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
+  const { role } = useStaff();
+  const { pathname } = useLocation();
   const hasPass = useSession((s) => Boolean(s.me?.streetPass));
   const hasDrop = useDropAvailable();
   const newPlayerNav = useNewPlayerNavModel();
@@ -238,8 +281,11 @@ export function useSections(): NavSection[] {
       ? SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => !hidden.has(page.key)) }))
       : SECTIONS;
     const playerSections = newPlayerNav ? newPlayerSectionsFor(sections) : sections;
-    return isAdmin ? [...playerSections, ...ADMIN_SECTIONS] : playerSections;
-  }, [isAdmin, hasPass, hasDrop, newPlayerNav]);
+    const adminSections = pathname.startsWith('/game/admin')
+      ? adminOverviewSectionsFor(role)
+      : adminSectionsFor(role);
+    return [...playerSections, ...adminSections];
+  }, [role, hasPass, hasDrop, newPlayerNav, pathname]);
 }
 
 function pathMatches(pathname: string, to: string, aliases: readonly string[] = [], prefix?: string, prefixes: readonly string[] = []): boolean {

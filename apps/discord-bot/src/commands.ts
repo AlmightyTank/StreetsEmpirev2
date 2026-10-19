@@ -36,6 +36,7 @@ import { showBugForm } from './staff.js';
 import { statusEmbed } from './status.js';
 import { showTicketForm } from './support.js';
 import type { RoleSync } from './sync.js';
+import type { StaffSyncEvent } from './staff-sync.js';
 
 export const commandData = [
   new SlashCommandBuilder()
@@ -157,6 +158,8 @@ export interface CommandDeps {
   api: GameApi;
   origin: string;
   getSync: () => RoleSync | null;
+  /** Staff role changes a /sync or /syncall made, for the staff channel. */
+  onStaffSync?: (events: StaffSyncEvent[]) => void;
   getCities: () => Promise<City[]>;
   managed: ManagedRole[];
   syncCooldowns: Cooldowns;
@@ -339,6 +342,7 @@ async function run(interaction: ChatInputCommandInteraction, deps: CommandDeps):
       const sync = deps.getSync();
       if (!sync || !interaction.guild) return STARTING;
       const result = await sync.syncMember(await interaction.guild.members.fetch(interaction.user.id));
+      deps.onStaffSync?.([...sync.takeStaffProblems(), ...result.staff]);
       if (result.failed) return { content: "Couldn't update your roles. A mod may need to move the bot's role higher." };
       return { content: syncMemberText(result) };
     }
@@ -353,6 +357,7 @@ async function run(interaction: ChatInputCommandInteraction, deps: CommandDeps):
       const sync = deps.getSync();
       if (!sync) return STARTING;
       const summary = await sync.syncAll();
+      if (summary) deps.onStaffSync?.(summary.staff);
       return { content: summary ? syncAllText(summary) : 'A full sync is already running. Try again when it finishes.' };
     }
 

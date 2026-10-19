@@ -30,7 +30,7 @@ describe.runIf(process.env.ADMIN_OPS_INTEGRATION === '1')('1.0.0-E administratio
   async function register(key: string, pimp: number) {
     const username = `ao${key}_${randomUUID().slice(0, 6)}`;
     const password = randomUUID();
-    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, email: `${username}@example.invalid`, password } });
+    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username, email: `${username}@example.invalid`, password } });
     expect(response.statusCode, response.body).toBeLessThan(300);
     const accountId = response.json().account.id as string;
     accounts.push(accountId);

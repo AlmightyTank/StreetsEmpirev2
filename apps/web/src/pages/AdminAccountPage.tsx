@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import type { AdminAccountAction, AdminAccountDetailDto, AdminCommsMuteLength, AdminCommunityDto, AdminSuspensionLength, RoundStatus } from '@streets/shared';
-import { ADMIN_COMMS_MUTE_LENGTHS, ADMIN_SUSPENSION_LENGTHS, formatCents, formatNumber } from '@streets/shared';
+import type { AdminAccountAction, AdminAccountDetailDto, AdminCommsMuteLength, AdminCommunityDto, AdminSuspensionLength, RoundStatus, StaffCapability, StaffRole } from '@streets/shared';
+import {
+  ADMIN_COMMS_MUTE_LENGTHS,
+  ADMIN_SUSPENSION_LENGTHS,
+  STAFF_ROLE_LABELS,
+  assignableStaffRoles,
+  formatCents,
+  formatNumber,
+  staffMayMuteFor,
+  staffOutranks,
+} from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AdminCommunityPanel } from '../components/AdminCommunityPanel.js';
@@ -16,6 +25,7 @@ import { useSession } from '../stores/session.js';
 import { adminWhen } from '../utils/admin.js';
 import { everywhereAvailable, everywhereSteps, everywhereSummary, type EverywhereOptions, type EverywhereStep } from '../utils/community.js';
 import { formatWhen } from '../utils/time.js';
+import { useStaff } from '../utils/staff.js';
 
 const actionText: Record<AdminAccountAction, { label: string; copy: string }> = {
   ban: { label: 'Ban', copy: 'Permanent until lifted. Signs them out everywhere, blocks login, and shows them this reason when they try. Use it for cheating, abuse or ban evasion; use a suspension for a cooling-off period.' },
@@ -27,8 +37,7 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'revoke-sessions': { label: 'Sign out everywhere', copy: 'Ends every active session. They can log straight back in.' },
   rename: { label: 'Rename', copy: 'Changes their pimp name and the name on every round they played, archived results included.' },
   'reset-profile': { label: 'Reset profile', copy: 'Clears their profile title, frame, site theme and featured badges, and resets their accent.' },
-  'grant-admin': { label: 'Make admin', copy: 'Gives full admin panel access. Everything they do there is audited.' },
-  'revoke-admin': { label: 'Remove admin', copy: 'Removes admin panel access.' },
+  'staff-role': { label: 'Change staff role', copy: 'Gives, changes or takes away their staff role. Each role opens only its own tools, and everything they do there is audited.' },
   'approve-beta': { label: 'Approve beta', copy: 'Allows this account to log in and play when the beta server is invite-only.' },
   'revoke-beta': { label: 'Revoke beta', copy: 'Removes this account from the invite-only beta. Existing sessions stop working on their next request.' },
   'grant-supporter': { label: 'Grant supporter rewards', copy: 'Unlocks the Midnight Chrome collection and the Signature Profile Card for good. Cosmetic only, and there is no revoke.' },
@@ -39,11 +48,34 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'resync-discord': { label: 'Resync Discord roles', copy: 'Asks the Discord bot to re-check their roles on its next pass, about a minute.' },
   'comms-mute': { label: 'Mute messaging', copy: 'Stops private messages, Alliance Wire posts and forum recruitment threads. They keep playing and see a notice in the Console. Timed mutes lift themselves.' },
   'comms-unmute': { label: 'Lift messaging mute', copy: 'Lets them send private messages and wire posts again now.' },
-  'add-note': { label: 'Add note', copy: 'A private moderation note. The player never sees it; other admins do, and it is audited.' },
+  'add-note': { label: 'Add note', copy: 'A private moderation note. The player never sees it; other staff do, and it is audited.' },
   'delete-account': { label: 'Delete account', copy: 'Permanent. Unused accounts are removed outright. Accounts with round history are anonymized so rankings, battles and archived seasons remain intact.' },
 };
 
-const DESTRUCTIVE: AdminAccountAction[] = ['ban', 'deactivate', 'suspend', 'comms-mute', 'revoke-admin', 'revoke-beta', 'unlink-forum', 'delete-account'];
+const DESTRUCTIVE: AdminAccountAction[] = ['ban', 'deactivate', 'suspend', 'comms-mute', 'revoke-beta', 'unlink-forum', 'delete-account'];
+
+/** What each action needs, as the server checks it. Not listed: admin. */
+const ACTION_CAPABILITY: Partial<Record<AdminAccountAction, StaffCapability>> = {
+  ban: 'accounts.ban',
+  unban: 'accounts.ban',
+  suspend: 'accounts.suspend',
+  'lift-suspension': 'accounts.suspend',
+  'revoke-sessions': 'accounts.suspend',
+  'comms-mute': 'accounts.mute',
+  'comms-unmute': 'accounts.mute',
+  'add-note': 'accounts.notes',
+  rename: 'accounts.rename',
+  'reset-profile': 'accounts.rename',
+  'staff-role': 'staff.assign',
+};
+
+const ROLE_COPY: Record<StaffRole, string> = {
+  FOUNDER: 'Everything. Set from the server console only.',
+  ADMIN: 'Every admin tool, private account data, and Mod, JR Mod and Helper roles.',
+  MOD: 'Bans, suspensions, mutes, renames, reports and bug triage.',
+  JR_MOD: 'Mutes and Discord timeouts of up to a day, notes, reports and bug triage.',
+  HELPER: 'Support tickets, bug triage and public account lookups. No punishments.',
+};
 
 function statusTone(status: RoundStatus): string {
   if (status === 'ACTIVE') return ' se-tag--good';
@@ -89,6 +121,8 @@ export function AdminAccountPage() {
   const { accountId = '' } = useParams();
   const navigate = useNavigate();
   const myAccountId = useSession((s) => s.account?.id);
+  const { role: myRole, can } = useStaff();
+  const [roleChoice, setRoleChoice] = useState<StaffRole | ''>('');
   const [detail, setDetail] = useState<AdminAccountDetailDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -154,6 +188,7 @@ export function AdminAccountPage() {
     setEverywhere({ forum: false, discord: false });
     setReason('');
     setNewName(action === 'rename' ? detail?.account.username ?? '' : '');
+    setRoleChoice(action === 'staff-role' ? detail?.account.staffRole ?? '' : '');
     setDeleteConfirmation('');
     setFields({});
     setError(null);
@@ -191,8 +226,7 @@ export function AdminAccountPage() {
         case 'revoke-sessions': updated = await adminApi.revokeSessions(accountId, why, pending.sessionId); break;
         case 'rename': updated = await adminApi.renameAccount(accountId, newName.trim(), why); break;
         case 'reset-profile': updated = await adminApi.resetProfile(accountId, why); break;
-        case 'grant-admin': updated = await adminApi.setAdmin(accountId, true, why); break;
-        case 'revoke-admin': updated = await adminApi.setAdmin(accountId, false, why); break;
+        case 'staff-role': updated = await adminApi.setStaffRole(accountId, roleChoice || null, why); break;
         case 'approve-beta': updated = await adminApi.setBetaApproved(accountId, true, why); break;
         case 'revoke-beta': updated = await adminApi.setBetaApproved(accountId, false, why); break;
         case 'grant-supporter': updated = await adminApi.grantSupporter(accountId, why); break;
@@ -231,26 +265,32 @@ export function AdminAccountPage() {
 
   const { account, email, forumLink, discord } = detail;
   const isSelf = account.id === myAccountId;
-  const accountActions: AdminAccountAction[] = [
-    ...(account.ban ? ['unban' as const] : !account.isAdmin ? ['ban' as const] : []),
+  // Staff act only on players and on staff below them; the server refuses the rest.
+  const outranked = !staffOutranks(myRole, account.staffRole);
+  const isStaffAccount = Boolean(account.staffRole ?? account.isAdmin);
+  const allowed = (action: AdminAccountAction) => can(ACTION_CAPABILITY[action] ?? 'admin');
+  const roleOptions = assignableStaffRoles(myRole);
+  const muteOptions = ADMIN_COMMS_MUTE_LENGTHS.filter((option) => staffMayMuteFor(myRole, option.hours));
+  const accountActions = ([
+    ...(account.ban ? ['unban' as const] : !isStaffAccount ? ['ban' as const] : []),
     ...(account.ban ? [] : [account.isActive ? 'deactivate' as const : 'reactivate' as const]),
-    ...(account.suspension ? ['lift-suspension' as const] : account.isActive && !account.isAdmin ? ['suspend' as const] : []),
-    ...(detail.comms ? ['comms-unmute' as const] : !account.isAdmin ? ['comms-mute' as const] : []),
+    ...(account.suspension ? ['lift-suspension' as const] : account.isActive && !isStaffAccount ? ['suspend' as const] : []),
+    ...(detail.comms ? ['comms-unmute' as const] : !isStaffAccount ? ['comms-mute' as const] : []),
     'add-note',
     'revoke-sessions',
     'rename',
     'reset-profile',
-    ...(account.isAdmin ? ['revoke-admin' as const] : account.isActive ? ['grant-admin' as const] : []),
+    ...(roleOptions.length && (account.isActive || isStaffAccount) ? ['staff-role' as const] : []),
     account.betaApproved ? 'revoke-beta' : 'approve-beta',
     ...(detail.supporterSince ? [] : ['grant-supporter' as const]),
-  ];
-  const linkActions: AdminAccountAction[] = [
+  ] satisfies AdminAccountAction[]).filter(allowed);
+  const linkActions = ([
     ...(!email.verifiedAt && email.sendingEnabled ? ['resend-verification' as const] : []),
     ...(!email.verifiedAt ? ['mark-email-verified' as const] : []),
     ...(account.twoFactorEnabled && !isSelf ? ['reset-2fa' as const] : []),
     ...(forumLink ? ['unlink-forum' as const] : []),
     ...(discord.linked && discord.botApiEnabled ? ['resync-discord' as const] : []),
-  ];
+  ] satisfies AdminAccountAction[]).filter(allowed);
   const reasonTooShort = reason.trim().length < 5;
   const working = 'The last admin action is still going through.';
 
@@ -271,7 +311,7 @@ export function AdminAccountPage() {
       <div className="se-pagehead">
         <div>
           <h1 className="se-title">{account.username}</h1>
-          <p className="se-eyebrow"><Link to="/game/admin/accounts">Accounts</Link> · {account.email}</p>
+          <p className="se-eyebrow"><Link to="/game/admin/accounts">Accounts</Link>{account.email ? ` · ${account.email}` : ''}</p>
           <AccountTags account={account} />
         </div>
       </div>
@@ -311,8 +351,18 @@ export function AdminAccountPage() {
               <div className="se-field">
                 <label className="se-label" htmlFor="admin-comms-length">How long</label>
                 <select id="admin-comms-length" className="se-input" value={muteLength} onChange={(event) => setMuteLength(event.target.value as AdminCommsMuteLength)}>
-                  {ADMIN_COMMS_MUTE_LENGTHS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+                  {muteOptions.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
                 </select>
+              </div>
+            ) : null}
+            {pending.action === 'staff-role' ? (
+              <div className="se-field">
+                <label className="se-label" htmlFor="admin-staff-role">Staff role</label>
+                <select id="admin-staff-role" className="se-input" value={roleChoice} onChange={(event) => setRoleChoice(event.target.value as StaffRole | '')}>
+                  <option value="">No staff role (player)</option>
+                  {roleOptions.map((role) => <option key={role} value={role}>{STAFF_ROLE_LABELS[role]}</option>)}
+                </select>
+                <p className="se-hint">{roleChoice ? ROLE_COPY[roleChoice] : 'Takes away every staff tool. They keep playing as normal.'}</p>
               </div>
             ) : null}
             {pending.action === 'rename' ? (
@@ -366,6 +416,7 @@ export function AdminAccountPage() {
                 disabledReason={busy ? working
                   : reasonTooShort ? 'The audit log needs a reason of at least 5 characters.'
                     : pending.action === 'rename' && newName.trim().length < 3 ? 'A new name needs at least 3 characters.'
+                      : pending.action === 'staff-role' && (roleChoice || null) === account.staffRole ? 'Pick a different role.'
                       : pending.action === 'delete-account' && deleteConfirmation !== account.username ? `Type ${account.username} exactly to continue.`
                         : null}>
                 {busy ? 'Working...' : pending.action === 'delete-account' ? 'Permanently delete account' : 'Confirm'}
@@ -379,7 +430,8 @@ export function AdminAccountPage() {
       <div className="se-grid se-grid--2 se-mb">
         <Panel title="Account" flush>
           <div className="se-rows">
-            <Row label="Email" value={account.email} />
+            <Row label="Email" value={account.email ?? 'Hidden (Admin only)'} />
+            <Row label="Staff role" value={account.staffRole ? STAFF_ROLE_LABELS[account.staffRole] : '-'} />
             {account.suspension ? (
               <Row
                 label="Suspended until"
@@ -422,31 +474,43 @@ export function AdminAccountPage() {
 
         <Panel title="Moderation">
           {isSelf ? (
-            <p className="se-hint">This is your own account. Another admin has to moderate it.</p>
+            <p className="se-hint">This is your own account. Another staff member has to moderate it.</p>
+          ) : outranked ? (
+            <p className="se-hint">{account.username} is {STAFF_ROLE_LABELS[account.staffRole!]}. Only someone above them can moderate this account.</p>
+          ) : !accountActions.length && !linkActions.length ? (
+            <p className="se-hint">Your staff role has no actions for this account.</p>
           ) : (
             <>
               <p className="se-label">Account</p>
               <div className="se-admin-moderation">{accountActions.map(actionButton)}</div>
-              <p className="se-label se-mt">Email, forum and Discord</p>
-              {linkActions.length ? (
-                <div className="se-admin-moderation">{linkActions.map(actionButton)}</div>
-              ) : (
-                <p className="se-hint">Nothing to do: {email.verifiedAt ? 'the email is verified' : 'the mailer is off'}, {forumLink ? 'the forum is linked' : 'no forum link'}, {discord.linked ? (discord.botApiEnabled ? 'Discord is linked' : 'the bot API is off') : 'no Discord link'}.</p>
-              )}
-              {!email.verifiedAt && !email.sendingEnabled ? (
-                <p className="se-hint se-mt">Resending is unavailable because the server has no mailer configured.</p>
+              {can('admin') ? (
+                <>
+                  <p className="se-label se-mt">Email, forum and Discord</p>
+                  {linkActions.length ? (
+                    <div className="se-admin-moderation">{linkActions.map(actionButton)}</div>
+                  ) : (
+                    <p className="se-hint">Nothing to do: {email.verifiedAt ? 'the email is verified' : 'the mailer is off'}, {forumLink ? 'the forum is linked' : 'no forum link'}, {discord.linked ? (discord.botApiEnabled ? 'Discord is linked' : 'the bot API is off') : 'no Discord link'}.</p>
+                  )}
+                  {!email.verifiedAt && !email.sendingEnabled ? (
+                    <p className="se-hint se-mt">Resending is unavailable because the server has no mailer configured.</p>
+                  ) : null}
+                </>
               ) : null}
             </>
           )}
-          <p className="se-hint se-mt">
-            <Link className="se-standalone-link" to={`/game/admin/audit?targetType=account&targetId=${account.id}`}>Full audit history for this account</Link>
-          </p>
+          {can('admin') ? (
+            <p className="se-hint se-mt">
+              <Link className="se-standalone-link" to={`/game/admin/audit?targetType=account&targetId=${account.id}`}>Full audit history for this account</Link>
+            </p>
+          ) : null}
         </Panel>
       </div>
 
-      <AdminCommunityPanel accountId={accountId} isSelf={isSelf} community={community} loadError={communityError} onChange={setCommunity} />
+      {can('accounts.mute') ? (
+        <AdminCommunityPanel accountId={accountId} canAct={!isSelf && !outranked} community={community} loadError={communityError} onChange={setCommunity} />
+      ) : null}
 
-      <Panel title="Danger Zone" className="se-mb se-danger-zone">
+      {can('admin') ? <Panel title="Danger Zone" className="se-mb se-danger-zone">
         <p>
           <strong>Delete account permanently.</strong> This removes login identity, email, Discord/forum links,
           sessions, notification devices and private account settings.
@@ -458,8 +522,10 @@ export function AdminAccountPage() {
         </p>
         {isSelf ? (
           <p className="se-hint">You cannot delete your own admin account. Another admin must perform this action.</p>
-        ) : account.isAdmin ? (
-          <p className="se-hint">Remove this account's admin role before it can be deleted.</p>
+        ) : outranked ? (
+          <p className="se-hint">Only someone above {account.username} can delete this account.</p>
+        ) : isStaffAccount ? (
+          <p className="se-hint">Remove this account's staff role before it can be deleted.</p>
         ) : (
           <Button
             type="button"
@@ -470,9 +536,9 @@ export function AdminAccountPage() {
             Delete account
           </Button>
         )}
-      </Panel>
+      </Panel> : null}
 
-      <Panel title="Sessions" aside="Device only, no IP addresses" flush className="se-mb">
+      {detail.privateDataHidden ? null : <Panel title="Sessions" aside="Device only, no IP addresses" flush className="se-mb">
         {detail.sessions.length === 0 ? (
           <p className="se-muted se-admin-pad">No active sessions.</p>
         ) : (
@@ -495,7 +561,7 @@ export function AdminAccountPage() {
                     <td data-label="Last seen">{adminWhen(session.lastSeenAt)}</td>
                     <td data-label="Expires">{adminWhen(session.expiresAt)}</td>
                     <td className="se-table__number" data-label="Actions">
-                      {isSelf ? <span className="se-muted">-</span> : (
+                      {isSelf || outranked ? <span className="se-muted">-</span> : (
                         <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('revoke-sessions', session.id)} disabledReason={busy ? working : null}>
                           Sign out
                         </Button>
@@ -507,7 +573,7 @@ export function AdminAccountPage() {
             </table>
           </div>
         )}
-      </Panel>
+      </Panel>}
 
       <Panel title="Rounds played" flush className="se-mb">
         {detail.rounds.length === 0 ? (
@@ -538,7 +604,7 @@ export function AdminAccountPage() {
                     <td className="se-table__number se-num" data-label="National">{round.nationalRank ? `#${round.nationalRank}` : '-'}</td>
                     <td className="se-table__number se-num" data-label="Local">{round.localRank ? `#${round.localRank}` : '-'}</td>
                     <td className="se-table__number" data-label="Actions">
-                      <Link className="se-btn se-btn--sm se-btn--ghost" to={`/game/admin/players/${round.roundPlayerId}`}>Inspect</Link>
+                      {can('admin') ? <Link className="se-btn se-btn--sm se-btn--ghost" to={`/game/admin/players/${round.roundPlayerId}`}>Inspect</Link> : <span className="se-muted">-</span>}
                     </td>
                   </tr>
                 ))}
@@ -548,7 +614,7 @@ export function AdminAccountPage() {
         )}
       </Panel>
 
-      <Panel title="Moderation notes" aside="Private to admins" className="se-mb">
+      {can('accounts.notes') ? <Panel title="Moderation notes" aside="Private to staff" className="se-mb">
         {detail.notes.length ? (
           <ul className="se-admin-notes">
             {detail.notes.map((note) => (
@@ -559,7 +625,7 @@ export function AdminAccountPage() {
             ))}
           </ul>
         ) : <p className="se-muted">No notes yet.</p>}
-      </Panel>
+      </Panel> : null}
 
       <Panel title="Admin history" aside="Latest 25" flush>
         <AuditEntryList entries={detail.audit} empty="No admin actions on this account yet." />

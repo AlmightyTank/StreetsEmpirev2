@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import { APP_VERSION, normalizeUsername } from '@streets/shared';
 import { hashPassword, verifyPassword } from '../auth/password.js';
+import { isStaff } from '../auth/play-access.js';
 import { lockAccount, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService } from './admin-audit.service.js';
@@ -72,6 +73,7 @@ export async function eraseAccount(tx: Db, before: Account, replacementPasswordH
       lastLoginAt: null,
       isActive: false,
       isAdmin: false,
+      staffRole: null,
       betaApproved: false,
       suspendedUntil: null,
       suspendedReason: null,
@@ -183,8 +185,8 @@ export const AccountDataService = {
    * sign-in needs none) and by typing DELETE. Recorded in the audit log.
    */
   async deleteSelf(prisma: PrismaClient, account: Account, session: Pick<Session, 'method'>, currentPassword: string | undefined): Promise<ErasureResult> {
-    if (account.isAdmin) {
-      throw AppError.conflict('ADMIN_DELETE_ADMIN', 'Admins cannot delete their own account. Have the admin role removed first.');
+    if (isStaff(account)) {
+      throw AppError.conflict('ADMIN_DELETE_ADMIN', 'Staff cannot delete their own account. Have the staff role removed first.');
     }
     if (session.method !== 'DISCORD' || currentPassword) {
       if (!currentPassword || !(await verifyPassword(account.passwordHash, currentPassword))) {

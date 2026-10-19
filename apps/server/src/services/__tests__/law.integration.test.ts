@@ -32,7 +32,7 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('1.3.0-A Case foundation
     for (const kind of ['law', 'old'] as const) {
       const rules = rulesets[kind];
       const name = `law_${kind}_${randomUUID().slice(0, 6)}`;
-      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
       accounts.push(registered.json().account.id);
       cookies[kind] = registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; ');
       const round = await app.prisma.round.create({ data: {

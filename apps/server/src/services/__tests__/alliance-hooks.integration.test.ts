@@ -56,7 +56,7 @@ describe.runIf(process.env.ALLIANCE_INTEGRATION === '1')('alliance community hoo
     vi.spyOn(RoundService, 'requireCurrent').mockImplementation(async () => app.prisma.round.findUniqueOrThrow({ where: { id: roundId } }));
     for (let i = 0; i < 3; i++) {
       const name = `hook_${randomUUID().slice(0, 8)}`;
-      const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+      const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { birthDate: '1990-01-01', ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
       expect(response.statusCode).toBe(201);
       const accountId = response.json().account.id as string;
       const discordId = `9${String(Date.now()).slice(-10)}${String(i).padStart(6, '0')}`;

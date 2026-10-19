@@ -1,5 +1,6 @@
 import type { Account, PrismaClient } from '@prisma/client';
 import { AppError } from '../utils/errors.js';
+import { isStaff } from './play-access.js';
 
 /** The account fields a sign-in check needs. */
 export type SignInAccount = Pick<Account, 'id' | 'isActive' | 'suspendedUntil' | 'suspendedReason'> & Partial<Pick<Account, 'bannedAt' | 'bannedReason' | 'closedAt'>>;
@@ -59,12 +60,12 @@ export function assertCanSignIn(account: SignInAccount, now = new Date()): void 
 }
 
 
-/** Invite-only beta access. Admins always retain access so they cannot lock themselves out. */
+/** Invite-only beta access. Staff always retain access so they cannot lock themselves out. */
 export function assertBetaAccess(
-  account: Pick<Account, 'isAdmin' | 'betaApproved'>,
+  account: Pick<Account, 'isAdmin' | 'staffRole' | 'betaApproved'>,
   inviteOnly: boolean,
 ): void {
-  if (!inviteOnly || account.isAdmin || account.betaApproved) return;
+  if (!inviteOnly || isStaff(account) || account.betaApproved) return;
   throw new AppError(
     403,
     'BETA_APPROVAL_REQUIRED',

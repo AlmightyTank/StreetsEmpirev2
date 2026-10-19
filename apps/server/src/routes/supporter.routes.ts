@@ -4,6 +4,7 @@ import { SupporterBillingService } from '../services/supporter-billing.service.j
 import { SupporterPollService } from '../services/supporter-poll.service.js';
 import { GooglePlayBillingService } from '../services/google-play-billing.service.js';
 import { parseBody } from '../utils/validate.js';
+import { SupporterBenefitsService } from '../services/supporter-benefits.service.js';
 
 const listingSchema = z.object({ listed: z.boolean() }).strict();
 const creditSchema = z.object({ optIn: z.boolean() }).strict();
@@ -16,6 +17,11 @@ const playPurchaseSchema = z.object({ purchaseToken: z.string().min(20).max(4096
 const supporterRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', { preHandler: fastify.requireAuth }, async (request) =>
     SupporterBillingService.status(fastify.prisma, request.auth!.account.id));
+
+  fastify.get('/benefits', { preHandler: fastify.requireAuth }, async (request, reply) => {
+    reply.header('Cache-Control', 'private, no-store');
+    return SupporterBenefitsService.get(fastify.prisma, request.auth!.account.id);
+  });
 
   fastify.post('/checkout', { preHandler: fastify.requireAuth }, async (request) =>
     SupporterBillingService.startCheckout(fastify.prisma, request.auth!.account));

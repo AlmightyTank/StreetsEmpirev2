@@ -93,7 +93,7 @@ describe.runIf(process.env.LOAN_INTEGRATION === '1')('1.6.5-D repayment and deli
     const registered = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() },
+      payload: { birthDate: '1990-01-01', ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() },
     });
     accountId = registered.json().account.id;
     cookie = registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; ');

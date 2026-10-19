@@ -71,7 +71,7 @@ describe.runIf(process.env.LOAN_INTEGRATION === '1')('1.6.5-E collection pressur
   beforeAll(async () => {
     app = await (await import('../../app.js')).buildApp();
     const name = `loane_${randomUUID().slice(0, 8)}`;
-    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
     accountId = registered.json().account.id;
   });
 

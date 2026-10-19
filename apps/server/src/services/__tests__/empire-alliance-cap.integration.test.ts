@@ -30,6 +30,8 @@ describe.runIf(process.env.ALLIANCE_INTEGRATION === '1')('3.0-B alliance capacit
     for (let i = 0; i < 17; i++) {
       const username = `cap_${randomUUID().slice(0, 8)}`;
       const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: {
+        birthDate: '1990-01-01',
+        ageConfirmed: true,
         username, email: `${username}@example.invalid`, password: randomUUID(),
       } });
       expect(registered.statusCode, registered.body).toBe(201);

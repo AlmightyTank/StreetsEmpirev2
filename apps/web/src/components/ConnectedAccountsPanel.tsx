@@ -31,6 +31,7 @@ function formatDate(value: string | null): string {
 
 export function ConnectedAccountsPanel({ account, onConnectionsChanged }: ConnectedAccountsPanelProps) {
   const [forum, setForum] = useState<ForumLinkStatusDto | null>(null);
+  const [forumCosmeticsVisible, setForumCosmeticsVisible] = useState(false);
   const [push, setPush] = useState<NotificationSettingsDto | null>(null);
   const [support] = useState<PushSupport>(() => pushSupport());
   const [thisHash, setThisHash] = useState<string | null>(null);
@@ -45,9 +46,25 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
 
   async function loadForum() {
     try {
-      setForum(await forumApi.status());
+      const [status, settings] = await Promise.all([forumApi.status(), authApi.profileSettings()]);
+      setForum(status);
+      setForumCosmeticsVisible(settings.settings.forumCosmeticsVisible ?? false);
     } catch {
       setError('Could not load the forum connection. Try again.');
+    }
+  }
+
+  async function changeForumCosmetics(visible: boolean) {
+    setBusy('forum-cosmetics');
+    setError(null);
+    try {
+      const result = await forumApi.setCosmeticsVisibility(visible);
+      setForumCosmeticsVisible(result.visible);
+      setNotice(visible ? 'Forum cosmetics enabled.' : 'Forum cosmetics hidden.');
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not update forum cosmetics. Try again.');
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -264,6 +281,10 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
           ) : forum.link ? (
             <>
               <p>Connected as <strong>{forum.link.username}</strong>. Your game and forum profiles link to each other across every round.</p>
+              <label className="se-checkrow">
+                <input type="checkbox" checked={forumCosmeticsVisible} onChange={(event) => void changeForumCosmetics(event.target.checked)} disabled={busy !== null} />
+                <span><strong>Show supporter cosmetics on the forum</strong><small>Optional decorative badge, nameplate and frame. No billing details are shared.</small></span>
+              </label>
               <div className="se-actions-row">
                 <a className="se-btn se-btn--primary" href={forum.link.profileUrl}>Forum profile</a>
                 <Button type="button" className="se-btn se-btn--ghost" onClick={() => setConfirmForum(true)} disabledReason={off}>

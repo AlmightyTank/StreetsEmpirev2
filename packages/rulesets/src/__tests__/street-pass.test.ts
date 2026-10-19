@@ -99,6 +99,13 @@ describe('Street Pass season 1', () => {
     expect(sum('FAVOR_ITEM')).toBe(6);
   });
 
+  it('includes three free 100-Crown rewards', () => {
+    const crownRewards = STREET_PASS_S1.tiers.flatMap((tier) => tier.rewards
+      .filter((reward) => reward.kind === 'CROWNS')
+      .map((reward) => [tier.tier, reward.amount]));
+    expect(crownRewards).toEqual([[1, 100], [10, 100], [20, 100]]);
+  });
+
   it('gives guns as items and never buying access', () => {
     const kinds = STREET_PASS_S1.tiers.flatMap((tier) => tier.rewards.map((reward) => reward.kind));
     expect(kinds).not.toContain('WEAPON_ACCESS');

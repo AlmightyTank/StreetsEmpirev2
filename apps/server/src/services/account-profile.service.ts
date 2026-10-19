@@ -16,6 +16,7 @@ import type {
   AccountProfileSettingsDto,
   AccountProfileSettingsResponseDto,
   BadgeCosmeticOptionDto,
+  CollectionOptionDto,
   CosmeticOptionDto,
   DefaultLanding,
   ItemCosmeticStyleKey,
@@ -39,6 +40,7 @@ import { profileTitleForAward } from './profile-titles.js';
 import { crewCosmeticLoadout, itemCosmeticLoadout } from './profile-showcase.service.js';
 import { SupporterService } from './supporter.service.js';
 import { supporterTrialActive, TRIAL_SUPPORTER_COSMETICS } from './supporter-trial.service.js';
+import { birthdayLookOptions } from './birthday.service.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 export const FREE_PROFILE_PRESET_SLOTS = 1;
@@ -236,6 +238,7 @@ function toSettingsDto(
   frameOptions: CosmeticOptionDto[],
   themeOptions: CosmeticOptionDto[],
   ownedCollections: ReadonlySet<string>,
+  bannerOptions: CollectionOptionDto[],
 ): AccountProfileSettingsDto {
   const activeTitleKey = profile?.activeTitleKey && earnedTitleKeys.has(profile.activeTitleKey)
     ? profile.activeTitleKey
@@ -280,6 +283,9 @@ function toSettingsDto(
     profileImageUrl: profile?.profileImageUrl ?? null,
     profileAvatar: readAvatarParts(profile?.profileAvatar),
     profileBannerUrl: profile?.profileBannerUrl ?? null,
+    activeCrewBannerKey: profile?.activeCrewBannerKey && bannerOptions.some((option) => option.key === profile.activeCrewBannerKey && !option.locked)
+      ? profile.activeCrewBannerKey
+      : null,
     profileEffect,
     activeProfileFrameKey,
     activeAvatarFrameKey,
@@ -289,8 +295,10 @@ function toSettingsDto(
     crewCosmetics: crewCosmeticLoadout(profile?.crewCosmetics, ownedCollections),
     showThemeOnProfile: profile?.showThemeOnProfile ?? true,
     showLookOnProfile: profile?.showLookOnProfile ?? true,
+    forumCosmeticsVisible: profile?.forumCosmeticsVisible ?? false,
     showCrewMoments: profile?.showCrewMoments ?? false,
     showCrewCelebrations: profile?.showCrewCelebrations ?? false,
+    showBirthdayCake: profile?.showBirthdayCake ?? false,
     featuredBadgeKeys,
     profileAccent,
     uiDensity,
@@ -329,14 +337,17 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   themes: CosmeticOptionDto[];
   /** Item art collection keys this account has earned (Classic is implicit). */
   collections: Set<string>;
+  crewBanners: CollectionOptionDto[];
 }> {
-  const [questAccents, frames, themes, collectionUnlocks, account, trialActive] = await Promise.all([
+  const [questAccents, frames, themes, bannerUnlocks, collectionUnlocks, account, trialActive, birthday] = await Promise.all([
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'SITE_THEME'),
+    QuestCosmeticService.optionsForAccount(prisma, accountId, 'CREW_BANNER'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ITEM_COLLECTION'),
     prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true } }),
     supporterTrialActive(prisma, accountId),
+    birthdayLookOptions(prisma, accountId, new Date()),
   ]);
   const accents = [...PROFILE_ACCENTS];
   const known = new Set(accents.map((option) => option.key));
@@ -346,11 +357,20 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
       known.add(option.key);
     }
   }
-  const themeOptions = [...themes];
-  const frameOptions = [...frames];
+  // The birthday frame and theme are offered on the day only (birthday.service).
+  const themeOptions = [...themes, ...birthday.themes];
+  const frameOptions = [...frames, ...birthday.frames];
   const knownThemes = new Set(themeOptions.map((option) => option.key));
   const knownFrames = new Set(frameOptions.map((option) => option.key));
   const collections = new Set(collectionUnlocks.map((option) => option.key));
+  const bannerCatalog = Object.values(SUPPORTER_COSMETICS).filter((cosmetic) => cosmetic.kind === 'CREW_BANNER').map(optionFromCosmetic);
+  const ownedBanners = new Set(bannerUnlocks.map((option) => option.key));
+  const crewBanners: CollectionOptionDto[] = bannerCatalog.map((option) => ({
+    ...option,
+    locked: !ownedBanners.has(option.key),
+    unlockHint: ownedBanners.has(option.key) ? null : 'Active paid supporter reward',
+    description: ownedBanners.has(option.key) ? option.description : `${option.description} Unlock through paid supporter rewards.`,
+  }));
   if (trialActive) {
     for (const cosmetic of TRIAL_SUPPORTER_COSMETICS) {
       const option = optionFromCosmetic(cosmetic);
@@ -383,7 +403,7 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   if (account?.isAdmin && env.seasonalEvents.adminTestMode) {
     for (const style of RELEASED_ITEM_COSMETIC_STYLES) collections.add(style.key);
   }
-  return { accents, frames: withThemeCompanionFrames(frameOptions, themeOptions), themes: themeOptions, collections };
+  return { accents, frames: withThemeCompanionFrames(frameOptions, themeOptions), themes: themeOptions, collections, crewBanners };
 }
 
 export const AccountProfileService = {
@@ -402,7 +422,7 @@ export const AccountProfileService = {
     const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
 
     return {
-      settings: toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections),
+      settings: toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections, appearance.crewBanners),
       convenience: convenienceLimits(supporterSince !== null),
       options: {
         titles: titleOptions,
@@ -414,6 +434,7 @@ export const AccountProfileService = {
         surfaces: appearance.frames.some((frame) => frame.key === SIGNATURE_CARD_FRAME_KEY) ? PROFILE_SURFACES : [],
         itemStyles: collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, appearance.collections, hints),
         crewStyles: collectionOptions(RELEASED_CREW_COSMETIC_STYLES, appearance.collections, hints),
+         crewBanners: appearance.crewBanners,
         densities: UI_DENSITIES,
         moneyFormats: MONEY_FORMATS,
         defaultLandings: DEFAULT_LANDINGS,
@@ -471,6 +492,10 @@ export const AccountProfileService = {
         activeSiteThemeKey: 'That site theme is not unlocked.',
       });
     }
+    const activeCrewBannerKey = input.activeCrewBannerKey ?? null;
+    if (activeCrewBannerKey && !appearance.crewBanners.some((option) => option.key === activeCrewBannerKey && !option.locked)) {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick a crew banner you have already unlocked.', { activeCrewBannerKey: 'That crew banner is not unlocked.' });
+    }
     const accentKeys = new Set(appearance.accents.map((option) => option.key));
     if (!accentKeys.has(input.profileAccent)) {
       throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick an accent you have already unlocked.', {
@@ -517,6 +542,7 @@ export const AccountProfileService = {
         profileImageUrl: profileImageUrl ?? null,
         ...(profileAvatar !== undefined ? { profileAvatar } : {}),
         profileBannerUrl: profileBannerUrl ?? null,
+        activeCrewBannerKey,
         profileEffect: profileEffect ?? 'none',
         profileSurface: surface ?? null,
         activeProfileFrameKey,
@@ -526,8 +552,10 @@ export const AccountProfileService = {
         crewCosmetics: { ...(input.crewCosmetics ?? DEFAULT_CREW_COSMETICS) },
         showThemeOnProfile: input.showThemeOnProfile ?? true,
         showLookOnProfile: input.showLookOnProfile ?? true,
+        forumCosmeticsVisible: input.forumCosmeticsVisible ?? false,
         showCrewMoments: input.showCrewMoments ?? false,
         showCrewCelebrations: input.showCrewCelebrations ?? false,
+        showBirthdayCake: input.showBirthdayCake ?? false,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
@@ -544,6 +572,7 @@ export const AccountProfileService = {
         ...(profileImageUrl !== undefined ? { profileImageUrl } : {}),
         ...(profileAvatar !== undefined ? { profileAvatar } : {}),
         ...(profileBannerUrl !== undefined ? { profileBannerUrl } : {}),
+        activeCrewBannerKey,
         ...(profileEffect !== undefined ? { profileEffect } : {}),
         ...(surface !== undefined ? { profileSurface: surface } : {}),
         activeProfileFrameKey,
@@ -553,8 +582,10 @@ export const AccountProfileService = {
         crewCosmetics: { ...(input.crewCosmetics ?? DEFAULT_CREW_COSMETICS) },
         showThemeOnProfile: input.showThemeOnProfile ?? true,
         showLookOnProfile: input.showLookOnProfile ?? true,
+        forumCosmeticsVisible: input.forumCosmeticsVisible ?? false,
         showCrewMoments: input.showCrewMoments,
         showCrewCelebrations: input.showCrewCelebrations,
+        showBirthdayCake: input.showBirthdayCake,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
@@ -580,7 +611,7 @@ export const AccountProfileService = {
     const unlocked = awards.filter((award) => award.unlocked);
     const earnedBadgeKeys = new Set(unlocked.map((award) => award.key));
     const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
-    const settings = toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections);
+    const settings = toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections, appearance.crewBanners);
     const titleAward = unlocked.find((award) => award.key === settings.activeTitleKey);
     const title = settings.activeTitleKey && honorificTitleKeys.includes(settings.activeTitleKey)
       ? profileTitleForAward({ key: settings.activeTitleKey, title: settings.activeTitleKey })

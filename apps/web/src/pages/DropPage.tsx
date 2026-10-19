@@ -14,12 +14,12 @@ import type {
   ItemCosmeticStyleKey,
   StreetPassSkipQuoteDto,
 } from '@streets/shared';
+import { discountedDropPrice } from '@streets/rulesets';
 import { formatNumber } from '@streets/shared';
 import { dropApi } from '../api/drop.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
-import { GamePageHeader } from '../components/GameUI.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { hasItemArt } from '../items/itemArt.js';
@@ -102,16 +102,22 @@ function useServerNow(serverTime: string | null, startedAt: number, receivedAt: 
   return now;
 }
 
-function timeLeft(endsAt: string | null, now: number): string {
-  if (!endsAt) return 'No end date';
-  const ms = Date.parse(endsAt) - now;
-  if (ms <= 0) return 'Ended';
-  const minutes = Math.floor(ms / 60_000);
-  const days = Math.floor(minutes / 1440);
-  const hours = Math.floor((minutes % 1440) / 60);
-  if (days > 0) return `${days}d ${hours}h left`;
-  if (hours > 0) return `${hours}h ${minutes % 60}m left`;
-  return `${Math.max(1, minutes)}m left`;
+/** Shop-style countdown: "2D 04H" while days remain, then a ticking "03:12:09". */
+export function countdown(endsAt: string | null, now: number): string {
+  if (!endsAt) return '';
+  const total = Math.max(0, Math.floor((Date.parse(endsAt) - now) / 1000));
+  const days = Math.floor(total / 86_400);
+  const hours = Math.floor((total % 86_400) / 3600);
+  if (days > 0) return `${days}D ${String(hours).padStart(2, '0')}H`;
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${pad(hours)}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
+}
+
+/** A rotating offer with under a day left, as the shop's "Leaving soon" tag. Daily picks always leave within a day, so they never get it. */
+function leavingSoon(offer: DropOfferDto | undefined, now: number): boolean {
+  if (!offer?.endsAt || offer.slot === 'DAILY' || offer.state === 'COMING_SOON') return false;
+  const ms = Date.parse(offer.endsAt) - now;
+  return ms > 0 && ms < 86_400_000;
 }
 
 /** The art for an item: its look on the items it dresses, a frame ring, an accent swatch or a title plate. */
@@ -174,53 +180,49 @@ function BundleArt({ bundle, items }: { bundle: DropBundleDto; items: DropItemDt
   );
 }
 
-function StateChip({ offer, owned }: { offer?: DropOfferDto; owned: boolean }) {
-  if (owned || offer?.state === 'OWNED') return <span className="se-tag se-tag--good">Owned</span>;
-  if (offer?.state === 'PARTIALLY_OWNED') return <span className="se-tag se-tag--warn">Some owned</span>;
-  if (offer?.state === 'COMING_SOON') return <span className="se-tag">Coming soon</span>;
-  return null;
-}
+type TileSize = 'normal' | 'wide' | 'large';
 
-function DropCard({ item, bundle, offer, items, collection, now }: {
+function DropCard({ item, bundle, offer, items, collection, now, size = 'normal' }: {
   item?: DropItemDto;
   bundle?: DropBundleDto;
   offer?: DropOfferDto;
   items: DropItemDto[];
   collection: DropCollectionDto | undefined;
   now: number;
+  size?: TileSize;
 }) {
   const name = item?.name ?? bundle?.name ?? '';
   const slug = item?.slug ?? bundle?.slug ?? '';
   const owned = item ? item.owned : Boolean(bundle && bundle.yourPriceCrowns === 0);
   const rarity = item?.rarity ?? 'legendary';
   const price = offer?.priceCrowns ?? item?.priceCrowns ?? bundle?.yourPriceCrowns ?? 0;
+  const soon = offer?.state === 'COMING_SOON';
+  const leaving = leavingSoon(offer, now);
+  const flag = soon ? 'Coming soon' : leaving ? 'Leaving soon' : offer?.state === 'PARTIALLY_OWNED' ? 'Some owned' : offer?.badge === 'RETURNING' ? 'Back again' : null;
   return (
     <Link
-      className={`se-drop-card se-drop-card--${rarity}${owned ? ' is-owned' : ''}`}
+      className={`se-drop-card se-drop-card--${rarity} se-drop-card--${size}${bundle ? ' se-drop-card--bundle' : ''}${owned ? ' is-owned' : ''}`}
       to={`/game/drop/item/${slug}`}
       style={collection ? { ['--se-drop-collection' as string]: collection.accent } : undefined}
-      aria-label={`${name}, ${owned ? 'owned' : `${formatNumber(price)} Crowns`}${offer ? `, ${BADGE_LABEL[offer.badge]}` : ''}`}
+      aria-label={`${name}, ${owned ? 'owned' : `${formatNumber(price)} Crowns`}${offer ? `, ${BADGE_LABEL[offer.badge]}` : ''}${flag ? `, ${flag}` : ''}`}
     >
       <div className="se-drop-card__art">
-        {item ? <DropArt item={item} /> : bundle ? <BundleArt bundle={bundle} items={items} /> : null}
+        {item ? <DropArt item={item} size={size === 'large' ? 'lg' : 'md'} /> : bundle ? <BundleArt bundle={bundle} items={items} /> : null}
       </div>
+      {flag ? <span className={`se-drop-card__flag${leaving ? ' is-leaving' : ''}`}>{flag}</span> : null}
+      {owned ? <span className="se-drop-card__owned" aria-hidden="true">✓</span> : null}
       <div className="se-drop-card__meta">
-        <div className="se-drop-card__tags">
-          {offer ? <span className={`se-drop-badge se-drop-badge--${offer.badge.toLowerCase()}`}>{BADGE_LABEL[offer.badge]}</span> : null}
-          <span className={`se-drop-rarity se-drop-rarity--${rarity}`}>{bundle ? 'Bundle' : rarity}</span>
-        </div>
         <strong className="se-drop-card__name">{name}</strong>
-        <span className="se-drop-card__collection">{collection?.name ?? ''}</span>
+        <span className="se-drop-card__collection">{bundle ? `Bundle · ${bundle.itemKeys.length} items` : `${rarity} · ${collection?.name ?? ''}`}</span>
         <div className="se-drop-card__foot">
-          {owned ? <StateChip owned offer={offer} /> : (
+          {owned ? <span className="se-drop-card__owned-label">Owned</span> : (
             <span className="se-drop-card__price">
-              {bundle && bundle.yourPriceCrowns < bundle.listPriceCrowns ? <Crowns value={bundle.listPriceCrowns} strike /> : null}
               <Crowns value={price} />
+              {offer && offer.basePriceCrowns > offer.priceCrowns ? <Crowns value={offer.basePriceCrowns} strike />
+                : bundle && bundle.yourPriceCrowns < bundle.listPriceCrowns ? <Crowns value={bundle.listPriceCrowns} strike /> : null}
             </span>
           )}
-          {!owned ? <StateChip owned={false} offer={offer} /> : null}
-          {offer?.endsAt && offer.state !== 'COMING_SOON' ? <small className="se-drop-card__time">{timeLeft(offer.endsAt, now)}</small> : null}
-          {offer?.state === 'COMING_SOON' ? <small className="se-drop-card__time">From {formatWhen(offer.startsAt)}</small> : null}
+          {soon ? <small className="se-drop-card__time">{formatWhen(offer!.startsAt)}</small> : null}
         </div>
       </div>
     </Link>
@@ -229,13 +231,12 @@ function DropCard({ item, bundle, offer, items, collection, now }: {
 
 function WalletChip({ wallet }: { wallet: DropWalletDto | null }) {
   const signedIn = useSession((s) => Boolean(s.account));
-  if (!signedIn) return <Link className="se-btn se-btn--ghost" to="/login">Sign in to collect</Link>;
+  if (!signedIn) return <Link className="se-drop-wallet-chip se-drop-wallet-chip--signin" to="/login">Sign in to collect</Link>;
   return (
-    <div className="se-drop-wallet-chip" aria-label="Your Crown balance">
+    <Link className="se-drop-wallet-chip" to="/game/drop/crowns" aria-label={`Your Crown balance: ${formatNumber(wallet?.balance ?? 0)}. Get Crowns`}>
       <Crowns value={wallet?.balance ?? 0} />
-      <Link to="/game/drop/wallet">Wallet</Link>
-      <Link to="/game/drop/crowns">Get Crowns</Link>
-    </div>
+      <span className="se-drop-wallet-chip__plus" aria-hidden="true">+</span>
+    </Link>
   );
 }
 
@@ -257,16 +258,18 @@ function DropSubNav() {
   );
 }
 
-function DropFrame({ wallet, children }: { wallet: DropWalletDto | null; children: ReactNode }) {
+function DropFrame({ wallet, timer, children }: { wallet: DropWalletDto | null; timer?: ReactNode; children: ReactNode }) {
   return (
     <GameLayout>
       <div className="se-drop">
-        <GamePageHeader
-          eyebrow="Progress & Rewards · Cosmetic only"
-          title="The Drop"
-          description="Original looks, frames, accents and titles, bought with Crowns. Nothing here changes stats, odds, cash, turns or ranking."
-          actions={<WalletChip wallet={wallet} />}
-        />
+        <header className="se-drop-top">
+          <div className="se-drop-top__title">
+            <h1>The Drop</h1>
+            {timer ? <span className="se-drop-top__timer">{timer}</span> : null}
+          </div>
+          <WalletChip wallet={wallet} />
+          <p className="se-drop-top__note">Cosmetic only. Nothing here changes stats, odds, cash, turns or ranking.</p>
+        </header>
         <DropSubNav />
         {children}
       </div>
@@ -347,34 +350,62 @@ function ShopView() {
   const onSale = new Set(data.offers.filter((offer) => offer.state !== 'COMING_SOON').map((offer) => offer.refKey));
   const resting = data.items.filter((item) => !onSale.has(item.key)
     && (chip === 'featured' || CATEGORY_OF[item.category] === chip) && ownedFilter(item.owned));
-  const card = (offer: DropOfferDto) => (
+  const collectionOf = (offer: DropOfferDto) => itemByKey.get(offer.refKey)?.collection ?? bundleByKey.get(offer.refKey)?.collection ?? '';
+  const card = (offer: DropOfferDto, size: TileSize = 'normal') => (
     <DropCard
       key={offer.id}
       offer={offer}
       item={itemByKey.get(offer.refKey)}
       bundle={bundleByKey.get(offer.refKey)}
       items={data.items}
-      collection={collections.get(itemByKey.get(offer.refKey)?.collection ?? bundleByKey.get(offer.refKey)?.collection ?? '')}
+      collection={collections.get(collectionOf(offer))}
       now={now}
+      size={size}
     />
   );
-  const featured = data.featured.collection;
-  const featuredItems = featured ? data.items.filter((item) => item.collection === featured.key && item.preview.type === 'ITEM').slice(0, 3) : [];
+  // Like a set in an item shop: the dearest look headlines big, bundles run wide, the rest follow by price.
+  const tiles = (offers: DropOfferDto[], headline: boolean) => {
+    const sorted = [...offers].sort((a, b) => Number(b.kind === 'BUNDLE') - Number(a.kind === 'BUNDLE') || b.priceCrowns - a.priceCrowns);
+    const lead = headline ? sorted.find((offer) => offer.kind === 'ITEM' && offer.state !== 'OWNED') : undefined;
+    const ordered = lead ? [lead, ...sorted.filter((offer) => offer !== lead)] : sorted;
+    return ordered.map((offer) => card(offer, offer === lead ? 'large' : offer.kind === 'BUNDLE' ? 'wide' : 'normal'));
+  };
+  // Two featured sets at a time; older servers send only `collection`.
+  const heroes = data.featured.collections ?? (data.featured.collection ? [data.featured.collection] : []);
+  const featuredOffers = section('FEATURED');
+  const featuredGroups = [...new Set(featuredOffers.map(collectionOf))].map((key) => ({
+    key,
+    collection: collections.get(key),
+    offers: featuredOffers.filter((offer) => collectionOf(offer) === key),
+  }));
+  const soonOffers = [...section('FEATURED', true), ...section('DAILY', true), ...section('CATALOG', true)];
 
   return (
-    <DropFrame wallet={data.wallet}>
-      {featured ? (
-        <section className="se-drop-hero" style={{ ['--se-drop-collection' as string]: featured.accent }} aria-labelledby="drop-featured-title">
-          <div className="se-drop-hero__copy">
-            <span className="se-eyebrow">Featured collection · {timeLeft(data.featured.endsAt, now)}</span>
-            <h2 id="drop-featured-title">{featured.name}</h2>
-            <p className="se-drop-hero__tagline">{featured.tagline}</p>
-            <p>{featured.description}</p>
-          </div>
-          <div className="se-drop-hero__art" aria-hidden="true">
-            {featuredItems.map((item) => <DropArt key={item.key} item={item} size="sm" />)}
-          </div>
-        </section>
+    <DropFrame wallet={data.wallet} timer={<>Shop resets in <b>{countdown(data.daily.resetsAt, now)}</b></>}>
+      {heroes.length ? (
+        <div className={`se-drop-heroes${heroes.length > 1 ? ' se-drop-heroes--pair' : ''}`}>
+          {heroes.map((hero) => (
+            <section key={hero.key} className="se-drop-hero" style={{ ['--se-drop-collection' as string]: hero.accent }} aria-labelledby={`drop-featured-${hero.key}`}>
+              <div className="se-drop-hero__copy">
+                <span className="se-drop-hero__kicker">Featured set</span>
+                <h2 id={`drop-featured-${hero.key}`}>{hero.name}</h2>
+                <p className="se-drop-hero__tagline">{hero.tagline}</p>
+                <p className="se-drop-hero__desc">{hero.description}</p>
+                <div className="se-drop-hero__actions">
+                  <span className="se-drop-timer">Ends in <b>{countdown(data.featured.endsAt, now)}</b></span>
+                  {featuredGroups.some((group) => group.key === hero.key) ? (
+                    <button type="button" className="se-drop-cta" onClick={() => document.getElementById(`drop-set-${hero.key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                      Shop the set
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <div className="se-drop-hero__art" aria-hidden="true">
+                {data.items.filter((item) => item.collection === hero.key && item.preview.type === 'ITEM').slice(0, 3).map((item) => <DropArt key={item.key} item={item} size="md" />)}
+              </div>
+            </section>
+          ))}
+        </div>
       ) : null}
 
       <div className="se-drop-filters">
@@ -396,35 +427,63 @@ function ShopView() {
       </div>
 
       {data.wallet?.held ? <Alert tone="warning" title="Wallet on hold">{data.wallet.holdReason ?? 'Support is reviewing a payment.'} Spending is paused; your items are safe.</Alert> : null}
-
-      <OfferSection title="Featured" hint={featured ? `${featured.name} rotates out in ${timeLeft(data.featured.endsAt, now).replace(' left', '')}.` : undefined} offers={section('FEATURED')} render={card} />
-      <OfferSection title="Daily offers" hint={`New picks in ${timeLeft(data.daily.resetsAt, now).replace(' left', '')} (${formatWhen(data.daily.resetsAt)}).`} offers={section('DAILY')} render={card} />
-      <OfferSection title="Permanent catalog" offers={section('CATALOG')} render={card} />
-      <OfferSection title="Coming soon" offers={[...section('FEATURED', true), ...section('DAILY', true), ...section('CATALOG', true)]} render={card} />
-
-      {resting.length ? (
-        <section className="se-drop-section" aria-labelledby="drop-resting">
-          <header className="se-sectionhead"><div><h2 id="drop-resting">Not in the shop right now</h2><p>Vaulted or between rotations. Items you own stay yours.</p></div></header>
-          <div className="se-drop-grid">
-            {resting.map((item) => (
-              <DropCard key={item.key} item={item} items={data.items} collection={collections.get(item.collection)} now={now} />
-            ))}
-          </div>
-        </section>
+      {data.discount?.reason === 'BIRTHDAY' ? (
+        <Alert tone="success" title="Happy birthday!">Everything in The Drop and every Street Pass skip is {data.discount.percent}% off until {formatWhen(data.discount.endsAt!)}. Crown packs aren't included.</Alert>
+      ) : data.discount ? (
+        <Alert tone="success" title="Supporter pricing">Thanks for supporting: every item, bundle and Street Pass skip is {data.discount.percent}% off while your membership is active.</Alert>
       ) : null}
+
+      {featuredGroups.map((group) => (
+        <OfferSection
+          key={group.key || 'featured'}
+          id={`drop-set-${group.key || 'featured'}`}
+          title={group.collection?.name ?? 'Featured'}
+          subtitle={group.collection?.tagline}
+          accent={group.collection?.accent}
+          timer={countdown(data.featured.endsAt, now)}
+        >
+          {tiles(group.offers, true)}
+        </OfferSection>
+      ))}
+      <OfferSection id="drop-daily" title="Daily" subtitle={`New picks at ${formatWhen(data.daily.resetsAt)}.`} timer={countdown(data.daily.resetsAt, now)}>
+        {tiles(section('DAILY'), false)}
+      </OfferSection>
+      <OfferSection id="drop-catalog" title="Always in stock" subtitle="The permanent catalog. These never rotate out.">
+        {tiles(section('CATALOG'), false)}
+      </OfferSection>
+      <OfferSection id="drop-soon" title="Coming soon" subtitle="On the way. You can look, but not buy yet.">
+        {soonOffers.map((offer) => card(offer))}
+      </OfferSection>
+      <OfferSection id="drop-resting" title="In the vault" subtitle="Vaulted or between rotations. Items you own stay yours.">
+        {resting.map((item) => (
+          <DropCard key={item.key} item={item} items={data.items} collection={collections.get(item.collection)} now={now} />
+        ))}
+      </OfferSection>
       {!visibleOffers.length && !resting.length ? <p className="se-hint">Nothing matches those filters.</p> : null}
       <p className="se-hint se-drop-fineprint">Every item is original to The Drop. Nothing is random: you always see exactly what you get and what it costs before you buy.</p>
     </DropFrame>
   );
 }
 
-function OfferSection({ title, hint, offers, render }: { title: string; hint?: string; offers: DropOfferDto[]; render: (offer: DropOfferDto) => ReactNode }) {
-  if (!offers.length) return null;
-  const id = `drop-${title.toLowerCase().replace(/[^a-z]+/g, '-')}`;
+function OfferSection({ id, title, subtitle, timer, accent, children }: {
+  id: string;
+  title: string;
+  subtitle?: string;
+  timer?: string;
+  accent?: string;
+  children: ReactNode[];
+}) {
+  if (!children.length) return null;
   return (
-    <section className="se-drop-section" aria-labelledby={id}>
-      <header className="se-sectionhead"><div><h2 id={id}>{title}</h2>{hint ? <p>{hint}</p> : null}</div></header>
-      <div className="se-drop-grid">{offers.map(render)}</div>
+    <section id={id} className="se-drop-section" aria-labelledby={`${id}-title`} style={accent ? { ['--se-drop-collection' as string]: accent } : undefined}>
+      <header className="se-drop-section__head">
+        <div>
+          <h2 id={`${id}-title`}>{title}</h2>
+          {subtitle ? <p>{subtitle}</p> : null}
+        </div>
+        {timer ? <span className="se-drop-timer">Ends in <b>{timer}</b></span> : null}
+      </header>
+      <div className="se-drop-grid">{children}</div>
     </section>
   );
 }
@@ -500,31 +559,67 @@ function ItemView() {
       <p className="se-drop-back"><Link to="/game/drop">← Back to the shop</Link></p>
       {notice ? <Alert tone="success" title="Purchase complete">{notice}</Alert> : null}
       {error ? <Alert>{error}</Alert> : null}
-      <article className="se-drop-detail" style={detail.collection ? { ['--se-drop-collection' as string]: detail.collection.accent } : undefined}>
+      <article className={`se-drop-detail se-drop-detail--${item?.rarity ?? 'legendary'}`} style={detail.collection ? { ['--se-drop-collection' as string]: detail.collection.accent } : undefined}>
         <div className="se-drop-detail__stage">
           {item ? <DropArt item={item} size="lg" /> : null}
           {bundle ? (
             <div className="se-drop-detail__bundle">
               {bundle.items.map((piece) => (
-                <Link key={piece.key} to={`/game/drop/item/${piece.slug}`} className={`se-drop-detail__piece${piece.owned ? ' is-owned' : ''}`}>
+                <Link key={piece.key} to={`/game/drop/item/${piece.slug}`} className={`se-drop-detail__piece se-drop-card--${piece.rarity}${piece.owned ? ' is-owned' : ''}`}>
                   <DropArt item={piece} size="sm" />
                   <span>{piece.name}</span>
-                  {piece.owned ? <span className="se-tag se-tag--good">Owned</span> : <Crowns value={piece.priceCrowns} />}
+                  {piece.owned ? <span className="se-drop-card__owned-label">Owned</span> : <Crowns value={piece.priceCrowns} />}
                 </Link>
               ))}
             </div>
           ) : null}
         </div>
         <div className="se-drop-detail__info">
+          <p className="se-drop-detail__kicker">
+            <span className={`se-drop-rarity se-drop-rarity--${item?.rarity ?? 'legendary'}`}>{item ? item.rarity : 'Bundle'}</span>
+            {detail.collection ? <span>{detail.collection.name} set</span> : null}
+          </p>
+          <h2>{name}</h2>
+          {detail.collection?.tagline ? <p className="se-drop-detail__collection">{detail.collection.tagline}</p> : null}
+          <p className="se-drop-detail__desc">{item?.description ?? bundle?.description}</p>
           <div className="se-drop-card__tags">
             <span className="se-drop-badge se-drop-badge--drop_exclusive">Drop Exclusive</span>
-            {item ? <span className={`se-drop-rarity se-drop-rarity--${item.rarity}`}>{item.rarity}</span> : <span className="se-drop-rarity se-drop-rarity--legendary">Bundle</span>}
             {vaulted ? <span className="se-tag">Vaulted</span> : null}
-            {owned ? <span className="se-tag se-tag--good">Owned</span> : null}
           </div>
-          <h2>{name}</h2>
-          <p className="se-drop-detail__collection">{detail.collection?.name} · {detail.collection?.tagline}</p>
-          <p>{item?.description ?? bundle?.description}</p>
+
+          <div className="se-drop-buy">
+            {owned ? <div className="se-drop-buy__owned">✓ Owned{item ? ` · ${item.equipHint}` : ''}</div> : null}
+            {liveOffers.filter((offer) => !owned || offer.state !== 'OWNED').map((offer) => (
+              <div key={offer.id} className="se-drop-buy__offer">
+                <div className="se-drop-buy__price">
+                  <Crowns value={offer.priceCrowns} />
+                  {offer.basePriceCrowns > offer.priceCrowns ? <Crowns value={offer.basePriceCrowns} strike />
+                    : bundle && offer.priceCrowns < bundle.listPriceCrowns ? <Crowns value={bundle.listPriceCrowns} strike /> : null}
+                  <small>{BADGE_LABEL[offer.badge]} · {offer.endsAt ? <>Leaves the shop in <b>{countdown(offer.endsAt, now)}</b></> : 'No end date'}</small>
+                </div>
+                {!signedIn ? <Link className="se-drop-purchase" to="/login">Sign in to buy</Link> : (
+                  <Button
+                    variant="primary"
+                    className="se-drop-purchase"
+                    loading={busy === offer.id}
+                    disabledReason={offer.state === 'OWNED' ? 'You own this.'
+                      : wallet?.held ? 'Your wallet is on hold.'
+                        : balance < offer.priceCrowns ? `You need ${formatNumber(offer.priceCrowns - balance)} more Crowns.` : null}
+                    onClick={() => void buy(offer, name)}
+                  >
+                    Purchase
+                  </Button>
+                )}
+              </div>
+            ))}
+            {!liveOffers.length && !owned ? (
+              <p className="se-hint">{soonOffers.length ? `In the shop from ${formatWhen(soonOffers[0]!.startsAt)}.` : vaulted ? 'Vaulted: not for sale right now.' : 'Not in the shop right now. Check the daily and featured rotations.'}</p>
+            ) : null}
+            {signedIn && liveOffers.some((offer) => offer.state !== 'OWNED') && balance < Math.min(...liveOffers.map((offer) => offer.priceCrowns))
+              ? <p className="se-hint">Earn Crowns from daily and weekly contracts, or <Link to="/game/drop/crowns">get a Crown pack</Link>.</p>
+              : null}
+          </div>
+
           <dl className="se-drop-facts">
             <div><dt>Origin</dt><dd>Original to The Drop. Never sold as a Street Pass, supporter, login or event reward.</dd></div>
             <div><dt>Returns</dt><dd>{RETURN_LABEL[policy]}</dd></div>
@@ -541,36 +636,6 @@ function ItemView() {
             ) : null}
             <div><dt>Fair play</dt><dd>Cosmetic only. No stats, cash, turns, odds or ranking.</dd></div>
           </dl>
-
-          <div className="se-drop-buy">
-            {liveOffers.map((offer) => (
-              <div key={offer.id} className="se-drop-buy__offer">
-                <div>
-                  <span className={`se-drop-badge se-drop-badge--${offer.badge.toLowerCase()}`}>{BADGE_LABEL[offer.badge]}</span>
-                  <Crowns value={offer.priceCrowns} />
-                  <small>{offer.endsAt ? `${timeLeft(offer.endsAt, now)} · until ${formatWhen(offer.endsAt)}` : 'No end date'}</small>
-                </div>
-                {!signedIn ? <Link className="se-btn se-btn--primary" to="/login">Sign in to buy</Link> : (
-                  <Button
-                    variant="primary"
-                    loading={busy === offer.id}
-                    disabledReason={offer.state === 'OWNED' ? 'You own this.'
-                      : wallet?.held ? 'Your wallet is on hold.'
-                        : balance < offer.priceCrowns ? `You need ${formatNumber(offer.priceCrowns - balance)} more Crowns.` : null}
-                    onClick={() => void buy(offer, name)}
-                  >
-                    Buy for {formatNumber(offer.priceCrowns)}
-                  </Button>
-                )}
-              </div>
-            ))}
-            {!liveOffers.length && !owned ? (
-              <p className="se-hint">{soonOffers.length ? `In the shop from ${formatWhen(soonOffers[0]!.startsAt)}.` : vaulted ? 'Vaulted: not for sale right now.' : 'Not in the shop right now. Check the daily and featured rotations.'}</p>
-            ) : null}
-            {signedIn && liveOffers.some((offer) => offer.state !== 'OWNED') && balance < Math.min(...liveOffers.map((offer) => offer.priceCrowns))
-              ? <p className="se-hint">Earn Crowns from daily and weekly contracts, or <Link to="/game/drop/crowns">get a Crown pack</Link>.</p>
-              : null}
-          </div>
         </div>
       </article>
     </DropFrame>
@@ -789,13 +854,14 @@ function PassView() {
   useEffect(() => { load(); }, [load]);
 
   const count = quote ? Math.max(1, Math.min(tiers, quote.remaining || 1)) : 1;
-  const price = quote ? skipPrice(count, quote.single, quote.tenPack) : 0;
+  const basePrice = quote ? skipPrice(count, quote.single, quote.tenPack) : 0;
+  const price = discountedDropPrice(basePrice, quote?.discount?.percent ?? 0);
 
   async function skip() {
     if (!quote) return;
     const ok = await confirmAction({
       title: `Skip ${count} Street Pass tier${count === 1 ? '' : 's'}?`,
-      body: `${formatNumber(price)} Crowns. You go from tier ${quote.tier} to tier ${quote.tier + count}, then claim each tier's rewards on the Street Pass as usual.`,
+      body: `${formatNumber(price)} Crowns${price < basePrice ? ` (${quote.discount?.reason === 'BIRTHDAY' ? 'birthday' : 'supporter'} price, was ${formatNumber(basePrice)})` : ''}. You go from tier ${quote.tier} to tier ${quote.tier + count}, then claim each tier's rewards on the Street Pass as usual.`,
       confirmLabel: `Skip for ${formatNumber(price)} Crowns`,
     });
     if (!ok) return;
@@ -820,7 +886,7 @@ function PassView() {
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="success" title="Tiers skipped">{notice} <Link to="/game/street-pass">Open the Street Pass</Link></Alert> : null}
       {!quote ? (error ? null : <Panel title="Street Pass skips" loading>{null}</Panel>) : (
-        <Panel title="Skip Street Pass tiers" subtitle={`${formatNumber(quote.single)} Crowns a tier, or ${formatNumber(quote.tenPack)} for ten.`}>
+        <Panel title="Skip Street Pass tiers" subtitle={`${formatNumber(quote.single)} Crowns a tier, or ${formatNumber(quote.tenPack)} for ten.${quote.discount ? ` ${quote.discount.reason === 'BIRTHDAY' ? 'Birthday' : 'Supporter'} price: ${quote.discount.percent}% off.` : ''}`}>
           {!quote.enabled ? <Alert tone="info">Street Pass skips are not available right now.</Alert> : quote.remaining === 0 ? (
             <p>You've reached the last tier. Nothing left to skip.</p>
           ) : (
@@ -842,7 +908,7 @@ function PassView() {
                 </label>
               </div>
               <div className="se-drop-buy__offer">
-                <div><Crowns value={price} /><small>{count >= 10 ? 'Ten-pack price applied.' : `${10 - (count % 10)} more for the ten-pack price.`}</small></div>
+                <div>{price < basePrice ? <Crowns value={basePrice} strike /> : null}<Crowns value={price} /><small>{count >= 10 ? 'Ten-pack price applied.' : `${10 - (count % 10)} more for the ten-pack price.`}</small></div>
                 <Button variant="primary" loading={busy} disabledReason={(quote.balance ?? 0) < price ? `You need ${formatNumber(price - (quote.balance ?? 0))} more Crowns.` : null} onClick={() => void skip()}>
                   Skip for {formatNumber(price)}
                 </Button>

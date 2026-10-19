@@ -351,6 +351,8 @@ export interface ProfileLookDto {
   crew: CrewCosmeticLoadout;
   /** Item art collections the owner has earned, oldest first. */
   collections: { key: string; title: string; rarity: string }[];
+  /** Slice C. Stable owned banner style, absent for old clients and classic profiles. */
+  crewBanner?: string | null;
 }
 
 export interface PublicPlayerProfileDto {
@@ -430,6 +432,11 @@ export interface PublicPlayerProfileDto {
   isSupporter: boolean;
   /** UTC month (YYYY-MM) of the account's earliest supporter reward, null when not a supporter. */
   supporterSince: string | null;
+  /**
+   * Birthdays: true on the player's birthday when they chose to show a cake.
+   * Never the date, age or year. Absent from older servers.
+   */
+  birthdayToday?: boolean;
   /**
    * 1.4.0-F. The factions this player stands at Connected or above with, and the tier. Never the
    * points, and nothing below Connected. Absent before 1.4.0-F.

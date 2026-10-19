@@ -29,7 +29,7 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account safety (rc.2), wit
     const password = randomUUID();
     const response = await app.inject({
       method: 'POST', url: '/api/auth/register', remoteAddress,
-      payload: { username: name, email: `${name}@example.invalid`, password },
+      payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password },
     });
     if (response.statusCode === 201) accountIds.push(response.json().account.id);
     return {

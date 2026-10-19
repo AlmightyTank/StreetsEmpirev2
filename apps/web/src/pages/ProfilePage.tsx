@@ -13,6 +13,7 @@ import type {
 import { formatCents, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
+import { BirthdayCake } from '../components/BirthdayCake.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { ContactButton } from '../components/ContactButton.js';
@@ -719,7 +720,8 @@ export function ProfilePage() {
         >
           {player ? (
             <div
-              className={`se-profile-pagehead__banner${player.cosmetics.bannerUrl ? ' se-profile-pagehead__banner--uploaded' : ''}`}
+              className={`se-profile-pagehead__banner${player.cosmetics.bannerUrl ? ' se-profile-pagehead__banner--uploaded' : ''}${player.look?.crewBanner ? ' se-profile-pagehead__banner--crew' : ''}`}
+              data-crew-banner={player.look?.crewBanner ?? undefined}
               aria-hidden="true"
               style={player.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 12, 0.9), rgba(5, 8, 12, 0.58) 48%, rgba(5, 8, 12, 0.78)), url("${player.cosmetics.bannerUrl}")` } : undefined}
             />
@@ -738,7 +740,7 @@ export function ProfilePage() {
                     <span className={`se-profile-name__part se-profile-name__part--${part.kind}`} key={index}>
                       {player.isSupporter && index === parts.length - 1 ? <NameWithSupporterMark text={part.text} /> : part.text}
                     </span>
-                  ))}</span>{' '}</>
+                  ))}</span>{player.birthdayToday ? <BirthdayCake /> : null}{' '}</>
                   : account?.username ?? 'Profile'}
                 {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
               </h1>

@@ -160,6 +160,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
       <article
         className={`se-pass-theme-preview se-pass-theme-preview--${active.kind} se-pass-theme-preview--${active.key}`}
         aria-label={`${active.label} preview`}
+        data-no-tab-swipe
         onPointerDown={(event) => {
           if (event.pointerType === 'mouse' && event.button !== 0) return;
           swipeStart.current = { x: event.clientX, y: event.clientY };
