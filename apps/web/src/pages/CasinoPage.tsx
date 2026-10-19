@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { ACCOUNT_TRUST_GATES, accountGateOpen, formatCents, type CasinoPageDto, type CasinoSlotSpinDto, type CasinoTournamentPageDto } from '@streets/shared';
+import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto, type CasinoTournamentPageDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
 import { ActionDock, deltaChip } from '../components/ActionDock.js';
@@ -15,6 +15,7 @@ import { CasinoStatusPanel } from '../components/CasinoStatusPanel.js';
 import { CasinoBankrollSummary, CasinoBetControl, CasinoGameSelector } from '../components/CasinoExperience.js';
 import { SportsbookPanel } from '../components/SportsbookPanel.js';
 import { Button } from '../components/Button.js';
+import { LevelLockNotice } from '../components/LevelLockNotice.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import {
@@ -232,7 +233,6 @@ function TournamentBoard() {
 export function CasinoPage() {
   const { game: routeGame } = useParams<{ game: string }>();
   const activeGame = CASINO_GAMES.some((game) => game.key === routeGame) ? routeGame as CasinoGameKey : null;
-  const experience = useSession((state) => state.me?.experience ?? null);
   const me = useSession((state) => state.me);
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
   const [data, setData] = useState<CasinoPageDto | null>(null);
@@ -508,17 +508,10 @@ export function CasinoPage() {
   const session = data?.openSession ?? null;
   const floorCents = session ? (displayedCreditsCents ?? session.bankrollCents) : null;
 
-  const lockedGate = activeGame === 'sportsbook' ? 'sportsbook' : 'casino';
-  const locked = Boolean(experience) && !accountGateOpen(experience, lockedGate);
-
   return (
     <GameLayout>
       <div className={'se-casino' + (activeGame ? ' se-casino--table' : ' se-casino--lobby')}>
-        {locked ? (
-          <Alert tone="info" title={`Opens at account level ${ACCOUNT_TRUST_GATES[lockedGate].level}`}>
-            You are level {experience!.level}. The {lockedGate === 'sportsbook' ? 'sportsbook' : 'casino'} opens after a few levels of play: spend turns and finish jobs to earn XP. <Link to="/game/xp-progress">See your level track</Link>.
-          </Alert>
-        ) : null}
+        <LevelLockNotice gates={[activeGame === 'sportsbook' ? 'sportsbook' : 'casino']} />
         {activeInfo ? (
           <header className="se-casino-tablehead">
             <Link className="se-casino-tablehead__back" to="/game/casino">&larr; Lobby</Link>

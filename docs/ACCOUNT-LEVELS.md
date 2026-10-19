@@ -42,12 +42,24 @@ daily contract window.
 | `casino` | 3 (250 XP) | Casino plays, chips and sessions. Cashing out, closing a session and leaving a table always stay open |
 | `coldMessage` | 4 (450 XP) | A private message to a player who has never written to you this round |
 | `sportsbook` | 5 (700 XP) | Sportsbook bets |
+| `runs` | 5 (700 XP) | Launching an intercity run |
 | `foundAlliance` | 6 (1,000 XP) | Founding an alliance and posting its forum recruitment thread |
+| `bossRuns` | 7 (1,350 XP) | The boss riding along on a run, and flying out on a trip |
+| `travel` | 8 (1,750 XP) | Moving the whole operation to another city |
+
+Only starting a run, a trip or a move is gated. A run or trip already out can
+always drive on, trade, extend, rent guns and come home.
+
+The tutorial asks for a run at `PACK_YOUR_BAGS`, after eight story quests that
+alone pay 800 XP (level 5). `account-unlocks.test.ts` checks every ruleset so the
+runs gate can never block the tutorial. Some side jobs and dailies (for example,
+Riding Shotgun and Fly Out) need boss runs or trips. A new player who draws one
+early can come back to it once they reach level 7.
 
 Staff and accounts that have finished a season skip every gate. Below the
 message gate a player can still reply, message their own alliance, and message
-staff. The checks live in `communication-guard.ts`, and the casino routes apply
-them in a `preHandler`. A refusal is `403 ACCOUNT_LEVEL_REQUIRED` and names the
+staff. The checks live in `communication-guard.ts`, the casino routes apply
+them in a `preHandler`, and the travel routes check them before a launch. A refusal is `403 ACCOUNT_LEVEL_REQUIRED` and names the
 level needed. The experience DTO carries `veteran`, so the client can show
 what is open.
 

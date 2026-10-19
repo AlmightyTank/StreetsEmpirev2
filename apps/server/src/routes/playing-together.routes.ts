@@ -26,6 +26,7 @@ import { OperationsService } from '../services/operations.service.js';
 import { BlackBookService } from '../services/black-book.service.js';
 import { TurfWarService } from '../services/turf-war.service.js';
 import { TurfOutpostService } from '../services/turf-outpost.service.js';
+import { accountTrust, assertTrustGate } from '../services/communication-guard.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -146,8 +147,12 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     const { to, runId } = parseBody(travelRoutesSchema, request.query);
     return TravelService.routes(app.prisma, await me(request.auth!.account.id), to, runId);
   });
-  app.post('/travel/launch', { preHandler: app.requireAuth }, async (request) =>
-    TravelService.launch(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+  app.post('/travel/launch', { preHandler: app.requireAuth }, async (request) => {
+    const trust = await accountTrust(app.prisma, request.auth!.account.id);
+    assertTrustGate(trust, 'runs');
+    if ((request.body as { rideAlong?: unknown } | null)?.rideAlong === true) assertTrustGate(trust, 'bossRuns');
+    return TravelService.launch(app.prisma, await me(request.auth!.account.id), request.body ?? {});
+  });
   app.post('/travel/vehicles/service', { preHandler: app.requireAuth }, async (request) =>
     TravelService.serviceVehicles(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
   app.post('/travel/vehicles/purchase', { preHandler: app.requireAuth }, async (request) =>
@@ -191,12 +196,16 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     BossHitService.backup(app.prisma, await me(request.auth!.account.id), parseBody(bossHitBackupSchema, request.body ?? {})));
 
   /** 0.5.0-D: move the whole operation to another city. */
-  app.post('/travel/move', { preHandler: app.requireAuth }, async (request) =>
-    RelocationService.move(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+  app.post('/travel/move', { preHandler: app.requireAuth }, async (request) => {
+    assertTrustGate(await accountTrust(app.prisma, request.auth!.account.id), 'travel');
+    return RelocationService.move(app.prisma, await me(request.auth!.account.id), request.body ?? {});
+  });
 
   /** Trips A: the boss flies out for a stay, stays on, or checks out and flies home. */
-  app.post('/travel/trip', { preHandler: app.requireAuth }, async (request) =>
-    BossTripService.launch(app.prisma, await me(request.auth!.account.id), parseBody(tripLaunchSchema, request.body ?? {})));
+  app.post('/travel/trip', { preHandler: app.requireAuth }, async (request) => {
+    assertTrustGate(await accountTrust(app.prisma, request.auth!.account.id), 'bossRuns');
+    return BossTripService.launch(app.prisma, await me(request.auth!.account.id), parseBody(tripLaunchSchema, request.body ?? {}));
+  });
   app.post('/travel/trip/extend', { preHandler: app.requireAuth }, async (request) =>
     BossTripService.extend(app.prisma, await me(request.auth!.account.id), parseBody(tripExtendSchema, request.body ?? {})));
   app.post('/travel/trip/home', { preHandler: app.requireAuth }, async (request) =>

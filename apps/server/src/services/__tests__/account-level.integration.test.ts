@@ -61,6 +61,9 @@ describe.runIf(process.env.ACCOUNT_LEVEL_INTEGRATION === '1')('account levels wi
       rulesetId: rules.meta.id, rulesetVersion: rules.meta.version, status: 'ACTIVE',
       startsAt: new Date(Date.now() - DAY), endsAt: new Date(Date.now() + 7 * DAY),
     } });
+    // AdmissionSettings.id defaults to the constant 1, so a second round's settings row cannot be
+    // created while another round holds one. Clear other rounds' rows so this fixture round can play.
+    await app.prisma.admissionSettings.deleteMany({ where: { roundId: { not: round.id } } });
     const { RoundService } = await import('../round.service.js');
     vi.spyOn(RoundService, 'requireCurrent').mockImplementation(async () => round);
     vi.spyOn(RoundService, 'getCurrent').mockImplementation(async () => round);
@@ -269,5 +272,35 @@ describe.runIf(process.env.ACCOUNT_LEVEL_INTEGRATION === '1')('account levels wi
     for (let i = 0; i < MENTORING.maxMentees; i += 1) await MentoringService.choose(app.prisma, (await makePlayer()).accountId, mentor.publicPimpId);
     await expect(MentoringService.choose(app.prisma, (await makePlayer()).accountId, mentor.publicPimpId)).rejects.toMatchObject({ code: 'MENTOR_FULL' });
     expect((await MentoringService.view(app.prisma, mentor.accountId)).canMentor).toBe(false);
+  });
+
+  it('opens runs, boss runs and moving cities by level, never the way home', async () => {
+    const name = `lvlt_${randomUUID().slice(0, 8)}`;
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, birthDate: '1990-01-01', username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+    expect(registered.statusCode, registered.body).toBe(201);
+    const accountId = registered.json().account.id as string;
+    accountIds.push(accountId);
+    const cookie = registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; ');
+    const code = async (url: string, payload: object = {}) => (await app.inject({ method: 'POST', url: `/api/game${url}`, headers: { cookie }, payload })).json().error?.code as string | undefined;
+    const setLevel = (level: number) => app.prisma.account.update({ where: { id: accountId }, data: { experiencePoints: experienceRequiredForLevel(level) } });
+
+    expect(await code('/travel/launch', {})).toBe('ACCOUNT_LEVEL_REQUIRED');
+    expect(await code('/travel/trip', {})).toBe('ACCOUNT_LEVEL_REQUIRED');
+    expect(await code('/travel/move', {})).toBe('ACCOUNT_LEVEL_REQUIRED');
+    expect(await code('/travel/head-home', {})).not.toBe('ACCOUNT_LEVEL_REQUIRED');
+    expect(await code('/travel/trip/home', {})).not.toBe('ACCOUNT_LEVEL_REQUIRED');
+
+    await setLevel(ACCOUNT_TRUST_GATES.runs.level);
+    expect(await code('/travel/launch', {})).not.toBe('ACCOUNT_LEVEL_REQUIRED');
+    expect(await code('/travel/launch', { rideAlong: true })).toBe('ACCOUNT_LEVEL_REQUIRED');
+    expect(await code('/travel/trip', {})).toBe('ACCOUNT_LEVEL_REQUIRED');
+
+    await setLevel(ACCOUNT_TRUST_GATES.bossRuns.level);
+    expect(await code('/travel/launch', { rideAlong: true })).not.toBe('ACCOUNT_LEVEL_REQUIRED');
+    expect(await code('/travel/trip', {})).not.toBe('ACCOUNT_LEVEL_REQUIRED');
+    expect(await code('/travel/move', {})).toBe('ACCOUNT_LEVEL_REQUIRED');
+
+    await setLevel(ACCOUNT_TRUST_GATES.travel.level);
+    expect(await code('/travel/move', {})).not.toBe('ACCOUNT_LEVEL_REQUIRED');
   });
 });

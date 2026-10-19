@@ -223,7 +223,7 @@ for (const [key, gate] of Object.entries(ACCOUNT_TRUST_GATES)) {
       `Starting turns, the intro and a check-in clear the ${key} gate`);
   }
   const casual = cells[ARCHETYPES.findIndex((p) => p.name === 'Casual')];
-  const limit = ({ casino: 2, coldMessage: 2, sportsbook: 3, foundAlliance: 4 } as Record<string, number>)[key] ?? 4;
+  const limit = ({ casino: 2, coldMessage: 2, sportsbook: 3, runs: 3, foundAlliance: 4, bossRuns: 4, travel: 5 } as Record<string, number>)[key] ?? 4;
   check(casual !== null && casual!.day <= limit, `A casual player should clear the ${key} gate within ${limit} days, not ${casual?.label ?? 'never'}`);
 }
 

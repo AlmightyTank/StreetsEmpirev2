@@ -49,6 +49,9 @@ Play already pays up to 500 Crowns a round. Level Crowns sit outside that cap an
 | Play the casino | 3 | 250 | S1 d0.2 | S1 d0.3 | S1 d0.4 | S1 d5.3 |
 | Message players who have not written to you | 4 | 450 | S1 d0.3 | S1 d0.5 | S1 d0.7 | S1 d5.5 |
 | Bet on the sportsbook | 5 | 700 | S1 d0.4 | S1 d0.7 | S1 d1.0 | S1 d5.7 |
+| Send a crew on an intercity run | 5 | 700 | S1 d0.4 | S1 d0.7 | S1 d1.0 | S1 d5.7 |
 | Found an alliance or post its recruitment thread | 6 | 1,000 | S1 d0.6 | S1 d0.9 | S1 d1.7 | S1 d5.9 |
+| Ride along on a run or fly the boss out on a trip | 7 | 1,350 | S1 d0.8 | S1 d1.3 | S1 d2.4 | S1 d6.2 |
+| Move your whole operation to another city | 8 | 1,750 | S1 d1.0 | S1 d1.6 | S1 d3.2 | S1 d6.6 |
 
 **Pace: PASS** (starting turns clear no gate, the intro plus starting turns cannot reach out, a casual player messages by day 2 and founds by day 4, no one earns more than half the play cap in level Crowns in a season).

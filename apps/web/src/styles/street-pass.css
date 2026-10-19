@@ -2037,3 +2037,8 @@ img.se-pass-theme-preview__frame-avatar {
     grid-column: 2;
   }
 }
+
+.se-level-lock__list {
+  margin: 6px 0;
+  padding-left: 18px;
+}

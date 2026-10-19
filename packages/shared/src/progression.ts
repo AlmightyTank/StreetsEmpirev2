@@ -191,11 +191,13 @@ export function experienceCrownMilestones(fromLevel: number, toLevel: number): {
   return out;
 }
 
-export type AccountTrustGate = 'casino' | 'coldMessage' | 'sportsbook' | 'foundAlliance';
+export type AccountTrustGate = 'casino' | 'coldMessage' | 'sportsbook' | 'runs' | 'foundAlliance' | 'bossRuns' | 'travel';
 
 /**
  * Features that open with account level: reaching out to strangers (spam
- * protection) and the gambling floors (a gentler start). Replies, alliance chat
+ * protection), the gambling floors, and the road (runs, boss runs and trips,
+ * moving cities) for a gentler start. Only starting one is gated; a run or
+ * trip already out can always carry on or come home. Replies, alliance chat
  * and the core game stay open from level 1. Staff and accounts with a finished
  * season skip every gate. Pace from `npm run qa:account-xp`.
  */
@@ -203,7 +205,11 @@ export const ACCOUNT_TRUST_GATES: Readonly<Record<AccountTrustGate, { level: num
   casino: { level: 3, label: 'Play the casino' },
   coldMessage: { level: 4, label: 'Message players who have not written to you' },
   sportsbook: { level: 5, label: 'Bet on the sportsbook' },
+  // The tutorial's run step (PACK_YOUR_BAGS) follows eight story quests, which alone reach level 5.
+  runs: { level: 5, label: 'Send a crew on an intercity run' },
   foundAlliance: { level: 6, label: 'Found an alliance or post its recruitment thread' },
+  bossRuns: { level: 7, label: 'Ride along on a run or fly the boss out on a trip' },
+  travel: { level: 8, label: 'Move your whole operation to another city' },
 };
 
 /** Client-side mirror of the server gate, for showing what is open. Staff are not known here. */
