@@ -615,6 +615,102 @@
     linear-gradient(180deg, #101c2b, #08101a 62%);
 }
 
+.se-site-theme--quarter-mile-shell {
+  --se-bg: #07090c;
+  --se-panel: #11151b;
+  --se-panel-hi: #181e26;
+  --se-line: rgba(47, 155, 255, 0.3);
+  --se-line-soft: rgba(47, 155, 255, 0.15);
+  --se-text: #f2f6fb;
+  --se-text-dim: #aebccb;
+  --se-muted: #7b8a9a;
+  --se-accent: #2f9bff;
+  --se-accent-dim: #1f6fc0;
+  --se-accent-hover: #6ab8ff;
+  --se-accent-rgb: 47, 155, 255;
+  --se-accent-2: #ff8a1a;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(47, 155, 255, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(24, 30, 38, 0.95), rgba(7, 9, 12, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(47, 155, 255, 0.07), rgba(255, 138, 26, 0.04)),
+    rgba(7, 9, 12, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(47, 155, 255, 0.12), rgba(7, 9, 12, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(47, 155, 255, 0.18), rgba(255, 138, 26, 0.06) 55%, transparent),
+    linear-gradient(180deg, #181e26, #11151b);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(47, 155, 255, 0.14), transparent 32%, rgba(255, 138, 26, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(47, 155, 255, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(255, 138, 26, 0.09), transparent 60%),
+    linear-gradient(180deg, #11151b, #07090c 62%);
+}
+
+.se-site-theme--88-club-shell {
+  --se-bg: #06080e;
+  --se-panel: #0f1420;
+  --se-panel-hi: #151c2c;
+  --se-line: rgba(79, 210, 255, 0.3);
+  --se-line-soft: rgba(79, 210, 255, 0.15);
+  --se-text: #eef6ff;
+  --se-text-dim: #a8bad0;
+  --se-muted: #7688a0;
+  --se-accent: #4fd2ff;
+  --se-accent-dim: #2a9bc2;
+  --se-accent-hover: #8ae4ff;
+  --se-accent-rgb: 79, 210, 255;
+  --se-accent-2: #ff7a2a;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(79, 210, 255, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(21, 28, 44, 0.95), rgba(6, 8, 14, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(79, 210, 255, 0.07), rgba(255, 122, 42, 0.04)),
+    rgba(6, 8, 14, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(79, 210, 255, 0.12), rgba(6, 8, 14, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(79, 210, 255, 0.18), rgba(255, 122, 42, 0.06) 55%, transparent),
+    linear-gradient(180deg, #151c2c, #0f1420);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(79, 210, 255, 0.14), transparent 32%, rgba(255, 122, 42, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(79, 210, 255, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(255, 122, 42, 0.09), transparent 60%),
+    linear-gradient(180deg, #0f1420, #06080e 62%);
+}
+
+.se-site-theme--swamp-kingdom-shell {
+  --se-bg: #0a0c06;
+  --se-panel: #141a0d;
+  --se-panel-hi: #1c2412;
+  --se-line: rgba(122, 168, 58, 0.3);
+  --se-line-soft: rgba(122, 168, 58, 0.15);
+  --se-text: #f6f3e6;
+  --se-text-dim: #c6c9a8;
+  --se-muted: #8f9478;
+  --se-accent: #7aa83a;
+  --se-accent-dim: #557a24;
+  --se-accent-hover: #a2c96a;
+  --se-accent-rgb: 122, 168, 58;
+  --se-accent-2: #d6a35c;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(122, 168, 58, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(28, 36, 18, 0.95), rgba(10, 12, 6, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(122, 168, 58, 0.07), rgba(214, 163, 92, 0.04)),
+    rgba(10, 12, 6, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(122, 168, 58, 0.12), rgba(10, 12, 6, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(122, 168, 58, 0.18), rgba(214, 163, 92, 0.06) 55%, transparent),
+    linear-gradient(180deg, #1c2412, #141a0d);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(122, 168, 58, 0.14), transparent 32%, rgba(214, 163, 92, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(122, 168, 58, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(214, 163, 92, 0.09), transparent 60%),
+    linear-gradient(180deg, #141a0d, #0a0c06 62%);
+}
+
 /* Shared component surfaces, the same contract as the other premium shells. */
 :is(
   .se-site-theme--kingpin-luxe-shell,
@@ -632,6 +728,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -658,6 +757,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -683,6 +785,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -708,6 +813,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -731,6 +839,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -754,6 +865,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -779,6 +893,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -803,6 +920,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -827,6 +947,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -851,6 +974,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -877,6 +1003,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -902,6 +1031,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -926,6 +1058,9 @@
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
   .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -965,6 +1100,9 @@
 .se-site-theme-decor--desert-mirage-shell { --se-pack-color: #3fc1c9; }
 .se-site-theme-decor--rewind-shell { --se-pack-color: #e04bff; }
 .se-site-theme-decor--snake-eyes-shell { --se-pack-color: #1fae6a; }
+.se-site-theme-decor--quarter-mile-shell { --se-pack-color: #2f9bff; }
+.se-site-theme-decor--88-club-shell { --se-pack-color: #4fd2ff; }
+.se-site-theme-decor--swamp-kingdom-shell { --se-pack-color: #7aa83a; }
 .se-site-theme-decor--graveyard-shift-shell { --se-pack-color: #a8f0c6; }
 .se-site-theme-decor--naughty-list-shell { --se-pack-color: #e23a3a; }
 .se-site-theme-decor--heartbreaker-shell { --se-pack-color: #ff4d6d; }
@@ -1260,3 +1398,54 @@
 .se-bp__block { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
 .se-bp__spray { stroke-dasharray: 8 6; animation: se-bp-spray 1.2s linear infinite; }
 @keyframes se-bp-spray { to { stroke-dashoffset: -28; } }
+
+/* ---------- Quarter Mile scene ---------- */
+.se-qm__tree { top: 0; right: 6%; width: min(9vw, 110px); height: auto; }
+.se-qm__strip { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-qm__amber, .se-qm__green { opacity: .15; animation: se-qm-light 6s steps(1, end) infinite; }
+.se-qm__green { animation-name: se-qm-go; }
+@keyframes se-qm-light { 0% { opacity: .15; } 10%, 60% { opacity: 1; } 70%, 100% { opacity: .15; } }
+@keyframes se-qm-go { 0%, 30% { opacity: .15; } 40%, 80% { opacity: 1; } 90%, 100% { opacity: .15; } }
+.se-reduced-motion :is(.se-qm__amber, .se-qm__green) { opacity: .7; }
+@media (prefers-reduced-motion: reduce) { :is(.se-qm__amber, .se-qm__green) { opacity: .7; } }
+.se-qm__trails i {
+  position: absolute;
+  right: 0;
+  width: 22vw;
+  height: 2px;
+  opacity: .5;
+  animation: se-qm-trail 3.2s linear infinite;
+}
+@keyframes se-qm-trail { from { transform: translateX(30vw); } to { transform: translateX(-60vw); } }
+.se-reduced-motion .se-qm__trails { display: none; }
+@media (prefers-reduced-motion: reduce) { .se-qm__trails { display: none; } }
+
+/* ---------- 88 Club scene (the bolt glows slowly, never flashes) ---------- */
+.se-ec__tower { right: 4%; bottom: 0; width: min(30vw, 380px); height: auto; }
+.se-ec__road { right: 0; bottom: 0; width: min(52vw, 700px); height: auto; }
+.se-ec__bolt { opacity: .35; animation: se-ec-bolt 6s ease-in-out infinite; }
+.se-ec__fire { opacity: .55; animation: se-ec-fire 2.4s ease-in-out infinite alternate; }
+.se-ec__storm {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 30vh;
+  background: radial-gradient(ellipse 50% 70% at 78% 0%, rgba(79, 210, 255, 0.1), transparent 70%);
+}
+@keyframes se-ec-bolt { 0%, 100% { opacity: .35; } 50% { opacity: .85; } }
+@keyframes se-ec-fire { from { opacity: .4; } to { opacity: .75; } }
+
+/* ---------- Swamp Kingdom scene ---------- */
+.se-sk__hill { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-sk__orbit { transform-box: view-box; transform-origin: 405px 120px; animation: se-sk-orbit 18s linear infinite; }
+.se-sk__dragon { transform: translate(405px, 50px); }
+@keyframes se-sk-orbit { to { transform: rotate(360deg); } }
+.se-sk__motes i {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #c8e87a;
+  box-shadow: 0 0 8px 2px rgba(200, 232, 122, 0.35);
+  animation: se-sk-drift 10s ease-in-out infinite alternate;
+}
+@keyframes se-sk-drift { from { transform: translate3d(0, 0, 0); opacity: .2; } to { transform: translate3d(-24px, -20px, 0); opacity: .9; } }

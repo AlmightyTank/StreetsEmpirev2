@@ -176,6 +176,28 @@ export const DROP_COLLECTIONS = {
     description: 'A back-room card game: green felt, ivory dice, red and black card suits under a low lamp.',
     accent: '#1fae6a',
   },
+  // Movie homages: original names and art, no film names, logos or characters.
+  'quarter-mile': {
+    key: 'quarter-mile',
+    name: 'Quarter Mile',
+    tagline: 'Live a quarter mile at a time.',
+    description: 'Street racing with your crew as family: tuner livery, nitrous bottles, a black muscle car with a supercharger, and the start lights at the strip.',
+    accent: '#2f9bff',
+  },
+  '88-club': {
+    key: '88-club',
+    name: '88 Club',
+    tagline: 'Hit eighty-eight and hold on.',
+    description: 'A time-travel caper: flux-blue glow, flaming tyre trails, a clock tower and a lightning storm, and fashion from two different decades.',
+    accent: '#4fd2ff',
+  },
+  'swamp-kingdom': {
+    key: 'swamp-kingdom',
+    name: 'Swamp Kingdom',
+    tagline: 'Far, far away. Keep out.',
+    description: 'A fairytale gone muddy: a storybook swamp, an outhouse with a KEEP OUT sign, a castle on the hill and a dragon circling it.',
+    accent: '#7aa83a',
+  },
   'street-singles': {
     key: 'street-singles',
     name: 'Street Singles',
@@ -997,6 +1019,135 @@ const ITEMS: readonly DropItemDefinition[] = [
     kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 200,
     preview: { type: 'TITLE', title: 'Block Captain' },
   }),
+  // Movie homages
+  // Quarter Mile
+  item('quarter-mile', 'sedan', {
+    name: 'Quarter Mile Sedan', description: 'A bright orange tuner with racing livery, a big rear wing and blue nitrous bottles in the back. A Sedan look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 850, styleKey: 'quarter-mile-sedan',
+    preview: { type: 'ITEM', items: ['SEDAN'] }, dresses: 'SEDAN',
+  }),
+  item('quarter-mile', 'low-rider', {
+    name: 'Quarter Mile Low-Rider', description: 'A gloss-black muscle car with a supercharger punching through the hood and fat rear tyres. A Low-Rider look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 850, styleKey: 'quarter-mile-low-rider',
+    preview: { type: 'ITEM', items: ['LOW_RIDER'] }, dresses: 'LOW_RIDER',
+  }),
+  item('quarter-mile', 'thug', {
+    name: 'Quarter Mile Thug', description: 'A white tank top, a heavy cross chain and dark jeans: dressed for a family cookout after the race. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'quarter-mile-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('quarter-mile', 'hoe', {
+    name: 'Quarter Mile Hoe', description: 'A black racing-leather jacket with orange stripes and aviator shades. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'quarter-mile-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('quarter-mile', 'tek9', {
+    name: 'Quarter Mile Tek-9', description: 'Nitrous blue with white racing stripes. A visual finish only; it never gives you a Tek-9 or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 600, styleKey: 'quarter-mile-tek9',
+    preview: { type: 'ITEM', items: ['TEK9'] }, dresses: 'TEK9',
+  }),
+  item('quarter-mile', 'frame', {
+    name: 'Quarter Mile Frame', description: 'A drag-strip start tree: amber lights count down, then go green. The lights hold still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'quarter-mile-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('quarter-mile', 'accent', {
+    name: 'Nitrous Blue Accent', description: 'A nitrous-blue profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 350, styleKey: 'nitrous-blue',
+    preview: { type: 'ACCENT', color: '#2f9bff' },
+  }),
+  item('quarter-mile', 'shell', {
+    name: 'Quarter Mile Shell', description: 'The whole game at the strip after midnight: asphalt panels, nitrous-blue controls, the start tree counting down and the finish line under the lights.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1250, styleKey: 'quarter-mile-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('quarter-mile', 'title', {
+    name: 'Ride or Die', description: 'A Quarter Mile title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
+    preview: { type: 'TITLE', title: 'Ride or Die' },
+  }),
+  // 88 Club
+  item('88-club', 'van', {
+    name: '88 Club Van', description: 'A lab van wired with coils and cables, glowing flux blue, with twin trails of fire behind the tyres. A Van look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 800, styleKey: '88-club-van',
+    preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
+  }),
+  item('88-club', 'thug', {
+    name: '88 Club Thug', description: 'An eighties puffer vest over a denim jacket, with a calculator watch. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: '88-club-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('88-club', 'hoe', {
+    name: '88 Club Hoe', description: 'A fifties prom dress in powder blue with a corsage and a ribbon in her hair. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: '88-club-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('88-club', 'pistol', {
+    name: '88 Club Pistol', description: 'Brushed chrome with a glowing flux coil along the slide. A visual finish only; it never gives you a pistol or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: '88-club-pistol',
+    preview: { type: 'ITEM', items: ['PISTOL'] }, dresses: 'PISTOL',
+  }),
+  item('88-club', 'frame', {
+    name: '88 Club Frame', description: 'A clock face with the hands stopped at 10:04 and lightning crackling round the rim. The lightning holds still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: '88-club-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('88-club', 'accent', {
+    name: 'Flux Blue Accent', description: 'A crackling flux-blue profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'flux-blue',
+    preview: { type: 'ACCENT', color: '#4fd2ff' },
+  }),
+  item('88-club', 'shell', {
+    name: '88 Club Shell', description: 'The whole game on a stormy night: steel panels, flux-blue controls, a clock tower struck by lightning and fire trails burning across the page.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1200, styleKey: '88-club-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('88-club', 'title', {
+    name: 'Ahead of Time', description: 'A 88 Club title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
+    preview: { type: 'TITLE', title: 'Ahead of Time' },
+  }),
+  // Swamp Kingdom
+  item('swamp-kingdom', 'van', {
+    name: 'Swamp Kingdom Van', description: 'A storybook carriage van: mossy wood panels, curled gold trim, cartwheel rims and a KEEP OUT sign on the side. A Van look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 800, styleKey: 'swamp-kingdom-van',
+    preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
+  }),
+  item('swamp-kingdom', 'thug', {
+    name: 'Swamp Kingdom Thug', description: 'A rough burlap tunic under a worn leather vest, with a rope belt. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'swamp-kingdom-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('swamp-kingdom', 'hoe', {
+    name: 'Swamp Kingdom Hoe', description: 'A moss-green velvet princess gown with gold braid and a little gold crown. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'swamp-kingdom-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('swamp-kingdom', 'shotgun', {
+    name: 'Swamp Kingdom Shotgun', description: 'A carved-wood blunderbuss with ivy growing round the barrel. A visual finish only; it never gives you a shotgun or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: 'swamp-kingdom-shotgun',
+    preview: { type: 'ITEM', items: ['SHOTGUN'] }, dresses: 'SHOTGUN',
+  }),
+  item('swamp-kingdom', 'frame', {
+    name: 'Swamp Kingdom Frame', description: 'A storybook page edged with curling vines and a little gold crown.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'swamp-kingdom-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('swamp-kingdom', 'accent', {
+    name: 'Swamp Moss Accent', description: 'A mossy swamp-green profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'swamp-moss',
+    preview: { type: 'ACCENT', color: '#7aa83a' },
+  }),
+  item('swamp-kingdom', 'shell', {
+    name: 'Swamp Kingdom Shell', description: 'The whole game in a fairytale swamp: mossy panels, swamp-green controls, an outhouse with a KEEP OUT sign, a castle on the hill and a dragon circling it.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1200, styleKey: 'swamp-kingdom-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('swamp-kingdom', 'title', {
+    name: 'Got Layers', description: 'A Swamp Kingdom title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 200,
+    preview: { type: 'TITLE', title: 'Got Layers' },
+  }),
   // Street Singles: one-off pieces with no set or bundle, for the daily picks.
   item('street-singles', 'taxi-hustle', {
     name: 'Taxi Hustle Sedan', description: 'Cab yellow with a checker stripe, a roof light and a meter in the window. Nobody looks twice at a taxi. A Sedan look only.',
@@ -1183,6 +1334,9 @@ export const DROP_BUNDLES: Readonly<Record<string, DropBundleDefinition>> = Obje
   bundleOf('naughty-list', 2650, 'All seven Naughty List pieces: the Van, the crew set, the Tek-9 finish, the frame, the accent, the shell theme and the Coal Collector title.'),
   bundleOf('heartbreaker', 2800, 'All eight Heartbreaker pieces: the Low-Rider, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme and the Cold Hearted title.'),
   bundleOf('block-party', 2700, 'All eight Block Party pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Block Captain title.'),
+  bundleOf('quarter-mile', 2800, 'All nine Quarter Mile pieces: the Sedan, the Low-Rider, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme and the Ride or Die title.'),
+  bundleOf('88-club', 2750, 'All eight 88 Club pieces: the Van, both crew outfits, the Pistol finish, the frame, the accent, the shell theme and the Ahead of Time title.'),
+  bundleOf('swamp-kingdom', 2750, 'All eight Swamp Kingdom pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Got Layers title.'),
 ].map((bundle) => [bundle.key, bundle]));
 
 /** Whether a holiday set is inside one of its release windows at `now`. */
