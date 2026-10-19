@@ -23,16 +23,23 @@ import {
   BIRTHDAY_DISCOUNT_PERCENT,
   discountedDropPrice,
   dropDefaultState,
+  featuredCollectionsFor,
+  evergreenDropCollections,
 } from '../index.js';
 
 const items = Object.values(DROP_ITEMS);
 const bundles = Object.values(DROP_BUNDLES);
 
 describe('The Drop catalogue', () => {
-  it('ships nineteen collections, at least 18 SKUs, a shell theme each and a bundle per collection', () => {
-    expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(19);
+  it('ships nineteen sets with a shell theme and a bundle each, plus Street Singles', () => {
+    expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(20);
     expect(items.length).toBeGreaterThanOrEqual(18);
-    for (const collection of Object.keys(DROP_COLLECTIONS)) {
+    const singles = items.filter((item) => item.collection === 'street-singles');
+    expect(singles).toHaveLength(30);
+    expect(singles.some((item) => item.kind === 'SITE_THEME')).toBe(false);
+    expect(bundles.some((bundle) => bundle.collection === 'street-singles')).toBe(false);
+    expect(evergreenDropCollections()).not.toContain('street-singles');
+    for (const collection of Object.keys(DROP_COLLECTIONS).filter((key) => key !== 'street-singles')) {
       expect(items.filter((item) => item.collection === collection).length).toBeGreaterThanOrEqual(7);
       expect(items.filter((item) => item.collection === collection && item.kind === 'SITE_THEME')).toHaveLength(1);
       expect(bundles.filter((bundle) => bundle.collection === collection)).toHaveLength(1);
@@ -165,8 +172,25 @@ describe('Holiday sets', () => {
     expect(holiday.map((collection) => collection.key)).toEqual(['graveyard-shift', 'naughty-list', 'heartbreaker', 'block-party']);
     for (const entry of [...items, ...bundles]) {
       const seasonal = holiday.some((collection) => collection.key === entry.collection);
-      expect(dropDefaultState(entry.key), entry.key).toBe(seasonal ? 'DRAFT' : 'LIVE');
+      expect(dropDefaultState(entry.key, new Date('2026-12-15T12:00:00Z')), entry.key).toBe(seasonal ? 'DRAFT' : 'LIVE');
     }
+  });
+
+  it('opens Graveyard Shift for its Halloween window only', () => {
+    expect(dropDefaultState('drop-graveyard-shift-sedan', new Date('2026-10-18T23:59:59Z'))).toBe('DRAFT');
+    expect(dropDefaultState('drop-graveyard-shift-sedan', new Date('2026-10-19T00:00:00Z'))).toBe('LIVE');
+    expect(dropDefaultState('drop-graveyard-shift-bundle', new Date('2026-11-02T23:59:59Z'))).toBe('LIVE');
+    expect(dropDefaultState('drop-graveyard-shift-bundle', new Date('2026-11-03T00:00:00Z'))).toBe('DRAFT');
+    expect(dropDefaultState('drop-heartbreaker-thug', new Date('2026-10-31T00:00:00Z'))).toBe('DRAFT');
+  });
+
+  it('features consecutive pairs so every set gets a turn', () => {
+    const sets = ['a', 'b', 'c', 'd', 'e'];
+    expect(featuredCollectionsFor(0, sets)).toEqual(['a', 'b']);
+    expect(featuredCollectionsFor(1, sets)).toEqual(['c', 'd']);
+    expect(featuredCollectionsFor(2, sets)).toEqual(['e', 'a']);
+    expect(featuredCollectionsFor(0, ['a'])).toEqual(['a']);
+    expect(featuredCollectionsFor(0, [])).toEqual([]);
   });
 });
 

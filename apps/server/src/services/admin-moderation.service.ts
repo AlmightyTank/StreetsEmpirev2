@@ -6,6 +6,8 @@ import type {
   AdminReportStatus,
   AdminReportSummaryDto,
 } from '@streets/shared';
+import { staffCan } from '@streets/shared';
+import { staffRoleOf } from '../auth/play-access.js';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
@@ -243,7 +245,7 @@ export const AdminModerationService = {
   },
 
   /**
-   * A staff button in Discord, for linked game admins only. Muting closes the report
+   * A staff button in Discord, for linked staff who handle reports. Muting closes the report
    * as actioned and is still its own audited account action, in the same transaction;
    * a longer mute the sender already has is kept, never cut to a day. Dismissing just
    * closes it. Neither shows the message, which stays behind the audited open.
@@ -257,7 +259,7 @@ export const AdminModerationService = {
     now = new Date(),
   ): Promise<void> {
     const actor = await linkedDiscordAccount(prisma, discordId);
-    if (!actor.isAdmin) throw AppError.forbidden('Only game admins can act on reports.');
+    if (!staffCan(staffRoleOf(actor), 'reports.handle')) throw AppError.forbidden('Only staff can act on reports.');
     // Closing first claims the report: a second admin acting on it at the same time
     // waits on its rows, then finds it closed, so nobody is muted on a report that
     // ends up dismissed. A mute that fails rolls the close back with it.

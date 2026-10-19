@@ -4,7 +4,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { RULES_VERSION, changeEmailSchema, changeUsernameSchema, closeAccountSchema, deleteAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, normalizeUsername, birthDateUpdateSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
-import { adminNeedsSecondFactor } from '../auth/play-access.js';
+import { adminNeedsSecondFactor, isStaff } from '../auth/play-access.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
 import { createSession, destroySession, sessionHardEnd } from '../auth/sessions.js';
@@ -587,7 +587,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     // Players confirm their email before they can play (or sign in with Discord instead).
     if (!account.emailVerifiedAt) await sendVerificationEmail(fastify.prisma, account, request);
 
-    if (env.betaAccess.inviteOnly && !account.isAdmin && !account.betaApproved) {
+    if (env.betaAccess.inviteOnly && !isStaff(account) && !account.betaApproved) {
       return reply.status(202).send({
         account: toAccountDto(account),
         approvalRequired: true,
@@ -820,10 +820,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         account: toAccountDto(account, request.auth!.session),
       };
     }
-    // An admin keeps a second factor: Discord goes only when an authenticator replaces it,
+    // Staff keep a second factor: Discord goes only when an authenticator replaces it,
     // and only from a session that already passed a second factor.
-    if (env.accounts.requireAdminSecondFactor && account.isAdmin && (!account.twoFactorEnabledAt || !request.auth!.session.twoFactor)) {
-      throw AppError.conflict('ADMIN_DISCORD_LOCKED', 'An admin keeps Discord linked until an authenticator is set up. Turn on two-step sign-in first, then sign in with its code to unlink.');
+    if (env.accounts.requireAdminSecondFactor && isStaff(account) && (!account.twoFactorEnabledAt || !request.auth!.session.twoFactor)) {
+      throw AppError.conflict('ADMIN_DISCORD_LOCKED', 'Staff keep Discord linked until an authenticator is set up. Turn on two-step sign-in first, then sign in with its code to unlink.');
     }
 
     const ok = await verifyPassword(account.passwordHash, body.currentPassword);

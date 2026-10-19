@@ -11,7 +11,8 @@ import {
   dropDefaultState,
   dropDailyWindow,
   dropWeeklyWindow,
-  featuredCollectionFor,
+  featuredCollectionsFor,
+  DROP_FEATURED_SETS,
   pickDaily,
   type DropBundleDefinition,
   type DropItemDefinition,
@@ -86,12 +87,12 @@ export function isReturnPolicy(value: string): value is DropReturnPolicyDto {
   return (RETURN_POLICIES as readonly string[]).includes(value);
 }
 
-function resolveEntry(key: string, kind: 'ITEM' | 'BUNDLE', defaultPrice: number, row: DropCatalogEntry | undefined): CatalogEntry {
+function resolveEntry(key: string, kind: 'ITEM' | 'BUNDLE', defaultPrice: number, row: DropCatalogEntry | undefined, now: Date): CatalogEntry {
   return {
     key,
     kind,
     // Holiday sets start held (Draft) until an admin entry releases them.
-    state: row && isEntryState(row.state) ? row.state : dropDefaultState(key),
+    state: row && isEntryState(row.state) ? row.state : dropDefaultState(key, now),
     priceCrowns: row?.priceCrowns ?? defaultPrice,
     defaultPriceCrowns: defaultPrice,
     returnPolicy: row && isReturnPolicy(row.returnPolicy) ? row.returnPolicy : 'MAY_RETURN',
@@ -102,11 +103,11 @@ function resolveEntry(key: string, kind: 'ITEM' | 'BUNDLE', defaultPrice: number
   };
 }
 
-export async function loadCatalog(db: Db | PrismaClient): Promise<Catalog> {
+export async function loadCatalog(db: Db | PrismaClient, now: Date = new Date()): Promise<Catalog> {
   const rows = new Map((await db.dropCatalogEntry.findMany()).map((row) => [row.key, row]));
   const catalog: Catalog = new Map();
-  for (const item of Object.values(DROP_ITEMS)) catalog.set(item.key, resolveEntry(item.key, 'ITEM', item.priceCrowns, rows.get(item.key)));
-  for (const bundle of Object.values(DROP_BUNDLES)) catalog.set(bundle.key, resolveEntry(bundle.key, 'BUNDLE', bundle.priceCrowns, rows.get(bundle.key)));
+  for (const item of Object.values(DROP_ITEMS)) catalog.set(item.key, resolveEntry(item.key, 'ITEM', item.priceCrowns, rows.get(item.key), now));
+  for (const bundle of Object.values(DROP_BUNDLES)) catalog.set(bundle.key, resolveEntry(bundle.key, 'BUNDLE', bundle.priceCrowns, rows.get(bundle.key), now));
   return catalog;
 }
 
@@ -123,7 +124,8 @@ export function offerKeys(kind: 'ITEM' | 'BUNDLE', refKey: string): string[] {
 export interface RotationView {
   offers: ResolvedOffer[];
   upcoming: ResolvedOffer[];
-  featuredCollection: string | null;
+  /** The featured collections, in display order (up to DROP_FEATURED_SETS). */
+  featuredCollections: string[];
   featuredEndsAt: Date;
   dailyResetsAt: Date;
 }
@@ -145,7 +147,8 @@ export function sortHomepageOffers(offers: readonly ResolvedOffer[], catalog: Ca
 
 /**
  * Everything on sale at `now`: admin-scheduled offers, the weekly featured
- * collection, the daily picks and the permanent catalog. Recomputed for every
+ * collections (two, each with its bundle and pieces; a live holiday set takes
+ * a slot first), the daily picks and the permanent catalog. Recomputed for every
  * request and every purchase, so a window boundary switches offers exactly
  * once and an expired offer can never be bought.
  */
@@ -190,15 +193,26 @@ export async function rotationAt(db: Db | PrismaClient, settings: DropSettingsVa
   const adminFeatured = offers.some((offer) => offer.slot === 'FEATURED');
   const liveCollections = Object.keys(DROP_COLLECTIONS).filter((collection) =>
     Object.values(DROP_ITEMS).some((item) => item.collection === collection && isLive(catalog, item.key)));
-  const featuredCollection = adminFeatured
-    ? (DROP_ITEMS[offers.find((offer) => offer.slot === 'FEATURED')!.refKey]?.collection
-      ?? DROP_BUNDLES[offers.find((offer) => offer.slot === 'FEATURED')!.refKey]?.collection ?? null)
-    : settings.autoFeatured ? featuredCollectionFor(week.index, liveCollections) : null;
+  const definitionOf = (collection: string) => (DROP_COLLECTIONS as Readonly<Record<string, { season?: string; singles?: boolean }>>)[collection];
+  const seasonal = (collection: string) => Boolean(definitionOf(collection)?.season);
+  // Street Singles have no set to show off, so they never take a featured slot.
+  const featurable = liveCollections.filter((collection) => !definitionOf(collection)?.singles);
+  const featuredCollections = adminFeatured
+    ? [...new Set(offers.filter((offer) => offer.slot === 'FEATURED')
+      .map((offer) => DROP_ITEMS[offer.refKey]?.collection ?? DROP_BUNDLES[offer.refKey]?.collection)
+      .filter((collection): collection is string => Boolean(collection)))]
+    : settings.autoFeatured
+      ? [
+        // A live holiday set always takes a featured slot; the rest cycle week by week.
+        ...featurable.filter(seasonal),
+        ...featuredCollectionsFor(week.index, featurable.filter((collection) => !seasonal(collection))),
+      ].slice(0, DROP_FEATURED_SETS)
+      : [];
 
-  if (!adminFeatured && featuredCollection) {
+  for (const featuredCollection of adminFeatured ? [] : featuredCollections) {
     const keys = [
-      ...Object.values(DROP_ITEMS).filter((item) => item.collection === featuredCollection).map((item) => item.key),
       ...Object.values(DROP_BUNDLES).filter((bundle) => bundle.collection === featuredCollection).map((bundle) => bundle.key),
+      ...Object.values(DROP_ITEMS).filter((item) => item.collection === featuredCollection).map((item) => item.key),
     ];
     for (const key of keys) {
       const entry = catalog.get(key);
@@ -222,12 +236,12 @@ export async function rotationAt(db: Db | PrismaClient, settings: DropSettingsVa
     offers.push({ id: `rot:D:${day.key}:${key}`, kind: 'ITEM', refKey: key, slot: 'DAILY', badge: 'DAILY', priceCrowns: entry.priceCrowns, startsAt: day.startsAt, endsAt: day.endsAt });
   }
 
-  return { offers: sortHomepageOffers(offers, catalog), upcoming: sortHomepageOffers(upcoming, catalog), featuredCollection, featuredEndsAt: week.endsAt, dailyResetsAt: day.endsAt };
+  return { offers: sortHomepageOffers(offers, catalog), upcoming: sortHomepageOffers(upcoming, catalog), featuredCollections, featuredEndsAt: week.endsAt, dailyResetsAt: day.endsAt };
 }
 
 /** The offer by id if it is on sale at `now`; otherwise a clear refusal. */
 export async function resolveOffer(db: Db | PrismaClient, offerId: string, now: Date): Promise<{ offer: ResolvedOffer; catalog: Catalog }> {
-  const [settings, catalog] = await Promise.all([DropSettingsService.get(db), loadCatalog(db)]);
+  const [settings, catalog] = await Promise.all([DropSettingsService.get(db), loadCatalog(db, now)]);
   const rotation = await rotationAt(db, settings, catalog, now);
   const offer = rotation.offers.find((candidate) => candidate.id === offerId);
   if (!offer) {
@@ -398,7 +412,7 @@ export const DropCatalogService = {
   async storefront(prisma: PrismaClient, accountId: string | null, now = new Date()): Promise<DropStorefrontDto> {
     const [settings, catalog, owned, round, discount] = await Promise.all([
       DropSettingsService.get(prisma),
-      loadCatalog(prisma),
+      loadCatalog(prisma, now),
       ownedDropKeys(prisma, accountId),
       RoundService.getCurrent(prisma),
       dropDiscountFor(prisma, accountId, now),
@@ -419,7 +433,11 @@ export const DropCatalogService = {
       switches,
       wallet,
       discount,
-      featured: { collection: rotation.featuredCollection ? collectionDto(rotation.featuredCollection) : null, endsAt: rotation.featuredEndsAt.toISOString() },
+      featured: {
+        collection: rotation.featuredCollections[0] ? collectionDto(rotation.featuredCollections[0]) : null,
+        collections: rotation.featuredCollections.map((key) => collectionDto(key)!),
+        endsAt: rotation.featuredEndsAt.toISOString(),
+      },
       daily: { resetsAt: rotation.dailyResetsAt.toISOString() },
       // Only collections with something to show, so a held holiday set stays a surprise.
       collections: Object.keys(DROP_COLLECTIONS)
@@ -437,7 +455,7 @@ export const DropCatalogService = {
     const key = `${DROP_KEY_PREFIX}${slug}`;
     const [settings, catalog, owned, discount] = await Promise.all([
       DropSettingsService.get(prisma),
-      loadCatalog(prisma),
+      loadCatalog(prisma, now),
       ownedDropKeys(prisma, accountId),
       dropDiscountFor(prisma, accountId, now),
     ]);

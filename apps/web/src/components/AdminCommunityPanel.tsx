@@ -5,10 +5,12 @@ import {
   type AdminCommunityDto,
   type AdminDiscordTimeoutLength,
   type AdminSuspensionLength,
+  staffMayMuteFor,
 } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { adminWhen } from '../utils/admin.js';
+import { useStaff } from '../utils/staff.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { GameDialog } from './GameUI.js';
@@ -27,14 +29,17 @@ const PENDING_TEXT: Record<Pending, { label: string; copy: string }> = {
  * 1.7. The player on the forum and Discord beside their game account: status, the
  * suspend and timeout actions each platform allows, and their support tickets.
  * Every action is audited on the game's side as well as recorded where it lands.
+ * `canAct` is false on the viewer's own account and on staff at or above their rank.
  */
-export function AdminCommunityPanel({ accountId, isSelf, community, loadError, onChange }: {
+export function AdminCommunityPanel({ accountId, canAct, community, loadError, onChange }: {
   accountId: string;
-  isSelf: boolean;
+  canAct: boolean;
   community: AdminCommunityDto | null;
   loadError: string | null;
   onChange: (community: AdminCommunityDto) => void;
 }) {
+  const { role, can } = useStaff();
+  const timeoutOptions = ADMIN_DISCORD_TIMEOUT_LENGTHS.filter((option) => staffMayMuteFor(role, option.minutes / 60));
   const [pending, setPending] = useState<Pending | null>(null);
   const [reason, setReason] = useState('');
   const [forumLength, setForumLength] = useState<AdminSuspensionLength>('7d');
@@ -97,7 +102,7 @@ export function AdminCommunityPanel({ accountId, isSelf, community, loadError, o
               <Row label="Account" value={<a href={forum.profileUrl} target="_blank" rel="noreferrer">{forum.username}</a>} />
               <Row label="Status" value={forum.problem ? 'Unknown' : forum.suspendedUntil ? `Suspended until ${adminWhen(forum.suspendedUntil)}` : 'Can post'} />
               {forum.problem ? <p className="se-hint">{forum.problem}</p> : null}
-              {!isSelf && forum.moderationEnabled && !forum.problem ? (
+              {canAct && can('accounts.suspend') && forum.moderationEnabled && !forum.problem ? (
                 <div className="se-admin-moderation se-mt">{button(forum.suspendedUntil ? 'forum-lift' : 'forum-suspend')}</div>
               ) : null}
             </div>
@@ -110,7 +115,7 @@ export function AdminCommunityPanel({ accountId, isSelf, community, loadError, o
               <Row label="Member" value={discord.inServer ? discord.displayName ?? 'In the server' : 'Not in the server'} />
               <Row label="Status" value={discord.timedOutUntil ? `Timed out until ${adminWhen(discord.timedOutUntil)}` : discord.inServer ? 'Can post' : '-'} />
               {discord.problem ? <p className="se-hint">{discord.problem}</p> : null}
-              {!isSelf && discord.moderationEnabled && discord.canModerate ? (
+              {canAct && can('accounts.mute') && discord.moderationEnabled && discord.canModerate ? (
                 <div className="se-admin-moderation se-mt">{button(discord.timedOutUntil ? 'discord-lift' : 'discord-timeout')}</div>
               ) : null}
             </div>
@@ -139,7 +144,7 @@ export function AdminCommunityPanel({ accountId, isSelf, community, loadError, o
             <div className="se-field">
               <label className="se-label" htmlFor="community-timeout-length">How long</label>
               <select id="community-timeout-length" className="se-input" value={timeoutLength} onChange={(event) => setTimeoutLength(event.target.value as AdminDiscordTimeoutLength)}>
-                {ADMIN_DISCORD_TIMEOUT_LENGTHS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+                {timeoutOptions.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
               </select>
             </div>
           ) : null}

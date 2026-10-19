@@ -28,6 +28,14 @@ export interface DropCollectionDefinition {
    * (Draft) and stay out of the shop until an admin releases them.
    */
   readonly season?: string;
+  /**
+   * A holiday set's release windows (UTC, from inclusive, until exclusive).
+   * Inside one it is Live and takes a Featured slot; outside, it is held again.
+   * An admin catalog entry still overrides either way.
+   */
+  readonly windows?: readonly { readonly from: string; readonly until: string }[];
+  /** One-off pieces with no set: no bundle, no shell, never featured; they fill the daily picks. */
+  readonly singles?: boolean;
 }
 
 /** What the detail page draws for an item. */
@@ -168,6 +176,14 @@ export const DROP_COLLECTIONS = {
     description: 'A back-room card game: green felt, ivory dice, red and black card suits under a low lamp.',
     accent: '#1fae6a',
   },
+  'street-singles': {
+    key: 'street-singles',
+    name: 'Street Singles',
+    tagline: 'One-offs. No set required.',
+    description: 'Single pieces with no set or bundle: ride and gun looks, outfits, frames, accents and titles that turn up in the daily picks.',
+    accent: '#9aa3af',
+    singles: true,
+  },
   // Holiday sets: built, held as Draft until an admin releases them in their season.
   'graveyard-shift': {
     key: 'graveyard-shift',
@@ -176,6 +192,8 @@ export const DROP_COLLECTIONS = {
     description: 'Moonlit cemetery work: bone white, moss, wrought iron and a cold ghost-green glow.',
     accent: '#a8f0c6',
     season: 'October–November',
+    // Halloween 2026: live now, through All Souls' Day.
+    windows: [{ from: '2026-10-19T00:00:00Z', until: '2026-11-03T00:00:00Z' }],
   },
   'naughty-list': {
     key: 'naughty-list',
@@ -979,6 +997,157 @@ const ITEMS: readonly DropItemDefinition[] = [
     kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 200,
     preview: { type: 'TITLE', title: 'Block Captain' },
   }),
+  // Street Singles: one-off pieces with no set or bundle, for the daily picks.
+  item('street-singles', 'taxi-hustle', {
+    name: 'Taxi Hustle Sedan', description: 'Cab yellow with a checker stripe, a roof light and a meter in the window. Nobody looks twice at a taxi. A Sedan look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'VEHICLES', priceCrowns: 650, styleKey: 'taxi-hustle-sedan',
+    preview: { type: 'ITEM', items: ['SEDAN'] }, dresses: 'SEDAN',
+  }),
+  item('street-singles', 'two-tone', {
+    name: 'Two-Tone Classic Sedan', description: 'Fifties two-tone: cream roof and teal body, a chrome spear down the side and whitewall tyres. A Sedan look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'VEHICLES', priceCrowns: 600, styleKey: 'two-tone-classic-sedan',
+    preview: { type: 'ITEM', items: ['SEDAN'] }, dresses: 'SEDAN',
+  }),
+  item('street-singles', 'lime-flake', {
+    name: 'Lime Flake Low-Rider', description: 'Candy lime metal flake that sparkles under the streetlights, with gold-leaf scrolls on the doors. A Low-Rider look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'VEHICLES', priceCrowns: 650, styleKey: 'lime-flake-low-rider',
+    preview: { type: 'ITEM', items: ['LOW_RIDER'] }, dresses: 'LOW_RIDER',
+  }),
+  item('street-singles', 'hot-flames', {
+    name: 'Hot Flames Low-Rider', description: 'Gloss black with orange-to-yellow hot-rod flames licking back from the front wheels. A Low-Rider look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'VEHICLES', priceCrowns: 650, styleKey: 'hot-flames-low-rider',
+    preview: { type: 'ITEM', items: ['LOW_RIDER'] }, dresses: 'LOW_RIDER',
+  }),
+  item('street-singles', 'pipe-dreams', {
+    name: 'Pipe Dreams Plumbing Van', description: 'A white work van for Pipe Dreams Plumbing, with a ladder on the roof and a phone number nobody answers. A Van look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'VEHICLES', priceCrowns: 600, styleKey: 'pipe-dreams-van',
+    preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
+  }),
+  item('street-singles', 'flower-power', {
+    name: 'Flower Power Van', description: 'A sky-blue van covered in big daisies and swirls, straight out of a summer of love. A Van look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'VEHICLES', priceCrowns: 600, styleKey: 'flower-power-van',
+    preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
+  }),
+  item('street-singles', 'tiger-stripe', {
+    name: 'Tiger Stripe Pistol', description: 'Orange and black tiger stripes down the slide and grip. A visual finish only; it never gives you a pistol or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'uncommon', category: 'WEAPONS', priceCrowns: 450, styleKey: 'tiger-stripe-pistol',
+    preview: { type: 'ITEM', items: ['PISTOL'] }, dresses: 'PISTOL',
+  }),
+  item('street-singles', 'damascus', {
+    name: 'Damascus AK-47', description: 'Folded Damascus steel with its wavy grain, on dark oiled walnut. A visual finish only; it never gives you an AK-47 or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 500, styleKey: 'damascus-ak47',
+    preview: { type: 'ITEM', items: ['AK47'] }, dresses: 'AK47',
+  }),
+  item('street-singles', 'rust-bucket', {
+    name: 'Rust Bucket Shotgun', description: 'Rusted steel, a cracked stock and grey duct tape holding it all together. Still works. A visual finish only; it never gives you a shotgun or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'uncommon', category: 'WEAPONS', priceCrowns: 400, styleKey: 'rust-bucket-shotgun',
+    preview: { type: 'ITEM', items: ['SHOTGUN'] }, dresses: 'SHOTGUN',
+  }),
+  item('street-singles', 'bubblegum', {
+    name: 'Bubblegum Tek-9', description: 'Bubblegum pink with a glitter coat and a sticker on the mag. A visual finish only; it never gives you a Tek-9 or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'uncommon', category: 'WEAPONS', priceCrowns: 450, styleKey: 'bubblegum-tek9',
+    preview: { type: 'ITEM', items: ['TEK9'] }, dresses: 'TEK9',
+  }),
+  item('street-singles', 'velour-tracksuit', {
+    name: 'Velour Tracksuit Thug', description: 'A maroon velour tracksuit with gold zips and white piping. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'CREW', priceCrowns: 550, styleKey: 'velour-tracksuit-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('street-singles', 'bowling-shirt', {
+    name: 'Bowling Shirt Thug', description: 'A retro two-tone bowling shirt, cream and teal, with a pin stitched on the chest. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'CREW', priceCrowns: 500, styleKey: 'bowling-shirt-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('street-singles', 'leopard-coat', {
+    name: 'Leopard Coat Hoe', description: 'A leopard-print coat over a little black dress. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'CREW', priceCrowns: 550, styleKey: 'leopard-coat-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('street-singles', 'tie-dye', {
+    name: 'Tie-Dye Hoe', description: 'A tie-dye jacket in sunset swirls over a white tee. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'CREW', priceCrowns: 500, styleKey: 'tie-dye-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('street-singles', 'barbed-wire', {
+    name: 'Barbed Wire Frame', description: 'A ring of barbed wire around your profile and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'rare', category: 'PROFILES', priceCrowns: 400, styleKey: 'barbed-wire-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('street-singles', 'cuban-link', {
+    name: 'Cuban Link Frame', description: 'A heavy Cuban-link chain around your profile and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'cuban-link-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('street-singles', 'brick-wall', {
+    name: 'Brick Wall Frame', description: 'Red brick and mortar around your profile and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 350, styleKey: 'brick-wall-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('street-singles', 'cash-stack', {
+    name: 'Cash Stack Frame', description: 'Banded stacks of cash around your profile and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'cash-stack-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('street-singles', 'police-tape', {
+    name: 'Police Tape Frame', description: 'Do-not-cross tape around your profile and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 350, styleKey: 'police-tape-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('street-singles', 'bullet-belt', {
+    name: 'Bullet Belt Frame', description: 'A bandolier of brass rounds around your profile and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'rare', category: 'PROFILES', priceCrowns: 400, styleKey: 'bullet-belt-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('street-singles', 'money-green-accent', {
+    name: 'Money Green Accent', description: 'A money green profile and banner accent.',
+    kind: 'ACCENT', rarity: 'uncommon', category: 'SHELLS', priceCrowns: 250, styleKey: 'money-green',
+    preview: { type: 'ACCENT', color: '#4caf50' },
+  }),
+  item('street-singles', 'blood-orange-accent', {
+    name: 'Blood Orange Accent', description: 'A blood orange profile and banner accent.',
+    kind: 'ACCENT', rarity: 'uncommon', category: 'SHELLS', priceCrowns: 250, styleKey: 'blood-orange',
+    preview: { type: 'ACCENT', color: '#ff5f1f' },
+  }),
+  item('street-singles', 'steel-silver-accent', {
+    name: 'Steel Silver Accent', description: 'A steel silver profile and banner accent.',
+    kind: 'ACCENT', rarity: 'uncommon', category: 'SHELLS', priceCrowns: 250, styleKey: 'steel-silver',
+    preview: { type: 'ACCENT', color: '#b8c4d0' },
+  }),
+  item('street-singles', 'cobalt-accent', {
+    name: 'Cobalt Accent', description: 'A cobalt profile and banner accent.',
+    kind: 'ACCENT', rarity: 'uncommon', category: 'SHELLS', priceCrowns: 250, styleKey: 'cobalt-blue',
+    preview: { type: 'ACCENT', color: '#2f6bff' },
+  }),
+  item('street-singles', 'bubblegum-accent', {
+    name: 'Bubblegum Accent', description: 'A bubblegum profile and banner accent.',
+    kind: 'ACCENT', rarity: 'uncommon', category: 'SHELLS', priceCrowns: 250, styleKey: 'bubblegum-pink',
+    preview: { type: 'ACCENT', color: '#ff7ad9' },
+  }),
+  item('street-singles', 'mustard-accent', {
+    name: 'Mustard Accent', description: 'A mustard profile and banner accent.',
+    kind: 'ACCENT', rarity: 'uncommon', category: 'SHELLS', priceCrowns: 250, styleKey: 'mustard-yellow',
+    preview: { type: 'ACCENT', color: '#e3b505' },
+  }),
+  item('street-singles', 'made-it-rain', {
+    name: 'Made It Rain', description: 'A Street Singles title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 200,
+    preview: { type: 'TITLE', title: 'Made It Rain' },
+  }),
+  item('street-singles', 'corner-legend', {
+    name: 'Corner Legend', description: 'A Street Singles title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 200,
+    preview: { type: 'TITLE', title: 'Corner Legend' },
+  }),
+  item('street-singles', 'night-owl', {
+    name: 'Night Owl', description: 'A Street Singles title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 150,
+    preview: { type: 'TITLE', title: 'Night Owl' },
+  }),
+  item('street-singles', 'clean-money', {
+    name: 'Clean Money', description: 'A Street Singles title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 150,
+    preview: { type: 'TITLE', title: 'Clean Money' },
+  }),
 ];
 
 export const DROP_ITEMS: Readonly<Record<string, DropItemDefinition>> = Object.fromEntries(ITEMS.map((entry) => [entry.key, entry]));
@@ -1016,11 +1185,21 @@ export const DROP_BUNDLES: Readonly<Record<string, DropBundleDefinition>> = Obje
   bundleOf('block-party', 2700, 'All eight Block Party pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Block Captain title.'),
 ].map((bundle) => [bundle.key, bundle]));
 
-/** Holiday sets start held (Draft); everything else starts Live. An admin catalog entry overrides either. */
-export function dropDefaultState(key: string): 'LIVE' | 'DRAFT' {
+/** Whether a holiday set is inside one of its release windows at `now`. */
+export function inReleaseWindow(collection: string, now: Date): boolean {
+  const definition = (DROP_COLLECTIONS as Readonly<Record<string, DropCollectionDefinition>>)[collection];
+  return Boolean(definition?.windows?.some((window) => now >= new Date(window.from) && now < new Date(window.until)));
+}
+
+/**
+ * The state a Drop entry has when no admin catalog entry sets one: everything
+ * Live, except holiday sets, which are held (Draft) outside their release windows.
+ */
+export function dropDefaultState(key: string, now: Date = new Date()): 'LIVE' | 'DRAFT' {
   const collection = (DROP_ITEMS[key] ?? DROP_BUNDLES[key])?.collection;
   const definition = collection ? (DROP_COLLECTIONS as Readonly<Record<string, DropCollectionDefinition>>)[collection] : undefined;
-  return definition?.season ? 'DRAFT' : 'LIVE';
+  if (!definition?.season) return 'LIVE';
+  return inReleaseWindow(definition.key, now) ? 'LIVE' : 'DRAFT';
 }
 
 export function dropItem(key: string): DropItemDefinition | null {
@@ -1182,8 +1361,21 @@ export function pickDaily(pool: readonly string[], dayKey: string, count: number
 /** Collections in the cycle by default: every one except the held holiday sets. */
 export function evergreenDropCollections(): string[] {
   return Object.values(DROP_COLLECTIONS as Readonly<Record<string, DropCollectionDefinition>>)
-    .filter((collection) => !collection.season)
+    .filter((collection) => !collection.season && !collection.singles)
     .map((collection) => collection.key);
+}
+
+/** How many collections the shop features at once, each shown as its bundle and the pieces in it. */
+export const DROP_FEATURED_SETS = 2;
+
+/** This week's featured collections: consecutive pairs from the cycle, so every set gets its turn. */
+export function featuredCollectionsFor(weekIndex: number, collections: readonly string[] = evergreenDropCollections(), count = DROP_FEATURED_SETS): string[] {
+  if (!collections.length || count <= 0) return [];
+  const take = Math.min(count, collections.length);
+  return Array.from({ length: take }, (_, offset) => {
+    const index = weekIndex * take + offset;
+    return collections[((index % collections.length) + collections.length) % collections.length]!;
+  });
 }
 
 export function featuredCollectionFor(weekIndex: number, collections: readonly string[] = evergreenDropCollections()): string | null {

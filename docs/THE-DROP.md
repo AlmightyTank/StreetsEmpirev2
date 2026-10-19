@@ -25,7 +25,10 @@ packs off everywhere until `DROP_CROWN_PACKS_ENABLED=true` with Stripe keys.
 ## Catalogue
 
 Defined in code, `packages/rulesets/src/drop.ts`. Nineteen collections, seven
-or eight SKUs each (146 in all), one bundle each. Fifteen are in rotation; the
+or eight SKUs each (146 in all), one bundle each, plus **Street Singles**: 30
+one-off pieces (10 ride and gun looks, 4 outfits, 6 frames, 6 accents, 4
+titles) with no set, bundle or shell. Singles are never featured; they fill
+the random daily picks. Fifteen are in rotation; the
 four holiday sets (Graveyard Shift, Naughty List, Heartbreaker, Block Party)
 are held as Draft and hidden until an admin releases them in their season (see
 [DROP-COLLECTIONS-NEXT.md](DROP-COLLECTIONS-NEXT.md)). The three launch sets came
@@ -102,10 +105,11 @@ All computed on the server clock for every request and every purchase
 (`rotationAt` in `drop-catalog.service.ts`), so a window boundary switches
 offers exactly once and an expired offer id is refused.
 
-- **Featured:** one collection a week, Monday 00:00 UTC (plus the reset hour),
-  cycling through collections with a live item. An admin Featured offer
-  replaces it.
-- **Daily:** `dailyOfferCount` items (default 4) picked deterministically per
+- **Featured:** two sets a week, Monday 00:00 UTC (plus the reset hour), each
+  shown as its bundle and every piece in it, cycling in pairs through
+  collections with a live item. A live holiday set always takes one of the
+  two slots. An admin Featured offer replaces both.
+- **Daily:** `dailyOfferCount` random items (default 8) picked deterministically per
   UTC day from the daily pool, excluding anything already on sale.
 - **Permanent catalog:** entries whose return policy is Permanent.
 - **Admin offers:** scheduled windows with their own price and badge. Shown as

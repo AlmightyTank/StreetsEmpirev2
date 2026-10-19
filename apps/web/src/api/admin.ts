@@ -21,6 +21,8 @@ import type {
   AdminLoansDto,
   AdminBugReportQueueDto,
   AdminBugReportStatus,
+  AdminStaffDto,
+  StaffRole,
   BugReportResolution,
   MonitoringSnapshotDto,
   AdminExploitFlagDto,
@@ -215,8 +217,10 @@ export const adminApi = {
   renameAccount: (accountId: string, username: string, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'rename'), { username, reason }),
   resetProfile: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'reset-profile'), { reason }),
-  setAdmin: (accountId: string, isAdmin: boolean, reason: string) =>
-    api.post<AdminAccountDetailDto>(accountPath(accountId, 'admin'), { isAdmin, reason }),
+  /** Give, change or take away (null) a staff role. */
+  setStaffRole: (accountId: string, role: StaffRole | null, reason: string) =>
+    api.post<AdminAccountDetailDto>(accountPath(accountId, 'staff-role'), { role, reason }),
+  staff: () => api.get<AdminStaffDto>('/admin/staff'),
   setBetaApproved: (accountId: string, approved: boolean, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'beta-access'), { approved, reason }),
   grantSupporter: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'supporter'), { reason }),

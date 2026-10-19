@@ -21,10 +21,12 @@ import { JokeDayBanner } from '../components/EasterEggs.js';
 import { CaseStoryAlerts } from '../components/CaseStoryAlerts.js';
 import { AdmissionGate } from '../components/AdmissionGate.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
+import { useStaff } from '../utils/staff.js';
 import { formatDuration } from '../utils/time.js';
 import { isPageScrollLocked } from '../utils/pageScrollLock.js';
 import { anchorScrollTop, isAnchorReady, preservedRouteScrollTarget, routeAnchorId, shouldPreserveRouteScroll } from '../utils/routeScroll.js';
 import {
+  adminSectionsFor,
   isCurrent,
   filterNavSections,
   useNavBadges,
@@ -625,7 +627,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   useTabSwipe();
   const round = useSession((s) => s.round);
   const experience = useSession((s) => s.me?.experience ?? null);
-  const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
+  const { role: staffRole } = useStaff();
   const isBetaEnvironment = typeof window !== 'undefined' && window.location.hostname === 'beta.streetsempire.dev';
   const sections = useSections();
   const { pathname, search, hash, key } = useLocation();
@@ -714,7 +716,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
 
       <div className="se-gamegrid">
         <div className="se-gamemain">
-          {isAdmin && pathname.startsWith('/game/admin') ? <AdminWorkspace pathname={pathname} /> : null}
+          {staffRole && pathname.startsWith('/game/admin') ? <AdminWorkspace pathname={pathname} sections={adminSectionsFor(staffRole)} /> : null}
           <PageGuide />
           {children}
         </div>

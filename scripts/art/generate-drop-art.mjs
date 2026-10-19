@@ -1575,6 +1575,185 @@ Object.assign(recipes, {
   },
 });
 
+
+/* ---------- Street Singles (one-off pieces, no set) ---------- */
+
+Object.assign(recipes, {
+  'sedan-taxi-hustle': async () => {
+    let svg = await load('sedan');
+    svg = restop(svg, 'paint', ['#ffe066', '#ffcc00', '#d9a600', '#8a6a00']);
+    svg = recolor(svg, { '#c2ad85': '#1e2024', '#5e4e35': '#3a2e00' });
+    const checks = Array.from({ length: 24 }, (_, index) => `<rect x="${30 + index * 8}" y="${index % 2 ? 80.5 : 78.5}" width="4" height="2" fill="#111"/>`).join('');
+    return decorate(svg, {
+      over: [
+        `<path d="M28 79 Q130 75.5 234 78" stroke="#ffffff" stroke-width="4.4" fill="none"/>`, checks,
+        // Roof light and a TAXI sign.
+        '<rect x="118" y="27" width="24" height="9" rx="2" fill="#fff6d8" stroke="#000" stroke-width="1"/><text x="130" y="34" text-anchor="middle" font-family="Arial, sans-serif" font-size="6.4" font-weight="900" fill="#111">TAXI</text>',
+        '<rect x="128" y="62" width="14" height="7" rx="1" fill="#111"/><text x="135" y="67.6" text-anchor="middle" font-family="Arial, sans-serif" font-size="4.6" font-weight="700" fill="#ffcc00">$4.50</text>',
+      ].join('\n    '),
+    });
+  },
+  'sedan-two-tone': async () => {
+    let svg = await load('sedan');
+    svg = restop(svg, 'paint', ['#7fd6cc', '#3fa89c', '#2a7a72', '#134a44']);
+    svg = recolor(svg, { '#c2ad85': '#e9ecef' });
+    return decorate(svg, {
+      over: [
+        // Cream roof over the teal body, a chrome spear and whitewalls.
+        '<path d="M62 55.5 C82 42.5 105 36.5 130 36.5 C153 36.5 171 43 192 58.5 L188 60 C168 46 152 40 130 40 C106 40 84 46 66 58 Z" fill="#fbf3dc" stroke="#c9b994" stroke-width=".6"/>',
+        '<path d="M40 74 Q120 70 230 73 L200 76 Q120 74 60 77 Z" fill="#e1e6ec" stroke="#8a93a3" stroke-width=".6"/>',
+        rings(SEDAN_WHEELS, '<circle r="13" stroke="#fbfaf6" stroke-width="2.8"/>'),
+      ].join('\n    '),
+    });
+  },
+  'low-rider-lime-flake': async () => {
+    let svg = await load('low-rider');
+    svg = restop(svg, 'paint', ['#d6ff6a', '#8fd400', '#4f8a00', '#244400']);
+    svg = restop(svg, 'door', ['#a6e81a', '#5a9a00']);
+    svg = restop(svg, 'primer', [['#262b3a', 0], ['#262b3a', 0]]);
+    const flakes = Array.from({ length: 40 }, (_, index) => `<circle cx="${20 + ((index * 37) % 220)}" cy="${66 + ((index * 13) % 24)}" r=".6" fill="#ffffff" opacity=".7"/>`).join('');
+    return decorate(svg, {
+      over: [
+        flakes,
+        '<path d="M110 82 q8 -8 16 0 q8 8 16 0 M150 82 q8 -8 16 0" stroke="#e8b93a" stroke-width="1.4" fill="none"/>',
+        '<path d="M14 73.4 L244 76.4" stroke="#e8b93a" stroke-width="1" fill="none"/>',
+      ].join('\n    '),
+    });
+  },
+  'low-rider-hot-flames': async () => {
+    let svg = await load('low-rider');
+    svg = restop(svg, 'paint', ['#4a4e56', '#1c1e22', '#0b0c0e', '#030304']);
+    svg = restop(svg, 'door', ['#2a2d32', '#111316']);
+    svg = restop(svg, 'primer', [['#262b3a', 0], ['#262b3a', 0]]);
+    return decorate(svg, {
+      defs: '<linearGradient id="flame" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#ffe066"/><stop offset=".5" stop-color="#ff8a2a"/><stop offset="1" stop-color="#e02a1a"/></linearGradient>',
+      over: [
+        '<path d="M246 74 Q220 70 210 78 Q200 66 186 76 Q176 64 160 76 Q150 66 136 78 Q128 72 118 80 Q140 84 160 82 Q180 88 196 82 Q214 88 230 82 Q240 84 246 80 Z" fill="url(#flame)" stroke="#8a1a0a" stroke-width=".6"/>',
+      ].join('\n    '),
+    });
+  },
+  'van-pipe-dreams': async () => {
+    let svg = await load('van');
+    svg = restop(svg, 'paint', ['#ffffff', '#eef1f4', '#cfd6dd', '#8a96a3']);
+    svg = restop(svg, 'decal', ['#ffffff', '#eef1f4']);
+    svg = restop(svg, 'rust', [['#000000', 0], ['#000000', 0]]);
+    svg = recolor(svg, { '#b8bcba': '#1d5aa8' });
+    return decorate(svg, {
+      over: [
+        '<text x="71" y="56" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" font-weight="900" fill="#1d5aa8">PIPE DREAMS</text>',
+        '<text x="71" y="63.5" text-anchor="middle" font-family="Arial, sans-serif" font-size="5" font-weight="700" fill="#1d5aa8">PLUMBING · 555-0199</text>',
+        '<path d="M50 66 H92" stroke="#e8443a" stroke-width="1.2"/>',
+        // A ladder on the roof.
+        '<path d="M24 22 H160 M24 19 H160" stroke="#9aa0a6" stroke-width="1.4"/><path d="M34 19 V22 M50 19 V22 M66 19 V22 M82 19 V22 M98 19 V22 M114 19 V22 M130 19 V22 M146 19 V22" stroke="#9aa0a6" stroke-width="1"/>',
+      ].join('\n    '),
+    });
+  },
+  'van-flower-power': async () => {
+    let svg = await load('van');
+    svg = restop(svg, 'paint', ['#bfe6ff', '#7cc4f0', '#4a9ad0', '#245a80']);
+    svg = restop(svg, 'decal', ['#ffffff', '#fff6d8']);
+    svg = restop(svg, 'rust', [['#000000', 0], ['#000000', 0]]);
+    const daisy = (x, y, r, centre) => `<g transform="translate(${x} ${y})">${Array.from({ length: 8 }, (_, index) => `<ellipse cx="0" cy="${-r}" rx="${r * 0.42}" ry="${r * 0.75}" transform="rotate(${index * 45})" fill="#ffffff" stroke="#c9d6e2" stroke-width=".4"/>`).join('')}<circle r="${r * 0.45}" fill="${centre}"/></g>`;
+    return decorate(svg, {
+      over: [
+        daisy(30, 72, 6, '#ffb627'), daisy(120, 52, 8, '#ff6fb5'), daisy(150, 76, 5, '#ffb627'), daisy(196, 80, 5, '#ff6fb5'),
+        '<path d="M20 50 q10 -10 20 0 t20 0 M140 40 q10 -10 20 0" stroke="#ff8a2a" stroke-width="1.6" fill="none"/>',
+      ].join('\n    '),
+    });
+  },
+  'pistol-tiger-stripe': async () => {
+    let svg = await load('pistol');
+    svg = restop(svg, 'slide', ['#ffb05a', '#ff8a1a', '#b5541a']);
+    svg = restop(svg, 'grip', ['#ff9a3a', '#b5541a']);
+    svg = restop(svg, 'frame', ['#ff8a1a', '#8a3e0a']);
+    return decorate(svg, {
+      over: [
+        '<path d="M28 38 l6 8 l-4 8 M46 38 l4 6 l-3 10 M64 38 l7 9 l-5 7 M84 38 l4 7 l-2 9 M100 38 l6 9 l-4 7" stroke="#111" stroke-width="2.2" fill="none" stroke-linejoin="round"/>',
+        '<path d="M30 66 l8 6 l-6 6 M28 84 l10 4 l-8 8 M40 98 l6 4" stroke="#111" stroke-width="2.4" fill="none"/>',
+      ].join('\n  '),
+    });
+  },
+  'ak47-damascus': async () => {
+    let svg = await load('ak47');
+    svg = restop(svg, 'steel', ['#c9ced4', '#7d848c', '#3a3e45']);
+    svg = restop(svg, 'wood', ['#7a4a26', '#4a2a14', '#24140a']);
+    svg = restop(svg, 'mag', ['#5a6168', '#8a939c', '#3a3e45']);
+    const waves = Array.from({ length: 6 }, (_, index) => `<path d="M72 ${46 + index * 3} q10 -2 20 0 t20 0 t20 0 t20 0" stroke="#1e2024" stroke-opacity=".55" stroke-width=".9" fill="none"/>`).join('');
+    return decorate(svg, { over: [waves, '<path d="M196 50 q10 -1.5 20 0 t20 0 M196 53 q10 1.5 20 0 t20 0" stroke="#e1e6ec" stroke-opacity=".45" stroke-width=".6" fill="none"/>'].join('\n  ') });
+  },
+  'shotgun-rust-bucket': async () => {
+    let svg = await load('shotgun');
+    svg = restop(svg, 'barrel', ['#b07a4a', '#7a4a26', '#3e2412']);
+    svg = restop(svg, 'steel', ['#9a6a3e', '#6a4024', '#30180a']);
+    svg = restop(svg, 'wood', ['#8a6a4a', '#5a4026', '#2e2010']);
+    return decorate(svg, {
+      over: [
+        '<path d="M44 50 L52 74 M60 49 L64 70" stroke="#9aa0a6" stroke-width="5" stroke-linecap="round"/>',
+        '<path d="M44 50 L52 74 M60 49 L64 70" stroke="#c9ced4" stroke-width="1" stroke-dasharray="2 2"/>',
+        '<path d="M30 60 l10 10 M24 72 l6 -4" stroke="#1a0e06" stroke-width="1"/>',
+        '<g fill="#c8641e" opacity=".8"><circle cx="150" cy="49" r="1.6"/><circle cx="182" cy="51" r="2"/><circle cx="214" cy="48" r="1.4"/><circle cx="96" cy="60" r="2.2"/></g>',
+      ].join('\n  '),
+    });
+  },
+  'tek9-bubblegum': async () => {
+    let svg = await load('tek9');
+    svg = restop(svg, 'steel', ['#ffc2e8', '#ff7ad9', '#c9529f']);
+    svg = restop(svg, 'shroud', ['#ffd6f0', '#ff9ae2', '#d96ab4']);
+    svg = restop(svg, 'poly', ['#ff9ae2', '#c9529f']);
+    return decorate(svg, {
+      over: [
+        '<g fill="#ffffff" opacity=".85"><circle cx="70" cy="50" r=".8"/><circle cx="92" cy="58" r=".7"/><circle cx="118" cy="50" r=".9"/><circle cx="140" cy="58" r=".7"/><circle cx="176" cy="48" r=".8"/></g>',
+        '<g transform="translate(142 92) rotate(-12)"><circle r="6" fill="#ffd166" stroke="#c98a12" stroke-width=".8"/><path d="M-2.4 -1 h.1 M2.3 -1 h.1 M-2.4 2 Q0 4 2.4 2" stroke="#7a4a10" stroke-width="1" fill="none" stroke-linecap="round"/></g>',
+      ].join('\n  '),
+    });
+  },
+
+  'thug-velour-tracksuit': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#7a1f33"/><path d="M0 7 Q7 5 14 7" stroke="#8f2a40" stroke-width="1" fill="none" opacity=".7"/>');
+    svg = restop(svg, 'tank', ['#7a1f33', '#5a1424']);
+    svg = restop(svg, 'band', ['#9a2a44', '#5a1424']);
+    svg = recolor(svg, { '#e9fff0': '#e8b93a', '#b5f5c5': '#ffd9a0', '#6ee095': '#ffffff' });
+    return decorate(svg, {
+      over: [
+        '<path d="M64 88 V126" stroke="#e8b93a" stroke-width="1.6" stroke-dasharray="1.4 .8"/>',
+        '<path d="M14 112 Q22 98 34 93 M114 112 Q106 98 94 93" stroke="#ffffff" stroke-width="1.6" fill="none"/>',
+        '<path d="M50 86 L56 92 M78 86 L72 92" stroke="#ffffff" stroke-width="1.4"/>',
+      ].join('\n  '),
+    });
+  },
+  'thug-bowling-shirt': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#fbf3dc"/>');
+    svg = restop(svg, 'tank', ['#3fa89c', '#2a7a72']);
+    svg = restop(svg, 'band', ['#1b100a', '#0b0604']);
+    svg = recolor(svg, { '#e9fff0': '#3a2010', '#b5f5c5': '#3a2010', '#6ee095': '#ffffff' });
+    return decorate(svg, {
+      over: [
+        '<path d="M50 86 L58 100 L64 92 L70 100 L78 86" stroke="#2a7a72" stroke-width="1.6" fill="none" stroke-linejoin="round"/>',
+        '<path d="M28 94 V126 M100 94 V126" stroke="#3fa89c" stroke-width="5"/>',
+        '<g transform="translate(36 106)"><ellipse rx="2.2" ry="4.4" fill="#ffffff" stroke="#8a93a3" stroke-width=".6"/><path d="M-1.4 -2.6 H1.4" stroke="#e8443a" stroke-width=".8"/></g>',
+      ].join('\n  '),
+    });
+  },
+  'hoe-leopard-coat': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#f0c070', '#d69a3a', '#9a6a1a'], '<g fill="#3a2410" opacity=".85"><path d="M1 1.4 a1.3 1 0 1 0 2.4 0 M4.6 4.2 a1.2 1 0 1 0 2.2 0"/><circle cx="2.2" cy="1.6" r=".4"/><circle cx="5.7" cy="4.4" r=".4"/></g>');
+    svg = recolor(svg, { '#5a060c': '#5a3a10', '#17131a': '#0b0c0e', '#3d3346': '#2a2d32' });
+    return svg;
+  },
+  'hoe-tie-dye': async () => {
+    let svg = await load('hoe');
+    svg = restop(svg, 'fur', ['#ffb627', '#ff6fb5', '#5ab4ff']);
+    svg = repattern(svg, 'tufts', '<path d="M0 3.5 Q3.5 0 7 3.5 Q3.5 7 0 3.5" stroke="#ffffff" stroke-width=".5" fill="none" opacity=".45"/>');
+    svg = svg.replace(/ filter="url\(#fuzz\)"/g, '');
+    svg = recolor(svg, { '#5a060c': '#7a3a6a', '#17131a': '#f4f2ec', '#3d3346': '#c9c0b2' });
+    return decorate(svg, {
+      over: ['<path d="M20 110 q8 -10 16 0 t16 0 M92 110 q8 -10 16 0" stroke="#7ef29d" stroke-width="1.4" fill="none" opacity=".8"/>'].join('\n  '),
+    });
+  },
+});
+
 await mkdir(outDir, { recursive: true });
 for (const [name, recipe] of Object.entries(recipes)) {
   const svg = await recipe();

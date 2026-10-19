@@ -413,6 +413,101 @@ export const ITEM_COSMETIC_STYLES = [
     released: true,
     items: ['PISTOL'],
   },
+  // The Drop: Street Singles, one-off pieces for the daily picks.
+  {
+    key: 'taxi-hustle-sedan',
+    label: 'Taxi Hustle',
+    description: 'Cab yellow, a checker stripe and a roof light. A Drop look for the Sedan.',
+    released: true,
+    items: ['SEDAN'],
+  },
+  {
+    key: 'two-tone-classic-sedan',
+    label: 'Two-Tone Classic',
+    description: 'Cream over teal with chrome trim and whitewalls. A Drop look for the Sedan.',
+    released: true,
+    items: ['SEDAN'],
+  },
+  {
+    key: 'lime-flake-low-rider',
+    label: 'Lime Flake',
+    description: 'Candy lime metal flake with gold leaf scrolls. A Drop look for the Low-Rider.',
+    released: true,
+    items: ['LOW_RIDER'],
+  },
+  {
+    key: 'hot-flames-low-rider',
+    label: 'Hot Flames',
+    description: 'Gloss black with classic hot-rod flames. A Drop look for the Low-Rider.',
+    released: true,
+    items: ['LOW_RIDER'],
+  },
+  {
+    key: 'pipe-dreams-van',
+    label: 'Pipe Dreams Plumbing',
+    description: 'A plumber\'s work van. Totally legitimate business. A Drop look for the Van.',
+    released: true,
+    items: ['VAN'],
+  },
+  {
+    key: 'flower-power-van',
+    label: 'Flower Power',
+    description: 'Sky blue with big daisies and a peace of mind. A Drop look for the Van.',
+    released: true,
+    items: ['VAN'],
+  },
+  {
+    key: 'tiger-stripe-pistol',
+    label: 'Tiger Stripe',
+    description: 'Orange and black tiger stripes. A Drop finish for the Pistol.',
+    released: true,
+    items: ['PISTOL'],
+  },
+  {
+    key: 'damascus-ak47',
+    label: 'Damascus',
+    description: 'Folded Damascus steel with a dark walnut stock. A Drop finish for the AK-47.',
+    released: true,
+    items: ['AK47'],
+  },
+  {
+    key: 'rust-bucket-shotgun',
+    label: 'Rust Bucket',
+    description: 'Rust, scratches and duct tape. A Drop finish for the Shotgun.',
+    released: true,
+    items: ['SHOTGUN'],
+  },
+  {
+    key: 'bubblegum-tek9',
+    label: 'Bubblegum',
+    description: 'Bubblegum pink with glitter. A Drop finish for the Tek-9.',
+    released: true,
+    items: ['TEK9'],
+  },
+  {
+    key: 'velour-tracksuit-thug',
+    label: 'Velour Tracksuit',
+    description: 'A maroon velour tracksuit with gold zips. A Drop outfit for the Thug.',
+    released: true,
+  },
+  {
+    key: 'bowling-shirt-thug',
+    label: 'Bowling Shirt',
+    description: 'A retro two-tone bowling shirt. A Drop outfit for the Thug.',
+    released: true,
+  },
+  {
+    key: 'leopard-coat-hoe',
+    label: 'Leopard Coat',
+    description: 'A leopard-print coat over a black dress. A Drop outfit for the Hoe.',
+    released: true,
+  },
+  {
+    key: 'tie-dye-hoe',
+    label: 'Tie-Dye',
+    description: 'A tie-dye jacket in sunset swirls. A Drop outfit for the Hoe.',
+    released: true,
+  },
   // The Drop holiday sets: hidden until owned, released by an admin in their season.
   {
     key: 'graveyard-shift-sedan',
@@ -681,6 +776,10 @@ const CREW_OUTFIT_DESCRIPTIONS: Partial<Record<ItemCosmeticStyleKey, string>> = 
   'heartbreaker-hoe': 'A red satin dress with heart-shaped shades and a thorned choker.',
   'block-party-thug': 'A sky-blue track jacket and a bucket hat.',
   'block-party-hoe': 'A bright two-piece with big silver hoops and a mango scrunchie.',
+  'velour-tracksuit-thug': 'A maroon velour tracksuit with gold zips and white piping.',
+  'bowling-shirt-thug': 'A retro two-tone bowling shirt, cream and teal, with a pin stitched on the chest.',
+  'leopard-coat-hoe': 'A leopard-print coat over a little black dress.',
+  'tie-dye-hoe': 'A tie-dye jacket in sunset swirls over a white tee.',
   'obsidian-signal-crew': 'Midnight graphite tailoring, pale cyan signal visors and gold medal detailing earned only from a completed Roll Call.\n',
   'eight-bit': 'Sixteen colours and a lot of squares.',
 };
@@ -745,6 +844,10 @@ export const COLLECTION_COVERAGE: Partial<Record<ItemCosmeticStyleKey, readonly 
   'heartbreaker-hoe': ['HOE'],
   'block-party-thug': ['THUG'],
   'block-party-hoe': ['HOE'],
+  'velour-tracksuit-thug': ['THUG'],
+  'bowling-shirt-thug': ['THUG'],
+  'leopard-coat-hoe': ['HOE'],
+  'tie-dye-hoe': ['HOE'],
 };
 
 /** Whether a collection has authored art for this item or crew type. Classic always does. */

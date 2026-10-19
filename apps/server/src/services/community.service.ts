@@ -660,6 +660,12 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'candy-red',
     'heartbreak-rose',
     'block-party-mango',
+    'money-green',
+    'blood-orange',
+    'steel-silver',
+    'cobalt-blue',
+    'bubblegum-pink',
+    'mustard-yellow',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';

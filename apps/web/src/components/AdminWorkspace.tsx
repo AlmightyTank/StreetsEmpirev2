@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ADMIN_SECTIONS, isCurrent } from '../layouts/gameNav.js';
+import { ADMIN_SECTIONS, isCurrent, type NavSection } from '../layouts/gameNav.js';
 
 const PURPOSES: Record<string, string> = {
   'admin-operations': 'Run seasons and live systems',
@@ -9,7 +9,8 @@ const PURPOSES: Record<string, string> = {
   'admin-monitoring': 'Watch health and audit actions',
 };
 
-export function AdminWorkspace({ pathname }: { pathname: string }) {
+/** `sections` is what the viewer's staff role may open; all of them by default. */
+export function AdminWorkspace({ pathname, sections = ADMIN_SECTIONS }: { pathname: string; sections?: readonly NavSection[] }) {
   return (
     <nav className="se-admin-workspace" aria-label="Admin workspace">
       <div className="se-admin-workspace__intro" aria-hidden="true">
@@ -17,7 +18,7 @@ export function AdminWorkspace({ pathname }: { pathname: string }) {
         <span>Restricted operator tools</span>
       </div>
       <div className="se-admin-workspace__rail">
-        {ADMIN_SECTIONS.map((section) => {
+        {sections.map((section) => {
           const active = section.pages.some((page) => isCurrent(page, pathname));
           const destination = section.pages[0]!;
           return (

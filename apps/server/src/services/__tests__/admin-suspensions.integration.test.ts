@@ -156,11 +156,15 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin suspensions and pla
     expect(onAdmin.statusCode, onAdmin.body).toBe(409);
     expect(onAdmin.json().error.code).toBe('ADMIN_SELF_ACTION');
 
-    await post(`/api/admin/accounts/${other.id}/admin`, { reason: 'Temporary admin for this test', isAdmin: true });
+    // Staff below the actor keep their role until it is taken away; an equal rank is refused outright.
+    await post(`/api/admin/accounts/${other.id}/staff-role`, { reason: 'Temporary mod for this test', role: 'MOD' });
+    const otherStaff = await post(`/api/admin/accounts/${other.id}/suspend`, { reason: 'Staff are not suspended', length: '1d' });
+    expect(otherStaff.statusCode, otherStaff.body).toBe(409);
+    expect(otherStaff.json().error.code).toBe('ADMIN_SUSPENSION');
+    await app.prisma.account.update({ where: { id: other.id }, data: { staffRole: 'ADMIN' } });
     const otherAdmin = await post(`/api/admin/accounts/${other.id}/suspend`, { reason: 'Admins are not suspended', length: '1d' });
-    expect(otherAdmin.statusCode, otherAdmin.body).toBe(409);
-    expect(otherAdmin.json().error.code).toBe('ADMIN_SUSPENSION');
-    await post(`/api/admin/accounts/${other.id}/admin`, { reason: 'Test finished with the role', isAdmin: false });
+    expect(otherAdmin.json().error.code).toBe('STAFF_RANK');
+    await app.prisma.account.update({ where: { id: other.id }, data: { staffRole: null } });
 
     await post(`/api/admin/accounts/${other.id}/deactivate`, { reason: 'Shut down for this test' });
     const inactive = await post(`/api/admin/accounts/${other.id}/suspend`, { reason: 'Already kept out', length: '1d' });

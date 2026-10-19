@@ -63,7 +63,12 @@ model Account {
   lastLoginAt DateTime?
 
   isActive     Boolean @default(true)
+  /// Kept equal to "staffRole is FOUNDER or ADMIN" by a database trigger and CHECK
+  /// (see the staff_roles migration). Writing isAdmin alone still works: true makes
+  /// the account ADMIN, false takes ADMIN away. New code reads and writes staffRole.
   isAdmin      Boolean @default(false)
+  /// Null for players. Set from Admin → Staff; FOUNDER only from the console.
+  staffRole    StaffRole?
   betaApproved Boolean @default(false)
 
   /// 0.3.0-B. A timed suspension. The account signs back in on its own once this
@@ -131,8 +136,45 @@ model Account {
   /// When the player last changed their own pimp name. Null until the first change, which is free.
   usernameChangedAt                DateTime?
   usernameChanges                  AccountUsernameChange[]
+  staffRoleChanges                 StaffRoleChange[]                 @relation("StaffRoleTarget")
+  staffRoleChangesMade             StaffRoleChange[]                 @relation("StaffRoleActor")
 
   @@index([registeredIp, createdAt])
+  @@index([staffRole])
+}
+
+/// Staff ranks, highest first. Discord roles and forum groups follow these.
+enum StaffRole {
+  FOUNDER
+  ADMIN
+  MOD
+  JR_MOD
+  HELPER
+}
+
+/// Every staff role change. Unlike AdminAuditLog it is never purged by audit retention,
+/// so the Staff page can always say who was staff and who made them so.
+model StaffRoleChange {
+  id String @id @default(cuid())
+
+  accountId String?
+  account   Account? @relation("StaffRoleTarget", fields: [accountId], references: [id], onDelete: SetNull)
+  username  String
+
+  actorAccountId String?
+  actor          Account? @relation("StaffRoleActor", fields: [actorAccountId], references: [id], onDelete: SetNull)
+  actorUsername  String
+
+  fromRole StaffRole?
+  toRole   StaffRole?
+  reason   String
+  /// GAME (Admin → Staff), DISCORD (/staff) or CONSOLE (npm run admin).
+  source   String
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
 }
 
 /// Every pimp name an account has had, so staff can tell who a player used to be.

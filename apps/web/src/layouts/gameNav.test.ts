@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADMIN_SECTIONS, DEFAULT_TABS, filterNavSections, isCurrent, newPlayerSectionsFor, SECTIONS } from './gameNav.js';
+import { ADMIN_SECTIONS, adminSectionsFor, DEFAULT_TABS, filterNavSections, isCurrent, newPlayerSectionsFor, SECTIONS } from './gameNav.js';
 
 const pages = SECTIONS.flatMap((section) => section.pages);
 const page = (key: string) => {
@@ -58,7 +58,7 @@ describe('admin workspace navigation', () => {
     expect(ADMIN_SECTIONS.map((section) => section.title)).toEqual([
       'Admin · Operations', 'Admin · Players', 'Admin · Economy', 'Admin · Content', 'Admin · Monitoring',
     ]);
-    expect(adminPages).toHaveLength(25);
+    expect(adminPages).toHaveLength(26);
     expect(new Set(adminPages.map((item) => item.key)).size).toBe(adminPages.length);
     expect(new Set(adminPages.map((item) => item.to)).size).toBe(adminPages.length);
   });
@@ -71,6 +71,17 @@ describe('admin workspace navigation', () => {
 
   it('does not put restricted admin destinations in ordinary player sections', () => {
     expect(SECTIONS.flatMap((section) => section.pages).some((page) => page.to.startsWith('/game/admin'))).toBe(false);
+  });
+
+  it('shows each staff role only the admin pages it can use', () => {
+    const keys = (role: Parameters<typeof adminSectionsFor>[0]) => adminSectionsFor(role).flatMap((section) => section.pages.map((page) => page.key));
+    expect(keys(null)).toEqual([]);
+    expect(keys('FOUNDER')).toHaveLength(adminPages.length);
+    expect(keys('ADMIN')).toHaveLength(adminPages.length);
+    expect(keys('MOD')).toEqual(['admin-accounts', 'admin-staff', 'admin-reports', 'admin-bugs']);
+    expect(keys('JR_MOD')).toEqual(['admin-accounts', 'admin-staff', 'admin-reports', 'admin-bugs']);
+    expect(keys('HELPER')).toEqual(['admin-accounts', 'admin-staff', 'admin-bugs']);
+    expect(adminSectionsFor('HELPER').map((section) => section.id)).toEqual(['admin-players']);
   });
 });
 
